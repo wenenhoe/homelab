@@ -1,0 +1,72 @@
+services:
+  mc:
+    image: itzg/minecraft-server
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    ports:
+      - 25565:25565
+    #  - 25575:25575 # RCON port
+    environment:
+      EULA: "TRUE"
+      INIT_MEMORY: 1G
+      MAX_MEMORY: 2G
+      TYPE: FABRIC
+      VERSION: 1.21.11
+      MOTD: |
+        §l§6🎣 My Forever World 🏹§r
+        A %TYPE% server on %VERSION%
+      MODRINTH_LOADER: fabric
+      MODRINTH_DOWNLOAD_DEPENDENCIES: required
+      MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: beta # "release"
+      MODRINTH_MODPACK: sop # "fabulously-optimized"
+      MODRINTH_PROJECTS: |
+        fabric-api
+        vanilla-permissions
+        luckperms
+        jade
+        replanting-crops
+        tree-harvester
+        recast
+        always-a-wither-skull
+        grind-enchantments
+        tax-free-levels
+        noexpensive
+        revault
+        invview
+        armor-poser
+        no-enderman-grief
+    volumes:
+      # attach the relative directory 'data' to the container's /data path
+      - ./data:/data
+  bluemap:
+    image: ghcr.io/bluemap-minecraft/bluemap
+    restart: always
+    command: -r -u -w
+    networks:
+      - caddy-proxy
+    expose:
+      - 8100
+    volumes:
+      - ./bluemap/config:/app/config
+      - ./bluemap/web:/app/web
+      - ./bluemap/data:/app/data
+      - ./data/world:/app/world
+  backups:
+    image: itzg/mc-backup
+    restart: always
+    depends_on:
+      mc:
+        condition: service_healthy
+    environment:
+      BACKUP_INTERVAL: 1d
+      RCON_HOST: mc
+      INITIAL_DELAY: 0
+      PAUSE_IF_NO_PLAYERS: true
+      PLAYERS_ONLINE_CHECK_INTERVAL: 5m
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+networks:
+  caddy-proxy:
+    external: true

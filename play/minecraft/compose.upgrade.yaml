@@ -1,0 +1,11 @@
+services:
+  test-upgrade:
+    extends:
+      file: compose.yaml
+      service: mc
+    volumes: !reset
+      - /tmp/mc-upgrade-check:/data
+    environment:
+      SETUP_ONLY: "true"
+      VERSION: ${VERSION}
+  bluemap: !reset null

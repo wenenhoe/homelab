@@ -1,0 +1,11 @@
+services:
+  bentopdf:
+    image: ghcr.io/alam00000/bentopdf-simple:latest
+    expose:
+      - 8080
+    restart: unless-stopped
+    networks:
+      - nginx-proxy
+networks:
+  nginx-proxy:
+    external: true

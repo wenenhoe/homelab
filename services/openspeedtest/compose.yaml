@@ -1,0 +1,12 @@
+services:
+  openspeedtest:
+    restart: unless-stopped
+    image: openspeedtest/latest
+    expose:
+      - 3000  # HTTP Port
+      - 3001  # HTTPS Port
+    networks:
+      - nginx-proxy
+networks:
+  nginx-proxy:
+    external: true

@@ -1,0 +1,21 @@
+services:
+  cobalt:
+    image: ghcr.io/imputnet/cobalt:latest
+    init: true
+    read_only: true
+    restart: unless-stopped
+    expose:
+      - 9000
+    environment:
+      # for tunneling functionality
+      API_URL: ${COBALT_API_URL}
+      # to use cookies for fetching data from services,
+      # uncomment next line & volumes section
+      # COOKIE_PATH: "/cookies.json"
+      # volumes: 
+      # - ./cookies.json:/cookies.json
+    networks:
+      - nginx-proxy
+networks:
+  nginx-proxy:
+    external: true

@@ -1,0 +1,32 @@
+services:
+  kms-app:
+    image: 11notes/kms:1.0
+    environment:
+      TZ: ${TIMEZONE}
+    volumes:
+      - ./data:/kms/var
+    networks:
+      - frontend
+    ports:
+      - 1688:1688/tcp
+    restart: always
+  kms-gui:
+    image: 11notes/kms-gui:1.0
+    depends_on:
+      kms-app:
+        condition: service_healthy
+        restart: true
+    environment:
+      TZ: ${TIMEZONE}
+    volumes:
+      - ./data:/kms/var
+    networks:
+      - frontend
+      - nginx-proxy
+    expose:
+      - 3000
+    restart: always
+networks:
+  frontend: {}
+  nginx-proxy:
+    external: true

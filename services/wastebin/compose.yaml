@@ -1,0 +1,16 @@
+services:
+  wastebin:
+    image: quxfoo/wastebin:latest
+    restart: always
+    expose:
+      - 8088
+    user: "1000:1000" # Formatted as UID:GID
+    environment:
+      - WASTEBIN_DATABASE_PATH=/data/state.db
+    volumes:
+      - ./data:/data
+    networks:
+      - nginx-proxy
+networks:
+  nginx-proxy:
+    external: true

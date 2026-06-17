@@ -1,6 +1,6 @@
 services:
   caddy:
-    image: caddy:latest
+    image: caddy-digitalocean:latest
     container_name: caddy
     restart: unless-stopped
     ports:

@@ -1,0 +1,44 @@
+# Global options block
+{
+    # Define issuers globally with public resolvers
+    cert_issuer acme {
+        dns digitalocean {env.DO_API_TOKEN}
+        resolvers 1.1.1.1 8.8.8.8
+    }
+}
+
+api.cobalt.svc.example.com {
+	reverse_proxy cobalt:9000
+}
+
+bentopdf.svc.example.com {
+	reverse_proxy bentopdf:8080
+}
+
+dashy.svc.example.com {
+	reverse_proxy dashy:8080
+}
+
+dockge.svc.example.com {
+	reverse_proxy dockge:5001
+}
+
+kms.svc.example.com {
+	reverse_proxy kms-gui:3000
+}
+
+shlink.svc.example.com {
+	reverse_proxy shlink-web-client:8080
+}
+
+short.svc.example.com {
+	reverse_proxy shlink:8080
+}
+
+speedtest.svc.example.com {
+	reverse_proxy openspeedtest:3000
+}
+
+wastebin.svc.example.com {
+	reverse_proxy wastebin:8088
+}

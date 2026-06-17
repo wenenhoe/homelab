@@ -19,7 +19,7 @@ services:
       retries: 3
       start_period: 30s
     networks:
-      - nginx-proxy
+      - caddy-proxy
 networks:
-  nginx-proxy:
+  caddy-proxy:
     external: true

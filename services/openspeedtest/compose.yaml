@@ -6,7 +6,7 @@ services:
       - 3000  # HTTP Port
       - 3001  # HTTPS Port
     networks:
-      - nginx-proxy
+      - caddy-proxy
 networks:
-  nginx-proxy:
+  caddy-proxy:
     external: true

@@ -22,11 +22,11 @@ services:
       - ./data:/kms/var
     networks:
       - frontend
-      - nginx-proxy
+      - caddy-proxy
     expose:
       - 3000
     restart: always
 networks:
   frontend: {}
-  nginx-proxy:
+  caddy-proxy:
     external: true

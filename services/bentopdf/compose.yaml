@@ -5,7 +5,7 @@ services:
       - 8080
     restart: unless-stopped
     networks:
-      - nginx-proxy
+      - caddy-proxy
 networks:
-  nginx-proxy:
+  caddy-proxy:
     external: true

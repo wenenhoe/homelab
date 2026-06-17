@@ -10,7 +10,7 @@ services:
     volumes:
       - ./data:/data
     networks:
-      - nginx-proxy
+      - caddy-proxy
 networks:
-  nginx-proxy:
+  caddy-proxy:
     external: true

@@ -15,7 +15,7 @@ services:
       # volumes: 
       # - ./cookies.json:/cookies.json
     networks:
-      - nginx-proxy
+      - caddy-proxy
 networks:
-  nginx-proxy:
+  caddy-proxy:
     external: true

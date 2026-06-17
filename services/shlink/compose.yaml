@@ -5,7 +5,7 @@ services:
     expose:
       - 8080
     networks:
-      - nginx-proxy
+      - caddy-proxy
     environment:
       DEFAULT_DOMAIN: ${APP_URL}
       DEFAULT_BASE_URL_REDIRECT: ${WEB_APP_URL}
@@ -18,10 +18,10 @@ services:
     expose:
       - 8080
     networks:
-      - nginx-proxy
+      - caddy-proxy
     environment:
       SHLINK_SERVER_URL: https://${APP_URL}
       SHLINK_SERVER_API_KEY: ${API_KEY}
 networks:
-  nginx-proxy:
+  caddy-proxy:
     external: true

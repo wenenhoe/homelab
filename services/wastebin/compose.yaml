@@ -4,7 +4,7 @@ services:
     restart: always
     expose:
       - 8088
-    user: "1000:1000" # Formatted as UID:GID
+    user: 1000:1000 # Formatted as UID:GID
     environment:
       - WASTEBIN_DATABASE_PATH=/data/state.db
     volumes:

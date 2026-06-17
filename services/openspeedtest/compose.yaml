@@ -3,8 +3,8 @@ services:
     restart: unless-stopped
     image: openspeedtest/latest
     expose:
-      - 3000  # HTTP Port
-      - 3001  # HTTPS Port
+      - 3000 # HTTP Port
+      - 3001 # HTTPS Port
     networks:
       - caddy-proxy
 networks:

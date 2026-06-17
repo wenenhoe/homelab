@@ -1,7 +1,7 @@
 services:
   dashy:
     image: lissy93/dashy:latest
-    user: "1000:1000"
+    user: 1000:1000
     expose:
       - 8080
     volumes:

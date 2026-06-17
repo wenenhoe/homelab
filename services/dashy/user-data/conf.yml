@@ -38,27 +38,21 @@ sections:
         url: https://opnsense.internal.example.com
         statusCheck: true
         id: 0_1774_opnsense
-      - title: Dockge
+      - title: Dockge (Svc)
         description: Docker Compose stack manager
         url: https://dockge.svc.example.com
         icon: si-docker
         statusCheck: true
         id: 1_1774_dockge
-      - title: Nginx Proxy Manager
-        description: Reverse proxy & SSL management
-        url: https://npm.svc.example.com
-        icon: si-nginxproxymanager
-        statusCheck: true
-        id: 2_1774_nginxproxymanager
-  - name: Game Management
-    icon: fa fa-gamepad
-    items:
-      - title: Dockge
+      - title: Dockge (Play)
         description: Docker Compose stack manager
         url: https://dockge.play.example.com
         icon: si-docker
         statusCheck: true
         id: 0_1431_dockge
+  - name: Game Tools
+    icon: fa fa-gamepad
+    items:
       - title: Bluemap
         description: Minecraft mapping tool
         url: https://bluemap.play.example.com

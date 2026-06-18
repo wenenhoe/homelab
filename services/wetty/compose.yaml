@@ -1,0 +1,18 @@
+services:
+  wetty:
+    image: wettyoss/wetty:latest
+    command:
+      - --base=/
+      - --allow-remote-hosts
+    tty: true
+    working_dir: /usr/src/app
+    expose:
+      - 3000
+    environment:
+      SSHHOST: ${DEFAULT_SSH_HOST}
+      NODE_ENV: production
+    networks:
+      - caddy-proxy
+networks:
+  caddy-proxy:
+    external: true

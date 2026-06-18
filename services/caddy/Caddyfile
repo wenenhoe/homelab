@@ -42,3 +42,7 @@ speedtest.svc.example.com {
 wastebin.svc.example.com {
 	reverse_proxy wastebin:8088
 }
+
+wetty.svc.example.com {
+	reverse_proxy wetty:3000
+}

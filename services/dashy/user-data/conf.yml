@@ -29,6 +29,12 @@ sections:
         icon: si-digitalocean
         url: https://cloud.digitalocean.com/networking/domains/example.com
         id: 2_2558_digitalocean
+      - title: KMS Server
+        description: Windows & Office activation
+        icon: fab fa-microsoft
+        url: https://kms.svc.example.com
+        statusCheck: true
+        id: 3_2558_kmsserver
   - name: Service Management
     icon: fas fa-cubes
     items:
@@ -43,13 +49,19 @@ sections:
         url: https://dockge.svc.example.com
         icon: si-docker
         statusCheck: true
-        id: 1_1774_dockge
+        id: 1_1774_dockgesvc
       - title: Dockge (Play)
         description: Docker Compose stack manager
         url: https://dockge.play.example.com
         icon: si-docker
         statusCheck: true
-        id: 0_1431_dockge
+        id: 2_1774_dockgeplay
+      - title: Wetty
+        description: Terminal in browser
+        icon: fas fa-terminal
+        url: https://wetty.svc.example.com/?host=@
+        statusCheck: true
+        id: 3_1774_wetty
   - name: Game Tools
     icon: fa fa-gamepad
     items:
@@ -58,7 +70,7 @@ sections:
         url: https://bluemap.play.example.com
         icon: hl-bluemap
         statusCheck: true
-        id: 1_1431_bluemap
+        id: 0_939_bluemap
   - name: Tools & Utilities
     icon: fas fa-wrench
     items:
@@ -80,12 +92,6 @@ sections:
         icon: fas fa-file-pdf
         statusCheck: true
         id: 2_1587_bentopdf
-      - title: KMS Server
-        description: Windows & Office activation
-        icon: fab fa-microsoft
-        url: https://kms.svc.example.com
-        statusCheck: true
-        id: 3_1587_kmsserver
   - name: Link Management & Pastebin
     icon: fas fa-link
     items:

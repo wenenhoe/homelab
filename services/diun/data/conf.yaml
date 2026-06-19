@@ -1,0 +1,4 @@
+# Monitor caddy images for custom caddy-digitalocean build
+- name: caddy:builder
+- name: caddy:latest
+

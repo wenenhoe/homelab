@@ -1,6 +1,7 @@
 services:
   wetty:
     image: wettyoss/wetty:latest
+    restart: always
     command:
       - --base=/
       - --allow-remote-hosts

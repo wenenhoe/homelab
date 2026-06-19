@@ -62,8 +62,6 @@ services:
       BACKUP_INTERVAL: 1d
       RCON_HOST: mc
       INITIAL_DELAY: 0
-      PAUSE_IF_NO_PLAYERS: true
-      PLAYERS_ONLINE_CHECK_INTERVAL: 5m
     volumes:
       - ./data:/data:ro
       - ./backups:/backups

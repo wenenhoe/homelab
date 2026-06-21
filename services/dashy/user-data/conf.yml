@@ -74,7 +74,7 @@ sections:
         id: 0_939_bluemap
       - title: Chunkbase
         description: Minecraft seed map
-        icon: ' https://www.chunkbase.com/favicon.ico'
+        icon: https://www.chunkbase.com/favicon.ico
         url: https://www.chunkbase.com/apps/seed-map#seed=4275597651341476839
         id: 1_939_chunkbase
   - name: Tools & Utilities

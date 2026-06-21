@@ -17,7 +17,8 @@ sections:
       - title: Proxmox
         description: Hypervisor
         icon: si-proxmox
-        url: https://pve.example.com:8006
+        url: https://pve.internal.example.com:8006
+        statusCheck: true
         id: 0_2558_proxmox
       - title: Tailscale
         description: Peer-to-peer Mesh VPN

@@ -87,7 +87,7 @@ sections:
         id: 0_1587_speedtest
       - title: Cobalt
         description: Media downloader API
-        url: https://api.cobalt.svc.example.com
+        url: https://cobalt.svc.example.com
         icon: fas fa-download
         statusCheck: true
         id: 1_1587_cobalt

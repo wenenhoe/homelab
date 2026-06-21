@@ -1,4 +1,3 @@
-# Global options block
 {
     # Define issuers globally with public resolvers
     cert_issuer acme {
@@ -7,10 +6,14 @@
     }
 }
 
-bluemap.play.example.com {
-    reverse_proxy bluemap:8100
-}
+*.play.example.com {
+    @bluemap host bluemap.play.example.com
+    handle @bluemap {
+        reverse_proxy bluemap:8100
+    }
 
-dockge.play.example.com {
-    reverse_proxy dockge:5001
+    @dockge host dockge.play.example.com
+    handle @dockge {
+        reverse_proxy dockge:5001
+    }
 }

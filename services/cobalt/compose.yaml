@@ -12,7 +12,7 @@ services:
       # to use cookies for fetching data from services,
       # uncomment next line & volumes section
       # COOKIE_PATH: "/cookies.json"
-      # volumes: 
+      # volumes:
       # - ./cookies.json:/cookies.json
     networks:
       - caddy-proxy

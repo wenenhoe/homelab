@@ -11,7 +11,7 @@ services:
       DEFAULT_BASE_URL_REDIRECT: ${WEB_APP_URL}
       IS_HTTPS_ENABLED: false
       INITIAL_API_KEY: ${API_KEY}
-      # GEOLITE_LICENSE_KEY: 
+      # GEOLITE_LICENSE_KEY:
   shlink-web-client:
     image: shlinkio/shlink-web-client:stable
     restart: unless-stopped

@@ -26,4 +26,3 @@ sudo VERSION="$VERSION" docker --log-level ERROR compose \
   -f compose.yaml \
   -f compose.upgrade.yaml \
   run --rm test-upgrade
-

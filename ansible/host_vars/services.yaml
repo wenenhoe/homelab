@@ -1,0 +1,24 @@
+compose_apps:
+  - name: caddy
+    src_dir: ../../../docker/caddy
+    caddyfile: Caddyfile.services
+    exclude:
+      - Caddyfile.play
+  - name: bentopdf
+    src_dir: ../../../docker/bentopdf
+  - name: cobalt
+    src_dir: ../../../docker/cobalt
+  - name: dashy
+    src_dir: ../../../docker/dashy
+  - name: kms
+    src_dir: ../../../docker/kms
+  - name: openspeedtest
+    src_dir: ../../../docker/openspeedtest
+  - name: shlink
+    src_dir: ../../../docker/shlink
+  - name: wastebin
+    src_dir: ../../../docker/wastebin
+  - name: wetty
+    src_dir: ../../../docker/wetty
+  - name: diun
+    src_dir: ../../../docker/diun

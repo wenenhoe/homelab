@@ -1,3 +1,5 @@
+compose_deploy_dir: /opt/stacks
+
 # Docker install settings
 docker_users:
   - "{{ ansible_user }}"   # adds SSH user to the docker group

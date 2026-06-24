@@ -1,8 +1,9 @@
 ---
-- name: Install Docker
+- name: Install Docker and deploy Compose apps
   hosts: all
   gather_facts: true
 
   roles:
     - role: docker
       become: true
+    - role: docker_compose

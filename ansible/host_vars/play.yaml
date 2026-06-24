@@ -1,0 +1,10 @@
+compose_apps:
+  - name: caddy
+    src_dir: ../../../docker/caddy
+    caddyfile: Caddyfile.play
+    exclude:
+      - Caddyfile.services
+  - name: minecraft
+    src_dir: ../../../docker/minecraft
+  - name: diun
+    src_dir: ../../../docker/diun

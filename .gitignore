@@ -1,5 +1,6 @@
 # Excluded files
 *.env
 *.db
+.secrets
 
 # Excluded directories

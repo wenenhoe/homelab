@@ -30,15 +30,16 @@
     state: absent
   loop: "{{ compose_apps | subelements('exclude', skip_missing=True) }}"
 
-- name: Set up .env from .env.sample (only if .env does not exist)
+- name: Set up .env from .env.example (only if .env does not exist)
   ansible.builtin.copy:
-    src: "{{ compose_deploy_dir }}/{{ item.name }}/.env.sample"
+    src: "{{ compose_deploy_dir }}/{{ item.name }}/.env.example"
     dest: "{{ compose_deploy_dir }}/{{ item.name }}/.env"
     remote_src: true
     force: false          # never overwrites an existing .env
     owner: "{{ ansible_user }}"
     mode: "0600"
   loop: "{{ compose_apps }}"
+  when: item.has_env | default(false)
 
 - name: Pull latest Docker images
   community.docker.docker_compose_v2_pull:

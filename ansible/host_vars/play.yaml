@@ -8,3 +8,4 @@ compose_apps:
     src_dir: ../../../docker/minecraft
   - name: diun
     src_dir: ../../../docker/diun
+    has_env: true

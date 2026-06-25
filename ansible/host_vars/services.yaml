@@ -8,17 +8,22 @@ compose_apps:
     src_dir: ../../../docker/bentopdf
   - name: cobalt
     src_dir: ../../../docker/cobalt
+    has_env: true
   - name: dashy
     src_dir: ../../../docker/dashy
   - name: kms
     src_dir: ../../../docker/kms
+    has_env: true
   - name: openspeedtest
     src_dir: ../../../docker/openspeedtest
   - name: shlink
     src_dir: ../../../docker/shlink
+    has_env: true
   - name: wastebin
     src_dir: ../../../docker/wastebin
   - name: wetty
     src_dir: ../../../docker/wetty
+    has_env: true
   - name: diun
     src_dir: ../../../docker/diun
+    has_env: true

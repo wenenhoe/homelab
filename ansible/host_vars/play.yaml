@@ -1,7 +1,6 @@
 compose_apps:
   - name: caddy
     src_dir: ../../../docker/caddy
-    caddyfile: Caddyfile.play
     exclude:
       - Caddyfile.services
     build: true

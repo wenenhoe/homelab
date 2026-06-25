@@ -5,7 +5,6 @@ shlink_web_url: shlink.svc.example.com
 compose_apps:
   - name: caddy
     src_dir: ../../../docker/caddy
-    caddyfile: Caddyfile.services
     exclude:
       - Caddyfile.play
     build: true

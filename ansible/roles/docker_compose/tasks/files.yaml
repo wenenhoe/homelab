@@ -19,13 +19,13 @@
 
 - name: Copy correct Caddyfile for this host
   ansible.builtin.copy:
-    src: "{{ item.src_dir }}/{{ item.caddyfile }}"
+    src: "{{ item.src_dir }}/Caddyfile.{{ inventory_hostname_short }}"
     dest: "{{ compose_deploy_dir }}/{{ item.name }}/Caddyfile"
     owner: root
     group: root
     mode: "0644"
   loop: "{{ compose_apps }}"
-  when: item.caddyfile is defined   # only runs for apps that have this key
+  when: item.name == "caddy"
 
 - name: Remove excluded files
   ansible.builtin.file:

@@ -4,9 +4,10 @@ services:
     restart: unless-stopped
     tty: true
     stdin_open: true
+    expose:
+      - 25575 # RCON port
     ports:
       - 25565:25565
-    #  - 25575:25575 # RCON port
     environment:
       EULA: "TRUE"
       INIT_MEMORY: 1G

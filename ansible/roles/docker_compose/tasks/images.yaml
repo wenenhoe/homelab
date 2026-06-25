@@ -30,6 +30,8 @@
   when:
     - item is not skipped
     - item.changed
+  loop_control:
+    label: "{{ item.item.name }}"
 
 - name: Restart changed standard apps
   community.docker.docker_compose_v2:
@@ -39,11 +41,5 @@
   when:
     - item is not skipped
     - item.changed
-
-- name: Show deployment results
-  ansible.builtin.debug:
-    var: "{{ item.var }}"
-  loop:
-    - { var: build_result,   label: "Build apps" }
-    - { var: compose_result, label: "Standard apps" }
-  when: (build_result.changed | default(false)) or (compose_result.changed | default(false))
+  loop_control:
+    label: "{{ item.item.name }}"

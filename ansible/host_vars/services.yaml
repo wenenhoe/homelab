@@ -1,3 +1,7 @@
+cobalt_app_url: cobalt.svc.example.com
+shlink_short_url: short.svc.example.com
+shlink_web_url: shlink.svc.example.com
+
 compose_apps:
   - name: caddy
     src_dir: ../../../docker/caddy

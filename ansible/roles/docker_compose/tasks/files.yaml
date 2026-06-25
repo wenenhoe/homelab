@@ -33,14 +33,14 @@
     state: absent
   loop: "{{ compose_apps | subelements('exclude', skip_missing=True) }}"
 
-- name: Set up .env from .env.example (only if .env does not exist)
-  ansible.builtin.copy:
-    src: "{{ compose_deploy_dir }}/{{ item.name }}/.env.example"
+- name: Deploy .env from template
+  ansible.builtin.template:
+    src: "{{ item.name }}.env.j2"
     dest: "{{ compose_deploy_dir }}/{{ item.name }}/.env"
-    remote_src: true
     force: false          # never overwrites an existing .env
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0600"
   loop: "{{ compose_apps }}"
   when: item.has_env | default(false)
+  no_log: true

@@ -1,0 +1,42 @@
+---
+- name: Ensure app deploy directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/{{ item.name }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ compose_apps }}"
+
+- name: Copy compose files and configs to server
+  ansible.builtin.copy:
+    src: "{{ item.src_dir }}/"
+    dest: "{{ compose_deploy_dir }}/{{ item.name }}/"
+    owner: "{{ ansible_user }}"
+    mode: "0644"
+  loop: "{{ compose_apps }}"
+
+- name: Copy correct Caddyfile for this host
+  ansible.builtin.copy:
+    src: "{{ item.src_dir }}/{{ item.caddyfile }}"
+    dest: "{{ compose_deploy_dir }}/{{ item.name }}/Caddyfile"
+    owner: root
+    mode: "0644"
+  loop: "{{ compose_apps }}"
+  when: item.caddyfile is defined   # only runs for apps that have this key
+
+- name: Remove excluded files
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"
+    state: absent
+  loop: "{{ compose_apps | subelements('exclude', skip_missing=True) }}"
+
+- name: Set up .env from .env.example (only if .env does not exist)
+  ansible.builtin.copy:
+    src: "{{ compose_deploy_dir }}/{{ item.name }}/.env.example"
+    dest: "{{ compose_deploy_dir }}/{{ item.name }}/.env"
+    remote_src: true
+    force: false          # never overwrites an existing .env
+    owner: "{{ ansible_user }}"
+    mode: "0600"
+  loop: "{{ compose_apps }}"
+  when: item.has_env | default(false)

@@ -1,10 +1,5 @@
 # Excluded files
 *.env
+*.db
 
 # Excluded directories
-services/dashy/user-data/config-backups/
-services/nginx-proxy-manager/*/
-services/wastebin/data/
-services/kms/data/
-*/diun/*/*.db
-play/minecraft/*/

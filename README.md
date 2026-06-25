@@ -24,3 +24,7 @@ ansible-playbook deploy.yaml --limit services,play
 ```
 - Dry run: `ansible-playbook deploy.yaml --check --diff`
 - Filter roles by tags: `ansible-playbook deploy.yaml --skip-tags "initial-setup"`
+
+## Useful commands
+
+- Stop and remove all containers: `docker stop $(docker ps -q) && docker rm $(docker ps -aq)`

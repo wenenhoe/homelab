@@ -59,9 +59,9 @@ services:
       mc:
         condition: service_healthy
     environment:
-      BACKUP_INTERVAL: 1d
+      CRON_SCHEDULE: "0 4 * * *"  # backup everyday at 4am
+      CRON_BACKUP_UID: "1000"
       RCON_HOST: mc
-      INITIAL_DELAY: 0
     volumes:
       - ./data:/data:ro
       - ./backups:/backups

@@ -3,6 +3,8 @@ compose_apps:
     src_dir: ../../../docker/caddy
     exclude:
       - Caddyfile.services
+      - Caddyfile.play
+    has_env: true
     build: true
   - name: minecraft
     src_dir: ../../../docker/minecraft

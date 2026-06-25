@@ -6,7 +6,9 @@ compose_apps:
   - name: caddy
     src_dir: ../../../docker/caddy
     exclude:
+      - Caddyfile.services
       - Caddyfile.play
+    has_env: true
     build: true
   - name: bentopdf
     src_dir: ../../../docker/bentopdf

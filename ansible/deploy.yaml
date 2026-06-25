@@ -3,6 +3,20 @@
   hosts: all
   gather_facts: true
 
+  vars_prompt:
+    - name: digitalocean_api_key
+      prompt: "Enter the DigitalOcean API Key"
+      private: true
+      confirm: true
+    - name: telegram_token
+      prompt: "Enter the Telegram Token for Diun"
+      private: true
+    - name: telegram_chat_id
+      prompt: "Enter the Telegram Chat ID for Diun"
+      private: true
+    - name: wetty_ssh_host
+      prompt: "Enter the default Wetty SSH Host (user@server)"
+
   roles:
     - role: docker
       become: true

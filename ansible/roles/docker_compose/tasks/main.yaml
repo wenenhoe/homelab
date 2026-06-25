@@ -41,20 +41,35 @@
   loop: "{{ compose_apps }}"
   when: item.has_env | default(false)
 
-- name: Pull latest Docker images
+- name: Pull latest Docker images (standard apps)
   community.docker.docker_compose_v2_pull:
     project_src: "{{ compose_deploy_dir }}/{{ item.name }}"
   loop: "{{ compose_apps }}"
+  when: not (item.build | default(false))
 
-- name: Deploy with Docker Compose
+- name: Build Docker images (build apps)
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ item.name }}"
+    build: always
+    state: present
+  loop: "{{ compose_apps }}"
+  when: item.build | default(false)
+  notify: Restart compose app
+  register: build_result
+
+- name: Deploy with Docker Compose (standard apps)
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ item.name }}"
     state: present
   loop: "{{ compose_apps }}"
-  register: compose_result
+  when: not (item.build | default(false))
   notify: Restart compose app
+  register: compose_result
 
-- name: Show deployment result
+- name: Show deployment results
   ansible.builtin.debug:
-    var: compose_result
-  when: compose_result.changed
+    var: "{{ item.var }}"
+  loop:
+    - { var: build_result,   label: "Build apps" }
+    - { var: compose_result, label: "Standard apps" }
+  when: (build_result.changed | default(false)) or (compose_result.changed | default(false))

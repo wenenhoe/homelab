@@ -4,6 +4,7 @@ compose_apps:
     caddyfile: Caddyfile.play
     exclude:
       - Caddyfile.services
+    build: true
   - name: minecraft
     src_dir: ../../../docker/minecraft
   - name: diun

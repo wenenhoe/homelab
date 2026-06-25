@@ -4,6 +4,7 @@ compose_apps:
     caddyfile: Caddyfile.services
     exclude:
       - Caddyfile.play
+    build: true
   - name: bentopdf
     src_dir: ../../../docker/bentopdf
   - name: cobalt

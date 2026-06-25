@@ -1,6 +1,7 @@
 services:
   kms-app:
     image: 11notes/kms:1.0
+    user: 1000:1000
     environment:
       TZ: ${TIMEZONE}
     volumes:
@@ -12,6 +13,7 @@ services:
     restart: always
   kms-gui:
     image: 11notes/kms-gui:1.0
+    user: 1000:1000
     depends_on:
       kms-app:
         condition: service_healthy

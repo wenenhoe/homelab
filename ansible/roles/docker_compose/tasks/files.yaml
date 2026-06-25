@@ -27,6 +27,16 @@
   loop: "{{ compose_apps }}"
   when: item.name == "caddy"
 
+- name: Ensure app data directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/{{ item.name }}/data"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ compose_apps }}"
+  when: item.name in ["kms", "wastebin"]
+
 - name: Remove excluded files
   ansible.builtin.file:
     path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"

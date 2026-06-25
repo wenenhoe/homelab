@@ -20,7 +20,7 @@
 
 - name: Copy compose files and configs to server
   ansible.builtin.copy:
-    src: "{{ item.src_dir }}/"
+    src: "{{ compose_source_dir }}/{{ item.name }}/"
     dest: "{{ compose_deploy_dir }}/{{ item.name }}/"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"

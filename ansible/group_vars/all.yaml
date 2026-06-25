@@ -1,5 +1,6 @@
 server_timezone: Asia/Singapore
 
+compose_source_dir: ../../../docker
 compose_deploy_dir: /opt/stacks
 
 # Docker install settings

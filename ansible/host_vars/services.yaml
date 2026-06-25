@@ -1,48 +1,43 @@
 ---
+caddy_domain: svc.example.com
+
 cobalt_app_url: cobalt.svc.example.com
 shlink_short_url: short.svc.example.com
 shlink_web_url: shlink.svc.example.com
 
 compose_apps:
   - name: caddy
-    src_dir: ../../../docker/caddy
     has_env: true
     build: true
 
   - name: bentopdf
-    src_dir: ../../../docker/bentopdf
     caddy:
       - host: bentopdf
         upstream: bentopdf:8080
 
   - name: cobalt
-    src_dir: ../../../docker/cobalt
     has_env: true
     caddy:
       - host: cobalt
         upstream: cobalt:9000
 
   - name: dashy
-    src_dir: ../../../docker/dashy
     caddy:
       - host: dashy
         upstream: dashy:8080
 
   - name: kms
-    src_dir: ../../../docker/kms
     has_env: true
     caddy:
       - host: kms
         upstream: kms-gui:3000
 
   - name: openspeedtest
-    src_dir: ../../../docker/openspeedtest
     caddy:
       - host: speedtest
         upstream: openspeedtest:3000
 
   - name: shlink
-    src_dir: ../../../docker/shlink
     has_env: true
     caddy:
       - host: shlink
@@ -51,18 +46,15 @@ compose_apps:
         upstream: shlink:8080
 
   - name: wastebin
-    src_dir: ../../../docker/wastebin
     caddy:
       - host: wastebin
         upstream: wastebin:8088
 
   - name: wetty
-    src_dir: ../../../docker/wetty
     has_env: true
     caddy:
       - host: wetty
         upstream: wetty:3000
 
   - name: diun
-    src_dir: ../../../docker/diun
     has_env: true

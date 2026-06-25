@@ -5,7 +5,7 @@ services:
     expose:
       - 8080
     volumes:
-      - ./user-data:/app/user-data
+      - ./data:/app/user-data
     environment:
       - NODE_ENV=production
     restart: unless-stopped

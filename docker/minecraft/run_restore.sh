@@ -3,6 +3,6 @@ set -e
 
 echo "Starting Minecraft restore..."
 
-sudo docker compose \
+docker compose \
   -f compose.restore.yaml \
   run --rm restore-backup

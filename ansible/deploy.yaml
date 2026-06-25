@@ -20,4 +20,6 @@
   roles:
     - role: docker
       become: true
+      tags:
+        - initial-setup
     - role: docker_compose

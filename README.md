@@ -19,7 +19,8 @@ uv tool install ansible-core --with ansible
 - Test connectivity: `ansible all -m ping`
 - Select hosts to run (Single/Multiple):
 ```sh
-ansible-playbook deploy.yml --limit test
-ansible-playbook deploy.yml --limit services,play
+ansible-playbook deploy.yaml --limit test
+ansible-playbook deploy.yaml --limit services,play
 ```
-- Dry run: `ansible-playbook deploy.yml --check --diff`
+- Dry run: `ansible-playbook deploy.yaml --check --diff`
+- Filter roles by tags: `ansible-playbook deploy.yaml --skip-tags "initial-setup"`

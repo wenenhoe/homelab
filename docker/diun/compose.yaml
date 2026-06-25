@@ -6,7 +6,7 @@ services:
       - ./data:/data
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
-      TZ: Asia/Singapore
+      TZ: ${TIMEZONE}
       LOG_LEVEL: info
       LOG_JSON: false
       DIUN_WATCH_WORKERS: 10

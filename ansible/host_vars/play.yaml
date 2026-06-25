@@ -1,13 +1,16 @@
+---
 compose_apps:
   - name: caddy
     src_dir: ../../../docker/caddy
-    exclude:
-      - Caddyfile.services
-      - Caddyfile.play
     has_env: true
     build: true
+
   - name: minecraft
     src_dir: ../../../docker/minecraft
+    caddy:
+      - host: bluemap
+        upstream: bluemap:8100
+
   - name: diun
     src_dir: ../../../docker/diun
     has_env: true

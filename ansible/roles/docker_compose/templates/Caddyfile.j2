@@ -1,0 +1,27 @@
+{
+    # Define issuers globally with public resolvers
+    cert_issuer acme {
+        dns digitalocean {env.DO_API_TOKEN}
+        resolvers 1.1.1.1 8.8.8.8
+    }
+}
+
+{% set routable_apps = compose_apps | selectattr('caddy', 'defined') | list %}
+{% if routable_apps | length > 0 %}
+*.{{ caddy_domain }} {
+{% for app in routable_apps %}
+{% for route in app.caddy %}
+    @{{ route.host }} host {{ route.host }}.{{ caddy_domain }}
+    handle @{{ route.host }} {
+        reverse_proxy {{ route.upstream }}
+    }
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+{% if not loop.last %}
+
+{% endif %}
+{% endfor %}
+}
+{% endif %}

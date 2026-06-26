@@ -91,3 +91,7 @@
     dns_ddns_target: "{{ item.dns_ddns_target }}"
     caddy_domain:    "{{ item.caddy_domain }}"
     compose_apps:    "{{ item.compose_apps }}"
+
+- name: Disable systemd-resolved DNS Stub Listener
+  ansible.builtin.import_tasks:
+    file: network_conf.yaml

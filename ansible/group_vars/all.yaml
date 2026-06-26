@@ -3,6 +3,15 @@ server_timezone: Asia/Singapore
 compose_source_dir: ../../../docker
 compose_deploy_dir: /opt/stacks
 
+# List of compose stack with env
+compose_has_env:
+  - caddy
+  - cobalt
+  - diun
+  - kms
+  - shlink
+  - wetty
+
 # Docker install settings
 docker_users:
   - "{{ ansible_user }}"   # adds SSH user to the docker group

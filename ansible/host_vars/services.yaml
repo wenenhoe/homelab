@@ -7,7 +7,6 @@ shlink_web_url: shlink.svc.example.com
 
 compose_apps:
   - name: caddy
-    has_env: true
     build: true
 
   - name: bentopdf
@@ -16,7 +15,6 @@ compose_apps:
         upstream: bentopdf:8080
 
   - name: cobalt
-    has_env: true
     caddy:
       - host: cobalt
         upstream: cobalt:9000
@@ -27,7 +25,6 @@ compose_apps:
         upstream: dashy:8080
 
   - name: kms
-    has_env: true
     caddy:
       - host: kms
         upstream: kms-gui:3000
@@ -38,7 +35,6 @@ compose_apps:
         upstream: openspeedtest:3000
 
   - name: shlink
-    has_env: true
     caddy:
       - host: shlink
         upstream: shlink-web-client:8080
@@ -51,10 +47,8 @@ compose_apps:
         upstream: wastebin:8088
 
   - name: wetty
-    has_env: true
     caddy:
       - host: wetty
         upstream: wetty:3000
 
   - name: diun
-    has_env: true

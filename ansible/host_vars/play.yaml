@@ -3,7 +3,6 @@ caddy_domain: play.example.com
 
 compose_apps:
   - name: caddy
-    has_env: true
     build: true
 
   - name: minecraft
@@ -12,4 +11,3 @@ compose_apps:
         upstream: bluemap:8100
 
   - name: diun
-    has_env: true

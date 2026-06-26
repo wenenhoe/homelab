@@ -55,7 +55,7 @@
     group: "{{ ansible_user }}"
     mode: "0600"
   loop: "{{ compose_apps }}"
-  when: item.has_env | default(false)
+  when: item.name in compose_has_env
   no_log: true
 
 - name: Remove excluded files

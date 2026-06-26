@@ -23,5 +23,10 @@
 
 {% endif %}
 {% endfor %}
+
+    # Fallback for everything else (Denied)
+    handle {
+        respond "Access Denied" 403
+    }
 }
 {% endif %}

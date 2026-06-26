@@ -1,0 +1,93 @@
+---
+# ---------------------------------------------------------------------------
+# Role: bind9
+# Runs on the dedicated DNS host.  Zone data is scraped from every host in
+# the 'app_hosts' group via hostvars — no zone config lives on the DNS host
+# itself.  host_vars for app hosts are completely unchanged.
+#
+# Variable ownership:
+#   group_vars/all.yaml       — dns_deploy_dir, dns_config_dir
+#   host_vars/<app-host>.yaml — dns_zones, dns_ddns_target,
+#                               caddy_domain, compose_apps
+# ---------------------------------------------------------------------------
+
+- name: Ensure BIND9 configuration directories exist
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: 100
+    group: 101
+    mode: '0755'
+  loop:
+    - "{{ dns_config_dir }}"
+    - "{{ dns_config_dir }}/zones"
+    - "{{ dns_deploy_dir }}/cache"
+    - "{{ dns_deploy_dir }}/records"
+
+- name: Compute DNS serial (Unix epoch)
+  ansible.builtin.set_fact:
+    _dns_serial: "{{ now() | int }}"
+
+# ---------------------------------------------------------------------------
+# Scrape every app host's dns_zones via hostvars and flatten into _all_zones.
+#
+# _all_zones is a list of dicts.  Each entry is one zone and carries all the
+# context the templates need so they don't have to reach into hostvars again:
+#
+#   key             — zone name (e.g. "svc.example.com")
+#   value           — zone SOA/TTL/extra_records with serial already injected
+#   dns_ddns_target — the DDNS target for that host's zone
+#   caddy_domain    — used by zone_db.j2 to build + filter FQDNs
+#   compose_apps    — service list to derive CNAMEs from
+#
+# Using a Jinja2 expression in set_fact to do the double iteration in one
+# task avoids the two-loop YAML problem entirely.
+# ---------------------------------------------------------------------------
+- name: Collect and flatten zones from all app hosts
+  ansible.builtin.set_fact:
+    _all_zones: >-
+      {%- set result = [] -%}
+      {%- for host in groups['app_hosts'] -%}
+        {%- set hv = hostvars[host] -%}
+        {%- for zone_name, zone_data in hv.dns_zones.items() -%}
+          {%- set _ = result.append({
+            'key':             zone_name,
+            'value':           zone_data | combine({'serial': _dns_serial}),
+            'dns_ddns_target': hv.dns_ddns_target,
+            'caddy_domain':    hv.caddy_domain,
+            'compose_apps':    hv.compose_apps
+          }) -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ result }}
+
+- name: Generate named.conf
+  ansible.builtin.template:
+    src: named.conf.j2
+    dest: "{{ dns_config_dir }}/named.conf"
+    owner: 100
+    group: 101
+    mode: '0644'
+
+- name: Generate named.conf.local
+  ansible.builtin.template:
+    src: named.conf.local.j2
+    dest: "{{ dns_config_dir }}/named.conf.local"
+    owner: 100
+    group: 101
+    mode: '0644'
+
+- name: Generate zone database files
+  ansible.builtin.template:
+    src: zone.db.j2
+    dest: "{{ dns_config_dir }}/zones/db.{{ item.key }}"
+    owner: 100
+    group: 101
+    mode: '0644'
+  loop: "{{ _all_zones }}"
+  vars:
+    zone_name:       "{{ item.key }}"
+    zone_data:       "{{ item.value }}"
+    dns_ddns_target: "{{ item.dns_ddns_target }}"
+    caddy_domain:    "{{ item.caddy_domain }}"
+    compose_apps:    "{{ item.compose_apps }}"

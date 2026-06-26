@@ -1,0 +1,36 @@
+; Managed by Ansible
+; Zone: {{ zone_name }}
+$TTL {{ zone_data.ttl }}
+@   IN  SOA ns1.{{ zone_name }}. {{ zone_data.soa_email }} (
+        {{ zone_data.serial }} ; Serial
+        3H                     ; Refresh
+        1H                     ; Retry
+        1W                     ; Expire
+        1D )                   ; Minimum TTL
+
+; ---------------------------------------------------------------------------
+; Static / extra records (NS, glue A, TXT, etc.)
+; ---------------------------------------------------------------------------
+{% for record in zone_data.extra_records | default([]) %}
+{{ "%-12s" | format(record.name) }}  IN  {{ "%-5s" | format(record.type) }}  {{ record.value }}
+{% endfor %}
+
+; ---------------------------------------------------------------------------
+; Auto-generated CNAME records for Caddy-fronted services
+; Source: compose_apps entries that carry a 'caddy' key and whose host
+;         resolves within the zone "{{ zone_name }}" (i.e. host + '.' + caddy_domain).
+;
+; All CNAMEs point at: {{ dns_ddns_target }}
+; ---------------------------------------------------------------------------
+{% for app in compose_apps %}
+{%   if app.caddy is defined %}
+{%     for vhost in app.caddy %}
+{#       Only emit the record when the fully-qualified name sits inside this zone #}
+{%       set fqdn = vhost.host ~ '.' ~ caddy_domain %}
+{%       if fqdn == zone_name or fqdn.endswith('.' ~ zone_name) %}
+{%         set label = vhost.host if fqdn == zone_name else vhost.host %}
+{{ "%-12s" | format(label) }}  IN  CNAME  {{ dns_ddns_target }}
+{%       endif %}
+{%     endfor %}
+{%   endif %}
+{% endfor %}

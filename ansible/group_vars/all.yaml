@@ -5,6 +5,7 @@ compose_deploy_dir: /opt/stacks
 
 # List of compose stack with env
 compose_has_env:
+  - bind9
   - caddy
   - cobalt
   - diun
@@ -29,3 +30,6 @@ docker_upstreams:
   short: "shlink:8080"
   wastebin: "wastebin:8088"
   wetty: "wetty:3000"
+
+dns_deploy_dir: "{{ compose_deploy_dir }}/bind9"
+dns_config_dir: "{{ dns_deploy_dir }}/config"

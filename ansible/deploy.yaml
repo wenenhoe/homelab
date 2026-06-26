@@ -1,8 +1,10 @@
 ---
-- name: Install Docker and deploy Compose apps
+# Play 1 — System setup on all hosts (no containers started yet).
+# Covers docker engine, filesystem, and caddy/bind9 config files.
+# Running on all hosts here is what populates hostvars for play 2.
+- name: System setup
   hosts: all
   gather_facts: true
-
   vars_prompt:
     - name: digitalocean_api_key
       prompt: "Enter the DigitalOcean API Key"
@@ -16,7 +18,7 @@
       private: true
     - name: wetty_ssh_host
       prompt: "Enter the default Wetty SSH Host"
-
+      private: false
   roles:
     - role: docker
       become: true
@@ -26,4 +28,19 @@
       become: true
     - role: caddy
       become: true
+
+# Play 2 — DNS config written and BIND9 reloaded before any container starts.
+# hostvars for all app hosts is already populated from play 1.
+- name: Configure BIND9 on the DNS host
+  hosts: dns
+  gather_facts: false
+  roles:
+    - role: bind9
+      become: true
+
+# Play 3 — Containers start now that DNS is already serving the zones.
+- name: Deploy Compose apps
+  hosts: all
+  gather_facts: false
+  roles:
     - role: docker_compose

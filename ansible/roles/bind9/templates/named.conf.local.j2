@@ -1,0 +1,9 @@
+// Managed by Ansible
+
+{% for zone in _all_zones %}
+zone "{{ zone.key }}" {
+    type master;
+    file "/etc/bind/zones/db.{{ zone.key }}";
+    allow-update { none; };
+};
+{% endfor %}

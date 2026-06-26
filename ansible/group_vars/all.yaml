@@ -15,3 +15,17 @@ compose_has_env:
 # Docker install settings
 docker_users:
   - "{{ ansible_user }}"   # adds SSH user to the docker group
+
+# Map of host to upstream
+docker_upstreams:
+  bentopdf: "bentopdf:8080"
+  bluemap: "bluemap:8100"
+  cobalt: "cobalt:9000"
+  dashy: "dashy:8080"
+  dockge: "dockge:5001"
+  kms: "kms-gui:3000"
+  speedtest: "openspeedtest:3000"
+  shlink: "shlink-web-client:8080"
+  short: "shlink:8080"
+  wastebin: "wastebin:8088"
+  wetty: "wetty:3000"

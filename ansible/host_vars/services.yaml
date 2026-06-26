@@ -12,43 +12,34 @@ compose_apps:
   - name: bentopdf
     caddy:
       - host: bentopdf
-        upstream: bentopdf:8080
 
   - name: cobalt
     caddy:
       - host: cobalt
-        upstream: cobalt:9000
 
   - name: dashy
     caddy:
       - host: dashy
-        upstream: dashy:8080
 
   - name: kms
     caddy:
       - host: kms
-        upstream: kms-gui:3000
 
   - name: openspeedtest
     caddy:
       - host: speedtest
-        upstream: openspeedtest:3000
 
   - name: shlink
     caddy:
       - host: shlink
-        upstream: shlink-web-client:8080
       - host: short
-        upstream: shlink:8080
 
   - name: wastebin
     caddy:
       - host: wastebin
-        upstream: wastebin:8088
 
   - name: wetty
     caddy:
       - host: wetty
-        upstream: wetty:3000
 
   - name: diun

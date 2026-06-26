@@ -13,7 +13,7 @@
 {% for route in app.caddy %}
     @{{ route.host }} host {{ route.host }}.{{ caddy_domain }}
     handle @{{ route.host }} {
-        reverse_proxy {{ route.upstream }}
+        reverse_proxy {{ docker_upstreams[route.host] }}
     }
 {% if not loop.last %}
 

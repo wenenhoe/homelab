@@ -8,6 +8,5 @@ compose_apps:
   - name: minecraft
     caddy:
       - host: bluemap
-        upstream: bluemap:8100
 
   - name: diun

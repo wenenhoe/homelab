@@ -20,10 +20,11 @@ uv tool install ansible-core --with ansible
 - Select hosts to run (Single/Multiple):
 ```sh
 ansible-playbook deploy.yaml --limit test
-ansible-playbook deploy.yaml --limit services,play
+ansible-playbook deploy.yaml --limit test,prod
 ```
 - Dry run: `ansible-playbook deploy.yaml --check --diff`
 - Filter roles by tags: `ansible-playbook deploy.yaml --skip-tags "initial-setup"`
+- Check target host variables: `ansible-inventory -i inventory.ini --host my_host`
 
 ## Useful commands
 

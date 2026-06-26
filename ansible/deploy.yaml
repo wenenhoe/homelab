@@ -24,4 +24,6 @@
         - initial-setup
     - role: file_system
       become: true
+    - role: caddy
+      become: true
     - role: docker_compose

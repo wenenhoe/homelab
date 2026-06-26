@@ -1,9 +1,9 @@
 ---
 caddy_domain: svc.example.com
 
-cobalt_app_url: cobalt.svc.example.com
-shlink_short_url: short.svc.example.com
-shlink_web_url: shlink.svc.example.com
+cobalt_host: cobalt
+shlink_short_host: short
+shlink_web_host: shlink
 
 compose_apps:
   - name: caddy
@@ -15,7 +15,7 @@ compose_apps:
 
   - name: cobalt
     caddy:
-      - host: cobalt
+      - host: "{{ cobalt_host }}"
 
   - name: dashy
     caddy:
@@ -31,8 +31,8 @@ compose_apps:
 
   - name: shlink
     caddy:
-      - host: shlink
-      - host: short
+      - host: "{{ shlink_short_host }}"
+      - host: "{{ shlink_web_host }}"
 
   - name: wastebin
     caddy:

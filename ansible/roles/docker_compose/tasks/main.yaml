@@ -1,8 +1,4 @@
 ---
-- name: Setup stack directory with files
-  ansible.builtin.import_tasks:
-    file: files.yaml
-  become: true
 
 - name: Pull/Build Docker images
   ansible.builtin.import_tasks:

@@ -1,41 +1,4 @@
 ---
-- name: Ensure stacks directory exists
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  loop: "{{ compose_apps }}"
-
-- name: Ensure app deploy directory exists
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.name }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0755"
-  loop: "{{ compose_apps }}"
-
-- name: Ensure app data directory exists
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.name }}/data"
-    state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0755"
-  loop: "{{ compose_apps }}"
-  when: item.name in ["kms", "wastebin"]
-
-- name: Copy compose files and configs to server
-  ansible.builtin.copy:
-    src: "{{ compose_source_dir }}/{{ item.name }}/"
-    dest: "{{ compose_deploy_dir }}/{{ item.name }}/"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
-  loop: "{{ compose_apps }}"
-
 - name: Deploy Caddyfile from template and host_vars
   ansible.builtin.template:
     src: Caddyfile.j2
@@ -45,21 +8,3 @@
     mode: "0644"
   loop: "{{ compose_apps }}"
   when: item.name == "caddy"
-
-- name: Deploy .env from template
-  ansible.builtin.template:
-    src: "{{ item.name }}.env.j2"
-    dest: "{{ compose_deploy_dir }}/{{ item.name }}/.env"
-    force: false          # never overwrites an existing .env
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0600"
-  loop: "{{ compose_apps }}"
-  when: item.name in compose_has_env
-  no_log: true
-
-- name: Remove excluded files
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"
-    state: absent
-  loop: "{{ compose_apps | subelements('exclude', skip_missing=True) }}"

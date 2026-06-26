@@ -45,18 +45,6 @@ sections:
         url: https://opnsense.internal.example.com
         statusCheck: true
         id: 0_1774_opnsense
-      - title: Dockge (Svc)
-        description: Docker Compose stack manager
-        url: https://dockge.svc.example.com
-        icon: si-docker
-        statusCheck: true
-        id: 1_1774_dockgesvc
-      - title: Dockge (Play)
-        description: Docker Compose stack manager
-        url: https://dockge.play.example.com
-        icon: si-docker
-        statusCheck: true
-        id: 2_1774_dockgeplay
       - title: Wetty
         description: Terminal in browser
         icon: fas fa-terminal

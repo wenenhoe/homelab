@@ -1,11 +1,8 @@
+name: cobalt
+
 services:
   cobalt:
-    image: ghcr.io/imputnet/cobalt:latest
-    init: true
-    read_only: true
-    restart: unless-stopped
-    expose:
-      - 9000
+    image: ghcr.io/imputnet/cobalt:11
     environment:
       # for tunneling functionality
       API_URL: ${COBALT_API_URL}
@@ -16,6 +13,11 @@ services:
       # - ./cookies.json:/cookies.json
     networks:
       - caddy-proxy
+    restart: unless-stopped
+    expose:
+      - '9000'
+    init: true
+    read_only: true
 networks:
   caddy-proxy:
     external: true

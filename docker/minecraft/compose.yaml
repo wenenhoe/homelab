@@ -1,13 +1,37 @@
+name: minecraft
+
 services:
-  mc:
-    image: itzg/minecraft-server
-    restart: unless-stopped
-    tty: true
-    stdin_open: true
+  backups:
+    image: itzg/mc-backup:2026.6.2
+    depends_on:
+      mc:
+        condition: service_healthy
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+    environment:
+      CRON_SCHEDULE: "0 4 * * *" # backup everyday at 4am
+      CRON_BACKUP_UID: "1000"
+      RCON_HOST: mc
+    restart: always
+  bluemap:
+    image: ghcr.io/bluemap-minecraft/bluemap:v5
+    volumes:
+      - ./bluemap/config:/app/config
+      - ./bluemap/web:/app/web
+      - ./bluemap/data:/app/data
+      - ./data/world:/app/world
+    networks:
+      - caddy-proxy
+    command: -r -u -w
+    restart: always
     expose:
-      - 25575 # RCON port
-    ports:
-      - 25565:25565
+      - '8100'
+  mc:
+    image: itzg/minecraft-server:java25
+    volumes:
+      # attach the relative directory 'data' to the container's /data path
+      - ./data:/data
     environment:
       EULA: "TRUE"
       INIT_MEMORY: 1G
@@ -37,35 +61,13 @@ services:
         invview
         armor-poser
         no-enderman-grief
-    volumes:
-      # attach the relative directory 'data' to the container's /data path
-      - ./data:/data
-  bluemap:
-    image: ghcr.io/bluemap-minecraft/bluemap
-    restart: always
-    command: -r -u -w
-    networks:
-      - caddy-proxy
+    ports:
+      - '0.0.0.0:25565:25565'
+    restart: unless-stopped
     expose:
-      - 8100
-    volumes:
-      - ./bluemap/config:/app/config
-      - ./bluemap/web:/app/web
-      - ./bluemap/data:/app/data
-      - ./data/world:/app/world
-  backups:
-    image: itzg/mc-backup
-    restart: always
-    depends_on:
-      mc:
-        condition: service_healthy
-    environment:
-      CRON_SCHEDULE: "0 4 * * *"  # backup everyday at 4am
-      CRON_BACKUP_UID: "1000"
-      RCON_HOST: mc
-    volumes:
-      - ./data:/data:ro
-      - ./backups:/backups
+      - '25575' # RCON port
+    stdin_open: true
+    tty: true
 networks:
   caddy-proxy:
     external: true

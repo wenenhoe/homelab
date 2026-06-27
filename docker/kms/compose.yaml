@@ -1,33 +1,35 @@
+name: kms
+
 services:
   kms-app:
     image: 11notes/kms:1.0
-    user: 1000:1000
-    environment:
-      TZ: ${TIMEZONE}
     volumes:
       - ./data:/kms/var
+    environment:
+      TZ: ${TIMEZONE}
+    ports:
+      - '0.0.0.0:1688:1688/tcp'
     networks:
       - frontend
-    ports:
-      - 1688:1688/tcp
     restart: always
+    user: 1000:1000
   kms-gui:
     image: 11notes/kms-gui:1.0
-    user: 1000:1000
     depends_on:
       kms-app:
         condition: service_healthy
         restart: true
-    environment:
-      TZ: ${TIMEZONE}
     volumes:
       - ./data:/kms/var
+    environment:
+      TZ: ${TIMEZONE}
     networks:
       - frontend
       - caddy-proxy
-    expose:
-      - 3000
     restart: always
+    user: 1000:1000
+    expose:
+      - '3000'
 networks:
   frontend: {}
   caddy-proxy:

@@ -1,11 +1,13 @@
+name: bentopdf
+
 services:
   bentopdf:
-    image: ghcr.io/alam00000/bentopdf-simple:latest
-    expose:
-      - 8080
-    restart: unless-stopped
+    image: ghcr.io/alam00000/bentopdf-simple:v2.8.5
     networks:
       - caddy-proxy
+    restart: unless-stopped
+    expose:
+      - '8080'
 networks:
   caddy-proxy:
     external: true

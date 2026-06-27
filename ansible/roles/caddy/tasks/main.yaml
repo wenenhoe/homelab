@@ -23,7 +23,7 @@
 - name: Build custom Caddy image locally using standard Dockerfile
   community.docker.docker_image_build:
     name: caddy-digitalocean
-    tag: latest
+    tag: v1.0
     path: "{{ compose_deploy_dir }}/caddy" # Point context to where the Dockerfile lives
     pull: true
     nocache: true

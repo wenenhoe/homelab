@@ -1,12 +1,13 @@
+name: minecraft
+
 services:
   restore-backup:
-    # Same image as mc, but any base image with bash and tar will work
-    image: itzg/mc-backup
-    user: "1000"
-    restart: no
-    entrypoint: restore-tar-backup
+    image: itzg/mc-backup:2026.6.2
     volumes:
       # Must be same mount as mc service, needs to be writable
       - ./data:/data
       # Must be same mount as backups service, but can be read-only
       - ./backups:/backups:ro
+    entrypoint: restore-tar-backup
+    restart: no
+    user: "1000"

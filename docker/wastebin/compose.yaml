@@ -1,16 +1,18 @@
+name: wastebin
+
 services:
   wastebin:
-    image: quxfoo/wastebin:latest
-    restart: always
-    expose:
-      - 8088
-    user: 1000:1000
-    environment:
-      - WASTEBIN_DATABASE_PATH=/data/state.db
+    image: quxfoo/wastebin:3.7.0
     volumes:
       - ./data:/data
+    environment:
+      - WASTEBIN_DATABASE_PATH=/data/state.db
     networks:
       - caddy-proxy
+    restart: always
+    user: 1000:1000
+    expose:
+      - '8088'
 networks:
   caddy-proxy:
     external: true

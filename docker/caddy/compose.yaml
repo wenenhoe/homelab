@@ -1,23 +1,25 @@
+name: caddy
+
 services:
   caddy:
-    image: caddy-digitalocean:latest  # Image managed by Ansible
-    pull_policy: never                # Local built image only
+    image: caddy-digitalocean:v1.0 # Image managed by Ansible
     container_name: caddy
-    restart: unless-stopped
-    ports:
-      - 80:80
-      - 443:443
-      - 443:443/udp # HTTP/3 support
-    environment:
-      DO_API_TOKEN: ${DO_API_TOKEN}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - ./data:/data
       - ./config:/config
+    environment:
+      DO_API_TOKEN: ${DO_API_TOKEN}
+    ports:
+      - '0.0.0.0:80:80'
+      - '0.0.0.0:443:443'
+      - '0.0.0.0:443:443/udp' # HTTP/3 support
     networks:
       - caddy-proxy
+    restart: unless-stopped
     labels:
       - diun.enable=false
+    pull_policy: never # Local built image only
 networks:
   caddy-proxy:
     name: caddy-proxy

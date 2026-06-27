@@ -1,15 +1,17 @@
+name: bind9
+
 services:
   bind9:
-    image: ubuntu/bind9:latest
-    restart: unless-stopped
-    user: 100:101
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp"
-    environment:
-      - TZ=${TIMEZONE}
+    image: ubuntu/bind9:9.20-25.04_edge
     volumes:
       - ./config:/etc/bind
       - ./cache:/var/cache/bind
       - ./records:/var/lib/bind
-    command: ["named", "-g", "-u", "bind", "-4"]
+    environment:
+      - TZ=${TIMEZONE}
+    ports:
+      - '0.0.0.0:53:53/tcp'
+      - '0.0.0.0:53:53/udp'
+    command: [ "named", "-g", "-u", "bind", "-4" ]
+    restart: unless-stopped
+    user: 100:101

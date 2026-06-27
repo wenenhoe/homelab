@@ -1,13 +1,14 @@
+name: dashy
+
 services:
   dashy:
-    image: lissy93/dashy:latest
-    user: 1000:1000
-    expose:
-      - 8080
+    image: lissy93/dashy:4.x
     volumes:
       - ./data:/app/user-data
     environment:
       - NODE_ENV=production
+    networks:
+      - caddy-proxy
     restart: unless-stopped
     healthcheck:
       test:
@@ -18,8 +19,9 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    networks:
-      - caddy-proxy
+    user: 1000:1000
+    expose:
+      - '8080'
 networks:
   caddy-proxy:
     external: true

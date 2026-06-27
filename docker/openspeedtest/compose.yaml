@@ -1,12 +1,14 @@
+name: openspeedtest
+
 services:
   openspeedtest:
-    restart: unless-stopped
-    image: openspeedtest/latest
-    expose:
-      - 3000 # HTTP Port
-      - 3001 # HTTPS Port
+    image: openspeedtest/latest:v2.0.6
     networks:
       - caddy-proxy
+    restart: unless-stopped
+    expose:
+      - '3000' # HTTP Port
+      - '3001' # HTTPS Port
 networks:
   caddy-proxy:
     external: true

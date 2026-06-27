@@ -3,8 +3,8 @@
 options {
     directory "/var/cache/bind";
 
-    // Only listen on localhost — this is an internal resolver
-    listen-on { 127.0.0.1; };
+    // Only listen on IPv4
+    listen-on { any; };
     listen-on-v6 { none; };
 
     // Do not allow recursion — authoritative only

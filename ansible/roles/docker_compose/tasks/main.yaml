@@ -25,7 +25,7 @@
       'Restart Docker Compose App' if (
         (caddy_config_changes is defined and caddy_config_changes.changed) or
         (
-          (hostvars[groups['dns'][0]]['dns_changed'] and item.name == 'bind9') |
+          (hostvars[groups['dns'][0]]['bind9_dns_changed'] and item.name == 'bind9') |
            default(false)
         )
       ) else []

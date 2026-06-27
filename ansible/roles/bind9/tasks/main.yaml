@@ -26,7 +26,7 @@
 
 - name: Compute DNS serial (Unix epoch)
   ansible.builtin.set_fact:
-    _dns_serial: "{{ now(fmt='%s') | int }}"
+    bind9_dns_serial: "{{ now(fmt='%s') | int }}"
 
 # ---------------------------------------------------------------------------
 # Scrape every app host's dns_zones via hostvars and flatten into _all_zones.
@@ -45,14 +45,14 @@
 # ---------------------------------------------------------------------------
 - name: Collect and flatten zones from all app hosts
   ansible.builtin.set_fact:
-    _all_zones: >-
+    bind9_all_zones: >-
       {%- set result = [] -%}
       {%- for host in groups['app_hosts'] -%}
         {%- set hv = hostvars[host] -%}
         {%- for zone_name, zone_data in hv.dns_zones.items() -%}
           {%- set _ = result.append({
             'key':             zone_name,
-            'value':           zone_data | combine({'serial': _dns_serial}),
+            'value':           zone_data | combine({'serial': bind9_dns_serial}),
             'dns_ddns_target': hv.dns_ddns_target,
             'caddy_domain':    hv.caddy_domain,
             'compose_apps':    hv.compose_apps
@@ -68,7 +68,7 @@
     owner: 100
     group: 101
     mode: '0644'
-  register: r_named_conf
+  register: bind9_named_conf
 
 - name: Generate named.conf.local
   ansible.builtin.template:
@@ -77,7 +77,7 @@
     owner: 100
     group: 101
     mode: '0644'
-  register: r_named_local
+  register: bind9_named_local
 
 # ---------------------------------------------------------------------------
 # Smart zone-file deployment — ignore serial changes in the diff so we don't
@@ -99,13 +99,13 @@
     owner: 100
     group: 101
     mode: '0644'
-  loop: "{{ _all_zones }}"
+  loop: "{{ bind9_all_zones }}"
   vars:
-    zone_name:       "{{ item.key }}"
-    zone_data:       "{{ item.value }}"
+    zone_name: "{{ item.key }}"
+    zone_data: "{{ item.value }}"
     dns_ddns_target: "{{ item.dns_ddns_target }}"
-    caddy_domain:    "{{ item.caddy_domain }}"
-    compose_apps:    "{{ item.compose_apps }}"
+    caddy_domain: "{{ item.caddy_domain }}"
+    compose_apps: "{{ item.compose_apps }}"
 
 - name: Diff zone files ignoring serial line
   ansible.builtin.shell: |
@@ -131,8 +131,8 @@
     fi
   args:
     executable: /bin/bash
-  loop: "{{ _all_zones }}"
-  register: r_zone_diff
+  loop: "{{ bind9_all_zones }}"
+  register: bind9_zone_diff
   changed_when: false   # purely a read — the copy task below owns the change signal
 
 - name: Promote new zone file when content has changed
@@ -142,24 +142,24 @@
     cp -a "$new" "$live"
   args:
     executable: /bin/bash
-  loop: "{{ r_zone_diff.results }}"
+  loop: "{{ bind9_zone_diff.results }}"
   when: item.stdout in ['DIFFERENT', 'NO_LIVE_FILE']
-  register: r_zone_promote
+  register: bind9_zone_promote
   changed_when: true
 
 - name: Remove temp zone files
   ansible.builtin.file:
     path: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
     state: absent
-  loop: "{{ _all_zones }}"
+  loop: "{{ bind9_all_zones }}"
 
 - name: Set a consolidated DNS change flag
   ansible.builtin.set_fact:
-    dns_changed: >-
+    bind9_dns_changed: >-
       {{
-        r_named_conf.changed or
-        r_named_local.changed or
-        (r_zone_promote.results
+        bind9_named_conf.changed or
+        bind9_named_local.changed or
+        (bind9_zone_promote.results
          | default([])
          | selectattr('changed', 'equalto', true)
          | list | length > 0)

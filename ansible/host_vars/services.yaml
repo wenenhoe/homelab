@@ -60,5 +60,5 @@ dns_zones:
     soa_email: "hostmaster.example.com."
     serial: 2024010101   # overwritten at render time by the role
     extra_records:
-      - { name: "@",   type: NS, value: "ns1.{{ caddy_domain }}." }
-      - { name: "ns1", type: A,  value: "127.0.0.1" }
+      - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
+      - { name: "ns1", type: A, value: "127.0.0.1" }

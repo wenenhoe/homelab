@@ -1,6 +1,6 @@
 // Managed by Ansible
 
-{% for zone in _all_zones %}
+{% for zone in bind9_all_zones %}
 zone "{{ zone.key }}" {
     type master;
     file "/etc/bind/zones/db.{{ zone.key }}";

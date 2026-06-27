@@ -68,6 +68,7 @@
     owner: 100
     group: 101
     mode: '0644'
+  register: r_named_conf
 
 - name: Generate named.conf.local
   ansible.builtin.template:
@@ -76,11 +77,25 @@
     owner: 100
     group: 101
     mode: '0644'
+  register: r_named_local
 
-- name: Generate zone database files
+# ---------------------------------------------------------------------------
+# Smart zone-file deployment — ignore serial changes in the diff so we don't
+# reload BIND on every run just because the epoch serial ticked forward.
+#
+# Strategy:
+#   1. Render the template into a side-car temp file (.new) on the remote.
+#   2. Strip the serial line from both the .new file and the live file (if it
+#      exists) and compare the remainder with diff.
+#   3. Only overwrite the live file (and mark changed) when the non-serial
+#      content actually differs.
+#   4. Remove the temp file regardless.
+# ---------------------------------------------------------------------------
+
+- name: Render zone files to temp path for diffing
   ansible.builtin.template:
     src: zone.db.j2
-    dest: "{{ dns_config_dir }}/zones/db.{{ item.key }}"
+    dest: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
     owner: 100
     group: 101
     mode: '0644'
@@ -91,6 +106,64 @@
     dns_ddns_target: "{{ item.dns_ddns_target }}"
     caddy_domain:    "{{ item.caddy_domain }}"
     compose_apps:    "{{ item.compose_apps }}"
+
+- name: Diff zone files ignoring serial line
+  ansible.builtin.shell: |
+    live="{{ dns_config_dir }}/zones/db.{{ item.key }}"
+    new="${live}.new"
+
+    strip_serial() {
+      # Removes the line that contains only digits followed by " ; Serial"
+      # Matches the SOA serial comment format produced by zone.db.j2:
+      #   "        1234567890 ; Serial"
+      sed '/^[[:space:]]*[0-9]\+[[:space:]]*;[[:space:]]*Serial/Id' "$1"
+    }
+
+    if [ ! -f "$live" ]; then
+      echo "NO_LIVE_FILE"
+      exit 0
+    fi
+
+    if diff <(strip_serial "$live") <(strip_serial "$new") > /dev/null 2>&1; then
+      echo "SAME"
+    else
+      echo "DIFFERENT"
+    fi
+  args:
+    executable: /bin/bash
+  loop: "{{ _all_zones }}"
+  register: r_zone_diff
+  changed_when: false   # purely a read — the copy task below owns the change signal
+
+- name: Promote new zone file when content has changed
+  ansible.builtin.shell: |
+    new="{{ dns_config_dir }}/zones/db.{{ item.item.key }}.new"
+    live="{{ dns_config_dir }}/zones/db.{{ item.item.key }}"
+    cp -a "$new" "$live"
+  args:
+    executable: /bin/bash
+  loop: "{{ r_zone_diff.results }}"
+  when: item.stdout in ['DIFFERENT', 'NO_LIVE_FILE']
+  register: r_zone_promote
+  changed_when: true
+
+- name: Remove temp zone files
+  ansible.builtin.file:
+    path: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
+    state: absent
+  loop: "{{ _all_zones }}"
+
+- name: Set a consolidated DNS change flag
+  ansible.builtin.set_fact:
+    dns_changed: >-
+      {{
+        r_named_conf.changed or
+        r_named_local.changed or
+        (r_zone_promote.results
+         | default([])
+         | selectattr('changed', 'equalto', true)
+         | list | length > 0)
+      }}
 
 - name: Disable DNS Stub Listener and set Docker DNS
   ansible.builtin.import_tasks:

@@ -4,6 +4,7 @@
     project_src: "{{ compose_deploy_dir }}/{{ item.name }}"
   loop: "{{ compose_apps }}"
   when: not (item.build | default(false))
+  notify: Restart Docker Compose App
 
 - name: Build Docker images (build apps)
   community.docker.docker_compose_v2:
@@ -12,34 +13,20 @@
     state: present
   loop: "{{ compose_apps }}"
   when: item.build | default(false)
-  register: build_result
+  notify: Restart Docker Compose App
 
-- name: Deploy with Docker Compose (standard apps)
+- name: Deploy with Docker Compose
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ item.name }}"
     state: present
   loop: "{{ compose_apps }}"
-  when: not (item.build | default(false))
-  register: compose_result
-
-- name: Restart changed build apps
-  community.docker.docker_compose_v2:
-    project_src: "{{ compose_deploy_dir }}/{{ item.item.name }}"
-    state: restarted
-  loop: "{{ build_result.results }}"
-  when:
-    - item is not skipped
-    - item.changed
-  loop_control:
-    label: "{{ item.item.name }}"
-
-- name: Restart changed standard apps
-  community.docker.docker_compose_v2:
-    project_src: "{{ compose_deploy_dir }}/{{ item.item.name }}"
-    state: restarted
-  loop: "{{ compose_result.results }}"
-  when:
-    - item is not skipped
-    - item.changed
-  loop_control:
-    label: "{{ item.item.name }}"
+  notify: >-
+    {{
+      'Restart Docker Compose App' if (
+        (caddy_config_changes is defined and caddy_config_changes.changed) or
+        (
+          (hostvars[groups['dns'][0]]['dns_changed'] and item.name == 'bind9') |
+           default(false)
+        )
+      ) else []
+    }}

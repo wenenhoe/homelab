@@ -7,7 +7,6 @@ shlink_web_host: shlink
 
 compose_apps:
   - name: caddy
-    build: true
 
   - name: bind9
 

@@ -3,7 +3,6 @@ caddy_domain: test.example.com
 
 compose_apps:
   - name: caddy
-    build: true
 
   - name: dashy
     caddy:

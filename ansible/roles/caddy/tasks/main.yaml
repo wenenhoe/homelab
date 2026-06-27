@@ -2,9 +2,29 @@
 - name: Deploy Caddyfile from template and host_vars
   ansible.builtin.template:
     src: Caddyfile.j2
-    dest: "{{ compose_deploy_dir }}/{{ item.name }}/Caddyfile"
+    dest: "{{ compose_deploy_dir }}/caddy/Caddyfile"
     owner: root
     group: root
     mode: "0644"
-  loop: "{{ compose_apps }}"
-  when: item.name == "caddy"
+  register: caddy_config_changes
+
+- name: Create Dockerfile for custom Caddy build
+  ansible.builtin.copy:
+    dest: "{{ compose_deploy_dir }}/caddy/Dockerfile"
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      FROM caddy:builder AS builder
+      RUN xcaddy build --with github.com/caddy-dns/digitalocean
+      FROM caddy:latest
+      COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+
+- name: Build custom Caddy image locally using standard Dockerfile
+  community.docker.docker_image_build:
+    name: caddy-digitalocean
+    tag: latest
+    path: "{{ compose_deploy_dir }}/caddy" # Point context to where the Dockerfile lives
+    pull: true
+    nocache: true
+    dockerfile: Dockerfile

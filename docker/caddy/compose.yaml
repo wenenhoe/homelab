@@ -1,6 +1,7 @@
 services:
   caddy:
-    image: caddy-digitalocean:latest
+    image: caddy-digitalocean:latest  # Image managed by Ansible
+    pull_policy: never                # Local built image only
     container_name: caddy
     restart: unless-stopped
     ports:
@@ -15,13 +16,6 @@ services:
       - ./config:/config
     networks:
       - caddy-proxy
-    build:
-      context: .
-      dockerfile_inline: |
-        FROM caddy:builder AS builder
-        RUN xcaddy build --with github.com/caddy-dns/digitalocean
-        FROM caddy:latest
-        COPY --from=builder /usr/bin/caddy /usr/bin/caddy
     labels:
       - diun.enable=false
 networks:

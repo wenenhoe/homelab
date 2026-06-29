@@ -11,18 +11,34 @@
 #                               caddy_domain, compose_apps
 # ---------------------------------------------------------------------------
 
+- name: Ensure bind group exists
+  ansible.builtin.group:
+    name: bind
+    state: present
+    gid: 9970
+
+- name: Create bind user and assign to bind group
+  ansible.builtin.user:
+    name: bind
+    state: present
+    uid: 9970
+    system: true
+    create_home: false
+    group: bind
+
 - name: Ensure BIND9 configuration directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
-    owner: 100
-    group: 101
+    owner: bind
+    group: bind
     mode: '0755'
   loop:
     - "{{ dns_config_dir }}"
     - "{{ dns_config_dir }}/zones"
     - "{{ dns_deploy_dir }}/cache"
     - "{{ dns_deploy_dir }}/records"
+    - "{{ dns_deploy_dir }}/run"
 
 - name: Compute DNS serial (Unix epoch)
   ansible.builtin.set_fact:
@@ -65,8 +81,8 @@
   ansible.builtin.template:
     src: named.conf.j2
     dest: "{{ dns_config_dir }}/named.conf"
-    owner: 100
-    group: 101
+    owner: bind
+    group: bind
     mode: '0644'
   register: bind9_named_conf
 
@@ -74,8 +90,8 @@
   ansible.builtin.template:
     src: named.conf.local.j2
     dest: "{{ dns_config_dir }}/named.conf.local"
-    owner: 100
-    group: 101
+    owner: bind
+    group: bind
     mode: '0644'
   register: bind9_named_local
 
@@ -96,8 +112,8 @@
   ansible.builtin.template:
     src: zone.db.j2
     dest: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
-    owner: 100
-    group: 101
+    owner: bind
+    group: bind
     mode: '0644'
   loop: "{{ bind9_all_zones }}"
   vars:

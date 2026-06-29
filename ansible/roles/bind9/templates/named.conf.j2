@@ -11,7 +11,9 @@ options {
     recursion no;
     allow-query { any; };
 
-    dnssec-validation auto;
+    // Not using dynamic DNS update
+    // Set to "/var/cache/bind/session.key" if using
+    session-keyfile none;
 };
 
 include "/etc/bind/named.conf.local";

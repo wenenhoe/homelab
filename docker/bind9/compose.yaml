@@ -7,11 +7,12 @@ services:
       - ./config:/etc/bind
       - ./cache:/var/cache/bind
       - ./records:/var/lib/bind
+      - ./run:/run/named
     environment:
       - TZ=${TIMEZONE}
     ports:
       - '0.0.0.0:53:53/tcp'
       - '0.0.0.0:53:53/udp'
-    command: [ "exec", "/usr/sbin/named", "-g", "-4" ] # TODO: Handle new identity [ "-u", "bind" ]
+    command: [ "--args", "dns-server", "-g", "-u", "bind", "-4" ]
     restart: unless-stopped
-    user: 100:101
+    user: bind:bind

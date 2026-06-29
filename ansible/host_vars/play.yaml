@@ -7,6 +7,9 @@ compose_apps:
   - name: minecraft
     caddy:
       - host: bluemap
+    create_dirs:
+      - data
+      - backups
 
   - name: diun
 

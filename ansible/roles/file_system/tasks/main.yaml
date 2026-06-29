@@ -17,15 +17,14 @@
     mode: "0755"
   loop: "{{ compose_apps }}"
 
-- name: Ensure app data directory exists
+- name: Ensure app data directories exist
   ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.name }}/data"
+    path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_apps }}"
-  when: item.name in ["kms", "wastebin"]
+  loop: "{{ compose_apps | subelements('create_dirs', skip_missing=True) }}"
 
 - name: Copy compose files and configs to server
   ansible.builtin.copy:

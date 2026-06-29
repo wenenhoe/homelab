@@ -25,6 +25,8 @@ compose_apps:
   - name: kms
     caddy:
       - host: kms
+    create_dirs:
+      - data
 
   - name: openspeedtest
     caddy:
@@ -38,6 +40,8 @@ compose_apps:
   - name: wastebin
     caddy:
       - host: wastebin
+    create_dirs:
+      - data
 
   - name: wetty
     caddy:

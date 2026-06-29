@@ -4,3 +4,4 @@
 .secrets
 
 # Excluded directories
+.ansible/

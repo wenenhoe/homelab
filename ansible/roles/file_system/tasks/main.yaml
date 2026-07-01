@@ -6,7 +6,6 @@
     owner: root
     group: root
     mode: "0755"
-  loop: "{{ compose_apps }}"
 
 - name: Ensure app deploy directory exists
   ansible.builtin.file:

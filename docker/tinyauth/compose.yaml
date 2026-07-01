@@ -1,0 +1,15 @@
+name: tinyauth
+
+services:
+  tinyauth:
+    image: ghcr.io/tinyauthapp/tinyauth:v5
+    volumes:
+      - ./data:/data
+    env_file:
+      - .env
+    networks:
+      - caddy-proxy
+    restart: unless-stopped
+networks:
+  caddy-proxy:
+    external: true

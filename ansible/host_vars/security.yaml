@@ -1,8 +1,16 @@
 ---
 caddy_domain: sec.example.com
 
+tinyauth_host: sso
+
 compose_apps:
   - name: caddy
+
+  - name: tinyauth
+    caddy:
+      - host: "{{ tinyauth_host }}"
+    create_dirs:
+      - data
 
   - name: diun
 

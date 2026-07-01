@@ -11,6 +11,7 @@ compose_has_env:
   - diun
   - kms
   - shlink
+  - tinyauth
   - wetty
 
 # Docker install settings
@@ -28,6 +29,7 @@ docker_upstreams:
   speedtest: "openspeedtest:3000"
   shlink: "shlink-web-client:8080"
   short: "shlink:8080"
+  sso: "tinyauth:3000"
   wastebin: "wastebin:8088"
   wetty: "wetty:3000"
 

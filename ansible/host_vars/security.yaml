@@ -1,0 +1,25 @@
+---
+caddy_domain: sec.example.com
+
+compose_apps:
+  - name: caddy
+
+  - name: diun
+
+# ---------------------------------------------------------------------------
+# BIND9 — per-host zone config
+# ---------------------------------------------------------------------------
+
+# OPNsense DDNS record this host resolves to.
+dns_ddns_target: security.internal.example.com.
+
+# Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
+# (host + '.' + caddy_domain) fall inside this zone automatically.
+dns_zones:
+  sec.example.com:
+    ttl: 3600
+    soa_email: "hostmaster.example.com."
+    serial: 2024010101   # overwritten at render time by the role
+    extra_records:
+      - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
+      - { name: "ns1", type: A, value: "127.0.0.1" }

@@ -20,6 +20,9 @@ all:
         play:
           ansible_host: play.internal.example.com
           ansible_user: playadmin
+        security:
+          ansible_host: security.internal.example.com
+          ansible_user: secadmin
 
     # Hosts whose dns_zones, compose_apps, caddy_domain, and dns_ddns_target
     # are scraped by the bind9 role.  Add any new app host here.

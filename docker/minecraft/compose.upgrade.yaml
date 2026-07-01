@@ -2,11 +2,14 @@ name: minecraft
 
 services:
   test-upgrade:
-    volumes: !reset
-      - /tmp/mc-upgrade-check:/data
+    volumes:
+      - ./extras:/extras
     environment:
-      SETUP_ONLY: "true"
+      SETUP_ONLY: true
       VERSION: ${VERSION}
-    extends:
-      file: compose.yaml
-      service: mc
+      TYPE: FABRIC
+      MODRINTH_LOADER: fabric
+      MODRINTH_DOWNLOAD_DEPENDENCIES: required
+      MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: beta
+      MODRINTH_MODPACK: simply-optimized-up-to-date
+      MODRINTH_PROJECTS: "@/extras/modrinth-mods.txt"

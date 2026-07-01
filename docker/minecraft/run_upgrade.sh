@@ -23,6 +23,5 @@ echo "Starting test-upgrade with VERSION=${VERSION}..."
 
 # Modify log level to hide the orphan container warning
 VERSION="$VERSION" docker --log-level ERROR compose \
-  -f compose.yaml \
   -f compose.upgrade.yaml \
   run --rm test-upgrade

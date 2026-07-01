@@ -30,8 +30,8 @@ services:
   mc:
     image: itzg/minecraft-server:java25
     volumes:
-      # attach the relative directory 'data' to the container's /data path
       - ./data:/data
+      - ./extras:/extras
     environment:
       EULA: "TRUE"
       INIT_MEMORY: 1G
@@ -44,23 +44,8 @@ services:
       MODRINTH_LOADER: fabric
       MODRINTH_DOWNLOAD_DEPENDENCIES: required
       MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: beta # "release"
-      MODRINTH_MODPACK: sop # "fabulously-optimized"
-      MODRINTH_PROJECTS: |
-        fabric-api
-        vanilla-permissions
-        luckperms
-        jade
-        replanting-crops
-        tree-harvester
-        recast
-        always-a-wither-skull
-        grind-enchantments
-        tax-free-levels
-        noexpensive
-        revault
-        invview
-        armor-poser
-        no-enderman-grief
+      MODRINTH_MODPACK: simply-optimized-up-to-date
+      MODRINTH_PROJECTS: "@/extras/modrinth-mods.txt"
     ports:
       - '0.0.0.0:25565:25565'
     restart: unless-stopped

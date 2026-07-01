@@ -1,0 +1,15 @@
+fabric-api
+vanilla-permissions
+luckperms
+invview
+armor-poser
+revault
+jade
+recast
+replanting-crops
+tree-harvester
+always-a-wither-skull
+no-enderman-grief
+grind-enchantments
+tax-free-levels
+noexpensive

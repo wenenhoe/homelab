@@ -7,12 +7,18 @@
 }
 
 (tinyauth_forwarder) {
-    forward_auth https://sso.sec.example.com {
+    forward_auth https://sso.lan.example.com {
         uri /api/auth/caddy
         copy_headers Remote-User Remote-Name Remote-Email Remote-Groups
     }
 }
 
+{% if compose_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
+sso.lan.example.com {
+    reverse_proxy {{ docker_upstreams['sso'] }}
+}
+
+{% endif %}
 {% set routable_apps = compose_apps | selectattr('caddy', 'defined') | list %}
 {% if routable_apps | length > 0 %}
 *.{{ caddy_domain }} {

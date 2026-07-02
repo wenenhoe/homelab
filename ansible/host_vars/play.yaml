@@ -1,5 +1,5 @@
 ---
-caddy_domain: play.example.com
+caddy_domain: play.lan.example.com
 
 compose_apps:
   - name: caddy
@@ -20,7 +20,7 @@ compose_apps:
 dns_ddns_target: play.internal.example.com.
 
 dns_zones:
-  play.example.com:
+  play.lan.example.com:
     ttl: 3600
     soa_email: "hostmaster.example.com."
     serial: 2024010101   # overwritten at render time by the role

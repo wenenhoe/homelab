@@ -1,5 +1,5 @@
 ---
-caddy_domain: sec.example.com
+caddy_domain: sec.lan.example.com
 
 tinyauth_host: sso
 
@@ -7,8 +7,6 @@ compose_apps:
   - name: caddy
 
   - name: tinyauth
-    caddy:
-      - host: "{{ tinyauth_host }}"
     create_dirs:
       - data
 
@@ -24,7 +22,7 @@ dns_ddns_target: security.internal.example.com.
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.
 dns_zones:
-  sec.example.com:
+  sec.lan.example.com:
     ttl: 3600
     soa_email: "hostmaster.example.com."
     serial: 2024010101   # overwritten at render time by the role

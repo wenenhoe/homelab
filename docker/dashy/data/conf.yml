@@ -9,7 +9,7 @@ pageInfo:
   description: Service Dashboard
   navLinks:
     - title: Dashy
-      path: https://dashy.svc.example.com
+      path: https://dashy.svc.lan.example.com
 sections:
   - name: Infrastructure Management
     icon: fas fa-network-wired
@@ -33,7 +33,7 @@ sections:
       - title: KMS Server
         description: Windows & Office activation
         icon: fab fa-microsoft
-        url: https://kms.svc.example.com
+        url: https://kms.svc.lan.example.com
         statusCheck: true
         id: 3_2558_kmsserver
   - name: Service Management
@@ -48,7 +48,7 @@ sections:
       - title: Wetty
         description: Terminal in browser
         icon: fas fa-terminal
-        url: https://wetty.svc.example.com/?host=@
+        url: https://wetty.svc.lan.example.com/?host=@
         statusCheck: true
         id: 3_1774_wetty
   - name: Game Tools
@@ -56,7 +56,7 @@ sections:
     items:
       - title: Bluemap
         description: Minecraft mapping tool
-        url: https://bluemap.play.example.com
+        url: https://bluemap.play.lan.example.com
         icon: hl-bluemap
         statusCheck: true
         id: 0_939_bluemap
@@ -70,19 +70,19 @@ sections:
     items:
       - title: Speedtest
         description: Local network speed test
-        url: https://speedtest.svc.example.com
+        url: https://speedtest.svc.lan.example.com
         icon: fas fa-tachometer-alt
         statusCheck: true
         id: 0_1587_speedtest
       - title: Cobalt
         description: Media downloader API
-        url: https://cobalt.svc.example.com
+        url: https://cobalt.svc.lan.example.com
         icon: fas fa-download
         statusCheck: true
         id: 1_1587_cobalt
       - title: BentoPDF
         description: PDF tools & utilities
-        url: https://bentopdf.svc.example.com
+        url: https://bentopdf.svc.lan.example.com
         icon: fas fa-file-pdf
         statusCheck: true
         id: 2_1587_bentopdf
@@ -91,19 +91,19 @@ sections:
     items:
       - title: Shlink
         description: URL shortener management UI
-        url: https://shlink.svc.example.com
+        url: https://shlink.svc.lan.example.com
         icon: fas fa-cut
         statusCheck: true
         id: 0_2375_shlink
       - title: Short URL
         description: Public short link endpoint
-        url: https://short.svc.example.com
+        url: https://short.svc.lan.example.com
         icon: fas fa-external-link-alt
         statusCheck: true
         id: 1_2375_shorturl
       - title: Wastebin
         description: Pastebin / snippet sharing
-        url: https://wastebin.svc.example.com
+        url: https://wastebin.svc.lan.example.com
         icon: fas fa-paste
         statusCheck: true
         id: 2_2375_wastebin

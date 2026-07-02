@@ -1,5 +1,5 @@
 ---
-caddy_domain: svc.example.com
+caddy_domain: svc.lan.example.com
 
 cobalt_host: cobalt
 shlink_short_host: short
@@ -59,7 +59,15 @@ dns_ddns_target: services.internal.example.com.
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.
 dns_zones:
-  svc.example.com:
+  lan.example.com:
+    ttl: 3600
+    soa_email: "hostmaster.example.com."
+    serial: 2024010101   # overwritten at render time by the role
+    extra_records:
+      - { name: "@", type: NS, value: "ns1.lan.example.com." }
+      - { name: "ns1", type: A, value: "127.0.0.1" }
+      - { name: "sso", type: CNAME, value: "security.internal.example.com." }
+  svc.lan.example.com:
     ttl: 3600
     soa_email: "hostmaster.example.com."
     serial: 2024010101   # overwritten at render time by the role

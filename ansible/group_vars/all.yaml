@@ -18,6 +18,11 @@ compose_has_env:
 docker_users:
   - "{{ ansible_user }}"   # adds SSH user to the docker group
 
+# List of docker apps to exclude sso
+docker_exclude_sso:
+  - sso
+  - dashy
+
 # Map of host to upstream
 docker_upstreams:
   bentopdf: "bentopdf:8080"

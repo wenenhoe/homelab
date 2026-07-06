@@ -8,6 +8,12 @@ compose_apps:
     create_dirs:
       - data
 
+  - name: lldap
+    caddy:
+      - host: lldap
+    create_dirs:
+      - data
+
   - name: diun
 
 # ---------------------------------------------------------------------------

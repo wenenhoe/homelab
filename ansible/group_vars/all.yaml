@@ -10,6 +10,7 @@ compose_has_env:
   - cobalt
   - diun
   - kms
+  - lldap
   - shlink
   - tinyauth
   - wetty
@@ -31,6 +32,7 @@ docker_upstreams:
   dashy: "dashy:8080"
   dockge: "dockge:5001"
   kms: "kms-gui:3000"
+  lldap: "lldap:17170"
   speedtest: "openspeedtest:3000"
   shlink: "shlink-web-client:8080"
   short: "shlink:8080"

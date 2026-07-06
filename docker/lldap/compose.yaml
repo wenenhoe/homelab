@@ -1,0 +1,19 @@
+name: lldap
+
+services:
+  lldap:
+    image: lldap/lldap:latest-alpine
+    volumes:
+      - ./data:/data
+    env_file:
+      - .env
+    ports:
+      - '0.0.0.0:3890:3890' # For LDAP
+    networks:
+      - caddy-proxy
+    restart: unless-stopped
+    expose:
+      - '17170' # Web front-end
+networks:
+  caddy-proxy:
+    external: true

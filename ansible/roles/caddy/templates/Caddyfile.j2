@@ -7,15 +7,20 @@
 }
 
 (tinyauth_forwarder) {
-    forward_auth https://sso.lan.example.com {
+    forward_auth https://{{ tinyauth_host }}.lan.example.com {
         uri /api/auth/caddy
+        header_up X-Forwarded-Host {host}
+        header_up X-Forwarded-Proto {scheme}
+        header_up X-Forwarded-Uri {uri}
         copy_headers Remote-User Remote-Name Remote-Email Remote-Groups
     }
 }
 
 {% if compose_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
-sso.lan.example.com {
-    reverse_proxy {{ docker_upstreams['sso'] }}
+{{ tinyauth_host }}.lan.example.com {
+    reverse_proxy {{ docker_upstreams['sso'] }} {
+        trusted_proxies 192.168.20.0/24
+    }
 }
 
 {% endif %}

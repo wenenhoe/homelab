@@ -40,3 +40,5 @@ docker_upstreams:
 
 dns_deploy_dir: "{{ compose_deploy_dir }}/bind9"
 dns_config_dir: "{{ dns_deploy_dir }}/config"
+
+tinyauth_host: sso

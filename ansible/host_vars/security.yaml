@@ -1,8 +1,6 @@
 ---
 caddy_domain: sec.lan.example.com
 
-tinyauth_host: sso
-
 compose_apps:
   - name: caddy
 

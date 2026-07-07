@@ -23,6 +23,7 @@ docker_users:
 docker_exclude_sso:
   - sso
   - dashy
+  - lldap
 
 # Map of host to upstream
 docker_upstreams:

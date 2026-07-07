@@ -34,6 +34,12 @@
     mode: "0644"
   loop: "{{ compose_apps }}"
 
+- name: Ensure scripts are executable
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/{{ item.0.name }}/scripts/{{ item.1 }}"
+    mode: "0755"
+  loop: "{{ compose_apps | subelements('scripts', skip_missing=True) }}"
+
 - name: Deploy .env from template
   ansible.builtin.template:
     src: "{{ item.name }}.env.j2"

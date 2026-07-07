@@ -18,6 +18,9 @@ compose_apps:
       - letsencrypt
       - creds
       - certs
+    scripts:
+      - deploy-hook.sh
+      - entrypoint.sh
 
   - name: diun
 

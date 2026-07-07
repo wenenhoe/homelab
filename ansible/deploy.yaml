@@ -11,6 +11,9 @@
       prompt: "Enter the DigitalOcean API Key"
       private: true
       confirm: true
+    - name: letsencrypt_email
+      prompt: "Enter the email for LetsEncrypt"
+      private: false
     - name: telegram_token
       prompt: "Enter the Telegram Token for Diun"
       private: true

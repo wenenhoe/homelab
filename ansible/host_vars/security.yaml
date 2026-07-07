@@ -1,6 +1,8 @@
 ---
 caddy_domain: sec.lan.example.com
 
+lldap_host: lldap
+
 compose_apps:
   - name: caddy
 
@@ -10,9 +12,12 @@ compose_apps:
 
   - name: lldap
     caddy:
-      - host: lldap
+      - host: "{{ lldap_host }}"
     create_dirs:
       - data
+      - letsencrypt
+      - creds
+      - certs
 
   - name: diun
 

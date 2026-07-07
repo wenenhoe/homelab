@@ -1,14 +1,29 @@
 name: lldap
 
 services:
+  certbot:
+    image: certbot/dns-digitalocean:amd64-latest
+    volumes:
+      - ./letsencrypt/conf:/etc/letsencrypt
+      - ./letsencrypt/lib:/var/lib/letsencrypt
+      - ./creds:/creds
+      - ./scripts:/scripts
+      - ./certs:/output-certs
+      - ./scripts/deploy-hook.sh:/etc/letsencrypt/renewal-hooks/deploy/deploy-hook.sh:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    env_file:
+      - .env
+    entrypoint: /scripts/entrypoint.sh
+    restart: unless-stopped
   lldap:
     image: lldap/lldap:latest-alpine
     volumes:
       - ./data:/data
+      - ./certs:/data/certs
     env_file:
       - .env
     ports:
-      - '0.0.0.0:3890:3890' # For LDAP
+      - '0.0.0.0:6360:6360' # For LDAPS (LDAP Over SSL)
     networks:
       - caddy-proxy
     restart: unless-stopped

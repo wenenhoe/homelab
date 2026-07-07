@@ -1,0 +1,6 @@
+---
+- name: Update and Upgrade Servers
+  hosts: all
+  become: true
+  roles:
+    - apt

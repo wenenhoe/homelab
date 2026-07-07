@@ -23,6 +23,10 @@
     - name: wetty_ssh_host
       prompt: "Enter the default Wetty SSH Host"
       private: false
+    - name: tinyauth_ldap_observer_password
+      prompt: "Enter the Tinyauth LDAP Observer password"
+      private: true
+      confirm: true
   roles:
     - role: docker
       tags:

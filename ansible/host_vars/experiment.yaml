@@ -1,5 +1,5 @@
 ---
-caddy_domain: test.example.com
+caddy_domain: "test.{{ main_domain }}"
 
 compose_apps:
   - name: caddy

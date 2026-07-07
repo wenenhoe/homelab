@@ -1,5 +1,5 @@
 ---
-caddy_domain: sec.lan.example.com
+caddy_domain: "sec.{{ main_domain }}"
 
 lldap_host: lldap
 
@@ -29,7 +29,7 @@ compose_apps:
 # ---------------------------------------------------------------------------
 
 # OPNsense DDNS record this host resolves to.
-dns_ddns_target: security.internal.example.com.
+dns_ddns_target: "security.{{ ddns_domain }}."
 
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.

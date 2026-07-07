@@ -1,5 +1,5 @@
 ---
-caddy_domain: play.lan.example.com
+caddy_domain: "play.{{ main_domain }}"
 
 compose_apps:
   - name: caddy
@@ -17,7 +17,7 @@ compose_apps:
 # BIND9 — per-host zone config
 # ---------------------------------------------------------------------------
 
-dns_ddns_target: play.internal.example.com.
+dns_ddns_target: "play.{{ ddns_domain }}."
 
 dns_zones:
   play.lan.example.com:
@@ -27,4 +27,4 @@ dns_zones:
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
-      - { name: "mc", type: CNAME, value: "play.internal.example.com."}
+      - { name: "mc", type: CNAME, value: "{{ dns_ddns_target }}"}

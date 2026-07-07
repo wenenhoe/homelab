@@ -7,7 +7,7 @@
 }
 
 (tinyauth_forwarder) {
-    forward_auth https://{{ tinyauth_host }}.lan.example.com {
+    forward_auth https://{{ tinyauth_host }}.{{ main_domain }} {
         uri /api/auth/caddy
         header_up X-Forwarded-Host {host}
         header_up X-Forwarded-Proto {scheme}
@@ -17,7 +17,7 @@
 }
 
 {% if compose_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
-{{ tinyauth_host }}.lan.example.com {
+{{ tinyauth_host }}.{{ main_domain }} {
     reverse_proxy {{ docker_upstreams['sso'] }} {
         trusted_proxies 192.168.20.0/24
     }

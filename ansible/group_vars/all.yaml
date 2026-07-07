@@ -44,3 +44,6 @@ dns_deploy_dir: "{{ compose_deploy_dir }}/bind9"
 dns_config_dir: "{{ dns_deploy_dir }}/config"
 
 tinyauth_host: sso
+
+main_domain: lan.example.com
+ddns_domain: internal.example.com

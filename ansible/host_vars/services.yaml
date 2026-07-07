@@ -1,5 +1,5 @@
 ---
-caddy_domain: svc.lan.example.com
+caddy_domain: "svc.{{ main_domain }}"
 
 cobalt_host: cobalt
 shlink_short_host: short
@@ -54,7 +54,7 @@ compose_apps:
 # ---------------------------------------------------------------------------
 
 # OPNsense DDNS record this host resolves to.
-dns_ddns_target: services.internal.example.com.
+dns_ddns_target: "services.{{ ddns_domain }}."
 
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.
@@ -64,9 +64,9 @@ dns_zones:
     soa_email: "hostmaster.example.com."
     serial: 2024010101   # overwritten at render time by the role
     extra_records:
-      - { name: "@", type: NS, value: "ns1.lan.example.com." }
+      - { name: "@", type: NS, value: "ns1.{{ main_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
-      - { name: "sso", type: CNAME, value: "security.internal.example.com." }
+      - { name: "sso", type: CNAME, value: "{{ dns_ddns_target }}" }
   svc.lan.example.com:
     ttl: 3600
     soa_email: "hostmaster.example.com."

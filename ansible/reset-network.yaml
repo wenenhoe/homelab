@@ -1,0 +1,16 @@
+---
+- name: Apply Netplan configuration on all servers
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Ensure netplan utility is installed
+      ansible.builtin.command: which netplan
+      register: netplan_check
+      ignore_errors: true
+      changed_when: netplan_check.rc != 0
+    - name: Apply netplan configuration
+      ansible.builtin.command: netplan apply
+      when: netplan_check.rc == 0
+      register: netplan_output
+      changed_when: netplan_output.rc == 0

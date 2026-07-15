@@ -1,0 +1,19 @@
+---
+all:
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/proxmox_vm_servers
+    ansible_become_exe: /usr/bin/sudo.ws
+    # For Ubuntu 26.04, use non-rs sudo. Source: https://askubuntu.com/a/1566915
+
+  children:
+    sos:
+      hosts:
+        services:
+          ansible_host: 192.168.20.3
+          ansible_user: svcadmin
+        play:
+          ansible_host: 192.168.20.4
+          ansible_user: playadmin
+        security:
+          ansible_host: 192.168.20.5
+          ansible_user: secadmin

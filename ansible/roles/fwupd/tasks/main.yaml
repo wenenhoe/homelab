@@ -1,0 +1,38 @@
+---
+- name: Refresh fwupd metadata cache
+  ansible.builtin.command: fwupdmgr refresh
+  register: fwupd_refresh
+  changed_when: '"Updates were found" in fwupd_refresh.stdout'
+  failed_when:
+    - fwupd_refresh.rc != 0
+    - '"no internet" in fwupd_refresh.stderr' # Ignore if offline but cache exists
+
+- name: Check for available firmware upgrades
+  ansible.builtin.command: fwupdmgr get-upgrades --json
+  register: fwupd_updates
+  changed_when: false
+  failed_when: false # rc=2 is normal when no updates are available
+
+- name: Apply firmware updates if available
+  ansible.builtin.command: fwupdmgr update --assume-yes
+  register: fwupd_upgrade
+  when: fwupd_updates.rc == 0
+  changed_when: "'Successfully installed' in fwupd_upgrade.stdout"
+
+- name: Check if system requires a reboot to apply firmware
+  ansible.builtin.shell: |
+    set -o pipefail
+    fwupdmgr get-devices | grep -i "Requires restart"
+  args:
+    executable: /bin/bash
+  register: fwupd_reboot_required
+  changed_when: false
+  failed_when: false
+
+- name: Reboot the machine to apply offline firmware capsules
+  ansible.builtin.reboot:
+    msg: "Rebooting to finalize fwupdmgr firmware installation"
+    connect_timeout: 5
+    reboot_timeout: 600
+    pre_reboot_delay: 5
+  when: fwupd_reboot_required.rc == 0

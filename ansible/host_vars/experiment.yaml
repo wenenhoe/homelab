@@ -1,5 +1,5 @@
 ---
-caddy_domain: "test.{{ main_domain }}"
+caddy_domain: "test.{{ lab_domain }}"
 
 compose_apps:
   - name: caddy

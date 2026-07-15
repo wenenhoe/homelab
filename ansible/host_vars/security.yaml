@@ -1,5 +1,5 @@
 ---
-caddy_domain: "sec.{{ main_domain }}"
+caddy_domain: "sec.{{ lab_domain }}"
 
 lldap_host: lldap
 
@@ -36,15 +36,15 @@ dns_ddns_target: "security.{{ ddns_domain }}."
 dns_zones:
   lan.example.com:
     ttl: 3600
-    soa_email: "hostmaster.example.com."
+    soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101   # overwritten at render time by the role
     extra_records:
-      - { name: "@", type: NS, value: "ns1.{{ main_domain }}." }
+      - { name: "@", type: NS, value: "ns1.{{ lab_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
       - { name: "sso", type: CNAME, value: "{{ dns_ddns_target }}" }
   sec.lan.example.com:
     ttl: 3600
-    soa_email: "hostmaster.example.com."
+    soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101   # overwritten at render time by the role
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }

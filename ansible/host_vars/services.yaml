@@ -1,5 +1,5 @@
 ---
-caddy_domain: "svc.{{ main_domain }}"
+caddy_domain: "svc.{{ lab_domain }}"
 
 cobalt_host: cobalt
 shlink_short_host: short
@@ -61,7 +61,7 @@ dns_ddns_target: "services.{{ ddns_domain }}."
 dns_zones:
   svc.lan.example.com:
     ttl: 3600
-    soa_email: "hostmaster.example.com."
+    soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101   # overwritten at render time by the role
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }

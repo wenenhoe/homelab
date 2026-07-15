@@ -7,6 +7,8 @@
   gather_facts: true
   become: true
   vars_prompt:
+    - name: main_domain
+      prompt: "Enter the main domain"
     - name: digitalocean_api_key
       prompt: "Enter the DigitalOcean API Key"
       private: true

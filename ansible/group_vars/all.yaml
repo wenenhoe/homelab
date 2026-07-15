@@ -47,5 +47,5 @@ dns_config_dir: "{{ dns_deploy_dir }}/config"
 
 tinyauth_host: sso
 
-main_domain: lan.example.com
-ddns_domain: internal.example.com
+lab_domain: "lan.{{ main_domain }}"
+ddns_domain: "internal.{{ main_domain }}"

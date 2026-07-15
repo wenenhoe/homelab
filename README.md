@@ -17,7 +17,15 @@ uv tool install ansible-core --with ansible
 pre-commit install
 ```
 
-## Useful commands
+## Ansible Playbooks
+
+| Playbook File | Inventory | Description |
+| :--- | :--- | :--- |
+| `deploy.yml` | `inventory.yaml` | The master playbook that imports other roles to configure the entire infrastructure. |
+| `maintenance.yml` | `inventory.yaml` | Performs server maintenance activities such as package update. |
+| `reset-network.yml` | `sos-inventory.yaml` | Resets network for entire infrastructure. |
+
+## Basic commands
 
 ### `ansible` commands
 

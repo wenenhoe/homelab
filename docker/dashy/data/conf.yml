@@ -35,6 +35,7 @@ sections:
         icon: fab fa-microsoft
         url: https://kms.svc.lan.example.com
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 3_2558_kmsserver
   - name: Service Management
     icon: fas fa-cubes
@@ -50,6 +51,7 @@ sections:
         icon: fas fa-terminal
         url: https://wetty.svc.lan.example.com/?host=@
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 3_1774_wetty
   - name: Game Tools
     icon: fa fa-gamepad
@@ -59,6 +61,7 @@ sections:
         url: https://bluemap.play.lan.example.com
         icon: hl-bluemap
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 0_939_bluemap
       - title: Chunkbase
         description: Minecraft seed map
@@ -73,6 +76,7 @@ sections:
         url: https://speedtest.svc.lan.example.com
         icon: fas fa-tachometer-alt
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 0_1587_speedtest
       - title: Cobalt
         description: Media downloader API
@@ -85,6 +89,7 @@ sections:
         url: https://bentopdf.svc.lan.example.com
         icon: fas fa-file-pdf
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 2_1587_bentopdf
   - name: Link Management & Pastebin
     icon: fas fa-link
@@ -94,17 +99,20 @@ sections:
         url: https://shlink.svc.lan.example.com
         icon: fas fa-cut
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 0_2375_shlink
       - title: Short URL
         description: Public short link endpoint
         url: https://short.svc.lan.example.com
         icon: fas fa-external-link-alt
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 1_2375_shorturl
       - title: Wastebin
         description: Pastebin / snippet sharing
         url: https://wastebin.svc.lan.example.com
         icon: fas fa-paste
         statusCheck: true
+        statusCheckAcceptCodes: '401'
         id: 2_2375_wastebin
 pages: []

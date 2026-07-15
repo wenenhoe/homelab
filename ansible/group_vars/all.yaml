@@ -22,6 +22,7 @@ docker_users:
 # List of docker apps to exclude sso
 docker_exclude_sso:
   - sso
+  - cobalt
   - dashy
   - lldap
 

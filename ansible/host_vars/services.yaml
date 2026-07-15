@@ -21,6 +21,11 @@ compose_apps:
   - name: dashy
     caddy:
       - host: dashy
+    create_dirs:
+      - data
+    templates:
+      - src: dashy.conf.yaml
+        dest: "data/conf.yml"
 
   - name: kms
     caddy:

@@ -9,19 +9,19 @@ all:
     test:
       hosts:
         experiment:
-          ansible_host: ansible-test-server.internal.example.com
+          ansible_host: "ansible-test-server.{{ ddns_domain }}"
           ansible_user: user
 
     prod:
       hosts:
         services:
-          ansible_host: services.internal.example.com
+          ansible_host: "services.{{ ddns_domain }}"
           ansible_user: svcadmin
         play:
-          ansible_host: play.internal.example.com
+          ansible_host: "play.{{ ddns_domain }}"
           ansible_user: playadmin
         security:
-          ansible_host: security.internal.example.com
+          ansible_host: "security.{{ ddns_domain }}"
           ansible_user: secadmin
 
     # Hosts whose dns_zones, compose_apps, caddy_domain, and dns_ddns_target

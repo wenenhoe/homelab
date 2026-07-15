@@ -59,7 +59,7 @@ dns_ddns_target: "services.{{ ddns_domain }}."
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.
 dns_zones:
-  svc.lan.example.com:
+  - zone: "{{ caddy_domain }}"
     ttl: 3600
     soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101   # overwritten at render time by the role

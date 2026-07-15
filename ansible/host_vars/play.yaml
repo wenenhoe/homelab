@@ -20,7 +20,7 @@ compose_apps:
 dns_ddns_target: "play.{{ ddns_domain }}."
 
 dns_zones:
-  play.lan.example.com:
+  - zone: "{{ caddy_domain }}"
     ttl: 3600
     soa_email: "hostmaster.{{ main_domain }}."
     serial: 2024010101   # overwritten at render time by the role

@@ -50,7 +50,7 @@
 # _all_zones is a list of dicts.  Each entry is one zone and carries all the
 # context the templates need so they don't have to reach into hostvars again:
 #
-#   key             — zone name (e.g. "svc.example.com")
+#   key             — zone name
 #   value           — zone SOA/TTL/extra_records with serial already injected
 #   dns_ddns_target — the DDNS target for that host's zone
 #   caddy_domain    — used by zone_db.j2 to build + filter FQDNs
@@ -65,9 +65,9 @@
       {%- set result = [] -%}
       {%- for host in groups['app_hosts'] -%}
         {%- set hv = hostvars[host] -%}
-        {%- for zone_name, zone_data in hv.dns_zones.items() -%}
+        {%- for zone_data in hv.dns_zones -%}
           {%- set _ = result.append({
-            'key':             zone_name,
+            'key':             zone_data.zone,
             'value':           zone_data | combine({'serial': bind9_dns_serial}),
             'dns_ddns_target': hv.dns_ddns_target,
             'caddy_domain':    hv.caddy_domain,
@@ -122,6 +122,7 @@
     dns_ddns_target: "{{ item.dns_ddns_target }}"
     caddy_domain: "{{ item.caddy_domain }}"
     compose_apps: "{{ item.compose_apps }}"
+  no_log: true
 
 - name: Diff zone files ignoring serial line
   ansible.builtin.shell: |
@@ -150,6 +151,7 @@
   loop: "{{ bind9_all_zones }}"
   register: bind9_zone_diff
   changed_when: false   # purely a read — the copy task below owns the change signal
+  no_log: true
 
 - name: Promote new zone file when content has changed
   ansible.builtin.shell: |
@@ -162,12 +164,14 @@
   when: item.stdout in ['DIFFERENT', 'NO_LIVE_FILE']
   register: bind9_zone_promote
   changed_when: true
+  no_log: true
 
 - name: Remove temp zone files
   ansible.builtin.file:
     path: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
     state: absent
   loop: "{{ bind9_all_zones }}"
+  no_log: true
 
 - name: Set a consolidated DNS change flag
   ansible.builtin.set_fact:

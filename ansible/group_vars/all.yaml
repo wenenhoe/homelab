@@ -11,6 +11,7 @@ compose_has_env:
   - diun
   - kms
   - lldap
+  - minecraft
   - shlink
   - wetty
 

@@ -9,6 +9,10 @@ compose_apps:
   - name: tinyauth
     create_dirs:
       - data
+    templates:
+      - src: tinyauth.config.yaml.j2
+        dest: "data/config.yaml"
+        no_log: true
 
   - name: lldap
     caddy:

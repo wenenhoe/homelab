@@ -1,0 +1,68 @@
+---
+appUrl: "https://{{ tinyauth_host }}.{{ lab_domain }}"
+
+labelProvider: "auto"
+
+database:
+  driver: "sqlite"
+  path: "/data/tinyauth.db"
+
+analytics:
+  enabled: false
+
+resources:
+  enabled: true
+  path: "./resources"
+
+server:
+  port: 3000
+  address: "0.0.0.0"
+  socketPath: ""
+
+auth:
+  ip:
+    allow: []
+    block: []
+    bypass: []
+  users: ""
+  subdomainsEnabled: true
+  usersFile: ""
+  secureCookie: false
+  sessionExpiry: 86400
+  sessionMaxLifetime: 0
+  loginTimeout: 300
+  loginMaxRetries: 3
+  trustedProxies: []
+  acls:
+    policy: "allow"
+
+ui:
+  title: "Tinyauth"
+  forgotPasswordMessage: "Please contact the administrator."
+  backgroundImage: "/background.jpg"
+  warningsEnabled: true
+
+ldap:
+  address: "ldaps://{{ lldap_host }}.{{ caddy_domain }}:6360"
+  bindDn: "uid=observer,ou=people,dc={{ lab_domain | replace('.', ',dc=') }}"
+  bindPassword: "{{ tinyauth_ldap_observer_password }}"
+  baseDn: "dc={{ lab_domain | replace('.', ',dc=') }}"
+  insecure: false
+  searchFilter: "(uid=%s)"
+  authCert: ""  # Certificate for mTLS authentication
+  authKey: ""   # Certificate key for mTLS authentication
+  groupCacheTTL: 900
+
+log:
+  level: "info"
+  json: false
+  streams:
+    http:
+      enabled: true
+      level: ""
+    app:
+      enabled: true
+      level: ""
+    audit:
+      enabled: false
+      level: ""

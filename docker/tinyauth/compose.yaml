@@ -5,8 +5,8 @@ services:
     image: ghcr.io/tinyauthapp/tinyauth:v5
     volumes:
       - ./data:/data
-    env_file:
-      - .env
+    environment:
+      - TINYAUTH_CONFIGFILE=/data/config.yaml
     networks:
       - caddy-proxy
     restart: unless-stopped

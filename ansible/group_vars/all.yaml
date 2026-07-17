@@ -12,7 +12,6 @@ compose_has_env:
   - kms
   - lldap
   - shlink
-  - tinyauth
   - wetty
 
 # Docker install settings

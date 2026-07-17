@@ -24,7 +24,7 @@ compose_apps:
     create_dirs:
       - data
     templates:
-      - src: dashy.conf.yaml
+      - src: dashy.conf.yaml.j2
         dest: "data/conf.yml"
 
   - name: kms

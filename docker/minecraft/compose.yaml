@@ -10,6 +10,7 @@ services:
       - ./data:/data:ro
       - ./backups:/backups
     environment:
+      TZ: ${TIMEZONE}
       CRON_SCHEDULE: "0 4 * * *" # backup everyday at 4am
       CRON_BACKUP_UID: "1000"
       RCON_HOST: mc
@@ -31,8 +32,9 @@ services:
     image: itzg/minecraft-server:java25
     volumes:
       - ./data:/data
-      - ./extras:/extras
+      - ./extras:/extras:ro
     environment:
+      TZ: ${TIMEZONE}
       EULA: "TRUE"
       INIT_MEMORY: 1G
       MAX_MEMORY: 2G

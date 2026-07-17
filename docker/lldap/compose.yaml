@@ -3,6 +3,8 @@ name: lldap
 services:
   certbot:
     image: certbot/dns-digitalocean:amd64-latest
+    depends_on:
+      - dockerproxy
     volumes:
       - ./letsencrypt/conf:/etc/letsencrypt
       - ./letsencrypt/lib:/var/lib/letsencrypt
@@ -10,13 +12,26 @@ services:
       - ./scripts:/scripts
       - ./certs:/output-certs
       - ./scripts/deploy-hook.sh:/etc/letsencrypt/renewal-hooks/deploy/deploy-hook.sh:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DOCKER_HOST=tcp://dockerproxy:2375
     env_file:
       - .env
+    networks:
+      - docker-socket-proxy-net
     entrypoint: /scripts/entrypoint.sh
+    restart: unless-stopped
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy:v0.4.2
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CONTAINERS=1
+    networks:
+      - docker-socket-proxy-net
     restart: unless-stopped
   lldap:
     image: lldap/lldap:latest-alpine
+    container_name: lldap
     volumes:
       - ./data:/data
       - ./certs:/data/certs
@@ -32,3 +47,5 @@ services:
 networks:
   caddy-proxy:
     external: true
+  docker-socket-proxy-net:
+    internal: true

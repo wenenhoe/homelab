@@ -31,7 +31,7 @@ services:
     image: itzg/minecraft-server:java25
     volumes:
       - ./data:/data
-      - ./extras:/extras
+      - ./extras:/extras:ro
     environment:
       EULA: "TRUE"
       INIT_MEMORY: 1G

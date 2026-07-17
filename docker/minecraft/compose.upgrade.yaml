@@ -2,9 +2,11 @@ name: minecraft
 
 services:
   test-upgrade:
+    image: itzg/minecraft-server:java25
     volumes:
-      - ./extras:/extras
+      - ./extras:/extras:ro
     environment:
+      EULA: "TRUE"
       SETUP_ONLY: true
       VERSION: ${VERSION}
       TYPE: FABRIC

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # Function to handle exit signal
@@ -18,6 +18,10 @@ trap handle_exit_signal EXIT
 
 # Use the first argument passed to the script, or default to 26.1.2 if empty
 VERSION="${1:-26.1.2}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$PROJECT_ROOT" || exit 1
 
 echo "Starting test-upgrade with VERSION=${VERSION}..."
 

@@ -1,5 +1,11 @@
 server_timezone: Asia/Singapore
 
+lab_domain: "lan.{{ main_domain }}"
+ddns_domain: "internal.{{ main_domain }}"
+
+docker_users:
+  - "{{ ansible_user }}"
+
 compose_source_dir: "{{ (playbook_dir ~ '/../docker') | realpath }}"
 compose_deploy_dir: /opt/stacks
 
@@ -14,10 +20,6 @@ compose_has_env:
   - minecraft
   - shlink
   - wetty
-
-# Docker install settings
-docker_users:
-  - "{{ ansible_user }}"   # adds SSH user to the docker group
 
 # List of docker apps to exclude sso
 docker_exclude_sso:
@@ -46,6 +48,3 @@ dns_deploy_dir: "{{ compose_deploy_dir }}/bind9"
 dns_config_dir: "{{ dns_deploy_dir }}/config"
 
 tinyauth_host: sso
-
-lab_domain: "lan.{{ main_domain }}"
-ddns_domain: "internal.{{ main_domain }}"

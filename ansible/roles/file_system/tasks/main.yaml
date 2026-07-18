@@ -1,4 +1,32 @@
 ---
+# ---------------------------------------------------------------------------
+# Resolve each host's compose_apps against the app_registry defaults
+# (group_vars/all.yaml) before doing anything else. After this task, every
+# compose_apps entry carries its full set of create_dirs / scripts /
+# templates / configs / env / caddy upstream+auth, regardless of whether
+# the host_vars file declared them explicitly - it only needs to declare
+# the app name and, for routable apps, its caddy hostname(s).
+#
+# `caddy` is a dict keyed by route id (`default` for single-route apps, a
+# descriptive key for multi-route apps like shlink's `short`/`web`), so a
+# plain recursive combine() merges each route's registry-defined
+# upstream/auth with the host-defined hostname automatically
+# ---------------------------------------------------------------------------
+- name: Merge app registry defaults into each compose app definition
+  ansible.builtin.set_fact:
+    file_system_compose_apps_resolved: "{{ (current_list | list) + [merged_app] }}"
+  loop: "{{ compose_apps }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    current_list: "{{ file_system_compose_apps_resolved | default([]) }}"
+    registry_defaults: "{{ app_registry[item.name] | default({}) }}"
+    merged_app: "{{ registry_defaults | combine(item, recursive=True) }}"
+
+- name: Replace compose_apps with the fully-resolved definitions
+  ansible.builtin.set_fact:
+    file_system_compose_apps: "{{ file_system_compose_apps_resolved }}"
+
 - name: Ensure stacks directory exists
   ansible.builtin.file:
     path: "{{ compose_deploy_dir }}"
@@ -14,7 +42,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_apps }}"
+  loop: "{{ file_system_compose_apps }}"
 
 - name: Ensure app data directories exist
   ansible.builtin.file:
@@ -23,13 +51,13 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_apps | subelements('create_dirs', skip_missing=True) }}"
+  loop: "{{ file_system_compose_apps | subelements('create_dirs', skip_missing=True) }}"
 
 - name: Find compose files on the controller
   ansible.builtin.find:
     paths: "{{ compose_source_dir }}/{{ item.name }}/"
     patterns: "compose*.yaml"
-  loop: "{{ compose_apps }}"
+  loop: "{{ file_system_compose_apps }}"
   register: file_system_compose_files_raw
   delegate_to: localhost
 
@@ -55,7 +83,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_apps | subelements('scripts', skip_missing=True) }}"
+  loop: "{{ file_system_compose_apps | subelements('scripts', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }}/scripts/{{ item.1 }}"
 
@@ -67,8 +95,8 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0600"
-  loop: "{{ compose_apps }}"
-  when: item.name in compose_has_env
+  loop: "{{ file_system_compose_apps }}"
+  when: item.env | default(false)
   no_log: true
 
 - name: Deploy additional template files
@@ -79,7 +107,7 @@
     group: "{{ item.1.group | default(ansible_user) }}"
     mode: "{{ item.1.mode | default('0644') }}"
     force: "{{ item.1.force | default(true) }}"
-  loop: "{{ compose_apps | subelements('templates', skip_missing=True) }}"
+  loop: "{{ file_system_compose_apps | subelements('templates', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }}/{{ item.1.dest }}"
   no_log: "{{ item.1.no_log | default(false) }}"
@@ -92,7 +120,7 @@
     group: "{{ item.1.group | default(ansible_user) }}"
     mode: "{{ item.1.mode | default('0644') }}"
     force: "{{ item.1.force | default(true) }}"
-  loop: "{{ compose_apps | subelements('configs', skip_missing=True) }}"
+  loop: "{{ file_system_compose_apps | subelements('configs', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }}/configs/{{ item.1.dest }}"
   no_log: "{{ item.1.no_log | default(false) }}"
@@ -101,4 +129,4 @@
   ansible.builtin.file:
     path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"
     state: absent
-  loop: "{{ compose_apps | subelements('exclude', skip_missing=True) }}"
+  loop: "{{ file_system_compose_apps | subelements('exclude', skip_missing=True) }}"

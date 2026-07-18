@@ -16,25 +16,26 @@
     }
 }
 
-{% if compose_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
+{% set tinyauth_apps = file_system_compose_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
+{% if tinyauth_apps %}
 {{ tinyauth_host }}.{{ lab_domain }} {
-    reverse_proxy {{ docker_upstreams['sso'] }} {
+    reverse_proxy {{ tinyauth_apps[0].upstream }} {
         trusted_proxies 192.168.20.0/24
     }
 }
 
 {% endif %}
-{% set routable_apps = compose_apps | selectattr('caddy', 'defined') | list %}
+{% set routable_apps = file_system_compose_apps | selectattr('caddy', 'defined') | list %}
 {% if routable_apps | length > 0 %}
 *.{{ caddy_domain }} {
 {% for app in routable_apps %}
-{% for route in app.caddy %}
+{% for id, route in app.caddy.items() %}
     @{{ route.host }} host {{ route.host }}.{{ caddy_domain }}
     handle @{{ route.host }} {
-        {% if route.host not in docker_exclude_sso %}
+        {% if route.auth | default(true) %}
         import tinyauth_forwarder *
         {% endif %}
-        reverse_proxy {{ docker_upstreams[route.host] }}
+        reverse_proxy {{ route.upstream }}
     }
 {% if not loop.last %}
 

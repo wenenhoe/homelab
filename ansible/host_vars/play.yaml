@@ -6,20 +6,10 @@ compose_apps:
 
   - name: minecraft
     caddy:
-      - host: bluemap
-    create_dirs:
-      - data
-      - backups
-    scripts:
-      - run_upgrade.sh
-    configs:
-      - src: modrinth-mods.txt
-        dest: extras/modrinth-mods.txt
+      default:
+        host: bluemap
 
   - name: diun
-    configs:
-      - src: conf.yaml
-        dest: data/conf.yaml
 
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config

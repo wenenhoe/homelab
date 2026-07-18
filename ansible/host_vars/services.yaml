@@ -53,6 +53,9 @@ compose_apps:
       - host: wetty
 
   - name: diun
+    configs:
+      - src: conf.yaml
+        dest: data/conf.yaml
 
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config

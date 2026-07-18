@@ -12,10 +12,14 @@ compose_apps:
       - backups
     scripts:
       - run_upgrade.sh
-    exclude:
-      - scripts/run_restore.sh
+    configs:
+      - src: modrinth-mods.txt
+        dest: extras/modrinth-mods.txt
 
   - name: diun
+    configs:
+      - src: conf.yaml
+        dest: data/conf.yaml
 
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config

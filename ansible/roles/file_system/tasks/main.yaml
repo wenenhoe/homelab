@@ -25,20 +25,39 @@
     mode: "0755"
   loop: "{{ compose_apps | subelements('create_dirs', skip_missing=True) }}"
 
-- name: Copy compose files and configs to server
+- name: Find compose files on the controller
+  ansible.builtin.find:
+    paths: "{{ compose_source_dir }}/{{ item.name }}/"
+    patterns: "compose*.yaml"
+  loop: "{{ compose_apps }}"
+  register: file_system_compose_files_raw
+  delegate_to: localhost
+
+- name: Flatten compose files list
+  ansible.builtin.set_fact:
+    file_system_compose_files: "{{ file_system_compose_files_raw.results | map(attribute='files') | flatten }}"
+
+- name: Copy compose files to remote host
   ansible.builtin.copy:
-    src: "{{ compose_source_dir }}/{{ item.name }}/"
-    dest: "{{ compose_deploy_dir }}/{{ item.name }}/"
+    src: "{{ item.path }}"
+    dest: "{{ compose_deploy_dir }}/{{ item.path | regex_replace('^' ~ compose_source_dir ~ '/', '') }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  loop: "{{ compose_apps }}"
+  loop: "{{ file_system_compose_files }}"
+  loop_control:
+    label: "{{ item.path }}"
 
-- name: Ensure scripts are executable
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.0.name }}/scripts/{{ item.1 }}"
+- name: Copy scripts to remote host
+  ansible.builtin.copy:
+    src: "{{ compose_source_dir }}/{{ item.0.name }}/scripts/{{ item.1 }}"
+    dest: "{{ compose_deploy_dir }}/{{ item.0.name }}/scripts/{{ item.1 }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
     mode: "0755"
   loop: "{{ compose_apps | subelements('scripts', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }}/scripts/{{ item.1 }}"
 
 - name: Deploy .env from template
   ansible.builtin.template:
@@ -63,6 +82,19 @@
   loop: "{{ compose_apps | subelements('templates', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }}/{{ item.1.dest }}"
+  no_log: "{{ item.1.no_log | default(false) }}"
+
+- name: Copy additional config files
+  ansible.builtin.copy:
+    src: "{{ compose_source_dir }}/{{ item.0.name }}/configs/{{ item.1.src }}"
+    dest: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1.dest }}"
+    owner: "{{ item.1.owner | default(ansible_user) }}"
+    group: "{{ item.1.group | default(ansible_user) }}"
+    mode: "{{ item.1.mode | default('0644') }}"
+    force: "{{ item.1.force | default(true) }}"
+  loop: "{{ compose_apps | subelements('configs', skip_missing=True) }}"
+  loop_control:
+    label: "{{ item.0.name }}/configs/{{ item.1.dest }}"
   no_log: "{{ item.1.no_log | default(false) }}"
 
 - name: Remove excluded files

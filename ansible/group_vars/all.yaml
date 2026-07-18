@@ -1,6 +1,6 @@
 server_timezone: Asia/Singapore
 
-compose_source_dir: ../../../docker
+compose_source_dir: "{{ (playbook_dir ~ '/../docker') | realpath }}"
 compose_deploy_dir: /opt/stacks
 
 # List of compose stack with env

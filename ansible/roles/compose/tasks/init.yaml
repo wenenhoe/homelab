@@ -3,7 +3,7 @@
 # Reusable single-app initializer.
 #
 # Shared by:
-#   - compose_app role    (looped once per non-infra app, Play 1)
+#   - compose_app role    (looped once per non-infra app, Play 4)
 #   - caddy / bind9 roles (called directly for their own app, so they can
 #                          control ordering relative to their own config
 #                          generation and compose deploy — see those roles)
@@ -14,22 +14,16 @@
 #                       compose_app's registry-merge task)
 # ---------------------------------------------------------------------------
 
-- name: Ensure app deploy directory exists ({{ compose_app_item.name }})
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0755"
-
-- name: Ensure app data directories exist ({{ compose_app_item.name }})
+- name: Ensure app directories exist ({{ compose_app_item.name }})
   ansible.builtin.file:
     path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item }}"
     state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_app_item.create_dirs | default([]) }}"
+  loop: "{{ ['.'] + (compose_app_item.create_dirs | default([])) }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/{{ item }}"
 
 - name: Find compose files on the controller ({{ compose_app_item.name }})
   ansible.builtin.find:
@@ -60,32 +54,8 @@
   loop_control:
     label: "{{ compose_app_item.name }}/scripts/{{ item }}"
 
-- name: Deploy .env from template ({{ compose_app_item.name }})
+- name: Deploy config files ({{ compose_app_item.name }})
   ansible.builtin.template:
-    src: "{{ compose_app_item.name }}.env.j2"
-    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/.env"
-    force: false # never overwrites an existing .env
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0600"
-  when: compose_app_item.env | default(false)
-  no_log: true
-
-- name: Deploy additional template files ({{ compose_app_item.name }})
-  ansible.builtin.template:
-    src: "{{ item.src }}"
-    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item.dest }}"
-    owner: "{{ item.owner | default(ansible_user) }}"
-    group: "{{ item.group | default(ansible_user) }}"
-    mode: "{{ item.mode | default('0644') }}"
-    force: "{{ item.force | default(true) }}"
-  loop: "{{ compose_app_item.templates | default([]) }}"
-  loop_control:
-    label: "{{ compose_app_item.name }}/{{ item.dest }}"
-  no_log: "{{ item.no_log | default(false) }}"
-
-- name: Copy additional config files ({{ compose_app_item.name }})
-  ansible.builtin.copy:
     src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/configs/{{ item.src }}"
     dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item.dest }}"
     owner: "{{ item.owner | default(ansible_user) }}"
@@ -94,11 +64,5 @@
     force: "{{ item.force | default(true) }}"
   loop: "{{ compose_app_item.configs | default([]) }}"
   loop_control:
-    label: "{{ compose_app_item.name }}/configs/{{ item.dest }}"
+    label: "{{ compose_app_item.name }}/{{ item.dest }}"
   no_log: "{{ item.no_log | default(false) }}"
-
-- name: Remove excluded files ({{ compose_app_item.name }})
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item }}"
-    state: absent
-  loop: "{{ compose_app_item.exclude | default([]) }}"

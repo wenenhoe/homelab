@@ -39,10 +39,10 @@
       tags:
         - initial-setup
 
-    - name: Include compose_app's resolve.yaml
+    - name: Include compose's preinit.yaml
       ansible.builtin.include_role:
-        name: compose_app
-        tasks_from: resolve.yaml
+        name: compose
+        tasks_from: preinit.yaml
 
 # Play 2 — Caddy generates its config, builds its image, and deploys/
 # restarts itself, so it's already routing before anything else comes up
@@ -78,7 +78,6 @@
   gather_facts: false
   become: true
   tasks:
-    - name: Include compose_app's deploy.yaml
+    - name: Include compose_app role
       ansible.builtin.include_role:
         name: compose_app
-        tasks_from: deploy.yaml

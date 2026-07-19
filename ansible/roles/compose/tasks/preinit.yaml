@@ -8,11 +8,6 @@
 #   - bind9 (Play 3) scrapes the resolved compose_apps back out of every
 #     app host's hostvars to build CNAMEs
 #
-# This deliberately does NOT provision any per-app files/dirs or start any
-# containers — non-infra apps don't need to exist on disk until right
-# before they're deployed, which is compose_app's deploy.yaml, run last
-# (Play 4). Only the data, not the filesystem work, needs to be this early.
-#
 # After this task, compose_apps itself is replaced with the fully-resolved
 # list — every entry carries its full set of create_dirs / scripts /
 # templates / configs / env / caddy upstream+auth, regardless of whether

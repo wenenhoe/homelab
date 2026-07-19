@@ -1,10 +1,17 @@
 ---
-# Convenience entrypoint (resolve then deploy) for callers that don't need
-# the Play 1 / Play 4 split — e.g. ad-hoc runs. deploy.yaml itself calls
-# resolve.yaml and deploy.yaml separately, in Play 1 and Play 4
-# respectively, since caddy and bind9 need to run in between.
-- name: Initialise docker compose apps
-  ansible.builtin.import_tasks: resolve.yaml
-
-- name: Deploy docker compose apps
-  ansible.builtin.import_tasks: deploy.yaml
+# Batch init + deploy for every app that isn't self-managed (bind9, caddy).
+# Runs last (Play 4), once DNS is serving the zones and caddy is already
+# routing — bind9 and caddy resolve/init/deploy themselves earlier (Play 2
+# / Play 3), see roles/caddy and roles/bind9. Non-infra apps don't get their
+# files/dirs provisioned until here either — no reason to have them on disk
+# any earlier than right before they start.
+- name: Init and deploy each non-infra app
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: main
+  vars:
+    compose_app_item: "{{ compose_app_target }}"
+  loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy'])) | list }}"
+  loop_control:
+    loop_var: compose_app_target
+    label: "{{ compose_app_target.name }}"

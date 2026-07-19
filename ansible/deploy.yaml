@@ -32,12 +32,17 @@
       prompt: "Enter the Tinyauth LDAP Observer password"
       private: true
       confirm: true
-  roles:
-    - role: docker
+  tasks:
+    - name: Include docker install role
+      ansible.builtin.include_role:
+        name: docker
       tags:
         - initial-setup
-    - role: compose_app
-      tasks_from: resolve # noqa: var-naming[no-role-prefix]
+
+    - name: Include compose_app's resolve.yaml
+      ansible.builtin.include_role:
+        name: compose_app
+        tasks_from: resolve.yaml
 
 # Play 2 — Caddy generates its config, builds its image, and deploys/
 # restarts itself, so it's already routing before anything else comes up
@@ -46,8 +51,10 @@
   hosts: all
   gather_facts: false
   become: true
-  roles:
-    - role: caddy
+  tasks:
+    - name: Include caddy role
+      ansible.builtin.include_role:
+        name: caddy
 
 # Play 3 — DNS config written and the bind9 container deployed/restarted
 # before any other container starts, and before this host's Docker daemon
@@ -57,8 +64,10 @@
   hosts: dns
   gather_facts: false
   become: true
-  roles:
-    - role: bind9
+  tasks:
+    - name: Include bind9 role
+      ansible.builtin.include_role:
+        name: bind9
 
 # Play 4 — Every remaining compose app is provisioned and started now that
 # DNS is already serving the zones and caddy is already routing. bind9 and
@@ -68,6 +77,8 @@
   hosts: all
   gather_facts: false
   become: true
-  roles:
-    - role: compose_app
-      tasks_from: deploy # noqa: var-naming[no-role-prefix]
+  tasks:
+    - name: Include compose_app's deploy.yaml
+      ansible.builtin.include_role:
+        name: compose_app
+        tasks_from: deploy.yaml

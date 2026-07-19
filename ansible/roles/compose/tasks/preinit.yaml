@@ -1,0 +1,46 @@
+---
+# ---------------------------------------------------------------------------
+# Resolves compose_apps against the app registry and publishes the result
+# via hostvars — nothing else. Runs in Play 1, on every host, ahead of
+# anything that needs it:
+#   - caddy (Play 2) needs its own resolved entry (upstream ports, auth,
+#     etc.) to render the Caddyfile
+#   - bind9 (Play 3) scrapes the resolved compose_apps back out of every
+#     app host's hostvars to build CNAMEs
+#
+# After this task, compose_apps itself is replaced with the fully-resolved
+# list — every entry carries its full set of create_dirs / scripts /
+# templates / configs / env / caddy upstream+auth, regardless of whether
+# the host_vars file declared them explicitly. It only needs to declare the
+# app name and, for routable apps, its caddy hostname(s).
+#
+# `caddy` is a dict keyed by route id (`default` for single-route apps, a
+# descriptive key for multi-route apps like shlink's `short`/`web`), so a
+# plain recursive combine() merges each route's registry-defined
+# upstream/auth with the host-defined hostname automatically.
+#
+# Using a Jinja2 expression in set_fact to do the double iteration in one
+# task avoids the two-loop YAML problem entirely.
+# ---------------------------------------------------------------------------
+- name: Merge app registry defaults into each compose app definition
+  ansible.builtin.set_fact:
+    compose_app_compose_apps_resolved: "{{ (current_list | list) + [merged_app] }}"
+  loop: "{{ compose_apps }}"
+  loop_control:
+    label: "{{ item.name }}"
+  vars:
+    current_list: "{{ compose_app_compose_apps_resolved | default([]) }}"
+    registry_defaults: "{{ app_registry[item.name] | default({}) }}"
+    merged_app: "{{ registry_defaults | combine(item, recursive=True) }}"
+
+- name: Replace compose_apps with the fully-resolved definitions
+  ansible.builtin.set_fact:
+    compose_apps: "{{ compose_app_compose_apps_resolved }}" # noqa: var-naming[no-role-prefix]
+
+- name: Ensure stacks directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"

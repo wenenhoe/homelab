@@ -1,0 +1,11 @@
+---
+# End-to-end single-app entrypoint (init then deploy). Not currently called
+# anywhere in the deploy.yaml flow — compose_app calls init.yaml and
+# deploy.yaml separately in Play 1 / Play 3, and caddy/bind9 call them
+# separately too so they can inject their own config generation in between.
+# Kept as a convenience for ad-hoc / future single-app runs.
+- name: Initialise docker compose apps
+  ansible.builtin.import_tasks: init.yaml
+
+- name: Deploy docker compose apps
+  ansible.builtin.import_tasks: deploy.yaml

@@ -12,45 +12,45 @@ compose_apps:
 
   - name: bentopdf
     caddy:
-      - host: bentopdf
+      default:
+        host: bentopdf
 
   - name: cobalt
     caddy:
-      - host: "{{ cobalt_host }}"
+      default:
+        host: "{{ cobalt_host }}"
 
   - name: dashy
     caddy:
-      - host: dashy
-    create_dirs:
-      - data
-    templates:
-      - src: dashy.conf.yaml.j2
-        dest: "data/conf.yml"
+      default:
+        host: dashy
 
   - name: kms
     caddy:
-      - host: kms
-    create_dirs:
-      - data
+      default:
+        host: kms
 
   - name: openspeedtest
     caddy:
-      - host: speedtest
+      default:
+        host: speedtest
 
   - name: shlink
     caddy:
-      - host: "{{ shlink_short_host }}"
-      - host: "{{ shlink_web_host }}"
+      short:
+        host: "{{ shlink_short_host }}"
+      web:
+        host: "{{ shlink_web_host }}"
 
   - name: wastebin
     caddy:
-      - host: wastebin
-    create_dirs:
-      - data
+      default:
+        host: wastebin
 
   - name: wetty
     caddy:
-      - host: wetty
+      default:
+        host: wetty
 
   - name: diun
 

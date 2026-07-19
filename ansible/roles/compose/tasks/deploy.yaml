@@ -1,0 +1,46 @@
+---
+# ---------------------------------------------------------------------------
+# Reusable single-app deployer.
+#
+# Shared by:
+#   - compose_app role    (looped once per non-infra app, Play 3)
+#   - caddy / bind9 roles (called directly, right after their own config is
+#                          generated, so their container is already up
+#                          before anything downstream needs it — bind9 must
+#                          be serving before other containers/hosts start,
+#                          caddy must be routing before the apps behind it
+#                          come up)
+#
+# Expects:
+#   compose_app_item          — one fully-resolved entry from compose_apps
+#   compose_app_extra_changed — (optional, default false) set true when
+#                                config outside the compose file itself
+#                                changed (e.g. Caddyfile, named.conf/zones)
+#                                and the container should be restarted even
+#                                though docker_compose_v2 sees no diff
+# ---------------------------------------------------------------------------
+
+- name: Pull latest Docker images ({{ compose_app_item.name }})
+  community.docker.docker_compose_v2_pull:
+    project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
+  when: not (compose_app_item.build | default(false))
+  tags:
+    - pull-docker-images
+
+- name: Build Docker images ({{ compose_app_item.name }})
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
+    build: always
+    state: present
+  when: compose_app_item.build | default(false)
+
+- name: Deploy with Docker Compose ({{ compose_app_item.name }})
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
+    state: present
+
+- name: Restart if its config changed ({{ compose_app_item.name }})
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
+    state: restarted
+  when: compose_app_extra_changed | default(false)

@@ -1,0 +1,68 @@
+---
+# ---------------------------------------------------------------------------
+# Reusable single-app initializer.
+#
+# Shared by:
+#   - compose_app role    (looped once per non-infra app, Play 4)
+#   - caddy / bind9 roles (called directly for their own app, so they can
+#                          control ordering relative to their own config
+#                          generation and compose deploy — see those roles)
+#
+# Expects:
+#   compose_app_item — one fully-resolved entry from compose_apps (i.e.
+#                       already merged with app_registry defaults by
+#                       compose_app's registry-merge task)
+# ---------------------------------------------------------------------------
+
+- name: Ensure app directories exist ({{ compose_app_item.name }})
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ ['.'] + (compose_app_item.create_dirs | default([])) }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/{{ item }}"
+
+- name: Find compose files on the controller ({{ compose_app_item.name }})
+  ansible.builtin.find:
+    paths: "{{ compose_source_dir }}/{{ compose_app_item.name }}/"
+    patterns: "compose*.yaml"
+  register: compose_compose_files_raw
+  delegate_to: localhost
+
+- name: Copy compose files to remote host ({{ compose_app_item.name }})
+  ansible.builtin.copy:
+    src: "{{ item.path }}"
+    dest: "{{ compose_deploy_dir }}/{{ item.path | regex_replace('^' ~ compose_source_dir ~ '/', '') }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  loop: "{{ compose_compose_files_raw.files }}"
+  loop_control:
+    label: "{{ item.path | regex_replace('^' ~ project_root ~ '/', '') }}"
+
+- name: Copy scripts to remote host ({{ compose_app_item.name }})
+  ansible.builtin.copy:
+    src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/scripts/{{ item }}"
+    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/scripts/{{ item }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ compose_app_item.scripts | default([]) }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/scripts/{{ item }}"
+
+- name: Deploy config files ({{ compose_app_item.name }})
+  ansible.builtin.template:
+    src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/configs/{{ item.src }}"
+    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item.dest }}"
+    owner: "{{ item.owner | default(ansible_user) }}"
+    group: "{{ item.group | default(ansible_user) }}"
+    mode: "{{ item.mode | default('0644') }}"
+    force: "{{ item.force | default(true) }}"
+  loop: "{{ compose_app_item.configs | default([]) }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/{{ item.dest }}"
+  no_log: "{{ item.no_log | default(false) }}"

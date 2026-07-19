@@ -6,14 +6,8 @@ compose_apps:
 
   - name: minecraft
     caddy:
-      - host: bluemap
-    create_dirs:
-      - data
-      - backups
-    scripts:
-      - run_upgrade.sh
-    exclude:
-      - scripts/run_restore.sh
+      default:
+        host: bluemap
 
   - name: diun
 

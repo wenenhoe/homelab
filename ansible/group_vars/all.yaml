@@ -1,51 +1,182 @@
+---
 server_timezone: Asia/Singapore
-
-compose_source_dir: ../../../docker
-compose_deploy_dir: /opt/stacks
-
-# List of compose stack with env
-compose_has_env:
-  - bind9
-  - caddy
-  - cobalt
-  - diun
-  - kms
-  - lldap
-  - minecraft
-  - shlink
-  - wetty
-
-# Docker install settings
-docker_users:
-  - "{{ ansible_user }}"   # adds SSH user to the docker group
-
-# List of docker apps to exclude sso
-docker_exclude_sso:
-  - sso
-  - cobalt
-  - dashy
-  - lldap
-
-# Map of host to upstream
-docker_upstreams:
-  bentopdf: "bentopdf:8080"
-  bluemap: "bluemap:8100"
-  cobalt: "cobalt:9000"
-  dashy: "dashy:8080"
-  dockge: "dockge:5001"
-  kms: "kms-gui:3000"
-  lldap: "lldap:17170"
-  speedtest: "openspeedtest:3000"
-  shlink: "shlink-web-client:8080"
-  short: "shlink:8080"
-  sso: "tinyauth:3000"
-  wastebin: "wastebin:8088"
-  wetty: "wetty:3000"
-
-dns_deploy_dir: "{{ compose_deploy_dir }}/bind9"
-dns_config_dir: "{{ dns_deploy_dir }}/config"
-
-tinyauth_host: sso
 
 lab_domain: "lan.{{ main_domain }}"
 ddns_domain: "internal.{{ main_domain }}"
+
+docker_users:
+  - "{{ ansible_user }}"
+
+project_root: "{{ (playbook_dir ~ '/..') | realpath }}"
+compose_source_dir: "{{ (project_root ~ '/docker') | realpath }}"
+compose_deploy_dir: /opt/stacks
+
+tinyauth_host: sso
+
+# ---------------------------------------------------------------------------
+# App registry — single source of truth for everything about an app that
+# does NOT vary by host: dirs to create, scripts/configs to deploy, and its
+# docker upstream.
+#
+# `configs` is the single list for anything that needs Jinja rendering —
+# a .env file is just a normal configs entry with dest: .env and
+# force: false (so a re-run never clobbers secrets already on disk).
+# Sources live on the controller at
+# {{ compose_source_dir }}/{{ app_name }}/configs/{{ item.src }}.
+#
+# Per-host files (host_vars/*.yaml) only need to list which apps to deploy
+# and, for routable apps, the caddy host label(s) — keyed the same way the
+# registry keys its routes (`default` for single-route apps, a descriptive
+# key like `short`/`web` for multi-route apps like shlink).
+# ---------------------------------------------------------------------------
+app_registry:
+  caddy:
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+
+  bind9:
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+
+  bentopdf:
+    caddy:
+      default:
+        upstream: "bentopdf:8080"
+
+  cobalt:
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+    caddy:
+      default:
+        upstream: "cobalt:9000"
+        auth: false
+
+  dashy:
+    create_dirs:
+      - data
+    configs:
+      - src: conf.yaml.j2
+        dest: "data/conf.yml"
+    caddy:
+      default:
+        upstream: "dashy:8080"
+        auth: false
+
+  kms:
+    create_dirs:
+      - data
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+    caddy:
+      default:
+        upstream: "kms-gui:3000"
+
+  openspeedtest:
+    caddy:
+      default:
+        upstream: "openspeedtest:3000"
+
+  shlink:
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+    # Two containers front one "app": the short-link redirector and the
+    # web UI. Host files pair these up by key and supply the hostname.
+    caddy:
+      short:
+        upstream: "shlink:8080"
+      web:
+        upstream: "shlink-web-client:8080"
+
+  wastebin:
+    create_dirs:
+      - data
+    caddy:
+      default:
+        upstream: "wastebin:8088"
+
+  wetty:
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+    caddy:
+      default:
+        upstream: "wetty:3000"
+
+  diun:
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+      - src: conf.yaml
+        dest: data/conf.yaml
+
+  tinyauth:
+    create_dirs:
+      - data
+    configs:
+      - src: config.yaml.j2
+        dest: "data/config.yaml"
+        no_log: true
+    # tinyauth isn't routed through the *.{{ caddy_domain }} wildcard vhost
+    # like everything else - it fronts its own top-level auth domain, so
+    # Caddyfile.j2 handles it as a special case and just needs its upstream.
+    upstream: "tinyauth:3000"
+
+  lldap:
+    create_dirs:
+      - data
+      - letsencrypt
+      - creds
+      - certs
+    scripts:
+      - deploy-hook.sh
+      - entrypoint.sh
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+    caddy:
+      default:
+        upstream: "lldap:17170"
+        auth: false
+
+  minecraft:
+    create_dirs:
+      - data
+      - backups
+    scripts:
+      - run_upgrade.sh
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+      - src: modrinth-mods.txt
+        dest: extras/modrinth-mods.txt
+    caddy:
+      default:
+        upstream: "bluemap:8100"
+
+  dockge:
+    caddy:
+      default:
+        upstream: "dockge:5001"

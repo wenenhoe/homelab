@@ -6,8 +6,10 @@ compose_apps:
 
   - name: dashy
     caddy:
-      - host: dashy
+      default:
+        host: dashy
 
   - name: dockge
     caddy:
-      - host: dockge
+      default:
+        host: dockge

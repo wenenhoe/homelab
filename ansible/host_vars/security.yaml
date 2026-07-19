@@ -7,24 +7,11 @@ compose_apps:
   - name: caddy
 
   - name: tinyauth
-    create_dirs:
-      - data
-    templates:
-      - src: tinyauth.config.yaml.j2
-        dest: "data/config.yaml"
-        no_log: true
 
   - name: lldap
     caddy:
-      - host: "{{ lldap_host }}"
-    create_dirs:
-      - data
-      - letsencrypt
-      - creds
-      - certs
-    scripts:
-      - deploy-hook.sh
-      - entrypoint.sh
+      default:
+        host: "{{ lldap_host }}"
 
   - name: diun
 

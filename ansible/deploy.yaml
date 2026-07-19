@@ -1,7 +1,10 @@
 ---
 # Play 1 — System setup on all hosts (no containers started yet).
-# Covers docker engine, filesystem, and caddy/bind9 config files.
-# Running on all hosts here is what populates hostvars for play 2.
+# Covers docker engine and the app_registry resolve, which is all Play 2/3
+# need from here: bind9 and caddy just need compose_apps already resolved
+# in hostvars, not any per-app files on disk yet — those are provisioned
+# just before each app actually starts (its own play for caddy/bind9, or
+# Play 4 for everything else).
 - name: System setup
   hosts: all
   gather_facts: true
@@ -29,25 +32,52 @@
       prompt: "Enter the Tinyauth LDAP Observer password"
       private: true
       confirm: true
-  roles:
-    - role: docker
+  tasks:
+    - name: Include docker install role
+      ansible.builtin.include_role:
+        name: docker
       tags:
         - initial-setup
-    - role: file_system
-    - role: caddy
 
-# Play 2 — DNS config written and BIND9 reloaded before any container starts.
-# hostvars for all app hosts is already populated from play 1.
+    - name: Include compose's preinit.yaml
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: preinit.yaml
+
+# Play 2 — Caddy generates its config, builds its image, and deploys/
+# restarts itself, so it's already routing before anything else comes up
+# behind it.
+- name: Deploy Caddy
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include caddy role
+      ansible.builtin.include_role:
+        name: caddy
+
+# Play 3 — DNS config written and the bind9 container deployed/restarted
+# before any other container starts, and before this host's Docker daemon
+# is pointed at it for resolution. hostvars for all app hosts is already
+# populated from play 1.
 - name: Configure BIND9 on the DNS host
   hosts: dns
   gather_facts: false
   become: true
-  roles:
-    - role: bind9
+  tasks:
+    - name: Include bind9 role
+      ansible.builtin.include_role:
+        name: bind9
 
-# Play 3 — Containers start now that DNS is already serving the zones.
+# Play 4 — Every remaining compose app is provisioned and started now that
+# DNS is already serving the zones and caddy is already routing. bind9 and
+# caddy are excluded here since they resolved/provisioned/deployed
+# themselves in Play 1 / Play 2 / Play 3.
 - name: Deploy Compose apps
   hosts: all
   gather_facts: false
-  roles:
-    - role: docker_compose
+  become: true
+  tasks:
+    - name: Include compose_app role
+      ansible.builtin.include_role:
+        name: compose_app

@@ -5,11 +5,23 @@
 # the 'app_hosts' group via hostvars — no zone config lives on the DNS host
 # itself.  host_vars for app hosts are completely unchanged.
 #
+# bind9 deploys and (re)starts its own compose app itself, at the end of
+# this role, rather than being deployed generically in Play 3 alongside
+# every other app. It has to: the "Disable DNS Stub Listener and set Docker
+# DNS" task below points the host's Docker daemon at the bind9 container,
+# so that container needs to already exist and be current *before* that
+# task runs — long before Play 3 (container start) would otherwise get to
+# it.
+#
 # Variable ownership:
-#   group_vars/all.yaml       — dns_deploy_dir, dns_config_dir
 #   host_vars/<app-host>.yaml — dns_zones, dns_ddns_target,
 #                               caddy_domain, compose_apps
 # ---------------------------------------------------------------------------
+
+- name: Set BIND9 directory facts
+  ansible.builtin.set_fact:
+    bind9_deploy_dir: "{{ compose_deploy_dir }}/bind9"
+    bind9_config_dir: "{{ compose_deploy_dir }}/bind9/config"
 
 - name: Ensure bind group exists
   ansible.builtin.group:
@@ -26,6 +38,13 @@
     create_home: false
     group: bind
 
+- name: Init bind9's own compose app files and directories
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: init
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+
 - name: Ensure BIND9 configuration directories exist
   ansible.builtin.file:
     path: "{{ item }}"
@@ -34,11 +53,11 @@
     group: bind
     mode: '0755'
   loop:
-    - "{{ dns_config_dir }}"
-    - "{{ dns_config_dir }}/zones"
-    - "{{ dns_deploy_dir }}/cache"
-    - "{{ dns_deploy_dir }}/records"
-    - "{{ dns_deploy_dir }}/run"
+    - "{{ bind9_config_dir }}"
+    - "{{ bind9_config_dir }}/zones"
+    - "{{ bind9_deploy_dir }}/cache"
+    - "{{ bind9_deploy_dir }}/records"
+    - "{{ bind9_deploy_dir }}/run"
 
 - name: Compute DNS serial (Unix epoch)
   ansible.builtin.set_fact:
@@ -77,23 +96,17 @@
       {%- endfor -%}
       {{ result }}
 
-- name: Generate named.conf
+- name: Generate BIND9 configuration files
   ansible.builtin.template:
-    src: named.conf.j2
-    dest: "{{ dns_config_dir }}/named.conf"
+    src: "{{ item.src }}"
+    dest: "{{ bind9_config_dir }}/{{ item.dest }}"
     owner: bind
     group: bind
     mode: '0644'
-  register: bind9_named_conf
-
-- name: Generate named.conf.local
-  ansible.builtin.template:
-    src: named.conf.local.j2
-    dest: "{{ dns_config_dir }}/named.conf.local"
-    owner: bind
-    group: bind
-    mode: '0644'
-  register: bind9_named_local
+  loop:
+    - { src: 'named.conf.j2', dest: 'named.conf' }
+    - { src: 'named.conf.local.j2', dest: 'named.conf.local' }
+  register: bind9_config_files
 
 # ---------------------------------------------------------------------------
 # Smart zone-file deployment — ignore serial changes in the diff so we don't
@@ -111,7 +124,7 @@
 - name: Render zone files to temp path for diffing
   ansible.builtin.template:
     src: zone.db.j2
-    dest: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
+    dest: "{{ bind9_config_dir }}/zones/db.{{ item.key }}.new"
     owner: bind
     group: bind
     mode: '0644'
@@ -126,7 +139,7 @@
 
 - name: Diff zone files ignoring serial line
   ansible.builtin.shell: |
-    live="{{ dns_config_dir }}/zones/db.{{ item.key }}"
+    live="{{ bind9_config_dir }}/zones/db.{{ item.key }}"
     new="${live}.new"
 
     strip_serial() {
@@ -155,8 +168,8 @@
 
 - name: Promote new zone file when content has changed
   ansible.builtin.shell: |
-    new="{{ dns_config_dir }}/zones/db.{{ item.item.key }}.new"
-    live="{{ dns_config_dir }}/zones/db.{{ item.item.key }}"
+    new="{{ bind9_config_dir }}/zones/db.{{ item.item.key }}.new"
+    live="{{ bind9_config_dir }}/zones/db.{{ item.item.key }}"
     cp -a "$new" "$live"
   args:
     executable: /bin/bash
@@ -168,7 +181,7 @@
 
 - name: Remove temp zone files
   ansible.builtin.file:
-    path: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
+    path: "{{ bind9_config_dir }}/zones/db.{{ item.key }}.new"
     state: absent
   loop: "{{ bind9_all_zones }}"
   no_log: true
@@ -177,13 +190,20 @@
   ansible.builtin.set_fact:
     bind9_dns_changed: >-
       {{
-        bind9_named_conf.changed or
-        bind9_named_local.changed or
+        bind9_config_files.changed or
         (bind9_zone_promote.results
          | default([])
          | selectattr('changed', 'equalto', true)
          | list | length > 0)
       }}
+
+- name: Deploy and restart bind9 now that its config is ready
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: deploy
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+    compose_app_extra_changed: "{{ bind9_dns_changed }}"
 
 - name: Disable DNS Stub Listener and set Docker DNS
   ansible.builtin.import_tasks:

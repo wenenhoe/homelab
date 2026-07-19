@@ -41,7 +41,7 @@
     mode: "0644"
   loop: "{{ compose_compose_files_raw.files }}"
   loop_control:
-    label: "{{ item.path }}"
+    label: "{{ item.path | regex_replace('^' ~ project_root ~ '/', '') }}"
 
 - name: Copy scripts to remote host ({{ compose_app_item.name }})
   ansible.builtin.copy:

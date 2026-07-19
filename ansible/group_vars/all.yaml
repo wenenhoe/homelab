@@ -7,7 +7,8 @@ ddns_domain: "internal.{{ main_domain }}"
 docker_users:
   - "{{ ansible_user }}"
 
-compose_source_dir: "{{ (playbook_dir ~ '/../docker') | realpath }}"
+project_root: "{{ (playbook_dir ~ '/..') | realpath }}"
+compose_source_dir: "{{ (project_root ~ '/docker') | realpath }}"
 compose_deploy_dir: /opt/stacks
 
 tinyauth_host: sso

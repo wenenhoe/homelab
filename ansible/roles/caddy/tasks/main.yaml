@@ -1,4 +1,12 @@
 ---
+- name: Init caddy's own compose app files and directories
+  ansible.builtin.include_role:
+    name: compose_app
+    tasks_from: init
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
+  when: compose_apps | selectattr('name', 'equalto', 'caddy') | list | length > 0
+
 - name: Deploy Caddyfile from template and host_vars
   ansible.builtin.template:
     src: Caddyfile.j2
@@ -28,3 +36,12 @@
     pull: true
     nocache: true
     dockerfile: Dockerfile
+
+- name: Deploy and restart caddy now that its config/image is ready
+  ansible.builtin.include_role:
+    name: compose_app
+    tasks_from: deploy
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
+    compose_app_extra_changed: "{{ caddy_config_changes.changed }}"
+  when: compose_apps | selectattr('name', 'equalto', 'caddy') | list | length > 0

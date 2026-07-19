@@ -5,6 +5,14 @@
 # the 'app_hosts' group via hostvars — no zone config lives on the DNS host
 # itself.  host_vars for app hosts are completely unchanged.
 #
+# bind9 deploys and (re)starts its own compose app itself, at the end of
+# this role, rather than being deployed generically in Play 3 alongside
+# every other app. It has to: the "Disable DNS Stub Listener and set Docker
+# DNS" task below points the host's Docker daemon at the bind9 container,
+# so that container needs to already exist and be current *before* that
+# task runs — long before Play 3 (container start) would otherwise get to
+# it.
+#
 # Variable ownership:
 #   group_vars/all.yaml       — dns_deploy_dir, dns_config_dir
 #   host_vars/<app-host>.yaml — dns_zones, dns_ddns_target,
@@ -25,6 +33,13 @@
     system: true
     create_home: false
     group: bind
+
+- name: Init bind9's own compose app files and directories
+  ansible.builtin.include_role:
+    name: compose_app
+    tasks_from: init
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
 
 - name: Ensure BIND9 configuration directories exist
   ansible.builtin.file:
@@ -184,6 +199,14 @@
          | selectattr('changed', 'equalto', true)
          | list | length > 0)
       }}
+
+- name: Deploy and restart bind9 now that its config is ready
+  ansible.builtin.include_role:
+    name: compose_app
+    tasks_from: deploy
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+    compose_app_extra_changed: "{{ bind9_dns_changed }}"
 
 - name: Disable DNS Stub Listener and set Docker DNS
   ansible.builtin.import_tasks:

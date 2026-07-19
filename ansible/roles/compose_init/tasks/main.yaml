@@ -1,16 +1,24 @@
 ---
 # ---------------------------------------------------------------------------
 # Resolve each host's compose_apps against the app_registry defaults
-# (group_vars/all.yaml) before doing anything else. After this task, every
-# compose_apps entry carries its full set of create_dirs / scripts /
-# templates / configs / env / caddy upstream+auth, regardless of whether
-# the host_vars file declared them explicitly - it only needs to declare
-# the app name and, for routable apps, its caddy hostname(s).
+# (group_vars/all.yaml) before doing anything else. After this task,
+# compose_apps itself is replaced with the fully-resolved list — every
+# entry carries its full set of create_dirs / scripts / templates / configs
+# / env / caddy upstream+auth, regardless of whether the host_vars file
+# declared them explicitly. It only needs to declare the app name and, for
+# routable apps, its caddy hostname(s).
+#
+# This MUST run for every app on every host, unconditionally — bind9 (Play
+# 2) scrapes the resolved compose_apps back out of hostvars to build CNAMEs,
+# and caddy/bind9 below need their own resolved entry too.
 #
 # `caddy` is a dict keyed by route id (`default` for single-route apps, a
 # descriptive key for multi-route apps like shlink's `short`/`web`), so a
 # plain recursive combine() merges each route's registry-defined
-# upstream/auth with the host-defined hostname automatically
+# upstream/auth with the host-defined hostname automatically.
+#
+# Using a Jinja2 expression in set_fact to do the double iteration in one
+# task avoids the two-loop YAML problem entirely.
 # ---------------------------------------------------------------------------
 - name: Merge app registry defaults into each compose app definition
   ansible.builtin.set_fact:
@@ -25,7 +33,7 @@
 
 - name: Replace compose_apps with the fully-resolved definitions
   ansible.builtin.set_fact:
-    compose_init_compose_apps: "{{ compose_init_compose_apps_resolved }}"
+    compose_apps: "{{ compose_init_compose_apps_resolved }}" # noqa: var-naming[no-role-prefix]
 
 - name: Ensure stacks directory exists
   ansible.builtin.file:
@@ -35,98 +43,16 @@
     group: root
     mode: "0755"
 
-- name: Ensure app deploy directory exists
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.name }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0755"
-  loop: "{{ compose_init_compose_apps }}"
-
-- name: Ensure app data directories exist
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"
-    state: directory
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0755"
-  loop: "{{ compose_init_compose_apps | subelements('create_dirs', skip_missing=True) }}"
-
-- name: Find compose files on the controller
-  ansible.builtin.find:
-    paths: "{{ compose_source_dir }}/{{ item.name }}/"
-    patterns: "compose*.yaml"
-  loop: "{{ compose_init_compose_apps }}"
-  register: compose_init_compose_files_raw
-  delegate_to: localhost
-
-- name: Flatten compose files list
-  ansible.builtin.set_fact:
-    compose_init_compose_files: "{{ compose_init_compose_files_raw.results | map(attribute='files') | flatten }}"
-
-- name: Copy compose files to remote host
-  ansible.builtin.copy:
-    src: "{{ item.path }}"
-    dest: "{{ compose_deploy_dir }}/{{ item.path | regex_replace('^' ~ compose_source_dir ~ '/', '') }}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0644"
-  loop: "{{ compose_init_compose_files }}"
+# bind9 and caddy own their own init/deploy sequencing (see roles/bind9 and
+# roles/caddy) so they can generate their config and bring their container
+# up in the right order relative to everything else. Every other app is
+# initialized here, generically, via the shared compose_app role.
+- name: Init each app's files and directories
+  ansible.builtin.include_role:
+    name: compose_app
+    tasks_from: init
+  vars:
+    compose_app_item: "{{ item }}"
+  loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy'])) | list }}"
   loop_control:
-    label: "{{ item.path }}"
-
-- name: Copy scripts to remote host
-  ansible.builtin.copy:
-    src: "{{ compose_source_dir }}/{{ item.0.name }}/scripts/{{ item.1 }}"
-    dest: "{{ compose_deploy_dir }}/{{ item.0.name }}/scripts/{{ item.1 }}"
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0755"
-  loop: "{{ compose_init_compose_apps | subelements('scripts', skip_missing=True) }}"
-  loop_control:
-    label: "{{ item.0.name }}/scripts/{{ item.1 }}"
-
-- name: Deploy .env from template
-  ansible.builtin.template:
-    src: "{{ item.name }}.env.j2"
-    dest: "{{ compose_deploy_dir }}/{{ item.name }}/.env"
-    force: false          # never overwrites an existing .env
-    owner: "{{ ansible_user }}"
-    group: "{{ ansible_user }}"
-    mode: "0600"
-  loop: "{{ compose_init_compose_apps }}"
-  when: item.env | default(false)
-  no_log: true
-
-- name: Deploy additional template files
-  ansible.builtin.template:
-    src: "{{ item.1.src }}"
-    dest: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1.dest }}"
-    owner: "{{ item.1.owner | default(ansible_user) }}"
-    group: "{{ item.1.group | default(ansible_user) }}"
-    mode: "{{ item.1.mode | default('0644') }}"
-    force: "{{ item.1.force | default(true) }}"
-  loop: "{{ compose_init_compose_apps | subelements('templates', skip_missing=True) }}"
-  loop_control:
-    label: "{{ item.0.name }}/{{ item.1.dest }}"
-  no_log: "{{ item.1.no_log | default(false) }}"
-
-- name: Copy additional config files
-  ansible.builtin.copy:
-    src: "{{ compose_source_dir }}/{{ item.0.name }}/configs/{{ item.1.src }}"
-    dest: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1.dest }}"
-    owner: "{{ item.1.owner | default(ansible_user) }}"
-    group: "{{ item.1.group | default(ansible_user) }}"
-    mode: "{{ item.1.mode | default('0644') }}"
-    force: "{{ item.1.force | default(true) }}"
-  loop: "{{ compose_init_compose_apps | subelements('configs', skip_missing=True) }}"
-  loop_control:
-    label: "{{ item.0.name }}/configs/{{ item.1.dest }}"
-  no_log: "{{ item.1.no_log | default(false) }}"
-
-- name: Remove excluded files
-  ansible.builtin.file:
-    path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"
-    state: absent
-  loop: "{{ compose_init_compose_apps | subelements('exclude', skip_missing=True) }}"
+    label: "{{ item.name }}"

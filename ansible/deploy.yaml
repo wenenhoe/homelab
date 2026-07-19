@@ -1,7 +1,11 @@
 ---
-# Play 1 — System setup on all hosts (no containers started yet).
+# Play 1 — System setup on all hosts (no non-infra containers started yet).
 # Covers docker engine, filesystem, and caddy/bind9 config files.
 # Running on all hosts here is what populates hostvars for play 2.
+#
+# The caddy role deploys and (re)starts its own compose app itself, once its
+# Caddyfile/image are ready, so it's already routing before anything else
+# comes up behind it.
 - name: System setup
   hosts: all
   gather_facts: true
@@ -36,8 +40,10 @@
     - role: compose_init
     - role: caddy
 
-# Play 2 — DNS config written and BIND9 reloaded before any container starts.
-# hostvars for all app hosts is already populated from play 1.
+# Play 2 — DNS config written and the bind9 container deployed/restarted
+# before any other container starts, and before this host's Docker daemon
+# is pointed at it for resolution. hostvars for all app hosts is already
+# populated from play 1.
 - name: Configure BIND9 on the DNS host
   hosts: dns
   gather_facts: false
@@ -45,7 +51,9 @@
   roles:
     - role: bind9
 
-# Play 3 — Containers start now that DNS is already serving the zones.
+# Play 3 — Every remaining compose app starts now that DNS is already
+# serving the zones and caddy is already routing. bind9 and caddy are
+# excluded here since they deployed themselves in Play 1 / Play 2.
 - name: Deploy Compose apps
   hosts: all
   gather_facts: false

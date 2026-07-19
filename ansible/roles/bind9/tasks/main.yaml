@@ -14,10 +14,14 @@
 # it.
 #
 # Variable ownership:
-#   group_vars/all.yaml       — dns_deploy_dir, dns_config_dir
 #   host_vars/<app-host>.yaml — dns_zones, dns_ddns_target,
 #                               caddy_domain, compose_apps
 # ---------------------------------------------------------------------------
+
+- name: Set BIND9 directory facts
+  ansible.builtin.set_fact:
+    bind9_deploy_dir: "{{ compose_deploy_dir }}/bind9"
+    bind9_config_dir: "{{ compose_deploy_dir }}/bind9/config"
 
 - name: Ensure bind group exists
   ansible.builtin.group:
@@ -49,11 +53,11 @@
     group: bind
     mode: '0755'
   loop:
-    - "{{ dns_config_dir }}"
-    - "{{ dns_config_dir }}/zones"
-    - "{{ dns_deploy_dir }}/cache"
-    - "{{ dns_deploy_dir }}/records"
-    - "{{ dns_deploy_dir }}/run"
+    - "{{ bind9_config_dir }}"
+    - "{{ bind9_config_dir }}/zones"
+    - "{{ bind9_deploy_dir }}/cache"
+    - "{{ bind9_deploy_dir }}/records"
+    - "{{ bind9_deploy_dir }}/run"
 
 - name: Compute DNS serial (Unix epoch)
   ansible.builtin.set_fact:
@@ -95,7 +99,7 @@
 - name: Generate named.conf
   ansible.builtin.template:
     src: named.conf.j2
-    dest: "{{ dns_config_dir }}/named.conf"
+    dest: "{{ bind9_config_dir }}/named.conf"
     owner: bind
     group: bind
     mode: '0644'
@@ -104,7 +108,7 @@
 - name: Generate named.conf.local
   ansible.builtin.template:
     src: named.conf.local.j2
-    dest: "{{ dns_config_dir }}/named.conf.local"
+    dest: "{{ bind9_config_dir }}/named.conf.local"
     owner: bind
     group: bind
     mode: '0644'
@@ -126,7 +130,7 @@
 - name: Render zone files to temp path for diffing
   ansible.builtin.template:
     src: zone.db.j2
-    dest: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
+    dest: "{{ bind9_config_dir }}/zones/db.{{ item.key }}.new"
     owner: bind
     group: bind
     mode: '0644'
@@ -141,7 +145,7 @@
 
 - name: Diff zone files ignoring serial line
   ansible.builtin.shell: |
-    live="{{ dns_config_dir }}/zones/db.{{ item.key }}"
+    live="{{ bind9_config_dir }}/zones/db.{{ item.key }}"
     new="${live}.new"
 
     strip_serial() {
@@ -170,8 +174,8 @@
 
 - name: Promote new zone file when content has changed
   ansible.builtin.shell: |
-    new="{{ dns_config_dir }}/zones/db.{{ item.item.key }}.new"
-    live="{{ dns_config_dir }}/zones/db.{{ item.item.key }}"
+    new="{{ bind9_config_dir }}/zones/db.{{ item.item.key }}.new"
+    live="{{ bind9_config_dir }}/zones/db.{{ item.item.key }}"
     cp -a "$new" "$live"
   args:
     executable: /bin/bash
@@ -183,7 +187,7 @@
 
 - name: Remove temp zone files
   ansible.builtin.file:
-    path: "{{ dns_config_dir }}/zones/db.{{ item.key }}.new"
+    path: "{{ bind9_config_dir }}/zones/db.{{ item.key }}.new"
     state: absent
   loop: "{{ bind9_all_zones }}"
   no_log: true

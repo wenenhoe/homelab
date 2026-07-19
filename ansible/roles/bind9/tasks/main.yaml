@@ -96,23 +96,17 @@
       {%- endfor -%}
       {{ result }}
 
-- name: Generate named.conf
+- name: Generate BIND9 configuration files
   ansible.builtin.template:
-    src: named.conf.j2
-    dest: "{{ bind9_config_dir }}/named.conf"
+    src: "{{ item.src }}"
+    dest: "{{ bind9_config_dir }}/{{ item.dest }}"
     owner: bind
     group: bind
     mode: '0644'
-  register: bind9_named_conf
-
-- name: Generate named.conf.local
-  ansible.builtin.template:
-    src: named.conf.local.j2
-    dest: "{{ bind9_config_dir }}/named.conf.local"
-    owner: bind
-    group: bind
-    mode: '0644'
-  register: bind9_named_local
+  loop:
+    - { src: 'named.conf.j2', dest: 'named.conf' }
+    - { src: 'named.conf.local.j2', dest: 'named.conf.local' }
+  register: bind9_config_files
 
 # ---------------------------------------------------------------------------
 # Smart zone-file deployment — ignore serial changes in the diff so we don't
@@ -196,8 +190,7 @@
   ansible.builtin.set_fact:
     bind9_dns_changed: >-
       {{
-        bind9_named_conf.changed or
-        bind9_named_local.changed or
+        bind9_config_files.changed or
         (bind9_zone_promote.results
          | default([])
          | selectattr('changed', 'equalto', true)

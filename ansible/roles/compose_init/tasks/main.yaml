@@ -14,18 +14,18 @@
 # ---------------------------------------------------------------------------
 - name: Merge app registry defaults into each compose app definition
   ansible.builtin.set_fact:
-    file_system_compose_apps_resolved: "{{ (current_list | list) + [merged_app] }}"
+    compose_init_compose_apps_resolved: "{{ (current_list | list) + [merged_app] }}"
   loop: "{{ compose_apps }}"
   loop_control:
     label: "{{ item.name }}"
   vars:
-    current_list: "{{ file_system_compose_apps_resolved | default([]) }}"
+    current_list: "{{ compose_init_compose_apps_resolved | default([]) }}"
     registry_defaults: "{{ app_registry[item.name] | default({}) }}"
     merged_app: "{{ registry_defaults | combine(item, recursive=True) }}"
 
 - name: Replace compose_apps with the fully-resolved definitions
   ansible.builtin.set_fact:
-    file_system_compose_apps: "{{ file_system_compose_apps_resolved }}"
+    compose_init_compose_apps: "{{ compose_init_compose_apps_resolved }}"
 
 - name: Ensure stacks directory exists
   ansible.builtin.file:
@@ -42,7 +42,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ file_system_compose_apps }}"
+  loop: "{{ compose_init_compose_apps }}"
 
 - name: Ensure app data directories exist
   ansible.builtin.file:
@@ -51,19 +51,19 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ file_system_compose_apps | subelements('create_dirs', skip_missing=True) }}"
+  loop: "{{ compose_init_compose_apps | subelements('create_dirs', skip_missing=True) }}"
 
 - name: Find compose files on the controller
   ansible.builtin.find:
     paths: "{{ compose_source_dir }}/{{ item.name }}/"
     patterns: "compose*.yaml"
-  loop: "{{ file_system_compose_apps }}"
-  register: file_system_compose_files_raw
+  loop: "{{ compose_init_compose_apps }}"
+  register: compose_init_compose_files_raw
   delegate_to: localhost
 
 - name: Flatten compose files list
   ansible.builtin.set_fact:
-    file_system_compose_files: "{{ file_system_compose_files_raw.results | map(attribute='files') | flatten }}"
+    compose_init_compose_files: "{{ compose_init_compose_files_raw.results | map(attribute='files') | flatten }}"
 
 - name: Copy compose files to remote host
   ansible.builtin.copy:
@@ -72,7 +72,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  loop: "{{ file_system_compose_files }}"
+  loop: "{{ compose_init_compose_files }}"
   loop_control:
     label: "{{ item.path }}"
 
@@ -83,7 +83,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ file_system_compose_apps | subelements('scripts', skip_missing=True) }}"
+  loop: "{{ compose_init_compose_apps | subelements('scripts', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }}/scripts/{{ item.1 }}"
 
@@ -95,7 +95,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0600"
-  loop: "{{ file_system_compose_apps }}"
+  loop: "{{ compose_init_compose_apps }}"
   when: item.env | default(false)
   no_log: true
 
@@ -107,7 +107,7 @@
     group: "{{ item.1.group | default(ansible_user) }}"
     mode: "{{ item.1.mode | default('0644') }}"
     force: "{{ item.1.force | default(true) }}"
-  loop: "{{ file_system_compose_apps | subelements('templates', skip_missing=True) }}"
+  loop: "{{ compose_init_compose_apps | subelements('templates', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }}/{{ item.1.dest }}"
   no_log: "{{ item.1.no_log | default(false) }}"
@@ -120,7 +120,7 @@
     group: "{{ item.1.group | default(ansible_user) }}"
     mode: "{{ item.1.mode | default('0644') }}"
     force: "{{ item.1.force | default(true) }}"
-  loop: "{{ file_system_compose_apps | subelements('configs', skip_missing=True) }}"
+  loop: "{{ compose_init_compose_apps | subelements('configs', skip_missing=True) }}"
   loop_control:
     label: "{{ item.0.name }}/configs/{{ item.1.dest }}"
   no_log: "{{ item.1.no_log | default(false) }}"
@@ -129,4 +129,4 @@
   ansible.builtin.file:
     path: "{{ compose_deploy_dir }}/{{ item.0.name }}/{{ item.1 }}"
     state: absent
-  loop: "{{ file_system_compose_apps | subelements('exclude', skip_missing=True) }}"
+  loop: "{{ compose_init_compose_apps | subelements('exclude', skip_missing=True) }}"

@@ -33,7 +33,7 @@
     - role: docker
       tags:
         - initial-setup
-    - role: file_system
+    - role: compose_init
     - role: caddy
 
 # Play 2 — DNS config written and BIND9 reloaded before any container starts.
@@ -50,4 +50,4 @@
   hosts: all
   gather_facts: false
   roles:
-    - role: docker_compose
+    - role: compose

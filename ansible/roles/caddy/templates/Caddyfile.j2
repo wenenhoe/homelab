@@ -16,7 +16,7 @@
     }
 }
 
-{% set tinyauth_apps = file_system_compose_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
+{% set tinyauth_apps = compose_init_compose_apps | selectattr('name', 'equalto', 'tinyauth') | list %}
 {% if tinyauth_apps %}
 {{ tinyauth_host }}.{{ lab_domain }} {
     reverse_proxy {{ tinyauth_apps[0].upstream }} {
@@ -25,7 +25,7 @@
 }
 
 {% endif %}
-{% set routable_apps = file_system_compose_apps | selectattr('caddy', 'defined') | list %}
+{% set routable_apps = compose_init_compose_apps | selectattr('caddy', 'defined') | list %}
 {% if routable_apps | length > 0 %}
 *.{{ caddy_domain }} {
 {% for app in routable_apps %}

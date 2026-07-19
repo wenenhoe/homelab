@@ -1,7 +1,7 @@
 ---
 - name: Init caddy's own compose app files and directories
   ansible.builtin.include_role:
-    name: compose_app
+    name: compose
     tasks_from: init
   vars:
     compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
@@ -39,7 +39,7 @@
 
 - name: Deploy and restart caddy now that its config/image is ready
   ansible.builtin.include_role:
-    name: compose_app
+    name: compose
     tasks_from: deploy
   vars:
     compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"

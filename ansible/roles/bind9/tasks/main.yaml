@@ -36,7 +36,7 @@
 
 - name: Init bind9's own compose app files and directories
   ansible.builtin.include_role:
-    name: compose_app
+    name: compose
     tasks_from: init
   vars:
     compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
@@ -202,7 +202,7 @@
 
 - name: Deploy and restart bind9 now that its config is ready
   ansible.builtin.include_role:
-    name: compose_app
+    name: compose
     tasks_from: deploy
   vars:
     compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"

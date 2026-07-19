@@ -1,13 +1,11 @@
 ---
-# bind9 and caddy already deployed (and restarted, if needed) themselves in
-# Play 1 / Play 2 — see roles/caddy and roles/bind9. Everything else gets
-# deployed here, generically, via the shared compose_app role.
-- name: Deploy remaining compose apps
-  ansible.builtin.include_role:
-    name: compose_app
-    tasks_from: main
-  vars:
-    compose_app_item: "{{ item }}"
-  loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy'])) | list }}"
-  loop_control:
-    label: "{{ item.name }}"
+# End-to-end single-app entrypoint (init then deploy). Not currently called
+# anywhere in the deploy.yaml flow — compose_app calls init.yaml and
+# deploy.yaml separately in Play 1 / Play 3, and caddy/bind9 call them
+# separately too so they can inject their own config generation in between.
+# Kept as a convenience for ad-hoc / future single-app runs.
+- name: Initialise docker compose apps
+  ansible.builtin.import_tasks: init.yaml
+
+- name: Deploy docker compose apps
+  ansible.builtin.import_tasks: deploy.yaml

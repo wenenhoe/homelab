@@ -3,7 +3,7 @@
 # Reusable single-app initializer.
 #
 # Shared by:
-#   - compose_init role   (looped once per "generic" app in compose_apps)
+#   - compose_app role    (looped once per non-infra app, Play 1)
 #   - caddy / bind9 roles (called directly for their own app, so they can
 #                          control ordering relative to their own config
 #                          generation and compose deploy — see those roles)
@@ -11,7 +11,7 @@
 # Expects:
 #   compose_app_item — one fully-resolved entry from compose_apps (i.e.
 #                       already merged with app_registry defaults by
-#                       compose_init's registry-merge task)
+#                       compose_app's registry-merge task)
 # ---------------------------------------------------------------------------
 
 - name: Ensure app deploy directory exists ({{ compose_app_item.name }})
@@ -35,7 +35,7 @@
   ansible.builtin.find:
     paths: "{{ compose_source_dir }}/{{ compose_app_item.name }}/"
     patterns: "compose*.yaml"
-  register: compose_app_compose_files_raw
+  register: compose_compose_files_raw
   delegate_to: localhost
 
 - name: Copy compose files to remote host ({{ compose_app_item.name }})
@@ -45,7 +45,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"
-  loop: "{{ compose_app_compose_files_raw.files }}"
+  loop: "{{ compose_compose_files_raw.files }}"
   loop_control:
     label: "{{ item.path }}"
 

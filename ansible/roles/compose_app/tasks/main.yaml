@@ -1,11 +1,10 @@
 ---
-# End-to-end single-app entrypoint (init then deploy). Used wherever a
-# caller just wants "get this app fully up" in one include_role call — e.g.
-# compose role's Play 3 loop over the non-self-managed apps.
-#
-# caddy/bind9 call init.yaml and deploy.yaml separately instead, since they
-# need to inject their own config-generation steps in between the two.
+# Convenience entrypoint (resolve then deploy) for callers that don't need
+# the Play 1 / Play 4 split — e.g. ad-hoc runs. deploy.yaml itself calls
+# resolve.yaml and deploy.yaml separately, in Play 1 and Play 4
+# respectively, since caddy and bind9 need to run in between.
 - name: Initialise docker compose apps
-  ansible.builtin.import_tasks: init.yaml
+  ansible.builtin.import_tasks: resolve.yaml
+
 - name: Deploy docker compose apps
   ansible.builtin.import_tasks: deploy.yaml

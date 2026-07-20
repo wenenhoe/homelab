@@ -13,3 +13,8 @@ compose_apps:
     caddy:
       default:
         host: dockge
+
+  - name: wetty
+    caddy:
+      default:
+        host: wetty

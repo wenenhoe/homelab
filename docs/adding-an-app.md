@@ -52,7 +52,7 @@ compose_apps:
         host: my-app
 ```
 
-At deploy time, this gets merged with the `app_registry` entry (`registry_defaults | combine(item, recursive=True)`), so the fully-resolved app carries both its registry defaults and its host-specific hostname. If the host also runs `bind9` (or is in `app_hosts`, which all hosts are), a CNAME for `my-app.{{ caddy_domain }}` is generated automatically, with no manual DNS editing required.
+At deploy time, this gets merged with the `app_registry` entry (`registry_defaults | combine(item, recursive=True)`), so the fully-resolved app carries both its registry defaults and its host-specific hostname. If the host also runs `bind9` (or is in `app_hosts`, which all hosts are), a CNAME for `my-app.{{ caddy_domain }}` is generated automatically, with no manual DNS editing required. See [`host-vars.md`](host-vars.md) for the full `host_vars` field reference, including the alias-variable pattern (`cobalt_host`, `lldap_host`, ...) used when an app's own config needs to know its routed hostname too.
 
 ## 4. Deploy
 

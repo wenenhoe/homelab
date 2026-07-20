@@ -4,7 +4,7 @@ The `bind9` role runs a single authoritative, non-recursive nameserver on the `s
 
 ## How zone data is gathered
 
-BIND9 itself carries no zone configuration — each app host declares its own `dns_zones` in its `host_vars/*.yaml` (SOA/TTL, `soa_email`, and any static `extra_records`). The role loops over the `app_hosts` group, reaches into each host's `hostvars`, and flattens every declared zone into one list (`bind9_all_zones`), tagging each entry with that host's `dns_ddns_target` and `caddy_domain`.
+BIND9 itself carries no zone configuration — each app host declares its own `dns_zones` in its `host_vars/*.yaml` (SOA/TTL, `soa_email`, and any static `extra_records`). The role loops over the `app_hosts` group, reaches into each host's `hostvars`, and flattens every declared zone into one list (`bind9_all_zones`), tagging each entry with that host's `dns_ddns_target` and `caddy_domain`. See [`host-vars.md`](host-vars.md) for the full field reference.
 
 ## Two template outputs per run
 

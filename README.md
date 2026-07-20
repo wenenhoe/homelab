@@ -21,6 +21,7 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 .
 ├── ansible/                 # All automation: playbooks, inventory, roles
 │   ├── deploy.yaml          # Master playbook — full infra convergence
+│   ├── cleanup.yaml         # Tear down stacks no longer in a host's compose_apps
 │   ├── maintenance.yaml     # apt + firmware updates
 │   ├── reset-network.yaml   # netplan re-apply
 │   ├── inventory.yaml       # Hosts reachable over DNS (day-to-day use)
@@ -32,7 +33,7 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 │       ├── apt/             # System package updates
 │       ├── fwupd/           # Firmware updates
 │       ├── docker/          # Docker Engine install
-│       ├── compose/         # Reusable init/deploy tasks for one compose app
+│       ├── compose/         # Reusable init/deploy/cleanup tasks for one compose app
 │       ├── compose_app/     # Batch-drives `compose/` for every non-infra app
 │       ├── caddy/           # Renders Caddyfile, builds custom image, deploys
 │       └── bind9/           # Renders zone files, deploys, rewires host DNS
@@ -53,6 +54,7 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 | [`docs/bind9.md`](docs/bind9.md) | How the internal DNS zones are aggregated, rendered, and reloaded without spurious restarts. |
 | [`docs/caddy.md`](docs/caddy.md) | The custom DigitalOcean-DNS Caddy build, Caddyfile generation, and Tinyauth forward-auth wiring. |
 | [`docs/adding-an-app.md`](docs/adding-an-app.md) | Step-by-step: wiring a new Compose app into the `app_registry` and a host's `compose_apps`. |
+| [`docs/cleanup.md`](docs/cleanup.md) | How `cleanup.yaml` finds stacks orphaned from `compose_apps`, the keep-vs-delete content policy, and dry-running a cleanup pass. |
 
 ## Setup
 
@@ -96,6 +98,7 @@ Two inventories exist for two different situations:
 | Playbook File | Inventory | Description |
 | :--- | :--- | :--- |
 | `deploy.yaml` | `inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`docs/deployment-flow.md`](docs/deployment-flow.md). |
+| `cleanup.yaml` | `inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk (bind-mounted) content. See [`docs/cleanup.md`](docs/cleanup.md). |
 | `maintenance.yaml` | `inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
 | `reset-network.yaml` | `sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 

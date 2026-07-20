@@ -17,12 +17,12 @@ $TTL {{ zone_data.ttl }}
 
 ; ---------------------------------------------------------------------------
 ; Auto-generated CNAME records for Caddy-fronted services
-; Source: compose_apps entries that carry a 'caddy' key and whose host
+; Source: zone_compose_apps entries that carry a 'caddy' key and whose host
 ;         resolves within the zone "{{ zone_name }}" (i.e. host + '.' + caddy_domain).
 ;
 ; All CNAMEs point at: {{ dns_ddns_target }}
 ; ---------------------------------------------------------------------------
-{% for app in compose_apps %}
+{% for app in zone_compose_apps %}
 {%   if app.caddy is defined %}
 {%     for id, vhost in app.caddy.items() %}
 {#       Only emit the record when the fully-qualified name sits inside this zone #}

@@ -23,6 +23,7 @@ services:
       DIUN_NOTIF_TELEGRAM_CHATIDS: ${TELEGRAM_CHAT_ID}
       DIUN_NOTIF_TELEGRAM_DISABLENOTIFICATION: false
     networks:
+      - diun-net
       - docker-socket-proxy-net
     command: serve
     restart: always
@@ -39,5 +40,6 @@ services:
     expose:
       - '2375'
 networks:
+  diun-net:
   docker-socket-proxy-net:
     internal: true

@@ -25,11 +25,9 @@ $TTL {{ zone_data.ttl }}
 {% for app in zone_compose_apps %}
 {%   if app.caddy is defined %}
 {%     for id, vhost in app.caddy.items() %}
-{#       Only emit the record when the fully-qualified name sits inside this zone #}
 {%       set fqdn = vhost.host ~ '.' ~ caddy_domain %}
-{%       if fqdn == zone_name or fqdn.endswith('.' ~ zone_name) %}
-{%         set label = vhost.host if fqdn == zone_name else vhost.host %}
-{{ "%-12s" | format(label) }}  IN  CNAME  {{ dns_ddns_target }}
+{%       if zone_name == caddy_domain and (fqdn == zone_name or fqdn.endswith('.' ~ zone_name)) %}
+{{ "%-12s" | format(vhost.host) }}  IN  CNAME  {{ dns_ddns_target }}
 {%       endif %}
 {%     endfor %}
 {%   endif %}

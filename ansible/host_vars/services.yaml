@@ -47,11 +47,6 @@ compose_apps:
       default:
         host: wastebin
 
-  - name: wetty
-    caddy:
-      default:
-        host: wetty
-
   - name: diun
 
 # ---------------------------------------------------------------------------

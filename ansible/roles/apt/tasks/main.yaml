@@ -1,4 +1,13 @@
 ---
+# ---------------------------------------------------------------------------
+# System package updates. Used by maintenance.yaml (hosts: all), run before
+# the fwupd role.
+#
+# Upgrades every apt package (`apt_upgrade_type`, default 'safe' — i.e. no
+# package removal), then reboots only if /var/run/reboot-required exists
+# (set by apt itself, e.g. after a kernel update).
+# ---------------------------------------------------------------------------
+
 - name: Ensure the system is Debian-based
   ansible.builtin.assert:
     that:

@@ -1,3 +1,13 @@
+"""Restart the lldap container after a certbot cert renewal.
+
+Invoked by deploy-hook.sh once the new cert/key have been copied into
+lldap's mounted certs dir. Talks to `dockerproxy` (tecnativa/docker-socket-
+proxy, scoped to CONTAINERS=1 — see docker/lldap/compose.yaml) over plain
+TCP rather than mounting /var/run/docker.sock directly into this container,
+so certbot never gets host-level Docker access. Best-effort: any failure is
+logged and swallowed so a restart hiccup doesn't fail the renewal itself.
+"""
+
 import http.client
 import os
 

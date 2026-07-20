@@ -20,7 +20,7 @@
 #
 # Content policy (keep vs. delete an orphaned app's directory) is controlled
 # by compose_cleanup_remove_content / compose_cleanup_app_overrides in
-# group_vars/all.yaml — see comments there.
+# roles/compose/defaults/main.yaml — see comments there.
 
 - name: Clean up orphaned compose stacks
   hosts: app_hosts

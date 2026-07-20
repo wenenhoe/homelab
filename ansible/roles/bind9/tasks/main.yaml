@@ -134,7 +134,7 @@
     zone_data: "{{ item.value }}"
     dns_ddns_target: "{{ item.dns_ddns_target }}"
     caddy_domain: "{{ item.caddy_domain }}"
-    compose_apps: "{{ item.compose_apps }}"
+    zone_compose_apps: "{{ item.compose_apps }}"
   no_log: true
 
 - name: Diff zone files ignoring serial line

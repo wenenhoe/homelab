@@ -1,0 +1,78 @@
+---
+# Finds stacks under compose_deploy_dir (and/or still running) on this host
+# that are no longer listed in this host's compose_apps, and tears each one
+# down via compose role's cleanup.yaml.
+#
+# Expects:
+#   compose_apps        — this host's app list (host_vars), pre- or
+#                         post-registry-merge, only `.name` is used here
+#   compose_deploy_dir  — from group_vars/all.yaml
+#
+# Reads (roles/compose/defaults/main.yaml):
+#   compose_cleanup_remove_content  — default keep/remove policy
+#   compose_cleanup_app_overrides   — per-app keep/remove overrides
+#   compose_cleanup_dry_run         — report only, no changes
+#
+# Usage:
+#   ansible-playbook cleanup.yaml --check --diff              # see what --check would do
+#   ansible-playbook cleanup.yaml -e compose_cleanup_dry_run=true
+#   ansible-playbook cleanup.yaml --limit services
+#
+# Content policy (keep vs. delete an orphaned app's directory) is controlled
+# by compose_cleanup_remove_content / compose_cleanup_app_overrides in
+# group_vars/all.yaml — see comments there.
+
+- name: Clean up orphaned compose stacks
+  hosts: app_hosts
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Determine apps still wanted on this host
+      ansible.builtin.set_fact:
+        compose_cleanup_wanted_apps: "{{ compose_apps | map(attribute='name') | list }}"
+
+    - name: Find stack directories currently on disk
+      ansible.builtin.find:
+        paths: "{{ compose_deploy_dir }}"
+        file_type: directory
+        recurse: false
+      register: compose_cleanup_found_dirs
+
+    - name: List running docker compose projects
+      ansible.builtin.command: docker compose ls --format json
+      changed_when: false
+      failed_when: false
+      register: compose_cleanup_compose_ls
+
+    - name: Work out which stacks are orphaned (on disk or running, not in compose_apps)
+      ansible.builtin.set_fact:
+        compose_cleanup_orphaned_stacks: >-
+          {{
+            (
+              (compose_cleanup_found_dirs.files | map(attribute='path') | map('basename') | list)
+              + (
+                  (compose_cleanup_compose_ls.stdout | default('[]') | from_json | default([]))
+                  | map(attribute='Name') | list
+                )
+            ) | unique | difference(compose_cleanup_wanted_apps) | sort
+          }}
+
+    - name: Report - nothing to clean up on this host
+      ansible.builtin.debug:
+        msg: "No orphaned stacks under {{ compose_deploy_dir }} on {{ inventory_hostname }}."
+      when: compose_cleanup_orphaned_stacks | length == 0
+
+    - name: Report - orphaned stacks found on this host
+      ansible.builtin.debug:
+        msg: >-
+          Orphaned on {{ inventory_hostname }} (deployed but not in compose_apps):
+          {{ compose_cleanup_orphaned_stacks }}
+      when: compose_cleanup_orphaned_stacks | length > 0
+
+    - name: Tear down each orphaned stack
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: cleanup.yaml
+      loop: "{{ compose_cleanup_orphaned_stacks }}"
+      loop_control:
+        loop_var: compose_cleanup_stack

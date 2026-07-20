@@ -1,0 +1,18 @@
+---
+# ---------------------------------------------------------------------------
+# compose cleanup (ansible/cleanup.yaml) — apps deployed on a host but no
+# longer listed in its compose_apps get brought down. Since stacks use
+# bind mounts (not named docker volumes), deleting a stack's directory
+# deletes its real data — there's no separate volume safety net. So this
+# defaults to "stop it, but leave the data on disk", and individual apps
+# can opt in to deletion by name.
+#
+# e.g. specifying the app overrides:
+#
+# compose_cleanup_app_overrides:
+#   old_test_app: true
+#   scratch_service: true
+# ---------------------------------------------------------------------------
+compose_cleanup_remove_content: false
+compose_cleanup_app_overrides: {}
+compose_cleanup_dry_run: false

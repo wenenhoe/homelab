@@ -1,0 +1,84 @@
+---
+# ---------------------------------------------------------------------------
+# Tear down one orphaned stack, referenced as compose_cleanup_stack.
+# Included once per item from playbook cleanup.yaml.
+# ---------------------------------------------------------------------------
+
+- name: "Check whether the stack directory still exists ({{ compose_cleanup_stack }})"
+  ansible.builtin.stat:
+    path: "{{ compose_deploy_dir }}/{{ compose_cleanup_stack }}"
+  register: compose_cleanup_stack_dir_stat
+
+# Normal case: compose files are still on disk, so state:absent can resolve
+# services/networks from them, same as the rest of this role uses
+# docker_compose_v2 elsewhere (roles/compose/tasks/deploy.yaml).
+- name: "Bring the stack down via docker compose ({{ compose_cleanup_stack }})"
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ compose_cleanup_stack }}"
+    state: absent
+    remove_orphans: true
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - compose_cleanup_stack_dir_stat.stat.exists
+
+# Edge case: containers/project are running but the directory is already
+# gone (e.g. removed by hand outside Ansible) - nothing for the module to
+# read, so fall back to removing by compose project label.
+- name: "List containers by compose project label, fallback only ({{ compose_cleanup_stack }})"
+  ansible.builtin.command: >-
+    docker ps -aq --filter "label=com.docker.compose.project={{ compose_cleanup_stack }}"
+  changed_when: false
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - not compose_cleanup_stack_dir_stat.stat.exists
+  register: compose_cleanup_fallback_ids
+
+- name: "Force remove containers found via label fallback ({{ compose_cleanup_stack }})"
+  ansible.builtin.command: "docker rm -f {{ compose_cleanup_fallback_ids.stdout_lines | join(' ') }}"
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - not compose_cleanup_stack_dir_stat.stat.exists
+    - compose_cleanup_fallback_ids.stdout_lines | default([]) | length > 0
+  changed_when: true
+
+- name: "DRY RUN - report teardown action ({{ compose_cleanup_stack }})"
+  ansible.builtin.debug:
+    msg: "Would bring '{{ compose_cleanup_stack }}' down (docker compose or label fallback)."
+  when: (compose_cleanup_dry_run | bool)
+
+# --- Decide keep vs remove on-disk content ----------------------------------
+
+- name: "Determine whether to remove on-disk content ({{ compose_cleanup_stack }})"
+  ansible.builtin.set_fact:
+    compose_cleanup_should_remove_content: >-
+      {{ compose_cleanup_app_overrides[compose_cleanup_stack]
+         if compose_cleanup_stack in compose_cleanup_app_overrides
+         else compose_cleanup_remove_content }}
+  when: compose_cleanup_stack_dir_stat.stat.exists
+
+- name: "DRY RUN - report content decision ({{ compose_cleanup_stack }})"
+  ansible.builtin.debug:
+    msg: >-
+      Would {{ compose_cleanup_should_remove_content | ternary('DELETE', 'KEEP') }}
+      {{ compose_deploy_dir }}/{{ compose_cleanup_stack }}
+      ({{ compose_cleanup_should_remove_content | ternary('irreversible - bind-mounted data included', 'stack stopped, data left in place') }})
+  when:
+    - (compose_cleanup_dry_run | bool)
+    - compose_cleanup_stack_dir_stat.stat.exists
+
+- name: "Remove stack directory and its bind-mounted content ({{ compose_cleanup_stack }})"
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/{{ compose_cleanup_stack }}"
+    state: absent
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - compose_cleanup_stack_dir_stat.stat.exists
+    - compose_cleanup_should_remove_content | bool
+
+- name: "Content preserved ({{ compose_cleanup_stack }})"
+  ansible.builtin.debug:
+    msg: "Stack '{{ compose_cleanup_stack }}' stopped; content preserved at {{ compose_deploy_dir }}/{{ compose_cleanup_stack }}."
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - compose_cleanup_stack_dir_stat.stat.exists
+    - not (compose_cleanup_should_remove_content | bool)

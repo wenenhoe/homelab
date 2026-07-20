@@ -1,6 +1,6 @@
 # My Homelab
 
-An Ansible-driven homelab: a small fleet of Ubuntu hosts, each running a set of Dockerized services behind a self-built **Caddy** reverse proxy, with **BIND9** as the authoritative internal DNS server. Everything — package installs, Docker Engine, DNS zones, TLS-terminating routes, and every application's config/directories — is generated and converged by a handful of Ansible playbooks and roles. There is no manual step on a target host beyond running `ansible-playbook`.
+An Ansible-driven homelab: a small fleet of Ubuntu hosts, each running a set of Dockerized services behind a **Caddy** reverse proxy, with **BIND9** as the authoritative internal DNS server. Package installs, Docker Engine, DNS zones, TLS-terminating routes, and every application's config/directories are generated and converged by a handful of Ansible playbooks and roles. There is no manual step on a target host beyond running `ansible-playbook`.
 
 ## Architecture
 
@@ -45,6 +45,15 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 
 Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` directory of Jinja2 templates (`.env` files, app config files) that Ansible renders onto the target host — the `docker/` tree is the single source of truth for what gets deployed; nothing is hand-authored on the servers themselves.
 
+## Further Reading
+
+| Doc | Covers |
+| :--- | :--- |
+| [`docs/deployment-flow.md`](docs/deployment-flow.md) | The 4-play `deploy.yaml` sequence, the role responsibilities, and the `app_registry` pattern that drives per-host config resolution. |
+| [`docs/bind9.md`](docs/bind9.md) | How the internal DNS zones are aggregated, rendered, and reloaded without spurious restarts. |
+| [`docs/caddy.md`](docs/caddy.md) | The custom DigitalOcean-DNS Caddy build, Caddyfile generation, and Tinyauth forward-auth wiring. |
+| [`docs/adding-an-app.md`](docs/adding-an-app.md) | Step-by-step: wiring a new Compose app into the `app_registry` and a host's `compose_apps`. |
+
 ## Setup
 
 Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/) so no global Python/Ansible install is required.
@@ -86,9 +95,9 @@ Two inventories exist for two different situations:
 
 | Playbook File | Inventory | Description |
 | :--- | :--- | :--- |
-| `deploy.yml` | `inventory.yaml` | The master playbook that imports other roles to configure the entire infrastructure. |
-| `maintenance.yml` | `inventory.yaml` | Performs server maintenance activities such as package update. |
-| `reset-network.yml` | `sos-inventory.yaml` | Resets network for entire infrastructure. |
+| `deploy.yaml` | `inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`docs/deployment-flow.md`](docs/deployment-flow.md). |
+| `maintenance.yaml` | `inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
+| `reset-network.yaml` | `sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 
 ## Basic Commands
 
@@ -126,6 +135,10 @@ Two inventories exist for two different situations:
   ```sh
   docker stop $(docker ps -q) && docker rm $(docker ps -aq)
   ```
+
+## Applications
+
+Everything routed through Caddy sits behind **Tinyauth** forward-auth by default (per-route `auth: false` opts out — e.g. Cobalt, Dashy, OpenSpeedTest, LLDAP's own UI), backed by **LLDAP** as the directory. **DIUN** watches deployed images and notifies over Telegram when updates are available. The rest of `docker/` is a set of independently deployable Compose stacks (dashboards, media/download tools, a Minecraft server, link shortener, pastebin, web terminal, etc.) — each one just an entry in `app_registry` plus a `docker/<app>/` directory of its `compose.yaml` and config templates. See [`docs/adding-an-app.md`](docs/adding-an-app.md) to add a new one.
 
 ## Linting & Pre-commit
 

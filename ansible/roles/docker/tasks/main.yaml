@@ -1,4 +1,15 @@
 ---
+# ---------------------------------------------------------------------------
+# Installs Docker Engine from Docker's official apt repo (DEB822 format,
+# GPG-verified). Run in deploy.yaml's Play 1 (tags: initial-setup), ahead
+# of every other role, since Caddy/BIND9/compose apps all need it.
+#
+# Also adds every account in `docker_users` (group_vars/all.yaml, defaults
+# to just `ansible_user`) to the `docker` group so it can run `docker`
+# without sudo. Idempotent: re-running after Docker is already installed
+# just confirms the repo/packages/group state and does nothing further.
+# ---------------------------------------------------------------------------
+
 - name: Install prerequisite packages
   ansible.builtin.apt:
     name:

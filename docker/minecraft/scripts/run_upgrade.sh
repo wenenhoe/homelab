@@ -1,4 +1,15 @@
 #!/bin/bash
+# Dry-run a Minecraft server version bump before touching the live server.
+#
+# Runs the `test-upgrade` service from compose.upgrade.yaml: an ephemeral
+# itzg/minecraft-server container with SETUP_ONLY=true and the *candidate*
+# VERSION, which downloads that server jar plus every mod in
+# configs/modrinth-mods.txt and validates Fabric/Modrinth dependency
+# resolution, then exits — no world data touched, nothing left running.
+#
+# Usage: ./run_upgrade.sh [version]   (defaults to 26.1.2 if omitted)
+# A clean exit here means it's safe to bump `VERSION` in compose.yaml's
+# `mc` service and redeploy for real.
 set -e
 
 # Function to handle exit signal

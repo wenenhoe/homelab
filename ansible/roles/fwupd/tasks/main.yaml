@@ -1,4 +1,14 @@
 ---
+# ---------------------------------------------------------------------------
+# Firmware updates via fwupd/LVFS. Used by maintenance.yaml (hosts: all),
+# run after the apt role.
+#
+# Refreshes metadata, applies any available firmware updates
+# (`fwupdmgr update --assume-yes` — skipped if get-upgrades found none,
+# rc != 0), then reboots only if `fwupdmgr get-devices` reports a device
+# needs a restart to finish applying its capsule update.
+# ---------------------------------------------------------------------------
+
 - name: Refresh fwupd metadata cache
   ansible.builtin.command: fwupdmgr refresh
   register: fwupd_refresh

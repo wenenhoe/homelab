@@ -14,6 +14,20 @@ compose_deploy_dir: /opt/stacks
 tinyauth_host: sso
 
 # ---------------------------------------------------------------------------
+# Beszel — hub + agent monitoring.
+#
+# beszel_hub_key / beszel_agent_token are unknown until after the hub's
+# first boot (it generates its own ED25519 keypair, and a universal token
+# is created by hand in Settings > Tokens). Leave them blank on the first
+# `deploy.yaml` run — beszel-agent will sit in a harmless auth-retry loop
+# until these are filled in and the playbook is re-run. See docs/beszel.md.
+# ---------------------------------------------------------------------------
+beszel_hub_host: beszel
+beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_domain }}"
+# beszel_hub_key: ""
+# beszel_agent_token: ""
+
+# ---------------------------------------------------------------------------
 # App registry — single source of truth for everything about an app that
 # does NOT vary by host: dirs to create, scripts/configs to deploy, and its
 # docker upstream.
@@ -36,6 +50,30 @@ app_registry:
         dest: .env
         mode: "0600"
         force: false
+
+  beszel-hub:
+    create_dirs:
+      - data
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+    caddy:
+      default:
+        upstream: "beszel-hub:8090"
+        auth: false   # agents auth via TOKEN/KEY handshake, not Tinyauth/LDAP
+
+  beszel-agent:
+    create_dirs:
+      - data
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: true   # deliberate deviation from force:false — .env must
+                      # re-render once beszel_hub_key/beszel_agent_token
+                      # are filled in post-bootstrap (see docs/beszel.md)
+        no_log: true
 
   bind9:
     configs:

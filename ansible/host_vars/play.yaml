@@ -4,6 +4,8 @@ caddy_domain: "play.{{ lab_domain }}"
 compose_apps:
   - name: caddy
 
+  - name: beszel-agent
+
   - name: minecraft
     caddy:
       default:

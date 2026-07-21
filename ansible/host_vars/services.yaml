@@ -10,6 +10,8 @@ compose_apps:
 
   - name: bind9
 
+  - name: beszel-agent
+
   - name: bentopdf
     caddy:
       default:

@@ -10,6 +10,12 @@ services:
     networks:
       - caddy-proxy
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://shlink:8080/rest/v3/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '8080'
   shlink-web-client:
@@ -20,6 +26,12 @@ services:
     networks:
       - caddy-proxy
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://shlink-web-client:8080/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '8080'
 networks:

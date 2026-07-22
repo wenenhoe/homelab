@@ -15,4 +15,10 @@ services:
       - '0.0.0.0:53:53/udp'
     command: [ "--args", "dns-server", "-g", "-u", "bind", "-4" ]
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "pebble", "health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     user: bind:bind

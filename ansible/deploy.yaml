@@ -32,6 +32,12 @@
       prompt: "Enter the Tinyauth LDAP Observer password"
       private: true
       confirm: true
+    - name: beszel_hub_key
+      prompt: "Enter the Beszel Hub Key"
+      private: true
+    - name: beszel_agent_token
+      prompt: "Enter the Beszel Agent Token"
+      private: true
   tasks:
     - name: Include docker install role
       ansible.builtin.include_role:

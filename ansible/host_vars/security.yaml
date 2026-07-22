@@ -13,6 +13,13 @@ compose_apps:
       default:
         host: "{{ lldap_host }}"
 
+  - name: beszel-hub
+    caddy:
+      default:
+        host: "{{ beszel_hub_host }}"
+
+  - name: beszel-agent
+
   - name: diun
 
 # ---------------------------------------------------------------------------

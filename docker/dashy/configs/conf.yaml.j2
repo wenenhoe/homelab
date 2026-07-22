@@ -46,13 +46,19 @@ sections:
         url: 'https://opnsense.{{ ddns_domain }}'
         statusCheck: true
         id: 0_1774_opnsense
+      - title: Beszel
+        description: Server monitoring platform
+        icon: '{{ beszel_hub_url }}/static/icon.svg'
+        url: '{{ beszel_hub_url }}'
+        statusCheck: true
+        id: 1_1774_beszel
       - title: Wetty
         description: Terminal in browser
         icon: fas fa-terminal
         url: 'https://wetty.svc.{{ lab_domain }}/?host=@'
         statusCheck: true
         statusCheckAcceptCodes: '401'
-        id: 3_1774_wetty
+        id: 2_1774_wetty
   - name: Game Tools
     icon: fa fa-gamepad
     items:

@@ -26,6 +26,8 @@
       FROM caddy:builder AS builder
       RUN xcaddy build --with github.com/caddy-dns/digitalocean
       FROM caddy:latest
+      RUN apt-get update && apt-get install -y --no-install-recommends curl \
+        && rm -rf /var/lib/apt/lists/*
       COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 
 - name: Build custom Caddy image locally using standard Dockerfile

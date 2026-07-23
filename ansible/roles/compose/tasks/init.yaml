@@ -25,6 +25,13 @@
   loop_control:
     label: "{{ compose_app_item.name }}/{{ item }}"
 
+- name: Ensure volumes exist and migrate legacy data ({{ compose_app_item.name }})
+  ansible.builtin.include_tasks: ensure_volume.yaml
+  loop: "{{ compose_app_item.volumes | default([]) }}"
+  loop_control:
+    loop_var: compose_volume_item
+    label: "{{ compose_app_item.name }}/{{ compose_volume_item.name }}"
+
 - name: Find compose files on the controller ({{ compose_app_item.name }})
   ansible.builtin.find:
     paths: "{{ compose_source_dir }}/{{ compose_app_item.name }}/"

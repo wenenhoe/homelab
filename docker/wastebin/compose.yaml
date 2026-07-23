@@ -5,7 +5,7 @@ services:
     image: quxfoo/wastebin:3.7.0
     container_name: wastebin
     volumes:
-      - ./data:/data
+      - data:/data
     environment:
       - WASTEBIN_DATABASE_PATH=/data/state.db
     networks:
@@ -20,3 +20,7 @@ services:
 networks:
   caddy-proxy:
     external: true
+volumes:
+  data:
+    external: true
+    name: wastebin_data

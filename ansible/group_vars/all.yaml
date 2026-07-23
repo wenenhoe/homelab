@@ -141,8 +141,8 @@ app_registry:
         upstream: "shlink-web-client:8080"
 
   wastebin:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     caddy:
       default:
         upstream: "wastebin:8088"

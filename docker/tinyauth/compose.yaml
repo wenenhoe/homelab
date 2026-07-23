@@ -3,6 +3,7 @@ name: tinyauth
 services:
   tinyauth:
     image: ghcr.io/tinyauthapp/tinyauth:v5
+    container_name: tinyauth
     volumes:
       - ./data:/data
     environment:

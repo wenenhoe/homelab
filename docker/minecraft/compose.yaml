@@ -3,6 +3,7 @@ name: minecraft
 services:
   backups:
     image: itzg/mc-backup:2026.6.2
+    container_name: minecraft-backups
     depends_on:
       mc:
         condition: service_healthy
@@ -15,8 +16,12 @@ services:
       CRON_BACKUP_UID: "1000"
       RCON_HOST: mc
     restart: always
+    # TODO: Add healthcheck
+    # NOTE: Runs on a cron schedule with no listening port/daemon in between
+    # NOTE: Can consider looking into the logs daily with a custom script
   bluemap:
     image: ghcr.io/bluemap-minecraft/bluemap:v5
+    container_name: minecraft-bluemap
     volumes:
       - ./bluemap/config:/app/config
       - ./bluemap/web:/app/web
@@ -26,10 +31,14 @@ services:
       - caddy-proxy
     command: -r -u -w
     restart: always
+    # TODO: Add healthcheck
+    # NOTE: Image has no wget/curl
+    # NOTE: Can consider a sidecar/Dockerfile to compile a healthchecker JAR
     expose:
       - '8100'
   mc:
     image: itzg/minecraft-server:java25
+    container_name: minecraft-mc
     volumes:
       - ./data:/data
       - ./extras:/extras:ro

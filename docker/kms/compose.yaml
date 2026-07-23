@@ -3,6 +3,7 @@ name: kms
 services:
   kms-app:
     image: 11notes/kms:1.0
+    container_name: kms-app
     volumes:
       - ./data:/kms/var
     environment:
@@ -15,6 +16,7 @@ services:
     user: 1000:1000
   kms-gui:
     image: 11notes/kms-gui:1.0
+    container_name: kms-gui
     depends_on:
       kms-app:
         condition: service_healthy

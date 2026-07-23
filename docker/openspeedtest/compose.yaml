@@ -3,9 +3,16 @@ name: openspeedtest
 services:
   openspeedtest:
     image: openspeedtest/latest:v2.0.6
+    container_name: openspeedtest
     networks:
       - caddy-proxy
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '3000' # HTTP Port
       - '3001' # HTTPS Port

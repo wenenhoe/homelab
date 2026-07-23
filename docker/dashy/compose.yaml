@@ -3,6 +3,7 @@ name: dashy
 services:
   dashy:
     image: lissy93/dashy:4.x
+    container_name: dashy
     volumes:
       - ./data:/app/user-data
     environment:

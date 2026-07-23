@@ -3,6 +3,7 @@ name: diun
 services:
   diun:
     image: crazymax/diun:4
+    container_name: diun
     depends_on:
       - dockerproxy
     volumes:
@@ -27,8 +28,15 @@ services:
       - docker-socket-proxy-net
     command: serve
     restart: always
+    healthcheck:
+      test: [ "CMD", "diun", "healthcheck" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
   dockerproxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
+    container_name: diun-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
@@ -37,6 +45,12 @@ services:
     networks:
       - docker-socket-proxy-net
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2375/version" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '2375'
 networks:

@@ -3,9 +3,16 @@ name: bentopdf
 services:
   bentopdf:
     image: ghcr.io/alam00000/bentopdf-simple:v2.8.5
+    container_name: bentopdf
     networks:
       - caddy-proxy
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '8080'
 networks:

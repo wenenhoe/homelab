@@ -1,6 +1,9 @@
+name: shlink
+
 services:
   shlink:
     image: shlinkio/shlink:5
+    container_name: shlink
     environment:
       DEFAULT_DOMAIN: ${APP_URL}
       DEFAULT_BASE_URL_REDIRECT: ${WEB_APP_URL}
@@ -10,16 +13,29 @@ services:
     networks:
       - caddy-proxy
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://shlink:8080/rest/v3/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '8080'
   shlink-web-client:
     image: shlinkio/shlink-web-client:4
+    container_name: shlink-web-client
     environment:
       SHLINK_SERVER_URL: https://${APP_URL}
       SHLINK_SERVER_API_KEY: ${API_KEY}
     networks:
       - caddy-proxy
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://shlink-web-client:8080/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '8080'
 networks:

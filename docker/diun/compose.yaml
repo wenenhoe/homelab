@@ -3,6 +3,7 @@ name: diun
 services:
   diun:
     image: crazymax/diun:4
+    container_name: diun
     depends_on:
       - dockerproxy
     volumes:
@@ -35,6 +36,7 @@ services:
       start_period: 10s
   dockerproxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
+    container_name: diun-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:

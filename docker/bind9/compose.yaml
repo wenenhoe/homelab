@@ -3,6 +3,7 @@ name: bind9
 services:
   bind9:
     image: ubuntu/bind9:9.20-26.04_edge
+    container_name: bind9
     volumes:
       - ./config:/etc/bind
       - ./cache:/var/cache/bind

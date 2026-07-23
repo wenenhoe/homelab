@@ -3,6 +3,7 @@ name: wastebin
 services:
   wastebin:
     image: quxfoo/wastebin:3.7.0
+    container_name: wastebin
     volumes:
       - ./data:/data
     environment:

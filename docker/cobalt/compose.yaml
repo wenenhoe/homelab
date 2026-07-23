@@ -3,6 +3,7 @@ name: cobalt
 services:
   cobalt:
     image: ghcr.io/imputnet/cobalt:11
+    container_name: cobalt
     environment:
       # for tunneling functionality
       API_URL: ${COBALT_API_URL}

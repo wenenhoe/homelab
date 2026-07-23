@@ -3,6 +3,7 @@ name: bentopdf
 services:
   bentopdf:
     image: ghcr.io/alam00000/bentopdf-simple:v2.8.5
+    container_name: bentopdf
     networks:
       - caddy-proxy
     restart: unless-stopped

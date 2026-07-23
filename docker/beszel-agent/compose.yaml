@@ -20,6 +20,7 @@ services:
       start_period: 10s
   dockerproxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
+    container_name: beszel-agent-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:

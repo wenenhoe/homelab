@@ -3,6 +3,7 @@ name: wetty
 services:
   wetty:
     image: wettyoss/wetty:main
+    container_name: wetty
     environment:
       SSHHOST: ${DEFAULT_SSH_HOST}
       NODE_ENV: production

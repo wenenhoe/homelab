@@ -3,6 +3,7 @@ name: openspeedtest
 services:
   openspeedtest:
     image: openspeedtest/latest:v2.0.6
+    container_name: openspeedtest
     networks:
       - caddy-proxy
     restart: unless-stopped

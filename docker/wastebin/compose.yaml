@@ -11,6 +11,9 @@ services:
       - caddy-proxy
     restart: always
     user: 1000:1000
+    # TODO: Add healthcheck
+    # NOTE: Image has no shell, no wget/curl
+    # NOTE: Need more investigation
     expose:
       - '8088'
 networks:

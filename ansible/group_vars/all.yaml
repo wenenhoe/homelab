@@ -45,6 +45,10 @@ beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_dom
 # ---------------------------------------------------------------------------
 app_registry:
   caddy:
+    volumes:
+      - name: caddyfile
+      - name: data
+      - name: config
     configs:
       - src: env.j2
         dest: .env

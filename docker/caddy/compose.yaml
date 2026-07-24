@@ -5,9 +5,13 @@ services:
     image: caddy-digitalocean:v1.0 # Image managed by Ansible
     container_name: caddy
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - ./data:/data
-      - ./config:/config
+      - type: volume
+        source: caddyfile
+        target: /etc/caddy/Caddyfile
+        volume:
+          subpath: Caddyfile
+      - data:/data
+      - config:/config
     environment:
       DO_API_TOKEN: ${DO_API_TOKEN}
     ports:
@@ -29,3 +33,13 @@ services:
 networks:
   caddy-proxy:
     name: caddy-proxy
+volumes:
+  caddyfile:
+    external: true
+    name: caddy_caddyfile
+  data:
+    external: true
+    name: caddy_data
+  config:
+    external: true
+    name: caddy_config

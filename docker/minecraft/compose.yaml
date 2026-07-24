@@ -8,8 +8,8 @@ services:
       mc:
         condition: service_healthy
     volumes:
-      - ./data:/data:ro
-      - ./backups:/backups
+      - data:/data:ro
+      - backups:/backups
     environment:
       TZ: ${TIMEZONE}
       CRON_SCHEDULE: "0 4 * * *" # backup everyday at 4am
@@ -23,10 +23,14 @@ services:
     image: ghcr.io/bluemap-minecraft/bluemap:v5
     container_name: minecraft-bluemap
     volumes:
-      - ./bluemap/config:/app/config
-      - ./bluemap/web:/app/web
-      - ./bluemap/data:/app/data
-      - ./data/world:/app/world
+      - bluemap_config:/app/config
+      - bluemap_web:/app/web
+      - bluemap_data:/app/data
+      - type: volume
+        source: data
+        target: /app/world
+        volume:
+          subpath: world
     networks:
       - caddy-proxy
     command: -r -u -w
@@ -40,8 +44,8 @@ services:
     image: itzg/minecraft-server:java25
     container_name: minecraft-mc
     volumes:
-      - ./data:/data
-      - ./extras:/extras:ro
+      - data:/data
+      - extras:/extras:ro
     environment:
       TZ: ${TIMEZONE}
       EULA: "TRUE"
@@ -67,3 +71,22 @@ services:
 networks:
   caddy-proxy:
     external: true
+volumes:
+  data:
+    external: true
+    name: minecraft_data
+  backups:
+    external: true
+    name: minecraft_backups
+  bluemap_config:
+    external: true
+    name: minecraft_bluemap_config
+  bluemap_web:
+    external: true
+    name: minecraft_bluemap_web
+  bluemap_data:
+    external: true
+    name: minecraft_bluemap_data
+  extras:
+    external: true
+    name: minecraft_extras

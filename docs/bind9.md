@@ -29,6 +29,8 @@ Like `caddy`, the `bind9` role deploys and restarts its own compose stack direct
 
 Both changes are applied via handlers (`Restart systemd-resolved`, `Restart docker`) so they only fire when something actually changed.
 
+Being self-managed also means `bind9` seeds its own `config` volume directly rather than going through `compose_app`'s generic registry-driven staging: it renders `named.conf`/`named.conf.local`/zone files straight to a staging path it controls (`bind9_config_dir`), then reuses the `compose` role's `seed_volume.yaml` task directly, gated on `bind9_dns_changed` — the same change flag that decides whether to restart the stack. See [`volumes.md`](volumes.md).
+
 ## Runtime config
 
-`docker/bind9/compose.yaml`: the `ubuntu/bind9` image runs as a dedicated system `bind:bind` user/group (uid/gid `9970`, created by the role), binds `53/tcp` and `53/udp` on all interfaces, mounts rendered config/zones plus persistent cache and records volumes, and disables recursion (it only answers authoritatively for its own zones).
+`docker/bind9/compose.yaml`: the `ubuntu/bind9` image runs as a dedicated system `bind:bind` user/group (uid/gid `9970`, created by the role), binds `53/tcp` and `53/udp` on all interfaces, and mounts four named Docker volumes: `config` (seeded from the staged `named.conf`/`named.conf.local`/zone files above, only when `bind9_dns_changed` is true — see [`volumes.md`](volumes.md)) plus `cache`/`records`/`run` for BIND's own persistent state. Recursion is disabled — it only answers authoritatively for its own zones.

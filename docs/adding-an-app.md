@@ -23,8 +23,8 @@ In `ansible/group_vars/all.yaml`, add an entry keyed by the app name. This is th
 ```yaml
 app_registry:
   my-app:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -35,7 +35,8 @@ app_registry:
         upstream: "my-app:8080"
 ```
 
-- `create_dirs`: subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts (e.g. bind mounts for persistent data).
+- `volumes`: named Docker volumes Ansible creates and (if there's existing data at the old bind-mount path) migrates into automatically — this is what `./data:/data` in `compose.yaml` becomes `data:/data` plus a `volumes: { data: { external: true, name: my-app_data } }` block referencing. See [`volumes.md`](volumes.md) for the full mechanism, including how to seed Ansible-rendered configs into one. Omit entirely for an app with no persistent state, or if you'd rather keep a plain bind mount for now (e.g. an experimental stack) — `create_dirs` below still works unmodified either way.
+- `create_dirs`: subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount (or a staging path a volume gets seeded from), since a declared `volumes` entry no longer needs its directory pre-created.
 - `configs`: templates to render; `force: false` is standard for anything containing secrets so re-runs don't overwrite what's already on disk.
 - `scripts`: any helper scripts to copy verbatim into `<app>/scripts/`.
 - `caddy`: omit entirely for an app with no HTTP frontend. For a routable app, each key (`default`, or a descriptive name for apps with multiple routes — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and, optionally, `auth: false` to skip the Tinyauth forward-auth step.

@@ -158,6 +158,8 @@ app_registry:
         upstream: "wetty:3000"
 
   diun:
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env

@@ -7,7 +7,7 @@ services:
     depends_on:
       - dockerproxy
     volumes:
-      - ./data:/data
+      - data:/data
     environment:
       TZ: ${TIMEZONE}
       LOG_LEVEL: info
@@ -57,3 +57,7 @@ networks:
   diun-net:
   docker-socket-proxy-net:
     internal: true
+volumes:
+  data:
+    external: true
+    name: diun_data

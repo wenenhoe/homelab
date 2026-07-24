@@ -1,0 +1,28 @@
+---
+# ---------------------------------------------------------------------------
+# Reusable single-volume seeder. Included once per volume that had at least
+# one changed staged file this run (see init.yaml — compose_app_changed_seed_volumes).
+#
+# Expects (via loop_var from init.yaml):
+#   compose_app_item     — the resolved app entry (name, etc.)
+#   compose_volume_item  — one entry from compose_app_item.volumes whose
+#                          staged content changed this run
+#
+# Bulk-copies the app's whole staging subtree for this volume
+# (_staging/<volume>/...) over the top of the volume's current content.
+# Anything else already in the volume (app-generated state living alongside
+# the seeded file) is untouched — cp only ever adds/overwrites what's in the
+# source tree.
+# ---------------------------------------------------------------------------
+
+- name: "Copy staged content into volume ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
+  community.docker.docker_container:
+    name: "{{ compose_app_item.name }}-{{ compose_volume_item.name }}-seed"
+    image: alpine:latest
+    command: ["sh", "-c", "cp -a /src/. /dest/"]
+    volumes:
+      - "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ compose_volume_item.name }}:/src:ro"
+      - "{{ compose_app_item.name }}_{{ compose_volume_item.name }}:/dest"
+    detach: false
+    cleanup: true
+    state: started

@@ -7,12 +7,11 @@ services:
     depends_on:
       - dockerproxy
     volumes:
-      - ./letsencrypt/conf:/etc/letsencrypt
-      - ./letsencrypt/lib:/var/lib/letsencrypt
-      - ./creds:/creds
-      - ./scripts:/scripts
-      - ./certs:/output-certs
-      - ./scripts/deploy-hook.sh:/etc/letsencrypt/renewal-hooks/deploy/deploy-hook.sh:ro
+      - letsencrypt_conf:/etc/letsencrypt
+      - letsencrypt_lib:/var/lib/letsencrypt
+      - creds:/creds
+      - scripts:/scripts
+      - certs:/output-certs
     environment:
       - DOCKER_HOST=tcp://dockerproxy:2375
     env_file:
@@ -44,8 +43,8 @@ services:
     image: lldap/lldap:latest-alpine
     container_name: lldap
     volumes:
-      - ./data:/data
-      - ./certs:/data/certs
+      - data:/data
+      - certs:/data/certs
     env_file:
       - .env
     ports:
@@ -60,3 +59,22 @@ networks:
     external: true
   docker-socket-proxy-net:
     internal: true
+volumes:
+  data:
+    external: true
+    name: lldap_data
+  certs:
+    external: true
+    name: lldap_certs
+  creds:
+    external: true
+    name: lldap_creds
+  letsencrypt_conf:
+    external: true
+    name: lldap_letsencrypt_conf
+  letsencrypt_lib:
+    external: true
+    name: lldap_letsencrypt_lib
+  scripts:
+    external: true
+    name: lldap_scripts

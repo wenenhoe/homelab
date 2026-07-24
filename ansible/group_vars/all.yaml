@@ -181,14 +181,19 @@ app_registry:
     upstream: "tinyauth:3000"
 
   lldap:
-    create_dirs:
-      - data
-      - letsencrypt
-      - creds
-      - certs
+    volumes:
+      - name: data
+      - name: certs
+      - name: creds
+      - name: letsencrypt_conf
+        legacy_path: letsencrypt/conf
+      - name: letsencrypt_lib
+        legacy_path: letsencrypt/lib
+      - name: scripts
     scripts:
       - deploy-hook.sh
       - entrypoint.sh
+      - restart-lldap.py
     configs:
       - src: env.j2
         dest: .env

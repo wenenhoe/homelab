@@ -19,6 +19,16 @@
 # (from docker/lldap/configs/env.j2).
 set -e
 
+# deploy-hook.sh used to be bind-mounted directly into
+# /etc/letsencrypt/renewal-hooks/deploy/ so `certbot renew` would pick it up
+# automatically. Now that /etc/letsencrypt is a named volume (no host path
+# to bind-mount from), place it there ourselves on every start instead -
+# cheap and idempotent, so this is safe to run on every container start,
+# not just the first.
+mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+cp /scripts/deploy-hook.sh /etc/letsencrypt/renewal-hooks/deploy/deploy-hook.sh
+chmod +x /etc/letsencrypt/renewal-hooks/deploy/deploy-hook.sh
+
 DO_API_TOKEN_FILE="/creds/digitalocean.ini"
 
 if [ ! -f "$DO_API_TOKEN_FILE" ]; then

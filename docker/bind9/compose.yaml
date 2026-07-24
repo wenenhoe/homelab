@@ -5,10 +5,10 @@ services:
     image: ubuntu/bind9:9.20-26.04_edge
     container_name: bind9
     volumes:
-      - ./config:/etc/bind
-      - ./cache:/var/cache/bind
-      - ./records:/var/lib/bind
-      - ./run:/run/named
+      - config:/etc/bind
+      - cache:/var/cache/bind
+      - records:/var/lib/bind
+      - run:/run/named
     environment:
       - TZ=${TIMEZONE}
     ports:
@@ -23,3 +23,16 @@ services:
       retries: 3
       start_period: 10s
     user: bind:bind
+volumes:
+  config:
+    external: true
+    name: bind9_config
+  cache:
+    external: true
+    name: bind9_cache
+  records:
+    external: true
+    name: bind9_records
+  run:
+    external: true
+    name: bind9_run

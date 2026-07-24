@@ -21,7 +21,7 @@
 - name: Set BIND9 directory facts
   ansible.builtin.set_fact:
     bind9_deploy_dir: "{{ compose_deploy_dir }}/bind9"
-    bind9_config_dir: "{{ compose_deploy_dir }}/bind9/config"
+    bind9_config_dir: "{{ compose_deploy_dir }}/bind9/_staging/config"
 
 - name: Ensure bind group exists
   ansible.builtin.group:
@@ -45,7 +45,7 @@
   vars:
     compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
 
-- name: Ensure BIND9 configuration directories exist
+- name: Ensure BIND9 staging config directories exist
   ansible.builtin.file:
     path: "{{ item }}"
     state: directory
@@ -55,9 +55,6 @@
   loop:
     - "{{ bind9_config_dir }}"
     - "{{ bind9_config_dir }}/zones"
-    - "{{ bind9_deploy_dir }}/cache"
-    - "{{ bind9_deploy_dir }}/records"
-    - "{{ bind9_deploy_dir }}/run"
 
 - name: Compute DNS serial (Unix epoch)
   ansible.builtin.set_fact:
@@ -196,6 +193,16 @@
          | selectattr('changed', 'equalto', true)
          | list | length > 0)
       }}
+
+- name: Seed the config volume from staging, now that it's up to date
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: seed_volume
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+    compose_volume_item:
+      name: config
+  when: bind9_dns_changed | bool
 
 - name: Deploy and restart bind9 now that its config is ready
   ansible.builtin.include_role:

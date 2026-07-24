@@ -76,6 +76,11 @@ app_registry:
         no_log: true
 
   bind9:
+    volumes:
+      - name: config
+      - name: cache
+      - name: records
+      - name: run
     configs:
       - src: env.j2
         dest: .env

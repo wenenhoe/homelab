@@ -61,50 +61,30 @@
 # and seed-detection logic below - just via `copy` instead of `template`,
 # since scripts are static files, not Jinja templates.
 # -------------------------------------------------------------------------
-- name: Classify config files as direct or volume-seeded ({{ compose_app_item.name }})
+- name: Classify configs and scripts as direct or volume-seeded ({{ compose_app_item.name }})
   ansible.builtin.set_fact:
-    compose_app_configs_direct: >-
-      {%- set direct = [] -%}
+    compose_app_deploy_plan: >-
       {%- set volume_names = compose_app_item.volumes | default([]) | map(attribute='name') | list -%}
+      {%- set plan = {'configs': {'direct': [], 'seeded': []}, 'scripts': {'direct': [], 'seeded': []}} -%}
       {%- for c in compose_app_item.configs | default([]) -%}
-        {%- if c.dest.split('/')[0] not in volume_names -%}
-          {%- set _ = direct.append(c) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ direct }}
-    compose_app_configs_seeded: >-
-      {%- set seeded = [] -%}
-      {%- set volume_names = compose_app_item.volumes | default([]) | map(attribute='name') | list -%}
-      {%- for c in compose_app_item.configs | default([]) -%}
-        {%- if c.dest.split('/')[0] in volume_names -%}
-          {%- set _ = seeded.append(c | combine({
-              'volume_name': c.dest.split('/')[0],
+        {%- set volume_name = c.dest.split('/')[0] -%}
+        {%- if volume_name in volume_names -%}
+          {%- set _ = plan.configs.seeded.append(c | combine({
+              'volume_name': volume_name,
               'volume_relpath': c.dest.split('/', 1)[1]
           })) -%}
+        {%- else -%}
+          {%- set _ = plan.configs.direct.append(c) -%}
         {%- endif -%}
       {%- endfor -%}
-      {{ seeded }}
-
-- name: Classify scripts as direct or volume-seeded ({{ compose_app_item.name }})
-  ansible.builtin.set_fact:
-    compose_app_scripts_direct: >-
-      {%- set direct = [] -%}
-      {%- set volume_names = compose_app_item.volumes | default([]) | map(attribute='name') | list -%}
-      {%- for s in compose_app_item.scripts | default([]) -%}
-        {%- if 'scripts' not in volume_names -%}
-          {%- set _ = direct.append({'src': s, 'dest': 'scripts/' ~ s}) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ direct }}
-    compose_app_scripts_seeded: >-
-      {%- set seeded = [] -%}
-      {%- set volume_names = compose_app_item.volumes | default([]) | map(attribute='name') | list -%}
       {%- for s in compose_app_item.scripts | default([]) -%}
         {%- if 'scripts' in volume_names -%}
-          {%- set _ = seeded.append({'src': s, 'volume_name': 'scripts', 'volume_relpath': s}) -%}
+          {%- set _ = plan.scripts.seeded.append({'src': s, 'volume_name': 'scripts', 'volume_relpath': s}) -%}
+        {%- else -%}
+          {%- set _ = plan.scripts.direct.append({'src': s, 'dest': 'scripts/' ~ s}) -%}
         {%- endif -%}
       {%- endfor -%}
-      {{ seeded }}
+      {{ plan }}
 
 - name: Ensure staging directories exist for volume-seeded configs and scripts ({{ compose_app_item.name }})
   ansible.builtin.file:
@@ -117,7 +97,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_app_configs_seeded + compose_app_scripts_seeded }}"
+  loop: "{{ compose_app_deploy_plan.configs.seeded + compose_app_deploy_plan.scripts.seeded }}"
   loop_control:
     label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
 
@@ -128,7 +108,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_app_scripts_direct }}"
+  loop: "{{ compose_app_deploy_plan.scripts.direct }}"
   loop_control:
     label: "{{ compose_app_item.name }}/{{ item.dest }}"
 
@@ -139,7 +119,7 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_app_scripts_seeded }}"
+  loop: "{{ compose_app_deploy_plan.scripts.seeded }}"
   loop_control:
     label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
   register: compose_app_staged_scripts
@@ -152,7 +132,7 @@
     group: "{{ item.group | default(ansible_user) }}"
     mode: "{{ item.mode | default('0644') }}"
     force: "{{ item.force | default(true) }}"
-  loop: "{{ compose_app_configs_direct }}"
+  loop: "{{ compose_app_deploy_plan.configs.direct }}"
   loop_control:
     label: "{{ compose_app_item.name }}/{{ item.dest }}"
   no_log: "{{ item.no_log | default(false) }}"
@@ -165,7 +145,7 @@
     group: "{{ item.group | default(ansible_user) }}"
     mode: "{{ item.mode | default('0644') }}"
     force: "{{ item.force | default(true) }}"
-  loop: "{{ compose_app_configs_seeded }}"
+  loop: "{{ compose_app_deploy_plan.configs.seeded }}"
   loop_control:
     label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
   register: compose_app_staged_configs

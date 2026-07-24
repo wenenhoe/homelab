@@ -1,11 +1,14 @@
 ---
 # ---------------------------------------------------------------------------
 # compose cleanup (ansible/cleanup.yaml) — apps deployed on a host but no
-# longer listed in its compose_apps get brought down. Since stacks use
-# bind mounts (not named docker volumes), deleting a stack's directory
-# deletes its real data — there's no separate volume safety net. So this
-# defaults to "stop it, but leave the data on disk", and individual apps
-# can opt in to deletion by name.
+# longer listed in its compose_apps get brought down. Most apps' real data
+# now lives in named Docker volumes (see ensure_volume.yaml), not bind
+# mounts, so deleting a stack's directory only removes its compose files
+# and rendered configs - not its data. The same keep/remove decision below
+# now governs both the directory *and* that app's named volumes together,
+# so removal is still a deliberate, explicit choice rather than a side
+# effect of tidying up a directory. Individual apps can opt in to deletion
+# by name.
 #
 # e.g. specifying the app overrides:
 #

@@ -5,7 +5,7 @@ services:
     image: lissy93/dashy:4.x
     container_name: dashy
     volumes:
-      - ./data:/app/user-data
+      - data:/app/user-data
     environment:
       - NODE_ENV=production
     networks:
@@ -26,3 +26,7 @@ services:
 networks:
   caddy-proxy:
     external: true
+volumes:
+  data:
+    external: true
+    name: dashy_data

@@ -5,7 +5,7 @@ services:
     image: ghcr.io/tinyauthapp/tinyauth:v5
     container_name: tinyauth
     volumes:
-      - ./data:/data
+      - data:/data
     environment:
       - TINYAUTH_CONFIGFILE=/data/config.yaml
     networks:
@@ -14,3 +14,7 @@ services:
 networks:
   caddy-proxy:
     external: true
+volumes:
+  data:
+    external: true
+    name: tinyauth_data

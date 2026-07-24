@@ -99,8 +99,8 @@ app_registry:
         auth: false
 
   dashy:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: conf.yaml.j2
         dest: "data/conf.yml"
@@ -169,8 +169,8 @@ app_registry:
         dest: data/conf.yaml
 
   tinyauth:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: config.yaml.j2
         dest: "data/config.yaml"

@@ -14,6 +14,10 @@
 #                       compose_app's registry-merge task)
 # ---------------------------------------------------------------------------
 
+- name: Reset extra-changed flag ({{ compose_app_item.name }})
+  ansible.builtin.set_fact:
+    compose_app_extra_changed: false
+
 - name: Ensure app directories exist ({{ compose_app_item.name }})
   ansible.builtin.file:
     path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item }}"
@@ -24,6 +28,13 @@
   loop: "{{ ['.'] + (compose_app_item.create_dirs | default([])) }}"
   loop_control:
     label: "{{ compose_app_item.name }}/{{ item }}"
+
+- name: Ensure volumes exist and migrate legacy data ({{ compose_app_item.name }})
+  ansible.builtin.include_tasks: ensure_volume.yaml
+  loop: "{{ compose_app_item.volumes | default([]) }}"
+  loop_control:
+    loop_var: compose_volume_item
+    label: "{{ compose_app_item.name }}/{{ compose_volume_item.name }}"
 
 - name: Find compose files on the controller ({{ compose_app_item.name }})
   ansible.builtin.find:
@@ -43,18 +54,77 @@
   loop_control:
     label: "{{ item.path | regex_replace('^' ~ project_root ~ '/', '') }}"
 
-- name: Copy scripts to remote host ({{ compose_app_item.name }})
-  ansible.builtin.copy:
-    src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/scripts/{{ item }}"
-    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/scripts/{{ item }}"
+# -------------------------------------------------------------------------
+# Scripts and configs both go through the same direct-vs-volume-seeded
+# split. Scripts are normalised to config-shaped items first (implicit
+# dest "scripts/<name>") so both feed the same classification, staging,
+# and seed-detection logic below - just via `copy` instead of `template`,
+# since scripts are static files, not Jinja templates.
+# -------------------------------------------------------------------------
+- name: Classify configs and scripts as direct or volume-seeded ({{ compose_app_item.name }})
+  ansible.builtin.set_fact:
+    compose_app_deploy_plan: >-
+      {%- set volume_names = compose_app_item.volumes | default([]) | map(attribute='name') | list -%}
+      {%- set plan = {'configs': {'direct': [], 'seeded': []}, 'scripts': {'direct': [], 'seeded': []}} -%}
+      {%- for c in compose_app_item.configs | default([]) -%}
+        {%- set volume_name = c.dest.split('/')[0] -%}
+        {%- if volume_name in volume_names -%}
+          {%- set _ = plan.configs.seeded.append(c | combine({
+              'volume_name': volume_name,
+              'volume_relpath': c.dest.split('/', 1)[1]
+          })) -%}
+        {%- else -%}
+          {%- set _ = plan.configs.direct.append(c) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {%- for s in compose_app_item.scripts | default([]) -%}
+        {%- if 'scripts' in volume_names -%}
+          {%- set _ = plan.scripts.seeded.append({'src': s, 'volume_name': 'scripts', 'volume_relpath': s}) -%}
+        {%- else -%}
+          {%- set _ = plan.scripts.direct.append({'src': s, 'dest': 'scripts/' ~ s}) -%}
+        {%- endif -%}
+      {%- endfor -%}
+      {{ plan }}
+
+- name: Ensure staging directories exist for volume-seeded configs and scripts ({{ compose_app_item.name }})
+  ansible.builtin.file:
+    path: >-
+      {{
+        (compose_deploy_dir ~ '/' ~ compose_app_item.name ~ '/_staging/'
+         ~ item.volume_name ~ '/' ~ item.volume_relpath) | dirname
+      }}
+    state: directory
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
-  loop: "{{ compose_app_item.scripts | default([]) }}"
+  loop: "{{ compose_app_deploy_plan.configs.seeded + compose_app_deploy_plan.scripts.seeded }}"
   loop_control:
-    label: "{{ compose_app_item.name }}/scripts/{{ item }}"
+    label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
 
-- name: Deploy config files ({{ compose_app_item.name }})
+- name: Deploy scripts - direct, not volume-backed ({{ compose_app_item.name }})
+  ansible.builtin.copy:
+    src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/scripts/{{ item.src }}"
+    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item.dest }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ compose_app_deploy_plan.scripts.direct }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/{{ item.dest }}"
+
+- name: Copy scripts to staging, for volume seeding ({{ compose_app_item.name }})
+  ansible.builtin.copy:
+    src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/scripts/{{ item.src }}"
+    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ compose_app_deploy_plan.scripts.seeded }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
+  register: compose_app_staged_scripts
+
+- name: Deploy config files - direct, not volume-backed ({{ compose_app_item.name }})
   ansible.builtin.template:
     src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/configs/{{ item.src }}"
     dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ item.dest }}"
@@ -62,7 +132,45 @@
     group: "{{ item.group | default(ansible_user) }}"
     mode: "{{ item.mode | default('0644') }}"
     force: "{{ item.force | default(true) }}"
-  loop: "{{ compose_app_item.configs | default([]) }}"
+  loop: "{{ compose_app_deploy_plan.configs.direct }}"
   loop_control:
     label: "{{ compose_app_item.name }}/{{ item.dest }}"
   no_log: "{{ item.no_log | default(false) }}"
+
+- name: Render config files to staging, for volume seeding ({{ compose_app_item.name }})
+  ansible.builtin.template:
+    src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/configs/{{ item.src }}"
+    dest: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
+    owner: "{{ item.owner | default(ansible_user) }}"
+    group: "{{ item.group | default(ansible_user) }}"
+    mode: "{{ item.mode | default('0644') }}"
+    force: "{{ item.force | default(true) }}"
+  loop: "{{ compose_app_deploy_plan.configs.seeded }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
+  register: compose_app_staged_configs
+  no_log: "{{ item.no_log | default(false) }}"
+
+- name: Work out which volumes have changed staged content ({{ compose_app_item.name }})
+  ansible.builtin.set_fact:
+    compose_app_changed_seed_volumes: >-
+      {{
+        (
+          (compose_app_staged_configs.results | default([]))
+          + (compose_app_staged_scripts.results | default([]))
+        )
+        | selectattr('changed', 'equalto', true)
+        | map(attribute='item.volume_name')
+        | unique | list
+      }}
+
+- name: Seed changed volumes from staging ({{ compose_app_item.name }})
+  ansible.builtin.include_tasks: seed_volume.yaml
+  loop: "{{ compose_app_item.volumes | default([]) | selectattr('name', 'in', compose_app_changed_seed_volumes) | list }}"
+  loop_control:
+    loop_var: compose_volume_item
+    label: "{{ compose_app_item.name }}/{{ compose_volume_item.name }}"
+
+- name: Roll up extra-changed flag ({{ compose_app_item.name }})
+  ansible.builtin.set_fact:
+    compose_app_extra_changed: "{{ compose_app_changed_seed_volumes | length > 0 }}"

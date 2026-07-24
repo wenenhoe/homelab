@@ -54,14 +54,13 @@
       {{ compose_cleanup_app_overrides[compose_cleanup_stack]
          if compose_cleanup_stack in compose_cleanup_app_overrides
          else compose_cleanup_remove_content }}
-  when: compose_cleanup_stack_dir_stat.stat.exists
 
 - name: "DRY RUN - report content decision ({{ compose_cleanup_stack }})"
   ansible.builtin.debug:
     msg: >-
       Would {{ compose_cleanup_should_remove_content | ternary('DELETE', 'KEEP') }}
       {{ compose_deploy_dir }}/{{ compose_cleanup_stack }}
-      ({{ compose_cleanup_should_remove_content | ternary('irreversible - bind-mounted data included', 'stack stopped, data left in place') }})
+      ({{ compose_cleanup_should_remove_content | ternary('irreversible for any remaining bind-mounted content', 'stack stopped, directory left in place') }})
   when:
     - (compose_cleanup_dry_run | bool)
     - compose_cleanup_stack_dir_stat.stat.exists
@@ -82,3 +81,49 @@
     - not (compose_cleanup_dry_run | bool)
     - compose_cleanup_stack_dir_stat.stat.exists
     - not (compose_cleanup_should_remove_content | bool)
+
+# --- Decide keep vs remove named volumes ------------------------------------
+# An orphaned stack's app_registry entry (and therefore its declared
+# volumes list) no longer exists by definition, so volumes are discovered by
+# label instead - every volume ensure_volume.yaml creates is labelled
+# homelab.app/homelab.volume for exactly this reason. Gated by the same
+# keep/remove decision as the directory above, but independent of whether
+# the directory itself still exists - volumes are a separate resource.
+
+- name: "Find named volumes belonging to this stack ({{ compose_cleanup_stack }})"
+  community.docker.docker_host_info:
+    volumes: true
+    volumes_filters:
+      label: "homelab.app={{ compose_cleanup_stack }}"
+  register: compose_cleanup_stack_volumes_info
+
+- name: "Extract volume names ({{ compose_cleanup_stack }})"
+  ansible.builtin.set_fact:
+    compose_cleanup_stack_volume_names: >-
+      {{ compose_cleanup_stack_volumes_info.volumes | default([]) | map(attribute='Name') | list }}
+
+- name: "DRY RUN - report volume decision ({{ compose_cleanup_stack }})"
+  ansible.builtin.debug:
+    msg: >-
+      Would {{ compose_cleanup_should_remove_content | ternary('DELETE', 'KEEP') }}
+      volumes: {{ compose_cleanup_stack_volume_names }}
+  when:
+    - (compose_cleanup_dry_run | bool)
+    - compose_cleanup_stack_volume_names | length > 0
+
+- name: "Remove named volumes ({{ compose_cleanup_stack }})"
+  community.docker.docker_volume:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ compose_cleanup_stack_volume_names }}"
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - compose_cleanup_should_remove_content | bool
+
+- name: "Volumes preserved ({{ compose_cleanup_stack }})"
+  ansible.builtin.debug:
+    msg: "Volumes for '{{ compose_cleanup_stack }}' preserved: {{ compose_cleanup_stack_volume_names }}"
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - not (compose_cleanup_should_remove_content | bool)
+    - compose_cleanup_stack_volume_names | length > 0

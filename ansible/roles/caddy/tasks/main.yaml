@@ -7,14 +7,32 @@
     compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
   when: compose_apps | selectattr('name', 'equalto', 'caddy') | list | length > 0
 
+- name: Ensure caddyfile staging directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/caddy/_staging/caddyfile"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
 - name: Deploy Caddyfile from template and host_vars
   ansible.builtin.template:
     src: Caddyfile.j2
-    dest: "{{ compose_deploy_dir }}/caddy/Caddyfile"
+    dest: "{{ compose_deploy_dir }}/caddy/_staging/caddyfile/Caddyfile"
     owner: root
     group: root
     mode: "0644"
   register: caddy_config_changes
+
+- name: Seed the caddyfile volume from staging
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: seed_volume
+  vars:
+    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
+    compose_volume_item:
+      name: caddyfile
+  when: caddy_config_changes.changed # noqa: no-handler
 
 - name: Create Dockerfile for custom Caddy build
   ansible.builtin.copy:

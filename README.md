@@ -51,6 +51,7 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 | Doc | Covers |
 | :--- | :--- |
 | [`docs/deployment-flow.md`](docs/deployment-flow.md) | The 4-play `deploy.yaml` sequence, the role responsibilities, and the `app_registry` pattern that drives per-host config resolution. |
+| [`docs/volumes.md`](docs/volumes.md) | The named-volume storage architecture: registry `volumes:` field, one-time migration from bind mounts, staging + seeding Ansible-rendered configs, and backward compatibility with plain bind-mounted apps. |
 | [`docs/bind9.md`](docs/bind9.md) | How the internal DNS zones are aggregated, rendered, and reloaded without spurious restarts. |
 | [`docs/caddy.md`](docs/caddy.md) | The custom DigitalOcean-DNS Caddy build, Caddyfile generation, and Tinyauth forward-auth wiring. |
 | [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring setup, the WebSocket connection model, and the one-time KEY/TOKEN bootstrap sequence. |
@@ -100,7 +101,7 @@ Two inventories exist for two different situations:
 | Playbook File | Inventory | Description |
 | :--- | :--- | :--- |
 | `deploy.yaml` | `inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`docs/deployment-flow.md`](docs/deployment-flow.md). |
-| `cleanup.yaml` | `inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk (bind-mounted) content. See [`docs/cleanup.md`](docs/cleanup.md). |
+| `cleanup.yaml` | `inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`docs/cleanup.md`](docs/cleanup.md). |
 | `maintenance.yaml` | `inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
 | `reset-network.yaml` | `sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 

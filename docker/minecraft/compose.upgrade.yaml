@@ -4,7 +4,7 @@ services:
   test-upgrade:
     image: itzg/minecraft-server:java25
     volumes:
-      - ./extras:/extras:ro
+      - extras:/extras:ro
     environment:
       EULA: "TRUE"
       SETUP_ONLY: true
@@ -15,3 +15,7 @@ services:
       MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: beta
       MODRINTH_MODPACK: simply-optimized-up-to-date
       MODRINTH_PROJECTS: "@/extras/modrinth-mods.txt"
+volumes:
+  extras:
+    external: true
+    name: minecraft_extras

@@ -45,6 +45,10 @@ beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_dom
 # ---------------------------------------------------------------------------
 app_registry:
   caddy:
+    volumes:
+      - name: caddyfile
+      - name: data
+      - name: config
     configs:
       - src: env.j2
         dest: .env
@@ -52,8 +56,8 @@ app_registry:
         force: false
 
   beszel-hub:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -64,8 +68,8 @@ app_registry:
         auth: false   # agents auth via TOKEN/KEY handshake, not Tinyauth/LDAP
 
   beszel-agent:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -76,6 +80,11 @@ app_registry:
         no_log: true
 
   bind9:
+    volumes:
+      - name: config
+      - name: cache
+      - name: records
+      - name: run
     configs:
       - src: env.j2
         dest: .env
@@ -99,8 +108,8 @@ app_registry:
         auth: false
 
   dashy:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: conf.yaml.j2
         dest: "data/conf.yml"
@@ -110,8 +119,8 @@ app_registry:
         auth: false
 
   kms:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -141,8 +150,8 @@ app_registry:
         upstream: "shlink-web-client:8080"
 
   wastebin:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     caddy:
       default:
         upstream: "wastebin:8088"
@@ -158,6 +167,8 @@ app_registry:
         upstream: "wetty:3000"
 
   diun:
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -167,8 +178,8 @@ app_registry:
         dest: data/conf.yaml
 
   tinyauth:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: config.yaml.j2
         dest: "data/config.yaml"
@@ -179,14 +190,19 @@ app_registry:
     upstream: "tinyauth:3000"
 
   lldap:
-    create_dirs:
-      - data
-      - letsencrypt
-      - creds
-      - certs
+    volumes:
+      - name: data
+      - name: certs
+      - name: creds
+      - name: letsencrypt_conf
+        legacy_path: letsencrypt/conf
+      - name: letsencrypt_lib
+        legacy_path: letsencrypt/lib
+      - name: scripts
     scripts:
       - deploy-hook.sh
       - entrypoint.sh
+      - restart-lldap.py
     configs:
       - src: env.j2
         dest: .env
@@ -198,9 +214,16 @@ app_registry:
         auth: false
 
   minecraft:
-    create_dirs:
-      - data
-      - backups
+    volumes:
+      - name: data
+      - name: backups
+      - name: bluemap_config
+        legacy_path: bluemap/config
+      - name: bluemap_web
+        legacy_path: bluemap/web
+      - name: bluemap_data
+        legacy_path: bluemap/data
+      - name: extras
     scripts:
       - run_upgrade.sh
     configs:
@@ -215,6 +238,8 @@ app_registry:
         upstream: "bluemap:8100"
 
   dockge:
+    volumes:
+      - name: data
     caddy:
       default:
         upstream: "dockge:5001"

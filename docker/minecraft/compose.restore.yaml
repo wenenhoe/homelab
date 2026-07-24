@@ -4,10 +4,15 @@ services:
   restore-backup:
     image: itzg/mc-backup:2026.6.2
     volumes:
-      # Must be same mount as mc service, needs to be writable
-      - ./data:/data
-      # Must be same mount as backups service, but can be read-only
-      - ./backups:/backups:ro
+      - data:/data
+      - backups:/backups:ro
     entrypoint: restore-tar-backup
     restart: no
     user: "1000"
+volumes:
+  data:
+    external: true
+    name: minecraft_data
+  backups:
+    external: true
+    name: minecraft_backups

@@ -22,11 +22,11 @@ For a given orphaned stack name, `roles/compose/tasks/cleanup.yaml` runs:
 1. **Stat the stack directory.** Whether it still exists on disk decides which teardown path runs next.
 2. **Normal case — directory exists:** `community.docker.docker_compose_v2` brings it down with `state: absent, remove_orphans: true`, resolving services/networks from the compose files on disk (same module the `compose` role's `deploy.yaml` uses to bring stacks up).
 3. **Fallback case — directory is already gone** (e.g. removed by hand outside Ansible, so there's nothing for `docker_compose_v2` to read): list containers by their `com.docker.compose.project` label via `docker ps -aq`, then force-remove whatever's found with `docker rm -f`.
-4. **Decide keep vs. delete for on-disk content**, if the directory exists: `compose_cleanup_app_overrides[<stack>]` if the stack has a per-app override, otherwise the default `compose_cleanup_remove_content`. If the decision resolves to "remove," the stack directory (and everything bind-mounted under it) is deleted with `ansible.builtin.file: state=absent`; otherwise it's left in place and reported as preserved.
+4. **Decide keep vs. delete for on-disk content and named volumes**, using the same decision for both: `compose_cleanup_app_overrides[<stack>]` if the stack has a per-app override, otherwise the default `compose_cleanup_remove_content`. If the decision resolves to "remove," the stack directory is deleted with `ansible.builtin.file: state=absent`, and every Docker volume labelled `homelab.app=<stack>` is removed with `community.docker.docker_volume: state=absent`; otherwise both are left in place and reported as preserved. Volumes are discovered by label rather than the app's old `app_registry` entry, since that entry — and its declared `volumes` list — no longer exists once an app is orphaned. See [`volumes.md`](volumes.md) for how that label gets applied in the first place.
 
 ## Why "keep" is the default
 
-Stacks in this repo use bind mounts, not named Docker volumes, so a stack's directory *is* its data — there's no separate volume acting as a safety net. `roles/compose/defaults/main.yaml` therefore defaults to stopping an orphaned stack but leaving its directory on disk, and only deletes content for apps that explicitly opt in:
+Most apps' real data now lives in named Docker volumes (see [`volumes.md`](volumes.md)), not bind mounts, so deleting a stack's directory no longer touches that data on its own — the directory mainly holds compose files and rendered configs. Volume removal is still gated behind the exact same decision as the directory, though, so it stays a deliberate, explicit choice rather than a side effect of tidying up a directory (and a few apps still use plain bind mounts, where the directory *is* the data). `roles/compose/defaults/main.yaml` therefore defaults to stopping an orphaned stack but leaving its directory and volumes in place, and only deletes content for apps that explicitly opt in:
 
 ```yaml
 # roles/compose/defaults/main.yaml
@@ -42,7 +42,7 @@ compose_cleanup_dry_run: false
 Two independent ways to preview a cleanup run, and they can be combined:
 
 - **`--check --diff`** — Ansible's own check mode. `ansible-playbook cleanup.yaml --check --diff`
-- **`-e compose_cleanup_dry_run=true`** — a playbook-level flag read by both `cleanup.yaml` and `roles/compose/tasks/cleanup.yaml`. When set, the teardown/removal tasks are skipped and replaced with `debug` messages describing what *would* happen — including, for each stack, whether its content would be kept or deleted and why (`"irreversible - bind-mounted data included"` vs. `"stack stopped, data left in place"`).
+- **`-e compose_cleanup_dry_run=true`** — a playbook-level flag read by both `cleanup.yaml` and `roles/compose/tasks/cleanup.yaml`. When set, the teardown/removal tasks are skipped and replaced with `debug` messages describing what *would* happen — including, for each stack, whether its directory and volumes would be kept or deleted.
 
 ## Usage
 

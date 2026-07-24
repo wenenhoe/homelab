@@ -52,8 +52,8 @@ app_registry:
         force: false
 
   beszel-hub:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -64,8 +64,8 @@ app_registry:
         auth: false   # agents auth via TOKEN/KEY handshake, not Tinyauth/LDAP
 
   beszel-agent:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -110,8 +110,8 @@ app_registry:
         auth: false
 
   kms:
-    create_dirs:
-      - data
+    volumes:
+      - name: data
     configs:
       - src: env.j2
         dest: .env
@@ -217,6 +217,8 @@ app_registry:
         upstream: "bluemap:8100"
 
   dockge:
+    volumes:
+      - name: data
     caddy:
       default:
         upstream: "dockge:5001"

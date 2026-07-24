@@ -5,7 +5,7 @@ services:
     image: 11notes/kms:1.0
     container_name: kms-app
     volumes:
-      - ./data:/kms/var
+      - data:/kms/var
     environment:
       TZ: ${TIMEZONE}
     ports:
@@ -22,7 +22,7 @@ services:
         condition: service_healthy
         restart: true
     volumes:
-      - ./data:/kms/var
+      - data:/kms/var
     environment:
       TZ: ${TIMEZONE}
     networks:
@@ -36,3 +36,7 @@ networks:
   frontend: {}
   caddy-proxy:
     external: true
+volumes:
+  data:
+    external: true
+    name: kms_data

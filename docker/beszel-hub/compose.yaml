@@ -5,7 +5,7 @@ services:
     image: henrygd/beszel:0.18
     container_name: beszel-hub
     volumes:
-      - ./data:/beszel_data
+      - data:/beszel_data
     env_file:
       - .env
     networks:
@@ -22,3 +22,7 @@ services:
 networks:
   caddy-proxy:
     external: true
+volumes:
+  data:
+    external: true
+    name: beszel-hub_data

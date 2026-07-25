@@ -102,6 +102,23 @@
   loop_control:
     label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
 
+# copy/template both do not create missing destination directories, and
+# the directory-creation loop above only covers what create_dirs declares
+# explicitly. A direct item's dest can carry its own subdirectory (e.g.
+# scripts/<name>, which every app gets automatically the moment it declares
+# `scripts:` at all) that nobody thought to also add to create_dirs — so
+# ensure it here rather than relying on that always being remembered.
+- name: Ensure destination directories exist for direct-deployed configs and scripts ({{ compose_app_item.name }})
+  ansible.builtin.file:
+    path: "{{ (compose_deploy_dir ~ '/' ~ compose_app_item.name ~ '/' ~ item.dest) | dirname }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ compose_app_deploy_plan.configs.direct + compose_app_deploy_plan.scripts.direct }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/{{ item.dest }}"
+
 - name: Deploy scripts - direct, not volume-backed ({{ compose_app_item.name }})
   ansible.builtin.copy:
     src: "{{ compose_source_dir }}/{{ compose_app_item.name }}/scripts/{{ item.src }}"

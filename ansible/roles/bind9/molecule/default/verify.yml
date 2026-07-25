@@ -1,0 +1,90 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+    bind9_config_dir: "{{ compose_deploy_dir }}/bind9/_staging/config"
+  tasks:
+    - name: Confirm the bind9 container exists and is running
+      ansible.builtin.command: >-
+        docker ps -q --filter "label=com.docker.compose.project=bind9"
+      register: bind9_running
+      changed_when: false
+      failed_when: bind9_running.stdout | trim | length == 0
+
+    - name: Wait for the bind9 container to report healthy
+      ansible.builtin.command: docker inspect --format '{% raw %}{{.State.Health.Status}}{% endraw %}' bind9
+      register: bind9_health_status
+      changed_when: false
+      until: bind9_health_status.stdout | trim == 'healthy'
+      retries: 15
+      delay: 10
+
+    # --- Rendered config content ---------------------------------------------
+    - name: Read back named.conf.local
+      ansible.builtin.command: cat "{{ bind9_config_dir }}/named.conf.local"
+      register: bind9_named_conf_local
+      changed_when: false
+
+    - name: Confirm the zone stanza was generated
+      ansible.builtin.assert:
+        that:
+          - "'zone \"svc.lan.example.test\"' in bind9_named_conf_local.stdout"
+
+    - name: Read back the zone file
+      ansible.builtin.command: cat "{{ bind9_config_dir }}/zones/db.svc.lan.example.test"
+      register: bind9_zone_file
+      changed_when: false
+
+    - name: Confirm the static extra_records rendered
+      ansible.builtin.assert:
+        that:
+          - "'ns1.svc.lan.example.test.' in bind9_zone_file.stdout"
+          - "'127.0.0.1' in bind9_zone_file.stdout"
+
+    - name: Confirm the auto-generated CNAME for the routable test app rendered
+      ansible.builtin.assert:
+        that:
+          - "'testapp' in bind9_zone_file.stdout"
+          - "'CNAME' in bind9_zone_file.stdout"
+          - "'services.internal.example.test.' in bind9_zone_file.stdout"
+
+    # --- Volume seeded from staging -------------------------------------------
+    - name: Confirm the config volume was actually seeded
+      ansible.builtin.command: >-
+        docker run --rm -v bind9_config:/mnt alpine:3.20 cat /mnt/named.conf.local
+      register: bind9_seeded_config
+      changed_when: false
+      failed_when: "'zone \"svc.lan.example.test\"' not in bind9_seeded_config.stdout"
+
+    # --- Network side effects --------------------------------------------------
+    - name: Confirm the DNS stub listener was disabled
+      ansible.builtin.command: grep '^DNSStubListener=no' /etc/systemd/resolved.conf
+      register: bind9_stub_listener
+      changed_when: false
+
+    # No resolv.conf-symlink check here: bind9_manage_resolv_conf: false
+    # (set in converge.yml) deliberately skips that task in this
+    # environment, since Docker bind-mounts /etc/resolv.conf into this
+    # container itself and the kernel refuses to replace a bind-mounted
+    # file with a symlink. See bind9's defaults/main.yaml for the full
+    # reasoning - correctness here is by code review, not execution.
+
+    - name: Confirm bind9 configured Docker's upstream DNS servers
+      ansible.builtin.command: cat /etc/docker/daemon.json
+      register: bind9_docker_daemon_json
+      changed_when: false
+      failed_when: >-
+        ('192.168.20.1' not in bind9_docker_daemon_json.stdout)
+        or ('10.0.0.1' not in bind9_docker_daemon_json.stdout)
+
+    # --- End-to-end: the server actually answers queries correctly -----------
+    - name: Query the running bind9 server directly for the auto-generated CNAME
+      ansible.builtin.command: dig @127.0.0.1 -p 53 +short testapp.svc.lan.example.test CNAME
+      register: bind9_dig_result
+      changed_when: false
+      until: bind9_dig_result.stdout | trim == 'services.internal.example.test.'
+      retries: 10
+      delay: 3
+      failed_when: bind9_dig_result.stdout | trim != 'services.internal.example.test.'

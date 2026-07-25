@@ -1,0 +1,63 @@
+---
+# Storage driver goes through a systemd drop-in flag here, not
+# /etc/docker/daemon.json like the other DinD scenarios. bind9's own
+# "Configure Docker daemon" task unconditionally overwrites daemon.json
+# with just its DNS settings every run - if we also wrote storage-driver
+# into that same file, bind9's task would "fix" it back out again next
+# run, which would itself "fix" it back in, forever, breaking idempotence
+# for a reason that has nothing to do with bind9 actually being broken.
+# A CLI flag and daemon.json don't conflict as long as they don't set the
+# same key, so this sidesteps the collision entirely.
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    - name: Ensure the docker.service systemd override directory exists
+      ansible.builtin.file:
+        path: /etc/systemd/system/docker.service.d
+        state: directory
+        mode: "0755"
+
+    - name: Force the nested Docker daemon onto the vfs storage driver via a CLI flag
+      ansible.builtin.copy:
+        dest: /etc/systemd/system/docker.service.d/override.conf
+        content: |
+          [Service]
+          ExecStart=
+          ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --storage-driver=vfs
+        mode: "0644"
+
+    - name: Reload systemd to pick up the override
+      ansible.builtin.systemd:
+        daemon_reload: true
+
+    - name: Install python3-requests
+      ansible.builtin.apt:
+        name: python3-requests
+        state: present
+        update_cache: true
+      # docker_volume/docker_host_info (ensure_volume.yaml, for bind9's
+      # four declared volumes) talk to the Docker API directly via
+      # requests.
+
+    - name: Install dnsutils
+      ansible.builtin.apt:
+        name: dnsutils
+        state: present
+      # for verify.yml's live dig query against the running bind9 server.
+
+    - name: Ensure systemd-resolved is installed
+      ansible.builtin.apt:
+        name: systemd-resolved
+        state: present
+      # Real Ubuntu server installs run this by default - the geerlingguy
+      # test image doesn't ship it active, likely because containers
+      # normally have Docker manage /etc/resolv.conf directly instead.
+      # bind9's own "Disable systemd-resolved DNS Stub Listener" task
+      # needs /etc/systemd/resolved.conf to actually exist.
+
+    - name: Ensure systemd-resolved is enabled and started
+      ansible.builtin.systemd:
+        name: systemd-resolved
+        enabled: true
+        state: started

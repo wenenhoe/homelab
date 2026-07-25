@@ -1,0 +1,23 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Confirm host is Debian-based (matches the role's own assertion)
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'Debian'
+        fail_msg: "Test host is not Debian-based — the role's own assert should have failed converge already."
+
+    - name: Check for any packages still marked upgradable
+      ansible.builtin.command: apt list --upgradable
+      register: apt_upgradable
+      changed_when: false
+
+    - name: Assert the role fully upgraded the system
+      ansible.builtin.assert:
+        that:
+          # First line is always the "Listing..." header, so 1 line == none upgradable.
+          - apt_upgradable.stdout_lines | length <= 1
+        fail_msg: "Packages still upgradable after the apt role ran: {{ apt_upgradable.stdout }}"

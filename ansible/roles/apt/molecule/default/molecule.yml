@@ -1,0 +1,24 @@
+---
+# apt role needs nothing beyond a Debian-based container with Python
+# present — no systemd, no privileged mode, no Docker-in-Docker. Keep this
+# scenario as the "does the toolchain even work" baseline.
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: apt-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    command: sleep infinity
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  env:
+    # Scenario cwd is ansible/roles/apt/molecule/default — three levels up
+    # is ansible/roles, where `include_role: apt` needs to look.
+    ANSIBLE_ROLES_PATH: ../../../
+verifier:
+  name: ansible

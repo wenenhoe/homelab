@@ -80,6 +80,14 @@ Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/install
   ```sh
   pre-commit install
   ```
+- Install `molecule` (for role testing; requires Docker running locally):
+  ```sh
+  uv tool install molecule --with molecule-plugins[docker] --with ansible-core --with ansible --with docker
+  ```
+  Molecule shells out to whichever `ansible-playbook` is on `PATH` — the standalone `ansible-core` tool above, not the copy bundled inside molecule's own venv. That standalone env also needs the `docker` Python package (used by `community.docker` for container lifecycle checks), so update it too:
+  ```sh
+  uv tool install ansible-core --with ansible --with docker --force
+  ```
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
 
 ## Inventory
@@ -145,6 +153,19 @@ Two inventories exist for two different situations:
 ## Applications
 
 Everything routed through Caddy sits behind **Tinyauth** forward-auth by default (per-route `auth: false` opts out — e.g. Cobalt, Dashy, OpenSpeedTest, LLDAP's own UI, Beszel's hub), backed by **LLDAP** as the directory. **DIUN** watches deployed images and notifies over Telegram when updates are available. **Beszel** monitors host and container health across every `app_hosts` member, with its hub on `security` and an agent on each host — see [`docs/beszel.md`](docs/beszel.md). The rest of `docker/` is a set of independently deployable Compose stacks (dashboards, media/download tools, a Minecraft server, link shortener, pastebin, web terminal, etc.) — each one just an entry in `app_registry` plus a `docker/<app>/` directory of its `compose.yaml` and config templates. See [`docs/adding-an-app.md`](docs/adding-an-app.md) to add a new one.
+
+## Testing
+
+Roles are tested individually with [Molecule](https://ansible.readthedocs.io/projects/molecule/), using the co-located convention: each role's scenario lives at `ansible/roles/<role>/molecule/default/`. Roles are brought up in Docker containers, converged, verified, then re-converged to check idempotence.
+
+Run a single role's scenario:
+
+```sh
+cd ansible/roles/apt
+molecule test
+```
+
+`fwupd` has no scenario — it talks to real firmware/LVFS hardware, which a container can't meaningfully simulate.
 
 ## Linting & Pre-commit
 

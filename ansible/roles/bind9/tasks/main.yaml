@@ -204,6 +204,24 @@
       name: config
   when: bind9_dns_changed | bool
 
+# Must run before deploying the container below, not after: bind9's
+# container binds host port 53 directly, which conflicts with
+# systemd-resolved's default stub listener on 127.0.0.53:53 on any host
+# that hasn't already had it disabled by a previous run. On a genuinely
+# fresh host, deploying first would always fail with "address already in
+# use" - this only ever looked fine because real hosts had already
+# survived one successful run before anyone tried it from scratch.
+- name: Disable DNS Stub Listener and set Docker DNS
+  ansible.builtin.import_tasks:
+    file: network_conf.yaml
+
+# Handlers only fire at end-of-play by default - without this, the config
+# files above get edited but systemd-resolved keeps running (and holding
+# port 53) until whatever else happens to flush handlers later, which
+# could easily be after the deploy below has already tried and failed.
+- name: Flush handlers so systemd-resolved actually stops holding port 53 before we deploy
+  ansible.builtin.meta: flush_handlers
+
 - name: Deploy and restart bind9 now that its config is ready
   ansible.builtin.include_role:
     name: compose
@@ -211,7 +229,3 @@
   vars:
     compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
     compose_app_extra_changed: "{{ bind9_dns_changed }}"
-
-- name: Disable DNS Stub Listener and set Docker DNS
-  ansible.builtin.import_tasks:
-    file: network_conf.yaml

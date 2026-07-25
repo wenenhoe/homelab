@@ -1,0 +1,28 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the compose file was copied to the deploy dir
+      ansible.builtin.stat:
+        path: /opt/stacks/testapp/compose.yaml
+      register: compose_file
+      failed_when: not compose_file.stat.exists
+
+    - name: Confirm the create_dirs entry was created
+      ansible.builtin.stat:
+        path: /opt/stacks/testapp/data
+      register: compose_data_dir
+      failed_when: not (compose_data_dir.stat.exists and compose_data_dir.stat.isdir)
+
+    - name: Confirm the .env config was rendered with the expected content
+      ansible.builtin.command: cat /opt/stacks/testapp/.env
+      register: compose_env_contents
+      changed_when: false
+      failed_when: "'hello-from-testapp' not in compose_env_contents.stdout"
+
+    - name: Confirm the compose project is actually running
+      ansible.builtin.command: docker compose -f /opt/stacks/testapp/compose.yaml ps --status running --format json
+      register: compose_ps
+      changed_when: false
+      failed_when: "'testapp' not in compose_ps.stdout"

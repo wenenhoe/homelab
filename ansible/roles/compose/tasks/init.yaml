@@ -42,6 +42,7 @@
     patterns: "compose*.yaml"
   register: compose_compose_files_raw
   delegate_to: localhost
+  become: false
 
 - name: Copy compose files to remote host ({{ compose_app_item.name }})
   ansible.builtin.copy:

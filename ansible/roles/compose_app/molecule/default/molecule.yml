@@ -1,0 +1,35 @@
+---
+# compose_app is a thin batch-orchestration layer over the compose role, so
+# this needs the same Docker-in-Docker setup: install Docker first (via
+# converge.yml), privileged + systemd + cgroups exposed.
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+driver:
+  name: docker
+platforms:
+  - name: compose-app-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+  env:
+    # Scenario cwd is ansible/roles/compose_app/molecule/default — three
+    # levels up is ansible/roles, where `include_role` needs to look for
+    # `compose_app`, `compose`, and `docker`.
+    ANSIBLE_ROLES_PATH: ../../../
+verifier:
+  name: ansible

@@ -1,0 +1,41 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    - name: Confirm the batch actually reported the expected failure
+      ansible.builtin.stat:
+        path: /tmp/compose_app_batch_failed_marker
+      register: compose_app_failure_marker
+      failed_when: not compose_app_failure_marker.stat.exists
+
+    # --- The two healthy apps deployed despite app_fail's failure -----------
+    - name: Confirm the healthy apps deployed and are running
+      ansible.builtin.command: >-
+        docker ps -q --filter "label=com.docker.compose.project={{ item }}"
+      register: compose_app_healthy_running
+      changed_when: false
+      failed_when: compose_app_healthy_running.stdout | trim | length == 0
+      loop:
+        - app_ok_1
+        - app_ok_2
+
+    # --- The broken app never got as far as a running container -------------
+    - name: Confirm the broken app was never deployed
+      ansible.builtin.command: >-
+        docker ps -aq --filter "label=com.docker.compose.project=app_fail"
+      register: compose_app_fail_containers
+      changed_when: false
+      failed_when: compose_app_fail_containers.stdout | trim | length > 0
+
+    # --- bind9/caddy were never touched at all -------------------------------
+    - name: Confirm self-managed apps were never processed by compose_app
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/{{ item }}"
+      register: compose_app_self_managed_dirs
+      failed_when: compose_app_self_managed_dirs.stat.exists
+      loop:
+        - bind9
+        - caddy

@@ -1,0 +1,39 @@
+---
+# The docker role installs Docker Engine itself, so this scenario needs a
+# real Docker-in-Docker setup: a privileged, systemd-enabled container with
+# /sys/fs/cgroup exposed so systemd (and, once installed, dockerd) can
+# actually manage services inside it. geerlingguy/docker-*-ansible images
+# are built for exactly this — they ship python3 + systemd as PID 1.
+dependency:
+  name: galaxy
+driver:
+  name: docker
+platforms:
+  - name: docker-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    # Molecule's docker driver overrides a container's own CMD with its own
+    # keep-alive command by default, which silently defeats this image's
+    # CMD ["/lib/systemd/systemd"]. Without systemd actually as PID 1,
+    # systemctl/dbus has nothing to talk to (surfaces as "Service is in
+    # unknown state" on the later "Enable and start Docker service" task).
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+  env:
+    # Scenario cwd is ansible/roles/docker/molecule/default — three levels
+    # up is ansible/roles, where `include_role: docker` needs to look.
+    ANSIBLE_ROLES_PATH: ../../../
+verifier:
+  name: ansible

@@ -36,10 +36,17 @@
     loop_var: compose_volume_item
     label: "{{ compose_app_item.name }}/{{ compose_volume_item.name }}"
 
-- name: Find compose files on the controller ({{ compose_app_item.name }})
+- name: Find compose and Dockerfile files on the controller ({{ compose_app_item.name }})
   ansible.builtin.find:
     paths: "{{ compose_source_dir }}/{{ compose_app_item.name }}/"
-    patterns: "compose*.yaml"
+    # Dockerfile* covers Dockerfile itself plus variants like
+    # Dockerfile.staging/Dockerfile.prod — needed by any app with
+    # build: true, which otherwise has no way to get its build context
+    # onto the target host at all (configs: works but is a template-only
+    # mechanism not meant for this).
+    patterns:
+      - "compose*.yaml"
+      - "Dockerfile*"
   register: compose_compose_files_raw
   delegate_to: localhost
   become: false

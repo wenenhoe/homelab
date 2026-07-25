@@ -7,6 +7,12 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
+    # Docker bind-mounts /etc/resolv.conf into this container itself
+    # (standard behaviour for any container, not specific to this test) -
+    # the kernel refuses to replace a bind-mounted file with a symlink, so
+    # this one task can't be exercised here. See bind9's defaults/main.yaml
+    # and network_conf.yaml for the full reasoning.
+    bind9_manage_resolv_conf: false
     # main_domain, lab_domain, dns_zones, app_registry, compose_apps, etc.
     # live in host_vars/bind9-instance.yaml instead - see the comment there
     # for why.

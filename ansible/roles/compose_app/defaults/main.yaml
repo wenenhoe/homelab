@@ -1,0 +1,7 @@
+---
+# ---------------------------------------------------------------------------
+# By default, one app failing to init/deploy doesn't stop the rest of the
+# batch from being attempted - see tasks/main.yaml. Set this to false for a
+# strict fail-fast run (e.g. debugging one specific app).
+# ---------------------------------------------------------------------------
+compose_app_continue_on_error: true

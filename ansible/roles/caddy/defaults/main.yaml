@@ -1,0 +1,8 @@
+---
+# Production default: real, publicly-trusted certs via the DigitalOcean
+# DNS-01 ACME issuer (see templates/Caddyfile.j2). Set to true only for
+# non-production testing (e.g. Molecule, with .localhost domains) where
+# there's no real DNS control and no real DO_API_TOKEN - this skips the
+# global cert_issuer block entirely, letting Caddy fall back to its normal
+# automatic behaviour (its own internal CA for non-public domains).
+caddy_local_certs: false

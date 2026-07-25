@@ -1,0 +1,44 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    # --- Direct path: scriptapp_direct --------------------------------------
+    - name: Confirm the direct script was deployed with the right mode
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/scriptapp_direct/scripts/run.sh"
+      register: compose_direct_script_stat
+      failed_when: >-
+        not compose_direct_script_stat.stat.exists
+        or compose_direct_script_stat.stat.mode != '0755'
+
+    - name: Confirm the direct script's content
+      ansible.builtin.command: cat "{{ compose_deploy_dir }}/scriptapp_direct/scripts/run.sh"
+      register: compose_direct_script_content
+      changed_when: false
+      failed_when: "'hello from run.sh' not in compose_direct_script_content.stdout"
+
+    # --- Seeded path: scriptapp_seeded --------------------------------------
+    - name: Confirm the seeded script was staged on disk
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/scriptapp_seeded/_staging/scripts/run.sh"
+      register: compose_seeded_staging_stat
+      failed_when: not compose_seeded_staging_stat.stat.exists
+
+    - name: Confirm the named scripts volume exists
+      ansible.builtin.command: docker volume inspect scriptapp_seeded_scripts
+      register: compose_seeded_volume_inspect
+      changed_when: false
+      failed_when: >-
+        ('"homelab.app": "scriptapp_seeded"' not in compose_seeded_volume_inspect.stdout)
+        or ('"homelab.volume": "scripts"' not in compose_seeded_volume_inspect.stdout)
+
+    - name: Confirm the script actually landed inside the volume
+      ansible.builtin.command: >-
+        docker run --rm -v scriptapp_seeded_scripts:/scripts alpine:3.20
+        cat /scripts/run.sh
+      register: compose_seeded_volume_content
+      changed_when: false
+      failed_when: "'hello from run.sh' not in compose_seeded_volume_content.stdout"

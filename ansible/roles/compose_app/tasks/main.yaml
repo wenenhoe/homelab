@@ -28,6 +28,11 @@
   # Forcing changed_when routes it through the branch that's never hidden,
   # so the summary always shows even with that noise reduction on.
   changed_when: true
+  # Deliberately always "changed" (see above), which is otherwise
+  # indistinguishable from a genuine idempotence bug to Molecule. This tag
+  # is the standard way to tell Molecule's idempotence check to disregard
+  # this specific task without disabling the check for anything else.
+  tags: molecule-idempotence-notest
 
 - name: Fail if any app failed to deploy
   ansible.builtin.fail:

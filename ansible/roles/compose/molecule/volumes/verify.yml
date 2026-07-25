@@ -1,0 +1,75 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    # --- Deploy-time assertions -------------------------------------------
+    - name: Confirm the compose file was copied to the deploy dir
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/volapp/compose.yaml"
+      register: compose_file
+      failed_when: not compose_file.stat.exists
+
+    - name: Confirm the legacy directory was migrated away
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/volapp/data.migrated"
+      register: compose_migrated_dir
+      failed_when: not compose_migrated_dir.stat.exists
+
+    - name: Confirm nothing remains at the original legacy path
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/volapp/data"
+      register: compose_old_dir
+      failed_when: compose_old_dir.stat.exists
+
+    - name: Confirm the named volume exists and carries the expected labels
+      ansible.builtin.command: docker volume inspect volapp_data
+      register: compose_volume_inspect
+      changed_when: false
+      failed_when: >-
+        ('"homelab.app": "volapp"' not in compose_volume_inspect.stdout)
+        or ('"homelab.volume": "data"' not in compose_volume_inspect.stdout)
+
+    - name: Confirm both the migrated legacy content and the seeded config landed in the volume
+      ansible.builtin.command: >-
+        docker run --rm -v volapp_data:/data alpine:3.20
+        sh -c "cat /data/legacy-file.txt && cat /data/seeded.txt"
+      register: compose_volume_contents
+      changed_when: false
+      failed_when: >-
+        ('legacy content predating the named volume' not in compose_volume_contents.stdout)
+        or ('seeded-hello-from-volapp' not in compose_volume_contents.stdout)
+
+    # --- Exercise cleanup.yaml ---------------------------------------------
+    # Doesn't need to survive a second run the way converge.yml does —
+    # verify.yml only runs once, after idempotence — so it's safe to do the
+    # actual teardown and assert on it here.
+    - name: Run the compose role's cleanup path (full teardown, including volumes)
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: cleanup.yaml
+      vars:
+        compose_cleanup_stack: volapp
+        compose_cleanup_remove_content: true
+        compose_cleanup_dry_run: false
+
+    - name: Confirm the stack's container was brought down
+      ansible.builtin.command: >-
+        docker ps -aq --filter "label=com.docker.compose.project=volapp"
+      register: compose_leftover_containers
+      changed_when: false
+      failed_when: compose_leftover_containers.stdout | trim | length > 0
+
+    - name: Confirm the stack directory was removed
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/volapp"
+      register: compose_stack_dir_after_cleanup
+      failed_when: compose_stack_dir_after_cleanup.stat.exists
+
+    - name: Confirm the named volume was removed
+      ansible.builtin.command: docker volume inspect volapp_data
+      register: compose_volume_after_cleanup
+      changed_when: false
+      failed_when: compose_volume_after_cleanup.rc == 0

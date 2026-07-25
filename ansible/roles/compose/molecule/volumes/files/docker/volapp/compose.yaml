@@ -1,0 +1,10 @@
+name: volapp
+services:
+  volapp:
+    image: alpine:3.20
+    volumes:
+      - volapp_data:/data
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  volapp_data:
+    external: true

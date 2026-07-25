@@ -167,6 +167,13 @@ molecule test
 
 `fwupd` has no scenario — it talks to real firmware/LVFS hardware, which a container can't meaningfully simulate.
 
+Some roles have more than one scenario. `compose`, for example, has `default` (the main init/deploy happy path) and `volumes` (volume-seeding, legacy bind-mount migration, and cleanup — slower and destructive, so kept separate). Run a non-default scenario with `-s`:
+
+```sh
+cd ansible/roles/compose
+molecule test -s volumes
+```
+
 ## Linting & Pre-commit
 
 `.pre-commit-config.yaml` wires up:

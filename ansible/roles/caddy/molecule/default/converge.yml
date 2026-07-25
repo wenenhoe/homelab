@@ -1,0 +1,63 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    # .localhost isn't a publicly-issuable TLD, so Caddy's automatic HTTPS
+    # would use its internal CA rather than attempting real ACME/DNS-01
+    # calls to DigitalOcean with the fake token below - but only once the
+    # global ACME issuer is skipped via caddy_local_certs, since a global
+    # issuer overrides that automatic per-domain fallback entirely.
+    caddy_local_certs: true
+    tinyauth_host: sso
+    lab_domain: lan.localhost
+    caddy_domain: apps.localhost
+    digitalocean_api_key: test-token-not-real
+    app_registry:
+      caddy:
+        volumes:
+          - name: caddyfile
+          - name: data
+          - name: config
+        configs:
+          - src: env.j2
+            dest: .env
+            mode: "0600"
+            force: false
+      tinyauth: {}
+      authed_app: {}
+      public_app: {}
+    compose_apps:
+      - name: caddy
+      - name: tinyauth
+        upstream: "tinyauth:3000"
+      - name: authed_app
+        caddy:
+          default:
+            host: authed
+            upstream: "authed:8080"
+            # auth omitted deliberately - exercises the `| default(true)`
+            # branch of the Caddyfile template, not just the explicit one.
+      - name: public_app
+        caddy:
+          default:
+            host: public
+            upstream: "public:8080"
+            auth: false
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: docker
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: preinit.yaml
+
+    - name: Run the caddy role
+      ansible.builtin.include_role:
+        name: caddy

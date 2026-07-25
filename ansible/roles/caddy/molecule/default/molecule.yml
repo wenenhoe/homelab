@@ -1,0 +1,39 @@
+---
+# caddy builds a real Docker image (xcaddy + a DNS plugin) and deploys via
+# compose, so it needs the same Docker-in-Docker setup as the compose
+# scenarios, plus python3-requests (its 3 declared volumes go through
+# ensure_volume.yaml, same as the compose "volumes"/"scripts"/"cleanup"
+# scenarios). This is the slowest scenario so far — compiling Caddy from
+# source typically takes a couple of minutes and needs real internet
+# access to fetch Go modules.
+dependency:
+  name: galaxy
+  options:
+    requirements-file: requirements.yml
+driver:
+  name: docker
+platforms:
+  - name: caddy-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+  env:
+    # Scenario cwd is ansible/roles/caddy/molecule/default — three levels
+    # up is ansible/roles, where `include_role` needs to look for `caddy`,
+    # `compose`, and `docker`.
+    ANSIBLE_ROLES_PATH: ../../../
+verifier:
+  name: ansible

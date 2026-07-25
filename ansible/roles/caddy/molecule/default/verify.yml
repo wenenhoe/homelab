@@ -1,0 +1,147 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    - name: Confirm the Dockerfile was written
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/caddy/Dockerfile"
+      register: caddy_dockerfile_stat
+      failed_when: not caddy_dockerfile_stat.stat.exists
+
+    - name: Confirm the custom Caddy image was actually built
+      ansible.builtin.command: docker image inspect caddy-digitalocean:v1.0
+      register: caddy_image_inspect
+      changed_when: false
+
+    # --- Caddyfile rendered and seeded correctly into its volume ------------
+    - name: Read back the seeded Caddyfile from its volume
+      ansible.builtin.command: >-
+        docker run --rm -v caddy_caddyfile:/mnt alpine:3.20 cat /mnt/Caddyfile
+      register: caddy_seeded_caddyfile
+      changed_when: false
+
+    - name: Confirm the tinyauth vhost rendered correctly
+      ansible.builtin.assert:
+        that:
+          - "'sso.lan.localhost' in caddy_seeded_caddyfile.stdout"
+          - "'reverse_proxy tinyauth:3000' in caddy_seeded_caddyfile.stdout"
+
+    - name: Confirm both routable apps rendered with correct hosts and upstreams
+      ansible.builtin.assert:
+        that:
+          - "'@authed host authed.apps.localhost' in caddy_seeded_caddyfile.stdout"
+          - "'reverse_proxy authed:8080' in caddy_seeded_caddyfile.stdout"
+          - "'@public host public.apps.localhost' in caddy_seeded_caddyfile.stdout"
+          - "'reverse_proxy public:8080' in caddy_seeded_caddyfile.stdout"
+
+    - name: Confirm the auth import only applied to the app that needed it
+      ansible.builtin.assert:
+        that:
+          # authed_app omits `auth`, defaulting to true - should get the
+          # import. public_app sets auth: false - should not. Exactly one
+          # import in the whole file proves both branches worked.
+          - (caddy_seeded_caddyfile.stdout | regex_findall('import tinyauth_forwarder')) | length == 1
+
+    # --- Container actually starts and loads the config without error ------
+    - name: Wait for the caddy container to report healthy
+      ansible.builtin.command: >-
+        docker inspect --format '{% raw %}{{.State.Health.Status}}{% endraw %}' caddy
+      register: caddy_health_status
+      changed_when: false
+      until: caddy_health_status.stdout | trim == 'healthy'
+      retries: 15
+      delay: 10
+
+    # --- End-to-end: Caddy actually loaded a config with the right routing -
+    # caddy_local_certs=true (set in converge.yml) skips the global ACME
+    # issuer, so Caddy falls back to its normal automatic behaviour and
+    # actually gets working internal-CA certs for our .localhost domains -
+    # real TLS checks below this are meaningful here. This admin-API check
+    # is a cheap first pass that doesn't depend on cert timing at all
+    # (plain HTTP on :2019), confirming Caddy parsed and accepted the
+    # rendered config with the correct routes/upstreams/fallback before
+    # bothering with live requests.
+    - name: Fetch Caddy's actual loaded config via its admin API
+      # uri can't run inside a container - this needs to execute inside
+      # caddy's own network namespace (see the docker-exec fix above), which
+      # is fundamentally a command/docker-exec operation, not something the
+      # uri module can do regardless of target.
+      ansible.builtin.command: docker exec caddy curl -s http://localhost:2019/config/  # noqa: command-instead-of-module
+      register: caddy_admin_config
+      changed_when: false
+
+    - name: Confirm both routable apps' hosts and upstreams made it into the loaded config
+      ansible.builtin.assert:
+        that:
+          - "'authed.apps.localhost' in caddy_admin_config.stdout"
+          - "'authed:8080' in caddy_admin_config.stdout"
+          - "'public.apps.localhost' in caddy_admin_config.stdout"
+          - "'public:8080' in caddy_admin_config.stdout"
+
+    - name: Confirm the tinyauth upstream made it into the loaded config
+      ansible.builtin.assert:
+        that:
+          - "'tinyauth:3000' in caddy_admin_config.stdout"
+
+    - name: Confirm the deny-all fallback made it into the loaded config
+      ansible.builtin.assert:
+        that:
+          - "'Access Denied' in caddy_admin_config.stdout"
+          - "'403' in caddy_admin_config.stdout"
+
+    # --- Live TLS: routing actually resolves to the right vhost -------------
+    # The earlier attempt here used `-H "Host: ..." https://localhost/`,
+    # which only sets the HTTP-level Host header - it does nothing to the
+    # TLS SNI, which curl derives from the URL's hostname. Every request
+    # was sending SNI=localhost while Caddy only holds certs for
+    # sso.lan.localhost and *.apps.localhost, so Caddy correctly had no
+    # matching cert and sent a TLS internal_error alert every time - a
+    # standard curl gotcha for HTTPS virtual-host testing, not a Caddy or
+    # role bug. `--resolve <hostname>:443:127.0.0.1` with the real hostname
+    # in the URL fixes this: correct SNI, and the Host header comes along
+    # automatically since it now matches the URL.
+    #
+    # Kept as command/curl rather than the uri module: uri has no
+    # equivalent to --resolve (no way to pin SNI/Host to a hostname while
+    # connecting to a specific IP), and its handling of an outright
+    # connection failure - as opposed to just a non-matching status code -
+    # is less predictable for the retry loop below, which specifically
+    # needs to tolerate the container not being ready yet.
+    - name: Request a route that should match and attempt to proxy (expect 502 - backend doesn't exist)
+      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve authed.apps.localhost:443:127.0.0.1 https://authed.apps.localhost/  # noqa: command-instead-of-module yaml[line-length]
+      register: caddy_authed_route_status
+      changed_when: false
+      until: caddy_authed_route_status.stdout == '502'
+      retries: 10
+      delay: 5
+      failed_when: caddy_authed_route_status.stdout != '502'
+
+    - name: Request the public route too (expect 502 - also a matched route with no real backend)
+      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve public.apps.localhost:443:127.0.0.1 https://public.apps.localhost/  # noqa: command-instead-of-module yaml[line-length]
+      register: caddy_public_route_status
+      changed_when: false
+      until: caddy_public_route_status.stdout == '502'
+      retries: 10
+      delay: 5
+      failed_when: caddy_public_route_status.stdout != '502'
+
+    - name: Request a host that matches no defined route (expect 403 - the deny-all fallback)
+      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve totally-unmatched.apps.localhost:443:127.0.0.1 https://totally-unmatched.apps.localhost/  # noqa: command-instead-of-module yaml[line-length]
+      register: caddy_unmatched_route_status
+      changed_when: false
+      until: caddy_unmatched_route_status.stdout == '403'
+      retries: 10
+      delay: 5
+      failed_when: caddy_unmatched_route_status.stdout != '403'
+
+    - name: Request the tinyauth vhost too (expect 502 - backend doesn't exist)
+      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve sso.lan.localhost:443:127.0.0.1 https://sso.lan.localhost/  # noqa: command-instead-of-module yaml[line-length]
+      register: caddy_tinyauth_route_status
+      changed_when: false
+      until: caddy_tinyauth_route_status.stdout == '502'
+      retries: 10
+      delay: 5
+      failed_when: caddy_tinyauth_route_status.stdout != '502'

@@ -1,0 +1,52 @@
+---
+# ---------------------------------------------------------------------------
+# One iteration of the batch loop in main.yaml. Deliberately a separate file
+# (not inlined into main.yaml's loop) because block/rescue can't be combined
+# with `loop:` directly - the loop has to wrap an include, and the
+# block/rescue has to live inside what's being included.
+#
+# This isn't just style: testing showed `ignore_errors: true` on a looped
+# include_role/include_tasks does NOT stop a single app's failure from
+# halting every app still left in the loop (see
+# https://github.com/ansible/ansible/issues/70311) - ignore_errors there
+# only prevents Ansible reporting it as a failure, it doesn't stop the
+# host from being marked failed and skipping the rest of the loop. Catching
+# the error here, before it ever reaches the loop machinery, is what
+# actually lets the batch continue past one app's failure.
+# ---------------------------------------------------------------------------
+
+- name: "Init and deploy [block / rescue]: {{ compose_app_target.name }}"
+  block:
+    - name: "Reset per-app changed flag ({{ compose_app_target.name }})"
+      ansible.builtin.set_fact:
+        compose_app_deploy_changed: false
+
+    - name: "Init and deploy ({{ compose_app_target.name }})"
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main
+      vars:
+        compose_app_item: "{{ compose_app_target }}"
+
+    - name: "Record result ({{ compose_app_target.name }})"
+      ansible.builtin.set_fact:
+        compose_app_results: >-
+          {{
+            compose_app_results | default([]) + [{
+              'name': compose_app_target.name,
+              'status': (compose_app_deploy_changed | default(false)) | ternary('changed', 'ok')
+            }]
+          }}
+  rescue:
+    - name: "Record failure ({{ compose_app_target.name }})"
+      ansible.builtin.set_fact:
+        compose_app_results: "{{ compose_app_results | default([]) + [{'name': compose_app_target.name, 'status': 'failed'}] }}"
+      when: compose_app_continue_on_error | bool
+
+    - name: "Re-raise for strict fail-fast ({{ compose_app_target.name }})"
+      ansible.builtin.fail:
+        msg: >-
+          {{ compose_app_target.name }} failed to init/deploy
+          (compose_app_continue_on_error is false - stopping here rather
+          than attempting the remaining apps).
+      when: not (compose_app_continue_on_error | bool)

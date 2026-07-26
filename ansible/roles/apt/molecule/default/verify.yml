@@ -10,14 +10,15 @@
           - ansible_facts['os_family'] == 'Debian'
         fail_msg: "Test host is not Debian-based — the role's own assert should have failed converge already."
 
-    - name: Check for any packages still marked upgradable
-      ansible.builtin.command: apt list --upgradable
-      register: apt_upgradable
-      changed_when: false
+    - name: Dry-run a full upgrade to check whether anything is still upgradable
+      ansible.builtin.apt:
+        upgrade: dist
+        update_cache: true
+      check_mode: true
+      register: apt_upgrade_check
 
     - name: Assert the role fully upgraded the system
       ansible.builtin.assert:
         that:
-          # First line is always the "Listing..." header, so 1 line == none upgradable.
-          - apt_upgradable.stdout_lines | length <= 1
-        fail_msg: "Packages still upgradable after the apt role ran: {{ apt_upgradable.stdout }}"
+          - not apt_upgrade_check.changed
+        fail_msg: "A dry-run dist-upgrade still reports changes after the apt role ran: {{ apt_upgrade_check.stdout | default('') }}"

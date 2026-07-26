@@ -7,11 +7,12 @@
   tasks:
     # --- Sanity: all three apps running before any cleanup runs ------------
     - name: Confirm all three test apps are running before cleanup begins
-      ansible.builtin.command: >-
-        docker ps -q --filter "label=com.docker.compose.project={{ item }}"
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project={{ item }}"
       register: compose_initial_running
-      changed_when: false
-      failed_when: compose_initial_running.stdout | trim | length == 0
+      failed_when: compose_initial_running.containers | length == 0
       loop:
         - cleanup_app_a
         - cleanup_app_b
@@ -28,11 +29,12 @@
         compose_cleanup_dry_run: true
 
     - name: Confirm dry run left the container running
-      ansible.builtin.command: >-
-        docker ps -q --filter "label=com.docker.compose.project=cleanup_app_a"
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=cleanup_app_a"
       register: compose_app_a_running_after_dry_run
-      changed_when: false
-      failed_when: compose_app_a_running_after_dry_run.stdout | trim | length == 0
+      failed_when: compose_app_a_running_after_dry_run.containers | length == 0
 
     - name: Confirm dry run left the stack directory untouched
       ansible.builtin.stat:
@@ -51,11 +53,13 @@
         compose_cleanup_dry_run: false
 
     - name: Confirm the container was actually brought down this time
-      ansible.builtin.command: >-
-        docker ps -aq --filter "label=com.docker.compose.project=cleanup_app_a"
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          label: "com.docker.compose.project=cleanup_app_a"
       register: compose_app_a_containers_after_cleanup
-      changed_when: false
-      failed_when: compose_app_a_containers_after_cleanup.stdout | trim | length > 0
+      failed_when: compose_app_a_containers_after_cleanup.containers | length > 0
 
     - name: Confirm the stack directory was preserved
       ansible.builtin.stat:
@@ -64,9 +68,10 @@
       failed_when: not compose_app_a_dir_after_cleanup.stat.exists
 
     - name: Confirm the named volume was preserved
-      ansible.builtin.command: docker volume inspect cleanup_app_a_data
+      community.docker.docker_volume_info:
+        name: cleanup_app_a_data
       register: compose_app_a_volume_after_cleanup
-      changed_when: false
+      failed_when: not compose_app_a_volume_after_cleanup.exists
 
     # --- App B: app_overrides forces removal despite global keep -----------
     - name: "App B: global keep, but overridden to remove"
@@ -81,11 +86,13 @@
         compose_cleanup_dry_run: false
 
     - name: Confirm app_b's container was brought down
-      ansible.builtin.command: >-
-        docker ps -aq --filter "label=com.docker.compose.project=cleanup_app_b"
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          label: "com.docker.compose.project=cleanup_app_b"
       register: compose_app_b_containers_after_cleanup
-      changed_when: false
-      failed_when: compose_app_b_containers_after_cleanup.stdout | trim | length > 0
+      failed_when: compose_app_b_containers_after_cleanup.containers | length > 0
 
     - name: Confirm the override forced the directory to be removed
       ansible.builtin.stat:
@@ -100,11 +107,12 @@
         state: absent
 
     - name: Confirm app_c's container is untouched by the directory's removal
-      ansible.builtin.command: >-
-        docker ps -q --filter "label=com.docker.compose.project=cleanup_app_c"
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=cleanup_app_c"
       register: compose_app_c_running_before_cleanup
-      changed_when: false
-      failed_when: compose_app_c_running_before_cleanup.stdout | trim | length == 0
+      failed_when: compose_app_c_running_before_cleanup.containers | length == 0
 
     - name: "App C: directory already gone, must use label fallback"
       ansible.builtin.include_role:
@@ -116,8 +124,10 @@
         compose_cleanup_dry_run: false
 
     - name: Confirm app_c's container was removed via the fallback path
-      ansible.builtin.command: >-
-        docker ps -aq --filter "label=com.docker.compose.project=cleanup_app_c"
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          label: "com.docker.compose.project=cleanup_app_c"
       register: compose_app_c_containers_after_cleanup
-      changed_when: false
-      failed_when: compose_app_c_containers_after_cleanup.stdout | trim | length > 0
+      failed_when: compose_app_c_containers_after_cleanup.containers | length > 0

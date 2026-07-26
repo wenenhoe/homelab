@@ -6,6 +6,9 @@
 # are built for exactly this — they ship python3 + systemd as PID 1.
 dependency:
   name: galaxy
+  options:
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
 driver:
   name: docker
 platforms:
@@ -32,6 +35,7 @@ verifier:
   name: ansible
 scenario:
   test_sequence:
+    - dependency
     - destroy
     - syntax
     - create

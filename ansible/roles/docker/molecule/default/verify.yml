@@ -16,9 +16,8 @@
         fail_msg: "docker.service is not running/enabled: {{ ansible_facts.services.get('docker.service', 'not found') }}"
 
     - name: Confirm the Docker daemon actually responds
-      ansible.builtin.command: docker info
+      community.docker.docker_host_info:
       register: docker_info
-      changed_when: false
 
     - name: Run a real container end-to-end to prove the daemon works, not just the unit file
       ansible.builtin.command: docker run --rm hello-world
@@ -27,7 +26,7 @@
       failed_when: "'Hello from Docker!' not in hello_world.stdout"
 
     - name: Confirm the test user was added to the docker group
-      ansible.builtin.command: id -nG molecule_test_user
-      register: user_groups
-      changed_when: false
-      failed_when: "'docker' not in user_groups.stdout.split()"
+      ansible.builtin.getent:
+        database: group
+        key: docker
+      failed_when: "'molecule_test_user' not in ansible_facts.getent_group['docker'][2].split(',')"

@@ -13,22 +13,25 @@
 
     # --- The two healthy apps deployed despite app_fail's failure -----------
     - name: Confirm the healthy apps deployed and are running
-      ansible.builtin.command: >-
-        docker ps -q --filter "label=com.docker.compose.project={{ item }}"
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project={{ item }}"
       register: compose_app_healthy_running
-      changed_when: false
-      failed_when: compose_app_healthy_running.stdout | trim | length == 0
+      failed_when: compose_app_healthy_running.containers | length == 0
       loop:
         - app_ok_1
         - app_ok_2
 
     # --- The broken app never got as far as a running container -------------
     - name: Confirm the broken app was never deployed
-      ansible.builtin.command: >-
-        docker ps -aq --filter "label=com.docker.compose.project=app_fail"
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          label: "com.docker.compose.project=app_fail"
       register: compose_app_fail_containers
-      changed_when: false
-      failed_when: compose_app_fail_containers.stdout | trim | length > 0
+      failed_when: compose_app_fail_containers.containers | length > 0
 
     # --- bind9/caddy were never touched at all -------------------------------
     - name: Confirm self-managed apps were never processed by compose_app

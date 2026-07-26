@@ -12,14 +12,17 @@
       failed_when: not compose_dockerfile_stat.stat.exists
 
     - name: Confirm the image was actually built locally (not pulled)
-      ansible.builtin.command: docker image inspect buildapp:local
+      community.docker.docker_image_info:
+        name: buildapp:local
       register: compose_build_image_inspect
-      changed_when: false
+      failed_when: compose_build_image_inspect.images | length == 0
 
     - name: Confirm the container is running from the built image
-      ansible.builtin.command: >-
-        docker ps --filter "label=com.docker.compose.project=buildapp"
-        --format '{{ "{{" }}.Image{{ "}}" }}'
-      register: compose_build_container_image
-      changed_when: false
-      failed_when: "'buildapp:local' not in compose_build_container_image.stdout"
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=buildapp"
+      register: compose_build_containers
+      failed_when: >-
+        compose_build_containers.containers | length == 0
+        or compose_build_containers.containers[0].Image != 'buildapp:local'

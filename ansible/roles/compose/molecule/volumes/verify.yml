@@ -25,17 +25,20 @@
       failed_when: compose_old_dir.stat.exists
 
     - name: Confirm the named volume exists and carries the expected labels
-      ansible.builtin.command: docker volume inspect volapp_data
+      community.docker.docker_volume_info:
+        name: volapp_data
       register: compose_volume_inspect
-      changed_when: false
       failed_when: >-
-        ('"homelab.app": "volapp"' not in compose_volume_inspect.stdout)
-        or ('"homelab.volume": "data"' not in compose_volume_inspect.stdout)
+        not compose_volume_inspect.exists
+        or compose_volume_inspect.volume.Labels['homelab.app'] != 'volapp'
+        or compose_volume_inspect.volume.Labels['homelab.volume'] != 'data'
 
     - name: Confirm both the migrated legacy content and the seeded config landed in the volume
+      # Reads content stored inside a Docker named volume - a throwaway
+      # container is the only way to read that back.
       ansible.builtin.command: >-
         docker run --rm -v volapp_data:/data alpine:3.20
-        sh -c "cat /data/legacy-file.txt && cat /data/seeded.txt"
+        sh -c "cat /data/legacy-file.txt && cat /data/seeded.txt"  # noqa: command-instead-of-module
       register: compose_volume_contents
       changed_when: false
       failed_when: >-
@@ -56,11 +59,13 @@
         compose_cleanup_dry_run: false
 
     - name: Confirm the stack's container was brought down
-      ansible.builtin.command: >-
-        docker ps -aq --filter "label=com.docker.compose.project=volapp"
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          label: "com.docker.compose.project=volapp"
       register: compose_leftover_containers
-      changed_when: false
-      failed_when: compose_leftover_containers.stdout | trim | length > 0
+      failed_when: compose_leftover_containers.containers | length > 0
 
     - name: Confirm the stack directory was removed
       ansible.builtin.stat:
@@ -69,7 +74,7 @@
       failed_when: compose_stack_dir_after_cleanup.stat.exists
 
     - name: Confirm the named volume was removed
-      ansible.builtin.command: docker volume inspect volapp_data
+      community.docker.docker_volume_info:
+        name: volapp_data
       register: compose_volume_after_cleanup
-      changed_when: false
-      failed_when: compose_volume_after_cleanup.rc == 0
+      failed_when: compose_volume_after_cleanup.exists

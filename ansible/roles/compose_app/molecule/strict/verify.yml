@@ -12,18 +12,21 @@
       failed_when: not compose_app_strict_halt_marker.stat.exists
 
     - name: Confirm app_ok_1 (before the failure) was deployed
-      ansible.builtin.command: >-
-        docker ps -q --filter "label=com.docker.compose.project=app_ok_1"
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=app_ok_1"
       register: compose_app_strict_ok1_running
-      changed_when: false
-      failed_when: compose_app_strict_ok1_running.stdout | trim | length == 0
+      failed_when: compose_app_strict_ok1_running.containers | length == 0
 
     - name: Confirm app_fail was never deployed
-      ansible.builtin.command: >-
-        docker ps -aq --filter "label=com.docker.compose.project=app_fail"
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          label: "com.docker.compose.project=app_fail"
       register: compose_app_strict_fail_containers
-      changed_when: false
-      failed_when: compose_app_strict_fail_containers.stdout | trim | length > 0
+      failed_when: compose_app_strict_fail_containers.containers | length > 0
 
     - name: Confirm app_ok_2 (after the failure) was never even attempted
       ansible.builtin.stat:

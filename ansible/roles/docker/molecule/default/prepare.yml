@@ -9,3 +9,8 @@
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: dind_vfs_storage_driver.yaml
+
+    - name: Install python3-requests
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml

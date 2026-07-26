@@ -12,9 +12,10 @@
       failed_when: not caddy_dockerfile_stat.stat.exists
 
     - name: Confirm the custom Caddy image was actually built
-      ansible.builtin.command: docker image inspect caddy-digitalocean:v1.0
+      community.docker.docker_image_info:
+        name: caddy-digitalocean:v1.0
       register: caddy_image_inspect
-      changed_when: false
+      failed_when: caddy_image_inspect.images | length == 0
 
     # --- Caddyfile rendered and seeded correctly into its volume ------------
     - name: Read back the seeded Caddyfile from its volume
@@ -47,11 +48,10 @@
 
     # --- Container actually starts and loads the config without error ------
     - name: Wait for the caddy container to report healthy
-      ansible.builtin.command: >-
-        docker inspect --format '{% raw %}{{.State.Health.Status}}{% endraw %}' caddy
-      register: caddy_health_status
-      changed_when: false
-      until: caddy_health_status.stdout | trim == 'healthy'
+      community.docker.docker_container_info:
+        name: caddy
+      register: caddy_container_info
+      until: (caddy_container_info.container.State.Health.Status | default('')) == 'healthy'
       retries: 15
       delay: 10
 

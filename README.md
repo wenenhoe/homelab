@@ -58,6 +58,7 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 | [`docs/adding-an-app.md`](docs/adding-an-app.md) | Step-by-step: wiring a new Compose app into the `app_registry` and a host's `compose_apps`. |
 | [`docs/host-vars.md`](docs/host-vars.md) | Field-by-field reference for `host_vars/<host>.yaml`: `caddy_domain`, `compose_apps`, per-host alias vars, `dns_ddns_target`/`dns_zones`. |
 | [`docs/cleanup.md`](docs/cleanup.md) | How `cleanup.yaml` finds stacks orphaned from `compose_apps`, the keep-vs-delete content policy, and dry-running a cleanup pass. |
+| [`docs/molecule-testing.md`](docs/molecule-testing.md) | The full per-role/per-scenario Molecule matrix, what `molecule_helpers` shares across scenarios, the Docker-in-Docker `vfs` storage-driver quirk, and how to add a new scenario. |
 
 ## Setup
 
@@ -153,9 +154,9 @@ Everything routed through Caddy sits behind **Tinyauth** forward-auth by default
 
 ## Testing
 
-Roles are tested individually with [Molecule](https://ansible.readthedocs.io/projects/molecule/), using the co-located convention: each role's scenario lives at `ansible/roles/<role>/molecule/default/`. Roles are brought up in Docker containers, converged, verified, then re-converged to check idempotence.
+Roles are tested individually with [Molecule](https://ansible.readthedocs.io/projects/molecule/), using the co-located convention: each role's scenario(s) live at `ansible/roles/<role>/molecule/<scenario>/`. Roles are brought up in Docker containers, converged, verified, then re-converged to check idempotence.
 
-Run a single role's scenario:
+Run a single role's default scenario:
 
 ```sh
 cd ansible/roles/apt
@@ -164,12 +165,14 @@ molecule test
 
 `fwupd` has no scenario — it talks to real firmware/LVFS hardware, which a container can't meaningfully simulate.
 
-Some roles have more than one scenario. `compose`, for example, has `default` (the main init/deploy happy path) and `volumes` (volume-seeding, legacy bind-mount migration, and cleanup — slower and destructive, so kept separate). Run a non-default scenario with `-s`:
+Most other roles have `default` plus one or more named scenarios covering a specific branch or edge case — `compose`, for example, also has `volumes`, `scripts`, `build`, and `cleanup`. Run a non-default scenario with `-s`:
 
 ```sh
 cd ansible/roles/compose
 molecule test -s volumes
 ```
+
+Shared setup that would otherwise be duplicated across scenarios — the Docker-in-Docker `prepare` playbook, bootstrapping the `docker` role, resolving `compose_apps`, Galaxy dependencies — lives once in `ansible/roles/molecule_helpers/` and is referenced from each scenario's `molecule.yml`/`converge.yml` instead of copy-pasted. See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full scenario matrix and how to add a new one.
 
 ## Linting & Pre-commit
 

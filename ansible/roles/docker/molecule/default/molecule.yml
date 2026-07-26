@@ -18,11 +18,6 @@ platforms:
     tmpfs:
       - /run
       - /tmp
-    # Molecule's docker driver overrides a container's own CMD with its own
-    # keep-alive command by default, which silently defeats this image's
-    # CMD ["/lib/systemd/systemd"]. Without systemd actually as PID 1,
-    # systemctl/dbus has nothing to talk to (surfaces as "Service is in
-    # unknown state" on the later "Enable and start Docker service" task).
     command: /lib/systemd/systemd
     pre_build_image: true
 provisioner:

@@ -1,7 +1,6 @@
 ---
 # apt role needs nothing beyond a Debian-based container with Python
-# present — no systemd, no privileged mode, no Docker-in-Docker. Keep this
-# scenario as the "does the toolchain even work" baseline.
+# present — no systemd, no privileged mode, no Docker-in-Docker
 dependency:
   name: galaxy
 driver:
@@ -17,8 +16,15 @@ provisioner:
     converge: converge.yml
     verify: verify.yml
   env:
-    # Scenario cwd is ansible/roles/apt/molecule/default — three levels up
-    # is ansible/roles, where `include_role: apt` needs to look.
-    ANSIBLE_ROLES_PATH: ../../../
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
   name: ansible
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

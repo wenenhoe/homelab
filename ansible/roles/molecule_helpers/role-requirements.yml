@@ -1,0 +1,9 @@
+---
+# No external role dependencies required
+# Referenced from scenario molecule.yml files via:
+#   dependency:
+#     name: galaxy
+#     options:
+#       role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
+# instead of each scenario keeping its own identical copy.
+roles: []

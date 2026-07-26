@@ -8,7 +8,8 @@
 dependency:
   name: galaxy
   options:
-    requirements-file: ${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
 driver:
   name: docker
 platforms:

@@ -5,3 +5,4 @@
 
 # Excluded directories
 .ansible/
+.venv/

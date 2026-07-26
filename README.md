@@ -61,27 +61,31 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 
 ## Setup
 
-Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/) so no global Python/Ansible install is required.
+Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/) as a project dependency manager (`pyproject.toml` + `uv.lock`), not via `uv tool install`. Everything — `ansible-core`, the `docker` Python SDK, `molecule`, `molecule-plugins`, `pre-commit` — lives in one shared, reproducible `.venv/`, avoiding the duplicate-collection issues that come from installing `ansible-core` into multiple separate tool venvs.
+
+`ansible-core` is used deliberately instead of the full `ansible` metapackage. `ansible` bundles hundreds of community collections this repo doesn't use; the two it actually needs (`community.docker`, `ansible.posix`) are declared explicitly in `ansible/requirements.yml` instead, so the dependency set is exact and reproducible.
 
 - Install `uv`: see the [uv docs](https://docs.astral.sh/uv/getting-started/installation/)
-- Install and setup `pre-commit` with pre-commit hooks:
-  ```sh
-  uv tool install pre-commit --with pre-commit-uv
-  pre-commit install
-  ```
-- Install `ansible` with `docker` Python package (used by `community.docker` for container lifecycle checks in `molecule`):
-  ```sh
-  uv tool install ansible-core --with ansible --with docker
-  ```
-- Install the Docker Ansible collection (required by the `compose`, `caddy`, and `bind9` roles):
-  ```sh
-  ansible-galaxy collection install community.docker
-  ```
-- Install `molecule` (for role testing; requires Docker running locally):
-  ```sh
-  uv tool install molecule --with molecule-plugins[docker] --with ansible-core
-  ```
+- Install everything (creates `.venv/` from `pyproject.toml`/`uv.lock`):
+   ```sh
+  uv sync
+   ```
+- Activate the environment (do this once per shell session):
+   ```sh
+  source .venv/bin/activate
+   ```
+  Alternatively, prefix any individual command with `uv run` instead of activating (e.g. `uv run molecule test`).
+- Install the collections this repo needs:
+   ```sh
+  ansible-galaxy collection install -r ansible/requirements.yml
+   ```
+- Install pre-commit's git hooks:
+   ```sh
+   pre-commit install
+   ```
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
+
+Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
 
 ## Inventory
 

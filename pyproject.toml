@@ -1,0 +1,19 @@
+[project]
+name = "homelab"
+version = "0.1.0"
+description = "Ansible automation for the homelab"
+requires-python = ">=3.14"
+dependencies = [
+    "ansible-core>=2.20",
+    "docker>=7.1",
+]
+
+[dependency-groups]
+dev = [
+    "molecule>=25.0",
+    "molecule-plugins[docker]>=23.0",
+    "pre-commit>=4.0",
+]
+
+[tool.uv]
+package = false

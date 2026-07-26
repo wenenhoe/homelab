@@ -1,11 +1,20 @@
 ---
+- name: Resolve caddy's own compose_apps entry, if present
+  ansible.builtin.set_fact:
+    caddy_compose_app_matches: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | list }}"
+
+- name: Record whether caddy is present in compose_apps
+  ansible.builtin.set_fact:
+    caddy_has_compose_app: "{{ caddy_compose_app_matches | length > 0 }}"
+    caddy_compose_app_item: "{{ caddy_compose_app_matches | first if caddy_compose_app_matches | length > 0 else {} }}"
+
 - name: Init caddy's own compose app files and directories
   ansible.builtin.include_role:
     name: compose
     tasks_from: init
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
-  when: compose_apps | selectattr('name', 'equalto', 'caddy') | list | length > 0
+    compose_app_item: "{{ caddy_compose_app_item }}"
+  when: caddy_has_compose_app
 
 - name: Ensure caddyfile staging directory exists
   ansible.builtin.file:
@@ -29,7 +38,7 @@
     name: compose
     tasks_from: seed_volume
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
+    compose_app_item: "{{ caddy_compose_app_item }}"
     compose_volume_item:
       name: caddyfile
   when: caddy_config_changes.changed # noqa: no-handler
@@ -61,6 +70,6 @@
     name: compose
     tasks_from: deploy
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
+    compose_app_item: "{{ caddy_compose_app_item }}"
     compose_app_extra_changed: "{{ caddy_config_changes.changed }}"
-  when: compose_apps | selectattr('name', 'equalto', 'caddy') | list | length > 0
+  when: caddy_has_compose_app

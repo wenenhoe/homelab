@@ -36,7 +36,7 @@ provisioner:
     # Scenario cwd is ansible/roles/bind9/molecule/default — three levels
     # up is ansible/roles, where `include_role` needs to look for `bind9`,
     # `compose`, and `docker`.
-    ANSIBLE_ROLES_PATH: ../../../
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
   name: ansible
 # The zone-diffing mechanism in bind9/tasks/main.yaml (render to a temp

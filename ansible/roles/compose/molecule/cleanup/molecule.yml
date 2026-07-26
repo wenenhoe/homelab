@@ -28,6 +28,6 @@ provisioner:
     converge: converge.yml
     verify: verify.yml
   env:
-    ANSIBLE_ROLES_PATH: ../../../
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
   name: ansible

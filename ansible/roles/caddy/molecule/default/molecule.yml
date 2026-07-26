@@ -34,6 +34,6 @@ provisioner:
     # Scenario cwd is ansible/roles/caddy/molecule/default — three levels
     # up is ansible/roles, where `include_role` needs to look for `caddy`,
     # `compose`, and `docker`.
-    ANSIBLE_ROLES_PATH: ../../../
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
   name: ansible

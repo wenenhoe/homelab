@@ -25,12 +25,13 @@
   tasks:
     - name: Include docker role (compose assumes Docker is already installed and running)
       ansible.builtin.include_role:
-        name: docker
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
 
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
-        name: compose
-        tasks_from: preinit.yaml
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
 
     # In strict mode, the first app's failure re-raises unconditionally
     # (see deploy_one_app.yaml), halting the loop entirely - expected here,

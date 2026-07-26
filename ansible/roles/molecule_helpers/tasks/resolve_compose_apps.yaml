@@ -1,0 +1,8 @@
+---
+# Shared by every scenario that declares its own app_registry/compose_apps
+# and needs them resolved before deploying (compose, compose_app, caddy,
+# bind9).
+- name: Resolve compose_apps against the app registry
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: preinit.yaml

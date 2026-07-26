@@ -3,10 +3,6 @@
   hosts: all
   become: true
   vars:
-    # Real production vars come from group_vars/host_vars/vars_prompt, none
-    # of which apply here — supply a minimal, self-contained equivalent
-    # instead of pulling in the real app_registry (which needs real secrets
-    # and real docker/<app> directories this scenario doesn't have).
     ansible_user: root
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
@@ -25,12 +21,13 @@
   tasks:
     - name: Include docker role (compose assumes Docker is already installed and running)
       ansible.builtin.include_role:
-        name: docker
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
 
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
-        name: compose
-        tasks_from: preinit.yaml
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
 
     - name: Initialise and deploy the resolved test app
       ansible.builtin.include_role:

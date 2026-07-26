@@ -30,12 +30,8 @@
   changed_when: "'Successfully installed' in fwupd_upgrade.stdout"
 
 - name: Check if system requires a reboot to apply firmware
-  ansible.builtin.shell: |
-    set -o pipefail
-    fwupdmgr get-devices | grep -i "Requires restart"
-  args:
-    executable: /bin/bash
-  register: fwupd_reboot_required
+  ansible.builtin.command: fwupdmgr get-devices
+  register: fwupd_devices
   changed_when: false
   failed_when: false
 
@@ -45,4 +41,4 @@
     connect_timeout: 5
     reboot_timeout: 600
     pre_reboot_delay: 5
-  when: fwupd_reboot_required.rc == 0
+  when: "'Requires restart' in fwupd_devices.stdout"

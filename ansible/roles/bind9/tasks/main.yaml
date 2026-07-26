@@ -23,6 +23,10 @@
     bind9_deploy_dir: "{{ compose_deploy_dir }}/bind9"
     bind9_config_dir: "{{ compose_deploy_dir }}/bind9/_staging/config"
 
+- name: Resolve bind9's own compose_apps entry
+  ansible.builtin.set_fact:
+    bind9_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+
 - name: Ensure bind group exists
   ansible.builtin.group:
     name: bind
@@ -43,7 +47,7 @@
     name: compose
     tasks_from: init
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+    compose_app_item: "{{ bind9_compose_app_item }}"
 
 - name: Ensure BIND9 staging config directories exist
   ansible.builtin.file:
@@ -110,77 +114,61 @@
 # reload BIND on every run just because the epoch serial ticked forward.
 #
 # Strategy:
-#   1. Render the template into a side-car temp file (.new) on the remote.
-#   2. Strip the serial line from both the .new file and the live file (if it
-#      exists) and compare the remainder with diff.
-#   3. Only overwrite the live file (and mark changed) when the non-serial
-#      content actually differs.
-#   4. Remove the temp file regardless.
+#   1. Render each zone's candidate content in-memory via the template
+#      lookup (no side-car files needed on the remote).
+#   2. Read back whatever's live on disk (if anything) via slurp.
+#   3. Strip the serial line from both in Jinja and compare; only write
+#      (and therefore only report changed) when the non-serial content
+#      actually differs.
 # ---------------------------------------------------------------------------
 
-- name: Render zone files to temp path for diffing
-  ansible.builtin.template:
-    src: zone.db.j2
-    dest: "{{ bind9_config_dir }}/zones/db.{{ item.key }}.new"
+- name: Render candidate zone file content in-memory
+  ansible.builtin.set_fact:
+    bind9_zone_candidates: "{{ (current_list | list) + [{'key': item.key, 'content': rendered}] }}"
+  loop: "{{ bind9_all_zones }}"
+  loop_control:
+    label: "{{ item.key }}"
+  vars:
+    current_list: "{{ bind9_zone_candidates | default([]) }}"
+    rendered: >-
+      {{ lookup('ansible.builtin.template', 'zone.db.j2', template_vars={
+        'zone_name': item.key,
+        'zone_data': item.value,
+        'dns_ddns_target': item.dns_ddns_target,
+        'caddy_domain': item.caddy_domain,
+        'zone_compose_apps': item.compose_apps }) }}
+  no_log: true
+
+- name: Read back whatever zone file is currently live, if any
+  ansible.builtin.slurp:
+    path: "{{ bind9_config_dir }}/zones/db.{{ item.key }}"
+  loop: "{{ bind9_zone_candidates }}"
+  loop_control:
+    label: "{{ item.key }}"
+  register: bind9_zone_live
+  failed_when: false # missing file is expected on first run, not an error
+  no_log: true
+
+- name: Write zone file when its non-serial content has changed
+  ansible.builtin.copy:
+    dest: "{{ bind9_config_dir }}/zones/db.{{ item.0.key }}"
+    content: "{{ item.0.content }}"
     owner: bind
     group: bind
     mode: '0644'
-  loop: "{{ bind9_all_zones }}"
+  loop: "{{ bind9_zone_candidates | zip(bind9_zone_live.results) | list }}"
+  loop_control:
+    label: "{{ item.0.key }}"
   vars:
-    zone_name: "{{ item.key }}"
-    zone_data: "{{ item.value }}"
-    dns_ddns_target: "{{ item.dns_ddns_target }}"
-    caddy_domain: "{{ item.caddy_domain }}"
-    zone_compose_apps: "{{ item.compose_apps }}"
-  no_log: true
-
-- name: Diff zone files ignoring serial line
-  ansible.builtin.shell: |
-    live="{{ bind9_config_dir }}/zones/db.{{ item.key }}"
-    new="${live}.new"
-
-    strip_serial() {
-      # Removes the line that contains only digits followed by " ; Serial"
-      # Matches the SOA serial comment format produced by zone.db.j2:
-      #   "        1234567890 ; Serial"
-      sed '/^[[:space:]]*[0-9]\+[[:space:]]*;[[:space:]]*Serial/Id' "$1"
-    }
-
-    if [ ! -f "$live" ]; then
-      echo "NO_LIVE_FILE"
-      exit 0
-    fi
-
-    if diff <(strip_serial "$live") <(strip_serial "$new") > /dev/null 2>&1; then
-      echo "SAME"
-    else
-      echo "DIFFERENT"
-    fi
-  args:
-    executable: /bin/bash
-  loop: "{{ bind9_all_zones }}"
-  register: bind9_zone_diff
-  changed_when: false   # purely a read — the copy task below owns the change signal
-  no_log: true
-
-- name: Promote new zone file when content has changed
-  ansible.builtin.shell: |
-    new="{{ bind9_config_dir }}/zones/db.{{ item.item.key }}.new"
-    live="{{ bind9_config_dir }}/zones/db.{{ item.item.key }}"
-    cp -a "$new" "$live"
-  args:
-    executable: /bin/bash
-  loop: "{{ bind9_zone_diff.results }}"
-  when: item.stdout in ['DIFFERENT', 'NO_LIVE_FILE']
-  register: bind9_zone_promote
-  changed_when: true
-  no_log: true
-
-- name: Remove temp zone files
-  ansible.builtin.file:
-    path: "{{ bind9_config_dir }}/zones/db.{{ item.key }}.new"
-    state: absent
-  loop: "{{ bind9_all_zones }}"
+    # Matches the SOA serial comment format produced by zone.db.j2:
+    #   "        1234567890 ; Serial"
+    strip_serial_re: '[0-9]+[ \t]*;[ \t]*Serial'
+    live_content: "{{ (item.1.content | b64decode) if (item.1.content is defined) else '' }}"
+  when: >-
+    (item.1.content is not defined) or
+    (item.0.content | regex_replace(strip_serial_re, '') !=
+     live_content | regex_replace(strip_serial_re, ''))
+  register: bind9_zone_written
   no_log: true
 
 - name: Set a consolidated DNS change flag
@@ -188,7 +176,7 @@
     bind9_dns_changed: >-
       {{
         bind9_config_files.changed or
-        (bind9_zone_promote.results
+        (bind9_zone_written.results
          | default([])
          | selectattr('changed', 'equalto', true)
          | list | length > 0)
@@ -199,7 +187,7 @@
     name: compose
     tasks_from: seed_volume
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+    compose_app_item: "{{ bind9_compose_app_item }}"
     compose_volume_item:
       name: config
   when: bind9_dns_changed | bool
@@ -227,5 +215,5 @@
     name: compose
     tasks_from: deploy
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+    compose_app_item: "{{ bind9_compose_app_item }}"
     compose_app_extra_changed: "{{ bind9_dns_changed }}"

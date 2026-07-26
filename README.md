@@ -64,29 +64,22 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/) so no global Python/Ansible install is required.
 
 - Install `uv`: see the [uv docs](https://docs.astral.sh/uv/getting-started/installation/)
-- Install `pre-commit`:
+- Install and setup `pre-commit` with pre-commit hooks:
   ```sh
   uv tool install pre-commit --with pre-commit-uv
+  pre-commit install
   ```
-- Install `ansible`:
+- Install `ansible` with `docker` Python package (used by `community.docker` for container lifecycle checks in `molecule`):
   ```sh
-  uv tool install ansible-core --with ansible
+  uv tool install ansible-core --with ansible --with docker
   ```
 - Install the Docker Ansible collection (required by the `compose`, `caddy`, and `bind9` roles):
   ```sh
   ansible-galaxy collection install community.docker
   ```
-- Install pre-commit hooks:
-  ```sh
-  pre-commit install
-  ```
 - Install `molecule` (for role testing; requires Docker running locally):
   ```sh
-  uv tool install molecule --with molecule-plugins[docker] --with ansible-core --with ansible --with docker
-  ```
-  Molecule shells out to whichever `ansible-playbook` is on `PATH` — the standalone `ansible-core` tool above, not the copy bundled inside molecule's own venv. That standalone env also needs the `docker` Python package (used by `community.docker` for container lifecycle checks), so update it too:
-  ```sh
-  uv tool install ansible-core --with ansible --with docker --force
+  uv tool install molecule --with molecule-plugins[docker] --with ansible-core
   ```
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
 

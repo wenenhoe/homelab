@@ -1,0 +1,37 @@
+---
+# Shared prepare playbook for every Docker-in-Docker Molecule scenario that
+# installs/uses Docker via /etc/docker/daemon.json AND exercises
+# docker_volume/docker_host_info (or other community.docker modules that
+# talk to the Docker API directly via the `requests` library, rather than
+# through the CLI plugin the docker role already installs).
+#
+# Used as-is by: caddy/default, compose/build, compose/cleanup,
+# compose/default, compose/scripts, compose/volumes, compose_app/default,
+# compose_app/strict, docker/default.
+#
+# NOT used by bind9 — it manages its own daemon.json for DNS settings and
+# would fight over the same file, so it uses a systemd drop-in override
+# for the storage driver instead (see its own prepare.yml). bind9 does
+# still call install_docker_api_requests.yaml on its own.
+#
+# Referenced from scenario molecule.yml files via:
+#   provisioner:
+#     playbooks:
+#       prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+# instead of each scenario keeping its own identical copy.
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    - name: Force the nested Docker daemon onto the vfs storage driver
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: dind_vfs_storage_driver.yaml
+
+    - name: Install python3-requests
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+      # docker_volume/docker_host_info talk to the Docker API directly via
+      # requests, unlike docker_compose_v2 which only needs the CLI plugin
+      # the docker role already installs.

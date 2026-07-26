@@ -1,0 +1,34 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the compose file was copied to the deploy dir
+      ansible.builtin.stat:
+        path: /opt/stacks/testapp/compose.yaml
+      register: compose_file
+      failed_when: not compose_file.stat.exists
+
+    - name: Confirm the create_dirs entry was created
+      ansible.builtin.stat:
+        path: /opt/stacks/testapp/data
+      register: compose_data_dir
+      failed_when: not (compose_data_dir.stat.exists and compose_data_dir.stat.isdir)
+
+    - name: Read back the rendered .env config
+      ansible.builtin.slurp:
+        path: /opt/stacks/testapp/.env
+      register: compose_env_contents_raw
+
+    - name: Confirm the .env config was rendered with the expected content
+      ansible.builtin.assert:
+        that:
+          - "'hello-from-testapp' in (compose_env_contents_raw.content | b64decode)"
+
+    - name: Confirm the compose project is actually running
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=testapp"
+      register: compose_ps
+      failed_when: compose_ps.containers | length == 0

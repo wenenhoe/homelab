@@ -1,0 +1,50 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    compose_app_continue_on_error: false
+    app_registry:
+      app_ok_1: {}
+      app_fail:
+        configs:
+          - src: missing.txt.j2
+            dest: missing.txt
+      app_ok_2: {}
+    # Order matters here: app_fail sits between the two healthy apps. If
+    # strict mode works, app_ok_1 deploys, app_fail doesn't, and app_ok_2 —
+    # positioned after the failure — is never even attempted.
+    compose_apps:
+      - name: app_ok_1
+      - name: app_fail
+      - name: app_ok_2
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    # In strict mode, the first app's failure re-raises unconditionally
+    # (see deploy_one_app.yaml), halting the loop entirely - expected here,
+    # since app_fail is deliberately broken. Catch it so Molecule's
+    # converge stage doesn't abort before verify.yml ever runs.
+    - name: "Run the batch [block / rescue] (app_fail is deliberately broken, halt is expected)"
+      block:
+        - name: Run compose_app's batch init/deploy
+          ansible.builtin.include_role:
+            name: compose_app
+      rescue:
+        - name: Leave a marker proving the batch actually halted as expected
+          ansible.builtin.copy:
+            dest: /tmp/compose_app_strict_halt_marker
+            content: "batch halted as expected\n"
+            mode: "0644"

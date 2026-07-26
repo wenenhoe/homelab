@@ -58,29 +58,35 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 | [`docs/adding-an-app.md`](docs/adding-an-app.md) | Step-by-step: wiring a new Compose app into the `app_registry` and a host's `compose_apps`. |
 | [`docs/host-vars.md`](docs/host-vars.md) | Field-by-field reference for `host_vars/<host>.yaml`: `caddy_domain`, `compose_apps`, per-host alias vars, `dns_ddns_target`/`dns_zones`. |
 | [`docs/cleanup.md`](docs/cleanup.md) | How `cleanup.yaml` finds stacks orphaned from `compose_apps`, the keep-vs-delete content policy, and dry-running a cleanup pass. |
+| [`docs/molecule-testing.md`](docs/molecule-testing.md) | The full per-role/per-scenario Molecule matrix, what `molecule_helpers` shares across scenarios, the Docker-in-Docker `vfs` storage-driver quirk, and how to add a new scenario. |
 
 ## Setup
 
-Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/) so no global Python/Ansible install is required.
+Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/) as a project dependency manager (`pyproject.toml` + `uv.lock`), not via `uv tool install`. Everything — `ansible-core`, the `docker` Python SDK, `molecule`, `molecule-plugins`, `pre-commit` — lives in one shared, reproducible `.venv/`, avoiding the duplicate-collection issues that come from installing `ansible-core` into multiple separate tool venvs.
+
+`ansible-core` is used deliberately instead of the full `ansible` metapackage. `ansible` bundles hundreds of community collections this repo doesn't use; the two it actually needs (`community.docker`, `ansible.posix`) are declared explicitly in `ansible/requirements.yml` instead, so the dependency set is exact and reproducible.
 
 - Install `uv`: see the [uv docs](https://docs.astral.sh/uv/getting-started/installation/)
-- Install `pre-commit`:
-  ```sh
-  uv tool install pre-commit --with pre-commit-uv
-  ```
-- Install `ansible`:
-  ```sh
-  uv tool install ansible-core --with ansible
-  ```
-- Install the Docker Ansible collection (required by the `compose`, `caddy`, and `bind9` roles):
-  ```sh
-  ansible-galaxy collection install community.docker
-  ```
-- Install pre-commit hooks:
-  ```sh
-  pre-commit install
-  ```
+- Install everything (creates `.venv/` from `pyproject.toml`/`uv.lock`):
+   ```sh
+  uv sync
+   ```
+- Activate the environment (do this once per shell session):
+   ```sh
+  source .venv/bin/activate
+   ```
+  Alternatively, prefix any individual command with `uv run` instead of activating (e.g. `uv run molecule test`).
+- Install the collections this repo needs:
+   ```sh
+  ansible-galaxy collection install -r ansible/requirements.yml
+   ```
+- Install pre-commit's git hooks:
+   ```sh
+   pre-commit install
+   ```
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
+
+Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
 
 ## Inventory
 
@@ -145,6 +151,28 @@ Two inventories exist for two different situations:
 ## Applications
 
 Everything routed through Caddy sits behind **Tinyauth** forward-auth by default (per-route `auth: false` opts out — e.g. Cobalt, Dashy, OpenSpeedTest, LLDAP's own UI, Beszel's hub), backed by **LLDAP** as the directory. **DIUN** watches deployed images and notifies over Telegram when updates are available. **Beszel** monitors host and container health across every `app_hosts` member, with its hub on `security` and an agent on each host — see [`docs/beszel.md`](docs/beszel.md). The rest of `docker/` is a set of independently deployable Compose stacks (dashboards, media/download tools, a Minecraft server, link shortener, pastebin, web terminal, etc.) — each one just an entry in `app_registry` plus a `docker/<app>/` directory of its `compose.yaml` and config templates. See [`docs/adding-an-app.md`](docs/adding-an-app.md) to add a new one.
+
+## Testing
+
+Roles are tested individually with [Molecule](https://ansible.readthedocs.io/projects/molecule/), using the co-located convention: each role's scenario(s) live at `ansible/roles/<role>/molecule/<scenario>/`. Roles are brought up in Docker containers, converged, verified, then re-converged to check idempotence.
+
+Run a single role's default scenario:
+
+```sh
+cd ansible/roles/apt
+molecule test
+```
+
+`fwupd` has no scenario — it talks to real firmware/LVFS hardware, which a container can't meaningfully simulate.
+
+Most other roles have `default` plus one or more named scenarios covering a specific branch or edge case — `compose`, for example, also has `volumes`, `scripts`, `build`, and `cleanup`. Run a non-default scenario with `-s`:
+
+```sh
+cd ansible/roles/compose
+molecule test -s volumes
+```
+
+Shared setup that would otherwise be duplicated across scenarios — the Docker-in-Docker `prepare` playbook, bootstrapping the `docker` role, resolving `compose_apps`, Galaxy dependencies — lives once in `ansible/roles/molecule_helpers/` and is referenced from each scenario's `molecule.yml`/`converge.yml` instead of copy-pasted. See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full scenario matrix and how to add a new one.
 
 ## Linting & Pre-commit
 

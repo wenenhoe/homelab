@@ -1,0 +1,8 @@
+---
+# Set to false only for non-production testing inside a Docker container
+# (e.g. Molecule). Docker bind-mounts /etc/resolv.conf into any container
+# using standard networking, so the kernel refuses to replace it with a
+# symlink (EBUSY) - a limitation of running inside a container at all, not
+# something a real VM/bare-metal host (what this role actually targets)
+# ever hits. See network_conf.yaml.
+bind9_manage_resolv_conf: true

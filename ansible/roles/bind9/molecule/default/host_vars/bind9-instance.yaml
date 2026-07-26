@@ -1,0 +1,48 @@
+---
+# Must live here, not in converge.yml's play `vars:`. bind9's own
+# "Collect and flatten zones from all app hosts" task reads
+# hostvars[host].dns_zones (and dns_ddns_target/caddy_domain/compose_apps)
+# for every host in the app_hosts group - hostvars[] only reliably exposes
+# variables from real inventory sources (host_vars/group_vars files,
+# inventory-defined vars), not from a play's vars: block, even when a host
+# is looking up its own data. This mirrors how the real repo structures
+# per-host DNS config too (see ansible/host_vars/*.yaml).
+main_domain: example.test
+lab_domain: "lan.{{ main_domain }}"
+ddns_domain: "internal.{{ main_domain }}"
+caddy_domain: "svc.{{ lab_domain }}"
+server_timezone: Asia/Singapore
+
+dns_ddns_target: "services.{{ ddns_domain }}."
+dns_zones:
+  - zone: "{{ caddy_domain }}"
+    ttl: 3600
+    soa_email: "hostmaster.{{ main_domain }}."
+    serial: 2024010101 # overwritten at render time by the role
+    extra_records:
+      - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
+      - { name: "ns1", type: A, value: "127.0.0.1" }
+
+app_registry:
+  bind9:
+    volumes:
+      - name: config
+      - name: cache
+      - name: records
+      - name: run
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+  testapp: {}
+
+# testapp carries its own `caddy` route directly (matching how real
+# host_vars declare per-host route labels), so zone.db.j2 has something to
+# generate an auto-CNAME for.
+compose_apps:
+  - name: bind9
+  - name: testapp
+    caddy:
+      default:
+        host: testapp

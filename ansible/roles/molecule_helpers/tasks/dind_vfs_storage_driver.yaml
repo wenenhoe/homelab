@@ -1,0 +1,28 @@
+---
+# Shared by every Docker-in-Docker Molecule scenario that installs/uses
+# Docker via /etc/docker/daemon.json (all except bind9, which manages its
+# own daemon.json for DNS settings and would fight over the same file — it
+# uses a systemd drop-in override instead, see its own prepare.yml).
+#
+# This exists purely because the test container's own root filesystem is
+# already overlay-mounted by the *host's* Docker — the overlay2 driver
+# can't stack a second overlay filesystem on top of that ("failed to mount
+# ... fstype: overlay ... err: invalid argument"). vfs is slower and skips
+# copy-on-write, but it's the reliable fallback for nested Docker and is
+# fine for the small test images used here. Real target hosts (bare
+# metal/VMs) don't have this problem and should keep using overlay2 — this
+# is test-scaffolding only, not something any role itself should set.
+- name: Ensure /etc/docker exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: "0755"
+
+- name: Force the nested Docker daemon onto the vfs storage driver
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "storage-driver": "vfs"
+      }
+    mode: "0644"

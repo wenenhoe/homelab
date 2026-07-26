@@ -15,6 +15,11 @@
     name:
       - ca-certificates
       - curl
+      # Required by deb822_repository below. Its own install_python_debian
+      # auto-install defaults to false (and is buggy even when enabled —
+      # see https://github.com/ansible/ansible/issues/86395), so install it
+      # explicitly rather than relying on that.
+      - python3-debian
     state: present
     update_cache: true
 

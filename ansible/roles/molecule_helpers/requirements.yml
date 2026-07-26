@@ -1,0 +1,13 @@
+---
+# Shared Galaxy requirements for every Molecule scenario that needs
+# Docker-in-Docker (community.docker for docker_* modules used in
+# converge/verify/cleanup, ansible.posix for systemd/mount helpers).
+# Referenced from scenario molecule.yml files via:
+#   dependency:
+#     name: galaxy
+#     options:
+#       requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
+# instead of each scenario keeping its own identical copy.
+collections:
+  - name: community.docker
+  - name: ansible.posix

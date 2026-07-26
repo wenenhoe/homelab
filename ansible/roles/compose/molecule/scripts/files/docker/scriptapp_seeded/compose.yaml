@@ -1,0 +1,10 @@
+name: scriptapp-seeded
+services:
+  scriptapp-seeded:
+    image: alpine:3.20
+    volumes:
+      - scriptapp_seeded_scripts:/scripts
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  scriptapp_seeded_scripts:
+    external: true

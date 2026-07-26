@@ -1,0 +1,28 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    - name: Confirm the Dockerfile was deployed
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/buildapp/Dockerfile"
+      register: compose_dockerfile_stat
+      failed_when: not compose_dockerfile_stat.stat.exists
+
+    - name: Confirm the image was actually built locally (not pulled)
+      community.docker.docker_image_info:
+        name: buildapp:local
+      register: compose_build_image_inspect
+      failed_when: compose_build_image_inspect.images | length == 0
+
+    - name: Confirm the container is running from the built image
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=buildapp"
+      register: compose_build_containers
+      failed_when: >-
+        compose_build_containers.containers | length == 0
+        or compose_build_containers.containers[0].Image != 'buildapp:local'

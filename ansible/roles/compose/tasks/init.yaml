@@ -36,12 +36,20 @@
     loop_var: compose_volume_item
     label: "{{ compose_app_item.name }}/{{ compose_volume_item.name }}"
 
-- name: Find compose files on the controller ({{ compose_app_item.name }})
+- name: Find compose and Dockerfile files on the controller ({{ compose_app_item.name }})
   ansible.builtin.find:
     paths: "{{ compose_source_dir }}/{{ compose_app_item.name }}/"
-    patterns: "compose*.yaml"
+    # Dockerfile* covers Dockerfile itself plus variants like
+    # Dockerfile.staging/Dockerfile.prod — needed by any app with
+    # build: true, which otherwise has no way to get its build context
+    # onto the target host at all (configs: works but is a template-only
+    # mechanism not meant for this).
+    patterns:
+      - "compose*.yaml"
+      - "Dockerfile*"
   register: compose_compose_files_raw
   delegate_to: localhost
+  become: false
 
 - name: Copy compose files to remote host ({{ compose_app_item.name }})
   ansible.builtin.copy:
@@ -100,6 +108,23 @@
   loop: "{{ compose_app_deploy_plan.configs.seeded + compose_app_deploy_plan.scripts.seeded }}"
   loop_control:
     label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
+
+# copy/template both do not create missing destination directories, and
+# the directory-creation loop above only covers what create_dirs declares
+# explicitly. A direct item's dest can carry its own subdirectory (e.g.
+# scripts/<name>, which every app gets automatically the moment it declares
+# `scripts:` at all) that nobody thought to also add to create_dirs — so
+# ensure it here rather than relying on that always being remembered.
+- name: Ensure destination directories exist for direct-deployed configs and scripts ({{ compose_app_item.name }})
+  ansible.builtin.file:
+    path: "{{ (compose_deploy_dir ~ '/' ~ compose_app_item.name ~ '/' ~ item.dest) | dirname }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop: "{{ compose_app_deploy_plan.configs.direct + compose_app_deploy_plan.scripts.direct }}"
+  loop_control:
+    label: "{{ compose_app_item.name }}/{{ item.dest }}"
 
 - name: Deploy scripts - direct, not volume-backed ({{ compose_app_item.name }})
   ansible.builtin.copy:

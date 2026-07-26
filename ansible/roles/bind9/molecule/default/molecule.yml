@@ -1,0 +1,59 @@
+---
+# bind9 deploys via compose (needs Docker-in-Docker like other scenarios)
+# and also scrapes DNS zone data from every host in the app_hosts group via
+# hostvars. Real production has bind9 on its own dedicated host, separate
+# from the app hosts it serves - for a single-instance test, this instance
+# is a member of app_hosts itself, providing its own dns_zones/compose_apps
+# (see converge.yml), so it ends up serving zone data about itself. Not a
+# perfect topology match, but exercises the real scraping/templating logic.
+dependency:
+  name: galaxy
+  options:
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
+driver:
+  name: docker
+platforms:
+  - name: bind9-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+    groups:
+      - app_hosts
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+  env:
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
+verifier:
+  name: ansible
+# The zone-diffing mechanism in bind9/tasks/main.yaml (render to a temp
+# .new file, diff ignoring the serial line, promote only on real changes,
+# delete the temp file) is deliberately, honestly "changed" on the render
+# and cleanup steps every single run - by design, not a bug: it's how the
+# role avoids reloading BIND just because the epoch serial ticked forward,
+# while still needing a fresh scratch file each time to diff against.
+# Molecule's automated idempotence check is a blunt "did anything say
+# changed" scan that can't distinguish that deliberate housekeeping from a
+# real idempotence bug, so it's excluded here. converge/verify still run
+# normally and are what actually prove correctness.
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

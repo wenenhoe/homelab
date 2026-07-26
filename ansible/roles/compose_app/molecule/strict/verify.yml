@@ -1,0 +1,35 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    - name: Confirm the batch actually halted as expected
+      ansible.builtin.stat:
+        path: /tmp/compose_app_strict_halt_marker
+      register: compose_app_strict_halt_marker
+      failed_when: not compose_app_strict_halt_marker.stat.exists
+
+    - name: Confirm app_ok_1 (before the failure) was deployed
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=app_ok_1"
+      register: compose_app_strict_ok1_running
+      failed_when: compose_app_strict_ok1_running.containers | length == 0
+
+    - name: Confirm app_fail was never deployed
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          label: "com.docker.compose.project=app_fail"
+      register: compose_app_strict_fail_containers
+      failed_when: compose_app_strict_fail_containers.containers | length > 0
+
+    - name: Confirm app_ok_2 (after the failure) was never even attempted
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/app_ok_2"
+      register: compose_app_strict_ok2_dir
+      failed_when: compose_app_strict_ok2_dir.stat.exists

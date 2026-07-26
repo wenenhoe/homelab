@@ -1,0 +1,7 @@
+name: buildapp
+services:
+  buildapp:
+    image: buildapp:local
+    build:
+      context: .
+    command: [ "sh", "-c", "sleep infinity" ]

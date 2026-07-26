@@ -1,0 +1,56 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    app_registry:
+      app_ok_1: {}
+      app_ok_2: {}
+      # References a config file that doesn't exist under
+      # files/docker/app_fail/configs/ — deliberately breaks this one app
+      # so the batch's per-app failure isolation actually gets exercised.
+      app_fail:
+        configs:
+          - src: missing.txt.j2
+            dest: missing.txt
+      # No fixture files exist for these at all. If compose_app's
+      # self-managed-app exclusion filter is broken, this scenario fails
+      # immediately and loudly rather than silently passing.
+      bind9: {}
+      caddy: {}
+    compose_apps:
+      - name: app_ok_1
+      - name: app_ok_2
+      - name: app_fail
+      - name: bind9
+      - name: caddy
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    # compose_app's own main.yaml ends with an unconditional `fail` if any
+    # app in the batch failed — expected here, since app_fail is
+    # deliberately broken. Catch it so Molecule's converge stage doesn't
+    # abort before verify.yml ever runs.
+    - name: "Run the batch [block / rescue] (app_fail is deliberately broken, failure is expected)"
+      block:
+        - name: Run compose_app's batch init/deploy
+          ansible.builtin.include_role:
+            name: compose_app
+      rescue:
+        - name: Leave a marker proving the batch actually reported the expected failure
+          ansible.builtin.copy:
+            dest: /tmp/compose_app_batch_failed_marker
+            content: "batch failed as expected\n"
+            mode: "0644"

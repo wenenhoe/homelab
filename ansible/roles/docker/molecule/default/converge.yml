@@ -1,0 +1,19 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    # group_vars/all.yaml normally supplies this as [ "{{ ansible_user }}" ],
+    # but ansible_user isn't set in Molecule's ad hoc inventory. Provide a
+    # real user explicitly so the role's docker_users loop actually runs.
+    docker_users:
+      - molecule_test_user
+  tasks:
+    - name: Create a test user to exercise the docker_users task
+      ansible.builtin.user:
+        name: molecule_test_user
+        state: present
+
+    - name: Include docker role
+      ansible.builtin.include_role:
+        name: docker

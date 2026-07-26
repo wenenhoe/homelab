@@ -12,6 +12,7 @@
     dest: /etc/resolv.conf
     state: link
     force: true
+  when: bind9_manage_resolv_conf | default(true)
 
 - name: Configure Docker daemon to use reliable upstream DNS
   ansible.builtin.copy:

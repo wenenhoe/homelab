@@ -1,0 +1,40 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    app_registry:
+      scriptapp_direct:
+        scripts:
+          - run.sh
+      scriptapp_seeded:
+        volumes:
+          - name: scripts
+        scripts:
+          - run.sh
+    compose_apps:
+      - name: scriptapp_direct
+      - name: scriptapp_seeded
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Initialise and deploy each resolved test app
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main.yaml
+      loop: "{{ compose_apps }}"
+      loop_control:
+        loop_var: compose_app_item
+        label: "{{ compose_app_item.name }}"

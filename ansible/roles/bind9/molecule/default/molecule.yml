@@ -9,7 +9,7 @@
 dependency:
   name: galaxy
   options:
-    requirements-file: requirements.yml
+    requirements-file: ${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml
 driver:
   name: docker
 platforms:
@@ -33,9 +33,6 @@ provisioner:
     converge: converge.yml
     verify: verify.yml
   env:
-    # Scenario cwd is ansible/roles/bind9/molecule/default — three levels
-    # up is ansible/roles, where `include_role` needs to look for `bind9`,
-    # `compose`, and `docker`.
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
   name: ansible
@@ -52,6 +49,7 @@ verifier:
 scenario:
   test_sequence:
     - dependency
+    - destroy
     - syntax
     - create
     - prepare

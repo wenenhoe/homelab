@@ -1,0 +1,11 @@
+---
+# Shared by every scenario whose verify/converge/cleanup steps exercise
+# docker_volume/docker_host_info (or other community.docker modules that
+# talk to the Docker API directly via the `requests` library, rather than
+# through the CLI plugin the docker role already installs — unlike
+# docker_compose_v2, which only needs that CLI plugin).
+- name: Install python3-requests
+  ansible.builtin.apt:
+    name: python3-requests
+    state: present
+    update_cache: true

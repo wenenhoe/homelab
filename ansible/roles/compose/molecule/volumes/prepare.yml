@@ -1,32 +1,19 @@
 ---
-# vfs storage driver: same reasoning as the docker role's and the default
-# compose scenario's prepare.yml — the test container's root filesystem is
-# already overlay-mounted by the host's Docker, so the nested daemon can't
-# also use overlay2.
+# Runs before converge. See molecule_helpers/tasks/dind_vfs_storage_driver.yaml
+# for why the nested Docker daemon needs to be forced onto vfs here.
 - name: Prepare
   hosts: all
   become: true
   tasks:
-    - name: Ensure /etc/docker exists
-      ansible.builtin.file:
-        path: /etc/docker
-        state: directory
-        mode: "0755"
-
     - name: Force the nested Docker daemon onto the vfs storage driver
-      ansible.builtin.copy:
-        dest: /etc/docker/daemon.json
-        content: |
-          {
-            "storage-driver": "vfs"
-          }
-        mode: "0644"
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: dind_vfs_storage_driver.yaml
 
     - name: Install python3-requests
-      ansible.builtin.apt:
-        name: python3-requests
-        state: present
-        update_cache: true
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
       # docker_volume/docker_host_info (ensure_volume.yaml, cleanup.yaml)
       # talk to the Docker API directly via requests rather than through
       # the Docker SDK — unlike docker_compose_v2, which only needs the

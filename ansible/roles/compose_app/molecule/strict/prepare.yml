@@ -1,19 +1,11 @@
 ---
+# Runs before converge. See molecule_helpers/tasks/dind_vfs_storage_driver.yaml
+# for why the nested Docker daemon needs to be forced onto vfs here.
 - name: Prepare
   hosts: all
   become: true
   tasks:
-    - name: Ensure /etc/docker exists
-      ansible.builtin.file:
-        path: /etc/docker
-        state: directory
-        mode: "0755"
-
     - name: Force the nested Docker daemon onto the vfs storage driver
-      ansible.builtin.copy:
-        dest: /etc/docker/daemon.json
-        content: |
-          {
-            "storage-driver": "vfs"
-          }
-        mode: "0644"
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: dind_vfs_storage_driver.yaml

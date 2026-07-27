@@ -8,6 +8,8 @@ Caddy's DNS-01 challenge support for DigitalOcean isn't in the stock image, so t
 
 The build itself only happens when it needs to: on a host where the image doesn't exist yet (first deploy), or whenever `ansible-playbook deploy.yaml --tags images` is run explicitly. A normal full run on an already-provisioned host leaves the existing image alone rather than paying for a full `nocache` rebuild every time — see the [Tags section in `deployment-flow.md`](deployment-flow.md#tags) for the `images`/`infra` split.
 
+Since the image is never pulled from a registry, `diun` can't watch it the normal way (its Docker provider only sees the running container's own static tag, `caddy-digitalocean:v1.0`, which never changes). Instead `diun` watches the generated Dockerfile itself for upstream `caddy:builder`/`caddy:latest` changes — see [`docker/diun/compose.yaml`](../docker/diun/compose.yaml)'s dockerfile provider config.
+
 ## Caddyfile generation
 
 `Caddyfile.j2` is rendered from the host's resolved `compose_apps` and covers three concerns:
@@ -22,4 +24,4 @@ Config generation, image build, and deploy/restart all happen in Play 2 of `depl
 
 ## Runtime config
 
-`docker/caddy/compose.yaml`: exposes `80/tcp`, `443/tcp`, and `443/udp` (HTTP/3), joins a dedicated `caddy-proxy` Docker network, and mounts three named Docker volumes: `caddyfile` (the rendered `Caddyfile`, mounted via Compose's `volume.subpath` syntax since it's a single file, not the whole volume) plus `data`/`config` for certificates and Caddy's own admin-API state. Tagged `diun.enable=false` since it's rebuilt/managed by Ansible rather than watched for upstream image updates.
+`docker/caddy/compose.yaml`: exposes `80/tcp`, `443/tcp`, and `443/udp` (HTTP/3), joins a dedicated `caddy-proxy` Docker network, and mounts three named Docker volumes: `caddyfile` (the rendered `Caddyfile`, mounted via Compose's `volume.subpath` syntax since it's a single file, not the whole volume) plus `data`/`config` for certificates and Caddy's own admin-API state. Tagged `diun.enable=false` since its own image tag is managed by Ansible, not by `diun`'s Docker provider — its Dockerfile is watched separately (see [Custom image](#custom-image) above).

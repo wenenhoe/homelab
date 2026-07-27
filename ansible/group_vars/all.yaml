@@ -174,8 +174,6 @@ app_registry:
         dest: .env
         mode: "0600"
         force: false
-      - src: conf.yaml
-        dest: data/conf.yaml
 
   tinyauth:
     volumes:

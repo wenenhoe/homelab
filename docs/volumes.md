@@ -8,29 +8,25 @@ A `volumes` list in an app's `app_registry` entry is what triggers all of this �
 
 ```yaml
 app_registry:
-  diun:
+  dashy:
     volumes:
       - name: data
     configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
-        force: false
-      - src: conf.yaml
-        dest: data/conf.yaml
+      - src: conf.yaml.j2
+        dest: "data/conf.yml"
 ```
 
 Each entry becomes a Docker volume named `<app>-<name>` (see `ensure_volume.yaml`), referenced in `compose.yaml` as an `external: true` volume so Ansible — not `docker compose` — owns its lifecycle:
 
 ```yaml
 services:
-  diun:
+  dashy:
     volumes:
       - data:/data
 volumes:
   data:
     external: true
-    name: diun_data
+    name: dashy_data
 ```
 
 If a volume's on-disk directory name doesn't match its registry name (e.g. `lldap`'s `letsencrypt/conf` mapping to a `letsencrypt_conf` volume), add `legacy_path`:
@@ -69,7 +65,7 @@ This classification happens once per app in `init.yaml`'s `compose_app_deploy_pl
 - **Seeded** items render/copy to staging. Ansible's own `template`/`copy` idempotency (a checksum diff against the previous staging file) is what decides whether anything changed — no bespoke diffing needed for the common case.
 - Any volume with at least one changed staged file gets bulk-copied from staging into the volume (`seed_volume.yaml`: one throwaway container, `cp -a /src/. /dest/`) and that change feeds `compose_app_extra_changed`, so the stack restarts when its config actually changed, not just because a template happened to run.
 
-Because the bulk copy only ever adds/overwrites what's in the staging tree, anything else already in the volume — app-generated state living alongside the seeded file, like `diun`'s own boltdb next to its rendered `conf.yaml` — is left untouched.
+Because the bulk copy only ever adds/overwrites what's in the staging tree, anything else already in the volume — app-generated state living alongside a seeded file, like an app's own runtime database sitting next to its rendered config — is left untouched.
 
 ## Self-managed apps (`bind9`, `caddy`)
 

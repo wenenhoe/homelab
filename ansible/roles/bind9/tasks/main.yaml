@@ -22,16 +22,22 @@
   ansible.builtin.set_fact:
     bind9_deploy_dir: "{{ compose_deploy_dir }}/bind9"
     bind9_config_dir: "{{ compose_deploy_dir }}/bind9/_staging/config"
+  tags:
+    - always
 
 - name: Resolve bind9's own compose_apps entry
   ansible.builtin.set_fact:
     bind9_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+  tags:
+    - always
 
 - name: Ensure bind group exists
   ansible.builtin.group:
     name: bind
     state: present
     gid: 9970
+  tags:
+    - infra
 
 - name: Create bind user and assign to bind group
   ansible.builtin.user:
@@ -41,6 +47,8 @@
     system: true
     create_home: false
     group: bind
+  tags:
+    - infra
 
 - name: Init bind9's own compose app files and directories
   ansible.builtin.include_role:
@@ -59,10 +67,14 @@
   loop:
     - "{{ bind9_config_dir }}"
     - "{{ bind9_config_dir }}/zones"
+  tags:
+    - infra
 
 - name: Compute DNS serial (Unix epoch)
   ansible.builtin.set_fact:
     bind9_dns_serial: "{{ now(fmt='%s') | int }}"
+  tags:
+    - infra
 
 # ---------------------------------------------------------------------------
 # Scrape every app host's dns_zones via hostvars and flatten into _all_zones.
@@ -96,6 +108,8 @@
         {%- endfor -%}
       {%- endfor -%}
       {{ result }}
+  tags:
+    - infra
 
 - name: Generate BIND9 configuration files
   ansible.builtin.template:
@@ -108,6 +122,8 @@
     - { src: 'named.conf.j2', dest: 'named.conf' }
     - { src: 'named.conf.local.j2', dest: 'named.conf.local' }
   register: bind9_config_files
+  tags:
+    - infra
 
 # ---------------------------------------------------------------------------
 # Smart zone-file deployment — ignore serial changes in the diff so we don't
@@ -138,6 +154,8 @@
         'caddy_domain': item.caddy_domain,
         'zone_compose_apps': item.compose_apps }) }}
   no_log: true
+  tags:
+    - infra
 
 - name: Read back whatever zone file is currently live, if any
   ansible.builtin.slurp:
@@ -148,6 +166,8 @@
   register: bind9_zone_live
   failed_when: false # missing file is expected on first run, not an error
   no_log: true
+  tags:
+    - infra
 
 - name: Write zone file when its non-serial content has changed
   ansible.builtin.copy:
@@ -170,6 +190,8 @@
      live_content | regex_replace(strip_serial_re, ''))
   register: bind9_zone_written
   no_log: true
+  tags:
+    - infra
 
 - name: Set a consolidated DNS change flag
   ansible.builtin.set_fact:
@@ -181,6 +203,8 @@
          | selectattr('changed', 'equalto', true)
          | list | length > 0)
       }}
+  tags:
+    - infra
 
 - name: Seed the config volume from staging, now that it's up to date
   ansible.builtin.include_role:
@@ -191,6 +215,8 @@
     compose_volume_item:
       name: config
   when: bind9_dns_changed | bool
+  tags:
+    - infra
 
 # Must run before deploying the container below, not after: bind9's
 # container binds host port 53 directly, which conflicts with
@@ -210,10 +236,19 @@
 - name: Flush handlers so systemd-resolved actually stops holding port 53 before we deploy
   ansible.builtin.meta: flush_handlers
 
+# Tagged for both flows: images (recreate picks up a freshly pulled image)
+# and infra (restart when only DNS zone/named.conf content changed).
+# bind9_dns_changed is only defined when the infra-tagged zone/config tasks
+# above actually ran, so it's defaulted here rather than assumed - under
+# `--tags images` alone those tasks are skipped and this falls back to
+# false.
 - name: Deploy and restart bind9 now that its config is ready
   ansible.builtin.include_role:
     name: compose
     tasks_from: deploy
   vars:
     compose_app_item: "{{ bind9_compose_app_item }}"
-    compose_app_extra_changed: "{{ bind9_dns_changed }}"
+    compose_app_extra_changed: "{{ bind9_dns_changed | default(false) }}"
+  tags:
+    - images
+    - infra

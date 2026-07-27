@@ -132,10 +132,20 @@ Two inventories exist for two different situations:
   ```sh
   ansible-playbook deploy.yaml --skip-tags "initial-setup"
   ```
-- Pull-only image refresh without a full converge:
+- Pull/rebuild images and recreate any container that changed as a result, without touching configs/DNS or the Docker install:
   ```sh
-  ansible-playbook deploy.yaml --tags "pull-docker-images"
+  ansible-playbook deploy.yaml --tags "images"
   ```
+- Re-render Caddy's Caddyfile and BIND9's DNS zones/`named.conf`, restarting only the containers whose config actually changed:
+  ```sh
+  ansible-playbook deploy.yaml --tags "infra"
+  ```
+  Both `images` and `infra` skip `preinit` and `docker` install by design - `preinit` still runs regardless of tags (it's cheap and everything downstream depends on the `compose_apps` it resolves), but the `Init caddy/bind9's own compose app files and directories` and `compose_app`'s app-init steps only run on a full, untagged run - `images`/`infra` assume the host is already provisioned.
+  Ansible evaluates `vars_prompt` at play setup, before tag filtering, so both commands still prompt for every secret in Play 1 today. For a non-interactive or narrowly-tagged run, pre-supply what you don't want to be asked for:
+  ```sh
+  ansible-playbook deploy.yaml --tags "images" -e @secrets.yaml
+  ```
+  where `secrets.yaml` (gitignored, not committed) sets `main_domain`/`digitalocean_api_key`/etc. - Ansible automatically skips prompting for any `vars_prompt` variable already defined via `-e`.
 - Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
   ```sh
   ansible-inventory -i inventory.yaml --host experiment

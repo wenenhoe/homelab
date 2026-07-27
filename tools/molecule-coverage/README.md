@@ -19,9 +19,12 @@ for the staged plan. Currently implemented:
 
 - **Stage 1**: `callback_plugins/molecule_coverage.py` — records task
   execution/skip events (per scenario, per host, per task) to JSONL files.
+- **Stage 2**: `inventory.py` — statically enumerates every task defined
+  under a role's `tasks/` directory (the denominator coverage % is measured
+  against).
 
-Not yet implemented: static task inventory, aggregation, reporting, and
-wiring into any role's `molecule.yml`.
+Not yet implemented: aggregation, reporting, and wiring into any role's
+`molecule.yml`.
 
 ## Stage 1 usage (manual, for now)
 
@@ -55,3 +58,44 @@ be used standalone (like the example above) or wired into Molecule later.
 
 Later stages will replace the manual env var dance above with a couple of
 lines in each scenario's `molecule.yml`.
+
+## Stage 2 usage
+
+```bash
+python3 tools/molecule-coverage/inventory.py ansible/roles/caddy --stdout
+```
+
+Or, to write to the same `.data/<role>/` directory the callback plugin uses
+(dropping `--stdout` and optionally passing `--coverage-dir`, which
+otherwise falls back to `MOLECULE_COVERAGE_DIR` / `./.molecule-coverage-data`
+just like the callback plugin):
+
+```bash
+python3 tools/molecule-coverage/inventory.py ansible/roles/caddy \
+  --coverage-dir tools/molecule-coverage/.data
+```
+
+This writes `tools/molecule-coverage/.data/caddy/_inventory.json` — a flat
+list of every task found under `ansible/roles/caddy/tasks/`, recursing into
+`block`/`rescue`/`always`, e.g.:
+
+```json
+{
+  "task_name": "Deploy Caddyfile from template and host_vars",
+  "task_file": "/path/to/ansible/roles/caddy/tasks/main.yaml",
+  "task_line": 18,
+  "action": "ansible.builtin.template"
+}
+```
+
+**Known, deliberate limitations** (not goals for this stage):
+
+- `include_tasks`/`import_tasks`/`include_role` are recorded as tasks
+  themselves but *not followed*. Every `*.yaml`/`*.yml` under `tasks/` is
+  scanned directly regardless of whether anything includes it, so
+  include/import *targets* are still counted (as long as they live under
+  this role's own `tasks/` dir) — but `include_role` targets, which point
+  at a *different* role, are correctly left for that role's own inventory
+  to count, avoiding double-counting.
+- A task file with no in-repo references would still show up as "should be
+  covered" — dead code isn't distinguished from live code at this stage.

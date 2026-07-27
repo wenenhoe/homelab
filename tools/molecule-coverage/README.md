@@ -26,9 +26,12 @@ for the staged plan. Currently implemented:
   execution events to classify every task as covered / skipped-only / never
   observed, per scenario and aggregated (union) across all of a role's
   scenarios.
+- **Stage 4**: `report.py` — human-readable CLI: a summary table across
+  every role with data, a per-task drill-down for one role, and an optional
+  `--fail-under` threshold (exit 1 if below - available, not enforced).
 
-Not yet implemented: a readable CLI report, and wiring into any role's
-`molecule.yml`.
+Not yet implemented: wiring into any role's `molecule.yml` (still a manual
+env var dance today - see below).
 
 ## Stage 1 usage (manual, for now)
 
@@ -135,3 +138,22 @@ of tasks with aggregate status `covered`).
 
 Not yet built: a human-readable/tabular view of this (stage 4) - for now
 it's raw JSON, useful for scripting but not for a quick glance.
+
+## Stage 4 usage
+
+```bash
+# Summary table across every role with data under the coverage dir
+python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage/.data
+
+# Per-task drill-down for one role, worst offenders (never_observed, then
+# skipped_only) sorted first
+python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage/.data --role caddy
+
+# Exit 1 if any reported role is below a coverage threshold - available
+# for a future CI gate, not required or wired into anything yet
+python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage/.data --fail-under 80
+```
+
+`report.py` imports `aggregate.py` directly (both live in this directory),
+so it can be run from any working directory - it resolves the import
+relative to its own file location rather than relying on cwd.

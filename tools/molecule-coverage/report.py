@@ -1,0 +1,190 @@
+#!/usr/bin/env python3
+"""molecule-coverage: CLI report
+
+Human-readable view on top of aggregate.py's JSON: a summary table across
+all roles found in a coverage directory, or a per-task drill-down for one
+role. Stdlib only - no tabulate/rich dependency, to keep this easy to run
+anywhere.
+
+Usage:
+    # Summary across every role with data under the coverage dir
+    python3 report.py --coverage-dir tools/molecule-coverage/.data
+
+    # Drill down into one role's per-task, per-scenario breakdown
+    python3 report.py --coverage-dir tools/molecule-coverage/.data --role caddy
+
+    # Exit 1 if any role's aggregate coverage is below a threshold
+    # (useful later for a CI gate - not required, just available)
+    python3 report.py --coverage-dir tools/molecule-coverage/.data --fail-under 80
+"""
+from __future__ import annotations
+
+import argparse
+import sys
+from pathlib import Path
+
+# So this runs correctly regardless of the caller's cwd (e.g. `python3
+# tools/molecule-coverage/report.py ...` from a repo root), not just when
+# invoked from inside this directory.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from aggregate import compute_coverage
+
+_STATUS_ORDER = {"never_observed": 0, "skipped_only": 1, "covered": 2}
+
+
+def discover_roles(coverage_dir: Path) -> list[Path]:
+    if not coverage_dir.is_dir():
+        return []
+    return sorted(
+        p.parent for p in coverage_dir.glob("*/_inventory.json") if p.is_file()
+    )
+
+
+def _fmt_pct(pct: float | None) -> str:
+    return "n/a" if pct is None else f"{pct:5.1f}%"
+
+
+def print_summary(reports: list[dict]) -> None:
+    headers = ["Role", "Scenarios", "Tasks", "Covered", "Skip-only", "Never-obs", "Coverage"]
+    rows = []
+    for r in reports:
+        s = r["summary"]
+        rows.append(
+            [
+                r["role"],
+                str(len(r["scenarios"])),
+                str(s["total"]),
+                str(s["covered"]),
+                str(s["skipped_only"]),
+                str(s["never_observed"]),
+                _fmt_pct(s["coverage_pct"]),
+            ]
+        )
+
+    total = sum(r["summary"]["total"] for r in reports)
+    covered = sum(r["summary"]["covered"] for r in reports)
+    skipped_only = sum(r["summary"]["skipped_only"] for r in reports)
+    never_observed = sum(r["summary"]["never_observed"] for r in reports)
+    overall_pct = round(100 * covered / total, 1) if total else None
+    rows.append(
+        [
+            "TOTAL",
+            "",
+            str(total),
+            str(covered),
+            str(skipped_only),
+            str(never_observed),
+            _fmt_pct(overall_pct),
+        ]
+    )
+
+    widths = [
+        max(len(headers[i]), *(len(row[i]) for row in rows)) for i in range(len(headers))
+    ]
+    line = "  ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
+    print(line)
+    print("-" * len(line))
+    for i, row in enumerate(rows):
+        if i == len(rows) - 1:
+            print("-" * len(line))
+        print("  ".join(cell.ljust(widths[j]) for j, cell in enumerate(row)))
+
+
+def print_role_detail(report: dict) -> None:
+    print(f"role: {report['role']}  (scenarios: {', '.join(report['scenarios']) or 'none'})")
+    print()
+
+    tasks = sorted(
+        report["tasks"],
+        key=lambda t: (_STATUS_ORDER.get(t["aggregate_status"], 99), t["task_file"] or "", t["task_line"] or 0),
+    )
+
+    headers = ["Status", "Task", "Location", "Per-scenario"]
+    rows = []
+    for t in tasks:
+        loc = f"{Path(t['task_file']).name if t['task_file'] else '?'}:{t['task_line'] or '?'}"
+        per_scenario = ", ".join(f"{sc}={st}" for sc, st in sorted(t["per_scenario"].items()))
+        rows.append(
+            [
+                t["aggregate_status"],
+                (t["task_name"] or "")[:60],
+                loc,
+                per_scenario or "(no scenarios run)",
+            ]
+        )
+
+    widths = [max(len(headers[i]), *(len(row[i]) for row in rows)) if rows else len(headers[i]) for i in range(len(headers))]
+    widths = [min(w, 60) for w in widths]
+    line = "  ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
+    print(line)
+    print("-" * len(line))
+    for row in rows:
+        print("  ".join(str(cell).ljust(widths[j]) for j, cell in enumerate(row)))
+
+    print()
+    s = report["summary"]
+    print(
+        f"summary: {s['covered']}/{s['total']} covered "
+        f"({_fmt_pct(s['coverage_pct']).strip()}), "
+        f"{s['skipped_only']} skipped-only, {s['never_observed']} never observed"
+    )
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--coverage-dir",
+        type=Path,
+        default=Path("./.molecule-coverage-data"),
+        help="Directory containing <role>/_inventory.json + <role>/<scenario>.jsonl for each role",
+    )
+    parser.add_argument(
+        "--role",
+        help="Show a per-task drill-down for this one role instead of the summary table",
+    )
+    parser.add_argument(
+        "--fail-under",
+        type=float,
+        default=None,
+        help="Exit 1 if any reported role's aggregate coverage_pct is below this threshold",
+    )
+    args = parser.parse_args()
+
+    coverage_dir = args.coverage_dir.resolve()
+
+    if args.role:
+        role_dir = coverage_dir / args.role
+        if not role_dir.is_dir():
+            print(f"error: no data for role '{args.role}' under {coverage_dir}", file=sys.stderr)
+            return 1
+        try:
+            report = compute_coverage(role_dir)
+        except FileNotFoundError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        print_role_detail(report)
+        reports = [report]
+    else:
+        role_dirs = discover_roles(coverage_dir)
+        if not role_dirs:
+            print(f"no roles with coverage data found under {coverage_dir}", file=sys.stderr)
+            return 1
+        reports = [compute_coverage(d) for d in role_dirs]
+        print_summary(reports)
+
+    if args.fail_under is not None:
+        failing = [
+            r["role"]
+            for r in reports
+            if r["summary"]["coverage_pct"] is not None and r["summary"]["coverage_pct"] < args.fail_under
+        ]
+        if failing:
+            print(f"\nFAIL: below {args.fail_under}% coverage: {', '.join(failing)}", file=sys.stderr)
+            return 1
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

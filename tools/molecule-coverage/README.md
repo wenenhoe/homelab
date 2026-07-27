@@ -22,8 +22,12 @@ for the staged plan. Currently implemented:
 - **Stage 2**: `inventory.py` — statically enumerates every task defined
   under a role's `tasks/` directory (the denominator coverage % is measured
   against).
+- **Stage 3**: `aggregate.py` — joins the inventory against per-scenario
+  execution events to classify every task as covered / skipped-only / never
+  observed, per scenario and aggregated (union) across all of a role's
+  scenarios.
 
-Not yet implemented: aggregation, reporting, and wiring into any role's
+Not yet implemented: a readable CLI report, and wiring into any role's
 `molecule.yml`.
 
 ## Stage 1 usage (manual, for now)
@@ -99,3 +103,35 @@ list of every task found under `ansible/roles/caddy/tasks/`, recursing into
   to count, avoiding double-counting.
 - A task file with no in-repo references would still show up as "should be
   covered" — dead code isn't distinguished from live code at this stage.
+
+## Stage 3 usage
+
+Requires stage 1 (JSONL events) and stage 2 (`_inventory.json`) to already
+exist for a role under the same coverage directory, e.g.
+`tools/molecule-coverage/.data/caddy/` containing `_inventory.json` plus one
+`<scenario>.jsonl` per scenario that's been run with the callback enabled.
+
+```bash
+python3 tools/molecule-coverage/aggregate.py tools/molecule-coverage/.data/caddy
+```
+
+Prints a JSON report to stdout: every task from the inventory, joined
+against execution events by `(task_file, task_line)` (verified to match
+exactly between stages 1 and 2 - not task name, which isn't guaranteed
+unique and differs slightly between the two: the callback records ansible's
+`role : task name` context string). Each task gets a status per scenario,
+plus an aggregate status that's the union across all scenarios - so a task
+only skipped in one scenario but executed in another is correctly reported
+as covered overall. Three possible statuses:
+
+- `covered` - executed (ok/changed/failed) in at least one scenario
+- `skipped_only` - its `when:` was reached but never true, in every
+  scenario that reached it
+- `never_observed` - not present in any scenario's events at all (the
+  containing task file was never even loaded)
+
+A `summary` block gives the totals and an overall `coverage_pct` (percentage
+of tasks with aggregate status `covered`).
+
+Not yet built: a human-readable/tabular view of this (stage 4) - for now
+it's raw JSON, useful for scripting but not for a quick glance.

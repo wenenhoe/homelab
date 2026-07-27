@@ -13,12 +13,11 @@ BIND9 itself carries no zone configuration — each app host declares its own `d
 
 ## Serial handling without spurious reloads
 
-A fresh Unix-epoch serial is computed on every run, but zone files are diffed against the live file *with the serial line stripped out* first; the rendered file is only promoted (and BIND only reloaded) when the real content changed, not just the epoch. The strategy:
+A fresh Unix-epoch serial is computed on every run, but zone files are compared against the live file *with the serial line stripped out* first; a zone is only written (and BIND only reloaded) when the real content changed, not just the epoch. The strategy:
 
-1. Render the template into a side-car temp file (`.new`) on the remote.
-2. Strip the serial line from both the `.new` file and the live file (if it exists) and compare the remainder with `diff`.
-3. Only overwrite the live file (and mark changed) when the non-serial content actually differs.
-4. Remove the temp file regardless.
+1. Render each zone's candidate content in-memory via the `template` lookup — no side-car files touch disk for the comparison itself.
+2. Read back whatever's currently live on disk, if anything, via `slurp` (a missing file is expected on first run, not an error).
+3. Strip the serial line from both in Jinja and compare; only write the file (via `copy`, which then reports `changed` accurately) when the non-serial content actually differs.
 
 ## Self-managed deploy ordering
 
@@ -30,6 +29,8 @@ Like `caddy`, the `bind9` role deploys and restarts its own compose stack direct
 Both changes are applied via handlers (`Restart systemd-resolved`, `Restart docker`) so they only fire when something actually changed.
 
 Being self-managed also means `bind9` seeds its own `config` volume directly rather than going through `compose_app`'s generic registry-driven staging: it renders `named.conf`/`named.conf.local`/zone files straight to a staging path it controls (`bind9_config_dir`), then reuses the `compose` role's `seed_volume.yaml` task directly, gated on `bind9_dns_changed` — the same change flag that decides whether to restart the stack. See [`volumes.md`](volumes.md).
+
+Zone/config rendering and the image pull/deploy are independently taggable — `ansible-playbook deploy.yaml --tags infra` re-renders and reloads DNS data without touching the image, `--tags images` pulls/redeploys without touching DNS data. See the [Tags section in `deployment-flow.md`](deployment-flow.md#tags).
 
 ## Runtime config
 

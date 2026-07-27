@@ -73,3 +73,13 @@ provisioner:
 3. If the scenario needs Docker-in-Docker (privileged container, `cgroupns_mode: host`, `/sys/fs/cgroup` mounted), point `prepare` at `molecule_helpers/playbooks/prepare_dind.yml` rather than writing a new `prepare.yml` — unless, like `bind9`, the role's own tasks conflict with the shared one's `daemon.json` write.
 4. Point `dependency.options` at the shared `role-requirements.yml`/`requirements.yml` instead of declaring collections locally.
 5. Run `molecule test` locally before opening a PR — there's no CI wired up for this yet, so it's the only check that catches a broken scenario (including idempotence, not just `verify.yml`).
+
+## What molecule scenarios can't catch: tag wiring
+
+Every `converge.yml` above calls its role directly (`include_role: name: bind9`), never through `deploy.yaml`. That's the right choice for testing a role's actual logic in isolation, but it means the `images`/`infra` tag scheme (see [`deployment-flow.md`](deployment-flow.md#tags)) is structurally invisible to these scenarios — `deploy.yaml`'s own `Include <role>` wrapper tasks are what a run like `--tags images` actually depends on to reach anything inside a role at all, and no scenario here exercises them. A future refactor that renames a task or swaps an `include_role` for an `import_role` somewhere in that chain could silently break `--tags images`/`--tags infra` without any scenario here noticing. There's no molecule scenario for this on purpose — a real integration scenario would need to converge through `deploy.yaml` itself (multi-host, real Docker install, `vars_prompt` handled non-interactively), which is a lot of cost for a narrow risk. Verify tag wiring manually instead with a quick dry run before trusting a change to it:
+
+```sh
+ansible-playbook deploy.yaml --tags images -e @secrets.yml --limit <host> -vvv | grep "TASK \["
+```
+
+and confirm the tasks you expect to see (and only those) show up in the output.

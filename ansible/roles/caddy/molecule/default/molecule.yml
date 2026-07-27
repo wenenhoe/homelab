@@ -34,6 +34,22 @@ provisioner:
   env:
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
     ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
+    # molecule-coverage PoC (tools/molecule-coverage/): records task
+    # execution/skip events for this scenario. MOLECULE_PROJECT_DIRECTORY
+    # is this role's own directory (ansible/roles/caddy), so three levels
+    # up reaches the repo root, where tools/ lives. The callback plugin
+    # falls back to MOLECULE_PROJECT_DIRECTORY's basename ("caddy") and
+    # Molecule's own MOLECULE_SCENARIO_NAME for role/scenario attribution,
+    # so no MOLECULE_COVERAGE_ROLE/SCENARIO overrides are needed here.
+    #
+    # Known limitation: the JSONL file is appended to, not reset, so
+    # repeated `molecule test` runs accumulate across invocations. Until
+    # a later stage automates this, clear it yourself between runs if you
+    # want a clean single-run picture:
+    #   rm -f tools/molecule-coverage/.data/caddy/default.jsonl
+    ANSIBLE_CALLBACKS_ENABLED: molecule_coverage
+    ANSIBLE_CALLBACK_PLUGINS: ${MOLECULE_PROJECT_DIRECTORY}/../../../tools/molecule-coverage/callback_plugins
+    MOLECULE_COVERAGE_DIR: ${MOLECULE_PROJECT_DIRECTORY}/../../../tools/molecule-coverage/.data
 verifier:
   name: ansible
 scenario:

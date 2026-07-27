@@ -29,9 +29,13 @@ for the staged plan. Currently implemented:
 - **Stage 4**: `report.py` — human-readable CLI: a summary table across
   every role with data, a per-task drill-down for one role, and an optional
   `--fail-under` threshold (exit 1 if below - available, not enforced).
+- **Stage 5**: wired into `caddy`'s `molecule/default/molecule.yml` as a
+  proof of concept (see below) - the callback plugin is now enabled during
+  that scenario's converge/idempotence/verify runs automatically, no manual
+  env vars needed for that one role/scenario.
 
-Not yet implemented: wiring into any role's `molecule.yml` (still a manual
-env var dance today - see below).
+Not yet done: running it for real against caddy and sanity-checking the
+numbers (stage 6), and rolling the same wiring out to other roles/scenarios.
 
 ## Stage 1 usage (manual, for now)
 
@@ -157,3 +161,38 @@ python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage
 `report.py` imports `aggregate.py` directly (both live in this directory),
 so it can be run from any working directory - it resolves the import
 relative to its own file location rather than relying on cwd.
+
+## Stage 5: PoC wiring (caddy role)
+
+`ansible/roles/caddy/molecule/default/molecule.yml`'s `provisioner.env` now
+sets `ANSIBLE_CALLBACKS_ENABLED`, `ANSIBLE_CALLBACK_PLUGINS`, and
+`MOLECULE_COVERAGE_DIR` (see the comment in that file for the path
+reasoning). This means running that scenario normally now also produces
+coverage data, with no extra env vars needed:
+
+```bash
+cd ansible
+molecule test -s default -- caddy   # or however you normally invoke it
+```
+
+This should populate `tools/molecule-coverage/.data/caddy/default.jsonl`.
+Combined with the static inventory (regenerate it locally - see Stage 2 -
+since it contains absolute paths tied to your own checkout):
+
+```bash
+python3 ../tools/molecule-coverage/inventory.py roles/caddy \
+  --coverage-dir ../tools/molecule-coverage/.data
+python3 ../tools/molecule-coverage/report.py \
+  --coverage-dir ../tools/molecule-coverage/.data --role caddy
+```
+
+**Known limitation carried over from stage 1**: the JSONL file is appended
+to, not reset, across separate `molecule test` invocations - so if you run
+the scenario multiple times while iterating, either treat that as harmless
+(more executions of the same tasks don't change their covered/skipped_only
+classification) or `rm -f tools/molecule-coverage/.data/caddy/default.jsonl`
+first for a clean single-run picture. Automating this reset is a candidate
+for a later stage, not solved yet.
+
+Only `caddy`'s `default` scenario is wired up so far - this is a
+proof-of-concept for one role/scenario, not a repo-wide rollout.

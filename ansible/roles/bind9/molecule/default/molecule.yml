@@ -37,16 +37,11 @@ provisioner:
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
 verifier:
   name: ansible
-# The zone-diffing mechanism in bind9/tasks/main.yaml (render to a temp
-# .new file, diff ignoring the serial line, promote only on real changes,
-# delete the temp file) is deliberately, honestly "changed" on the render
-# and cleanup steps every single run - by design, not a bug: it's how the
-# role avoids reloading BIND just because the epoch serial ticked forward,
-# while still needing a fresh scratch file each time to diff against.
-# Molecule's automated idempotence check is a blunt "did anything say
-# changed" scan that can't distinguish that deliberate housekeeping from a
-# real idempotence bug, so it's excluded here. converge/verify still run
-# normally and are what actually prove correctness.
+# The zone-diffing mechanism in bind9/tasks/main.yaml renders each zone's
+# candidate content in-memory and only writes it to disk when the
+# non-serial content actually differs from what's live - so a second
+# converge with no real config change performs no writes at all, and
+# idempotence can be checked for real.
 scenario:
   test_sequence:
     - dependency
@@ -55,5 +50,6 @@ scenario:
     - create
     - prepare
     - converge
+    - idempotence
     - verify
     - destroy

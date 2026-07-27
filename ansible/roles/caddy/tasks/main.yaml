@@ -1,11 +1,24 @@
 ---
+- name: Resolve caddy's own compose_apps entry, if present
+  ansible.builtin.set_fact:
+    caddy_compose_app_matches: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | list }}"
+  tags:
+    - always
+
+- name: Record whether caddy is present in compose_apps
+  ansible.builtin.set_fact:
+    caddy_has_compose_app: "{{ caddy_compose_app_matches | length > 0 }}"
+    caddy_compose_app_item: "{{ caddy_compose_app_matches | first if caddy_compose_app_matches | length > 0 else {} }}"
+  tags:
+    - always
+
 - name: Init caddy's own compose app files and directories
   ansible.builtin.include_role:
     name: compose
     tasks_from: init
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
-  when: compose_apps | selectattr('name', 'equalto', 'caddy') | list | length > 0
+    compose_app_item: "{{ caddy_compose_app_item }}"
+  when: caddy_has_compose_app
 
 - name: Ensure caddyfile staging directory exists
   ansible.builtin.file:
@@ -14,6 +27,8 @@
     owner: root
     group: root
     mode: "0755"
+  tags:
+    - infra
 
 - name: Deploy Caddyfile from template and host_vars
   ansible.builtin.template:
@@ -23,16 +38,20 @@
     group: root
     mode: "0644"
   register: caddy_config_changes
+  tags:
+    - infra
 
 - name: Seed the caddyfile volume from staging
   ansible.builtin.include_role:
     name: compose
     tasks_from: seed_volume
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
+    compose_app_item: "{{ caddy_compose_app_item }}"
     compose_volume_item:
       name: caddyfile
   when: caddy_config_changes.changed # noqa: no-handler
+  tags:
+    - infra
 
 - name: Create Dockerfile for custom Caddy build
   ansible.builtin.copy:
@@ -46,7 +65,29 @@
       FROM caddy:latest
       RUN apk add --no-cache curl
       COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+  tags:
+    - images
 
+- name: Check whether the caddy-digitalocean image already exists
+  community.docker.docker_image_info:
+    name: caddy-digitalocean:v1.0
+  register: caddy_image_info
+  tags:
+    - images
+
+# The `when` below is deliberate and separate from the `tags:` filter:
+# tags control *reachability* (whether --tags images lets this task be
+# found at all through the include chain), not *whether it runs by
+# default*.
+# On a host that already has the image, this only rebuilds when
+# --tags images was explicitly requested (ansible_run_tags is the actual
+# list of tags passed on the CLI, ['all'] when none were given) - a plain
+# full run leaves the existing image alone rather than paying for a
+# nocache rebuild every time. But that same plain full run still has to
+# build the image the *first* time, on a fresh host where it doesn't
+# exist yet - hence the image-existence check above feeding the other
+# half of this condition, so a normal `ansible-playbook deploy.yaml` with
+# no tags at all still bootstraps correctly.
 - name: Build custom Caddy image locally using standard Dockerfile
   community.docker.docker_image_build:
     name: caddy-digitalocean
@@ -54,13 +95,28 @@
     path: "{{ compose_deploy_dir }}/caddy" # Point context to where the Dockerfile lives
     pull: true
     nocache: true
+    rebuild: always
     dockerfile: Dockerfile
+  when: >-
+    (caddy_image_info.images | default([]) | length == 0) or
+    ('images' in ansible_run_tags)
+  tags:
+    - images
 
+# Tagged for both flows: images (recreate picks up a freshly rebuilt local
+# image automatically - Compose compares image IDs, not just tags) and
+# infra (restart when only the Caddyfile changed). caddy_config_changes is
+# only defined when the infra-tagged Caddyfile task above actually ran, so
+# it's defaulted here rather than assumed - under `--tags images` alone
+# that task is skipped and this falls back to false.
 - name: Deploy and restart caddy now that its config/image is ready
   ansible.builtin.include_role:
     name: compose
     tasks_from: deploy
   vars:
-    compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | first }}"
-    compose_app_extra_changed: "{{ caddy_config_changes.changed }}"
-  when: compose_apps | selectattr('name', 'equalto', 'caddy') | list | length > 0
+    compose_app_item: "{{ caddy_compose_app_item }}"
+    compose_app_extra_changed: "{{ caddy_config_changes.changed | default(false) }}"
+  when: caddy_has_compose_app
+  tags:
+    - images
+    - infra

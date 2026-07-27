@@ -1,7 +1,7 @@
 # Excluded files
 *.env
 *.db
-.secrets
+secrets.yaml
 
 # Excluded directories
 .ansible/

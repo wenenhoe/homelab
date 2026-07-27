@@ -5,6 +5,17 @@
 # in hostvars, not any per-app files on disk yet — those are provisioned
 # just before each app actually starts (its own play for caddy/bind9, or
 # Play 4 for everything else).
+#
+# NOTE on vars_prompt and --tags: Ansible evaluates vars_prompt for a play
+# during play setup, before any task-level tag filtering happens - so
+# every prompt below still fires even for a narrowly-tagged run like
+# --tags images, regardless of whether anything in this play ends up
+# matching that tag. There's no play-level `tags:` that changes this. For
+# a non-interactive or narrowly-tagged run, pre-supply the values Ansible
+# already knows how to skip prompting for instead:
+#   ansible-playbook deploy.yaml --tags images -e @secrets.yaml
+# where secrets.yaml (gitignored) sets whichever of these vars you don't
+# want to be asked for. See README.md's tags section.
 - name: System setup
   hosts: all
   gather_facts: true
@@ -49,6 +60,8 @@
       ansible.builtin.include_role:
         name: compose
         tasks_from: preinit.yaml
+      tags:
+        - always # every role below reads the resolved compose_apps this sets
 
 # Play 2 — Caddy generates its config, builds its image, and deploys/
 # restarts itself, so it's already routing before anything else comes up
@@ -61,6 +74,9 @@
     - name: Include caddy role
       ansible.builtin.include_role:
         name: caddy
+      tags:
+        - images
+        - infra
 
 # Play 3 — DNS config written and the bind9 container deployed/restarted
 # before any other container starts, and before this host's Docker daemon
@@ -74,6 +90,9 @@
     - name: Include bind9 role
       ansible.builtin.include_role:
         name: bind9
+      tags:
+        - images
+        - infra
 
 # Play 4 — Every remaining compose app is provisioned and started now that
 # DNS is already serving the zones and caddy is already routing. bind9 and
@@ -87,3 +106,5 @@
     - name: Include compose_app role
       ansible.builtin.include_role:
         name: compose_app
+      tags:
+        - images

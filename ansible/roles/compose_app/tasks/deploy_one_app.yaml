@@ -15,11 +15,19 @@
 # actually lets the batch continue past one app's failure.
 # ---------------------------------------------------------------------------
 
+# Deliberately tagged per-task below, not on the block itself: a matching
+# tag on a block causes Ansible to run every task nested inside it
+# unconditionally, including deeper untagged tasks reached through further
+# includes (e.g. compose/tasks/init.yaml's provisioning steps) - which
+# would defeat the point of a narrowly-scoped --tags images run. Tagging
+# each task here individually keeps that nested filtering intact.
 - name: "Init and deploy [block / rescue]: {{ compose_app_target.name }}"
   block:
     - name: "Reset per-app changed flag ({{ compose_app_target.name }})"
       ansible.builtin.set_fact:
         compose_app_deploy_changed: false
+      tags:
+        - images
 
     - name: "Init and deploy ({{ compose_app_target.name }})"
       ansible.builtin.include_role:
@@ -27,6 +35,8 @@
         tasks_from: main
       vars:
         compose_app_item: "{{ compose_app_target }}"
+      tags:
+        - images
 
     - name: "Record result ({{ compose_app_target.name }})"
       ansible.builtin.set_fact:
@@ -37,11 +47,15 @@
               'status': (compose_app_deploy_changed | default(false)) | ternary('changed', 'ok')
             }]
           }}
+      tags:
+        - images
   rescue:
     - name: "Record failure ({{ compose_app_target.name }})"
       ansible.builtin.set_fact:
         compose_app_results: "{{ compose_app_results | default([]) + [{'name': compose_app_target.name, 'status': 'failed'}] }}"
       when: compose_app_continue_on_error | bool
+      tags:
+        - images
 
     - name: "Re-raise for strict fail-fast ({{ compose_app_target.name }})"
       ansible.builtin.fail:
@@ -50,3 +64,5 @@
           (compose_app_continue_on_error is false - stopping here rather
           than attempting the remaining apps).
       when: not (compose_app_continue_on_error | bool)
+      tags:
+        - images

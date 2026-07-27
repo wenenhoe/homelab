@@ -47,3 +47,19 @@ compose_apps:
 During Play 1, `compose`'s `preinit.yaml` task merges each host's short `compose_apps` entries with their full definition from `app_registry` (`registry_defaults | combine(item, recursive=True)`) and replaces `compose_apps` in `hostvars` with the fully-resolved list. Every downstream role — `caddy`'s Caddyfile template, `bind9`'s zone-file template, `compose_app`'s batch deploy — reads only the resolved list, so an app's routing/upstream/auth logic is defined exactly once regardless of how many hosts run it.
 
 See [`adding-an-app.md`](adding-an-app.md) for a worked example of adding a new entry to the registry.
+
+## Tags
+
+Three tags scope a `deploy.yaml` run narrower than the full four-play converge:
+
+| Tag | Covers | Skips |
+| :--- | :--- | :--- |
+| `initial-setup` | Docker Engine install (Play 1) | Everything else still runs — this only lets you skip re-installing Docker on a host that already has it. |
+| `images` | Pull/rebuild every app's image (caddy included, via its own local build) and recreate any container whose image actually changed | Config rendering (Caddyfile, DNS zones), app directory/volume provisioning, Docker install |
+| `infra` | Re-render Caddy's Caddyfile and BIND9's `named.conf`/zone files, restart only the containers whose config changed | Image pulls/rebuilds, app directory/volume provisioning, Docker install |
+
+`preinit` (the `compose_apps`/`app_registry` merge) always runs regardless of tags, since every role above reads its output. The one-time app provisioning steps — `caddy`/`bind9`'s own `init`, and `compose_app`'s per-app `init` — deliberately have no tag and only run on a full, untagged pass; `images`/`infra` both assume the host has already been provisioned once.
+
+Ansible tag-filters dynamic includes (`include_role`/`include_tasks`) per hop: an untagged wrapper is skipped outright, so a tag has to be applied at every level of a chain, not just the leaf task, for `--tags` to reach it. Block-level tags are avoided in this codebase for that reason too — matching a block's own tag runs everything nested inside it unconditionally (including deeper untagged tasks), which would defeat a narrowly-scoped tag; each task under a `block`/`rescue` here is tagged individually instead.
+
+`vars_prompt` in Play 1 is evaluated before tag filtering and can't be skipped by any tag — see the note at the top of `deploy.yaml` and the `--tags` examples in the [README](../README.md#basic-commands) for the `-e @secrets.yaml` workaround.

@@ -31,7 +31,7 @@
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
   when: not (compose_app_item.build | default(false))
   tags:
-    - pull-docker-images
+    - images
 
 - name: Build Docker images ({{ compose_app_item.name }})
   community.docker.docker_compose_v2:
@@ -39,19 +39,31 @@
     build: always
     state: present
   when: compose_app_item.build | default(false)
+  tags:
+    - images
 
 - name: Deploy with Docker Compose ({{ compose_app_item.name }})
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
     state: present
   register: compose_app_deploy_up_result
+  tags:
+    - images
 
+# Separate from the images tag above: this is for when Caddyfile/named.conf/
+# zone content changed but the compose file and image didn't, which Compose
+# has no way to detect on its own (a rebuilt local image with the same tag
+# IS picked up by the "present" task above - Compose recreates whenever the
+# image ID a running container was created from no longer matches the
+# currently-tagged image, tag notwithstanding).
 - name: Restart if its config changed ({{ compose_app_item.name }})
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
     state: restarted
   when: compose_app_extra_changed | default(false)
   register: compose_app_deploy_restart_result
+  tags:
+    - infra
 
 - name: Record whether this app changed, for the batch summary
   ansible.builtin.set_fact:
@@ -61,3 +73,6 @@
         or (compose_app_deploy_restart_result.changed | default(false))
         or (compose_app_extra_changed | default(false))
       }}
+  tags:
+    - images
+    - infra

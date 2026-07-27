@@ -9,13 +9,22 @@
 - name: Reset per-run deploy results
   ansible.builtin.set_fact:
     compose_app_results: []
+  tags:
+    - images
 
+# NOTE: --tags only reaches a dynamic include_tasks/include_role's contents
+# if the include statement itself carries a matching tag - an untagged
+# wrapper is skipped outright, before Ansible even looks inside it for
+# matching children. So this task's own `images` tag below is required,
+# not just decoration; the same applies to deploy_one_app.yaml's tasks.
 - name: Init and deploy each non-infra app
   ansible.builtin.include_tasks: deploy_one_app.yaml
   loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy'])) | list }}"
   loop_control:
     loop_var: compose_app_target
     label: "{{ compose_app_target.name }}"
+  tags:
+    - images
 
 - name: Report per-app deploy summary
   ansible.builtin.debug:
@@ -32,7 +41,9 @@
   # indistinguishable from a genuine idempotence bug to Molecule. This tag
   # is the standard way to tell Molecule's idempotence check to disregard
   # this specific task without disabling the check for anything else.
-  tags: molecule-idempotence-notest
+  tags:
+    - molecule-idempotence-notest
+    - images
 
 - name: Fail if any app failed to deploy
   ansible.builtin.fail:
@@ -40,3 +51,5 @@
       {{ compose_app_results | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list | length }}
       app(s) failed to deploy: {{ compose_app_results | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list }}
   when: compose_app_results | selectattr('status', 'equalto', 'failed') | list | length > 0
+  tags:
+    - images

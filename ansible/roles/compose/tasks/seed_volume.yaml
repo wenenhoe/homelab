@@ -26,3 +26,5 @@
     detach: false
     cleanup: true
     state: started
+  tags:
+    - infra

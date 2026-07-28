@@ -33,9 +33,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from aggregate import compute_coverage
 
-_STATUS_ORDER = {"never_observed": 0, "skipped_only": 1, "covered": 2}
-
-
 def _loop_summary(loop_coverage: dict | None) -> str:
     if loop_coverage is None:
         return "-"
@@ -139,14 +136,14 @@ def print_role_detail(report: dict) -> None:
     print(f"role: {report['role']}  (scenarios: {', '.join(report['scenarios']) or 'none'})")
     print()
 
+    # Sorted in source order (file alphabetically, then line in sequence)
+    # so the table reads the same way as the actual code, rather than
+    # jumbling tasks by status - the Status/Loop/Branch columns are still
+    # right there per row, and problem tasks get called out again
+    # explicitly in the summary notes below regardless of where they sort.
     tasks = sorted(
         report["tasks"],
-        key=lambda t: (
-            _STATUS_ORDER.get(t["aggregate_status"], 99),
-            0 if (_has_partial_loop_gap(t) or _has_untested_false_branch(t)) else 1,
-            t["task_file"] or "",
-            t["task_line"] or 0,
-        ),
+        key=lambda t: (t["task_file"] or "", t["task_line"] or 0),
     )
 
     headers = ["Status", "Task", "Location", "Loop", "Branch", "Per-scenario"]

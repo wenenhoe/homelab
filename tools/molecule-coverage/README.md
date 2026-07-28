@@ -239,8 +239,10 @@ it's raw JSON, useful for scripting but not for a quick glance.
 # Summary table across every role with data under the coverage dir
 python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage/.data
 
-# Per-task drill-down for one role, worst offenders (never_observed, then
-# skipped_only) sorted first
+# Per-task drill-down for one role, sorted in source order (file
+# alphabetically, then line in sequence) so it reads like the code -
+# problem tasks are called out separately in the summary notes below,
+# not by reordering the table
 python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage/.data --role caddy
 
 # Summary, then every role's drill-down, in one go (mutually exclusive
@@ -255,6 +257,15 @@ python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage
 `report.py` imports `aggregate.py` directly (both live in this directory),
 so it can be run from any working directory - it resolves the import
 relative to its own file location rather than relying on cwd.
+
+**Drill-down sort order**: the per-task table is sorted in source order
+(file alphabetically, then line number in sequence), so it reads the same
+way as the actual code - not by status/problem-first, which earlier
+versions did (see the Stage 9/10 sections for what that used to look
+like). Problem tasks (partial loop gaps, never-negated `when:`s) are
+still called out explicitly in the summary notes below the table
+regardless of where they happen to sort; the `Status`/`Loop`/`Branch`
+columns are visible on every row either way.
 
 ## Stage 5: PoC wiring (caddy role)
 
@@ -381,11 +392,12 @@ Changes across all four files:
   an item counts as observed if it ran in *any* scenario, even if skipped
   in others.
 - **`report.py`**: a new `Loop` column in the per-role drill-down (`-` for
-  non-looped tasks), and tasks with a nonzero `items_skipped_only_count`
-  now sort near the top even though their `aggregate_status` is
-  `covered` - the whole point is surfacing exactly this "looks fine,
-  isn't" case. A one-line note below the summary flags how many such
-  tasks exist.
+  non-looped tasks). Originally also bumped tasks with a nonzero
+  `items_skipped_only_count` up the sort order despite their
+  `aggregate_status` being `covered`; the table is now sorted in source
+  order instead (file/line, see the later note on this), so that
+  surfacing happens via the summary note below the table instead - still
+  flags how many such tasks exist and lists them.
 
 Not changed: the top-level `aggregate_status`/coverage percentage
 computation - loop detail is purely additive, so existing numbers for
@@ -441,16 +453,17 @@ of it, honestly:
 **What's built**: for any task with a `when:` (single string, or a list
 of clauses ANDed together - both normalized to a list in `inventory.py`'s
 new `"when"` field), whether it was ever observed **executed** (true
-branch) and ever observed **genuinely skipped** (false branch - excluding
-empty-loop skips, which aren't about the `when:` at all), across ALL raw
-events for that task, unioned across every scenario. `aggregate.py` adds
-a `branch_coverage` block (`true_branch_observed`, `false_branch_observed`,
-`branch_status`: `both_branches`/`true_only`/`false_only`/
-`never_observed`); `report.py` adds a `Branch` column, bumps `true_only`
-("never negated") tasks up the sort order the same way partial-loop-gap
-tasks already are (both are cases where `aggregate_status` alone says
-"covered" but something real is still untested), and lists the exact
-`when:` clause(s) for any such task in a summary note.
+branch) and ever observed **genuinely skipped** (false branch) across ALL
+raw events for that task, unioned across every scenario. `aggregate.py`
+adds a `branch_coverage` block (`true_branch_observed`,
+`false_branch_observed`, `branch_status`:
+`both_branches`/`true_only`/`false_only`/`never_observed`); `report.py`
+adds a `Branch` column and lists the exact `when:` clause(s) for any
+`true_only` ("never negated") task in a summary note below the table
+(originally also bumped such tasks up the sort order the same way
+partial-loop-gap tasks were; the table is now sorted in source order
+instead - see the later note on this - so the note below is what
+surfaces it).
 
 A task that executes every single time it's reached, in every scenario,
 might have a `when:` that's dead weight - nobody's ever confirmed what

@@ -35,6 +35,7 @@ provisioner:
     verify: verify.yml
   env:
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
+    ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
 verifier:
   name: ansible
 # The zone-diffing mechanism in bind9/tasks/main.yaml renders each zone's

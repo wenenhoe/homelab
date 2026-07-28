@@ -33,6 +33,30 @@ from aggregate import compute_coverage
 _STATUS_ORDER = {"never_observed": 0, "skipped_only": 1, "covered": 2}
 
 
+def _loop_summary(loop_coverage: dict | None) -> str:
+    if loop_coverage is None:
+        return "-"
+    observed = loop_coverage["items_observed_count"]
+    skipped_only = loop_coverage["items_skipped_only_count"]
+    if observed == 0 and skipped_only == 0:
+        # Either the loop came back empty every time it was observed, or
+        # the task itself was never observed at all (has_loop tasks can
+        # still be never_observed like any other task).
+        return "empty loop" if loop_coverage["observed_empty_loop"] else "no items observed"
+    if skipped_only > 0:
+        # The real point of this column: task-level status alone would
+        # say "covered" here even though some items never ran.
+        examples = ", ".join(loop_coverage["items_skipped_only"][:3])
+        more = "..." if loop_coverage["items_skipped_only_truncated"] or skipped_only > 3 else ""
+        return f"{observed} ok, {skipped_only} never ran ({examples}{more})"
+    return f"{observed} item(s) ok"
+
+
+def _has_partial_loop_gap(task: dict) -> bool:
+    lc = task.get("loop_coverage")
+    return bool(lc and lc["items_skipped_only_count"] > 0)
+
+
 def discover_roles(coverage_dir: Path) -> list[Path]:
     if not coverage_dir.is_dir():
         return []
@@ -97,10 +121,15 @@ def print_role_detail(report: dict) -> None:
 
     tasks = sorted(
         report["tasks"],
-        key=lambda t: (_STATUS_ORDER.get(t["aggregate_status"], 99), t["task_file"] or "", t["task_line"] or 0),
+        key=lambda t: (
+            _STATUS_ORDER.get(t["aggregate_status"], 99),
+            0 if _has_partial_loop_gap(t) else 1,
+            t["task_file"] or "",
+            t["task_line"] or 0,
+        ),
     )
 
-    headers = ["Status", "Task", "Location", "Per-scenario"]
+    headers = ["Status", "Task", "Location", "Loop", "Per-scenario"]
     rows = []
     for t in tasks:
         loc = f"{Path(t['task_file']).name if t['task_file'] else '?'}:{t['task_line'] or '?'}"
@@ -110,6 +139,7 @@ def print_role_detail(report: dict) -> None:
                 t["aggregate_status"],
                 (t["task_name"] or "")[:60],
                 loc,
+                _loop_summary(t.get("loop_coverage")),
                 per_scenario or "(no scenarios run)",
             ]
         )
@@ -129,6 +159,12 @@ def print_role_detail(report: dict) -> None:
         f"({_fmt_pct(s['coverage_pct']).strip()}), "
         f"{s['skipped_only']} skipped-only, {s['never_observed']} never observed"
     )
+    partial_loop_tasks = [t for t in report["tasks"] if _has_partial_loop_gap(t)]
+    if partial_loop_tasks:
+        print(
+            f"note: {len(partial_loop_tasks)} looped task(s) show 'covered' above "
+            f"but have items that never ran - see the Loop column"
+        )
 
 
 def main() -> int:

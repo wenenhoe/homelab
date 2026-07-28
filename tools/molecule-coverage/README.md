@@ -49,6 +49,18 @@ for the staged plan. Currently implemented:
   runtime event (verified empirically), so they're now excluded from the
   inventory entirely instead of showing as permanent, unfixable
   `never_observed` results regardless of actual coverage.
+- **Stage 9**: loop-item granularity. A looped task where only one item
+  ever satisfies its condition previously showed plain task-level
+  "covered", hiding that the other items never ran - `report.py` now
+  surfaces this directly (see the Stage 9 section below).
+- **Stage 9.1**: fixed a real bug in stage 9, caught on first live run
+  against `bind9` - `no_log: true` redacts a loop item's value from
+  *every* hook (task-level and per-item alike), which the original
+  `item is not None` check misread as "not an item event", silently
+  losing per-item detail for any `no_log`'d loop. Fixed by tracking which
+  hook fired explicitly (`is_item`) instead of inferring it from whether
+  the item's value survived redaction - see the note in the Stage 9
+  section below.
 
 Not yet done: branch/path coverage (which side of a `when:` actually
 fired) - the original motivating question, deferred until task coverage was
@@ -309,3 +321,93 @@ python3 ../tools/molecule-coverage/report.py \
 The summary table naturally aggregates across every role you've generated
 an inventory + run scenarios for - it doesn't require running every
 role/scenario at once.
+
+## Stage 9: loop-item granularity
+
+Task-level coverage has a real blind spot for looped tasks: Ansible
+reports the task overall as "ok"/"changed" if **any** item satisfies its
+condition, even if others don't - so a loop where only 1 of 3 items ever
+runs still shows plain `covered`, identical to a loop where all 3 ran.
+Verified empirically (throwaway roles, not assumed from docs) that:
+
+- Ansible fires a separate `v2_runner_item_on_ok`/`skipped`/`failed`
+  event **per loop iteration**, in addition to the aggregate task-level
+  event - so per-item detail is available for free, just wasn't being
+  captured.
+- An empty loop (`loop: []`) fires **neither** hook - only the aggregate
+  task-level skip, with `skip_reason` `"No items in the list"`,
+  distinguishable from a plain `when: false` skip
+  (`"Conditional result was False"`).
+
+Changes across all four files:
+
+- **`callback_plugins/molecule_coverage.py`**: added
+  `v2_runner_item_on_ok/skipped/failed` hooks, writing the same event
+  shape as before plus two new fields: `item` (`null` for task-level
+  events, the loop item's value - JSON-safe, falling back to `str()` - for
+  item-level ones) and `skip_reason` (Ansible's own skip explanation,
+  `null` when not applicable).
+- **`inventory.py`**: each task entry now has a `has_loop` boolean,
+  detected via the `loop:` key (plus the legacy `with_*` family for
+  future-proofing, though only `loop:` is actually used anywhere in this
+  repo - verified via grep).
+- **`aggregate.py`**: for `has_loop` tasks, an additional
+  `loop_coverage` block: `items_observed_count` (distinct items ever
+  executed, any scenario), `items_skipped_only` (distinct items *only*
+  ever skipped, capped at 10 for huge loops, with
+  `items_skipped_only_count`/`items_skipped_only_truncated` alongside),
+  and `observed_empty_loop` (whether any scenario saw the empty-loop skip
+  reason). Unioned across scenarios the same way `aggregate_status` is -
+  an item counts as observed if it ran in *any* scenario, even if skipped
+  in others.
+- **`report.py`**: a new `Loop` column in the per-role drill-down (`-` for
+  non-looped tasks), and tasks with a nonzero `items_skipped_only_count`
+  now sort near the top even though their `aggregate_status` is
+  `covered` - the whole point is surfacing exactly this "looks fine,
+  isn't" case. A one-line note below the summary flags how many such
+  tasks exist.
+
+Not changed: the top-level `aggregate_status`/coverage percentage
+computation - loop detail is purely additive, so existing numbers for
+non-looped tasks (and the overall coverage_pct) are unaffected. Validated
+against every real role in the repo (no crashes, including roles with
+zero execution data yet) and against synthetic fixtures covering: a fully
+covered loop, a partially-covered loop (the case this stage exists for),
+an empty loop, and a plain non-looped task.
+
+**Stage 9.1 - a real bug, caught on first live run**: `bind9`'s actual
+report showed three genuinely-looped, genuinely-covered tasks
+(`Render candidate zone file content in-memory`,
+`Read back whatever zone file is currently live, if any`,
+`Write zone file when its non-serial content has changed`) all showing
+`Loop: no items observed` - a combination that should be impossible (if
+covered, *something* executed). Root cause, confirmed empirically: all
+three have `no_log: true`, which redacts the *entire* result dict Ansible
+hands to the callback - not just the log output, but the `item` key
+itself - for both the per-item hooks AND the task-level aggregate. The
+original code used `item is not None` to tell item-level events apart
+from task-level ones; under `no_log`, every event's `item` comes back
+`None` regardless of which hook fired, so every `no_log`'d loop iteration
+was silently misfiled as a non-item event, and `loop_coverage` ended up
+empty even though the loop genuinely ran.
+
+Fixed by adding an explicit `is_item` field to the event schema, set by
+the callback based on *which hook fired* (`v2_runner_item_on_*` vs.
+`v2_runner_on_*`), never inferred from whether the item's value survived
+redaction. When `is_item` is true but the item value was redacted, it's
+stored as the literal string `"<redacted by no_log>"` rather than left
+ambiguous as `null`. `aggregate.py`'s `_loop_events_by_key` and
+`_empty_loop_observed_by_key` both switched from checking `item is None`
+to checking `is_item`.
+
+**Known residual limitation, not fixable without changing what `no_log`
+means**: since `no_log` redacts every item's *value*, multiple genuinely
+different items in the same `no_log`'d loop collapse into a single
+`"<redacted by no_log>"` bucket - so `items_observed_count` for such a
+loop will under-count (e.g. `bind9`'s 1-zone-plus test fixture correctly
+shows activity now, but a loop with 3 real `no_log`'d items that all ran
+would still only show `1`, not `3`). This is an inherent tradeoff of
+`no_log`'s own redaction, not something this tool can recover - the
+practically important fix is telling "ran" apart from "never observed",
+which is what's fixed here; exact per-item counts under `no_log` remain
+unavailable by design.

@@ -80,6 +80,24 @@ _STRUCTURALLY_UNMEASURABLE_ACTIONS = {
     "meta",
 }
 
+# Keys that mark a task as looped. Only `loop:` is actually used anywhere
+# in this repo (verified via grep), but the legacy with_* family is
+# included too since it's cheap and future-proofs against anyone adding
+# one later - Ansible treats them identically at runtime for callback
+# purposes (same item_on_ok/skipped/failed hooks fire either way).
+_LOOP_KEYS = (
+    "loop",
+    "with_items",
+    "with_list",
+    "with_dict",
+    "with_together",
+    "with_nested",
+    "with_sequence",
+    "with_fileglob",
+    "with_subelements",
+    "with_flattened",
+)
+
 
 def _iter_task_files(role_dir: Path) -> list[Path]:
     tasks_dir = role_dir / "tasks"
@@ -141,6 +159,7 @@ def _walk(task_list, results: list[dict]) -> None:
                 "task_file": file_,
                 "task_line": line,
                 "action": action,
+                "has_loop": any(key in item for key in _LOOP_KEYS),
             }
         )
 

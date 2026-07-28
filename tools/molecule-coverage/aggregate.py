@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """molecule-coverage: aggregation
 
-Joins the static task inventory (stage 2) against the per-scenario
-execution/skip events (stage 1) to produce a coverage report for a role:
-both per-scenario, and aggregated (union) across all of its scenarios.
+Joins the static task inventory against the per-scenario execution/skip
+events to produce a coverage report for a role: both per-scenario, and
+aggregated (union) across all of its scenarios.
 
 Join key is (task_file, task_line) - not task_name, since names aren't
 guaranteed unique (loops, copy-pasted task names) and the callback plugin
@@ -24,6 +24,20 @@ task coverage is measuring - whether the underlying assertion/verify step
 also caught the failure is a separate (and important) question, out of
 scope here.
 
+For tasks with has_loop=true (per inventory.py), the above alone hides a
+real blind spot: a loop where only one of several items ever satisfies its
+condition still reports task-level "covered" (Ansible's aggregate result
+is ok/changed if ANY item succeeded), silently masking that the other
+items never ran. Verified empirically (see the callback plugin's item
+hooks) that Ansible fires a separate item_on_ok/skipped/failed event per
+iteration in addition to the task-level one, and that an empty loop
+(`loop: []`) fires neither - only a task-level skip with skip_reason
+"No items in the list", distinguishable from a plain when:-false skip.
+Looped tasks additionally get a "loop_coverage" breakdown (distinct items
+ever executed vs. only ever skipped, and whether any scenario saw the loop
+come back empty), aggregated as a union across scenarios the same way the
+task-level status is.
+
 Usage:
     python3 aggregate.py tools/molecule-coverage/.data/caddy
 """
@@ -39,11 +53,28 @@ _SKIPPED_STATUSES = {"skipped"}
 # "unreachable" deliberately excluded from both: the host, not the task,
 # was the problem, so it shouldn't count as evidence about the task itself.
 
+_EMPTY_LOOP_SKIP_REASON = "No items in the list"
+
+# Cap how many "never actually ran" item values get listed per task, so a
+# huge loop (e.g. iterating hundreds of generated entries) doesn't blow up
+# the report - the point is to point you at a couple of concrete examples
+# to go check, not to enumerate every single one.
+_MAX_SKIPPED_ITEMS_SHOWN = 10
+
 TaskKey = tuple[str | None, int | None]
 
 
 def _task_key(entry: dict) -> TaskKey:
     return (entry.get("task_file"), entry.get("task_line"))
+
+
+def _item_repr(item) -> str:
+    # Stable, hashable string form for dedup/display, regardless of
+    # whether the item is a plain scalar or a dict/list.
+    try:
+        return json.dumps(item, sort_keys=True)
+    except TypeError:
+        return str(item)
 
 
 def load_inventory(role_data_dir: Path) -> list[dict]:
@@ -77,6 +108,42 @@ def _statuses_by_key(events: list[dict]) -> dict[TaskKey, set[str]]:
     return by_key
 
 
+def _loop_events_by_key(
+    events: list[dict],
+) -> dict[TaskKey, dict[str, dict[str, set[str]]]]:
+    """For item-level events only, {key: {item_repr: {statuses observed}}}."""
+    by_key: dict[TaskKey, dict[str, dict[str, set[str]]]] = {}
+    for event in events:
+        # is_item, not "item is not None": no_log redacts the item value
+        # itself (to None) for BOTH item-level and task-level events on a
+        # no_log'd looped task, so item-presence alone can't tell them
+        # apart - is_item is set explicitly by the callback based on which
+        # hook fired, regardless of whether the value survived redaction.
+        if not event.get("is_item"):
+            continue
+        key = _task_key(event)
+        item_repr = _item_repr(event.get("item"))
+        by_key.setdefault(key, {}).setdefault(item_repr, set()).add(
+            event.get("status", "")
+        )
+    return by_key
+
+
+def _empty_loop_observed_by_key(events: list[dict]) -> set[TaskKey]:
+    """Task keys where a task-level skip with the empty-loop skip_reason
+    was seen - i.e. this scenario ran the task and its loop came back with
+    zero items, as opposed to a plain when:-false skip."""
+    keys: set[TaskKey] = set()
+    for event in events:
+        if (
+            not event.get("is_item")
+            and event.get("status") == "skipped"
+            and event.get("skip_reason") == _EMPTY_LOOP_SKIP_REASON
+        ):
+            keys.add(_task_key(event))
+    return keys
+
+
 def _classify(statuses: set[str] | None) -> str:
     if not statuses:
         return "never_observed"
@@ -87,11 +154,50 @@ def _classify(statuses: set[str] | None) -> str:
     return "never_observed"
 
 
+def _loop_coverage_for_task(
+    key: TaskKey,
+    scenario_loop_events: dict[str, dict[str, dict[str, set[str]]]],
+    scenario_empty_keys: dict[str, set[TaskKey]],
+) -> dict:
+    # Union across scenarios: an item is "observed" if it was ever
+    # executed in ANY scenario, even if skipped in others - same
+    # union-favors-coverage philosophy as the task-level aggregate_status.
+    item_statuses: dict[str, set[str]] = {}
+    for events_by_item in scenario_loop_events.values():
+        for item_repr, statuses in events_by_item.get(key, {}).items():
+            item_statuses.setdefault(item_repr, set()).update(statuses)
+
+    observed_items = sorted(
+        repr_ for repr_, statuses in item_statuses.items() if statuses & _EXECUTED_STATUSES
+    )
+    skipped_only_items = sorted(
+        repr_
+        for repr_, statuses in item_statuses.items()
+        if statuses & _SKIPPED_STATUSES and not (statuses & _EXECUTED_STATUSES)
+    )
+    observed_empty_loop = any(key in keys for keys in scenario_empty_keys.values())
+
+    truncated = len(skipped_only_items) > _MAX_SKIPPED_ITEMS_SHOWN
+    return {
+        "items_observed_count": len(observed_items),
+        "items_skipped_only": skipped_only_items[:_MAX_SKIPPED_ITEMS_SHOWN],
+        "items_skipped_only_truncated": truncated,
+        "items_skipped_only_count": len(skipped_only_items),
+        "observed_empty_loop": observed_empty_loop,
+    }
+
+
 def compute_coverage(role_data_dir: Path) -> dict:
     role_name = role_data_dir.name
     inventory = load_inventory(role_data_dir)
     scenario_events = load_scenario_events(role_data_dir)
     scenario_statuses = {name: _statuses_by_key(events) for name, events in scenario_events.items()}
+    scenario_loop_events = {
+        name: _loop_events_by_key(events) for name, events in scenario_events.items()
+    }
+    scenario_empty_keys = {
+        name: _empty_loop_observed_by_key(events) for name, events in scenario_events.items()
+    }
 
     tasks_report = []
     for task in inventory:
@@ -111,13 +217,16 @@ def compute_coverage(role_data_dir: Path) -> dict:
         else:
             aggregate_status = "never_observed"
 
-        tasks_report.append(
-            {
-                **task,
-                "per_scenario": per_scenario,
-                "aggregate_status": aggregate_status,
-            }
-        )
+        task_report = {
+            **task,
+            "per_scenario": per_scenario,
+            "aggregate_status": aggregate_status,
+        }
+        if task.get("has_loop"):
+            task_report["loop_coverage"] = _loop_coverage_for_task(
+                key, scenario_loop_events, scenario_empty_keys
+            )
+        tasks_report.append(task_report)
 
     total = len(tasks_report)
     covered = sum(1 for t in tasks_report if t["aggregate_status"] == "covered")

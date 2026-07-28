@@ -30,6 +30,13 @@ provisioner:
   env:
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
     ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
+    # molecule-coverage rollout (tools/molecule-coverage/) - see that
+    # directory's README and
+    # ansible/roles/caddy/molecule/default/molecule.yml for the full
+    # explanation of these three vars.
+    ANSIBLE_CALLBACKS_ENABLED: molecule_coverage
+    ANSIBLE_CALLBACK_PLUGINS: ${MOLECULE_PROJECT_DIRECTORY}/../../../tools/molecule-coverage/callback_plugins
+    MOLECULE_COVERAGE_DIR: ${MOLECULE_PROJECT_DIRECTORY}/../../../tools/molecule-coverage/.data
 verifier:
   name: ansible
 scenario:

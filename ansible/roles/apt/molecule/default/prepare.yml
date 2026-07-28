@@ -1,0 +1,11 @@
+---
+# apt needs no other preparation (no Docker-in-Docker, no systemd) - this
+# playbook exists solely to reset molecule-coverage's JSONL before each
+# test run. See tools/molecule-coverage/README.md.
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Reset coverage data from any previous test run
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: reset_coverage_data.yaml

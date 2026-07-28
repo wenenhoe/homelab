@@ -30,12 +30,24 @@ for the staged plan. Currently implemented:
   every role with data, a per-task drill-down for one role, and an optional
   `--fail-under` threshold (exit 1 if below - available, not enforced).
 - **Stage 5**: wired into `caddy`'s `molecule/default/molecule.yml` as a
-  proof of concept (see below) - the callback plugin is now enabled during
-  that scenario's converge/idempotence/verify runs automatically, no manual
-  env vars needed for that one role/scenario.
+  proof of concept - the callback plugin is enabled during that scenario's
+  converge/idempotence/verify runs automatically, no manual env vars needed
+  for that one role/scenario.
+- **Stage 6**: fixed the append/reset issue noted in stage 1 -
+  `molecule_helpers/tasks/reset_coverage_data.yaml`, included as the first
+  task in `molecule_helpers/playbooks/prepare_dind.yml` (the shared prepare
+  playbook 9 of the 11 scenarios use) plus `bind9`'s own separate
+  `prepare.yml` and a new one for `apt`, deletes a scenario's own JSONL
+  before each `molecule test` invocation, so runs no longer accumulate
+  stale data from previous ones.
+- **Stage 7**: rolled the coverage env vars out to every other
+  role/scenario in the repo (`apt`, `bind9`, `caddy`, `compose` x5,
+  `compose_app` x2, `docker` - 11 scenarios total). `apt` had no `prepare`
+  step at all, so one was added, wired to just the reset task.
 
-Not yet done: running it for real against caddy and sanity-checking the
-numbers (stage 6), and rolling the same wiring out to other roles/scenarios.
+Not yet done: branch/path coverage (which side of a `when:` actually
+fired) - the original motivating question, deferred until task coverage was
+solid across the whole repo.
 
 ## Stage 1 usage (manual, for now)
 
@@ -186,13 +198,64 @@ python3 ../tools/molecule-coverage/report.py \
   --coverage-dir ../tools/molecule-coverage/.data --role caddy
 ```
 
-**Known limitation carried over from stage 1**: the JSONL file is appended
-to, not reset, across separate `molecule test` invocations - so if you run
-the scenario multiple times while iterating, either treat that as harmless
-(more executions of the same tasks don't change their covered/skipped_only
-classification) or `rm -f tools/molecule-coverage/.data/caddy/default.jsonl`
-first for a clean single-run picture. Automating this reset is a candidate
-for a later stage, not solved yet.
+**Known limitation carried over from stage 1, fixed in stage 6**: the
+JSONL file used to accumulate across separate `molecule test` invocations.
+The shared `molecule_helpers/playbooks/prepare_dind.yml` that `caddy`'s
+scenario already uses for its `prepare` step now deletes it at the start
+of every test run - see the Stage 6 section below.
 
 Only `caddy`'s `default` scenario is wired up so far - this is a
 proof-of-concept for one role/scenario, not a repo-wide rollout.
+
+## Stage 6: fixing the append/reset issue
+
+`molecule_helpers/tasks/reset_coverage_data.yaml` deletes
+`$MOLECULE_COVERAGE_DIR/<role>/<scenario>.jsonl` (role/scenario taken from
+Molecule's own `MOLECULE_PROJECT_DIRECTORY`/`MOLECULE_SCENARIO_NAME`, so no
+hardcoded names), `delegate_to: localhost`, guarded so it's a no-op if
+`MOLECULE_COVERAGE_DIR` isn't set - safe to include anywhere, whether or
+not that scenario has coverage wired up yet.
+
+This repo already has a shared prepare playbook,
+`molecule_helpers/playbooks/prepare_dind.yml`, referenced directly from
+`provisioner.playbooks.prepare` by 9 of the 11 scenarios (`caddy`,
+`compose` x5, `compose_app` x2, `docker`) - so adding the reset task as its
+first task wires up all 9 in one edit. The remaining two scenarios have
+their own separate prepare playbooks (`bind9`, which manages Docker's
+storage driver differently to avoid fighting over `daemon.json` with its
+own DNS config - see the comment in its `prepare.yml`; and `apt`, which
+previously had no `prepare` step at all since it needs no Docker-in-Docker
+setup) - each got the same task added as their first task, or as their
+only task in `apt`'s new `prepare.yml`.
+
+Runs once per `molecule test` invocation (prepare runs once, before
+converge/idempotence/verify), so all three of those phases still correctly
+accumulate into the same fresh file for that one run - only a genuinely
+new invocation gets a clean slate.
+
+## Stage 7: rolled out to every role
+
+Every scenario in the repo now has the same three `provisioner.env` vars
+as `caddy`. Since `MOLECULE_PROJECT_DIRECTORY` is always a role's own
+directory (`ansible/roles/<role>`) regardless of which scenario within it
+is running, the same `${MOLECULE_PROJECT_DIRECTORY}/../../../tools/...`
+path works unchanged across every role and scenario.
+
+Once you've run `molecule test` for a scenario, generate its inventory and
+view the report the same way as the caddy PoC:
+
+```bash
+cd ansible
+python3 ../tools/molecule-coverage/inventory.py roles/<role> \
+  --coverage-dir ../tools/molecule-coverage/.data
+
+python3 ../tools/molecule-coverage/report.py \
+  --coverage-dir ../tools/molecule-coverage/.data
+# or, for one role's per-task detail:
+python3 ../tools/molecule-coverage/report.py \
+  --coverage-dir ../tools/molecule-coverage/.data --role <role>
+```
+
+The summary table naturally aggregates across every role you've generated
+an inventory + run scenarios for - it doesn't require running every
+role/scenario at once.

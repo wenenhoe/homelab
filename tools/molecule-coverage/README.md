@@ -61,10 +61,26 @@ for the staged plan. Currently implemented:
   hook fired explicitly (`is_item`) instead of inferring it from whether
   the item's value survived redaction - see the note in the Stage 9
   section below.
+- **Stage 10**: task-level branch coverage - the original motivating
+  question, scoped down to what's empirically achievable (see the Stage
+  10 section below for why full per-clause attribution of a compound
+  `when: [a, b]` isn't). For any task with a `when:`, tracks whether it
+  was ever observed executed (true branch) *and* ever observed genuinely
+  skipped (false branch) - "covered" alone doesn't tell you whether the
+  skip path was ever actually exercised.
+- **Stage 10.1**: fixed a real false-negative in stage 10, caught on
+  first real multi-scenario run against `compose` - a looped task's
+  `when:` being false can make its OWN loop source empty too (a common
+  pattern: a prior when:-gated task would've populated the loop var, so
+  `| default([])` silently empties it once that task is skipped) -
+  and Ansible reports that as skip_reason "No items in the list", not
+  "Conditional result was False", indistinguishable from a genuinely
+  unrelated empty loop. The original code excluded that reason from
+  counting as a false-branch observation, which silently missed real
+  evidence. See the note in the Stage 10 section below.
 
-Not yet done: branch/path coverage (which side of a `when:` actually
-fired) - the original motivating question, deferred until task coverage was
-solid across the whole repo.
+Not yet done: full per-clause attribution for compound `when:` conditions
+- deliberately out of scope, see Stage 10.
 
 ## Stage 1 usage (manual, for now)
 
@@ -226,6 +242,10 @@ python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage
 # Per-task drill-down for one role, worst offenders (never_observed, then
 # skipped_only) sorted first
 python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage/.data --role caddy
+
+# Summary, then every role's drill-down, in one go (mutually exclusive
+# with --role - pick one or the other)
+python3 tools/molecule-coverage/report.py --coverage-dir tools/molecule-coverage/.data --show-all
 
 # Exit 1 if any reported role is below a coverage threshold - available
 # for a future CI gate, not required or wired into anything yet
@@ -411,3 +431,97 @@ would still only show `1`, not `3`). This is an inherent tradeoff of
 practically important fix is telling "ran" apart from "never observed",
 which is what's fixed here; exact per-item counts under `no_log` remain
 unavailable by design.
+
+## Stage 10: task-level branch coverage
+
+The original motivating question for this whole project was "which side
+of a `when:` actually fired" - this stage answers a scoped-down version
+of it, honestly:
+
+**What's built**: for any task with a `when:` (single string, or a list
+of clauses ANDed together - both normalized to a list in `inventory.py`'s
+new `"when"` field), whether it was ever observed **executed** (true
+branch) and ever observed **genuinely skipped** (false branch - excluding
+empty-loop skips, which aren't about the `when:` at all), across ALL raw
+events for that task, unioned across every scenario. `aggregate.py` adds
+a `branch_coverage` block (`true_branch_observed`, `false_branch_observed`,
+`branch_status`: `both_branches`/`true_only`/`false_only`/
+`never_observed`); `report.py` adds a `Branch` column, bumps `true_only`
+("never negated") tasks up the sort order the same way partial-loop-gap
+tasks already are (both are cases where `aggregate_status` alone says
+"covered" but something real is still untested), and lists the exact
+`when:` clause(s) for any such task in a summary note.
+
+A task that executes every single time it's reached, in every scenario,
+might have a `when:` that's dead weight - nobody's ever confirmed what
+the skip path even does. This is genuinely different information from
+`aggregate_status`, and it comes from data already being collected -
+notably, **idempotence's second `converge` pass is a natural source of
+this**: a task that legitimately executes once (state not yet achieved)
+and then correctly skips the second time (state already matches) already
+proves both branches within a single scenario, a signal the existing
+per-scenario classification discarded (it only keeps the union of
+statuses per scenario, not "was a skip ALSO seen after a covered run").
+Verified with a throwaway role simulating exactly that pattern (a
+`stat`-gated marker file: pass 1 creates it and changes, pass 2 sees it
+exists and skips) - correctly detected as `both_branches`.
+
+**What's explicitly NOT built, and why**: attributing which specific
+clause of a compound `when: [a, b]` (or `when: "a and b"`) caused a skip.
+Ansible's callback hooks only ever expose the *final combined* boolean
+result of the whole condition - never each clause's individual value.
+Getting real attribution would mean hooking Ansible's conditional
+evaluator directly (not something a callback plugin can do) or
+re-implementing a meaningful chunk of Jinja2 conditional evaluation
+against captured facts to reverse-engineer which clause was responsible
+(fragile, and a much bigger, riskier undertaking than anything else in
+this tool). The individual clauses ARE captured and shown for a
+`true_only` finding (so a human reviewing "this `when:` was never
+negated" can see the compound condition at a glance and reason about
+which part is suspect) - but that's static context for a person to read,
+not an empirical per-clause claim.
+
+Validated: a synthetic fixture covering all four `branch_status` values
+(including the idempotence-both-branches case, run for real, twice, not
+simulated), and a full regression pass against every real role in the
+repo with zero crashes, including the zero-execution-data case (shows
+`no data` rather than erroring for `when:`-having tasks with nothing
+observed yet).
+
+**Stage 10.1 - a real false negative, caught on the first real
+multi-scenario run**: `compose`'s own `report.py --show-all` output
+showed `Force remove containers found via label fallback`
+(`cleanup.yaml:37`) as `never negated`, despite its `Per-scenario` column
+clearly showing `volumes=skipped_only` alongside `cleanup=covered` -
+which should mean both branches WERE observed, across those two
+scenarios. Investigated rather than assumed correct:
+
+- That task has a task-level `when:` (not referencing `item`) AND a
+  `loop:` over a var populated by an earlier task gated by that SAME
+  `when:` - a natural, common pattern (seen verbatim in this repo, not a
+  contrived edge case).
+- Confirmed empirically (throwaway roles, not docs) that when such a
+  task's `when:` is false, Ansible reports the skip's `skip_reason` as
+  `"No items in the list"` - **not** `"Conditional result was False"` -
+  because the loop source ends up empty as a downstream consequence.
+- Also confirmed the same message appears for a genuinely-unrelated
+  empty loop with `when: true` - the reason string is ambiguous in BOTH
+  directions; Ansible's own data cannot distinguish "false because of
+  the when:" from "empty for unrelated reasons" once a loop is involved.
+
+The original code excluded the empty-loop reason from counting as a
+false-branch observation (reasonable in isolation, matches `loop_coverage`
+'s own, differently-scoped use of the same reason), which caused this
+real evidence to be silently dropped. Fixed by no longer excluding it for
+branch-coverage purposes specifically: any `"skipped"` status now counts,
+regardless of reason. This can't be made perfectly precise either way
+given Ansible's own ambiguity, so the choice follows this tool's standing
+principle from stages 8 and 9.1 - missing real evidence (silent false
+negative) is worse than occasionally over-crediting an ambiguous case
+(rarer false positive, only when a loop is independently empty AND the
+task's `when:` happens to be unrelated and always true). Verified against
+a two-scenario reproduction of the exact real pattern (directory-present
+vs. directory-missing, matching `compose`'s `volumes`/`cleanup`
+scenarios) - now correctly shows `both_branches`; re-ran the full
+synthetic fixture suite from the original Stage 10 validation plus this
+new case together, no regressions.

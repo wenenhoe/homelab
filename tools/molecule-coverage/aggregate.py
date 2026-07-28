@@ -38,6 +38,34 @@ ever executed vs. only ever skipped, and whether any scenario saw the loop
 come back empty), aggregated as a union across scenarios the same way the
 task-level status is.
 
+For tasks with a `when:` (per inventory.py's "when" field), task/loop
+coverage alone hides another blind spot: "covered" only tells you the
+condition was satisfied at least once - it says nothing about whether
+you've ever confirmed what happens when it's NOT satisfied. A task that
+executes every single time it's reached, in every scenario, might have a
+`when:` that's effectively dead weight - nobody's ever verified the skip
+path. Conversely, idempotence naturally re-runs converge a second time in
+the same container, so a task that legitimately executes once (state not
+yet achieved) and then correctly skips the second time (state already
+matches) already exercises BOTH branches within a single scenario - a
+signal the plain per-scenario classification above discards (it only
+tracks the union of statuses, not "was skipped ALSO seen after being
+covered"). "branch_coverage" recovers this: for any task with a `when:`,
+whether it was ever observed executed (true branch) and ever observed
+genuinely skipped (false branch, excluding empty-loop skips, which aren't
+about the when: condition at all), across ALL raw events - not the
+already-collapsed per-scenario/aggregate status - so idempotence's second
+pass counts as real evidence even for a task whose aggregate_status is
+"covered" because of its first pass.
+
+NOT attempted: attributing which specific clause of a compound
+`when: [a, b]` caused a skip. Ansible's callbacks only ever expose the
+final combined boolean, never each clause's individual value - real
+attribution would need to hook Ansible's conditional evaluator itself,
+which a callback plugin can't do. The clauses are still captured
+statically (inventory.py's "when" field) for context when reading a
+"never negated" finding, but there's no empirical claim about which one.
+
 Usage:
     python3 aggregate.py tools/molecule-coverage/.data/caddy
 """
@@ -144,6 +172,49 @@ def _empty_loop_observed_by_key(events: list[dict]) -> set[TaskKey]:
     return keys
 
 
+def _branch_signals_by_key(events: list[dict]) -> dict[TaskKey, dict[str, bool]]:
+    """{key: {"true": observed executed, "false": observed genuinely
+    skipped}}, scanning ALL events (task-level AND item-level alike) -
+    deliberately not filtered by is_item, since a per-item when: on a
+    looped task only ever shows up as an item-level skip (the task-level
+    aggregate can still read "covered" if any other item succeeded), and
+    a plain task-level when: only ever shows up as a task-level skip.
+
+    Does NOT exclude the empty-loop skip_reason, despite that seeming
+    like the obvious thing to do (and an earlier version of this code did
+    exactly that) - verified empirically that this is WRONG: when a
+    looped task's when: is false AND that same condition is also why its
+    loop source ends up empty (a common, natural pattern - e.g. a prior
+    when:-gated task would have populated the loop var, so an unrelated
+    `| default([])` silently produces an empty list once that task is
+    skipped), Ansible reports skip_reason "No items in the list" - NOT
+    "Conditional result was False" - even though the real cause is
+    genuinely the when: condition. Confirmed this reason string is
+    ambiguous in the other direction too: a loop that's independently
+    empty for unrelated reasons, with when: true, reports the exact same
+    "No items in the list" message. Ansible's own data can't distinguish
+    these two cases, so there's no way to get this perfectly right either
+    way - excluding the reason caused a real false negative (a genuine
+    when:-false observation silently missing from branch_coverage,
+    confirmed against this repo's own compose/tasks/cleanup.yaml); NOT
+    excluding it risks an occasional false positive in the rarer
+    "independently empty loop with a true when:" case. Chose to include
+    it, consistent with this tool's standing principle (stage 8, stage
+    9.1): missing real evidence is worse than occasionally over-crediting
+    an ambiguous case.
+    """
+    by_key: dict[TaskKey, dict[str, bool]] = {}
+    for event in events:
+        key = _task_key(event)
+        entry = by_key.setdefault(key, {"true": False, "false": False})
+        status = event.get("status")
+        if status in _EXECUTED_STATUSES:
+            entry["true"] = True
+        elif status == "skipped":
+            entry["false"] = True
+    return by_key
+
+
 def _classify(statuses: set[str] | None) -> str:
     if not statuses:
         return "never_observed"
@@ -187,6 +258,39 @@ def _loop_coverage_for_task(
     }
 
 
+def _branch_coverage_for_task(
+    key: TaskKey,
+    scenario_branch_signals: dict[str, dict[TaskKey, dict[str, bool]]],
+) -> dict:
+    # Union across scenarios: true/false branch counts as observed if seen
+    # in ANY scenario's raw events - including within a single scenario's
+    # own converge-then-idempotence-re-converge sequence, since both
+    # append into the same scenario's events and _branch_signals_by_key
+    # scans all of them together.
+    true_observed = False
+    false_observed = False
+    for signals_by_key in scenario_branch_signals.values():
+        signals = signals_by_key.get(key)
+        if signals:
+            true_observed = true_observed or signals["true"]
+            false_observed = false_observed or signals["false"]
+
+    if true_observed and false_observed:
+        branch_status = "both_branches"
+    elif true_observed:
+        branch_status = "true_only"
+    elif false_observed:
+        branch_status = "false_only"
+    else:
+        branch_status = "never_observed"
+
+    return {
+        "true_branch_observed": true_observed,
+        "false_branch_observed": false_observed,
+        "branch_status": branch_status,
+    }
+
+
 def compute_coverage(role_data_dir: Path) -> dict:
     role_name = role_data_dir.name
     inventory = load_inventory(role_data_dir)
@@ -197,6 +301,9 @@ def compute_coverage(role_data_dir: Path) -> dict:
     }
     scenario_empty_keys = {
         name: _empty_loop_observed_by_key(events) for name, events in scenario_events.items()
+    }
+    scenario_branch_signals = {
+        name: _branch_signals_by_key(events) for name, events in scenario_events.items()
     }
 
     tasks_report = []
@@ -225,6 +332,10 @@ def compute_coverage(role_data_dir: Path) -> dict:
         if task.get("has_loop"):
             task_report["loop_coverage"] = _loop_coverage_for_task(
                 key, scenario_loop_events, scenario_empty_keys
+            )
+        if task.get("when"):
+            task_report["branch_coverage"] = _branch_coverage_for_task(
+                key, scenario_branch_signals
             )
         tasks_report.append(task_report)
 

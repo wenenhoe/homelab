@@ -13,6 +13,9 @@ Usage:
     # Drill down into one role's per-task, per-scenario breakdown
     python3 report.py --coverage-dir tools/molecule-coverage/.data --role caddy
 
+    # Summary, followed by every role's drill-down, in one go
+    python3 report.py --coverage-dir tools/molecule-coverage/.data --show-all
+
     # Exit 1 if any role's aggregate coverage is below a threshold
     # (useful later for a CI gate - not required, just available)
     python3 report.py --coverage-dir tools/molecule-coverage/.data --fail-under 80
@@ -55,6 +58,23 @@ def _loop_summary(loop_coverage: dict | None) -> str:
 def _has_partial_loop_gap(task: dict) -> bool:
     lc = task.get("loop_coverage")
     return bool(lc and lc["items_skipped_only_count"] > 0)
+
+
+def _branch_summary(branch_coverage: dict | None) -> str:
+    if branch_coverage is None:
+        return "-"
+    status = branch_coverage["branch_status"]
+    return {
+        "both_branches": "both ok",
+        "true_only": "never negated",
+        "false_only": "never satisfied",
+        "never_observed": "no data",
+    }[status]
+
+
+def _has_untested_false_branch(task: dict) -> bool:
+    bc = task.get("branch_coverage")
+    return bool(bc and bc["branch_status"] == "true_only")
 
 
 def discover_roles(coverage_dir: Path) -> list[Path]:
@@ -123,13 +143,13 @@ def print_role_detail(report: dict) -> None:
         report["tasks"],
         key=lambda t: (
             _STATUS_ORDER.get(t["aggregate_status"], 99),
-            0 if _has_partial_loop_gap(t) else 1,
+            0 if (_has_partial_loop_gap(t) or _has_untested_false_branch(t)) else 1,
             t["task_file"] or "",
             t["task_line"] or 0,
         ),
     )
 
-    headers = ["Status", "Task", "Location", "Loop", "Per-scenario"]
+    headers = ["Status", "Task", "Location", "Loop", "Branch", "Per-scenario"]
     rows = []
     for t in tasks:
         loc = f"{Path(t['task_file']).name if t['task_file'] else '?'}:{t['task_line'] or '?'}"
@@ -140,6 +160,7 @@ def print_role_detail(report: dict) -> None:
                 (t["task_name"] or "")[:60],
                 loc,
                 _loop_summary(t.get("loop_coverage")),
+                _branch_summary(t.get("branch_coverage")),
                 per_scenario or "(no scenarios run)",
             ]
         )
@@ -165,6 +186,16 @@ def print_role_detail(report: dict) -> None:
             f"note: {len(partial_loop_tasks)} looped task(s) show 'covered' above "
             f"but have items that never ran - see the Loop column"
         )
+    untested_false = [t for t in report["tasks"] if _has_untested_false_branch(t)]
+    if untested_false:
+        print(
+            f"note: {len(untested_false)} task(s) show 'covered' above but their "
+            f"when: has never been observed false - i.e. its skip path is untested:"
+        )
+        for t in untested_false:
+            loc = f"{Path(t['task_file']).name if t['task_file'] else '?'}:{t['task_line'] or '?'}"
+            clauses = " and ".join(t["when"] or [])
+            print(f"  - {t['task_name']} ({loc}): when: {clauses}")
 
 
 def main() -> int:
@@ -175,9 +206,15 @@ def main() -> int:
         default=Path("./.molecule-coverage-data"),
         help="Directory containing <role>/_inventory.json + <role>/<scenario>.jsonl for each role",
     )
-    parser.add_argument(
+    role_selection = parser.add_mutually_exclusive_group()
+    role_selection.add_argument(
         "--role",
         help="Show a per-task drill-down for this one role instead of the summary table",
+    )
+    role_selection.add_argument(
+        "--show-all",
+        action="store_true",
+        help="Print the summary table, then every role's per-task drill-down, in one go",
     )
     parser.add_argument(
         "--fail-under",
@@ -208,6 +245,12 @@ def main() -> int:
             return 1
         reports = [compute_coverage(d) for d in role_dirs]
         print_summary(reports)
+        if args.show_all:
+            for report in reports:
+                print()
+                print("=" * 40)
+                print()
+                print_role_detail(report)
 
     if args.fail_under is not None:
         failing = [

@@ -138,6 +138,22 @@ def _resolve_action(task_ds) -> str | None:
         return None
 
 
+def _when_clauses(task_ds) -> list[str] | None:
+    # Ansible accepts `when:` as either a single string or a list of
+    # strings (implicitly ANDed together) - normalize to always a list so
+    # later stages don't need to handle both shapes, and so a compound
+    # condition's individual clauses are visible for context even though
+    # (per the conversation this was scoped in) we can't empirically
+    # attribute which specific clause caused a skip - only Ansible's
+    # final combined boolean is ever observable via callbacks.
+    when = task_ds.get("when")
+    if when is None:
+        return None
+    if isinstance(when, list):
+        return [str(clause) for clause in when]
+    return [str(when)]
+
+
 def _walk(task_list, results: list[dict]) -> None:
     if not task_list:
         return
@@ -160,6 +176,7 @@ def _walk(task_list, results: list[dict]) -> None:
                 "task_line": line,
                 "action": action,
                 "has_loop": any(key in item for key in _LOOP_KEYS),
+                "when": _when_clauses(item),
             }
         )
 

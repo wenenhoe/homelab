@@ -14,6 +14,12 @@ each task file is scanned independently:
     its own, separate inventory - following it here would double-count
     those tasks against this role.
 
+Also excludes import_tasks/import_role/meta statements themselves from
+the inventory (see _STRUCTURALLY_UNMEASURABLE_ACTIONS) - Ansible never
+fires a runtime event for these specific statements (verified
+empirically), so including them would produce permanent, unfixable
+"never_observed" false negatives regardless of actual test coverage.
+
 This means dead/unreachable task files would currently be silently
 included as "should be covered" - a known limitation, not a goal for this
 stage.
@@ -46,6 +52,33 @@ except ImportError:  # pragma: no cover - older ansible-core
 # event for the container itself - only for the tasks nested inside it -
 # so containers must be recursed into but not recorded as tasks.
 _BLOCK_KEYS = ("block", "rescue", "always")
+
+# Actions that can never show as "covered" no matter how well-tested they
+# are, because Ansible never fires a runner_on_ok/skipped/failed event for
+# the statement itself - verified empirically (not from docs), see the
+# conversation this was diagnosed in:
+#   - import_tasks/import_role are expanded at PARSE time, not run time:
+#     their content is spliced directly into the surrounding task list
+#     before execution, so the statement itself has no corresponding
+#     runtime node. The tasks it pulls in are still correctly measured -
+#     under the imported file's own name/line, not this one. (Contrast
+#     with include_tasks/include_role, which ARE dynamic/runtime and DO
+#     fire their own event in addition to the included tasks.)
+#   - meta (e.g. flush_handlers) is handled directly by Ansible's
+#     strategy plugin, never dispatched through the normal task executor
+#     that the callback plugin's hooks are attached to.
+# Including these in the inventory would make them permanent, unfixable
+# false negatives ("never_observed" forever, regardless of test quality),
+# so they're excluded from the denominator entirely rather than counted
+# against coverage.
+_STRUCTURALLY_UNMEASURABLE_ACTIONS = {
+    "ansible.builtin.import_tasks",
+    "import_tasks",
+    "ansible.builtin.import_role",
+    "import_role",
+    "ansible.builtin.meta",
+    "meta",
+}
 
 
 def _iter_task_files(role_dir: Path) -> list[Path]:
@@ -99,12 +132,15 @@ def _walk(task_list, results: list[dict]) -> None:
                     _walk(item[key], results)
             continue
         file_, line = _task_position(item)
+        action = _resolve_action(item)
+        if action in _STRUCTURALLY_UNMEASURABLE_ACTIONS:
+            continue
         results.append(
             {
                 "task_name": item.get("name"),
                 "task_file": file_,
                 "task_line": line,
-                "action": _resolve_action(item),
+                "action": action,
             }
         )
 

@@ -44,6 +44,11 @@ for the staged plan. Currently implemented:
   role/scenario in the repo (`apt`, `bind9`, `caddy`, `compose` x5,
   `compose_app` x2, `docker` - 11 scenarios total). `apt` had no `prepare`
   step at all, so one was added, wired to just the reset task.
+- **Stage 8**: fixed a false-negative in `inventory.py` -
+  `import_tasks`/`import_role`/`meta` statements never fire their own
+  runtime event (verified empirically), so they're now excluded from the
+  inventory entirely instead of showing as permanent, unfixable
+  `never_observed` results regardless of actual coverage.
 
 Not yet done: branch/path coverage (which side of a `when:` actually
 fired) - the original motivating question, deferred until task coverage was
@@ -113,15 +118,60 @@ list of every task found under `ansible/roles/caddy/tasks/`, recursing into
 
 **Known, deliberate limitations** (not goals for this stage):
 
-- `include_tasks`/`import_tasks`/`include_role` are recorded as tasks
-  themselves but *not followed*. Every `*.yaml`/`*.yml` under `tasks/` is
-  scanned directly regardless of whether anything includes it, so
-  include/import *targets* are still counted (as long as they live under
-  this role's own `tasks/` dir) — but `include_role` targets, which point
-  at a *different* role, are correctly left for that role's own inventory
-  to count, avoiding double-counting.
+- `include_tasks`/`include_role` are recorded as tasks themselves but
+  *not followed*. Every `*.yaml`/`*.yml` under `tasks/` is scanned
+  directly regardless of whether anything includes it, so `include_tasks`
+  *targets* are still counted (as long as they live under this role's own
+  `tasks/` dir) — but `include_role` targets, which point at a *different*
+  role, are correctly left for that role's own inventory to count,
+  avoiding double-counting.
+- `import_tasks`/`import_role`/`meta` statements themselves are excluded
+  entirely (not just un-followed) - see Stage 8 below for why.
 - A task file with no in-repo references would still show up as "should be
   covered" — dead code isn't distinguished from live code at this stage.
+
+## Stage 8: fixing a real-world false negative (import_tasks/meta)
+
+First live run across the whole repo (`molecule test --all` per role, then
+`report.py`) surfaced `compose`'s own `tasks/main.yaml` as 100%
+`never_observed` across all 5 scenarios, and one unexplained
+`never_observed` task in `bind9` beyond its own `import_tasks` line.
+Investigated rather than assumed a real gap, and confirmed empirically
+(small throwaway roles, not docs) that this was the tool being wrong, not
+the tests being incomplete:
+
+- `import_tasks`/`import_role` are expanded at **parse time**: their
+  content is spliced directly into the surrounding task list before
+  execution starts, so the statement itself has no corresponding runtime
+  node - Ansible never fires a `runner_on_ok`/`skipped`/`failed` event for
+  it. (`include_tasks`/`include_role` are dynamic/runtime and correctly
+  DO fire their own event, verified the same way - no change needed
+  there.)
+- `ansible.builtin.meta` (e.g. `flush_handlers`) is handled directly by
+  Ansible's strategy plugin, never dispatched through the normal task
+  executor the callback plugin's hooks are attached to - so it produces
+  no event either, confirmed with a throwaway role exercising
+  `flush_handlers` after a notified handler.
+
+Both are now excluded from `inventory.py`'s output entirely
+(`_STRUCTURALLY_UNMEASURABLE_ACTIONS`), rather than counted against
+coverage - they were permanent, unfixable false negatives regardless of
+how well-tested the underlying content actually was (which, for both
+`compose` and `bind9`, it already was - correctly attributed to the
+imported file's own tasks, just never rolled up to the `import_tasks`
+line that pulled them in).
+
+**Effect**: `compose` goes from 43/45 (95.6%) to 43/43 (100%) - its only
+two gaps were this artifact. `bind9` goes from 17/20 (85%) to 17/18
+(94.4%) - one of its two `never_observed` entries was real, the other
+wasn't; the real one (a `skipped_only` task, separate from this fix)
+still needs a look. `apt`'s 75% is untouched - no `import_tasks`/`meta`
+involved there, so that gap is real and worth investigating on its own.
+
+If you regenerate `_inventory.json` for any role after this fix, the
+task counts in `report.py`'s output will shift down slightly wherever
+`import_tasks`/`import_role`/`meta` were used - that's expected and
+correct, not a regression.
 
 ## Stage 3 usage
 

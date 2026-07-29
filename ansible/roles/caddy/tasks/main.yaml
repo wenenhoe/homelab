@@ -49,7 +49,7 @@
     compose_app_item: "{{ caddy_compose_app_item }}"
     compose_volume_item:
       name: caddyfile
-  when: caddy_config_changes.changed # noqa: no-handler
+  when: caddy_has_compose_app and caddy_config_changes.changed # noqa: no-handler
   tags:
     - infra
 

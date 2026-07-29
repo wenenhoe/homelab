@@ -1,0 +1,45 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    # --- Config generation and image build still happen - neither depends
+    # --- on caddy being a registered compose app ----------------------------
+    - name: Confirm the Dockerfile was written
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/caddy/Dockerfile"
+      register: caddy_unreg_dockerfile_stat
+      failed_when: not caddy_unreg_dockerfile_stat.stat.exists
+
+    - name: Confirm the custom Caddy image was still built
+      community.docker.docker_image_info:
+        name: caddy-digitalocean:v1.0
+      register: caddy_unreg_image_inspect
+      failed_when: caddy_unreg_image_inspect.images | length == 0
+
+    - name: Read back the rendered Caddyfile from staging
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/caddy/_staging/caddyfile/Caddyfile"
+      register: caddy_unreg_staged_caddyfile_raw
+
+    - name: Confirm the routable app still rendered correctly into staging
+      ansible.builtin.assert:
+        that:
+          - "'@public host public.apps.localhost' in (caddy_unreg_staged_caddyfile_raw.content | b64decode)"
+          - "'reverse_proxy public:8080' in (caddy_unreg_staged_caddyfile_raw.content | b64decode)"
+
+    # --- Nothing tries to seed a volume or deploy a container for an app
+    # --- that was never registered ------------------------------------------
+    - name: Confirm no caddy_caddyfile volume was ever created
+      community.docker.docker_volume_info:
+        name: caddy_caddyfile
+      register: caddy_unreg_volume_info
+      failed_when: caddy_unreg_volume_info.exists
+
+    - name: Confirm no caddy container was deployed
+      community.docker.docker_container_info:
+        name: caddy
+      register: caddy_unreg_container_info
+      failed_when: caddy_unreg_container_info.exists

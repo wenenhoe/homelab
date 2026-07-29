@@ -1,0 +1,58 @@
+---
+# ---------------------------------------------------------------------------
+# Exercises caddy_has_compose_app == false: the caddy role is included, but
+# compose_apps deliberately has no "caddy" entry at all. tasks/main.yaml
+# explicitly supports this (see caddy_compose_app_item's {} fallback and the
+# caddy_has_compose_app guards on the Init and Deploy-and-restart tasks) but
+# it was never exercised by the default scenario, which always registers
+# caddy - and it isn't exercised by the real fleet either, since every
+# current host_vars file registers caddy too.
+#
+# Tracing it through surfaced a real bug: "Seed the caddyfile volume from
+# staging" was gated only on caddy_config_changes.changed, not on
+# caddy_has_compose_app, so it would run using the {} fallback for
+# compose_app_item the moment the Caddyfile changed - which happens on
+# essentially every first run - and blow up on compose_app_item.name being
+# undefined. Fixed in tasks/main.yaml by also requiring
+# caddy_has_compose_app there.
+#
+# Expected behaviour here, post-fix: the Caddyfile still renders to staging
+# and the custom image still gets built (neither depends on caddy being a
+# compose app), but nothing gets seeded into a caddy_caddyfile volume and no
+# caddy container gets deployed - there's no compose-managed app for this
+# host to deploy in the first place.
+# ---------------------------------------------------------------------------
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    caddy_local_certs: true
+    tinyauth_host: sso
+    lab_domain: lan.localhost
+    caddy_domain: apps.localhost
+    # No "caddy" key here at all - this is the point of the scenario.
+    compose_apps:
+      - name: public_app
+        caddy:
+          default:
+            host: public
+            upstream: "public:8080"
+            auth: false
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Run the caddy role (deliberately not registered in compose_apps)
+      ansible.builtin.include_role:
+        name: caddy

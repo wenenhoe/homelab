@@ -203,7 +203,8 @@ Shared setup that would otherwise be duplicated across scenarios — the Docker-
 - [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning
 - [`ansible-lint`](https://github.com/ansible/ansible-lint) — lints everything under `ansible/` (the `docker/` tree is excluded via `.config/.ansible-lint`, since it's Compose files, not playbooks)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
+- [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`; line-length, fenced-code-language, and blanks-around-fences are disabled in `.config/.markdownlint.yaml` since they conflict with this repo's established prose/example style
 
-All tool configs (`.ansible-lint`, `.yamllint`, `.dclintrc`, `.pre-commit-config.yaml`) live under `.config/`; each hook is passed an explicit `-c`/`--config` flag pointing there, since these tools only auto-discover configs at the repo root by default. `ansible-lint` additionally gets `--project-dir ansible`, since it resolves `ansible.cfg`'s `roles_path` relative to the current working directory rather than the config file's location — without it, `ansible-lint` can't find roles once playbooks moved into `ansible/playbooks/`.
+All tool configs (`.ansible-lint`, `.yamllint`, `.dclintrc`, `.markdownlint.yaml`, `.pre-commit-config.yaml`) live under `.config/`; each hook is passed an explicit `-c`/`--config` flag pointing there, since these tools only auto-discover configs at the repo root by default. `ansible-lint` additionally gets `--project-dir ansible`, since it resolves `ansible.cfg`'s `roles_path` relative to the current working directory rather than the config file's location — without it, `ansible-lint` can't find roles once playbooks moved into `ansible/playbooks/`.
 
 Run `pre-commit install -c .config/.pre-commit-config.yaml` once after cloning so these run automatically on every commit.

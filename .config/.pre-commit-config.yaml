@@ -27,3 +27,8 @@ repos:
       - id: dclint-docker
         files: (docker-)?compose(\..+)?\.ya?ml$
         args: [--fix, --config, .config/.dclintrc]
+  - repo: https://github.com/DavidAnson/markdownlint-cli2
+    rev: v0.23.2
+    hooks:
+      - id: markdownlint-cli2
+        args: [--config, .config/.markdownlint.yaml]

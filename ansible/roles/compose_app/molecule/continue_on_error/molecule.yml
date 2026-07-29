@@ -5,7 +5,7 @@
 driver:
   name: docker
 platforms:
-  - name: compose-app-instance
+  - name: compose-app-continue-on-error-instance
     image: geerlingguy/docker-ubuntu2604-ansible:latest
     privileged: true
     cgroupns_mode: host

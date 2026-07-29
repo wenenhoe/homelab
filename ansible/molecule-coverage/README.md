@@ -35,15 +35,15 @@ rather than attempted).
 #    already wired into every scenario's molecule.yml/prepare step in
 #    this repo, so no extra flags are needed.
 cd ansible
-molecule test -s default   # or --all, or any scenario
+molecule test -s default   # or --all for one role, or ./molecule-test-all.sh for every role
 
 # 2. Generate (or refresh) the static task inventory for a role
-python3 ../tools/molecule-coverage/inventory.py roles/caddy \
-  --coverage-dir ../tools/molecule-coverage/.data
+python3 molecule-coverage/inventory.py roles/caddy \
+  --coverage-dir molecule-coverage/.data
 
 # 3. View the report
-python3 ../tools/molecule-coverage/report.py \
-  --coverage-dir ../tools/molecule-coverage/.data --role caddy
+python3 molecule-coverage/report.py \
+  --coverage-dir molecule-coverage/.data --role caddy
 ```
 
 `inventory.py` only needs re-running when a role's tasks change (or after
@@ -55,18 +55,18 @@ inventory + execution data already exists in the coverage dir.
 
 ```bash
 # Summary table across every role with data under the coverage dir
-python3 report.py --coverage-dir tools/molecule-coverage/.data
+python3 report.py --coverage-dir molecule-coverage/.data
 
 # Per-task drill-down for one role - sorted in source order (file
 # alphabetically, then line in sequence), so it reads like the code
-python3 report.py --coverage-dir tools/molecule-coverage/.data --role caddy
+python3 report.py --coverage-dir molecule-coverage/.data --role caddy
 
 # Summary, then every role's drill-down, in one go
-python3 report.py --coverage-dir tools/molecule-coverage/.data --show-all
+python3 report.py --coverage-dir molecule-coverage/.data --show-all
 
 # Exit 1 if any role's coverage is below a threshold (not wired into any
 # CI yet - this repo doesn't have one - but available if you add one)
-python3 report.py --coverage-dir tools/molecule-coverage/.data --fail-under 80
+python3 report.py --coverage-dir molecule-coverage/.data --fail-under 80
 ```
 
 A drill-down row looks like this:
@@ -91,13 +91,17 @@ covered  Copy config files          tasks.yaml:50  2 item(s) ok  -              
 
 ## How it's wired in
 
-Every scenario in this repo already sets three env vars in its
-`provisioner.env` (`ANSIBLE_CALLBACKS_ENABLED=molecule_coverage`,
-`ANSIBLE_CALLBACK_PLUGINS`, `MOLECULE_COVERAGE_DIR`, all pointing at this
-directory via `${MOLECULE_PROJECT_DIRECTORY}/../../../tools/...`), and a
-reset task (`molecule_helpers/tasks/reset_coverage_data.yaml`) runs first
-in every scenario's prepare step so each `molecule test` invocation starts
-from a clean slate instead of accumulating stale data from previous runs.
+The three env vars this needs (`ANSIBLE_CALLBACKS_ENABLED=molecule_coverage`,
+`ANSIBLE_CALLBACK_PLUGINS`, `MOLECULE_COVERAGE_DIR`) live in
+`.config/molecule/config.yml` at the repo root - Molecule's "base config",
+auto-discovered and deep-merged into every scenario's own `molecule.yml`,
+rather than repeated in each of the 11 scenario files individually (they
+were byte-for-byte identical across all of them before this). Adding a
+new scenario inherits these automatically - nothing to add there beyond
+the scenario's own `molecule.yml`. A reset task
+(`molecule_helpers/tasks/reset_coverage_data.yaml`) runs first in every
+scenario's prepare step so each `molecule test` invocation starts from a
+clean slate instead of accumulating stale data from previous runs.
 Nothing needs to change to start collecting coverage for a scenario that
 already exists in this repo - it's automatic.
 

@@ -5,11 +5,6 @@
 # (that's the docker role's job), so converge.yml installs it first, the
 # same way Play 1 of the real ansible/deploy.yaml does before anything
 # compose-related runs.
-dependency:
-  name: galaxy
-  options:
-    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
-    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
 driver:
   name: docker
 platforms:
@@ -30,16 +25,6 @@ provisioner:
     prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
     converge: converge.yml
     verify: verify.yml
-  env:
-    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
-    ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
-    # molecule-coverage rollout (tools/molecule-coverage/) - see that
-    # directory's README and
-    # ansible/roles/caddy/molecule/default/molecule.yml for the full
-    # explanation of these three vars.
-    ANSIBLE_CALLBACKS_ENABLED: molecule_coverage
-    ANSIBLE_CALLBACK_PLUGINS: ${MOLECULE_PROJECT_DIRECTORY}/../../../tools/molecule-coverage/callback_plugins
-    MOLECULE_COVERAGE_DIR: ${MOLECULE_PROJECT_DIRECTORY}/../../../tools/molecule-coverage/.data
 verifier:
   name: ansible
 scenario:

@@ -1,0 +1,34 @@
+---
+# Molecule's "base config": auto-discovered at the VCS repository root
+# (this exact location - no -c/--base-config flag needed) and deep-merged
+# into every scenario's own molecule.yml before that scenario's config is
+# merged on top. Lives here specifically so every one of the 11 scenarios
+# under ansible/roles/*/molecule/*/ inherits it without repeating it -
+# these five env vars were byte-for-byte identical across all 11 files
+# before this existed (verified directly, not assumed).
+#
+# ${MOLECULE_PROJECT_DIRECTORY} is always the role's own directory
+# (ansible/roles/<role>) regardless of scenario, so these paths resolve
+# identically no matter which scenario is running:
+#   - two levels up reaches ansible/, where ansible.cfg and
+#     molecule-coverage/ both live.
+# ansible.cfg itself isn't picked up by default: Molecule runs
+# ansible-playbook with cwd = the scenario directory, and Ansible's own
+# config discovery only checks cwd (plus ANSIBLE_CONFIG/home/etc.), never
+# parent directories - verified via `ansible-config dump` from that exact
+# cwd showing CONFIG_FILE() as None without this. ANSIBLE_CALLBACK_PLUGINS
+# / MOLECULE_COVERAGE_DIR wire in tools/molecule-coverage/'s callback
+# plugin - see ansible/molecule-coverage/README.md.
+dependency:
+  name: galaxy
+  options:
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
+provisioner:
+  name: ansible
+  env:
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
+    ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
+    ANSIBLE_CALLBACKS_ENABLED: molecule_coverage
+    ANSIBLE_CALLBACK_PLUGINS: ${MOLECULE_PROJECT_DIRECTORY}/../../molecule-coverage/callback_plugins
+    MOLECULE_COVERAGE_DIR: ${MOLECULE_PROJECT_DIRECTORY}/../../molecule-coverage/.data

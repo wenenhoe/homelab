@@ -26,7 +26,7 @@ stage.
 
 Usage:
     python3 inventory.py ansible/roles/caddy
-    python3 inventory.py ansible/roles/caddy --coverage-dir tools/molecule-coverage/.data
+    python3 inventory.py ansible/roles/caddy --coverage-dir ansible/molecule-coverage/.data
 """
 from __future__ import annotations
 

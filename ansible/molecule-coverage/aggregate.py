@@ -52,11 +52,16 @@ signal the plain per-scenario classification above discards (it only
 tracks the union of statuses, not "was skipped ALSO seen after being
 covered"). "branch_coverage" recovers this: for any task with a `when:`,
 whether it was ever observed executed (true branch) and ever observed
-genuinely skipped (false branch, excluding empty-loop skips, which aren't
-about the when: condition at all), across ALL raw events - not the
+genuinely skipped (false branch), across ALL raw events - not the
 already-collapsed per-scenario/aggregate status - so idempotence's second
 pass counts as real evidence even for a task whose aggregate_status is
-"covered" because of its first pass.
+"covered" because of its first pass. Deliberately does NOT exclude
+empty-loop skips from the false-branch signal - an earlier version of
+this code did, which turned out to be a real bug: a looped task's
+`when:` being false can make its own loop source empty too, and Ansible
+reports that with the same skip_reason as a genuinely unrelated empty
+loop ("No items in the list", not "Conditional result was False") - see
+`_branch_signals_by_key`'s own docstring below for the full reasoning.
 
 NOT attempted: attributing which specific clause of a compound
 `when: [a, b]` caused a skip. Ansible's callbacks only ever expose the
@@ -67,7 +72,7 @@ statically (inventory.py's "when" field) for context when reading a
 "never negated" finding, but there's no empirical claim about which one.
 
 Usage:
-    python3 aggregate.py tools/molecule-coverage/.data/caddy
+    python3 aggregate.py ansible/molecule-coverage/.data/caddy
 """
 from __future__ import annotations
 

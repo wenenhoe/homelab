@@ -8,17 +8,17 @@ anywhere.
 
 Usage:
     # Summary across every role with data under the coverage dir
-    python3 report.py --coverage-dir tools/molecule-coverage/.data
+    python3 report.py --coverage-dir ansible/molecule-coverage/.data
 
     # Drill down into one role's per-task, per-scenario breakdown
-    python3 report.py --coverage-dir tools/molecule-coverage/.data --role caddy
+    python3 report.py --coverage-dir ansible/molecule-coverage/.data --role caddy
 
     # Summary, followed by every role's drill-down, in one go
-    python3 report.py --coverage-dir tools/molecule-coverage/.data --show-all
+    python3 report.py --coverage-dir ansible/molecule-coverage/.data --show-all
 
     # Exit 1 if any role's aggregate coverage is below a threshold
     # (useful later for a CI gate - not required, just available)
-    python3 report.py --coverage-dir tools/molecule-coverage/.data --fail-under 80
+    python3 report.py --coverage-dir ansible/molecule-coverage/.data --fail-under 80
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ import sys
 from pathlib import Path
 
 # So this runs correctly regardless of the caller's cwd (e.g. `python3
-# tools/molecule-coverage/report.py ...` from a repo root), not just when
+# ansible/molecule-coverage/report.py ...` from a repo root), not just when
 # invoked from inside this directory.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 

@@ -127,11 +127,3 @@ already exists in this repo - it's automatic.
 - **No CI gate, no trend history.** `--fail-under` exists but isn't wired
   into anything; each report run is a snapshot, nothing tracks whether
   coverage is improving over time.
-
-## More detail
-
-`DEVLOG.md` in this directory has the full build history - what was
-tried, what broke, and how each real bug (there were a few, all caught by
-actually running this against real roles rather than assumed correct) got
-found and fixed. Worth reading if you're modifying this tool, not
-necessary just to use it.

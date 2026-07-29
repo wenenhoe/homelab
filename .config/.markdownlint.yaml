@@ -1,0 +1,17 @@
+default: true
+
+# Prose here is written one paragraph per line rather than hard-wrapped -
+# consistent throughout README.md/docs/*.md and not something a lint rule
+# should fight.
+MD013: false
+
+# Plain-text tree/output diagrams (e.g. README.md's Repository Layout,
+# docs/adding-an-app.md's directory listing) are deliberately fenced without
+# a language tag throughout this repo.
+MD040: false
+
+# Compact `- description:` list items immediately followed by an indented
+# fenced example, with no blank line before/after, are the established style
+# for command references (README.md's Setup/Basic Commands sections) - not
+# an oversight to reformat away.
+MD031: false

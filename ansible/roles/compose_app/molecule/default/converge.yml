@@ -1,0 +1,39 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    app_registry:
+      happy_app_a:
+        create_dirs:
+          - data
+        configs:
+          - src: env.j2
+            dest: .env
+            mode: "0600"
+            force: true
+      happy_app_b: {}
+    compose_apps:
+      - name: happy_app_a
+      - name: happy_app_b
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    # Nothing in this batch is broken, so no block/rescue is needed here -
+    # unlike the continue_on_error and strict scenarios, a failure anywhere
+    # in this run is a genuine regression, not an expected outcome.
+    - name: Run compose_app's batch init/deploy
+      ansible.builtin.include_role:
+        name: compose_app

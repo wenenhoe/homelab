@@ -1,0 +1,42 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    # --- Both apps in the batch deployed and are running --------------------
+    - name: Confirm every app in the batch deployed and is running
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project={{ item }}"
+      register: compose_app_happy_running
+      failed_when: compose_app_happy_running.containers | length == 0
+      loop:
+        - happy_app_a
+        - happy_app_b
+
+    # --- happy_app_a's create_dirs/configs were provisioned correctly -------
+    - name: Confirm the create_dirs entry was created for happy_app_a
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/happy_app_a/data"
+      register: compose_app_happy_data_dir
+      failed_when: not (compose_app_happy_data_dir.stat.exists and compose_app_happy_data_dir.stat.isdir)
+
+    - name: Read back happy_app_a's rendered .env config
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/happy_app_a/.env"
+      register: compose_app_happy_env_raw
+
+    - name: Confirm happy_app_a's config was rendered with the expected content
+      ansible.builtin.assert:
+        that:
+          - "'hello-from-happy_app_a' in (compose_app_happy_env_raw.content | b64decode)"
+
+    # --- No failure marker from the other scenarios lingers here ------------
+    - name: Confirm no failure was reported anywhere in the batch
+      ansible.builtin.stat:
+        path: /tmp/compose_app_batch_failed_marker
+      register: compose_app_no_failure_marker
+      failed_when: compose_app_no_failure_marker.stat.exists

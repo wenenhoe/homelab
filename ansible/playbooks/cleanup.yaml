@@ -6,7 +6,7 @@
 # Expects:
 #   compose_apps        — this host's app list (host_vars), pre- or
 #                         post-registry-merge, only `.name` is used here
-#   compose_deploy_dir  — from group_vars/all.yaml
+#   compose_deploy_dir  — from inventory/group_vars/all.yaml
 #
 # Reads (roles/compose/defaults/main.yaml):
 #   compose_cleanup_remove_content  — default keep/remove policy

@@ -1,6 +1,6 @@
 # Cleanup: Removing Orphaned Compose Stacks
 
-`ansible/cleanup.yaml` is a standalone playbook (`hosts: app_hosts`) that tears down stacks a host still has deployed but no longer lists in its `compose_apps` — e.g. after removing an app's entry from `host_vars/<host>.yaml`. It's not part of `deploy.yaml` and has to be run explicitly.
+`ansible/playbooks/cleanup.yaml` is a standalone playbook (`hosts: app_hosts`) that tears down stacks a host still has deployed but no longer lists in its `compose_apps` — e.g. after removing an app's entry from `host_vars/<host>.yaml`. It's not part of `deploy.yaml` and has to be run explicitly.
 
 ## How an orphan is identified
 

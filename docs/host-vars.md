@@ -1,6 +1,6 @@
 # `host_vars`: Per-Host Configuration Reference
 
-Each file under `ansible/host_vars/<host>.yaml` is everything about a host that *does* vary per host — as opposed to `group_vars/all.yaml`'s `app_registry`, which is everything about an app that doesn't. This is a field-by-field reference; see [`adding-an-app.md`](adding-an-app.md) for the worked end-to-end flow and [`bind9.md`](bind9.md) for how `dns_zones` gets turned into actual DNS records.
+Each file under `ansible/inventory/host_vars/<host>.yaml` is everything about a host that *does* vary per host — as opposed to `group_vars/all.yaml`'s `app_registry`, which is everything about an app that doesn't. This is a field-by-field reference; see [`adding-an-app.md`](adding-an-app.md) for the worked end-to-end flow and [`bind9.md`](bind9.md) for how `dns_zones` gets turned into actual DNS records.
 
 ## `caddy_domain`
 
@@ -36,7 +36,7 @@ Only relevant on hosts that should get DNS records (in practice, every `app_host
 - `dns_ddns_target` — the OPNsense DDNS name this host resolves to; every auto-generated CNAME for this host's apps points here.
 - `dns_zones` — one entry per zone this host contributes records to (usually just `caddy_domain` itself), with SOA/TTL details and any `extra_records` that aren't auto-derived from `compose_apps` (e.g. the zone's own `NS`/`A` glue records, or a hand-written CNAME like `security.yaml`'s `sso`).
 
-## Worked example (`ansible/host_vars/services.yaml`)
+## Worked example (`ansible/inventory/host_vars/services.yaml`)
 
 ```yaml
 caddy_domain: "svc.{{ lab_domain }}"

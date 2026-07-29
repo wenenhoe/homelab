@@ -1,7 +1,7 @@
 ---
 # Shared by every scenario whose role-under-test assumes Docker is already
 # installed and running (compose, compose_app, caddy, bind9) — mirrors
-# Play 1 of the real ansible/deploy.yaml, which also installs Docker
+# Play 1 of the real ansible/playbooks/deploy.yaml, which also installs Docker
 # before anything compose-related runs.
 - name: Include docker role (compose assumes Docker is already installed and running)
   ansible.builtin.include_role:

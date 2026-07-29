@@ -13,11 +13,12 @@ repos:
     rev: v1.38.0
     hooks:
       - id: yamllint
-        args: [--strict]
+        args: [--strict, -c, .config/.yamllint]
   - repo: https://github.com/ansible/ansible-lint
     rev: v26.4.0
     hooks:
       - id: ansible-lint
+        args: [-c, .config/.ansible-lint, --project-dir, ansible]
         additional_dependencies:
           - ansible
   - repo: https://github.com/docker-compose-linter/pre-commit-dclint
@@ -25,4 +26,4 @@ repos:
     hooks:
       - id: dclint-docker
         files: (docker-)?compose(\..+)?\.ya?ml$
-        args: [--fix]
+        args: [--fix, --config, .config/.dclintrc]

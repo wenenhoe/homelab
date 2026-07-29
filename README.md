@@ -19,16 +19,25 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 
 ```
 .
+├── .config/                 # Tool configs (lint/format/pre-commit)
+│   ├── .ansible-lint
+│   ├── .yamllint
+│   ├── .dclintrc
+│   ├── .pre-commit-config.yaml
+│   └── molecule/config.yml
 ├── ansible/                 # All automation: playbooks, inventory, roles
-│   ├── deploy.yaml          # Master playbook — full infra convergence
-│   ├── cleanup.yaml         # Tear down stacks no longer in a host's compose_apps
-│   ├── maintenance.yaml     # apt + firmware updates
-│   ├── reset-network.yaml   # netplan re-apply
-│   ├── inventory.yaml       # Hosts reachable over DNS (day-to-day use)
-│   ├── sos-inventory.yaml   # Hosts reachable by raw IP (recovery use)
 │   ├── ansible.cfg
-│   ├── group_vars/all.yaml  # Global vars + the app_registry
-│   ├── host_vars/*.yaml     # Per-host compose_apps, caddy_domain, dns_zones
+│   ├── requirements.yml
+│   ├── playbooks/
+│   │   ├── deploy.yaml          # Master playbook — full infra convergence
+│   │   ├── cleanup.yaml         # Tear down stacks no longer in a host's compose_apps
+│   │   ├── maintenance.yaml     # apt + firmware updates
+│   │   └── reset-network.yaml   # netplan re-apply
+│   ├── inventory/
+│   │   ├── inventory.yaml       # Hosts reachable over DNS (day-to-day use)
+│   │   ├── sos-inventory.yaml   # Hosts reachable by raw IP (recovery use)
+│   │   ├── group_vars/all.yaml  # Global vars + the app_registry
+│   │   └── host_vars/*.yaml     # Per-host compose_apps, caddy_domain, dns_zones
 │   └── roles/
 │       ├── apt/             # System package updates
 │       ├── fwupd/           # Firmware updates
@@ -41,6 +50,7 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 │   ├── caddy/               # compose.yaml + env template for the proxy
 │   ├── bind9/               # compose.yaml + env template for DNS
 │   └── <app>/               # compose.yaml + configs/scripts per app
+├── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 └── docs/                    # Deep dives — see below
 ```
 
@@ -80,10 +90,11 @@ Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/install
    ```sh
   ansible-galaxy collection install -r ansible/requirements.yml
    ```
-- Install pre-commit's git hooks:
+- Install pre-commit's git hooks (config now lives under `.config/`):
    ```sh
-   pre-commit install
+   pre-commit install -c .config/.pre-commit-config.yaml
    ```
+   To run all hooks manually: `pre-commit run -c .config/.pre-commit-config.yaml --all-files`.
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
 
 Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
@@ -94,10 +105,10 @@ Two inventories exist for two different situations:
 
 | Inventory | Used by | Host addressing | Purpose |
 | :--- | :--- | :--- | :--- |
-| `inventory.yaml` | `deploy.yaml`, `maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) | Day-to-day operation once DNS is up |
-| `sos-inventory.yaml` | `reset-network.yaml` | Static `192.168.20.x` IPs | Recovery path when DNS/network is down |
+| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) | Day-to-day operation once DNS is up |
+| `inventory/sos-inventory.yaml` | `playbooks/reset-network.yaml` | Static `192.168.20.x` IPs | Recovery path when DNS/network is down |
 
-`inventory.yaml` also defines two groups the roles depend on directly:
+`inventory/inventory.yaml` also defines two groups the roles depend on directly:
 
 - **`app_hosts`** — every host that owns `compose_apps` / `dns_zones` / `caddy_domain`; the `bind9` role iterates this group's `hostvars` to build DNS zone files.
 - **`dns`** — the single host (`services`) the `bind9` role actually runs on.
@@ -106,10 +117,10 @@ Two inventories exist for two different situations:
 
 | Playbook File | Inventory | Description |
 | :--- | :--- | :--- |
-| `deploy.yaml` | `inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`docs/deployment-flow.md`](docs/deployment-flow.md). |
-| `cleanup.yaml` | `inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`docs/cleanup.md`](docs/cleanup.md). |
-| `maintenance.yaml` | `inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
-| `reset-network.yaml` | `sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
+| `playbooks/deploy.yaml` | `inventory/inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`docs/deployment-flow.md`](docs/deployment-flow.md). |
+| `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`docs/cleanup.md`](docs/cleanup.md). |
+| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
+| `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 
 ## Basic Commands
 
@@ -121,34 +132,34 @@ Two inventories exist for two different situations:
   ```
 - Select hosts to run (single/multiple):
   ```sh
-  ansible-playbook deploy.yaml --limit test
-  ansible-playbook deploy.yaml --limit test,prod
+  ansible-playbook playbooks/deploy.yaml --limit test
+  ansible-playbook playbooks/deploy.yaml --limit test,prod
   ```
 - Dry run:
   ```sh
-  ansible-playbook deploy.yaml --check --diff
+  ansible-playbook playbooks/deploy.yaml --check --diff
   ```
 - Filter roles by tags (e.g. skip the Docker Engine install on hosts that already have it):
   ```sh
-  ansible-playbook deploy.yaml --skip-tags "initial-setup"
+  ansible-playbook playbooks/deploy.yaml --skip-tags "initial-setup"
   ```
 - Pull/rebuild images and recreate any container that changed as a result, without touching configs/DNS or the Docker install:
   ```sh
-  ansible-playbook deploy.yaml --tags "images"
+  ansible-playbook playbooks/deploy.yaml --tags "images"
   ```
 - Re-render Caddy's Caddyfile and BIND9's DNS zones/`named.conf`, restarting only the containers whose config actually changed:
   ```sh
-  ansible-playbook deploy.yaml --tags "infra"
+  ansible-playbook playbooks/deploy.yaml --tags "infra"
   ```
   Both `images` and `infra` skip `preinit` and `docker` install by design - `preinit` still runs regardless of tags (it's cheap and everything downstream depends on the `compose_apps` it resolves), but the `Init caddy/bind9's own compose app files and directories` and `compose_app`'s app-init steps only run on a full, untagged run - `images`/`infra` assume the host is already provisioned.
   Ansible evaluates `vars_prompt` at play setup, before tag filtering, so both commands still prompt for every secret in Play 1 today. For a non-interactive or narrowly-tagged run, pre-supply what you don't want to be asked for:
   ```sh
-  ansible-playbook deploy.yaml --tags "images" -e @secrets.yaml
+  ansible-playbook playbooks/deploy.yaml --tags "images" -e @secrets.yaml
   ```
   where `secrets.yaml` (gitignored, not committed) sets `main_domain`/`digitalocean_api_key`/etc. - Ansible automatically skips prompting for any `vars_prompt` variable already defined via `-e`.
 - Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
   ```sh
-  ansible-inventory -i inventory.yaml --host experiment
+  ansible-inventory -i inventory/inventory.yaml --host experiment
   ```
 
 ### `docker` commands
@@ -186,11 +197,13 @@ Shared setup that would otherwise be duplicated across scenarios — the Docker-
 
 ## Linting & Pre-commit
 
-`.pre-commit-config.yaml` wires up:
+`.config/.pre-commit-config.yaml` wires up:
 
 - `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene
 - [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning
-- [`ansible-lint`](https://github.com/ansible/ansible-lint) — lints everything under `ansible/` (the `docker/` tree is excluded via `.ansible-lint`, since it's Compose files, not playbooks)
+- [`ansible-lint`](https://github.com/ansible/ansible-lint) — lints everything under `ansible/` (the `docker/` tree is excluded via `.config/.ansible-lint`, since it's Compose files, not playbooks)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 
-Run `pre-commit install` once after cloning so these run automatically on every commit.
+All tool configs (`.ansible-lint`, `.yamllint`, `.dclintrc`, `.pre-commit-config.yaml`) live under `.config/`; each hook is passed an explicit `-c`/`--config` flag pointing there, since these tools only auto-discover configs at the repo root by default. `ansible-lint` additionally gets `--project-dir ansible`, since it resolves `ansible.cfg`'s `roles_path` relative to the current working directory rather than the config file's location — without it, `ansible-lint` can't find roles once playbooks moved into `ansible/playbooks/`.
+
+Run `pre-commit install -c .config/.pre-commit-config.yaml` once after cloning so these run automatically on every commit.

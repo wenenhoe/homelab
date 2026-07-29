@@ -6,7 +6,7 @@
 # variables from real inventory sources (host_vars/group_vars files,
 # inventory-defined vars), not from a play's vars: block, even when a host
 # is looking up its own data. This mirrors how the real repo structures
-# per-host DNS config too (see ansible/host_vars/*.yaml).
+# per-host DNS config too (see ansible/inventory/host_vars/*.yaml).
 main_domain: example.test
 lab_domain: "lan.{{ main_domain }}"
 ddns_domain: "internal.{{ main_domain }}"

@@ -1,6 +1,6 @@
 ---
 # ---------------------------------------------------------------------------
-# compose cleanup (ansible/cleanup.yaml) — apps deployed on a host but no
+# compose cleanup (ansible/playbooks/cleanup.yaml) — apps deployed on a host but no
 # longer listed in its compose_apps get brought down. Most apps' real data
 # now lives in named Docker volumes (see ensure_volume.yaml), not bind
 # mounts, so deleting a stack's directory only removes its compose files

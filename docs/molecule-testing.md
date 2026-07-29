@@ -33,6 +33,23 @@ cd ansible/roles/compose
 molecule test -s volumes
 ```
 
+Run every scenario of every role in one go, from `ansible/`:
+
+```sh
+./molecule-test-all.sh          # every role
+./molecule-test-all.sh compose  # just one
+```
+
+This exists because `molecule test --all` doesn't work directly from
+`ansible/` - Molecule's scenario-discovery glob is relative to cwd and
+doesn't recurse into `roles/*/molecule/*/molecule.yml` on its own, and
+pointing `MOLECULE_GLOB` at a recursive pattern to fix that surfaces a
+second problem: Molecule validates scenario names for uniqueness across
+everything the glob discovers, not per-role, and 6 of this repo's 11
+scenarios are named `default`. `molecule-test-all.sh` sidesteps both by
+running `molecule test --all` once per role directory, so each invocation
+only ever sees that one role's own (already-unique) scenario names.
+
 ## `molecule_helpers`
 
 `ansible/roles/molecule_helpers/` isn't a role under test — it's a shared library of scaffolding for the other scenarios, so common setup doesn't get copy-pasted across every one of them:
@@ -66,13 +83,18 @@ provisioner:
 
 `bind9` is the one exception, and keeps its own `prepare.yml`: it manages its own `daemon.json` for DNS settings and would fight over the same file if the shared playbook also wrote `storage-driver` into it, so it forces `vfs` via a systemd drop-in override instead. `apt` needs neither and has no `prepare.yml` at all.
 
+### The base config
+
+`ansible/roles/apt/molecule/default/molecule.yml`'s `provisioner` section (and every other scenario's) doesn't declare an `env:` block, and none of the 11 scenarios declare `dependency:` either — even `apt`, which doesn't actually need the shared `role-requirements.yml`/`requirements.yml` collections, inherits them anyway (a deliberate tradeoff: a marginal, already-cached lookup cost, in exchange for zero per-scenario duplication instead of 10/11). Both live in `.config/molecule/config.yml` at the repo root instead — Molecule's "base config", auto-discovered there without any `-c`/`--base-config` flag, and deep-merged into every scenario's own `molecule.yml` before that scenario's config is applied on top. A new scenario inherits these automatically; nothing to add for them beyond the scenario's own `molecule.yml`.
+
 ## Adding a new scenario
 
 1. Copy an existing scenario directory (pick the closest match — e.g. `compose/molecule/default` for anything that deploys via Compose) rather than starting from scratch.
 2. If the role-under-test assumes Docker is already running, point `converge.yml` at `molecule_helpers` for `bootstrap_docker.yaml` (and `resolve_compose_apps.yaml` if it uses `app_registry`/`compose_apps`) instead of duplicating that logic.
 3. If the scenario needs Docker-in-Docker (privileged container, `cgroupns_mode: host`, `/sys/fs/cgroup` mounted), point `prepare` at `molecule_helpers/playbooks/prepare_dind.yml` rather than writing a new `prepare.yml` — unless, like `bind9`, the role's own tasks conflict with the shared one's `daemon.json` write.
-4. Point `dependency.options` at the shared `role-requirements.yml`/`requirements.yml` instead of declaring collections locally.
-5. Run `molecule test` locally before opening a PR — there's no CI wired up for this yet, so it's the only check that catches a broken scenario (including idempotence, not just `verify.yml`).
+4. Don't add `dependency.options` — `.config/molecule/config.yml` (Molecule's base config) already points every scenario at the shared `role-requirements.yml`/`requirements.yml`, `apt` included.
+5. Don't add a `provisioner.env` block for `ANSIBLE_ROLES_PATH`/`ANSIBLE_CONFIG`/the `molecule-coverage` callback vars — `.config/molecule/config.yml` at the repo root (Molecule's base config) already supplies those to every scenario automatically.
+6. Run `molecule test` locally before opening a PR — there's no CI wired up for this yet, so it's the only check that catches a broken scenario (including idempotence, not just `verify.yml`).
 
 ## What molecule scenarios can't catch: tag wiring
 

@@ -6,3 +6,5 @@ secrets.yaml
 # Excluded directories
 .ansible/
 .venv/
+ansible/molecule-coverage/.data/
+**/__pycache__/

@@ -3,11 +3,6 @@
 # the keep-content path (directory/volumes preserved), compose_cleanup_app_overrides,
 # and the label-fallback teardown (stack directory already gone before
 # cleanup runs). Same Docker-in-Docker setup as the other compose scenarios.
-dependency:
-  name: galaxy
-  options:
-    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
-    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
 driver:
   name: docker
 platforms:
@@ -28,9 +23,6 @@ provisioner:
     prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
     converge: converge.yml
     verify: verify.yml
-  env:
-    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
-    ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
 verifier:
   name: ansible
 scenario:

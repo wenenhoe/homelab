@@ -12,6 +12,11 @@
   hosts: all
   become: true
   tasks:
+    - name: Reset coverage data from any previous test run
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: reset_coverage_data.yaml
+
     - name: Ensure the docker.service systemd override directory exists
       ansible.builtin.file:
         path: /etc/systemd/system/docker.service.d

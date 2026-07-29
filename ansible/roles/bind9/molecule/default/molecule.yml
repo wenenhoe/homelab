@@ -6,11 +6,6 @@
 # is a member of app_hosts itself, providing its own dns_zones/compose_apps
 # (see converge.yml), so it ends up serving zone data about itself. Not a
 # perfect topology match, but exercises the real scraping/templating logic.
-dependency:
-  name: galaxy
-  options:
-    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
-    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
 driver:
   name: docker
 platforms:
@@ -33,16 +28,8 @@ provisioner:
     prepare: prepare.yml
     converge: converge.yml
     verify: verify.yml
-  env:
-    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
-    ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
 verifier:
   name: ansible
-# The zone-diffing mechanism in bind9/tasks/main.yaml renders each zone's
-# candidate content in-memory and only writes it to disk when the
-# non-serial content actually differs from what's live - so a second
-# converge with no real config change performs no writes at all, and
-# idempotence can be checked for real.
 scenario:
   test_sequence:
     - dependency

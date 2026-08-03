@@ -23,6 +23,9 @@ all:
         security:
           ansible_host: "security.{{ ddns_domain }}"
           ansible_user: secadmin
+        storage:
+          ansible_host: "storage.{{ ddns_domain }}"
+          ansible_user: storeadmin
 
     # Hosts whose dns_zones, compose_apps, caddy_domain, and dns_ddns_target
     # are scraped by the bind9 role.  Add any new app host here.

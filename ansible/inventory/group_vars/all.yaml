@@ -28,6 +28,25 @@ beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_dom
 # beszel_agent_token: ""
 
 # ---------------------------------------------------------------------------
+# Offsite backup (stage 1 DR) — see docs/disaster-recovery.md.
+seaweedfs_s3_access_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-access-key chars=hexdigits length=32') }}"
+seaweedfs_s3_secret_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-secret-key chars=hexdigits length=64') }}"
+# ---------------------------------------------------------------------------
+offsite_backup_s3_bucket: homelab-backups
+offsite_backup_s3_endpoint: "https://s3.{{ hostvars['storage'].caddy_domain }}"
+offsite_backup_cron: "0 4 * * *"
+offsite_backup_retention_days: 7
+
+# minecraft's offsite job reads the `backups` volume, which is ALREADY a
+# 7-day rolling window maintained on-host by itzg/mc-backup (see
+# docs/disaster-recovery.md for the full reasoning) — a much lower
+# off-host retention avoids paying a 7x disk multiplier for near-duplicate
+# content, and the cron is offset 30min after mc-backup's own
+# "0 4 * * *" so it never archives a tar mid-write.
+minecraft_offsite_backup_cron: "30 4 * * *"
+minecraft_offsite_backup_retention_days: 2
+
+# ---------------------------------------------------------------------------
 # App registry — single source of truth for everything about an app that
 # does NOT vary by host: dirs to create, scripts/configs to deploy, and its
 # docker upstream.
@@ -62,6 +81,9 @@ app_registry:
       - src: env.j2
         dest: .env
         mode: "0600"
+    backup:
+      volumes: [data]
+      stop_during_backup: true
     caddy:
       default:
         upstream: "beszel-hub:8090"
@@ -126,6 +148,9 @@ app_registry:
         dest: .env
         mode: "0600"
         force: false
+    backup:
+      volumes: [data]
+      stop_during_backup: true
     caddy:
       default:
         upstream: "kms-gui:3000"
@@ -149,9 +174,31 @@ app_registry:
       web:
         upstream: "shlink-web-client:8080"
 
+  seaweedfs:
+    volumes:
+      - name: data
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        force: false
+      - src: s3-identity.json.j2
+        dest: "data/s3-identity.json"
+        mode: "0600"
+        force: false
+        no_log: true
+    caddy:
+      s3:
+        upstream: "seaweedfs:8333"
+        auth: false   # SigV4-authenticated machine traffic, not a Tinyauth session
+      filer:
+        upstream: "seaweedfs:8888"
+
   wastebin:
     volumes:
       - name: data
+    backup:
+      volumes: [data]
     caddy:
       default:
         upstream: "wastebin:8088"
@@ -182,6 +229,9 @@ app_registry:
       - src: config.yaml.j2
         dest: "data/config.yaml"
         no_log: true
+    backup:
+      volumes: [data]
+      stop_during_backup: true
     # tinyauth isn't routed through the *.{{ caddy_domain }} wildcard vhost
     # like everything else - it fronts its own top-level auth domain, so
     # Caddyfile.j2 handles it as a special case and just needs its upstream.
@@ -206,6 +256,9 @@ app_registry:
         dest: .env
         mode: "0600"
         force: false
+    backup:
+      # scripts excluded — Ansible-rendered/reproducible, not real state (see docs/volumes.md)
+      volumes: [data, certs, creds, letsencrypt_conf, letsencrypt_lib]
     caddy:
       default:
         upstream: "lldap:17170"
@@ -231,6 +284,16 @@ app_registry:
         force: false
       - src: modrinth-mods.txt
         dest: extras/modrinth-mods.txt
+    backup:
+      # Only `backups` — already RCON-quiesced by the backups service above.
+      # Never `data` (risks a mid-write world file) or bluemap_*/extras
+      # (regenerable render cache / Ansible-managed — see docs/volumes.md).
+      volumes: [backups]
+      # Overrides — see the "conflicting overrides" validation in the
+      # backup_agent role: safe here because minecraft is the only app on
+      # `play` with backup volumes, so there's nothing to conflict with.
+      retention_days: "{{ minecraft_offsite_backup_retention_days }}"
+      cron: "{{ minecraft_offsite_backup_cron }}"
     caddy:
       default:
         upstream: "bluemap:8100"

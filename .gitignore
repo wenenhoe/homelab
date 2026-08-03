@@ -7,4 +7,5 @@ secrets.yaml
 .ansible/
 .venv/
 ansible/molecule-coverage/.data/
+ansible/files/secrets/
 **/__pycache__/

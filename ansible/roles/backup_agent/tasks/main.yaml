@@ -1,0 +1,154 @@
+---
+# ---------------------------------------------------------------------------
+# Role: backup_agent
+#
+# Aggregates offsite-backup targets across every app on THIS host (no
+# cross-host scraping needed, unlike bind9 — compose_apps is already
+# resolved per-host by compose/preinit.yaml, which runs in Play 1 before
+# this role's Play).
+#
+# Any app_registry entry may declare:
+#   backup:
+#     volumes: [data, certs, ...]       # which of its own declared volumes to back up
+#     stop_during_backup: true|false     # default false — see grouping below
+#     retention_days: N                  # optional override of offsite_backup_retention_days
+#     cron: "..."                        # optional override of offsite_backup_cron
+#
+# Apps are split into (at most) two docker-volume-backup instances per host:
+#   - stop_during_backup: true  → share one docker-socket-proxy, one archive
+#   - stop_during_backup: false → no proxy needed, one archive
+# NOT one-per-app: docker-volume-backup stops/restarts labeled containers
+# once per RUN, not per-subdirectory, so apps sharing an instance also share
+# that instance's downtime window, schedule, and retention. Two groups is
+# the minimum granularity that keeps "needs stopping" from coupling to
+# "doesn't", not an arbitrary choice — see docs/disaster-recovery.md.
+#
+# A host with zero qualifying apps (e.g. `storage`) is skipped entirely.
+# ---------------------------------------------------------------------------
+
+- name: Set backup-agent directory facts
+  ansible.builtin.set_fact:
+    backup_agent_deploy_dir: "{{ compose_deploy_dir }}/backup-agent"
+
+- name: Reset normalized backup candidate list
+  ansible.builtin.set_fact:
+    backup_agent_normalized: []
+
+- name: Normalize each app's backup settings (fill in global defaults)
+  ansible.builtin.set_fact:
+    backup_agent_normalized: >-
+      {{
+        backup_agent_normalized + [{
+          'name': item.name,
+          'volumes': item.backup.volumes,
+          'stop_during_backup': item.backup.stop_during_backup | default(false),
+          'retention_days': item.backup.retention_days | default(offsite_backup_retention_days),
+          'cron': item.backup.cron | default(offsite_backup_cron),
+        }]
+      }}
+  loop: "{{ compose_apps }}"
+  loop_control:
+    label: "{{ item.name }}"
+  when: (item.backup.volumes | default([])) | length > 0
+
+- name: Split into stop-during-backup and no-stop groups
+  ansible.builtin.set_fact:
+    backup_agent_stop_group: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list }}"
+    backup_agent_no_stop_group: "{{ backup_agent_normalized | rejectattr('stop_during_backup') | list }}"
+
+- name: Skip this host entirely — no app here declares any backup volumes
+  ansible.builtin.meta: end_host
+  when: (backup_agent_stop_group | length) + (backup_agent_no_stop_group | length) == 0
+
+# ---------------------------------------------------------------------------
+# Fail loudly on conflicting retention/cron within a shared group, rather
+# than silently picking one app's value and surprising the other's owner.
+# ---------------------------------------------------------------------------
+- name: Validate the stop-during-backup group agrees on retention/cron
+  ansible.builtin.assert:
+    that:
+      - backup_agent_stop_group | map(attribute='retention_days') | unique | length <= 1
+      - backup_agent_stop_group | map(attribute='cron') | unique | length <= 1
+    fail_msg: >-
+      Conflicting retention_days/cron among apps sharing the
+      stop-during-backup backup-agent on {{ inventory_hostname }}:
+      {{ backup_agent_stop_group | map(attribute='name') | list }}.
+      Apps sharing one aggregated instance must agree on retention/cron —
+      either align their backup.retention_days/backup.cron overrides, or
+      this pairing needs to change (see docs/disaster-recovery.md).
+  when: backup_agent_stop_group | length > 0
+
+- name: Validate the no-stop group agrees on retention/cron
+  ansible.builtin.assert:
+    that:
+      - backup_agent_no_stop_group | map(attribute='retention_days') | unique | length <= 1
+      - backup_agent_no_stop_group | map(attribute='cron') | unique | length <= 1
+    fail_msg: >-
+      Conflicting retention_days/cron among apps sharing the no-stop
+      backup-agent on {{ inventory_hostname }}:
+      {{ backup_agent_no_stop_group | map(attribute='name') | list }}.
+  when: backup_agent_no_stop_group | length > 0
+
+- name: Compute each group's effective retention/cron
+  ansible.builtin.set_fact:
+    backup_agent_stop_group_retention: "{{ backup_agent_stop_group[0].retention_days if backup_agent_stop_group else offsite_backup_retention_days }}"
+    backup_agent_stop_group_cron: "{{ backup_agent_stop_group[0].cron if backup_agent_stop_group else offsite_backup_cron }}"
+    backup_agent_no_stop_group_retention: "{{ backup_agent_no_stop_group[0].retention_days if backup_agent_no_stop_group else offsite_backup_retention_days }}"
+    backup_agent_no_stop_group_cron: "{{ backup_agent_no_stop_group[0].cron if backup_agent_no_stop_group else offsite_backup_cron }}"
+
+- name: Ensure backup-agent deploy directory exists
+  ansible.builtin.file:
+    path: "{{ backup_agent_deploy_dir }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Render backup-agent compose.yaml
+  ansible.builtin.template:
+    src: compose.yaml.j2
+    dest: "{{ backup_agent_deploy_dir }}/compose.yaml"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render the GPG public key (placeholder until you replace ansible/files/backup-gpg-public-key.asc)
+  ansible.builtin.template:
+    src: gpg-public-key.asc.j2
+    dest: "{{ backup_agent_deploy_dir }}/gpg-public-key.asc"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render env for the stop-during-backup group
+  ansible.builtin.template:
+    src: env-stop-group.j2
+    dest: "{{ backup_agent_deploy_dir }}/.env.stop-group"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  when: backup_agent_stop_group | length > 0
+  no_log: true
+
+- name: Render env for the no-stop group
+  ansible.builtin.template:
+    src: env-no-stop-group.j2
+    dest: "{{ backup_agent_deploy_dir }}/.env.no-stop-group"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  when: backup_agent_no_stop_group | length > 0
+  no_log: true
+
+- name: Pull backup-agent images
+  community.docker.docker_compose_v2_pull:
+    project_src: "{{ backup_agent_deploy_dir }}"
+  tags:
+    - images
+
+- name: Deploy backup-agent
+  community.docker.docker_compose_v2:
+    project_src: "{{ backup_agent_deploy_dir }}"
+    state: present
+  tags:
+    - images

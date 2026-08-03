@@ -108,3 +108,19 @@
         name: compose_app
       tags:
         - images
+
+# Play 5 — Offsite backup agent (stage 1 DR). Runs last, deliberately: it
+# mounts other apps' named volumes as `external: true`, which requires them
+# to already exist — created by each app's own Play 4 ensure_volume step.
+# See docs/disaster-recovery.md and ansible/roles/backup_agent for the
+# per-host aggregation this does.
+- name: Deploy offsite backup agent
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include backup_agent role
+      ansible.builtin.include_role:
+        name: backup_agent
+      tags:
+        - images

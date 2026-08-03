@@ -17,3 +17,6 @@ all:
         security:
           ansible_host: 192.168.20.5
           ansible_user: secadmin
+        storage:
+          ansible_host: 192.168.20.6
+          ansible_user: storeadmin

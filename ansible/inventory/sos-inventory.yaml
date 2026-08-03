@@ -1,6 +1,7 @@
 ---
 all:
   vars:
+    ansible_python_interpreter: /usr/bin/python3.14
     ansible_ssh_private_key_file: ~/.ssh/proxmox_vm_servers
     ansible_become_exe: /usr/bin/sudo.ws
     # For Ubuntu 26.04, use non-rs sudo. Source: https://askubuntu.com/a/1566915

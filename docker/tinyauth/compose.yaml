@@ -11,6 +11,8 @@ services:
     networks:
       - caddy-proxy
     restart: unless-stopped
+    labels:
+      - docker-volume-backup.stop-during-backup=true
 networks:
   caddy-proxy:
     external: true

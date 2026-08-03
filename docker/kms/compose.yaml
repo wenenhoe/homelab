@@ -13,6 +13,8 @@ services:
     networks:
       - frontend
     restart: always
+    labels:
+      - docker-volume-backup.stop-during-backup=true
     user: 1000:1000
   kms-gui:
     image: 11notes/kms-gui:1.0
@@ -29,6 +31,8 @@ services:
       - frontend
       - caddy-proxy
     restart: always
+    labels:
+      - docker-volume-backup.stop-during-backup=true
     user: 1000:1000
     expose:
       - '3000'

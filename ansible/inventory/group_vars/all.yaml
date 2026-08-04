@@ -33,7 +33,8 @@ seaweedfs_s3_access_key: "{{ lookup('password', project_root ~ '/ansible/files/s
 seaweedfs_s3_secret_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-secret-key chars=hexdigits length=64') }}"
 # ---------------------------------------------------------------------------
 offsite_backup_s3_bucket: homelab-backups
-offsite_backup_s3_endpoint: "https://s3.{{ hostvars['storage'].caddy_domain }}"
+offsite_backup_s3_endpoint: "s3.{{ hostvars['storage'].caddy_domain }}"
+offsite_backup_s3_proto: "https"
 offsite_backup_cron: "0 4 * * *"
 offsite_backup_retention_days: 7
 

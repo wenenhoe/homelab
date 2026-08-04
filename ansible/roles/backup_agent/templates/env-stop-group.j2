@@ -18,7 +18,7 @@ BACKUP_PRUNING_LEEWAY=5m
 # this instance stops ALL of them for the duration of the whole archive run,
 # not just while its own subdirectory is being read (docker-volume-backup
 # has no per-subdirectory granularity). See docs/disaster-recovery.md.
-BACKUP_STOP_DURING_BACKUP_LABEL=docker-volume-backup.stop-during-backup=true
+BACKUP_STOP_DURING_BACKUP_LABEL=true
 DOCKER_HOST=tcp://backup-agent-dockerproxy:2375
 
 GPG_PUBLIC_KEY_FILE=/etc/backup/gpg-public-key.asc

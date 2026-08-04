@@ -1,0 +1,158 @@
+---
+# ---------------------------------------------------------------------------
+# Restore one app's volume(s) from an offsite backup archive.
+#
+# This does NOT talk to SeaweedFS or GPG directly — those two steps are
+# manual and deliberate (see docs/disaster-recovery.md): pull the object out
+# of the `homelab-backups` bucket yourself, `gpg --decrypt` it with the
+# offline private key, and hand this playbook the resulting plain .tar.gz.
+# Keeping the private key out of any playbook/host is the whole point of
+# the asymmetric-encryption design — this playbook never needs it.
+#
+# NOTE on archive shape: since the backup_agent role aggregates multiple
+# apps per host into one archive per group (see
+# ansible/roles/backup_agent), a decrypted archive usually contains more
+# than just the app you're restoring — that's fine. This playbook finds
+# the directory matching each name in restore_volumes wherever it sits in
+# the archive and ignores everything else. restore_app only controls
+# which app's OWN compose stack gets stopped/redeployed around the
+# operation — it doesn't need to match which backup-agent group produced
+# the archive.
+#
+# Usage:
+#   ansible-playbook playbooks/restore.yaml \
+#     -i inventory/inventory.yaml --limit services \
+#     -e restore_app=kms \
+#     -e restore_archive_local_path=/home/you/services-stop-group-2026-07-29T04-00-00.tar.gz \
+#     -e restore_volumes='["kms_data"]'
+#
+# For lldap (multiple volumes in one archive):
+#   -e restore_app=lldap \
+#   -e restore_archive_local_path=/home/you/security-no-stop-group-....tar.gz \
+#   -e restore_volumes='["lldap_data","lldap_certs","lldap_creds","lldap_letsencrypt_conf","lldap_letsencrypt_lib"]'
+#
+# What it does, per targeted volume:
+#   1. Copies the decrypted archive onto the target host.
+#   2. Stops the app's compose stack (nothing should write during a restore).
+#   3. Runs a throwaway container that extracts the FULL archive into a
+#      scratch volume, locates the directory matching the volume's own name
+#      inside it (robust to however docker-volume-backup nested paths under
+#      BACKUP_SOURCES — deliberately not assuming an exact prefix), and
+#      copies its contents over the real volume.
+#   4. Tears down the scratch volume and the temporary archive copy.
+#   5. Redeploys the app's compose stack.
+#
+# This is destructive by design (it overwrites current volume contents) —
+# the pause step requires explicit confirmation before anything happens.
+# ---------------------------------------------------------------------------
+
+- name: Restore an app's volume(s) from an offsite backup archive
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    restore_deploy_dir: "{{ compose_deploy_dir }}/{{ restore_app | default('') }}"
+    restore_remote_archive: "/tmp/{{ restore_app | default('restore') }}-restore-archive"
+  tasks:
+    - name: Fail fast if required vars are missing
+      ansible.builtin.assert:
+        that:
+          - restore_app is defined
+          - restore_archive_local_path is defined
+          - restore_volumes is defined
+          - restore_volumes | length > 0
+        fail_msg: >-
+          Missing required vars. See the usage comment at the top of
+          playbooks/restore.yaml for restore_app / restore_archive_local_path
+          / restore_volumes examples.
+      run_once: true
+      delegate_to: localhost
+
+    - name: Confirm the decrypted archive exists on the controller
+      ansible.builtin.stat:
+        path: "{{ restore_archive_local_path }}"
+      register: restore_archive_stat
+      run_once: true
+      delegate_to: localhost
+
+    - name: Fail if the archive path doesn't exist
+      ansible.builtin.fail:
+        msg: >-
+          {{ restore_archive_local_path }} not found on the controller. Did
+          you download + `gpg --decrypt` the object out of the
+          homelab-backups bucket first? See docs/disaster-recovery.md.
+      when: not restore_archive_stat.stat.exists
+      run_once: true
+      delegate_to: localhost
+
+    - name: "Confirm before proceeding — this will stop and overwrite volumes for: {{ restore_app }}"
+      ansible.builtin.pause:
+        prompt: >-
+          About to STOP {{ restore_app }} on {{ inventory_hostname }} and
+          irreversibly overwrite {{ restore_volumes | join(', ') }} with the
+          contents of {{ restore_archive_local_path }}. Type 'yes' to continue
+      register: restore_confirmation
+
+    - name: Abort if not confirmed
+      ansible.builtin.fail:
+        msg: Restore aborted — confirmation not given.
+      when: restore_confirmation.user_input | default('') != 'yes'
+
+    - name: Copy the decrypted archive onto the target host
+      ansible.builtin.copy:
+        src: "{{ restore_archive_local_path }}"
+        dest: "{{ restore_remote_archive }}"
+        mode: "0600"
+
+    - name: Stop the app's compose stack so nothing writes during restore
+      community.docker.docker_compose_v2:
+        project_src: "{{ restore_deploy_dir }}"
+        state: stopped
+
+    - name: Extract the full archive into a scratch volume once
+      community.docker.docker_container:
+        name: "{{ restore_app }}-restore-extract"
+        image: alpine:3.20
+        volumes:
+          - "{{ restore_remote_archive }}:/restore-archive.tar.gz:ro"
+          - "{{ restore_app }}_restore_scratch:/scratch"
+        command: >-
+          sh -c "mkdir -p /scratch && tar -xzf /restore-archive.tar.gz -C /scratch"
+        detach: false
+        cleanup: true
+
+    - name: Locate and restore each targeted volume's contents
+      community.docker.docker_container:
+        name: "{{ restore_app }}-restore-{{ item }}"
+        image: alpine:3.20
+        volumes:
+          - "{{ restore_app }}_restore_scratch:/scratch:ro"
+          - "{{ item }}:/target"
+        command: >-
+          sh -c "
+          srcdir=$(find /scratch -type d -name '{{ item }}' | head -1);
+          if [ -z \"$srcdir\" ]; then
+            echo 'ERROR: no directory named {{ item }} found in the archive' >&2;
+            exit 1;
+          fi;
+          find /target -mindepth 1 -delete;
+          cp -a \"$srcdir\"/. /target/
+          "
+        detach: false
+        cleanup: true
+      loop: "{{ restore_volumes }}"
+
+    - name: Remove the scratch extraction volume
+      community.docker.docker_volume:
+        name: "{{ restore_app }}_restore_scratch"
+        state: absent
+
+    - name: Remove the temporary archive copy from the target host
+      ansible.builtin.file:
+        path: "{{ restore_remote_archive }}"
+        state: absent
+
+    - name: Redeploy the app's compose stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ restore_deploy_dir }}"
+        state: present

@@ -23,10 +23,12 @@ services:
     command: >
       server -dir=/data -master.volumeSizeLimitMB=1024 -volume.max=0 -filer -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3-identity.json
     restart: unless-stopped
-    # TODO: Add healthcheck once a stable HTTP probe path is confirmed
-    # against the pinned image version (weed exposes /healthz on volume/
-    # filer ports in recent releases, but pin-and-verify before relying on
-    # it in Compose).
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://seaweedfs:8888/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '8333' # S3 API — consumed by docker-volume-backup on every app host
       - '8888' # Filer web UI — human-facing, fronted by Tinyauth via Caddy

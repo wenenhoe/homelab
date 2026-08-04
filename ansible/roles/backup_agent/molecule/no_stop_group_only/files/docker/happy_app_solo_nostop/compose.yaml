@@ -1,0 +1,12 @@
+name: happy_app_solo_nostop
+services:
+  happy_app_solo_nostop:
+    image: alpine:3.20
+    container_name: happy_app_solo_nostop
+    volumes:
+      - data:/data
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  data:
+    external: true
+    name: happy_app_solo_nostop_data

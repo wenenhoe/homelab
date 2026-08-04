@@ -10,6 +10,7 @@ services:
     environment:
       - CONTAINERS=1
       - POST=1
+      - INFO=1
     networks:
       - backup-agent-net
     restart: unless-stopped
@@ -43,17 +44,13 @@ services:
       - ./gpg-public-key.asc:/etc/backup/gpg-public-key.asc:ro
     env_file:
       - .env.no-stop-group
+    networks:
+      - backup-agent-net
     restart: unless-stopped
 {% endif %}
-{% if backup_agent_stop_group | length > 0 %}
 networks:
   backup-agent-net:
-    # not internal: this still needs LAN egress to reach storage's S3
-    # endpoint — this network only keeps it off caddy-proxy/frontend, not
-    # off the LAN entirely (see docs/disaster-recovery.md for the earlier
-    # internal:true mistake this replaced).
     driver: bridge
-{% endif %}
 volumes:
 {% for app in (backup_agent_stop_group + backup_agent_no_stop_group) %}
 {% for vol in app.volumes %}

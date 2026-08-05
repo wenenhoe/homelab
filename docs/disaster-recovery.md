@@ -82,6 +82,27 @@ Two surfaces, two different auth models:
   wiki](https://github.com/seaweedfs/seaweedfs/wiki/S3-Configuration) for the
   action/resource-scoping syntax if you need to adjust it).
 
+## Bucket creation
+
+SeaweedFS does **not** auto-create a bucket on first `PUT`, even with
+`Admin`-scoped credentials for that bucket name — confirmed the hard way,
+via a real production failure (`NoSuchBucket`, 404) on the very first
+scheduled backup after this stage first went live, despite the
+stop/restart and archive-creation steps all working correctly.
+
+`ansible/roles/seaweedfs_bucket` creates it explicitly and idempotently —
+Play 5 in `deploy.yaml`, hosts `storage` only, running after SeaweedFS is
+deployed (Play 4) and before any `backup_agent` instance could try to
+upload to it (Play 6). It mirrors the exact same aws-cli-based approach
+already verified in `ansible/roles/backup_agent/molecule/default/converge.yml`,
+tolerating `BucketAlreadyExists` the same way that test's idempotence fix
+does.
+
+Deliberately not folded into `backup_agent` itself: bucket creation is a
+storage-side setup concern (creating the destination once), not something
+every individual `backup_agent` host should be redundantly responsible
+for.
+
 ## Encryption
 
 Every archive is GPG-encrypted (`GPG_PUBLIC_KEY_FILE`) with an **asymmetric**
@@ -270,7 +291,44 @@ and its clients will disagree.
 
 `playbooks/restore.yaml` handles the generic case — extract a decrypted
 archive back into one or more named volumes for a single app, stopping and
-redeploying its compose stack around the operation:
+redeploying its compose stack around the operation. The playbook itself is
+a thin wrapper (mirroring `deploy.yaml`'s own play-sequencer style) over
+`ansible/roles/restore`, which is where the actual logic — and its
+[Molecule coverage](molecule-testing.md) — lives. That role's
+`tasks/main.yaml` carries a load-bearing comment worth reading before
+touching either file: this MUST stay a single play (`hosts: all`) with
+its validation tasks `delegate_to: localhost` inline, not split into a
+separate controller-only validation play — that split was tried during
+the stage-1 restructure and confirmed (empirically, against a real
+inventory) to silently skip validation entirely under `--limit <group>`,
+which is exactly how this playbook is normally invoked.
+
+Two independent gates have to each genuinely block the destructive steps
+before anything is touched, and both have their own Molecule scenario
+proving it with real side-effect assertions (container `StartedAt`,
+volume content, scratch-volume/archive-copy cleanup) rather than just an
+exit code:
+
+- **Required vars / archive existence** — `restore_app`,
+  `restore_archive_local_path`, `restore_volumes`, and the archive
+  actually existing on the controller.
+- **Human confirmation** — the `pause` prompt below. `pause` never waits
+  when the ansible-playbook process's own stdin genuinely isn't a tty
+  (cron, systemd timers, CI runners with no terminal at all) — it
+  returns empty input immediately, so this gate fails **closed** in
+  those contexts with no extra work needed. That's a narrower guarantee
+  than "any automated run, Molecule included," though — a Molecule run
+  launched from a normal interactive terminal inherits that terminal's
+  real tty for its own ansible-playbook subprocess, so `pause` *does*
+  wait for real input there. `restore_confirm` is a real three-state
+  signal for exactly this reason (undefined → real prompt;
+  explicitly `true`/`false` → deterministically confirmed/declined,
+  skipping the prompt either way) — see the confirmation-gate comment
+  in `roles/restore/tasks/main.yaml` for the full story, including how
+  the tty assumption was found to be wrong. Both explicit values are
+  `-e`-only, never defaulted, never set in inventory/group_vars, and
+  carry the same burden of explicitness as answering the real prompt.
+  A real operator only ever hits the undefined (real prompt) branch.
 
 ```sh
 ansible-playbook playbooks/restore.yaml \

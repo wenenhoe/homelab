@@ -1,0 +1,55 @@
+---
+# Same Docker-in-Docker setup as the other restore scenarios.
+#
+# This is the direct, automated regression test for the safety property
+# this whole extraction exists to preserve: a validation failure must
+# genuinely block the destructive steps, not just "usually" or "when the
+# play happens to be structured a certain way" — see the SAFETY-CRITICAL
+# comment block at the top of roles/restore/tasks/main.yaml for the two
+# failure modes this was checked against by hand before this scenario
+# existed to check it automatically on every run.
+#
+# Exercises the "archive path doesn't exist on the controller" branch
+# specifically (the more elaborate of the three validation checks —
+# stat + conditional fail, vs. the simpler required-vars assert). All
+# three validation tasks share the identical delegate_to: localhost
+# blocking mechanism (see tasks/main.yaml), so this one scenario is
+# sufficient to prove the mechanism works — it's not testing three
+# independent code paths the way backup_agent's grouping logic needed
+# multiple scenarios to cover.
+driver:
+  name: docker
+platforms:
+  - name: restore-validation-failure-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  # Unlike default/multi_volume: this scenario never gets past validation,
+  # so nothing destructive/non-idempotent ever runs — idempotence is safe
+  # to keep here, same as backup_agent's conflict scenario.
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

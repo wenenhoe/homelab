@@ -1,0 +1,124 @@
+---
+# ---------------------------------------------------------------------------
+# Starts a real SeaweedFS S3 target for scenarios that need one to test
+# against — shared by backup_agent/default, seaweedfs_bucket/default, and
+# seaweedfs_bucket/wrong_credentials. Extracted after the third
+# near-identical copy; each carried the same hard-won lessons independently
+# before this existed:
+#   - a real -s3.config identity, not anonymous mode (anonymous tolerates
+#     some clients' signed requests but not others', and never verifies
+#     the identity's scope is actually sufficient)
+#   - -filer is required, or the S3 gateway never actually listens at all
+#   - readiness checked against the FILER port (8888), not S3 (8333) — S3
+#     requires real signed credentials once a real identity is
+#     configured, so an unauthenticated check there gets rejected even
+#     when the service is fine
+#   - checked by IP, not hostname — SeaweedFS binds its listeners to its
+#     advertised/detected IP (needed for master/filer/volume peer
+#     coordination), not loopback, which already ruled out `localhost`.
+#     A later real run showed the container's own hostname doesn't
+#     reliably resolve from within itself either (an earlier version of
+#     this file claimed it did — that was wrong): confirmed live,
+#     "wget: bad address 'seaweedfs-test:8888'" on Docker's plain default
+#     bridge network. That ruled out a native Docker HEALTHCHECK (its CMD
+#     runs inside the container and would hit the same resolution
+#     failure) — readiness is polled externally instead, by IP, which
+#     depends on no hostname resolution at all regardless of network
+#     type.
+#
+# Required vars:
+#   molecule_helpers_seaweedfs_access_key / molecule_helpers_seaweedfs_secret_key
+#     — credentials to bake into the identity config
+#   molecule_helpers_seaweedfs_bucket
+#     — bucket name the identity is scoped to
+#
+# Optional vars:
+#   molecule_helpers_seaweedfs_network_name
+#     — attach the container to this docker network at creation time,
+#     not after (see backup_agent's own scenario for why creation-time
+#     attachment matters — SeaweedFS likely binds to whichever address is
+#     available at process startup). Needed when the caller's own role
+#     already created a custom network other test containers must share.
+#     Omit to use Docker's plain default bridge network instead.
+#
+# Exposes (callers may reference after this task file returns):
+#   molecule_helpers_seaweedfs_ip
+#     — the container's IP on whichever network it landed on, so callers
+#     don't need to re-discover it themselves.
+# ---------------------------------------------------------------------------
+
+- name: Render an S3 identity config for the test SeaweedFS target
+  ansible.builtin.copy:
+    dest: /tmp/seaweedfs-test-s3-identity.json
+    mode: "0644"
+    content: |
+      {
+        "identities": [
+          {
+            "name": "molecule-test",
+            "credentials": [
+              {
+                "accessKey": "{{ molecule_helpers_seaweedfs_access_key }}",
+                "secretKey": "{{ molecule_helpers_seaweedfs_secret_key }}"
+              }
+            ],
+            "actions": [
+              "Write:{{ molecule_helpers_seaweedfs_bucket }}",
+              "Read:{{ molecule_helpers_seaweedfs_bucket }}",
+              "List:{{ molecule_helpers_seaweedfs_bucket }}",
+              "Tagging:{{ molecule_helpers_seaweedfs_bucket }}",
+              "Admin:{{ molecule_helpers_seaweedfs_bucket }}"
+            ]
+          }
+        ]
+      }
+
+- name: Run a throwaway SeaweedFS S3 target for this scenario
+  community.docker.docker_container:
+    name: seaweedfs-test
+    image: chrislusf/seaweedfs:3.97
+    command: "server -dir=/data -filer -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3-identity.json"
+    volumes:
+      - /tmp/seaweedfs-test-s3-identity.json:/etc/seaweedfs/s3-identity.json:ro
+    state: started
+    detach: true
+    networks: >-
+      {{ [{'name': molecule_helpers_seaweedfs_network_name}]
+         if molecule_helpers_seaweedfs_network_name | default('')
+         else omit }}
+
+- name: Query seaweedfs-test's info to discover its IP
+  community.docker.docker_container_info:
+    name: seaweedfs-test
+  register: molecule_helpers_seaweedfs_info
+
+- name: Extract seaweedfs-test's IP on whichever network it landed on
+  ansible.builtin.set_fact:
+    molecule_helpers_seaweedfs_ip: >-
+      {{ molecule_helpers_seaweedfs_info.container.NetworkSettings.Networks[
+           molecule_helpers_seaweedfs_network_name | default('bridge', true)
+         ].IPAddress }}
+
+# .rc is a proven-reliable field for docker_container_exec — already
+# used successfully elsewhere in this project (backup_agent's manual
+# backup-trigger checks) — unlike docker_container's murkier detach:false
+# result shape under failure, which turned out not to behave the way it
+# was assumed to on two separate earlier attempts. `until` retries
+# regardless of whether the module itself reports failure or the
+# condition is just false, so this is safe either way.
+#
+# command: must be a plain string here, NOT a YAML list — unlike
+# docker_container's command:, which does accept a list. Confirmed the
+# hard way: a list rendered as a single stringified executable name
+# ("[wget,") that obviously didn't exist in $PATH. The canary-seeding
+# task above already used the correct string form; should have
+# cross-checked that before writing this one.
+- name: Wait for SeaweedFS's filer port to accept connections
+  community.docker.docker_container_exec:
+    container: seaweedfs-test
+    command: "wget -q --spider http://{{ molecule_helpers_seaweedfs_ip }}:8888/"
+  register: molecule_helpers_seaweedfs_ready
+  until: molecule_helpers_seaweedfs_ready.rc == 0
+  retries: 15
+  delay: 2
+  changed_when: false

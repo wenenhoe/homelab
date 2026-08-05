@@ -1,0 +1,62 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    restore_before_marker: /tmp/restore-molecule-confirmation-declined-before-started-at
+  tasks:
+    - name: Confirm the confirmation gate actually blocked the run as expected
+      ansible.builtin.stat:
+        path: /tmp/restore_confirmation_declined_halt_marker
+      register: restore_confirm_marker
+      failed_when: not restore_confirm_marker.stat.exists
+
+    - name: Read back the BEFORE StartedAt marker
+      ansible.builtin.slurp:
+        path: "{{ restore_before_marker }}"
+      register: restore_confirm_before_raw
+
+    - name: Capture restore_confirm_target's StartedAt now
+      community.docker.docker_container_info:
+        name: restore_confirm_target
+      register: restore_confirm_after_info
+
+    - name: Confirm restore_confirm_target was NEVER stopped (StartedAt unchanged)
+      ansible.builtin.assert:
+        that:
+          - (restore_confirm_before_raw.content | b64decode) == restore_confirm_after_info.container.State.StartedAt
+        fail_msg: >-
+          StartedAt changed — declining confirmation did not actually
+          block the compose-stop step.
+
+    - name: Read back the volume's content
+      community.docker.docker_container:
+        name: restore-confirmation-declined-content-check
+        image: alpine:3.20
+        volumes:
+          - restore_confirm_target_data:/data:ro
+        command: "cat /data/canary.txt"
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: restore_confirm_content_check
+      changed_when: false
+
+    - name: Confirm the volume's content was NEVER overwritten
+      ansible.builtin.assert:
+        that:
+          - "'original-content-must-survive' in restore_confirm_content_check.container.Output"
+          - "'should-never-be-applied-confirmation-was-declined' not in restore_confirm_content_check.container.Output"
+        fail_msg: "volume content: {{ restore_confirm_content_check.container.Output }}"
+
+    - name: Confirm no scratch extraction volume was ever created
+      community.docker.docker_volume_info:
+        name: restore_confirm_target_restore_scratch
+      register: restore_confirm_scratch_volume
+      failed_when: restore_confirm_scratch_volume.exists
+
+    - name: Confirm no temporary archive copy was ever created on the target host
+      ansible.builtin.stat:
+        path: /tmp/restore_confirm_target-restore-archive
+      register: restore_confirm_remote_archive
+      failed_when: restore_confirm_remote_archive.stat.exists

@@ -1,0 +1,47 @@
+---
+# Same Docker-in-Docker setup as backup_agent/compose_app's scenarios.
+# Nothing here needs an S3 target — restore.yaml/roles/restore never talk
+# to SeaweedFS (see docs/disaster-recovery.md); the "decrypted archive"
+# input is built directly on the controller (this Molecule run's own
+# machine) as a plain .tar.gz, exactly like a real operator would hand it
+# a file after their own manual gpg --decrypt step.
+driver:
+  name: docker
+platforms:
+  - name: restore-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  # No `idempotence` step, deliberately, unlike backup_agent/compose_app's
+  # scenarios: this role's whole job is to unconditionally stop, overwrite,
+  # and redeploy on every invocation — that's the correct behaviour for a
+  # DR restore (you want a second identical invocation to restore again,
+  # not silently no-op), not a bug to converge away. A second converge run
+  # here will always report changed (docker_compose_v2 stop/start,
+  # ephemeral docker_container extraction runs), so idempotence would
+  # fail by design, not by accident.
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

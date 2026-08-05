@@ -1,0 +1,38 @@
+---
+# ---------------------------------------------------------------------------
+# Confirmed via live production logs (2026-08-05): SeaweedFS does NOT
+# auto-create a bucket on first PUT even with Admin-scoped credentials
+# (see docker/seaweedfs/configs/s3-identity.json.j2) — every backup_agent
+# instance failed its first real upload with "NoSuchBucket", despite the
+# stop/restart and archive-creation steps all working correctly. This
+# makes bucket creation explicit and idempotent instead, mirroring the
+# exact same aws-cli-based approach already verified in
+# ansible/roles/backup_agent/molecule/default/converge.yml.
+#
+# Runs once, on `storage` only (see deploy.yaml) — deliberately not
+# folded into backup_agent itself: bucket creation is a storage-side
+# setup concern (creating the destination), not something every
+# individual backup_agent host should be redundantly responsible for.
+# ---------------------------------------------------------------------------
+
+- name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
+  community.docker.docker_container:
+    name: seaweedfs-ensure-bucket
+    image: amazon/aws-cli:2.15.0
+    env:
+      AWS_ACCESS_KEY_ID: "{{ seaweedfs_s3_access_key }}"
+      AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_s3_secret_key }}"
+      AWS_DEFAULT_REGION: us-east-1
+    command: >-
+      --endpoint-url {{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}
+      s3 mb s3://{{ offsite_backup_s3_bucket }}
+    detach: false
+    cleanup: true
+    output_logs: true
+  register: seaweedfs_bucket_create
+  changed_when: false
+  # Tolerate "already exists" specifically, same idiom as the molecule
+  # test's own idempotence fix — anything else is a real failure.
+  failed_when: >-
+    seaweedfs_bucket_create is failed
+    and 'BucketAlreadyExists' not in (seaweedfs_bucket_create.msg | default(''))

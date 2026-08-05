@@ -16,12 +16,14 @@ Each role is tested in isolation with [Molecule](https://ansible.readthedocs.io/
 | | `cleanup` | `cleanup.yaml`'s dry-run mode, the keep-content path, `compose_cleanup_app_overrides`, and the label-fallback teardown when a stack's directory is already gone. |
 | `compose_app` | `default` | Batch-driving `compose/` across multiple apps, continuing past a failed one. |
 | | `strict` | `compose_app_continue_on_error: false` — the opposite of `default`. |
-| | `continue_on_error` | One deliberately-broken app (missing config source) alongside two healthy ones and `bind9`/`caddy`: the batch reports the expected failure (rescue-block marker), the healthy apps deploy anyway, the broken one never gets a container, and the self-managed apps (`bind9`/`caddy`, excluded from `compose_app`'s own batch by design) are never touched at all. |
+| | `continue_on_error` | One deliberately-broken app (missing config source) alongside two healthy ones and `bind9`/`caddy`: the batch reports the expected failure (rescue-block marker, checked against `ansible_failed_task`/`ansible_failed_result` to confirm it's specifically `main.yaml`'s own "did anything in the batch fail" gate naming `app_fail` — see [below](#a-note-on-blockrescue-as-a-test-assertion)), the healthy apps deploy anyway, the broken one never gets a container, and the self-managed apps (`bind9`/`caddy`, excluded from `compose_app`'s own batch by design) are never touched at all. |
 | `caddy` | `default` | The custom DigitalOcean-DNS Caddy build (xcaddy from source) and deploy via `compose`. Slowest scenario — compiling Caddy typically takes a couple of minutes and needs real internet access for Go modules. |
 | | `unregistered` | `caddy_has_compose_app == false` — the role runs but `compose_apps` has no `caddy` entry at all (true of every real host today, but explicitly supported code). Config still renders and the custom image still builds — neither depends on caddy being a compose app — but nothing gets seeded into a volume and no container gets deployed. Added after tracing this branch surfaced a real bug (a seed task gated on the wrong condition, fixed alongside this scenario). |
 | `bind9` | `default` | Zone-file aggregation/rendering/reload against a single instance that's a member of `app_hosts` itself (so it ends up serving DNS data about itself) — not a perfect topology match to the real multi-host setup, but exercises the real scraping/templating logic. |
+| `seaweedfs_bucket` | `default` | The happy path: the bucket doesn't exist yet, the role creates it explicitly (SeaweedFS never auto-creates one on first `PUT`, even for an Admin-scoped identity), against a real (throwaway) SeaweedFS S3 target — verified by actually listing the bucket afterwards, not just checking the task's exit code. |
+| | `wrong_credentials` | The role is deliberately given credentials that don't match the identity configured on the server — the auth failure must surface loudly rather than getting silently swallowed by the role's own `BucketAlreadyExists`-tolerance logic. Asserted two ways: a rescue-block marker confirming the role's `include_role` actually failed, and `verify.yml` re-querying with the *real* credentials to confirm the bucket genuinely was never created (`NoSuchBucket`), independent of whatever the failed request did or didn't do. |
 | `backup_agent` | `default` | The main aggregation happy path: apps split correctly into the stop-during-backup vs. no-stop groups, a real (throwaway) SeaweedFS target standing in for S3, and a manually-triggered backup for each group asserted against real evidence — the stopped group's container `StartedAt` actually changes, the no-stop group's never does, and the archive actually lands in the test bucket. |
-| | `conflict` | Two apps sharing a group but disagreeing on `retention_days`/`cron` — validation must fail loudly before rendering `compose.yaml` or touching any volume, asserted via a rescue-block marker plus confirming nothing was created. |
+| | `conflict` | Two apps sharing a group but disagreeing on `retention_days`/`cron` — validation must fail loudly before rendering `compose.yaml` or touching any volume, asserted via a rescue-block marker plus confirming nothing was created. The rescue block also asserts on `ansible_failed_task`/`ansible_failed_result` — the exact task name and fail message — so a Docker hiccup or an unrelated error can't leave the same "conflict caught" marker behind and pass for the wrong reason (see [below](#a-note-on-blockrescue-as-a-test-assertion)). |
 | | `no_stop_group_only` | The no-stop group populated, stop-during-backup group empty — a branch `default` (which always populates both) and `conflict` (stop-group only) never exercise. |
 | | `stop_group_only` | The mirror image of `no_stop_group_only`: stop-during-backup populated, no-stop empty. |
 | `restore` | `default` | The full happy-path restore of a single volume: real stop → extract → overwrite → redeploy against a real archive, with a StartedAt check and a content check proving the volume was actually rewritten, not just that the tasks reported success. |
@@ -57,10 +59,43 @@ This exists because `molecule test --all` doesn't work directly from
 doesn't recurse into `roles/*/molecule/*/molecule.yml` on its own, and
 pointing `MOLECULE_GLOB` at a recursive pattern to fix that surfaces a
 second problem: Molecule validates scenario names for uniqueness across
-everything the glob discovers, not per-role, and 8 of this repo's 21
+everything the glob discovers, not per-role, and 9 of this repo's 23
 scenarios are named `default`. `molecule-test-all.sh` sidesteps both by
 running `molecule test --all` once per role directory, so each invocation
 only ever sees that one role's own (already-unique) scenario names.
+
+## A note on block/rescue as a test assertion
+
+Several negative-path scenarios (`backup_agent`/`conflict`,
+`compose_app`/`continue_on_error`, `seaweedfs_bucket`/`wrong_credentials`)
+run the role-under-test inside `block:`, and treat the `rescue:` firing as
+proof that the specific failure being tested actually happened. A bare
+`rescue:` doesn't prove that on its own — `rescue` fires on *any* failed
+task inside the block, so an unrelated problem (Docker not ready yet, a
+typo in the fixture, a transient pull failure) would trip the same rescue
+and leave behind the same "caught as expected" marker, passing the
+scenario for the wrong reason. This is exactly how `backup_agent/conflict`
+and `compose_app/continue_on_error` produced a false positive previously.
+
+`backup_agent/conflict` and `compose_app/continue_on_error` now guard
+against this: the first task inside `rescue:` asserts on Ansible's
+`ansible_failed_task`/`ansible_failed_result` special variables (only
+populated inside a `rescue:` block) — checking both the *name* of the
+task that actually failed and that its failure message contains the
+specific, expected reason — before the marker is ever written. If the
+block failed for any other reason, that assertion itself fails loudly
+instead of a false "pass" slipping through. `seaweedfs_bucket/wrong_credentials`
+doesn't need the same fix: its `verify.yml` already re-checks the real
+side effect independently (querying the bucket with the *real*
+credentials to confirm `NoSuchBucket`), so a wrong-reason failure inside
+the block would still be caught downstream even without the extra assert.
+
+When adding a new block/rescue scenario like this, prefer asserting on
+`ansible_failed_task.name` and a distinctive substring of
+`ansible_failed_result.msg` over a bare rescue — and confirm it locally by
+temporarily breaking the fixture in an *unrelated* way (e.g. pointing
+`bootstrap_docker.yaml` at a bad var) to make sure the scenario now fails
+instead of quietly "passing" on the wrong error.
 
 ## `molecule_helpers`
 
@@ -71,8 +106,10 @@ only ever sees that one role's own (already-unique) scenario names.
 | `playbooks/prepare_dind.yml` | The shared `prepare` playbook (see below). |
 | `tasks/dind_vfs_storage_driver.yaml` | Forces the nested Docker daemon onto the `vfs` storage driver via `/etc/docker/daemon.json`. |
 | `tasks/install_docker_api_requests.yaml` | Installs `python3-requests`, needed by `docker_volume`/`docker_host_info` and other `community.docker` modules that talk to the Docker API directly rather than through the CLI plugin. |
-| `tasks/bootstrap_docker.yaml` | `include_role: docker` — for scenarios whose role-under-test assumes Docker is already installed (`compose`, `compose_app`, `caddy`, `bind9`, `backup_agent`, `restore`), mirroring Play 1 of the real `deploy.yaml`. |
+| `tasks/bootstrap_docker.yaml` | `include_role: docker` — for scenarios whose role-under-test assumes Docker is already installed (`compose`, `compose_app`, `caddy`, `bind9`, `backup_agent`, `restore`, `seaweedfs_bucket`), mirroring Play 1 of the real `deploy.yaml`. |
 | `tasks/resolve_compose_apps.yaml` | Resolves a scenario's `compose_apps` against its `app_registry`, the same merge `deploy.yaml` does per-host. |
+| `tasks/start_seaweedfs_test_target.yaml` | Starts a real, throwaway SeaweedFS S3 target with a real `-s3.config` identity (not anonymous mode) — shared by `backup_agent/default`, `seaweedfs_bucket/default`, and `seaweedfs_bucket/wrong_credentials`, extracted after the third near-identical copy. Exposes the discovered container IP as `molecule_helpers_seaweedfs_ip` so callers don't have to re-discover it. |
+| `tasks/reset_coverage_data.yaml` | Deletes a scenario's own `molecule-coverage` JSONL file at the start of its `prepare` step, so repeated `molecule test` runs don't accumulate stale data from previous runs (the coverage callback appends, it doesn't truncate). A no-op if `MOLECULE_COVERAGE_DIR` isn't set — see `ansible/molecule-coverage/README.md`. Included from every scenario's `prepare` (directly by `prepare_dind.yml` and `bind9`'s own `prepare.yml`, or via `apt`'s minimal standalone `prepare.yml` — see below). |
 | `requirements.yml` / `role-requirements.yml` | Shared Galaxy collection/role dependencies (`community.docker`, `ansible.posix`), referenced from each scenario's `molecule.yml` instead of every scenario keeping its own copy. |
 
 ### Why the nested Docker daemon needs `vfs`
@@ -93,11 +130,11 @@ provisioner:
     verify: verify.yml
 ```
 
-`bind9` is the one exception, and keeps its own `prepare.yml`: it manages its own `daemon.json` for DNS settings and would fight over the same file if the shared playbook also wrote `storage-driver` into it, so it forces `vfs` via a systemd drop-in override instead. `apt` needs neither and has no `prepare.yml` at all.
+`bind9` is the one exception, and keeps its own `prepare.yml`: it manages its own `daemon.json` for DNS settings and would fight over the same file if the shared playbook also wrote `storage-driver` into it, so it forces `vfs` via a systemd drop-in override instead. `apt` needs neither the storage-driver override nor `python3-requests`, but it isn't prepare-less either: it keeps a minimal `prepare.yml` of its own whose only job is calling `reset_coverage_data.yaml`, so its scenario still starts from a clean coverage JSONL like every other one.
 
 ### The base config
 
-`ansible/roles/apt/molecule/default/molecule.yml`'s `provisioner` section (and every other scenario's) doesn't declare an `env:` block, and none of the 21 scenarios declare `dependency:` either — even `apt`, which doesn't actually need the shared `role-requirements.yml`/`requirements.yml` collections, inherits them anyway (a deliberate tradeoff: a marginal, already-cached lookup cost, in exchange for zero per-scenario duplication instead of 20/21). Both live in `.config/molecule/config.yml` at the repo root instead — Molecule's "base config", auto-discovered there without any `-c`/`--base-config` flag, and deep-merged into every scenario's own `molecule.yml` before that scenario's config is applied on top. A new scenario inherits these automatically; nothing to add for them beyond the scenario's own `molecule.yml`.
+`ansible/roles/apt/molecule/default/molecule.yml`'s `provisioner` section (and every other scenario's) doesn't declare an `env:` block, and none of the 23 scenarios declare `dependency:` either — even `apt`, which doesn't actually need the shared `role-requirements.yml`/`requirements.yml` collections, inherits them anyway (a deliberate tradeoff: a marginal, already-cached lookup cost, in exchange for zero per-scenario duplication instead of 22/23). Both live in `.config/molecule/config.yml` at the repo root instead — Molecule's "base config", auto-discovered there without any `-c`/`--base-config` flag, and deep-merged into every scenario's own `molecule.yml` before that scenario's config is applied on top. A new scenario inherits these automatically; nothing to add for them beyond the scenario's own `molecule.yml`.
 
 ## Adding a new scenario
 

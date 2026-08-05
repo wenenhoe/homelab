@@ -67,6 +67,29 @@
           ansible.builtin.include_role:
             name: backup_agent
       rescue:
+        # A bare rescue: accepts ANY failure inside the block as "the gate
+        # worked" - a Docker hiccup, a resolve_compose_apps typo, or an
+        # unrelated task erroring out would all leave the same halt marker
+        # behind and pass just as happily as the real validation catching
+        # the conflict (this is what caused a previous false positive).
+        # `ansible_failed_task`/`ansible_failed_result` are only populated
+        # inside a rescue block - assert on both the exact task that failed
+        # and the exact reason it failed before trusting the "expected"
+        # label at all.
+        - name: Confirm the failure came from the retention/cron conflict validation itself
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == "Validate the stop-during-backup group agrees on retention/cron"
+              - "'Conflicting retention_days/cron' in ansible_failed_result.msg"
+              - "'conflict_app_a' in ansible_failed_result.msg"
+              - "'conflict_app_b' in ansible_failed_result.msg"
+            fail_msg: >-
+              backup_agent failed, but not for the reason this scenario exists to
+              test. Expected the "Validate the stop-during-backup group agrees on
+              retention/cron" assert to fail mentioning both conflicting apps;
+              got task "{{ ansible_failed_task.name | default('unknown') }}" with
+              message: {{ ansible_failed_result.msg | default('(no msg)') }}
+
         - name: Leave a marker proving the validation actually caught the conflict
           ansible.builtin.copy:
             dest: /tmp/backup_agent_conflict_halt_marker

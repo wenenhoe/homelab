@@ -125,91 +125,24 @@
              | map(attribute='Name') | list | first }}
 
     # --- Real S3 target for this scenario --------------------------------
-    # A real SeaweedFS instance (same image the actual `storage` host
-    # runs) standing in for the real S3 target, so this test exercises
-    # actual upload/auth wiring, not just "the containers are running".
-    #
-    # Anonymous mode (no -s3.config) was a corner cut for expedience —
-    # it worked for aws-cli's calls but not docker-volume-backup's, which
-    # always signs its S3 requests; SeaweedFS can't validate a signature
-    # against zero configured identities ("Signed request requires
-    # setting up SeaweedFS S3 authentication"). Production already uses a
-    # real -s3.config — mirroring that here properly instead.
-    - name: Render an S3 identity config for the test SeaweedFS target
-      ansible.builtin.copy:
-        dest: /tmp/seaweedfs-test-s3-identity.json
-        mode: "0644"
-        content: |
-          {
-            "identities": [
-              {
-                "name": "molecule-test",
-                "credentials": [
-                  {
-                    "accessKey": "{{ seaweedfs_s3_access_key }}",
-                    "secretKey": "{{ seaweedfs_s3_secret_key }}"
-                  }
-                ],
-                "actions": [
-                  "Write:{{ offsite_backup_s3_bucket }}",
-                  "Read:{{ offsite_backup_s3_bucket }}",
-                  "List:{{ offsite_backup_s3_bucket }}",
-                  "Tagging:{{ offsite_backup_s3_bucket }}",
-                  "Admin:{{ offsite_backup_s3_bucket }}"
-                ]
-              }
-            ]
-          }
-
-    # HEALTHCHECK uses wget --spider — confirmed available in this image
-    # (Alpine-based; its own Dockerfile installs wget/curl, corroborated
-    # by a published chrislusf/seaweedfs compose example using this exact
-    # wget --spider pattern against this image family).
-    - name: Run a throwaway SeaweedFS S3 target for this scenario
-      community.docker.docker_container:
-        name: seaweedfs-test
-        image: chrislusf/seaweedfs:3.97
-        command: "server -dir=/data -filer -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3-identity.json"
-        volumes:
-          - /tmp/seaweedfs-test-s3-identity.json:/etc/seaweedfs/s3-identity.json:ro
-        state: started
-        detach: true
-        networks:
-          - name: "{{ backup_agent_network_name }}"
-        healthcheck:
-          # Filer port (8888), not S3 (8333) — same reasoning as
-          # production's healthcheck: S3 now requires real signed
-          # credentials (the identity config just added above), so an
-          # unauthenticated check there would get rejected the same way
-          # the backup upload did before this fix. Filer's root path
-          # needs no S3-style signature auth, and S3 depends on filer
-          # internally anyway, so it's still a meaningful proxy for "is
-          # the whole stack actually up."
-          # localhost doesn't reach it — SeaweedFS appears to bind its
-          # listeners to its advertised/detected IP (needed for
-          # master/filer/volume peer coordination), not loopback. The
-          # container's own DNS-registered name resolves to that same
-          # real IP via the network it's attached to, and does work.
-          test: ["CMD", "wget", "-q", "--spider", "http://seaweedfs-test:8888/"]
-          interval: 2s
-          timeout: 2s
-          retries: 3
-          start_period: 2s
-
-    # docker_container_info + .container.State.X is already proven
-    # reliable in this test (the StartedAt checks in verify.yml), unlike
-    # docker_container's one-off result shape under detach:false, which
-    # turned out not to behave the way it was assumed to twice in a row.
-    # .State.Health appears as soon as the container starts (status
-    # "starting" initially) since a HEALTHCHECK is now configured, so
-    # this doesn't have the same "field only exists sometimes" risk.
-    - name: Wait for SeaweedFS to report healthy
-      community.docker.docker_container_info:
-        name: seaweedfs-test
-      register: backup_agent_seaweedfs_info
-      until: backup_agent_seaweedfs_info.container.State.Health.Status == 'healthy'
-      retries: 15
-      delay: 2
+    # See ansible/roles/molecule_helpers/tasks/start_seaweedfs_test_target.yaml
+    # for what this does and why (real -s3.config identity, not anonymous
+    # mode; -filer required; readiness polled by IP, not hostname —
+    # hostname resolution from within the container genuinely fails on
+    # Docker's plain default bridge network, and this network is custom
+    # but IP-based polling avoids depending on that distinction at all).
+    # Attached to backup_agent's own network at creation time — not
+    # connected afterward — since SeaweedFS likely binds to whichever
+    # address is available at process startup.
+    - name: Start a real SeaweedFS S3 target for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_seaweedfs_test_target.yaml
+      vars:
+        molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_s3_access_key }}"
+        molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_s3_secret_key }}"
+        molecule_helpers_seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
+        molecule_helpers_seaweedfs_network_name: "{{ backup_agent_network_name }}"
 
     # amazon/aws-cli's `s3 mb` needs to reach seaweedfs-test by name, so
     # this one-off container joins the same discovered network.

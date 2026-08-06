@@ -1,0 +1,34 @@
+name: Renovate
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch: {}
+  schedule:
+    # 20:00 UTC Sunday = 04:00 Asia/Singapore Monday — comfortably inside
+    # the "before 6am on monday" window declared in renovate.json5.
+    - cron: "0 20 * * 0"
+
+# Least privilege: Renovate authenticates to GitHub separately via
+# RENOVATE_TOKEN (a PAT — see docs/renovate-setup.md for scopes), so the
+# ambient GITHUB_TOKEN this run gets only needs to check the repo out. It
+# never opens PRs, writes branches, or touches anything itself.
+permissions:
+  contents: read
+
+# Prevents two runs (a schedule tick + a manual workflow_dispatch, or two
+# manual triggers) from racing against the same repo state.
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Self-hosted Renovate
+        uses: renovatebot/github-action@316d7cd859606d6039a2182b7d69199e9b036835 # v46.2.1
+        with:
+          renovate-version: "44.14.1"
+          token: ${{ secrets.RENOVATE_TOKEN }}

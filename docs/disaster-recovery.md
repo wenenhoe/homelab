@@ -123,7 +123,7 @@ makes every backup permanently unrecoverable.
 ## What's backed up
 
 Declared per-app via a `backup:` key on its `app_registry` entry — see
-`ansible/inventory/group_vars/all.yaml`. `backup_agent` aggregates these
+`ansible/inventory/group_vars/all/app_registry.yaml`. `backup_agent` aggregates these
 into (at most) two instances per host:
 
 | Host | Group | Apps → volumes | Retention |
@@ -205,7 +205,7 @@ you want deeper history for the smaller apps.
 
 ## S3 endpoint format
 
-`offsite_backup_s3_endpoint` (`group_vars/all.yaml`) must be a **bare
+`offsite_backup_s3_endpoint` (`group_vars/all/main.yaml`) must be a **bare
 hostname** — `s3.store.{{ lab_domain }}`, not `https://s3.store.{{ lab_domain }}`.
 `docker-volume-backup`'s `AWS_ENDPOINT` env var is passed straight into the
 underlying minio-go S3 client, which expects just `host[:port]`; a
@@ -220,7 +220,7 @@ picks it up consistently.
 ## S3 credentials
 
 Auto-generated on first use, not prompted for — `seaweedfs_s3_access_key`/
-`seaweedfs_s3_secret_key` (`group_vars/all.yaml`) use Ansible's `password`
+`seaweedfs_s3_secret_key` (`group_vars/all/main.yaml`) use Ansible's `password`
 lookup, which generates a random value once and caches it to a file on the
 **controller** (not a managed host); every later lookup of that same path
 returns the cached value instead of generating a new one:

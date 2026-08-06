@@ -37,7 +37,9 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 │   ├── inventory/
 │   │   ├── inventory.yaml       # Hosts reachable over DNS (day-to-day use)
 │   │   ├── sos-inventory.yaml   # Hosts reachable by raw IP (recovery use)
-│   │   ├── group_vars/all.yaml  # Global vars + the app_registry
+│   │   ├── group_vars/
+│   │   │   ├── all/main.yaml         # Global vars (timezone, DNS domains, Beszel/backup secrets)
+│   │   │   └── all/app_registry.yaml # The app registry (see below)
 │   │   └── host_vars/*.yaml     # Per-host compose_apps, caddy_domain, dns_zones
 │   └── roles/
 │       ├── apt/             # System package updates

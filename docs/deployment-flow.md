@@ -42,7 +42,7 @@ Runs last, deliberately: it mounts other apps' named volumes as `external: true`
 
 ## The App Registry
 
-`group_vars/all.yaml` defines `app_registry`: a single source of truth for everything about an app that does **not** vary per host — directories to create, named Docker volumes to provision (see [`volumes.md`](volumes.md)), scripts/config templates to render, and its Caddy upstream/auth behavior. A `configs` entry is how any templated file (including `.env` files) gets rendered; `force: false` is used for anything containing secrets so a re-run never clobbers what's already on disk.
+`group_vars/all/app_registry.yaml` defines `app_registry`: a single source of truth for everything about an app that does **not** vary per host — directories to create, named Docker volumes to provision (see [`volumes.md`](volumes.md)), scripts/config templates to render, and its Caddy upstream/auth behavior. A `configs` entry is how any templated file (including `.env` files) gets rendered; `force: false` is used for anything containing secrets so a re-run never clobbers what's already on disk.
 
 Each `host_vars/<host>.yaml` then only needs to say *which* apps that host runs and, for routable apps, what hostname(s) to expose them under:
 

@@ -17,7 +17,7 @@
     # upload/auth wiring, not just "the container is running".
     offsite_backup_s3_bucket: molecule-test-backups
     # Bare host:port, no scheme — docker-volume-backup's AWS_ENDPOINT
-    # rejects a scheme-prefixed value (see group_vars/all.yaml). The test
+    # rejects a scheme-prefixed value (see group_vars/all/main.yaml). The test
     # target has no TLS, so proto is http here vs. https in production.
     offsite_backup_s3_endpoint: "seaweedfs-test:8333"
     offsite_backup_s3_proto: "http"

@@ -18,7 +18,7 @@ docker/<app>/
 
 ## 2. Register it in `app_registry`
 
-In `ansible/inventory/group_vars/all.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:
+In `ansible/inventory/group_vars/all/app_registry.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:
 
 ```yaml
 app_registry:

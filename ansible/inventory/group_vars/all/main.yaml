@@ -1,0 +1,48 @@
+---
+server_timezone: Asia/Singapore
+
+lab_domain: "lan.{{ main_domain }}"
+ddns_domain: "internal.{{ main_domain }}"
+
+docker_users:
+  - "{{ ansible_user }}"
+
+project_root: "{{ (playbook_dir ~ '/../..') | realpath }}"
+compose_source_dir: "{{ (project_root ~ '/docker') | realpath }}"
+compose_deploy_dir: /opt/stacks
+
+tinyauth_host: sso
+
+# ---------------------------------------------------------------------------
+# Beszel — hub + agent monitoring.
+#
+# beszel_hub_key / beszel_agent_token are unknown until after the hub's
+# first boot (it generates its own ED25519 keypair, and a universal token
+# is created by hand in Settings > Tokens). Leave them blank on the first
+# `deploy.yaml` run — beszel-agent will sit in a harmless auth-retry loop
+# until these are filled in and the playbook is re-run. See docs/beszel.md.
+# ---------------------------------------------------------------------------
+beszel_hub_host: beszel
+beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_domain }}"
+# beszel_hub_key: ""
+# beszel_agent_token: ""
+
+# ---------------------------------------------------------------------------
+# Offsite backup (stage 1 DR) — see docs/disaster-recovery.md.
+seaweedfs_s3_access_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-access-key chars=hexdigits length=32') }}"
+seaweedfs_s3_secret_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-secret-key chars=hexdigits length=64') }}"
+# ---------------------------------------------------------------------------
+offsite_backup_s3_bucket: homelab-backups
+offsite_backup_s3_endpoint: "s3.{{ hostvars['storage'].caddy_domain }}"
+offsite_backup_s3_proto: "https"
+offsite_backup_cron: "0 4 * * *"
+offsite_backup_retention_days: 7
+
+# minecraft's offsite job reads the `backups` volume, which is ALREADY a
+# 7-day rolling window maintained on-host by itzg/mc-backup (see
+# docs/disaster-recovery.md for the full reasoning) — a much lower
+# off-host retention avoids paying a 7x disk multiplier for near-duplicate
+# content, and the cron is offset 30min after mc-backup's own
+# "0 4 * * *" so it never archives a tar mid-write.
+minecraft_offsite_backup_cron: "30 4 * * *"
+minecraft_offsite_backup_retention_days: 2

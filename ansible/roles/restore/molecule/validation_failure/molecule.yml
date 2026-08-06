@@ -1,22 +1,13 @@
 ---
-# Same Docker-in-Docker setup as the other restore scenarios.
-#
-# This is the direct, automated regression test for the safety property
-# this whole extraction exists to preserve: a validation failure must
-# genuinely block the destructive steps, not just "usually" or "when the
-# play happens to be structured a certain way" — see the SAFETY-CRITICAL
-# comment block at the top of roles/restore/tasks/main.yaml for the two
-# failure modes this was checked against by hand before this scenario
-# existed to check it automatically on every run.
+# The direct, automated regression test for the safety property this
+# whole extraction exists to preserve: a validation failure must
+# genuinely block the destructive steps, not just "usually" — see the
+# SAFETY-CRITICAL comment at the top of roles/restore/tasks/main.yaml.
 #
 # Exercises the "archive path doesn't exist on the controller" branch
-# specifically (the more elaborate of the three validation checks —
-# stat + conditional fail, vs. the simpler required-vars assert). All
-# three validation tasks share the identical delegate_to: localhost
-# blocking mechanism (see tasks/main.yaml), so this one scenario is
-# sufficient to prove the mechanism works — it's not testing three
-# independent code paths the way backup_agent's grouping logic needed
-# multiple scenarios to cover.
+# specifically (the more elaborate of the three validation checks). All
+# three share the identical delegate_to: localhost blocking mechanism,
+# so this one scenario is sufficient to prove the mechanism works.
 driver:
   name: docker
 platforms:

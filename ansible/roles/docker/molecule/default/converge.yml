@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars:
-    # group_vars/all.yaml normally supplies this as [ "{{ ansible_user }}" ],
+    # group_vars/all/main.yaml normally supplies this as [ "{{ ansible_user }}" ],
     # but ansible_user isn't set in Molecule's ad hoc inventory. Provide a
     # real user explicitly so the role's docker_users loop actually runs.
     docker_users:

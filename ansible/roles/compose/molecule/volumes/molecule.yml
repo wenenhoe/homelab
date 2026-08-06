@@ -1,9 +1,7 @@
 ---
-# Covers the paths the default scenario deliberately skips: ensure_volume.yaml
-# (named volume creation + legacy bind-mount migration), seed_volume.yaml
-# (volume-seeded configs), and cleanup.yaml (full stack teardown). Same
-# Docker-in-Docker setup as the default scenario and the docker role's own
-# scenario — see those for the reasoning.
+# Covers the paths the default scenario skips: ensure_volume.yaml (named
+# volume creation + legacy bind-mount migration), seed_volume.yaml
+# (volume-seeded configs), and cleanup.yaml (full stack teardown).
 driver:
   name: docker
 platforms:

@@ -1,12 +1,10 @@
 ---
 # Symmetric to no_stop_group_only, flipped: only the stop-during-backup
 # group is populated, no-stop-group is entirely empty. No current host
-# actually has this shape (services/security have both groups, play has
-# only no-stop) — this is defensive coverage for the branch, not a
-# mirror of real infrastructure the way no_stop_group_only was. Same
-# reasoning as that scenario for skipping SeaweedFS/S3 here: this tests
-# rendering correctness under the shape, not upload/stop-restart
-# mechanics already proven by the `default` scenario.
+# has this shape — defensive coverage for the branch, not a mirror of
+# real infrastructure. Skips SeaweedFS/S3 for the same reason as that
+# scenario: this tests rendering correctness under the shape, not
+# upload/stop-restart mechanics already proven by `default`.
 driver:
   name: docker
 platforms:

@@ -1,6 +1,6 @@
 # `host_vars`: Per-Host Configuration Reference
 
-Each file under `ansible/inventory/host_vars/<host>.yaml` is everything about a host that *does* vary per host — as opposed to `group_vars/all.yaml`'s `app_registry`, which is everything about an app that doesn't. This is a field-by-field reference; see [`adding-an-app.md`](adding-an-app.md) for the worked end-to-end flow and [`bind9.md`](bind9.md) for how `dns_zones` gets turned into actual DNS records.
+Each file under `ansible/inventory/host_vars/<host>.yaml` is everything about a host that *does* vary per host — as opposed to `group_vars/all/app_registry.yaml`'s `app_registry`, which is everything about an app that doesn't. This is a field-by-field reference; see [`adding-an-app.md`](adding-an-app.md) for the worked end-to-end flow and [`bind9.md`](bind9.md) for how `dns_zones` gets turned into actual DNS records.
 
 ## `caddy_domain`
 

@@ -1,22 +1,16 @@
 ---
-# ---------------------------------------------------------------------------
-# Role: bind9
-# Runs on the dedicated DNS host.  Zone data is scraped from every host in
-# the 'app_hosts' group via hostvars — no zone config lives on the DNS host
-# itself.  host_vars for app hosts are completely unchanged.
+# Runs on the dedicated DNS host. Zone data is scraped from every host in
+# the `app_hosts` group via hostvars — no zone config lives on the DNS
+# host itself.
 #
-# bind9 deploys and (re)starts its own compose app itself, at the end of
-# this role, rather than being deployed generically in Play 3 alongside
-# every other app. It has to: the "Disable DNS Stub Listener and set Docker
-# DNS" task below points the host's Docker daemon at the bind9 container,
-# so that container needs to already exist and be current *before* that
-# task runs — long before Play 3 (container start) would otherwise get to
-# it.
+# bind9 deploys/restarts its own compose app at the end of this role
+# instead of generically in Play 3: the "Disable DNS Stub Listener and set
+# Docker DNS" task below points the host's Docker daemon at the bind9
+# container, so that container has to already exist before that task
+# runs, well before Play 3 would otherwise get to it.
 #
-# Variable ownership:
-#   host_vars/<app-host>.yaml — dns_zones, dns_ddns_target,
-#                               caddy_domain, compose_apps
-# ---------------------------------------------------------------------------
+# Variable ownership: host_vars/<app-host>.yaml — dns_zones,
+# dns_ddns_target, caddy_domain, compose_apps.
 
 - name: Set BIND9 directory facts
   ansible.builtin.set_fact:
@@ -76,21 +70,10 @@
   tags:
     - infra
 
-# ---------------------------------------------------------------------------
-# Scrape every app host's dns_zones via hostvars and flatten into _all_zones.
-#
-# _all_zones is a list of dicts.  Each entry is one zone and carries all the
-# context the templates need so they don't have to reach into hostvars again:
-#
-#   key             — zone name
-#   value           — zone SOA/TTL/extra_records with serial already injected
-#   dns_ddns_target — the DDNS target for that host's zone
-#   caddy_domain    — used by zone_db.j2 to build + filter FQDNs
-#   compose_apps    — service list to derive CNAMEs from
-#
-# Using a Jinja2 expression in set_fact to do the double iteration in one
-# task avoids the two-loop YAML problem entirely.
-# ---------------------------------------------------------------------------
+# Scrapes every app host's dns_zones via hostvars and flattens into a list
+# of dicts (key/value/dns_ddns_target/caddy_domain/compose_apps) so the
+# templates don't need to reach into hostvars again. Done as a single
+# Jinja2 expression in set_fact to do the double iteration in one task.
 - name: Collect and flatten zones from all app hosts
   ansible.builtin.set_fact:
     bind9_all_zones: >-
@@ -125,18 +108,11 @@
   tags:
     - infra
 
-# ---------------------------------------------------------------------------
-# Smart zone-file deployment — ignore serial changes in the diff so we don't
-# reload BIND on every run just because the epoch serial ticked forward.
-#
-# Strategy:
-#   1. Render each zone's candidate content in-memory via the template
-#      lookup (no side-car files needed on the remote).
-#   2. Read back whatever's live on disk (if anything) via slurp.
-#   3. Strip the serial line from both in Jinja and compare; only write
-#      (and therefore only report changed) when the non-serial content
-#      actually differs.
-# ---------------------------------------------------------------------------
+# Smart zone-file deployment: render each zone in-memory, slurp back
+# whatever's live, strip the serial line from both and compare, and only
+# write (and report changed) when the non-serial content actually
+# differs — so we don't reload BIND every run just because the epoch
+# serial ticked forward.
 
 - name: Render candidate zone file content in-memory
   ansible.builtin.set_fact:
@@ -218,30 +194,25 @@
   tags:
     - infra
 
-# Must run before deploying the container below, not after: bind9's
-# container binds host port 53 directly, which conflicts with
-# systemd-resolved's default stub listener on 127.0.0.53:53 on any host
-# that hasn't already had it disabled by a previous run. On a genuinely
-# fresh host, deploying first would always fail with "address already in
-# use" - this only ever looked fine because real hosts had already
-# survived one successful run before anyone tried it from scratch.
+# Must run before deploying the container below, not after: bind9 binds
+# host port 53 directly, which conflicts with systemd-resolved's stub
+# listener on 127.0.0.53:53 until it's disabled. On a genuinely fresh
+# host, deploying first always fails with "address already in use" —
+# this only ever looked fine because real hosts had already survived one
+# successful run before anyone tried it from scratch.
 - name: Disable DNS Stub Listener and set Docker DNS
   ansible.builtin.import_tasks:
     file: network_conf.yaml
 
-# Handlers only fire at end-of-play by default - without this, the config
-# files above get edited but systemd-resolved keeps running (and holding
-# port 53) until whatever else happens to flush handlers later, which
-# could easily be after the deploy below has already tried and failed.
+# Handlers only fire at end-of-play by default, which could be after the
+# deploy below has already tried and failed to bind port 53.
 - name: Flush handlers so systemd-resolved actually stops holding port 53 before we deploy
   ansible.builtin.meta: flush_handlers
 
-# Tagged for both flows: images (recreate picks up a freshly pulled image)
-# and infra (restart when only DNS zone/named.conf content changed).
-# bind9_dns_changed is only defined when the infra-tagged zone/config tasks
-# above actually ran, so it's defaulted here rather than assumed - under
-# `--tags images` alone those tasks are skipped and this falls back to
-# false.
+# Tagged for both images (recreate on a fresh pull) and infra (restart on
+# zone/config changes). bind9_dns_changed is only set by the infra-tagged
+# tasks above, so it's defaulted here — under `--tags images` alone it
+# falls back to false.
 - name: Deploy and restart bind9 now that its config is ready
   ansible.builtin.include_role:
     name: compose

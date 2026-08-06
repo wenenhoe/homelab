@@ -1,30 +1,15 @@
 ---
-# ---------------------------------------------------------------------------
-# Reusable single-volume initializer. Included once per entry in
-# compose_app_item.volumes (see init.yaml).
+# Reusable single-volume initializer, included once per entry in
+# compose_app_item.volumes (see init.yaml). compose_volume_item.legacy_path
+# is the old bind-mount subpath if it doesn't match `name` (e.g. lldap's
+# "letsencrypt/conf" for the letsencrypt_conf volume) — defaults to `name`.
 #
-# Expects (via loop_var from init.yaml):
-#   compose_app_item          — the resolved app entry (name, etc.)
-#   compose_volume_item       — one entry from compose_app_item.volumes:
-#                                 name         — volume key, e.g. "data"
-#                                 legacy_path  — (optional) old bind-mount
-#                                                subpath relative to the app's
-#                                                stack dir, if it doesn't
-#                                                match `name` (e.g. lldap's
-#                                                "letsencrypt/conf" for the
-#                                                letsencrypt_conf volume).
-#                                                Defaults to `name`.
-#
-# Behaviour:
-#   1. Ensure the external volume "<app>_<volume>" exists, labelled so it can
-#      be found later without needing the app still present in the registry
-#      (see roles/compose/tasks/cleanup.yaml).
-#   2. If a legacy bind-mount directory still exists on disk at the expected
-#      path, copy its contents into the new volume once via a throwaway
-#      container, then rename the old directory to "<path>.migrated" so it
-#      won't be picked up again on the next run. This is the only
-#      idempotency check — no separate marker file needed.
-# ---------------------------------------------------------------------------
+# Ensures the external volume "<app>_<volume>" exists, labelled so it can
+# be found later without the app still being in the registry (see
+# cleanup.yaml). If a legacy bind-mount directory still exists at the
+# expected path, copies its contents in once via a throwaway container,
+# then renames the old directory to "<path>.migrated" so it isn't picked
+# up again — the rename itself is the only idempotency check needed.
 
 - name: "Set volume facts ({{ [compose_app_item.name, compose_volume_item.name] | path_join }})"
   ansible.builtin.set_fact:

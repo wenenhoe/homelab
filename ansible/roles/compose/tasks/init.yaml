@@ -1,18 +1,10 @@
 ---
-# ---------------------------------------------------------------------------
-# Reusable single-app initializer.
+# Reusable single-app initializer. Shared by compose_app (looped once per
+# non-infra app) and caddy/bind9 (called directly for their own app, to
+# control ordering relative to their own config generation/deploy).
 #
-# Shared by:
-#   - compose_app role    (looped once per non-infra app, Play 4)
-#   - caddy / bind9 roles (called directly for their own app, so they can
-#                          control ordering relative to their own config
-#                          generation and compose deploy — see those roles)
-#
-# Expects:
-#   compose_app_item — one fully-resolved entry from compose_apps (i.e.
-#                       already merged with app_registry defaults by
-#                       compose_app's registry-merge task)
-# ---------------------------------------------------------------------------
+# Expects compose_app_item: one fully-resolved entry from compose_apps,
+# already merged with app_registry defaults.
 
 - name: Reset extra-changed flag ({{ compose_app_item.name }})
   ansible.builtin.set_fact:
@@ -39,11 +31,8 @@
 - name: Find compose and Dockerfile files on the controller ({{ compose_app_item.name }})
   ansible.builtin.find:
     paths: "{{ compose_source_dir }}/{{ compose_app_item.name }}/"
-    # Dockerfile* covers Dockerfile itself plus variants like
-    # Dockerfile.staging/Dockerfile.prod — needed by any app with
-    # build: true, which otherwise has no way to get its build context
-    # onto the target host at all (configs: works but is a template-only
-    # mechanism not meant for this).
+    # Dockerfile* also matches variants like Dockerfile.staging — needed
+    # by any build: true app to get its build context onto the target.
     patterns:
       - "compose*.yaml"
       - "Dockerfile*"
@@ -62,13 +51,10 @@
   loop_control:
     label: "{{ item.path | regex_replace('^' ~ project_root ~ '/', '') }}"
 
-# -------------------------------------------------------------------------
-# Scripts and configs both go through the same direct-vs-volume-seeded
-# split. Scripts are normalised to config-shaped items first (implicit
-# dest "scripts/<name>") so both feed the same classification, staging,
-# and seed-detection logic below - just via `copy` instead of `template`,
-# since scripts are static files, not Jinja templates.
-# -------------------------------------------------------------------------
+# Scripts and configs share the same direct-vs-volume-seeded split.
+# Scripts are normalised to config-shaped items (dest "scripts/<name>")
+# first, so both feed the same classification/staging/seed-detection
+# logic — just via `copy` instead of `template`, since scripts are static.
 - name: Classify configs and scripts as direct or volume-seeded ({{ compose_app_item.name }})
   ansible.builtin.set_fact:
     compose_app_deploy_plan: >-
@@ -109,12 +95,10 @@
   loop_control:
     label: "{{ compose_app_item.name }}/_staging/{{ item.volume_name }}/{{ item.volume_relpath }}"
 
-# copy/template both do not create missing destination directories, and
-# the directory-creation loop above only covers what create_dirs declares
-# explicitly. A direct item's dest can carry its own subdirectory (e.g.
-# scripts/<name>, which every app gets automatically the moment it declares
-# `scripts:` at all) that nobody thought to also add to create_dirs — so
-# ensure it here rather than relying on that always being remembered.
+# copy/template don't create missing destination directories, and the
+# loop above only covers what create_dirs declares explicitly — a direct
+# item's dest (e.g. scripts/<name>) can need a subdirectory nobody
+# remembered to add there, so ensure it here instead.
 - name: Ensure destination directories exist for direct-deployed configs and scripts ({{ compose_app_item.name }})
   ansible.builtin.file:
     path: "{{ (compose_deploy_dir ~ '/' ~ compose_app_item.name ~ '/' ~ item.dest) | dirname }}"

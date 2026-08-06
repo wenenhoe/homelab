@@ -54,8 +54,8 @@
         mode: "0644"
 
     # A perfectly valid archive — this scenario tests that the
-    # confirmation gate blocks on its own, independent of the vars/
-    # archive-existence gate (validation_failure scenario covers that one).
+    # confirmation gate blocks on its own, independent of the
+    # vars/archive-existence gate (validation_failure covers that one).
     - name: Clear any staging dir/archive left over from a previous run
       ansible.builtin.file:
         path: "{{ item }}"
@@ -92,13 +92,11 @@
       become: false
 
     # restore_confirm: false is the deliberate "declined" signal — see the
-    # confirmation-gate comment block in roles/restore/tasks/main.yaml.
-    # This does NOT rely on Molecule's own ansible-playbook subprocess
-    # lacking a tty: whether it does depends on how `molecule test` itself
-    # was launched (a plain interactive terminal DOES give it one, in
-    # which case a real pause would hang here waiting for input that will
-    # never come) — that ambient state isn't something this scenario
-    # can assume either way, so it's pinned explicitly instead.
+    # confirmation-gate comment in roles/restore/tasks/main.yaml. Doesn't
+    # rely on Molecule's own subprocess lacking a tty: a plain
+    # interactive terminal DOES give it one, in which case a real pause
+    # would hang waiting for input that never comes — so it's pinned
+    # explicitly instead.
     - name: "Run restore role [block / rescue] (confirmation is deliberately withheld, failure is expected)"
       block:
         - name: Run the restore role
@@ -120,9 +118,7 @@
               withheld — it failed for an unrelated reason:
               {{ ansible_failed_result.msg | default('(no msg captured)') }}.
               A block/rescue that only checks "did it fail" would wrongly
-              report this as the confirmation gate working. See the
-              `become: false` comment in roles/restore/tasks/main.yaml for
-              a real example of exactly this failure mode.
+              report this as the confirmation gate working.
 
         - name: Leave a marker proving the confirmation gate actually blocked the run
           ansible.builtin.copy:

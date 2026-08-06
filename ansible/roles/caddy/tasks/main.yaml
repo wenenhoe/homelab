@@ -75,19 +75,14 @@
   tags:
     - images
 
-# The `when` below is deliberate and separate from the `tags:` filter:
-# tags control *reachability* (whether --tags images lets this task be
-# found at all through the include chain), not *whether it runs by
-# default*.
-# On a host that already has the image, this only rebuilds when
-# --tags images was explicitly requested (ansible_run_tags is the actual
-# list of tags passed on the CLI, ['all'] when none were given) - a plain
-# full run leaves the existing image alone rather than paying for a
-# nocache rebuild every time. But that same plain full run still has to
-# build the image the *first* time, on a fresh host where it doesn't
-# exist yet - hence the image-existence check above feeding the other
-# half of this condition, so a normal `ansible-playbook deploy.yaml` with
-# no tags at all still bootstraps correctly.
+# The `when` below is separate from `tags:` deliberately: tags control
+# reachability (whether --tags images can find this task at all), not
+# whether it runs by default. On a host that already has the image, this
+# only rebuilds when --tags images was explicitly requested
+# (ansible_run_tags is the actual CLI tag list, ['all'] when none given)
+# — a plain full run leaves the existing image alone. But that same plain
+# run still has to build it the first time on a fresh host, hence the
+# image-existence check feeding the other half of this condition.
 - name: Build custom Caddy image locally using standard Dockerfile
   community.docker.docker_image_build:
     name: caddy-digitalocean
@@ -103,12 +98,10 @@
   tags:
     - images
 
-# Tagged for both flows: images (recreate picks up a freshly rebuilt local
-# image automatically - Compose compares image IDs, not just tags) and
-# infra (restart when only the Caddyfile changed). caddy_config_changes is
-# only defined when the infra-tagged Caddyfile task above actually ran, so
-# it's defaulted here rather than assumed - under `--tags images` alone
-# that task is skipped and this falls back to false.
+# Tagged for both images (Compose picks up a rebuilt local image by ID)
+# and infra (restart when only the Caddyfile changed). caddy_config_changes
+# is only set by the infra-tagged task above, so it's defaulted here —
+# under `--tags images` alone it falls back to false.
 - name: Deploy and restart caddy now that its config/image is ready
   ansible.builtin.include_role:
     name: compose

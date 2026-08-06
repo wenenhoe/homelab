@@ -1,30 +1,19 @@
 #!/bin/sh
 # Entrypoint for the `certbot` service in docker/lldap/compose.yaml.
 #
-# lldap has no built-in ACME client and doesn't hot-reload certs on file
-# change (see deploy-hook.sh), so this container owns the cert lifecycle
-# for LDAPS on its behalf:
-#   1. Write the DigitalOcean API token to a credentials file certbot's
-#      dns-digitalocean plugin can read (skipped if already present, so
-#      re-creating the container doesn't require the token again).
-#   2. Issue a cert via DNS-01 (DigitalOcean plugin) on first run only, if
-#      `/etc/letsencrypt/live/${LDAP_DOMAIN}` doesn't already exist.
-#      --deploy-hook runs deploy-hook.sh, which copies the cert where
-#      lldap reads it from and restarts the lldap container to pick it up.
-#   3. Loop `certbot renew` every 12h for the lifetime of the container;
-#      renewal re-runs the same deploy hook only when a cert actually
-#      renews.
+# lldap has no built-in ACME client and doesn't hot-reload certs (see
+# deploy-hook.sh), so this container owns the LDAPS cert lifecycle: writes
+# the DigitalOcean token for certbot's dns-digitalocean plugin, issues a
+# cert via DNS-01 on first run (--deploy-hook copies it where lldap reads
+# it from and restarts lldap to pick it up), then loops `certbot renew`
+# every 12h for the container's lifetime.
 #
-# Expects LDAP_DOMAIN, LETSENCRYPT_EMAIL, DO_API_TOKEN in the environment
-# (from docker/lldap/configs/env.j2).
+# Expects LDAP_DOMAIN, LETSENCRYPT_EMAIL, DO_API_TOKEN in the environment.
 set -e
 
-# deploy-hook.sh used to be bind-mounted directly into
-# /etc/letsencrypt/renewal-hooks/deploy/ so `certbot renew` would pick it up
-# automatically. Now that /etc/letsencrypt is a named volume (no host path
-# to bind-mount from), place it there ourselves on every start instead -
-# cheap and idempotent, so this is safe to run on every container start,
-# not just the first.
+# /etc/letsencrypt is a named volume (no host path to bind-mount the hook
+# from), so place it here ourselves on every start instead — cheap and
+# idempotent.
 mkdir -p /etc/letsencrypt/renewal-hooks/deploy
 cp /scripts/deploy-hook.sh /etc/letsencrypt/renewal-hooks/deploy/deploy-hook.sh
 chmod +x /etc/letsencrypt/renewal-hooks/deploy/deploy-hook.sh

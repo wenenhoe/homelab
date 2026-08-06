@@ -1,86 +1,49 @@
 ---
-# ---------------------------------------------------------------------------
-# Role: restore
-#
 # Restores one app's volume(s) on a single target host from an
 # already-decrypted offsite backup archive. playbooks/restore.yaml is a
-# thin wrapper over this role — see that file's own header for the
+# thin wrapper over this role — see that file's header for the
 # GPG/SeaweedFS boundary (this role never touches either) and
-# docs/disaster-recovery.md for the operator-facing usage walkthrough.
+# docs/disaster-recovery.md for the operator-facing walkthrough.
 #
 # ---------------------------------------------------------------------------
 # SAFETY-CRITICAL STRUCTURE — read before changing anything here
 # ---------------------------------------------------------------------------
-# This role is included from a SINGLE play in playbooks/restore.yaml
-# (hosts: all), not split across a `hosts: localhost` pre-play plus a
-# `hosts: all` destructive play. That split was considered during the
-# DR-stage-1 restructure and rejected — verified empirically against a
-# real inventory, not just reasoned about:
+# Included from a SINGLE play in playbooks/restore.yaml (hosts: all), not
+# split across a `hosts: localhost` validation pre-play plus a `hosts: all`
+# destructive play. That split was considered and rejected: `--limit`
+# filters each play's host list independently, so a `hosts: localhost`
+# pre-play run under e.g. `--limit services` resolves to zero hosts and is
+# silently SKIPPED, not failed — the exact safety property this role
+# exists to guarantee would silently stop existing for the invocation the
+# usage docs recommend. Confirmed against a real multi-host inventory.
 #
-#   ansible-playbook restore.yaml -i inventory.yaml --limit services
+# The validation tasks below instead stay `delegate_to: localhost`,
+# INSIDE the same play as the destructive work — confirmed (same method)
+# to correctly block every host in the play from reaching the destructive
+# tasks.
 #
-# `--limit` filters each play's resolved host list independently, per
-# play. A `hosts: localhost` pre-play, run under `--limit services`
-# (which doesn't include `localhost`), resolves to ZERO hosts for that
-# play and is silently SKIPPED — not failed:
+# They deliberately skip `run_once: true`: every check evaluates
+# identically for every host (required vars / controller-side archive
+# existence are global, nothing host-specific), so redundant per-host
+# execution just costs a little duplicate controller-side work, never a
+# different verdict per host — confirmed that dropping run_once still
+# blocks every host under --limit, and it clears the run-once[task]
+# ansible-lint rule for real instead of just pinning `strategy: linear`
+# (which the rule fires on regardless, since the effective strategy can
+# be overridden from outside the file).
 #
-#   PLAY [validation, hosts: localhost] ****
-#   skipping: no hosts matched
-#   PLAY [destructive, hosts: all] *********
-#   changed: [node1]
-#   changed: [node2]
-#
-# i.e. the exact safety property this role exists to guarantee would
-# silently stop existing, for precisely the invocation the usage docs
-# recommend (`--limit <group>`). This is not a per-host-propagation edge
-# case — the validation play never runs at all.
-#
-# The validation tasks below stay `delegate_to: localhost`, INSIDE the
-# same play that does the destructive work. That combination was
-# confirmed (same method: a real failing task, run under --limit, against
-# a multi-host inventory) to correctly block every host in the play from
-# reaching the destructive tasks.
-#
-# They deliberately do NOT use `run_once: true` (dropped during this
-# extraction — see the run-once[task] ansible-lint findings this used to
-# carry, deferred on the old restore.yaml). ansible-lint's own rule
-# source states it fires on any run_once regardless of an explicit
-# `strategy: linear` pin, because the effective strategy at runtime can
-# be overridden by things outside the file — so pinning strategy would
-# not have resolved it "for real," only suppressed the symptom the same
-# way a `noqa` would. Dropping run_once instead is safe here specifically
-# because every validation check below evaluates identically for every
-# host in the play — required vars and controller-side archive existence
-# are global -e vars/facts, nothing host-specific — so redundant
-# per-host execution costs a little duplicate work delegated to the
-# controller, never a different verdict per host. Confirmed empirically
-# that removing run_once still blocks the destructive tasks for every
-# host under --limit, and ansible-lint goes clean on the result (no
-# noqa needed).
-#
-# They ALSO carry `become: false`, deliberately, unlike the rest of this
-# role. `become: true` is set at the PLAY level (playbooks/restore.yaml)
-# because the destructive tasks genuinely need root on the TARGET host —
-# but `become` is inherited by a task regardless of `delegate_to` unless
-# overridden, so without this, these three tasks would try to sudo on
-# the CONTROLLER (the operator's own machine, via delegate_to: localhost)
-# for no reason — a plain var check and a local file stat never needed
-# root. On a controller without passwordless sudo cached, that's not a
-# no-op: it's `sudo: interactive authentication is required`, a hard
-# failure with nothing to do with whether the archive actually exists.
-# This was a real, pre-existing bug (present in the original restore.yaml
-# too, unrelated to this extraction) that Molecule's confirmation_declined
-# scenario surfaced for real. Confirmed empirically which of the three
-# tasks actually reach a connection at all: `assert`/`fail` never do
-# (zero EXEC calls in a -vvv trace — they're evaluated entirely inside
-# the controller process, so become is a no-op for them either way), but
-# `stat` does, which is exactly the one that broke. All three get
-# `become: false` anyway, for consistency and so this doesn't quietly
-# break again the next time one of them is swapped for a module that
-# does need a connection. Matches the existing precedent elsewhere in
-# this codebase for controller-only reads — see
-# roles/compose/tasks/init.yaml's own `delegate_to: localhost` +
-# `become: false` find task.
+# They also carry `become: false`, unlike the rest of this role.
+# `become: true` is set at the PLAY level for the destructive
+# target-host tasks, but is inherited regardless of `delegate_to` unless
+# overridden — without this, these controller-side tasks would try to
+# sudo on the operator's own machine for no reason, which fails hard on
+# a controller without passwordless sudo cached. This was a real
+# pre-existing bug that Molecule's confirmation_declined scenario
+# surfaced (only `stat` actually opens a connection — `assert`/`fail`
+# never do — but all three get `become: false` for consistency, so this
+# doesn't quietly break again if one is swapped for a module that does
+# need a connection). Same pattern as roles/compose/tasks/init.yaml's
+# own `delegate_to: localhost` + `become: false` find task.
 # ---------------------------------------------------------------------------
 
 - name: Compute this restore's directory/path facts
@@ -122,72 +85,43 @@
 # ---------------------------------------------------------------------------
 # Confirmation gate.
 #
-# In a real interactive run, ansible.builtin.pause does not wait for input
-# when stdin isn't a tty — confirmed straight from ansible-core's own
-# source (plugins/action/pause.py's do_prompt, via
-# display.py:os.isatty(self._stdin_fd)) — so this gate fails CLOSED by
-# default whenever the CONTROLLER process genuinely has no tty attached
-# (cron, systemd timers, CI runners with no terminal at all).
+# ansible.builtin.pause doesn't wait for input when stdin isn't a tty
+# (confirmed against ansible-core's own source) — so this gate fails
+# CLOSED by default with no controller tty (cron, systemd timers, CI).
+# That's not the same as "any automated-sounding run" though: a Molecule
+# run launched from a real terminal inherits that terminal's tty, so
+# pause DOES wait for real input there too (confirmed the hard way —
+# this used to be asserted as "Molecule skips it," which held for a
+# tty-less shell pipe but not for Molecule itself).
 #
-# That is NOT the same thing as "any automated/non-interactive-sounding
-# run" — Molecule included. A Molecule run launched from a normal
-# interactive terminal spawns its ansible-playbook subprocess inheriting
-# THAT terminal's real tty, so pause DOES wait for real input there —
-# confirmed the hard way: this used to be asserted here as "Molecule
-# included," on the strength of testing a plain shell pipe in an
-# environment that never has a tty at all regardless of how it's
-# invoked. That was true of the pipe, not of Molecule — pause's decision
-# is a literal fd-level isatty() check on however the parent process
-# happened to launch ansible-playbook, which a scenario has no control
-# over and can't assume either way.
+# So `restore_confirm` is a real three-state signal, not a bypass flag,
+# specifically so scenarios don't depend on ambient tty state:
+#   - undefined        → the real gate: pause for real input, same as an
+#                         actual operator run. Never set this anywhere a
+#                         real interactive run would pick it up implicitly.
+#   - explicitly true  → skip the prompt, proceed as confirmed (happy-path
+#                         scenarios).
+#   - explicitly false → skip the prompt, proceed as DECLINED, same abort
+#                         message a real "no" would give
+#                         (confirmation_declined scenario).
+# Both explicit values are -e-only, never defaulted. A real operator only
+# ever hits the undefined branch.
 #
-# So `restore_confirm` is a real three-state signal, not a single
-# bypass flag, specifically so Molecule's scenarios don't depend on
-# ambient tty state at all:
-#   - undefined      → the real gate: pause for real input, same as any
-#                       actual operator run. Never set this in
-#                       inventory/group_vars or anywhere a real
-#                       interactive run would pick it up implicitly.
-#   - explicitly true  → skip the prompt, proceed as confirmed. Exists so
-#                       Molecule's happy-path scenarios can drive the
-#                       confirmed branch deterministically.
-#   - explicitly false → skip the prompt, proceed as DECLINED (aborts
-#                       with the same message a real "no" would). Exists
-#                       so Molecule's confirmation_declined scenario can
-#                       prove the abort logic fires without depending on
-#                       whether its own ansible-playbook subprocess
-#                       happens to have a tty.
-# Both explicit values are -e-only, never defaulted, and — like typing
-# "yes"/anything-but-"yes" at the real prompt — carry the same burden of
-# deliberate explicitness. A real operator only ever hits the undefined
-# (real prompt) branch.
+# The bypass task below feeds the SAME `restore_confirmation.user_input`
+# shape the real pause task registers, so "Abort if not confirmed" makes
+# exactly one comparison regardless of which task ran — not cosmetic: an
+# earlier version had two separately-`or`-ed conditions, which a coverage
+# report caught left the real `user_input != 'yes'` comparison
+# structurally unreachable across the whole suite (every scenario always
+# set restore_confirm explicitly), even while reporting "both branches
+# covered." Collapsing to one shared comparison means every scenario now
+# actually exercises it.
 #
-# The bypass task below feeds its result into the SAME
-# `restore_confirmation.user_input` shape the real pause task registers,
-# so "Abort if not confirmed" makes exactly ONE comparison regardless of
-# which of these two tasks actually ran. This isn't cosmetic — a Molecule
-# coverage report caught that an earlier version, which instead had two
-# separate `or`-ed conditions (one for "pause ran for real", one for "the
-# bypass was used"), let every scenario's `restore_confirm` always being
-# explicitly set mean the FIRST condition was structurally unreachable
-# across the entire suite, even though the task's overall pass/fail was
-# still reported as "both branches covered" — the real
-# `user_input != 'yes'` comparison a genuine operator's answer flows
-# through had never actually run once. Collapsing to one shared
-# comparison means every scenario now exercises that real comparison,
-# not a bypass-only stand-in for it.
-#
-# What's still NOT covered by Molecule, deliberately: the pause task
-# itself ever actually waiting on a real tty (it's always skipped in
-# every scenario, since all of them set restore_confirm one way or the
-# other to stay tty-independent — see above). That's accepted, not
-# overlooked: reliably driving a real interactive wait from CI would mean
-# controlling the tty a subprocess inherits, which isn't something this
-# playbook YAML has any control over, and ansible.builtin.pause's own
-# interactive-wait behavior is upstream ansible-core code with its own
-# test coverage, not logic this role owns. What this role's own logic
-# needed covered — the comparison that decides whether to actually
-# proceed — now is, on both scenario platforms.
+# Still deliberately NOT covered by Molecule: pause itself ever really
+# waiting on a tty — every scenario sets restore_confirm to stay
+# tty-independent. Reliably driving a real interactive wait from CI isn't
+# something this playbook controls, and pause's wait behavior is
+# upstream ansible-core's own tested code, not logic this role owns.
 # ---------------------------------------------------------------------------
 - name: "Confirm before proceeding — this will stop and overwrite volumes for: {{ restore_app }}"
   ansible.builtin.pause:
@@ -198,18 +132,8 @@
   register: restore_confirmation
   when: restore_confirm is not defined
 
-# Feeds the exact same shape (`.user_input`) the real pause task above
-# registers, so "Abort if not confirmed" below has exactly ONE
-# comparison to make regardless of which of these two tasks actually
-# ran — not two structurally separate conditions. Without this, every
-# Molecule scenario (which always defines restore_confirm one way or
-# the other, to stay tty-independent — see the comment above) would
-# only ever exercise a bypass-specific condition, never the real
-# `user_input != 'yes'` comparison a real operator's answer flows
-# through — coverage tooling would call that "both branches observed"
-# at the task level while the actual decision logic underneath stayed
-# completely untested. This was found the hard way, from exactly that
-# blind spot in a coverage report.
+# Feeds the same `.user_input` shape the real pause task registers — see
+# the confirmation-gate comment above for why that matters.
 - name: Record the explicit restore_confirm override as if it were the pause answer
   ansible.builtin.set_fact:
     restore_confirmation:

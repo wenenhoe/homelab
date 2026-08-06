@@ -1,26 +1,19 @@
 ---
-# ---------------------------------------------------------------------------
-# One iteration of the batch loop in main.yaml. Deliberately a separate file
-# (not inlined into main.yaml's loop) because block/rescue can't be combined
-# with `loop:` directly - the loop has to wrap an include, and the
-# block/rescue has to live inside what's being included.
+# One iteration of the batch loop in main.yaml, kept in a separate file
+# because block/rescue can't combine with `loop:` directly — the loop has
+# to wrap an include, and block/rescue has to live inside what's included.
 #
-# This isn't just style: testing showed `ignore_errors: true` on a looped
-# include_role/include_tasks does NOT stop a single app's failure from
-# halting every app still left in the loop (see
-# https://github.com/ansible/ansible/issues/70311) - ignore_errors there
-# only prevents Ansible reporting it as a failure, it doesn't stop the
-# host from being marked failed and skipping the rest of the loop. Catching
-# the error here, before it ever reaches the loop machinery, is what
-# actually lets the batch continue past one app's failure.
-# ---------------------------------------------------------------------------
+# Not just style: `ignore_errors: true` on a looped include does NOT stop
+# one app's failure from halting the rest of the loop (see
+# github.com/ansible/ansible/issues/70311 — it only suppresses the
+# reported failure, not the host-marked-failed/skip-rest-of-loop
+# behavior). Catching the error here, before it reaches the loop
+# machinery, is what actually lets the batch continue.
 
-# Deliberately tagged per-task below, not on the block itself: a matching
-# tag on a block causes Ansible to run every task nested inside it
-# unconditionally, including deeper untagged tasks reached through further
-# includes (e.g. compose/tasks/init.yaml's provisioning steps) - which
-# would defeat the point of a narrowly-scoped --tags images run. Tagging
-# each task here individually keeps that nested filtering intact.
+# Tagged per-task below, not on the block itself: a tag on a block runs
+# every nested task unconditionally, including untagged tasks reached
+# through further includes (e.g. compose/tasks/init.yaml) — which would
+# defeat a narrowly-scoped --tags images run.
 - name: "Init and deploy [block / rescue]: {{ compose_app_target.name }}"
   block:
     - name: "Reset per-app changed flag ({{ compose_app_target.name }})"

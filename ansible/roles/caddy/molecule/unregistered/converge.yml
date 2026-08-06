@@ -1,27 +1,22 @@
 ---
-# ---------------------------------------------------------------------------
-# Exercises caddy_has_compose_app == false: the caddy role is included, but
-# compose_apps deliberately has no "caddy" entry at all. tasks/main.yaml
-# explicitly supports this (see caddy_compose_app_item's {} fallback and the
-# caddy_has_compose_app guards on the Init and Deploy-and-restart tasks) but
-# it was never exercised by the default scenario, which always registers
-# caddy - and it isn't exercised by the real fleet either, since every
-# current host_vars file registers caddy too.
+# Exercises caddy_has_compose_app == false: the caddy role is included,
+# but compose_apps has no "caddy" entry at all. tasks/main.yaml supports
+# this (see caddy_compose_app_item's {} fallback and the
+# caddy_has_compose_app guards) but it was never exercised by the default
+# scenario, which always registers caddy — nor by the real fleet, since
+# every current host_vars file registers caddy too.
 #
 # Tracing it through surfaced a real bug: "Seed the caddyfile volume from
-# staging" was gated only on caddy_config_changes.changed, not on
-# caddy_has_compose_app, so it would run using the {} fallback for
-# compose_app_item the moment the Caddyfile changed - which happens on
-# essentially every first run - and blow up on compose_app_item.name being
-# undefined. Fixed in tasks/main.yaml by also requiring
-# caddy_has_compose_app there.
+# staging" was gated only on caddy_config_changes.changed, not
+# caddy_has_compose_app, so it would run with the {} fallback the moment
+# the Caddyfile changed (essentially every first run) and blow up on
+# compose_app_item.name being undefined. Fixed in tasks/main.yaml by also
+# requiring caddy_has_compose_app there.
 #
-# Expected behaviour here, post-fix: the Caddyfile still renders to staging
-# and the custom image still gets built (neither depends on caddy being a
-# compose app), but nothing gets seeded into a caddy_caddyfile volume and no
-# caddy container gets deployed - there's no compose-managed app for this
-# host to deploy in the first place.
-# ---------------------------------------------------------------------------
+# Expected behaviour post-fix: the Caddyfile still renders to staging and
+# the custom image still builds (neither depends on caddy being a
+# compose app), but nothing gets seeded into a volume and no caddy
+# container gets deployed.
 - name: Converge
   hosts: all
   become: true

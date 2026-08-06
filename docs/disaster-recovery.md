@@ -12,48 +12,34 @@ cloud/off-site copy yet — that's a later stage.
 
 - Every app's real state already lives in a Docker-managed named volume,
   labelled and owned by the `compose` role (see [`volumes.md`](volumes.md)).
-  That means a generic backup agent just needs to mount the volumes it
-  cares about read-only — no per-app bespoke logic beyond deciding *which*
-  volumes matter, declared as a `backup:` key on that app's own
-  `app_registry` entry (see below).
+  A generic backup agent just mounts the volumes it cares about read-only —
+  no per-app logic beyond declaring *which* volumes matter, via a `backup:`
+  key on that app's `app_registry` entry (see below).
 - `docker-volume-backup` doesn't do incremental/delta sync — every run tars
-  whatever's mounted and uploads a new object. Retention is managed by
-  deleting old objects after N days, not by diffing. This matters for
-  capacity planning (see minecraft below) and for why aggregation groups
-  apps by *retention/schedule agreement*, not just convenience.
+  whatever's mounted and uploads a new object; retention deletes old
+  objects after N days. This is why aggregation groups apps by
+  *retention/schedule agreement*, not just convenience.
 - Backup targets are aggregated **per host, split into (at most) two
-  groups** — not one-per-app, and not one single instance either. The
-  `backup_agent` role (`ansible/roles/backup_agent`) scrapes this host's
-  already-resolved `compose_apps` (resolved once, in Play 1, by
-  `compose/preinit.yaml` — no cross-host scraping needed, unlike bind9) for
-  any app declaring `backup.volumes`, and splits them by
-  `backup.stop_during_backup`:
-  - **stop-during-backup group** — shares one `docker-socket-proxy` (scoped
-    `CONTAINERS=1 POST=1 INFO=1`, same pattern as `lldap`'s existing certbot
-    proxy), one archive, one schedule.
+  groups** — not one-per-app, not one single instance. `backup_agent`
+  scrapes this host's already-resolved `compose_apps` for any app
+  declaring `backup.volumes`, and splits by `backup.stop_during_backup`:
+  - **stop-during-backup group** — shares one `docker-socket-proxy`
+    (scoped `CONTAINERS=1 POST=1 INFO=1`, same pattern as `lldap`'s
+    certbot proxy), one archive, one schedule.
   - **no-stop group** — no proxy needed, backed up live.
 
-  This is a deliberate middle ground, not the maximum possible
-  consolidation: `docker-volume-backup` stops/restarts labeled containers
-  **once per run**, not per-subdirectory, so bundling a "needs consistency"
-  app in with a "doesn't" app would stop the fast one for as long as the
-  slow one's archive takes. Two groups is the minimum split that keeps
-  those concerns from coupling.
-- `backup_agent`'s `compose.yaml` is **rendered from a Jinja template**
-  (`ansible.builtin.template`), not copied verbatim — the first templated
-  compose file in this repo. Every other app's `compose*.yaml` is
-  found-and-copied as-is (`compose/init.yaml`), because a normal app's
-  volume/service list is fixed at authoring time. `backup_agent`'s isn't:
-  which volumes it mounts varies by host, which Compose has no way to
-  express conditionally from an env var — the list itself has to be
-  generated. This is a real precedent, deliberately contained to one new
-  role rather than touching the generic `compose_app`/`compose` path every
-  other app uses.
+  Two groups, not more or fewer: `docker-volume-backup` stops/restarts
+  labeled containers **once per run**, not per-subdirectory, so mixing a
+  "needs consistency" app with one that doesn't would stop the fast app
+  for as long as the slow one's archive takes.
+- `backup_agent`'s `compose.yaml` is **rendered from a Jinja template**,
+  not copied verbatim like every other app's — the first templated
+  compose file in this repo. It has to be: which volumes it mounts varies
+  by host, and Compose can't express that conditionally from an env var.
 - Retention/cron conflicts within a shared group are a **hard failure**,
-  not a silent pick: if two apps grouped together on the same host declare
+  not a silent pick: if two apps grouped on the same host declare
   different `backup.retention_days`/`backup.cron`, the play stops with an
-  explicit error rather than quietly using one app's value for both. See
-  `ansible/roles/backup_agent/tasks/main.yaml`'s validation tasks.
+  explicit error. See `ansible/roles/backup_agent/tasks/main.yaml`.
 
 ## Storage host
 
@@ -62,10 +48,8 @@ treat it consistently (own `caddy_domain`, own DNS zone) — it plays no part
 in serving *other* hosts' DNS.
 
 SeaweedFS runs in single-node "all-in-one" mode (`weed server -filer -s3`,
-one process, one `data` volume) — master/volume/filer/S3 gateway together.
-This is the right call for stage 1: the goal is "a copy exists off the app
-host," not "the backup target itself is highly available." Revisit if/when
-`storage` becomes the thing you can't afford to lose.
+one process, one `data` volume). Right call for stage 1: the goal is "a
+copy exists off the app host," not HA for the backup target itself.
 
 Two surfaces, two different auth models:
 
@@ -85,23 +69,20 @@ Two surfaces, two different auth models:
 ## Bucket creation
 
 SeaweedFS does **not** auto-create a bucket on first `PUT`, even with
-`Admin`-scoped credentials for that bucket name — confirmed the hard way,
-via a real production failure (`NoSuchBucket`, 404) on the very first
-scheduled backup after this stage first went live, despite the
-stop/restart and archive-creation steps all working correctly.
+`Admin`-scoped credentials — confirmed the hard way, via a real
+production failure (`NoSuchBucket`, 404) on the first scheduled backup
+after this stage went live, despite the stop/restart and
+archive-creation steps all working correctly.
 
 `ansible/roles/seaweedfs_bucket` creates it explicitly and idempotently —
-Play 5 in `deploy.yaml`, hosts `storage` only, running after SeaweedFS is
-deployed (Play 4) and before any `backup_agent` instance could try to
-upload to it (Play 6). It mirrors the exact same aws-cli-based approach
-already verified in `ansible/roles/backup_agent/molecule/default/converge.yml`,
-tolerating `BucketAlreadyExists` the same way that test's idempotence fix
-does.
+Play 5 in `deploy.yaml`, `storage` only, after SeaweedFS deploys (Play 4)
+and before `backup_agent` could try to upload (Play 6). Mirrors the same
+aws-cli approach already verified in
+`ansible/roles/backup_agent/molecule/default/converge.yml`.
 
-Deliberately not folded into `backup_agent` itself: bucket creation is a
-storage-side setup concern (creating the destination once), not something
-every individual `backup_agent` host should be redundantly responsible
-for.
+Kept out of `backup_agent` itself: bucket creation is a storage-side
+setup concern (create the destination once), not something every
+`backup_agent` host should redundantly handle.
 
 ## Encryption
 
@@ -142,7 +123,7 @@ makes every backup permanently unrecoverable.
 ## What's backed up
 
 Declared per-app via a `backup:` key on its `app_registry` entry — see
-`ansible/inventory/group_vars/all.yaml`. `backup_agent` aggregates these
+`ansible/inventory/group_vars/all/app_registry.yaml`. `backup_agent` aggregates these
 into (at most) two instances per host:
 
 | Host | Group | Apps → volumes | Retention |
@@ -167,21 +148,17 @@ together for one consistent archive run, then restarts them
 (`BACKUP_STOP_DURING_BACKUP_LABEL`). A few seconds of downtime at 4am is a
 good trade for a snapshot that isn't caught mid-write.
 
-**Known limitations, both accepted for stage 1 (single operator, trusted
-LAN) — revisit if that trust model changes:**
+**Known limitations, accepted for stage 1 (single operator, trusted LAN)
+— revisit if that trust model changes:**
 
 - `docker-socket-proxy`'s `CONTAINERS=1`/`INFO=1` grant has no
-  per-container ACL — it can start/stop *any* container on that host, not
-  just the ones in its group. `INFO=1` is required, not optional:
-  `docker-volume-backup` calls `/info` internally to check swarm vs.
-  standalone before it can stop anything — without it, every run in the
-  stop-during-backup group fails immediately with a 403 from the proxy.
-- Grouping couples downtime windows: `beszel-hub` and `tinyauth` on
-  `security` are both stopped for the full duration of their *shared*
-  archive run, not just their own volume's slice — if one grows
-  significantly larger than the other, the small one now waits on the big
-  one. Revisit the grouping (or split further) if that gap ever matters in
-  practice.
+  per-container ACL — it can start/stop any container on that host, not
+  just the ones in its group. `INFO=1` is required: `docker-volume-backup`
+  calls `/info` to check swarm vs. standalone before it can stop anything
+  — without it, every stop-during-backup run fails immediately with a 403.
+- Grouping couples downtime windows: apps sharing an archive are stopped
+  for the full run, not just their own volume's slice. Revisit the
+  grouping (or split further) if that gap ever matters in practice.
 
 `lldap` and `wastebin` are backed up live, without stopping — your explicit
 call for stage 1. If a restore ever turns up a corrupt SQLite file or LDAP
@@ -201,13 +178,13 @@ RCON-quiesced (`save-off`/`save-on`), compressed output of the existing
 
 Retention is intentionally **2 days, not 7** (`backup.retention_days`
 override): `backups` is already a 7-day rolling window on-host
-(~1.7GB/day × 7 ≈ 12GB). Keeping 7 more full off-host copies of that same
-near-duplicate window would cost ~84GB for little extra protection; 2
+(~1.7GB/day × 7 ≈ 12GB) — 7 more full off-host copies of that same
+near-duplicate window would cost ~84GB for little extra protection. 2
 generations is enough to survive a bad/partial upload while `mc-backup`
 still owns the actual version history. This override is safe precisely
-*because* `minecraft` is the only app on `play` with any `backup:` entry —
-see the "conflicting overrides" validation below for what happens when
-that's no longer true.
+*because* `minecraft` is the only app on `play` with a `backup:` entry —
+see conflicting-overrides below for what happens when that's no longer
+true.
 
 ### Conflicting overrides within a group
 
@@ -228,7 +205,7 @@ you want deeper history for the smaller apps.
 
 ## S3 endpoint format
 
-`offsite_backup_s3_endpoint` (`group_vars/all.yaml`) must be a **bare
+`offsite_backup_s3_endpoint` (`group_vars/all/main.yaml`) must be a **bare
 hostname** — `s3.store.{{ lab_domain }}`, not `https://s3.store.{{ lab_domain }}`.
 `docker-volume-backup`'s `AWS_ENDPOINT` env var is passed straight into the
 underlying minio-go S3 client, which expects just `host[:port]`; a
@@ -243,7 +220,7 @@ picks it up consistently.
 ## S3 credentials
 
 Auto-generated on first use, not prompted for — `seaweedfs_s3_access_key`/
-`seaweedfs_s3_secret_key` (`group_vars/all.yaml`) use Ansible's `password`
+`seaweedfs_s3_secret_key` (`group_vars/all/main.yaml`) use Ansible's `password`
 lookup, which generates a random value once and caches it to a file on the
 **controller** (not a managed host); every later lookup of that same path
 returns the cached value instead of generating a new one:
@@ -253,33 +230,29 @@ seaweedfs_s3_access_key: "{{ lookup('password', project_root ~ '/ansible/files/s
 seaweedfs_s3_secret_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-secret-key chars=hexdigits length=64') }}"
 ```
 
-`chars=hexdigits` (the named charset, not a literal `"0123456789abcdef"`
-string) is deliberate: these are opaque tokens, never hex-decoded, so
-mixed-case `a-fA-F` costs nothing and gives slightly more entropy per
-character than a strict lowercase set (22 possible characters, not 16). It
-also avoids writing a literal full hex-alphabet string next to a
-`_secret_key` variable name in source — `gitleaks` (wired in via
-`.config/.pre-commit-config.yaml`) flags that exact shape as a generic
-secret, even though it's just a charset spec; the real generated values
-never get committed at all (`ansible/files/secrets/` is gitignored).
+`chars=hexdigits` (the named charset, not a literal string) is deliberate:
+these are opaque tokens, never hex-decoded, so mixed-case `a-fA-F` costs
+nothing and gives more entropy per character. It also avoids writing a
+literal hex-alphabet string next to a `_secret_key` name in source —
+`gitleaks` flags that shape as a generic secret, even though it's just a
+charset spec. The real generated values never get committed
+(`ansible/files/secrets/` is gitignored).
 
-This is deliberately **not** the same pattern as `lldap`'s
-`{{ lookup('pipe', 'openssl rand -hex 32') }}` JWT secret, even though both
-end up under `force: false`. `lldap`'s secret is generated and consumed in
-one file on one host — a fresh random value every render is harmless
-because `force: false` just means the first-ever render sticks. These two
+Not the same pattern as `lldap`'s `openssl rand -hex 32` pipe, even
+though both end up under `force: false`. `lldap`'s secret is generated
+and consumed in one file on one host — any random value is fine since
+`force: false` just locks in whichever render happens first. These
 values need to match **across independently-rendered templates on
-different hosts** — `storage`'s `s3-identity.json` and every
-`backup_agent`'s `.env.*-group` files. A raw `openssl rand` pipe in each
-template would generate a *different* value per template, and whichever
-host happened to render (and thus lock in via `force: false`) first would
-permanently disagree with the others. Only a controller-side cache (what
-`password` does) guarantees all of them agree.
+different hosts** (`storage`'s `s3-identity.json` and every
+`backup_agent`'s `.env.*-group` files) — a raw pipe in each template
+would generate a different value per host, and whichever rendered first
+would permanently disagree with the rest. Only a controller-side cache
+(what `password` does) keeps them all in sync.
 
 The generated plaintext lives at `ansible/files/secrets/` on the
-controller — gitignored, never committed, never touches any managed host
-except via the rendered `.env`/`s3-identity.json` files that already had
-`no_log: true`/`mode: "0600"` protection.
+controller — gitignored, never committed, never touches a managed host
+except via the rendered `.env`/`s3-identity.json` files (already
+`no_log: true`/`mode: "0600"`).
 
 **Rotating a credential**: delete the relevant file under
 `ansible/files/secrets/`, then redeploy `storage` (so `s3-identity.json`
@@ -290,45 +263,37 @@ and its clients will disagree.
 ## Restore
 
 `playbooks/restore.yaml` handles the generic case — extract a decrypted
-archive back into one or more named volumes for a single app, stopping and
-redeploying its compose stack around the operation. The playbook itself is
-a thin wrapper (mirroring `deploy.yaml`'s own play-sequencer style) over
-`ansible/roles/restore`, which is where the actual logic — and its
+archive back into one or more named volumes for a single app, stopping
+and redeploying its compose stack around the operation. It's a thin
+wrapper over `ansible/roles/restore`, where the actual logic — and its
 [Molecule coverage](molecule-testing.md) — lives. That role's
-`tasks/main.yaml` carries a load-bearing comment worth reading before
-touching either file: this MUST stay a single play (`hosts: all`) with
-its validation tasks `delegate_to: localhost` inline, not split into a
-separate controller-only validation play — that split was tried during
-the stage-1 restructure and confirmed (empirically, against a real
-inventory) to silently skip validation entirely under `--limit <group>`,
-which is exactly how this playbook is normally invoked.
+`tasks/main.yaml` has a comment worth reading before touching either
+file: this MUST stay a single play (`hosts: all`) with validation tasks
+`delegate_to: localhost` inline, not split into a separate
+controller-only validation play — that split was tried and confirmed to
+silently skip validation entirely under `--limit <group>`, which is
+exactly how this playbook is normally invoked.
 
-Two independent gates have to each genuinely block the destructive steps
-before anything is touched, and both have their own Molecule scenario
-proving it with real side-effect assertions (container `StartedAt`,
-volume content, scratch-volume/archive-copy cleanup) rather than just an
-exit code:
+Two independent gates each have to genuinely block the destructive steps,
+both with their own Molecule scenario proving it via real side-effect
+assertions (container `StartedAt`, volume content, scratch-volume/
+archive-copy cleanup), not just an exit code:
 
 - **Required vars / archive existence** — `restore_app`,
   `restore_archive_local_path`, `restore_volumes`, and the archive
   actually existing on the controller.
-- **Human confirmation** — the `pause` prompt below. `pause` never waits
-  when the ansible-playbook process's own stdin genuinely isn't a tty
-  (cron, systemd timers, CI runners with no terminal at all) — it
-  returns empty input immediately, so this gate fails **closed** in
-  those contexts with no extra work needed. That's a narrower guarantee
-  than "any automated run, Molecule included," though — a Molecule run
-  launched from a normal interactive terminal inherits that terminal's
-  real tty for its own ansible-playbook subprocess, so `pause` *does*
-  wait for real input there. `restore_confirm` is a real three-state
-  signal for exactly this reason (undefined → real prompt;
-  explicitly `true`/`false` → deterministically confirmed/declined,
-  skipping the prompt either way) — see the confirmation-gate comment
-  in `roles/restore/tasks/main.yaml` for the full story, including how
-  the tty assumption was found to be wrong. Both explicit values are
-  `-e`-only, never defaulted, never set in inventory/group_vars, and
-  carry the same burden of explicitness as answering the real prompt.
-  A real operator only ever hits the undefined (real prompt) branch.
+- **Human confirmation** — the `pause` prompt. It never waits when
+  stdin genuinely isn't a tty (cron, systemd timers, CI), returning empty
+  input immediately, so this gate fails **closed** there with no extra
+  work. That's narrower than "any automated run, Molecule included,"
+  though — a Molecule run launched from a real terminal inherits that
+  terminal's tty, so `pause` *does* wait for real input there too.
+  `restore_confirm` is a real three-state signal for exactly this reason
+  (undefined → real prompt; explicitly `true`/`false` → deterministically
+  confirmed/declined) — see the confirmation-gate comment in
+  `roles/restore/tasks/main.yaml` for the full story. Both explicit
+  values are `-e`-only, never defaulted or set in inventory/group_vars. A
+  real operator only ever hits the undefined (real prompt) branch.
 
 ```sh
 ansible-playbook playbooks/restore.yaml \
@@ -341,11 +306,8 @@ ansible-playbook playbooks/restore.yaml \
 Since `backup_agent` aggregates apps per host/group, a shared archive can
 contain more than one app's volumes when a group has multiple members
 (e.g. `security`'s stop-group archive has both `beszel-hub_data` and
-`tinyauth_data`). On `services` today, `kms` is the only app in the
-stop-group, so this particular archive happens to contain just
-`kms_data` — `wastebin` is in the *no-stop* group, a separate archive
-entirely. `restore_app`/`restore_volumes` don't need to match everything
-in the archive — only what you're restoring.
+`tinyauth_data`). `restore_app`/`restore_volumes` don't need to match
+everything in the archive — only what you're restoring.
 
 Steps you do manually before running it (deliberately kept out of the
 playbook — the private key should never touch a homelab host):

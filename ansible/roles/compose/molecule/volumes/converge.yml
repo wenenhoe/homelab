@@ -23,14 +23,11 @@
         tasks_from: bootstrap_docker.yaml
 
     # Plants a legacy bind-mount directory with pre-existing content, so
-    # ensure_volume.yaml's migration branch actually has something to do.
-    # Guarded on the ".migrated" marker so this stays idempotent across
-    # Molecule's converge-twice idempotence check: first run, the legacy
-    # dir doesn't exist yet, gets created, then ensure_volume.yaml migrates
-    # and renames it away; second run sees the marker and does nothing,
-    # matching what ensure_volume.yaml itself will also find (nothing to
-    # migrate) — the same idempotency check the role relies on in
-    # production.
+    # ensure_volume.yaml's migration branch has something to do. Guarded
+    # on the ".migrated" marker to stay idempotent across the
+    # converge-twice idempotence check: first run creates and migrates
+    # it, second run sees the marker and does nothing — matching what
+    # ensure_volume.yaml itself finds in production.
     - name: Check whether the legacy migration has already happened
       ansible.builtin.stat:
         path: "{{ compose_deploy_dir }}/volapp/data.migrated"

@@ -1,12 +1,10 @@
 ---
 # Must live here, not in converge.yml's play `vars:`. bind9's own
 # "Collect and flatten zones from all app hosts" task reads
-# hostvars[host].dns_zones (and dns_ddns_target/caddy_domain/compose_apps)
-# for every host in the app_hosts group - hostvars[] only reliably exposes
-# variables from real inventory sources (host_vars/group_vars files,
-# inventory-defined vars), not from a play's vars: block, even when a host
-# is looking up its own data. This mirrors how the real repo structures
-# per-host DNS config too (see ansible/inventory/host_vars/*.yaml).
+# hostvars[host].dns_zones for every host in app_hosts — hostvars[] only
+# reliably exposes variables from real inventory sources (host_vars/
+# group_vars files), not a play's vars: block, even for a host looking up
+# its own data.
 main_domain: example.test
 lab_domain: "lan.{{ main_domain }}"
 ddns_domain: "internal.{{ main_domain }}"

@@ -1,10 +1,8 @@
 ---
-# compose deploys via `docker compose`, so — like the docker role scenario —
-# this needs genuine Docker-in-Docker: a privileged, systemd-enabled
-# container with cgroups exposed. This role doesn't install Docker itself
-# (that's the docker role's job), so converge.yml installs it first, the
-# same way Play 1 of the real ansible/playbooks/deploy.yaml does before anything
-# compose-related runs.
+# compose deploys via `docker compose`, so this needs genuine
+# Docker-in-Docker: a privileged, systemd-enabled container with cgroups
+# exposed. This role doesn't install Docker itself, so converge.yml
+# installs it first, same as Play 1 of the real deploy.yaml.
 driver:
   name: docker
 platforms:

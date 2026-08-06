@@ -1,7 +1,7 @@
 # Beszel: Host & Container Monitoring
 
 `beszel-hub` and `beszel-agent` are two entries in `app_registry`. The hub runs once, on `security`; the agent runs on every
-host in `app_hosts` (`security`, `services`, `play`), including `security` itself. See [`docs/adding-an-app.md`](adding-an-app.md) for the general pattern this follows.
+host in `app_hosts` (`security`, `services`, `play`, `storage`), including `security` itself. See [`docs/adding-an-app.md`](adding-an-app.md) for the general pattern this follows.
 
 ## Connection model
 
@@ -19,7 +19,7 @@ Sequence:
 
 1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`).
 2. Visit `https://beszel.sec.{{ lab_domain }}`, create the hub admin account.
-3. **Settings → Keys**: copy the hub's public key into `beszel_hub_key` in `group_vars/all.yaml`.
+3. **Settings → Keys**: copy the hub's public key into `beszel_hub_key` in `group_vars/all/main.yaml`.
 4. **Settings → Tokens**: create a universal token, copy it into `beszel_agent_token`.
 5. Re-run `ansible-playbook deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.
 

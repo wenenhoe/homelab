@@ -2,12 +2,10 @@
 # Storage driver goes through a systemd drop-in flag here, not
 # /etc/docker/daemon.json like the other DinD scenarios. bind9's own
 # "Configure Docker daemon" task unconditionally overwrites daemon.json
-# with just its DNS settings every run - if we also wrote storage-driver
-# into that same file, bind9's task would "fix" it back out again next
-# run, which would itself "fix" it back in, forever, breaking idempotence
-# for a reason that has nothing to do with bind9 actually being broken.
-# A CLI flag and daemon.json don't conflict as long as they don't set the
-# same key, so this sidesteps the collision entirely.
+# with just its DNS settings every run — writing storage-driver into that
+# same file would make the two tasks fight forever, breaking idempotence
+# for a reason unrelated to bind9 itself. A CLI flag and daemon.json
+# don't conflict as long as they don't set the same key.
 - name: Prepare
   hosts: all
   become: true

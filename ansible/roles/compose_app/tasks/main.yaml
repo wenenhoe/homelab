@@ -12,11 +12,10 @@
   tags:
     - images
 
-# NOTE: --tags only reaches a dynamic include_tasks/include_role's contents
-# if the include statement itself carries a matching tag - an untagged
-# wrapper is skipped outright, before Ansible even looks inside it for
-# matching children. So this task's own `images` tag below is required,
-# not just decoration; the same applies to deploy_one_app.yaml's tasks.
+# NOTE: --tags only reaches a dynamic include's contents if the include
+# itself carries a matching tag — an untagged wrapper is skipped outright.
+# The `images` tag below is required, not decoration; same for
+# deploy_one_app.yaml's tasks.
 - name: Init and deploy each non-infra app
   ansible.builtin.include_tasks: deploy_one_app.yaml
   loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy'])) | list }}"
@@ -32,15 +31,12 @@
       ok: "{{ compose_app_results | selectattr('status', 'equalto', 'ok') | map(attribute='name') | list }}"
       changed: "{{ compose_app_results | selectattr('status', 'equalto', 'changed') | map(attribute='name') | list }}"
       failed: "{{ compose_app_results | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list }}"
-  # display_ok_hosts=no (see ansible.cfg) hides routine "ok" task noise -
-  # including this one, since debug never reports changed=true on its own.
-  # Forcing changed_when routes it through the branch that's never hidden,
-  # so the summary always shows even with that noise reduction on.
+  # display_ok_hosts=no hides routine "ok" noise, including this debug —
+  # forcing changed_when routes it through the branch that's never hidden.
   changed_when: true
-  # Deliberately always "changed" (see above), which is otherwise
-  # indistinguishable from a genuine idempotence bug to Molecule. This tag
-  # is the standard way to tell Molecule's idempotence check to disregard
-  # this specific task without disabling the check for anything else.
+  # Always "changed" (see above) would otherwise look like a genuine
+  # idempotence bug to Molecule — this tag tells its idempotence check to
+  # disregard just this task.
   tags:
     - molecule-idempotence-notest
     - images

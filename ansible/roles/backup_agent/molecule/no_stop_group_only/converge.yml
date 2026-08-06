@@ -7,16 +7,16 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     # Only used by gpg-public-key.asc.j2's lookup — points at the one
-    # shared test-only key in molecule_helpers rather than a per-scenario
-    # copy (previously duplicated 3x, which is exactly the kind of thing
-    # that caused the missing-fixture bug when this scenario was added).
+    # shared test-only key in molecule_helpers, not a per-scenario copy
+    # (previously duplicated 3x, which caused the missing-fixture bug
+    # this scenario was added to catch).
     project_root: "{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}"
     server_timezone: "Etc/UTC"
 
     # backup_agent's global vars are still required to render env files,
-    # even though nothing in this scenario actually reaches SeaweedFS —
-    # no cron fires, and verify.yml never manually triggers a backup
-    # here (that mechanic is already covered by the `default` scenario).
+    # even though nothing here actually reaches SeaweedFS — no cron
+    # fires, and verify.yml doesn't manually trigger a backup (already
+    # covered by the `default` scenario).
     offsite_backup_s3_bucket: molecule-test-backups
     offsite_backup_s3_endpoint: "unused-in-this-scenario:8333"
     offsite_backup_s3_proto: "http"
@@ -26,10 +26,9 @@
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
     # Only one app, in the no-stop group — mirrors `play`'s actual
-    # compose_apps today (only minecraft declares backup:, and it's
-    # never stop_during_backup). backup_agent_stop_group ends up empty,
-    # which the default/conflict scenarios never exercise: default
-    # always populates both groups, conflict only populates stop-group.
+    # compose_apps today (only minecraft declares backup:, never
+    # stop_during_backup). backup_agent_stop_group ends up empty here,
+    # which neither default nor conflict exercises.
     app_registry:
       happy_app_solo_nostop:
         volumes:

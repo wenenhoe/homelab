@@ -42,7 +42,7 @@ Runs last, deliberately: it mounts other apps' named volumes as `external: true`
 
 ## The App Registry
 
-`group_vars/all.yaml` defines `app_registry`: a single source of truth for everything about an app that does **not** vary per host — directories to create, named Docker volumes to provision (see [`volumes.md`](volumes.md)), scripts/config templates to render, and its Caddy upstream/auth behavior. A `configs` entry is how any templated file (including `.env` files) gets rendered; `force: false` is used for anything containing secrets so a re-run never clobbers what's already on disk.
+`group_vars/all/app_registry.yaml` defines `app_registry`: a single source of truth for everything about an app that does **not** vary per host — directories to create, named Docker volumes to provision (see [`volumes.md`](volumes.md)), scripts/config templates to render, and its Caddy upstream/auth behavior. A `configs` entry is how any templated file (including `.env` files) gets rendered; `force: false` is used for anything containing secrets so a re-run never clobbers what's already on disk.
 
 Each `host_vars/<host>.yaml` then only needs to say *which* apps that host runs and, for routable apps, what hostname(s) to expose them under:
 
@@ -70,6 +70,6 @@ Three tags scope a `deploy.yaml` run narrower than the full six-play converge:
 
 `preinit` (the `compose_apps`/`app_registry` merge) always runs regardless of tags, since every role above reads its output. The one-time app provisioning steps — `caddy`/`bind9`'s own `init`, and `compose_app`'s per-app `init` — deliberately have no tag and only run on a full, untagged pass; `images`/`infra` both assume the host has already been provisioned once.
 
-Ansible tag-filters dynamic includes (`include_role`/`include_tasks`) per hop: an untagged wrapper is skipped outright, so a tag has to be applied at every level of a chain, not just the leaf task, for `--tags` to reach it. Block-level tags are avoided in this codebase for that reason too — matching a block's own tag runs everything nested inside it unconditionally (including deeper untagged tasks), which would defeat a narrowly-scoped tag; each task under a `block`/`rescue` here is tagged individually instead.
+Ansible tag-filters dynamic includes (`include_role`/`include_tasks`) per hop: an untagged wrapper is skipped outright, so a tag has to be applied at every level of a chain, not just the leaf task. Block-level tags are avoided here for the same reason — a block's own tag runs everything nested inside it unconditionally, including deeper untagged tasks, which would defeat a narrowly-scoped tag; each task under a `block`/`rescue` is tagged individually instead.
 
 `vars_prompt` in Play 1 is evaluated before tag filtering and can't be skipped by any tag — see the note at the top of `deploy.yaml` and the `--tags` examples in the [README](../README.md#basic-commands) for the `-e @secrets.yaml` workaround.

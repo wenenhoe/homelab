@@ -18,7 +18,7 @@ docker/<app>/
 
 ## 2. Register it in `app_registry`
 
-In `ansible/inventory/group_vars/all.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:
+In `ansible/inventory/group_vars/all/app_registry.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:
 
 ```yaml
 app_registry:
@@ -53,7 +53,7 @@ compose_apps:
         host: my-app
 ```
 
-At deploy time, this gets merged with the `app_registry` entry (`registry_defaults | combine(item, recursive=True)`), so the fully-resolved app carries both its registry defaults and its host-specific hostname. If the host also runs `bind9` (or is in `app_hosts`, which all hosts are), a CNAME for `my-app.{{ caddy_domain }}` is generated automatically, with no manual DNS editing required. See [`host-vars.md`](host-vars.md) for the full `host_vars` field reference, including the alias-variable pattern (`cobalt_host`, `lldap_host`, ...) used when an app's own config needs to know its routed hostname too.
+At deploy time, this gets merged with the `app_registry` entry (`registry_defaults | combine(item, recursive=True)`), so the fully-resolved app carries both its registry defaults and its host-specific hostname. If the host is in `app_hosts` (`services`, `play`, `security`, `storage` — every host in the `prod` group; `experiment` isn't), a CNAME for `my-app.{{ caddy_domain }}` is generated automatically, with no manual DNS editing required. See [`host-vars.md`](host-vars.md) for the full `host_vars` field reference, including the alias-variable pattern (`cobalt_host`, `lldap_host`, ...) used when an app's own config needs to know its routed hostname too.
 
 ## 4. Deploy
 

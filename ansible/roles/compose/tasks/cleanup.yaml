@@ -1,17 +1,14 @@
 ---
-# ---------------------------------------------------------------------------
 # Tear down one orphaned stack, referenced as compose_cleanup_stack.
 # Included once per item from playbook cleanup.yaml.
-# ---------------------------------------------------------------------------
 
 - name: "Check whether the stack directory still exists ({{ compose_cleanup_stack }})"
   ansible.builtin.stat:
     path: "{{ compose_deploy_dir }}/{{ compose_cleanup_stack }}"
   register: compose_cleanup_stack_dir_stat
 
-# Normal case: compose files are still on disk, so state:absent can resolve
-# services/networks from them, same as the rest of this role uses
-# docker_compose_v2 elsewhere (roles/compose/tasks/deploy.yaml).
+# Normal case: compose files are still on disk, so state:absent can
+# resolve services/networks from them.
 - name: "Bring the stack down via docker compose ({{ compose_cleanup_stack }})"
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ compose_cleanup_stack }}"
@@ -22,8 +19,8 @@
     - compose_cleanup_stack_dir_stat.stat.exists
 
 # Edge case: containers/project are running but the directory is already
-# gone (e.g. removed by hand outside Ansible) - nothing for the module to
-# read, so fall back to removing by compose project label.
+# gone (e.g. removed by hand) — fall back to removing by compose project
+# label.
 - name: "List containers by compose project label, fallback only ({{ compose_cleanup_stack }})"
   community.docker.docker_host_info:
     containers: true
@@ -88,12 +85,11 @@
     - not (compose_cleanup_should_remove_content | bool)
 
 # --- Decide keep vs remove named volumes ------------------------------------
-# An orphaned stack's app_registry entry (and therefore its declared
-# volumes list) no longer exists by definition, so volumes are discovered by
-# label instead - every volume ensure_volume.yaml creates is labelled
-# homelab.app/homelab.volume for exactly this reason. Gated by the same
-# keep/remove decision as the directory above, but independent of whether
-# the directory itself still exists - volumes are a separate resource.
+# Volumes are discovered by label, not the (now-gone) app_registry
+# volumes list — every volume ensure_volume.yaml creates is labelled
+# homelab.app/homelab.volume for this reason. Gated by the same
+# keep/remove decision as the directory above, independent of whether the
+# directory itself still exists.
 
 - name: "Find named volumes belonging to this stack ({{ compose_cleanup_stack }})"
   community.docker.docker_host_info:

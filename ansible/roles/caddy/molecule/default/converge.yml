@@ -7,11 +7,10 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
-    # .localhost isn't a publicly-issuable TLD, so Caddy's automatic HTTPS
-    # would use its internal CA rather than attempting real ACME/DNS-01
-    # calls to DigitalOcean with the fake token below - but only once the
-    # global ACME issuer is skipped via caddy_local_certs, since a global
-    # issuer overrides that automatic per-domain fallback entirely.
+    # .localhost isn't a publicly-issuable TLD, so Caddy's automatic
+    # HTTPS would use its internal CA instead of real ACME/DNS-01 calls
+    # to DigitalOcean with the fake token below — but only once the
+    # global ACME issuer is skipped via caddy_local_certs.
     caddy_local_certs: true
     tinyauth_host: sso
     lab_domain: lan.localhost

@@ -1,11 +1,11 @@
 ---
-# bind9 deploys via compose (needs Docker-in-Docker like other scenarios)
-# and also scrapes DNS zone data from every host in the app_hosts group via
-# hostvars. Real production has bind9 on its own dedicated host, separate
-# from the app hosts it serves - for a single-instance test, this instance
-# is a member of app_hosts itself, providing its own dns_zones/compose_apps
-# (see converge.yml), so it ends up serving zone data about itself. Not a
-# perfect topology match, but exercises the real scraping/templating logic.
+# bind9 deploys via compose (Docker-in-Docker like other scenarios) and
+# scrapes DNS zone data from every host in app_hosts via hostvars. Real
+# production has bind9 on its own dedicated host, separate from the app
+# hosts it serves — for a single-instance test, this instance is a
+# member of app_hosts itself, so it ends up serving zone data about
+# itself. Not a perfect topology match, but exercises the real
+# scraping/templating logic.
 driver:
   name: docker
 platforms:

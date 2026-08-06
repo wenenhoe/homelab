@@ -146,9 +146,9 @@
       changed_when: false
       # seaweedfs-test (and its data volume) persists across the
       # idempotence re-run, so the bucket genuinely already exists the
-      # second time — expected, not a real failure. .msg reliably
-      # carries the module's error text here, confirmed across two real
-      # runs (this one and an earlier "Could not connect" one).
+      # second time. Tolerates both
+      # BucketAlreadyExists and BucketAlreadyOwnedByYou.
       failed_when: >-
         backup_agent_bucket_create is failed
         and 'BucketAlreadyExists' not in (backup_agent_bucket_create.msg | default(''))
+        and 'BucketAlreadyOwnedByYou' not in (backup_agent_bucket_create.msg | default(''))

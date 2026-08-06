@@ -53,18 +53,13 @@
   tags:
     - infra
 
-- name: Create Dockerfile for custom Caddy build
+- name: Deploy Dockerfile for custom Caddy build
   ansible.builtin.copy:
+    src: Dockerfile
     dest: "{{ compose_deploy_dir }}/caddy/Dockerfile"
     owner: root
     group: root
     mode: "0644"
-    content: |
-      FROM caddy:builder AS builder
-      RUN xcaddy build --with github.com/caddy-dns/digitalocean
-      FROM caddy:latest
-      RUN apk add --no-cache curl
-      COPY --from=builder /usr/bin/caddy /usr/bin/caddy
   tags:
     - images
 

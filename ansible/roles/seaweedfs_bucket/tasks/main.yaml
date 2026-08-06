@@ -33,6 +33,13 @@
   changed_when: false
   # Tolerate "already exists" specifically, same idiom as the molecule
   # test's own idempotence fix — anything else is a real failure.
+  #
+  # Two distinct S3 error codes:
+  # - BucketAlreadyExists (a DIFFERENT owner already has this name) and
+  # - BucketAlreadyOwnedByYou (SAME identity re-running `mb` — what a
+  # private, single-owner target like this one actually returns on every
+  # idempotent re-run in production).
   failed_when: >-
     seaweedfs_bucket_create is failed
     and 'BucketAlreadyExists' not in (seaweedfs_bucket_create.msg | default(''))
+    and 'BucketAlreadyOwnedByYou' not in (seaweedfs_bucket_create.msg | default(''))

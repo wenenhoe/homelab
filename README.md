@@ -11,9 +11,10 @@ The lab is organized as a small group of hosts, each owning a subdomain of `lan.
 | `services` | Core infra: DNS (BIND9), utility apps, DIUN update notifications | `svc.lan.{{ main_domain }}` |
 | `play` | Game server hosting (Minecraft) | `play.lan.{{ main_domain }}` |
 | `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub | `sec.lan.{{ main_domain }}` |
+| `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host | `store.lan.{{ main_domain }}` |
 | `experiment` | Sandbox / test target | `test.lan.{{ main_domain }}` |
 
-Every host in the `app_hosts` group runs its own Caddy instance and terminates TLS for its own `*.{{ caddy_domain }}` wildcard, using DNS-01 challenges via the DigitalOcean DNS provider. `services` additionally runs the single authoritative BIND9 instance for the whole lab: it scrapes every app host's declared DNS zones (via Ansible `hostvars`) and serves CNAME records that point each service back at its host's dynamic DNS target. Access to non-public apps is enforced by **Tinyauth**, which Caddy calls out to as a `forward_auth` step before proxying to the upstream container.
+Every host in the `app_hosts` group runs its own Caddy instance and terminates TLS for its own `*.{{ caddy_domain }}` wildcard, using DNS-01 challenges via the DigitalOcean DNS provider. `services` additionally runs the single authoritative BIND9 instance for the whole lab: it scrapes every app host's declared DNS zones (via Ansible `hostvars`) and serves CNAME records that point each service back at its host's dynamic DNS target. Access to non-public apps is enforced by **Tinyauth**, which Caddy calls out to as a `forward_auth` step before proxying to the upstream container. Every host also runs a `backup_agent` instance that pushes GPG-encrypted archives of its own apps' named volumes to `storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
 
 ## Repository Layout
 
@@ -45,10 +46,15 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 │       ├── compose/         # Reusable init/deploy/cleanup tasks for one compose app
 │       ├── compose_app/     # Batch-drives `compose/` for every non-infra app
 │       ├── caddy/           # Renders Caddyfile, builds custom image, deploys
-│       └── bind9/           # Renders zone files, deploys, rewires host DNS
+│       ├── bind9/           # Renders zone files, deploys, rewires host DNS
+│       ├── seaweedfs_bucket/# Ensures the offsite-backup S3 bucket exists on `storage`
+│       ├── backup_agent/    # Per-host offsite backup aggregation (stage 1 DR)
+│       ├── restore/         # Restores a decrypted offsite archive back to a named volume
+│       └── molecule_helpers/# Shared Molecule test fixtures/setup, not deployed
 ├── docker/                  # One directory per application
 │   ├── caddy/               # compose.yaml + env template for the proxy
 │   ├── bind9/               # compose.yaml + env template for DNS
+│   ├── seaweedfs/           # compose.yaml + S3 identity config for the offsite-backup target
 │   └── <app>/               # compose.yaml + configs/scripts per app
 ├── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 └── docs/                    # Deep dives — see below
@@ -60,7 +66,7 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 
 | Doc | Covers |
 | :--- | :--- |
-| [`docs/deployment-flow.md`](docs/deployment-flow.md) | The 4-play `deploy.yaml` sequence, the role responsibilities, and the `app_registry` pattern that drives per-host config resolution. |
+| [`docs/deployment-flow.md`](docs/deployment-flow.md) | The 6-play `deploy.yaml` sequence, the role responsibilities, and the `app_registry` pattern that drives per-host config resolution. |
 | [`docs/volumes.md`](docs/volumes.md) | The named-volume storage architecture: registry `volumes:` field, one-time migration from bind mounts, staging + seeding Ansible-rendered configs, and backward compatibility with plain bind-mounted apps. |
 | [`docs/bind9.md`](docs/bind9.md) | How the internal DNS zones are aggregated, rendered, and reloaded without spurious restarts. |
 | [`docs/caddy.md`](docs/caddy.md) | The custom DigitalOcean-DNS Caddy build, Caddyfile generation, and Tinyauth forward-auth wiring. |
@@ -173,7 +179,7 @@ Two inventories exist for two different situations:
 
 ## Applications
 
-Everything routed through Caddy sits behind **Tinyauth** forward-auth by default (per-route `auth: false` opts out — e.g. Cobalt, Dashy, OpenSpeedTest, LLDAP's own UI, Beszel's hub), backed by **LLDAP** as the directory. **DIUN** watches deployed images and notifies over Telegram when updates are available. **Beszel** monitors host and container health across every `app_hosts` member, with its hub on `security` and an agent on each host — see [`docs/beszel.md`](docs/beszel.md). The rest of `docker/` is a set of independently deployable Compose stacks (dashboards, media/download tools, a Minecraft server, link shortener, pastebin, web terminal, etc.) — each one just an entry in `app_registry` plus a `docker/<app>/` directory of its `compose.yaml` and config templates. See [`docs/adding-an-app.md`](docs/adding-an-app.md) to add a new one.
+Everything routed through Caddy sits behind **Tinyauth** forward-auth by default (per-route `auth: false` opts out — e.g. Cobalt, Dashy, OpenSpeedTest, LLDAP's own UI, Beszel's hub), backed by **LLDAP** as the directory. **DIUN** watches deployed images and notifies over Telegram when updates are available. **Beszel** monitors host and container health across every `app_hosts` member, with its hub on `security` and an agent on each host — see [`docs/beszel.md`](docs/beszel.md). Every host also runs a **`backup_agent`** instance pushing GPG-encrypted archives of its own apps' named volumes to **SeaweedFS** on `storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md). The rest of `docker/` is a set of independently deployable Compose stacks (dashboards, media/download tools, a Minecraft server, link shortener, pastebin, web terminal, etc.) — each one just an entry in `app_registry` plus a `docker/<app>/` directory of its `compose.yaml` and config templates. See [`docs/adding-an-app.md`](docs/adding-an-app.md) to add a new one.
 
 ## Testing
 

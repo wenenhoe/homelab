@@ -1,0 +1,192 @@
+{
+  $schema: "https://docs.renovatebot.com/renovate-schema.json",
+  extends: [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests",
+  ],
+
+  // Reads GitHub's native Dependabot alerts (needs the "Dependabot
+  // alerts" permission on RENOVATE_TOKEN — NOT "Dependabot version
+  // updates", which would directly compete with Renovate for the same
+  // job, or "Dependabot security updates", which would race Renovate's
+  // own fix PR for the same CVE) plus OSV.dev for broader coverage.
+  // Bypasses the Monday-only schedule and Dependency Dashboard approval
+  // gate for anything flagged — a known CVE shouldn't sit until the next
+  // cron run. Deliberately NOT automerged: same reasoning as the
+  // pin/pinDigest carve-out earlier — the fix is still a real version
+  // bump to a real dependency, same trust profile as any other
+  // manual-review update, urgency isn't a reason to skip review here.
+  vulnerabilityAlerts: {
+    enabled: true,
+    dependencyDashboardApproval: false,
+    labels: ["security"],
+    semanticCommitType: "chore",
+    semanticCommitScope: "security",
+  },
+  osvVulnerabilityAlerts: true,
+
+  timezone: "Asia/Singapore",
+  schedule: ["before 6am on monday"],
+
+  semanticCommits: "enabled",
+  semanticCommitType: "chore",
+  semanticCommitScope: "deps",
+
+  // Most molecule fixtures pin specific images (mostly alpine:3.20) on
+  // purpose for reproducibility, or reference locally-built, non-registry
+  // images (caddy-digitalocean:v1.0, buildapp:local) Renovate can't
+  // resolve anyway — keep those out of scope entirely.
+  //
+  // This is an explicit per-role list, not a blanket "**/molecule/**",
+  // and bind9 is deliberately left off it: unlike the others, bind9's
+  // molecule fixture stands up a real ubuntu/bind9 instance that mirrors
+  // docker/bind9/compose.yaml's production pin — see the packageRule
+  // below for why that one has to stay trackable.
+  ignorePaths: [
+    "ansible/roles/backup_agent/molecule/**",
+    "ansible/roles/caddy/molecule/**",
+    "ansible/roles/compose/molecule/**",
+    "ansible/roles/compose_app/molecule/**",
+    "ansible/roles/restore/molecule/**",
+  ],
+
+  // The pre-commit manager is disabled by default upstream — must opt in
+  // explicitly. Its default file pattern (^|/)\.pre-commit-config\.ya?ml$
+  // already matches .config/.pre-commit-config.yaml (anchored on
+  // filename, not path), so no pattern override needed here.
+  "pre-commit": {
+    enabled: true,
+  },
+
+  // backup_agent's compose file is a Jinja2 template (compose.yaml.j2)
+  // with static, non-interpolated image: lines — Renovate can parse it
+  // fine, it just never looks at .j2 files by default. This pattern is
+  // additive to the manager's built-in default, not a replacement.
+  "docker-compose": {
+    managerFilePatterns: ["/(^|/)(?:docker-)?compose[^/]*\\.ya?ml\\.j2$/"],
+  },
+
+  // Enabled by default in Renovate 43+, but set explicitly rather than
+  // relying on a version-dependent default — this is what actually keeps
+  // uv.lock's resolved pins current under the >= ranges in pyproject.toml
+  // (see the pep621/uv packageRule below for why the ranges themselves
+  // aren't being tightened).
+  lockFileMaintenance: {
+    enabled: true,
+  },
+
+  // Tracks the renovate-version pin in .github/workflows/renovate.yml —
+  // that string controls which ghcr.io/renovatebot/renovate image tag
+  // actually gets pulled and run with RENOVATE_TOKEN's write access, and
+  // the github-actions manager only tracks the `uses:` line, not an
+  // arbitrary `with:` input value. Deliberately NOT in the automerge
+  // packageRule below: this is Renovate updating its own execution
+  // engine, the one component with a real write credential — give every
+  // bump at least a glance rather than rubber-stamping it alongside
+  // routine lint-hook version bumps.
+  customManagers: [
+    {
+      customType: "regex",
+      description: "Keep the pinned Renovate execution image (renovate-version input) current",
+      managerFilePatterns: ["/^\\.github/workflows/renovate\\.ya?ml$/"],
+      matchStrings: ["renovate-version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
+      datasourceTemplate: "docker",
+      depNameTemplate: "ghcr.io/renovatebot/renovate",
+      versioningTemplate: "docker",
+    },
+  ],
+
+  packageRules: [
+    // pre-commit hooks and GitHub Actions are dev/CI tooling, not
+    // deployed infra — chore(ci): reads more accurately than the global
+    // chore(deps): default and makes them easy to distinguish from
+    // actual homelab changes at a glance in git log. No automerge here
+    // (see the pin/pinDigest rule below for the one narrow exception,
+    // and why).
+    {
+      matchManagers: ["pre-commit", "github-actions"],
+      automerge: false,
+      semanticCommitScope: "ci",
+    },
+
+    // The ONE thing that's actually safe to automerge in this category:
+    // helpers:pinGitHubActionDigests's initial conversion of a tag ref to
+    // a SHA (`actions/checkout@v6.1.0` → `actions/checkout@<sha> # v6.1.0`).
+    // This introduces no new code — it pins the exact commit already
+    // running today, nothing to review.
+    //
+    // Deliberately NOT extending this to ordinary version bumps: once an
+    // action is SHA-pinned, the *next* update Renovate proposes is moving
+    // that pin to a different commit when the upstream tag moves — and
+    // automerging that PR would hand code execution (with RENOVATE_TOKEN's
+    // write access) to whatever that new commit contains, without a human
+    // ever looking at it. SHA-pinning only protects you if the PR that moves
+    // the pin gets reviewed; automerging it defeats the point of having pinned
+    // in the first place.
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["pin", "pinDigest"],
+      automerge: true,
+      automergeType: "pr",
+    },
+
+    // Everything that actually touches deployed infra — compose files,
+    // inline image: refs in Ansible tasks, the Caddy Dockerfile, Ansible
+    // Galaxy collections, Python tooling — stays manual-review. These get
+    // applied to hosts by hand via ansible-playbook, so there's no
+    // automated rollout to gate anyway.
+    {
+      matchManagers: ["docker-compose", "dockerfile", "ansible", "ansible-galaxy", "pep621", "uv"],
+      automerge: false,
+    },
+
+    // pyproject.toml uses unbounded >= ranges (ansible-core>=2.20, etc) —
+    // no need to convert those to exact pins for Renovate to be useful.
+    // Without this though, an unbounded lower-bound range technically
+    // already "allows" any newer version, so Renovate has nothing to
+    // widen and — depending on version — may not open PRs for it at all.
+    // update-lockfile keeps the range in pyproject.toml exactly as
+    // written (preserves your stated intent) and instead bumps the
+    // actual resolved version pinned in uv.lock whenever a newer one
+    // satisfying that range is out, which is the file that actually
+    // determines what gets installed.
+    {
+      matchManagers: ["pep621", "uv"],
+      rangeStrategy: "update-lockfile",
+    },
+
+    // docker/bind9/compose.yaml (production) and
+    // ansible/roles/bind9/molecule/default/files/docker/bind9/compose.yaml
+    // (the real BIND9 instance the bind9 role's molecule scenario tests
+    // against) are two independent, hard-coded pins of the same image —
+    // same reasoning and same fix as the seaweedfs pair above: group them
+    // so they can only ever be bumped together.
+    {
+      matchDepNames: ["ubuntu/bind9"],
+      groupName: "bind9 (prod + molecule test fixture — must move together)",
+    },
+
+    // docker/seaweedfs/compose.yaml (production) and
+    // molecule_helpers/tasks/start_seaweedfs_test_target.yaml (the real
+    // SeaweedFS instance the seaweedfs_bucket role's molecule scenarios
+    // test against) are two independent, hard-coded pins of the same
+    // image with no shared source of truth — Renovate needs literal
+    // image: strings in both, so there's no clean way to template one
+    // from the other. Group them into a single PR so they can only ever
+    // be bumped together, never independently.
+    {
+      matchDepNames: ["chrislusf/seaweedfs"],
+      groupName: "seaweedfs (prod + molecule test target — must move together)",
+    },
+
+    // seaweedfs is critical storage backend
+    {
+      matchDepNames: ["chrislusf/seaweedfs"],
+      matchUpdateTypes: ["major"],
+      labels: ["needs-manual-review"],
+      prBodyNotes: [
+        "⚠️ Major version bump on the storage backend, grouped with its molecule test-target fixture so both move together. Review the SeaweedFS changelog and test against a snapshot before merging.",
+      ],
+    },
+  ],
+}

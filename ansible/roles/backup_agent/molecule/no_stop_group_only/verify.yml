@@ -1,0 +1,76 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    - name: Read back the rendered backup-agent compose.yaml
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/compose.yaml"
+      register: backup_agent_compose_raw
+
+    - name: Parse it
+      ansible.builtin.set_fact:
+        backup_agent_compose_parsed: "{{ backup_agent_compose_raw.content | b64decode | from_yaml }}"
+
+    - name: Confirm ONLY the no-stop-group service was rendered — proxy and stop-group are entirely absent
+      ansible.builtin.assert:
+        that:
+          - "'backup-no-stop-group' in backup_agent_compose_parsed.services"
+          - "'backup-dockerproxy' not in backup_agent_compose_parsed.services"
+          - "'backup-stop-group' not in backup_agent_compose_parsed.services"
+        fail_msg: >-
+          Expected only backup-no-stop-group. Got:
+          {{ backup_agent_compose_parsed.services.keys() | list }}
+
+    - name: Confirm the no-stop-group mounts the solo app's volume
+      ansible.builtin.assert:
+        that:
+          - "'happy_app_solo_nostop_data:/backup/happy_app_solo_nostop_data:ro' in backup_agent_compose_parsed.services['backup-no-stop-group'].volumes"
+
+    - name: Confirm the shared network still renders with just one member
+      ansible.builtin.assert:
+        that:
+          - "'backup-agent-net' in backup_agent_compose_parsed.networks"
+
+    - name: Confirm the no-stop-group container is running, and nothing else backup-agent-related is
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          name: backup-agent
+      register: backup_agent_no_stop_only_containers
+
+    - name: Extract the set of running backup-agent-related container names
+      ansible.builtin.set_fact:
+        backup_agent_no_stop_only_names: >-
+          {{ backup_agent_no_stop_only_containers.containers
+             | map(attribute='Names') | flatten | list }}
+
+    - name: Assert exactly the expected container set
+      ansible.builtin.assert:
+        that:
+          - backup_agent_no_stop_only_names | select('search', 'backup-agent-no-stop-group') | list | length == 1
+          - backup_agent_no_stop_only_names | select('search', 'backup-agent-dockerproxy') | list | length == 0
+          - backup_agent_no_stop_only_names | select('search', 'backup-agent-stop-group') | list | length == 0
+        fail_msg: >-
+          Expected only backup-agent-no-stop-group running.
+          Got: {{ backup_agent_no_stop_only_names }}
+
+    - name: Read back the no-stop-group env file
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/.env.no-stop-group"
+      register: backup_agent_no_stop_env_raw
+
+    - name: Confirm the no-stop-group env carries neither the stop label nor DOCKER_HOST
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_STOP_DURING_BACKUP_LABEL' not in (backup_agent_no_stop_env_raw.content | b64decode)"
+          - "'DOCKER_HOST' not in (backup_agent_no_stop_env_raw.content | b64decode)"
+
+    - name: Confirm .env.stop-group was never rendered at all
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/backup-agent/.env.stop-group"
+      register: backup_agent_stop_env_stat
+      failed_when: backup_agent_stop_env_stat.stat.exists

@@ -1,0 +1,42 @@
+---
+# Symmetric to no_stop_group_only, flipped: only the stop-during-backup
+# group is populated, no-stop-group is entirely empty. No current host
+# actually has this shape (services/security have both groups, play has
+# only no-stop) — this is defensive coverage for the branch, not a
+# mirror of real infrastructure the way no_stop_group_only was. Same
+# reasoning as that scenario for skipping SeaweedFS/S3 here: this tests
+# rendering correctness under the shape, not upload/stop-restart
+# mechanics already proven by the `default` scenario.
+driver:
+  name: docker
+platforms:
+  - name: backup-agent-stop-only-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

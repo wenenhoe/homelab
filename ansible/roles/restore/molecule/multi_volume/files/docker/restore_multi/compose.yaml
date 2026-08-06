@@ -1,0 +1,16 @@
+name: restore_multi
+services:
+  restore_multi:
+    image: alpine:3.20
+    container_name: restore_multi
+    volumes:
+      - certs:/certs
+      - creds:/creds
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  certs:
+    external: true
+    name: restore_multi_certs
+  creds:
+    external: true
+    name: restore_multi_creds

@@ -1,0 +1,61 @@
+name: backup-agent
+
+services:
+{% if backup_agent_stop_group | length > 0 %}
+  backup-dockerproxy:
+    image: tecnativa/docker-socket-proxy:v0.4.2
+    container_name: backup-agent-dockerproxy
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - CONTAINERS=1
+      - POST=1
+      - INFO=1
+    networks:
+      - backup-agent-net
+    restart: unless-stopped
+
+  backup-stop-group:
+    image: offen/docker-volume-backup:v2
+    container_name: backup-agent-stop-group
+    volumes:
+{% for app in backup_agent_stop_group %}
+{% for vol in app.volumes %}
+      - {{ app.name }}_{{ vol }}:/backup/{{ app.name }}_{{ vol }}:ro
+{% endfor %}
+{% endfor %}
+      - ./gpg-public-key.asc:/etc/backup/gpg-public-key.asc:ro
+    env_file:
+      - .env.stop-group
+    networks:
+      - backup-agent-net
+    restart: unless-stopped
+{% endif %}
+{% if backup_agent_no_stop_group | length > 0 %}
+  backup-no-stop-group:
+    image: offen/docker-volume-backup:v2
+    container_name: backup-agent-no-stop-group
+    volumes:
+{% for app in backup_agent_no_stop_group %}
+{% for vol in app.volumes %}
+      - {{ app.name }}_{{ vol }}:/backup/{{ app.name }}_{{ vol }}:ro
+{% endfor %}
+{% endfor %}
+      - ./gpg-public-key.asc:/etc/backup/gpg-public-key.asc:ro
+    env_file:
+      - .env.no-stop-group
+    networks:
+      - backup-agent-net
+    restart: unless-stopped
+{% endif %}
+networks:
+  backup-agent-net:
+    driver: bridge
+volumes:
+{% for app in (backup_agent_stop_group + backup_agent_no_stop_group) %}
+{% for vol in app.volumes %}
+  {{ app.name }}_{{ vol }}:
+    external: true
+    name: {{ app.name }}_{{ vol }}
+{% endfor %}
+{% endfor %}

@@ -49,6 +49,25 @@
           ansible.builtin.include_role:
             name: compose_app
       rescue:
+        # Same bare-rescue trap as backup_agent's `conflict` scenario: any
+        # failure inside the block - not just app_fail's - would leave the
+        # same marker behind and read as a pass. `ansible_failed_task`/
+        # `ansible_failed_result` are only populated inside rescue - assert
+        # the failure is specifically compose_app's own "did anything in
+        # the batch fail" gate, naming app_fail, before trusting it.
+        - name: Confirm the failure came from compose_app's own batch-failure gate
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == "Fail if any app failed to deploy"
+              - "'app_fail' in ansible_failed_result.msg"
+              - "'1 app(s) failed to deploy' in ansible_failed_result.msg"
+            fail_msg: >-
+              compose_app failed, but not for the reason this scenario exists to
+              test. Expected the "Fail if any app failed to deploy" gate to fail
+              naming app_fail as the sole failure; got task
+              "{{ ansible_failed_task.name | default('unknown') }}" with message:
+              {{ ansible_failed_result.msg | default('(no msg)') }}
+
         - name: Leave a marker proving the batch actually reported the expected failure
           ansible.builtin.copy:
             dest: /tmp/compose_app_batch_failed_marker

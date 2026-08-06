@@ -1,0 +1,86 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    app_registry:
+      restore_val_target:
+        volumes:
+          - name: data
+    compose_apps:
+      - name: restore_val_target
+    restore_before_marker: /tmp/restore-molecule-validation-failure-before-started-at
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container/docker_volume/docker_host_info talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Deploy the synthetic "source" app so its volume/container exists
+      ansible.builtin.include_role:
+        name: compose_app
+
+    - name: Seed content that must SURVIVE this run untouched
+      community.docker.docker_container_exec:
+        container: restore_val_target
+        command: "sh -c 'echo original-content-must-survive > /data/canary.txt'"
+      changed_when: false
+
+    - name: Capture restore_val_target's StartedAt — must be UNCHANGED after this run
+      community.docker.docker_container_info:
+        name: restore_val_target
+      register: restore_val_before_info
+
+    - name: Persist the BEFORE StartedAt for verify.yml to compare against
+      ansible.builtin.copy:
+        dest: "{{ restore_before_marker }}"
+        content: "{{ restore_val_before_info.container.State.StartedAt }}"
+        mode: "0644"
+
+    # No archive is ever created for this scenario — restore_archive_local_path
+    # deliberately points at a path that has never existed, exercising the
+    # "Fail if the archive path doesn't exist" validation task.
+    - name: "Run restore role [block / rescue] (missing archive path is deliberate, failure is expected)"
+      block:
+        - name: Run the restore role
+          ansible.builtin.include_role:
+            name: restore
+          vars:
+            restore_app: restore_val_target
+            restore_archive_local_path: /tmp/restore-molecule-validation-failure-DOES-NOT-EXIST.tar.gz
+            restore_volumes:
+              - restore_val_target_data
+            restore_confirm: true
+      rescue:
+        - name: Confirm this failed for the reason this scenario is actually testing, not something else
+          ansible.builtin.assert:
+            that:
+              - "'not found on the controller' in (ansible_failed_result.msg | default(''))"
+            fail_msg: >-
+              The restore role failed, but NOT because the archive path
+              was missing — it failed for an unrelated reason:
+              {{ ansible_failed_result.msg | default('(no msg captured)') }}.
+              A block/rescue that only checks "did it fail" would wrongly
+              report this as validation working. See the `become: false`
+              comment in roles/restore/tasks/main.yaml for a real example
+              of exactly this failure mode.
+
+        - name: Leave a marker proving the validation actually caught the missing archive
+          ansible.builtin.copy:
+            dest: /tmp/restore_validation_failure_halt_marker
+            content: "validation failure caught as expected\n"
+            mode: "0644"

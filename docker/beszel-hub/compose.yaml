@@ -17,6 +17,8 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    labels:
+      - docker-volume-backup.stop-during-backup=true
     expose:
       - '8090'
 networks:

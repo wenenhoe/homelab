@@ -1,0 +1,57 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    offsite_backup_s3_bucket: molecule-test-ensure-bucket
+    seaweedfs_real_access_key: molecule-test-real-access-key
+    seaweedfs_real_secret_key: molecule-test-real-secret-key
+  tasks:
+    - name: Confirm the auth failure was actually caught, not swallowed
+      ansible.builtin.stat:
+        path: /tmp/seaweedfs_bucket_wrong_creds_halt_marker
+      register: seaweedfs_bucket_wrong_creds_marker
+      failed_when: not seaweedfs_bucket_wrong_creds_marker.stat.exists
+
+    # Re-discover seaweedfs-test's IP the same way converge.yml did
+    # (facts don't persist between separate ansible-playbook runs).
+    - name: Re-discover seaweedfs-test's IP on the default bridge network
+      community.docker.docker_container_info:
+        name: seaweedfs-test
+      register: seaweedfs_bucket_wrong_creds_info
+
+    - name: Set the discovered IP as a fact
+      ansible.builtin.set_fact:
+        seaweedfs_bucket_wrong_creds_ip: >-
+          {{ seaweedfs_bucket_wrong_creds_info.container.NetworkSettings.Networks.bridge.IPAddress }}
+
+    # Using the REAL credentials here (not the wrong ones the role was
+    # given) — this confirms the actual server-side state, independent
+    # of whatever the failed request did or didn't do.
+    #
+    # Targets the bucket directly (same reasoning as the default
+    # scenario's own verify.yml — a bare `s3 ls` needs the broader
+    # ListAllMyBuckets permission this identity deliberately doesn't
+    # have, and gets AccessDenied instead of a useful answer). Here we
+    # WANT this to fail with NoSuchBucket — that's what "no side effect
+    # occurred" looks like — so the expected outcome is inverted from
+    # the default scenario's equivalent check.
+    - name: Confirm the bucket was NOT created (expect NoSuchBucket)
+      community.docker.docker_container:
+        name: seaweedfs-bucket-wrong-creds-verify-listing
+        image: amazon/aws-cli:2.15.0
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_real_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_real_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        command: >-
+          --endpoint-url http://{{ seaweedfs_bucket_wrong_creds_ip }}:8333
+          s3 ls s3://{{ offsite_backup_s3_bucket }}
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: seaweedfs_bucket_wrong_creds_listing
+      changed_when: false
+      failed_when: >-
+        seaweedfs_bucket_wrong_creds_listing is not failed
+        or 'NoSuchBucket' not in (seaweedfs_bucket_wrong_creds_listing.msg | default(''))

@@ -108,3 +108,36 @@
         name: compose_app
       tags:
         - images
+
+# Play 5 — Ensure the offsite-backup S3 bucket exists (stage 1 DR).
+# Runs after SeaweedFS is deployed (Play 4) and before any backup_agent
+# instance tries to upload to it (Play 6) — SeaweedFS does not
+# auto-create buckets on first PUT even with Admin-scoped credentials,
+# confirmed via a real production failure. See
+# ansible/roles/seaweedfs_bucket and docs/disaster-recovery.md.
+- name: Ensure offsite-backup bucket exists
+  hosts: storage
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include seaweedfs_bucket role
+      ansible.builtin.include_role:
+        name: seaweedfs_bucket
+      tags:
+        - images
+
+# Play 6 — Offsite backup agent (stage 1 DR). Runs last, deliberately: it
+# mounts other apps' named volumes as `external: true`, which requires them
+# to already exist — created by each app's own Play 4 ensure_volume step.
+# See docs/disaster-recovery.md and ansible/roles/backup_agent for the
+# per-host aggregation this does.
+- name: Deploy offsite backup agent
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include backup_agent role
+      ansible.builtin.include_role:
+        name: backup_agent
+      tags:
+        - images

@@ -1,0 +1,22 @@
+TZ={{ server_timezone }}
+
+AWS_S3_BUCKET_NAME={{ offsite_backup_s3_bucket }}
+AWS_S3_PATH={{ inventory_hostname }}-no-stop-group
+AWS_ENDPOINT={{ offsite_backup_s3_endpoint }}
+AWS_ENDPOINT_PROTO={{ offsite_backup_s3_proto }}
+AWS_ACCESS_KEY_ID={{ seaweedfs_s3_access_key }}
+AWS_SECRET_ACCESS_KEY={{ seaweedfs_s3_secret_key }}
+AWS_S3_FORCE_PATH_STYLE=true
+
+BACKUP_CRON_EXPRESSION="{{ backup_agent_no_stop_group_cron }}"
+BACKUP_FILENAME={{ inventory_hostname }}-no-stop-group-%Y-%m-%dT%H-%M-%S.tar.gz
+BACKUP_RETENTION_DAYS={{ backup_agent_no_stop_group_retention }}
+BACKUP_PRUNING_LEEWAY=5m
+
+# Apps in this group: {{ backup_agent_no_stop_group | map(attribute='name') | join(', ') }}
+# Backed up live, without stopping any container — either by explicit
+# choice (lldap, wastebin) or because the source volume is already static
+# by the time this runs (minecraft's backups volume — see
+# docs/disaster-recovery.md for why).
+
+GPG_PUBLIC_KEY_FILE=/etc/backup/gpg-public-key.asc

@@ -1,0 +1,60 @@
+---
+# Same Docker-in-Docker setup as the other restore scenarios.
+#
+# This exercises the SECOND, independent safety gate — the human
+# confirmation pause — as distinct from validation_failure's coverage of
+# the vars/archive-existence gate. Both must independently block the
+# destructive steps; this scenario proves the confirmation gate does,
+# with everything else about the run (vars, archive, volumes) valid.
+#
+# converge.yml passes restore_confirm: false — the explicit "declined"
+# signal — rather than relying on Molecule's ansible-playbook subprocess
+# lacking a tty. It doesn't reliably: that depends on how `molecule test`
+# itself was launched, and a plain interactive terminal gives its
+# children a real one, in which case a real pause would hang here
+# forever instead of exercising anything. See the confirmation-gate
+# comment block in roles/restore/tasks/main.yaml for the full story
+# (including how this was actually discovered).
+driver:
+  name: docker
+platforms:
+  - name: restore-confirmation-declined-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  # Unlike validation_failure, this scenario needs a REAL archive to
+  # exist — the archive-existence check in roles/restore/tasks/main.yaml
+  # runs before the confirmation gate, so a missing archive would fail
+  # there instead of at the gate this scenario exists to test. Building
+  # that archive (converge.yml's "Clear.../Create.../Write.../Build the
+  # plain .tar.gz" tasks) unconditionally deletes and rebuilds it every
+  # run — deliberately, to rule out stale leftover content — which makes
+  # those setup tasks themselves report changed on every converge,
+  # independent of whether the role under test is idempotent. So no
+  # `idempotence` step here, unlike validation_failure (which never
+  # creates a file at all and stays genuinely idempotent).
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

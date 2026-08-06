@@ -1,0 +1,41 @@
+name: seaweedfs
+
+services:
+  seaweedfs:
+    image: chrislusf/seaweedfs:3.97
+    container_name: seaweedfs
+    volumes:
+      - data:/data
+      - type: volume
+        source: data
+        target: /etc/seaweedfs/s3-identity.json
+        volume:
+          subpath: s3-identity.json
+    env_file:
+      - .env
+    networks:
+      - caddy-proxy
+    # Single-node "all-in-one" mode: master + volume + filer + S3 gateway in
+    # one process. Stage 1 DR only needs an off-host copy to exist, not a
+    # distributed/replicated store — this keeps storage's footprint to one
+    # container instead of three, at the cost of no HA (acceptable: HA for
+    # the backup target itself is a later-stage problem, not this one).
+    command: >
+      server -dir=/data -master.volumeSizeLimitMB=1024 -volume.max=0 -filer -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3-identity.json
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "-q", "--spider", "http://seaweedfs:8888/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    expose:
+      - '8333' # S3 API — consumed by docker-volume-backup on every app host
+      - '8888' # Filer web UI — human-facing, fronted by Tinyauth via Caddy
+networks:
+  caddy-proxy:
+    external: true
+volumes:
+  data:
+    external: true
+    name: seaweedfs_data

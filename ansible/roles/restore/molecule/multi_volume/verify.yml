@@ -1,0 +1,92 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    restore_before_marker: /tmp/restore-molecule-multi-before-started-at
+  tasks:
+    - name: Read back the BEFORE StartedAt marker
+      ansible.builtin.slurp:
+        path: "{{ restore_before_marker }}"
+      register: restore_multi_before_raw
+
+    - name: Capture restore_multi's StartedAt AFTER the restore
+      community.docker.docker_container_info:
+        name: restore_multi
+      register: restore_multi_after_info
+
+    - name: Confirm restore_multi was actually stopped+redeployed (StartedAt changed)
+      ansible.builtin.assert:
+        that:
+          - (restore_multi_before_raw.content | b64decode) != restore_multi_after_info.container.State.StartedAt
+        fail_msg: >-
+          StartedAt did not change
+          ({{ restore_multi_before_raw.content | b64decode }}) — the
+          restore did not actually stop/redeploy restore_multi.
+
+    - name: Confirm restore_multi is running again after the restore
+      ansible.builtin.assert:
+        that:
+          - restore_multi_after_info.container.State.Status == 'running'
+        fail_msg: "restore_multi is not running: {{ restore_multi_after_info.container.State.Status }}"
+
+    # --- The actual point of this scenario -----------------------------
+    # certs got its own (shallow) directory's content, creds got its own
+    # (deeply nested) directory's content — not swapped, not the decoy,
+    # not the unrelated app's directory, and no leftover stale content.
+    - name: Read back the certs volume's content post-restore
+      community.docker.docker_container:
+        name: restore-multi-certs-check
+        image: alpine:3.20
+        volumes:
+          - restore_multi_certs:/data:ro
+        command: "cat /data/marker.txt"
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: restore_multi_certs_check
+      changed_when: false
+
+    - name: Read back the creds volume's content post-restore
+      community.docker.docker_container:
+        name: restore-multi-creds-check
+        image: alpine:3.20
+        volumes:
+          - restore_multi_creds:/data:ro
+        command: "cat /data/marker.txt"
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: restore_multi_creds_check
+      changed_when: false
+
+    - name: Confirm certs got its own restored content — not creds', not the decoy, not stale
+      ansible.builtin.assert:
+        that:
+          - "'restored-certs-content' in restore_multi_certs_check.container.Output"
+          - "'restored-creds-content' not in restore_multi_certs_check.container.Output"
+          - "'decoy-should-never-be-copied' not in restore_multi_certs_check.container.Output"
+          - "'stale-certs' not in restore_multi_certs_check.container.Output"
+        fail_msg: "certs volume content: {{ restore_multi_certs_check.container.Output }}"
+
+    - name: Confirm creds got its own restored content — not certs', not the decoy, not stale
+      ansible.builtin.assert:
+        that:
+          - "'restored-creds-content' in restore_multi_creds_check.container.Output"
+          - "'restored-certs-content' not in restore_multi_creds_check.container.Output"
+          - "'decoy-should-never-be-copied' not in restore_multi_creds_check.container.Output"
+          - "'stale-creds' not in restore_multi_creds_check.container.Output"
+        fail_msg: "creds volume content: {{ restore_multi_creds_check.container.Output }}"
+
+    # --- Cleanup ---------------------------------------------------------
+    - name: Confirm the scratch extraction volume was removed
+      community.docker.docker_volume_info:
+        name: restore_multi_restore_scratch
+      register: restore_multi_scratch_volume
+      failed_when: restore_multi_scratch_volume.exists
+
+    - name: Confirm the temporary archive copy was removed from the target host
+      ansible.builtin.stat:
+        path: /tmp/restore_multi-restore-archive
+      register: restore_multi_remote_archive
+      failed_when: restore_multi_remote_archive.stat.exists

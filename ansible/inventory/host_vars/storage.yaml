@@ -1,0 +1,34 @@
+---
+caddy_domain: "store.{{ lab_domain }}"
+
+compose_apps:
+  - name: caddy
+
+  - name: beszel-agent
+
+  - name: seaweedfs
+    caddy:
+      s3:
+        host: s3
+      filer:
+        host: filer
+
+  - name: diun
+
+# ---------------------------------------------------------------------------
+# BIND9 — per-host zone config
+# ---------------------------------------------------------------------------
+
+# OPNsense DDNS record this host resolves to.
+dns_ddns_target: "storage.{{ ddns_domain }}."
+
+# Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
+# (host + '.' + caddy_domain) fall inside this zone automatically.
+dns_zones:
+  - zone: "{{ caddy_domain }}"
+    ttl: 3600
+    soa_email: "hostmaster.{{ main_domain }}."
+    serial: 2024010101   # overwritten at render time by the role
+    extra_records:
+      - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
+      - { name: "ns1", type: A, value: "127.0.0.1" }

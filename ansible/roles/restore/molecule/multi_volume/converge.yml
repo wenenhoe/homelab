@@ -1,0 +1,158 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+
+    # Two volumes on one app — mirrors lldap's real restore_volumes shape
+    # (multiple volumes, one archive) at a manageable size.
+    app_registry:
+      restore_multi:
+        volumes:
+          - name: certs
+          - name: creds
+    compose_apps:
+      - name: restore_multi
+
+    restore_staging_dir: /tmp/restore-molecule-multi-staging
+    restore_test_archive: /tmp/restore-molecule-multi-archive.tar.gz
+    restore_before_marker: /tmp/restore-molecule-multi-before-started-at
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container/docker_volume/docker_host_info talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Deploy the synthetic "source" app so its volumes/container exist
+      ansible.builtin.include_role:
+        name: compose_app
+
+    # Distinguishable per-volume content, so verify.yml can prove each
+    # volume got ITS OWN archive directory's contents, not the other
+    # volume's (or nothing at all).
+    - name: Seed STALE content into both volumes
+      community.docker.docker_container_exec:
+        container: restore_multi
+        command: "sh -c 'echo stale-{{ item }} > /{{ item }}/marker.txt'"
+      loop:
+        - certs
+        - creds
+      changed_when: false
+
+    - name: Capture restore_multi's StartedAt BEFORE the restore
+      community.docker.docker_container_info:
+        name: restore_multi
+      register: restore_multi_before_info
+
+    - name: Persist the BEFORE StartedAt for verify.yml to compare against
+      ansible.builtin.copy:
+        dest: "{{ restore_before_marker }}"
+        content: "{{ restore_multi_before_info.container.State.StartedAt }}"
+        mode: "0644"
+
+    - name: Clear any staging dir/archive left over from a previous run
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ restore_staging_dir }}"
+        - "{{ restore_test_archive }}"
+      delegate_to: localhost
+      become: false
+
+    # Deliberately mismatched nesting depths for the two real targets,
+    # plus two directories that must be IGNORED:
+    #   - restore_multi_creds_archive/  — a decoy that starts with the
+    #     real volume name but isn't an exact match. The extraction
+    #     command matches with `find ... -name '{{ item }}'`, which is an
+    #     exact basename match, not a prefix/glob match — this decoy
+    #     would get wrongly picked up by a sloppier `-name '{{ item }}*'`
+    #     or shell-glob implementation.
+    #   - some_other_app_data/          — a plausible neighbour from the
+    #     same aggregated archive (backup_agent bundles multiple apps'
+    #     volumes per host/group — see docs/disaster-recovery.md) that
+    #     this restore run was never asked to touch.
+    - name: Create the staged directory for certs (shallow nesting)
+      ansible.builtin.file:
+        path: "{{ restore_staging_dir }}/offsite-source/restore_multi_certs"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Create the staged directory for creds (deeper nesting)
+      ansible.builtin.file:
+        path: "{{ restore_staging_dir }}/offsite-source/nested/deeper/restore_multi_creds"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Create the decoy directory (prefix-similar name, must NOT be matched)
+      ansible.builtin.file:
+        path: "{{ restore_staging_dir }}/offsite-source/restore_multi_creds_archive"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Create an unrelated app's directory (must be ignored, not just unmatched)
+      ansible.builtin.file:
+        path: "{{ restore_staging_dir }}/offsite-source/some_other_app_data"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Write the NEW canary content for each staged directory
+      ansible.builtin.copy:
+        dest: "{{ item.path }}"
+        content: "{{ item.content }}\n"
+        mode: "0644"
+      loop:
+        - path: "{{ restore_staging_dir }}/offsite-source/restore_multi_certs/marker.txt"
+          content: restored-certs-content
+        - path: "{{ restore_staging_dir }}/offsite-source/nested/deeper/restore_multi_creds/marker.txt"
+          content: restored-creds-content
+        - path: "{{ restore_staging_dir }}/offsite-source/restore_multi_creds_archive/marker.txt"
+          content: decoy-should-never-be-copied
+        - path: "{{ restore_staging_dir }}/offsite-source/some_other_app_data/marker.txt"
+          content: unrelated-app-should-never-be-touched
+      loop_control:
+        label: "{{ item.path }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Build the plain .tar.gz — this is what a real operator hands the playbook after gpg --decrypt
+      ansible.builtin.command: # noqa: command-instead-of-module — creating a tar.gz, not extracting one;
+        # unarchive only extracts, and this project has no community.general dependency
+        # (the only module that creates archives) declared in requirements.yml.
+        cmd: "tar -czf {{ restore_test_archive }} -C {{ restore_staging_dir }} offsite-source"
+      changed_when: true
+      delegate_to: localhost
+      become: false
+
+    - name: Run the restore role for both volumes out of the one archive
+      ansible.builtin.include_role:
+        name: restore
+      vars:
+        restore_app: restore_multi
+        restore_archive_local_path: "{{ restore_test_archive }}"
+        restore_volumes:
+          - restore_multi_certs
+          - restore_multi_creds
+        restore_confirm: true

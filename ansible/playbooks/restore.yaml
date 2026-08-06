@@ -1,0 +1,73 @@
+---
+# ---------------------------------------------------------------------------
+# Restore one app's volume(s) from an offsite backup archive.
+#
+# This does NOT talk to SeaweedFS or GPG directly — those two steps are
+# manual and deliberate (see docs/disaster-recovery.md): pull the object out
+# of the `homelab-backups` bucket yourself, `gpg --decrypt` it with the
+# offline private key, and hand this playbook the resulting plain .tar.gz.
+# Keeping the private key out of any playbook/host is the whole point of
+# the asymmetric-encryption design — this playbook never needs it.
+#
+# NOTE on archive shape: since the backup_agent role aggregates multiple
+# apps per host into one archive per group (see
+# ansible/roles/backup_agent), a decrypted archive usually contains more
+# than just the app you're restoring — that's fine. This playbook finds
+# the directory matching each name in restore_volumes wherever it sits in
+# the archive and ignores everything else. restore_app only controls
+# which app's OWN compose stack gets stopped/redeployed around the
+# operation — it doesn't need to match which backup-agent group produced
+# the archive.
+#
+# All the actual logic lives in ansible/roles/restore — this file is
+# deliberately a thin play-sequencer, mirroring how deploy.yaml sequences
+# compose_app/backup_agent. See that role's tasks/main.yaml header for why
+# this MUST stay a single play (hosts: all) rather than being split into a
+# separate controller-only validation play: that split was tried and
+# rejected — confirmed empirically to silently skip validation entirely
+# under `--limit <group>`, which is the exact invocation shown below.
+#
+# Usage:
+#   ansible-playbook playbooks/restore.yaml \
+#     -i inventory/inventory.yaml --limit services \
+#     -e restore_app=kms \
+#     -e restore_archive_local_path=/home/you/services-stop-group-2026-07-29T04-00-00.tar.gz \
+#     -e restore_volumes='["kms_data"]'
+#
+# For lldap (multiple volumes in one archive):
+#   -e restore_app=lldap \
+#   -e restore_archive_local_path=/home/you/security-no-stop-group-....tar.gz \
+#   -e restore_volumes='["lldap_data","lldap_certs","lldap_creds","lldap_letsencrypt_conf","lldap_letsencrypt_lib"]'
+#
+# What it does, per targeted volume:
+#   1. Copies the decrypted archive onto the target host.
+#   2. Stops the app's compose stack (nothing should write during a restore).
+#   3. Runs a throwaway container that extracts the FULL archive into a
+#      scratch volume, locates the directory matching the volume's own name
+#      inside it (robust to however docker-volume-backup nested paths under
+#      BACKUP_SOURCES — deliberately not assuming an exact prefix), and
+#      copies its contents over the real volume.
+#   4. Tears down the scratch volume and the temporary archive copy.
+#   5. Redeploys the app's compose stack.
+#
+# This is destructive by design (it overwrites current volume contents) —
+# the pause step requires explicit confirmation before anything happens.
+# ---------------------------------------------------------------------------
+
+- name: Restore an app's volume(s) from an offsite backup archive
+  hosts: all
+  gather_facts: false
+  become: true
+  # Pinned explicitly rather than relying on ansible.cfg's absence of an
+  # override: this is a destructive, human-operated procedure, and linear
+  # (one host completes a step before the next starts it) gives
+  # predictable, easy-to-follow-along output so a problem on one host is
+  # visible before the next host's turn — not required for the
+  # validation-blocks-destruction property itself (that's now safe under
+  # any strategy — see roles/restore/tasks/main.yaml), just good judgement
+  # for a procedure with no undo.
+  strategy: linear
+  tasks:
+    - name: Run the restore role
+      ansible.builtin.include_role:
+        name: restore

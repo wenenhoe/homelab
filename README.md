@@ -68,6 +68,7 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 | [`docs/adding-an-app.md`](docs/adding-an-app.md) | Step-by-step: wiring a new Compose app into the `app_registry` and a host's `compose_apps`. |
 | [`docs/host-vars.md`](docs/host-vars.md) | Field-by-field reference for `host_vars/<host>.yaml`: `caddy_domain`, `compose_apps`, per-host alias vars, `dns_ddns_target`/`dns_zones`. |
 | [`docs/cleanup.md`](docs/cleanup.md) | How `cleanup.yaml` finds stacks orphaned from `compose_apps`, the keep-vs-delete content policy, and dry-running a cleanup pass. |
+| [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: the `storage` host, SeaweedFS as a self-hosted S3 target, the `backup_agent` role's per-host aggregation, GPG encryption, and capacity/retention reasoning. |
 | [`docs/molecule-testing.md`](docs/molecule-testing.md) | The full per-role/per-scenario Molecule matrix, what `molecule_helpers` shares across scenarios, the Docker-in-Docker `vfs` storage-driver quirk, and how to add a new scenario. |
 
 ## Setup
@@ -121,6 +122,7 @@ Two inventories exist for two different situations:
 | `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`docs/cleanup.md`](docs/cleanup.md). |
 | `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
+| `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted offsite backup archive (stage 1 DR). See [`docs/disaster-recovery.md`](docs/disaster-recovery.md). |
 
 ## Basic Commands
 

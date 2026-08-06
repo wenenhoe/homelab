@@ -1,0 +1,38 @@
+---
+# Same Docker-in-Docker setup as compose_app/caddy/bind9's scenarios, plus
+# a throwaway SeaweedFS container standing in for the real `storage` host
+# (same image the real role targets, so this exercises actual S3
+# upload/auth wiring, not just "the containers are running").
+driver:
+  name: docker
+platforms:
+  - name: backup-agent-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

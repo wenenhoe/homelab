@@ -1,0 +1,71 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    server_timezone: "Etc/UTC"
+
+    offsite_backup_s3_bucket: molecule-test-ensure-bucket
+    offsite_backup_s3_proto: "http"
+    # The identity actually configured on the SeaweedFS server below —
+    # deliberately NOT what gets passed to the role (see the block
+    # below), so the role's request is genuinely unauthenticated/wrong,
+    # not just testing against a nonexistent bucket.
+    seaweedfs_real_access_key: molecule-test-real-access-key
+    seaweedfs_real_secret_key: molecule-test-real-secret-key
+  tasks:
+    - name: Include docker role (this role's own task assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container/docker_container_info talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    # See ansible/roles/molecule_helpers/tasks/start_seaweedfs_test_target.yaml
+    # for what this does and why. Configured with the REAL credentials —
+    # the role under test gets deliberately wrong ones below.
+    - name: Start a real SeaweedFS S3 target for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_seaweedfs_test_target.yaml
+      vars:
+        molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_real_access_key }}"
+        molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_real_secret_key }}"
+        molecule_helpers_seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
+
+    # molecule_helpers_seaweedfs_ip is exposed by the shared task above —
+    # no need to re-discover it here.
+    - name: Point this scenario's endpoint at the discovered IP
+      # noqa: var-naming[no-role-prefix] — see the identical comment in
+      # ../default/converge.yml; same fixed global var name, same
+      # unavoidable runtime-discovery override.
+      ansible.builtin.set_fact:
+        offsite_backup_s3_endpoint: "{{ molecule_helpers_seaweedfs_ip }}:8333"
+
+    # The role under test — deliberately given credentials that don't
+    # match the identity actually configured on the server, wrapped in
+    # block/rescue (conflict scenario's own idiom) since failure here is
+    # the expected, correct outcome.
+    - name: "Run seaweedfs_bucket [block / rescue] (wrong credentials, failure is deliberate and expected)"
+      block:
+        - name: Run seaweedfs_bucket with mismatched credentials
+          # noqa: var-naming[no-role-prefix] — seaweedfs_s3_access_key/
+          # secret_key are the fixed global var names the role's own
+          # tasks/main.yaml consumes; overriding them per-include is the
+          # whole point of this scenario (deliberately wrong values,
+          # scoped to just this one inclusion rather than the whole play).
+          ansible.builtin.include_role:
+            name: seaweedfs_bucket
+          vars:
+            seaweedfs_s3_access_key: molecule-test-WRONG-access-key
+            seaweedfs_s3_secret_key: molecule-test-WRONG-secret-key
+      rescue:
+        - name: Leave a marker proving the auth failure actually surfaced
+          ansible.builtin.copy:
+            dest: /tmp/seaweedfs_bucket_wrong_creds_halt_marker
+            content: "auth failure caught as expected\n"
+            mode: "0644"

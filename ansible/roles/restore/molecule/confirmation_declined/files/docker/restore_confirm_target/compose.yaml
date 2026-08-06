@@ -1,0 +1,12 @@
+name: restore_confirm_target
+services:
+  restore_confirm_target:
+    image: alpine:3.20
+    container_name: restore_confirm_target
+    volumes:
+      - data:/data
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  data:
+    external: true
+    name: restore_confirm_target_data

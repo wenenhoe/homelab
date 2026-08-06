@@ -1,0 +1,131 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    app_registry:
+      restore_confirm_target:
+        volumes:
+          - name: data
+    compose_apps:
+      - name: restore_confirm_target
+    restore_staging_dir: /tmp/restore-molecule-confirmation-declined-staging
+    restore_test_archive: /tmp/restore-molecule-confirmation-declined-archive.tar.gz
+    restore_before_marker: /tmp/restore-molecule-confirmation-declined-before-started-at
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container/docker_volume/docker_host_info talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Deploy the synthetic "source" app so its volume/container exists
+      ansible.builtin.include_role:
+        name: compose_app
+
+    - name: Seed content that must SURVIVE this run untouched
+      community.docker.docker_container_exec:
+        container: restore_confirm_target
+        command: "sh -c 'echo original-content-must-survive > /data/canary.txt'"
+      changed_when: false
+
+    - name: Capture restore_confirm_target's StartedAt — must be UNCHANGED after this run
+      community.docker.docker_container_info:
+        name: restore_confirm_target
+      register: restore_confirm_before_info
+
+    - name: Persist the BEFORE StartedAt for verify.yml to compare against
+      ansible.builtin.copy:
+        dest: "{{ restore_before_marker }}"
+        content: "{{ restore_confirm_before_info.container.State.StartedAt }}"
+        mode: "0644"
+
+    # A perfectly valid archive — this scenario tests that the
+    # confirmation gate blocks on its own, independent of the vars/
+    # archive-existence gate (validation_failure scenario covers that one).
+    - name: Clear any staging dir/archive left over from a previous run
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ restore_staging_dir }}"
+        - "{{ restore_test_archive }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Create the staged volume directory the archive will contain
+      ansible.builtin.file:
+        path: "{{ restore_staging_dir }}/offsite-source/restore_confirm_target_data"
+        state: directory
+        mode: "0755"
+      delegate_to: localhost
+      become: false
+
+    - name: Write canary content that must NEVER make it into the real volume
+      ansible.builtin.copy:
+        dest: "{{ restore_staging_dir }}/offsite-source/restore_confirm_target_data/canary.txt"
+        content: "should-never-be-applied-confirmation-was-declined\n"
+        mode: "0644"
+      delegate_to: localhost
+      become: false
+
+    - name: Build the plain .tar.gz
+      ansible.builtin.command: # noqa: command-instead-of-module — creating a tar.gz, not extracting one;
+        # unarchive only extracts, and this project has no community.general dependency
+        # (the only module that creates archives) declared in requirements.yml.
+        cmd: "tar -czf {{ restore_test_archive }} -C {{ restore_staging_dir }} offsite-source"
+      changed_when: true
+      delegate_to: localhost
+      become: false
+
+    # restore_confirm: false is the deliberate "declined" signal — see the
+    # confirmation-gate comment block in roles/restore/tasks/main.yaml.
+    # This does NOT rely on Molecule's own ansible-playbook subprocess
+    # lacking a tty: whether it does depends on how `molecule test` itself
+    # was launched (a plain interactive terminal DOES give it one, in
+    # which case a real pause would hang here waiting for input that will
+    # never come) — that ambient state isn't something this scenario
+    # can assume either way, so it's pinned explicitly instead.
+    - name: "Run restore role [block / rescue] (confirmation is deliberately withheld, failure is expected)"
+      block:
+        - name: Run the restore role
+          ansible.builtin.include_role:
+            name: restore
+          vars:
+            restore_app: restore_confirm_target
+            restore_archive_local_path: "{{ restore_test_archive }}"
+            restore_volumes:
+              - restore_confirm_target_data
+            restore_confirm: false
+      rescue:
+        - name: Confirm this failed for the reason this scenario is actually testing, not something else
+          ansible.builtin.assert:
+            that:
+              - "'Restore aborted — confirmation not given.' in (ansible_failed_result.msg | default(''))"
+            fail_msg: >-
+              The restore role failed, but NOT because confirmation was
+              withheld — it failed for an unrelated reason:
+              {{ ansible_failed_result.msg | default('(no msg captured)') }}.
+              A block/rescue that only checks "did it fail" would wrongly
+              report this as the confirmation gate working. See the
+              `become: false` comment in roles/restore/tasks/main.yaml for
+              a real example of exactly this failure mode.
+
+        - name: Leave a marker proving the confirmation gate actually blocked the run
+          ansible.builtin.copy:
+            dest: /tmp/restore_confirmation_declined_halt_marker
+            content: "confirmation gate blocked the run as expected\n"
+            mode: "0644"

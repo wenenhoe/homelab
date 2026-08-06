@@ -1,0 +1,70 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    server_timezone: "Etc/UTC"
+
+    offsite_backup_s3_bucket: molecule-test-ensure-bucket
+    offsite_backup_s3_proto: "http"
+    seaweedfs_s3_access_key: molecule-test-access-key
+    seaweedfs_s3_secret_key: molecule-test-secret-key
+  tasks:
+    - name: Include docker role (this role's own task assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container/docker_container_info talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    # --- Real S3 target for this scenario ---------------------------------
+    # See ansible/roles/molecule_helpers/tasks/start_seaweedfs_test_target.yaml
+    # for what this does and why (real -s3.config identity, not anonymous
+    # mode; -filer required; readiness polled by IP, not hostname —
+    # hostname resolution from within the container genuinely fails on
+    # Docker's plain default bridge network). No custom network name
+    # given — this role's own task doesn't create one to attach to (a
+    # single bare docker_container call, matching production, which
+    # reaches SeaweedFS over the real LAN/DNS, not a shared docker
+    # network at all) — so this lands on Docker's plain default bridge
+    # network instead, same as the role's own ephemeral container will.
+    - name: Start a real SeaweedFS S3 target for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_seaweedfs_test_target.yaml
+      vars:
+        molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_s3_access_key }}"
+        molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_s3_secret_key }}"
+        molecule_helpers_seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
+
+    # molecule_helpers_seaweedfs_ip is exposed by the shared task above —
+    # no need to re-discover it here.
+    - name: Alias the discovered IP under this scenario's own name
+      ansible.builtin.set_fact:
+        seaweedfs_bucket_test_ip: "{{ molecule_helpers_seaweedfs_ip }}"
+
+    - name: Point this scenario's endpoint at the discovered IP
+      # noqa: var-naming[no-role-prefix] — offsite_backup_s3_endpoint is a
+      # fixed global var name the role's own tasks/main.yaml consumes by
+      # design (shared with backup_agent, defined in group_vars/all.yaml
+      # in production); it can't be renamed here. Overriding it
+      # dynamically is unavoidable — the IP is only known after the
+      # discovery task above runs, so it can't just live in this play's
+      # static top-level vars: block the way backup_agent's own test
+      # handles the same var (that scenario addresses SeaweedFS by
+      # hostname, known upfront; this one can't, per the network
+      # reasoning above).
+      ansible.builtin.set_fact:
+        offsite_backup_s3_endpoint: "{{ seaweedfs_bucket_test_ip }}:8333"
+
+    # The role under test. Its own task creates an ephemeral aws-cli
+    # container with no custom networks: param, so it also lands on
+    # "bridge" — reachable at the IP just discovered above, same subnet
+    # as seaweedfs-test.
+    - name: Run seaweedfs_bucket
+      ansible.builtin.include_role:
+        name: seaweedfs_bucket

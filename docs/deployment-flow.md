@@ -1,6 +1,6 @@
 # Deployment Flow
 
-`deploy.yaml` runs as four ordered plays, deliberately sequenced so DNS and the reverse proxy are already serving before anything that depends on them starts.
+`deploy.yaml` runs as six ordered plays, deliberately sequenced so DNS and the reverse proxy are already serving before anything that depends on them starts, and so the offsite-backup destination exists before anything tries to upload to it.
 
 ## Play 1 — System setup (`hosts: all`)
 
@@ -18,6 +18,14 @@ Runs only on the `services` host. Scrapes `dns_zones` from every host in `app_ho
 
 Every remaining app (everything except `caddy` and `bind9`, which already deployed themselves in Plays 2–3) gets its directories/configs provisioned and its container started, now that DNS is resolving and Caddy is routing.
 
+## Play 5 — Ensure offsite-backup bucket exists (`hosts: storage`)
+
+Runs only on the `storage` host, after SeaweedFS itself has deployed as a regular compose app in Play 4. Creates the `homelab-backups` S3 bucket explicitly and idempotently — SeaweedFS doesn't auto-create a bucket on first `PUT`, even with Admin-scoped credentials. Must run before Play 6, or the first backup upload on every host would fail with `NoSuchBucket`. Details: [`disaster-recovery.md`](disaster-recovery.md).
+
+## Play 6 — Deploy offsite backup agent (`hosts: all`)
+
+Runs last, deliberately: it mounts other apps' named volumes as `external: true`, which requires each app's own Play 4 `ensure_volume` step to have already created them, and requires Play 5's bucket to already exist. Aggregates each host's `backup:`-declared apps into (at most) two `docker-volume-backup` instances and deploys them. Details: [`disaster-recovery.md`](disaster-recovery.md).
+
 ## Ansible Roles
 
 | Role | Purpose |
@@ -29,6 +37,8 @@ Every remaining app (everything except `caddy` and `bind9`, which already deploy
 | `compose_app` | Batch-drives `compose`'s `init` + `deploy` for every app that isn't self-managed (i.e. everything except `caddy`/`bind9`). Each app's init/deploy is wrapped in its own `block`/`rescue` (`deploy_one_app.yaml`) so one app failing doesn't stop the rest of the batch from being attempted. `compose_app_continue_on_error: true` by default; set `-e compose_app_continue_on_error=false` for strict fail-fast instead. A per-app pass/fail summary prints at the end, and the play still fails overall if anything did. |
 | `caddy` | Renders the `Caddyfile`, builds a custom Caddy image with the DigitalOcean DNS plugin, and deploys/restarts the proxy. |
 | `bind9` | Aggregates DNS zone data from every app host and renders/deploys the authoritative DNS server, then rewires the host's own resolution to use it. |
+| `seaweedfs_bucket` | Creates the offsite-backup S3 bucket on `storage`, explicitly and idempotently, ahead of any `backup_agent` upload. |
+| `backup_agent` | Aggregates each host's `backup:`-declared apps into (at most) two `docker-volume-backup` instances (stop-during-backup vs. no-stop) and deploys them. See [`disaster-recovery.md`](disaster-recovery.md). |
 
 ## The App Registry
 
@@ -50,12 +60,12 @@ See [`adding-an-app.md`](adding-an-app.md) for a worked example of adding a new 
 
 ## Tags
 
-Three tags scope a `deploy.yaml` run narrower than the full four-play converge:
+Three tags scope a `deploy.yaml` run narrower than the full six-play converge:
 
 | Tag | Covers | Skips |
 | :--- | :--- | :--- |
 | `initial-setup` | Docker Engine install (Play 1) | Everything else still runs — this only lets you skip re-installing Docker on a host that already has it. |
-| `images` | Pull/rebuild every app's image (caddy included, via its own local build) and recreate any container whose image actually changed | Config rendering (Caddyfile, DNS zones), app directory/volume provisioning, Docker install |
+| `images` | Pull/rebuild every app's image (caddy included, via its own local build) and recreate any container whose image actually changed, across Plays 2–6 | Config rendering (Caddyfile, DNS zones), app directory/volume provisioning, Docker install |
 | `infra` | Re-render Caddy's Caddyfile and BIND9's `named.conf`/zone files, restart only the containers whose config changed | Image pulls/rebuilds, app directory/volume provisioning, Docker install |
 
 `preinit` (the `compose_apps`/`app_registry` merge) always runs regardless of tags, since every role above reads its output. The one-time app provisioning steps — `caddy`/`bind9`'s own `init`, and `compose_app`'s per-app `init` — deliberately have no tag and only run on a full, untagged pass; `images`/`infra` both assume the host has already been provisioned once.

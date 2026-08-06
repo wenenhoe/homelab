@@ -1,0 +1,20 @@
+{
+  "identities": [
+    {
+      "name": "offsite-backup-agent",
+      "credentials": [
+        {
+          "accessKey": "{{ seaweedfs_s3_access_key }}",
+          "secretKey": "{{ seaweedfs_s3_secret_key }}"
+        }
+      ],
+      "actions": [
+        "Write:{{ offsite_backup_s3_bucket }}",
+        "Read:{{ offsite_backup_s3_bucket }}",
+        "List:{{ offsite_backup_s3_bucket }}",
+        "Tagging:{{ offsite_backup_s3_bucket }}",
+        "Admin:{{ offsite_backup_s3_bucket }}"
+      ]
+    }
+  ]
+}

@@ -1,9 +1,7 @@
 ---
 # Covers init.yaml's script-deployment paths, neither exercised by the
 # default or volumes scenarios: direct copy (no matching volume declared)
-# and volume-seeded (a "scripts" volume declared, so the script gets
-# staged and seeded into it instead). Same Docker-in-Docker setup as the
-# other compose scenarios.
+# and volume-seeded (a "scripts" volume declared).
 driver:
   name: docker
 platforms:

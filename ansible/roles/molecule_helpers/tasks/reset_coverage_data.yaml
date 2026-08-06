@@ -1,16 +1,13 @@
 ---
-# Shared by any Molecule scenario wired into tools/molecule-coverage/ (see
-# that directory's README). The callback plugin appends to its JSONL file
-# rather than truncating it, so repeated `molecule test` invocations would
-# otherwise accumulate stale data from previous runs on top of the current
-# one. Including this at the very start of a scenario's prepare step -
-# which runs once per test_sequence, before converge - deletes that
-# scenario's own JSONL so each invocation starts from a clean slate;
-# converge, idempotence's re-run of converge, and verify all then append
-# into a fresh file for that one run.
+# Shared by any scenario wired into ansible/molecule-coverage/ (see its
+# README). The callback plugin appends to its JSONL rather than
+# truncating it, so repeated `molecule test` runs would otherwise
+# accumulate stale data. Included at the start of each scenario's prepare
+# step to delete that scenario's JSONL, so converge/idempotence/verify
+# all append into a fresh file for that one run.
 #
-# Safe to include even for scenarios that don't have coverage wired up: if
-# MOLECULE_COVERAGE_DIR isn't set in provisioner.env, this is a no-op.
+# Safe to include even without coverage wired up — a no-op if
+# MOLECULE_COVERAGE_DIR isn't set.
 - name: Reset this scenario's molecule-coverage JSONL, if coverage is wired up
   ansible.builtin.file:
     path: "{{ _coverage_dir }}/{{ _role_name }}/{{ _scenario_name }}.jsonl"

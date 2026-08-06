@@ -1,30 +1,15 @@
 ---
-# ---------------------------------------------------------------------------
-# Reusable single-app deployer.
+# Reusable single-app deployer. Shared by compose_app (looped per
+# non-infra app) and caddy/bind9 (called directly right after their own
+# config is generated, so their container is up before anything
+# downstream needs it).
 #
-# Shared by:
-#   - compose_app role    (looped once per non-infra app, Play 3)
-#   - caddy / bind9 roles (called directly, right after their own config is
-#                          generated, so their container is already up
-#                          before anything downstream needs it — bind9 must
-#                          be serving before other containers/hosts start,
-#                          caddy must be routing before the apps behind it
-#                          come up)
+# Expects compose_app_item (a resolved compose_apps entry) and optional
+# compose_app_extra_changed (set true when config outside the compose
+# file changed — e.g. Caddyfile, named.conf/zones — so the container
+# should restart even though docker_compose_v2 sees no diff).
 #
-# Expects:
-#   compose_app_item          — one fully-resolved entry from compose_apps
-#   compose_app_extra_changed — (optional, default false) set true when
-#                                config outside the compose file itself
-#                                changed (e.g. Caddyfile, named.conf/zones)
-#                                and the container should be restarted even
-#                                though docker_compose_v2 sees no diff
-#
-# Sets:
-#   compose_app_deploy_changed — true if anything here actually changed
-#                                 (compose itself, the forced restart, or
-#                                 the extra-changed trigger). Read by
-#                                 compose_app's batch summary.
-# ---------------------------------------------------------------------------
+# Sets compose_app_deploy_changed, read by compose_app's batch summary.
 
 - name: Pull latest Docker images ({{ compose_app_item.name }})
   community.docker.docker_compose_v2_pull:
@@ -50,12 +35,10 @@
   tags:
     - images
 
-# Separate from the images tag above: this is for when Caddyfile/named.conf/
-# zone content changed but the compose file and image didn't, which Compose
-# has no way to detect on its own (a rebuilt local image with the same tag
-# IS picked up by the "present" task above - Compose recreates whenever the
-# image ID a running container was created from no longer matches the
-# currently-tagged image, tag notwithstanding).
+# Separate from the images tag above: for when Caddyfile/named.conf/zone
+# content changed but the compose file/image didn't, which Compose can't
+# detect on its own (a rebuilt local image with the same tag IS already
+# picked up by the "present" task above).
 - name: Restart if its config changed ({{ compose_app_item.name }})
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"

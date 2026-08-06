@@ -7,22 +7,18 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     # Only used by gpg-public-key.asc.j2's lookup — points at the one
-    # shared test-only key in molecule_helpers rather than a per-scenario
-    # copy (previously duplicated 3x, which is exactly the kind of thing
-    # that caused the missing-fixture bug when this scenario was added).
+    # shared test-only key in molecule_helpers, not a per-scenario copy
     project_root: "{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}"
     server_timezone: "Etc/UTC"
 
     # --- backup_agent's own required global vars ---
-    # A real SeaweedFS instance (started below, same image the real
-    # `storage` host runs) stands in for the actual S3 target, with a
-    # real -s3.config identity (see below) so this scenario exercises
-    # actual upload/auth wiring, not just "the container is running".
+    # A real SeaweedFS instance (started below) stands in for the actual
+    # S3 target, with a real -s3.config identity, so this exercises real
+    # upload/auth wiring, not just "the container is running".
     offsite_backup_s3_bucket: molecule-test-backups
-    # Bare host:port, no scheme — see the comment on this var in
-    # group_vars/all.yaml for why (docker-volume-backup's AWS_ENDPOINT
-    # rejects a scheme-prefixed value). The test SeaweedFS target has no
-    # TLS, so proto is http here vs. https in production.
+    # Bare host:port, no scheme — docker-volume-backup's AWS_ENDPOINT
+    # rejects a scheme-prefixed value (see group_vars/all.yaml). The test
+    # target has no TLS, so proto is http here vs. https in production.
     offsite_backup_s3_endpoint: "seaweedfs-test:8333"
     offsite_backup_s3_proto: "http"
     offsite_backup_cron: "0 4 * * *"
@@ -31,12 +27,10 @@
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
     # happy_app_stop carries docker-volume-backup.stop-during-backup=true
-    # on its own container (see files/docker/happy_app_stop/compose.yaml)
-    # and is grouped accordingly; happy_app_nostop carries no such label.
-    # happy_app_no_backup declares no `backup:` key at all — mirrors real
-    # apps like caddy/beszel-agent/diun, which coexist with backed-up
-    # apps on every real host but were never covered by this scenario:
-    # both other apps here always declared backup.volumes, so the
+    # on its own container and is grouped accordingly; happy_app_nostop
+    # carries no such label. happy_app_no_backup declares no `backup:`
+    # key at all — mirrors real apps like caddy/beszel-agent/diun, which
+    # coexist with backed-up apps but weren't covered before this: the
     # normalization task's `when: ... | length > 0` skip branch had never
     # actually been exercised as false.
     app_registry:
@@ -76,15 +70,13 @@
 
     # Mirrors Play 4 running before Play 5 in the real deploy.yaml —
     # backup_agent's compose.yaml references these apps' volumes as
-    # `external: true`, which requires them to already exist.
+    # `external: true`, requiring them to already exist.
     - name: Deploy the two synthetic "source" apps so their volumes/containers exist
       ansible.builtin.include_role:
         name: compose_app
 
-    # Known content to confirm later that the *right* volume's data made
-    # it into the *right* group's archive — not just that a backup ran.
-    # changed_when: false — this is test setup, not something idempotence
-    # should count as a state change.
+    # Known content, to confirm later that the right volume's data made
+    # it into the right group's archive — not just that a backup ran.
     - name: Seed known canary content into each app's data volume
       community.docker.docker_container_exec:
         container: "{{ item }}"
@@ -95,23 +87,19 @@
       changed_when: false
 
     # The role under test. Runs before the SeaweedFS target below is even
-    # started — its containers don't try to reach AWS_ENDPOINT at startup
-    # (only when cron fires or something manually triggers a backup, which
-    # verify.yml does), so ordering here is safe.
+    # started — its containers only reach AWS_ENDPOINT on cron/manual
+    # trigger, not at startup, so this ordering is safe.
     - name: Run backup_agent
       ansible.builtin.include_role:
         name: backup_agent
 
-    # By now, backup_agent's compose stack already exists, which means
-    # its network does too — discover it BEFORE creating seaweedfs-test,
-    # so it can be attached at creation time rather than connected
-    # afterward. Creating on the default bridge network first and
-    # connecting to the real one only after the process has already
-    # started risks SeaweedFS binding its listener to whichever address
-    # was available at startup and never picking up an interface added
-    # later — consistent with "connection refused" on an otherwise
-    # correctly-resolved IP (the packet arrives; nothing's listening
-    # there).
+    # backup_agent's compose stack (and its network) already exists by
+    # now — discover it before creating seaweedfs-test, so it can be
+    # attached at creation time rather than connected afterward.
+    # SeaweedFS likely binds its listener to whichever address is
+    # available at startup, so connecting a network later risks it never
+    # picking up the new interface (looks like "connection refused" on an
+    # otherwise correctly-resolved IP).
     - name: Discover the docker network backup_agent's compose stack created
       community.docker.docker_host_info:
         networks: true
@@ -125,15 +113,9 @@
              | map(attribute='Name') | list | first }}
 
     # --- Real S3 target for this scenario --------------------------------
-    # See ansible/roles/molecule_helpers/tasks/start_seaweedfs_test_target.yaml
-    # for what this does and why (real -s3.config identity, not anonymous
-    # mode; -filer required; readiness polled by IP, not hostname —
-    # hostname resolution from within the container genuinely fails on
-    # Docker's plain default bridge network, and this network is custom
-    # but IP-based polling avoids depending on that distinction at all).
-    # Attached to backup_agent's own network at creation time — not
-    # connected afterward — since SeaweedFS likely binds to whichever
-    # address is available at process startup.
+    # See molecule_helpers/tasks/start_seaweedfs_test_target.yaml for what
+    # this does and why. Attached to backup_agent's own network at
+    # creation time, not connected afterward — see above.
     - name: Start a real SeaweedFS S3 target for this scenario
       ansible.builtin.include_role:
         name: molecule_helpers
@@ -163,12 +145,10 @@
       register: backup_agent_bucket_create
       changed_when: false
       # seaweedfs-test (and its data volume) persists across the
-      # idempotence re-run of this whole playbook, so the bucket
-      # genuinely already exists the second time — that's expected, not
-      # a real failure. Two real runs now (this one, and the earlier
-      # "Could not connect" one) confirm .msg reliably carries the
-      # module's error text, unlike .container.State — see the
-      # readiness-check task above for why that one isn't trusted.
+      # idempotence re-run, so the bucket genuinely already exists the
+      # second time — expected, not a real failure. .msg reliably
+      # carries the module's error text here, confirmed across two real
+      # runs (this one and an earlier "Could not connect" one).
       failed_when: >-
         backup_agent_bucket_create is failed
         and 'BucketAlreadyExists' not in (backup_agent_bucket_create.msg | default(''))

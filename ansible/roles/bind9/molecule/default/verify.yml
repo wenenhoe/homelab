@@ -74,11 +74,11 @@
           - "'DNSStubListener=no' in (bind9_resolved_conf_raw.content | b64decode)"
 
     # No resolv.conf-symlink check here: bind9_manage_resolv_conf: false
-    # (set in converge.yml) deliberately skips that task in this
-    # environment, since Docker bind-mounts /etc/resolv.conf into this
-    # container itself and the kernel refuses to replace a bind-mounted
-    # file with a symlink. See bind9's defaults/main.yaml for the full
-    # reasoning - correctness here is by code review, not execution.
+    # (set in converge.yml) skips that task in this environment, since
+    # Docker bind-mounts /etc/resolv.conf into this container and the
+    # kernel refuses to replace a bind-mounted file with a symlink. See
+    # bind9's defaults/main.yaml — correctness here is by code review,
+    # not execution.
 
     - name: Read back Docker's daemon.json
       ansible.builtin.slurp:

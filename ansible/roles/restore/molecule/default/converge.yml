@@ -18,14 +18,12 @@
       - name: restore_target
 
     # --- The "decrypted archive" this scenario hands the role ---
-    # restore.yaml's own contract is that it receives an ALREADY-DECRYPTED
-    # plain .tar.gz — GPG/SeaweedFS are explicitly out of scope for this
-    # playbook/role (see its header comment). So building a plain tar.gz
-    # directly, rather than round-tripping through a real backup_agent +
-    # GPG + SeaweedFS pipeline, is not a shortcut around "mirror
-    # production" — it IS the documented production input shape for this
-    # specific role. (backup_agent's own molecule scenarios already cover
-    # the encrypt/upload side of that contract.)
+    # restore.yaml's contract is that it receives an already-decrypted
+    # plain .tar.gz — GPG/SeaweedFS are out of scope for this role (see
+    # its header). Building a plain tar.gz directly, rather than
+    # round-tripping through a real backup_agent + GPG + SeaweedFS
+    # pipeline, IS the documented production input shape here —
+    # backup_agent's own scenarios already cover the encrypt/upload side.
     restore_staging_dir: /tmp/restore-molecule-default-staging
     restore_test_archive: /tmp/restore-molecule-default-archive.tar.gz
     restore_before_marker: /tmp/restore-molecule-default-before-started-at
@@ -49,9 +47,8 @@
       ansible.builtin.include_role:
         name: compose_app
 
-    # changed_when: false — this is test setup, not something an
-    # idempotence check should count (this scenario doesn't run one, but
-    # keeping the convention matches backup_agent's fixtures).
+    # changed_when: false — test setup, not something idempotence should
+    # count.
     - name: Seed STALE content into the volume, to prove restore overwrites it
       community.docker.docker_container_exec:
         container: restore_target
@@ -64,9 +61,7 @@
       register: restore_default_before_info
 
     # Persisted to a file, not just a fact — verify.yml is a separate
-    # ansible-playbook invocation with a fresh set of registered vars, so
-    # an in-memory fact from converge.yml wouldn't survive to be compared
-    # against.
+    # ansible-playbook invocation, so an in-memory fact wouldn't survive.
     - name: Persist the BEFORE StartedAt for verify.yml to compare against
       ansible.builtin.copy:
         dest: "{{ restore_before_marker }}"
@@ -85,10 +80,9 @@
 
     # One level of nesting under the staging root — a real
     # docker-volume-backup archive nests under whatever BACKUP_SOURCES
-    # was, which this role's extraction logic deliberately doesn't assume
-    # an exact depth for (see roles/restore/tasks/main.yaml). The
-    # multi_volume scenario stresses this more; this is just "not flat"
-    # for the common case.
+    # was, which this role's extraction logic doesn't assume an exact
+    # depth for. multi_volume stresses this more; this is just "not
+    # flat" for the common case.
     - name: Create the staged volume directory the archive will contain
       ansible.builtin.file:
         path: "{{ restore_staging_dir }}/offsite-source/restore_target_data"

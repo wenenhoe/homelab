@@ -1,51 +1,37 @@
 ---
-# ---------------------------------------------------------------------------
-# Starts a real SeaweedFS S3 target for scenarios that need one to test
-# against — shared by backup_agent/default, seaweedfs_bucket/default, and
+# Starts a real, throwaway SeaweedFS S3 target — shared by
+# backup_agent/default, seaweedfs_bucket/default, and
 # seaweedfs_bucket/wrong_credentials. Extracted after the third
-# near-identical copy; each carried the same hard-won lessons independently
-# before this existed:
+# near-identical copy; each carried the same hard-won lessons
+# independently before this existed:
 #   - a real -s3.config identity, not anonymous mode (anonymous tolerates
 #     some clients' signed requests but not others', and never verifies
-#     the identity's scope is actually sufficient)
-#   - -filer is required, or the S3 gateway never actually listens at all
+#     the identity's scope is sufficient)
+#   - -filer is required, or the S3 gateway never actually listens
 #   - readiness checked against the FILER port (8888), not S3 (8333) — S3
-#     requires real signed credentials once a real identity is
-#     configured, so an unauthenticated check there gets rejected even
-#     when the service is fine
-#   - checked by IP, not hostname — SeaweedFS binds its listeners to its
-#     advertised/detected IP (needed for master/filer/volume peer
-#     coordination), not loopback, which already ruled out `localhost`.
-#     A later real run showed the container's own hostname doesn't
-#     reliably resolve from within itself either (an earlier version of
-#     this file claimed it did — that was wrong): confirmed live,
-#     "wget: bad address 'seaweedfs-test:8888'" on Docker's plain default
-#     bridge network. That ruled out a native Docker HEALTHCHECK (its CMD
-#     runs inside the container and would hit the same resolution
-#     failure) — readiness is polled externally instead, by IP, which
-#     depends on no hostname resolution at all regardless of network
-#     type.
+#     needs real signed credentials once a real identity is configured,
+#     so an unauthenticated check there gets rejected even when healthy
+#   - checked by IP, not hostname — SeaweedFS binds to its
+#     advertised/detected IP, not loopback. The container's own hostname
+#     doesn't reliably resolve from within itself either (confirmed live:
+#     "wget: bad address 'seaweedfs-test:8888'" on Docker's default
+#     bridge network — an earlier version of this file assumed it did).
+#     That also rules out a native Docker HEALTHCHECK, since its CMD runs
+#     inside the container and hits the same resolution failure —
+#     readiness is polled externally by IP instead.
 #
-# Required vars:
-#   molecule_helpers_seaweedfs_access_key / molecule_helpers_seaweedfs_secret_key
-#     — credentials to bake into the identity config
-#   molecule_helpers_seaweedfs_bucket
-#     — bucket name the identity is scoped to
+# Required vars: molecule_helpers_seaweedfs_access_key/secret_key
+# (credentials for the identity config), molecule_helpers_seaweedfs_bucket
+# (bucket the identity is scoped to).
 #
-# Optional vars:
-#   molecule_helpers_seaweedfs_network_name
-#     — attach the container to this docker network at creation time,
-#     not after (see backup_agent's own scenario for why creation-time
-#     attachment matters — SeaweedFS likely binds to whichever address is
-#     available at process startup). Needed when the caller's own role
-#     already created a custom network other test containers must share.
-#     Omit to use Docker's plain default bridge network instead.
+# Optional: molecule_helpers_seaweedfs_network_name — attach to this
+# docker network at creation time (SeaweedFS likely binds to whichever
+# address is available at startup), for callers whose own role already
+# created a custom network other test containers must share. Omit to use
+# the default bridge network.
 #
-# Exposes (callers may reference after this task file returns):
-#   molecule_helpers_seaweedfs_ip
-#     — the container's IP on whichever network it landed on, so callers
-#     don't need to re-discover it themselves.
-# ---------------------------------------------------------------------------
+# Exposes molecule_helpers_seaweedfs_ip after returning, so callers don't
+# need to re-discover the container's IP themselves.
 
 - name: Render an S3 identity config for the test SeaweedFS target
   ansible.builtin.copy:
@@ -99,20 +85,15 @@
            molecule_helpers_seaweedfs_network_name | default('bridge', true)
          ].IPAddress }}
 
-# .rc is a proven-reliable field for docker_container_exec — already
-# used successfully elsewhere in this project (backup_agent's manual
-# backup-trigger checks) — unlike docker_container's murkier detach:false
-# result shape under failure, which turned out not to behave the way it
-# was assumed to on two separate earlier attempts. `until` retries
-# regardless of whether the module itself reports failure or the
-# condition is just false, so this is safe either way.
+# .rc is a proven-reliable field for docker_container_exec (already used
+# elsewhere in this project) — unlike docker_container's murkier
+# detach:false failure shape, which didn't behave as assumed on two
+# earlier attempts. `until` retries either way.
 #
-# command: must be a plain string here, NOT a YAML list — unlike
-# docker_container's command:, which does accept a list. Confirmed the
-# hard way: a list rendered as a single stringified executable name
-# ("[wget,") that obviously didn't exist in $PATH. The canary-seeding
-# task above already used the correct string form; should have
-# cross-checked that before writing this one.
+# command: must be a plain string here, not a YAML list, unlike
+# docker_container's command: — confirmed the hard way: a list rendered
+# as a single stringified executable name ("[wget,") that didn't exist
+# in $PATH.
 - name: Wait for SeaweedFS's filer port to accept connections
   community.docker.docker_container_exec:
     container: seaweedfs-test

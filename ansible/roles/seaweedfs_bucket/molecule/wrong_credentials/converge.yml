@@ -25,9 +25,9 @@
         name: molecule_helpers
         tasks_from: install_docker_api_requests.yaml
 
-    # See ansible/roles/molecule_helpers/tasks/start_seaweedfs_test_target.yaml
-    # for what this does and why. Configured with the REAL credentials —
-    # the role under test gets deliberately wrong ones below.
+    # See molecule_helpers/tasks/start_seaweedfs_test_target.yaml for what
+    # this does and why. Configured with the REAL credentials — the role
+    # under test gets deliberately wrong ones below.
     - name: Start a real SeaweedFS S3 target for this scenario
       ansible.builtin.include_role:
         name: molecule_helpers

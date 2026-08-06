@@ -1,20 +1,17 @@
 #!/usr/bin/env bash
-# Runs `molecule test --all` for every role that has molecule scenarios,
-# one role at a time, so it can be invoked from ansible/ instead of
-# needing to `cd` into each role directory individually.
+# Runs `molecule test --all` for every role with molecule scenarios, one
+# role at a time, so it can be invoked from ansible/ instead of `cd`-ing
+# into each role directory.
 #
-# Why not just `molecule test --all` from here directly: Molecule's
-# scenario discovery glob (molecule/*/molecule.yml) is relative to cwd
-# and doesn't recurse into roles/*/molecule/*/molecule.yml on its own -
-# MOLECULE_GLOB can be pointed at a recursive pattern to fix that part,
-# but doing so surfaces a second, real problem: Molecule validates
-# scenario names for uniqueness across everything the glob discovers, not
-# per-role, and 6 of this repo's 11 scenarios are named "default" (apt,
-# bind9, caddy, compose, compose_app, docker) - confirmed via real-world
-# reports that this fails with "CRITICAL Duplicate scenario name
-# 'default' found. Exiting." Running molecule per-role, one directory at
-# a time, avoids this entirely since each invocation only ever sees one
-# role's own (already-unique) scenario names.
+# Why not `molecule test --all` directly: Molecule's scenario-discovery
+# glob is relative to cwd and doesn't recurse into
+# roles/*/molecule/*/molecule.yml on its own. Pointing MOLECULE_GLOB at a
+# recursive pattern fixes that but surfaces a second problem — Molecule
+# validates scenario names for uniqueness across everything the glob
+# discovers, not per-role, and several of this repo's scenarios are named
+# "default" (confirmed: fails with "CRITICAL Duplicate scenario name
+# 'default' found. Exiting."). Running per-role avoids this, since each
+# invocation only sees one role's own already-unique scenario names.
 #
 # Usage:
 #   ./molecule-test-all.sh            # test every role

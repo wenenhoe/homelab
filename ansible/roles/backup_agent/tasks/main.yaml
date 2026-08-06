@@ -1,30 +1,22 @@
 ---
-# ---------------------------------------------------------------------------
-# Role: backup_agent
-#
-# Aggregates offsite-backup targets across every app on THIS host (no
-# cross-host scraping needed, unlike bind9 — compose_apps is already
-# resolved per-host by compose/preinit.yaml, which runs in Play 1 before
-# this role's Play).
+# Aggregates offsite-backup targets across every app on this host
+# (compose_apps is already resolved per-host by Play 1's preinit).
 #
 # Any app_registry entry may declare:
 #   backup:
-#     volumes: [data, certs, ...]       # which of its own declared volumes to back up
-#     stop_during_backup: true|false     # default false — see grouping below
-#     retention_days: N                  # optional override of offsite_backup_retention_days
-#     cron: "..."                        # optional override of offsite_backup_cron
+#     volumes: [data, certs, ...]      # which volumes to back up
+#     stop_during_backup: true|false   # default false — see grouping below
+#     retention_days: N                # override of offsite_backup_retention_days
+#     cron: "..."                      # override of offsite_backup_cron
 #
-# Apps are split into (at most) two docker-volume-backup instances per host:
-#   - stop_during_backup: true  → share one docker-socket-proxy, one archive
-#   - stop_during_backup: false → no proxy needed, one archive
-# NOT one-per-app: docker-volume-backup stops/restarts labeled containers
-# once per RUN, not per-subdirectory, so apps sharing an instance also share
-# that instance's downtime window, schedule, and retention. Two groups is
-# the minimum granularity that keeps "needs stopping" from coupling to
-# "doesn't", not an arbitrary choice — see docs/disaster-recovery.md.
+# Apps split into at most two docker-volume-backup instances per host
+# (stop_during_backup true/false), not one-per-app: docker-volume-backup
+# stops/restarts labeled containers once per RUN, not per subdirectory, so
+# apps sharing an instance share its downtime window, schedule, and
+# retention. Two groups is the minimum granularity that keeps "needs
+# stopping" decoupled from "doesn't" — see docs/disaster-recovery.md.
 #
 # A host with zero qualifying apps (e.g. `storage`) is skipped entirely.
-# ---------------------------------------------------------------------------
 
 - name: Set backup-agent directory facts
   ansible.builtin.set_fact:

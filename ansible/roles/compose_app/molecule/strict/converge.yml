@@ -34,9 +34,9 @@
         tasks_from: resolve_compose_apps.yaml
 
     # In strict mode, the first app's failure re-raises unconditionally
-    # (see deploy_one_app.yaml), halting the loop entirely - expected here,
-    # since app_fail is deliberately broken. Catch it so Molecule's
-    # converge stage doesn't abort before verify.yml ever runs.
+    # (see deploy_one_app.yaml), halting the loop — expected here, since
+    # app_fail is deliberately broken. Catch it so Molecule's converge
+    # stage doesn't abort before verify.yml ever runs.
     - name: "Run the batch [block / rescue] (app_fail is deliberately broken, halt is expected)"
       block:
         - name: Run compose_app's batch init/deploy

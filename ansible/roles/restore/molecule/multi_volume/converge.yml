@@ -76,16 +76,14 @@
 
     # Deliberately mismatched nesting depths for the two real targets,
     # plus two directories that must be IGNORED:
-    #   - restore_multi_creds_archive/  — a decoy that starts with the
-    #     real volume name but isn't an exact match. The extraction
-    #     command matches with `find ... -name '{{ item }}'`, which is an
-    #     exact basename match, not a prefix/glob match — this decoy
-    #     would get wrongly picked up by a sloppier `-name '{{ item }}*'`
-    #     or shell-glob implementation.
-    #   - some_other_app_data/          — a plausible neighbour from the
-    #     same aggregated archive (backup_agent bundles multiple apps'
-    #     volumes per host/group — see docs/disaster-recovery.md) that
-    #     this restore run was never asked to touch.
+    #   - restore_multi_creds_archive/ — a decoy that starts with the
+    #     real volume name but isn't an exact match. Extraction matches
+    #     with `find ... -name '{{ item }}'` (exact basename, not a
+    #     prefix/glob match) — a sloppier `-name '{{ item }}*'` would
+    #     wrongly pick this up.
+    #   - some_other_app_data/ — a plausible neighbour from the same
+    #     aggregated archive (backup_agent bundles multiple apps' volumes
+    #     per host/group) that this run was never asked to touch.
     - name: Create the staged directory for certs (shallow nesting)
       ansible.builtin.file:
         path: "{{ restore_staging_dir }}/offsite-source/restore_multi_certs"

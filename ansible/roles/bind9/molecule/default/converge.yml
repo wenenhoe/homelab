@@ -7,15 +7,13 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
-    # Docker bind-mounts /etc/resolv.conf into this container itself
-    # (standard behaviour for any container, not specific to this test) -
-    # the kernel refuses to replace a bind-mounted file with a symlink, so
-    # this one task can't be exercised here. See bind9's defaults/main.yaml
-    # and network_conf.yaml for the full reasoning.
+    # Docker bind-mounts /etc/resolv.conf into this container (standard
+    # for any container) — the kernel refuses to replace a bind-mounted
+    # file with a symlink, so this task can't be exercised here. See
+    # bind9's defaults/main.yaml and network_conf.yaml.
     bind9_manage_resolv_conf: false
-    # main_domain, lab_domain, dns_zones, app_registry, compose_apps, etc.
-    # live in host_vars/bind9-instance.yaml instead - see the comment there
-    # for why.
+    # main_domain, lab_domain, dns_zones, app_registry, compose_apps live
+    # in host_vars/bind9-instance.yaml instead — see the comment there.
   tasks:
     - name: Include docker role (compose assumes Docker is already installed and running)
       ansible.builtin.include_role:

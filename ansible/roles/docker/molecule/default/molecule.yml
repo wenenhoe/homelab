@@ -1,9 +1,9 @@
 ---
-# The docker role installs Docker Engine itself, so this scenario needs a
-# real Docker-in-Docker setup: a privileged, systemd-enabled container with
+# The docker role installs Docker Engine itself, so this needs a real
+# Docker-in-Docker setup: a privileged, systemd-enabled container with
 # /sys/fs/cgroup exposed so systemd (and, once installed, dockerd) can
-# actually manage services inside it. geerlingguy/docker-*-ansible images
-# are built for exactly this — they ship python3 + systemd as PID 1.
+# manage services inside it. geerlingguy/docker-*-ansible images ship
+# python3 + systemd as PID 1 for exactly this.
 driver:
   name: docker
 platforms:

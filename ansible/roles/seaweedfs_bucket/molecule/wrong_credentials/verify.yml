@@ -26,16 +26,14 @@
           {{ seaweedfs_bucket_wrong_creds_info.container.NetworkSettings.Networks.bridge.IPAddress }}
 
     # Using the REAL credentials here (not the wrong ones the role was
-    # given) — this confirms the actual server-side state, independent
-    # of whatever the failed request did or didn't do.
+    # given) — confirms actual server-side state, independent of what
+    # the failed request did or didn't do.
     #
-    # Targets the bucket directly (same reasoning as the default
-    # scenario's own verify.yml — a bare `s3 ls` needs the broader
-    # ListAllMyBuckets permission this identity deliberately doesn't
-    # have, and gets AccessDenied instead of a useful answer). Here we
-    # WANT this to fail with NoSuchBucket — that's what "no side effect
-    # occurred" looks like — so the expected outcome is inverted from
-    # the default scenario's equivalent check.
+    # Targets the bucket directly (a bare `s3 ls` needs the broader
+    # ListAllMyBuckets permission this identity doesn't have, and gets
+    # AccessDenied instead). Here we WANT NoSuchBucket — that's what "no
+    # side effect occurred" looks like, inverted from the default
+    # scenario's equivalent check.
     - name: Confirm the bucket was NOT created (expect NoSuchBucket)
       community.docker.docker_container:
         name: seaweedfs-bucket-wrong-creds-verify-listing

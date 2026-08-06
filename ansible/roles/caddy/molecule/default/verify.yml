@@ -58,17 +58,14 @@
     # --- End-to-end: Caddy actually loaded a config with the right routing -
     # caddy_local_certs=true (set in converge.yml) skips the global ACME
     # issuer, so Caddy falls back to its normal automatic behaviour and
-    # actually gets working internal-CA certs for our .localhost domains -
-    # real TLS checks below this are meaningful here. This admin-API check
+    # actually gets working internal-CA certs for our .localhost domains —
+    # the real TLS checks below are meaningful here. This admin-API check
     # is a cheap first pass that doesn't depend on cert timing at all
     # (plain HTTP on :2019), confirming Caddy parsed and accepted the
-    # rendered config with the correct routes/upstreams/fallback before
-    # bothering with live requests.
+    # rendered config before bothering with live requests.
     - name: Fetch Caddy's actual loaded config via its admin API
-      # uri can't run inside a container - this needs to execute inside
-      # caddy's own network namespace (see the docker-exec fix above), which
-      # is fundamentally a command/docker-exec operation, not something the
-      # uri module can do regardless of target.
+      # uri can't run inside a container — this needs caddy's own network
+      # namespace, which is a docker-exec operation regardless of target.
       ansible.builtin.command: docker exec caddy curl -s http://localhost:2019/config/  # noqa: command-instead-of-module
       register: caddy_admin_config
       changed_when: false
@@ -93,23 +90,20 @@
           - "'403' in caddy_admin_config.stdout"
 
     # --- Live TLS: routing actually resolves to the right vhost -------------
-    # The earlier attempt here used `-H "Host: ..." https://localhost/`,
-    # which only sets the HTTP-level Host header - it does nothing to the
-    # TLS SNI, which curl derives from the URL's hostname. Every request
-    # was sending SNI=localhost while Caddy only holds certs for
-    # sso.lan.localhost and *.apps.localhost, so Caddy correctly had no
-    # matching cert and sent a TLS internal_error alert every time - a
-    # standard curl gotcha for HTTPS virtual-host testing, not a Caddy or
-    # role bug. `--resolve <hostname>:443:127.0.0.1` with the real hostname
-    # in the URL fixes this: correct SNI, and the Host header comes along
-    # automatically since it now matches the URL.
+    # An earlier attempt used `-H "Host: ..." https://localhost/`, which
+    # only sets the HTTP-level Host header — it doesn't touch TLS SNI,
+    # which curl derives from the URL's hostname. Every request sent
+    # SNI=localhost while Caddy only holds certs for sso.lan.localhost
+    # and *.apps.localhost, so it correctly had no matching cert and sent
+    # a TLS internal_error every time — a standard curl gotcha for HTTPS
+    # virtual-host testing, not a Caddy/role bug. `--resolve
+    # <hostname>:443:127.0.0.1` with the real hostname in the URL fixes
+    # this: correct SNI, and Host comes along automatically.
     #
     # Kept as command/curl rather than the uri module: uri has no
-    # equivalent to --resolve (no way to pin SNI/Host to a hostname while
-    # connecting to a specific IP), and its handling of an outright
-    # connection failure - as opposed to just a non-matching status code -
-    # is less predictable for the retry loop below, which specifically
-    # needs to tolerate the container not being ready yet.
+    # equivalent to --resolve, and its handling of a connection failure
+    # (vs. just a non-matching status) is less predictable for the retry
+    # loop below, which needs to tolerate the container not being ready yet.
     - name: Request a route that should match and attempt to proxy (expect 502 - backend doesn't exist)
       ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve authed.apps.localhost:443:127.0.0.1 https://authed.apps.localhost/  # noqa: command-instead-of-module yaml[line-length]
       register: caddy_authed_route_status

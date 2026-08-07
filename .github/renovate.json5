@@ -109,14 +109,24 @@
       enabled: false,
     },
 
-    // pre-commit hooks and GitHub Actions are dev/CI tooling, not
-    // deployed infra — chore(ci): reads more accurately than the global
-    // chore(deps): default and makes them easy to distinguish from
-    // actual homelab changes at a glance in git log. No automerge here
-    // (see the pin/pinDigest rule below for the one narrow exception,
-    // and why).
+    // Pure local dev tooling — no production impact, and none of it
+    // automerges beyond the pin/pinDigest case below anyway, so every
+    // real bump needs a manual click regardless. Grouped into one PR:
+    // six individual one-line version-bump PRs is pure friction for
+    // updates this low-stakes, and if a grouped bump ever does break
+    // something, it's still trivial to bisect (revert the group, re-add
+    // hooks one at a time).
     {
-      matchManagers: ["pre-commit", "github-actions"],
+      matchManagers: ["pre-commit"],
+      automerge: false,
+      semanticCommitScope: "ci",
+      groupName: "pre-commit hooks",
+    },
+
+    // GitHub Actions deliberately NOT grouped, unlike pre-commit above —
+    // different trust tier.
+    {
+      matchManagers: ["github-actions"],
       automerge: false,
       semanticCommitScope: "ci",
     },

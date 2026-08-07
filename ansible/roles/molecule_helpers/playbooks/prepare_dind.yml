@@ -28,10 +28,10 @@
         name: molecule_helpers
         tasks_from: reset_coverage_data.yaml
 
-    - name: Force the nested Docker daemon onto the vfs storage driver
+    - name: Force the nested Docker daemon onto the fuse-overlayfs storage driver
       ansible.builtin.include_role:
         name: molecule_helpers
-        tasks_from: dind_vfs_storage_driver.yaml
+        tasks_from: dind_storage_driver.yaml
 
     - name: Install python3-requests
       ansible.builtin.include_role:

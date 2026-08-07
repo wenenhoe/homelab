@@ -98,6 +98,16 @@
   ],
 
   packageRules: [
+    // docker/caddy/compose.yaml's image: caddy-digitalocean:v1.0 isn't a
+    // registry pull — it's the tag the Dockerfile build produces locally.
+    // The actual Caddy version — what the Dockerfile's FROM lines build
+    // against — is already tracked separately via the dockerfile manager
+    // on ansible/roles/caddy/files/Dockerfile.
+    {
+      matchDepNames: ["caddy-digitalocean"],
+      enabled: false,
+    },
+
     // pre-commit hooks and GitHub Actions are dev/CI tooling, not
     // deployed infra — chore(ci): reads more accurately than the global
     // chore(deps): default and makes them easy to distinguish from

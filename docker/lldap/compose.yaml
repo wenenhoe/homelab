@@ -24,7 +24,7 @@ services:
     # NOTE: Just loops the renewal script, no daemon/port to probe
     # NOTE: Need more investigation
   dockerproxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
     container_name: lldap-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro

@@ -3,7 +3,7 @@ name: backup-agent
 services:
 {% if backup_agent_stop_group | length > 0 %}
   backup-dockerproxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:v0.4.2
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
     container_name: backup-agent-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro

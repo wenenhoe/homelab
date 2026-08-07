@@ -4,6 +4,7 @@
     "config:recommended",
     "helpers:pinGitHubActionDigests",
   ],
+  gitAuthor: "wenenhoe <33289235+wenenhoe@users.noreply.github.com>",
 
   // Reads GitHub's native Dependabot alerts (needs the "Dependabot
   // alerts" permission on RENOVATE_TOKEN — NOT "Dependabot version

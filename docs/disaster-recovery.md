@@ -132,7 +132,7 @@ into (at most) two instances per host:
 | `services` | no-stop | `wastebin` → `data` | 7 days |
 | `security` | stop-during-backup | `beszel-hub` → `data`, `tinyauth` → `data` | 7 days |
 | `security` | no-stop | `lldap` → `data`, `certs`, `creds`, `letsencrypt_conf`, `letsencrypt_lib` (not `scripts` — Ansible-managed, reproducible) | 7 days |
-| `play` | no-stop | `minecraft` → `backups` only (not `data`, `bluemap_*`, `extras`) | **2 days** |
+| `play` | no-stop | `minecraft` → `backups` only (not `data`, `bluemap_*`, `extras`) | 7 days |
 
 Everything else in the registry has no `backup:` key and is explicitly out
 of scope for stage 1 (your call — can lose it, or it's trivially
@@ -165,27 +165,6 @@ call for stage 1. If a restore ever turns up a corrupt SQLite file or LDAP
 DB, that's the signal to add `stop_during_backup: true` to that app's
 `backup:` entry.
 
-### Minecraft: mirroring an already-quiesced volume
-
-`minecraft`'s offsite job reads **only** the `backups` volume — the already
-RCON-quiesced (`save-off`/`save-on`), compressed output of the existing
-`itzg/mc-backup` service — never the live `data` volume. Two consequences:
-
-- No stop-during-backup needed; the source is already static by the time
-  this job touches it.
-- Its `backup.cron` override (`30 4 * * *`) runs 30 minutes after
-  `mc-backup`'s own `0 4 * * *`, so it never archives a tar mid-write.
-
-Retention is intentionally **2 days, not 7** (`backup.retention_days`
-override): `backups` is already a 7-day rolling window on-host
-(~1.7GB/day × 7 ≈ 12GB) — 7 more full off-host copies of that same
-near-duplicate window would cost ~84GB for little extra protection. 2
-generations is enough to survive a bad/partial upload while `mc-backup`
-still owns the actual version history. This override is safe precisely
-*because* `minecraft` is the only app on `play` with a `backup:` entry —
-see conflicting-overrides below for what happens when that's no longer
-true.
-
 ### Conflicting overrides within a group
 
 If two apps grouped together on the same host (same host, same
@@ -194,14 +173,6 @@ If two apps grouped together on the same host (same host, same
 rather than silently picking one app's value for both — see
 `ansible/roles/backup_agent/tasks/main.yaml`. Resolve by aligning the
 overrides, or by moving one app to its own host/group.
-
-## Capacity
-
-Rough budget against `storage`'s 256GB disk: minecraft's mirror (~12GB,
-×2 retention ≈ 24GB) dominates; every other app's `data` volume is small
-enough that even ×7 retention totals a low single-digit GB. Realistic usage
-is ~25-30GB — comfortable headroom, with room to raise retention later if
-you want deeper history for the smaller apps.
 
 ## S3 endpoint format
 

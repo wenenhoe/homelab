@@ -104,7 +104,8 @@
     // against — is already tracked separately via the dockerfile manager
     // on ansible/roles/caddy/files/Dockerfile.
     {
-      matchDepNames: ["library/caddy-digitalocean"],
+      matchManagers: ["docker-compose"],
+      matchPackageNames: ["caddy-digitalocean"],
       enabled: false,
     },
 

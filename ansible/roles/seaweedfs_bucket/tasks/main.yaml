@@ -18,7 +18,7 @@
 - name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
   community.docker.docker_container:
     name: seaweedfs-ensure-bucket
-    image: amazon/aws-cli:2.15.0
+    image: amazon/aws-cli:2.36.18
     env:
       AWS_ACCESS_KEY_ID: "{{ seaweedfs_s3_access_key }}"
       AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_s3_secret_key }}"

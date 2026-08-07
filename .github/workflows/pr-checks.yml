@@ -1,0 +1,313 @@
+name: PR checks
+
+on:  # yamllint disable-line rule:truthy
+  pull_request:
+    branches: [main]
+
+# Informational only, deliberately — not wired into branch protection as a
+# required check. You decide whether a failure blocks a merge; this just
+# gives you the signal to decide with.
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # Scoping: molecule and compose-boot-test are the two expensive jobs, so
+  # everything downstream runs only against what this PR actually touched
+  # instead of the full suite every time. dorny/paths-filter reports both
+  # simple booleans (pre-commit, uv lock) and the specific role/app names
+  # touched, which the matrix jobs below consume directly.
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      pre_commit: ${{ steps.filter.outputs.pre_commit }}
+      uv_lock: ${{ steps.filter.outputs.uv_lock }}
+      any_compose: ${{ steps.filter.outputs.any_compose }}
+      roles: ${{ steps.roles.outputs.roles }}
+      compose_apps: ${{ steps.compose.outputs.apps }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Detect simple file-category changes
+        id: filter
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        with:
+          filters: |
+            pre_commit:
+              - '.config/.pre-commit-config.yaml'
+            uv_lock:
+              - 'pyproject.toml'
+              - 'uv.lock'
+            any_compose:
+              - 'docker/**/compose*.yaml'
+
+      - name: Determine which ansible roles to test
+        id: roles
+        run: |
+          # Any file changed under ansible/roles/<role>/ maps to that one
+          # role. ansible/requirements.yml (or the molecule_helpers copy)
+          # is a repo-wide Galaxy collection bump — anything could depend
+          # on it, so that one specific file maps to every role instead of
+          # just its own directory.
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          changed=$(git diff --name-only "$BASE" "$HEAD")
+
+          roles=()
+          if echo "$changed" | grep -qE '^ansible/(requirements\.yml|roles/molecule_helpers/requirements\.yml)$'; then
+            for d in ansible/roles/*/molecule; do
+              [ -d "$d" ] || continue
+              roles+=("$(basename "$(dirname "$d")")")
+            done
+          else
+            while IFS= read -r role; do
+              [ -d "ansible/roles/$role/molecule" ] || continue
+              roles+=("$role")
+            done < <(echo "$changed" | grep -oE '^ansible/roles/[^/]+' | sed 's#ansible/roles/##' | sort -u)
+          fi
+
+          json=$(printf '%s\n' "${roles[@]:-}" | jq -R . | jq -sc 'map(select(length > 0))')
+          echo "roles=$json" >> "$GITHUB_OUTPUT"
+          echo "Testing roles: $json"
+
+      - name: Determine which compose stacks to boot-test
+        id: compose
+        run: |
+          # bind9/seaweedfs/caddy excluded deliberately — already covered
+          # by their own molecule scenarios with stronger, real-protocol
+          # assertions (DNS resolution, S3 error semantics) than a generic
+          # healthcheck poll would add. lldap excluded: certbot needs a
+          # real DigitalOcean DNS-01 credential to do anything meaningful,
+          # and the lldap service itself has no healthcheck defined yet
+          # (docker/lldap/compose.yaml even has its own "TODO: Add
+          # healthcheck... need more investigation" comment) — nothing
+          # here would give a trustworthy signal without first solving
+          # that on the app side, not the CI side.
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          changed=$(git diff --name-only "$BASE" "$HEAD")
+          excluded="bind9|seaweedfs|caddy|lldap"
+
+          apps=$(echo "$changed" \
+            | grep -oE '^docker/[^/]+/compose\.yaml$' \
+            | sed -E 's#docker/([^/]+)/compose\.yaml#\1#' \
+            | grep -vE "^($excluded)\$" \
+            | sort -u)
+
+          json=$(printf '%s\n' "$apps" | jq -R . | jq -sc 'map(select(length > 0))')
+          echo "apps=$json" >> "$GITHUB_OUTPUT"
+          echo "Boot-testing: $json"
+
+  pre-commit:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.pre_commit == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Sync dev environment
+        run: uv sync --group dev
+
+      - name: Install pre-commit hook environments
+        run: uv run pre-commit install-hooks
+
+      # This is the direct test for "does a new pre-commit hook version
+      # need a newer pre-commit CLI than uv.lock currently resolves" —
+      # if the hook config schema needs a feature the locked pre-commit
+      # version doesn't have, this fails right here with a real error
+      # rather than a guess.
+      - name: Run pre-commit against all files
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+  uv-lock:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.uv_lock == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      # Fails if pyproject.toml and uv.lock have drifted apart — catches a
+      # lockfile-maintenance PR that didn't actually regenerate the lock,
+      # or a manual edit that broke resolution.
+      - name: Check lock file is current
+        run: uv lock --check
+
+      # Separately from --check: actually realize the environment, which
+      # catches resolvable-but-broken combinations --check alone might
+      # not (e.g. a resolved version that's since been yanked).
+      - name: Sync dev environment
+        run: uv sync --group dev --locked
+
+  molecule:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.roles != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        role: ${{ fromJson(needs.detect-changes.outputs.roles) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Sync dev environment
+        run: uv sync --group dev
+
+      - name: Cache Ansible Galaxy collections
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.ansible/collections
+          # ansible/requirements.yml is the top-level install target;
+          # molecule's own per-scenario dependency phase (see
+          # .config/molecule/config.yml) additionally pulls
+          # molecule_helpers/role-requirements.yml — both are pinned
+          # version files, so a hash of both is the correct cache key.
+          key: >-
+            ansible-galaxy-${{ runner.os }}-${{
+              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
+            }}
+
+      - name: Install Ansible Galaxy collections
+        run: uv run ansible-galaxy collection install -r ansible/requirements.yml
+
+      - name: Run molecule test — ${{ matrix.role }}
+        run: uv run ./molecule-test-all.sh "${{ matrix.role }}"
+        working-directory: ansible
+
+  compose-boot-test:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.compose_apps != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.detect-changes.outputs.compose_apps) }}
+    # Dummy values for env vars referenced by one or more compose files.
+    # Harmless no-ops for apps that don't reference a given var — docker
+    # compose only substitutes what's actually used. None of these are
+    # real credentials: everything here is either non-secret runtime
+    # config (TIMEZONE) or only gates one optional feature, confirmed by
+    # reading each compose file's own comments/healthcheck target before
+    # adding it here — see the individual compose files for that
+    # reasoning if extending this list for a new app.
+    env:
+      TIMEZONE: "UTC"
+      COBALT_API_URL: "http://localhost:9000" # gates cobalt's tunneling feature only, not its own healthcheck
+      APP_URL: "localhost"
+      WEB_APP_URL: "localhost"
+      API_KEY: "ci-dummy-key"
+      DEFAULT_SSH_HOST: "localhost" # wetty's own healthcheck only spiders its web root, unrelated to SSH connectivity
+      TELEGRAM_TOKEN: "ci-dummy-token"
+      TELEGRAM_CHAT_ID: "0"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Create shared external network
+        run: docker network create caddy-proxy || true
+
+      - name: Point diun's Dockerfile mount at a real file
+        if: matrix.app == 'diun'
+        run: |
+          mkdir -p /tmp/compose-deploy/caddy
+          cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
+          echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
+
+      - name: Create external volumes declared by this stack
+        run: |
+          yq -r '.volumes // {} | to_entries[] | select(.value.external == true) | .value.name' \
+            "docker/${{ matrix.app }}/compose.yaml" \
+          | while read -r vol; do
+              [ -n "$vol" ] && docker volume create "$vol"
+            done
+
+      - name: Bring the stack up
+        run: docker compose -f "docker/${{ matrix.app }}/compose.yaml" up -d
+
+      - name: Wait for healthy state (or, if none defined, that it stayed running)
+        run: |
+          f="docker/${{ matrix.app }}/compose.yaml"
+          services=$(docker compose -f "$f" config --services)
+          for svc in $services; do
+            cid=$(docker compose -f "$f" ps -q "$svc")
+            [ -n "$cid" ] || { echo "::error::$svc never started"; exit 1; }
+
+            has_hc=$(docker inspect --format='{{if .State.Health}}yes{{end}}' "$cid")
+            if [ "$has_hc" = "yes" ]; then
+              echo "Waiting for $svc to report healthy..."
+              for _ in $(seq 1 30); do
+                status=$(docker inspect --format='{{.State.Health.Status}}' "$cid")
+                [ "$status" = "healthy" ] && break
+                [ "$status" = "unhealthy" ] && { echo "::error::$svc is unhealthy"; docker logs "$cid"; exit 1; }
+                sleep 2
+              done
+              [ "$status" = "healthy" ] || { echo "::error::$svc never became healthy (last: $status)"; docker logs "$cid"; exit 1; }
+            else
+              # No healthcheck defined — weaker signal, but still catches
+              # an immediate crash-loop or bad entrypoint.
+              sleep 10
+              running=$(docker inspect --format='{{.State.Running}}' "$cid")
+              [ "$running" = "true" ] || { echo "::error::$svc exited unexpectedly"; docker logs "$cid"; exit 1; }
+            fi
+          done
+
+      - name: Tear down
+        if: always()
+        run: docker compose -f "docker/${{ matrix.app }}/compose.yaml" down -v
+
+  # Fallback for stacks the boot-test job deliberately excludes
+  # (bind9/seaweedfs/caddy are tested elsewhere via molecule; lldap needs
+  # real credentials this pipeline shouldn't have). Syntax-only, but still
+  # catches a malformed compose file — better than nothing for the one
+  # category (lldap) with no other net.
+  compose-syntax-check:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.any_compose == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # needed for the raw `git diff $BASE $HEAD` below
+
+      - name: Validate every changed compose file parses
+        run: |
+          # Only the apps compose-boot-test skips — anything it already
+          # covers gets a stronger check there, no need to duplicate it
+          # here. Keep this list in sync with the "excluded" pattern in
+          # detect-changes' "Determine which compose stacks to boot-test"
+          # step above.
+          excluded="bind9|seaweedfs|caddy|lldap"
+          BASE="${{ github.event.pull_request.base.sha }}"
+          HEAD="${{ github.event.pull_request.head.sha }}"
+          changed=$(git diff --name-only "$BASE" "$HEAD" \
+            | grep -E '^docker/.*/compose.*\.yaml$' \
+            | grep -E "^docker/($excluded)/" || true)
+          [ -z "$changed" ] && { echo "No excluded-app compose files changed."; exit 0; }
+          for f in $changed; do
+            echo "=== $f ==="
+            docker compose -f "$f" config --quiet
+          done

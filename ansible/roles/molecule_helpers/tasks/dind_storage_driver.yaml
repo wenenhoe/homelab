@@ -1,0 +1,40 @@
+---
+# Shared by every Docker-in-Docker scenario that manages Docker via
+# /etc/docker/daemon.json (all except bind9, which manages its own
+# daemon.json for DNS settings and uses a systemd drop-in override instead
+# — see its own prepare.yml, which sets the same driver via a CLI flag).
+#
+# Needed because the test container's own root filesystem is already
+# overlay-mounted by the host's Docker — overlay2 can't stack a second
+# overlay on top of that ("failed to mount ... fstype: overlay ... err:
+# invalid argument"). fuse-overlayfs is a userspace overlay implementation
+# that doesn't hit that kernel-level stacking restriction, so it still
+# gets real copy-on-write instead of vfs's full-copy-per-layer behaviour —
+# meaningfully faster for image pulls/builds inside the nested daemon.
+# Previously this forced `vfs`; switched to address vfs's copy-per-layer
+# overhead as the suspected dominant slowdown in these scenarios — verify
+# with `docker info` (Storage Driver: fuse-overlayfs) and a before/after
+# `time molecule converge` on the docker role scenario before relying on
+# this landing a real speedup.
+# Real target hosts don't have the stacking problem and should keep using
+# overlay2 — this is test-scaffolding only.
+- name: Install fuse-overlayfs
+  ansible.builtin.apt:
+    name: fuse-overlayfs
+    state: present
+    update_cache: true
+
+- name: Ensure /etc/docker exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: "0755"
+
+- name: Force the nested Docker daemon onto the fuse-overlayfs storage driver
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: |
+      {
+        "storage-driver": "fuse-overlayfs"
+      }
+    mode: "0644"

@@ -6,6 +6,9 @@
 # same file would make the two tasks fight forever, breaking idempotence
 # for a reason unrelated to bind9 itself. A CLI flag and daemon.json
 # don't conflict as long as they don't set the same key.
+#
+# fuse-overlayfs, not vfs: see dind_storage_driver.yaml's comment for why
+# — same fix, just applied via CLI flag instead of daemon.json here.
 - name: Prepare
   hosts: all
   become: true
@@ -15,19 +18,25 @@
         name: molecule_helpers
         tasks_from: reset_coverage_data.yaml
 
+    - name: Install fuse-overlayfs
+      ansible.builtin.apt:
+        name: fuse-overlayfs
+        state: present
+        update_cache: true
+
     - name: Ensure the docker.service systemd override directory exists
       ansible.builtin.file:
         path: /etc/systemd/system/docker.service.d
         state: directory
         mode: "0755"
 
-    - name: Force the nested Docker daemon onto the vfs storage driver via a CLI flag
+    - name: Force the nested Docker daemon onto the fuse-overlayfs storage driver via a CLI flag
       ansible.builtin.copy:
         dest: /etc/systemd/system/docker.service.d/override.conf
         content: |
           [Service]
           ExecStart=
-          ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --storage-driver=vfs
+          ExecStart=/usr/bin/dockerd -H fd:// --containerd=/run/containerd/containerd.sock --storage-driver=fuse-overlayfs
         mode: "0644"
 
     - name: Reload systemd to pick up the override

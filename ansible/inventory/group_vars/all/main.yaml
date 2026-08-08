@@ -35,14 +35,12 @@ seaweedfs_s3_secret_key: "{{ lookup('password', project_root ~ '/ansible/files/s
 offsite_backup_s3_bucket: homelab-backups
 offsite_backup_s3_endpoint: "s3.{{ hostvars['storage'].caddy_domain }}"
 offsite_backup_s3_proto: "https"
-offsite_backup_cron: "0 4 * * *"
+# 30 4 * * * (not 0 4) so every backup_agent instance — including
+# minecraft's, which now inherits this default rather than overriding it —
+# runs 30min after itzg/mc-backup's own on-host "0 4 * * *" cron
+# (docker/minecraft/compose.yaml). That gap is what guarantees the
+# `backups` volume is never archived mid-write; collapsing everyone onto
+# this single schedule keeps that guarantee without needing a per-app
+# override. See docs/disaster-recovery.md.
+offsite_backup_cron: "30 4 * * *"
 offsite_backup_retention_days: 7
-
-# minecraft's offsite job reads the `backups` volume, which is ALREADY a
-# 7-day rolling window maintained on-host by itzg/mc-backup (see
-# docs/disaster-recovery.md for the full reasoning) — a much lower
-# off-host retention avoids paying a 7x disk multiplier for near-duplicate
-# content, and the cron is offset 30min after mc-backup's own
-# "0 4 * * *" so it never archives a tar mid-write.
-minecraft_offsite_backup_cron: "30 4 * * *"
-minecraft_offsite_backup_retention_days: 2

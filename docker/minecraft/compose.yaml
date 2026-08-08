@@ -15,6 +15,12 @@ services:
       CRON_SCHEDULE: "0 4 * * *" # backup everyday at 4am
       CRON_BACKUP_UID: "1000"
       RCON_HOST: mc
+      # Local retention is count-based only: keep the single most recent
+      # on-host snapshot. Day-based pruning (PRUNE_BACKUPS_DAYS defaults to
+      # 7 upstream) is explicitly disabled rather than left implicit, so
+      # there's one unambiguous prune rule instead of two overlapping ones.
+      PRUNE_BACKUPS_COUNT: "1"
+      PRUNE_BACKUPS_DAYS: "0"
     restart: always
     # TODO: Add healthcheck
     # NOTE: Runs on a cron schedule with no listening port/daemon in between
@@ -22,6 +28,9 @@ services:
   bluemap:
     image: ghcr.io/bluemap-minecraft/bluemap:v5
     container_name: minecraft-bluemap
+    depends_on:
+      mc:
+        condition: service_healthy
     volumes:
       - bluemap_config:/app/config
       - bluemap_web:/app/web

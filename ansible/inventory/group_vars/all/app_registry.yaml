@@ -242,11 +242,6 @@ app_registry:
       # Never `data` (risks a mid-write world file) or bluemap_*/extras
       # (regenerable render cache / Ansible-managed — see docs/volumes.md).
       volumes: [backups]
-      # Overrides — see the "conflicting overrides" validation in the
-      # backup_agent role: safe here because minecraft is the only app on
-      # `play` with backup volumes, so there's nothing to conflict with.
-      retention_days: "{{ minecraft_offsite_backup_retention_days }}"
-      cron: "{{ minecraft_offsite_backup_cron }}"
     caddy:
       default:
         upstream: "bluemap:8100"

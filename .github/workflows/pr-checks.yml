@@ -236,13 +236,46 @@ jobs:
           cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
           echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
 
-      - name: Create external volumes declared by this stack
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Sync dev environment
+        run: uv sync --group dev
+
+      - name: Cache Ansible Galaxy collections
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.ansible/collections
+          key: >-
+            ansible-galaxy-${{ runner.os }}-${{
+              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
+            }}
+
+      - name: Install Ansible Galaxy collections
+        run: uv run ansible-galaxy collection install -r requirements.yml
+        working-directory: ansible
+
+      # Runs the real compose role's preinit+init tasks (volume creation +
+      # config/script seeding — see ansible/roles/compose/tasks/init.yaml
+      # and ansible/playbooks/ci_boot_test.yaml) against the actual
+      # app_registry.yaml, instead of a bespoke bash step per app. Replaces
+      # the old plain `docker volume create` loop entirely — every app's
+      # volumes are created here too, not just the ones with configs to
+      # seed.
+      - name: Seed ${{ matrix.app }} via the real compose role
+        # ci-inventory/ is a dedicated CI-only inventory (ansible/ci-inventory/)
+        # — bypasses ansible.cfg's default inventory.yaml entirely, whose
+        # all:vars: sets a non-standard sudo binary and SSH-only settings
+        # meant for real remote hosts, not this runner. Needed group_vars
+        # (main.yaml, app_registry.yaml) and CI placeholders
+        # (ci_dummy_vars.yaml) are loaded explicitly via vars_files in
+        # ci_boot_test.yaml — see its own comments for why.
         run: |
-          yq -r '.volumes // {} | to_entries[] | select(.value.external == true) | .value.name' \
-            "docker/${{ matrix.app }}/compose.yaml" \
-          | while read -r vol; do
-              [ -n "$vol" ] && docker volume create "$vol"
-            done
+          uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \
+            playbooks/ci_boot_test.yaml -e app_name=${{ matrix.app }}
+        working-directory: ansible
 
       - name: Bring the stack up
         run: docker compose -f "docker/${{ matrix.app }}/compose.yaml" up -d

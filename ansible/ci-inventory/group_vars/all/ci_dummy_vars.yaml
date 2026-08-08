@@ -1,0 +1,65 @@
+---
+# ---------------------------------------------------------------------------
+# CI-only placeholders, loaded explicitly by ci_boot_test.yaml's vars_files
+# (last, so it overrides main.yaml — see that playbook's own comment on
+# why: inventory group_vars/all auto-loading alone is LOWER Ansible
+# precedence than a play's vars_files, so it wouldn't actually override
+# anything). Real playbook runs (deploy.yaml etc.) point at
+# ansible/inventory/ instead and never reference this file at all — it can
+# never silently affect a real deploy's actual config.
+#
+# Lives at a conventional group_vars/all path anyway, under its own
+# dedicated ci-inventory/ tree, for two reasons: ansible-lint treats every
+# .yaml under ansible/playbooks/ as a playbook (a list of plays), so a bare
+# vars dict there is a hard syntax-check failure — and a real group_vars
+# path is simply the more idiomatic place for this kind of file to live,
+# even though it's reached via vars_files rather than inventory
+# auto-loading here.
+#
+# Every value below exists in production through one of: vars_prompt
+# (deploy.yaml, interactive), a per-host host_vars/*.yaml file (caddy_domain
+# etc.), or a value that's genuinely unset until manual post-bootstrap setup
+# (beszel's key/token — see docs/beszel.md). None of that machinery applies
+# to a single-host, no-inventory CI run, so every one of these is a
+# throwaway placeholder — safe to be world-readable, never a real secret,
+# never used for anything but rendering a config file that then gets
+# discarded when the CI job's volumes are torn down.
+#
+# Adding an app to the Ansible-seeded CI path: check its
+# docker/<app>/configs/*.j2 for any variable not already a real
+# group_vars/all default (grep the template, then check
+# ansible/inventory/group_vars/all/main.yaml) — add anything missing here,
+# don't invent a workaround elsewhere.
+# ---------------------------------------------------------------------------
+
+# Normally deploy.yaml's vars_prompt. lab_domain/ddns_domain (main.yaml)
+# derive from this, so defining it is enough to make those resolve too.
+main_domain: "ci.invalid"
+
+# Normally per-host (ansible/inventory/host_vars/*.yaml — e.g. play.yaml's
+# "play.{{ lab_domain }}"). One flat value is fine here: CI never resolves
+# DNS against it, it only needs to render into a config file.
+caddy_domain: "svc.ci.invalid"
+
+# beszel_hub_url's real definition (main.yaml) reads
+# hostvars['security'].caddy_domain, which doesn't exist in a single-host
+# CI run — override it flatly instead of faking a multi-host inventory.
+beszel_hub_url: "http://ci-dummy-beszel-hub:8090"
+# Normally unset by default until manual post-bootstrap setup (see
+# docs/beszel.md) — CI needs *some* value for beszel-agent's config to
+# render at all.
+beszel_hub_key: "ci-dummy-beszel-hub-key"
+beszel_agent_token: "ci-dummy-beszel-agent-token"
+
+cobalt_host: "cobalt"
+
+telegram_token: "ci-dummy-telegram-token"
+telegram_chat_id: "0"
+
+shlink_short_host: "short"
+shlink_web_host: "shlink"
+
+lldap_host: "lldap"
+tinyauth_ldap_observer_password: "ci-dummy-observer-password"
+
+wetty_ssh_host: "localhost"

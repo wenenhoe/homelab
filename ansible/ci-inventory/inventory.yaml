@@ -1,0 +1,18 @@
+---
+# Dedicated inventory for ci_boot_test.yaml only — never referenced by
+# ansible.cfg's default inventory (ansible/inventory/inventory.yaml), so
+# real playbook runs (deploy.yaml etc.) never load this tree. Passed
+# explicitly via `ansible-playbook -i ansible/ci-inventory/inventory.yaml
+# ...` (.github/workflows/pr-checks.yml) as an explicit, self-documenting
+# target instead of the `-i localhost,` CLI shorthand.
+#
+# Note: group_vars/all/ci_dummy_vars.yaml sits alongside this file by
+# convention, but ci_boot_test.yaml loads it via an explicit vars_files
+# entry rather than relying on this inventory's own auto-loading — see
+# that playbook's comment for why (Ansible precedence: inventory
+# group_vars/all auto-loading is lower priority than a play's vars_files,
+# so auto-loading alone wouldn't override main.yaml's conflicting values).
+all:
+  hosts:
+    localhost:
+      ansible_connection: local

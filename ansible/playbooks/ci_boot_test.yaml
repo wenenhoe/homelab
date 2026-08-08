@@ -1,0 +1,66 @@
+---
+# CI-only: seeds and stages exactly one compose app's volumes/configs using
+# the real compose role, so pr-checks.yml's compose-boot-test job doesn't
+# have to hand-reimplement per-app seeding logic in bash.
+#
+# Mirrors ansible/playbooks/deploy.yaml's Play 1 (preinit) + init.yaml,
+# with two deliberate differences:
+#   - No `docker` role include — the GitHub Actions runner already has
+#     Docker running natively, unlike deploy.yaml's real remote hosts.
+#   - No deploy.yaml (the actual `docker compose up -d`) — the calling
+#     workflow does that itself, so it keeps its own healthcheck-wait loop
+#     unchanged regardless of which app is being tested.
+#
+# Run with: ansible-playbook ansible/playbooks/ci_boot_test.yaml -e app_name=<app>
+#
+# Used for every app compose-boot-test exercises (.github/workflows/pr-checks.yml)
+# — bind9/caddy/seaweedfs/lldap are excluded there already, for their own
+# documented reasons (real DNS-01 creds, LDAP TLS, etc.), unrelated to this.
+#
+# Adding a *new* app to the registry that needs a config template variable
+# not already a real group_vars/all default: add it to ci_dummy_vars.yaml,
+# not as a one-off here.
+- name: CI boot-test prep — seed one app's volumes via the real compose role
+  hosts: localhost
+  connection: local
+  become: true
+  gather_facts: false
+  vars_files:
+    - "{{ playbook_dir }}/../inventory/group_vars/all/main.yaml"
+    - "{{ playbook_dir }}/../inventory/group_vars/all/app_registry.yaml"
+    # Loaded last so it can override main.yaml's real (but here-unresolvable
+    # — e.g. hostvars-dependent) values with CI-safe flat placeholders.
+    # Deliberately an explicit vars_files entry here, NOT relied on via
+    # ci-inventory's own group_vars/all auto-loading: Ansible's precedence
+    # order puts inventory group_vars/all (tier 4) BELOW play vars_files
+    # (tier 14) — auto-loading alone would lose to main.yaml above, not
+    # override it. Multiple vars_files entries merge in list order within
+    # the same tier, so listing this one last is what makes it win. (It
+    # also happens to sit at a real group_vars/all path for
+    # ansible-lint's benefit — see its own header comment.)
+    - "{{ playbook_dir }}/../ci-inventory/group_vars/all/ci_dummy_vars.yaml"
+  vars:
+    ansible_user: root
+    # Ephemeral CI-only path, not production's /opt/stacks (set in
+    # main.yaml) — this run's staged/rendered files don't need to
+    # persist or be reused by anything else.
+    compose_deploy_dir: /tmp/compose-deploy
+    compose_apps:
+      - name: "{{ app_name }}"
+  tasks:
+    - name: Fail fast if app_name wasn't supplied
+      ansible.builtin.assert:
+        that: app_name is defined
+        fail_msg: "Pass -e app_name=<app>, e.g. -e app_name=minecraft"
+
+    - name: Resolve compose_apps against the real app registry
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: preinit.yaml
+
+    - name: Seed volumes and stage configs (mirrors deploy.yaml's init step)
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: init.yaml
+      vars:
+        compose_app_item: "{{ compose_apps[0] }}"

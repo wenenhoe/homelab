@@ -56,10 +56,6 @@ jobs:
       DEFAULT_SSH_HOST: "localhost"
       TELEGRAM_TOKEN: "ci-dummy-token"
       TELEGRAM_CHAT_ID: "0"
-      # See pr-checks.yml's compose-boot-test for why — under act --bind,
-      # this workflow's own high parallelism (13 apps at once) makes the
-      # shared-workspace .venv race a near-certainty, not a rare fluke.
-      UV_PROJECT_ENVIRONMENT: /tmp/uv-venv
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,9 +66,9 @@ jobs:
       - name: Point diun's Dockerfile mount at a real file
         if: matrix.app == 'diun'
         run: |
-          mkdir -p ${{ github.workspace }}/.ci-compose-deploy/caddy
-          cp ansible/roles/caddy/files/Dockerfile ${{ github.workspace }}/.ci-compose-deploy/caddy/Dockerfile
-          echo "COMPOSE_DEPLOY_DIR=${{ github.workspace }}/.ci-compose-deploy" >> "$GITHUB_ENV"
+          mkdir -p /tmp/compose-deploy/caddy
+          cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
+          echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
 
       - name: Install uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -96,29 +92,25 @@ jobs:
         working-directory: ansible
 
       # See pr-checks.yml's compose-boot-test for why compose_deploy_dir
-      # must be passed as -e (Ansible precedence) and why it lives inside
-      # the workspace rather than /tmp (act's sibling-container Docker
-      # model — real GitHub Actions runners are unaffected either way).
-      # Requires running act with --bind for the workspace path to
-      # actually be host-visible, not just copied in.
+      # must be passed as -e (Ansible precedence).
       - name: Seed ${{ matrix.app }} via the real compose role
         run: |
           uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \
             playbooks/ci_boot_test.yaml \
             -e app_name=${{ matrix.app }} \
-            -e compose_deploy_dir=${{ github.workspace }}/.ci-compose-deploy
+            -e compose_deploy_dir=/tmp/compose-deploy
         working-directory: ansible
 
       - name: Bring the stack up
-        run: docker compose -f "${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml" up -d
+        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" up -d
 
       - name: DEBUG dump logs if Bring the stack up failed
         if: failure()
-        run: docker compose -f "${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml" logs
+        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" logs
 
       - name: Wait for healthy state (or, if none defined, that it stayed running)
         run: |
-          f="${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml"
+          f="/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
           services=$(docker compose -f "$f" config --services)
           for svc in $services; do
             cid=$(docker compose -f "$f" ps -q "$svc")
@@ -145,4 +137,4 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: docker compose -f "${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml" down -v
+        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" down -v

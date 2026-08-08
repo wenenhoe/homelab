@@ -47,8 +47,16 @@ caddy_domain: "svc.ci.invalid"
 beszel_hub_url: "http://ci-dummy-beszel-hub:8090"
 # Normally unset by default until manual post-bootstrap setup (see
 # docs/beszel.md) — CI needs *some* value for beszel-agent's config to
-# render at all.
-beszel_hub_key: "ci-dummy-beszel-hub-key"
+# render at all. Must be a real, structurally valid SSH public key, not
+# an arbitrary string — beszel-agent's Go SSH parser rejects malformed
+# input at startup (confirmed: "Failed to load public keys: failed to
+# parse key: ..., error: ssh: no key found"), which apparently kills the
+# process rather than just logging a warning, which is what actually
+# caused its healthcheck to fail. Generated once via
+# `ssh-keygen -t ed25519 -f /tmp/k -N '' -C ci-dummy@ci.invalid`, a
+# throwaway keypair — the private half was discarded, this public key
+# has never signed anything and authenticates nothing real.
+beszel_hub_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1qzZTpouhFnR76Ftn+/xMHL7Tj8rHgYCcVoCfbWse+ ci-dummy@ci.invalid"
 beszel_agent_token: "ci-dummy-beszel-agent-token"
 
 cobalt_host: "cobalt"

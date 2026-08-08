@@ -24,8 +24,7 @@
 - name: CI boot-test prep — seed one app's volumes via the real compose role
   hosts: localhost
   connection: local
-  become: true
-  gather_facts: false
+  gather_facts: true
   vars_files:
     - "{{ playbook_dir }}/../inventory/group_vars/all/main.yaml"
     - "{{ playbook_dir }}/../inventory/group_vars/all/app_registry.yaml"
@@ -41,7 +40,7 @@
     # ansible-lint's benefit — see its own header comment.)
     - "{{ playbook_dir }}/../ci-inventory/group_vars/all/ci_dummy_vars.yaml"
   vars:
-    ansible_user: root
+    ansible_user: "{{ ansible_user_id }}"
     # compose_deploy_dir is deliberately NOT set here — play vars: is
     # LOWER Ansible precedence than the vars_files: above (main.yaml
     # defines its own compose_deploy_dir: /opt/stacks, production's real

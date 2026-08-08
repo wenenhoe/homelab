@@ -28,6 +28,9 @@ services:
   bluemap:
     image: ghcr.io/bluemap-minecraft/bluemap:v5
     container_name: minecraft-bluemap
+    depends_on:
+      mc:
+        condition: service_healthy
     volumes:
       - bluemap_config:/app/config
       - bluemap_web:/app/web

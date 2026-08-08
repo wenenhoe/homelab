@@ -9,3 +9,6 @@ secrets.yaml
 ansible/molecule-coverage/.data/
 ansible/files/secrets/
 **/__pycache__/
+
+# ci_boot_test.yaml's compose_deploy_dir
+.ci-compose-deploy/

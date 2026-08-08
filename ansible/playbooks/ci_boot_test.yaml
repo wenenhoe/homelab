@@ -11,7 +11,8 @@
 #     workflow does that itself, so it keeps its own healthcheck-wait loop
 #     unchanged regardless of which app is being tested.
 #
-# Run with: ansible-playbook ansible/playbooks/ci_boot_test.yaml -e app_name=<app>
+# Run with: ansible-playbook ansible/playbooks/ci_boot_test.yaml \
+#             -e app_name=<app> -e compose_deploy_dir=/tmp/compose-deploy
 #
 # Used for every app compose-boot-test exercises (.github/workflows/pr-checks.yml)
 # — bind9/caddy/seaweedfs/lldap are excluded there already, for their own
@@ -41,10 +42,14 @@
     - "{{ playbook_dir }}/../ci-inventory/group_vars/all/ci_dummy_vars.yaml"
   vars:
     ansible_user: root
-    # Ephemeral CI-only path, not production's /opt/stacks (set in
-    # main.yaml) — this run's staged/rendered files don't need to
-    # persist or be reused by anything else.
-    compose_deploy_dir: /tmp/compose-deploy
+    # compose_deploy_dir is deliberately NOT set here — play vars: is
+    # LOWER Ansible precedence than the vars_files: above (main.yaml
+    # defines its own compose_deploy_dir: /opt/stacks, production's real
+    # default), so a play-vars override here would silently lose to that.
+    # Passed as -e compose_deploy_dir=... instead (extra-vars: highest
+    # precedence, always wins) — see the ansible-playbook invocation in
+    # pr-checks.yml / boot-test-all.yml. Required, not optional: this
+    # playbook will write into /opt/stacks if it's ever omitted.
     compose_apps:
       - name: "{{ app_name }}"
   tasks:
@@ -52,6 +57,23 @@
       ansible.builtin.assert:
         that: app_name is defined
         fail_msg: "Pass -e app_name=<app>, e.g. -e app_name=minecraft"
+
+    - name: Fail fast if compose_deploy_dir wasn't supplied as an extra-var
+      ansible.builtin.assert:
+        # "is defined" alone would always pass here — main.yaml's
+        # vars_files fallback (/opt/stacks) counts as defined too, which
+        # is exactly the bug this is meant to catch. Checking against
+        # that known production value is a heuristic, not a proper
+        # origin-check (no clean way to ask "was this an extra-var"
+        # inside a task), but it directly catches the real failure mode:
+        # forgetting -e compose_deploy_dir=... and silently inheriting
+        # production's path.
+        that: compose_deploy_dir != '/opt/stacks'
+        fail_msg: >-
+          compose_deploy_dir is /opt/stacks (main.yaml's production
+          default) — pass -e compose_deploy_dir=/tmp/compose-deploy
+          explicitly, or this writes into the wrong place and "Bring the
+          stack up" fails with "no such file or directory".
 
     - name: Resolve compose_apps against the real app registry
       ansible.builtin.include_role:

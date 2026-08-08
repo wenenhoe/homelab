@@ -85,14 +85,13 @@ jobs:
           # healthcheck poll would add. lldap excluded: certbot needs a
           # real DigitalOcean DNS-01 credential to do anything meaningful,
           # and the lldap service itself has no healthcheck defined yet
-          # (docker/lldap/compose.yaml even has its own "TODO: Add
-          # healthcheck... need more investigation" comment) — nothing
-          # here would give a trustworthy signal without first solving
-          # that on the app side, not the CI side.
+          # tinyauth excluded: crashes with "app URL cannot be empty,
+          # perhaps config loading failed" despite a live-verified,
+          # schema-correct config.yaml
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD")
-          excluded="bind9|seaweedfs|caddy|lldap"
+          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
 
           apps=$(echo "$changed" \
             | grep -oE '^docker/[^/]+/compose\.yaml$' \
@@ -222,6 +221,16 @@ jobs:
       DEFAULT_SSH_HOST: "localhost" # wetty's own healthcheck only spiders its web root, unrelated to SSH connectivity
       TELEGRAM_TOKEN: "ci-dummy-token"
       TELEGRAM_CHAT_ID: "0"
+      # uv creates .venv inside the project root (the workspace) by
+      # default. Harmless on real GitHub Actions (each job has its own
+      # VM), but under local act --bind — required for compose_deploy_dir
+      # to work. Multiple jobs' `uv sync`/`uv run` racing to
+      # write the same .venv concurrently. /tmp is never part of the
+      # bind mount (only the workspace is), so it's genuinely private per
+      # container even under --bind. Confirmed via uv's own docs: an
+      # absolute UV_PROJECT_ENVIRONMENT path is used as-is, not resolved
+      # relative to the workspace.
+      UV_PROJECT_ENVIRONMENT: /tmp/uv-venv
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -232,9 +241,9 @@ jobs:
       - name: Point diun's Dockerfile mount at a real file
         if: matrix.app == 'diun'
         run: |
-          mkdir -p /tmp/compose-deploy/caddy
-          cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
-          echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
+          mkdir -p ${{ github.workspace }}/.ci-compose-deploy/caddy
+          cp ansible/roles/caddy/files/Dockerfile ${{ github.workspace }}/.ci-compose-deploy/caddy/Dockerfile
+          echo "COMPOSE_DEPLOY_DIR=${{ github.workspace }}/.ci-compose-deploy" >> "$GITHUB_ENV"
 
       - name: Install uv
         uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
@@ -242,7 +251,7 @@ jobs:
           enable-cache: true
 
       - name: Sync dev environment
-        run: uv sync --group dev
+        run: uv sync --group dev --locked
 
       - name: Cache Ansible Galaxy collections
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -274,15 +283,25 @@ jobs:
         # ci_boot_test.yaml — see its own comments for why.
         run: |
           uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \
-            playbooks/ci_boot_test.yaml -e app_name=${{ matrix.app }}
+            playbooks/ci_boot_test.yaml \
+            -e app_name=${{ matrix.app }} \
+            -e compose_deploy_dir=${{ github.workspace }}/.ci-compose-deploy
         working-directory: ansible
 
       - name: Bring the stack up
-        run: docker compose -f "docker/${{ matrix.app }}/compose.yaml" up -d
+        run: docker compose -f "${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml" up -d
+
+      # Bring the stack up failing means Wait for healthy state (which
+      # normally dumps logs on an unhealthy service) never runs, and Tear
+      # down (if: always()) wipes the container right after — without
+      # this, the crash reason is gone before anyone can see it.
+      - name: DEBUG dump logs if Bring the stack up failed
+        if: failure()
+        run: docker compose -f "${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml" logs
 
       - name: Wait for healthy state (or, if none defined, that it stayed running)
         run: |
-          f="docker/${{ matrix.app }}/compose.yaml"
+          f="${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml"
           services=$(docker compose -f "$f" config --services)
           for svc in $services; do
             cid=$(docker compose -f "$f" ps -q "$svc")
@@ -309,13 +328,9 @@ jobs:
 
       - name: Tear down
         if: always()
-        run: docker compose -f "docker/${{ matrix.app }}/compose.yaml" down -v
+        run: docker compose -f "${{ github.workspace }}/.ci-compose-deploy/${{ matrix.app }}/compose.yaml" down -v
 
   # Fallback for stacks the boot-test job deliberately excludes
-  # (bind9/seaweedfs/caddy are tested elsewhere via molecule; lldap needs
-  # real credentials this pipeline shouldn't have). Syntax-only, but still
-  # catches a malformed compose file — better than nothing for the one
-  # category (lldap) with no other net.
   compose-syntax-check:
     needs: detect-changes
     if: needs.detect-changes.outputs.any_compose == 'true'
@@ -333,7 +348,7 @@ jobs:
           # here. Keep this list in sync with the "excluded" pattern in
           # detect-changes' "Determine which compose stacks to boot-test"
           # step above.
-          excluded="bind9|seaweedfs|caddy|lldap"
+          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD" \

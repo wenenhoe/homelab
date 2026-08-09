@@ -8,6 +8,10 @@ agent per host (via a new `backup_agent` Ansible role) pushing
 GPG-encrypted archives of selected named volumes to it nightly. No
 cloud/off-site copy yet — that's a later stage.
 
+For how the S3 credentials referenced throughout this doc are
+generated, cached, and rotated — the general secrets mechanism, not
+DR-specific — see [`secrets.md`](secrets.md).
+
 ## Why these tools, and why this shape
 
 - Every app's real state already lives in a Docker-managed named volume,
@@ -187,49 +191,6 @@ path segment). The scheme is a **separate** var,
 `AWS_ENDPOINT_PROTO`) — set it once here rather than embedding it in the
 endpoint string, and every `backup-agent` instance across every host
 picks it up consistently.
-
-## S3 credentials
-
-Auto-generated on first use, not prompted for — `seaweedfs_s3_access_key`/
-`seaweedfs_s3_secret_key` (`group_vars/all/main.yaml`) use Ansible's `password`
-lookup, which generates a random value once and caches it to a file on the
-**controller** (not a managed host); every later lookup of that same path
-returns the cached value instead of generating a new one:
-
-```yaml
-seaweedfs_s3_access_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-access-key chars=hexdigits length=32') }}"
-seaweedfs_s3_secret_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-secret-key chars=hexdigits length=64') }}"
-```
-
-`chars=hexdigits` (the named charset, not a literal string) is deliberate:
-these are opaque tokens, never hex-decoded, so mixed-case `a-fA-F` costs
-nothing and gives more entropy per character. It also avoids writing a
-literal hex-alphabet string next to a `_secret_key` name in source —
-`gitleaks` flags that shape as a generic secret, even though it's just a
-charset spec. The real generated values never get committed
-(`ansible/files/secrets/` is gitignored).
-
-Not the same pattern as `lldap`'s `openssl rand -hex 32` pipe, even
-though both end up under `force: false`. `lldap`'s secret is generated
-and consumed in one file on one host — any random value is fine since
-`force: false` just locks in whichever render happens first. These
-values need to match **across independently-rendered templates on
-different hosts** (`storage`'s `s3-identity.json` and every
-`backup_agent`'s `.env.*-group` files) — a raw pipe in each template
-would generate a different value per host, and whichever rendered first
-would permanently disagree with the rest. Only a controller-side cache
-(what `password` does) keeps them all in sync.
-
-The generated plaintext lives at `ansible/files/secrets/` on the
-controller — gitignored, never committed, never touches a managed host
-except via the rendered `.env`/`s3-identity.json` files (already
-`no_log: true`/`mode: "0600"`).
-
-**Rotating a credential**: delete the relevant file under
-`ansible/files/secrets/`, then redeploy `storage` (so `s3-identity.json`
-picks up the new value) and every host running `backup_agent` (so their env
-files match again) — in either order, but both are required, or SeaweedFS
-and its clients will disagree.
 
 ## Restore
 

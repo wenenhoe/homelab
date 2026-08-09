@@ -188,48 +188,211 @@ path segment). The scheme is a **separate** var,
 endpoint string, and every `backup-agent` instance across every host
 picks it up consistently.
 
-## S3 credentials
+## Secrets
 
-Auto-generated on first use, not prompted for — `seaweedfs_s3_access_key`/
-`seaweedfs_s3_secret_key` (`group_vars/all/main.yaml`) use Ansible's `password`
-lookup, which generates a random value once and caches it to a file on the
-**controller** (not a managed host); every later lookup of that same path
-returns the cached value instead of generating a new one:
+Every value this repo needs but doesn't want hardcoded — whether Ansible
+can generate it itself or not — is resolved once and cached on the
+controller by a single, reusable mechanism: the `secrets` role
+(`ansible/roles/secrets/`), driven by a central registry
+(`ansible/inventory/group_vars/all/secrets_registry.yaml`). It runs in
+`deploy.yaml`'s Play 1, tagged `always` (same reasoning as `compose`'s
+`preinit.yaml`: every downstream config template that reads a secret
+needs it to already exist, regardless of which `--tags` subset a given
+run uses — confirmed live via `--list-tasks --tags images`, which shows
+`Include secrets role` at the same `always`-tagged level as
+`preinit.yaml`, before Play 4 ever reaches `compose_app`/config
+rendering).
 
-```yaml
-seaweedfs_s3_access_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-access-key chars=hexdigits length=32') }}"
-seaweedfs_s3_secret_key: "{{ lookup('password', project_root ~ '/ansible/files/secrets/seaweedfs-s3-secret-key chars=hexdigits length=64') }}"
+This replaced four different ad hoc patterns that used to be spread
+across the codebase: `deploy.yaml`'s entire `vars_prompt` block (typed in
+on every run, both truly external credentials like the DigitalOcean API
+key and plain config like `main_domain`), inline `lookup('password', ...)`
+calls with a hand-built lookup-term string (`seaweedfs_s3_access_key`/
+`seaweedfs_s3_secret_key`), `lookup('pipe', 'openssl rand -hex 32')`/a
+`uuid` one-liner baked directly into a template (`lldap`'s three secrets,
+`shlink`'s API key), and a gitignored `-e @secrets.yaml` file for
+non-interactive runs. All of it — including any *future* secret or
+config value — now goes through the same path:
+
+1. Add an entry to `secrets_registry.yaml`:
+   ```yaml
+   secrets_registry:
+     my-new-thing: { format: hex, length: 32 }
+   ```
+2. Reference `secrets_generated['my-new-thing']` from a plain var in
+   `group_vars/all/main.yaml` (so a template only ever sees an ordinary
+   variable name, never the registry key or the mechanism behind it):
+   ```yaml
+   my_new_thing: "{{ secrets_generated['my-new-thing'] }}"
+   ```
+3. Use `{{ my_new_thing }}` in the app's `configs/*.j2` template, with
+   `force: false` on its `app_registry` entry so a re-run never clobbers
+   the rendered file.
+
+No template should ever call `lookup('password', ...)` or
+`lookup('pipe', ...)` directly again, and `deploy.yaml` should never grow
+a new `vars_prompt` entry — if a new secret or config value needs one of
+those, it needs a registry entry instead.
+
+### Three formats
+
+- **`hex`** (most generated secrets) — a thin, parameterized wrapper
+  around `lookup('password', <path> chars=hexdigits length=<n>)`.
+  `password` already *is* the generate-once-and-cache mechanism: per
+  Ansible's own docs, "If the file already exists, no data will be
+  written to it. If the file has contents, those contents will be read
+  in as the password" — and its write path creates any missing parent
+  directory itself (confirmed against `ansible-core`'s `password` lookup
+  source: both its locking and its write path call `makedirs_safe()`
+  first). The role's job here is just building that lookup term
+  correctly from the registry so no call site hand-rolls it, and
+  enforcing the `chars=hexdigits`-as-**named-charset** convention below.
+- **`uuid4`** (`shlink-api-key` only, deliberately kept as a real UUID4
+  rather than collapsed into a hex token) — `password`'s `chars=` option
+  can only draw from a character set, which can never produce a
+  structurally valid UUID4 (fixed version/variant nibbles), so this
+  format has real generate-once-and-cache task logic instead: stat the
+  cache file, generate via `python3 -c "import uuid; print(uuid.uuid4())"`
+  only if missing, cache it with `mode: "0600"`, then always read it back
+  — mirroring what `password` does internally, for a format it doesn't
+  support natively. See `ansible/roles/secrets/tasks/ensure_secret.yaml`.
+- **`manual`** (every remaining `vars_prompt` value — externally-issued
+  credentials like the DigitalOcean API key, plain config like
+  `main_domain`, and the two Beszel values that genuinely don't exist
+  until after the hub's first boot) — Ansible can't generate any of
+  these, so there's no generation step at all: the cache file must
+  already exist before this task runs. **Missing entirely → the play
+  fails immediately**, printing the registry entry's `description` and
+  the exact command to create the file, rather than silently deploying
+  with a blank credential nobody noticed. **Present but empty is a valid
+  value** (reads back as `""`), not an error — existence is what's
+  checked, not content. This is what lets `beszel-hub-key`/
+  `beszel-agent-token` start out blank without failing every run until
+  you fill them in: both are marked `allow_blank: true` in the registry,
+  which `bootstrap_secrets.py` (below) reads to know it's fine to write
+  an empty placeholder for those two specifically, instead of demanding
+  a value that can't exist yet.
+
+`chars=hexdigits` is a named charset, never a literal alphabet string, in
+every hex secret's definition — deliberate, so `gitleaks` doesn't flag a
+literal hex-alphabet string sitting next to a `_secret`/`_key`/`_pass`-shaped
+variable name. `secrets_registry.yaml` only ever stores `format: hex`
+plus a `length`, never a literal charset, for the same reason.
+
+### Bootstrapping manual secrets
+
+`manual` entries can't be generated, so before your first `deploy.yaml`
+run, populate them once:
+
+```sh
+python3 ansible/bootstrap_secrets.py
 ```
 
-`chars=hexdigits` (the named charset, not a literal string) is deliberate:
-these are opaque tokens, never hex-decoded, so mixed-case `a-fA-F` costs
-nothing and gives more entropy per character. It also avoids writing a
-literal hex-alphabet string next to a `_secret_key` name in source —
-`gitleaks` flags that shape as a generic secret, even though it's just a
-charset spec. The real generated values never get committed
-(`ansible/files/secrets/` is gitignored).
+Walks every `manual` entry in `secrets_registry.yaml`, skips anything
+whose cache file already exists, and for everything else prompts for a
+value (masked input, via `getpass`, for anything marked `sensitive:
+true` in the registry) — re-prompting until something non-empty is
+given, except for `allow_blank: true` entries, where pressing Enter
+writes an empty placeholder on purpose. Safe to re-run any time: it
+never touches a file that already exists, so re-running only fills in
+whatever's still missing (a new registry entry someone added, or a
+Beszel value you left blank the first time). Prefer hand-creating the
+file yourself (`printf '%s' '<value>' >
+ansible/files/secrets/<registry-key> && chmod 600
+ansible/files/secrets/<registry-key>`) if you're scripting this instead
+— the script is a convenience, not the only way in.
 
-Not the same pattern as `lldap`'s `openssl rand -hex 32` pipe, even
-though both end up under `force: false`. `lldap`'s secret is generated
-and consumed in one file on one host — any random value is fine since
-`force: false` just locks in whichever render happens first. These
-values need to match **across independently-rendered templates on
-different hosts** (`storage`'s `s3-identity.json` and every
-`backup_agent`'s `.env.*-group` files) — a raw pipe in each template
-would generate a different value per host, and whichever rendered first
-would permanently disagree with the rest. Only a controller-side cache
-(what `password` does) keeps them all in sync.
+Values that can't be typed in ahead of time (Beszel's key/token) still
+need the manual redeploy sequence documented in
+[`beszel.md`](beszel.md): deploy once with them blank, retrieve the real
+values from the hub's web UI, write them to their cache files (by hand,
+or via `bootstrap_secrets.py` re-run), redeploy.
 
-The generated plaintext lives at `ansible/files/secrets/` on the
-controller — gitignored, never committed, never touches a managed host
-except via the rendered `.env`/`s3-identity.json` files (already
-`no_log: true`/`mode: "0600"`).
+### Where the cache lives
+
+Every generated value — `hex` and `uuid4` alike — lands at
+`ansible/files/secrets/<registry-key>` on the **controller** (not a
+managed host), one file per secret, gitignored
+(`ansible/files/secrets/`), never committed. Real target hosts only ever
+see the rendered `.env`/config file the value ends up in (already
+`no_log: true`/`mode: "0600"` where relevant), never the cache directory
+itself.
+
+`seaweedfs-s3-access-key`/`seaweedfs-s3-secret-key` keep their existing
+on-disk filenames — this registry migration was deliberately **not** a
+rename, to avoid orphaning any value a real controller had already
+cached before this change landed. Every other secret is free to follow
+the same kebab-case convention from a clean slate.
 
 **Rotating a credential**: delete the relevant file under
-`ansible/files/secrets/`, then redeploy `storage` (so `s3-identity.json`
-picks up the new value) and every host running `backup_agent` (so their env
-files match again) — in either order, but both are required, or SeaweedFS
-and its clients will disagree.
+`ansible/files/secrets/`, then redeploy every host that renders a config
+depending on it. For `seaweedfs-s3-*` specifically this means `storage`
+(so `s3-identity.json` picks up the new value) and every host running
+`backup_agent` (so their env files match again) — in either order, but
+both are required, or SeaweedFS and its clients will disagree. Values
+consumed by only one host (`lldap`'s three secrets, `shlink`'s API key)
+just need that one host redeployed — but see the `force: false` note
+below first.
+
+### Why S3 credentials specifically need a controller-side cache
+
+`offen/docker-volume-backup`'s S3 client and SeaweedFS's own identity
+config are independently rendered on **different hosts**
+(`storage`'s `s3-identity.json` and every `backup_agent` instance's
+`.env.*-group` files) — a raw one-off generator in each template (the
+`lldap`/`shlink` style, back when they used one) would produce a
+different value per host, and whichever host rendered first would
+permanently disagree with the rest. Only a controller-side cache (what
+this role does for every secret, not just these two) keeps every
+independently-rendered consumer in sync. `lldap`'s secrets don't have
+this problem — each is generated and consumed in one file on one host —
+but they go through the same mechanism anyway now, for consistency and a
+single tested code path rather than two.
+
+### `force: false` — why a re-run never overwrites what's already deployed
+
+Every `app_registry` entry whose `configs` render a generated secret sets
+`force: false` on that config (see `docker/lldap/configs/env.j2`'s and
+`docker/shlink/configs/env.j2`'s `app_registry` entries). This is a
+**second**, independent layer of caching, separate from the controller's
+own `ansible/files/secrets/` cache: `force: false` means
+`ansible.builtin.template` won't re-render (and so won't restart the
+container over) a config file that already exists on the target host,
+even if the controller-side cached value somehow changed underneath it.
+Rotating a secret therefore always needs the redeploy in the "Rotating a
+credential" note above — deleting the controller-side cache file alone
+does **not** propagate a new value to a host that already has a rendered
+config.
+
+### Syncing the LDAP observer account password
+
+`tinyauth-ldap-observer-password` is a special case worth calling out
+explicitly: generating and caching the value is only half the story.
+Tinyauth binds to lldap as a read-only account named `observer`
+(`docker/tinyauth/configs/config.yaml.j2`'s `ldap.bindDn`), and **nothing
+in this codebase creates that account or sets its password** — traced
+through `docker/lldap/scripts/` and the rest of the repo, and confirmed
+there's no scripted path today. lldap's own docs describe this as a
+web-UI operation: create the user, add it to a read-only group
+(`lldap_strict_readonly`/`lldap_readonly` depending on your lldap
+version — check your deployed version's admin UI), and set its password
+by hand.
+
+**After (re)generating this secret, the operator must manually set the
+`observer` account's password in lldap's admin web UI to the same
+value**, or tinyauth's LDAP bind will fail with invalid credentials. Read
+the cached value with:
+
+```sh
+cat ansible/files/secrets/tinyauth-ldap-observer-password
+```
+
+This was already true before this migration (the operator previously
+typed this password into `vars_prompt` and then had to separately create
+the matching lldap account) — the migration doesn't add a new manual
+step, it just moves the value from "typed in on every run" to "generated
+once and cached," which is why this note exists here rather than being
+a new gap introduced by the change.
 
 ## Restore
 

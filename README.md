@@ -105,6 +105,11 @@ Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/install
    ```
    To run all hooks manually: `pre-commit run -c .config/.pre-commit-config.yaml --all-files`.
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
+- Before your first `deploy.yaml` run, fill in every value Ansible can't generate itself (DigitalOcean API key, Let's Encrypt email, Diun's Telegram token/chat ID, and a few others — no longer prompted for interactively):
+   ```sh
+  python3 ansible/bootstrap_secrets.py
+   ```
+  Safe to re-run any time — it only ever fills in what's still missing under `ansible/files/secrets/`, never overwrites an existing value. See [`docs/disaster-recovery.md`](docs/disaster-recovery.md#secrets) for the full mechanism, including how to rotate a value later.
 
 Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
 
@@ -162,11 +167,7 @@ Two inventories exist for two different situations:
   ansible-playbook playbooks/deploy.yaml --tags "infra"
   ```
   Both `images` and `infra` skip `preinit` and `docker` install by design - `preinit` still runs regardless of tags (it's cheap and everything downstream depends on the `compose_apps` it resolves), but the `Init caddy/bind9's own compose app files and directories` and `compose_app`'s app-init steps only run on a full, untagged run - `images`/`infra` assume the host is already provisioned.
-  Ansible evaluates `vars_prompt` at play setup, before tag filtering, so both commands still prompt for every secret in Play 1 today. For a non-interactive or narrowly-tagged run, pre-supply what you don't want to be asked for:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --tags "images" -e @secrets.yaml
-  ```
-  where `secrets.yaml` (gitignored, not committed) sets `main_domain`/`digitalocean_api_key`/etc. - Ansible automatically skips prompting for any `vars_prompt` variable already defined via `-e`.
+  There's no `vars_prompt` anymore, so neither command prompts for anything — every value that used to live there is read from a cache file under `ansible/files/secrets/` by the `secrets` role (also tagged `always`, so it runs under any `--tags` filter). Run `python3 ansible/bootstrap_secrets.py` once, before your first deploy, to create every missing one interactively — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md#secrets).
 - Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
   ```sh
   ansible-inventory -i inventory/inventory.yaml --host experiment

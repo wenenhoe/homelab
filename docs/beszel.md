@@ -13,14 +13,14 @@ Hub and agent can talk over SSH (hub -> agent) or WebSocket (agent -> hub). This
 
 ## Bootstrapping the KEY and TOKEN
 
-Unlike the rest of `app_registry`'s `.env` secrets (which are supplied up front via `deploy.yaml`'s `vars_prompt` and protected with `force: false` so a re-run never clobbers them), `beszel_hub_key` and `beszel_agent_token` don't exist until *after* the hub's first boot — the hub generates its own keypair on first start, and a token is created by hand in its web UI. So `beszel-agent`'s `.env` config uses `force: true` deliberately: it must re-render once these values are known.
+Unlike the rest of `app_registry`'s `.env` secrets (generated/cached via the `secrets` role and protected with `force: false` so a re-run never clobbers them — see [`disaster-recovery.md`](disaster-recovery.md#secrets)), `beszel_hub_key` and `beszel_agent_token` don't exist until *after* the hub's first boot — the hub generates its own keypair on first start, and a token is created by hand in its web UI. Both are `manual`-format `secrets_registry.yaml` entries marked `allow_blank: true`, so a missing value doesn't block the first deploy the way every other manual secret would — `beszel-agent`'s `.env` config uses `force: true` deliberately: it must re-render once these values are known.
 
 Sequence:
 
-1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`).
+1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty cache files `bootstrap_secrets.py` created for these two).
 2. Visit `https://beszel.sec.{{ lab_domain }}`, create the hub admin account.
-3. **Settings → Keys**: copy the hub's public key into `beszel_hub_key` in `group_vars/all/main.yaml`.
-4. **Settings → Tokens**: create a universal token, copy it into `beszel_agent_token`.
+3. **Settings → Keys**: copy the hub's public key into `ansible/files/secrets/beszel-hub-key` (`printf '%s' '<key>' > ansible/files/secrets/beszel-hub-key`, or re-run `python3 ansible/bootstrap_secrets.py` and paste it in when prompted).
+4. **Settings → Tokens**: create a universal token, copy it into `ansible/files/secrets/beszel-agent-token` the same way.
 5. Re-run `ansible-playbook deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.
 
 ## Runtime config

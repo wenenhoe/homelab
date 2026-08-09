@@ -54,11 +54,16 @@ jobs:
             # covers both inventory.yaml itself and group_vars/all/
             # main.yaml + secrets_registry.yaml, which is deliberately
             # broad: a change to either is exactly the shape of change
-            # that caused the original regression.
+            # that caused the original regression. ansible/roles/restore/**
+            # is here too: the job's second check exercises restore.yaml's
+            # own two-file invocation pattern specifically, which a
+            # restore-role-only change could break without touching
+            # anything else in this list.
             deploy_ordering:
               - 'ansible/inventory/**'
               - 'ansible/playbooks/**'
               - 'ansible/roles/secrets/**'
+              - 'ansible/roles/restore/**'
 
       - name: Determine which ansible roles to test
         id: roles
@@ -237,11 +242,64 @@ jobs:
       - name: Run deploy.yaml against the CI ordering-check inventory
         run: |
           uv run ansible-playbook \
-            -i ansible/inventory/ci-deploy-ordering-inventory.yaml \
+            -i inventory/ci-deploy-ordering-inventory.yaml \
             playbooks/deploy.yaml \
             --tags ci-deploy-ordering-check-tag-matches-nothing \
             --limit ci-managed-host,localhost \
             -e compose_deploy_dir=/tmp/compose-deploy-ordering-check
+        working-directory: ansible
+
+      # restore.yaml can't import bootstrap-secrets.yaml as a leading play
+      # the way deploy.yaml/cleanup.yaml/maintenance.yaml do (see its own
+      # header) — it requires the two-file invocation instead. This step
+      # is the regression check for THAT specific pattern, not for
+      # restore's own validation/confirmation logic, which is already
+      # thoroughly covered by ansible/roles/restore's own Molecule
+      # scenarios (default, multi_volume, validation_failure,
+      # confirmation_declined) — see docs/molecule-testing.md.
+      #
+      # Deliberately triggers the archive-existence check's failure
+      # branch (a real, nonexistent path) rather than trying to complete
+      # an actual restore: that's the safe way to prove the whole chain
+      # up to and including a role-level task actually executing against
+      # the CI-safe host works, without needing a real archive or coming
+      # anywhere near the confirmation gate / destructive steps. A run
+      # that instead fails on 'remote_addr'/secrets_generated (the
+      # original regression's signature) means ansible_host never
+      # resolved and this step must fail loudly and specifically about
+      # that, not just report "the playbook failed" (which an archive-
+      # not-found failure ALSO produces, and would otherwise mask this
+      # exact regression recurring here specifically).
+      - name: Run restore.yaml's two-file invocation against the CI ordering-check inventory
+        run: |
+          set +e
+          uv run ansible-playbook \
+            -i inventory/ci-deploy-ordering-inventory.yaml \
+            playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
+            --limit ci-managed-host,localhost \
+            -e restore_app=ci-ordering-check-app \
+            -e restore_archive_local_path=/nonexistent/ci-ordering-check-archive.tar.gz \
+            -e 'restore_volumes=["ci_ordering_check_data"]' \
+            > /tmp/restore-ordering-check.log 2>&1
+          rc=$?
+          cat /tmp/restore-ordering-check.log
+
+          if grep -qE "remote_addr|secrets_generated.*undefined" /tmp/restore-ordering-check.log; then
+            echo "::error::ansible_host never resolved for restore.yaml's two-file invocation — the ordering regression this check exists to catch."
+            exit 1
+          fi
+
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::Expected a failure at the archive-existence check (nonexistent path) — succeeded instead, meaning something unrelated changed."
+            exit 1
+          fi
+
+          if ! grep -q "not found on the controller" /tmp/restore-ordering-check.log; then
+            echo "::error::Failed, but not with the expected archive-not-found message — see log above."
+            exit 1
+          fi
+
+          echo "OK: reached the expected, safe archive-not-found failure — ansible_host resolved correctly."
         working-directory: ansible
 
   molecule:

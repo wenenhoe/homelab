@@ -209,6 +209,30 @@ jobs:
       - name: Sync dev environment
         run: uv sync --group dev --locked
 
+      # Required specifically for restore.yaml's own role, which uses
+      # community.docker.docker_compose_v2/docker_container/docker_volume
+      # unconditionally (no tags: to skip past it the way the deploy.yaml
+      # check's --tags trick does for everything else in this job) —
+      # confirmed live: without this, even a deliberately-failing restore
+      # invocation errors out earlier than intended with "couldn't
+      # resolve module/action 'community.docker.docker_compose_v2'",
+      # before ever reaching the archive-existence check this job's
+      # restore step actually means to exercise. Same
+      # cache-then-install pattern as the molecule/compose-boot-test
+      # jobs below.
+      - name: Cache Ansible Galaxy collections
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.ansible/collections
+          key: >-
+            ansible-galaxy-${{ runner.os }}-${{
+              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
+            }}
+
+      - name: Install Ansible Galaxy collections
+        run: uv run ansible-galaxy collection install -r requirements.yml
+        working-directory: ansible
+
       # Mirrors what a real operator's `python3 ansible/bootstrap_secrets.py`
       # run produces on the controller before a first deploy — every
       # format: manual entry in secrets_registry.yaml needs its cache file

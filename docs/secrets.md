@@ -10,13 +10,20 @@ can generate it itself or not — is resolved once and cached on the
 controller by a single, reusable mechanism: the `secrets` role
 (`ansible/roles/secrets/`), driven by a central registry
 (`ansible/inventory/group_vars/all/secrets_registry.yaml`). It runs in
-`deploy.yaml`'s Play 1, tagged `always` (same reasoning as `compose`'s
-`preinit.yaml`: every downstream config template that reads a secret
-needs it to already exist, regardless of which `--tags` subset a given
-run uses — confirmed live via `--list-tasks --tags images`, which shows
-`Include secrets role` at the same `always`-tagged level as
-`preinit.yaml`, before Play 4 ever reaches `compose_app`/config
-rendering).
+`deploy.yaml`'s Play 0 — its own play, before Play 1 or anything else,
+not just its own task within a later play — tagged `always` (same
+reasoning as `compose`'s `preinit.yaml`: every downstream config
+template that reads a secret needs it to already exist, regardless of
+which `--tags` subset a given run uses). It has to be its own
+`gather_facts: false` play specifically, not merely an early task inside
+Play 1: every real host's `ansible_host` in `inventory.yaml` resolves
+through `ddns_domain` -> `main_domain` -> `secrets_generated['main-domain']`,
+and Play 1's *implicit* Gathering Facts step needs a live connection —
+requiring `ansible_host` already resolved — before any of Play 1's own
+explicit tasks run, secrets role included. This was true of the
+`always`-tagged task under `--list-tasks --tags images` before this
+change (worth re-confirming after — I haven't run it myself against a
+real inventory/vault from this environment).
 
 This replaced four different ad hoc patterns that used to be spread
 across the codebase: `deploy.yaml`'s entire `vars_prompt` block (typed in

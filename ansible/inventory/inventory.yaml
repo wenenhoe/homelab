@@ -28,6 +28,20 @@ all:
           ansible_host: "storage.{{ ddns_domain }}"
           ansible_user: storeadmin
 
+    # Every real, managed server (everything except the controller itself,
+    # below) — test + prod. Playbooks that use THIS inventory and
+    # provision/deploy/upgrade actual infrastructure (deploy.yaml's Plays
+    # 1/2/4/6, maintenance.yaml, restore.yaml) target this, NOT the bare
+    # `all` magic group — `all` also includes `controller` below, and none
+    # of those plays should ever run against the operator's own machine.
+    # reset-network.yaml does NOT use this inventory at all (see
+    # inventory/sos-inventory.yaml and that playbook's own header) — this
+    # group doesn't exist there and doesn't need to.
+    managed_hosts:
+      children:
+        test:
+        prod:
+
     # Hosts whose dns_zones, compose_apps, caddy_domain, and dns_ddns_target
     # are scraped by the bind9 role.  Add any new app host here.
     app_hosts:
@@ -38,3 +52,30 @@ all:
     dns:
       hosts:
         services:
+
+    # The Ansible controller itself — declared explicitly (rather than
+    # relying on Ansible's implicit, undeclared localhost) so it's a
+    # stable, predictable inventory member --limit patterns can target by
+    # name. bootstrap-secrets.yaml's Play 0 runs here specifically, since
+    # it can't touch any real (managed_hosts) host until secrets exist —
+    # see that file and docs/deployment-flow.md.
+    #
+    # Deliberately its own group, NOT under managed_hosts/prod/test: every
+    # playbook that provisions/deploys/upgrades real infrastructure targets
+    # managed_hosts precisely so this host is excluded from all of that —
+    # see the comment on managed_hosts above.
+    #
+    # Still a member of the `all` magic group like every inventory host
+    # (unavoidable — that's how Ansible's `all` works), which is exactly
+    # why `--limit prod` alone filters localhost out and Play 0 gets
+    # silently skipped (empty host list, not an error) unless localhost is
+    # named explicitly: --limit prod,localhost. See bootstrap-secrets.yaml.
+    controller:
+      hosts:
+        localhost:
+          ansible_connection: local
+          # Overrides the group's remote-host defaults above, which don't
+          # apply here: no SSH connection is ever made, and the
+          # controller's own Python (whatever's running ansible-playbook
+          # itself) is what's used, not the remote hosts' fixed 3.14 path.
+          ansible_python_interpreter: "{{ ansible_playbook_python }}"

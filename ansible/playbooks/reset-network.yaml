@@ -1,4 +1,12 @@
 ---
+# Uses inventory/sos-inventory.yaml, not the main inventory.yaml — see
+# README.md's inventory table. That inventory addresses every host by
+# static IP (ansible_host: 192.168.20.x), deliberately NOT through
+# ddns_domain/main_domain the way inventory.yaml does, specifically so
+# this playbook keeps working as a recovery path when DNS itself is
+# part of what's broken.
+#
+# Usage: ansible-playbook reset-network.yaml -i inventory/sos-inventory.yaml
 - name: Apply Netplan configuration on all servers
   hosts: all
   become: true
@@ -9,6 +17,7 @@
       register: netplan_check
       ignore_errors: true
       changed_when: netplan_check.rc != 0
+
     - name: Apply netplan configuration
       ansible.builtin.command: netplan apply
       when: netplan_check.rc == 0

@@ -200,11 +200,15 @@ and redeploying its compose stack around the operation. It's a thin
 wrapper over `ansible/roles/restore`, where the actual logic — and its
 [Molecule coverage](molecule-testing.md) — lives. That role's
 `tasks/main.yaml` has a comment worth reading before touching either
-file: this MUST stay a single play (`hosts: all`) with validation tasks
-`delegate_to: localhost` inline, not split into a separate
-controller-only validation play — that split was tried and confirmed to
-silently skip validation entirely under `--limit <group>`, which is
-exactly how this playbook is normally invoked.
+file: this MUST stay a single play (`hosts: managed_hosts`) with
+validation tasks `delegate_to: localhost` inline, not split into a
+separate controller-only validation play — that split was tried and
+confirmed to silently skip validation entirely under `--limit <group>`,
+which is exactly how this playbook is normally invoked. For the same
+reason, it can't `import_playbook` the secrets bootstrap the way
+`deploy.yaml`/`cleanup.yaml`/etc. do — see the usage example below and
+`restore.yaml`'s own header for why it's passed as a separate file on
+the command line instead.
 
 Two independent gates each have to genuinely block the destructive steps,
 both with their own Molecule scenario proving it via real side-effect
@@ -228,8 +232,8 @@ archive-copy cleanup), not just an exit code:
   real operator only ever hits the undefined (real prompt) branch.
 
 ```sh
-ansible-playbook playbooks/restore.yaml \
-  -i inventory/inventory.yaml --limit services \
+ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
+  -i inventory/inventory.yaml --limit services,localhost \
   -e restore_app=kms \
   -e restore_archive_local_path=/home/you/services-stop-group-2026-07-29T04-00-00.tar.gz \
   -e restore_volumes='["kms_data"]'

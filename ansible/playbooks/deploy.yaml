@@ -1,9 +1,19 @@
 ---
-# Play 1 — System setup on all hosts (no containers started yet). Covers
-# docker engine and the app_registry resolve — bind9/caddy only need
+# Play 0 — Secrets, extracted into its own file (bootstrap-secrets.yaml)
+# since cleanup.yaml/maintenance.yaml need the exact same play.
+# reset-network.yaml does NOT need it — see that playbook's own header.
+# See bootstrap-secrets.yaml for the full rationale/constraints.
+- name: Play 0 - Secrets
+  ansible.builtin.import_playbook: bootstrap-secrets.yaml
+
+# Play 1 — System setup on every managed (real) host. Covers docker
+# engine and the app_registry resolve — bind9/caddy only need
 # compose_apps resolved in hostvars here, per-app files come later.
+# hosts: managed_hosts, not hosts: all — all also includes the
+# controller (see inventory.yaml), which must never get Docker
+# installed on it or a container deployed to it.
 - name: System setup
-  hosts: all
+  hosts: managed_hosts
   gather_facts: true
   become: true
   tasks:
@@ -20,16 +30,10 @@
       tags:
         - always # every role below reads the resolved compose_apps this sets
 
-    - name: Include secrets role
-      ansible.builtin.include_role:
-        name: secrets
-      tags:
-        - always # every downstream config template reads secrets_generated this sets
-
 # Play 2 — Caddy builds/deploys/restarts itself so it's already routing
 # before anything else comes up behind it.
 - name: Deploy Caddy
-  hosts: all
+  hosts: managed_hosts # not all — see inventory.yaml's controller group / Play 1's comment
   gather_facts: false
   become: true
   tasks:
@@ -57,7 +61,7 @@
 # Play 4 — Every remaining compose app, now that DNS/caddy are up.
 # bind9/caddy are excluded — they deployed themselves in Play 2/3.
 - name: Deploy Compose apps
-  hosts: all
+  hosts: managed_hosts # not all — see inventory.yaml's controller group / Play 1's comment
   gather_facts: false
   become: true
   tasks:
@@ -86,7 +90,7 @@
 # mounts other apps' volumes as `external: true`, which requires each
 # app's own Play 4 ensure_volume step to have already created them.
 - name: Deploy offsite backup agent
-  hosts: all
+  hosts: managed_hosts # not all — see inventory.yaml's controller group / Play 1's comment
   gather_facts: false
   become: true
   tasks:

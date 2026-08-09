@@ -22,7 +22,7 @@
 #
 # Anything rendering a real secret (an API key/token/password, not just a
 # hostname or timezone) should set no_log: true — see
-# docs/disaster-recovery.md's "Secrets" section, "no_log: true" for why:
+# docs/secrets.md's "no_log: true" section for why:
 # without it, a run with --diff (or high verbosity) prints the secret's
 # plaintext straight to the console/CI logs the moment its value ever
 # differs from what's already on the target host — which includes the

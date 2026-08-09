@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""Interactively fill in every missing `manual`-format secret, once.
+
+Replaces deploy.yaml's old vars_prompt entirely: instead of typing these
+values in on every single run (and vars_prompt firing regardless of
+--tags, see docs/deployment-flow.md), run this once before your first
+`ansible-playbook deploy.yaml` and never again unless you're rotating a
+value or adding a new manual entry to secrets_registry.yaml.
+
+Only touches `format: manual` entries — hex/uuid4 entries are generated
+by the `secrets` role itself and are none of this script's business.
+
+Safe to re-run any time: an entry whose cache file already exists is
+left untouched and just reported as already-set. To rotate a value,
+delete its file under ansible/files/secrets/ first, then re-run this.
+
+Usage:
+    python3 ansible/bootstrap_secrets.py
+    # or, if you manage the project with uv:
+    uv run python3 ansible/bootstrap_secrets.py
+"""
+
+from __future__ import annotations
+
+import getpass
+import sys
+from pathlib import Path
+
+import yaml
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
+SECRETS_DIR = PROJECT_ROOT / "ansible/files/secrets"
+
+
+def load_manual_entries() -> dict[str, dict]:
+    with REGISTRY_PATH.open() as f:
+        registry = yaml.safe_load(f)["secrets_registry"]
+    return {
+        name: spec
+        for name, spec in registry.items()
+        if spec.get("format") == "manual"
+    }
+
+
+def prompt_for_value(name: str, spec: dict) -> str:
+    description = spec.get("description", "(no description in secrets_registry.yaml)")
+    sensitive = spec.get("sensitive", False)
+    allow_blank = spec.get("allow_blank", False)
+
+    print(f"\n{name}")
+    print(f"  {description}")
+
+    reader = (lambda: getpass.getpass("  value (input hidden): ")) if sensitive else (
+        lambda: input("  value: ")
+    )
+
+    if allow_blank:
+        print("  This one doesn't have to be known yet — press Enter to leave it")
+        print("  blank for now (see the description above for when/how to fill")
+        print("  it in later; just re-run this script once you have the value).")
+        return reader()
+
+    while True:
+        value = reader()
+        if value.strip():
+            return value
+        print("  This one can't be left blank — a blank value here would silently")
+        print("  break whatever consumes it, with no clear error. Try again.")
+
+
+def main() -> int:
+    if not REGISTRY_PATH.exists():
+        print(f"Registry not found at {REGISTRY_PATH}", file=sys.stderr)
+        return 1
+
+    manual_entries = load_manual_entries()
+    if not manual_entries:
+        print("No manual-format entries in secrets_registry.yaml — nothing to do.")
+        return 0
+
+    SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
+
+    created = []
+    skipped = []
+    left_blank = []
+
+    for name, spec in manual_entries.items():
+        dest = SECRETS_DIR / name
+        if dest.exists():
+            skipped.append(name)
+            continue
+
+        try:
+            value = prompt_for_value(name, spec)
+        except (KeyboardInterrupt, EOFError):
+            print("\nAborted — nothing further was written.", file=sys.stderr)
+            return 1
+
+        dest.write_text(value)
+        dest.chmod(0o600)
+        created.append(name)
+        if not value.strip():
+            left_blank.append(name)
+
+    print("\n--- Summary ---")
+    if created:
+        print(f"Created: {', '.join(created)}")
+    if skipped:
+        print(f"Already set (untouched): {', '.join(skipped)}")
+    if left_blank:
+        print(f"Left blank on purpose: {', '.join(left_blank)}")
+        print(
+            "Re-run this script after you have real values for these — an "
+            "existing file, even a blank one, is never re-prompted for "
+            "automatically."
+        )
+
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

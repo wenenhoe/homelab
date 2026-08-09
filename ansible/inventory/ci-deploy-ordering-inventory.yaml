@@ -1,0 +1,57 @@
+---
+# Dedicated inventory for the deploy-ordering-check CI job only (see
+# .github/workflows/pr-checks.yml). Deliberately placed HERE — inside
+# ansible/inventory/, not ansible/ci-inventory/ — and this placement is
+# load-bearing, not incidental: group_vars/all/*.yaml auto-loading is
+# based on the INVENTORY FILE's own directory (confirmed live), so a
+# file under ci-inventory/ would pick up ci-inventory/group_vars/all/
+# ci_dummy_vars.yaml's flat main_domain override instead of this
+# directory's real main.yaml/secrets_registry.yaml/app_registry.yaml —
+# defeating the entire point of this check, which is to exercise the
+# REAL main_domain -> secrets_generated chain, not a stub of it. Never
+# auto-included in a normal run: ansible.cfg's `inventory =` setting
+# points at inventory.yaml specifically, by exact filename, so this
+# extra file sitting alongside it is only ever used when explicitly
+# passed via -i.
+#
+# Deliberately the OPPOSITE kind of simplification from
+# ci-inventory/inventory.yaml (used by ci_boot_test.yaml): that one
+# collapses everything to a single ansible_connection: local host with
+# no ansible_host templating at all, specifically so per-app boot tests
+# don't need to care about any of this. That simplification meant
+# nothing in CI ever exercised whether ansible_host actually resolves —
+# exactly the class of regression deploy-ordering-check exists to catch.
+#
+# Mirrors the real inventory (inventory.yaml, this same directory)
+# closely enough to genuinely exercise its ansible_host -> ddns_domain
+# -> main_domain -> secrets_generated chain and its managed_hosts/
+# controller group split — both had bugs that were invisible to every
+# other CI check that existed at the time. NOT a full structural mirror:
+# no prod/test/dns/storage/app_hosts groups, since deploy-ordering-check
+# only runs deploy.yaml with --tags matching nothing real (see that
+# job), which never reaches any task that reads those groups — an
+# undeclared group in --limit/hosts: just resolves to zero hosts and is
+# skipped, confirmed live, not an error.
+#
+# ansible_connection: local on every host — no real SSH/network needed
+# or possible on a CI runner. ci-managed-host's ansible_host is still a
+# genuine Jinja template through ddns_domain, exactly like a real
+# managed_hosts member, so Ansible still has to resolve it the same way
+# it would against a real host — connection: local just means "resolve
+# it, then use the local connection plugin instead of actually dialing
+# out to whatever it resolved to."
+all:
+  children:
+    managed_hosts:
+      hosts:
+        ci-managed-host:
+          ansible_host: "ci-managed-host.{{ ddns_domain }}"
+          ansible_connection: local
+          # preinit.yaml (compose role) loops over compose_apps directly
+          # with no | default([]) — needs to exist, empty is fine, this
+          # job never reaches anything that deploys a real app.
+          compose_apps: []
+    controller:
+      hosts:
+        localhost:
+          ansible_connection: local

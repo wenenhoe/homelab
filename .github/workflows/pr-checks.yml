@@ -26,6 +26,7 @@ jobs:
       pre_commit: ${{ steps.filter.outputs.pre_commit }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       any_compose: ${{ steps.filter.outputs.any_compose }}
+      deploy_ordering: ${{ steps.filter.outputs.deploy_ordering }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
     steps:
@@ -46,6 +47,23 @@ jobs:
               - 'uv.lock'
             any_compose:
               - 'docker/**/compose*.yaml'
+            # Anything that could reintroduce the ansible_host ->
+            # ddns_domain -> main_domain -> secrets_generated ordering
+            # regression deploy-ordering-check exists to catch — see
+            # docs/ci-deploy-ordering-check.md. ansible/inventory/**
+            # covers both inventory.yaml itself and group_vars/all/
+            # main.yaml + secrets_registry.yaml, which is deliberately
+            # broad: a change to either is exactly the shape of change
+            # that caused the original regression. ansible/roles/restore/**
+            # is here too: the job's second check exercises restore.yaml's
+            # own two-file invocation pattern specifically, which a
+            # restore-role-only change could break without touching
+            # anything else in this list.
+            deploy_ordering:
+              - 'ansible/inventory/**'
+              - 'ansible/playbooks/**'
+              - 'ansible/roles/secrets/**'
+              - 'ansible/roles/restore/**'
 
       - name: Determine which ansible roles to test
         id: roles
@@ -154,6 +172,159 @@ jobs:
       # not (e.g. a resolved version that's since been yanked).
       - name: Sync dev environment
         run: uv sync --group dev --locked
+
+  # Regression coverage for an incident where ansible_host (inventory.yaml)
+  # was wired to resolve through a role-generated fact (secrets_generated)
+  # without anything in CI ever exercising that chain — every other check
+  # either bypasses ansible_host resolution entirely (ci-inventory.yaml's
+  # single ansible_connection: local host, no ansible_host templating at
+  # all) or tests the secrets role against a synthetic per-scenario
+  # inventory that never touches the real one. See
+  # docs/ci-deploy-ordering-check.md for the full writeup.
+  #
+  # Runs the REAL deploy.yaml (not a copy — a parallel copy is exactly
+  # what let ci-inventory's simplification drift out of sync with
+  # production in the first place) against a purpose-built CI inventory
+  # that mirrors inventory.yaml's ansible_host -> ddns_domain ->
+  # main_domain -> secrets_generated chain and managed_hosts/controller
+  # group split closely enough to genuinely exercise both, while staying
+  # CI-safe: ansible_connection: local everywhere (no real SSH/network),
+  # and --tags matching nothing real so Docker/Caddy/compose-app/BIND9/
+  # backup-agent provisioning never actually runs — only secrets
+  # generation, propagation, and the ansible_host resolution it gates
+  # (Gathering Facts against the CI-safe "managed" host) do.
+  deploy-ordering-check:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.deploy_ordering == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+
+      - name: Sync dev environment
+        run: uv sync --group dev --locked
+
+      # Required specifically for restore.yaml's own role, which uses
+      # community.docker.docker_compose_v2/docker_container/docker_volume
+      # unconditionally (no tags: to skip past it the way the deploy.yaml
+      # check's --tags trick does for everything else in this job) —
+      # confirmed live: without this, even a deliberately-failing restore
+      # invocation errors out earlier than intended with "couldn't
+      # resolve module/action 'community.docker.docker_compose_v2'",
+      # before ever reaching the archive-existence check this job's
+      # restore step actually means to exercise. Same
+      # cache-then-install pattern as the molecule/compose-boot-test
+      # jobs below.
+      - name: Cache Ansible Galaxy collections
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.ansible/collections
+          key: >-
+            ansible-galaxy-${{ runner.os }}-${{
+              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
+            }}
+
+      - name: Install Ansible Galaxy collections
+        run: uv run ansible-galaxy collection install -r requirements.yml
+        working-directory: ansible
+
+      # Mirrors what a real operator's `python3 ansible/bootstrap_secrets.py`
+      # run produces on the controller before a first deploy — every
+      # format: manual entry in secrets_registry.yaml needs its cache file
+      # to exist before the secrets role's own "fail loudly if missing"
+      # guard lets the play past it. Values are throwaway CI placeholders,
+      # same non-secret status as ci-inventory/group_vars/all/
+      # ci_dummy_vars.yaml's — beszel-hub-key/beszel-agent-token are
+      # allow_blank: true in the registry, so empty files are the correct
+      # (not just convenient) way to pre-seed those two specifically.
+      - name: Pre-seed manual secrets (mirrors bootstrap_secrets.py)
+        run: |
+          mkdir -p ansible/files/secrets
+          printf '%s' 'ci.invalid' > ansible/files/secrets/main-domain
+          printf '%s' 'ci-dummy-do-key' > ansible/files/secrets/digitalocean-api-key
+          printf '%s' 'ci@invalid.example' > ansible/files/secrets/letsencrypt-email
+          printf '%s' 'ci-dummy-telegram-token' > ansible/files/secrets/telegram-token
+          printf '%s' '0' > ansible/files/secrets/telegram-chat-id
+          printf '%s' 'localhost' > ansible/files/secrets/wetty-ssh-host
+          printf '%s' '' > ansible/files/secrets/beszel-hub-key
+          printf '%s' '' > ansible/files/secrets/beszel-agent-token
+
+      # --tags matches nothing real in deploy.yaml (initial-setup/images/
+      # infra are the only real values) — every provisioning task gets
+      # filtered out, while Gathering Facts (never tag-gated) and every
+      # secrets-role/preinit task (explicitly tags: [always] — see
+      # ansible/roles/secrets/tasks/*.yaml) still run. --limit
+      # ci-managed-host,localhost mirrors the real --limit prod,localhost
+      # requirement documented in bootstrap-secrets.yaml — Play 0 targets
+      # hosts: localhost specifically, which --limit prod alone would
+      # filter to zero hosts and silently skip.
+      - name: Run deploy.yaml against the CI ordering-check inventory
+        run: |
+          uv run ansible-playbook \
+            -i inventory/ci-deploy-ordering-inventory.yaml \
+            playbooks/deploy.yaml \
+            --tags ci-deploy-ordering-check-tag-matches-nothing \
+            --limit ci-managed-host,localhost \
+            -e compose_deploy_dir=/tmp/compose-deploy-ordering-check
+        working-directory: ansible
+
+      # restore.yaml can't import bootstrap-secrets.yaml as a leading play
+      # the way deploy.yaml/cleanup.yaml/maintenance.yaml do (see its own
+      # header) — it requires the two-file invocation instead. This step
+      # is the regression check for THAT specific pattern, not for
+      # restore's own validation/confirmation logic, which is already
+      # thoroughly covered by ansible/roles/restore's own Molecule
+      # scenarios (default, multi_volume, validation_failure,
+      # confirmation_declined) — see docs/molecule-testing.md.
+      #
+      # Deliberately triggers the archive-existence check's failure
+      # branch (a real, nonexistent path) rather than trying to complete
+      # an actual restore: that's the safe way to prove the whole chain
+      # up to and including a role-level task actually executing against
+      # the CI-safe host works, without needing a real archive or coming
+      # anywhere near the confirmation gate / destructive steps. A run
+      # that instead fails on 'remote_addr'/secrets_generated (the
+      # original regression's signature) means ansible_host never
+      # resolved and this step must fail loudly and specifically about
+      # that, not just report "the playbook failed" (which an archive-
+      # not-found failure ALSO produces, and would otherwise mask this
+      # exact regression recurring here specifically).
+      - name: Run restore.yaml's two-file invocation against the CI ordering-check inventory
+        run: |
+          set +e
+          uv run ansible-playbook \
+            -i inventory/ci-deploy-ordering-inventory.yaml \
+            playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
+            --limit ci-managed-host,localhost \
+            -e restore_app=ci-ordering-check-app \
+            -e restore_archive_local_path=/nonexistent/ci-ordering-check-archive.tar.gz \
+            -e 'restore_volumes=["ci_ordering_check_data"]' \
+            > /tmp/restore-ordering-check.log 2>&1
+          rc=$?
+          cat /tmp/restore-ordering-check.log
+
+          if grep -qE "remote_addr|secrets_generated.*undefined" /tmp/restore-ordering-check.log; then
+            echo "::error::ansible_host never resolved for restore.yaml's two-file invocation — the ordering regression this check exists to catch."
+            exit 1
+          fi
+
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::Expected a failure at the archive-existence check (nonexistent path) — succeeded instead, meaning something unrelated changed."
+            exit 1
+          fi
+
+          if ! grep -q "not found on the controller" /tmp/restore-ordering-check.log; then
+            echo "::error::Failed, but not with the expected archive-not-found message — see log above."
+            exit 1
+          fi
+
+          echo "OK: reached the expected, safe archive-not-found failure — ansible_host resolved correctly."
+        working-directory: ansible
 
   molecule:
     needs: detect-changes

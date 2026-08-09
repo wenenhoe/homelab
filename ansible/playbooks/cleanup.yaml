@@ -16,11 +16,19 @@
 # Usage:
 #   ansible-playbook cleanup.yaml --check --diff              # see what --check would do
 #   ansible-playbook cleanup.yaml -e compose_cleanup_dry_run=true
-#   ansible-playbook cleanup.yaml --limit services
+#   ansible-playbook cleanup.yaml --limit services,localhost
+#   (localhost required in --limit — see bootstrap-secrets.yaml, imported below)
 #
 # Content policy (keep vs. delete an orphaned app's directory) is controlled
 # by compose_cleanup_remove_content / compose_cleanup_app_overrides in
 # roles/compose/defaults/main.yaml — see comments there.
+
+# Play 0 — Secrets. Needed here too, not just deploy.yaml: app_hosts'
+# ansible_host resolves through secrets_generated (see
+# bootstrap-secrets.yaml for the full why), and this playbook targets
+# real hosts by name just like deploy.yaml does.
+- name: Play 0 - Secrets
+  ansible.builtin.import_playbook: bootstrap-secrets.yaml
 
 - name: Clean up orphaned compose stacks
   hosts: app_hosts

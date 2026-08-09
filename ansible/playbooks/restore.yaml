@@ -14,14 +14,32 @@
 # stack gets stopped/redeployed around the operation.
 #
 # All the actual logic lives in ansible/roles/restore — this is a thin
-# play-sequencer. It MUST stay a single play (hosts: all), not split into
-# a separate validation play — see that role's tasks/main.yaml header for
-# why (a split was tried and confirmed to silently skip validation under
-# `--limit <group>`, the exact invocation shown below).
+# play-sequencer. It MUST stay a single play (hosts: managed_hosts), not
+# split into a separate validation play — see that role's
+# tasks/main.yaml header for why (a split was tried and confirmed to
+# silently skip validation under `--limit <group>`, the exact invocation
+# shown below). managed_hosts, not all — all also includes the
+# controller (see inventory.yaml), which is never a valid restore target.
+#
+# REQUIRES bootstrap-secrets.yaml passed on the SAME command line, ahead
+# of this file (see below) — this playbook's hosts: managed_hosts
+# resolves ansible_host through secrets_generated the same way
+# deploy.yaml's does (see bootstrap-secrets.yaml for the full why), but
+# that bootstrap CAN'T
+# live inside this file as a second play, for the exact reason above (a
+# leading play here would be just as much a split as the validation split
+# that was already rejected — same silent-skip-under-limit risk). Passing
+# it as a separate file on the same ansible-playbook invocation avoids
+# that: Ansible facts persist across every playbook file in a single
+# invocation the same way they persist across plays within one file
+# (confirmed live), and bootstrap-secrets.yaml's own play (hosts:
+# localhost) is structurally unrelated to restore's single
+# hosts: managed_hosts play — passing it alongside doesn't split THIS role's validation
+# anywhere, it just runs before it.
 #
 # Usage:
-#   ansible-playbook playbooks/restore.yaml \
-#     -i inventory/inventory.yaml --limit services \
+#   ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
+#     -i inventory/inventory.yaml --limit services,localhost \
 #     -e restore_app=kms \
 #     -e restore_archive_local_path=/home/you/services-stop-group-2026-07-29T04-00-00.tar.gz \
 #     -e restore_volumes='["kms_data"]'
@@ -42,7 +60,7 @@
 # ---------------------------------------------------------------------------
 
 - name: Restore an app's volume(s) from an offsite backup archive
-  hosts: all
+  hosts: managed_hosts
   gather_facts: false
   become: true
   # Pinned explicitly: a destructive, human-operated procedure benefits

@@ -226,8 +226,9 @@ config value — now goes through the same path:
    my_new_thing: "{{ secrets_generated['my-new-thing'] }}"
    ```
 3. Use `{{ my_new_thing }}` in the app's `configs/*.j2` template, with
-   `force: false` on its `app_registry` entry so a re-run never clobbers
-   the rendered file.
+   `no_log: true` on its `app_registry` entry if the value is a real
+   secret (not just a hostname or timezone) — see "`no_log: true`"
+   below for why.
 
 No template should ever call `lookup('password', ...)` or
 `lookup('pipe', ...)` directly again, and `deploy.yaml` should never grow
@@ -326,13 +327,14 @@ the same kebab-case convention from a clean slate.
 
 **Rotating a credential**: delete the relevant file under
 `ansible/files/secrets/`, then redeploy every host that renders a config
-depending on it. For `seaweedfs-s3-*` specifically this means `storage`
+depending on it — this actually propagates now (see "`no_log: true`"
+below for why an earlier version of this doc had to hedge that
+statement). For `seaweedfs-s3-*` specifically this means `storage`
 (so `s3-identity.json` picks up the new value) and every host running
 `backup_agent` (so their env files match again) — in either order, but
 both are required, or SeaweedFS and its clients will disagree. Values
 consumed by only one host (`lldap`'s three secrets, `shlink`'s API key)
-just need that one host redeployed — but see the `force: false` note
-below first.
+just need that one host redeployed.
 
 ### Why S3 credentials specifically need a controller-side cache
 
@@ -349,20 +351,68 @@ this problem — each is generated and consumed in one file on one host —
 but they go through the same mechanism anyway now, for consistency and a
 single tested code path rather than two.
 
-### `force: false` — why a re-run never overwrites what's already deployed
+### `no_log: true` — why a secret never appears in `--diff` output
 
-Every `app_registry` entry whose `configs` render a generated secret sets
-`force: false` on that config (see `docker/lldap/configs/env.j2`'s and
-`docker/shlink/configs/env.j2`'s `app_registry` entries). This is a
-**second**, independent layer of caching, separate from the controller's
-own `ansible/files/secrets/` cache: `force: false` means
-`ansible.builtin.template` won't re-render (and so won't restart the
-container over) a config file that already exists on the target host,
-even if the controller-side cached value somehow changed underneath it.
-Rotating a secret therefore always needs the redeploy in the "Rotating a
-credential" note above — deleting the controller-side cache file alone
-does **not** propagate a new value to a host that already has a rendered
-config.
+Every `app_registry` entry whose `configs` render a real secret (an API
+key, token, or password — not just a hostname or timezone) sets
+`no_log: true` on that config. This is the thing that actually matters
+for secret-bearing configs, not `force`. Confirmed directly (not
+assumed): a `template` task without `no_log` prints the full new
+content to the console the moment it differs from what's already on the
+target host — `ansible-playbook ... --diff` on a task rendering
+`API_KEY=new-value` shows exactly that line, in plaintext, as a
+`+` addition. `no_log: true` suppresses this completely, including on
+task failure (Ansible replaces the entire result with `censored due to
+'no_log: true'`), while a plain change still reports `changed: true` so
+you can tell *that* something rendered without seeing *what*.
+
+This risk exists on the **first** deploy too, not only a later
+rotation — a file that doesn't exist yet is itself a "diff" (an
+addition against nothing), so a secret-bearing config needs `no_log`
+regardless of whether it's ever expected to change again.
+
+**`force: false` is not the right tool for this**, and every
+secret-bearing config in this registry has moved off it (see history —
+it briefly followed the older `lookup('pipe', 'openssl rand -hex 32')`
+templates' convention of relying on `force: false` for a completely
+different reason: those had *no caching of their own*, so `force: false`
+was the only thing stopping a fresh random value from being generated
+on every single deploy. Now that idempotency lives in the controller-side
+cache instead — see "Three formats" above — nothing left in this registry
+actually needs `force: false`, and keeping it around would silently
+defeat the "Rotating a credential" workflow above: `force: false` means
+`ansible.builtin.template` leaves an existing destination file alone
+**regardless of content**, so deleting the controller-side cache file and
+redeploying would never actually propagate the new value to a host that
+already has one rendered — a real gap an earlier version of this section
+didn't call out clearly enough. Every current secret-bearing config
+therefore just uses the module's own default (`force: true`, i.e.
+"overwrite when content differs, leave alone when it doesn't" — normal
+idempotent behavior) plus `no_log: true`.
+
+### `force: false` — reserved for genuinely unreproducible state, nothing else
+
+Every config in this registry defaults to `force: true` — this repo is
+the source of truth, so a redeploy always overwrites a config that's
+drifted from what its template would render, rather than leaving a
+stale value in place indefinitely. `bind9`, `cobalt`, `kms`,
+`seaweedfs`'s `env.j2`, `wetty`, and `minecraft` used to set
+`force: false` too, despite none of them rendering a secret or holding
+any state Ansible can't fully reconstruct from vars (a timezone, a
+hostname, a domain) — audited by reading each template's actual
+content, not assumed, and all six removed.
+
+`force: false` earns its place only on a config whose destination can
+hold real content Ansible has no way to reconstruct — something the
+*app itself* writes back to the same file after Ansible first renders
+it, where overwriting on every deploy would silently destroy something
+no template could regenerate. Nothing in this registry currently needs
+it. `dashy`'s `conf.yaml.j2` is an open question, not yet decided
+either way: Dashy ships an in-UI config editor that saves back to
+`data/conf.yml`, and nothing in this repo's compose file disables it.
+If that editor is ever used, `force: true` would silently overwrite
+whatever was changed there on the next deploy. See the comment on
+`dashy`'s `app_registry` entry.
 
 ### Syncing the LDAP observer account password
 

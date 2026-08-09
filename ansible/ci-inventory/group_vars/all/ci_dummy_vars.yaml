@@ -16,14 +16,17 @@
 # even though it's reached via vars_files rather than inventory
 # auto-loading here.
 #
-# Every value below exists in production through one of: vars_prompt
-# (deploy.yaml, interactive), a per-host host_vars/*.yaml file (caddy_domain
-# etc.), or a value that's genuinely unset until manual post-bootstrap setup
-# (beszel's key/token — see docs/beszel.md). None of that machinery applies
-# to a single-host, no-inventory CI run, so every one of these is a
-# throwaway placeholder — safe to be world-readable, never a real secret,
-# never used for anything but rendering a config file that then gets
-# discarded when the CI job's volumes are torn down.
+# Every value below exists in production through one of: a `manual`-format
+# secrets_registry.yaml entry (read from ansible/files/secrets/ by the
+# `secrets` role — see docs/disaster-recovery.md's "Secrets" section), a
+# per-host host_vars/*.yaml file (caddy_domain etc.), or a value that's
+# genuinely unset until manual post-bootstrap setup (beszel's key/token —
+# see docs/beszel.md). None of that machinery applies to a single-host,
+# no-inventory CI run (ci_boot_test.yaml never includes the `secrets`
+# role), so every one of these is a throwaway placeholder — safe to be
+# world-readable, never a real secret, never used for anything but
+# rendering a config file that then gets discarded when the CI job's
+# volumes are torn down.
 #
 # Adding an app to the Ansible-seeded CI path: check its
 # docker/<app>/configs/*.j2 for any variable not already a real
@@ -32,8 +35,10 @@
 # don't invent a workaround elsewhere.
 # ---------------------------------------------------------------------------
 
-# Normally deploy.yaml's vars_prompt. lab_domain/ddns_domain (main.yaml)
-# derive from this, so defining it is enough to make those resolve too.
+# Normally a `manual`-format secrets_registry.yaml entry
+# (main.yaml: main_domain: "{{ secrets_generated['main-domain'] }}").
+# lab_domain/ddns_domain (main.yaml) derive from this, so defining it
+# flatly here is enough to make those resolve too.
 main_domain: "ci.invalid"
 
 # Normally per-host (ansible/inventory/host_vars/*.yaml — e.g. play.yaml's
@@ -61,11 +66,26 @@ beszel_agent_token: "ci-dummy-beszel-agent-token"
 
 cobalt_host: "cobalt"
 
+# digitalocean_api_key/letsencrypt_email have no override here — their only
+# consumers (caddy, lldap) are both in the compose-boot-test `excluded`
+# pattern already (see .github/workflows/pr-checks.yml), so they're never
+# actually rendered in this CI path. Add one here if that ever changes.
+
 telegram_token: "ci-dummy-telegram-token"
 telegram_chat_id: "0"
 
 shlink_short_host: "short"
 shlink_web_host: "shlink"
+# Normally generated once by the `secrets` role (deploy.yaml Play 1) and
+# read back from secrets_generated — see group_vars/all/main.yaml. That
+# role never runs in this single-app CI path (ci_boot_test.yaml only
+# mirrors preinit.yaml + init.yaml), so main.yaml's
+# shlink_api_key: "{{ secrets_generated['shlink-api-key'] }}" would be
+# undefined here. Overridden flatly instead, same pattern as
+# tinyauth_ldap_observer_password below — this is the only migrated
+# secret that needs one: lldap/tinyauth/seaweedfs are all excluded from
+# the compose-boot-test matrix already (see .github/workflows/pr-checks.yml).
+shlink_api_key: "ci-dummy-shlink-api-key"
 
 lldap_host: "lldap"
 tinyauth_ldap_observer_password: "ci-dummy-observer-password"

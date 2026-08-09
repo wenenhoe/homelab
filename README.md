@@ -77,6 +77,7 @@ Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` direct
 | [`docs/host-vars.md`](docs/host-vars.md) | Field-by-field reference for `host_vars/<host>.yaml`: `caddy_domain`, `compose_apps`, per-host alias vars, `dns_ddns_target`/`dns_zones`. |
 | [`docs/cleanup.md`](docs/cleanup.md) | How `cleanup.yaml` finds stacks orphaned from `compose_apps`, the keep-vs-delete content policy, and dry-running a cleanup pass. |
 | [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: the `storage` host, SeaweedFS as a self-hosted S3 target, the `backup_agent` role's per-host aggregation, GPG encryption, and capacity/retention reasoning. |
+| [`docs/secrets.md`](docs/secrets.md) | The `secrets` role and `secrets_registry.yaml`: the three formats (`hex`/`uuid4`/`manual`), `bootstrap_secrets.py`, `no_log`/`force` conventions, and rotation. |
 | [`docs/molecule-testing.md`](docs/molecule-testing.md) | The full per-role/per-scenario Molecule matrix, what `molecule_helpers` shares across scenarios, the Docker-in-Docker `vfs` storage-driver quirk, and how to add a new scenario. |
 
 ## Setup
@@ -109,7 +110,7 @@ Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/install
    ```sh
   python3 ansible/bootstrap_secrets.py
    ```
-  Safe to re-run any time — it only ever fills in what's still missing under `ansible/files/secrets/`, never overwrites an existing value. See [`docs/disaster-recovery.md`](docs/disaster-recovery.md#secrets) for the full mechanism, including how to rotate a value later.
+  Safe to re-run any time — it only ever fills in what's still missing under `ansible/files/secrets/`, never overwrites an existing value. See [`docs/secrets.md`](docs/secrets.md) for the full mechanism, including how to rotate a value later.
 
 Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
 
@@ -167,7 +168,7 @@ Two inventories exist for two different situations:
   ansible-playbook playbooks/deploy.yaml --tags "infra"
   ```
   Both `images` and `infra` skip `preinit` and `docker` install by design - `preinit` still runs regardless of tags (it's cheap and everything downstream depends on the `compose_apps` it resolves), but the `Init caddy/bind9's own compose app files and directories` and `compose_app`'s app-init steps only run on a full, untagged run - `images`/`infra` assume the host is already provisioned.
-  There's no `vars_prompt` anymore, so neither command prompts for anything — every value that used to live there is read from a cache file under `ansible/files/secrets/` by the `secrets` role (also tagged `always`, so it runs under any `--tags` filter). Run `python3 ansible/bootstrap_secrets.py` once, before your first deploy, to create every missing one interactively — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md#secrets).
+  There's no `vars_prompt` anymore, so neither command prompts for anything — every value that used to live there is read from a cache file under `ansible/files/secrets/` by the `secrets` role (also tagged `always`, so it runs under any `--tags` filter). Run `python3 ansible/bootstrap_secrets.py` once, before your first deploy, to create every missing one interactively — see [`docs/secrets.md`](docs/secrets.md).
 - Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
   ```sh
   ansible-inventory -i inventory/inventory.yaml --host experiment

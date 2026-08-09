@@ -18,7 +18,7 @@
 #
 # Every value below exists in production through one of: a `manual`-format
 # secrets_registry.yaml entry (read from ansible/files/secrets/ by the
-# `secrets` role — see docs/disaster-recovery.md's "Secrets" section), a
+# `secrets` role — see docs/secrets.md), a
 # per-host host_vars/*.yaml file (caddy_domain etc.), or a value that's
 # genuinely unset until manual post-bootstrap setup (beszel's key/token —
 # see docs/beszel.md). None of that machinery applies to a single-host,

@@ -13,7 +13,7 @@ Hub and agent can talk over SSH (hub -> agent) or WebSocket (agent -> hub). This
 
 ## Bootstrapping the KEY and TOKEN
 
-Unlike the rest of `app_registry`'s `.env` secrets, `beszel_hub_key` and `beszel_agent_token` don't exist until *after* the hub's first boot — the hub generates its own keypair on first start, and a token is created by hand in its web UI. Both are `manual`-format `secrets_registry.yaml` entries marked `allow_blank: true`, so a missing value doesn't block the first deploy the way every other manual secret would.
+Unlike the rest of `app_registry`'s `.env` secrets, `beszel_hub_key` and `beszel_agent_token` don't exist until *after* the hub's first boot — the hub generates its own keypair on first start, and a token is created by hand in its web UI. Both are `manual`-format `secrets_registry.yaml` entries marked `allow_blank: true`, so a missing value doesn't block the first deploy the way every other manual secret would. `beszel-agent`'s `.env` config uses the same `no_log: true` every other secret-bearing config uses (see [`secrets.md`](secrets.md)) — nothing special needed for the re-render once the real values are known, since none of these configs rely on `force: false` to control that anymore.
 
 Sequence:
 

@@ -6,7 +6,7 @@ server_timezone: Asia/Singapore
 # entry (see the big block further down), not because it's sensitive, but
 # because it used to be a vars_prompt entry and there's no reason to keep
 # a second, separate mechanism just for the couple of values that aren't
-# secrets. See docs/disaster-recovery.md's "Secrets" section.
+# secrets. See docs/secrets.md.
 main_domain: "{{ secrets_generated['main-domain'] }}"
 
 lab_domain: "lan.{{ main_domain }}"
@@ -27,8 +27,8 @@ beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_dom
 # ---------------------------------------------------------------------------
 # Every value below is sourced from secrets_generated — populated once by
 # the `secrets` role (Play 1 of deploy.yaml, tagged `always`), driven by
-# secrets_registry.yaml. See that file and docs/disaster-recovery.md's
-# "Secrets" section for the full mechanism, including the three formats
+# secrets_registry.yaml. See that file and docs/secrets.md
+# for the full mechanism, including the three formats
 # (hex/uuid4/manual). Adding a new one: add an entry to
 # secrets_registry.yaml, then a line like these referencing
 # secrets_generated['<registry-key>'].
@@ -52,8 +52,8 @@ shlink_api_key: "{{ secrets_generated['shlink-api-key'] }}"
 # tinyauth's LDAP observer bind password — docker/tinyauth/configs/config.yaml.j2.
 # IMPORTANT: this value alone does not make tinyauth's LDAP bind work — the
 # "observer" account itself must be created in lldap (no scripted path for
-# that today) with this same password. See docs/disaster-recovery.md's
-# "Secrets" section, "Syncing the LDAP observer account password".
+# that today) with this same password. See docs/secrets.md's
+# "Syncing the LDAP observer account password".
 tinyauth_ldap_observer_password: "{{ secrets_generated['tinyauth-ldap-observer-password'] }}"
 
 # --- Supplied manually, outside Ansible (replaces the old vars_prompt) ---

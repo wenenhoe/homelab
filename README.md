@@ -75,19 +75,38 @@ nothing is hand-authored on the servers themselves.
 
 ## Further Reading
 
+### Architecture & workflow
+
 | Doc | Covers |
 | :--- | :--- |
 | [`docs/deployment-flow.md`](docs/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
 | [`docs/volumes.md`](docs/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
+| [`docs/host-vars.md`](docs/host-vars.md) | `host_vars/<host>.yaml` field reference. |
+| [`docs/adding-an-app.md`](docs/adding-an-app.md) | Wiring a new Compose app into the registry. |
+
+### Per-app infra
+
+| Doc | Covers |
+| :--- | :--- |
 | [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
 | [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
 | [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
-| [`docs/adding-an-app.md`](docs/adding-an-app.md) | Wiring a new Compose app into the registry. |
-| [`docs/host-vars.md`](docs/host-vars.md) | `host_vars/<host>.yaml` field reference. |
+| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle across the certbot/dockerproxy/lldap containers. |
+
+### Operations
+
+| Doc | Covers |
+| :--- | :--- |
 | [`docs/cleanup.md`](docs/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
 | [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
 | [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
+
+### Testing & CI
+
+| Doc | Covers |
+| :--- | :--- |
 | [`docs/molecule-testing.md`](docs/molecule-testing.md) | Molecule scenario matrix and how to add one. |
+| [`docs/ci.md`](docs/ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check. |
 
 ## Setup
 

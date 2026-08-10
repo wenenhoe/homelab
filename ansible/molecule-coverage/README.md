@@ -64,9 +64,11 @@ python3 report.py --coverage-dir molecule-coverage/.data --role caddy
 # Summary, then every role's drill-down, in one go
 python3 report.py --coverage-dir molecule-coverage/.data --show-all
 
-# Exit 1 if any role's coverage is below a threshold (not wired into any
-# CI yet - this repo doesn't have one - but available if you add one)
+# Exit 1 if any role's coverage is below a threshold - pr-checks.yml's
+# molecule job uses --thresholds-file instead, for per-role floors
 python3 report.py --coverage-dir molecule-coverage/.data --fail-under 80
+python3 report.py --coverage-dir molecule-coverage/.data --role caddy \
+  --thresholds-file molecule-coverage/thresholds.yaml
 ```
 
 A drill-down row looks like this:
@@ -124,6 +126,6 @@ already exists in this repo - it's automatic.
 - **`_inventory.json` is machine-local** (absolute paths) - regenerate
   after moving or re-cloning the repo, never commit it (already
   gitignored).
-- **No CI gate, no trend history.** `--fail-under` exists but isn't wired
-  into anything; each report run is a snapshot, nothing tracks whether
-  coverage is improving over time.
+- **No trend history.** Each report run is a snapshot; nothing tracks
+  whether coverage is improving over time beyond what's visible by
+  comparing successive PRs' step summaries.

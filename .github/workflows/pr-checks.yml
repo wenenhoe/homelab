@@ -337,6 +337,26 @@ jobs:
         run: uv run ./molecule-test-all.sh "${{ matrix.role }}"
         working-directory: ansible
 
+      # if: always() - a role that fails partway through Molecule can still
+      # have partial coverage data worth reporting and gating on.
+      # set -o pipefail: an unspecified `shell:` on this runner resolves to
+      # `bash -e {0}` - NOT `-eo pipefail` (that only gets added when a step
+      # writes `shell: bash` explicitly, confirmed against a real run where
+      # this step's own failure was silently swallowed by tee's exit 0).
+      # Setting it inside the script fixes this regardless of how the shell
+      # was invoked externally.
+      - name: Coverage report + gate — ${{ matrix.role }}
+        if: always()
+        run: |
+          set -o pipefail
+          uv run python3 molecule-coverage/inventory.py "roles/${{ matrix.role }}" \
+            --coverage-dir molecule-coverage/.data
+          uv run python3 molecule-coverage/report.py \
+            --coverage-dir molecule-coverage/.data --role "${{ matrix.role }}" \
+            --thresholds-file molecule-coverage/thresholds.yaml \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+        working-directory: ansible
+
   # Actual steps live in _compose-boot-test.yml — shared with
   # boot-test-all.yml's compose-boot-test-all so the seed/boot/wait/
   # teardown logic has exactly one copy instead of two drifting in

@@ -1,0 +1,13 @@
+# Per-role coverage floor for report.py --thresholds-file. A role missing
+# here is a hard error, not a silent pass. Why each non-100.0 value is
+# where it is: docs/ci.md#molecule-coverage-gate.
+apt: 75.0
+backup_agent: 100.0
+bind9: 94.4
+caddy: 100.0
+compose: 100.0
+compose_app: 100.0
+docker: 100.0
+restore: 92.9
+seaweedfs_bucket: 100.0
+secrets: 100.0

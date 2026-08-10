@@ -1,4 +1,5 @@
 exclude_paths:
     - .config/.pre-commit-config.yaml
+    - .pre-commit-config.yaml
     - docker/
     - ansible/roles/bind9/molecule/default/host_vars/

@@ -129,10 +129,10 @@ jobs:
         uses: ./.github/actions/setup-uv-ansible
 
       - name: Install pre-commit hook environments
-        run: uv run pre-commit install-hooks
+        run: uv run pre-commit install-hooks -c .config/.pre-commit-config.yaml
 
       - name: Run commit-stage hooks against all files
-        run: uv run pre-commit run --all-files --hook-stage pre-commit --show-diff-on-failure
+        run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit --show-diff-on-failure
 
   # Split from pre-commit-checks above because ansible-lint is the one
   # hook pinned to stages: [pre-push] (see .config/.pre-commit-config.yaml)
@@ -150,10 +150,10 @@ jobs:
         uses: ./.github/actions/setup-uv-ansible
 
       - name: Install pre-commit hook environments
-        run: uv run pre-commit install-hooks
+        run: uv run pre-commit install-hooks -c .config/.pre-commit-config.yaml
 
       - name: Run push-stage hooks against all files
-        run: uv run pre-commit run --all-files --hook-stage pre-push --show-diff-on-failure
+        run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-push --show-diff-on-failure
 
   uv-lock:
     needs: detect-changes

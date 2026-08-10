@@ -50,7 +50,7 @@ jobs:
             # Anything that could reintroduce the ansible_host ->
             # ddns_domain -> main_domain -> secrets_generated ordering
             # regression deploy-ordering-check exists to catch — see
-            # docs/ci-deploy-ordering-check.md. ansible/inventory/**
+            # docs/ci.md#deploy-ordering-check. ansible/inventory/**
             # covers both inventory.yaml itself and group_vars/all/
             # main.yaml + secrets_registry.yaml, which is deliberately
             # broad: a change to either is exactly the shape of change
@@ -164,7 +164,7 @@ jobs:
   # single ansible_connection: local host, no ansible_host templating at
   # all) or tests the secrets role against a synthetic per-scenario
   # inventory that never touches the real one. See
-  # docs/ci-deploy-ordering-check.md for the full writeup.
+  # docs/ci.md#deploy-ordering-check for the full writeup.
   #
   # Runs the REAL deploy.yaml (not a copy — a parallel copy is exactly
   # what let ci-inventory's simplification drift out of sync with

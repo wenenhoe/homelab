@@ -21,10 +21,10 @@ services:
       # there's one unambiguous prune rule instead of two overlapping ones.
       PRUNE_BACKUPS_COUNT: "1"
       PRUNE_BACKUPS_DAYS: "0"
-    restart: always
     # TODO: Add healthcheck
     # NOTE: Runs on a cron schedule with no listening port/daemon in between
     # NOTE: Can consider looking into the logs daily with a custom script
+    restart: always
   bluemap:
     image: ghcr.io/bluemap-minecraft/bluemap:v5
     container_name: minecraft-bluemap

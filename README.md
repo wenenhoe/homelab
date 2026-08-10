@@ -14,7 +14,14 @@ The lab is organized as a small group of hosts, each owning a subdomain of `lan.
 | `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host | `store.lan.{{ main_domain }}` |
 | `experiment` | Sandbox / test target | `test.lan.{{ main_domain }}` |
 
-Every host in the `app_hosts` group runs its own Caddy instance and terminates TLS for its own `*.{{ caddy_domain }}` wildcard, using DNS-01 challenges via the DigitalOcean DNS provider. `services` additionally runs the single authoritative BIND9 instance for the whole lab: it scrapes every app host's declared DNS zones (via Ansible `hostvars`) and serves CNAME records that point each service back at its host's dynamic DNS target. Access to non-public apps is enforced by **Tinyauth**, which Caddy calls out to as a `forward_auth` step before proxying to the upstream container. Every host also runs a `backup_agent` instance that pushes GPG-encrypted archives of its own apps' named volumes to `storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
+Every `app_hosts` member runs its own Caddy instance and terminates TLS
+for its own `*.{{ caddy_domain }}` wildcard via DNS-01 (DigitalOcean).
+`services` additionally runs the lab's single authoritative BIND9
+instance, scraping every app host's declared DNS zones and serving
+CNAMEs back to each host's dynamic DNS target. Non-public apps sit behind
+**Tinyauth** forward-auth. Every host also runs a `backup_agent` instance
+pushing GPG-encrypted archives of its own apps' named volumes to
+`storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
 
 ## Repository Layout
 
@@ -62,29 +69,56 @@ Every host in the `app_hosts` group runs its own Caddy instance and terminates T
 └── docs/                    # Deep dives — see below
 ```
 
-Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/` directory of Jinja2 templates (`.env` files, app config files) that Ansible renders onto the target host — the `docker/` tree is the single source of truth for what gets deployed; nothing is hand-authored on the servers themselves.
+Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/`
+directory of Jinja2 templates that Ansible renders onto the target host —
+nothing is hand-authored on the servers themselves.
 
 ## Further Reading
 
+### Architecture & workflow
+
 | Doc | Covers |
 | :--- | :--- |
-| [`docs/deployment-flow.md`](docs/deployment-flow.md) | The 6-play `deploy.yaml` sequence, the role responsibilities, and the `app_registry` pattern that drives per-host config resolution. |
-| [`docs/volumes.md`](docs/volumes.md) | The named-volume storage architecture: registry `volumes:` field, one-time migration from bind mounts, staging + seeding Ansible-rendered configs, and backward compatibility with plain bind-mounted apps. |
-| [`docs/bind9.md`](docs/bind9.md) | How the internal DNS zones are aggregated, rendered, and reloaded without spurious restarts. |
-| [`docs/caddy.md`](docs/caddy.md) | The custom DigitalOcean-DNS Caddy build, Caddyfile generation, and Tinyauth forward-auth wiring. |
-| [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring setup, the WebSocket connection model, and the one-time KEY/TOKEN bootstrap sequence. |
-| [`docs/adding-an-app.md`](docs/adding-an-app.md) | Step-by-step: wiring a new Compose app into the `app_registry` and a host's `compose_apps`. |
-| [`docs/host-vars.md`](docs/host-vars.md) | Field-by-field reference for `host_vars/<host>.yaml`: `caddy_domain`, `compose_apps`, per-host alias vars, `dns_ddns_target`/`dns_zones`. |
-| [`docs/cleanup.md`](docs/cleanup.md) | How `cleanup.yaml` finds stacks orphaned from `compose_apps`, the keep-vs-delete content policy, and dry-running a cleanup pass. |
-| [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: the `storage` host, SeaweedFS as a self-hosted S3 target, the `backup_agent` role's per-host aggregation, GPG encryption, and capacity/retention reasoning. |
-| [`docs/secrets.md`](docs/secrets.md) | The `secrets` role and `secrets_registry.yaml`: the three formats (`hex`/`uuid4`/`manual`), `bootstrap_secrets.py`, `no_log`/`force` conventions, and rotation. |
-| [`docs/molecule-testing.md`](docs/molecule-testing.md) | The full per-role/per-scenario Molecule matrix, what `molecule_helpers` shares across scenarios, the Docker-in-Docker `vfs` storage-driver quirk, and how to add a new scenario. |
+| [`docs/deployment-flow.md`](docs/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
+| [`docs/volumes.md`](docs/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
+| [`docs/host-vars.md`](docs/host-vars.md) | `host_vars/<host>.yaml` field reference. |
+| [`docs/adding-an-app.md`](docs/adding-an-app.md) | Wiring a new Compose app into the registry. |
+
+### Per-app infra
+
+| Doc | Covers |
+| :--- | :--- |
+| [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
+| [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
+| [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
+| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle across the certbot/dockerproxy/lldap containers. |
+
+### Operations
+
+| Doc | Covers |
+| :--- | :--- |
+| [`docs/cleanup.md`](docs/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
+| [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
+| [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
+
+### Testing & CI
+
+| Doc | Covers |
+| :--- | :--- |
+| [`docs/molecule-testing.md`](docs/molecule-testing.md) | Molecule scenario matrix and how to add one. |
+| [`docs/ci.md`](docs/ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check. |
 
 ## Setup
 
-Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/) as a project dependency manager (`pyproject.toml` + `uv.lock`), not via `uv tool install`. Everything — `ansible-core`, the `docker` Python SDK, `molecule`, `molecule-plugins`, `pre-commit` — lives in one shared, reproducible `.venv/`, avoiding the duplicate-collection issues that come from installing `ansible-core` into multiple separate tool venvs.
+Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/installation/)
+as a project dependency manager (`pyproject.toml` + `uv.lock`).
+`ansible-core`, the `docker` Python SDK, `molecule`, `molecule-plugins`,
+and `pre-commit` all live in one shared `.venv/`.
 
-`ansible-core` is used deliberately instead of the full `ansible` metapackage. `ansible` bundles hundreds of community collections this repo doesn't use; the two it actually needs (`community.docker`, `ansible.posix`) are declared explicitly in `ansible/requirements.yml` instead, so the dependency set is exact and reproducible.
+`ansible-core` is used instead of the full `ansible` metapackage — the
+two collections this repo needs (`community.docker`, `ansible.posix`)
+are declared explicitly in `ansible/requirements.yml` for an exact,
+reproducible dependency set.
 
 - Install `uv`: see the [uv docs](https://docs.astral.sh/uv/getting-started/installation/)
 - Install everything (creates `.venv/` from `pyproject.toml`/`uv.lock`):
@@ -106,11 +140,14 @@ Tooling is managed with [`uv`](https://docs.astral.sh/uv/getting-started/install
    ```
    To run all hooks manually: `pre-commit run -c .config/.pre-commit-config.yaml --all-files`.
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
-- Before your first `deploy.yaml` run, fill in every value Ansible can't generate itself (DigitalOcean API key, Let's Encrypt email, Diun's Telegram token/chat ID, and a few others — no longer prompted for interactively):
+- Before your first `deploy.yaml` run, fill in every value Ansible can't
+  generate itself (DigitalOcean API key, Let's Encrypt email, Diun's
+  Telegram token/chat ID, and a few others):
    ```sh
   python3 ansible/bootstrap_secrets.py
    ```
-  Safe to re-run any time — it only ever fills in what's still missing under `ansible/files/secrets/`, never overwrites an existing value. See [`docs/secrets.md`](docs/secrets.md) for the full mechanism, including how to rotate a value later.
+  Safe to re-run — only fills in what's missing. See
+  [`docs/secrets.md`](docs/secrets.md).
 
 Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
 
@@ -159,16 +196,17 @@ Two inventories exist for two different situations:
   ```sh
   ansible-playbook playbooks/deploy.yaml --skip-tags "initial-setup"
   ```
-- Pull/rebuild images and recreate any container that changed as a result, without touching configs/DNS or the Docker install:
+- Pull/rebuild changed images and recreate their containers only:
   ```sh
   ansible-playbook playbooks/deploy.yaml --tags "images"
   ```
-- Re-render Caddy's Caddyfile and BIND9's DNS zones/`named.conf`, restarting only the containers whose config actually changed:
+- Re-render Caddyfile/DNS zones, restarting only containers whose config
+  changed:
   ```sh
   ansible-playbook playbooks/deploy.yaml --tags "infra"
   ```
-  Both `images` and `infra` skip `preinit` and `docker` install by design - `preinit` still runs regardless of tags (it's cheap and everything downstream depends on the `compose_apps` it resolves), but the `Init caddy/bind9's own compose app files and directories` and `compose_app`'s app-init steps only run on a full, untagged run - `images`/`infra` assume the host is already provisioned.
-  There's no `vars_prompt` anymore, so neither command prompts for anything — every value that used to live there is read from a cache file under `ansible/files/secrets/` by the `secrets` role (also tagged `always`, so it runs under any `--tags` filter). Run `python3 ansible/bootstrap_secrets.py` once, before your first deploy, to create every missing one interactively — see [`docs/secrets.md`](docs/secrets.md).
+  Both assume the host is already provisioned once (a full, untagged run
+  first). See [Tags in `deployment-flow.md`](docs/deployment-flow.md#tags).
 - Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
   ```sh
   ansible-inventory -i inventory/inventory.yaml --host experiment
@@ -183,29 +221,33 @@ Two inventories exist for two different situations:
 
 ## Applications
 
-Everything routed through Caddy sits behind **Tinyauth** forward-auth by default (per-route `auth: false` opts out — e.g. Cobalt, Dashy, OpenSpeedTest, LLDAP's own UI, Beszel's hub), backed by **LLDAP** as the directory. **DIUN** watches deployed images and notifies over Telegram when updates are available. **Beszel** monitors host and container health across every `app_hosts` member, with its hub on `security` and an agent on each host — see [`docs/beszel.md`](docs/beszel.md). Every host also runs a **`backup_agent`** instance pushing GPG-encrypted archives of its own apps' named volumes to **SeaweedFS** on `storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md). The rest of `docker/` is a set of independently deployable Compose stacks (dashboards, media/download tools, a Minecraft server, link shortener, pastebin, web terminal, etc.) — each one just an entry in `app_registry` plus a `docker/<app>/` directory of its `compose.yaml` and config templates. See [`docs/adding-an-app.md`](docs/adding-an-app.md) to add a new one.
+Everything routed through Caddy sits behind **Tinyauth** forward-auth by
+default (per-route `auth: false` opts out, e.g. Cobalt, Dashy,
+OpenSpeedTest), backed by **LLDAP** as the directory. **DIUN** watches
+deployed images and notifies over Telegram on updates. **Beszel**
+monitors host/container health lab-wide — see
+[`docs/beszel.md`](docs/beszel.md). Every host runs a **`backup_agent`**
+pushing GPG-encrypted archives to **SeaweedFS** on `storage` nightly —
+see [`docs/disaster-recovery.md`](docs/disaster-recovery.md). The rest of
+`docker/` is independently deployable Compose stacks (dashboards, media
+tools, Minecraft, link shortener, pastebin, web terminal, etc.), each
+just an `app_registry` entry plus a `docker/<app>/` directory. See
+[`docs/adding-an-app.md`](docs/adding-an-app.md) to add one.
 
 ## Testing
 
-Roles are tested individually with [Molecule](https://ansible.readthedocs.io/projects/molecule/), using the co-located convention: each role's scenario(s) live at `ansible/roles/<role>/molecule/<scenario>/`. Roles are brought up in Docker containers, converged, verified, then re-converged to check idempotence.
-
-Run a single role's default scenario:
+Roles are tested individually with
+[Molecule](https://ansible.readthedocs.io/projects/molecule/), co-located
+at `ansible/roles/<role>/molecule/<scenario>/`.
 
 ```sh
 cd ansible/roles/apt
-molecule test
+molecule test              # default scenario
+molecule test -s volumes   # named scenario (cd ansible/roles/compose first)
 ```
 
-`fwupd` has no scenario — it talks to real firmware/LVFS hardware, which a container can't meaningfully simulate.
-
-Most other roles have `default` plus one or more named scenarios covering a specific branch or edge case — `compose`, for example, also has `volumes`, `scripts`, `build`, and `cleanup`. Run a non-default scenario with `-s`:
-
-```sh
-cd ansible/roles/compose
-molecule test -s volumes
-```
-
-Shared setup that would otherwise be duplicated across scenarios — the Docker-in-Docker `prepare` playbook, bootstrapping the `docker` role, resolving `compose_apps`, Galaxy dependencies — lives once in `ansible/roles/molecule_helpers/` and is referenced from each scenario's `molecule.yml`/`converge.yml` instead of copy-pasted. See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full scenario matrix and how to add a new one.
+See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full
+scenario matrix and how to add one.
 
 ## Linting & Pre-commit
 
@@ -213,10 +255,15 @@ Shared setup that would otherwise be duplicated across scenarios — the Docker-
 
 - `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene
 - [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning
-- [`ansible-lint`](https://github.com/ansible/ansible-lint) — lints everything under `ansible/` (the `docker/` tree is excluded via `.config/.ansible-lint`, since it's Compose files, not playbooks)
+- [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
+- [`ansible-lint`](https://github.com/ansible/ansible-lint) — lints `ansible/` (`docker/` excluded, it's Compose files not playbooks)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
-- [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`; line-length, fenced-code-language, and blanks-around-fences are disabled in `.config/.markdownlint.yaml` since they conflict with this repo's established prose/example style
+- [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
 
-All tool configs (`.ansible-lint`, `.yamllint`, `.dclintrc`, `.markdownlint.yaml`, `.pre-commit-config.yaml`) live under `.config/`; each hook is passed an explicit `-c`/`--config` flag pointing there, since these tools only auto-discover configs at the repo root by default. `ansible-lint` additionally gets `--project-dir ansible`, since it resolves `ansible.cfg`'s `roles_path` relative to the current working directory rather than the config file's location — without it, `ansible-lint` can't find roles once playbooks moved into `ansible/playbooks/`.
+All tool configs live under `.config/` (each hook is passed an explicit
+`-c` flag, since these tools don't auto-discover configs there by
+default). `ansible-lint` also gets `--project-dir ansible`, since it
+resolves `roles_path` relative to cwd rather than the config file.
 
-Run `pre-commit install -c .config/.pre-commit-config.yaml` once after cloning so these run automatically on every commit.
+Run `pre-commit install -c .config/.pre-commit-config.yaml` once after
+cloning.

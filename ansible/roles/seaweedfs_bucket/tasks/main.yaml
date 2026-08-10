@@ -1,19 +1,13 @@
 ---
-# ---------------------------------------------------------------------------
-# Confirmed via live production logs (2026-08-05): SeaweedFS does NOT
-# auto-create a bucket on first PUT even with Admin-scoped credentials
-# (see docker/seaweedfs/configs/s3-identity.json.j2) — every backup_agent
-# instance failed its first real upload with "NoSuchBucket", despite the
-# stop/restart and archive-creation steps all working correctly. This
-# makes bucket creation explicit and idempotent instead, mirroring the
-# exact same aws-cli-based approach already verified in
-# ansible/roles/backup_agent/molecule/default/converge.yml.
+# SeaweedFS does not auto-create a bucket on first PUT, even with
+# Admin-scoped credentials (see
+# docker/seaweedfs/configs/s3-identity.json.j2) — this makes creation
+# explicit and idempotent instead.
 #
-# Runs once, on `storage` only (see deploy.yaml) — deliberately not
-# folded into backup_agent itself: bucket creation is a storage-side
-# setup concern (creating the destination), not something every
-# individual backup_agent host should be redundantly responsible for.
-# ---------------------------------------------------------------------------
+# Runs once, on `storage` only (see deploy.yaml). Kept out of
+# backup_agent itself: bucket creation is a one-time storage-side
+# concern, not something every backup_agent host should redundantly
+# handle.
 
 - name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
   community.docker.docker_container:
@@ -31,14 +25,10 @@
     output_logs: true
   register: seaweedfs_bucket_create
   changed_when: false
-  # Tolerate "already exists" specifically, same idiom as the molecule
-  # test's own idempotence fix — anything else is a real failure.
-  #
-  # Two distinct S3 error codes:
-  # - BucketAlreadyExists (a DIFFERENT owner already has this name) and
-  # - BucketAlreadyOwnedByYou (SAME identity re-running `mb` — what a
-  # private, single-owner target like this one actually returns on every
-  # idempotent re-run in production).
+  # Tolerate "already exists" (both BucketAlreadyExists and
+  # BucketAlreadyOwnedByYou — the latter is what a single-owner target
+  # like this one actually returns on an idempotent re-run). Anything
+  # else is a real failure.
   failed_when: >-
     seaweedfs_bucket_create is failed
     and 'BucketAlreadyExists' not in (seaweedfs_bucket_create.msg | default(''))

@@ -11,11 +11,6 @@
 # that doesn't hit that kernel-level stacking restriction, so it still
 # gets real copy-on-write instead of vfs's full-copy-per-layer behaviour —
 # meaningfully faster for image pulls/builds inside the nested daemon.
-# Previously this forced `vfs`; switched to address vfs's copy-per-layer
-# overhead as the suspected dominant slowdown in these scenarios — verify
-# with `docker info` (Storage Driver: fuse-overlayfs) and a before/after
-# `time molecule converge` on the docker role scenario before relying on
-# this landing a real speedup.
 # Real target hosts don't have the stacking problem and should keep using
 # overlay2 — this is test-scaffolding only.
 - name: Install fuse-overlayfs

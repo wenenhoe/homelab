@@ -1,41 +1,27 @@
 ---
-# ---------------------------------------------------------------------------
 # Restore one app's volume(s) from an offsite backup archive.
 #
 # Doesn't talk to SeaweedFS or GPG directly — pull the object out of the
-# `homelab-backups` bucket and `gpg --decrypt` it with the offline private
-# key yourself first (see docs/disaster-recovery.md), then hand this
+# `homelab-backups` bucket and `gpg --decrypt` it with the offline
+# private key first (see docs/disaster-recovery.md), then hand this
 # playbook the resulting plain .tar.gz.
 #
 # A decrypted archive may contain more apps than the one you're
 # restoring, since backup_agent aggregates multiple apps per group — this
-# playbook only extracts the directories matching restore_volumes and
-# ignores the rest. restore_app just controls which app's own compose
-# stack gets stopped/redeployed around the operation.
+# only extracts directories matching restore_volumes. restore_app
+# controls which app's compose stack gets stopped/redeployed around it.
 #
-# All the actual logic lives in ansible/roles/restore — this is a thin
-# play-sequencer. It MUST stay a single play (hosts: managed_hosts), not
-# split into a separate validation play — see that role's
-# tasks/main.yaml header for why (a split was tried and confirmed to
-# silently skip validation under `--limit <group>`, the exact invocation
-# shown below). managed_hosts, not all — all also includes the
-# controller (see inventory.yaml), which is never a valid restore target.
+# All logic lives in ansible/roles/restore; this is a thin sequencer. It
+# MUST stay a single play (hosts: managed_hosts, not all — all includes
+# the controller, never a valid restore target) — see that role's
+# tasks/main.yaml header for why a separate validation play isn't safe.
 #
-# REQUIRES bootstrap-secrets.yaml passed on the SAME command line, ahead
-# of this file (see below) — this playbook's hosts: managed_hosts
-# resolves ansible_host through secrets_generated the same way
-# deploy.yaml's does (see bootstrap-secrets.yaml for the full why), but
-# that bootstrap CAN'T
-# live inside this file as a second play, for the exact reason above (a
-# leading play here would be just as much a split as the validation split
-# that was already rejected — same silent-skip-under-limit risk). Passing
-# it as a separate file on the same ansible-playbook invocation avoids
-# that: Ansible facts persist across every playbook file in a single
-# invocation the same way they persist across plays within one file
-# (confirmed live), and bootstrap-secrets.yaml's own play (hosts:
-# localhost) is structurally unrelated to restore's single
-# hosts: managed_hosts play — passing it alongside doesn't split THIS role's validation
-# anywhere, it just runs before it.
+# REQUIRES bootstrap-secrets.yaml passed on the SAME command line ahead
+# of this file: hosts: managed_hosts resolves ansible_host through
+# secrets_generated, but the bootstrap can't be a second play in this
+# file for the same single-play reason above. Passing it as a separate
+# file works because Ansible facts persist across every playbook file in
+# one invocation, same as across plays within a file.
 #
 # Usage:
 #   ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
@@ -57,16 +43,14 @@
 #
 # Destructive by design (overwrites current volume contents) — the pause
 # step requires explicit confirmation before anything happens.
-# ---------------------------------------------------------------------------
 
 - name: Restore an app's volume(s) from an offsite backup archive
   hosts: managed_hosts
   gather_facts: false
   become: true
-  # Pinned explicitly: a destructive, human-operated procedure benefits
-  # from linear's predictable, one-host-at-a-time output, even though
-  # it's not required for the validation-blocks-destruction property
-  # itself (safe under any strategy — see roles/restore/tasks/main.yaml).
+  # linear for predictable, one-host-at-a-time output on a destructive,
+  # human-operated procedure (not required for correctness — see
+  # roles/restore/tasks/main.yaml).
   strategy: linear
   tasks:
     - name: Run the restore role

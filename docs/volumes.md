@@ -1,10 +1,16 @@
 # Named Volumes: Storage Architecture
 
-Persistent app data lives in Docker-managed named volumes, not bind mounts. An app's stack directory under `compose_deploy_dir` still holds its `compose.yaml` and any rendered `.env`/scripts, but real state (databases, caches, certs, world saves...) lives in a volume Docker owns, created and populated by Ansible rather than existing as a `./data`-style host path.
+Persistent app data lives in Docker-managed named volumes, not bind
+mounts. An app's stack directory under `compose_deploy_dir` still holds
+its `compose.yaml` and rendered `.env`/scripts, but real state (databases,
+caches, certs, world saves) lives in a volume Docker owns, created and
+populated by Ansible rather than a `./data`-style host path.
 
 ## Declaring volumes
 
-A `volumes` list in an app's `app_registry` entry is what triggers all of this — an app with no `volumes` key behaves exactly as it did before this existed (see [Backward compatibility](#backward-compatibility-with-bind-mounted-apps) below):
+A `volumes` list in an app's `app_registry` entry triggers this. An app
+with no `volumes` key is unaffected (see
+[Backward compatibility](#backward-compatibility-with-bind-mounted-apps)):
 
 ```yaml
 app_registry:
@@ -39,17 +45,28 @@ volumes:
 
 ## One-time migration (`ensure_volume.yaml`)
 
-For each declared volume, `roles/compose/tasks/ensure_volume.yaml` runs once per deploy:
+For each declared volume, `roles/compose/tasks/ensure_volume.yaml` runs
+once per deploy:
 
-1. Create the volume (`community.docker.docker_volume`, `state: present`), labelled `homelab.app`/`homelab.volume` — this label is what lets `cleanup.yaml` find and remove an app's volumes later even after its `app_registry` entry (and therefore its declared `volumes` list) is gone. See [`cleanup.md`](cleanup.md).
-2. Check whether a legacy bind-mount directory still exists at the expected path (`legacy_path`, defaulting to the volume's own name).
-3. If it does, copy its contents into the new volume once via a throwaway `alpine` container, then rename the old directory to `<path>.migrated` — its absence on the next run is the only idempotency check needed, no separate marker file.
+1. Create the volume (`community.docker.docker_volume`, `state: present`),
+   labelled `homelab.app`/`homelab.volume` — lets `cleanup.yaml` find and
+   remove it later even after the `app_registry` entry is gone. See
+   [`cleanup.md`](cleanup.md).
+2. Check whether a legacy bind-mount directory still exists at
+   `legacy_path` (defaults to the volume's own name).
+3. If it does, copy its contents into the volume via a throwaway `alpine`
+   container, then rename the old directory to `<path>.migrated` — its
+   absence is the idempotency check for the next run.
 
-This only ever runs against real on-disk data; a fresh app with nothing at the legacy path just gets an empty volume.
+A fresh app with nothing at the legacy path just gets an empty volume.
 
 ## Ansible-managed content: staging and seeding
 
-Some volumes need to hold files Ansible generates — rendered configs, static scripts — not just data the app writes itself. Ansible can't write directly into a volume's mount target, so anything whose `configs`/`scripts` `dest` matches a declared volume name is instead rendered to a staging path (`<app>/_staging/<volume>/...`) and copied into the volume only when it actually changes:
+Some volumes need to hold files Ansible generates — rendered configs,
+static scripts — not just app-written data. Ansible can't write directly
+into a volume's mount target, so anything whose `configs`/`scripts` `dest`
+matches a declared volume name is rendered to a staging path
+(`<app>/_staging/<volume>/...`) and copied in only when it changes:
 
 ```yaml
 configs:
@@ -59,22 +76,31 @@ configs:
     dest: .env               # no volume named ".env" -> deployed directly, as always
 ```
 
-This classification happens once per app in `init.yaml`'s `compose_app_deploy_plan` fact (`configs`/`scripts`, each split into `direct`/`seeded`), then:
+Classified once per app in `init.yaml`'s `compose_app_deploy_plan` fact
+(`configs`/`scripts` split into `direct`/`seeded`):
 
-- **Direct** items deploy straight to their final path — identical to pre-volumes behavior.
-- **Seeded** items render/copy to staging. Ansible's own `template`/`copy` idempotency (a checksum diff against the previous staging file) is what decides whether anything changed — no bespoke diffing needed for the common case.
-- Any volume with at least one changed staged file gets bulk-copied from staging into the volume (`seed_volume.yaml`: one throwaway container, `cp -a /src/. /dest/`) and that change feeds `compose_app_extra_changed`, so the stack restarts when its config actually changed, not just because a template happened to run.
+- **Direct** items deploy straight to their final path, as before.
+- **Seeded** items render/copy to staging; Ansible's own checksum diff
+  against the previous staging file decides whether anything changed.
+- Any volume with a changed staged file gets bulk-copied in
+  (`seed_volume.yaml`: throwaway container, `cp -a /src/. /dest/`), which
+  feeds `compose_app_extra_changed` so the stack restarts only when its
+  config actually changed.
 
-Because the bulk copy only ever adds/overwrites what's in the staging tree, anything else already in the volume — app-generated state living alongside a seeded file, like an app's own runtime database sitting next to its rendered config — is left untouched.
+The bulk copy only adds/overwrites what's in the staging tree — anything
+else already in the volume (e.g. an app's own runtime database next to
+its rendered config) is left untouched.
 
 ## Self-managed apps (`bind9`, `caddy`)
 
-`bind9` and `caddy` deploy themselves directly rather than through the generic `compose_app` batch role, and each already had its own bespoke config-change detection before volumes existed (`bind9`'s serial-stripped zone diffing, `caddy`'s plain template `register`). Rather than duplicate the staging/seed mechanism, both roles:
-
-1. Point their own rendering at a staging path (`bind9_config_dir` -> `_staging/config`; `caddy`'s Caddyfile -> `_staging/caddyfile/Caddyfile`) instead of the old bind-mount path.
-2. Reuse `seed_volume.yaml` directly via `include_role: {name: compose, tasks_from: seed_volume}`, gated on their own already-computed change flag (`bind9_dns_changed`, `caddy_config_changes.changed`).
-
-No change to their existing diffing logic was needed — it was already comparing against "the previous rendition," which is exactly what a staging path is.
+`bind9` and `caddy` deploy themselves outside the generic `compose_app`
+batch role, each with its own pre-existing config-change detection
+(`bind9`'s serial-stripped zone diffing, `caddy`'s plain template
+`register`). Both point their rendering at a staging path
+(`bind9_config_dir` → `_staging/config`; Caddyfile →
+`_staging/caddyfile/Caddyfile`) and reuse `seed_volume.yaml` directly
+(`include_role: {name: compose, tasks_from: seed_volume}`), gated on
+their own change flag.
 
 ## Single-file and subdirectory mounts
 
@@ -89,24 +115,26 @@ volumes:
       subpath: Caddyfile        # caddy's Caddyfile, single file at the volume's root
 ```
 
-`minecraft`'s `bluemap` service uses the same mechanism to mount just the `world` subdirectory out of the shared `data` volume it otherwise doesn't own. This needs a reasonably recent Docker Engine/Compose (subpath support landed in the Compose Spec in 2023 — Engine 25+, Compose CLI v2.22+ roughly).
+`minecraft`'s `bluemap` service uses the same mechanism to mount just the
+`world` subdirectory out of the shared `data` volume it otherwise doesn't
+own, and `seaweedfs` mounts its rendered `s3-identity.json` the same way,
+out of its own `data` volume. Needs Docker Engine 25+/Compose CLI v2.22+
+for subpath support.
 
 ## What stays a bind mount
 
-Two categories are deliberately never converted:
-
-- **Host system resources** — the Docker socket (`lldap`/`diun`/`beszel-agent`'s `dockerproxy` sidecars, `dockge`), and `dockge`'s `/opt/stacks` (it needs to see the real host directory tree of every stack's compose files, not an isolated volume).
-- **Anything not declared as a volume** — see below.
+- **Host system resources** — the Docker socket (`lldap`/`diun`/`beszel-agent`'s
+  `dockerproxy` sidecars, `dockge`), and `dockge`'s `/opt/stacks` (needs
+  the real host directory tree of every stack's compose files).
+- **Anything not declared as a volume.**
 
 ## Backward compatibility with bind-mounted apps
 
-An app with no `volumes` key in its registry entry is completely unaffected by any of this. Every place `compose_app_item.volumes` is read defaults to an empty list, which means:
-
-- `ensure_volume.yaml`'s loop runs zero times.
-- The classify step's `volume_names` list is empty, so no config or script `dest` can ever match one — everything routes to `direct`, deployed exactly as before.
-- The staging/seed tasks all loop over empty lists — no-ops.
-
-A new experimental stack using plain `./data:/data`-style bind mounts and `create_dirs` deploys exactly as it always did; adopting named volumes is purely opt-in per app.
+An app with no `volumes` key is unaffected: `ensure_volume.yaml` runs zero
+times, no config/script `dest` can match a volume name so everything
+routes to `direct`, and staging/seed tasks loop over empty lists. A new
+experimental stack using plain `./data:/data` bind mounts and
+`create_dirs` deploys exactly as before — named volumes are opt-in per app.
 
 ## Cleanup
 

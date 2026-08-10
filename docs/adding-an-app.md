@@ -35,11 +35,11 @@ app_registry:
         upstream: "my-app:8080"
 ```
 
-- `volumes`: named Docker volumes Ansible creates and (if there's existing data at the old bind-mount path) migrates into automatically — this is what `./data:/data` in `compose.yaml` becomes `data:/data` plus a `volumes: { data: { external: true, name: my-app_data } }` block referencing. See [`volumes.md`](volumes.md) for the full mechanism, including how to seed Ansible-rendered configs into one. Omit entirely for an app with no persistent state, or if you'd rather keep a plain bind mount for now (e.g. an experimental stack) — `create_dirs` below still works unmodified either way.
-- `create_dirs`: subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount (or a staging path a volume gets seeded from), since a declared `volumes` entry no longer needs its directory pre-created.
-- `configs`: templates to render. Every config defaults to `force: true` (overwrite when content differs — this repo is the source of truth) and needs no `force` key at all unless the destination can hold real state Ansible has no way to reconstruct, e.g. an in-app settings UI that writes back to the same file (see `dashy`'s `app_registry` entry for a live example of this open question). If a config renders a real secret (an API key, token, or password — not just a hostname or timezone), set `no_log: true` on it, or a run with `--diff` prints the plaintext straight to the console the moment its value ever differs from what's already deployed, including on the very first deploy — see [`secrets.md`](secrets.md)'s "`no_log: true`" note. If the config needs a secret this repo can generate itself (an API key, a bind password, ...), add it to `ansible/inventory/group_vars/all/secrets_registry.yaml` rather than calling `lookup('password', ...)`/`lookup('pipe', ...)` directly in the template.
-- `scripts`: any helper scripts to copy verbatim into `<app>/scripts/`.
-- `caddy`: omit entirely for an app with no HTTP frontend. For a routable app, each key (`default`, or a descriptive name for apps with multiple routes — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and, optionally, `auth: false` to skip the Tinyauth forward-auth step.
+- `volumes`: named Docker volumes Ansible creates and migrates existing bind-mount data into (`./data:/data` becomes `data:/data`). See [`volumes.md`](volumes.md). Omit for stateless apps or to keep a plain bind mount.
+- `create_dirs`: subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount.
+- `configs`: templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself (see `dashy`'s entry). Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](secrets.md)). Secrets this repo can generate go in `secrets_registry.yaml`, not a raw `lookup('password', ...)` in the template.
+- `scripts`: helper scripts copied verbatim into `<app>/scripts/`.
+- `caddy`: omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth.
 
 ## 3. Add it to a host's `compose_apps`
 
@@ -53,7 +53,13 @@ compose_apps:
         host: my-app
 ```
 
-At deploy time, this gets merged with the `app_registry` entry (`registry_defaults | combine(item, recursive=True)`), so the fully-resolved app carries both its registry defaults and its host-specific hostname. If the host is in `app_hosts` (`services`, `play`, `security`, `storage` — every host in the `prod` group; `experiment` isn't), a CNAME for `my-app.{{ caddy_domain }}` is generated automatically, with no manual DNS editing required. See [`host-vars.md`](host-vars.md) for the full `host_vars` field reference, including the alias-variable pattern (`cobalt_host`, `lldap_host`, ...) used when an app's own config needs to know its routed hostname too.
+At deploy time this merges with the `app_registry` entry
+(`registry_defaults | combine(item, recursive=True)`). If the host is in
+`app_hosts` (every `prod` host except `experiment`), a CNAME for
+`my-app.{{ caddy_domain }}` is generated automatically. See
+[`host-vars.md`](host-vars.md) for the full field reference, including the
+alias-variable pattern (`cobalt_host`, `lldap_host`, ...) for apps whose
+own config needs to know their routed hostname.
 
 ## 4. Deploy
 

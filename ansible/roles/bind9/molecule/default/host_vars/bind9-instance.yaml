@@ -20,6 +20,16 @@ dns_zones:
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
+  # Second, non-Caddy zone: exercises bind9_all_zones/bind9_zone_candidates
+  # with more than one item (see verify.yml for what this proves - the
+  # coverage report's loop count won't reflect it, since these tasks are
+  # no_log: true).
+  - zone: "iot.{{ lab_domain }}"
+    ttl: 3600
+    soa_email: "hostmaster.{{ main_domain }}."
+    serial: 2024010101
+    extra_records:
+      - { name: "sensor1", type: A, value: "10.20.0.5" }
 
 app_registry:
   bind9:

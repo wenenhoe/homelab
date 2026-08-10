@@ -51,6 +51,43 @@
           - "'CNAME' in (bind9_zone_file_raw.content | b64decode)"
           - "'services.internal.example.test.' in (bind9_zone_file_raw.content | b64decode)"
 
+    # --- Second zone: proves bind9_all_zones/bind9_zone_candidates handle
+    # more than one item, and that zones don't bleed into each other ---------
+    - name: Confirm the second zone's stanza was generated
+      ansible.builtin.assert:
+        that:
+          - "'zone \"iot.lan.example.test\"' in (bind9_named_conf_local_raw.content | b64decode)"
+
+    - name: Read back the second zone file
+      ansible.builtin.slurp:
+        path: "{{ bind9_config_dir }}/zones/db.iot.lan.example.test"
+      register: bind9_second_zone_file_raw
+
+    - name: Confirm the second zone's own extra_records rendered
+      ansible.builtin.assert:
+        that:
+          - "'sensor1' in (bind9_second_zone_file_raw.content | b64decode)"
+          - "'10.20.0.5' in (bind9_second_zone_file_raw.content | b64decode)"
+
+    # Substring checks on 'CNAME' or dns_ddns_target's value don't work here:
+    # zone.db.j2's comment header interpolates dns_ddns_target into its own
+    # text ("; All CNAMEs point at: {{ dns_ddns_target }}") unconditionally,
+    # so both strings are present whether or not the loop below actually
+    # renders a record - confirmed against a real second-zone file, which
+    # contains only the comment header and still matched both. Every real
+    # record line starts with the host name (no leading ';'); every comment
+    # line does start with ';' - that structural difference is what actually
+    # distinguishes "documented but not rendered" from "rendered".
+    - name: Confirm the second zone did NOT inherit the first zone's auto-CNAME
+      ansible.builtin.assert:
+        that:
+          - (bind9_second_zone_file_raw.content | b64decode | regex_search('(?m)^[^;\n].*CNAME')) is none
+
+    - name: Confirm the first zone's file did NOT pick up the second zone's records
+      ansible.builtin.assert:
+        that:
+          - "'sensor1' not in (bind9_zone_file_raw.content | b64decode)"
+
     # --- Volume seeded from staging -------------------------------------------
     - name: Confirm the config volume was actually seeded
       # slurp reads via the remote host's filesystem, but this content lives

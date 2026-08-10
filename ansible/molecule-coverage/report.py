@@ -16,15 +16,21 @@ Usage:
     # Summary, followed by every role's drill-down, in one go
     python3 report.py --coverage-dir ansible/molecule-coverage/.data --show-all
 
-    # Exit 1 if any role's aggregate coverage is below a threshold
-    # (useful later for a CI gate - not required, just available)
+    # Exit 1 if any reported role's aggregate coverage is below a threshold
     python3 report.py --coverage-dir ansible/molecule-coverage/.data --fail-under 80
+
+    # Same, but per-role floors from a checked-in file instead of one
+    # global number - see molecule-coverage/thresholds.yaml
+    python3 report.py --coverage-dir ansible/molecule-coverage/.data \
+      --thresholds-file ansible/molecule-coverage/thresholds.yaml --role caddy
 """
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
+
+import yaml
 
 # So this runs correctly regardless of the caller's cwd (e.g. `python3
 # ansible/molecule-coverage/report.py ...` from a repo root), not just when
@@ -213,11 +219,19 @@ def main() -> int:
         action="store_true",
         help="Print the summary table, then every role's per-task drill-down, in one go",
     )
-    parser.add_argument(
+    threshold_group = parser.add_mutually_exclusive_group()
+    threshold_group.add_argument(
         "--fail-under",
         type=float,
         default=None,
-        help="Exit 1 if any reported role's aggregate coverage_pct is below this threshold",
+        help="Exit 1 if any reported role's aggregate coverage_pct is below this single threshold",
+    )
+    threshold_group.add_argument(
+        "--thresholds-file",
+        type=Path,
+        default=None,
+        help="YAML file of {role: floor}. Exit 1 if any reported role is below its floor, "
+        "or 2 if a reported role has no entry (see molecule-coverage/thresholds.yaml)",
     )
     args = parser.parse_args()
 
@@ -257,6 +271,28 @@ def main() -> int:
         ]
         if failing:
             print(f"\nFAIL: below {args.fail_under}% coverage: {', '.join(failing)}", file=sys.stderr)
+            return 1
+
+    if args.thresholds_file is not None:
+        thresholds = yaml.safe_load(args.thresholds_file.read_text(encoding="utf-8")) or {}
+        # A role with data but no threshold entry is an error, not a pass -
+        # a new role should get a deliberate floor, not an accidental free ride.
+        missing = [r["role"] for r in reports if r["role"] not in thresholds]
+        if missing:
+            print(
+                f"\nERROR: no threshold entry for: {', '.join(missing)} "
+                f"in {args.thresholds_file} - add one before this can gate.",
+                file=sys.stderr,
+            )
+            return 2
+        failing = [
+            r["role"]
+            for r in reports
+            if r["summary"]["coverage_pct"] is not None
+            and r["summary"]["coverage_pct"] < thresholds[r["role"]]
+        ]
+        if failing:
+            print(f"\nFAIL: below its threshold: {', '.join(failing)}", file=sys.stderr)
             return 1
 
     return 0

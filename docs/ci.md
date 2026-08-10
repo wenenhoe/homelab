@@ -35,7 +35,7 @@ could be touched by one of their hooks:
 | `ansible-lint` | always | `ansible-lint`, the one push-stage hook — always lints the whole `ansible/` tree, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore changed | See below. |
-| `molecule` | any role touched | One matrix job per changed role, running `./molecule-test-all.sh <role>`. See [`molecule-testing.md`](molecule-testing.md). |
+| `molecule` | any role touched | One matrix job per changed role, running `./molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
 | `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results into one fixed check name — see below. |
@@ -100,6 +100,30 @@ Manual secrets are pre-seeded as plain files under
 `ansible/files/secrets/`, mirroring what `bootstrap_secrets.py` produces
 — throwaway CI values, same non-secret status as
 `ci-inventory/group_vars/all/ci_dummy_vars.yaml`.
+
+## Molecule coverage gate
+
+Each `molecule` matrix job regenerates that role's task inventory
+(`molecule-coverage/inventory.py`, gitignored - tied to the checkout's
+absolute paths, so not committed) and runs `report.py --thresholds-file
+molecule-coverage/thresholds.yaml`, both against the coverage data that
+role's own `molecule test` run just produced. Per-role, not one global
+number, since roles aren't structurally comparable - see
+[`molecule-coverage/README.md`](../ansible/molecule-coverage/README.md)
+for what the report actually measures.
+
+A role with no entry in `thresholds.yaml` fails the check (exit 2, not a
+silent pass) - a new role needs a deliberate floor, not an inherited
+default. The current floors are hand-verified, not guesses - the three
+below 100% are legitimate, understood gaps rather than untested code:
+
+- `apt` (75%) - the reboot-if-required task needs rebooting the test
+  container itself to exercise.
+- `bind9` (94.4%) - the resolv.conf-upstream task needs a pre-existing
+  non-upstream resolv.conf to be worth simulating.
+- `restore` (92.9%) - the interactive confirmation prompt is bypassed on
+  purpose in every scenario, to test the rest of the role
+  non-interactively.
 
 ## Compose boot-test
 

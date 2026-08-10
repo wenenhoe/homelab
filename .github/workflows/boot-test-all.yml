@@ -2,20 +2,13 @@ name: Boot-test every compose app
 
 # workflow_dispatch only, deliberately — this is a full sweep across every
 # app, not a per-PR check (that's pr-checks.yml's compose-boot-test job,
-# scoped to only what changed via detect-changes). Two uses:
-#   1. A real "test everything" button in GitHub's Actions UI.
-#   2. A local act target. list-apps below is a much safer dynamic-matrix
-#      case for act than compose-boot-test's: it doesn't touch
-#      github.event.pull_request.* at all (just lists docker/ directories),
-#      so — unlike compose-boot-test — it needs no faked event payload and
-#      isn't exposed to nektos/act#540-style dynamic-matrix parsing risk
-#      tied to PR-diff data specifically. Still genuinely unverified
-#      end-to-end without a live Docker daemon to actually run it against.
+# scoped to only what changed via detect-changes). A real "test
+# everything" button in GitHub's Actions UI.
 #
-# Keep compose-boot-test-all's steps in sync with pr-checks.yml's
-# compose-boot-test — same app, same seeding path, same wait/teardown
-# logic. If they drift, a workflow_call reusable workflow is the real fix;
-# not done here since there's only one job to keep in sync today.
+# The actual seed/boot/wait/teardown steps live in the shared
+# _compose-boot-test.yml reusable workflow — same one pr-checks.yml's
+# compose-boot-test calls — so there's nothing left here to drift out of
+# sync by hand.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}
 
@@ -31,8 +24,11 @@ jobs:
       - name: List every compose app except the excluded ones
         id: list
         run: |
-          # Same exclusions, same reasons, as pr-checks.yml's detect-changes job
-          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
+          # Exclusion list + per-app reasoning lives in
+          # .github/compose-boot-test-exclusions.txt — the single source
+          # of truth shared with pr-checks.yml's detect-changes and
+          # compose-syntax-check.
+          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
           apps=$(find docker -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
             | grep -vE "^($excluded)\$" \
             | sort \
@@ -42,99 +38,6 @@ jobs:
 
   compose-boot-test-all:
     needs: list-apps
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: ${{ fromJson(needs.list-apps.outputs.apps) }}
-    env:
-      TIMEZONE: "UTC"
-      COBALT_API_URL: "http://localhost:9000"
-      APP_URL: "localhost"
-      WEB_APP_URL: "localhost"
-      API_KEY: "ci-dummy-key"
-      DEFAULT_SSH_HOST: "localhost"
-      TELEGRAM_TOKEN: "ci-dummy-token"
-      TELEGRAM_CHAT_ID: "0"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Create shared external network
-        run: docker network create caddy-proxy || true
-
-      - name: Point diun's Dockerfile mount at a real file
-        if: matrix.app == 'diun'
-        run: |
-          mkdir -p /tmp/compose-deploy/caddy
-          cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
-          echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
-
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.ansible/collections
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r requirements.yml
-        working-directory: ansible
-
-      # See pr-checks.yml's compose-boot-test for why compose_deploy_dir
-      # must be passed as -e (Ansible precedence).
-      - name: Seed ${{ matrix.app }} via the real compose role
-        run: |
-          uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \
-            playbooks/ci_boot_test.yaml \
-            -e app_name=${{ matrix.app }} \
-            -e compose_deploy_dir=/tmp/compose-deploy
-        working-directory: ansible
-
-      - name: Bring the stack up
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" up -d
-
-      - name: DEBUG dump logs if Bring the stack up failed
-        if: failure()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" logs
-
-      - name: Wait for healthy state (or, if none defined, that it stayed running)
-        run: |
-          f="/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
-          services=$(docker compose -f "$f" config --services)
-          for svc in $services; do
-            cid=$(docker compose -f "$f" ps -q "$svc")
-            [ -n "$cid" ] || { echo "::error::$svc never started"; exit 1; }
-
-            has_hc=$(docker inspect --format='{{if .State.Health}}yes{{end}}' "$cid")
-            if [ "$has_hc" = "yes" ]; then
-              echo "Waiting for $svc to report healthy..."
-              for _ in $(seq 1 30); do
-                status=$(docker inspect --format='{{.State.Health.Status}}' "$cid")
-                [ "$status" = "healthy" ] && break
-                [ "$status" = "unhealthy" ] && { echo "::error::$svc is unhealthy"; docker logs "$cid"; exit 1; }
-                sleep 2
-              done
-              [ "$status" = "healthy" ] || { echo "::error::$svc never became healthy (last: $status)"; docker logs "$cid"; exit 1; }
-            else
-              # No healthcheck defined — weaker signal, but still catches
-              # an immediate crash-loop or bad entrypoint.
-              sleep 10
-              running=$(docker inspect --format='{{.State.Running}}' "$cid")
-              [ "$running" = "true" ] || { echo "::error::$svc exited unexpectedly"; docker logs "$cid"; exit 1; }
-            fi
-          done
-
-      - name: Tear down
-        if: always()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" down -v
+    uses: ./.github/workflows/_compose-boot-test.yml
+    with:
+      apps: ${{ needs.list-apps.outputs.apps }}

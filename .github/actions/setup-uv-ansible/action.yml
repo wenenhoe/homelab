@@ -1,0 +1,70 @@
+name: Setup uv + Ansible Galaxy collections
+description: >-
+  Installs uv, optionally checks uv.lock is current, syncs the dev
+  environment, and optionally caches + installs Ansible Galaxy
+  collections. Every CI job needing this toolchain used to hand-roll its
+  own copy of this sequence with small variations (--locked or not, a
+  lock-check step or not, Galaxy collections or not) — this action covers
+  all of those via inputs so the step sequence itself has one copy.
+  Caller is still responsible for checkout beforehand.
+
+inputs:
+  locked:
+    description: >-
+      Pass --locked to `uv sync` (fail instead of silently re-resolving
+      if pyproject.toml/uv.lock disagree with the environment). Use
+      "true" for CI jobs that must run against exactly what's committed;
+      leave "false" for jobs like pre-commit where that's not the point.
+    required: false
+    default: "false"
+  check-lock:
+    description: >-
+      Run `uv lock --check` before syncing — fails if uv.lock is stale
+      relative to pyproject.toml. Only the uv-lock job needs this.
+    required: false
+    default: "false"
+  install-galaxy-collections:
+    description: >-
+      Cache (keyed on ansible/requirements.yml +
+      ansible/roles/molecule_helpers/role-requirements.yml) and install
+      Ansible Galaxy collections via `ansible-galaxy collection install
+      -r requirements.yml`, run from the ansible/ directory. Skip for
+      jobs that never touch Ansible (pre-commit, uv-lock).
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      with:
+        enable-cache: true
+
+    # Fails if pyproject.toml and uv.lock have drifted apart — catches a
+    # lockfile-maintenance PR that didn't actually regenerate the lock,
+    # or a manual edit that broke resolution.
+    - name: Check lock file is current
+      if: inputs.check-lock == 'true'
+      shell: bash
+      run: uv lock --check
+
+    - name: Sync dev environment
+      shell: bash
+      run: uv sync --group dev${{ inputs.locked == 'true' && ' --locked' || '' }}
+
+    - name: Cache Ansible Galaxy collections
+      if: inputs.install-galaxy-collections == 'true'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.ansible/collections
+        key: >-
+          ansible-galaxy-${{ runner.os }}-${{
+            hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
+          }}
+
+    - name: Install Ansible Galaxy collections
+      if: inputs.install-galaxy-collections == 'true'
+      shell: bash
+      run: uv run ansible-galaxy collection install -r requirements.yml
+      working-directory: ansible

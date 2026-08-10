@@ -1,0 +1,28 @@
+# Apps excluded from the generic compose-boot-test healthcheck-poll job.
+#
+# Single source of truth — read by:
+#   - pr-checks.yml: detect-changes' "Determine which compose stacks to
+#     boot-test" step (feeds compose-boot-test's matrix)
+#   - pr-checks.yml: compose-syntax-check (the fallback check for exactly
+#     the apps compose-boot-test skips)
+#   - boot-test-all.yml: list-apps (feeds compose-boot-test-all's matrix)
+#
+# One app name per line. Blank lines and full-line '#' comments are
+# ignored when this file is parsed; per-app reasoning below stays
+# attached to the app it explains.
+
+# bind9, seaweedfs, caddy: already covered by their own molecule
+# scenarios with stronger, real-protocol assertions (DNS resolution, S3
+# error semantics) than a generic healthcheck poll would add.
+bind9
+seaweedfs
+caddy
+
+# lldap: certbot needs a real DigitalOcean DNS-01 credential to do
+# anything meaningful, and the lldap service itself has no healthcheck
+# defined yet.
+lldap
+
+# tinyauth: crashes with "app URL cannot be empty, perhaps config
+# loading failed" despite a live-verified, schema-correct config.yaml.
+tinyauth

@@ -97,19 +97,14 @@ jobs:
       - name: Determine which compose stacks to boot-test
         id: compose
         run: |
-          # bind9/seaweedfs/caddy excluded deliberately — already covered
-          # by their own molecule scenarios with stronger, real-protocol
-          # assertions (DNS resolution, S3 error semantics) than a generic
-          # healthcheck poll would add. lldap excluded: certbot needs a
-          # real DigitalOcean DNS-01 credential to do anything meaningful,
-          # and the lldap service itself has no healthcheck defined yet
-          # tinyauth excluded: crashes with "app URL cannot be empty,
-          # perhaps config loading failed" despite a live-verified,
-          # schema-correct config.yaml
+          # Exclusion list + per-app reasoning lives in
+          # .github/compose-boot-test-exclusions.txt — the single source
+          # of truth shared with compose-syntax-check below and
+          # boot-test-all.yml's list-apps.
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD")
-          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
+          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
 
           apps=$(echo "$changed" \
             | grep -oE '^docker/[^/]+/compose\.yaml$' \
@@ -129,13 +124,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
 
       - name: Install pre-commit hook environments
         run: uv run pre-commit install-hooks
@@ -156,22 +146,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      # check-lock catches a lockfile-maintenance PR that didn't actually
+      # regenerate the lock, or a manual edit that broke resolution.
+      # locked additionally realizes the environment, which catches
+      # resolvable-but-broken combinations --check alone might not (e.g.
+      # a resolved version that's since been yanked).
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
         with:
-          enable-cache: true
-
-      # Fails if pyproject.toml and uv.lock have drifted apart — catches a
-      # lockfile-maintenance PR that didn't actually regenerate the lock,
-      # or a manual edit that broke resolution.
-      - name: Check lock file is current
-        run: uv lock --check
-
-      # Separately from --check: actually realize the environment, which
-      # catches resolvable-but-broken combinations --check alone might
-      # not (e.g. a resolved version that's since been yanked).
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
+          check-lock: "true"
+          locked: "true"
 
   # Regression coverage for an incident where ansible_host (inventory.yaml)
   # was wired to resolve through a role-generated fact (secrets_generated)
@@ -201,37 +185,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
-
-      # Required specifically for restore.yaml's own role, which uses
+      # install-galaxy-collections is required specifically for
+      # restore.yaml's own role, which uses
       # community.docker.docker_compose_v2/docker_container/docker_volume
       # unconditionally (no tags: to skip past it the way the deploy.yaml
       # check's --tags trick does for everything else in this job) —
-      # confirmed live: without this, even a deliberately-failing restore
+      # confirmed live: without it, even a deliberately-failing restore
       # invocation errors out earlier than intended with "couldn't
       # resolve module/action 'community.docker.docker_compose_v2'",
       # before ever reaching the archive-existence check this job's
-      # restore step actually means to exercise. Same
-      # cache-then-install pattern as the molecule/compose-boot-test
-      # jobs below.
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # restore step actually means to exercise.
+      - name: Setup uv + Ansible Galaxy collections
+        uses: ./.github/actions/setup-uv-ansible
         with:
-          path: ~/.ansible/collections
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r requirements.yml
-        working-directory: ansible
+          locked: "true"
+          install-galaxy-collections: "true"
 
       # Mirrors what a real operator's `python3 ansible/bootstrap_secrets.py`
       # run produces on the controller before a first deploy — every
@@ -338,158 +306,30 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      # ansible/requirements.yml is the top-level install target;
+      # molecule's own per-scenario dependency phase (see
+      # .config/molecule/config.yml) additionally pulls
+      # molecule_helpers/role-requirements.yml — the composite action's
+      # cache key already hashes both.
+      - name: Setup uv + Ansible Galaxy collections
+        uses: ./.github/actions/setup-uv-ansible
         with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev
-
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.ansible/collections
-          # ansible/requirements.yml is the top-level install target;
-          # molecule's own per-scenario dependency phase (see
-          # .config/molecule/config.yml) additionally pulls
-          # molecule_helpers/role-requirements.yml — both are pinned
-          # version files, so a hash of both is the correct cache key.
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r ansible/requirements.yml
+          install-galaxy-collections: "true"
 
       - name: Run molecule test — ${{ matrix.role }}
         run: uv run ./molecule-test-all.sh "${{ matrix.role }}"
         working-directory: ansible
 
+  # Actual steps live in _compose-boot-test.yml — shared with
+  # boot-test-all.yml's compose-boot-test-all so the seed/boot/wait/
+  # teardown logic has exactly one copy instead of two drifting in
+  # lockstep by hand.
   compose-boot-test:
     needs: detect-changes
     if: needs.detect-changes.outputs.compose_apps != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: ${{ fromJson(needs.detect-changes.outputs.compose_apps) }}
-    # Dummy values for env vars referenced by one or more compose files.
-    # Harmless no-ops for apps that don't reference a given var — docker
-    # compose only substitutes what's actually used. None of these are
-    # real credentials: everything here is either non-secret runtime
-    # config (TIMEZONE) or only gates one optional feature, confirmed by
-    # reading each compose file's own comments/healthcheck target before
-    # adding it here — see the individual compose files for that
-    # reasoning if extending this list for a new app.
-    env:
-      TIMEZONE: "UTC"
-      COBALT_API_URL: "http://localhost:9000" # gates cobalt's tunneling feature only, not its own healthcheck
-      APP_URL: "localhost"
-      WEB_APP_URL: "localhost"
-      API_KEY: "ci-dummy-key"
-      DEFAULT_SSH_HOST: "localhost" # wetty's own healthcheck only spiders its web root, unrelated to SSH connectivity
-      TELEGRAM_TOKEN: "ci-dummy-token"
-      TELEGRAM_CHAT_ID: "0"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Create shared external network
-        run: docker network create caddy-proxy || true
-
-      - name: Point diun's Dockerfile mount at a real file
-        if: matrix.app == 'diun'
-        run: |
-          mkdir -p /tmp/compose-deploy/caddy
-          cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
-          echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
-
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.ansible/collections
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r requirements.yml
-        working-directory: ansible
-
-      # Runs the real compose role's preinit+init tasks (volume creation +
-      # config/script seeding — see ansible/roles/compose/tasks/init.yaml
-      # and ansible/playbooks/ci_boot_test.yaml) against the actual
-      # app_registry.yaml, instead of a bespoke bash step per app. Replaces
-      # the old plain `docker volume create` loop entirely — every app's
-      # volumes are created here too, not just the ones with configs to
-      # seed.
-      - name: Seed ${{ matrix.app }} via the real compose role
-        # ci-inventory/ is a dedicated CI-only inventory (ansible/ci-inventory/)
-        # — bypasses ansible.cfg's default inventory.yaml entirely, whose
-        # all:vars: sets a non-standard sudo binary and SSH-only settings
-        # meant for real remote hosts, not this runner. Needed group_vars
-        # (main.yaml, app_registry.yaml) and CI placeholders
-        # (ci_dummy_vars.yaml) are loaded explicitly via vars_files in
-        # ci_boot_test.yaml — see its own comments for why.
-        run: |
-          uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \
-            playbooks/ci_boot_test.yaml \
-            -e app_name=${{ matrix.app }} \
-            -e compose_deploy_dir=/tmp/compose-deploy
-        working-directory: ansible
-
-      - name: Bring the stack up
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" up -d
-
-      # Bring the stack up failing means Wait for healthy state (which
-      # normally dumps logs on an unhealthy service) never runs, and Tear
-      # down (if: always()) wipes the container right after — without
-      # this, the crash reason is gone before anyone can see it.
-      - name: DEBUG dump logs if Bring the stack up failed
-        if: failure()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" logs
-
-      - name: Wait for healthy state (or, if none defined, that it stayed running)
-        run: |
-          f="/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
-          services=$(docker compose -f "$f" config --services)
-          for svc in $services; do
-            cid=$(docker compose -f "$f" ps -q "$svc")
-            [ -n "$cid" ] || { echo "::error::$svc never started"; exit 1; }
-
-            has_hc=$(docker inspect --format='{{if .State.Health}}yes{{end}}' "$cid")
-            if [ "$has_hc" = "yes" ]; then
-              echo "Waiting for $svc to report healthy..."
-              for _ in $(seq 1 30); do
-                status=$(docker inspect --format='{{.State.Health.Status}}' "$cid")
-                [ "$status" = "healthy" ] && break
-                [ "$status" = "unhealthy" ] && { echo "::error::$svc is unhealthy"; docker logs "$cid"; exit 1; }
-                sleep 2
-              done
-              [ "$status" = "healthy" ] || { echo "::error::$svc never became healthy (last: $status)"; docker logs "$cid"; exit 1; }
-            else
-              # No healthcheck defined — weaker signal, but still catches
-              # an immediate crash-loop or bad entrypoint.
-              sleep 10
-              running=$(docker inspect --format='{{.State.Running}}' "$cid")
-              [ "$running" = "true" ] || { echo "::error::$svc exited unexpectedly"; docker logs "$cid"; exit 1; }
-            fi
-          done
-
-      - name: Tear down
-        if: always()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" down -v
+    uses: ./.github/workflows/_compose-boot-test.yml
+    with:
+      apps: ${{ needs.detect-changes.outputs.compose_apps }}
 
   # Fallback for stacks the boot-test job deliberately excludes
   compose-syntax-check:
@@ -506,10 +346,9 @@ jobs:
         run: |
           # Only the apps compose-boot-test skips — anything it already
           # covers gets a stronger check there, no need to duplicate it
-          # here. Keep this list in sync with the "excluded" pattern in
-          # detect-changes' "Determine which compose stacks to boot-test"
-          # step above.
-          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
+          # here. Same source file as detect-changes' compose step above,
+          # so there's nothing to keep "in sync" by hand anymore.
+          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD" \

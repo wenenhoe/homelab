@@ -1,15 +1,22 @@
 # CI: PR Checks
 
-`.github/workflows/pr-checks.yml` runs on every PR, informational only —
-not wired into branch protection. It's not a substitute for
-[Molecule](molecule-testing.md): Molecule tests one role in isolation,
-this pipeline tests the parts Molecule can't (a real compose stack
-booting, and the actual `deploy.yaml`/`restore.yaml` ordering).
+`.github/workflows/pr-checks.yml` runs on every PR. Which jobs actually
+block a merge is configured in GitHub's branch protection / repository
+rulesets (Settings > Branches on GitHub, not anything in this repo) —
+see [Requiring checks before merge](#requiring-checks-before-merge)
+below for which check names to select. This pipeline isn't a substitute
+for [Molecule](molecule-testing.md): Molecule tests one role in
+isolation, this pipeline tests the parts Molecule can't (linting the
+whole tree, a real compose stack booting, and the actual
+`deploy.yaml`/`restore.yaml` ordering).
 
 ## Change-scoped, not a full sweep
 
-`detect-changes` diffs the PR's base/head and feeds every other job a
-scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests:
+`detect-changes` diffs the PR's base/head and feeds most other jobs a
+scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests.
+`pre-commit-checks` and `ansible-lint` are the exception — they run
+unconditionally on every PR regardless of what changed, since any file
+could be touched by one of their hooks:
 
 - `roles` — any `ansible/roles/<role>/` touched maps to that role, except
   `ansible/requirements.yml` (or its `molecule_helpers` copy), a
@@ -18,18 +25,48 @@ scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests:
   exclusion list (below).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`.
-- `pre_commit`/`uv_lock` — their own config files changed.
+- `uv_lock` — `pyproject.toml`/`uv.lock` changed.
 
 ## Jobs
 
 | Job | Runs when | What it does |
 | :--- | :--- | :--- |
-| `pre-commit` | `.config/.pre-commit-config.yaml` changed | `pre-commit run --all-files` — the real test for whether a hook bump needs a newer pre-commit than `uv.lock` resolves. |
+| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
+| `ansible-lint` | always | `ansible-lint`, the one push-stage hook — always lints the whole `ansible/` tree, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./molecule-test-all.sh <role>`. See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
+| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results into one fixed check name — see below. |
+
+## Requiring checks before merge
+
+Not configured in this repo — GitHub only blocks merges via branch
+protection rules or repository rulesets (Settings > Branches), which
+reference jobs by their check-run name (`<workflow name> / <job name>`,
+e.g. `PR checks / pre-commit-checks`).
+
+`pre-commit-checks`, `ansible-lint`, `uv-lock`, `deploy-ordering-check`,
+and `compose-syntax-check` are all safe to mark required directly: each
+is gated by a job-level `if:` inside a workflow that always triggers on
+`pull_request`, not by a path filter on the trigger itself — a required
+check accepts a `skipped` conclusion, so an unrelated PR (e.g.
+docs-only) won't get stuck waiting on a `deploy-ordering-check` run that
+never needed to happen. The unsafe pattern (never used here) would be
+`paths-ignore`/`paths:` on the workflow's own `on:` trigger, which
+leaves the check permanently "Pending" instead of reporting `skipped`.
+
+**`molecule` and `compose-boot-test` are the exception** — don't require
+them directly. Both use a matrix (one entry per changed role/app), and
+when the matrix actually runs, each entry posts its own check name (e.g.
+`molecule (apt)`), which varies by PR. There's no single name that's
+guaranteed to post for every PR: the base job name (`molecule`) only
+appears when the job is skipped entirely, never when it actually ran.
+Require `matrix-jobs-gate` instead — it depends on both, runs
+regardless of whether they were skipped (`if: always()`), and fails
+only if either genuinely failed (not skipped). One fixed name, correct
+for every PR shape.
 
 ## Deploy-ordering-check
 

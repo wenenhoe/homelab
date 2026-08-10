@@ -104,8 +104,11 @@
     # equivalent to --resolve, and its handling of a connection failure
     # (vs. just a non-matching status) is less predictable for the retry
     # loop below, which needs to tolerate the container not being ready yet.
-    - name: Request a route that should match and attempt to proxy (expect 502 - backend doesn't exist)
-      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve authed.apps.localhost:443:127.0.0.1 https://authed.apps.localhost/  # noqa: command-instead-of-module yaml[line-length]
+    - name: Request a route that should match and attempt to proxy (expect 502 - backend doesn't exist)  # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        curl -sk -o /dev/null -w '%{http_code}'
+        --resolve authed.apps.localhost:443:127.0.0.1
+        https://authed.apps.localhost/
       register: caddy_authed_route_status
       changed_when: false
       until: caddy_authed_route_status.stdout == '502'
@@ -113,8 +116,11 @@
       delay: 5
       failed_when: caddy_authed_route_status.stdout != '502'
 
-    - name: Request the public route too (expect 502 - also a matched route with no real backend)
-      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve public.apps.localhost:443:127.0.0.1 https://public.apps.localhost/  # noqa: command-instead-of-module yaml[line-length]
+    - name: Request the public route too (expect 502 - also a matched route with no real backend)  # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        curl -sk -o /dev/null -w '%{http_code}'
+        --resolve public.apps.localhost:443:127.0.0.1
+        https://public.apps.localhost/
       register: caddy_public_route_status
       changed_when: false
       until: caddy_public_route_status.stdout == '502'
@@ -122,8 +128,11 @@
       delay: 5
       failed_when: caddy_public_route_status.stdout != '502'
 
-    - name: Request a host that matches no defined route (expect 403 - the deny-all fallback)
-      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve totally-unmatched.apps.localhost:443:127.0.0.1 https://totally-unmatched.apps.localhost/  # noqa: command-instead-of-module yaml[line-length]
+    - name: Request a host that matches no defined route (expect 403 - deny-all fallback)  # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        curl -sk -o /dev/null -w '%{http_code}'
+        --resolve totally-unmatched.apps.localhost:443:127.0.0.1
+        https://totally-unmatched.apps.localhost/
       register: caddy_unmatched_route_status
       changed_when: false
       until: caddy_unmatched_route_status.stdout == '403'
@@ -131,8 +140,11 @@
       delay: 5
       failed_when: caddy_unmatched_route_status.stdout != '403'
 
-    - name: Request the tinyauth vhost too (expect 502 - backend doesn't exist)
-      ansible.builtin.command: curl -sk -o /dev/null -w '%{http_code}' --resolve sso.lan.localhost:443:127.0.0.1 https://sso.lan.localhost/  # noqa: command-instead-of-module yaml[line-length]
+    - name: Request the tinyauth vhost too (expect 502 - backend doesn't exist)  # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        curl -sk -o /dev/null -w '%{http_code}'
+        --resolve sso.lan.localhost:443:127.0.0.1
+        https://sso.lan.localhost/
       register: caddy_tinyauth_route_status
       changed_when: false
       until: caddy_tinyauth_route_status.stdout == '502'

@@ -13,7 +13,13 @@ Hub and agent can talk over SSH (hub -> agent) or WebSocket (agent -> hub). This
 
 ## Bootstrapping the KEY and TOKEN
 
-Unlike the rest of `app_registry`'s `.env` secrets, `beszel_hub_key` and `beszel_agent_token` don't exist until *after* the hub's first boot — the hub generates its own keypair on first start, and a token is created by hand in its web UI. Both are `manual`-format `secrets_registry.yaml` entries marked `allow_blank: true`, so a missing value doesn't block the first deploy the way every other manual secret would. `beszel-agent`'s `.env` config uses the same `no_log: true` every other secret-bearing config uses (see [`secrets.md`](secrets.md)) — nothing special needed for the re-render once the real values are known, since none of these configs rely on `force: false` to control that anymore.
+`beszel_hub_key` and `beszel_agent_token` don't exist until *after* the
+hub's first boot (the hub generates its keypair on first start; a token
+is created by hand in its web UI). Both are `manual`-format
+`secrets_registry.yaml` entries marked `allow_blank: true`, so a missing
+value doesn't block the first deploy. `beszel-agent`'s `.env` uses
+`no_log: true` like any other secret-bearing config (see
+[`secrets.md`](secrets.md)).
 
 Sequence:
 
@@ -25,5 +31,5 @@ Sequence:
 
 ## Runtime config
 
-`docker/beszel-hub/compose.yaml`: `henrygd/beszel`, joins `caddy-proxy`, exposes `8090` to Caddy, persists `./data` to `/beszel_data`.
-`docker/beszel-agent/compose.yaml`: `henrygd/beszel-agent`, `network_mode: host` (required for host-level network interface stats — this also means it doesn't join `caddy-proxy`, since it isn't routed through Caddy at all), and a read-only mount of `/var/run/docker.sock` for container stats.
+`docker/beszel-hub/compose.yaml`: `henrygd/beszel`, joins `caddy-proxy`, exposes `8090` to Caddy, persists its `data` volume to `/beszel_data`.
+`docker/beszel-agent/compose.yaml`: `henrygd/beszel-agent`, `network_mode: host` (required for host-level network interface stats — this also means it doesn't join `caddy-proxy`, since it isn't routed through Caddy at all). Container stats come via a `dockerproxy` sidecar (`CONTAINERS=1`-scoped, socket mounted read-only), with the agent reaching it over `DOCKER_HOST: tcp://localhost:2375` rather than mounting the socket itself.

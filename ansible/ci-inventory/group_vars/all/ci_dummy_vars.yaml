@@ -1,33 +1,19 @@
 ---
-# ---------------------------------------------------------------------------
-# CI-only placeholders, loaded explicitly by ci_boot_test.yaml's vars_files
-# (last, so it overrides main.yaml — see that playbook's own comment on
-# why: inventory group_vars/all auto-loading alone is LOWER Ansible
-# precedence than a play's vars_files, so it wouldn't actually override
-# anything). Real playbook runs (deploy.yaml etc.) point at
-# ansible/inventory/ instead and never reference this file at all — it can
-# never silently affect a real deploy's actual config.
+# CI-only placeholders, loaded explicitly by ci_boot_test.yaml's
+# vars_files (last, so it overrides main.yaml — inventory group_vars/all
+# auto-loading is lower precedence than a play's vars_files). Real
+# playbook runs (deploy.yaml etc.) point at ansible/inventory/ instead
+# and never reference this file.
 #
-# Lives at a conventional group_vars/all path anyway, under its own
-# dedicated ci-inventory/ tree, for two reasons: ansible-lint treats every
-# .yaml under ansible/playbooks/ as a playbook (a list of plays), so a bare
-# vars dict there is a hard syntax-check failure — and a real group_vars
-# path is simply the more idiomatic place for this kind of file to live,
-# even though it's reached via vars_files rather than inventory
-# auto-loading here.
+# Lives under its own ci-inventory/ tree rather than ansible/playbooks/:
+# ansible-lint treats every .yaml under playbooks/ as a playbook, so a
+# bare vars dict there is a syntax-check failure.
 #
-# Every value below exists in production through one of: a `manual`-format
-# secrets_registry.yaml entry (read from ansible/files/secrets/ by the
-# `secrets` role — see docs/secrets.md), a
-# per-host host_vars/*.yaml file (caddy_domain etc.), or a value that's
-# genuinely unset until manual post-bootstrap setup (beszel's key/token —
-# see docs/beszel.md). None of that machinery applies to a single-host,
-# no-inventory CI run (ci_boot_test.yaml never includes the `secrets`
-# role), so every one of these is a throwaway placeholder — safe to be
-# world-readable, never a real secret, never used for anything but
-# rendering a config file that then gets discarded when the CI job's
-# volumes are torn down.
-#
+# Every value below exists in production via a `manual` secrets_registry
+# entry, a per-host host_vars file, or manual post-bootstrap setup
+# (Beszel's key/token). None of that machinery runs in this single-host,
+# no-inventory CI run, so every value here is a throwaway placeholder —
+# never a real secret, discarded when the CI job's volumes are torn down.
 # Adding an app to the Ansible-seeded CI path: check its
 # docker/<app>/configs/*.j2 for any variable not already a real
 # group_vars/all default (grep the template, then check

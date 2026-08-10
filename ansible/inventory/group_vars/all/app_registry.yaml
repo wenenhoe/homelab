@@ -1,42 +1,20 @@
 ---
-# ---------------------------------------------------------------------------
 # App registry — single source of truth for everything about an app that
-# does NOT vary by host: dirs to create, scripts/configs to deploy, and its
-# docker upstream.
+# does NOT vary by host: dirs, scripts/configs to deploy, and its docker
+# upstream. `configs` is the list for anything needing Jinja rendering —
+# a .env file is just a configs entry with dest: .env.
 #
-# `configs` is the single list for anything that needs Jinja rendering —
-# a .env file is just a normal configs entry with dest: .env.
+# Configs default to `force: true` (overwrite on drift). Set `force:
+# false` only when the destination holds real state Ansible can't
+# reconstruct (an app writing back to its own config) — nothing here
+# needs it currently; comment why if you add one.
 #
-# Every config defaults to `force: true` (ansible.builtin.template's own
-# default — no need to set it explicitly): this repo is the source of
-# truth, so a redeploy always overwrites a config that's drifted, rather
-# than silently leaving a stale value in place. Set `force: false` ONLY
-# on a config whose destination can hold real state Ansible has no way to
-# reconstruct — content an app writes back to its own config after
-# Ansible first renders it (an in-app settings UI that persists to the
-# same file, for example) — where overwriting on every deploy would
-# silently destroy something no template could regenerate. Nothing
-# currently in this registry needs it; if you add one that does, say so
-# in a comment next to it, since it won't be obvious from the entry
-# alone why it's the one exception.
+# Set `no_log: true` on anything rendering a real secret, or `--diff`
+# prints it in plaintext — see docs/secrets.md.
 #
-# Anything rendering a real secret (an API key/token/password, not just a
-# hostname or timezone) should set no_log: true — see
-# docs/secrets.md's "no_log: true" section for why:
-# without it, a run with --diff (or high verbosity) prints the secret's
-# plaintext straight to the console/CI logs the moment its value ever
-# differs from what's already on the target host — which includes the
-# very first deploy, not just a later rotation. This is an orthogonal
-# concern from `force` above — no_log protects what gets printed,
-# force controls whether the file gets written at all.
-# Sources live on the controller at
-# {{ compose_source_dir }}/{{ app_name }}/configs/{{ item.src }}.
-#
-# Per-host files (host_vars/*.yaml) only need to list which apps to deploy
-# and, for routable apps, the caddy host label(s) — keyed the same way the
-# registry keys its routes (`default` for single-route apps, a descriptive
-# key like `short`/`web` for multi-route apps like shlink).
-# ---------------------------------------------------------------------------
+# Sources live at {{ compose_source_dir }}/{{ app_name }}/configs/{{ item.src }}.
+# Per-host files (host_vars/*.yaml) only list which apps to deploy and,
+# for routable apps, the caddy host label(s).
 app_registry:
   caddy:
     volumes:

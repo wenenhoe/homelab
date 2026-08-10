@@ -11,10 +11,9 @@
 #
 # Apps split into at most two docker-volume-backup instances per host
 # (stop_during_backup true/false), not one-per-app: docker-volume-backup
-# stops/restarts labeled containers once per RUN, not per subdirectory, so
-# apps sharing an instance share its downtime window, schedule, and
-# retention. Two groups is the minimum granularity that keeps "needs
-# stopping" decoupled from "doesn't" — see docs/disaster-recovery.md.
+# stops/restarts labeled containers once per run, not per subdirectory,
+# so apps sharing an instance share its downtime window, schedule, and
+# retention. See docs/disaster-recovery.md.
 #
 # A host with zero qualifying apps (e.g. `storage`) is skipped entirely.
 
@@ -52,10 +51,8 @@
   ansible.builtin.meta: end_host
   when: (backup_agent_stop_group | length) + (backup_agent_no_stop_group | length) == 0
 
-# ---------------------------------------------------------------------------
-# Fail loudly on conflicting retention/cron within a shared group, rather
-# than silently picking one app's value and surprising the other's owner.
-# ---------------------------------------------------------------------------
+# Fail loudly on conflicting retention/cron within a shared group,
+# rather than silently picking one app's value.
 - name: Validate the stop-during-backup group agrees on retention/cron
   ansible.builtin.assert:
     that:

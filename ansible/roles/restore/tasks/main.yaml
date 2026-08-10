@@ -1,50 +1,21 @@
 ---
 # Restores one app's volume(s) on a single target host from an
 # already-decrypted offsite backup archive. playbooks/restore.yaml is a
-# thin wrapper over this role — see that file's header for the
-# GPG/SeaweedFS boundary (this role never touches either) and
+# thin wrapper over this role (never touches GPG/SeaweedFS itself) — see
 # docs/disaster-recovery.md for the operator-facing walkthrough.
 #
-# ---------------------------------------------------------------------------
-# SAFETY-CRITICAL STRUCTURE — read before changing anything here
-# ---------------------------------------------------------------------------
-# Included from a SINGLE play in playbooks/restore.yaml (hosts: all), not
-# split across a `hosts: localhost` validation pre-play plus a `hosts: all`
-# destructive play. That split was considered and rejected: `--limit`
-# filters each play's host list independently, so a `hosts: localhost`
-# pre-play run under e.g. `--limit services` resolves to zero hosts and is
-# silently SKIPPED, not failed — the exact safety property this role
-# exists to guarantee would silently stop existing for the invocation the
-# usage docs recommend. Confirmed against a real multi-host inventory.
+# SAFETY-CRITICAL: this MUST stay a single play (see playbooks/restore.yaml),
+# with validation tasks delegate_to: localhost inline, not split into a
+# separate hosts: localhost pre-play. A separate pre-play silently
+# resolves to zero hosts under --limit <group> and gets skipped, not
+# failed — defeating the validation entirely.
 #
-# The validation tasks below instead stay `delegate_to: localhost`,
-# INSIDE the same play as the destructive work — confirmed (same method)
-# to correctly block every host in the play from reaching the destructive
-# tasks.
-#
-# They deliberately skip `run_once: true`: every check evaluates
-# identically for every host (required vars / controller-side archive
-# existence are global, nothing host-specific), so redundant per-host
-# execution just costs a little duplicate controller-side work, never a
-# different verdict per host — confirmed that dropping run_once still
-# blocks every host under --limit, and it clears the run-once[task]
-# ansible-lint rule for real instead of just pinning `strategy: linear`
-# (which the rule fires on regardless, since the effective strategy can
-# be overridden from outside the file).
-#
-# They also carry `become: false`, unlike the rest of this role.
-# `become: true` is set at the PLAY level for the destructive
-# target-host tasks, but is inherited regardless of `delegate_to` unless
-# overridden — without this, these controller-side tasks would try to
-# sudo on the operator's own machine for no reason, which fails hard on
-# a controller without passwordless sudo cached. This was a real
-# pre-existing bug that Molecule's confirmation_declined scenario
-# surfaced (only `stat` actually opens a connection — `assert`/`fail`
-# never do — but all three get `become: false` for consistency, so this
-# doesn't quietly break again if one is swapped for a module that does
-# need a connection). Same pattern as roles/compose/tasks/init.yaml's
-# own `delegate_to: localhost` + `become: false` find task.
-# ---------------------------------------------------------------------------
+# Validation tasks skip run_once (every check is global, not host-specific,
+# so redundant per-host execution is harmless) and carry become: false
+# (become: true at the play level is otherwise inherited regardless of
+# delegate_to, which fails hard without passwordless sudo on the
+# controller). Same pattern as roles/compose/tasks/init.yaml's own
+# delegate_to: localhost + become: false find task.
 
 - name: Compute this restore's directory/path facts
   ansible.builtin.set_fact:
@@ -82,47 +53,15 @@
   delegate_to: localhost
   become: false
 
-# ---------------------------------------------------------------------------
-# Confirmation gate.
-#
-# ansible.builtin.pause doesn't wait for input when stdin isn't a tty
-# (confirmed against ansible-core's own source) — so this gate fails
-# CLOSED by default with no controller tty (cron, systemd timers, CI).
-# That's not the same as "any automated-sounding run" though: a Molecule
-# run launched from a real terminal inherits that terminal's tty, so
-# pause DOES wait for real input there too (confirmed the hard way —
-# this used to be asserted as "Molecule skips it," which held for a
-# tty-less shell pipe but not for Molecule itself).
-#
-# So `restore_confirm` is a real three-state signal, not a bypass flag,
-# specifically so scenarios don't depend on ambient tty state:
-#   - undefined        → the real gate: pause for real input, same as an
-#                         actual operator run. Never set this anywhere a
-#                         real interactive run would pick it up implicitly.
-#   - explicitly true  → skip the prompt, proceed as confirmed (happy-path
-#                         scenarios).
-#   - explicitly false → skip the prompt, proceed as DECLINED, same abort
-#                         message a real "no" would give
-#                         (confirmation_declined scenario).
-# Both explicit values are -e-only, never defaulted. A real operator only
-# ever hits the undefined branch.
-#
-# The bypass task below feeds the SAME `restore_confirmation.user_input`
-# shape the real pause task registers, so "Abort if not confirmed" makes
-# exactly one comparison regardless of which task ran — not cosmetic: an
-# earlier version had two separately-`or`-ed conditions, which a coverage
-# report caught left the real `user_input != 'yes'` comparison
-# structurally unreachable across the whole suite (every scenario always
-# set restore_confirm explicitly), even while reporting "both branches
-# covered." Collapsing to one shared comparison means every scenario now
-# actually exercises it.
-#
-# Still deliberately NOT covered by Molecule: pause itself ever really
-# waiting on a tty — every scenario sets restore_confirm to stay
-# tty-independent. Reliably driving a real interactive wait from CI isn't
-# something this playbook controls, and pause's wait behavior is
-# upstream ansible-core's own tested code, not logic this role owns.
-# ---------------------------------------------------------------------------
+# Confirmation gate. pause doesn't wait for input without a tty (cron,
+# systemd timers, CI), so this fails closed by default. restore_confirm
+# is a three-state signal so scenarios don't depend on ambient tty state:
+# undefined → real prompt; explicitly true/false → skip prompt, proceed
+# confirmed/declined. Both explicit values are -e-only, never defaulted —
+# a real operator only ever hits the undefined branch. The bypass task
+# below feeds the same `.user_input` shape the real pause task registers,
+# so "Abort if not confirmed" is a single comparison regardless of which
+# task ran.
 - name: "Confirm before proceeding — this will stop and overwrite volumes for: {{ restore_app }}"
   ansible.builtin.pause:
     prompt: >-

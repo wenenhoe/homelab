@@ -194,12 +194,10 @@
   tags:
     - infra
 
-# Must run before deploying the container below, not after: bind9 binds
-# host port 53 directly, which conflicts with systemd-resolved's stub
-# listener on 127.0.0.53:53 until it's disabled. On a genuinely fresh
-# host, deploying first always fails with "address already in use" —
-# this only ever looked fine because real hosts had already survived one
-# successful run before anyone tried it from scratch.
+# Must run before deploying the container below: bind9 binds host port
+# 53 directly, which conflicts with systemd-resolved's stub listener on
+# 127.0.0.53:53 until it's disabled — deploying first fails with
+# "address already in use" on a fresh host.
 - name: Disable DNS Stub Listener and set Docker DNS
   ansible.builtin.import_tasks:
     file: network_conf.yaml

@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
 
   backup-stop-group:
-    image: offen/docker-volume-backup:v2
+    image: ghcr.io/offen/docker-volume-backup:v2.48.2
     container_name: backup-agent-stop-group
     volumes:
 {% for app in backup_agent_stop_group %}
@@ -33,7 +33,7 @@ services:
 {% endif %}
 {% if backup_agent_no_stop_group | length > 0 %}
   backup-no-stop-group:
-    image: offen/docker-volume-backup:v2
+    image: ghcr.io/offen/docker-volume-backup:v2.48.2
     container_name: backup-agent-no-stop-group
     volumes:
 {% for app in backup_agent_no_stop_group %}

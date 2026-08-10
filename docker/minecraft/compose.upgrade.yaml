@@ -2,7 +2,7 @@ name: minecraft
 
 services:
   test-upgrade:
-    image: itzg/minecraft-server:java25
+    image: ghcr.io/itzg/minecraft-server:java25
     volumes:
       - extras:/extras:ro
     environment:

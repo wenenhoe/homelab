@@ -2,7 +2,7 @@ name: minecraft
 
 services:
   backups:
-    image: itzg/mc-backup:2026.8.0
+    image: ghcr.io/itzg/mc-backup:2026.8.0
     container_name: minecraft-backups
     depends_on:
       mc:
@@ -50,7 +50,7 @@ services:
     expose:
       - '8100'
   mc:
-    image: itzg/minecraft-server:java25
+    image: ghcr.io/itzg/minecraft-server:java25
     container_name: minecraft-mc
     volumes:
       - data:/data

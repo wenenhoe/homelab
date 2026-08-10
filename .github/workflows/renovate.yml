@@ -3,9 +3,15 @@ name: Renovate
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}
   schedule:
-    # 20:00 UTC Sunday = 04:00 Asia/Singapore Monday — comfortably inside
-    # the "before 6am on monday" window declared in renovate.json5.
-    - cron: "0 20 * * 0"
+    # 20:00 UTC = 04:00 Asia/Singapore, every day. This only controls when
+    # the Renovate *process* runs, not when it's allowed to open new PRs —
+    # that's the separate, narrower `schedule` in renovate.json5. Running
+    # daily means: (1) vulnerabilityAlerts (which bypass renovate.json5's
+    # schedule entirely) land same-day instead of waiting for the next PR
+    # window, and (2) already-open PR branches get rebased daily against
+    # main, since Renovate's `updateNotScheduled` defaults to true (branch
+    # *updates* aren't schedule-gated — only new branch/PR *creation* is).
+    - cron: "0 20 * * *"
 
 # Least privilege: Renovate authenticates to GitHub separately via
 # RENOVATE_TOKEN (a PAT — see docs/renovate-setup.md for scopes), so the

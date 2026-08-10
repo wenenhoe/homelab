@@ -27,7 +27,12 @@
   osvVulnerabilityAlerts: true,
 
   timezone: "Asia/Singapore",
-  schedule: ["before 6am on monday"],
+  // Cron syntax (recommended over the deprecated @breejs/later syntax,
+  // e.g. the old "before 6am on monday"). Gates new branch/PR *creation*
+  // only — see the cadence comment in .github/workflows/renovate.yml for
+  // how this interacts with the (now-daily) workflow run schedule.
+  // Minutes must be "*" — Renovate cron has no minute granularity.
+  schedule: ["* 0-5 * * 1,4"],
 
   semanticCommits: "enabled",
   semanticCommitType: "chore",

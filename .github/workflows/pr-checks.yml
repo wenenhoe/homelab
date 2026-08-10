@@ -4,9 +4,6 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     branches: [main]
 
-# Informational only, deliberately — not wired into branch protection as a
-# required check. You decide whether a failure blocks a merge; this just
-# gives you the signal to decide with.
 permissions:
   contents: read
 
@@ -18,12 +15,13 @@ jobs:
   # Scoping: molecule and compose-boot-test are the two expensive jobs, so
   # everything downstream runs only against what this PR actually touched
   # instead of the full suite every time. dorny/paths-filter reports both
-  # simple booleans (pre-commit, uv lock) and the specific role/app names
-  # touched, which the matrix jobs below consume directly.
+  # simple booleans (uv lock, deploy ordering) and the specific role/app
+  # names touched, which the matrix jobs below consume directly.
+  # pre-commit-checks/ansible-lint run unconditionally on every PR
+  # instead — see those jobs below.
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      pre_commit: ${{ steps.filter.outputs.pre_commit }}
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       any_compose: ${{ steps.filter.outputs.any_compose }}
       deploy_ordering: ${{ steps.filter.outputs.deploy_ordering }}
@@ -40,8 +38,6 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: |
-            pre_commit:
-              - '.config/.pre-commit-config.yaml'
             uv_lock:
               - 'pyproject.toml'
               - 'uv.lock'
@@ -116,9 +112,14 @@ jobs:
           echo "apps=$json" >> "$GITHUB_OUTPUT"
           echo "Boot-testing: $json"
 
-  pre-commit:
-    needs: detect-changes
-    if: needs.detect-changes.outputs.pre_commit == 'true'
+  # Always runs, unlike the other jobs below — this is the actual
+  # enforcement gate for every commit-stage hook (see
+  # .config/.pre-commit-config.yaml's default_stages), not scoped to
+  # what changed, since any file in the repo could be touched by one of
+  # these. Also doubles as the test for "does a new hook version need a
+  # newer pre-commit CLI than uv.lock resolves" — a broken hook config
+  # fails right here.
+  pre-commit-checks:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -130,13 +131,29 @@ jobs:
       - name: Install pre-commit hook environments
         run: uv run pre-commit install-hooks
 
-      # This is the direct test for "does a new pre-commit hook version
-      # need a newer pre-commit CLI than uv.lock currently resolves" —
-      # if the hook config schema needs a feature the locked pre-commit
-      # version doesn't have, this fails right here with a real error
-      # rather than a guess.
-      - name: Run pre-commit against all files
-        run: uv run pre-commit run --all-files --show-diff-on-failure
+      - name: Run commit-stage hooks against all files
+        run: uv run pre-commit run --all-files --hook-stage pre-commit --show-diff-on-failure
+
+  # Split from pre-commit-checks above because ansible-lint is the one
+  # hook pinned to stages: [pre-push] (see .config/.pre-commit-config.yaml)
+  # — pre-commit run --all-files alone does not include push-stage hooks,
+  # it needs --hook-stage pre-push explicitly. No install-galaxy-collections
+  # needed: ansible-lint's own additional_dependencies: [ansible] already
+  # bundles community.docker/ansible.posix into its isolated hook venv.
+  ansible-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      - name: Install pre-commit hook environments
+        run: uv run pre-commit install-hooks
+
+      - name: Run push-stage hooks against all files
+        run: uv run pre-commit run --all-files --hook-stage pre-push --show-diff-on-failure
 
   uv-lock:
     needs: detect-changes

@@ -138,7 +138,13 @@ reproducible dependency set.
    ```sh
    pre-commit install -c .config/.pre-commit-config.yaml
    ```
-   To run all hooks manually: `pre-commit run -c .config/.pre-commit-config.yaml --all-files`.
+   Installs both the `pre-commit` and `pre-push` git hooks in one step
+   (`default_install_hook_types` in the config) — most hooks run at
+   commit time, `ansible-lint` runs at push time since it always re-lints
+   the whole `ansible/` tree rather than just what changed. To run
+   everything manually regardless of stage:
+   `pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit`
+   and `... --hook-stage pre-push`.
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
 - Before your first `deploy.yaml` run, fill in every value Ansible can't
   generate itself (DigitalOcean API key, Let's Encrypt email, Diun's
@@ -256,9 +262,13 @@ scenario matrix and how to add one.
 - `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene
 - [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
-- [`ansible-lint`](https://github.com/ansible/ansible-lint) — lints `ansible/` (`docker/` excluded, it's Compose files not playbooks)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
+
+All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
+(lints `ansible/`; `docker/` excluded, it's Compose files not playbooks)
+runs at **push** time instead — it always re-lints the whole `ansible/`
+tree regardless of what changed, so it's too slow to pay on every commit.
 
 All tool configs live under `.config/` (each hook is passed an explicit
 `-c` flag, since these tools don't auto-discover configs there by
@@ -266,4 +276,5 @@ default). `ansible-lint` also gets `--project-dir ansible`, since it
 resolves `roles_path` relative to cwd rather than the config file.
 
 Run `pre-commit install -c .config/.pre-commit-config.yaml` once after
-cloning.
+cloning. CI enforces the same checks on every PR regardless of whether
+hooks are installed locally — see [`docs/ci.md`](docs/ci.md).

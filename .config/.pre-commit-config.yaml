@@ -1,3 +1,6 @@
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+
 repos:
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.30.1
@@ -18,6 +21,7 @@ repos:
     rev: v26.6.0
     hooks:
       - id: ansible-lint
+        stages: [pre-push]
         args: [-c, .config/.ansible-lint, --project-dir, ansible]
         additional_dependencies:
           - ansible

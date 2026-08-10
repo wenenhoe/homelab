@@ -2,7 +2,7 @@ name: shlink
 
 services:
   shlink:
-    image: shlinkio/shlink:5
+    image: ghcr.io/shlinkio/shlink:5.1.5
     container_name: shlink
     environment:
       DEFAULT_DOMAIN: ${APP_URL}
@@ -22,7 +22,7 @@ services:
     expose:
       - '8080'
   shlink-web-client:
-    image: shlinkio/shlink-web-client:4
+    image: ghcr.io/shlinkio/shlink-web-client:4.8.1
     container_name: shlink-web-client
     environment:
       SHLINK_SERVER_URL: https://${APP_URL}

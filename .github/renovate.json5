@@ -201,19 +201,73 @@
     // image: strings in both, so there's no clean way to template one
     // from the other. Group them into a single PR so they can only ever
     // be bumped together, never independently.
+    //
+    // depName is ghcr.io/chrislusf/seaweedfs (not chrislusf/seaweedfs) as
+    // of the GHCR port — the project's GitHub org moved from chrislusf to
+    // seaweedfs a while back, but the image path on both Docker Hub and
+    // GHCR is still under the old chrislusf/ name.
     {
-      matchDepNames: ["chrislusf/seaweedfs"],
+      matchDepNames: ["ghcr.io/chrislusf/seaweedfs"],
       groupName: "seaweedfs (prod + molecule test target — must move together)",
     },
 
     // seaweedfs is critical storage backend
     {
-      matchDepNames: ["chrislusf/seaweedfs"],
+      matchDepNames: ["ghcr.io/chrislusf/seaweedfs"],
       matchUpdateTypes: ["major"],
       labels: ["needs-manual-review"],
       prBodyNotes: [
         "⚠️ Major version bump on the storage backend, grouped with its molecule test-target fixture so both move together. Review the SeaweedFS changelog and test against a snapshot before merging.",
       ],
+    },
+
+    // The following stay on Docker Hub (no GHCR mirror exists, or — for
+    // dockge — GHCR only publishes `nightly` builds, not the stable
+    // versioned releases we actually run) and ship no
+    // org.opencontainers.image.source label of their own. Verified via
+    // `skopeo inspect docker://docker.io/<image>:latest` — Labels came
+    // back empty/absent for all of these, so Renovate has nothing to
+    // derive a changelog link from unless we supply it.
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["ubuntu/bind9"],
+      sourceUrl: "https://github.com/canonical/bind9-rock",
+    },
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["quxfoo/wastebin"],
+      sourceUrl: "https://github.com/matze/wastebin",
+    },
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["certbot/dns-digitalocean"],
+      sourceUrl: "https://github.com/certbot/certbot",
+    },
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["amazon/aws-cli"],
+      sourceUrl: "https://github.com/aws/aws-cli",
+    },
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["louislam/dockge"],
+      sourceUrl: "https://github.com/louislam/dockge",
+    },
+
+    // openspeedtest/latest is a different case from the five above: it
+    // DOES carry a source label, but a wrong one — inherited from its
+    // FROM nginxinc/docker-nginx-unprivileged base image rather than
+    // overridden with its own. Renovate's own sourceUrl override is
+    // confirmed to reliably fill in a *missing* value but is not
+    // guaranteed to override a value the datasource already resolved
+    // (see renovatebot/renovate#41505) — so check the next PR to confirm
+    // the link actually changed. If it doesn't take, the fallback is
+    // `changelogUrl` instead, which only affects the PR body link and
+    // doesn't have to fight the datasource-resolved value.
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["openspeedtest/latest"],
+      sourceUrl: "https://github.com/openspeedtest/Docker-Image",
     },
   ],
 }

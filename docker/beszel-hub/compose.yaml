@@ -2,7 +2,7 @@ name: beszel-hub
 
 services:
   beszel-hub:
-    image: henrygd/beszel:0.18
+    image: ghcr.io/henrygd/beszel/beszel:0.18
     container_name: beszel-hub
     volumes:
       - data:/beszel_data

@@ -2,7 +2,7 @@ name: kms
 
 services:
   kms-app:
-    image: 11notes/kms:1.0
+    image: ghcr.io/11notes/kms:1.0.3
     container_name: kms-app
     volumes:
       - data:/kms/var
@@ -17,7 +17,7 @@ services:
       - docker-volume-backup.stop-during-backup=true
     user: 1000:1000
   kms-gui:
-    image: 11notes/kms-gui:1.0
+    image: ghcr.io/11notes/kms-gui:1.0.3
     container_name: kms-gui
     depends_on:
       kms-app:

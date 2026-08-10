@@ -97,19 +97,14 @@ jobs:
       - name: Determine which compose stacks to boot-test
         id: compose
         run: |
-          # bind9/seaweedfs/caddy excluded deliberately — already covered
-          # by their own molecule scenarios with stronger, real-protocol
-          # assertions (DNS resolution, S3 error semantics) than a generic
-          # healthcheck poll would add. lldap excluded: certbot needs a
-          # real DigitalOcean DNS-01 credential to do anything meaningful,
-          # and the lldap service itself has no healthcheck defined yet
-          # tinyauth excluded: crashes with "app URL cannot be empty,
-          # perhaps config loading failed" despite a live-verified,
-          # schema-correct config.yaml
+          # Exclusion list + per-app reasoning lives in
+          # .github/compose-boot-test-exclusions.txt — the single source
+          # of truth shared with compose-syntax-check below and
+          # boot-test-all.yml's list-apps.
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD")
-          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
+          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
 
           apps=$(echo "$changed" \
             | grep -oE '^docker/[^/]+/compose\.yaml$' \
@@ -351,10 +346,9 @@ jobs:
         run: |
           # Only the apps compose-boot-test skips — anything it already
           # covers gets a stronger check there, no need to duplicate it
-          # here. Keep this list in sync with the "excluded" pattern in
-          # detect-changes' "Determine which compose stacks to boot-test"
-          # step above.
-          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
+          # here. Same source file as detect-changes' compose step above,
+          # so there's nothing to keep "in sync" by hand anymore.
+          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD" \

@@ -24,8 +24,11 @@ jobs:
       - name: List every compose app except the excluded ones
         id: list
         run: |
-          # Same exclusions, same reasons, as pr-checks.yml's detect-changes job
-          excluded="bind9|seaweedfs|caddy|lldap|tinyauth"
+          # Exclusion list + per-app reasoning lives in
+          # .github/compose-boot-test-exclusions.txt — the single source
+          # of truth shared with pr-checks.yml's detect-changes and
+          # compose-syntax-check.
+          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
           apps=$(find docker -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
             | grep -vE "^($excluded)\$" \
             | sort \

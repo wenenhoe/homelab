@@ -357,5 +357,27 @@ jobs:
           [ -z "$changed" ] && { echo "No excluded-app compose files changed."; exit 0; }
           for f in $changed; do
             echo "=== $f ==="
-            docker compose -f "$f" config --quiet
+            dir=$(dirname "$f")
+            # docker compose treats an explicit env_file: entry as required
+            # to exist by default (unlike the implicit top-level .env,
+            # which silently no-ops if absent). Apps like lldap reference a
+            # real .env that's Ansible-templated at deploy time from
+            # secrets_registry.yaml (see app_registry.yaml's configs:
+            # entry) and correctly never committed. `config --quiet` only
+            # needs the file to exist to validate syntax/interpolation, not
+            # to hold real values, so an empty stub is sufficient here —
+            # same "harmless CI placeholder" pattern as
+            # _compose-boot-test.yml's job-level env: block.
+            stub_created=0
+            if [ ! -e "$dir/.env" ]; then
+              touch "$dir/.env"
+              stub_created=1
+            fi
+            if docker compose -f "$f" config --quiet; then
+              rc=0
+            else
+              rc=$?
+            fi
+            [ "$stub_created" -eq 1 ] && rm -f "$dir/.env"
+            [ "$rc" -eq 0 ] || exit "$rc"
           done

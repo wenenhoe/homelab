@@ -398,3 +398,29 @@ jobs:
             [ "$stub_created" -eq 1 ] && rm -f "$dir/.env"
             [ "$rc" -eq 0 ] || exit "$rc"
           done
+
+  # Required-status-check aggregator for the two matrix jobs above.
+  # GitHub's required-status-check list can't reference a matrix job by
+  # a fixed name: when the job runs, each matrix entry posts its own
+  # check (e.g. "molecule (apt)"), which varies per PR by definition —
+  # there's no single name that's ever posted for every PR. When the job
+  # is skipped entirely (roles == '[]'), it DOES post one check named
+  # "molecule", but that name never posts when the job actually runs,
+  # so neither name is safely requirable on its own. This job has one
+  # fixed name regardless of what ran, so it's the one to mark required
+  # instead of molecule/compose-boot-test directly. if: always() so it
+  # still runs (and evaluates) even when an upstream job was skipped —
+  # a skipped dependency would otherwise skip this job too by default.
+  matrix-jobs-gate:
+    needs: [molecule, compose-boot-test]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fail if molecule or compose-boot-test actually failed
+        run: |
+          for r in "${{ needs.molecule.result }}" "${{ needs.compose-boot-test.result }}"; do
+            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
+              echo "::error::A required job did not pass (result: $r)."
+              exit 1
+            fi
+          done

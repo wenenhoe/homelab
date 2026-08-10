@@ -22,6 +22,15 @@ repos:
     hooks:
       - id: ansible-lint
         stages: [pre-push]
+        # Overrides upstream's own `entry: python3 -m ansiblelint -v
+        # --force-color` to force a UTF-8 locale explicitly — ansible-core
+        # hard-requires one and errors ("Ansible requires the locale
+        # encoding to be UTF-8; Detected None") when the calling process
+        # doesn't set LANG/LC_ALL, which some GUI git clients (e.g.
+        # lazygit spawning pre-push) don't inherit from a login shell.
+        # C.UTF-8 is used over en_US.UTF-8 since it ships with glibc by
+        # default — no locale-gen needed on a fresh machine or CI runner.
+        entry: env LC_ALL=C.UTF-8 LANG=C.UTF-8 python3 -m ansiblelint -v --force-color
         args: [-c, .config/.ansible-lint, --project-dir, ansible]
         additional_dependencies:
           - ansible

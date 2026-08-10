@@ -54,26 +54,11 @@ jobs:
           cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
           echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      - name: Setup uv + Ansible Galaxy collections
+        uses: ./.github/actions/setup-uv-ansible
         with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
-
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.ansible/collections
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r requirements.yml
-        working-directory: ansible
+          locked: "true"
+          install-galaxy-collections: "true"
 
       # Runs the real compose role's preinit+init tasks (volume creation +
       # config/script seeding — see ansible/roles/compose/tasks/init.yaml

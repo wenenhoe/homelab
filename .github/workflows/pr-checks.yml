@@ -129,13 +129,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
 
       - name: Install pre-commit hook environments
         run: uv run pre-commit install-hooks
@@ -156,22 +151,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      # check-lock catches a lockfile-maintenance PR that didn't actually
+      # regenerate the lock, or a manual edit that broke resolution.
+      # locked additionally realizes the environment, which catches
+      # resolvable-but-broken combinations --check alone might not (e.g.
+      # a resolved version that's since been yanked).
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
         with:
-          enable-cache: true
-
-      # Fails if pyproject.toml and uv.lock have drifted apart — catches a
-      # lockfile-maintenance PR that didn't actually regenerate the lock,
-      # or a manual edit that broke resolution.
-      - name: Check lock file is current
-        run: uv lock --check
-
-      # Separately from --check: actually realize the environment, which
-      # catches resolvable-but-broken combinations --check alone might
-      # not (e.g. a resolved version that's since been yanked).
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
+          check-lock: "true"
+          locked: "true"
 
   # Regression coverage for an incident where ansible_host (inventory.yaml)
   # was wired to resolve through a role-generated fact (secrets_generated)
@@ -201,37 +190,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
-
-      # Required specifically for restore.yaml's own role, which uses
+      # install-galaxy-collections is required specifically for
+      # restore.yaml's own role, which uses
       # community.docker.docker_compose_v2/docker_container/docker_volume
       # unconditionally (no tags: to skip past it the way the deploy.yaml
       # check's --tags trick does for everything else in this job) —
-      # confirmed live: without this, even a deliberately-failing restore
+      # confirmed live: without it, even a deliberately-failing restore
       # invocation errors out earlier than intended with "couldn't
       # resolve module/action 'community.docker.docker_compose_v2'",
       # before ever reaching the archive-existence check this job's
-      # restore step actually means to exercise. Same
-      # cache-then-install pattern as the molecule/compose-boot-test
-      # jobs below.
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      # restore step actually means to exercise.
+      - name: Setup uv + Ansible Galaxy collections
+        uses: ./.github/actions/setup-uv-ansible
         with:
-          path: ~/.ansible/collections
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r requirements.yml
-        working-directory: ansible
+          locked: "true"
+          install-galaxy-collections: "true"
 
       # Mirrors what a real operator's `python3 ansible/bootstrap_secrets.py`
       # run produces on the controller before a first deploy — every
@@ -338,30 +311,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+      # ansible/requirements.yml is the top-level install target;
+      # molecule's own per-scenario dependency phase (see
+      # .config/molecule/config.yml) additionally pulls
+      # molecule_helpers/role-requirements.yml — the composite action's
+      # cache key already hashes both.
+      - name: Setup uv + Ansible Galaxy collections
+        uses: ./.github/actions/setup-uv-ansible
         with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev
-
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.ansible/collections
-          # ansible/requirements.yml is the top-level install target;
-          # molecule's own per-scenario dependency phase (see
-          # .config/molecule/config.yml) additionally pulls
-          # molecule_helpers/role-requirements.yml — both are pinned
-          # version files, so a hash of both is the correct cache key.
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r ansible/requirements.yml
+          install-galaxy-collections: "true"
 
       - name: Run molecule test — ${{ matrix.role }}
         run: uv run ./molecule-test-all.sh "${{ matrix.role }}"

@@ -367,129 +367,16 @@ jobs:
         run: uv run ./molecule-test-all.sh "${{ matrix.role }}"
         working-directory: ansible
 
+  # Actual steps live in _compose-boot-test.yml — shared with
+  # boot-test-all.yml's compose-boot-test-all so the seed/boot/wait/
+  # teardown logic has exactly one copy instead of two drifting in
+  # lockstep by hand.
   compose-boot-test:
     needs: detect-changes
     if: needs.detect-changes.outputs.compose_apps != '[]'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        app: ${{ fromJson(needs.detect-changes.outputs.compose_apps) }}
-    # Dummy values for env vars referenced by one or more compose files.
-    # Harmless no-ops for apps that don't reference a given var — docker
-    # compose only substitutes what's actually used. None of these are
-    # real credentials: everything here is either non-secret runtime
-    # config (TIMEZONE) or only gates one optional feature, confirmed by
-    # reading each compose file's own comments/healthcheck target before
-    # adding it here — see the individual compose files for that
-    # reasoning if extending this list for a new app.
-    env:
-      TIMEZONE: "UTC"
-      COBALT_API_URL: "http://localhost:9000" # gates cobalt's tunneling feature only, not its own healthcheck
-      APP_URL: "localhost"
-      WEB_APP_URL: "localhost"
-      API_KEY: "ci-dummy-key"
-      DEFAULT_SSH_HOST: "localhost" # wetty's own healthcheck only spiders its web root, unrelated to SSH connectivity
-      TELEGRAM_TOKEN: "ci-dummy-token"
-      TELEGRAM_CHAT_ID: "0"
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Create shared external network
-        run: docker network create caddy-proxy || true
-
-      - name: Point diun's Dockerfile mount at a real file
-        if: matrix.app == 'diun'
-        run: |
-          mkdir -p /tmp/compose-deploy/caddy
-          cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
-          echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
-        with:
-          enable-cache: true
-
-      - name: Sync dev environment
-        run: uv sync --group dev --locked
-
-      - name: Cache Ansible Galaxy collections
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.ansible/collections
-          key: >-
-            ansible-galaxy-${{ runner.os }}-${{
-              hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
-            }}
-
-      - name: Install Ansible Galaxy collections
-        run: uv run ansible-galaxy collection install -r requirements.yml
-        working-directory: ansible
-
-      # Runs the real compose role's preinit+init tasks (volume creation +
-      # config/script seeding — see ansible/roles/compose/tasks/init.yaml
-      # and ansible/playbooks/ci_boot_test.yaml) against the actual
-      # app_registry.yaml, instead of a bespoke bash step per app. Replaces
-      # the old plain `docker volume create` loop entirely — every app's
-      # volumes are created here too, not just the ones with configs to
-      # seed.
-      - name: Seed ${{ matrix.app }} via the real compose role
-        # ci-inventory/ is a dedicated CI-only inventory (ansible/ci-inventory/)
-        # — bypasses ansible.cfg's default inventory.yaml entirely, whose
-        # all:vars: sets a non-standard sudo binary and SSH-only settings
-        # meant for real remote hosts, not this runner. Needed group_vars
-        # (main.yaml, app_registry.yaml) and CI placeholders
-        # (ci_dummy_vars.yaml) are loaded explicitly via vars_files in
-        # ci_boot_test.yaml — see its own comments for why.
-        run: |
-          uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \
-            playbooks/ci_boot_test.yaml \
-            -e app_name=${{ matrix.app }} \
-            -e compose_deploy_dir=/tmp/compose-deploy
-        working-directory: ansible
-
-      - name: Bring the stack up
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" up -d
-
-      # Bring the stack up failing means Wait for healthy state (which
-      # normally dumps logs on an unhealthy service) never runs, and Tear
-      # down (if: always()) wipes the container right after — without
-      # this, the crash reason is gone before anyone can see it.
-      - name: DEBUG dump logs if Bring the stack up failed
-        if: failure()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" logs
-
-      - name: Wait for healthy state (or, if none defined, that it stayed running)
-        run: |
-          f="/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
-          services=$(docker compose -f "$f" config --services)
-          for svc in $services; do
-            cid=$(docker compose -f "$f" ps -q "$svc")
-            [ -n "$cid" ] || { echo "::error::$svc never started"; exit 1; }
-
-            has_hc=$(docker inspect --format='{{if .State.Health}}yes{{end}}' "$cid")
-            if [ "$has_hc" = "yes" ]; then
-              echo "Waiting for $svc to report healthy..."
-              for _ in $(seq 1 30); do
-                status=$(docker inspect --format='{{.State.Health.Status}}' "$cid")
-                [ "$status" = "healthy" ] && break
-                [ "$status" = "unhealthy" ] && { echo "::error::$svc is unhealthy"; docker logs "$cid"; exit 1; }
-                sleep 2
-              done
-              [ "$status" = "healthy" ] || { echo "::error::$svc never became healthy (last: $status)"; docker logs "$cid"; exit 1; }
-            else
-              # No healthcheck defined — weaker signal, but still catches
-              # an immediate crash-loop or bad entrypoint.
-              sleep 10
-              running=$(docker inspect --format='{{.State.Running}}' "$cid")
-              [ "$running" = "true" ] || { echo "::error::$svc exited unexpectedly"; docker logs "$cid"; exit 1; }
-            fi
-          done
-
-      - name: Tear down
-        if: always()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" down -v
+    uses: ./.github/workflows/_compose-boot-test.yml
+    with:
+      apps: ${{ needs.detect-changes.outputs.compose_apps }}
 
   # Fallback for stacks the boot-test job deliberately excludes
   compose-syntax-check:

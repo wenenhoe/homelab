@@ -71,6 +71,12 @@ Every scenario of every role:
 ./molecule-test-all.sh compose  # just one
 ```
 
+One scenario of one role, without `cd`-ing into it:
+
+```sh
+./molecule-test-all.sh compose -s volumes
+```
+
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
 scenario glob doesn't recurse into `roles/*/molecule/*/`, and 10 of this
 repo's 25 scenarios share the name `default`, which a recursive glob
@@ -147,6 +153,12 @@ beyond its own `molecule.yml`.
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR — there's no CI for
    this yet.
+
+## Coverage
+
+See [`molecule-coverage/README.md`](../ansible/molecule-coverage/README.md)
+for the task/loop/branch coverage tool that runs on top of these
+scenarios and gates CI (see [`ci.md`](ci.md#molecule-coverage-gate)).
 
 ## What molecule scenarios can't catch: tag wiring
 

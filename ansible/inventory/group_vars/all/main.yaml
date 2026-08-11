@@ -47,8 +47,6 @@ letsencrypt_email: "{{ secrets_generated['letsencrypt-email'] }}"
 telegram_token: "{{ secrets_generated['telegram-token'] }}"  # diun notifications
 telegram_chat_id: "{{ secrets_generated['telegram-chat-id'] }}"
 
-wetty_ssh_host: "{{ secrets_generated['wetty-ssh-host'] }}"
-
 # Unknown until after beszel-hub's first boot (self-generated ED25519
 # keypair; token created by hand in Settings > Tokens). allow_blank: true
 # in the registry means "" here is expected on first deploy — beszel-agent

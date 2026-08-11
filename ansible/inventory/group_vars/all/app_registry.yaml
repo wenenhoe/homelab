@@ -148,15 +148,6 @@ app_registry:
       default:
         upstream: "wastebin:8088"
 
-  wetty:
-    configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
-    caddy:
-      default:
-        upstream: "wetty:3000"
-
   diun:
     volumes:
       - name: data
@@ -235,10 +226,3 @@ app_registry:
     caddy:
       default:
         upstream: "bluemap:8100"
-
-  dockge:
-    volumes:
-      - name: data
-    caddy:
-      default:
-        upstream: "dockge:5001"

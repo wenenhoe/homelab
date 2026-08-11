@@ -124,8 +124,7 @@ for subpath support.
 ## What stays a bind mount
 
 - **Host system resources** — the Docker socket (`lldap`/`diun`/`beszel-agent`'s
-  `dockerproxy` sidecars, `dockge`), and `dockge`'s `/opt/stacks` (needs
-  the real host directory tree of every stack's compose files).
+  `dockerproxy` sidecars).
 - **Anything not declared as a volume.**
 
 ## Backward compatibility with bind-mounted apps

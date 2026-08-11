@@ -51,6 +51,16 @@ moving/re-cloning the repo - its output contains absolute paths tied to
 your checkout, which is why it's gitignored). `report.py` reads whatever
 inventory + execution data already exists in the coverage dir.
 
+To regenerate the inventory for every role with a `molecule/` folder (or
+one role by name) in one go, instead of re-running step 2 by hand for
+each - see [`inventory-all.sh`](inventory-all.sh):
+
+```bash
+cd ansible
+./molecule-coverage/inventory-all.sh            # every role
+./molecule-coverage/inventory-all.sh caddy       # just one
+```
+
 ## Usage
 
 ```bash

@@ -75,5 +75,3 @@ shlink_api_key: "ci-dummy-shlink-api-key"
 
 lldap_host: "lldap"
 tinyauth_ldap_observer_password: "ci-dummy-observer-password"
-
-wetty_ssh_host: "localhost"

@@ -21,9 +21,9 @@ eagerly resolves `remote_addr` for the *current* play host regardless of
 a child task's own `delegate_to`, so the results are then explicitly
 propagated onto every real host's hostvars (`delegate_to` +
 `delegate_facts: true`; see `bootstrap-secrets.yaml`'s own header).
-Because `localhost` isn't in `prod`/`test`/`managed_hosts`, `--limit prod`
+Because `localhost` isn't in `managed_hosts`, `--limit managed_hosts`
 alone silently skips this play — always include it: `--limit
-prod,localhost`.
+managed_hosts,localhost`.
 
 `restore.yaml` can't import this play the same way (its role can't split
 across two plays); it takes `bootstrap-secrets.yaml` as a separate file
@@ -32,9 +32,9 @@ on the same command line instead.
 ## Play 1 — System setup (`hosts: managed_hosts`)
 
 Installs Docker Engine and resolves every host's `compose_apps` against
-`app_registry`. No containers start yet. `managed_hosts` (test + prod),
-never `all` — `all` includes the `controller` host, which must never get
-Docker installed or a container deployed to it.
+`app_registry`. No containers start yet. `managed_hosts` — every real
+host — never `all` — `all` includes the `controller` host, which must
+never get Docker installed or a container deployed to it.
 
 ## Play 2 — Deploy Caddy (`hosts: managed_hosts`)
 

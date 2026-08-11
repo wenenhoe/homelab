@@ -52,13 +52,25 @@ sections:
         url: '{{ beszel_hub_url }}'
         statusCheck: true
         id: 1_1774_beszel
-      - title: Wetty
-        description: Terminal in browser
-        icon: fas fa-terminal
-        url: 'https://wetty.svc.{{ lab_domain }}/?host=@'
+      - title: LLDAP
+        description: LDAP directory management
+        icon: hl-lldap
+        url: 'https://lldap.sec.{{ lab_domain }}'
+        statusCheck: true
+        id: 2_1774_lldap
+      - title: Tinyauth
+        description: Forward-auth / SSO provider
+        icon: hl-tinyauth
+        url: 'https://sso.{{ lab_domain }}'
+        statusCheck: true
+        id: 3_1774_tinyauth
+      - title: SeaweedFS Filer
+        description: Offsite-backup file browser
+        icon: https://filer.store.lan.pro-gram.me/favicon.ico
+        url: 'https://filer.store.{{ lab_domain }}'
         statusCheck: true
         statusCheckAcceptCodes: '401'
-        id: 2_1774_wetty
+        id: 4_1774_seaweedfsfiler
   - name: Game Tools
     icon: fa fa-gamepad
     items:

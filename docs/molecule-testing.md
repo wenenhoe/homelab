@@ -154,6 +154,12 @@ beyond its own `molecule.yml`.
 5. Run `molecule test` locally before opening a PR — there's no CI for
    this yet.
 
+## Coverage
+
+See [`molecule-coverage/README.md`](../ansible/molecule-coverage/README.md)
+for the task/loop/branch coverage tool that runs on top of these
+scenarios and gates CI (see [`ci.md`](ci.md#molecule-coverage-gate)).
+
 ## What molecule scenarios can't catch: tag wiring
 
 Every `converge.yml` calls its role directly (`include_role: name:

@@ -37,7 +37,6 @@ jobs:
       APP_URL: "localhost"
       WEB_APP_URL: "localhost"
       API_KEY: "ci-dummy-key"
-      DEFAULT_SSH_HOST: "localhost" # wetty's own healthcheck only spiders its web root, unrelated to SSH connectivity
       TELEGRAM_TOKEN: "ci-dummy-token"
       TELEGRAM_CHAT_ID: "0"
     steps:

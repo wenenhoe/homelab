@@ -20,8 +20,8 @@ on:  # yamllint disable-line rule:truthy
         description: 'Run the repo-wide secret scan'
         type: boolean
         default: false
-      update-dashboard:
-        description: 'Aggregate results into the Vulnerability Dashboard issue — weekly schedule only, see docs/ci.md#trivy-security-scans'
+      upload-json:
+        description: 'Also upload scan JSON for _trivy-dashboard.yml — weekly schedule only, see docs/ci.md#trivy-security-scans'
         type: boolean
         default: false
 
@@ -118,7 +118,7 @@ jobs:
           category: trivy-image-${{ steps.safe.outputs.name }}
 
       - name: Upload JSON for dashboard aggregation
-        if: inputs.update-dashboard
+        if: inputs.upload-json
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-json-image-${{ steps.safe.outputs.name }}
@@ -204,7 +204,7 @@ jobs:
           category: trivy-ansible-misconfig
 
       - name: Upload JSON for dashboard aggregation
-        if: inputs.update-dashboard
+        if: inputs.upload-json
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-json-ansible-misconfig
@@ -242,52 +242,9 @@ jobs:
           category: trivy-secrets
 
       - name: Upload JSON for dashboard aggregation
-        if: inputs.update-dashboard
+        if: inputs.upload-json
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: trivy-json-secrets
           path: trivy-json-secrets.json
           retention-days: 1
-
-  # Weekly only (trivy-scheduled.yml sets update-dashboard: true;
-  # pr-checks.yml doesn't) — a dashboard update on every PR would be
-  # noise unrelated to what that PR touched, and wouldn't match how
-  # Renovate's own Dependency Dashboard behaves either (it updates on
-  # its own runs, not on unrelated repo activity). See
-  # docs/ci.md#trivy-security-scans.
-  dashboard:
-    needs: [image-scan, ansible-misconfig-scan, secret-scan]
-    if: inputs.update-dashboard
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      issues: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Download all scan JSON reports
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: trivy-json-*
-          path: reports
-          merge-multiple: true
-
-      - name: Build dashboard body
-        run: .github/scripts/build-vulnerability-dashboard.sh reports .config/.trivyignore dashboard.md
-
-      # Same find-by-title, edit-or-create pattern Renovate's own
-      # Dependency Dashboard uses, so there's one persistent issue
-      # rather than a new one every week.
-      - name: Upsert Vulnerability Dashboard issue
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          number=$(gh issue list --state all --search 'in:title "Vulnerability Dashboard"' --json number,title \
-            --jq '.[] | select(.title == "Vulnerability Dashboard") | .number' | head -n1)
-          if [ -n "$number" ]; then
-            gh issue edit "$number" --body-file dashboard.md
-            gh issue reopen "$number" 2>/dev/null || true
-          else
-            gh issue create --title "Vulnerability Dashboard" --body-file dashboard.md
-          fi

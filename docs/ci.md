@@ -252,11 +252,27 @@ issue, same find-by-title/edit-or-create pattern as Renovate's own
 Dependency Dashboard so there's one persistent issue, not a new one
 every week.
 
-Each of the three scan jobs also emits `format: json` (in addition to
-the SARIF used for the Security tab) and, only when
-`update-dashboard: true`, uploads it as a short-lived
-(`retention-days: 1`) build artifact. The `dashboard` job downloads all
-of them and hands them to
+The dashboard build lives in its own reusable workflow,
+[`_trivy-dashboard.yml`](../.github/workflows/_trivy-dashboard.yml),
+called only from `trivy-scheduled.yml` — **not** a job inside
+`_trivy-scan.yml` itself. GitHub validates the permissions every job in
+a called reusable workflow requests statically, even ones gated by an
+`if:` that would never actually fire on a given call — so a `dashboard`
+job requesting `issues: write` living inside `_trivy-scan.yml` would
+have forced `pr-checks.yml`'s call to that same workflow to also grant
+`issues: write`, even though `pr-checks.yml` never uses it. Splitting
+the files means the PR path's token has no issue-write capability at
+all, not just an unused grant.
+
+Each of the four scan jobs in `_trivy-scan.yml` also emits
+`format: json` (in addition to the SARIF used for the Security tab)
+and, only when `upload-json: true`, uploads it as a short-lived
+(`retention-days: 1`) build artifact — `trivy-scheduled.yml` is the
+only caller that sets this. `_trivy-dashboard.yml`'s `dashboard` job
+(via `needs: trivy-scan` in `trivy-scheduled.yml` — artifacts are
+scoped to the workflow run, not to which reusable workflow file
+uploaded them, so this works across the two separate `uses:` calls)
+downloads all of them and hands them to
 [`build-vulnerability-dashboard.sh`](../.github/scripts/build-vulnerability-dashboard.sh),
 which aggregates per-image finding counts and cross-references
 `.config/.trivyignore` for any entry whose `exp:` date is within 30

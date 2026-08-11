@@ -15,16 +15,19 @@ jobs:
   # Scoping: molecule and compose-boot-test are the two expensive jobs, so
   # everything downstream runs only against what this PR actually touched
   # instead of the full suite every time. dorny/paths-filter reports both
-  # simple booleans (uv lock, deploy ordering) and the specific role/app
-  # names touched, which the matrix jobs below consume directly.
-  # pre-commit-checks/ansible-lint run unconditionally on every PR
-  # instead — see those jobs below.
+  # simple booleans (uv lock, deploy ordering, ansible-lint) and the
+  # specific role/app names touched, which the matrix jobs below consume
+  # directly. pre-commit-checks runs unconditionally on every PR instead —
+  # its hooks span nearly every file type in the repo (yaml, markdown,
+  # compose, secrets scanning), so scoping it would barely skip anything
+  # while adding a real risk of skipping something it shouldn't.
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       any_compose: ${{ steps.filter.outputs.any_compose }}
       deploy_ordering: ${{ steps.filter.outputs.deploy_ordering }}
+      ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
     steps:
@@ -60,6 +63,21 @@ jobs:
               - 'ansible/playbooks/**'
               - 'ansible/roles/secrets/**'
               - 'ansible/roles/restore/**'
+            # ansible-lint's hook always does a full `--project-dir
+            # ansible` scan regardless of which files changed (see the
+            # ansible-lint job below), so this only gates whether the job
+            # runs at all, not what it scans once it does. Covers the
+            # lint target itself (ansible/**) plus what could change its
+            # behavior without touching ansible/: the rule config, and
+            # the hook's pinned version/args in pre-commit's own config.
+            # Deliberately not pyproject.toml/uv.lock — the hook's
+            # `additional_dependencies: [ansible]` runs in pre-commit's
+            # own isolated venv, unrelated to this repo's uv-managed
+            # ansible-core pin.
+            ansible_lint:
+              - 'ansible/**'
+              - '.config/.ansible-lint'
+              - '.config/.pre-commit-config.yaml'
 
       - name: Determine which ansible roles to test
         id: roles
@@ -150,7 +168,13 @@ jobs:
   # it needs --hook-stage pre-push explicitly. No install-galaxy-collections
   # needed: ansible-lint's own additional_dependencies: [ansible] already
   # bundles community.docker/ansible.posix into its isolated hook venv.
+  #
+  # Scoped via detect-changes (see its ansible_lint filter comment) unlike
+  # pre-commit-checks above — this hook only ever lints ansible/, so a PR
+  # that doesn't touch it gets nothing from a full ansible-lint run.
   ansible-lint:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.ansible_lint == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

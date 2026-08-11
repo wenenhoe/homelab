@@ -102,13 +102,23 @@ jobs:
           changed=$(git diff --name-only "$BASE" "$HEAD")
           excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
 
-          apps=$(echo "$changed" \
+          # git diff --name-only lists deleted paths too, so a removed
+          # app's compose.yaml would otherwise still match the grep below
+          # and get queued for a boot-test against a directory that no
+          # longer exists at HEAD. The -f check drops anything not
+          # actually present in this checkout — same guard the 'roles'
+          # step above already applies via -d.
+          apps=()
+          while IFS= read -r app; do
+            [ -f "docker/$app/compose.yaml" ] || continue
+            apps+=("$app")
+          done < <(echo "$changed" \
             | grep -oE '^docker/[^/]+/compose\.yaml$' \
             | sed -E 's#docker/([^/]+)/compose\.yaml#\1#' \
             | grep -vE "^($excluded)\$" \
             | sort -u)
 
-          json=$(printf '%s\n' "$apps" | jq -R . | jq -sc 'map(select(length > 0))')
+          json=$(printf '%s\n' "${apps[@]:-}" | jq -R . | jq -sc 'map(select(length > 0))')
           echo "apps=$json" >> "$GITHUB_OUTPUT"
           echo "Boot-testing: $json"
 
@@ -393,6 +403,7 @@ jobs:
             | grep -E "^docker/($excluded)/" || true)
           [ -z "$changed" ] && { echo "No excluded-app compose files changed."; exit 0; }
           for f in $changed; do
+            [ -f "$f" ] || continue # deleted, not modified — nothing to validate
             echo "=== $f ==="
             dir=$(dirname "$f")
             # docker compose treats an explicit env_file: entry as required

@@ -1,0 +1,159 @@
+name: Trivy scan (reusable)
+
+# Shared scan logic for pr-checks.yml (change-scoped) and
+# trivy-scheduled.yml (weekly, unscoped) — same workflow_call pattern as
+# _compose-boot-test.yml, one copy of the scan steps instead of two
+# drifting by hand. See docs/ci.md#trivy-security-scans.
+
+on:  # yamllint disable-line rule:truthy
+  workflow_call:
+    inputs:
+      run-images:
+        description: 'Run the image CVE scan (docker/**/compose*.yaml)'
+        type: boolean
+        default: false
+      run-ansible:
+        description: 'Run the Ansible misconfiguration scan'
+        type: boolean
+        default: false
+      run-secrets:
+        description: 'Run the repo-wide secret scan'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  discover-images:
+    if: inputs.run-images
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.list.outputs.images }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: List every image referenced in docker/**/compose*.yaml
+        id: list
+        run: |
+          # The full deployed fleet every run, not just images touched by
+          # this PR — a CVE disclosed in an untouched but still-deployed
+          # image is exactly what the weekly schedule trigger exists to
+          # catch, so the PR trigger scans the same full set for
+          # consistency between the two triggers.
+          images=$(grep -rhoE "image:[[:space:]]*[^\"'[:space:]]+" docker --include='compose*.yaml' \
+            | sed -E 's/^image:[[:space:]]*//' | sort -u)
+          json=$(printf '%s\n' "$images" | jq -R . | jq -sc 'map(select(length > 0))')
+          echo "images=$json" >> "$GITHUB_OUTPUT"
+          echo "Scanning images: $json"
+
+  image-scan:
+    needs: discover-images
+    if: inputs.run-images
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJson(needs.discover-images.outputs.images) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Derive a filesystem-safe name for this image
+        id: safe
+        run: echo "name=$(echo '${{ matrix.image }}' | tr -c 'A-Za-z0-9._-' '_')" >> "$GITHUB_OUTPUT"
+
+      - name: Trivy image scan — ${{ matrix.image }}
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ matrix.image }}
+          format: sarif
+          output: trivy-${{ steps.safe.outputs.name }}.sarif
+          severity: HIGH,CRITICAL
+          # SARIF output includes every severity by default regardless of
+          # `severity:` above, unless this is also set — confirmed
+          # against trivy-action's action.yaml (limit-severities-for-sarif
+          # input); dropping it silently re-widens the Security tab back
+          # to all severities.
+          limit-severities-for-sarif: 'true'
+          exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
+          trivyignores: .config/.trivyignore
+
+      - name: Upload SARIF — ${{ matrix.image }}
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+        with:
+          sarif_file: trivy-${{ steps.safe.outputs.name }}.sarif
+          category: trivy-image-${{ steps.safe.outputs.name }}
+
+  ansible-misconfig-scan:
+    if: inputs.run-ansible
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # trivy-action has no first-class "misconfig-scanners" input, so
+      # this narrows to just the ansible scanner via an explicit
+      # trivy.yaml instead (misconfiguration.scanners — see
+      # docs/ci.md#trivy-security-scans). Generated inline rather than
+      # committed, so the image/secret scan jobs above can't also
+      # auto-discover it if Trivy's cwd-based config lookup ever changes.
+      - name: Write ansible-only misconfig-scanners config
+        run: |
+          cat > /tmp/trivy-ansible.yaml <<'EOF'
+          misconfiguration:
+            scanners:
+              - ansible
+          EOF
+
+      - name: Trivy Ansible misconfiguration scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: config
+          scan-ref: ansible
+          trivy-config: /tmp/trivy-ansible.yaml
+          format: sarif
+          output: trivy-ansible-misconfig.sarif
+          exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
+          trivyignores: .config/.trivyignore
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+        with:
+          sarif_file: trivy-ansible-misconfig.sarif
+          category: trivy-ansible-misconfig
+
+  secret-scan:
+    if: inputs.run-secrets
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Trivy secret scan
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          format: sarif
+          output: trivy-secrets.sarif
+          exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
+          trivyignores: .config/.trivyignore
+
+      - name: Upload SARIF
+        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
+        with:
+          sarif_file: trivy-secrets.sarif
+          category: trivy-secrets

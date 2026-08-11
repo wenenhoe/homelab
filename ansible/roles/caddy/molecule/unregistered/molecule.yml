@@ -1,6 +1,6 @@
 ---
-# Same Docker-in-Docker setup as the default scenario - caddy still builds
-# a real image here even though it isn't registered as a compose app itself
+# Same Docker-in-Docker setup as the default scenario - only exercises
+# config rendering here since caddy isn't registered as a compose app
 # (see converge.yml).
 driver:
   name: docker

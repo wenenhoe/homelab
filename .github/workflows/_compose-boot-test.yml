@@ -46,13 +46,6 @@ jobs:
       - name: Create shared external network
         run: docker network create caddy-proxy || true
 
-      - name: Point diun's Dockerfile mount at a real file
-        if: matrix.app == 'diun'
-        run: |
-          mkdir -p /tmp/compose-deploy/caddy
-          cp ansible/roles/caddy/files/Dockerfile /tmp/compose-deploy/caddy/Dockerfile
-          echo "COMPOSE_DEPLOY_DIR=/tmp/compose-deploy" >> "$GITHUB_ENV"
-
       - name: Setup uv + Ansible Galaxy collections
         uses: ./.github/actions/setup-uv-ansible
         with:
@@ -73,8 +66,7 @@ jobs:
       # vars_files in ci_boot_test.yaml — see its own comments for why.
       #
       # compose_deploy_dir must be passed as -e here (Ansible precedence)
-      # rather than relying on the group_vars default, since the diun step
-      # above overrides it via $GITHUB_ENV for that one app.
+      # rather than relying on the group_vars default.
       - name: Seed ${{ matrix.app }} via the real compose role
         run: |
           uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \

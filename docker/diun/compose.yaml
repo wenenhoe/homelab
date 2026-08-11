@@ -8,11 +8,6 @@ services:
       - dockerproxy
     volumes:
       - data:/data
-      # Add one line per custom-built app here, each under its own
-      # /dockerfiles/<app>/ subpath - DIUN_PROVIDERS_DOCKERFILE_PATTERNS
-      # above already globs any app added this way, no further env changes
-      # needed.
-      - ${COMPOSE_DEPLOY_DIR}/caddy/Dockerfile:/dockerfiles/caddy/Dockerfile:ro
     environment:
       TZ: ${TIMEZONE}
       LOG_LEVEL: info
@@ -23,7 +18,6 @@ services:
       DIUN_PROVIDERS_DOCKER: true
       DIUN_PROVIDERS_DOCKER_ENDPOINT: tcp://dockerproxy:2375
       DIUN_PROVIDERS_DOCKER_WATCHBYDEFAULT: true
-      DIUN_PROVIDERS_DOCKERFILE_PATTERNS: /dockerfiles/*/Dockerfile
       DIUN_NOTIF_TELEGRAM_APIURL: https://api.telegram.org
       DIUN_NOTIF_TELEGRAM_TOKEN: ${TELEGRAM_TOKEN}
       DIUN_NOTIF_TELEGRAM_CHATIDS: ${TELEGRAM_CHAT_ID}

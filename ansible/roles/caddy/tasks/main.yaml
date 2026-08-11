@@ -53,47 +53,7 @@
   tags:
     - infra
 
-- name: Deploy Dockerfile for custom Caddy build
-  ansible.builtin.copy:
-    src: Dockerfile
-    dest: "{{ compose_deploy_dir }}/caddy/Dockerfile"
-    owner: root
-    group: root
-    mode: "0644"
-  tags:
-    - images
-
-- name: Check whether the caddy-digitalocean image already exists
-  community.docker.docker_image_info:
-    name: caddy-digitalocean:v1.0
-  register: caddy_image_info
-  tags:
-    - images
-
-# The `when` below is separate from `tags:` deliberately: tags control
-# reachability (whether --tags images can find this task at all), not
-# whether it runs by default. On a host that already has the image, this
-# only rebuilds when --tags images was explicitly requested
-# (ansible_run_tags is the actual CLI tag list, ['all'] when none given)
-# — a plain full run leaves the existing image alone. But that same plain
-# run still has to build it the first time on a fresh host, hence the
-# image-existence check feeding the other half of this condition.
-- name: Build custom Caddy image locally using standard Dockerfile
-  community.docker.docker_image_build:
-    name: caddy-digitalocean
-    tag: v1.0
-    path: "{{ compose_deploy_dir }}/caddy" # Point context to where the Dockerfile lives
-    pull: true
-    nocache: true
-    rebuild: always
-    dockerfile: Dockerfile
-  when: >-
-    (caddy_image_info.images | default([]) | length == 0) or
-    ('images' in ansible_run_tags)
-  tags:
-    - images
-
-# Tagged for both images (Compose picks up a rebuilt local image by ID)
+# Tagged for both images (Compose pulls the GHCR image like any other app)
 # and infra (restart when only the Caddyfile changed). caddy_config_changes
 # is only set by the infra-tagged task above, so it's defaulted here —
 # under `--tags images` alone it falls back to false.

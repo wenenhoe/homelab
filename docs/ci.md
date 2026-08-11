@@ -172,9 +172,21 @@ places:
 
 | Check | Target | Notes |
 | :--- | :--- | :--- |
-| Image CVE | Every `image:` in `docker/**/compose*.yaml` (~15 images), full set every run | `HIGH,CRITICAL` only |
+| Image CVE | Every `image:` in `docker/**/compose*.yaml` (~15 images), full set every run | `HIGH,CRITICAL` only, `image.source: [remote]` forced (see below) |
 | Ansible misconfig | `ansible/` (Trivy's ansible scanner auto-detects the project root via `ansible.cfg`, `roles/`, `playbooks/`, etc.) | `--misconfig-scanners ansible` only, via an inline `trivy.yaml` (`misconfiguration.scanners`) — trivy-action has no first-class input for this flag |
 | Secrets | Whole repo (`trivy fs --scanners secret`) | Second, independent backstop alongside `gitleaks` (already unconditional in `pre-commit-checks`) |
+
+**Image scans always hit the registry, never a local cache**: Trivy's
+default image-source order is `docker,containerd,podman,remote` — it
+prefers a locally-cached image over the registry if one happens to
+exist under that exact `name:tag`. The CI job forces `image.source:
+[remote]` explicitly. This matters most if you ever re-run an image
+scan by hand on this repo's **controller** rather than in CI — the
+controller runs Docker locally (needed for `molecule`), so a local
+`trivy image <ref>` there can silently report on a stale cached image
+instead of what's actually published, with no indication in the output
+that it happened. Pass `--image-src remote` on the CLI to get the same
+guarantee locally.
 
 **Report-only for now**: every job sets `exit-code: '0'` — findings
 surface but don't block the PR. Flip to `'1'` (with a `severity:` filter,
@@ -190,3 +202,27 @@ scan (`trivy-image-<name>` per image, `trivy-ansible-misconfig`,
 alongside this repo's other tool configs, one shared file across all
 three scans — same documented-exception convention as
 `.github/compose-boot-test-exclusions.txt`.
+
+**Two confirmed Trivy Ansible-scanner quirks** (v0.73.0; re-verify if a
+version bump ever changes this):
+
+- It never reads `ansible.cfg`'s `roles_path` — role resolution
+  (`resolveRolePath` in `pkg/iac/scanners/ansible/parser/parser.go`)
+  only checks a `roles/` dir next to the playbook file, or the
+  `DEFAULT_ROLES_PATH` env var. This repo's roles are a sibling of
+  `ansible/playbooks/`, not nested under it, so without
+  `DEFAULT_ROLES_PATH` every `include_role`/`roles:` silently fails to
+  resolve and the scan reports a clean pass while covering almost none
+  of the real task content.
+- Playbook auto-discovery (`resolvePlaybooksPaths`) only lists YAML
+  files in the project root — a non-recursive `ReadDir()` — so it never
+  finds anything under `playbooks/`. Worked around the same way: an
+  explicit `ansible.playbooks` list in the generated `trivy.yaml`, built
+  from the live `ansible/playbooks/*.y{a,}ml` listing so a new playbook
+  is covered automatically.
+
+With both fixed, this repo currently scans clean — expected: Trivy's
+Ansible module analysis only checks cloud-resource modules, and this
+repo's roles use `community.docker`/`ansible.posix`/`ansible.builtin.*`
+exclusively. The job is still the regression backstop it was scoped as —
+it would catch a misconfigured cloud module if one is ever added.

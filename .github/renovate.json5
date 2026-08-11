@@ -268,5 +268,20 @@
       matchDepNames: ["openspeedtest/latest"],
       sourceUrl: "https://github.com/openspeedtest/Docker-Image",
     },
+
+    // caddy is the same shape as openspeedtest/latest above: it DOES
+    // carry a source label, but it points at caddyserver/caddy-docker —
+    // the repo that generates the Dockerfile, which has no tagged
+    // releases or changelog of its own — rather than
+    // caddyserver/caddy, where the actual version bumps and release
+    // notes live. Same reliability caveat as openspeedtest
+    // (renovatebot/renovate#41505): check the next Dockerfile-bump PR to
+    // confirm the link actually changed to caddyserver/caddy; if it
+    // doesn't take, fall back to `changelogUrl` instead.
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["caddy"],
+      sourceUrl: "https://github.com/caddyserver/caddy",
+    },
   ],
 }

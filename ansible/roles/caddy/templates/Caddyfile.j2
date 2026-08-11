@@ -1,5 +1,7 @@
 {% if not caddy_local_certs | default(false) %}
 {
+    email {{ letsencrypt_email }}
+
     # Define issuers globally with public resolvers
     cert_issuer acme {
         dns digitalocean {env.DO_API_TOKEN}

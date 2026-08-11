@@ -1,0 +1,28 @@
+name: Trivy scheduled scan
+
+# Weekly, unscoped re-run of all three Trivy checks (see
+# docs/ci.md#trivy-security-scans) so a CVE disclosed after the last
+# compose/ansible change still gets caught — pr-checks.yml's trivy-scan
+# job only runs the image/ansible checks when a PR actually touches
+# those paths.
+
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch: {}
+  schedule:
+    # 20:00 UTC Sunday = 04:00 Asia/Singapore Monday — same UTC-anchored
+    # cron style as renovate.yml, timed to land ahead of the work week.
+    - cron: "0 20 * * 0"
+
+permissions:
+  contents: read
+
+jobs:
+  trivy-scan:
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/_trivy-scan.yml
+    with:
+      run-images: true
+      run-ansible: true
+      run-secrets: true

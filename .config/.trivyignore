@@ -1,0 +1,14 @@
+# Accepted-risk findings for Trivy's image/misconfig/secret scans — see
+# docs/ci.md#trivy-security-scans. One shared file, referenced by all
+# three scan jobs' `trivyignores:` input via its .config/ path — same
+# location as this repo's other tool configs (.ansible-lint, .yamllint,
+# .dclintrc).
+#
+# One entry per line: a CVE ID (image scan), an AVD/check ID (Ansible
+# misconfig scan), or a secret rule ID (secret scan). Blank lines and
+# full-line '#' comments are ignored when Trivy parses this file — same
+# convention as .github/compose-boot-test-exclusions.txt. Attach the
+# reasoning for each entry directly above it, matching that file's
+# style, rather than tracking justifications elsewhere.
+#
+# Empty for now — nothing has been triaged as accepted risk yet.

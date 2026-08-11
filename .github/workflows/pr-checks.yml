@@ -28,6 +28,7 @@ jobs:
       any_compose: ${{ steps.filter.outputs.any_compose }}
       deploy_ordering: ${{ steps.filter.outputs.deploy_ordering }}
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
+      trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
     steps:
@@ -78,6 +79,12 @@ jobs:
               - 'ansible/**'
               - '.config/.ansible-lint'
               - '.config/.pre-commit-config.yaml'
+            # Gates trivy-scan's Ansible misconfig job below — narrower
+            # than ansible_lint on purpose (ansible/** only, no lint
+            # config), since a change to .ansible-lint or pre-commit's
+            # own config doesn't change what Trivy would find.
+            trivy_ansible:
+              - 'ansible/**'
 
       - name: Determine which ansible roles to test
         id: roles
@@ -453,6 +460,24 @@ jobs:
             [ "$stub_created" -eq 1 ] && rm -f "$dir/.env"
             [ "$rc" -eq 0 ] || exit "$rc"
           done
+
+  # Runs the three Trivy checks documented in
+  # docs/ci.md#trivy-security-scans. Image CVE + Ansible misconfig are
+  # scoped via detect-changes like the jobs above; the secret scan runs
+  # unconditionally on every PR instead, same reasoning as
+  # pre-commit-checks — a leaked secret can land in any file, not just
+  # docker/ or ansible/. It's a second, independent backstop alongside
+  # gitleaks, which pre-commit-checks above already runs unconditionally.
+  trivy-scan:
+    needs: detect-changes
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/_trivy-scan.yml
+    with:
+      run-images: ${{ needs.detect-changes.outputs.any_compose == 'true' }}
+      run-ansible: ${{ needs.detect-changes.outputs.trivy_ansible == 'true' }}
+      run-secrets: true
 
   # Required-status-check aggregator for the two matrix jobs above.
   # GitHub's required-status-check list can't reference a matrix job by

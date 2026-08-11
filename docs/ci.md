@@ -152,3 +152,41 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
 unchecked.
+
+## Trivy security scans
+
+Three independent Trivy checks, defined once in
+[`_trivy-scan.yml`](../.github/workflows/_trivy-scan.yml) (`workflow_call`,
+same sharing pattern as `_compose-boot-test.yml`) and run from two
+places:
+
+- `pr-checks.yml`'s `trivy-scan` job — image CVE and Ansible misconfig
+  scoped via `detect-changes` (`any_compose`/`trivy_ansible`); the secret
+  scan runs unconditionally on every PR, the same reasoning as
+  `pre-commit-checks` (a leaked secret can land in any file). It's a
+  second, independent backstop alongside `gitleaks`, which
+  `pre-commit-checks` already runs unconditionally.
+- `trivy-scheduled.yml` — all three, weekly, unscoped, so a CVE disclosed
+  in an already-deployed image or a new misconfig check added to Trivy
+  itself still gets caught even when nothing in this repo changed.
+
+| Check | Target | Notes |
+| :--- | :--- | :--- |
+| Image CVE | Every `image:` in `docker/**/compose*.yaml` (~15 images), full set every run | `HIGH,CRITICAL` only |
+| Ansible misconfig | `ansible/` (Trivy's ansible scanner auto-detects the project root via `ansible.cfg`, `roles/`, `playbooks/`, etc.) | `--misconfig-scanners ansible` only, via an inline `trivy.yaml` (`misconfiguration.scanners`) — trivy-action has no first-class input for this flag |
+| Secrets | Whole repo (`trivy fs --scanners secret`) | Second, independent backstop alongside `gitleaks` (already unconditional in `pre-commit-checks`) |
+
+**Report-only for now**: every job sets `exit-code: '0'` — findings
+surface but don't block the PR. Flip to `'1'` (with a `severity:` filter,
+for the image scan) once the backlog from the first few runs has been
+triaged.
+
+**Where findings go**: SARIF, uploaded to the repo's Security > Code
+Scanning tab via `github/codeql-action/upload-sarif`, one `category` per
+scan (`trivy-image-<name>` per image, `trivy-ansible-misconfig`,
+`trivy-secrets`) so results don't collide in the UI.
+
+**Accepted-risk findings**: [`.config/.trivyignore`](../.config/.trivyignore),
+alongside this repo's other tool configs, one shared file across all
+three scans — same documented-exception convention as
+`.github/compose-boot-test-exclusions.txt`.

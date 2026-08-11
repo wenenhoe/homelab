@@ -71,6 +71,12 @@ Every scenario of every role:
 ./molecule-test-all.sh compose  # just one
 ```
 
+One scenario of one role, without `cd`-ing into it:
+
+```sh
+./molecule-test-all.sh compose -s volumes
+```
+
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
 scenario glob doesn't recurse into `roles/*/molecule/*/`, and 10 of this
 repo's 25 scenarios share the name `default`, which a recursive glob

@@ -9,7 +9,7 @@ on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
       run-images:
-        description: 'Run the image CVE scan (docker/**/compose*.yaml)'
+        description: 'Run the image CVE scan (docker/**/compose*.yaml) — weekly schedule only, see docs/ci.md#trivy-security-scans'
         type: boolean
         default: false
       run-ansible:
@@ -18,6 +18,10 @@ on:  # yamllint disable-line rule:truthy
         default: false
       run-secrets:
         description: 'Run the repo-wide secret scan'
+        type: boolean
+        default: false
+      upload-json:
+        description: 'Also upload scan JSON for _trivy-dashboard.yml — weekly schedule only, see docs/ci.md#trivy-security-scans'
         type: boolean
         default: false
 
@@ -37,11 +41,9 @@ jobs:
       - name: List every image referenced in docker/**/compose*.yaml
         id: list
         run: |
-          # The full deployed fleet every run, not just images touched by
-          # this PR — a CVE disclosed in an untouched but still-deployed
-          # image is exactly what the weekly schedule trigger exists to
-          # catch, so the PR trigger scans the same full set for
-          # consistency between the two triggers.
+          # No PR-level scoping — every trigger (PR and weekly schedule
+          # alike) scans the full deployed fleet. See
+          # docs/ci.md#trivy-security-scans.
           images=$(grep -rhoE "image:[[:space:]]*[^\"'[:space:]]+" docker --include='compose*.yaml' \
             | sed -E 's/^image:[[:space:]]*//' | sort -u)
           json=$(printf '%s\n' "$images" | jq -R . | jq -sc 'map(select(length > 0))')
@@ -90,23 +92,38 @@ jobs:
           scan-type: image
           image-ref: ${{ matrix.image }}
           trivy-config: /tmp/trivy-image.yaml
-          format: sarif
-          output: trivy-${{ steps.safe.outputs.name }}.sarif
+          format: json
+          output: trivy-json-image-${{ steps.safe.outputs.name }}.json
           severity: HIGH,CRITICAL
-          # SARIF output includes every severity by default regardless of
-          # `severity:` above, unless this is also set — confirmed
-          # against trivy-action's action.yaml (limit-severities-for-sarif
-          # input); dropping it silently re-widens the Security tab back
-          # to all severities.
-          limit-severities-for-sarif: 'true'
           exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
           trivyignores: .config/.trivyignore
+
+      # trivy-action has no SARIF-conversion path that reuses an
+      # already-produced JSON report, so this converts locally instead
+      # of a second full scan — `trivy` is already on PATH from the
+      # setup-trivy step the action above ran (confirmed via
+      # trivy-action's own README: it documents calling the action
+      # twice in one job and skipping setup on the second call because
+      # trivy is already installed). Unlike SARIF output directly from
+      # trivy-action, `trivy convert` doesn't widen back to all
+      # severities — the source JSON is already HIGH,CRITICAL-only, and
+      # convert only re-renders what's already there.
+      - name: Convert to SARIF — ${{ matrix.image }}
+        run: trivy convert --format sarif --output trivy-image-${{ steps.safe.outputs.name }}.sarif trivy-json-image-${{ steps.safe.outputs.name }}.json
 
       - name: Upload SARIF — ${{ matrix.image }}
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
-          sarif_file: trivy-${{ steps.safe.outputs.name }}.sarif
+          sarif_file: trivy-image-${{ steps.safe.outputs.name }}.sarif
           category: trivy-image-${{ steps.safe.outputs.name }}
+
+      - name: Upload JSON for dashboard aggregation
+        if: inputs.upload-json
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-json-image-${{ steps.safe.outputs.name }}
+          path: trivy-json-image-${{ steps.safe.outputs.name }}.json
+          retention-days: 1
 
   ansible-misconfig-scan:
     if: inputs.run-ansible
@@ -172,16 +189,27 @@ jobs:
           scan-type: config
           scan-ref: ansible
           trivy-config: /tmp/trivy-ansible.yaml
-          format: sarif
-          output: trivy-ansible-misconfig.sarif
+          format: json
+          output: trivy-json-ansible-misconfig.json
           exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
           trivyignores: .config/.trivyignore
+
+      - name: Convert to SARIF
+        run: trivy convert --format sarif --output trivy-ansible-misconfig.sarif trivy-json-ansible-misconfig.json
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           sarif_file: trivy-ansible-misconfig.sarif
           category: trivy-ansible-misconfig
+
+      - name: Upload JSON for dashboard aggregation
+        if: inputs.upload-json
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-json-ansible-misconfig
+          path: trivy-json-ansible-misconfig.json
+          retention-days: 1
 
   secret-scan:
     if: inputs.run-secrets
@@ -199,13 +227,24 @@ jobs:
           scan-type: fs
           scan-ref: .
           scanners: secret
-          format: sarif
-          output: trivy-secrets.sarif
+          format: json
+          output: trivy-json-secrets.json
           exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
           trivyignores: .config/.trivyignore
+
+      - name: Convert to SARIF
+        run: trivy convert --format sarif --output trivy-secrets.sarif trivy-json-secrets.json
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           sarif_file: trivy-secrets.sarif
           category: trivy-secrets
+
+      - name: Upload JSON for dashboard aggregation
+        if: inputs.upload-json
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trivy-json-secrets
+          path: trivy-json-secrets.json
+          retention-days: 1

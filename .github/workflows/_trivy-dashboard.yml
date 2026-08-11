@@ -1,0 +1,58 @@
+name: Trivy Vulnerability Dashboard (reusable)
+
+# Split out from _trivy-scan.yml so pr-checks.yml's call to that
+# workflow never needs to request `issues: write` — GitHub validates
+# permissions for every job in a called reusable workflow statically,
+# even ones gated by `if:` that would never actually run on a PR (this
+# job only ever runs from trivy-scheduled.yml). Keeping it in a
+# separate file means the PR path's token genuinely has no issue-write
+# capability at all, rather than an unused grant sitting on every PR
+# run. See docs/ci.md#trivy-security-scans.
+#
+# Expects trivy-json-*.json artifacts to already be uploaded in this
+# workflow run (trivy-scheduled.yml's trivy-scan job, called with
+# upload-json: true, does this) — artifacts are scoped to the run, not
+# to which reusable workflow file uploaded them, so this works even
+# though it's a separate `uses:` call from the scan jobs.
+
+on: # yamllint disable-line rule:truthy
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+jobs:
+  dashboard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Download all scan JSON reports
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: trivy-json-*
+          path: reports
+          merge-multiple: true
+
+      - name: Build dashboard body
+        run: .github/scripts/build-vulnerability-dashboard.sh reports .config/.trivyignore dashboard.md
+
+      # Same find-by-title, edit-or-create pattern Renovate's own
+      # Dependency Dashboard uses, so there's one persistent issue
+      # rather than a new one every week.
+      - name: Upsert Vulnerability Dashboard issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          number=$(gh issue list --state all --search 'in:title "Vulnerability Dashboard"' --json number,title \
+            --jq '.[] | select(.title == "Vulnerability Dashboard") | .number' | head -n1)
+          if [ -n "$number" ]; then
+            gh issue edit "$number" --body-file dashboard.md
+            gh issue reopen "$number" 2>/dev/null || true
+          else
+            gh issue create --title "Vulnerability Dashboard" --body-file dashboard.md
+          fi

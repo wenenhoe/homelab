@@ -2,9 +2,10 @@ name: Trivy scheduled scan
 
 # Weekly, unscoped re-run of all three Trivy checks (see
 # docs/ci.md#trivy-security-scans) so a CVE disclosed after the last
-# compose/ansible change still gets caught — pr-checks.yml's trivy-scan
-# job only runs the image/ansible checks when a PR actually touches
-# those paths.
+# compose/ansible change still gets caught even when nothing in this
+# repo changed — pr-checks.yml's trivy-scan job still only runs the
+# Ansible misconfig check when a PR actually touches ansible/**; image
+# CVE and secret scanning run on every PR already.
 
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}
@@ -26,3 +27,16 @@ jobs:
       run-images: true
       run-ansible: true
       run-secrets: true
+      upload-json: true
+
+  # Separate reusable workflow (not a job inside _trivy-scan.yml) so
+  # pr-checks.yml's call to that workflow never needs `issues: write` —
+  # see _trivy-dashboard.yml's own header comment for why. Artifacts
+  # from trivy-scan's jobs are visible here since they're scoped to the
+  # workflow run, not to which reusable workflow file uploaded them.
+  dashboard:
+    needs: trivy-scan
+    permissions:
+      contents: read
+      issues: write
+    uses: ./.github/workflows/_trivy-dashboard.yml

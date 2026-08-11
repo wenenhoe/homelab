@@ -2,7 +2,7 @@ name: caddy
 
 services:
   caddy:
-    image: caddy-digitalocean:v1.0 # Image managed by Ansible
+    image: ghcr.io/wenenhoe/caddy-digitalocean:2.11.4
     container_name: caddy
     volumes:
       - type: volume
@@ -27,9 +27,6 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    labels:
-      - diun.enable=false
-    pull_policy: never # Local built image only
 networks:
   caddy-proxy:
     name: caddy-proxy

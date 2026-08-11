@@ -5,20 +5,8 @@
   vars:
     compose_deploy_dir: /opt/stacks
   tasks:
-    # --- Config generation and image build still happen - neither depends
-    # --- on caddy being a registered compose app ----------------------------
-    - name: Confirm the Dockerfile was written
-      ansible.builtin.stat:
-        path: "{{ compose_deploy_dir }}/caddy/Dockerfile"
-      register: caddy_unreg_dockerfile_stat
-      failed_when: not caddy_unreg_dockerfile_stat.stat.exists
-
-    - name: Confirm the custom Caddy image was still built
-      community.docker.docker_image_info:
-        name: caddy-digitalocean:v1.0
-      register: caddy_unreg_image_inspect
-      failed_when: caddy_unreg_image_inspect.images | length == 0
-
+    # --- Config generation still happens - doesn't depend on caddy being a
+    # --- registered compose app ----------------------------------------------
     - name: Read back the rendered Caddyfile from staging
       ansible.builtin.slurp:
         path: "{{ compose_deploy_dir }}/caddy/_staging/caddyfile/Caddyfile"

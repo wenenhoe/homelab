@@ -38,9 +38,9 @@ never get Docker installed or a container deployed to it.
 
 ## Play 2 — Deploy Caddy (`hosts: managed_hosts`)
 
-Renders each host's `Caddyfile`, builds the custom Caddy image (DigitalOcean
-DNS plugin), starts/restarts it — routing is live before any backend app
-starts. See [`caddy.md`](caddy.md).
+Renders each host's `Caddyfile`, pulls the custom Caddy image (DigitalOcean
+DNS plugin, built in CI), starts/restarts it — routing is live before any
+backend app starts. See [`caddy.md`](caddy.md).
 
 ## Play 3 — Configure BIND9 (`hosts: dns`)
 
@@ -76,7 +76,7 @@ already exist. See [`disaster-recovery.md`](disaster-recovery.md).
 | `compose` | The building block every app deployment uses: `preinit.yaml` resolves `compose_apps` against `app_registry` once per host; `init.yaml` creates directories, ensures/migrates named volumes (see [`volumes.md`](volumes.md)), copies compose files/scripts, renders config templates; `deploy.yaml` pulls/builds images and brings the stack up, force-restarting when a config file or seeded volume changed. |
 | `secrets` | Generates once / reuses thereafter every secret in `secrets_registry.yaml`. See [`secrets.md`](secrets.md). |
 | `compose_app` | Batch-drives `compose` init+deploy for every non-self-managed app. Each app is wrapped in its own `block`/`rescue` so one failure doesn't stop the batch. `compose_app_continue_on_error: true` by default; `-e compose_app_continue_on_error=false` for strict fail-fast. Prints a per-app pass/fail summary. |
-| `caddy` | Renders the Caddyfile, builds the custom image, deploys/restarts the proxy. |
+| `caddy` | Renders the Caddyfile, deploys/restarts the proxy. |
 | `bind9` | Aggregates DNS zone data from every app host, renders/deploys BIND9, rewires the host's own resolution. |
 | `seaweedfs_bucket` | Creates the offsite-backup bucket on `storage` ahead of any upload. |
 | `backup_agent` | Aggregates each host's `backup:`-declared apps into up to two `docker-volume-backup` instances. See [`disaster-recovery.md`](disaster-recovery.md). |

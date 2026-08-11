@@ -39,18 +39,17 @@
   semanticCommitScope: "deps",
 
   // Most molecule fixtures pin specific images (mostly alpine:3.20) on
-  // purpose for reproducibility, or reference locally-built, non-registry
-  // images (caddy-digitalocean:v1.0, buildapp:local) Renovate can't
-  // resolve anyway — keep those out of scope entirely.
+  // purpose for reproducibility, or reference a locally-built, non-registry
+  // image (buildapp:local) Renovate can't resolve anyway — keep those out
+  // of scope entirely.
   //
   // This is an explicit per-role list, not a blanket "**/molecule/**",
-  // and bind9 is deliberately left off it: unlike the others, bind9's
-  // molecule fixture stands up a real ubuntu/bind9 instance that mirrors
-  // docker/bind9/compose.yaml's production pin — see the packageRule
-  // below for why that one has to stay trackable.
+  // and bind9/caddy are deliberately left off it: unlike the others,
+  // their molecule fixtures stand up a real image that mirrors their
+  // production compose.yaml's pin — see the packageRules below for why
+  // those two have to stay trackable.
   ignorePaths: [
     "ansible/roles/backup_agent/molecule/**",
-    "ansible/roles/caddy/molecule/**",
     "ansible/roles/compose/molecule/**",
     "ansible/roles/compose_app/molecule/**",
     "ansible/roles/restore/molecule/**",
@@ -103,17 +102,6 @@
   ],
 
   packageRules: [
-    // docker/caddy/compose.yaml's image: caddy-digitalocean:v1.0 isn't a
-    // registry pull — it's the tag the Dockerfile build produces locally.
-    // The actual Caddy version — what the Dockerfile's FROM lines build
-    // against — is already tracked separately via the dockerfile manager
-    // on ansible/roles/caddy/files/Dockerfile.
-    {
-      matchManagers: ["docker-compose"],
-      matchPackageNames: ["caddy-digitalocean"],
-      enabled: false,
-    },
-
     // Pure local dev tooling — no production impact, and none of it
     // automerges beyond the pin/pinDigest case below anyway, so every
     // real bump needs a manual click regardless. Grouped into one PR:
@@ -180,6 +168,17 @@
     {
       matchManagers: ["pep621", "uv"],
       rangeStrategy: "update-lockfile",
+    },
+
+    // docker/caddy/compose.yaml (production) and
+    // ansible/roles/caddy/molecule/default/files/docker/caddy/compose.yaml
+    // (the real GHCR image the caddy role's molecule scenario deploys
+    // against) are two independent, hard-coded pins of the same image —
+    // same reasoning as the bind9/seaweedfs pairs below: group them so
+    // they can only ever be bumped together.
+    {
+      matchDepNames: ["ghcr.io/wenenhoe/caddy-digitalocean"],
+      groupName: "caddy-digitalocean (prod + molecule test fixture — must move together)",
     },
 
     // docker/bind9/compose.yaml (production) and

@@ -1,10 +1,8 @@
 ---
-# caddy builds a real Docker image (xcaddy + a DNS plugin) and deploys via
-# compose, needing the same Docker-in-Docker setup as the compose
-# scenarios, plus python3-requests (its 3 volumes go through
-# ensure_volume.yaml). Slowest scenario so far — compiling Caddy from
-# source typically takes a couple of minutes and needs real internet
-# access to fetch Go modules.
+# caddy pulls its custom image from GHCR and deploys via compose, needing
+# the same Docker-in-Docker setup as the compose scenarios, plus
+# python3-requests (its 3 volumes go through ensure_volume.yaml). Needs
+# real internet access to reach ghcr.io.
 driver:
   name: docker
 platforms:

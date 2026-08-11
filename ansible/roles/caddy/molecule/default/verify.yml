@@ -5,18 +5,6 @@
   vars:
     compose_deploy_dir: /opt/stacks
   tasks:
-    - name: Confirm the Dockerfile was written
-      ansible.builtin.stat:
-        path: "{{ compose_deploy_dir }}/caddy/Dockerfile"
-      register: caddy_dockerfile_stat
-      failed_when: not caddy_dockerfile_stat.stat.exists
-
-    - name: Confirm the custom Caddy image was actually built
-      community.docker.docker_image_info:
-        name: caddy-digitalocean:v1.0
-      register: caddy_image_inspect
-      failed_when: caddy_image_inspect.images | length == 0
-
     # --- Caddyfile rendered and seeded correctly into its volume ------------
     - name: Read back the seeded Caddyfile from its volume
       ansible.builtin.command: >-

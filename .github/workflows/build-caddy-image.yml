@@ -6,8 +6,8 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     # Weekly, same time-of-day as renovate.yml's daily cron (20:00 UTC =
     # 04:00 Asia/Singapore). Catches upstream `caddy:2.11.4`/`apk add curl`
-    # security patches that land without the Dockerfile's text changing,
-    # which the push trigger below would otherwise miss.
+    # security patches that land without docker/caddy/Dockerfile's text
+    # changing, which the push trigger below would otherwise miss.
     - cron: "0 20 * * 0"
   workflow_dispatch: {}
 
@@ -41,7 +41,7 @@ jobs:
         with:
           filters: |
             dockerfile:
-              - 'ansible/roles/caddy/files/Dockerfile'
+              - 'docker/caddy/Dockerfile'
 
   build-and-push:
     needs: detect-changes
@@ -65,7 +65,7 @@ jobs:
       - name: Resolve image tag from the Dockerfile's final FROM line
         id: version
         run: |
-          version=$(grep -E '^FROM caddy:[^-]+$' ansible/roles/caddy/files/Dockerfile | tail -1 | cut -d: -f2)
+          version=$(grep -E '^FROM caddy:[^-]+$' docker/caddy/Dockerfile | tail -1 | cut -d: -f2)
           echo "tag=$version" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
@@ -91,8 +91,8 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          context: ansible/roles/caddy/files
-          file: ansible/roles/caddy/files/Dockerfile
+          context: docker/caddy
+          file: docker/caddy/Dockerfile
           platforms: linux/amd64
           push: true
           pull: ${{ github.event_name == 'schedule' }}

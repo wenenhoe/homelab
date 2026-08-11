@@ -67,11 +67,29 @@ jobs:
         id: safe
         run: echo "name=$(echo '${{ matrix.image }}' | tr -c 'A-Za-z0-9._-' '_')" >> "$GITHUB_OUTPUT"
 
+      # Trivy checks docker,containerd,podman,remote in that order by
+      # default (trivy image --help) — it prefers a locally-cached image
+      # over fetching from the registry. This runner's Docker daemon is
+      # empty every run, so that's currently moot, but forcing `remote`
+      # here makes it correct-by-construction rather than
+      # correct-by-accident: a future step added earlier in this job that
+      # happens to `docker build`/`docker load` an image under one of
+      # these exact refs would otherwise silently make this scan report
+      # on that local image instead of what's actually published.
+      - name: Write remote-only image source config
+        run: |
+          cat > /tmp/trivy-image.yaml <<'EOF'
+          image:
+            source:
+              - remote
+          EOF
+
       - name: Trivy image scan — ${{ matrix.image }}
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: image
           image-ref: ${{ matrix.image }}
+          trivy-config: /tmp/trivy-image.yaml
           format: sarif
           output: trivy-${{ steps.safe.outputs.name }}.sarif
           severity: HIGH,CRITICAL
@@ -93,6 +111,20 @@ jobs:
   ansible-misconfig-scan:
     if: inputs.run-ansible
     runs-on: ubuntu-latest
+    # Trivy's ansible scanner never reads ansible.cfg's `roles_path` —
+    # confirmed against pkg/iac/scanners/ansible/parser/parser.go
+    # (resolveRolePath): it only checks a `roles/` dir sitting next to
+    # the playbook file itself, or this env var. This repo's roles live
+    # at the project root (ansible/roles), a sibling of
+    # ansible/playbooks/ rather than nested under it, so without this,
+    # every `include_role`/`roles:` in every playbook silently fails to
+    # resolve ("role \"x\" not found") and the scan covers almost none
+    # of this repo's real task content. Job-level (not step-level) so it
+    # reaches the trivy-action composite's own process regardless of
+    # composite-action env-inheritance behavior. See
+    # docs/ci.md#trivy-security-scans.
+    env:
+      DEFAULT_ROLES_PATH: ${{ github.workspace }}/ansible/roles
     permissions:
       contents: read
       security-events: write
@@ -100,19 +132,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # trivy-action has no first-class "misconfig-scanners" input, so
-      # this narrows to just the ansible scanner via an explicit
-      # trivy.yaml instead (misconfiguration.scanners — see
-      # docs/ci.md#trivy-security-scans). Generated inline rather than
-      # committed, so the image/secret scan jobs above can't also
-      # auto-discover it if Trivy's cwd-based config lookup ever changes.
+      # Two things this config does that trivy-action has no first-class
+      # input for:
+      # 1. misconfiguration.scanners: narrows to just the ansible
+      #    scanner (--misconfig-scanners ansible).
+      # 2. ansible.playbooks: Trivy's own playbook auto-discovery only
+      #    lists YAML files sitting directly in the project root
+      #    (non-recursive `ReadDir`) — it never finds anything under a
+      #    playbooks/ subdirectory, so without this list the scan
+      #    silently covers zero playbooks. Generated from the actual
+      #    directory listing rather than hand-maintained, so a new
+      #    playbook file is covered automatically instead of needing a
+      #    matching edit here (import-only fragments like
+      #    bootstrap-secrets.yaml get listed too since they're also
+      #    real .yaml files here — harmless, just re-evaluates their
+      #    tasks under their own entry alongside their host playbook).
+      #
+      # Generated inline rather than committed, so the image/secret scan
+      # jobs above can't also auto-discover it if Trivy's cwd-based
+      # config lookup ever changes.
       - name: Write ansible-only misconfig-scanners config
         run: |
-          cat > /tmp/trivy-ansible.yaml <<'EOF'
-          misconfiguration:
-            scanners:
-              - ansible
-          EOF
+          {
+            echo "misconfiguration:"
+            echo "  scanners:"
+            echo "    - ansible"
+            echo "ansible:"
+            echo "  playbooks:"
+            for f in ansible/playbooks/*.yaml ansible/playbooks/*.yml; do
+              [ -f "$f" ] || continue
+              echo "    - \"${f#ansible/}\""
+            done
+          } > /tmp/trivy-ansible.yaml
+          cat /tmp/trivy-ansible.yaml
 
       - name: Trivy Ansible misconfiguration scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

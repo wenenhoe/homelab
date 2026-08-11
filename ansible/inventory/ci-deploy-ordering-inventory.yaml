@@ -27,7 +27,7 @@
 # -> main_domain -> secrets_generated chain and its managed_hosts/
 # controller group split — both had bugs that were invisible to every
 # other CI check that existed at the time. NOT a full structural mirror:
-# no prod/test/dns/storage/app_hosts groups, since deploy-ordering-check
+# no dns/storage/app_hosts groups, since deploy-ordering-check
 # only runs deploy.yaml with --tags matching nothing real (see that
 # job), which never reaches any task that reads those groups — an
 # undeclared group in --limit/hosts: just resolves to zero hosts and is

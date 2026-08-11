@@ -7,7 +7,7 @@
 # managed_hosts, not all — all also includes the controller (see
 # inventory.yaml), which should never get apt/fwupd run against it the
 # way this playbook runs it against real servers.
-# Usage: ansible-playbook maintenance.yaml --limit prod,localhost
+# Usage: ansible-playbook maintenance.yaml --limit managed_hosts,localhost
 # (localhost required in --limit — see bootstrap-secrets.yaml)
 - name: Play 0 - Secrets
   ansible.builtin.import_playbook: bootstrap-secrets.yaml

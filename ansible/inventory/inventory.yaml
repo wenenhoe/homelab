@@ -7,13 +7,16 @@ all:
     # For Ubuntu 26.04, use non-rs sudo. Source: https://askubuntu.com/a/1566915
 
   children:
-    test:
-      hosts:
-        experiment:
-          ansible_host: "ansible-test-server.{{ ddns_domain }}"
-          ansible_user: user
-
-    prod:
+    # Every real, managed server (everything except the controller itself,
+    # below). Playbooks that use THIS inventory and provision/deploy/
+    # upgrade actual infrastructure (deploy.yaml's Plays 1/2/4/6,
+    # maintenance.yaml, restore.yaml) target this, NOT the bare `all`
+    # magic group — `all` also includes `controller` below, and none of
+    # those plays should ever run against the operator's own machine.
+    # reset-network.yaml does NOT use this inventory at all (see
+    # inventory/sos-inventory.yaml and that playbook's own header) — this
+    # group doesn't exist there and doesn't need to.
+    managed_hosts:
       hosts:
         services:
           ansible_host: "services.{{ ddns_domain }}"
@@ -28,25 +31,15 @@ all:
           ansible_host: "storage.{{ ddns_domain }}"
           ansible_user: storeadmin
 
-    # Every real, managed server (everything except the controller itself,
-    # below) — test + prod. Playbooks that use THIS inventory and
-    # provision/deploy/upgrade actual infrastructure (deploy.yaml's Plays
-    # 1/2/4/6, maintenance.yaml, restore.yaml) target this, NOT the bare
-    # `all` magic group — `all` also includes `controller` below, and none
-    # of those plays should ever run against the operator's own machine.
-    # reset-network.yaml does NOT use this inventory at all (see
-    # inventory/sos-inventory.yaml and that playbook's own header) — this
-    # group doesn't exist there and doesn't need to.
-    managed_hosts:
-      children:
-        test:
-        prod:
-
     # Hosts whose dns_zones, compose_apps, caddy_domain, and dns_ddns_target
-    # are scraped by the bind9 role.  Add any new app host here.
+    # are scraped by the bind9 role. Add any new app host here. Currently
+    # an exact alias of managed_hosts — kept as its own name because it's
+    # a different concept (hosts that own DNS/app data, vs. every host
+    # Ansible manages), and a future managed host that bind9 shouldn't
+    # scrape would need this to diverge again.
     app_hosts:
       children:
-        prod:
+        managed_hosts:
 
     # The single authoritative DNS host.  bind9 role runs here only.
     dns:
@@ -60,16 +53,17 @@ all:
     # it can't touch any real (managed_hosts) host until secrets exist —
     # see that file and docs/deployment-flow.md.
     #
-    # Deliberately its own group, NOT under managed_hosts/prod/test: every
+    # Deliberately its own group, NOT under managed_hosts: every
     # playbook that provisions/deploys/upgrades real infrastructure targets
     # managed_hosts precisely so this host is excluded from all of that —
     # see the comment on managed_hosts above.
     #
     # Still a member of the `all` magic group like every inventory host
     # (unavoidable — that's how Ansible's `all` works), which is exactly
-    # why `--limit prod` alone filters localhost out and Play 0 gets
-    # silently skipped (empty host list, not an error) unless localhost is
-    # named explicitly: --limit prod,localhost. See bootstrap-secrets.yaml.
+    # why `--limit managed_hosts` alone filters localhost out and Play 0
+    # gets silently skipped (empty host list, not an error) unless
+    # localhost is named explicitly: --limit managed_hosts,localhost. See
+    # bootstrap-secrets.yaml.
     controller:
       hosts:
         localhost:

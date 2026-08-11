@@ -12,7 +12,6 @@ The lab is organized as a small group of hosts, each owning a subdomain of `lan.
 | `play` | Game server hosting (Minecraft) | `play.lan.{{ main_domain }}` |
 | `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub | `sec.lan.{{ main_domain }}` |
 | `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host | `store.lan.{{ main_domain }}` |
-| `experiment` | Sandbox / test target | `test.lan.{{ main_domain }}` |
 
 Every `app_hosts` member runs its own Caddy instance and terminates TLS
 for its own `*.{{ caddy_domain }}` wildcard via DNS-01 (DigitalOcean).
@@ -206,8 +205,8 @@ Two inventories exist for two different situations:
   ```
 - Select hosts to run (single/multiple):
   ```sh
-  ansible-playbook playbooks/deploy.yaml --limit test
-  ansible-playbook playbooks/deploy.yaml --limit test,prod
+  ansible-playbook playbooks/deploy.yaml --limit services
+  ansible-playbook playbooks/deploy.yaml --limit services,play
   ```
 - Dry run:
   ```sh
@@ -230,7 +229,7 @@ Two inventories exist for two different situations:
   first). See [Tags in `deployment-flow.md`](docs/deployment-flow.md#tags).
 - Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
   ```sh
-  ansible-inventory -i inventory/inventory.yaml --host experiment
+  ansible-inventory -i inventory/inventory.yaml --host services
   ```
 
 ### `docker` commands

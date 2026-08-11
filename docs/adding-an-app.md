@@ -55,11 +55,11 @@ compose_apps:
 
 At deploy time this merges with the `app_registry` entry
 (`registry_defaults | combine(item, recursive=True)`). If the host is in
-`app_hosts` (every `prod` host except `experiment`), a CNAME for
-`my-app.{{ caddy_domain }}` is generated automatically. See
-[`host-vars.md`](host-vars.md) for the full field reference, including the
-alias-variable pattern (`cobalt_host`, `lldap_host`, ...) for apps whose
-own config needs to know their routed hostname.
+`app_hosts` (every managed host), a CNAME for `my-app.{{ caddy_domain }}`
+is generated automatically. See [`host-vars.md`](host-vars.md) for the
+full field reference, including the alias-variable pattern
+(`cobalt_host`, `lldap_host`, ...) for apps whose own config needs to
+know their routed hostname.
 
 ## 4. Deploy
 

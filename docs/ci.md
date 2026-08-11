@@ -160,21 +160,34 @@ Three independent Trivy checks, defined once in
 same sharing pattern as `_compose-boot-test.yml`) and run from two
 places:
 
-- `pr-checks.yml`'s `trivy-scan` job — image CVE and Ansible misconfig
-  scoped via `detect-changes` (`any_compose`/`trivy_ansible`); the secret
-  scan runs unconditionally on every PR, the same reasoning as
-  `pre-commit-checks` (a leaked secret can land in any file). It's a
-  second, independent backstop alongside `gitleaks`, which
-  `pre-commit-checks` already runs unconditionally.
+- `pr-checks.yml`'s `trivy-scan` job — image CVE and secret scanning run
+  unconditionally on every PR; Ansible misconfig stays scoped via
+  `detect-changes` (`trivy_ansible`).
 - `trivy-scheduled.yml` — all three, weekly, unscoped, so a CVE disclosed
   in an already-deployed image or a new misconfig check added to Trivy
   itself still gets caught even when nothing in this repo changed.
 
 | Check | Target | Notes |
 | :--- | :--- | :--- |
-| Image CVE | Every `image:` in `docker/**/compose*.yaml` (~15 images), full set every run | `HIGH,CRITICAL` only, `image.source: [remote]` forced (see below) |
+| Image CVE | Every PR, full fleet (~15 images), ungated | `HIGH,CRITICAL` only, `image.source: [remote]` forced (see below) |
 | Ansible misconfig | `ansible/` (Trivy's ansible scanner auto-detects the project root via `ansible.cfg`, `roles/`, `playbooks/`, etc.) | `--misconfig-scanners ansible` only, via an inline `trivy.yaml` (`misconfiguration.scanners`) — trivy-action has no first-class input for this flag |
 | Secrets | Whole repo (`trivy fs --scanners secret`) | Second, independent backstop alongside `gitleaks` (already unconditional in `pre-commit-checks`) |
+
+**Image CVE scanning runs on every PR, full fleet, no path gating.**
+This is a deliberate latency-vs-signal trade-off, not the cheapest
+option available — narrower designs (gated on `docker/**/compose*.yaml`
+changing, or scoped to only the images changed in a PR's diff) were
+both rejected because GitHub's Code Scanning PR check compares each
+SARIF category against `main`'s latest upload for that category; any
+category a PR's own run doesn't refresh shows as "configuration not
+found" — informational, never blocking (every job here runs
+`exit-code: '0'`), but persistent on any PR that skips it. Running the
+full fleet unconditionally means every category is always fresh, so
+that warning never appears, and a brand-new image added in a PR gets
+its CVE check at review time instead of waiting for the next weekly
+run. The `trivy_ansible`-gated Ansible misconfig job still has this
+same "not found" behavior on non-Ansible PRs — accepted there since its
+category count is 1, not ~15.
 
 **Image scans always hit the registry, never a local cache**: Trivy's
 default image-source order is `docker,containerd,podman,remote` — it
@@ -226,3 +239,32 @@ Ansible module analysis only checks cloud-resource modules, and this
 repo's roles use `community.docker`/`ansible.posix`/`ansible.builtin.*`
 exclusively. The job is still the regression backstop it was scoped as —
 it would catch a misconfigured cloud module if one is ever added.
+
+### Vulnerability Dashboard
+
+Most findings here are in third-party images this repo doesn't control
+the fix timeline for, so the posture is visibility over gating (see
+`exit-code: '0'` above) — and visibility means an at-a-glance summary,
+not scrolling the Security tab image by image. `trivy-scheduled.yml`
+(weekly only — a PR touching one compose file has no business
+rewriting a repo-wide summary) upserts a **Vulnerability Dashboard**
+issue, same find-by-title/edit-or-create pattern as Renovate's own
+Dependency Dashboard so there's one persistent issue, not a new one
+every week.
+
+Each of the three scan jobs also emits `format: json` (in addition to
+the SARIF used for the Security tab) and, only when
+`update-dashboard: true`, uploads it as a short-lived
+(`retention-days: 1`) build artifact. The `dashboard` job downloads all
+of them and hands them to
+[`build-vulnerability-dashboard.sh`](../.github/scripts/build-vulnerability-dashboard.sh),
+which aggregates per-image finding counts and cross-references
+`.config/.trivyignore` for any entry whose `exp:` date is within 30
+days, so an accepted-risk entry can't quietly outlive the review it was
+supposed to get. SARIF stays the source of truth for individual
+findings; the issue is a summary that links back to it.
+
+`trivy convert` builds the SARIF from the JSON already produced by the
+scan step rather than scanning twice — `trivy` is already on `PATH`
+after a `trivy-action` step runs (trivy-action's own README documents
+calling it twice in one job for exactly this kind of reason).

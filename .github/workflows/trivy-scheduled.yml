@@ -21,8 +21,10 @@ jobs:
     permissions:
       contents: read
       security-events: write
+      issues: write
     uses: ./.github/workflows/_trivy-scan.yml
     with:
       run-images: true
       run-ansible: true
       run-secrets: true
+      update-dashboard: true

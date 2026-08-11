@@ -17,7 +17,7 @@
 # config discovery only checks cwd (plus ANSIBLE_CONFIG/home/etc.), never
 # parent directories - verified via `ansible-config dump` from that exact
 # cwd showing CONFIG_FILE() as None without this. ANSIBLE_CALLBACK_PLUGINS
-# / MOLECULE_COVERAGE_DIR wire in tools/molecule-coverage/'s callback
+# / MOLECULE_COVERAGE_DIR wire in ansible/molecule-coverage/'s callback
 # plugin - see ansible/molecule-coverage/README.md.
 dependency:
   name: galaxy

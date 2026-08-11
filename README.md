@@ -36,18 +36,28 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 ├── ansible/                 # All automation: playbooks, inventory, roles
 │   ├── ansible.cfg
 │   ├── requirements.yml
+│   ├── bootstrap_secrets.py # Interactive prompt for values Ansible can't generate itself
+│   ├── molecule-test-all.sh # Runs every role's molecule scenarios; see docs/molecule-testing.md
+│   ├── molecule-coverage/   # Task/loop/branch coverage tool for molecule scenarios
+│   ├── files/                   # Non-secret static files (e.g. the backup GPG public key)
 │   ├── playbooks/
-│   │   ├── deploy.yaml          # Master playbook — full infra convergence
-│   │   ├── cleanup.yaml         # Tear down stacks no longer in a host's compose_apps
-│   │   ├── maintenance.yaml     # apt + firmware updates
-│   │   └── reset-network.yaml   # netplan re-apply
+│   │   ├── deploy.yaml           # Master playbook — full infra convergence
+│   │   ├── cleanup.yaml          # Tear down stacks no longer in a host's compose_apps
+│   │   ├── maintenance.yaml      # apt + firmware updates
+│   │   ├── reset-network.yaml    # netplan re-apply
+│   │   ├── restore.yaml          # Stage 1 DR: restore one app's volume(s)
+│   │   ├── bootstrap-secrets.yaml# Leading play deploy.yaml/restore.yaml import for secrets
+│   │   └── ci_boot_test.yaml     # CI-only: seeds one app for the compose boot-test job
 │   ├── inventory/
-│   │   ├── inventory.yaml       # Hosts reachable over DNS (day-to-day use)
-│   │   ├── sos-inventory.yaml   # Hosts reachable by raw IP (recovery use)
+│   │   ├── inventory.yaml                     # Hosts reachable over DNS (day-to-day use)
+│   │   ├── sos-inventory.yaml                 # Hosts reachable by raw IP (recovery use)
+│   │   ├── ci-deploy-ordering-inventory.yaml  # CI-only: see docs/ci.md
 │   │   ├── group_vars/
-│   │   │   ├── all/main.yaml         # Global vars (timezone, DNS domains, Beszel/backup secrets)
-│   │   │   └── all/app_registry.yaml # The app registry (see below)
+│   │   │   ├── all/main.yaml             # Global vars (timezone, DNS domains, Beszel/backup secrets)
+│   │   │   ├── all/app_registry.yaml     # The app registry (see below)
+│   │   │   └── all/secrets_registry.yaml # Declares every generated/manual secret; see docs/secrets.md
 │   │   └── host_vars/*.yaml     # Per-host compose_apps, caddy_domain, dns_zones
+│   ├── ci-inventory/        # CI-only inventory/vars for the compose-boot-test job
 │   └── roles/
 │       ├── apt/             # System package updates
 │       ├── fwupd/           # Firmware updates
@@ -59,6 +69,7 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │       ├── seaweedfs_bucket/# Ensures the offsite-backup S3 bucket exists on `storage`
 │       ├── backup_agent/    # Per-host offsite backup aggregation (stage 1 DR)
 │       ├── restore/         # Restores a decrypted offsite archive back to a named volume
+│       ├── secrets/         # Generates/validates every entry in secrets_registry.yaml
 │       └── molecule_helpers/# Shared Molecule test fixtures/setup, not deployed
 ├── docker/                  # One directory per application
 │   ├── caddy/               # compose.yaml + env template for the proxy

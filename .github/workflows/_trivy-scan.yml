@@ -4,14 +4,20 @@ name: Trivy scan (reusable)
 # trivy-scheduled.yml (weekly, unscoped) — same workflow_call pattern as
 # _compose-boot-test.yml, one copy of the scan steps instead of two
 # drifting by hand. See docs/ci.md#trivy-security-scans.
+#
+# Image CVE scanning and the Vulnerability Dashboard (_trivy-dashboard.yml)
+# that aggregated it used to live here too, in a few different forms —
+# scoped to compose changes, diff-aware, then ungated on every PR —
+# before being dropped entirely. Nearly all of that fleet's findings
+# were third-party CVEs pending an upstream rebuild, not something this
+# repo could act on regardless of where the scan ran, how often, or how
+# results were displayed. Ansible misconfig and secrets stay because a
+# finding in either is something this repo actually controls and would
+# fix. See docs/ci.md#trivy-security-scans for the full reasoning.
 
 on:  # yamllint disable-line rule:truthy
   workflow_call:
     inputs:
-      run-images:
-        description: 'Run the image CVE scan (docker/**/compose*.yaml) — weekly schedule only, see docs/ci.md#trivy-security-scans'
-        type: boolean
-        default: false
       run-ansible:
         description: 'Run the Ansible misconfiguration scan'
         type: boolean
@@ -20,111 +26,11 @@ on:  # yamllint disable-line rule:truthy
         description: 'Run the repo-wide secret scan'
         type: boolean
         default: false
-      upload-json:
-        description: 'Also upload scan JSON for _trivy-dashboard.yml — weekly schedule only, see docs/ci.md#trivy-security-scans'
-        type: boolean
-        default: false
 
 permissions:
   contents: read
 
 jobs:
-  discover-images:
-    if: inputs.run-images
-    runs-on: ubuntu-latest
-    outputs:
-      images: ${{ steps.list.outputs.images }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: List every image referenced in docker/**/compose*.yaml
-        id: list
-        run: |
-          # No PR-level scoping — every trigger (PR and weekly schedule
-          # alike) scans the full deployed fleet. See
-          # docs/ci.md#trivy-security-scans.
-          images=$(grep -rhoE "image:[[:space:]]*[^\"'[:space:]]+" docker --include='compose*.yaml' \
-            | sed -E 's/^image:[[:space:]]*//' | sort -u)
-          json=$(printf '%s\n' "$images" | jq -R . | jq -sc 'map(select(length > 0))')
-          echo "images=$json" >> "$GITHUB_OUTPUT"
-          echo "Scanning images: $json"
-
-  image-scan:
-    needs: discover-images
-    if: inputs.run-images
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      security-events: write
-    strategy:
-      fail-fast: false
-      matrix:
-        image: ${{ fromJson(needs.discover-images.outputs.images) }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Derive a filesystem-safe name for this image
-        id: safe
-        run: echo "name=$(echo '${{ matrix.image }}' | tr -c 'A-Za-z0-9._-' '_')" >> "$GITHUB_OUTPUT"
-
-      # Trivy checks docker,containerd,podman,remote in that order by
-      # default (trivy image --help) — it prefers a locally-cached image
-      # over fetching from the registry. This runner's Docker daemon is
-      # empty every run, so that's currently moot, but forcing `remote`
-      # here makes it correct-by-construction rather than
-      # correct-by-accident: a future step added earlier in this job that
-      # happens to `docker build`/`docker load` an image under one of
-      # these exact refs would otherwise silently make this scan report
-      # on that local image instead of what's actually published.
-      - name: Write remote-only image source config
-        run: |
-          cat > /tmp/trivy-image.yaml <<'EOF'
-          image:
-            source:
-              - remote
-          EOF
-
-      - name: Trivy image scan — ${{ matrix.image }}
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          scan-type: image
-          image-ref: ${{ matrix.image }}
-          trivy-config: /tmp/trivy-image.yaml
-          format: json
-          output: trivy-json-image-${{ steps.safe.outputs.name }}.json
-          severity: HIGH,CRITICAL
-          exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
-          trivyignores: .config/.trivyignore
-
-      # trivy-action has no SARIF-conversion path that reuses an
-      # already-produced JSON report, so this converts locally instead
-      # of a second full scan — `trivy` is already on PATH from the
-      # setup-trivy step the action above ran (confirmed via
-      # trivy-action's own README: it documents calling the action
-      # twice in one job and skipping setup on the second call because
-      # trivy is already installed). Unlike SARIF output directly from
-      # trivy-action, `trivy convert` doesn't widen back to all
-      # severities — the source JSON is already HIGH,CRITICAL-only, and
-      # convert only re-renders what's already there.
-      - name: Convert to SARIF — ${{ matrix.image }}
-        run: trivy convert --format sarif --output trivy-image-${{ steps.safe.outputs.name }}.sarif trivy-json-image-${{ steps.safe.outputs.name }}.json
-
-      - name: Upload SARIF — ${{ matrix.image }}
-        uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
-        with:
-          sarif_file: trivy-image-${{ steps.safe.outputs.name }}.sarif
-          category: trivy-image-${{ steps.safe.outputs.name }}
-
-      - name: Upload JSON for dashboard aggregation
-        if: inputs.upload-json
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: trivy-json-image-${{ steps.safe.outputs.name }}
-          path: trivy-json-image-${{ steps.safe.outputs.name }}.json
-          retention-days: 1
-
   ansible-misconfig-scan:
     if: inputs.run-ansible
     runs-on: ubuntu-latest
@@ -165,9 +71,9 @@ jobs:
       #    real .yaml files here — harmless, just re-evaluates their
       #    tasks under their own entry alongside their host playbook).
       #
-      # Generated inline rather than committed, so the image/secret scan
-      # jobs above can't also auto-discover it if Trivy's cwd-based
-      # config lookup ever changes.
+      # Generated inline rather than committed, so the secret scan job
+      # below can't also auto-discover it if Trivy's cwd-based config
+      # lookup ever changes.
       - name: Write ansible-only misconfig-scanners config
         run: |
           {
@@ -189,27 +95,16 @@ jobs:
           scan-type: config
           scan-ref: ansible
           trivy-config: /tmp/trivy-ansible.yaml
-          format: json
-          output: trivy-json-ansible-misconfig.json
+          format: sarif
+          output: trivy-ansible-misconfig.sarif
           exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
           trivyignores: .config/.trivyignore
-
-      - name: Convert to SARIF
-        run: trivy convert --format sarif --output trivy-ansible-misconfig.sarif trivy-json-ansible-misconfig.json
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           sarif_file: trivy-ansible-misconfig.sarif
           category: trivy-ansible-misconfig
-
-      - name: Upload JSON for dashboard aggregation
-        if: inputs.upload-json
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: trivy-json-ansible-misconfig
-          path: trivy-json-ansible-misconfig.json
-          retention-days: 1
 
   secret-scan:
     if: inputs.run-secrets
@@ -227,24 +122,13 @@ jobs:
           scan-type: fs
           scan-ref: .
           scanners: secret
-          format: json
-          output: trivy-json-secrets.json
+          format: sarif
+          output: trivy-secrets.sarif
           exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
           trivyignores: .config/.trivyignore
-
-      - name: Convert to SARIF
-        run: trivy convert --format sarif --output trivy-secrets.sarif trivy-json-secrets.json
 
       - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@99df26d4f13ea111d4ec1a7dddef6063f76b97e9 # v4.37.0
         with:
           sarif_file: trivy-secrets.sarif
           category: trivy-secrets
-
-      - name: Upload JSON for dashboard aggregation
-        if: inputs.upload-json
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: trivy-json-secrets
-          path: trivy-json-secrets.json
-          retention-days: 1

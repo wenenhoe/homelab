@@ -23,6 +23,12 @@
       tags:
         - initial-setup
 
+    - name: Include qemu_guest_agent install role
+      ansible.builtin.include_role:
+        name: qemu_guest_agent
+      tags:
+        - initial-setup
+
     - name: Include compose's preinit.yaml
       ansible.builtin.include_role:
         name: compose

@@ -9,6 +9,10 @@
 # concern, not something every backup_agent host should redundantly
 # handle.
 
+# Play 4 (compose_app) returns once `docker compose up` exits, not once
+# SeaweedFS is healthy — on a cold start this call (routed through Caddy,
+# see offsite_backup_s3_endpoint) can hit a 502 before the S3 listener is
+# up. Retry only on 502; anything else fails immediately below.
 - name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
   community.docker.docker_container:
     name: seaweedfs-ensure-bucket
@@ -25,6 +29,13 @@
     output_logs: true
   register: seaweedfs_bucket_create
   changed_when: false
+  until: >-
+    seaweedfs_bucket_create is not failed
+    or 'BucketAlreadyExists' in (seaweedfs_bucket_create.msg | default(''))
+    or 'BucketAlreadyOwnedByYou' in (seaweedfs_bucket_create.msg | default(''))
+    or '(502)' not in (seaweedfs_bucket_create.msg | default(''))
+  retries: 15
+  delay: 2
   # Tolerate "already exists" (both BucketAlreadyExists and
   # BucketAlreadyOwnedByYou — the latter is what a single-owner target
   # like this one actually returns on an idempotent re-run). Anything

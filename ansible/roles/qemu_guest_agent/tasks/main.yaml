@@ -1,7 +1,9 @@
 ---
-# Installs qemu-guest-agent so Proxmox can report guest IP/status and
-# issue clean shutdowns/freezes instead of a hard power-off. Run in
-# deploy.yaml's Play 1, alongside docker. Idempotent.
+# Installs qemu-guest-agent. No enable/start task on purpose - the
+# shipped unit is udev-activated, not systemctl-enabled; forcing either
+# is a no-op at best and a hard failure at worst. See
+# docs/qemu-guest-agent.md. Run in deploy.yaml's Play 1, alongside
+# docker. Idempotent.
 
 - name: Install qemu-guest-agent package
   ansible.builtin.apt:
@@ -9,9 +11,3 @@
     state: present
     update_cache: true
     cache_valid_time: 3600
-
-- name: Enable and start qemu-guest-agent service
-  ansible.builtin.systemd:
-    name: qemu-guest-agent
-    enabled: true
-    state: started

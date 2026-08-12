@@ -73,7 +73,7 @@ already exist. See [`disaster-recovery.md`](disaster-recovery.md).
 | `apt` | Asserts a Debian-family OS, updates/upgrades packages, reboots if required. |
 | `fwupd` | Refreshes firmware metadata, applies updates via `fwupdmgr`, reboots if required. |
 | `docker` | Installs Docker Engine + Compose plugin, enables the service, adds `docker_users` to the `docker` group. |
-| `qemu_guest_agent` | Installs and enables `qemu-guest-agent`, so Proxmox can report guest IP/status and issue clean shutdowns/freezes. |
+| `qemu_guest_agent` | Installs `qemu-guest-agent` so Proxmox can report guest IP/status and issue clean shutdowns. See [`qemu-guest-agent.md`](qemu-guest-agent.md) for why it doesn't enable/start the service itself. |
 | `compose` | The building block every app deployment uses: `preinit.yaml` resolves `compose_apps` against `app_registry` once per host; `init.yaml` creates directories, ensures/migrates named volumes (see [`volumes.md`](volumes.md)), copies compose files/scripts, renders config templates; `deploy.yaml` pulls/builds images and brings the stack up, force-restarting when a config file or seeded volume changed. |
 | `secrets` | Generates once / reuses thereafter every secret in `secrets_registry.yaml`. See [`secrets.md`](secrets.md). |
 | `compose_app` | Batch-drives `compose` init+deploy for every non-self-managed app. Each app is wrapped in its own `block`/`rescue` so one failure doesn't stop the batch. `compose_app_continue_on_error: true` by default; `-e compose_app_continue_on_error=false` for strict fail-fast. Prints a per-app pass/fail summary. |

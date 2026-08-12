@@ -1,0 +1,36 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+
+    - name: Assert qemu-guest-agent package is installed
+      ansible.builtin.assert:
+        that:
+          - "'qemu-guest-agent' in ansible_facts.packages"
+        fail_msg: "qemu-guest-agent package is not installed"
+
+    - name: Read the shipped systemd unit file
+      ansible.builtin.slurp:
+        src: /lib/systemd/system/qemu-guest-agent.service
+      register: qemu_guest_agent_unit
+
+    # Guards the role's design decision (see docs/qemu-guest-agent.md):
+    # no enable/start task, because this unit is udev/device-activated,
+    # not boot-enabled. If Ubuntu's packaging ever adds a real
+    # [Install] section, this fails loudly instead of the role silently
+    # never starting the agent.
+    - name: Assert the unit is still udev/device-activated, not boot-enabled
+      vars:
+        qemu_guest_agent_unit_content: "{{ qemu_guest_agent_unit.content | b64decode }}"
+      ansible.builtin.assert:
+        that:
+          - "'BindsTo=dev-virtio' in qemu_guest_agent_unit_content"
+          - "'WantedBy=' not in qemu_guest_agent_unit_content"
+        fail_msg: >-
+          qemu-guest-agent.service no longer matches the udev-activated
+          shape docs/qemu-guest-agent.md documents - re-verify against
+          the real package and update the role/doc together.

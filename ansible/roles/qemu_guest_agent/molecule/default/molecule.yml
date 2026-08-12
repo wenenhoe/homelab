@@ -1,0 +1,29 @@
+---
+# qemu_guest_agent installs a single apt package and, deliberately, does
+# nothing service-related (see docs/qemu-guest-agent.md) — no systemd,
+# no privileged mode, no Docker-in-Docker needed.
+driver:
+  name: docker
+platforms:
+  - name: qemu-guest-agent-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    command: sleep infinity
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

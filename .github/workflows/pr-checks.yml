@@ -475,15 +475,6 @@ jobs:
       security-events: write
     uses: ./.github/workflows/_trivy-scan.yml
     with:
-      # Full fleet, every PR, ungated — accepted latency cost (~15
-      # images scanned in parallel) in exchange for two things: GitHub's
-      # code-scanning PR check always has something fresh to diff
-      # against for every image category (no more "configurations not
-      # found" warning), and a brand-new image added in a PR gets its
-      # CVE check at review time rather than waiting for the next
-      # weekly run. Non-blocking either way — every job here runs
-      # `exit-code: '0'`. See docs/ci.md#trivy-security-scans.
-      run-images: true
       run-ansible: ${{ needs.detect-changes.outputs.trivy_ansible == 'true' }}
       run-secrets: true
 

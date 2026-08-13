@@ -19,13 +19,47 @@ unconditionally on every PR regardless of what changed, since any file
 could be touched by one of their hooks:
 
 - `roles` — any `ansible/roles/<role>/` touched maps to that role, except
-  `ansible/requirements.yml` (or its `molecule_helpers` copy), a
-  repo-wide collection bump that maps to every role.
+  three repo-wide cases that map to *every* role instead, because
+  nothing in them maps cleanly to a single consumer:
+  `ansible/requirements.yml` (a Galaxy collection bump), any file under
+  `ansible/roles/molecule_helpers/` (see
+  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)),
+  and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
+  role's Molecule run actually executes under).
 - `compose_apps` — any `docker/<app>/compose.yaml` touched, minus the
   exclusion list (below).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
+
+### `molecule_helpers` is repo-wide
+
+`ansible/roles/molecule_helpers/` isn't a normal role — it has no
+`molecule/` scenario of its own, so nothing under it is ever "the role
+that changed." Every scenario's base config
+(`.config/molecule/config.yml`, deep-merged into all 11 scenarios)
+resolves its Galaxy dependencies from `molecule_helpers/`'s
+`role-requirements.yml`/`requirements.yml` unconditionally, and several
+scenarios' `converge.yml` additionally `include_role` specific task
+files from it directly (`bootstrap_docker.yaml`,
+`start_seaweedfs_test_target.yaml`, etc.) — see each role's own
+`converge.yml` for which. No single file in `molecule_helpers/` maps
+cleanly to one consumer, so the `roles` filter treats any change under
+it the same as a top-level `ansible/requirements.yml` bump: every role
+with a `molecule/` scenario gets queued.
+
+This also means `docker/seaweedfs/compose.yaml` and
+`ansible/roles/molecule_helpers/tasks/start_seaweedfs_test_target.yaml`
+being grouped in Renovate (the same "must move together" pattern as
+`bind9`/`caddy`) now correctly queues Molecule — `seaweedfs_bucket` and
+`backup_agent`, both of which start a real SeaweedFS target from that
+task file — instead of relying on `seaweedfs`'s
+`compose-boot-test-exclusions.txt` entry pointing at coverage that
+never actually ran. Unlike `bind9`/`caddy`, whose fixtures live inside
+their own role's `molecule/` directory and so were already covered by
+the plain per-role mapping, SeaweedFS's fixture lives in the shared
+helper, which is why it needed this repo-wide case rather than a
+per-role fix.
 
 ## Jobs
 
@@ -34,7 +68,7 @@ could be touched by one of their hooks:
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
 | `ansible-lint` | always | `ansible-lint`, the one push-stage hook — always lints the whole `ansible/` tree, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `deploy-ordering-check` | inventory/playbooks/secrets/restore changed | See below. |
+| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
@@ -141,9 +175,13 @@ defined), dumps logs on failure, then tears down.
 **Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
 workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
 
-- `bind9`, `seaweedfs`, `caddy` — already covered by their own Molecule
-  scenarios with stronger, real-protocol assertions than a generic
-  healthcheck poll would add.
+- `bind9`, `seaweedfs`, `caddy` — already covered by Molecule with
+  stronger, real-protocol assertions than a generic healthcheck poll
+  would add: `bind9`/`caddy` by their own role's scenario, `seaweedfs`
+  by `seaweedfs_bucket`'s and `backup_agent`'s (see
+  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide) for
+  why that one needed a repo-wide `roles`-filter case instead of the
+  plain per-role mapping the other two get).
 - `lldap` — `certbot` needs a real DigitalOcean DNS-01 credential to do
   anything meaningful, and `lldap` itself has no healthcheck defined yet.
 - `tinyauth` — crashes on boot with a config-loading error despite a

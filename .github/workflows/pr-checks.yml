@@ -59,11 +59,20 @@ jobs:
             # own two-file invocation pattern specifically, which a
             # restore-role-only change could break without touching
             # anything else in this list.
+            # pyproject.toml/uv.lock is here too: deploy-ordering-check
+            # runs the real deploy.yaml/restore.yaml through the
+            # uv-managed ansible-core, so an ansible-core version bump
+            # (uv-lock's own job only proves the lockfile resolves, not
+            # that playbooks still behave correctly under it) gets
+            # exercised through this real invocation as well as
+            # molecule's (see the roles-detection step's own comment).
             deploy_ordering:
               - 'ansible/inventory/**'
               - 'ansible/playbooks/**'
               - 'ansible/roles/secrets/**'
               - 'ansible/roles/restore/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
             # ansible-lint's hook always does a full `--project-dir
             # ansible` scan regardless of which files changed (see the
             # ansible-lint job below), so this only gates whether the job
@@ -90,16 +99,28 @@ jobs:
         id: roles
         run: |
           # Any file changed under ansible/roles/<role>/ maps to that one
-          # role. ansible/requirements.yml (or the molecule_helpers copy)
-          # is a repo-wide Galaxy collection bump — anything could depend
-          # on it, so that one specific file maps to every role instead of
-          # just its own directory.
+          # role, EXCEPT ansible/roles/molecule_helpers/ itself: it's a
+          # shared fixture/dependency library every scenario's base
+          # config pulls from (.config/molecule/config.yml's
+          # role-requirements.yml/requirements.yml dependency phase,
+          # unconditional for all 11 scenarios) and several scenarios'
+          # converge.yml additionally include_role from directly
+          # (bootstrap_docker.yaml, start_seaweedfs_test_target.yaml,
+          # etc. — see docs/ci.md#molecule-helpers-is-repo-wide). No
+          # single file in there maps cleanly to one consumer, so (like
+          # top-level ansible/requirements.yml, a repo-wide Galaxy
+          # collection bump) any change under it queues every role
+          # instead of trying to track consumers per-file. pyproject.toml/
+          # uv.lock is the same shape again one layer down: it pins
+          # ansible-core itself, which every role's Molecule run executes
+          # under (uv-lock's own job only proves the lockfile resolves,
+          # not that playbooks behave the same under a new ansible-core).
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD")
 
           roles=()
-          if echo "$changed" | grep -qE '^ansible/(requirements\.yml|roles/molecule_helpers/requirements\.yml)$'; then
+          if echo "$changed" | grep -qE '^ansible/requirements\.yml$|^ansible/roles/molecule_helpers/|^pyproject\.toml$|^uv\.lock$'; then
             for d in ansible/roles/*/molecule; do
               [ -d "$d" ] || continue
               roles+=("$(basename "$(dirname "$d")")")

@@ -181,6 +181,11 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide) for
   why that one needed a repo-wide `roles`-filter case instead of the
   plain per-role mapping the other two get).
+- `tinyauth` — its LDAP bootstrap is a hard startup dependency, and
+  compose-boot-test brings up each app's compose stack in isolation on
+  its own runner, with no `lldap` host for it to resolve regardless of
+  config correctness (confirmed via a live run — see
+  `.github/compose-boot-test-exclusions.txt` for the exact error).
 
 `lldap` is no longer in that list: `_compose-boot-test.yml` seeds a
 self-signed cert into its `certs` and `letsencrypt_conf` volumes before

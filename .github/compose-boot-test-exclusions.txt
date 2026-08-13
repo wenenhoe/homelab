@@ -17,3 +17,11 @@
 bind9
 seaweedfs
 caddy
+
+# tinyauth: appUrl resolves fine in CI (see main.yaml's tinyauth_host and
+# lab_domain). The actual blocker is AuthService's LdapService bootstrap,
+# a hard startup dependency — compose-boot-test brings up each app's
+# compose stack in isolation on its own runner (see
+# _compose-boot-test.yml), so there's no lldap host for tinyauth to
+# resolve, in this job or any other, regardless of config correctness.
+tinyauth

@@ -14,18 +14,43 @@ whole tree, a real compose stack booting, and the actual
 
 `detect-changes` diffs the PR's base/head and feeds most other jobs a
 scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests.
-`pre-commit-checks` and `ansible-lint` are the exception — they run
-unconditionally on every PR regardless of what changed, since any file
-could be touched by one of their hooks:
+`pre-commit-checks` is the exception — it runs unconditionally on every
+PR regardless of what changed, since its hooks span nearly every file
+type in the repo:
 
 - `roles` — any `ansible/roles/<role>/` touched maps to that role, except
-  `ansible/requirements.yml` (or its `molecule_helpers` copy), a
-  repo-wide collection bump that maps to every role.
+  three repo-wide cases that map to *every* role instead, because
+  nothing in them maps cleanly to a single consumer:
+  `ansible/requirements.yml` (a Galaxy collection bump), any file under
+  `ansible/roles/molecule_helpers/` (see
+  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)),
+  and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
+  role's Molecule run actually executes under).
 - `compose_apps` — any `docker/<app>/compose.yaml` touched, minus the
   exclusion list (below).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
+
+### `molecule_helpers` is repo-wide
+
+`ansible/roles/molecule_helpers/` isn't a normal role — it has no
+`molecule/` scenario of its own, so nothing under it is ever "the role
+that changed." Every scenario's base config
+(`.config/molecule/config.yml`, deep-merged into all 11 scenarios)
+resolves its Galaxy dependencies from `molecule_helpers/`'s
+`role-requirements.yml`/`requirements.yml` unconditionally, and several
+scenarios' `converge.yml` additionally `include_role` specific task
+files from it directly (`bootstrap_docker.yaml`,
+`start_seaweedfs_test_target.yaml`, etc.) — see each role's own
+`converge.yml` for which. No single file in `molecule_helpers/` maps
+cleanly to one consumer, so the `roles` filter treats any change under
+it the same as a top-level `ansible/requirements.yml` bump: every role
+with a `molecule/` scenario gets queued.
+
+Concretely, this is what makes the `seaweedfs`
+`compose-boot-test-exclusions.txt` entry below correct — see there for
+the SeaweedFS-specific case this generalizes from.
 
 ## Jobs
 
@@ -34,7 +59,7 @@ could be touched by one of their hooks:
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
 | `ansible-lint` | always | `ansible-lint`, the one push-stage hook — always lints the whole `ansible/` tree, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `deploy-ordering-check` | inventory/playbooks/secrets/restore changed | See below. |
+| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
@@ -85,6 +110,14 @@ that mirrors `inventory.yaml`'s `ansible_host` → `ddns_domain` →
 `ansible_connection: local` everywhere, and `--tags` matching nothing
 real so provisioning never runs — only secrets generation/propagation
 and the `ansible_host` resolution it gates.
+
+`ansible/inventory/**` in the trigger list covers `inventory.yaml` itself
+plus `group_vars/all/main.yaml`/`secrets_registry.yaml` — deliberately
+broad, since either is the shape of change that caused the original
+regression. `pyproject.toml`/`uv.lock` are in the trigger list too: this
+job runs the real playbooks through the uv-managed `ansible-core`, so an
+`ansible-core` bump is exercised here as well as by
+[Molecule](#molecule_helpers-is-repo-wide).
 
 `restore.yaml` gets a second, separate step: it can't import
 `bootstrap-secrets.yaml` as a leading play the way `deploy.yaml` does
@@ -141,9 +174,13 @@ defined), dumps logs on failure, then tears down.
 **Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
 workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
 
-- `bind9`, `seaweedfs`, `caddy` — already covered by their own Molecule
-  scenarios with stronger, real-protocol assertions than a generic
-  healthcheck poll would add.
+- `bind9`, `seaweedfs`, `caddy` — already covered by Molecule with
+  stronger, real-protocol assertions than a generic healthcheck poll
+  would add: `bind9`/`caddy` by their own role's scenario, `seaweedfs`
+  by `seaweedfs_bucket`'s and `backup_agent`'s (see
+  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide) for
+  why that one needed a repo-wide `roles`-filter case instead of the
+  plain per-role mapping the other two get).
 - `lldap` — `certbot` needs a real DigitalOcean DNS-01 credential to do
   anything meaningful, and `lldap` itself has no healthcheck defined yet.
 - `tinyauth` — crashes on boot with a config-loading error despite a
@@ -185,20 +222,18 @@ convention as `.github/compose-boot-test-exclusions.txt`.
 **Two confirmed Trivy Ansible-scanner quirks** (v0.73.0; re-verify if a
 version bump ever changes this):
 
-- It never reads `ansible.cfg`'s `roles_path` — role resolution
-  (`resolveRolePath` in `pkg/iac/scanners/ansible/parser/parser.go`)
-  only checks a `roles/` dir next to the playbook file, or the
-  `DEFAULT_ROLES_PATH` env var. This repo's roles are a sibling of
-  `ansible/playbooks/`, not nested under it, so without
-  `DEFAULT_ROLES_PATH` every `include_role`/`roles:` silently fails to
-  resolve and the scan reports a clean pass while covering almost none
-  of the real task content.
-- Playbook auto-discovery (`resolvePlaybooksPaths`) only lists YAML
-  files in the project root — a non-recursive `ReadDir()` — so it never
-  finds anything under `playbooks/`. Worked around the same way: an
-  explicit `ansible.playbooks` list in the generated `trivy.yaml`, built
-  from the live `ansible/playbooks/*.y{a,}ml` listing so a new playbook
-  is covered automatically.
+- It never reads `ansible.cfg`'s `roles_path` (`resolveRolePath` only
+  checks a `roles/` dir next to the playbook, or `DEFAULT_ROLES_PATH`).
+  This repo's roles are a sibling of `ansible/playbooks/`, not nested
+  under it, so without `DEFAULT_ROLES_PATH` every `include_role`/`roles:`
+  silently fails to resolve and the scan passes clean while covering
+  almost none of the real task content.
+- Playbook auto-discovery (`resolvePlaybooksPaths`) is a non-recursive
+  `ReadDir()` on the project root, so it never finds anything under
+  `playbooks/`. Worked around with an explicit `ansible.playbooks` list
+  in the generated `trivy.yaml`, built from the live
+  `ansible/playbooks/*.y{a,}ml` listing so new playbooks are covered
+  automatically.
 
 With both fixed, this repo currently scans clean — expected: Trivy's
 Ansible module analysis only checks cloud-resource modules, and this
@@ -208,22 +243,13 @@ it would catch a misconfigured cloud module if one is ever added.
 
 ### Why no image CVE scanning
 
-This repo tried image CVE scanning several ways before dropping it
-entirely: scoped to PRs touching compose files, diff-aware (only
-new/changed images), then ungated on every PR — each traded latency,
-GitHub code-scanning's "configurations not found" warning, or both, for
-marginal benefit. Across a real 379-finding scan, ~350 were third-party
-images with a fix pending an upstream rebuild: not something this repo
-could act on regardless of where the scan ran, how often, or how
-results were displayed. A Vulnerability Dashboard issue (aggregating
-results, Renovate-Dependency-Dashboard style) was built to make that
-volume more manageable, but it had the same underlying problem — a
-nicer summary of findings nobody could resolve is still a summary of
-findings nobody could resolve. Ansible misconfig and secrets don't have
-that problem — a finding in either is something this repo actually
-controls and would fix — so those stayed.
+Dropped after trying several scopes (PR-triggered, diff-aware,
+unconditional) and a Vulnerability Dashboard issue to aggregate
+results. In a real scan, ~350 of 379 findings were third-party images
+awaiting an upstream rebuild — not actionable from this repo regardless
+of scan frequency or presentation. Ansible misconfig and secrets don't
+have that problem (a finding in either is fixable here), so those
+stayed.
 
-If image CVE visibility is ever wanted again without reintroducing that
-cost, running Trivy by hand against `docker/**/compose*.yaml` whenever
-it's useful is zero standing infrastructure, versus a permanent CI
-fixture nobody acts on.
+For occasional visibility without reintroducing standing CI cost, run
+Trivy by hand against `docker/**/compose*.yaml`.

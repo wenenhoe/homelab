@@ -12,15 +12,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Scoping: molecule and compose-boot-test are the two expensive jobs, so
-  # everything downstream runs only against what this PR actually touched
-  # instead of the full suite every time. dorny/paths-filter reports both
-  # simple booleans (uv lock, deploy ordering, ansible-lint) and the
-  # specific role/app names touched, which the matrix jobs below consume
-  # directly. pre-commit-checks runs unconditionally on every PR instead —
-  # its hooks span nearly every file type in the repo (yaml, markdown,
-  # compose, secrets scanning), so scoping it would barely skip anything
-  # while adding a real risk of skipping something it shouldn't.
+  # Scopes the expensive jobs below to what this PR actually touched —
+  # see docs/ci.md#change-scoped-not-a-full-sweep.
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
@@ -47,34 +40,20 @@ jobs:
               - 'uv.lock'
             any_compose:
               - 'docker/**/compose*.yaml'
-            # Anything that could reintroduce the ansible_host ->
-            # ddns_domain -> main_domain -> secrets_generated ordering
-            # regression deploy-ordering-check exists to catch — see
-            # docs/ci.md#deploy-ordering-check. ansible/inventory/**
-            # covers both inventory.yaml itself and group_vars/all/
-            # main.yaml + secrets_registry.yaml, which is deliberately
-            # broad: a change to either is exactly the shape of change
-            # that caused the original regression. ansible/roles/restore/**
-            # is here too: the job's second check exercises restore.yaml's
-            # own two-file invocation pattern specifically, which a
-            # restore-role-only change could break without touching
-            # anything else in this list.
+            # Gates deploy-ordering-check — see docs/ci.md#deploy-ordering-check
+            # for what it catches and why each path below is in scope.
             deploy_ordering:
               - 'ansible/inventory/**'
               - 'ansible/playbooks/**'
               - 'ansible/roles/secrets/**'
               - 'ansible/roles/restore/**'
-            # ansible-lint's hook always does a full `--project-dir
-            # ansible` scan regardless of which files changed (see the
-            # ansible-lint job below), so this only gates whether the job
-            # runs at all, not what it scans once it does. Covers the
-            # lint target itself (ansible/**) plus what could change its
-            # behavior without touching ansible/: the rule config, and
-            # the hook's pinned version/args in pre-commit's own config.
-            # Deliberately not pyproject.toml/uv.lock — the hook's
-            # `additional_dependencies: [ansible]` runs in pre-commit's
-            # own isolated venv, unrelated to this repo's uv-managed
-            # ansible-core pin.
+              - 'pyproject.toml'
+              - 'uv.lock'
+            # Gates whether the job runs at all — the hook itself always
+            # scans the full ansible/ tree regardless of which files in
+            # it changed. Not pyproject.toml/uv.lock: the hook's own
+            # additional_dependencies: [ansible] runs in an isolated
+            # venv, unrelated to this repo's uv-managed ansible-core pin.
             ansible_lint:
               - 'ansible/**'
               - '.config/.ansible-lint'
@@ -89,17 +68,15 @@ jobs:
       - name: Determine which ansible roles to test
         id: roles
         run: |
-          # Any file changed under ansible/roles/<role>/ maps to that one
-          # role. ansible/requirements.yml (or the molecule_helpers copy)
-          # is a repo-wide Galaxy collection bump — anything could depend
-          # on it, so that one specific file maps to every role instead of
-          # just its own directory.
+          # Any file under ansible/roles/<role>/ maps to that role, except
+          # three repo-wide cases below that queue every role instead —
+          # see docs/ci.md#change-scoped-not-a-full-sweep for why.
           BASE="${{ github.event.pull_request.base.sha }}"
           HEAD="${{ github.event.pull_request.head.sha }}"
           changed=$(git diff --name-only "$BASE" "$HEAD")
 
           roles=()
-          if echo "$changed" | grep -qE '^ansible/(requirements\.yml|roles/molecule_helpers/requirements\.yml)$'; then
+          if echo "$changed" | grep -qE '^ansible/requirements\.yml$|^ansible/roles/molecule_helpers/|^pyproject\.toml$|^uv\.lock$'; then
             for d in ansible/roles/*/molecule; do
               [ -d "$d" ] || continue
               roles+=("$(basename "$(dirname "$d")")")
@@ -127,12 +104,8 @@ jobs:
           changed=$(git diff --name-only "$BASE" "$HEAD")
           excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
 
-          # git diff --name-only lists deleted paths too, so a removed
-          # app's compose.yaml would otherwise still match the grep below
-          # and get queued for a boot-test against a directory that no
-          # longer exists at HEAD. The -f check drops anything not
-          # actually present in this checkout — same guard the 'roles'
-          # step above already applies via -d.
+          # -f drops deleted compose files (git diff lists them too) —
+          # same guard the 'roles' step above applies via -d.
           apps=()
           while IFS= read -r app; do
             [ -f "docker/$app/compose.yaml" ] || continue
@@ -147,13 +120,7 @@ jobs:
           echo "apps=$json" >> "$GITHUB_OUTPUT"
           echo "Boot-testing: $json"
 
-  # Always runs, unlike the other jobs below — this is the actual
-  # enforcement gate for every commit-stage hook (see
-  # .config/.pre-commit-config.yaml's default_stages), not scoped to
-  # what changed, since any file in the repo could be touched by one of
-  # these. Also doubles as the test for "does a new hook version need a
-  # newer pre-commit CLI than uv.lock resolves" — a broken hook config
-  # fails right here.
+  # Unconditional — see docs/ci.md#change-scoped-not-a-full-sweep.
   pre-commit-checks:
     runs-on: ubuntu-latest
     steps:
@@ -169,16 +136,8 @@ jobs:
       - name: Run commit-stage hooks against all files
         run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit --show-diff-on-failure
 
-  # Split from pre-commit-checks above because ansible-lint is the one
-  # hook pinned to stages: [pre-push] (see .config/.pre-commit-config.yaml)
-  # — pre-commit run --all-files alone does not include push-stage hooks,
-  # it needs --hook-stage pre-push explicitly. No install-galaxy-collections
-  # needed: ansible-lint's own additional_dependencies: [ansible] already
-  # bundles community.docker/ansible.posix into its isolated hook venv.
-  #
-  # Scoped via detect-changes (see its ansible_lint filter comment) unlike
-  # pre-commit-checks above — this hook only ever lints ansible/, so a PR
-  # that doesn't touch it gets nothing from a full ansible-lint run.
+  # Split from pre-commit-checks: ansible-lint is pinned to stages:
+  # [pre-push], which --hook-stage pre-commit above doesn't run.
   ansible-lint:
     needs: detect-changes
     if: needs.detect-changes.outputs.ansible_lint == 'true'
@@ -204,37 +163,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # check-lock catches a lockfile-maintenance PR that didn't actually
-      # regenerate the lock, or a manual edit that broke resolution.
-      # locked additionally realizes the environment, which catches
-      # resolvable-but-broken combinations --check alone might not (e.g.
-      # a resolved version that's since been yanked).
+      # check-lock catches an unregenerated lockfile; locked additionally
+      # realizes the environment, catching a resolvable-but-broken
+      # combination (e.g. a version since yanked) that --check alone won't.
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
         with:
           check-lock: "true"
           locked: "true"
 
-  # Regression coverage for an incident where ansible_host (inventory.yaml)
-  # was wired to resolve through a role-generated fact (secrets_generated)
-  # without anything in CI ever exercising that chain — every other check
-  # either bypasses ansible_host resolution entirely (ci-inventory.yaml's
-  # single ansible_connection: local host, no ansible_host templating at
-  # all) or tests the secrets role against a synthetic per-scenario
-  # inventory that never touches the real one. See
-  # docs/ci.md#deploy-ordering-check for the full writeup.
-  #
-  # Runs the REAL deploy.yaml (not a copy — a parallel copy is exactly
-  # what let ci-inventory's simplification drift out of sync with
-  # production in the first place) against a purpose-built CI inventory
-  # that mirrors inventory.yaml's ansible_host -> ddns_domain ->
-  # main_domain -> secrets_generated chain and managed_hosts/controller
-  # group split closely enough to genuinely exercise both, while staying
-  # CI-safe: ansible_connection: local everywhere (no real SSH/network),
-  # and --tags matching nothing real so Docker/Caddy/compose-app/BIND9/
-  # backup-agent provisioning never actually runs — only secrets
-  # generation, propagation, and the ansible_host resolution it gates
-  # (Gathering Facts against the CI-safe "managed" host) do.
+  # Regression coverage for the ansible_host resolution ordering incident —
+  # see docs/ci.md#deploy-ordering-check for what it catches and why.
   deploy-ordering-check:
     needs: detect-changes
     if: needs.detect-changes.outputs.deploy_ordering == 'true'
@@ -243,31 +182,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # install-galaxy-collections is required specifically for
-      # restore.yaml's own role, which uses
-      # community.docker.docker_compose_v2/docker_container/docker_volume
-      # unconditionally (no tags: to skip past it the way the deploy.yaml
-      # check's --tags trick does for everything else in this job) —
-      # confirmed live: without it, even a deliberately-failing restore
-      # invocation errors out earlier than intended with "couldn't
-      # resolve module/action 'community.docker.docker_compose_v2'",
-      # before ever reaching the archive-existence check this job's
-      # restore step actually means to exercise.
+      # restore.yaml's own role calls community.docker modules
+      # unconditionally (no tags: to skip past it), unlike everything
+      # else in this job, so Galaxy collections must be installed.
       - name: Setup uv + Ansible Galaxy collections
         uses: ./.github/actions/setup-uv-ansible
         with:
           locked: "true"
           install-galaxy-collections: "true"
 
-      # Mirrors what a real operator's `python3 ansible/bootstrap_secrets.py`
-      # run produces on the controller before a first deploy — every
-      # format: manual entry in secrets_registry.yaml needs its cache file
-      # to exist before the secrets role's own "fail loudly if missing"
-      # guard lets the play past it. Values are throwaway CI placeholders,
-      # same non-secret status as ci-inventory/group_vars/all/
-      # ci_dummy_vars.yaml's — beszel-hub-key/beszel-agent-token are
-      # allow_blank: true in the registry, so empty files are the correct
-      # (not just convenient) way to pre-seed those two specifically.
+      # Mirrors bootstrap_secrets.py's output — throwaway CI values, see
+      # docs/ci.md#deploy-ordering-check. beszel-hub-key/-agent-token are
+      # allow_blank: true in the registry, so empty is correct, not lazy.
       - name: Pre-seed manual secrets (mirrors bootstrap_secrets.py)
         run: |
           mkdir -p ansible/files/secrets
@@ -280,15 +206,10 @@ jobs:
           printf '%s' '' > ansible/files/secrets/beszel-hub-key
           printf '%s' '' > ansible/files/secrets/beszel-agent-token
 
-      # --tags matches nothing real in deploy.yaml (initial-setup/images/
-      # infra are the only real values) — every provisioning task gets
-      # filtered out, while Gathering Facts (never tag-gated) and every
-      # secrets-role/preinit task (explicitly tags: [always] — see
-      # ansible/roles/secrets/tasks/*.yaml) still run. --limit
-      # ci-managed-host,localhost mirrors the real --limit prod,localhost
-      # requirement documented in bootstrap-secrets.yaml — Play 0 targets
-      # hosts: localhost specifically, which --limit prod alone would
-      # filter to zero hosts and silently skip.
+      # --tags matches nothing real, so provisioning is filtered out while
+      # Gathering Facts and secrets tasks (tags: [always]) still run.
+      # --limit includes localhost: Play 0 targets hosts: localhost
+      # specifically, which --limit prod alone would skip entirely.
       - name: Run deploy.yaml against the CI ordering-check inventory
         run: |
           uv run ansible-playbook \
@@ -299,27 +220,13 @@ jobs:
             -e compose_deploy_dir=/tmp/compose-deploy-ordering-check
         working-directory: ansible
 
-      # restore.yaml can't import bootstrap-secrets.yaml as a leading play
-      # the way deploy.yaml/cleanup.yaml/maintenance.yaml do (see its own
-      # header) — it requires the two-file invocation instead. This step
-      # is the regression check for THAT specific pattern, not for
-      # restore's own validation/confirmation logic, which is already
-      # thoroughly covered by ansible/roles/restore's own Molecule
-      # scenarios (default, multi_volume, validation_failure,
-      # confirmation_declined) — see docs/molecule-testing.md.
-      #
-      # Deliberately triggers the archive-existence check's failure
-      # branch (a real, nonexistent path) rather than trying to complete
-      # an actual restore: that's the safe way to prove the whole chain
-      # up to and including a role-level task actually executing against
-      # the CI-safe host works, without needing a real archive or coming
-      # anywhere near the confirmation gate / destructive steps. A run
-      # that instead fails on 'remote_addr'/secrets_generated (the
-      # original regression's signature) means ansible_host never
-      # resolved and this step must fail loudly and specifically about
-      # that, not just report "the playbook failed" (which an archive-
-      # not-found failure ALSO produces, and would otherwise mask this
-      # exact regression recurring here specifically).
+      # Regression check for restore.yaml's two-file invocation pattern
+      # specifically (see docs/ci.md#deploy-ordering-check) — not for
+      # restore's own logic, which Molecule already covers. Points at a
+      # nonexistent archive on purpose: reaching that failure proves
+      # ansible_host resolved without needing a real restore. The log
+      # grep below distinguishes that expected failure from the
+      # ansible_host/secrets_generated regression this step exists to catch.
       - name: Run restore.yaml's two-file invocation against the CI ordering-check inventory
         run: |
           set +e
@@ -364,11 +271,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # ansible/requirements.yml is the top-level install target;
-      # molecule's own per-scenario dependency phase (see
-      # .config/molecule/config.yml) additionally pulls
-      # molecule_helpers/role-requirements.yml — the composite action's
-      # cache key already hashes both.
+      # Also pulls molecule_helpers/role-requirements.yml per
+      # .config/molecule/config.yml — cache key hashes both files.
       - name: Setup uv + Ansible Galaxy collections
         uses: ./.github/actions/setup-uv-ansible
         with:
@@ -378,14 +282,10 @@ jobs:
         run: uv run ./molecule-test-all.sh "${{ matrix.role }}"
         working-directory: ansible
 
-      # if: always() - a role that fails partway through Molecule can still
-      # have partial coverage data worth reporting and gating on.
-      # set -o pipefail: an unspecified `shell:` on this runner resolves to
-      # `bash -e {0}` - NOT `-eo pipefail` (that only gets added when a step
-      # writes `shell: bash` explicitly, confirmed against a real run where
-      # this step's own failure was silently swallowed by tee's exit 0).
-      # Setting it inside the script fixes this regardless of how the shell
-      # was invoked externally.
+      # if: always() - partial coverage from a mid-run failure is still
+      # worth reporting. set -o pipefail is required here specifically:
+      # this runner's default shell is `bash -e`, not `-eo pipefail`, so
+      # without it a failure upstream of `| tee` is masked by tee's exit 0.
       - name: Coverage report + gate — ${{ matrix.role }}
         if: always()
         run: |
@@ -398,10 +298,7 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY"
         working-directory: ansible
 
-  # Actual steps live in _compose-boot-test.yml — shared with
-  # boot-test-all.yml's compose-boot-test-all so the seed/boot/wait/
-  # teardown logic has exactly one copy instead of two drifting in
-  # lockstep by hand.
+  # Shared logic — see docs/ci.md#compose-boot-test.
   compose-boot-test:
     needs: detect-changes
     if: needs.detect-changes.outputs.compose_apps != '[]'
@@ -437,16 +334,9 @@ jobs:
             [ -f "$f" ] || continue # deleted, not modified — nothing to validate
             echo "=== $f ==="
             dir=$(dirname "$f")
-            # docker compose treats an explicit env_file: entry as required
-            # to exist by default (unlike the implicit top-level .env,
-            # which silently no-ops if absent). Apps like lldap reference a
-            # real .env that's Ansible-templated at deploy time from
-            # secrets_registry.yaml (see app_registry.yaml's configs:
-            # entry) and correctly never committed. `config --quiet` only
-            # needs the file to exist to validate syntax/interpolation, not
-            # to hold real values, so an empty stub is sufficient here —
-            # same "harmless CI placeholder" pattern as
-            # _compose-boot-test.yml's job-level env: block.
+            # An explicit env_file: entry must exist for `config --quiet`
+            # to pass, unlike the implicit top-level .env — an empty stub
+            # is enough since only syntax is being validated here.
             stub_created=0
             if [ ! -e "$dir/.env" ]; then
               touch "$dir/.env"
@@ -461,13 +351,7 @@ jobs:
             [ "$rc" -eq 0 ] || exit "$rc"
           done
 
-  # Runs the three Trivy checks documented in
-  # docs/ci.md#trivy-security-scans. Image CVE + Ansible misconfig are
-  # scoped via detect-changes like the jobs above; the secret scan runs
-  # unconditionally on every PR instead, same reasoning as
-  # pre-commit-checks — a leaked secret can land in any file, not just
-  # docker/ or ansible/. It's a second, independent backstop alongside
-  # gitleaks, which pre-commit-checks above already runs unconditionally.
+  # See docs/ci.md#trivy-security-scans.
   trivy-scan:
     needs: detect-changes
     permissions:
@@ -478,18 +362,10 @@ jobs:
       run-ansible: ${{ needs.detect-changes.outputs.trivy_ansible == 'true' }}
       run-secrets: true
 
-  # Required-status-check aggregator for the two matrix jobs above.
-  # GitHub's required-status-check list can't reference a matrix job by
-  # a fixed name: when the job runs, each matrix entry posts its own
-  # check (e.g. "molecule (apt)"), which varies per PR by definition —
-  # there's no single name that's ever posted for every PR. When the job
-  # is skipped entirely (roles == '[]'), it DOES post one check named
-  # "molecule", but that name never posts when the job actually runs,
-  # so neither name is safely requirable on its own. This job has one
-  # fixed name regardless of what ran, so it's the one to mark required
-  # instead of molecule/compose-boot-test directly. if: always() so it
-  # still runs (and evaluates) even when an upstream job was skipped —
-  # a skipped dependency would otherwise skip this job too by default.
+  # Fixed-name required-check aggregator for the two matrix jobs above —
+  # see docs/ci.md#requiring-checks-before-merge for why a matrix job
+  # can't be marked required directly. if: always() so a skipped
+  # upstream job doesn't skip this one too.
   matrix-jobs-gate:
     needs: [molecule, compose-boot-test]
     if: always()

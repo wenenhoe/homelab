@@ -2,7 +2,7 @@ name: wastebin
 
 services:
   wastebin:
-    image: quxfoo/wastebin:3.7.1
+    image: quxfoo/wastebin:3.7.2
     container_name: wastebin
     volumes:
       - data:/data

@@ -17,8 +17,3 @@
 bind9
 seaweedfs
 caddy
-
-# lldap: certbot needs a real DigitalOcean DNS-01 credential to do
-# anything meaningful, and the lldap service itself has no healthcheck
-# defined yet.
-lldap

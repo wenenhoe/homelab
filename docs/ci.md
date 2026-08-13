@@ -181,8 +181,15 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide) for
   why that one needed a repo-wide `roles`-filter case instead of the
   plain per-role mapping the other two get).
-- `lldap` — `certbot` needs a real DigitalOcean DNS-01 credential to do
-  anything meaningful, and `lldap` itself has no healthcheck defined yet.
+
+`lldap` is no longer in that list: `_compose-boot-test.yml` seeds a
+self-signed cert into its `certs` and `letsencrypt_conf` volumes before
+bringing the stack up, so `certbot`'s entrypoint skips DNS-01 issuance
+(it only runs `certbot certonly` when no cert is already present) and
+`lldap` boots with real cert files to load — see
+[`seed-lldap-ci-cert.sh`](../.github/scripts/seed-lldap-ci-cert.sh). No
+real DigitalOcean credential is involved; `certbot`'s own renew loop
+still runs against the seeded cert.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully

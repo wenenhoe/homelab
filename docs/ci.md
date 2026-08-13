@@ -183,8 +183,6 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   plain per-role mapping the other two get).
 - `lldap` — `certbot` needs a real DigitalOcean DNS-01 credential to do
   anything meaningful, and `lldap` itself has no healthcheck defined yet.
-- `tinyauth` — crashes on boot with a config-loading error despite a
-  live-verified, schema-correct config; not yet root-caused.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully

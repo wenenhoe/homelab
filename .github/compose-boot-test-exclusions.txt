@@ -22,7 +22,3 @@ caddy
 # anything meaningful, and the lldap service itself has no healthcheck
 # defined yet.
 lldap
-
-# tinyauth: crashes with "app URL cannot be empty, perhaps config
-# loading failed" despite a live-verified, schema-correct config.yaml.
-tinyauth

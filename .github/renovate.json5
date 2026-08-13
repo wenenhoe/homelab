@@ -3,6 +3,12 @@
   extends: [
     "config:recommended",
     "helpers:pinGitHubActionDigests",
+    // Age/Adoption/Passing/Confidence badges on PRs. Only covers the go,
+    // npm, maven, pypi, nuget, packagist and rubygems datasources
+    // (docs.renovatebot.com/merge-confidence) — of this repo's managers,
+    // only pep621/uv (pypi) qualifies; docker and ansible PRs won't show
+    // badges. No extra token needed: badges load client-side in the browser.
+    "mergeConfidence:all-badges",
   ],
   gitAuthor: "wenenhoe <33289235+wenenhoe@users.noreply.github.com>",
 
@@ -71,13 +77,15 @@
     managerFilePatterns: ["/(^|/)(?:docker-)?compose[^/]*\\.ya?ml\\.j2$/"],
   },
 
-  // Enabled by default in Renovate 43+, but set explicitly rather than
-  // relying on a version-dependent default — this is what actually keeps
-  // uv.lock's resolved pins current under the >= ranges in pyproject.toml
-  // (see the pep621/uv packageRule below for why the ranges themselves
-  // aren't being tightened).
+  // Enabled by default in Renovate 43+, set explicitly anyway — this is
+  // what keeps uv.lock's *transitive* pins current (direct deps already
+  // get their own update-lockfile PRs, see the pep621/uv packageRule).
+  // schedule is set explicitly because lockFileMaintenance has its own
+  // independent default ("before 4am on monday") that the top-level
+  // `schedule` above does not override.
   lockFileMaintenance: {
     enabled: true,
+    schedule: ["* 0-5 * * 1,4"],
   },
 
   // Tracks the renovate-version pin in .github/workflows/renovate.yml —
@@ -147,27 +155,80 @@
 
     // Everything that actually touches deployed infra — compose files,
     // inline image: refs in Ansible tasks, the Caddy Dockerfile, Ansible
-    // Galaxy collections, Python tooling — stays manual-review. These get
-    // applied to hosts by hand via ansible-playbook, so there's no
-    // automated rollout to gate anyway.
+    // Galaxy collections — stays manual-review. These get applied to hosts
+    // by hand via ansible-playbook, so there's no automated rollout to gate
+    // anyway.
     {
-      matchManagers: ["docker-compose", "dockerfile", "ansible", "ansible-galaxy", "pep621", "uv"],
+      matchManagers: ["docker-compose", "dockerfile", "ansible", "ansible-galaxy"],
       automerge: false,
     },
 
-    // pyproject.toml uses unbounded >= ranges (ansible-core>=2.20, etc) —
-    // no need to convert those to exact pins for Renovate to be useful.
-    // Without this though, an unbounded lower-bound range technically
-    // already "allows" any newer version, so Renovate has nothing to
-    // widen and — depending on version — may not open PRs for it at all.
-    // update-lockfile keeps the range in pyproject.toml exactly as
-    // written (preserves your stated intent) and instead bumps the
-    // actual resolved version pinned in uv.lock whenever a newer one
-    // satisfying that range is out, which is the file that actually
-    // determines what gets installed.
+    // pyproject.toml/uv.lock: one rule, not two. automerge:false lives here
+    // (same manual-review stance as the infra rule above, kept separate
+    // because the rangeStrategy below only applies to these managers).
+    // rangeStrategy "update-lockfile" matters because pyproject.toml uses
+    // unbounded >= ranges (ansible-core>=2.20, etc) on purpose — no need to
+    // convert those to exact pins for Renovate to be useful. Without this,
+    // an unbounded lower-bound range technically already "allows" any newer
+    // version, so Renovate has nothing to widen and may not open PRs for it
+    // at all. update-lockfile keeps the range in pyproject.toml exactly as
+    // written and instead bumps the actual resolved version pinned in
+    // uv.lock whenever a newer one satisfying that range is out — the file
+    // that actually determines what gets installed.
     {
       matchManagers: ["pep621", "uv"],
+      automerge: false,
       rangeStrategy: "update-lockfile",
+    },
+
+    // Every other docker-compose/Dockerfile image's minor and patch bumps,
+    // lumped into one PR instead of ~15 separate ones. Majors stay
+    // individual — more likely to need their own changelog read and their
+    // own revert. Placed *before* the per-image groups below so their
+    // matchDepNames rules (which match regardless of update type) still win
+    // for caddy/bind9/seaweedfs, keeping those tied to their test fixtures.
+    {
+      matchManagers: ["docker-compose", "dockerfile"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "docker images (minor/patch)",
+    },
+
+    // henrygd/beszel ships hub and agent from the same repo/release — the
+    // agent even flags itself as version-mismatched in the hub UI if the
+    // two drift apart (github.com/henrygd/beszel/discussions/654). Group so
+    // they land, and get redeployed, together.
+    {
+      matchDepNames: ["ghcr.io/henrygd/beszel/beszel", "ghcr.io/henrygd/beszel/beszel-agent"],
+      groupName: "beszel hub + agent (must move together)",
+    },
+
+    // ghcr.io/tecnativa/docker-socket-proxy is the same security-sensitive
+    // sidecar pinned identically and independently in three compose files
+    // (beszel-agent, diun, lldap) — group so a version bump is reviewed and
+    // rolled out once, not as three near-identical PRs.
+    {
+      matchDepNames: ["ghcr.io/tecnativa/docker-socket-proxy"],
+      groupName: "docker-socket-proxy (all instances)",
+    },
+
+    // ghcr.io/itzg/mc-backup is pinned identically in docker/minecraft/
+    // compose.yaml (the running backup sidecar) and compose.restore.yaml
+    // (the one-off restore job) — same image, same intended version, group
+    // them.
+    {
+      matchDepNames: ["ghcr.io/itzg/mc-backup"],
+      groupName: "mc-backup (compose + restore — must move together)",
+    },
+
+    // community.docker/ansible.posix are pinned identically in
+    // ansible/requirements.yml (real playbook runs) and
+    // ansible/roles/molecule_helpers/requirements.yml (what molecule tests
+    // against) — same reasoning as the docker-image pairs above: group them
+    // so the test fixture can't silently drift from what's actually run.
+    {
+      matchManagers: ["ansible-galaxy"],
+      matchDepNames: ["community.docker", "ansible.posix"],
+      groupName: "ansible galaxy collections (playbook + molecule — must move together)",
     },
 
     // docker/caddy/compose.yaml (production) and

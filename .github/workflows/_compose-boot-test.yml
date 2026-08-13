@@ -75,6 +75,12 @@ jobs:
             -e compose_deploy_dir=/tmp/compose-deploy
         working-directory: ansible
 
+      # lldap-only: see .github/scripts/seed-lldap-ci-cert.sh for why this
+      # avoids needing a real DigitalOcean DNS-01 credential in CI.
+      - name: Seed a self-signed cert for lldap
+        if: matrix.app == 'lldap'
+        run: .github/scripts/seed-lldap-ci-cert.sh /tmp/compose-deploy/lldap/.env
+
       - name: Bring the stack up
         run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" up -d
 

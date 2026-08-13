@@ -18,11 +18,10 @@ bind9
 seaweedfs
 caddy
 
-# lldap: certbot needs a real DigitalOcean DNS-01 credential to do
-# anything meaningful, and the lldap service itself has no healthcheck
-# defined yet.
-lldap
-
-# tinyauth: crashes with "app URL cannot be empty, perhaps config
-# loading failed" despite a live-verified, schema-correct config.yaml.
+# tinyauth: appUrl resolves fine in CI (see main.yaml's tinyauth_host and
+# lab_domain). The actual blocker is AuthService's LdapService bootstrap,
+# a hard startup dependency — compose-boot-test brings up each app's
+# compose stack in isolation on its own runner (see
+# _compose-boot-test.yml), so there's no lldap host for tinyauth to
+# resolve, in this job or any other, regardless of config correctness.
 tinyauth

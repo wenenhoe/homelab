@@ -52,10 +52,20 @@ beszel_agent_token: "ci-dummy-beszel-agent-token"
 
 cobalt_host: "cobalt"
 
-# digitalocean_api_key/letsencrypt_email have no override here — their only
-# consumers (caddy, lldap) are both in the compose-boot-test `excluded`
-# pattern already (see .github/workflows/pr-checks.yml), so they're never
-# actually rendered in this CI path. Add one here if that ever changes.
+# caddy is still excluded from compose-boot-test (Molecule covers it), so
+# it never renders these — but lldap's env.j2 does. certbot never calls
+# the real DNS-01 API in CI (see .github/scripts/seed-lldap-ci-cert.sh),
+# so these only need to be well-formed strings, not real credentials.
+digitalocean_api_key: "ci-dummy-do-token"
+letsencrypt_email: "ci@invalid.example"
+
+# lldap's env.j2 also needs these three — real values are Ansible-generated
+# (secrets role), which doesn't run in this single-app CI path. lldap
+# itself never validates them against anything else in a fresh CI stack,
+# so throwaway strings are enough.
+lldap_jwt_secret: "ci-dummy-lldap-jwt-secret"
+lldap_key_seed: "ci-dummy-lldap-key-seed"
+lldap_ldap_user_pass: "ci-dummy-lldap-user-pass"
 
 telegram_token: "ci-dummy-telegram-token"
 telegram_chat_id: "0"
@@ -68,9 +78,9 @@ shlink_web_host: "shlink"
 # mirrors preinit.yaml + init.yaml), so main.yaml's
 # shlink_api_key: "{{ secrets_generated['shlink-api-key'] }}" would be
 # undefined here. Overridden flatly instead, same pattern as
-# tinyauth_ldap_observer_password below — this is the only migrated
-# secret that needs one: lldap/tinyauth/seaweedfs are all excluded from
-# the compose-boot-test matrix already (see .github/workflows/pr-checks.yml).
+# tinyauth_ldap_observer_password and the lldap_* secrets above —
+# seaweedfs is the only app left excluded whose configs would otherwise
+# need one of these too (see .github/compose-boot-test-exclusions.txt).
 shlink_api_key: "ci-dummy-shlink-api-key"
 
 lldap_host: "lldap"

@@ -45,6 +45,12 @@ shlink_api_key: "{{ secrets_generated['shlink-api-key'] }}"  # docker/shlink, ke
 step_ca_password: "{{ secrets_generated['step-ca-password'] }}"                      # docker/step-ca/configs/env.j2
 step_ca_provisioner_password: "{{ secrets_generated['step-ca-provisioner-password'] }}"
 
+# Not a secret - the provisioner's own label. Shared so docker/step-ca's
+# own bootstrap and every consumer requesting a cert from it (lldap_cert,
+# and any future one) reference the same value instead of each hardcoding
+# their own copy that could silently drift apart.
+step_ca_provisioner_name: internal-services
+
 # Value alone doesn't make tinyauth's LDAP bind work — the "observer"
 # account must also be created in lldap with this same password. See
 # docs/secrets.md's "Syncing the LDAP observer account password".

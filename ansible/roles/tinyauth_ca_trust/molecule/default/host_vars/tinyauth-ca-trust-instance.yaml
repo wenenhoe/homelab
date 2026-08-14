@@ -1,0 +1,46 @@
+---
+# Must live here, not in converge.yml's play `vars:` — same reasoning as
+# tinyauth/molecule/default's own host_vars.
+#
+# The one deliberate difference from tinyauth/molecule/default's own
+# fixture: tinyauth_ldap_insecure is false here, the real production
+# value — that scenario sets it true because its lldap target uses a
+# throwaway self-signed cert with no step-ca behind it at all. This
+# scenario exists specifically to prove insecure:false actually works
+# once step-ca and tinyauth_ca_trust are both real, not to route around
+# the question.
+main_domain: molecule.test
+lab_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lab_domain }}"
+lldap_host: lldap-test
+tinyauth_host: sso
+server_timezone: Asia/Singapore
+tinyauth_ldap_insecure: false
+
+# Throwaway values — real ones are Ansible-generated (secrets role),
+# which doesn't run in this role-isolated scenario.
+lldap_ldap_user_pass: molecule-test-admin-password
+tinyauth_ldap_observer_password: molecule-test-observer-password
+
+step_ca_provisioner_password: molecule-test-step-ca-password
+# Matches step-ca-test's own stock DOCKER_STEPCA_INIT_PROVISIONER_NAME
+# default ("admin"), not production's "internal-services" — see
+# start_step_ca_test_target.yaml's own comment on why.
+step_ca_provisioner_name: admin
+
+# Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
+# tinyauth entry) — copied here rather than sourced from that file, same
+# reasoning tinyauth/molecule/default's own host_vars gives for its own
+# copy.
+app_registry:
+  tinyauth:
+    volumes:
+      - name: data
+    configs:
+      - src: config.yaml.j2
+        dest: "data/config.yaml"
+        no_log: true
+    upstream: "tinyauth:3000"
+
+compose_apps:
+  - name: tinyauth

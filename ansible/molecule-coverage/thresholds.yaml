@@ -16,3 +16,4 @@ seaweedfs_bucket: 100.0
 secrets: 100.0
 step_ca_client: 100.0
 tinyauth: 100.0
+tinyauth_ca_trust: 100.0

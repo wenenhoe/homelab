@@ -1,0 +1,65 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    # tinyauth's own molecule/default/verify.yml explains why Health.Status
+    # (not just container Status) is the real assertion: its LDAP client
+    # connects during startup, before the HTTP server (and so
+    # /api/healthz) ever comes up — a failed bind exits the process
+    # outright. Reaching healthy here, with tinyauth_ldap_insecure: false
+    # (this scenario's one deliberate difference from that one), is only
+    # possible if SSL_CERT_FILE genuinely got tinyauth's LDAP client to
+    # trust a step-ca-issued cert — the exact thing docs/lldap.md flagged
+    # as unverified. This is what confirms it.
+    - name: Wait for tinyauth to report healthy
+      community.docker.docker_container_info:
+        name: tinyauth
+      register: tinyauth_ca_trust_verify_info
+      until: >-
+        tinyauth_ca_trust_verify_info.container.State.Health.Status | default('') == 'healthy'
+      retries: 30
+      delay: 3
+
+    # Unlike tinyauth/molecule/default (which asserts RestartCount == 0,
+    # since its dependency is fully ready before tinyauth ever starts),
+    # this scenario deliberately has no CA bundle seeded before tinyauth's
+    # own first boot — see converge.yml's comment. Multiple process starts
+    # are the *expected* shape here, not a symptom of something wrong;
+    # exactly one would actually be suspicious (it'd mean tinyauth somehow
+    # verified successfully before tinyauth_ca_trust ever ran).
+    #
+    # Deliberately NOT RestartCount, despite lldap_cert's own verify.yml
+    # already having established it doesn't *increment* on a manual
+    # restart — confirmed live here that it's worse than that: a manual
+    # `docker compose restart` (which tinyauth_ca_trust's own role always
+    # performs once it seeds the bundle) resets the counter to 0
+    # outright, even after genuine earlier crash-loop restarts. Counting
+    # "Starting Tinyauth" lines in the container's own log instead is
+    # unaffected by that reset — Docker's logs are append-only regardless
+    # of how many times the container itself has been restarted.
+    - name: Count tinyauth's actual process starts
+      ansible.builtin.shell: docker logs tinyauth 2>&1 | grep -c 'Starting Tinyauth' || true
+      register: tinyauth_ca_trust_verify_start_count
+      changed_when: false
+
+    - name: Confirm tinyauth actually went through the expected cold-start race
+      ansible.builtin.assert:
+        that:
+          - (tinyauth_ca_trust_verify_start_count.stdout | trim | int) >= 2
+        fail_msg: >-
+          Expected at least 2 process starts (cold boot with insecure:false
+          and no CA bundle yet should fail LDAP verification and restart at
+          least once before tinyauth_ca_trust seeds the bundle) — only
+          {{ tinyauth_ca_trust_verify_start_count.stdout | trim }} found in
+          tinyauth's logs. Exactly 1 would mean tinyauth verified
+          successfully before the bundle existed, which shouldn't be
+          possible and would need investigating, not treating as a pass.
+
+    - name: Confirm the CA bundle actually landed in tinyauth's volume
+      community.docker.docker_container_exec:
+        container: tinyauth
+        command: test -s /data/ca-bundle.pem
+      register: tinyauth_ca_trust_verify_bundle
+      changed_when: false
+      failed_when: tinyauth_ca_trust_verify_bundle.rc != 0

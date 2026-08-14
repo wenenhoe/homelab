@@ -1,0 +1,206 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    # main_domain, lab_domain, caddy_domain, lldap_host, tinyauth_host,
+    # server_timezone, tinyauth_ldap_insecure, step_ca_*, app_registry,
+    # compose_apps live in host_vars/tinyauth-ca-trust-instance.yaml
+    # instead — see the comment there.
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Install python3-requests (docker_container_info/docker_container_exec talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    - name: Start a real, throwaway step-ca instance for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_step_ca_test_target.yaml
+      vars:
+        molecule_helpers_step_ca_network_name: caddy-proxy
+        molecule_helpers_step_ca_password: "{{ step_ca_provisioner_password }}"
+
+    # --- Real, step-ca-issued cert for this scenario's lldap target -------
+    # Deliberately NOT start_lldap_test_target.yaml's openssl self-signed
+    # fixture: the entire point of this scenario is proving tinyauth
+    # trusts a cert that's actually step-ca-issued, with insecure:false,
+    # not routing around that question with a shortcut. Same
+    # step-cli-container technique .github/scripts/seed-lldap-ci-cert.sh
+    # and lldap_cert's own role both use for real issuance.
+    - name: Ensure a scratch dir exists for this scenario's lldap cert
+      ansible.builtin.file:
+        path: /tmp/tinyauth-ca-trust-lldap-certs
+        state: directory
+        # smallstep/step-cli runs as a non-root user inside its
+        # container (uid ~1000). 0755 covers read/traverse (confirmed
+        # necessary for root_ca.crt/provisioner_password below), but
+        # `step ca certificate` also *writes* fullchain.pem/privkey.pem
+        # into this same dir, which a non-owner can't do without write
+        # permission too — confirmed live ("permission denied" writing
+        # fullchain.pem with 0755). Throwaway molecule scratch data for
+        # a single ephemeral CA's lifetime, so world-writable is a fine
+        # trade for not needing to guess/match the image's exact uid.
+        mode: "0777"
+
+    - name: Write step-ca-test's root cert to the scratch dir
+      ansible.builtin.copy:
+        dest: /tmp/tinyauth-ca-trust-lldap-certs/root_ca.crt
+        content: "{{ molecule_helpers_step_ca_root_cert }}"
+        mode: "0644"
+
+    - name: Write step-ca-test's provisioner password to the scratch dir
+      ansible.builtin.copy:
+        dest: /tmp/tinyauth-ca-trust-lldap-certs/provisioner_password
+        content: "{{ step_ca_provisioner_password }}"
+        # Same reasoning as the dir above — the step-cli container needs
+        # to actually read this. Throwaway molecule-only value either way.
+        mode: "0644"
+      no_log: true
+
+    - name: Check whether this scenario's lldap-test cert already exists
+      ansible.builtin.stat:
+        path: /tmp/tinyauth-ca-trust-lldap-certs/fullchain.pem
+      register: tinyauth_ca_trust_existing_cert
+
+    - name: Issue a real cert for lldap-test from step-ca-test
+      community.docker.docker_container:
+        name: tinyauth-ca-trust-issue-cert
+        image: smallstep/step-cli:0.30.2
+        command:
+          - step
+          - ca
+          - certificate
+          - "{{ lldap_host }}"
+          - /work/fullchain.pem
+          - /work/privkey.pem
+          - --san
+          - "{{ lldap_host }}"
+          - --san
+          - "{{ lldap_host }}.{{ caddy_domain }}"
+          - --provisioner
+          - "{{ step_ca_provisioner_name }}"
+          - --password-file
+          - /work/provisioner_password
+          - --ca-url
+          - "https://step-ca-test:9000"
+          - --root
+          - /work/root_ca.crt
+          - --force
+        volumes:
+          - /tmp/tinyauth-ca-trust-lldap-certs:/work
+        networks:
+          - name: caddy-proxy
+        detach: false
+        cleanup: true
+        state: started
+      # Otherwise re-issued (and reported changed) on every converge,
+      # including Molecule's idempotence pass — this task has no other
+      # natural idempotency check the way a `template`/`copy` task gets
+      # for free.
+      when: not tinyauth_ca_trust_existing_cert.stat.exists
+
+    - name: Own the throwaway cert files as lldap's runtime uid/gid so its own chown step skips them
+      ansible.builtin.file:
+        path: "/tmp/tinyauth-ca-trust-lldap-certs/{{ item }}"
+        owner: "1000"
+        group: "1000"
+      loop:
+        - fullchain.pem
+        - privkey.pem
+
+    - name: Run a real lldap-test target using the step-ca-issued cert
+      community.docker.docker_container:
+        name: lldap-test
+        image: ghcr.io/lldap/lldap:2026-08-08-alpine
+        env:
+          LLDAP_LDAP_BASE_DN: "dc={{ lab_domain | replace('.', ',dc=') }}"
+          LLDAP_LDAP_USER_PASS: "{{ lldap_ldap_user_pass }}"
+          LLDAP_JWT_SECRET: molecule-test-jwt-secret
+          LLDAP_KEY_SEED: molecule-test-key-seed
+          LLDAP_LDAPS_OPTIONS__ENABLED: "true"
+          LLDAP_LDAPS_OPTIONS__CERT_FILE: /data/certs/fullchain.pem
+          LLDAP_LDAPS_OPTIONS__KEY_FILE: /data/certs/privkey.pem
+        tmpfs:
+          - /data
+        volumes:
+          - /tmp/tinyauth-ca-trust-lldap-certs/fullchain.pem:/data/certs/fullchain.pem:ro
+          - /tmp/tinyauth-ca-trust-lldap-certs/privkey.pem:/data/certs/privkey.pem:ro
+        networks:
+          - name: caddy-proxy
+            aliases:
+              - "{{ lldap_host }}.{{ caddy_domain }}"
+        state: started
+        detach: true
+
+    - name: Wait for lldap-test's web UI to accept connections
+      community.docker.docker_container_exec:
+        container: lldap-test
+        command: "wget -q --spider http://localhost:17170/"
+      register: tinyauth_ca_trust_lldap_ready
+      until: tinyauth_ca_trust_lldap_ready.rc | default(1) == 0
+      retries: 15
+      delay: 2
+      changed_when: false
+
+    # tinyauth binds as the "observer" account (config.yaml.j2's bindDn),
+    # which nothing else in this scenario creates — same dependency
+    # chain production has (deploy.yaml's Play 4 tinyauth deploy, then
+    # Play 7's lldap_bootstrap), run for real against this throwaway
+    # target instead. Confirmed missing live: without this, TLS
+    # verification succeeds (the actual thing under test) but the bind
+    # itself fails with "Invalid Credentials" — no observer account
+    # exists to bind as. Mirrors tinyauth/molecule/default's own
+    # identical step.
+    - name: Run lldap_bootstrap against the test target
+      ansible.builtin.include_role:
+        name: lldap_bootstrap
+      vars:
+        lldap_bootstrap_container_name: lldap-test
+        lldap_bootstrap_network_name: caddy-proxy
+
+    - name: Run step_ca_client
+      ansible.builtin.include_role:
+        name: step_ca_client
+      vars:
+        step_ca_client_container_name: step-ca-test
+
+    - name: Resolve tinyauth's own compose_apps entry
+      ansible.builtin.set_fact:
+        tinyauth_ca_trust_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'tinyauth') | first }}"
+
+    # Deploys the real docker/tinyauth/compose.yaml + config.yaml.j2
+    # (copied into this scenario's own files/docker/) with
+    # insecure:false and no CA bundle seeded yet — tinyauth's LDAP bind
+    # fails at startup exactly like it would in production on a cold
+    # deploy, crash-looping until tinyauth_ca_trust (below) seeds the
+    # bundle and restarts it. See docs/lldap.md.
+    - name: Init and deploy tinyauth, insecure:false, no bundle seeded yet
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main
+      vars:
+        compose_app_item: "{{ tinyauth_ca_trust_compose_app_item }}"
+
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: tinyauth_ca_trust

@@ -30,6 +30,9 @@ result, then re-converges to check idempotence — mirroring what
 | `bind9` | `default` | Zone-file aggregation/rendering/reload against a single self-hosting instance. |
 | `seaweedfs_bucket` | `default` | Bucket doesn't exist → role creates it against a real throwaway SeaweedFS target, verified by listing the bucket after. |
 | | `wrong_credentials` | Mismatched credentials must fail loudly, not get swallowed by `BucketAlreadyExists` tolerance. |
+| `lldap_bootstrap` | `default` | Observer account doesn't exist → role creates it (in `lldap_strict_readonly`) against a real throwaway lldap target, verified by querying its group membership as admin. |
+| | `not_running` | No running lldap target at all — the guard at the top of the role fails loudly, naming the missing container, before touching anything. |
+| `tinyauth` | `default` | Stands up a throwaway lldap target, runs `lldap_bootstrap` against it for real, then deploys the real tinyauth compose app and waits for it to report healthy — only reachable having already bound to LDAP at boot. Molecule-only; not wired into `deploy.yaml`. |
 | `backup_agent` | `default` | Apps split into stop/no-stop groups correctly; stopped group's container `StartedAt` changes, no-stop group's doesn't, archive lands in the test bucket. |
 | | `conflict` | Two apps in one group disagreeing on `retention_days`/`cron` fails validation before anything renders or touches a volume. |
 | | `no_stop_group_only` | No-stop group populated, stop group empty. |
@@ -43,13 +46,21 @@ Negative-path scenarios assert on `ansible_failed_task`/`ansible_failed_result`
 (task name + a distinctive substring of the failure message) rather than a
 bare `rescue:` firing — a bare rescue can't tell the expected failure apart
 from an unrelated one (e.g. Docker not ready). See
-`ansible/roles/backup_agent/molecule/conflict/verify.yml` for the pattern
+`ansible/roles/backup_agent/molecule/conflict/converge.yml` for the pattern
 to copy when adding a new one.
 
 `restore`'s `default`/`multi_volume` skip the `idempotence` step (a
 restore is meant to re-execute unconditionally, not converge to a no-op).
 `confirmation_declined` skips it because its fixture unconditionally
 rebuilds the test archive every run.
+
+`lldap_bootstrap`'s tasks are tagged `molecule-idempotence-notest` (same
+mechanism `compose_app` uses): Render/Remove create-then-delete the same
+`/tmp` file every run, by design, so its `idempotence` step doesn't
+re-exercise the role — only the rest of the scenario (Docker/network
+setup, the throwaway lldap target) is checked for a no-op.
+`bootstrap.sh`'s own idempotency is a source-level fact, not something
+re-checked live.
 
 Run a single scenario:
 
@@ -97,6 +108,7 @@ Shared scaffolding for scenarios, not a role under test:
 | `tasks/bootstrap_docker.yaml` | `include_role: docker` for scenarios that assume Docker is already installed, mirroring `deploy.yaml`'s Play 1. |
 | `tasks/resolve_compose_apps.yaml` | Resolves a scenario's `compose_apps` against `app_registry`, same merge as `deploy.yaml`. |
 | `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config; exposes its IP as `molecule_helpers_seaweedfs_ip`. |
+| `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
 | `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |
 | `requirements.yml` / `role-requirements.yml` | Shared Galaxy collection/role deps (`community.docker`, `ansible.posix`). |
 

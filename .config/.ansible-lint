@@ -3,3 +3,5 @@ exclude_paths:
     - .pre-commit-config.yaml
     - docker/
     - ansible/roles/bind9/molecule/default/host_vars/
+    - ansible/roles/lldap_bootstrap/molecule/default/host_vars/
+    - ansible/roles/tinyauth/molecule/default/host_vars/

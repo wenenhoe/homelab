@@ -16,6 +16,13 @@ compose_source_dir: "{{ (project_root ~ '/docker') | realpath }}"
 compose_deploy_dir: /opt/stacks
 
 tinyauth_host: sso
+# false in every real deployment — lldap's LDAPS cert is a real
+# certbot-issued one (see docs/lldap.md), so hostname verification
+# should always succeed. Templated (not hardcoded in config.yaml.j2)
+# purely so tinyauth's own Molecule scenario can point this at a
+# throwaway self-signed cert without forking the template — see
+# ansible/roles/tinyauth/molecule/default's host_vars.
+tinyauth_ldap_insecure: false
 
 beszel_hub_host: beszel
 beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_domain }}"

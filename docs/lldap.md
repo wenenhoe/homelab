@@ -34,12 +34,20 @@ rather than failing the renewal itself.
 
 Tinyauth binds as a read-only `observer` account
 (`uid=observer,ou=people,...`) to check logins — see
-`docker/tinyauth/configs/config.yaml.j2`'s `ldap.bindDn`. Nothing in this
-repo creates that account or sets its password; it's a one-time manual
-step in lldap's own web UI (create the user, add it to a read-only
-group, set its password to the value `secrets_registry.yaml` generated).
-See [`secrets.md`](secrets.md#syncing-the-ldap-observer-account-password)
-for the exact steps and how to read the generated password back out.
+`docker/tinyauth/configs/config.yaml.j2`'s `ldap.bindDn`. The
+`lldap_bootstrap` role (`ansible/roles/lldap_bootstrap`) creates and
+maintains it: it runs lldap's own `bootstrap.sh` against a declarative
+JSON config, adding the account to `lldap_strict_readonly` — a built-in
+lldap group required for real login lookups (a bare bind would still
+succeed without it, but every login check afterwards would silently
+fail). `deploy.yaml`'s Play 6 runs it right after lldap's own deploy,
+using the same `tinyauth-ldap-observer-password` secret `config.yaml.j2`
+already renders — see
+[`secrets.md`](secrets.md#syncing-the-ldap-observer-account-password).
+
+DO_CLEANUP=false, so it only ever touches the `observer` account. Safe
+to re-run: `bootstrap.sh` updates the existing account in place instead
+of erroring.
 
 ## Runtime config
 

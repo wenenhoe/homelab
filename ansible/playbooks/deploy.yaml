@@ -92,7 +92,26 @@
       tags:
         - images
 
-# Play 6 — Offsite backup agent (stage 1 DR). Runs last deliberately: it
+# Play 6 — Ensure lldap's observer account exists (tinyauth's LDAP bind
+# depends on it). Runs after lldap's own deploy (Play 4, on `security`),
+# before backup_agent (Play 7) for no particular ordering reason of its
+# own — placed here to mirror Play 5's "runs right after the thing it
+# depends on" shape. tinyauth itself may already be mid-restart-loop from
+# Play 4 at this point (compose_apps lists it before lldap on `security`)
+# — restart: unless-stopped means it picks up the now-real observer
+# account on its next attempt without any extra ordering here.
+- name: Ensure lldap's observer account exists
+  hosts: security
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include lldap_bootstrap role
+      ansible.builtin.include_role:
+        name: lldap_bootstrap
+      tags:
+        - images
+
+# Play 7 — Offsite backup agent (stage 1 DR). Runs last deliberately: it
 # mounts other apps' volumes as `external: true`, which requires each
 # app's own Play 4 ensure_volume step to have already created them.
 - name: Deploy offsite backup agent

@@ -1,0 +1,8 @@
+---
+# Matches docker/lldap/compose.yaml's container_name/network in every
+# real deployment. Overridable so this role can also run for real inside
+# tinyauth/molecule/default against a differently-named, isolated lldap
+# target (ansible/roles/molecule_helpers/tasks/start_lldap_test_target.yaml)
+# without clashing with a production container of the same name.
+lldap_bootstrap_container_name: lldap
+lldap_bootstrap_network_name: caddy-proxy

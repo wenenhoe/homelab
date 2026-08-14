@@ -66,6 +66,8 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │       ├── caddy/           # Renders Caddyfile, builds custom image, deploys
 │       ├── bind9/           # Renders zone files, deploys, rewires host DNS
 │       ├── seaweedfs_bucket/# Ensures the offsite-backup S3 bucket exists on `storage`
+│       ├── lldap_bootstrap/ # Automates lldap's `observer` account for tinyauth's LDAP bind
+│       ├── tinyauth/        # Molecule-only: deploys tinyauth for real in its own scenario
 │       ├── backup_agent/    # Per-host offsite backup aggregation (stage 1 DR)
 │       ├── restore/         # Restores a decrypted offsite archive back to a named volume
 │       ├── secrets/         # Generates/validates every entry in secrets_registry.yaml
@@ -102,7 +104,7 @@ nothing is hand-authored on the servers themselves.
 | [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
 | [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
 | [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
-| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle across the certbot/dockerproxy/lldap containers. |
+| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle across the certbot/dockerproxy/lldap containers; bootstrapping the observer account tinyauth binds as. |
 
 ### Operations
 

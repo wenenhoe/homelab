@@ -1,0 +1,150 @@
+---
+# Automates lldap's `observer` account (see
+# docs/lldap.md#bootstrapping-the-observer-account) using lldap's own
+# bootstrap.sh against its admin API, run from an ephemeral container
+# built off the exact image tag the real `lldap` container is already
+# running — so this role never carries its own copy of that version pin.
+# DO_CLEANUP=false: only touches what this role's own config declares.
+#
+# The DN bootstrap.sh's "observer" user ends up with (uid=observer,
+# ou=people,<base_dn>) is fixed by lldap itself, not something this role
+# constructs — it already matches config.yaml.j2's bindDn because both
+# sides read the same LLDAP_LDAP_BASE_DN (derived from lab_domain in
+# lldap's own env.j2).
+#
+# bootstrap.sh's own `until curl ... "$LLDAP_URL"` loop already retries
+# indefinitely against the cold-start race (`docker compose up` returning
+# before lldap's HTTP listener is actually serving) — adding seaweedfs_
+# bucket's outer retry-on-502 pattern on top would be redundant here (no
+# reverse proxy sits in front of this call, so there's no 502 to match
+# on) and can't distinguish "still in that loop" from "genuinely stuck".
+# async/poll bounds total wall-clock time instead, so a genuinely broken
+# run fails loudly rather than hanging the play forever.
+#
+# bootstrap.sh exits 0 even when the admin auth itself fails (a bad
+# admin password just leaves every GraphQL call erroring, printed but
+# not fatal — confirmed by reading bootstrap.sh: create_user/update_user
+# print `.errors[].message` and return, no `exit`) — so its exit code
+# can't be trusted as proof the account exists with the right password.
+# The bind check below, against the same /auth/simple/login endpoint
+# lldap's own login flow uses, is the real assertion.
+
+- name: Discover the running lldap container's image
+  community.docker.docker_container_info:
+    name: "{{ lldap_bootstrap_container_name }}"
+  register: lldap_bootstrap_lldap_info
+
+- name: Fail loudly if lldap isn't running yet
+  ansible.builtin.fail:
+    msg: >-
+      No running "{{ lldap_bootstrap_container_name }}" container found on
+      this host — lldap_bootstrap must run after lldap's own compose
+      deploy (see deploy.yaml's Play ordering).
+  when: not lldap_bootstrap_lldap_info.exists
+
+- name: Bootstrap and verify the observer account [block / always]
+  # Render/Remove below create-then-delete the same /tmp file on every
+  # single run (both this pass and any re-run) — permanently, by design,
+  # not a bug to chase changed_when:false around. molecule-idempotence-
+  # notest (same mechanism compose_app's own main.yaml already uses)
+  # skips this whole block — not just those two tasks — during
+  # Molecule's idempotence action specifically: Run bootstrap.sh/Confirm
+  # bind both depend on that file existing, so skipping only Render
+  # would leave them bind-mounting a path Docker would silently turn
+  # into an empty directory instead of erroring, an even worse failure
+  # mode. Real production behavior (deploy.yaml) is untouched — this tag
+  # only affects Molecule's separate idempotence-checking invocation,
+  # not the role's actual first-run-per-deploy behavior, which still
+  # renders, uses, and removes the secret file every time as intended.
+  tags:
+    - molecule-idempotence-notest
+  block:
+    - name: Render the observer user's bootstrap.sh config
+      ansible.builtin.copy:
+        dest: /tmp/lldap-bootstrap-observer.json
+        mode: "0600"
+        content: |
+          {
+            "id": "observer",
+            "email": "observer@{{ lab_domain }}",
+            "password": "{{ tinyauth_ldap_observer_password }}",
+            "groups": ["lldap_strict_readonly"]
+          }
+      no_log: true
+    - name: Run lldap's own bootstrap.sh against the observer config
+      community.docker.docker_container:
+        name: lldap-bootstrap-observer
+        image: "{{ lldap_bootstrap_lldap_info.container.Config.Image }}"
+        entrypoint:
+          - /app/bootstrap.sh
+        env:
+          LLDAP_URL: "http://{{ lldap_bootstrap_container_name }}:17170"
+          LLDAP_ADMIN_USERNAME: admin
+          LLDAP_ADMIN_PASSWORD: "{{ lldap_ldap_user_pass }}"
+          USER_CONFIGS_DIR: /bootstrap/user-configs
+          DO_CLEANUP: "false"
+        volumes:
+          - /tmp/lldap-bootstrap-observer.json:/bootstrap/user-configs/observer.json:ro
+        networks:
+          - name: "{{ lldap_bootstrap_network_name }}"
+        detach: false
+        cleanup: true
+      async: 180
+      poll: 5
+      no_log: true
+      # bootstrap.sh has no clean create/update-vs-no-op signal safe to
+      # key changed_when off: its password-set call
+      # (LLDAP_USER_PASSWORD=... lldap_set_password) runs unconditionally
+      # every pass, with no diff check against the existing password
+      # (confirmed by reading bootstrap.sh — it's outside
+      # create_update_user's own exists/create/update branching
+      # entirely). False here rather than a heuristic that would
+      # misreport "changed" on every idempotent re-run.
+      changed_when: false
+
+    - name: Confirm the observer account actually binds with the expected password
+      community.docker.docker_container:
+        name: lldap-bootstrap-verify-bind
+        image: curlimages/curl:8.11.1
+        # No entrypoint override: the image's own /entrypoint.sh already
+        # auto-prepends `curl` whenever argv[0] starts with "-" (read the
+        # actual script — github.com/curl/curl-docker's alpine
+        # entrypoint.sh), which every arg below does. Overriding it to
+        # `[]` (tried first) discards that wrapper entirely — Docker
+        # then tries to exec "-sf" itself as a binary, which doesn't
+        # exist, and curl never actually runs.
+        command:
+          - "-sf"
+          - "--request"
+          - "POST"
+          - "--url"
+          - "http://{{ lldap_bootstrap_container_name }}:17170/auth/simple/login"
+          - "--header"
+          - "Content-Type: application/json"
+          - "--data"
+          - "{{ {'username': 'observer', 'password': tinyauth_ldap_observer_password} | to_json }}"
+        networks:
+          - name: "{{ lldap_bootstrap_network_name }}"
+        detach: false
+        cleanup: true
+      register: lldap_bootstrap_bind_check
+      no_log: true
+      changed_when: false
+      # A 4xx/5xx from `curl -f` already fails the container (nonzero
+      # exit), which docker_container already turns into a task failure
+      # (see module.py: `if status != 0: self.results["failed"] = True`)
+      # — the explicit check below is for the inverse trap: a 200 whose
+      # body doesn't actually carry a token wouldn't trip `-f` at all.
+      failed_when: >-
+        lldap_bootstrap_bind_check is failed
+        or '"token"' not in (lldap_bootstrap_bind_check.container.Output | default(''))
+  always:
+    - name: Remove the rendered observer config from disk
+      ansible.builtin.file:
+        path: /tmp/lldap-bootstrap-observer.json
+        state: absent
+      # Explicit here too rather than relying on the block-level tag
+      # above propagating into always: — not verified against a live
+      # Molecule run, so not assumed.
+      tags:
+        - molecule-idempotence-notest

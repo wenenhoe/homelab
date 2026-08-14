@@ -1,0 +1,19 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the missing-target guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/lldap_bootstrap_not_running_halt_marker
+      register: lldap_bootstrap_not_running_marker
+      failed_when: not lldap_bootstrap_not_running_marker.stat.exists
+
+    - name: Confirm lldap_bootstrap never got as far as touching any container
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          name: lldap-bootstrap-
+      register: lldap_bootstrap_not_running_containers
+      failed_when: lldap_bootstrap_not_running_containers.containers | length > 0

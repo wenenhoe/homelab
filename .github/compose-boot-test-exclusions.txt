@@ -18,10 +18,11 @@ bind9
 seaweedfs
 caddy
 
-# tinyauth: appUrl resolves fine in CI (see main.yaml's tinyauth_host and
-# lab_domain). The actual blocker is AuthService's LdapService bootstrap,
-# a hard startup dependency — compose-boot-test brings up each app's
-# compose stack in isolation on its own runner (see
-# _compose-boot-test.yml), so there's no lldap host for tinyauth to
-# resolve, in this job or any other, regardless of config correctness.
+# tinyauth: also in that category as of the tinyauth/default Molecule
+# scenario (ansible/roles/tinyauth/molecule/default) — it stands up a
+# real lldap target and runs lldap_bootstrap for real, exercising
+# tinyauth's LdapService bootstrap the way compose-boot-test's
+# one-app-per-job isolation never could (see _compose-boot-test.yml: no
+# lldap host exists for tinyauth to resolve in that model, regardless of
+# config correctness).
 tinyauth

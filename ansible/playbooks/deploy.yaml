@@ -92,13 +92,44 @@
       tags:
         - images
 
-# Play 6 — Ensure lldap's observer account exists (tinyauth's LDAP bind
+# Play 6 — Wire step-ca into its first two consumers. Runs after
+# lldap/step-ca/tinyauth all deploy (Play 4, on `security`):
+# step_ca_client needs a running step-ca to read its root cert from;
+# lldap_cert needs a running lldap to issue into and step_ca_client's
+# cached root; tinyauth_ca_trust needs a running tinyauth to seed into
+# and the same cached root. No ordering constraint between the latter
+# two — sequenced arbitrarily, both after the shared prerequisite.
+- name: Wire lldap and tinyauth into step-ca
+  hosts: security
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include step_ca_client role
+      ansible.builtin.include_role:
+        name: step_ca_client
+      tags:
+        - images
+
+    - name: Include lldap_cert role
+      ansible.builtin.include_role:
+        name: lldap_cert
+      tags:
+        - images
+
+    - name: Include tinyauth_ca_trust role
+      ansible.builtin.include_role:
+        name: tinyauth_ca_trust
+      tags:
+        - images
+
+# Play 7 — Ensure lldap's observer account exists (tinyauth's LDAP bind
 # depends on it). Runs after lldap's own deploy (Play 4, on `security`),
-# before backup_agent (Play 7) for no particular ordering reason of its
-# own — placed here to mirror Play 5's "runs right after the thing it
-# depends on" shape. tinyauth itself may already be mid-restart-loop from
-# Play 4 at this point (compose_apps lists it before lldap on `security`)
-# — restart: unless-stopped means it picks up the now-real observer
+# after Play 6 for no particular ordering reason of its own (the two are
+# independent — this only needs lldap's web port, not its LDAPS cert) —
+# placed here to mirror Play 5's "runs right after the thing it depends
+# on" shape. tinyauth itself may already be mid-restart-loop from Play 4
+# at this point (compose_apps lists it before lldap on `security`) —
+# restart: unless-stopped means it picks up the now-real observer
 # account on its next attempt without any extra ordering here.
 - name: Ensure lldap's observer account exists
   hosts: security
@@ -111,7 +142,7 @@
       tags:
         - images
 
-# Play 7 — Offsite backup agent (stage 1 DR). Runs last deliberately: it
+# Play 8 — Offsite backup agent (stage 1 DR). Runs last deliberately: it
 # mounts other apps' volumes as `external: true`, which requires each
 # app's own Play 4 ensure_volume step to have already created them.
 - name: Deploy offsite backup agent

@@ -37,7 +37,7 @@ type in the repo:
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own, so nothing under it is ever "the role
 that changed." Every scenario's base config
-(`.config/molecule/config.yml`, deep-merged into all 11 scenarios)
+(`.config/molecule/config.yml`, deep-merged into every DinD scenario)
 resolves its Galaxy dependencies from `molecule_helpers/`'s
 `role-requirements.yml`/`requirements.yml` unconditionally, and several
 scenarios' `converge.yml` additionally `include_role` specific task
@@ -147,8 +147,9 @@ for what the report actually measures.
 
 A role with no entry in `thresholds.yaml` fails the check (exit 2, not a
 silent pass) - a new role needs a deliberate floor, not an inherited
-default. The current floors are hand-verified, not guesses - the three
-below 100% are legitimate, understood gaps rather than untested code:
+default. Every floor is hand-verified against a real run, not a guess -
+the three below 100% are legitimate, understood gaps rather than
+untested code:
 
 - `apt` (75%) - the reboot-if-required task needs rebooting the test
   container itself to exercise.
@@ -187,14 +188,17 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   isolation can never provide, since no `lldap` host exists to resolve
   in that model.
 
-`lldap` is no longer in that list: `_compose-boot-test.yml` seeds a
-self-signed cert into its `certs` and `letsencrypt_conf` volumes before
-bringing the stack up, so `certbot`'s entrypoint skips DNS-01 issuance
-(it only runs `certbot certonly` when no cert is already present) and
-`lldap` boots with real cert files to load — see
-[`seed-lldap-ci-cert.sh`](../.github/scripts/seed-lldap-ci-cert.sh). No
-real DigitalOcean credential is involved; `certbot`'s own renew loop
-still runs against the seeded cert.
+`lldap` is no longer in that list: `_compose-boot-test.yml` issues a real
+cert for it from a throwaway `smallstep/step-ca` container (the official
+image, driven by its own stock `DOCKER_STEPCA_INIT_*` auto-init — not
+`docker/step-ca`'s own compose stack, which this CA only needs to
+outlive a single job step, not persist), using the same `step ca
+certificate` call `lldap_cert`'s real Ansible task runs — see
+[`seed-lldap-ci-cert.sh`](../.github/scripts/seed-lldap-ci-cert.sh). This
+exercises the real issuance path end to end rather than a parallel,
+independently-authored openssl fixture, and needs no real DigitalOcean
+credential or step-ca password — the throwaway CA and its password exist
+only for this job's lifetime.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully

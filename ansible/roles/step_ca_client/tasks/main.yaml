@@ -1,0 +1,56 @@
+---
+# Prerequisite for lldap_cert and tinyauth_ca_trust: caches step-ca's root
+# cert at a well-known host path both of those roles read from — bind-
+# mounted (read-only) into whichever ephemeral smallstep/step-cli
+# container is doing the actual `step` invocation, since nothing in this
+# repo runs `step` as a host-installed binary (see docs/step-ca.md for
+# why: no host process needs to resolve step-ca by name, and this repo
+# has no other third-party-apt-repo precedent to justify one just for
+# this).
+
+- name: Confirm step-ca is actually running before reading its root cert
+  community.docker.docker_container_info:
+    name: "{{ step_ca_client_container_name }}"
+  register: step_ca_client_container_info
+
+- name: Fail loudly if step-ca isn't running yet
+  ansible.builtin.fail:
+    msg: >-
+      No running "{{ step_ca_client_container_name }}" container found on
+      this host — step_ca_client must run after step-ca's own compose
+      deploy (see deploy.yaml's Play ordering).
+  when: not step_ca_client_container_info.exists
+
+- name: Ensure a scratch dir exists for the cached root cert
+  ansible.builtin.file:
+    path: "{{ step_ca_client_root_cert_path | dirname }}"
+    state: directory
+    mode: "0755"
+
+# Read, not copied out via `docker cp` — step-ca's own root_ca.crt is
+# world-readable inside the container and this only needs its content,
+# not a live file handle. The root cert is public by design (it's what
+# gets distributed to every consumer), so no no_log/secret handling here.
+- name: Read step-ca's root cert
+  community.docker.docker_container_exec:
+    container: "{{ step_ca_client_container_name }}"
+    command: cat /home/step/certs/root_ca.crt
+  register: step_ca_client_root_cert_read
+  changed_when: false
+
+- name: Cache step-ca's root cert on the host
+  ansible.builtin.copy:
+    dest: "{{ step_ca_client_root_cert_path }}"
+    content: "{{ step_ca_client_root_cert_read.stdout }}"
+    mode: "0644"
+
+# include_role defaults to public: false, so step_ca_client_root_cert_path
+# (a plain role default, set above) stops being resolvable the moment this
+# role's own tasks finish — invisible to lldap_cert/tinyauth_ca_trust,
+# included right after this one in the same play (deploy.yaml's Play 6),
+# even though it looks like a shared constant. set_fact promotes it to a
+# genuine host fact, which persists past the role boundary the way a
+# role default never does.
+- name: Expose the root cert path for lldap_cert/tinyauth_ca_trust to read after this role finishes
+  ansible.builtin.set_fact:
+    step_ca_client_root_cert_path: "{{ step_ca_client_root_cert_path }}"

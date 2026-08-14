@@ -41,11 +41,13 @@ At Play 1 (`compose`'s `preinit.yaml`), this short form resolves against
 
 A handful of hosts define a plain variable for an app's hostname label
 (`cobalt_host: cobalt`, ...) instead of writing the label inline twice.
-It's referenced both in `compose_apps`'s `caddy.<route>.host` and in that
-app's own `configs/*.j2` (e.g. `docker/lldap/configs/env.j2` builds
-`LDAP_DOMAIN` from `{{ lldap_host }}.{{ caddy_domain }}`), so Caddy's
-route and the app's self-reported URL can't drift apart. Only needed for
-apps whose own config must know its externally-routed hostname.
+It's referenced both in `compose_apps`'s `caddy.<route>.host` and
+elsewhere that needs the same hostname — e.g. `lldap_cert`
+(`ansible/roles/lldap_cert/tasks/main.yaml`) builds lldap's cert SAN
+from `{{ lldap_host }}.{{ caddy_domain }}`, the same expression Caddy's
+own route uses — so Caddy's route and the cert's own SAN can't drift
+apart. Only needed for apps whose own config, or something deployed
+alongside them, must know its externally-routed hostname.
 
 ## `dns_ddns_target` / `dns_zones`
 

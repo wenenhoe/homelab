@@ -28,7 +28,7 @@ tinyauth_ldap_observer_password: molecule-test-observer-password
 
 # false in every real deployment (see main.yaml) — true here because
 # this scenario's lldap target uses a throwaway self-signed cert, not a
-# real certbot-issued one. See config.yaml.j2's own comment.
+# real step-ca-issued one. See main.yaml's own comment.
 tinyauth_ldap_insecure: true
 
 # Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's

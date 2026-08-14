@@ -1,0 +1,10 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the missing-target guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/tinyauth_ca_trust_not_running_halt_marker
+      register: tinyauth_ca_trust_not_running_marker
+      failed_when: not tinyauth_ca_trust_not_running_marker.stat.exists

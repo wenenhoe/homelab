@@ -1,0 +1,67 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    # main_domain, lab_domain, caddy_domain, lldap_host, server_timezone,
+    # lldap_*, step_ca_*, app_registry, compose_apps live in
+    # host_vars/lldap-cert-instance.yaml instead — see the comment there.
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Install python3-requests (docker_volume_info/docker_container_exec talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    - name: Start a real, throwaway step-ca instance for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_step_ca_test_target.yaml
+      vars:
+        molecule_helpers_step_ca_network_name: caddy-proxy
+        molecule_helpers_step_ca_password: "{{ step_ca_provisioner_password }}"
+
+    - name: Resolve lldap's own compose_apps entry
+      ansible.builtin.set_fact:
+        lldap_cert_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'lldap') | first }}"
+
+    # Deploys the REAL docker/lldap/compose.yaml + env.j2 (copied into
+    # this scenario's own files/docker/ — see host_vars's own comment on
+    # why a copy, not an import). LDAPS is enabled with no cert seeded,
+    # so lldap crash-loops until lldap_cert (below) issues one and
+    # restarts it — the actual production bootstrap race (see
+    # docs/lldap.md), not something worked around here.
+    - name: Init and deploy lldap on a cold certs volume
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main
+      vars:
+        compose_app_item: "{{ lldap_cert_compose_app_item }}"
+
+    - name: Run step_ca_client
+      ansible.builtin.include_role:
+        name: step_ca_client
+      vars:
+        step_ca_client_container_name: step-ca-test
+
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: lldap_cert

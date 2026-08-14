@@ -1,0 +1,54 @@
+---
+# Starts a real, throwaway step-ca instance — used by step_ca_client's,
+# lldap_cert's, and tinyauth_ca_trust's own Molecule scenarios, all of
+# which need a genuine CA to issue/trust certs against, not a mock.
+#
+# Deliberately the official image driven by its own stock
+# DOCKER_STEPCA_INIT_* auto-init, the same technique
+# .github/scripts/seed-lldap-ci-cert.sh uses for compose-boot-test — this
+# is a fully throwaway CA that only needs to exist for the scenario's
+# lifetime, so docker/step-ca's own separate-passwords/claim-duration
+# machinery doesn't apply here.
+#
+# Required vars:
+#   molecule_helpers_step_ca_network_name — a user-defined Docker
+#     network (not the default bridge): embedded DNS-by-name is what
+#     lets consumers reach this container as `step-ca-test`.
+#
+# Exposes molecule_helpers_step_ca_password and
+# molecule_helpers_step_ca_root_cert for callers that need to issue a
+# cert against this instance or fetch its root directly, without a
+# second docker_container_exec round-trip.
+
+- name: Run a throwaway step-ca instance for this scenario
+  community.docker.docker_container:
+    name: step-ca-test
+    image: smallstep/step-ca:0.30.2
+    env:
+      DOCKER_STEPCA_INIT_NAME: "Molecule Throwaway CA"
+      DOCKER_STEPCA_INIT_DNS_NAMES: "step-ca-test"
+      DOCKER_STEPCA_INIT_PASSWORD: "{{ molecule_helpers_step_ca_password }}"
+    networks:
+      - name: "{{ molecule_helpers_step_ca_network_name }}"
+    state: started
+    detach: true
+
+- name: Wait for step-ca-test to report healthy
+  community.docker.docker_container_info:
+    name: step-ca-test
+  register: molecule_helpers_step_ca_info
+  until: >-
+    molecule_helpers_step_ca_info.container.State.Health.Status | default('') == 'healthy'
+  retries: 30
+  delay: 2
+
+- name: Read step-ca-test's root cert
+  community.docker.docker_container_exec:
+    container: step-ca-test
+    command: cat /home/step/certs/root_ca.crt
+  register: molecule_helpers_step_ca_root_cert_read
+  changed_when: false
+
+- name: Expose the root cert content as a fact for callers
+  ansible.builtin.set_fact:
+    molecule_helpers_step_ca_root_cert: "{{ molecule_helpers_step_ca_root_cert_read.stdout }}"

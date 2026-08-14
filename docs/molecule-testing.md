@@ -30,9 +30,16 @@ result, then re-converges to check idempotence — mirroring what
 | `bind9` | `default` | Zone-file aggregation/rendering/reload against a single self-hosting instance. |
 | `seaweedfs_bucket` | `default` | Bucket doesn't exist → role creates it against a real throwaway SeaweedFS target, verified by listing the bucket after. |
 | | `wrong_credentials` | Mismatched credentials must fail loudly, not get swallowed by `BucketAlreadyExists` tolerance. |
+| `step_ca_client` | `default` | Caches a real, throwaway step-ca's root cert on the host, verified byte-for-byte against the container's actual root. |
+| | `not_running` | No running step-ca target at all — the guard at the top of the role fails loudly, before anything else runs. |
+| `lldap_cert` | `default` | Deploys the real lldap compose stack on a cold (unseeded) `certs` volume, issues its initial cert against a real step-ca, confirms lldap recovers from the resulting crash loop, and confirms the systemd renewal units are installed correctly — including running the exact `ExecStart`/`ExecStartPost` commands directly and asserting their real side effects (cert serial changes, lldap's start time changing). Doesn't wait on or exercise the timer's own `needs-renewal` gating — see `renewal_timing` below for that. |
+| | `renewal_timing` | Issues a real 1-minute-lifetime cert and exercises the installed `cert-renewer@lldap.service` unit's actual `ExecCondition` gating against `step certificate needs-renewal`'s documented 66%-of-lifetime default threshold — confirms a too-early attempt (~10s in) is correctly skipped and a comfortably-due one (~50s in) actually renews. Takes real wall-clock time (~50s), unlike every other scenario in this repo; no `idempotence` step. |
+| | `not_running` | No running lldap target at all — the guard at the top of the role fails loudly, before anything step-ca-related runs. |
 | `lldap_bootstrap` | `default` | Observer account doesn't exist → role creates it (in `lldap_strict_readonly`) against a real throwaway lldap target, verified by querying its group membership as admin. |
 | | `not_running` | No running lldap target at all — the guard at the top of the role fails loudly, naming the missing container, before touching anything. |
 | `tinyauth` | `default` | Stands up a throwaway lldap target, runs `lldap_bootstrap` against it for real, then deploys the real tinyauth compose app and waits for it to report healthy — only reachable having already bound to LDAP at boot. Molecule-only; not wired into `deploy.yaml`. |
+| `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — the scenario that empirically confirmed the SSL_CERT_FILE/Go-cert-pool mechanism `docs/lldap.md` documents, rather than leaving it as an unverified design note. Asserts on `docker logs`-observed process-start count (`>= 2`), not `RestartCount` — that counter turned out to be reset by the scenario's own restart, confirmed live — and `>= 2`, not tinyauth's own `== 0`, since this scenario's whole point is reproducing the cold-start-then-recover race, not avoiding it. |
+| | `not_running` | No running tinyauth target at all — the guard at the top of the role fails loudly, before anything CA-bundle-related runs. |
 | `backup_agent` | `default` | Apps split into stop/no-stop groups correctly; stopped group's container `StartedAt` changes, no-stop group's doesn't, archive lands in the test bucket. |
 | | `conflict` | Two apps in one group disagreeing on `retention_days`/`cron` fails validation before anything renders or touches a volume. |
 | | `no_stop_group_only` | No-stop group populated, stop group empty. |
@@ -90,8 +97,8 @@ One scenario of one role, without `cd`-ing into it:
 ```
 
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
-scenario glob doesn't recurse into `roles/*/molecule/*/`, and 10 of this
-repo's 25 scenarios share the name `default`, which a recursive glob
+scenario glob doesn't recurse into `roles/*/molecule/*/`, and 16 of this
+repo's 36 scenarios share the name `default`, which a recursive glob
 would reject as a collision. `molecule-test-all.sh` runs `molecule test
 --all` once per role directory instead, so each invocation only sees that
 role's own unique scenario names.

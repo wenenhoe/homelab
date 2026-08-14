@@ -1,0 +1,56 @@
+---
+# Must live here, not in converge.yml's play `vars:` — same reasoning as
+# tinyauth/molecule/default's own host_vars: keeps every var resolvable
+# the same way real inventory data is.
+#
+# lldap_host is "lldap" here (not "lldap-test" the way
+# start_lldap_test_target.yaml's throwaway fixture uses) because this
+# scenario deploys the real docker/lldap/compose.yaml, whose
+# container_name is genuinely "lldap" — lldap_cert's own defaults
+# already assume that name matches production.
+main_domain: molecule.test
+lab_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lab_domain }}"
+lldap_host: lldap
+server_timezone: Asia/Singapore
+
+# Throwaway values — real ones are Ansible-generated (secrets role),
+# which doesn't run in this role-isolated scenario.
+lldap_jwt_secret: molecule-test-jwt-secret
+lldap_key_seed: molecule-test-key-seed
+lldap_ldap_user_pass: molecule-test-admin-password
+
+# The throwaway step-ca-test instance's own bootstrap password
+# (molecule_helpers_step_ca_password in converge.yml) doubles as its
+# stock DOCKER_STEPCA_INIT_PASSWORD-derived provisioner password, and its
+# default provisioner is named "admin" — matching the official image's
+# own DOCKER_STEPCA_INIT_PROVISIONER_NAME default, not production's
+# "internal-services" (docker/step-ca's own custom-entrypoint bootstrap
+# isn't used here — see start_step_ca_test_target.yaml's own comment).
+step_ca_provisioner_password: molecule-test-step-ca-password
+step_ca_provisioner_name: admin
+# step-ca-test's own container name: lldap_cert's own tasks run `step`
+# via a container on caddy-proxy now, not a host-installed binary, so it
+# resolves "step-ca-test" the same way any other container on that
+# network does. See docs/step-ca.md's Network section.
+lldap_cert_step_ca_url: https://step-ca-test:9000
+
+# Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
+# lldap entry) — copied here rather than sourced from that file, same
+# reasoning tinyauth/molecule/default's own host_vars gives for its own
+# copy: host_vars-style registries in this repo are hand-authored
+# fixtures already, kept in sync with the real entry by convention, not
+# by import.
+app_registry:
+  lldap:
+    volumes:
+      - name: data
+      - name: certs
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        no_log: true
+
+compose_apps:
+  - name: lldap

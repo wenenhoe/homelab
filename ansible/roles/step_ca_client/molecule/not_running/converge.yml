@@ -1,0 +1,46 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+  tasks:
+    - name: Include docker role (community.docker assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    # Deliberately no step-ca target started at all — that's the whole
+    # point of this scenario, unlike default's. The guard this tests is
+    # the very first task in step_ca_client/tasks/main.yaml now, so this
+    # scenario needs no real network access at all.
+    - name: "Run step_ca_client [block / rescue] (no running step-ca target, failure is deliberate and expected)"
+      block:
+        - name: Run step_ca_client against a host with no step-ca container
+          ansible.builtin.include_role:
+            name: step_ca_client
+          vars:
+            step_ca_client_container_name: step-ca-test
+      rescue:
+        # A bare rescue: accepts ANY failure inside the block as "the
+        # guard worked" — an apt/network hiccup would leave the same
+        # halt marker behind and pass just as happily as the real guard
+        # catching the missing container. Assert on the exact task and
+        # reason before trusting the "expected" label at all.
+        - name: Confirm the failure came from the "no running step-ca" guard itself
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == "Fail loudly if step-ca isn't running yet"
+              - "'No running \"step-ca-test\" container found' in ansible_failed_result.msg"
+            fail_msg: >-
+              step_ca_client failed, but not for the reason this scenario
+              exists to test. Expected the "Fail loudly if step-ca isn't
+              running yet" task to fail naming "step-ca-test"; got task
+              "{{ ansible_failed_task.name | default('unknown') }}" with
+              message: {{ ansible_failed_result.msg | default('(no msg)') }}
+
+        - name: Leave a marker proving the guard actually caught the missing container
+          ansible.builtin.copy:
+            dest: /tmp/step_ca_client_not_running_halt_marker
+            content: "missing step-ca target caught as expected\n"
+            mode: "0644"

@@ -1,0 +1,8 @@
+---
+# Only a daemon-reload is ever needed here, never a restart of the timer
+# itself: the service unit is Type=oneshot, invoked fresh by the timer
+# on each fire, so it always picks up whatever's currently loaded — a
+# reload is enough for both the service and timer templates.
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true

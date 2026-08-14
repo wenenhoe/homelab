@@ -176,24 +176,13 @@ app_registry:
     volumes:
       - name: data
       - name: certs
-      - name: creds
-      - name: letsencrypt_conf
-        legacy_path: letsencrypt/conf
-      - name: letsencrypt_lib
-        legacy_path: letsencrypt/lib
-      - name: scripts
-    scripts:
-      - deploy-hook.sh
-      - entrypoint.sh
-      - restart-lldap.py
     configs:
       - src: env.j2
         dest: .env
         mode: "0600"
         no_log: true
     backup:
-      # scripts excluded — Ansible-rendered/reproducible, not real state (see docs/volumes.md)
-      volumes: [data, certs, creds, letsencrypt_conf, letsencrypt_lib]
+      volumes: [data, certs]
     caddy:
       default:
         upstream: "lldap:17170"

@@ -2,9 +2,9 @@
 
 `step-ca` is a private X.509 certificate authority for internal,
 service-to-service TLS — signing certs for the lab's own `.{{ lab_domain
-}}`-style names, not proving control to a public CA. It's standalone
-infrastructure in this PR: nothing consumes it yet. lldap moving onto it
-is a separate, already-scoped follow-up.
+}}`-style names, not proving control to a public CA. `lldap_cert` and
+`tinyauth_ca_trust` (see [`lldap.md`](lldap.md)) are its first two real
+consumers: lldap's LDAPS cert comes from here, and tinyauth trusts it.
 
 ## Why a custom entrypoint instead of `DOCKER_STEPCA_INIT_*`
 
@@ -50,18 +50,19 @@ auto-init doesn't happen to offer a shortcut for.
 step-ca's own default (24h) assumes a consumer is always renewing
 constantly in the background — appropriate once something like
 `step ca renew --daemon` exists in this repo, the way the reference
-setup's `stepca-provision.sh`/`stepca-renew.sh` do it. Nothing here
-runs that yet, so a 24h cert would just expire unattended. 720h (30
-days) is a deliberate placeholder for "renewed by hand until a
-follow-up PR adds renewal automation," not a value to leave in place
-long-term — revisit it downward (back toward step-ca's own 24h
-philosophy) once that automation lands.
+setup's `stepca-provision.sh`/`stepca-renew.sh` do it. At the time this
+value was chosen, nothing here ran that, so a 24h cert would have just
+expired unattended. `lldap_cert`'s systemd `cert-renewer@` timer (see
+[`lldap.md`](lldap.md)) is exactly that automation, and it exists now —
+720h hasn't been revisited since. Worth reconsidering downward (back
+toward step-ca's own 24h philosophy) as a deliberate follow-up, not
+something to change as a side effect of a docs pass.
 
 ## DNS names and the health check
 
 `STEP_CA_DNS_NAMES` (`configs/env.j2`) lists `step-ca` before
-`step-ca.{{ caddy_domain }}`, and the order matters: `step ca init`
-writes the *first* name into `defaults.json`'s `ca-url`, and the
+`step-ca.{{ caddy_domain }}`, and the order of the *first* name matters:
+`step ca init` writes it into `defaults.json`'s `ca-url`, and the
 upstream image's own `HEALTHCHECK` runs `step ca health` against
 exactly that URL, from inside the container. `step-ca` — this compose
 service's own name, which Docker's embedded DNS resolves back to the
@@ -77,8 +78,16 @@ Reachable only on `caddy-proxy`, by container name (`step-ca:9000`) —
 no Caddy vhost (no `caddy:` key in its `app_registry` entry, the same
 pattern `bind9` uses), and no host port published. A CA's admin/signing
 API isn't something to put behind a reverse proxy the way an ordinary
-web app is, and nothing outside the Docker network needs to reach it
-yet.
+web app is.
+
+No host-level access needed: every consumer of this CA, including
+`lldap_cert`'s own systemd renewal unit and one-time issuance task (see
+[`lldap.md`](lldap.md)), runs `step` via the official `smallstep/step-cli`
+image rather than a host-installed binary — a container on `caddy-proxy`
+that reaches this one by its real container name, the same way any
+other consumer would. Nothing in this repo ever needed a host process
+to resolve "step-ca" by name, so there's no loopback port publish or
+extra SAN to carry for that purpose.
 
 ## Requesting a certificate: manual test client
 
@@ -103,10 +112,14 @@ step ca certificate test-client.{{ lab_domain }} test.crt test.key \
   --provisioner internal-services
 ```
 
-A future real consumer follows the same two commands as part of its own
-startup — this is the reference this repo's "one explanation, one home"
-convention expects that consumer's own docs to point back to, rather
-than re-explaining provisioner auth or claim duration locally.
+`lldap_cert`'s own initial-issuance task
+(`ansible/roles/lldap_cert/tasks/main.yaml`) is the real, live version
+of this — a single `step ca certificate` call with `--san`/`--password-file`/
+`--ca-url`/`--root` set explicitly, not the interactive
+`step ca bootstrap` flow above. That's the reference for a future
+consumer to follow — this repo's "one explanation, one home" convention
+expects that consumer's own docs to point back here, rather than
+re-explaining provisioner auth or claim duration locally.
 
 ## Secrets
 

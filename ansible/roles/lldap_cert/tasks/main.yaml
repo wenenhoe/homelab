@@ -1,0 +1,152 @@
+---
+# Replaces certbot's DNS-01 lifecycle for lldap's LDAPS cert with step-ca.
+# Expects step_ca_client to have already run in this play (caches
+# step-ca's root cert to a host path - see its own tasks/main.yaml).
+#
+# `step` itself runs via the official smallstep/step-cli image, not a
+# host-installed binary - both the one-time issuance below and the
+# systemd renewal unit's ExecStart/ExecCondition run it this way, so
+# there's no third-party apt repo on this host at all (see
+# step_ca_client's own tasks/main.yaml for why that's worth avoiding).
+#
+# Two separate concerns, deliberately not merged into one command:
+#   1. Initial issuance (this role, Ansible-run, once) - needs the JWK
+#      provisioner password, since there's no existing cert yet to
+#      authenticate with.
+#   2. Ongoing renewal (systemd, host-level, forever after) - uses mTLS
+#      against the cert this role just issued, so it never touches the
+#      provisioner password at all. See docs/lldap.md.
+
+- name: Confirm lldap is actually running before touching its cert volume
+  community.docker.docker_container_info:
+    name: "{{ lldap_cert_container_name }}"
+  register: lldap_cert_container_info
+
+- name: Fail loudly if lldap isn't running yet
+  ansible.builtin.fail:
+    msg: >-
+      No running "{{ lldap_cert_container_name }}" container found on this
+      host — lldap_cert must run after lldap's own compose deploy (see
+      deploy.yaml's Play ordering).
+  when: not lldap_cert_container_info.exists
+
+# Checked inside the already-running lldap container itself (it already
+# mounts the certs volume at /data/certs - see docker/lldap/compose.yaml)
+# rather than resolving the volume's host path - avoids needing that
+# resolution at all now that issuance itself mounts the volume directly
+# by name (below), not by host path.
+- name: Check whether an LDAPS cert has already been issued
+  community.docker.docker_container_exec:
+    container: "{{ lldap_cert_container_name }}"
+    command: test -f /data/certs/fullchain.pem
+  register: lldap_cert_existing_cert
+  changed_when: false
+  failed_when: false
+
+# Ongoing renewal is the systemd timer's job from here on (installed
+# unconditionally below, regardless of this block) - this only ever runs
+# once, on a genuinely empty certs volume.
+- name: "Issue lldap's initial LDAPS cert [block / always]"
+  when: lldap_cert_existing_cert.rc | default(1) != 0
+  block:
+    - name: Render the provisioner password to a scratch file
+      ansible.builtin.copy:
+        dest: /tmp/lldap-cert-provisioner-password
+        content: "{{ step_ca_provisioner_password }}"
+        mode: "0600"
+      no_log: true
+
+    # --user root: the certs volume is freshly created (no prior owner
+    # set on its root dir), and smallstep/step-cli's default non-root
+    # user can't write new files into a directory it doesn't own -
+    # confirmed live, the same class of issue this repo's own Molecule
+    # scratch dirs hit more than once. Simpler and more certain than
+    # trying to pre-chown a volume to match the image's exact uid.
+    - name: Request the initial cert from step-ca
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - --network
+          - "{{ lldap_cert_network_name }}"
+          - -v
+          - "{{ lldap_cert_certs_volume_name }}:/certs"
+          - -v
+          - "/tmp/lldap-cert-provisioner-password:/tmp/provisioner_password:ro"
+          - -v
+          - "{{ step_ca_client_root_cert_path }}:/root_ca.crt:ro"
+          - "{{ lldap_cert_step_cli_image }}"
+          - step
+          - ca
+          - certificate
+          - "{{ lldap_host }}"
+          - /certs/fullchain.pem
+          - /certs/privkey.pem
+          - --san
+          - "{{ lldap_host }}"
+          - --san
+          - "{{ lldap_host }}.{{ caddy_domain }}"
+          - --provisioner
+          - "{{ step_ca_provisioner_name }}"
+          - --password-file
+          - /tmp/provisioner_password
+          - --ca-url
+          - "{{ lldap_cert_step_ca_url }}"
+          - --root
+          - /root_ca.crt
+          - --force
+      register: lldap_cert_issue_result
+      until: lldap_cert_issue_result.rc == 0
+      # Same 5-attempt/10s shape as the reference repo's own
+      # stepca-provision.sh, adapted to Ansible's retry keywords instead
+      # of a hand-rolled shell loop — step-ca may not have finished its
+      # own first-boot init yet (no health-wait exists between Play 4's
+      # `docker compose up -d` and this play — see compose/tasks/deploy.yaml).
+      # `docker run --rm` guarantees the container is cleaned up after
+      # each attempt regardless of exit code, so retrying is safe.
+      retries: 5
+      delay: 10
+      changed_when: true
+
+    - name: Restart lldap so it picks up the new cert
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_deploy_dir }}/lldap"
+        state: restarted
+  always:
+    - name: Remove the scratch provisioner password file
+      ansible.builtin.file:
+        path: /tmp/lldap-cert-provisioner-password
+        state: absent
+
+- name: Install the generic cert-renewer@ service template
+  ansible.builtin.template:
+    src: cert-renewer@.service.j2
+    dest: /etc/systemd/system/cert-renewer@.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the generic cert-renewer@ timer template
+  ansible.builtin.template:
+    src: cert-renewer@.timer.j2
+    dest: /etc/systemd/system/cert-renewer@.timer
+    mode: "0644"
+  notify: Reload systemd
+
+# Handlers only flush at the end of the play by default (and this role
+# runs alongside tinyauth_ca_trust in the same play — see deploy.yaml's
+# Play 6), but "Enable and start" below needs systemd to have already
+# picked up the current unit content first: on a genuinely first-ever
+# run, the unit doesn't exist in systemd's own cache at all until a
+# reload happens. Force the flush here instead of leaving it to the
+# play's natural end.
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start lldap's renewal timer
+  ansible.builtin.systemd:
+    name: cert-renewer@lldap.timer
+    state: started
+    enabled: true

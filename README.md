@@ -67,6 +67,9 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │       ├── bind9/           # Renders zone files, deploys, rewires host DNS
 │       ├── seaweedfs_bucket/# Ensures the offsite-backup S3 bucket exists on `storage`
 │       ├── lldap_bootstrap/ # Automates lldap's `observer` account for tinyauth's LDAP bind
+│       ├── step_ca_client/  # Shared prerequisite: caches step-ca's root cert on the host
+│       ├── lldap_cert/      # Issues/renews lldap's LDAPS cert from step-ca
+│       ├── tinyauth_ca_trust/# Builds the CA bundle tinyauth needs to trust step-ca-issued certs
 │       ├── tinyauth/        # Molecule-only: deploys tinyauth for real in its own scenario
 │       ├── backup_agent/    # Per-host offsite backup aggregation (stage 1 DR)
 │       ├── restore/         # Restores a decrypted offsite archive back to a named volume
@@ -104,7 +107,7 @@ nothing is hand-authored on the servers themselves.
 | [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
 | [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
 | [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
-| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle across the certbot/dockerproxy/lldap containers; bootstrapping the observer account tinyauth binds as. |
+| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
 
 ### Operations

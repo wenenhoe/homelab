@@ -1,0 +1,124 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    lldap_cert_step_ca_url: https://step-ca-test:9000
+  tasks:
+    - name: Discover the lldap certs volume's real host path
+      community.docker.docker_volume_info:
+        name: lldap_certs
+      register: lldap_cert_verify_volume
+
+    - name: Set the mountpoint fact
+      ansible.builtin.set_fact:
+        lldap_cert_verify_mountpoint: "{{ lldap_cert_verify_volume.volume.Mountpoint }}"
+
+    - name: Confirm the cert files actually exist
+      ansible.builtin.stat:
+        path: "{{ lldap_cert_verify_mountpoint }}/{{ item }}"
+      register: lldap_cert_verify_files
+      loop:
+        - fullchain.pem
+        - privkey.pem
+      failed_when: not lldap_cert_verify_files.stat.exists
+
+    - name: Confirm the cert's SANs cover both the bare name and the FQDN
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - x509
+          - -in
+          - "{{ lldap_cert_verify_mountpoint }}/fullchain.pem"
+          - -noout
+          - -ext
+          - subjectAltName
+      register: lldap_cert_verify_sans
+      changed_when: false
+      failed_when: >-
+        'DNS:lldap' not in lldap_cert_verify_sans.stdout
+        or 'DNS:lldap.sec.lan.molecule.test' not in lldap_cert_verify_sans.stdout
+
+    - name: Confirm lldap actually recovered from its cold-volume crash loop
+      community.docker.docker_container_info:
+        name: lldap
+      register: lldap_cert_verify_lldap_info
+      failed_when: lldap_cert_verify_lldap_info.container.State.Status != 'running'
+
+    - name: Confirm the renewal timer is enabled and active
+      ansible.builtin.systemd_service:
+        name: cert-renewer@lldap.timer
+      register: lldap_cert_verify_timer_info
+      failed_when: >-
+        lldap_cert_verify_timer_info.status.UnitFileState != 'enabled'
+        or lldap_cert_verify_timer_info.status.ActiveState != 'active'
+
+    # This scenario deliberately still doesn't exercise the timer's own
+    # ExecCondition gating end to end — that's `renewal_timing`'s job
+    # (a real 1-minute cert against step certificate needs-renewal's
+    # documented 66%-of-lifetime default). What's tested here instead:
+    # the exact commands ExecStart/ExecStartPost run, run directly,
+    # produce the real side effects they're supposed to — a useful,
+    # fast check on its own, just not the same claim as "the timer's
+    # gating logic is correct".
+    - name: Record the cert's serial number before a direct renewal
+      ansible.builtin.command: openssl x509 -in {{ lldap_cert_verify_mountpoint }}/fullchain.pem -noout -serial
+      register: lldap_cert_verify_serial_before
+      changed_when: false
+
+    - name: Run the exact renewal command ExecStart would run
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - --network
+          - caddy-proxy
+          - -v
+          - lldap_certs:/certs
+          - -v
+          - /etc/step-ca/root_ca.crt:/root_ca.crt:ro
+          - smallstep/step-cli:0.30.2
+          - step
+          - ca
+          - renew
+          - --force
+          - --ca-url
+          - "{{ lldap_cert_step_ca_url }}"
+          - --root
+          - /root_ca.crt
+          - /certs/fullchain.pem
+          - /certs/privkey.pem
+      changed_when: true
+
+    - name: Record the cert's serial number after
+      ansible.builtin.command: openssl x509 -in {{ lldap_cert_verify_mountpoint }}/fullchain.pem -noout -serial
+      register: lldap_cert_verify_serial_after
+      changed_when: false
+      failed_when: lldap_cert_verify_serial_after.stdout == lldap_cert_verify_serial_before.stdout
+
+    - name: Record lldap's start time before a direct ExecStartPost run
+      community.docker.docker_container_info:
+        name: lldap
+      register: lldap_cert_verify_restart_before
+
+    - name: Run the exact restart command ExecStartPost would run
+      ansible.builtin.command: docker compose -f /opt/stacks/lldap/compose.yaml restart lldap
+      changed_when: true
+
+    # StartedAt, not RestartCount: RestartCount only tracks restarts the
+    # container's own restart *policy* drives (recovering from a crash),
+    # never a manual `docker restart`/`docker compose restart` — it
+    # stayed 0 here even though the container demonstrably did restart,
+    # confirmed live. StartedAt changes on every restart regardless of
+    # cause, the same signal backup_agent's own scenario already uses
+    # for this exact kind of assertion (see docs/molecule-testing.md).
+    - name: Record lldap's start time after
+      community.docker.docker_container_info:
+        name: lldap
+      register: lldap_cert_verify_restart_after
+      failed_when: >-
+        lldap_cert_verify_restart_after.container.State.StartedAt
+        == lldap_cert_verify_restart_before.container.State.StartedAt

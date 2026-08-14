@@ -1,0 +1,36 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    # Points the role at this scenario's throwaway CA instead of
+    # production's real "step-ca" container name.
+    step_ca_client_container_name: step-ca-test
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    # Not strictly required by step_ca_client itself (it only joins
+    # whatever network name it's given) — created here so the network
+    # name matches production and the other two step-ca-dependent
+    # scenarios (lldap_cert, tinyauth_ca_trust), rather than inventing a
+    # scenario-only name that would drift from both.
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    - name: Start a real, throwaway step-ca instance for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_step_ca_test_target.yaml
+      vars:
+        molecule_helpers_step_ca_network_name: caddy-proxy
+        molecule_helpers_step_ca_password: molecule-test-step-ca-password
+
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: step_ca_client

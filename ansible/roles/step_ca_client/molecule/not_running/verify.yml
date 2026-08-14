@@ -1,0 +1,16 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the missing-target guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/step_ca_client_not_running_halt_marker
+      register: step_ca_client_not_running_marker
+      failed_when: not step_ca_client_not_running_marker.stat.exists
+
+    - name: Confirm step_ca_client never got as far as writing a cached root cert
+      ansible.builtin.stat:
+        path: /etc/step-ca/root_ca.crt
+      register: step_ca_client_not_running_cert
+      failed_when: step_ca_client_not_running_cert.stat.exists

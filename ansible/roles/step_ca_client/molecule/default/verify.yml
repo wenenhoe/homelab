@@ -1,0 +1,29 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Read the cached root cert back from disk
+      ansible.builtin.slurp:
+        src: /etc/step-ca/root_ca.crt
+      register: step_ca_client_verify_cached_root
+
+    # Independently re-read the real root cert from the container itself
+    # (not just trusting the role's own earlier read) — the actual side
+    # effect under test is "the cached file matches the CA's real root",
+    # not just "a file exists at that path".
+    - name: Independently re-read step-ca-test's real root cert
+      community.docker.docker_container_exec:
+        container: step-ca-test
+        command: cat /home/step/certs/root_ca.crt
+      register: step_ca_client_verify_real_root
+      changed_when: false
+
+    - name: Confirm the cached root cert is byte-for-byte the real one
+      ansible.builtin.assert:
+        that:
+          - (step_ca_client_verify_cached_root.content | b64decode) == step_ca_client_verify_real_root.stdout
+        fail_msg: >-
+          The cached root cert at /etc/step-ca/root_ca.crt doesn't match
+          step-ca-test's actual root cert — step_ca_client cached stale or
+          wrong content.

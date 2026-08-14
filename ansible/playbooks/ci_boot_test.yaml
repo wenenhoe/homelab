@@ -15,8 +15,8 @@
 #             -e app_name=<app> -e compose_deploy_dir=/tmp/compose-deploy
 #
 # Used for every app compose-boot-test exercises (.github/workflows/pr-checks.yml)
-# — bind9/caddy/seaweedfs/lldap are excluded there already, for their own
-# documented reasons (real DNS-01 creds, LDAP TLS, etc.), unrelated to this.
+# — bind9/caddy/seaweedfs/tinyauth are excluded there already, for their
+# own documented reasons, unrelated to this.
 #
 # Adding a *new* app to the registry that needs a config template variable
 # not already a real group_vars/all default: add it to ci_dummy_vars.yaml,

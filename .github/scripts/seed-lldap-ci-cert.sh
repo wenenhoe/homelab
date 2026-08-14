@@ -1,31 +1,82 @@
 #!/usr/bin/env bash
-# CI-only: seeds a self-signed cert into lldap's two cert-related volumes
-# before boot, used by _compose-boot-test.yml for the lldap matrix entry
-# only. See docs/ci.md#compose-boot-test for why this exists.
+# CI-only: exercises the real lldap_cert issuance path against a
+# throwaway step-ca instead of an independently-authored openssl
+# self-signed cert, then seeds the result into lldap's `certs` volume —
+# used by _compose-boot-test.yml for the lldap matrix entry only. See
+# docs/ci.md#compose-boot-test for why this exists.
 #
-# docker/lldap/scripts/entrypoint.sh only calls `certbot certonly` when
-# /etc/letsencrypt/live/<LDAP_DOMAIN> doesn't already exist, so seeding
-# that path (inside the letsencrypt_conf volume) makes certbot skip
-# straight to its `certbot renew` loop — no real DNS-01 call. Seeding the
-# certs volume separately gives the lldap service itself real cert files
-# to load. Neither container's code is touched.
+# Deliberately the official smallstep/step-ca image driven by its own
+# stock DOCKER_STEPCA_INIT_* auto-init, not docker/step-ca's own
+# compose/entrypoint.sh — this is a fully throwaway CA that only needs
+# to exist for the length of this job, so the extra machinery that setup
+# exists for (separate CA/provisioner passwords, a non-default claim
+# duration, persistence across restarts) doesn't apply here. The `step
+# ca certificate` call below is the same one lldap_cert's real Ansible
+# task runs — same flags, same shape — against this throwaway CA
+# instead of production's.
 #
-# Usage: seed-lldap-ci-cert.sh <path-to-seeded-lldap/.env>
+# Usage: seed-lldap-ci-cert.sh <caddy-proxy-network-name> <lldap-fqdn>
 set -euo pipefail
 
-env_file="$1"
-ldap_domain=$(grep '^LDAP_DOMAIN=' "$env_file" | cut -d= -f2-)
-[ -n "$ldap_domain" ] || { echo "::error::LDAP_DOMAIN not found in $env_file"; exit 1; }
+network="$1"
+lldap_fqdn="$2"
+ca_password="ci-dummy-step-ca-password"
+step_ca_image="smallstep/step-ca:0.30.2"
+step_cli_image="smallstep/step-cli:0.30.2"
 
 workdir=$(mktemp -d)
-trap 'rm -rf "$workdir"' EXIT
+# mktemp -d defaults to 0700 — smallstep/step-cli runs as a non-root uid
+# inside its container. 0755 covers read/traverse (needed for
+# root_ca.crt/pw below), but `step ca certificate` also *writes*
+# fullchain.pem/privkey.pem into this same dir, which a non-owner can't
+# do without write permission too — confirmed live ("permission denied"
+# writing fullchain.pem with 0755). Throwaway scratch data for a single
+# CI job step, so world-writable is a fine trade for not needing to
+# guess/match the image's exact uid.
+chmod 777 "$workdir"
+cleanup() {
+  rm -rf "$workdir"
+  docker rm -f ci-step-ca >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
 
-openssl req -x509 -newkey rsa:2048 -nodes -days 1 \
-  -keyout "$workdir/privkey.pem" -out "$workdir/fullchain.pem" \
-  -subj "/CN=${ldap_domain}" -addext "subjectAltName=DNS:${ldap_domain}"
+docker run -d --name ci-step-ca --network "$network" \
+  -e "DOCKER_STEPCA_INIT_NAME=CI Throwaway CA" \
+  -e "DOCKER_STEPCA_INIT_DNS_NAMES=ci-step-ca" \
+  -e "DOCKER_STEPCA_INIT_PASSWORD=${ca_password}" \
+  "$step_ca_image"
+
+echo "Waiting for the throwaway step-ca to report healthy..."
+status="unknown"
+for _ in $(seq 1 30); do
+  status=$(docker inspect --format='{{if .State.Health}}{{.State.Health.Status}}{{else}}unknown{{end}}' ci-step-ca)
+  [ "$status" = "healthy" ] && break
+  sleep 2
+done
+if [ "$status" != "healthy" ]; then
+  echo "::error::ci-step-ca never became healthy"
+  docker logs ci-step-ca
+  exit 1
+fi
+
+# Fetched to a real file rather than passed via process substitution —
+# `docker run --root <(...)` doesn't work across the container boundary,
+# the fd only exists in the host shell that spawned it.
+docker run --rm --network "$network" "$step_ca_image" \
+  cat /home/step/certs/root_ca.crt > "$workdir/root_ca.crt"
+chmod 644 "$workdir/root_ca.crt"
+
+printf '%s' "$ca_password" > "$workdir/pw"
+chmod 644 "$workdir/pw"
+
+docker run --rm --network "$network" -v "$workdir:/work" "$step_cli_image" \
+  step ca certificate lldap /work/fullchain.pem /work/privkey.pem \
+    --san lldap --san "$lldap_fqdn" \
+    --provisioner admin \
+    --password-file /work/pw \
+    --ca-url https://ci-step-ca:9000 \
+    --root /work/root_ca.crt \
+    --force
 
 docker run --rm -v lldap_certs:/out -v "$workdir:/in:ro" alpine \
   cp /in/fullchain.pem /in/privkey.pem /out/
-
-docker run --rm -v lldap_letsencrypt_conf:/etc/letsencrypt -v "$workdir:/in:ro" alpine \
-  sh -c "mkdir -p '/etc/letsencrypt/live/${ldap_domain}' && cp /in/fullchain.pem /in/privkey.pem '/etc/letsencrypt/live/${ldap_domain}/'"

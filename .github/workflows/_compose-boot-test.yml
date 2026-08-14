@@ -76,10 +76,11 @@ jobs:
         working-directory: ansible
 
       # lldap-only: see .github/scripts/seed-lldap-ci-cert.sh for why this
-      # avoids needing a real DigitalOcean DNS-01 credential in CI.
-      - name: Seed a self-signed cert for lldap
+      # exercises the real step-ca issuance path instead of a self-signed
+      # cert, without needing a real production step-ca or Ansible role run.
+      - name: Issue a real cert for lldap from a throwaway step-ca
         if: matrix.app == 'lldap'
-        run: .github/scripts/seed-lldap-ci-cert.sh /tmp/compose-deploy/lldap/.env
+        run: .github/scripts/seed-lldap-ci-cert.sh caddy-proxy lldap.svc.ci.invalid
 
       - name: Bring the stack up
         run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" up -d

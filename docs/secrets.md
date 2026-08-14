@@ -112,14 +112,10 @@ in-UI config editor (`data/conf.yml`) is ever used — see the comment on
 ## Syncing the LDAP observer account password
 
 `tinyauth-ldap-observer-password` is generated and cached like any other
-secret, but nothing in this codebase creates the lldap `observer` account
-or sets its password — that's a manual step in lldap's admin web UI
-(create the user, add to a read-only group, set the password).
-
-**After (re)generating this secret, manually set the `observer` account's
-password in lldap's admin UI to the same value**, or tinyauth's LDAP bind
-fails with invalid credentials:
-
-```sh
-cat ansible/files/secrets/tinyauth-ldap-observer-password
-```
+secret, but it's also consumed by the `lldap_bootstrap` role
+(`deploy.yaml`'s Play 6), which sets it as the lldap `observer`
+account's real password via lldap's own `bootstrap.sh` — see
+[`lldap.md`](lldap.md#bootstrapping-the-observer-account). Rotating it
+is the same as any other secret (see "Rotating a credential" above):
+delete the cache file and redeploy `security` — Play 6 updates the
+existing account in place, no manual web-UI step required.

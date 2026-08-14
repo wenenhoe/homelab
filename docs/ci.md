@@ -174,18 +174,18 @@ defined), dumps logs on failure, then tears down.
 **Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
 workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
 
-- `bind9`, `seaweedfs`, `caddy` — already covered by Molecule with
-  stronger, real-protocol assertions than a generic healthcheck poll
-  would add: `bind9`/`caddy` by their own role's scenario, `seaweedfs`
-  by `seaweedfs_bucket`'s and `backup_agent`'s (see
-  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide) for
-  why that one needed a repo-wide `roles`-filter case instead of the
-  plain per-role mapping the other two get).
-- `tinyauth` — its LDAP bootstrap is a hard startup dependency, and
-  compose-boot-test brings up each app's compose stack in isolation on
-  its own runner, with no `lldap` host for it to resolve regardless of
-  config correctness (confirmed via a live run — see
-  `.github/compose-boot-test-exclusions.txt` for the exact error).
+- `bind9`, `seaweedfs`, `caddy` — covered by Molecule with stronger,
+  real-protocol assertions than a healthcheck poll would add:
+  `bind9`/`caddy` by their own role's scenario, `seaweedfs` by
+  `seaweedfs_bucket`'s and `backup_agent`'s (see
+  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)).
+- `tinyauth` — same category: `tinyauth/molecule/default` stands up a
+  real, throwaway lldap target, runs `lldap_bootstrap` against it (see
+  [`lldap.md`](lldap.md#bootstrapping-the-observer-account)), then
+  deploys tinyauth pointed at it and confirms it reaches a healthy,
+  LDAP-bound state — the dependency chain compose-boot-test's per-app
+  isolation can never provide, since no `lldap` host exists to resolve
+  in that model.
 
 `lldap` is no longer in that list: `_compose-boot-test.yml` seeds a
 self-signed cert into its `certs` and `letsencrypt_conf` volumes before

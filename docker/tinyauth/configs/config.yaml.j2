@@ -47,7 +47,7 @@ ldap:
   bindDn: "uid=observer,ou=people,dc={{ lab_domain | replace('.', ',dc=') }}"
   bindPassword: "{{ tinyauth_ldap_observer_password }}"
   baseDn: "dc={{ lab_domain | replace('.', ',dc=') }}"
-  insecure: false
+  insecure: {{ tinyauth_ldap_insecure }}
   searchFilter: "(uid=%s)"
   authCert: ""  # Certificate for mTLS authentication
   authKey: ""   # Certificate key for mTLS authentication

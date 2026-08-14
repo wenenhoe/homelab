@@ -1,0 +1,20 @@
+---
+# Molecule-only: never included from deploy.yaml. Production keeps
+# deploying tinyauth generically via compose_app (Play 4), same as every
+# other non-self-managed app — that's still correct and doesn't need to
+# change. This role exists purely to give tinyauth's own Molecule
+# scenario a real deploy of the real docker/tinyauth/** files (via the
+# same `compose` role mechanism compose_app itself calls), sequenced
+# against a real lldap_bootstrap-populated lldap target instead of
+# compose-boot-test's per-app isolation, which can never provide one —
+# see docs/ci.md.
+- name: Resolve tinyauth's own compose_apps entry
+  ansible.builtin.set_fact:
+    tinyauth_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'tinyauth') | first }}"
+
+- name: Init and deploy tinyauth
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: main
+  vars:
+    compose_app_item: "{{ tinyauth_compose_app_item }}"

@@ -1,0 +1,150 @@
+---
+# Starts a real, throwaway lldap target — used by tinyauth/default to
+# exercise the real lldap_bootstrap -> tinyauth LDAPS dependency chain.
+# Scoped to just the `lldap` service (not `certbot`/`dockerproxy` — see
+# docker/lldap/compose.yaml): this helper only needs LDAPS + the admin
+# web UI actually running, not lldap's own cert-renewal machinery, which
+# is out of scope for this scenario (see docs/lldap.md for that
+# lifecycle; a throwaway self-signed cert stands in for it here, same
+# spirit as .github/scripts/seed-lldap-ci-cert.sh does for
+# compose-boot-test's lldap entry).
+#
+# Required vars:
+#   molecule_helpers_lldap_domain — both the self-signed cert's CN/SAN
+#     and the network alias this container answers to. Tinyauth's real
+#     LDAPS client verifies the server cert (config.yaml.j2's
+#     `insecure: false`), which checks hostname against SAN, not just
+#     chain of trust — so the caller's own ldap.address (in whatever
+#     config it renders for tinyauth) must resolve to exactly this same
+#     domain for the handshake to succeed. This container is reachable
+#     under it via a network alias, not real DNS.
+#   molecule_helpers_lldap_base_dn — e.g. "dc=molecule,dc=test".
+#   molecule_helpers_lldap_admin_password — becomes LLDAP_LDAP_USER_PASS,
+#     lldap's initial "admin" account password.
+#   molecule_helpers_lldap_network_name — a user-defined Docker network
+#     (not the default bridge, unlike start_seaweedfs_test_target.yaml):
+#     network aliases and embedded DNS-by-name only work on a
+#     user-defined network, and both are load-bearing here (bootstrap.sh
+#     and tinyauth both need to resolve this container by name).
+#
+# Exposes molecule_helpers_lldap_ip after returning, for callers that
+# need a direct-IP fallback (e.g. the readiness poll below).
+
+- name: Ensure a scratch dir exists for the throwaway LDAPS cert
+  ansible.builtin.file:
+    path: /tmp/lldap-test-certs
+    state: directory
+    mode: "0700"
+
+# Self-signed, 1-day validity, matching seed-lldap-ci-cert.sh's own
+# reasoning: this only needs to satisfy lldap's own "some cert must be
+# present to enable LDAPS at all" and tinyauth's real hostname-verified
+# TLS client — not a real trust chain. subjectAltName is the field
+# actually checked; CN alone isn't sufficient for a modern TLS client.
+- name: Generate a throwaway self-signed cert for this scenario's lldap
+  ansible.builtin.command:
+    argv:
+      - openssl
+      - req
+      - -x509
+      - -newkey
+      - rsa:2048
+      - -nodes
+      - -days
+      - "1"
+      - -keyout
+      - /tmp/lldap-test-certs/privkey.pem
+      - -out
+      - /tmp/lldap-test-certs/fullchain.pem
+      - -subj
+      - "/CN={{ molecule_helpers_lldap_domain }}"
+      - -addext
+      - "subjectAltName=DNS:{{ molecule_helpers_lldap_domain }}"
+    creates: /tmp/lldap-test-certs/fullchain.pem
+
+# docker-entrypoint.sh runs `find /data \! -user "$UID" -exec chown
+# "$UID:$GID" ...` under `set -e` before starting lldap, to make sure
+# everything under /data is owned by the account it's about to drop
+# privileges to (this image's own baked-in default: UID=1000, GID=1000,
+# USER=lldap — confirmed via `docker inspect`, not assumed). These two
+# files land owned by root (whatever ran this Ansible task) and are
+# bind-mounted read-only, so that chown fails outright and takes the
+# whole entrypoint down with it. Pre-owning them here means the `!
+# -user` predicate simply doesn't match them, so entrypoint never tries
+# to touch them — keeping them genuinely read-only in the container
+# rather than dropping :ro to let the chown succeed.
+- name: Own the throwaway cert files as lldap's runtime uid/gid so its own chown step skips them
+  ansible.builtin.file:
+    path: "{{ item }}"
+    owner: "1000"
+    group: "1000"
+  loop:
+    - /tmp/lldap-test-certs/fullchain.pem
+    - /tmp/lldap-test-certs/privkey.pem
+
+- name: Run a throwaway lldap target for this scenario
+  community.docker.docker_container:
+    name: lldap-test
+    # Pinned independently of docker/lldap/compose.yaml's own tag — see
+    # that file if this ever needs bumping alongside it.
+    image: ghcr.io/lldap/lldap:2026-08-08-alpine
+    env:
+      LLDAP_LDAP_BASE_DN: "{{ molecule_helpers_lldap_base_dn }}"
+      LLDAP_LDAP_USER_PASS: "{{ molecule_helpers_lldap_admin_password }}"
+      LLDAP_JWT_SECRET: molecule-test-jwt-secret
+      LLDAP_KEY_SEED: molecule-test-key-seed
+      LLDAP_LDAPS_OPTIONS__ENABLED: "true"
+      LLDAP_LDAPS_OPTIONS__CERT_FILE: /data/certs/fullchain.pem
+      LLDAP_LDAPS_OPTIONS__KEY_FILE: /data/certs/privkey.pem
+    # docker-entrypoint.sh's very first check is `[[ ! -w /data ]] ||
+    # [[ ! -d /data ]]` — exit 1 before lldap itself ever runs. The two
+    # cert bind-mounts below only cover /data/certs/*, not /data itself;
+    # tmpfs gives it a real writable mount (no persistence needed for a
+    # throwaway target — unlike production's compose.yaml, which mounts
+    # a real named volume there for exactly that reason).
+    tmpfs:
+      - /data
+    volumes:
+      - /tmp/lldap-test-certs/fullchain.pem:/data/certs/fullchain.pem:ro
+      - /tmp/lldap-test-certs/privkey.pem:/data/certs/privkey.pem:ro
+    networks:
+      - name: "{{ molecule_helpers_lldap_network_name }}"
+        aliases:
+          - "{{ molecule_helpers_lldap_domain }}"
+    state: started
+    detach: true
+
+- name: Query lldap-test's info to discover its IP
+  community.docker.docker_container_info:
+    name: lldap-test
+  register: molecule_helpers_lldap_info
+
+- name: Extract lldap-test's IP on the requested network
+  ansible.builtin.set_fact:
+    molecule_helpers_lldap_ip: >-
+      {{ molecule_helpers_lldap_info.container.NetworkSettings.Networks[
+           molecule_helpers_lldap_network_name
+         ].IPAddress }}
+
+# Polled by IP against the plain HTTP web UI (17170), not LDAPS (6360) —
+# same reasoning start_seaweedfs_test_target.yaml documents for its own
+# unauthenticated-port choice: LDAPS needs a real TLS handshake once
+# enabled, so an unauthenticated check there would need to negotiate TLS
+# just to prove liveness. lldap serves both ports from one process, so
+# the web UI responding is a reliable proxy that LDAPS is up too.
+- name: Wait for lldap-test's web UI to accept connections
+  community.docker.docker_container_exec:
+    container: lldap-test
+    command: "wget -q --spider http://{{ molecule_helpers_lldap_ip }}:17170/"
+  register: molecule_helpers_lldap_ready
+  # docker_container_exec has no `rc` key at all on some failure paths
+  # (NotFound/APIError/DockerException all go through client.fail(),
+  # which only sets msg/failed) — a real race right after `state:
+  # started` returns, before the container's exec target is registered.
+  # `| default(1)` keeps the condition itself evaluable on those
+  # attempts instead of crashing `until` outright; plain `rc != 0` (a
+  # genuine wget connection-refused) already retries fine on its own.
+  until: molecule_helpers_lldap_ready.rc | default(1) == 0
+  retries: 15
+  delay: 2
+  changed_when: false

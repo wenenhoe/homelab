@@ -1,0 +1,134 @@
+---
+# Exercises the real, installed systemd unit's own renewal gating logic
+# — not a simulation of it (see lldap_cert/molecule/default/verify.yml's
+# own comment on why that scenario deliberately stops short of this).
+#
+# `step certificate needs-renewal`'s own documented default: a cert
+# "needs renewal" once it's passed 66% of its total lifetime
+# (https://smallstep.com/docs/step-cli/reference/certificate/needs-renewal/).
+# A 1-minute cert gives a fully deterministic window: not due before
+# ~40s elapsed, due from ~40s to expiry at 60s. Checked at 10s (well
+# under the boundary) and 50s (well over it), not cut close to the 40s
+# line itself, to absorb CI scheduling jitter rather than chase it.
+#
+# --not-after 1m below only works because converge.yml already lowered
+# step-ca-test's own provisioner minimum duration to 1m — step-ca's own
+# default floor (5m) rejects anything shorter outright, confirmed live
+# ("requested duration ... is less than the authorized minimum
+# certificate duration"). See converge.yml's own comment on that step.
+#
+# All of this lives here, in one playbook run, rather than split across
+# converge.yml and verify.yml (separate ansible-playbook invocations,
+# so registered facts and precise timing can't be coordinated across
+# them) — everything from issuing the short-lived cert through both
+# timed checks has to happen as one continuous sequence.
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    lldap_cert_step_ca_url: https://step-ca-test:9000
+  tasks:
+    - name: Discover the lldap certs volume's real host path
+      community.docker.docker_volume_info:
+        name: lldap_certs
+      register: lldap_cert_renewal_timing_volume
+
+    - name: Set the mountpoint fact
+      ansible.builtin.set_fact:
+        lldap_cert_renewal_timing_mountpoint: "{{ lldap_cert_renewal_timing_volume.volume.Mountpoint }}"
+
+    - name: Write the provisioner password to a scratch file
+      ansible.builtin.copy:
+        dest: /tmp/lldap-cert-renewal-timing-provisioner-password
+        content: "{{ step_ca_provisioner_password }}"
+        mode: "0600"
+      no_log: true
+
+    # Overwrites the cert lldap_cert's own role issued during converge —
+    # same --user root reasoning as lldap_cert's own issuance task (a
+    # non-root step-cli process can't write into this volume).
+    - name: Issue a 1-minute cert for the renewal-timing test
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - --network
+          - caddy-proxy
+          - -v
+          - "lldap_certs:/certs"
+          - -v
+          - "/tmp/lldap-cert-renewal-timing-provisioner-password:/tmp/provisioner_password:ro"
+          - -v
+          - "/etc/step-ca/root_ca.crt:/root_ca.crt:ro"
+          - "smallstep/step-cli:0.30.2"
+          - step
+          - ca
+          - certificate
+          - "{{ lldap_host }}"
+          - /certs/fullchain.pem
+          - /certs/privkey.pem
+          - --san
+          - "{{ lldap_host }}"
+          - --san
+          - "{{ lldap_host }}.{{ caddy_domain }}"
+          - --provisioner
+          - "{{ step_ca_provisioner_name }}"
+          - --password-file
+          - /tmp/provisioner_password
+          - --ca-url
+          - "{{ lldap_cert_step_ca_url }}"
+          - --root
+          - /root_ca.crt
+          - --not-after
+          - 1m
+          - --force
+      changed_when: true
+
+    - name: Remove the scratch provisioner password file
+      ansible.builtin.file:
+        path: /tmp/lldap-cert-renewal-timing-provisioner-password
+        state: absent
+
+    - name: Record the 1-minute cert's serial number
+      ansible.builtin.command: openssl x509 -in {{ lldap_cert_renewal_timing_mountpoint }}/fullchain.pem -noout -serial
+      register: lldap_cert_renewal_timing_serial_baseline
+      changed_when: false
+
+    - name: Wait comfortably before the 66% renewal threshold
+      ansible.builtin.pause:
+        seconds: 10
+
+    # `systemctl start` on a unit whose ExecCondition isn't met is
+    # observed (not merely assumed) to still exit 0 — systemd treats a
+    # condition skip as a deliberate no-op, not a failure. failed_when
+    # false either way: the real assertion is the serial number below,
+    # not this command's own exit code (Assert Side Effects, Not Exit
+    # Codes — see docs/molecule-testing.md's own convention on this).
+    - name: "Attempt renewal while comfortably not yet due (expect: skipped)"
+      ansible.builtin.command: systemctl start cert-renewer@lldap.service
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm the too-early attempt was correctly skipped
+      ansible.builtin.command: openssl x509 -in {{ lldap_cert_renewal_timing_mountpoint }}/fullchain.pem -noout -serial
+      register: lldap_cert_renewal_timing_serial_too_early
+      changed_when: false
+      failed_when: lldap_cert_renewal_timing_serial_too_early.stdout != lldap_cert_renewal_timing_serial_baseline.stdout
+
+    - name: Wait until comfortably past the 66% renewal threshold
+      ansible.builtin.pause:
+        seconds: 40
+
+    - name: "Attempt renewal once comfortably due (expect: renewed)"
+      ansible.builtin.command: systemctl start cert-renewer@lldap.service
+      failed_when: false
+      changed_when: false
+
+    - name: Confirm the due attempt actually renewed the cert
+      ansible.builtin.command: openssl x509 -in {{ lldap_cert_renewal_timing_mountpoint }}/fullchain.pem -noout -serial
+      register: lldap_cert_renewal_timing_serial_due
+      changed_when: false
+      failed_when: lldap_cert_renewal_timing_serial_due.stdout == lldap_cert_renewal_timing_serial_baseline.stdout

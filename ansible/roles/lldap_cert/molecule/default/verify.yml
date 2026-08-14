@@ -57,15 +57,14 @@
       changed_when: false
       failed_when: lldap_cert_verify_timer_active.stdout != 'active'
 
-    # The systemd timer's own schedule/needs-renewal gating isn't
-    # exercised end to end here — step's exact default renewal threshold
-    # isn't documented anywhere it's safe to rely on, and forcing it
-    # artificially (e.g. issuing a 1-minute cert) can't be reliably
-    # distinguished from just waiting out that same undocumented default.
-    # What's tested instead: the exact commands ExecStart/ExecStartPost
-    # run, run directly, produce the real side effects they're supposed
-    # to — a strictly weaker claim than "the timer's gating logic is
-    # correct", stated as such rather than implied.
+    # This scenario deliberately still doesn't exercise the timer's own
+    # ExecCondition gating end to end — that's `renewal_timing`'s job
+    # (a real 1-minute cert against step certificate needs-renewal's
+    # documented 66%-of-lifetime default). What's tested here instead:
+    # the exact commands ExecStart/ExecStartPost run, run directly,
+    # produce the real side effects they're supposed to — a useful,
+    # fast check on its own, just not the same claim as "the timer's
+    # gating logic is correct".
     - name: Record the cert's serial number before a direct renewal
       ansible.builtin.command: openssl x509 -in {{ lldap_cert_verify_mountpoint }}/fullchain.pem -noout -serial
       register: lldap_cert_verify_serial_before

@@ -1,0 +1,105 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    # main_domain, lab_domain, caddy_domain, lldap_host, server_timezone,
+    # lldap_*, step_ca_*, app_registry, compose_apps live in
+    # host_vars/lldap-cert-renewal-timing-instance.yaml instead — see
+    # the comment there. Same fixture as lldap_cert/molecule/default's
+    # own, copied rather than shared (see that scenario's own host_vars
+    # comment on why).
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Install python3-requests (docker_volume_info/docker_container_exec talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    - name: Start a real, throwaway step-ca instance for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_step_ca_test_target.yaml
+      vars:
+        molecule_helpers_step_ca_network_name: caddy-proxy
+        molecule_helpers_step_ca_password: "{{ step_ca_provisioner_password }}"
+
+    # A 1-minute cert (verify.yml's whole point) is below step-ca's own
+    # provisioner default minimum (5m) — confirmed live: step-ca-test
+    # rejects --not-after 1m outright with "requested duration ... is
+    # less than the authorized minimum certificate duration". Lowered
+    # here rather than stretching this scenario's own timing windows to
+    # fit a 5m+ cert, which would multiply its already-atypical
+    # wall-clock cost roughly fivefold for no real benefit.
+    #
+    # Edits ca.json directly and returns success with no admin/remote-
+    # management prompt (confirmed live — this throwaway CA never
+    # enabled remote management), but doesn't take effect until step-ca
+    # restarts (its own explicit output: "SIGHUP ... or restart the
+    # step-ca process"). A full restart, not a targeted SIGHUP: this
+    # image's entrypoint chain ends in `exec step-ca`, so PID 1 likely
+    # *is* step-ca directly, but a restart is unambiguous either way and
+    # this scenario already treats "wait for healthy again" as cheap.
+    - name: Lower step-ca-test's provisioner minimum duration to 1m
+      community.docker.docker_container_exec:
+        container: step-ca-test
+        command: step ca provisioner update admin --x509-min-dur=1m
+      changed_when: true
+
+    - name: Restart step-ca-test so it picks up the lowered minimum
+      ansible.builtin.command: docker restart step-ca-test
+      changed_when: true
+
+    - name: Wait for step-ca-test to report healthy again after the restart
+      community.docker.docker_container_info:
+        name: step-ca-test
+      register: lldap_cert_renewal_timing_step_ca_info
+      until: >-
+        lldap_cert_renewal_timing_step_ca_info.container.State.Health.Status | default('') == 'healthy'
+      retries: 30
+      delay: 2
+
+    - name: Resolve lldap's own compose_apps entry
+      ansible.builtin.set_fact:
+        lldap_cert_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'lldap') | first }}"
+
+    # Same cold-volume bootstrap race as lldap_cert/molecule/default —
+    # see that scenario's own comment. This scenario reuses it purely to
+    # get a real lldap target and the systemd renewal units installed;
+    # the actual thing under test (re-issuing a 1-minute cert and
+    # exercising the timer's own gating logic) lives entirely in
+    # verify.yml — see that file's own header comment for why.
+    - name: Init and deploy lldap on a cold certs volume
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main
+      vars:
+        compose_app_item: "{{ lldap_cert_compose_app_item }}"
+
+    - name: Run step_ca_client
+      ansible.builtin.include_role:
+        name: step_ca_client
+      vars:
+        step_ca_client_container_name: step-ca-test
+
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: lldap_cert

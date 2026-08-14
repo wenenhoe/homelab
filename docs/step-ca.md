@@ -60,8 +60,8 @@ philosophy) once that automation lands.
 ## DNS names and the health check
 
 `STEP_CA_DNS_NAMES` (`configs/env.j2`) lists `step-ca` before
-`step-ca.{{ caddy_domain }}`, and the order matters: `step ca init`
-writes the *first* name into `defaults.json`'s `ca-url`, and the
+`step-ca.{{ caddy_domain }}`, and the order of the *first* name matters:
+`step ca init` writes it into `defaults.json`'s `ca-url`, and the
 upstream image's own `HEALTHCHECK` runs `step ca health` against
 exactly that URL, from inside the container. `step-ca` — this compose
 service's own name, which Docker's embedded DNS resolves back to the
@@ -77,8 +77,16 @@ Reachable only on `caddy-proxy`, by container name (`step-ca:9000`) —
 no Caddy vhost (no `caddy:` key in its `app_registry` entry, the same
 pattern `bind9` uses), and no host port published. A CA's admin/signing
 API isn't something to put behind a reverse proxy the way an ordinary
-web app is, and nothing outside the Docker network needs to reach it
-yet.
+web app is.
+
+No host-level access needed: every consumer of this CA, including
+`lldap_cert`'s own systemd renewal unit and one-time issuance task (see
+[`lldap.md`](lldap.md)), runs `step` via the official `smallstep/step-cli`
+image rather than a host-installed binary — a container on `caddy-proxy`
+that reaches this one by its real container name, the same way any
+other consumer would. Nothing in this repo ever needed a host process
+to resolve "step-ca" by name, so there's no loopback port publish or
+extra SAN to carry for that purpose.
 
 ## Requesting a certificate: manual test client
 

@@ -113,9 +113,9 @@ in-UI config editor (`data/conf.yml`) is ever used — see the comment on
 
 `tinyauth-ldap-observer-password` is generated and cached like any other
 secret, but it's also consumed by the `lldap_bootstrap` role
-(`deploy.yaml`'s Play 6), which sets it as the lldap `observer`
+(`deploy.yaml`'s Play 7), which sets it as the lldap `observer`
 account's real password via lldap's own `bootstrap.sh` — see
 [`lldap.md`](lldap.md#bootstrapping-the-observer-account). Rotating it
 is the same as any other secret (see "Rotating a credential" above):
-delete the cache file and redeploy `security` — Play 6 updates the
+delete the cache file and redeploy `security` — Play 7 updates the
 existing account in place, no manual web-UI step required.

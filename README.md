@@ -104,7 +104,7 @@ nothing is hand-authored on the servers themselves.
 | [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
 | [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
 | [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
-| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle across the certbot/dockerproxy/lldap containers; bootstrapping the observer account tinyauth binds as. |
+| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
 
 ### Operations

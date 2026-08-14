@@ -1,6 +1,6 @@
 # Deployment Flow
 
-`deploy.yaml` runs as seven ordered plays: secrets before anything needs
+`deploy.yaml` runs as nine ordered plays: secrets before anything needs
 `ansible_host` resolved, DNS and the reverse proxy live before anything
 that depends on them starts, and the offsite-backup destination created
 before anything uploads to it.
@@ -57,10 +57,24 @@ its directories/configs provisioned and its container started.
 
 After SeaweedFS deploys in Play 4. Creates the `homelab-backups` bucket
 explicitly — SeaweedFS doesn't auto-create one on first `PUT`. Must run
-before Play 6 or the first backup upload fails with `NoSuchBucket`. See
+before Play 8 or the first backup upload fails with `NoSuchBucket`. See
 [`disaster-recovery.md`](disaster-recovery.md).
 
-## Play 6 — Deploy offsite backup agent (`hosts: managed_hosts`)
+## Play 6 — Wire lldap and tinyauth into step-ca (`hosts: security`)
+
+After lldap/step-ca/tinyauth all deploy in Play 4. `step_ca_client`
+installs the `step` CLI and caches step-ca's root cert on the host;
+`lldap_cert` issues lldap's initial LDAPS cert and installs its systemd
+renewal timer; `tinyauth_ca_trust` builds and seeds the CA bundle
+tinyauth needs to trust that cert. See [`lldap.md`](lldap.md).
+
+## Play 7 — Ensure lldap's observer account exists (`hosts: security`)
+
+After lldap's own deploy in Play 4 (independent of Play 6 — this only
+needs lldap's web port, not its LDAPS cert). See
+[`lldap.md`](lldap.md#bootstrapping-the-observer-account).
+
+## Play 8 — Deploy offsite backup agent (`hosts: managed_hosts`)
 
 Runs last: mounts other apps' named volumes as `external: true`, which
 needs each app's Play 4 volume-creation step and Play 5's bucket to
@@ -80,6 +94,9 @@ already exist. See [`disaster-recovery.md`](disaster-recovery.md).
 | `caddy` | Renders the Caddyfile, deploys/restarts the proxy. |
 | `bind9` | Aggregates DNS zone data from every app host, renders/deploys BIND9, rewires the host's own resolution. |
 | `seaweedfs_bucket` | Creates the offsite-backup bucket on `storage` ahead of any upload. |
+| `step_ca_client` | Installs `step-cli` and caches step-ca's root cert on the host — shared prerequisite for `lldap_cert`/`tinyauth_ca_trust`. |
+| `lldap_cert` | Issues lldap's initial LDAPS cert from step-ca and installs its systemd `cert-renewer@` timer. See [`lldap.md`](lldap.md). |
+| `tinyauth_ca_trust` | Builds and seeds the CA bundle tinyauth needs to trust step-ca-issued certs. |
 | `backup_agent` | Aggregates each host's `backup:`-declared apps into up to two `docker-volume-backup` instances. See [`disaster-recovery.md`](disaster-recovery.md). |
 
 ## The App Registry

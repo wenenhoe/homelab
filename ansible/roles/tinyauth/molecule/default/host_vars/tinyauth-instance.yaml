@@ -1,0 +1,56 @@
+---
+# Must live here, not in converge.yml's play `vars:` — same reasoning as
+# bind9's own scenario (see its host_vars/bind9-instance.yaml): keeps
+# every var resolvable the same way real inventory data is, rather than
+# relying on play-scope Jinja evaluation quirks.
+#
+# Shapes this scenario's lab_domain/caddy_domain/lldap_host exactly like
+# host_vars/security.yaml does in production — the only different value
+# is main_domain itself (a throwaway, not a real domain) and lldap_host
+# (lldap-test, not lldap — see start_lldap_test_target.yaml's own
+# comment on why the target needs its own name here).
+main_domain: molecule.test
+lab_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lab_domain }}"
+lldap_host: lldap-test
+tinyauth_host: sso
+server_timezone: Asia/Singapore
+
+# lldap-test's initial "admin" account password (LLDAP_LDAP_USER_PASS) —
+# lldap_bootstrap authenticates against lldap with this to run
+# bootstrap.sh. Molecule-only throwaway value, not a real secret.
+lldap_ldap_user_pass: molecule-test-admin-password
+
+# The value lldap_bootstrap sets on the observer account and
+# config.yaml.j2 renders into tinyauth's own bindPassword — same
+# throwaway-value reasoning as above.
+tinyauth_ldap_observer_password: molecule-test-observer-password
+
+# false in every real deployment (see main.yaml) — true here because
+# this scenario's lldap target uses a throwaway self-signed cert, not a
+# real certbot-issued one. See config.yaml.j2's own comment.
+tinyauth_ldap_insecure: true
+
+# Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
+# tinyauth entry) — copied here rather than sourced from that file
+# because host_vars-style registries in this repo are hand-authored
+# fixtures already (see bind9-instance.yaml's own app_registry), kept in
+# sync with the real entry by convention, not by import.
+app_registry:
+  tinyauth:
+    volumes:
+      - name: data
+    configs:
+      - src: config.yaml.j2
+        dest: "data/config.yaml"
+        no_log: true
+    backup:
+      volumes: [data]
+      stop_during_backup: true
+    upstream: "tinyauth:3000"
+
+# No caddy: block — matches host_vars/security.yaml's real tinyauth
+# entry (it fronts its own top-level auth domain rather than the
+# wildcard vhost every other app gets, see app_registry.yaml's comment).
+compose_apps:
+  - name: tinyauth

@@ -13,3 +13,4 @@ qemu_guest_agent: 100.0
 restore: 92.9
 seaweedfs_bucket: 100.0
 secrets: 100.0
+tinyauth: 100.0

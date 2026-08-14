@@ -1,0 +1,65 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    # main_domain, lab_domain, caddy_domain, lldap_host, app_registry,
+    # compose_apps live in host_vars/tinyauth-instance.yaml instead — see
+    # the comment there.
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Install python3-requests (docker_container_info/docker_network talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    # tinyauth's own compose.yaml declares caddy-proxy as `external: true`
+    # — real production gets it from caddy's own compose deploy (Play 2),
+    # which isn't part of this scenario, so it's created directly here.
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    # --- Real lldap target for this scenario ------------------------------
+    # See molecule_helpers/start_lldap_test_target.yaml for what this does
+    # and why. lldap_host/caddy_domain (host_vars) combine to the same
+    # domain used for the target's cert SAN/network alias below, so
+    # tinyauth's own config.yaml.j2 rendering (ldap.address) resolves to
+    # exactly what the cert was issued for.
+    - name: Start a real lldap target for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_lldap_test_target.yaml
+      vars:
+        molecule_helpers_lldap_domain: "{{ lldap_host }}.{{ caddy_domain }}"
+        molecule_helpers_lldap_base_dn: "dc={{ lab_domain | replace('.', ',dc=') }}"
+        molecule_helpers_lldap_admin_password: "{{ lldap_ldap_user_pass }}"
+        molecule_helpers_lldap_network_name: caddy-proxy
+
+    # This is where Part 1 (lldap_bootstrap) and Part 2 (this scenario)
+    # connect — the same dependency chain production has, run for real
+    # against the throwaway target above instead of a production lldap.
+    - name: Run lldap_bootstrap against the test target
+      ansible.builtin.include_role:
+        name: lldap_bootstrap
+      vars:
+        lldap_bootstrap_container_name: lldap-test
+        lldap_bootstrap_network_name: caddy-proxy
+
+    - name: Deploy tinyauth, pointed at the now-bootstrapped lldap target
+      ansible.builtin.include_role:
+        name: tinyauth

@@ -1,0 +1,37 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    # tinyauth's image ships a native HEALTHCHECK (`tinyauth healthcheck`,
+    # hitting its own /api/healthz) — Docker applies it even without a
+    # compose-level healthcheck: override. /api/healthz itself always
+    # returns 200 regardless of LDAP state, but that's not what this
+    # checks: tinyauth's LDAP service connects during startup, before the
+    # HTTP server (and therefore /api/healthz) ever comes up — a failed
+    # LDAP bind exits the process outright (confirmed by reading
+    # tinyauth's source: setupServices' error propagates to a single
+    # top-level `os.Exit(1)`, then `restart: unless-stopped` crash-loops
+    # it). So a genuinely "healthy" container here is only reachable
+    # having already bound to lldap-test as the observer account — the
+    # real side effect this scenario exists to prove, not just "the
+    # container is still running".
+    - name: Wait for tinyauth to report healthy (proves it bound to lldap-test at boot)
+      community.docker.docker_container_info:
+        name: tinyauth
+      register: tinyauth_verify_info
+      until: >-
+        tinyauth_verify_info.container.State.Health.Status | default('') == 'healthy'
+      retries: 20
+      delay: 3
+
+    - name: Confirm tinyauth didn't get there via a restart loop
+      ansible.builtin.assert:
+        that:
+          - tinyauth_verify_info.container.State.Status == 'running'
+          - tinyauth_verify_info.container.RestartCount == 0
+        fail_msg: >-
+          tinyauth reported healthy but only after {{
+          tinyauth_verify_info.container.RestartCount }} restart(s) —
+          the observer account likely didn't exist in time for its
+          first boot attempt.

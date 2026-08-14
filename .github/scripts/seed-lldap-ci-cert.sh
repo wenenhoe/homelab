@@ -59,11 +59,16 @@ if [ "$status" != "healthy" ]; then
   exit 1
 fi
 
-# Fetched to a real file rather than passed via process substitution —
-# `docker run --root <(...)` doesn't work across the container boundary,
-# the fd only exists in the host shell that spawned it.
-docker run --rm --network "$network" "$step_ca_image" \
-  cat /home/step/certs/root_ca.crt > "$workdir/root_ca.crt"
+# Fetched via `docker exec` against the already-running, already-
+# initialized ci-step-ca — NOT `docker run` (confirmed live: that spins
+# up a brand-new, separate container from the same image, sharing
+# neither ci-step-ca's init state nor its DOCKER_STEPCA_INIT_* env vars,
+# so it has no ca.json of its own at all — a completely different,
+# never-initialized container, not the one that actually finished
+# init). Same reasoning ansible.roles.step_ca_client's own task and
+# start_step_ca_test_target.yaml's Molecule helper already use
+# `docker exec`/`docker_container_exec` for.
+docker exec ci-step-ca cat /home/step/certs/root_ca.crt > "$workdir/root_ca.crt"
 chmod 644 "$workdir/root_ca.crt"
 
 printf '%s' "$ca_password" > "$workdir/pw"

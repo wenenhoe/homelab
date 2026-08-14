@@ -1,0 +1,53 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+  tasks:
+    - name: Include docker role (community.docker assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container_info talks to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    # Deliberately no lldap target started at all — that's the whole
+    # point of this scenario, unlike default's.
+    - name: "Run lldap_bootstrap [block / rescue] (no running lldap target, failure is deliberate and expected)"
+      block:
+        - name: Run lldap_bootstrap against a host with no lldap container
+          ansible.builtin.include_role:
+            name: lldap_bootstrap
+          vars:
+            lldap_bootstrap_container_name: lldap-test
+            lldap_bootstrap_network_name: caddy-proxy
+      rescue:
+        # A bare rescue: accepts ANY failure inside the block as "the
+        # guard worked" - a Docker hiccup or an unrelated task erroring
+        # out would leave the same halt marker behind and pass just as
+        # happily as the real guard catching the missing container.
+        # ansible_failed_task/ansible_failed_result are only populated
+        # inside a rescue block - assert on both the exact task that
+        # failed and the exact reason before trusting the "expected"
+        # label at all.
+        - name: Confirm the failure came from the "no running lldap" guard itself
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == "Fail loudly if lldap isn't running yet"
+              - "'No running \"lldap-test\" container found' in ansible_failed_result.msg"
+            fail_msg: >-
+              lldap_bootstrap failed, but not for the reason this scenario exists to
+              test. Expected the "Fail loudly if lldap isn't running yet" task to
+              fail naming "lldap-test"; got task
+              "{{ ansible_failed_task.name | default('unknown') }}" with message:
+              {{ ansible_failed_result.msg | default('(no msg)') }}
+
+        - name: Leave a marker proving the guard actually caught the missing container
+          ansible.builtin.copy:
+            dest: /tmp/lldap_bootstrap_not_running_halt_marker
+            content: "missing lldap target caught as expected\n"
+            mode: "0644"

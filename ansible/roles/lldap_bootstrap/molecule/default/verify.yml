@@ -1,0 +1,46 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    # The role's own internal check (tasks/main.yaml) already proves the
+    # observer account binds with the right password — asserting that
+    # again here would just re-run the same check. This instead confirms
+    # the other real side effect bootstrap.sh's JSON config declares:
+    # group membership. Queried as admin (a GraphQL user lookup), not
+    # observer — Permission::Regular (what observer would have without
+    # the group) can only read its own record via the REST login, not a
+    # real GraphQL query, so this genuinely exercises a path the role's
+    # own check doesn't.
+    - name: Query the observer account's groups as admin
+      community.docker.docker_container:
+        name: lldap-bootstrap-verify-groups
+        image: curlimages/curl:8.11.1
+        entrypoint:
+          - /bin/sh
+          - -c
+        command:
+          - >-
+            set -e;
+            TOKEN=$(curl -sf --request POST
+            --url http://lldap-test:17170/auth/simple/login
+            --header 'Content-Type: application/json'
+            --data "{\"username\":\"admin\",\"password\":\"$ADMIN_PW\"}"
+            | sed -n 's/.*"token":"\([^"]*\)".*/\1/p');
+            curl -sf --request POST
+            --url http://lldap-test:17170/api/graphql
+            --header "Authorization: Bearer $TOKEN"
+            --header 'Content-Type: application/json'
+            --data '{"query":"query{user(userId:\"observer\"){groups{displayName}}}"}'
+        env:
+          ADMIN_PW: "{{ lldap_ldap_user_pass }}"
+        networks:
+          - name: caddy-proxy
+        detach: false
+        cleanup: true
+      register: lldap_bootstrap_verify_groups
+      no_log: true
+      changed_when: false
+      failed_when: >-
+        lldap_bootstrap_verify_groups is failed
+        or 'lldap_strict_readonly' not in (lldap_bootstrap_verify_groups.container.Output | default(''))

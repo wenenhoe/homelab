@@ -1,0 +1,16 @@
+---
+# Same reasoning as tinyauth/molecule/default's own host_vars: kept here
+# rather than in converge.yml's play vars for resolution consistency
+# with real inventory data.
+main_domain: molecule.test
+lab_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lab_domain }}"
+lldap_host: lldap-test
+
+# lldap-test's initial "admin" account password — same throwaway-value
+# reasoning as tinyauth/molecule/default's own host_vars.
+lldap_ldap_user_pass: molecule-test-admin-password
+
+# What this role is actually under test for: the value it sets on the
+# observer account and then independently verifies via a real bind.
+tinyauth_ldap_observer_password: molecule-test-observer-password

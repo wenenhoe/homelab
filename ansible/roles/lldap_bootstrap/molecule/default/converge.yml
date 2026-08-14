@@ -1,0 +1,47 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    # lab_domain, caddy_domain, lldap_host, lldap_ldap_user_pass,
+    # tinyauth_ldap_observer_password live in
+    # host_vars/lldap-bootstrap-instance.yaml instead — see the comment
+    # there.
+  tasks:
+    - name: Include docker role (community.docker assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container_info talks to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    # Not strictly required by lldap_bootstrap itself (it only joins
+    # whatever network name it's given) — created here so the network
+    # name this scenario uses can stay "caddy-proxy", matching
+    # production and tinyauth/molecule/default, rather than inventing a
+    # scenario-only name that would drift from both.
+    - name: Create the caddy-proxy network for this scenario
+      community.docker.docker_network:
+        name: caddy-proxy
+        state: present
+
+    - name: Start a real lldap target for this scenario
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_lldap_test_target.yaml
+      vars:
+        molecule_helpers_lldap_domain: "{{ lldap_host }}.{{ caddy_domain }}"
+        molecule_helpers_lldap_base_dn: "dc={{ lab_domain | replace('.', ',dc=') }}"
+        molecule_helpers_lldap_admin_password: "{{ lldap_ldap_user_pass }}"
+        molecule_helpers_lldap_network_name: caddy-proxy
+
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: lldap_bootstrap
+      vars:
+        lldap_bootstrap_container_name: lldap-test
+        lldap_bootstrap_network_name: caddy-proxy

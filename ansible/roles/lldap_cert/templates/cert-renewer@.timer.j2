@@ -1,0 +1,20 @@
+[Unit]
+Description=Timer for certificate renewal of %I
+Documentation=https://smallstep.com/docs/step-ca/renewal
+PartOf=cert-renewer.target
+
+[Timer]
+Persistent=true
+
+; Run the timer unit every 15 minutes.
+OnCalendar=*:1/15
+
+; Always run the timer on time.
+AccuracySec=1us
+
+; Add jitter to prevent a "thundering herd" of simultaneous certificate
+; renewals.
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target

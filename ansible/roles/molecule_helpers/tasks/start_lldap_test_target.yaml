@@ -1,13 +1,12 @@
 ---
 # Starts a real, throwaway lldap target — used by tinyauth/default to
 # exercise the real lldap_bootstrap -> tinyauth LDAPS dependency chain.
-# Scoped to just the `lldap` service (not `certbot`/`dockerproxy` — see
-# docker/lldap/compose.yaml): this helper only needs LDAPS + the admin
-# web UI actually running, not lldap's own cert-renewal machinery, which
-# is out of scope for this scenario (see docs/lldap.md for that
-# lifecycle; a throwaway self-signed cert stands in for it here, same
-# spirit as .github/scripts/seed-lldap-ci-cert.sh does for
-# compose-boot-test's lldap entry).
+# A standalone container, not lldap's own compose stack: this helper
+# only needs LDAPS + the admin web UI actually running, not lldap's own
+# cert-issuance/renewal machinery (see docs/lldap.md for that lifecycle;
+# a throwaway self-signed cert stands in for it here, same spirit as
+# .github/scripts/seed-lldap-ci-cert.sh does for compose-boot-test's
+# lldap entry).
 #
 # Required vars:
 #   molecule_helpers_lldap_domain — both the self-signed cert's CN/SAN

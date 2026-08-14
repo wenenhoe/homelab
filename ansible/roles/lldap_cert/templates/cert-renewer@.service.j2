@@ -1,0 +1,46 @@
+[Unit]
+Description=Certificate renewer for %I
+After=network-online.target docker.service
+Requires=docker.service
+Documentation=https://smallstep.com/docs/step-ca/renewal
+StartLimitIntervalSec=0
+PartOf=cert-renewer.target
+
+[Service]
+Type=oneshot
+User=root
+Environment=CA_URL={{ lldap_cert_step_ca_url }} ROOT_LOCATION={{ step_ca_client_root_cert_path }} STEP_CLI_IMAGE={{ lldap_cert_step_cli_image }} NETWORK={{ lldap_cert_network_name }}
+
+; %i_certs is the exact volume name ensure_volume.yaml gives any app's
+; "certs" volume (<app>_certs) - true for lldap today, and for any
+; future step-ca consumer that follows the same convention, so this
+; needs no per-instance override the way an earlier version of this
+; template did. --user root sidesteps needing to reason about the
+; volume's own ownership: smallstep/step-cli's default non-root user
+; can read/traverse a freshly-created Docker volume's root directory
+; but not write new files into it (confirmed live, the same class of
+; issue this repo's own Molecule scratch dirs hit more than once).
+;
+; ExecCondition checks whether the certificate is actually due for
+; renewal, based on the exit status of the command - a systemd-native
+; skip (visible as such in `journalctl`) rather than a run that quietly
+; does nothing. Purely a local file check (the cert's own expiry against
+; step's default threshold) - no network access needed.
+ExecCondition=/usr/bin/docker run --rm --user root -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem
+
+; Renews via mTLS against the existing cert/key by default (step ca
+; renew's own documented behavior) - no provisioner password needed
+; here, only for the one-time initial issuance (see
+; roles/lldap_cert/tasks/main.yaml).
+ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} -v %i_certs:/certs -v ${ROOT_LOCATION}:/root_ca.crt:ro ${STEP_CLI_IMAGE} step ca renew --force --ca-url ${CA_URL} --root /root_ca.crt /certs/fullchain.pem /certs/privkey.pem
+
+; %i is assumed to be a compose_deploy_dir/<app>/compose.yaml app name
+; with a same-named service inside it - true for every app in this repo
+; (see docs/adding-an-app.md). Adapted from Smallstep's own canonical
+; template, which instead runs `systemctl try-reload-or-restart %i` -
+; there's no systemd unit representing a Docker Compose service to
+; reload here, so this restarts the container directly instead.
+ExecStartPost=/usr/bin/docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i
+
+[Install]
+WantedBy=multi-user.target

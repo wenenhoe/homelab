@@ -107,7 +107,17 @@
     # false either way: the real assertion is the serial number below,
     # not this command's own exit code (Assert Side Effects, Not Exit
     # Codes — see docs/molecule-testing.md's own convention on this).
-    - name: "Attempt renewal while comfortably not yet due (expect: skipped)"
+    # Deliberately `command`, not the systemd_service module — this is a
+    # Type=oneshot unit, which returns to "inactive" after running
+    # regardless of whether ExecStart actually ran or ExecCondition
+    # skipped it. Whether the module's own success/failure logic would
+    # misread that natural inactive-after-oneshot state as a failure
+    # isn't something confirmed live, and getting it wrong here would
+    # silently break the exact assertion this task exists for. The raw
+    # command's own exit code is already known and irrelevant either way
+    # (failed_when: false) — the real assertion is the serial number
+    # below, not this task's own outcome.
+    - name: "Attempt renewal while comfortably not yet due (expect: skipped)"  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl start cert-renewer@lldap.service
       failed_when: false
       changed_when: false
@@ -122,7 +132,8 @@
       ansible.builtin.pause:
         seconds: 40
 
-    - name: "Attempt renewal once comfortably due (expect: renewed)"
+    # Same reasoning as the too-early attempt above.
+    - name: "Attempt renewal once comfortably due (expect: renewed)"  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl start cert-renewer@lldap.service
       failed_when: false
       changed_when: false

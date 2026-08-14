@@ -64,7 +64,15 @@
 # section) - this bundle is built from live host/container data, not a
 # static Jinja template, so it can't go through app_registry's normal
 # configs: list.
-- name: Seed the bundle into tinyauth's data volume, if it changed
+#
+# `when: X.changed`, not a handler notified by the task above: unlike
+# caddy's own identical noqa (a style choice - its task combines a
+# second, independent condition a handler can't cleanly express),
+# include_role genuinely cannot be used as a handler action at all -
+# confirmed against Ansible's own docs ("Does not work in handlers"),
+# not just reasoned through. A handler-based refactor was tried here
+# and failed ansible-lint's own syntax-check outright.
+- name: Seed the bundle into tinyauth's data volume, if it changed  # noqa: no-handler
   ansible.builtin.include_role:
     name: compose
     tasks_from: seed_volume
@@ -75,7 +83,7 @@
       name: data
   when: tinyauth_ca_trust_staged.changed
 
-- name: Restart tinyauth so it picks up the new bundle
+- name: Restart tinyauth so it picks up the new bundle  # noqa: no-handler
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/tinyauth"
     state: restarted

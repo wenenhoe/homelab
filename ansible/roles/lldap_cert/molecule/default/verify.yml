@@ -45,17 +45,13 @@
       register: lldap_cert_verify_lldap_info
       failed_when: lldap_cert_verify_lldap_info.container.State.Status != 'running'
 
-    - name: Confirm the renewal timer is enabled
-      ansible.builtin.command: systemctl is-enabled cert-renewer@lldap.timer
-      register: lldap_cert_verify_timer_enabled
-      changed_when: false
-      failed_when: lldap_cert_verify_timer_enabled.stdout != 'enabled'
-
-    - name: Confirm the renewal timer is active
-      ansible.builtin.command: systemctl is-active cert-renewer@lldap.timer
-      register: lldap_cert_verify_timer_active
-      changed_when: false
-      failed_when: lldap_cert_verify_timer_active.stdout != 'active'
+    - name: Confirm the renewal timer is enabled and active
+      ansible.builtin.systemd_service:
+        name: cert-renewer@lldap.timer
+      register: lldap_cert_verify_timer_info
+      failed_when: >-
+        lldap_cert_verify_timer_info.status.UnitFileState != 'enabled'
+        or lldap_cert_verify_timer_info.status.ActiveState != 'active'
 
     # This scenario deliberately still doesn't exercise the timer's own
     # ExecCondition gating end to end — that's `renewal_timing`'s job

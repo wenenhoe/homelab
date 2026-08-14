@@ -39,7 +39,9 @@
     # unaffected by that reset — Docker's logs are append-only regardless
     # of how many times the container itself has been restarted.
     - name: Count tinyauth's actual process starts
-      ansible.builtin.shell: docker logs tinyauth 2>&1 | grep -c 'Starting Tinyauth' || true
+      ansible.builtin.shell:
+        cmd: set -o pipefail && docker logs tinyauth 2>&1 | grep -c 'Starting Tinyauth' || true
+        executable: /bin/bash
       register: tinyauth_ca_trust_verify_start_count
       changed_when: false
 

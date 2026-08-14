@@ -199,6 +199,23 @@ app_registry:
         upstream: "lldap:17170"
         auth: false
 
+  step-ca:
+    volumes:
+      - name: data
+      - name: scripts
+    scripts:
+      - entrypoint.sh
+    configs:
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        no_log: true
+    backup:
+      volumes: [data]
+    # No caddy: entry — reachable directly on caddy-proxy by container
+    # name (step-ca:9000), the same no-Caddy-frontend pattern bind9
+    # uses. See docs/step-ca.md.
+
   minecraft:
     volumes:
       - name: data

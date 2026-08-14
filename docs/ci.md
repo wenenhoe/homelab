@@ -37,7 +37,7 @@ type in the repo:
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own, so nothing under it is ever "the role
 that changed." Every scenario's base config
-(`.config/molecule/config.yml`, deep-merged into all 11 scenarios)
+(`.config/molecule/config.yml`, deep-merged into every DinD scenario)
 resolves its Galaxy dependencies from `molecule_helpers/`'s
 `role-requirements.yml`/`requirements.yml` unconditionally, and several
 scenarios' `converge.yml` additionally `include_role` specific task

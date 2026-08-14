@@ -143,8 +143,10 @@ briefly regardless until Play 6 seeds the real bundle and restarts it.
 the observer-account bootstrap race below — not a new failure mode this
 PR introduces, the same shape as one this repo already tolerates, and
 exactly what `tinyauth_ca_trust`'s own scenario deliberately reproduces
-and asserts on (a `RestartCount >= 1`, not `== 0`) rather than routing
-around.
+and asserts on (its own `docker logs` shows at least two real process
+starts — `RestartCount` itself turned out to be the wrong signal here,
+since a manual restart resets it rather than just leaving it
+unincremented) rather than routing around.
 
 ## Bootstrapping the observer account
 
@@ -156,7 +158,7 @@ maintains it: it runs lldap's own `bootstrap.sh` against a declarative
 JSON config, adding the account to `lldap_strict_readonly` — a built-in
 lldap group required for real login lookups (a bare bind would still
 succeed without it, but every login check afterwards would silently
-fail). `deploy.yaml`'s Play 6 runs it right after lldap's own deploy,
+fail). `deploy.yaml`'s Play 7 runs it right after lldap's own deploy,
 using the same `tinyauth-ldap-observer-password` secret `config.yaml.j2`
 already renders — see
 [`secrets.md`](secrets.md#syncing-the-ldap-observer-account-password).

@@ -7,8 +7,9 @@
 # on Linux honors SSL_CERT_FILE, so a concatenated system-CAs +
 # step-ca-root bundle mounted in and pointed at by that env var gets
 # tinyauth's default trust store to include step-ca without touching its
-# image or turning verification off. See docs/lldap.md for the one thing
-# about this that's still an assumption, not a confirmed fact.
+# image or turning verification off. Confirmed via a live run of this
+# role's own molecule/default scenario, not just reasoned through — see
+# docs/lldap.md.
 #
 # Expects step_ca_client to have already run in this play (root cert
 # cached at step_ca_client_root_cert_path).

@@ -63,10 +63,12 @@ before Play 8 or the first backup upload fails with `NoSuchBucket`. See
 ## Play 6 — Wire lldap and tinyauth into step-ca (`hosts: security`)
 
 After lldap/step-ca/tinyauth all deploy in Play 4. `step_ca_client`
-installs the `step` CLI and caches step-ca's root cert on the host;
-`lldap_cert` issues lldap's initial LDAPS cert and installs its systemd
-renewal timer; `tinyauth_ca_trust` builds and seeds the CA bundle
-tinyauth needs to trust that cert. See [`lldap.md`](lldap.md).
+caches step-ca's root cert on the host; `lldap_cert` issues lldap's
+initial LDAPS cert and installs its systemd renewal timer;
+`tinyauth_ca_trust` builds and seeds the CA bundle tinyauth needs to
+trust that cert. `step` itself runs via the `smallstep/step-cli`
+container image throughout, not a host-installed binary — see
+[`lldap.md`](lldap.md).
 
 ## Play 7 — Ensure lldap's observer account exists (`hosts: security`)
 
@@ -94,7 +96,7 @@ already exist. See [`disaster-recovery.md`](disaster-recovery.md).
 | `caddy` | Renders the Caddyfile, deploys/restarts the proxy. |
 | `bind9` | Aggregates DNS zone data from every app host, renders/deploys BIND9, rewires the host's own resolution. |
 | `seaweedfs_bucket` | Creates the offsite-backup bucket on `storage` ahead of any upload. |
-| `step_ca_client` | Installs `step-cli` and caches step-ca's root cert on the host — shared prerequisite for `lldap_cert`/`tinyauth_ca_trust`. |
+| `step_ca_client` | Caches step-ca's root cert on the host — shared prerequisite for `lldap_cert`/`tinyauth_ca_trust`. |
 | `lldap_cert` | Issues lldap's initial LDAPS cert from step-ca and installs its systemd `cert-renewer@` timer. See [`lldap.md`](lldap.md). |
 | `tinyauth_ca_trust` | Builds and seeds the CA bundle tinyauth needs to trust step-ca-issued certs. |
 | `backup_agent` | Aggregates each host's `backup:`-declared apps into up to two `docker-volume-backup` instances. See [`disaster-recovery.md`](disaster-recovery.md). |
@@ -132,7 +134,7 @@ See [`adding-an-app.md`](adding-an-app.md) for a worked example.
 | Tag | Covers | Skips |
 | :--- | :--- | :--- |
 | `initial-setup` | Docker Engine + qemu-guest-agent install (Play 1) | Everything else still runs. |
-| `images` | Pull/rebuild every app's image and recreate containers whose image changed (Plays 2–6) | Config rendering, directory/volume provisioning, Docker install |
+| `images` | Pull/rebuild every app's image and recreate containers whose image changed (Plays 2–8) | Config rendering, directory/volume provisioning, Docker install |
 | `infra` | Re-render Caddyfile/`named.conf`/zones, restart only changed containers | Image pulls/rebuilds, directory/volume provisioning, Docker install |
 
 `preinit` and the `secrets` role always run regardless of tags, since

@@ -67,6 +67,9 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │       ├── bind9/           # Renders zone files, deploys, rewires host DNS
 │       ├── seaweedfs_bucket/# Ensures the offsite-backup S3 bucket exists on `storage`
 │       ├── lldap_bootstrap/ # Automates lldap's `observer` account for tinyauth's LDAP bind
+│       ├── step_ca_client/  # Shared prerequisite: caches step-ca's root cert on the host
+│       ├── lldap_cert/      # Issues/renews lldap's LDAPS cert from step-ca
+│       ├── tinyauth_ca_trust/# Builds the CA bundle tinyauth needs to trust step-ca-issued certs
 │       ├── tinyauth/        # Molecule-only: deploys tinyauth for real in its own scenario
 │       ├── backup_agent/    # Per-host offsite backup aggregation (stage 1 DR)
 │       ├── restore/         # Restores a decrypted offsite archive back to a named volume

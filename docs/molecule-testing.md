@@ -37,7 +37,7 @@ result, then re-converges to check idempotence — mirroring what
 | `lldap_bootstrap` | `default` | Observer account doesn't exist → role creates it (in `lldap_strict_readonly`) against a real throwaway lldap target, verified by querying its group membership as admin. |
 | | `not_running` | No running lldap target at all — the guard at the top of the role fails loudly, naming the missing container, before touching anything. |
 | `tinyauth` | `default` | Stands up a throwaway lldap target, runs `lldap_bootstrap` against it for real, then deploys the real tinyauth compose app and waits for it to report healthy — only reachable having already bound to LDAP at boot. Molecule-only; not wired into `deploy.yaml`. |
-| `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — the scenario that actually tests the SSL_CERT_FILE/Go-cert-pool assumption `docs/lldap.md` documents, rather than leaving it as an unverified design note. Asserts `RestartCount >= 1` (the expected cold-start-then-recover shape here), not `== 0` the way `tinyauth/default` does. |
+| `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — the scenario that empirically confirmed the SSL_CERT_FILE/Go-cert-pool mechanism `docs/lldap.md` documents, rather than leaving it as an unverified design note. Asserts on `docker logs`-observed process-start count (`>= 2`), not `RestartCount` — that counter turned out to be reset by the scenario's own restart, confirmed live — and `>= 2`, not tinyauth's own `== 0`, since this scenario's whole point is reproducing the cold-start-then-recover race, not avoiding it. |
 | | `not_running` | No running tinyauth target at all — the guard at the top of the role fails loudly, before anything CA-bundle-related runs. |
 | `backup_agent` | `default` | Apps split into stop/no-stop groups correctly; stopped group's container `StartedAt` changes, no-stop group's doesn't, archive lands in the test bucket. |
 | | `conflict` | Two apps in one group disagreeing on `retention_days`/`cron` fails validation before anything renders or touches a volume. |
@@ -96,8 +96,8 @@ One scenario of one role, without `cd`-ing into it:
 ```
 
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
-scenario glob doesn't recurse into `roles/*/molecule/*/`, and 10 of this
-repo's 25 scenarios share the name `default`, which a recursive glob
+scenario glob doesn't recurse into `roles/*/molecule/*/`, and 16 of this
+repo's 36 scenarios share the name `default`, which a recursive glob
 would reject as a collision. `molecule-test-all.sh` runs `molecule test
 --all` once per role directory instead, so each invocation only sees that
 role's own unique scenario names.

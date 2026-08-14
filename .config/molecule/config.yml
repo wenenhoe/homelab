@@ -2,10 +2,10 @@
 # Molecule's "base config": auto-discovered at the VCS repository root
 # (this exact location - no -c/--base-config flag needed) and deep-merged
 # into every scenario's own molecule.yml before that scenario's config is
-# merged on top. Lives here specifically so every one of the 11 scenarios
-# under ansible/roles/*/molecule/*/ inherits it without repeating it -
-# these five env vars were byte-for-byte identical across all 11 files
-# before this existed (verified directly, not assumed).
+# merged on top. Lives here specifically so every scenario under
+# ansible/roles/*/molecule/*/ inherits it without repeating it - these
+# five env vars were byte-for-byte identical across every scenario's own
+# molecule.yml before this existed (verified directly, not assumed).
 #
 # ${MOLECULE_PROJECT_DIRECTORY} is always the role's own directory
 # (ansible/roles/<role>) regardless of scenario, so these paths resolve

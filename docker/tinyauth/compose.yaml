@@ -8,6 +8,16 @@ services:
       - data:/data
     environment:
       - TINYAUTH_CONFIGFILE=/data/config.yaml
+      # Go's crypto/x509.SystemCertPool() (non-macOS Unix) honors this,
+      # extending the default trust store with step-ca's root - see
+      # docs/lldap.md for why this file, not tinyauth's own config, is
+      # what makes LDAPS verification against step-ca-issued certs work.
+      # Missing on a genuinely first-ever boot (tinyauth_ca_trust hasn't
+      # seeded it yet) is a silently-empty override, not a crash by
+      # itself - restart: unless-stopped absorbs that race the same way
+      # it already does for the observer-account bootstrap race (see
+      # docs/lldap.md#bootstrapping-the-observer-account).
+      - SSL_CERT_FILE=/data/ca-bundle.pem
     networks:
       - caddy-proxy
     restart: unless-stopped

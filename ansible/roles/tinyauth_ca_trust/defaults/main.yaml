@@ -1,0 +1,5 @@
+---
+tinyauth_ca_trust_container_name: tinyauth
+# Debian/Ubuntu's system CA bundle path — matches the OS this whole repo
+# already assumes (see roles/apt's own os_family assert).
+tinyauth_ca_trust_system_bundle_path: /etc/ssl/certs/ca-certificates.crt

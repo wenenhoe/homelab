@@ -1,0 +1,81 @@
+---
+# Closes the gap left once lldap's LDAPS cert stops being issued by a
+# publicly-trusted CA: tinyauth's config.yaml.j2 already sets
+# `insecure: false` (real verification), but has no caCert/caFile knob of
+# its own (confirmed - tinyauth's schema only has `insecure` and the
+# unrelated authCert/authKey mTLS pair). Go's crypto/x509.SystemCertPool()
+# on Linux honors SSL_CERT_FILE, so a concatenated system-CAs +
+# step-ca-root bundle mounted in and pointed at by that env var gets
+# tinyauth's default trust store to include step-ca without touching its
+# image or turning verification off. See docs/lldap.md for the one thing
+# about this that's still an assumption, not a confirmed fact.
+#
+# Expects step_ca_client to have already run in this play (root cert
+# cached at step_ca_client_root_cert_path).
+
+- name: Confirm tinyauth is actually running before touching its volume
+  community.docker.docker_container_info:
+    name: "{{ tinyauth_ca_trust_container_name }}"
+  register: tinyauth_ca_trust_container_info
+
+- name: Fail loudly if tinyauth isn't running yet
+  ansible.builtin.fail:
+    msg: >-
+      No running "{{ tinyauth_ca_trust_container_name }}" container found
+      on this host — tinyauth_ca_trust must run after tinyauth's own
+      compose deploy (see deploy.yaml's Play ordering).
+  when: not tinyauth_ca_trust_container_info.exists
+
+- name: Read the host's system CA bundle
+  ansible.builtin.slurp:
+    src: "{{ tinyauth_ca_trust_system_bundle_path }}"
+  register: tinyauth_ca_trust_system_bundle
+
+- name: Read step-ca's cached root cert
+  ansible.builtin.slurp:
+    src: "{{ step_ca_client_root_cert_path }}"
+  register: tinyauth_ca_trust_root_cert
+
+# Staged into tinyauth's own _staging/data/ dir, the same path
+# docker/tinyauth/configs/config.yaml.j2 already stages into as part of
+# its normal Play 4 init (see docs/volumes.md) - so this reuses an
+# already-existing directory rather than needing its own file: task.
+- name: Stage the combined CA bundle
+  ansible.builtin.copy:
+    dest: "{{ compose_deploy_dir }}/tinyauth/_staging/data/ca-bundle.pem"
+    # A literal block with a real newline in the source between the two
+    # placeholders, not `~ "\n" ~` — that rendered as the literal two
+    # characters "\n", not an actual newline byte (confirmed live), so
+    # the two PEM blocks ended up glued onto what looked like one line
+    # ("...CERTIFICATE-----\n-----BEGIN CERTIFICATE-----..." with no
+    # real line break). Bytes-correct but not parseable PEM: Go's
+    # decoder splits blocks on real newlines, so it silently never found
+    # the second (step-ca's) certificate at all.
+    content: |
+      {{ tinyauth_ca_trust_system_bundle.content | b64decode }}
+      {{ tinyauth_ca_trust_root_cert.content | b64decode }}
+    mode: "0644"
+  register: tinyauth_ca_trust_staged
+
+# Mirrors caddy/bind9's own self-managed pattern for content that needs
+# to land in an already-declared volume outside the generic per-config
+# staging classification (see docs/volumes.md's "Self-managed apps"
+# section) - this bundle is built from live host/container data, not a
+# static Jinja template, so it can't go through app_registry's normal
+# configs: list.
+- name: Seed the bundle into tinyauth's data volume, if it changed
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: seed_volume
+  vars:
+    compose_app_item:
+      name: tinyauth
+    compose_volume_item:
+      name: data
+  when: tinyauth_ca_trust_staged.changed
+
+- name: Restart tinyauth so it picks up the new bundle
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/tinyauth"
+    state: restarted
+  when: tinyauth_ca_trust_staged.changed

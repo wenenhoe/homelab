@@ -52,14 +52,7 @@ beszel_agent_token: "ci-dummy-beszel-agent-token"
 
 cobalt_host: "cobalt"
 
-# caddy is still excluded from compose-boot-test (Molecule covers it), so
-# it never renders these — but lldap's env.j2 does. certbot never calls
-# the real DNS-01 API in CI (see .github/scripts/seed-lldap-ci-cert.sh),
-# so these only need to be well-formed strings, not real credentials.
-digitalocean_api_key: "ci-dummy-do-token"
-letsencrypt_email: "ci@invalid.example"
-
-# lldap's env.j2 also needs these three — real values are Ansible-generated
+# lldap's env.j2 needs these three — real values are Ansible-generated
 # (secrets role), which doesn't run in this single-app CI path. lldap
 # itself never validates them against anything else in a fresh CI stack,
 # so throwaway strings are enough.

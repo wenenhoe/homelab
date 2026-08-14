@@ -1,44 +1,6 @@
 name: lldap
 
 services:
-  certbot:
-    image: certbot/dns-digitalocean:amd64-latest
-    container_name: lldap-certbot
-    depends_on:
-      - dockerproxy
-    volumes:
-      - letsencrypt_conf:/etc/letsencrypt
-      - letsencrypt_lib:/var/lib/letsencrypt
-      - creds:/creds
-      - scripts:/scripts
-      - certs:/output-certs
-    environment:
-      - DOCKER_HOST=tcp://dockerproxy:2375
-    env_file:
-      - .env
-    networks:
-      - docker-socket-proxy-net
-    entrypoint: /scripts/entrypoint.sh
-    # TODO: Add healthcheck
-    # NOTE: Just loops the renewal script, no daemon/port to probe
-    # NOTE: Need more investigation
-    restart: unless-stopped
-  dockerproxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
-    container_name: lldap-dockerproxy
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - CONTAINERS=1
-    networks:
-      - docker-socket-proxy-net
-    restart: unless-stopped
-    healthcheck:
-      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2375/version" ]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
   lldap:
     image: ghcr.io/lldap/lldap:2026-08-08-alpine
     container_name: lldap
@@ -57,8 +19,6 @@ services:
 networks:
   caddy-proxy:
     external: true
-  docker-socket-proxy-net:
-    internal: true
 volumes:
   data:
     external: true
@@ -66,15 +26,3 @@ volumes:
   certs:
     external: true
     name: lldap_certs
-  creds:
-    external: true
-    name: lldap_creds
-  letsencrypt_conf:
-    external: true
-    name: lldap_letsencrypt_conf
-  letsencrypt_lib:
-    external: true
-    name: lldap_letsencrypt_lib
-  scripts:
-    external: true
-    name: lldap_scripts

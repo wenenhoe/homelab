@@ -17,10 +17,11 @@ compose_deploy_dir: /opt/stacks
 
 tinyauth_host: sso
 # false in every real deployment — lldap's LDAPS cert is a real
-# certbot-issued one (see docs/lldap.md), so hostname verification
-# should always succeed. Templated (not hardcoded in config.yaml.j2)
-# purely so tinyauth's own Molecule scenario can point this at a
-# throwaway self-signed cert without forking the template — see
+# step-ca-issued one (see docs/lldap.md), trusted via SSL_CERT_FILE
+# (docker/tinyauth/compose.yaml), so hostname verification should
+# always succeed. Templated (not hardcoded in config.yaml.j2) purely so
+# tinyauth's own Molecule scenario can point this at a throwaway
+# self-signed cert without forking the template — see
 # ansible/roles/tinyauth/molecule/default's host_vars.
 tinyauth_ldap_insecure: false
 
@@ -57,7 +58,7 @@ step_ca_provisioner_name: internal-services
 tinyauth_ldap_observer_password: "{{ secrets_generated['tinyauth-ldap-observer-password'] }}"
 
 # --- Supplied manually, outside Ansible ---
-digitalocean_api_key: "{{ secrets_generated['digitalocean-api-key'] }}"  # caddy/lldap certbot DNS-01
+digitalocean_api_key: "{{ secrets_generated['digitalocean-api-key'] }}"  # caddy's certbot DNS-01
 letsencrypt_email: "{{ secrets_generated['letsencrypt-email'] }}"
 
 telegram_token: "{{ secrets_generated['telegram-token'] }}"  # diun notifications

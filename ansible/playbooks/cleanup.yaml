@@ -1,17 +1,24 @@
 ---
-# Finds stacks under compose_deploy_dir (and/or still running) on this host
-# that are no longer listed in this host's compose_apps, and tears each one
-# down via compose role's cleanup.yaml.
+# Two independent phases:
+#   Play 1 — finds stacks under compose_deploy_dir (and/or still running)
+#            that are no longer listed in this host's compose_apps, and
+#            tears each one down via compose role's cleanup.yaml.
+#   Play 2 — for stacks that ARE still listed, prunes any volume docker
+#            still labels for that app but that its current app_registry
+#            entry no longer declares (compose role's
+#            cleanup_stale_volumes.yaml). See docs/cleanup.md.
 #
 # Expects:
 #   compose_apps        — this host's app list (host_vars), pre- or
-#                         post-registry-merge, only `.name` is used here
+#                         post-registry-merge; Play 1 only uses `.name`,
+#                         Play 2 resolves it fully via preinit.yaml
 #   compose_deploy_dir  — from inventory/group_vars/all/main.yaml
 #
 # Reads (roles/compose/defaults/main.yaml):
-#   compose_cleanup_remove_content  — default keep/remove policy
-#   compose_cleanup_app_overrides   — per-app keep/remove overrides
-#   compose_cleanup_dry_run         — report only, no changes
+#   compose_cleanup_remove_content        — Play 1 default keep/remove policy
+#   compose_cleanup_app_overrides         — Play 1 per-app keep/remove overrides
+#   compose_cleanup_stale_volume_remove   — Play 2 keep/remove policy
+#   compose_cleanup_dry_run               — report only, no changes (both plays)
 #
 # Usage:
 #   ansible-playbook cleanup.yaml --check --diff              # see what --check would do
@@ -84,3 +91,26 @@
       loop: "{{ compose_cleanup_orphaned_stacks }}"
       loop_control:
         loop_var: compose_cleanup_stack
+
+# Play 2 — Stale volumes on stacks that are still deployed (as opposed to
+# Play 1's fully orphaned stacks). Needs compose_apps resolved against
+# app_registry (preinit.yaml) to see each app's *current* .volumes list —
+# Play 1 above only ever needed .name, so it never resolves this.
+- name: Prune stale volumes on active stacks
+  hosts: app_hosts
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: preinit.yaml
+
+    - name: Prune each app's stale volumes
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: cleanup_stale_volumes.yaml
+      loop: "{{ compose_apps }}"
+      loop_control:
+        loop_var: compose_stale_volume_app
+        label: "{{ compose_stale_volume_app.name }}"

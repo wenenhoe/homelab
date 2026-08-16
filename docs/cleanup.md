@@ -1,6 +1,6 @@
 # Cleanup: Removing Orphaned Compose Stacks
 
-`ansible/playbooks/cleanup.yaml` is a standalone playbook (`hosts: app_hosts`) that tears down stacks a host still has deployed but no longer lists in its `compose_apps` — e.g. after removing an app's entry from `host_vars/<host>.yaml`. It's not part of `deploy.yaml` and has to be run explicitly.
+`ansible/playbooks/cleanup.yaml` is a standalone playbook (`hosts: app_hosts`) that tears down stacks a host still has deployed but no longer lists in its `compose_apps` — e.g. after removing an app's entry from `host_vars/<host>.yaml` — and prunes volumes an app no longer declares. It's not part of `deploy.yaml` and has to be run explicitly. To delete a single file inside a volume that's staying in place (e.g. resetting a SQLite db), see [`volume-maintenance.md`](volume-maintenance.md) instead — that's a different, ad hoc operation this playbook doesn't cover.
 
 ## How an orphan is identified
 
@@ -34,6 +34,33 @@ hands each name to `roles/compose/tasks/cleanup.yaml` to tear it down.
    and reported as preserved. Volumes are found by label, not the app's
    `app_registry` entry (gone once an app is orphaned) — see
    [`volumes.md`](volumes.md).
+
+## Pruning stale volumes on stacks that are still deployed
+
+The playbook's second play covers a different case: an app is still in
+`compose_apps` (so Play 1 above never touches it), but its `app_registry`
+entry no longer declares one of the volumes docker still has for it —
+e.g. a `volumes` entry was removed or renamed while the app itself stays
+deployed.
+
+For each app, `roles/compose/tasks/cleanup_stale_volumes.yaml` compares
+volumes found by the `homelab.app=<app>` label against the app's *current*
+`.volumes | map(attribute='name')`, prefixed `<app>_` to match the naming
+`ensure_volume.yaml` uses. Anything labelled but no longer declared is
+stale. This needs `compose_apps` resolved against `app_registry`
+(`preinit.yaml`), unlike Play 1, which only ever needed `.name`.
+
+Governed by its own flag, independent of Play 1's
+`compose_cleanup_remove_content`/`compose_cleanup_app_overrides` — a
+stale volume on an active app is a different judgment call than tearing
+down an entire orphaned stack:
+
+```yaml
+# roles/compose/defaults/main.yaml
+compose_cleanup_stale_volume_remove: false   # default: report, don't delete
+```
+
+`compose_cleanup_dry_run` gates both plays the same way.
 
 ## Why "keep" is the default
 

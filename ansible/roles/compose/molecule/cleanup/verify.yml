@@ -131,3 +131,63 @@
           label: "com.docker.compose.project=cleanup_app_c"
       register: compose_app_c_containers_after_cleanup
       failed_when: compose_app_c_containers_after_cleanup.containers | length > 0
+
+    # --- Stale volumes: app still "deployed", volume no longer declared ----
+    - name: Label an extra volume as app_a's, but not one its registry declares
+      community.docker.docker_volume:
+        name: cleanup_app_a_stale
+        state: present
+        labels:
+          homelab.app: cleanup_app_a
+          homelab.volume: stale
+
+    - name: "Stale volumes: dry run must change nothing"
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: cleanup_stale_volumes.yaml
+      vars:
+        compose_stale_volume_app: { name: cleanup_app_a, volumes: [{ name: data }] }
+        compose_cleanup_stale_volume_remove: true
+        compose_cleanup_dry_run: true
+
+    - name: Confirm dry run left the stale volume in place
+      community.docker.docker_volume_info:
+        name: cleanup_app_a_stale
+      register: compose_stale_volume_after_dry_run
+      failed_when: not compose_stale_volume_after_dry_run.exists
+
+    - name: "Stale volumes: remove flag off (default) must preserve it"
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: cleanup_stale_volumes.yaml
+      vars:
+        compose_stale_volume_app: { name: cleanup_app_a, volumes: [{ name: data }] }
+        compose_cleanup_stale_volume_remove: false
+        compose_cleanup_dry_run: false
+
+    - name: Confirm keep-by-default preserved the stale volume
+      community.docker.docker_volume_info:
+        name: cleanup_app_a_stale
+      register: compose_stale_volume_after_keep
+      failed_when: not compose_stale_volume_after_keep.exists
+
+    - name: "Stale volumes: remove flag on must delete only the stale one"
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: cleanup_stale_volumes.yaml
+      vars:
+        compose_stale_volume_app: { name: cleanup_app_a, volumes: [{ name: data }] }
+        compose_cleanup_stale_volume_remove: true
+        compose_cleanup_dry_run: false
+
+    - name: Confirm the stale volume was actually removed
+      community.docker.docker_volume_info:
+        name: cleanup_app_a_stale
+      register: compose_stale_volume_after_remove
+      failed_when: compose_stale_volume_after_remove.exists
+
+    - name: Confirm the still-declared 'data' volume was never touched
+      community.docker.docker_volume_info:
+        name: cleanup_app_a_data
+      register: compose_app_a_data_untouched
+      failed_when: not compose_app_a_data_untouched.exists

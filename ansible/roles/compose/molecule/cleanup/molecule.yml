@@ -1,8 +1,10 @@
 ---
 # Covers what the volumes scenario doesn't: cleanup.yaml's dry-run mode,
 # the keep-content path (directory/volumes preserved), compose_cleanup_app_overrides,
-# and the label-fallback teardown (stack directory already gone before
-# cleanup runs). Same Docker-in-Docker setup as the other compose scenarios.
+# the label-fallback teardown (stack directory already gone before
+# cleanup runs), and cleanup_stale_volumes.yaml pruning a labelled volume
+# an active app's registry entry no longer declares. Same Docker-in-Docker
+# setup as the other compose scenarios.
 driver:
   name: docker
 platforms:

@@ -15,7 +15,7 @@
 # .volumes, so callers must run preinit.yaml first), compose_volume_item
 # (one entry from compose_app_item.volumes), compose_reset_volume_confirm.
 
-- name: "Require explicit confirmation ({{ compose_app_item.name }}/{{ compose_volume_item.name }})"
+- name: "Require explicit confirmation ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"
   ansible.builtin.assert:
     that: compose_reset_volume_confirm | default(false) | bool
     fail_msg: >-
@@ -32,12 +32,12 @@
 # (state: absent above, not stopped) releases that reference. compose's
 # external: true on every volume (see docs/volumes.md) means this
 # teardown never touches the volume itself, regardless.
-- name: "Delete the volume ({{ compose_app_item.name }}_{{ compose_volume_item.name }})"
+- name: "Delete the volume ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
   community.docker.docker_volume:
     name: "{{ compose_app_item.name }}_{{ compose_volume_item.name }}"
     state: absent
 
-- name: "Recreate the volume empty ({{ compose_app_item.name }}_{{ compose_volume_item.name }})"
+- name: "Recreate the volume empty ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
   ansible.builtin.include_tasks: ensure_volume.yaml
 
 # ensure_volume.yaml's legacy-migration check above is a no-op here: the
@@ -45,12 +45,12 @@
 # ".migrated" on its first-ever deploy, so there's nothing left to
 # re-copy in - the volume comes back genuinely empty.
 
-- name: "Check whether this volume has Ansible-seeded content ({{ compose_app_item.name }}/{{ compose_volume_item.name }})"
+- name: "Check whether this volume has Ansible-seeded content ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"
   ansible.builtin.stat:
     path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ compose_volume_item.name }}"
   register: compose_reset_volume_staging
 
-- name: "Restore Ansible-managed content ({{ compose_app_item.name }}/{{ compose_volume_item.name }})"
+- name: "Restore Ansible-managed content ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"
   ansible.builtin.include_tasks: seed_volume.yaml
   when: compose_reset_volume_staging.stat.exists
 

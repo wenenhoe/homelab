@@ -1,0 +1,58 @@
+---
+# Prune volumes labelled for an app that's still deployed
+# (compose_stale_volume_app, a resolved compose_apps entry — needs
+# .volumes, so callers must run preinit.yaml first), where the volume no
+# longer appears in that app's current .volumes list. Companion to
+# cleanup.yaml above: that handles apps removed entirely; this handles an
+# app that's still active but had a volume entry removed from it.
+
+- name: "Find volumes labelled for this app ({{ compose_stale_volume_app.name }})"
+  community.docker.docker_host_info:
+    volumes: true
+    volumes_filters:
+      label: "homelab.app={{ compose_stale_volume_app.name }}"
+  register: compose_stale_volume_found
+
+- name: "Work out which volumes are stale ({{ compose_stale_volume_app.name }})"
+  ansible.builtin.set_fact:
+    compose_stale_volume_orphaned: >-
+      {{
+        (compose_stale_volume_found.volumes | default([]) | map(attribute='Name') | list)
+        | difference(
+            compose_stale_volume_app.volumes | default([])
+            | map(attribute='name')
+            | map('regex_replace', '^', compose_stale_volume_app.name ~ '_')
+            | list
+          )
+      }}
+
+- name: "Report - no stale volumes ({{ compose_stale_volume_app.name }})"
+  ansible.builtin.debug:
+    msg: "No stale volumes for '{{ compose_stale_volume_app.name }}'."
+  when: compose_stale_volume_orphaned | length == 0
+
+- name: "DRY RUN - report stale volume decision ({{ compose_stale_volume_app.name }})"
+  ansible.builtin.debug:
+    msg: >-
+      Would {{ compose_cleanup_stale_volume_remove | ternary('DELETE', 'KEEP') }}
+      stale volumes for '{{ compose_stale_volume_app.name }}': {{ compose_stale_volume_orphaned }}
+  when:
+    - compose_stale_volume_orphaned | length > 0
+    - (compose_cleanup_dry_run | bool)
+
+- name: "Remove stale volumes ({{ compose_stale_volume_app.name }})"
+  community.docker.docker_volume:
+    name: "{{ item }}"
+    state: absent
+  loop: "{{ compose_stale_volume_orphaned }}"
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - (compose_cleanup_stale_volume_remove | bool)
+
+- name: "Stale volumes preserved ({{ compose_stale_volume_app.name }})"
+  ansible.builtin.debug:
+    msg: "Stale volumes for '{{ compose_stale_volume_app.name }}' preserved: {{ compose_stale_volume_orphaned }}"
+  when:
+    - not (compose_cleanup_dry_run | bool)
+    - not (compose_cleanup_stale_volume_remove | bool)
+    - compose_stale_volume_orphaned | length > 0

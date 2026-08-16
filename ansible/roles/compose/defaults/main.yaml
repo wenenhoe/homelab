@@ -19,3 +19,10 @@
 compose_cleanup_remove_content: false
 compose_cleanup_app_overrides: {}
 compose_cleanup_dry_run: false
+
+# Same keep-by-default posture, for volumes a still-deployed app's
+# registry entry no longer declares (e.g. a volume renamed/removed from
+# app_registry, but the app itself wasn't). No per-app override list yet —
+# add one the same way as compose_cleanup_app_overrides if a real app
+# needs it.
+compose_cleanup_stale_volume_remove: false

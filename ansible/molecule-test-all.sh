@@ -64,6 +64,15 @@ if [ -n "$scenario" ]; then
     molecule_args=(test -s "$scenario")
 fi
 
+# Molecule auto-discovers .config/molecule/config.yml (sets
+# ANSIBLE_ROLES_PATH, without which molecule_helpers isn't found) by
+# walking up from cwd for a directory literally named .git/.hg/.svn. A
+# git-worktree checkout's top-level .git is a file, not a directory, so
+# that walk finds nothing there. --base-config sidesteps it entirely;
+# git rev-parse resolves correctly for both plain clones and worktrees.
+molecule_base_config="$(git rev-parse --show-toplevel)/.config/molecule/config.yml"
+molecule_args=(--base-config "$molecule_base_config" "${molecule_args[@]}")
+
 failed=()
 for role in "${roles[@]}"; do
     echo

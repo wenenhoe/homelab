@@ -1,0 +1,87 @@
+---
+# Ad hoc, generic file removal from inside a named volume — e.g.
+# resetting a stuck SQLite db without wiping the volume's other content.
+# Deliberately separate from cleanup.yaml: that playbook acts on state it
+# discovers itself (orphaned stacks, stale volumes) and is safe-by-default;
+# this acts on an operator-specified path with no discovery step, so it
+# needs its own explicit confirmation gate instead.
+#
+# Targets ONE host — pass --limit explicitly. A volume name referenced by
+# docker_container that doesn't already exist gets silently auto-created
+# rather than erroring, so this playbook checks existence itself first and
+# fails rather than relying on that to fail loudly. See docs/volume-maintenance.md.
+#
+# Required -e vars:
+#   volume_rm_app     — app name (matches its compose_deploy_dir subdir
+#                       and its volume name prefix, per ensure_volume.yaml)
+#   volume_rm_volume  — volume's short name, e.g. "data"
+#   volume_rm_paths   — list of paths, relative to the volume root, to
+#                       remove (e.g. a SQLite reset needs the db file AND
+#                       its -wal/-shm sidecars listed explicitly — see
+#                       docs/volume-maintenance.md)
+#   volume_rm_confirm — must be explicitly `true`; no default
+#
+# Optional -e vars:
+#   volume_rm_stop_app — stop/restart the app's whole compose stack around
+#                        the removal (default true)
+#
+# Usage:
+#   ansible-playbook volume-file-rm.yaml --limit services,localhost \
+#     -e volume_rm_app=myapp -e volume_rm_volume=data \
+#     -e '{"volume_rm_paths": ["app.db", "app.db-wal", "app.db-shm"]}' \
+#     -e volume_rm_confirm=true
+#
+#   Add --check first to preview — both docker_compose_v2 and
+#   docker_container fully support check mode, so nothing is actually
+#   stopped/removed until you drop --check.
+
+- name: Play 0 - Secrets
+  ansible.builtin.import_playbook: bootstrap-secrets.yaml
+
+- name: Remove specific file(s) from inside a named volume
+  hosts: app_hosts
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Require explicit confirmation
+      ansible.builtin.assert:
+        that: volume_rm_confirm | default(false) | bool
+        fail_msg: >-
+          Refusing to run without -e volume_rm_confirm=true — this
+          irreversibly deletes files from inside a volume.
+
+    - name: Set full volume name
+      ansible.builtin.set_fact:
+        volume_rm_full_name: "{{ volume_rm_app }}_{{ volume_rm_volume }}"
+
+    - name: Confirm the volume already exists (refuse to auto-create it)
+      community.docker.docker_volume_info:
+        name: "{{ volume_rm_full_name }}"
+      register: volume_rm_info
+      failed_when: not volume_rm_info.exists
+
+    - name: Stop the app's stack before touching its volume
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_deploy_dir }}/{{ volume_rm_app }}"
+        state: stopped
+      when: volume_rm_stop_app | default(true) | bool
+
+    - name: "Remove file(s) from the volume ({{ volume_rm_full_name }})"
+      community.docker.docker_container:
+        name: "{{ volume_rm_app }}-{{ volume_rm_volume }}-filerm"
+        image: alpine:latest
+        command:
+          - sh
+          - -c
+          - "rm -fv {{ volume_rm_paths | map('regex_replace', '^', '/vol/') | map('quote') | join(' ') }}"
+        volumes:
+          - "{{ volume_rm_full_name }}:/vol"
+        detach: false
+        cleanup: true
+        state: started
+
+    - name: Restart the app's stack
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_deploy_dir }}/{{ volume_rm_app }}"
+        state: present
+      when: volume_rm_stop_app | default(true) | bool

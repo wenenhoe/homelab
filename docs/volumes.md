@@ -137,4 +137,4 @@ experimental stack using plain `./data:/data` bind mounts and
 
 ## Cleanup
 
-See [`cleanup.md`](cleanup.md) for how orphaned apps' volumes get discovered (by the `homelab.app` label, since the registry entry is gone by the time an app is orphaned) and removed under the same keep/delete policy as their stack directory.
+See [`cleanup.md`](cleanup.md) for how orphaned apps' volumes — and stale volumes on apps that are still deployed — get discovered (by the `homelab.app` label) and removed. For deleting a single file inside a volume that's staying in place, see [`volume-maintenance.md`](volume-maintenance.md) instead.

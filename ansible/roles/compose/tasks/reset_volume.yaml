@@ -1,0 +1,60 @@
+---
+# Wipe one volume entirely and recreate it empty, then restore only
+# whatever Ansible seeds into it (configs/scripts whose dest matches this
+# volume — see docs/volumes.md) via a straight re-run of ensure_volume.yaml
+# + seed_volume.yaml. Anything the app itself wrote at runtime (a
+# database, a cache) is NOT restored — that's the point. Companion to
+# volume-file-rm.yaml's single-file removal: this is the "reset
+# everything except what Ansible manages" version, for when the file(s)
+# to remove aren't known/named individually.
+#
+# Tears the app's container down (not just stops it) before touching the
+# volume - see the note above the docker_volume task below for why.
+#
+# Expects: compose_app_item (resolved compose_apps entry — needs
+# .volumes, so callers must run preinit.yaml first), compose_volume_item
+# (one entry from compose_app_item.volumes), compose_reset_volume_confirm.
+
+- name: "Require explicit confirmation ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"
+  ansible.builtin.assert:
+    that: compose_reset_volume_confirm | default(false) | bool
+    fail_msg: >-
+      Refusing to run without compose_reset_volume_confirm=true — this
+      irreversibly deletes any non-Ansible-managed content in this volume.
+
+- name: "Tear down app before resetting its volume ({{ compose_app_item.name }})"
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
+    state: absent
+
+# docker_volume below fails with "volume is in use" if any container -
+# running OR stopped - still references it; only removing the container
+# (state: absent above, not stopped) releases that reference. compose's
+# external: true on every volume (see docs/volumes.md) means this
+# teardown never touches the volume itself, regardless.
+- name: "Delete the volume ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
+  community.docker.docker_volume:
+    name: "{{ compose_app_item.name }}_{{ compose_volume_item.name }}"
+    state: absent
+
+- name: "Recreate the volume empty ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
+  ansible.builtin.include_tasks: ensure_volume.yaml
+
+# ensure_volume.yaml's legacy-migration check above is a no-op here: the
+# legacy path (if this app ever had one) was already renamed to
+# ".migrated" on its first-ever deploy, so there's nothing left to
+# re-copy in - the volume comes back genuinely empty.
+
+- name: "Check whether this volume has Ansible-seeded content ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"
+  ansible.builtin.stat:
+    path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ compose_volume_item.name }}"
+  register: compose_reset_volume_staging
+
+- name: "Restore Ansible-managed content ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"
+  ansible.builtin.include_tasks: seed_volume.yaml
+  when: compose_reset_volume_staging.stat.exists
+
+- name: "Recreate app ({{ compose_app_item.name }})"
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
+    state: present

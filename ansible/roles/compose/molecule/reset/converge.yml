@@ -1,0 +1,59 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    app_registry:
+      reset_app_a:
+        volumes:
+          - name: data
+        configs:
+          - src: seeded.txt.j2
+            dest: data/seeded.txt
+      reset_app_b:
+        volumes:
+          - name: cache
+    compose_apps:
+      - name: reset_app_a
+      - name: reset_app_b
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Initialise and deploy each resolved test app
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: main.yaml
+      loop: "{{ compose_apps }}"
+      loop_control:
+        loop_var: compose_app_item
+        label: "{{ compose_app_item.name }}"
+
+    # Simulates each app having written its own runtime state into its
+    # volume, alongside whatever Ansible seeded — content
+    # ensure_volume.yaml/seed_volume.yaml never touch, and which
+    # reset_volume.yaml is expected to discard. changed_when: false since
+    # this is fixture setup, not a state we want the idempotence check
+    # (a second converge run) to react to.
+    - name: Write simulated runtime state into reset_app_a's volume
+      ansible.builtin.command: >-
+        docker run --rm -v reset_app_a_data:/vol alpine:3.20
+        sh -c "echo runtime-state-a > /vol/runtime.db"  # noqa: command-instead-of-module
+      changed_when: false
+
+    - name: Write simulated runtime state into reset_app_b's volume
+      ansible.builtin.command: >-
+        docker run --rm -v reset_app_b_cache:/vol alpine:3.20
+        sh -c "echo runtime-state-b > /vol/runtime.db"  # noqa: command-instead-of-module
+      changed_when: false

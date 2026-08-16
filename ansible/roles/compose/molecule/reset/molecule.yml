@@ -1,14 +1,15 @@
 ---
-# Covers what the volumes scenario doesn't: cleanup.yaml's dry-run mode,
-# the keep-content path (directory/volumes preserved), compose_cleanup_app_overrides,
-# the label-fallback teardown (stack directory already gone before
-# cleanup runs), and cleanup_stale_volumes.yaml pruning a labelled volume
-# an active app's registry entry no longer declares. Same Docker-in-Docker
-# setup as the other compose scenarios.
+# Covers reset_volume.yaml (and the volume-reset.yaml playbook logic it
+# backs): wiping a volume that mixes seeded config with app-written
+# runtime state must restore the config and discard the runtime state;
+# wiping a pure-runtime volume with no seeded content must come back
+# genuinely empty; and running without explicit confirmation must refuse
+# and leave everything untouched. Same Docker-in-Docker setup as the
+# other compose scenarios.
 driver:
   name: docker
 platforms:
-  - name: compose-cleanup-instance
+  - name: compose-reset-instance
     image: geerlingguy/docker-ubuntu2604-ansible:latest
     privileged: true
     cgroupns_mode: host

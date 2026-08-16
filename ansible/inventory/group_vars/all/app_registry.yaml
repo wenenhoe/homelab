@@ -218,6 +218,7 @@ app_registry:
       - name: extras
     scripts:
       - run_upgrade.sh
+      - run_restore.sh
     configs:
       - src: env.j2
         dest: .env

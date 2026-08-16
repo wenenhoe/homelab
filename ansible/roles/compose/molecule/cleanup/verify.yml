@@ -191,3 +191,18 @@
         name: cleanup_app_a_data
       register: compose_app_a_data_untouched
       failed_when: not compose_app_a_data_untouched.exists
+
+    - name: "Stale volumes: re-run with nothing left to prune must report none found"
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: cleanup_stale_volumes.yaml
+      vars:
+        compose_stale_volume_app: { name: cleanup_app_a, volumes: [{ name: data }] }
+        compose_cleanup_stale_volume_remove: true
+        compose_cleanup_dry_run: false
+
+    - name: Confirm the declared 'data' volume still exists after the no-op re-run
+      community.docker.docker_volume_info:
+        name: cleanup_app_a_data
+      register: compose_app_a_data_after_noop
+      failed_when: not compose_app_a_data_after_noop.exists

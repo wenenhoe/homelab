@@ -6,9 +6,11 @@ services:
     volumes:
       - data:/data
       - backups:/backups:ro
+    environment:
+      UID: "1000"
+      GID: "1000"
     entrypoint: restore-tar-backup
     restart: no
-    user: "1000"
 volumes:
   data:
     external: true

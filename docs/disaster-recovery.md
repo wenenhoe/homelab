@@ -161,8 +161,15 @@ For `lldap` (multiple volumes in one archive):
 
 For `minecraft`, restoring `minecraft_backups` only gets you the on-host
 `mc-backup` tar window — unpacking the newest tar into `minecraft_data`
-needs `itzg/mc-backup`'s `restore-tar-backup` entrypoint as a second step
-(`docker/minecraft/compose.restore.yaml`).
+needs `itzg/mc-backup`'s `restore-tar-backup` entrypoint as a second
+step, deliberately kept out of Ansible:
+`docker/minecraft/scripts/run_restore.sh` (deployed alongside the app,
+see `app_registry.yaml`), runs directly on the `play` host. For the
+common case — undoing today's session from last night's on-host
+snapshot — that script alone is the whole restore, no offsite archive
+or the `restore` role involved at all. Run it after this playbook only
+when `minecraft_backups` itself needed reconstituting first (host disk
+loss). See the script's own header for both usages.
 
 ## Out of scope for stage 1
 

@@ -1,0 +1,64 @@
+---
+# Ad hoc playbook for reset_volume.yaml — wipes one named volume entirely
+# and recreates it, restoring only Ansible-seeded content (rendered
+# configs/scripts), not app-written runtime state. See
+# docs/volume-maintenance.md for when to use this vs. volume-file-rm.yaml.
+#
+# Targets ONE host — pass --limit explicitly.
+#
+# Required -e vars:
+#   volume_reset_app     — app name, exactly as in compose_apps
+#   volume_reset_volume  — volume's short name, e.g. "data"
+#   volume_reset_confirm — must be explicitly `true`; no default
+#
+# Usage:
+#   ansible-playbook volume-reset.yaml --limit services,localhost \
+#     -e volume_reset_app=myapp -e volume_reset_volume=data \
+#     -e volume_reset_confirm=true
+#
+#   Add --check first to preview.
+
+- name: Play 0 - Secrets
+  ansible.builtin.import_playbook: bootstrap-secrets.yaml
+
+- name: Reset one volume to Ansible-managed-only content
+  hosts: app_hosts
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: preinit.yaml
+
+    - name: "Find the target app ({{ volume_reset_app }})"
+      ansible.builtin.set_fact:
+        volume_reset_app_item: "{{ compose_apps | selectattr('name', 'equalto', volume_reset_app) | first | default(none) }}"
+
+    - name: Refuse to proceed if the app isn't declared on this host
+      ansible.builtin.assert:
+        that: volume_reset_app_item is not none
+        fail_msg: "'{{ volume_reset_app }}' is not in this host's compose_apps."
+
+    - name: "Find the target volume ({{ volume_reset_volume }})"
+      ansible.builtin.set_fact:
+        volume_reset_volume_item: >-
+          {{
+            volume_reset_app_item.volumes | default([])
+            | selectattr('name', 'equalto', volume_reset_volume)
+            | first | default(none)
+          }}
+
+    - name: Refuse to proceed if the volume isn't declared for this app
+      ansible.builtin.assert:
+        that: volume_reset_volume_item is not none
+        fail_msg: "'{{ volume_reset_app }}' has no volume named '{{ volume_reset_volume }}'."
+
+    - name: Reset the volume
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: reset_volume.yaml
+      vars:
+        compose_app_item: "{{ volume_reset_app_item }}"
+        compose_volume_item: "{{ volume_reset_volume_item }}"
+        compose_reset_volume_confirm: "{{ volume_reset_confirm | default(false) }}"

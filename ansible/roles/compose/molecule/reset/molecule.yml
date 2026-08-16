@@ -1,0 +1,41 @@
+---
+# Covers reset_volume.yaml (and the volume-reset.yaml playbook logic it
+# backs): wiping a volume that mixes seeded config with app-written
+# runtime state must restore the config and discard the runtime state;
+# wiping a pure-runtime volume with no seeded content must come back
+# genuinely empty; and running without explicit confirmation must refuse
+# and leave everything untouched. Same Docker-in-Docker setup as the
+# other compose scenarios.
+driver:
+  name: docker
+platforms:
+  - name: compose-reset-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - destroy

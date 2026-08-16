@@ -1,0 +1,117 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    # --- Sanity: both volumes carry the fixture content before any reset ---
+    - name: Confirm reset_app_a's volume has both seeded config and runtime state
+      ansible.builtin.command: >-
+        docker run --rm -v reset_app_a_data:/vol alpine:3.20
+        sh -c "cat /vol/seeded.txt && cat /vol/runtime.db"  # noqa: command-instead-of-module
+      register: compose_reset_a_before
+      changed_when: false
+      failed_when: >-
+        ('seeded-hello-from-reset_app_a' not in compose_reset_a_before.stdout)
+        or ('runtime-state-a' not in compose_reset_a_before.stdout)
+
+    - name: Confirm reset_app_b's volume has runtime state (no seeded content declared)
+      ansible.builtin.command: >-
+        docker run --rm -v reset_app_b_cache:/vol alpine:3.20
+        sh -c "cat /vol/runtime.db"  # noqa: command-instead-of-module
+      register: compose_reset_b_before
+      changed_when: false
+      failed_when: "'runtime-state-b' not in compose_reset_b_before.stdout"
+
+    # --- Confirmation gate: refusing without confirm=true must change nothing ---
+    - name: "Attempt reset without confirmation (must be refused)"
+      block:
+        - name: Include reset_volume.yaml without confirmation
+          ansible.builtin.include_role:
+            name: compose
+            tasks_from: reset_volume.yaml
+          vars:
+            compose_app_item: { name: reset_app_a, volumes: [{ name: data }] }
+            compose_volume_item: { name: data }
+            compose_reset_volume_confirm: false
+
+        - name: Fail the scenario - the refusal above should have stopped this from being reached
+          ansible.builtin.fail:
+            msg: reset_volume.yaml did not refuse an unconfirmed run
+      rescue:
+        - name: Confirmed - the unconfirmed attempt was refused as expected
+          ansible.builtin.debug:
+            msg: reset_volume.yaml correctly refused to run without confirmation
+
+    - name: Confirm the container was never stopped by the refused attempt
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=reset_app_a"
+      register: compose_reset_a_still_running
+      failed_when: compose_reset_a_still_running.containers | length == 0
+
+    - name: Confirm the volume's content is untouched by the refused attempt
+      ansible.builtin.command: >-
+        docker run --rm -v reset_app_a_data:/vol alpine:3.20
+        sh -c "cat /vol/seeded.txt && cat /vol/runtime.db"  # noqa: command-instead-of-module
+      register: compose_reset_a_untouched
+      changed_when: false
+      failed_when: >-
+        ('seeded-hello-from-reset_app_a' not in compose_reset_a_untouched.stdout)
+        or ('runtime-state-a' not in compose_reset_a_untouched.stdout)
+
+    # --- reset_app_a: seeded config must survive, runtime state must not --
+    - name: "Reset reset_app_a's volume (confirmed)"
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: reset_volume.yaml
+      vars:
+        compose_app_item: { name: reset_app_a, volumes: [{ name: data }] }
+        compose_volume_item: { name: data }
+        compose_reset_volume_confirm: true
+
+    - name: Confirm the container was restarted after the reset
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=reset_app_a"
+      register: compose_reset_a_running_after
+      failed_when: compose_reset_a_running_after.containers | length == 0
+
+    - name: Confirm the seeded config was restored but runtime state was not
+      ansible.builtin.command: >-
+        docker run --rm -v reset_app_a_data:/vol alpine:3.20
+        sh -c "test -f /vol/runtime.db && echo RUNTIME_SURVIVED || cat /vol/seeded.txt"  # noqa: command-instead-of-module
+      register: compose_reset_a_after
+      changed_when: false
+      failed_when: >-
+        ('RUNTIME_SURVIVED' in compose_reset_a_after.stdout)
+        or ('seeded-hello-from-reset_app_a' not in compose_reset_a_after.stdout)
+
+    # --- reset_app_b: no seeded content declared, volume ends up empty ----
+    - name: "Reset reset_app_b's volume (confirmed, no seeded content)"
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: reset_volume.yaml
+      vars:
+        compose_app_item: { name: reset_app_b, volumes: [{ name: cache }] }
+        compose_volume_item: { name: cache }
+        compose_reset_volume_confirm: true
+
+    - name: Confirm reset_app_b's container was restarted after the reset
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=reset_app_b"
+      register: compose_reset_b_running_after
+      failed_when: compose_reset_b_running_after.containers | length == 0
+
+    - name: Confirm reset_app_b's volume came back genuinely empty
+      ansible.builtin.command: >-
+        docker run --rm -v reset_app_b_cache:/vol alpine:3.20
+        sh -c "ls -A /vol"  # noqa: command-instead-of-module
+      register: compose_reset_b_after
+      changed_when: false
+      failed_when: compose_reset_b_after.stdout | trim | length > 0

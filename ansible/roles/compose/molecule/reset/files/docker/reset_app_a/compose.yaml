@@ -1,0 +1,10 @@
+name: reset_app_a
+services:
+  reset_app_a:
+    image: alpine:3.20
+    volumes:
+      - reset_app_a_data:/data
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  reset_app_a_data:
+    external: true

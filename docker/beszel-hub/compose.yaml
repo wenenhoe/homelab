@@ -18,7 +18,9 @@ services:
       retries: 3
       start_period: 10s
     labels:
-      - docker-volume-backup.stop-during-backup=true
+      # Value must match this app's name in app_registry.yaml exactly —
+      # ansible/roles/backup_agent keys each app's stop label on it.
+      - docker-volume-backup.stop-during-backup=beszel-hub
     expose:
       - '8090'
 networks:

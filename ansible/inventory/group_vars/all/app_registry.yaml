@@ -230,6 +230,9 @@ app_registry:
       # Never `data` (risks a mid-write world file) or bluemap_*/extras
       # (regenerable render cache / Ansible-managed — see docs/volumes.md).
       volumes: [backups]
+      # Overrides cloud_backup_default_targets — see that var's comment
+      # in group_vars/all/main.yaml for why minecraft gets its own provider.
+      cloud_targets: [seaweedfs, oci]
     caddy:
       default:
         upstream: "bluemap:8100"

@@ -14,7 +14,10 @@ services:
       - frontend
     restart: always
     labels:
-      - docker-volume-backup.stop-during-backup=true
+      # Value must match this app's name in app_registry.yaml exactly —
+      # ansible/roles/backup_agent keys each app's stop label on it. Both
+      # kms-app and kms-gui carry it since backup stops the whole app.
+      - docker-volume-backup.stop-during-backup=kms
     user: 1000:1000
   kms-gui:
     image: ghcr.io/11notes/kms-gui:1.0.3
@@ -32,7 +35,7 @@ services:
       - caddy-proxy
     restart: always
     labels:
-      - docker-volume-backup.stop-during-backup=true
+      - docker-volume-backup.stop-during-backup=kms
     user: 1000:1000
     expose:
       - '3000'

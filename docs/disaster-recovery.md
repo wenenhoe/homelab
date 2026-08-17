@@ -1,10 +1,12 @@
-# Disaster Recovery — Stage 1: Off-host Backups
+# Disaster Recovery — Off-host and Cloud Backups
 
-Stage 1 of a staged DR plan: a separate VM (`storage`, `192.168.20.6`) runs
+A separate VM (`storage`, `192.168.20.6`) runs
 [SeaweedFS](https://github.com/seaweedfs/seaweedfs) as a self-hosted
 S3-compatible target. One [`offen/docker-volume-backup`](https://github.com/offen/docker-volume-backup)
 agent per host (`backup_agent` role) pushes GPG-encrypted archives of
-selected named volumes to it nightly. No off-site/cloud copy yet (stage 2).
+selected named volumes to SeaweedFS and, per-app, to one or more of
+Cloudflare R2 / Backblaze B2 / OCI Object Storage — see "What's backed
+up" below.
 
 S3 credential generation/rotation is covered in [`secrets.md`](secrets.md),
 not here.
@@ -13,18 +15,27 @@ not here.
 
 - Volumes to back up are declared per-app via a `backup:` key on the app's
   `app_registry` entry — the agent has no per-app logic beyond that.
-- `docker-volume-backup` does full tar-and-upload per run, no delta sync, so
-  apps are grouped by matching retention/schedule, not by convenience.
-- Each host runs **at most two** `backup_agent` instances, split by
-  `backup.stop_during_backup`:
-  - **stop-during-backup group** — shares one `docker-socket-proxy`
-    (`CONTAINERS=1 POST=1 INFO=1`), one archive, one schedule. Containers are
-    stopped/restarted together for one consistent snapshot.
-  - **no-stop group** — backed up live, no proxy needed.
-- `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the only
-  templated compose file in this repo) since mounted volumes vary per host.
-- Conflicting `retention_days`/`cron` within a group is a hard failure, not
-  a silent pick — see `ansible/roles/backup_agent/tasks/main.yaml`.
+- One `docker-volume-backup` container per host runs one schedule per
+  (app, cloud target) pair — e.g. an app backed up to both SeaweedFS and
+  R2 gets two independent schedules, each producing its own archive with
+  its own retention/cron. `docker-volume-backup` does full tar-and-upload
+  per run, no delta sync — a schedule's cost scales with that one app's
+  volume size, not with anything else sharing the container.
+- Apps that need to be stopped for a consistent snapshot set
+  `docker-volume-backup.stop-during-backup=<app-name>` on their own
+  compose service (their own name, not a shared `true`) and
+  `backup.stop_during_backup: true` in `app_registry.yaml`. Each of that
+  app's schedules then sets `BACKUP_STOP_DURING_BACKUP_LABEL=<app-name>`
+  to match. That match is scoped per schedule file, not once for the
+  whole container: a schedule backing up app A never touches app B's
+  uptime, even though every app's schedules share one container.
+  `docker-socket-proxy` (`CONTAINERS=1 POST=1 INFO=1`) is only added to
+  the compose file at all if at least one app on the host needs stopping.
+- `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the
+  only templated compose file in this repo) since mounted volumes vary
+  per host.
+- No retention/cron conflict validation is needed — every schedule is
+  independent, so there's nothing to conflict.
 
 ## Storage host
 
@@ -79,34 +90,78 @@ with a redundant copy — losing it makes every backup unrecoverable.
 
 ## What's backed up
 
-| Host | Group | Apps → volumes | Retention |
-| :--- | :--- | :--- | :--- |
-| `services` | stop-during-backup | `kms` → `data` | 7 days |
-| `services` | no-stop | `wastebin` → `data` | 7 days |
-| `security` | stop-during-backup | `beszel-hub` → `data`, `tinyauth` → `data` | 7 days |
-| `security` | no-stop | `lldap` → `data`, `certs`, `creds`, `letsencrypt_conf`, `letsencrypt_lib` | 7 days |
-| `play` | no-stop | `minecraft` → `backups` only | 7 days |
+| Host | App → volumes | Stopped during backup | Cloud targets | Retention |
+| :--- | :--- | :--- | :--- | :--- |
+| `services` | `kms` → `data` | yes (`kms`) | SeaweedFS, R2, B2 | 7 days |
+| `services` | `wastebin` → `data` | no | SeaweedFS, R2, B2 | 7 days |
+| `security` | `beszel-hub` → `data` | yes (`beszel-hub`) | SeaweedFS, R2, B2 | 7 days |
+| `security` | `tinyauth` → `data` | yes (`tinyauth`) | SeaweedFS, R2, B2 | 7 days |
+| `security` | `lldap` → `data`, `certs` | no | SeaweedFS, R2, B2 | 7 days |
+| `play` | `minecraft` → `backups` only | no | SeaweedFS, OCI | 7 days |
 
-Apps without a `backup:` key in `app_registry.yaml` are out of scope for
-stage 1.
+Apps without a `backup:` key in `app_registry.yaml` are out of scope.
 
-**Known limitations (single operator, trusted LAN):**
+`lldap` is deliberately never stopped — it's the auth backend, and every
+other app behind Caddy/tinyauth loses login for the stop window, a
+bigger blast radius than the SQLite-consistency risk it'd guard against.
+`minecraft`'s `backups` volume is already RCON-quiesced by `itzg/mc-backup`
+before this ever reads it (`docker/minecraft/compose.yaml`), so stopping
+`mc` here would add downtime with no consistency benefit. If a restore
+ever turns up a corrupt SQLite/LDAP file for `wastebin`/`lldap`, add
+`stop_during_backup: true` and the matching compose label (see
+Architecture above) rather than assuming it's needed by default.
 
-- `docker-socket-proxy`'s grant has no per-container ACL — it can
-  start/stop any container on that host, not just its group.
-- Grouping couples downtime: apps sharing an archive are stopped for the
-  full run, not just their own volume's slice.
+**Cloud target selection:** every app's `cloud_targets` defaults to
+`cloud_backup_default_targets` (`group_vars/all/main.yaml`) — currently
+`[seaweedfs, r2, b2]`. `minecraft` overrides to `[seaweedfs, oci]`: its
+~1.8GB/night archive at 7-day retention (~13GB) would eat most of a
+single 10GB R2/B2 free tier, so it gets OCI's 20GB allowance to itself
+instead. See `cloud_backup_targets` (same file) for each provider's
+bucket/endpoint.
 
-`lldap` and `wastebin` are backed up live. If a restore ever turns up a
-corrupt SQLite/LDAP file, add `stop_during_backup: true` to that app.
+**Before first use of R2/B2/OCI:**
+
+- Create a `homelab-backups` bucket by hand on each (not Ansible-managed,
+  same as the note in "Bucket creation" above for SeaweedFS being the
+  one exception) — a reasonable first OpenTofu project once that
+  expansion starts.
+- Fill in the six `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries in
+  `secrets_registry.yaml` via `bootstrap_secrets.py` — see
+  [`secrets.md`](secrets.md). Scope each credential to just that bucket.
+- `cloud_backup_targets.b2.endpoint` is a guess
+  (`s3.us-west-004.backblazeb2.com`) — B2 assigns your bucket's actual
+  region at creation. Confirm it in the B2 console (Bucket Details)
+  before deploying, or that schedule fails closed (wrong endpoint →
+  auth/DNS error, not a silent skip).
+- Confirm path-style addressing actually works against each real bucket
+  (`aws s3 ls --endpoint-url ... s3://homelab-backups` or `mc ls`) before
+  trusting the nightly run — `AWS_S3_FORCE_PATH_STYLE=true` is a
+  reasonable default here (all three document support for it) but isn't
+  verified against your specific tenancy/bucket.
+
+**Migration note:** archives now key on the app's own name
+(`AWS_S3_PATH`/`BACKUP_FILENAME`, e.g. `services-kms-r2`), not a shared
+`stop-group`/`no-stop-group` prefix bundling several apps into one
+archive. Existing SeaweedFS objects under the old prefixes are orphaned
+by this — no longer retention-pruned, they just sit there. Harmless;
+delete by hand once the new per-app archives have run successfully a
+few times, if reclaiming the space matters.
+
+**Known limitation (single operator, trusted LAN):** `docker-socket-proxy`'s
+grant has no per-container ACL — it can start/stop any container on
+that host, not just ones with a matching `stop-during-backup` label. The
+label match on the `docker-volume-backup` side is what actually scopes
+each schedule to its own app (see Architecture above); the proxy itself
+is a broader grant than that.
 
 ## S3 endpoint format
 
-`offsite_backup_s3_endpoint` (`group_vars/all/main.yaml`) must be a **bare
-hostname** (`s3.store.{{ lab_domain }}`), not a URL — `docker-volume-backup`
+Every `cloud_backup_targets.*.endpoint` (`group_vars/all/main.yaml`,
+SeaweedFS included) must be a **bare hostname**
+(e.g. `s3.store.{{ lab_domain }}`), not a URL — `docker-volume-backup`
 passes it straight into minio-go's `AWS_ENDPOINT`, which rejects a
-scheme prefix (`Endpoint url cannot have fully qualified paths`). The
-scheme is the separate `offsite_backup_s3_proto` var (default `https`).
+scheme prefix (`Endpoint url cannot have fully qualified paths`). Scheme
+is the separate `.proto` key on each target (default `https`).
 
 ## Restore
 
@@ -133,13 +188,13 @@ Two gates block the destructive steps, each covered by a
 ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
   -i inventory/inventory.yaml --limit services,localhost \
   -e restore_app=kms \
-  -e restore_archive_local_path=/home/you/services-stop-group-2026-07-29T04-00-00.tar.gz \
+  -e restore_archive_local_path=/home/you/services-kms-r2-2026-07-29T04-00-00.tar.gz \
   -e restore_volumes='["kms_data"]'
 ```
 
-A shared archive can hold more than one app's volumes (e.g. `security`'s
-stop-group archive has both `beszel-hub_data` and `tinyauth_data`) —
-`restore_volumes` only needs to list what you're restoring.
+Each archive holds exactly one app (one schedule = one app × one cloud
+target — see Architecture above), so `restore_volumes` only ever needs
+to list that one app's own volumes.
 
 Manual steps before running it (private key never touches a homelab host):
 
@@ -171,8 +226,10 @@ or the `restore` role involved at all. Run it after this playbook only
 when `minecraft_backups` itself needed reconstituting first (host disk
 loss). See the script's own header for both usages.
 
-## Out of scope for stage 1
+## Out of scope
 
-- Off-site/cloud replication of the `storage` host itself.
+- Off-site/cloud replication of the `storage` host's own SeaweedFS data
+  store — R2/B2/OCI hold independent app-level archives, not a mirror of
+  SeaweedFS's bucket.
 - HA for SeaweedFS (single-node by design).
 - Alerting on silent backup-job failures.

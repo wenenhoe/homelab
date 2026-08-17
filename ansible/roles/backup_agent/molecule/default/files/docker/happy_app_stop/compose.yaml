@@ -7,7 +7,9 @@ services:
       - data:/data
     command: [ "sh", "-c", "sleep infinity" ]
     labels:
-      - docker-volume-backup.stop-during-backup=true
+      # Own name, not a shared `true` — see docker/kms/compose.yaml's
+      # equivalent comment in the real repo for why.
+      - docker-volume-backup.stop-during-backup=happy_app_stop
 volumes:
   data:
     external: true

@@ -40,10 +40,8 @@ result, then re-converges to check idempotence — mirroring what
 | `tinyauth` | `default` | Stands up a throwaway lldap target, runs `lldap_bootstrap` against it for real, then deploys the real tinyauth compose app and waits for it to report healthy — only reachable having already bound to LDAP at boot. Molecule-only; not wired into `deploy.yaml`. |
 | `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — the scenario that empirically confirmed the SSL_CERT_FILE/Go-cert-pool mechanism `docs/lldap.md` documents, rather than leaving it as an unverified design note. Asserts on `docker logs`-observed process-start count (`>= 2`), not `RestartCount` — that counter turned out to be reset by the scenario's own restart, confirmed live — and `>= 2`, not tinyauth's own `== 0`, since this scenario's whole point is reproducing the cold-start-then-recover race, not avoiding it. |
 | | `not_running` | No running tinyauth target at all — the guard at the top of the role fails loudly, before anything CA-bundle-related runs. |
-| `backup_agent` | `default` | Apps split into stop/no-stop groups correctly; stopped group's container `StartedAt` changes, no-stop group's doesn't, archive lands in the test bucket. |
-| | `conflict` | Two apps in one group disagreeing on `retention_days`/`cron` fails validation before anything renders or touches a volume. |
-| | `no_stop_group_only` | No-stop group populated, stop group empty. |
-| | `stop_group_only` | Mirror of the above. |
+| `backup_agent` | `default` | One schedule per (app, cloud target), not per app — happy_app_nostop fans out to two targets, producing two independent archives. Per-schedule stop-label isolation confirmed behaviorally: happy_app_stop's `StartedAt` changes when its own schedule's real (test-sped-up) cron fires, happy_app_nostop's never does, even though every schedule shares one container. All expected archives land in the test bucket. |
+| | `no_stop_apps` | No app on the host opts into `stop_during_backup` — confirms `backup-dockerproxy` (and `DOCKER_HOST`) are entirely absent from the rendered compose.yaml, not just unused. |
 | `restore` | `default` | Full restore of a single volume: stop → extract → overwrite → redeploy, with `StartedAt` and content checks. |
 | | `multi_volume` | Multiple volumes restored from one archive at different nesting depths, ignoring a decoy and an unrelated app's directory. |
 | | `validation_failure` | Missing archive path blocks every destructive step (asserted via unchanged `StartedAt`/content, not just task failure). |
@@ -53,8 +51,8 @@ Negative-path scenarios assert on `ansible_failed_task`/`ansible_failed_result`
 (task name + a distinctive substring of the failure message) rather than a
 bare `rescue:` firing — a bare rescue can't tell the expected failure apart
 from an unrelated one (e.g. Docker not ready). See
-`ansible/roles/backup_agent/molecule/conflict/converge.yml` for the pattern
-to copy when adding a new one.
+`ansible/roles/restore/molecule/validation_failure/converge.yml` for the
+pattern to copy when adding a new one.
 
 `restore`'s `default`/`multi_volume` skip the `idempotence` step (a
 restore is meant to re-execute unconditionally, not converge to a no-op).

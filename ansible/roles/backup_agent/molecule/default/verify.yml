@@ -4,11 +4,11 @@
   become: true
   vars:
     compose_deploy_dir: /opt/stacks
-    offsite_backup_s3_bucket: molecule-test-backups
-    seaweedfs_s3_access_key: molecule-test-access-key
-    seaweedfs_s3_secret_key: molecule-test-secret-key
+    molecule_test_bucket: molecule-test-backups
+    seaweedfs_access_key: molecule-test-access-key
+    seaweedfs_secret_key: molecule-test-secret-key
   tasks:
-    # --- Structural checks: the aggregation actually grouped things right ---
+    # --- Structural checks: rendering is correct -----------------------
     - name: Read back the rendered backup-agent compose.yaml
       ansible.builtin.slurp:
         path: "{{ compose_deploy_dir }}/backup-agent/compose.yaml"
@@ -18,38 +18,88 @@
       ansible.builtin.set_fact:
         backup_agent_compose_parsed: "{{ backup_agent_compose_raw.content | b64decode | from_yaml }}"
 
-    - name: Confirm all three services were rendered (proxy + both groups)
+    - name: Confirm the single backup-agent service was rendered, plus the proxy (a stop app is present)
       ansible.builtin.assert:
         that:
+          - "'backup-agent' in backup_agent_compose_parsed.services"
           - "'backup-dockerproxy' in backup_agent_compose_parsed.services"
-          - "'backup-stop-group' in backup_agent_compose_parsed.services"
-          - "'backup-no-stop-group' in backup_agent_compose_parsed.services"
         fail_msg: "Expected services: {{ backup_agent_compose_parsed.services.keys() | list }}"
 
-    - name: Confirm each group mounts the RIGHT app's volume, not the other one's
+    - name: Confirm the one container mounts both backed-up apps' volumes, not happy_app_no_backup's
       ansible.builtin.assert:
         that:
-          - "'happy_app_stop_data:/backup/happy_app_stop_data:ro' in backup_agent_compose_parsed.services['backup-stop-group'].volumes"
-          - "'happy_app_nostop_data:/backup/happy_app_nostop_data:ro' in backup_agent_compose_parsed.services['backup-no-stop-group'].volumes"
-          - "'happy_app_nostop_data:/backup/happy_app_nostop_data:ro' not in backup_agent_compose_parsed.services['backup-stop-group'].volumes"
-          - "'happy_app_stop_data:/backup/happy_app_stop_data:ro' not in backup_agent_compose_parsed.services['backup-no-stop-group'].volumes"
-
-    # happy_app_no_backup declares no `backup:` key at all (mirrors
-    # caddy/beszel-agent/diun on every real host) — confirms the
-    # normalization task's skip branch actually excludes it, not just
-    # that the run didn't error with it present.
-    - name: Confirm happy_app_no_backup is excluded from BOTH groups entirely
-      ansible.builtin.assert:
-        that:
-          - "'happy_app_no_backup_data:/backup/happy_app_no_backup_data:ro' not in backup_agent_compose_parsed.services['backup-stop-group'].volumes"
-          - "'happy_app_no_backup_data:/backup/happy_app_no_backup_data:ro' not in backup_agent_compose_parsed.services['backup-no-stop-group'].volumes"
+          - "'happy_app_stop_data:/backup/happy_app_stop_data:ro' in backup_agent_compose_parsed.services['backup-agent'].volumes"
+          - "'happy_app_nostop_data:/backup/happy_app_nostop_data:ro' in backup_agent_compose_parsed.services['backup-agent'].volumes"
+          - "'happy_app_no_backup_data:/backup/happy_app_no_backup_data:ro' not in backup_agent_compose_parsed.services['backup-agent'].volumes"
         fail_msg: >-
-          happy_app_no_backup_data appeared in a backup-agent group despite
-          declaring no backup: key — the normalization task's `when` guard
-          isn't actually excluding apps without backup.volumes.
+          happy_app_no_backup_data appeared despite declaring no backup: key
+          — the normalization task's `when` guard isn't excluding it.
 
-    # --- All three containers actually came up -------------------------------
-    - name: Confirm the backup-agent containers are running
+    # --- One schedule per (app, cloud target), not per app -------------
+    - name: List the rendered conf.d schedule files
+      ansible.builtin.find:
+        paths: "{{ compose_deploy_dir }}/backup-agent/conf.d"
+      register: backup_agent_conf_d_files
+
+    - name: Confirm exactly the three expected schedules exist — no more, no fewer
+      ansible.builtin.assert:
+        that:
+          - (backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort) ==
+            ['happy_app_nostop-seaweedfs.env', 'happy_app_nostop-seaweedfs2.env', 'happy_app_stop-seaweedfs.env']
+        fail_msg: >-
+          Expected happy_app_stop-seaweedfs.env (its one cloud_targets entry),
+          happy_app_nostop-seaweedfs.env + happy_app_nostop-seaweedfs2.env (its
+          two), and nothing for happy_app_no_backup. Got:
+          {{ backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort }}
+          — if long_gone_app-seaweedfs.env is still present, the
+          stale-file-removal task (converge.yml seeds it before the role's
+          first run to exercise exactly this) isn't actually deleting
+          obsolete schedules anymore.
+
+    - name: Read back happy_app_stop's schedule
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_stop-seaweedfs.env"
+      register: backup_agent_stop_schedule_raw
+
+    - name: Confirm it's scoped to happy_app_stop's own volume and carries its own stop label
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_SOURCES=/backup/happy_app_stop_data' in (backup_agent_stop_schedule_raw.content | b64decode)"
+          - "'BACKUP_STOP_DURING_BACKUP_LABEL=happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
+
+    - name: Read back happy_app_nostop's two schedules
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/{{ item }}"
+      register: backup_agent_nostop_schedules_raw
+      loop:
+        - happy_app_nostop-seaweedfs.env
+        - happy_app_nostop-seaweedfs2.env
+
+    - name: Confirm NEITHER carries any stop label — happy_app_nostop must never be stopped by its own schedules
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (item.content | b64decode)"
+          - "'BACKUP_SOURCES=/backup/happy_app_nostop_data' in (item.content | b64decode)"
+        fail_msg: "{{ item.source }} unexpectedly carries a stop label, or has the wrong BACKUP_SOURCES."
+      loop: "{{ backup_agent_nostop_schedules_raw.results }}"
+      loop_control:
+        label: "{{ item.source }}"
+
+    # --- Shared env carries only what's actually shared -----------------
+    - name: Read back the shared env file
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/.env"
+      register: backup_agent_shared_env_raw
+
+    - name: Confirm it carries DOCKER_HOST (a stop app is present) and nothing schedule-specific
+      ansible.builtin.assert:
+        that:
+          - "'DOCKER_HOST=tcp://backup-agent-dockerproxy:2375' in (backup_agent_shared_env_raw.content | b64decode)"
+          - "'AWS_S3_BUCKET_NAME' not in (backup_agent_shared_env_raw.content | b64decode)"
+          - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_shared_env_raw.content | b64decode)"
+
+    # --- Both containers actually came up --------------------------------
+    - name: Confirm the backup-agent and dockerproxy containers are running
       community.docker.docker_host_info:
         containers: true
         containers_filters:
@@ -57,97 +107,57 @@
       register: backup_agent_containers
       failed_when: backup_agent_containers.containers | length == 0
       loop:
+        - backup-agent
         - backup-agent-dockerproxy
-        - backup-agent-stop-group
-        - backup-agent-no-stop-group
 
-    # --- Env files rendered with the right content per group ----------------
-    - name: Read back the stop-group env file
-      ansible.builtin.slurp:
-        path: "{{ compose_deploy_dir }}/backup-agent/.env.stop-group"
-      register: backup_agent_stop_env_raw
-
-    - name: Read back the no-stop-group env file
-      ansible.builtin.slurp:
-        path: "{{ compose_deploy_dir }}/backup-agent/.env.no-stop-group"
-      register: backup_agent_no_stop_env_raw
-
-    - name: Confirm the stop-group env carries the stop label + docker proxy host
-      ansible.builtin.assert:
-        that:
-          - "'BACKUP_STOP_DURING_BACKUP_LABEL=true' in (backup_agent_stop_env_raw.content | b64decode)"
-          - "'DOCKER_HOST=tcp://backup-agent-dockerproxy:2375' in (backup_agent_stop_env_raw.content | b64decode)"
-
-    - name: Confirm the no-stop-group env carries NEITHER of those
-      ansible.builtin.assert:
-        that:
-          - "'BACKUP_STOP_DURING_BACKUP_LABEL' not in (backup_agent_no_stop_env_raw.content | b64decode)"
-          - "'DOCKER_HOST' not in (backup_agent_no_stop_env_raw.content | b64decode)"
-
-    # --- Behavioral check: does stop-during-backup actually stop/restart? ---
-    # StartedAt changing is direct evidence the container was actually
-    # stopped and restarted, not just that a label exists in a file.
-    - name: Capture happy_app_stop's StartedAt BEFORE triggering a backup
+    # --- Behavioral: per-schedule stop-label isolation --------------------
+    # The load-bearing assumption behind collapsing to one container:
+    # BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule file, not
+    # once for the whole container. Confirmed live by hand before this
+    # test existed (see docs/disaster-recovery.md's Architecture
+    # section) — this codifies that check so it can't silently regress
+    # on an image version bump.
+    - name: Capture happy_app_stop's StartedAt BEFORE any cron-triggered backup
       community.docker.docker_container_info:
         name: happy_app_stop
-      register: backup_agent_happy_app_stop_before
+      register: backup_agent_stop_before
 
-    - name: Capture happy_app_nostop's StartedAt BEFORE triggering a backup
+    - name: Capture happy_app_nostop's StartedAt BEFORE any cron-triggered backup
       community.docker.docker_container_info:
         name: happy_app_nostop
-      register: backup_agent_happy_app_nostop_before
+      register: backup_agent_nostop_before
 
-    - name: Manually trigger the stop-group backup (bypasses waiting for cron)
-      community.docker.docker_container_exec:
-        container: backup-agent-stop-group
-        command: backup
-      register: backup_agent_stop_group_run
-
-    - name: Manually trigger the no-stop-group backup
-      community.docker.docker_container_exec:
-        container: backup-agent-no-stop-group
-        command: backup
-      register: backup_agent_no_stop_group_run
-
-    - name: Confirm both manual backup runs actually succeeded
-      ansible.builtin.assert:
-        that:
-          - backup_agent_stop_group_run.rc == 0
-          - backup_agent_no_stop_group_run.rc == 0
-        fail_msg: >-
-          stop-group rc={{ backup_agent_stop_group_run.rc }}
-          stderr={{ backup_agent_stop_group_run.stderr }}
-          no-stop-group rc={{ backup_agent_no_stop_group_run.rc }}
-          stderr={{ backup_agent_no_stop_group_run.stderr }}
-
-    - name: Capture happy_app_stop's StartedAt AFTER
+    # Real cron (every minute, test-only — see converge.yml), not a
+    # manual trigger: v2's manual-trigger CLI has no way to target one
+    # specific conf.d schedule, confirmed live (`backup --config-file
+    # ...` isn't a real flag), and cron is the actual code path
+    # production runs anyway.
+    - name: Wait for the test cron to stop+restart happy_app_stop (its own schedule firing)
       community.docker.docker_container_info:
         name: happy_app_stop
-      register: backup_agent_happy_app_stop_after
+      register: backup_agent_stop_after
+      until: backup_agent_stop_after.container.State.StartedAt != backup_agent_stop_before.container.State.StartedAt
+      retries: 20
+      delay: 5
 
-    - name: Capture happy_app_nostop's StartedAt AFTER
+    - name: Capture happy_app_nostop's StartedAt again, after happy_app_stop's schedule fired
       community.docker.docker_container_info:
         name: happy_app_nostop
-      register: backup_agent_happy_app_nostop_after
+      register: backup_agent_nostop_after
 
-    - name: Confirm happy_app_stop was actually stopped+restarted (StartedAt changed)
+    - name: Confirm isolation — happy_app_stop restarted, happy_app_nostop was never touched
       ansible.builtin.assert:
         that:
-          - backup_agent_happy_app_stop_before.container.State.StartedAt != backup_agent_happy_app_stop_after.container.State.StartedAt
+          - backup_agent_nostop_after.container.State.StartedAt == backup_agent_nostop_before.container.State.StartedAt
         fail_msg: >-
-          happy_app_stop's StartedAt did not change
-          ({{ backup_agent_happy_app_stop_before.container.State.StartedAt }}) — the
-          stop-during-backup group did not actually stop it.
+          happy_app_nostop's StartedAt changed (before=
+          {{ backup_agent_nostop_before.container.State.StartedAt }}, after=
+          {{ backup_agent_nostop_after.container.State.StartedAt }}) even
+          though only happy_app_stop's own schedule fired — a schedule
+          backing up one app must never stop a container sharing this
+          container that wasn't labeled for that app's own schedule.
 
-    - name: Confirm happy_app_nostop was NEVER touched (StartedAt unchanged)
-      ansible.builtin.assert:
-        that:
-          - backup_agent_happy_app_nostop_before.container.State.StartedAt == backup_agent_happy_app_nostop_after.container.State.StartedAt
-        fail_msg: >-
-          happy_app_nostop's StartedAt changed — the no-stop group should
-          never stop any container.
-
-    # --- The actual point of all this: did the archive really reach S3? ----
+    # --- The actual point of all this: did every archive really reach S3? ---
     - name: Discover the docker network backup_agent's compose stack created
       community.docker.docker_host_info:
         networks: true
@@ -160,37 +170,41 @@
              | selectattr('Name', 'search', 'backup-agent-net')
              | map(attribute='Name') | list | first }}
 
-    - name: List objects uploaded to the test SeaweedFS bucket
+    - name: List objects uploaded to the test SeaweedFS bucket, waiting for all three schedules
       community.docker.docker_container:
         name: backup-agent-s3-listing
         image: amazon/aws-cli:2.15.0
         networks:
           - name: "{{ backup_agent_network_name }}"
         env:
-          AWS_ACCESS_KEY_ID: "{{ seaweedfs_s3_access_key }}"
-          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_s3_secret_key }}"
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_secret_key }}"
           AWS_DEFAULT_REGION: us-east-1
-        command: "--endpoint-url http://seaweedfs-test:8333 s3 ls s3://{{ offsite_backup_s3_bucket }} --recursive"
+        command: "--endpoint-url http://seaweedfs-test:8333 s3 ls s3://{{ molecule_test_bucket }} --recursive"
         detach: false
         cleanup: true
         output_logs: true
       register: backup_agent_s3_listing
       changed_when: false
+      # BACKUP_FILENAME always embeds the target name (see
+      # schedule.env.j2), so <app>-<target>- is a distinct, unambiguous
+      # substring for each of the three schedules — unlike a bare
+      # <app>-nostop- prefix, which would also match its own
+      # -seaweedfs2- sibling.
+      until: >-
+        ('backup-agent-instance-happy_app_stop-seaweedfs-' in backup_agent_s3_listing.container.Output)
+        and ('backup-agent-instance-happy_app_nostop-seaweedfs-' in backup_agent_s3_listing.container.Output)
+        and ('backup-agent-instance-happy_app_nostop-seaweedfs2-' in backup_agent_s3_listing.container.Output)
+      retries: 12
+      delay: 10
 
-    - name: Confirm an object exists for the stop-group's S3 path
+    - name: Confirm all three expected archives reached S3 — one per (app, cloud target)
       ansible.builtin.assert:
         that:
-          - "'backup-agent-instance-stop-group' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_stop-seaweedfs-' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_nostop-seaweedfs-' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_nostop-seaweedfs2-' in backup_agent_s3_listing.container.Output"
         fail_msg: >-
-          No object found under the stop-group's S3 path — the upload
-          didn't reach SeaweedFS. Listing:
-          {{ backup_agent_s3_listing.container.Output }}
-
-    - name: Confirm an object exists for the no-stop-group's S3 path
-      ansible.builtin.assert:
-        that:
-          - "'backup-agent-instance-no-stop-group' in backup_agent_s3_listing.container.Output"
-        fail_msg: >-
-          No object found under the no-stop-group's S3 path — the upload
-          didn't reach SeaweedFS. Listing:
-          {{ backup_agent_s3_listing.container.Output }}
+          Expected archives for happy_app_stop (seaweedfs),
+          happy_app_nostop (seaweedfs), and happy_app_nostop (seaweedfs2).
+          Listing: {{ backup_agent_s3_listing.container.Output }}

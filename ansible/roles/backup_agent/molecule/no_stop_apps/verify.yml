@@ -1,0 +1,65 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    - name: Read back the rendered backup-agent compose.yaml
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/compose.yaml"
+      register: backup_agent_compose_raw
+
+    - name: Parse it
+      ansible.builtin.set_fact:
+        backup_agent_compose_parsed: "{{ backup_agent_compose_raw.content | b64decode | from_yaml }}"
+
+    - name: Confirm ONLY backup-agent was rendered — the proxy is entirely absent, not just unused
+      ansible.builtin.assert:
+        that:
+          - "'backup-agent' in backup_agent_compose_parsed.services"
+          - "'backup-dockerproxy' not in backup_agent_compose_parsed.services"
+        fail_msg: >-
+          Expected only backup-agent. Got:
+          {{ backup_agent_compose_parsed.services.keys() | list }}
+
+    - name: Confirm the shared env has no DOCKER_HOST — nothing here needs the proxy
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/.env"
+      register: backup_agent_env_raw
+
+    - name: Assert on it
+      ansible.builtin.assert:
+        that:
+          - "'DOCKER_HOST' not in (backup_agent_env_raw.content | b64decode)"
+
+    - name: Confirm the one schedule carries no stop label
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_solo_nostop-seaweedfs.env"
+      register: backup_agent_schedule_raw
+
+    - name: Assert on it
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_schedule_raw.content | b64decode)"
+
+    - name: Confirm backup-agent is running and no dockerproxy container exists at all
+      community.docker.docker_host_info:
+        containers: true
+        containers_all: true
+        containers_filters:
+          name: backup-agent
+      register: backup_agent_no_stop_containers
+
+    - name: Extract the set of running/existing backup-agent-related container names
+      ansible.builtin.set_fact:
+        backup_agent_no_stop_names: >-
+          {{ backup_agent_no_stop_containers.containers
+             | map(attribute='Names') | flatten | list }}
+
+    - name: Assert exactly the expected container set
+      ansible.builtin.assert:
+        that:
+          - backup_agent_no_stop_names | select('search', '^/backup-agent$') | list | length == 1
+          - backup_agent_no_stop_names | select('search', 'backup-agent-dockerproxy') | list | length == 0
+        fail_msg: "Expected only /backup-agent, no dockerproxy. Got: {{ backup_agent_no_stop_names }}"

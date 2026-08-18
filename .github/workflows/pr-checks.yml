@@ -205,6 +205,15 @@ jobs:
           printf '%s' 'localhost' > ansible/files/secrets/wetty-ssh-host
           printf '%s' '' > ansible/files/secrets/beszel-hub-key
           printf '%s' '' > ansible/files/secrets/beszel-agent-token
+          printf '%s' 'ci-dummy-r2-access-key' > ansible/files/secrets/cloudflare-r2-access-key
+          printf '%s' 'ci-dummy-r2-secret-key' > ansible/files/secrets/cloudflare-r2-secret-key
+          printf '%s' 'ci-dummy-r2-account-id' > ansible/files/secrets/cloudflare-r2-account-id
+          printf '%s' 'ci-dummy-b2-access-key' > ansible/files/secrets/backblaze-b2-access-key
+          printf '%s' 'ci-dummy-b2-secret-key' > ansible/files/secrets/backblaze-b2-secret-key
+          printf '%s' 'ci-dummy-oci-access-key' > ansible/files/secrets/oci-access-key
+          printf '%s' 'ci-dummy-oci-secret-key' > ansible/files/secrets/oci-secret-key
+          printf '%s' 'ci-dummy-oci-namespace' > ansible/files/secrets/oci-namespace
+          printf '%s' 'ci-dummy-oci-region' > ansible/files/secrets/oci-region
 
       # --tags matches nothing real, so provisioning is filtered out while
       # Gathering Facts and secrets tasks (tags: [always]) still run.

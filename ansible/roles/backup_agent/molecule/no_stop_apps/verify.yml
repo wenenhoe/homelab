@@ -35,7 +35,7 @@
 
     - name: Confirm the one schedule carries no stop label
       ansible.builtin.slurp:
-        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_solo_nostop-seaweedfs.env"
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_solo_nostop.env"
       register: backup_agent_schedule_raw
 
     - name: Assert on it

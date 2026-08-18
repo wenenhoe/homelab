@@ -5,6 +5,13 @@
   vars:
     seaweedfs_admin_access_key: molecule-test-admin-ak
     seaweedfs_admin_secret_key: molecule-test-admin-sk
+    # Also required by the real template (docker/seaweedfs/configs/
+    # s3-identity.json.j2) since patch 02 added the cloud-sync-reader
+    # identity to it — this scenario doesn't exercise that identity's
+    # own behavior (cloud_sync's own molecule scenario does), it just
+    # needs the render to succeed at all.
+    seaweedfs_cloud_sync_reader_access_key: molecule-test-cloud-sync-reader-ak
+    seaweedfs_cloud_sync_reader_secret_key: molecule-test-cloud-sync-reader-sk
     molecule_test_bucket: molecule-test-backups
     offsite_backup_s3_bucket: "{{ molecule_test_bucket }}"
     # alpha/beta, not real host names — this scenario tests the

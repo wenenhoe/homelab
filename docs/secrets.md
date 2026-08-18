@@ -25,6 +25,18 @@ any new secret or config value goes through the registry instead:
    ```yaml
    my_new_thing: "{{ secrets_generated['my-new-thing'] }}"
    ```
+   Unless it's only ever needed on one specific host — no other host's
+   template or role references it — in which case put the var in that
+   host's own `host_vars/<host>.yaml` instead of `main.yaml`. Templates
+   reference it identically either way (`{{ my_new_thing }}`); this is
+   purely about where the value is visible, not how it's used. Check
+   for cross-host references before choosing `host_vars` — e.g.
+   `tinyauth_host` looks single-host at a glance but every host's Caddy
+   config references it for forward-auth, so it stays in `main.yaml`;
+   `step_ca_password` (the server's own bootstrap secret) has no such
+   reference and lives in `host_vars/security.yaml` instead. See
+   `ansible/inventory/host_vars/{storage,security,services}.yaml` for
+   more examples of the split.
 3. Use `{{ my_new_thing }}` in the app's `configs/*.j2` template, with
    `no_log: true` on its `app_registry` entry if it's a real secret (see
    `no_log: true` below).

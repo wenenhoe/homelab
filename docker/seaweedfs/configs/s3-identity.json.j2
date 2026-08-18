@@ -1,20 +1,33 @@
 {
   "identities": [
     {
-      "name": "offsite-backup-agent",
+      "name": "seaweedfs-bucket-admin",
       "credentials": [
         {
-          "accessKey": "{{ seaweedfs_s3_access_key }}",
-          "secretKey": "{{ seaweedfs_s3_secret_key }}"
+          "accessKey": "{{ seaweedfs_admin_access_key }}",
+          "secretKey": "{{ seaweedfs_admin_secret_key }}"
         }
       ],
       "actions": [
-        "Write:{{ offsite_backup_s3_bucket }}",
-        "Read:{{ offsite_backup_s3_bucket }}",
-        "List:{{ offsite_backup_s3_bucket }}",
-        "Tagging:{{ offsite_backup_s3_bucket }}",
         "Admin:{{ offsite_backup_s3_bucket }}"
       ]
-    }
+    }{{ "," if seaweedfs_backup_hosts else "" }}
+{% for host in seaweedfs_backup_hosts %}
+    {
+      "name": "seaweedfs-backup-{{ host }}",
+      "credentials": [
+        {
+          "accessKey": "{{ hostvars[host].seaweedfs_s3_access_key }}",
+          "secretKey": "{{ hostvars[host].seaweedfs_s3_secret_key }}"
+        }
+      ],
+      "actions": [
+        "Write:{{ offsite_backup_s3_bucket }}/{{ host }}-*",
+        "Read:{{ offsite_backup_s3_bucket }}/{{ host }}-*",
+        "List:{{ offsite_backup_s3_bucket }}/{{ host }}-*",
+        "Tagging:{{ offsite_backup_s3_bucket }}/{{ host }}-*"
+      ]
+    }{{ "," if not loop.last else "" }}
+{% endfor %}
   ]
 }

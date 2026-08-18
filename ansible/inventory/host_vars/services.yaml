@@ -1,6 +1,11 @@
 ---
 caddy_domain: "svc.{{ lab_domain }}"
 
+# Scoped in docker/seaweedfs/configs/s3-identity.json.j2 to this host's
+# own `services-*` objects only — see docs/disaster-recovery.md.
+seaweedfs_s3_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-services'] }}"
+seaweedfs_s3_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-services'] }}"
+
 cobalt_host: cobalt
 shlink_short_host: short
 shlink_web_host: shlink

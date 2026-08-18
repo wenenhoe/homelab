@@ -4,28 +4,53 @@ A separate VM (`storage`, `192.168.20.6`) runs
 [SeaweedFS](https://github.com/seaweedfs/seaweedfs) as a self-hosted
 S3-compatible target. One [`offen/docker-volume-backup`](https://github.com/offen/docker-volume-backup)
 agent per host (`backup_agent` role) pushes GPG-encrypted archives of
-selected named volumes to SeaweedFS and, per-app, to one or more of
-Cloudflare R2 / Backblaze B2 / OCI Object Storage — see "What's backed
-up" below.
+selected named volumes to SeaweedFS — nothing else. Cloud coverage
+(Cloudflare R2 / Backblaze B2 / OCI Object Storage) is planned as a
+separate `cloud_sync` role running only on `storage`, reading already-
+encrypted objects out of SeaweedFS and copying them onward — not yet
+built; see "Threat model" below for why it's designed this way, and
+"What's backed up" for current SeaweedFS-only coverage.
 
 S3 credential generation/rotation is covered in [`secrets.md`](secrets.md),
 not here.
+
+## Threat model
+
+Every app host's `backup_agent` holds a live, write-capable S3
+credential — the whole point of an offsite backup is surviving
+compromise of the host it's protecting, so that credential's reach
+matters as much as its existence. Two constraints follow from that:
+
+- **Cloud credentials never touch an app host.** R2/B2/OCI write access
+  exists only on `storage` (`cloud_sync`, once built) — the smallest,
+  least-exposed host in the fleet (nothing user-facing runs there; see
+  the compose_apps list per host in `ansible/inventory/host_vars/`).
+  Compromising `services`, `security`, or `play` yields no cloud
+  credential of any kind, only that host's own narrow SeaweedFS access
+  below.
+- **Each app host's SeaweedFS identity is scoped to its own prefix
+  only** (`docker/seaweedfs/configs/s3-identity.json.j2`,
+  `Write:homelab-backups/<hostname>-*` etc.) — a compromised `services`
+  can still tamper with `services`' own SeaweedFS archives (unavoidable:
+  whatever produces a backup needs some write path to stage it) but
+  can't touch `security`'s or `play`'s.
+
+**Automated coverage exists now** (`ansible/roles/seaweedfs_bucket/molecule/identity_scoping`) — it renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts cross-prefix write/read are denied and Admin actions aren't available to a scoped identity. That test's own exact failure-message matching couldn't be verified without a running SeaweedFS instance at the time it was written — if you're the first to actually run it, and the `is failed` assertions pass but look fragile, that's expected; the substring checks were my best guess at the real error shape, not a confirmed one.
 
 ## Architecture
 
 - Volumes to back up are declared per-app via a `backup:` key on the app's
   `app_registry` entry — the agent has no per-app logic beyond that.
 - One `docker-volume-backup` container per host runs one schedule per
-  (app, cloud target) pair — e.g. an app backed up to both SeaweedFS and
-  R2 gets two independent schedules, each producing its own archive with
-  its own retention/cron. `docker-volume-backup` does full tar-and-upload
-  per run, no delta sync — a schedule's cost scales with that one app's
-  volume size, not with anything else sharing the container.
+  app, always to SeaweedFS. `docker-volume-backup` does full
+  tar-and-upload per run, no delta sync — a schedule's cost scales with
+  that one app's volume size, not with anything else sharing the
+  container.
 - Apps that need to be stopped for a consistent snapshot set
   `docker-volume-backup.stop-during-backup=<app-name>` on their own
   compose service (their own name, not a shared `true`) and
-  `backup.stop_during_backup: true` in `app_registry.yaml`. Each of that
-  app's schedules then sets `BACKUP_STOP_DURING_BACKUP_LABEL=<app-name>`
+  `backup.stop_during_backup: true` in `app_registry.yaml`. Each such
+  app's schedule then sets `BACKUP_STOP_DURING_BACKUP_LABEL=<app-name>`
   to match. That match is scoped per schedule file, not once for the
   whole container: a schedule backing up app A never touches app B's
   uptime, even though every app's schedules share one container.
@@ -46,9 +71,12 @@ copy exists off-host," not HA for the backup target itself.
   Caddy + Tinyauth + TLS like every other app.
 - **S3 API** (`https://s3.store.{{ lab_domain }}`) — machine-facing only.
   Registered `auth: false` (Tinyauth's forward-auth needs an interactive
-  redirect a non-interactive S3 client can't complete). Auth is instead the
-  S3 SigV4 keypair in `docker/seaweedfs/configs/s3-identity.json.j2`, scoped
-  to only the `homelab-backups` bucket. See the [SeaweedFS S3 Configuration
+  redirect a non-interactive S3 client can't complete). Auth is instead
+  the per-identity S3 SigV4 keypairs in
+  `docker/seaweedfs/configs/s3-identity.json.j2` — one broad
+  bucket-admin identity (bucket creation only) plus one narrow,
+  path-scoped identity per `backup_agent` host. See "Threat model"
+  above for why, and the [SeaweedFS S3 Configuration
   wiki](https://github.com/seaweedfs/seaweedfs/wiki/S3-Configuration) to
   adjust the scoping.
 
@@ -90,16 +118,19 @@ with a redundant copy — losing it makes every backup unrecoverable.
 
 ## What's backed up
 
-| Host | App → volumes | Stopped during backup | Cloud targets | Retention |
-| :--- | :--- | :--- | :--- | :--- |
-| `services` | `kms` → `data` | yes (`kms`) | SeaweedFS, R2, B2 | 7 days |
-| `services` | `wastebin` → `data` | no | SeaweedFS, R2, B2 | 7 days |
-| `security` | `beszel-hub` → `data` | yes (`beszel-hub`) | SeaweedFS, R2, B2 | 7 days |
-| `security` | `tinyauth` → `data` | yes (`tinyauth`) | SeaweedFS, R2, B2 | 7 days |
-| `security` | `lldap` → `data`, `certs` | no | SeaweedFS, R2, B2 | 7 days |
-| `play` | `minecraft` → `backups` only | no | SeaweedFS, OCI | 7 days |
+| Host | App → volumes | Stopped during backup | Retention |
+| :--- | :--- | :--- | :--- |
+| `services` | `kms` → `data` | yes (`kms`) | 7 days |
+| `services` | `wastebin` → `data` | no | 7 days |
+| `security` | `beszel-hub` → `data` | yes (`beszel-hub`) | 7 days |
+| `security` | `tinyauth` → `data` | yes (`tinyauth`) | 7 days |
+| `security` | `lldap` → `data`, `certs` | no | 7 days |
+| `play` | `minecraft` → `backups` only | no | 7 days |
 
 Apps without a `backup:` key in `app_registry.yaml` are out of scope.
+All of the above go to SeaweedFS only, for now — see the note at the
+top of this doc and "Threat model" above for the planned `cloud_sync`
+role.
 
 `lldap` is deliberately never stopped — it's the auth backend, and every
 other app behind Caddy/tinyauth loses login for the stop window, a
@@ -111,41 +142,18 @@ ever turns up a corrupt SQLite/LDAP file for `wastebin`/`lldap`, add
 `stop_during_backup: true` and the matching compose label (see
 Architecture above) rather than assuming it's needed by default.
 
-**Cloud target selection:** every app's `cloud_targets` defaults to
-`cloud_backup_default_targets` (`group_vars/all/main.yaml`) — currently
-`[seaweedfs, r2, b2]`. `minecraft` overrides to `[seaweedfs, oci]`: its
-~1.8GB/night archive at 7-day retention (~13GB) would eat most of a
-single 10GB R2/B2 free tier, so it gets OCI's 20GB allowance to itself
-instead. See `cloud_backup_targets` (same file) for each provider's
-bucket/endpoint.
+`app_registry.yaml`'s `backup.cloud_targets` (e.g. minecraft's
+`[seaweedfs, oci]`) is currently dormant data — `backup_agent` no longer
+reads it. It's there for `cloud_sync` to consume once built, meaning
+"also copy this app's SeaweedFS archives to OCI." Don't read anything
+into it being present today.
 
-**Before first use of R2/B2/OCI:**
-
-- Create a `homelab-backups` bucket by hand on each (not Ansible-managed,
-  same as the note in "Bucket creation" above for SeaweedFS being the
-  one exception) — a reasonable first OpenTofu project once that
-  expansion starts.
-- Fill in the six `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries in
-  `secrets_registry.yaml` via `bootstrap_secrets.py` — see
-  [`secrets.md`](secrets.md). Scope each credential to just that bucket.
-- `cloud_backup_targets.b2.endpoint` is a guess
-  (`s3.us-west-004.backblazeb2.com`) — B2 assigns your bucket's actual
-  region at creation. Confirm it in the B2 console (Bucket Details)
-  before deploying, or that schedule fails closed (wrong endpoint →
-  auth/DNS error, not a silent skip).
-- Confirm path-style addressing actually works against each real bucket
-  (`aws s3 ls --endpoint-url ... s3://homelab-backups` or `mc ls`) before
-  trusting the nightly run — `AWS_S3_FORCE_PATH_STYLE=true` is a
-  reasonable default here (all three document support for it) but isn't
-  verified against your specific tenancy/bucket.
-
-**Migration note:** archives now key on the app's own name
-(`AWS_S3_PATH`/`BACKUP_FILENAME`, e.g. `services-kms-r2`), not a shared
-`stop-group`/`no-stop-group` prefix bundling several apps into one
-archive. Existing SeaweedFS objects under the old prefixes are orphaned
-by this — no longer retention-pruned, they just sit there. Harmless;
-delete by hand once the new per-app archives have run successfully a
-few times, if reclaiming the space matters.
+**Migration note:** every app host previously also pushed directly to
+R2/B2/OCI (a design this patch replaces — see "Threat model"). Any
+objects already sitting in those buckets from that period are now
+orphaned: nothing will prune them, and nothing will add to them until
+`cloud_sync` lands with its own (different) path scheme. Harmless to
+leave; delete by hand if reclaiming the space matters before then.
 
 **Known limitation (single operator, trusted LAN):** `docker-socket-proxy`'s
 grant has no per-container ACL — it can start/stop any container on
@@ -156,11 +164,11 @@ is a broader grant than that.
 
 ## S3 endpoint format
 
-Every `cloud_backup_targets.*.endpoint` (`group_vars/all/main.yaml`,
-SeaweedFS included) must be a **bare hostname**
-(e.g. `s3.store.{{ lab_domain }}`), not a URL — `docker-volume-backup`
-passes it straight into minio-go's `AWS_ENDPOINT`, which rejects a
-scheme prefix (`Endpoint url cannot have fully qualified paths`). Scheme
+`offsite_backup_s3_endpoint` (`group_vars/all/main.yaml`) must be a
+**bare hostname** (e.g. `s3.store.{{ lab_domain }}`), not a URL —
+`docker-volume-backup` passes it straight into minio-go's
+`AWS_ENDPOINT`, which rejects a scheme prefix (`Endpoint url cannot
+have fully qualified paths`). Scheme
 is the separate `.proto` key on each target (default `https`).
 
 ## Restore

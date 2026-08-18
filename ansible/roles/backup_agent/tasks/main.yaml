@@ -1,7 +1,12 @@
 ---
-# Aggregates offsite-backup targets across every app on this host
+# Aggregates SeaweedFS backup targets across every app on this host
 # (compose_apps is already resolved per-host by Play 1's preinit). See
-# docs/disaster-recovery.md (Architecture) for the full design.
+# docs/disaster-recovery.md (Architecture) for the full design,
+# including why cloud coverage (R2/B2/OCI) lives entirely on `storage`
+# (cloud_sync role) and never touches this role or these hosts at all —
+# a compromised app host holds only its own narrow, path-scoped
+# SeaweedFS write credential (docker/seaweedfs/configs/s3-identity.json.j2),
+# never anything cloud-capable.
 #
 # Any app_registry entry may declare:
 #   backup:
@@ -9,16 +14,14 @@
 #     stop_during_backup: true|false   # default false
 #     retention_days: N                # override of offsite_backup_retention_days
 #     cron: "..."                      # override of offsite_backup_cron
-#     cloud_targets: [seaweedfs, r2]   # default: cloud_backup_default_targets
 #
-# One docker-volume-backup schedule per (app, cloud_targets entry), all
-# sharing one container per host. BACKUP_STOP_DURING_BACKUP_LABEL is
-# matched per schedule file, not once for the whole container — a
-# schedule backing up app A never stops app B regardless of what else
-# shares this container. Every stop_during_backup:true app's own
-# compose.yaml carries `docker-volume-backup.stop-during-backup=<app-name>`
-# (its own name, not a shared `true`) so each app's schedule(s) can
-# target only that app.
+# One docker-volume-backup schedule per app, all sharing one container
+# per host. BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule
+# file, not once for the whole container — a schedule backing up app A
+# never stops app B regardless of what else shares this container.
+# Every stop_during_backup:true app's own compose.yaml carries
+# `docker-volume-backup.stop-during-backup=<app-name>` (its own name,
+# not a shared `true`) so each app's schedule can target only itself.
 #
 # A host with zero qualifying apps (e.g. `storage`) is skipped entirely.
 
@@ -40,7 +43,6 @@
           'stop_during_backup': item.backup.stop_during_backup | default(false),
           'retention_days': item.backup.retention_days | default(offsite_backup_retention_days),
           'cron': item.backup.cron | default(offsite_backup_cron),
-          'cloud_targets': item.backup.cloud_targets | default(cloud_backup_default_targets),
         }]
       }}
   loop: "{{ compose_apps }}"
@@ -56,12 +58,10 @@
   ansible.builtin.set_fact:
     backup_agent_any_stop_apps: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list | length > 0 }}"
 
-# One dict per (app, cloud target): {app, sources, target, retention,
-# cron, stop_label}. stop_label is '' (template omits the line) unless
-# that app opted into stop_during_backup. Plain nested for-loops, not
-# selectattr/product — clearer than pulling in extra filter plugins for
-# what's a simple cross product here.
-- name: Build the flat list of per-app-per-target schedules
+# One dict per app: {app, sources, retention, cron, stop_label,
+# filename}. stop_label is '' (template omits the line) unless that app
+# opted into stop_during_backup.
+- name: Build the flat list of per-app schedules
   ansible.builtin.set_fact:
     backup_agent_schedules: >-
       {%- set ns = namespace(out=[]) -%}
@@ -70,17 +70,14 @@
         {%- for vol in app.volumes -%}
           {%- set _ = sources.append('/backup/' ~ app.name ~ '_' ~ vol) -%}
         {%- endfor -%}
-        {%- for target in app.cloud_targets -%}
-          {%- set _ = ns.out.append({
-                'app': app.name,
-                'sources': sources,
-                'target': target,
-                'retention': app.retention_days,
-                'cron': app.cron,
-                'stop_label': app.name if app.stop_during_backup else '',
-                'filename': app.name ~ '-' ~ target ~ '.env',
-              }) -%}
-        {%- endfor -%}
+        {%- set _ = ns.out.append({
+              'app': app.name,
+              'sources': sources,
+              'retention': app.retention_days,
+              'cron': app.cron,
+              'stop_label': app.name if app.stop_during_backup else '',
+              'filename': app.name ~ '.env',
+            }) -%}
       {%- endfor -%}
       {{ ns.out }}
 
@@ -107,13 +104,16 @@
 # never show as a no-op. Only files that no longer correspond to any
 # current schedule are removed; everything else is left for the
 # `template` tasks below to update (or not) in the normal idempotent way.
+# This is also what quietly cleans up any R2/B2/OCI schedule files left
+# behind by an older version of this role — they're simply not in the
+# expected filename list below anymore.
 - name: Discover schedule files already on disk
   ansible.builtin.find:
     paths: "{{ backup_agent_deploy_dir }}/conf.d"
     patterns: "*.env"
   register: backup_agent_existing_schedule_files
 
-- name: Remove stale schedule files (app/target no longer configured)
+- name: Remove stale schedule files (app no longer configured, or an old per-cloud-target file)
   ansible.builtin.file:
     path: "{{ backup_agent_deploy_dir }}/conf.d/{{ item }}"
     state: absent
@@ -147,7 +147,7 @@
     group: "{{ ansible_user }}"
     mode: "0600"
 
-- name: Render one conf.d schedule per (app, cloud target)
+- name: Render one conf.d schedule per app
   ansible.builtin.template:
     src: schedule.env.j2
     dest: "{{ backup_agent_deploy_dir }}/conf.d/{{ item.filename }}"

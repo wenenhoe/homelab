@@ -1,6 +1,12 @@
 ---
 caddy_domain: "store.{{ lab_domain }}"
 
+# Bucket-admin identity only — ansible/roles/seaweedfs_bucket,
+# docker/seaweedfs/configs/s3-identity.json.j2, both storage-only. See
+# docs/disaster-recovery.md.
+seaweedfs_admin_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-admin'] }}"
+seaweedfs_admin_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-admin'] }}"
+
 compose_apps:
   - name: caddy
 

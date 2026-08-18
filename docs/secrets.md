@@ -75,9 +75,13 @@ secret, gitignored, never committed. Target hosts only ever receive the
 rendered config the value ends up in.
 
 **Rotating a credential**: delete the file under `ansible/files/secrets/`,
-then redeploy every host that renders a config depending on it. For
-`seaweedfs-s3-*` that's `storage` plus every `backup_agent` host (either
+then redeploy every host that renders a config depending on it. Since the
+per-host SeaweedFS identity redesign
+([`disaster-recovery.md`](disaster-recovery.md)), each `seaweedfs-s3-*-key-<host>`
+is independent — rotating `services`' key only needs `storage` (identity
+config) and `services` redeployed, not `security`/`play` too (either
 order, but both are required or the S3 client and server will disagree).
+`seaweedfs-s3-*-key-admin` (bucket creation only) only needs `storage`.
 Single-host secrets (`lldap`'s three, `shlink`'s API key) just need that
 host redeployed.
 

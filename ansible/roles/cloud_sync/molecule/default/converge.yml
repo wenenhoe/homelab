@@ -1,0 +1,245 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    server_timezone: "Etc/UTC"
+
+    molecule_source_bucket: molecule-test-source
+    molecule_dest_a_bucket: molecule-test-dest-a
+    molecule_dest_b_bucket: molecule-test-dest-b
+
+    seaweedfs_cloud_sync_reader_access_key: molecule-test-reader-ak
+    seaweedfs_cloud_sync_reader_secret_key: molecule-test-reader-sk
+    seaweedfs_admin_access_key: molecule-test-admin-ak
+    seaweedfs_admin_secret_key: molecule-test-admin-sk
+
+    offsite_backup_s3_bucket: "{{ molecule_source_bucket }}"
+    offsite_backup_s3_proto: http
+
+    # target_a/target_b, not r2/b2 — this scenario proves the fan-out
+    # and override mechanism generically, not anything R2/B2/OCI-
+    # specific (their real endpoints aren't reachable from CI anyway —
+    # see molecule.yml). Both point at the same throwaway SeaweedFS
+    # server as the source, under different bucket names and identities
+    # — rclone doesn't care that they're physically the same box, only
+    # that each is a real, independently-authenticated S3 endpoint.
+    #
+    # By IP, not the container name "seaweedfs-test" — confirmed live
+    # (not assumed) that container-name DNS doesn't reliably resolve
+    # between containers on Docker's default bridge network, the same
+    # finding molecule_helpers' own header comment already documented
+    # from an earlier investigation. cloud_sync_test_ip is
+    # only set once the "Start a real SeaweedFS..." task below actually
+    # runs — referencing it here, before that point in the task list,
+    # works anyway because Jinja templates in `vars:` aren't rendered
+    # until something actually reads them, and nothing does until the
+    # cloud_sync role itself renders rclone.conf at the very end of this
+    # file's tasks — same lazy-evaluation pattern offsite_backup_s3_endpoint
+    # below already relies on.
+    cloud_sync_targets:
+      target_a:
+        bucket: "{{ molecule_dest_a_bucket }}"
+        endpoint: "http://{{ cloud_sync_test_ip }}:8333"
+        access_key: molecule-test-dest-a-ak
+        secret_key: molecule-test-dest-a-sk
+      target_b:
+        bucket: "{{ molecule_dest_b_bucket }}"
+        endpoint: "http://{{ cloud_sync_test_ip }}:8333"
+        access_key: molecule-test-dest-b-ak
+        secret_key: molecule-test-dest-b-sk
+    cloud_sync_default_targets: [target_a, target_b]
+    cloud_sync_on_calendar: "*-*-* 06:00:00" # never actually fires in this scenario — verify.yml triggers the service directly
+
+    # alpha-host/beta-host, not real inventory hosts — registered below
+    # via add_host, carrying only what cloud_sync itself reads
+    # (compose_apps), not a full fake inventory.
+    seaweedfs_backup_hosts: [alpha-host, beta-host]
+
+    # happy_app_no_backup (caddy-equivalent) declares no backup: key at
+    # all — confirms cloud_sync's own job-building `when` guard excludes
+    # it, same shape as backup_agent's own equivalent test app.
+    # happy_app_default_targets (kms-equivalent) has no
+    # extra_cloud_targets override — must fan out to both
+    # cloud_sync_default_targets. happy_app_override_targets
+    # (minecraft-equivalent) overrides to target_a only — must NOT show
+    # up under target_b at all.
+    app_registry:
+      caddy:
+        volumes: []
+      happy_app_default_targets:
+        volumes:
+          - name: data
+        backup:
+          volumes: [data]
+      happy_app_override_targets:
+        volumes:
+          - name: backups
+        backup:
+          volumes: [backups]
+          extra_cloud_targets: [target_a]
+  tasks:
+    - name: Include docker role (this role's own tasks assume Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container/docker_container_exec/docker_container_info talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    - name: Register alpha-host/beta-host as ephemeral inventory hosts so hostvars[...].compose_apps resolves like production
+      # add_host is pure in-memory bookkeeping for this run — it has no
+      # "already added with these exact vars" state to compare against,
+      # so it reports changed unconditionally, every single time,
+      # unlike a real resource. That's not a bug to architect around
+      # (identity_scoping never hit this — its own scenario doesn't
+      # include idempotence in its test_sequence at all — but cloud_sync's
+      # does); it's simply not something idempotence-tracking applies to.
+      ansible.builtin.add_host:
+        name: "{{ item.name }}"
+        groups: molecule_fake_backup_hosts
+        compose_apps: "{{ item.compose_apps }}"
+      changed_when: false
+      loop:
+        - name: alpha-host
+          compose_apps:
+            - name: caddy
+            - name: happy_app_default_targets
+        - name: beta-host
+          compose_apps:
+            - name: happy_app_override_targets
+      loop_control:
+        label: "{{ item.name }}"
+
+    # A custom identity config, not the real production
+    # s3-identity.json.j2 (unlike seaweedfs_bucket's identity_scoping
+    # scenario, which specifically tests that file) — this scenario
+    # needs identities for the FAKE destination buckets standing in for
+    # R2/B2/OCI, which production's own identity file has no concept of
+    # at all (real R2/B2/OCI credentials aren't SeaweedFS identities).
+    - name: Start a real SeaweedFS S3 target standing in for source + both destinations
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_seaweedfs_test_target.yaml
+      vars:
+        molecule_helpers_seaweedfs_identity_json: |
+          {
+            "identities": [
+              {
+                "name": "reader",
+                "credentials": [{"accessKey": "{{ seaweedfs_cloud_sync_reader_access_key }}", "secretKey": "{{ seaweedfs_cloud_sync_reader_secret_key }}"}],
+                "actions": ["Read:{{ molecule_source_bucket }}", "List:{{ molecule_source_bucket }}"]
+              },
+              {
+                "name": "dest-a-writer",
+                "credentials": [{"accessKey": "{{ cloud_sync_targets.target_a.access_key }}", "secretKey": "{{ cloud_sync_targets.target_a.secret_key }}"}],
+                "actions": ["Write:{{ molecule_dest_a_bucket }}", "Read:{{ molecule_dest_a_bucket }}", "List:{{ molecule_dest_a_bucket }}"]
+              },
+              {
+                "name": "dest-b-writer",
+                "credentials": [{"accessKey": "{{ cloud_sync_targets.target_b.access_key }}", "secretKey": "{{ cloud_sync_targets.target_b.secret_key }}"}],
+                "actions": ["Write:{{ molecule_dest_b_bucket }}", "Read:{{ molecule_dest_b_bucket }}", "List:{{ molecule_dest_b_bucket }}"]
+              },
+              {
+                "name": "test-admin",
+                "credentials": [{"accessKey": "{{ seaweedfs_admin_access_key }}", "secretKey": "{{ seaweedfs_admin_secret_key }}"}],
+                "actions": [
+                  "Admin:{{ molecule_source_bucket }}", "Write:{{ molecule_source_bucket }}",
+                  "Read:{{ molecule_source_bucket }}", "List:{{ molecule_source_bucket }}",
+                  "Admin:{{ molecule_dest_a_bucket }}", "Read:{{ molecule_dest_a_bucket }}", "List:{{ molecule_dest_a_bucket }}",
+                  "Admin:{{ molecule_dest_b_bucket }}", "Read:{{ molecule_dest_b_bucket }}", "List:{{ molecule_dest_b_bucket }}"
+                ]
+              }
+            ]
+          }
+        # Unused when identity_json is supplied — still required by the
+        # helper's own interface. See its header comment.
+        molecule_helpers_seaweedfs_access_key: unused
+        molecule_helpers_seaweedfs_secret_key: unused
+        molecule_helpers_seaweedfs_bucket: "{{ molecule_source_bucket }}"
+
+    # molecule_helpers_seaweedfs_ip is exposed by the shared task above —
+    # aliased to this role's own naming convention right away, matching
+    # seaweedfs_bucket/identity_scoping's identical pattern, since
+    # var-naming requires a cloud_sync_ prefix within this role but the
+    # shared helper's own return-value name isn't ours to rename.
+    - name: Alias the discovered IP under this scenario's own name
+      ansible.builtin.set_fact:
+        cloud_sync_test_ip: "{{ molecule_helpers_seaweedfs_ip }}"
+
+    - name: Point offsite_backup_s3_endpoint at the discovered SeaweedFS IP
+      # noqa: var-naming[no-role-prefix] — offsite_backup_s3_endpoint is a
+      # fixed global var name the role's templates consume, can't be
+      # renamed. Same pattern as seaweedfs_bucket/molecule/default's
+      # identical override, for the identical reason: the IP is only
+      # known after the discovery task above runs.
+      ansible.builtin.set_fact:
+        offsite_backup_s3_endpoint: "{{ cloud_sync_test_ip }}:8333"
+
+    # Persistent (state: started, never removed), not created-and-torn-
+    # down each run — an ephemeral container reports `changed` on both
+    # creation and removal every single time by definition, which the
+    # idempotence step below would correctly flag. Same fix as
+    # seaweedfs_bucket's own production task hit first.
+    - name: Start a persistent aws-cli utility container for test-fixture setup
+      community.docker.docker_container:
+        name: cloud-sync-test-admin-cli
+        image: amazon/aws-cli:2.15.0
+        entrypoint: ["sleep"]
+        command: ["infinity"]
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        state: started
+        detach: true
+
+    # community.docker.docker_container_exec, not
+    # community.docker.docker_container with detach:false — the latter
+    # hard-crashes the whole play on ANY nonzero exit from the
+    # containerized command, confirmed live earlier in this same
+    # project (see seaweedfs_bucket/tasks/main.yaml's own header
+    # comment for the full story). changed_when: false throughout this
+    # block: these are fixture-setup steps, not the role under test —
+    # docker_container_exec has no native idempotence tracking of its
+    # own regardless, so leaving Ansible's default changed-reporting on
+    # would break the idempotence step for reasons that have nothing to
+    # do with cloud_sync itself.
+    - name: Create the three test buckets (tolerate already-exists on the idempotence re-run)
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: "aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333 s3 mb s3://{{ item }}"
+      register: cloud_sync_bucket_create
+      changed_when: false
+      failed_when: >-
+        cloud_sync_bucket_create.rc != 0
+        and 'BucketAlreadyExists' not in (cloud_sync_bucket_create.stdout ~ cloud_sync_bucket_create.stderr)
+        and 'BucketAlreadyOwnedByYou' not in (cloud_sync_bucket_create.stdout ~ cloud_sync_bucket_create.stderr)
+      loop:
+        - "{{ molecule_source_bucket }}"
+        - "{{ molecule_dest_a_bucket }}"
+        - "{{ molecule_dest_b_bucket }}"
+
+    # Both objects rclone.copy is expected to find and relay — matching
+    # the real <host>-<app>/<filename> path convention backup_agent's
+    # own schedule.env.j2 produces. Content doesn't matter, only that
+    # something real exists to copy.
+    - name: Seed test archives into the source bucket
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: "aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333 s3 cp /etc/hostname s3://{{ molecule_source_bucket }}/{{ item }}/archive.tar.gz.gpg"
+      register: cloud_sync_seed_archive
+      changed_when: false
+      failed_when: cloud_sync_seed_archive.rc != 0
+      loop:
+        - alpha-host-happy_app_default_targets
+        - beta-host-happy_app_override_targets
+
+    # The role under test.
+    - name: Run cloud_sync
+      ansible.builtin.include_role:
+        name: cloud_sync

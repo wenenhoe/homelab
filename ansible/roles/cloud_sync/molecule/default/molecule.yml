@@ -1,12 +1,17 @@
 ---
-# No SeaweedFS/S3 target here — tests whether backup_agent renders
-# correctly when the stop-during-backup group is entirely empty (the
-# shape `play` actually runs today), not upload/stop-restart mechanics —
-# already covered by the `default` scenario.
+# Same Docker-in-Docker pattern as every other role's scenarios, plus a
+# real SeaweedFS target standing in for both "SeaweedFS itself" (the
+# source) and "R2/B2/OCI" (the destinations) — rclone doesn't care that
+# they're all the same physical server underneath, only that each is a
+# genuine S3-compatible endpoint reachable the way rclone.conf actually
+# points at it. Real R2/B2/OCI credentials aren't available in CI
+# regardless — this only needs to prove the copy mechanism itself, the
+# same reasoning identity_scoping and backup_agent's own multi-target
+# tests already used.
 driver:
   name: docker
 platforms:
-  - name: backup-agent-no-stop-only-instance
+  - name: cloud-sync-instance
     image: geerlingguy/docker-ubuntu2604-ansible:latest
     privileged: true
     cgroupns_mode: host

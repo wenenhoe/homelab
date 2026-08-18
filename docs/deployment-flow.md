@@ -1,6 +1,6 @@
 # Deployment Flow
 
-`deploy.yaml` runs as nine ordered plays: secrets before anything needs
+`deploy.yaml` runs as ten ordered plays: secrets before anything needs
 `ansible_host` resolved, DNS and the reverse proxy live before anything
 that depends on them starts, and the offsite-backup destination created
 before anything uploads to it.
@@ -78,9 +78,22 @@ needs lldap's web port, not its LDAPS cert). See
 
 ## Play 8 — Deploy offsite backup agent (`hosts: managed_hosts`)
 
-Runs last: mounts other apps' named volumes as `external: true`, which
-needs each app's Play 4 volume-creation step and Play 5's bucket to
-already exist. See [`disaster-recovery.md`](disaster-recovery.md).
+Runs last among `managed_hosts` plays: mounts other apps' named volumes
+as `external: true`, which needs each app's Play 4 volume-creation step
+and Play 5's bucket to already exist. See
+[`disaster-recovery.md`](disaster-recovery.md).
+
+## Play 9 — Deploy cloud sync (`hosts: storage`)
+
+`storage` only, unlike Play 8 — resolves every backup host's
+`app_registry`-declared `extra_cloud_targets` via `hostvars` rather than
+depending on those hosts' own Play 8 having already run in this same
+invocation (`hostvars` are static inventory data either way), so
+ordering after Play 8 isn't a hard dependency — it's just the natural
+place for "the next stage of the backup pipeline" to live. Installs the
+`cloud-sync.timer`/`cloud-sync.service` pair that relays SeaweedFS
+archives onward to R2/B2/OCI. See
+[`disaster-recovery.md`](disaster-recovery.md).
 
 ## Ansible Roles
 
@@ -99,7 +112,8 @@ already exist. See [`disaster-recovery.md`](disaster-recovery.md).
 | `step_ca_client` | Caches step-ca's root cert on the host — shared prerequisite for `lldap_cert`/`tinyauth_ca_trust`. |
 | `lldap_cert` | Issues lldap's initial LDAPS cert from step-ca and installs its systemd `cert-renewer@` timer. See [`lldap.md`](lldap.md). |
 | `tinyauth_ca_trust` | Builds and seeds the CA bundle tinyauth needs to trust step-ca-issued certs. |
-| `backup_agent` | Aggregates each host's `backup:`-declared apps into up to two `docker-volume-backup` instances. See [`disaster-recovery.md`](disaster-recovery.md). |
+| `backup_agent` | Aggregates each host's `backup:`-declared apps into one `docker-volume-backup` instance per host, one schedule per app, always to SeaweedFS. See [`disaster-recovery.md`](disaster-recovery.md). |
+| `cloud_sync` | `storage`-only. Relays SeaweedFS's already-encrypted archives onward to R2/B2/OCI via `rclone copy` on a systemd timer. See [`disaster-recovery.md`](disaster-recovery.md). |
 
 ## The App Registry
 

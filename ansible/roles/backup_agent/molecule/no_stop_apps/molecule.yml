@@ -1,11 +1,16 @@
 ---
-# Same Docker-in-Docker setup as the default scenario. No SeaweedFS/S3
-# target needed here — this scenario never gets past the validation
-# tasks, so nothing ever tries to upload anything.
+# The one conditional left in compose.yaml.j2 after collapsing to a
+# single container: whether backup-dockerproxy (and DOCKER_HOST) render
+# at all, gated on whether any app on the host opted into
+# stop_during_backup. `default` already proves the proxy renders when
+# needed (happy_app_stop); this proves it's entirely absent — not just
+# unused — when nothing does. Skips SeaweedFS/S3: this tests rendering
+# correctness under the shape, not upload mechanics already proven by
+# `default`.
 driver:
   name: docker
 platforms:
-  - name: backup-agent-conflict-instance
+  - name: backup-agent-no-stop-instance
     image: geerlingguy/docker-ubuntu2604-ansible:latest
     privileged: true
     cgroupns_mode: host

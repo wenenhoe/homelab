@@ -4,8 +4,8 @@
   become: true
   vars:
     offsite_backup_s3_bucket: molecule-test-ensure-bucket
-    seaweedfs_s3_access_key: molecule-test-access-key
-    seaweedfs_s3_secret_key: molecule-test-secret-key
+    seaweedfs_admin_access_key: molecule-test-access-key
+    seaweedfs_admin_secret_key: molecule-test-secret-key
   tasks:
     # Facts don't persist between converge.yml and verify.yml (separate
     # ansible-playbook runs) — re-discover seaweedfs-test's IP the same
@@ -29,17 +29,13 @@
     # to List:{{bucket}} only, same least-privilege scoping as
     # production's own identity config). Confirmed the hard way: a bare
     # `s3 ls` got AccessDenied even though the bucket genuinely existed.
-    #
-    # No custom failed_when needed — if the bucket genuinely doesn't
-    # exist, this naturally fails (NoSuchBucket), which is exactly the
-    # test failure this scenario exists to catch.
     - name: Confirm the bucket actually exists (list objects within it)
       community.docker.docker_container:
         name: seaweedfs-bucket-verify-listing
         image: amazon/aws-cli:2.15.0
         env:
-          AWS_ACCESS_KEY_ID: "{{ seaweedfs_s3_access_key }}"
-          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_s3_secret_key }}"
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
           AWS_DEFAULT_REGION: us-east-1
         command: >-
           --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333
@@ -49,3 +45,13 @@
         output_logs: true
       register: seaweedfs_bucket_listing
       changed_when: false
+      # community.docker.docker_container never reflects a containerized
+      # command's own exit code in Ansible's failed state, so this
+      # never actually "naturally failed" on NoSuchBucket the way the
+      # comment above assumed — it was a silent no-op regardless of
+      # whether the bucket existed. A successful listing of an empty
+      # bucket produces empty stdout (nothing positive to match on), so
+      # the check here is inverted: fail if an error indicator is
+      # present, not on the absence of a success one.
+      failed_when: >-
+        (seaweedfs_bucket_listing.container.Output | default('')) is search('(?i)nosuchbucket|accessdenied|access denied|error')

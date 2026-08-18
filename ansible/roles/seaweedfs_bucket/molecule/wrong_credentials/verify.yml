@@ -50,6 +50,11 @@
         output_logs: true
       register: seaweedfs_bucket_wrong_creds_listing
       changed_when: false
+      # community.docker.docker_container never reflects a containerized
+      # command's own exit code in Ansible's failed state — `is not
+      # failed` here was always true regardless of outcome, making this
+      # task fail unconditionally. .container.Output holds the real
+      # stdout/stderr; .msg is the wrong field regardless (Docker-API-level
+      # errors only, not the command's own output).
       failed_when: >-
-        seaweedfs_bucket_wrong_creds_listing is not failed
-        or 'NoSuchBucket' not in (seaweedfs_bucket_wrong_creds_listing.msg | default(''))
+        'NoSuchBucket' not in (seaweedfs_bucket_wrong_creds_listing.container.Output | default(''))

@@ -12,32 +12,30 @@
     project_root: "{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}"
     server_timezone: "Etc/UTC"
 
-    # backup_agent's global vars are still required to render env files,
-    # even though nothing here actually reaches SeaweedFS — no cron
-    # fires, and verify.yml doesn't manually trigger a backup (already
-    # covered by the `default` scenario).
-    offsite_backup_s3_bucket: molecule-test-backups
-    offsite_backup_s3_endpoint: "unused-in-this-scenario:8333"
-    offsite_backup_s3_proto: "http"
+    # backup_agent's global vars are still required to render env/conf.d
+    # files, even though nothing here ever reaches an S3 target — no
+    # cron fires, and verify.yml doesn't trigger a backup (upload
+    # mechanics already covered by the `default` scenario).
     offsite_backup_cron: "0 4 * * *"
     offsite_backup_retention_days: 7
+    offsite_backup_s3_bucket: molecule-test-backups
+    offsite_backup_s3_endpoint: "unused-in-this-scenario:8333"
+    offsite_backup_s3_proto: http
     seaweedfs_s3_access_key: molecule-test-access-key
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
-    # Only one app, in the stop-during-backup group — the mirror image
-    # of no_stop_group_only. No current host has this shape
-    # (services/security have both groups populated), but it's the
-    # remaining untested branch: backup_agent_no_stop_group ends up
-    # empty here.
+    # The one app on this host declares no stop_during_backup at all —
+    # the shape no current real host has (services/security both have
+    # at least one stop app), but the remaining untested branch:
+    # backup_agent_any_stop_apps ends up false.
     app_registry:
-      happy_app_solo_stop:
+      happy_app_solo_nostop:
         volumes:
           - name: data
         backup:
           volumes: [data]
-          stop_during_backup: true
     compose_apps:
-      - name: happy_app_solo_stop
+      - name: happy_app_solo_nostop
   tasks:
     - name: Include docker role (compose assumes Docker is already installed and running)
       ansible.builtin.include_role:

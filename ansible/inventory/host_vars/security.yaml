@@ -1,6 +1,38 @@
 ---
 caddy_domain: "sec.{{ lab_domain }}"
 
+# Scoped in docker/seaweedfs/configs/s3-identity.json.j2 to this host's
+# own `security-*` objects only — see docs/disaster-recovery.md.
+seaweedfs_s3_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-security'] }}"
+seaweedfs_s3_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-security'] }}"
+
+# Single-host consumers only (lldap's own env.j2, or lldap_bootstrap /
+# tinyauth's config, both of which also run on this host) — see
+# docs/secrets.md on why some secrets live here instead of
+# group_vars/all/main.yaml.
+lldap_jwt_secret: "{{ secrets_generated['lldap-jwt-secret'] }}"
+lldap_key_seed: "{{ secrets_generated['lldap-key-seed'] }}"
+lldap_ldap_user_pass: "{{ secrets_generated['lldap-ldap-user-pass'] }}"
+
+# false in every real deployment — lldap's LDAPS cert is a real
+# step-ca-issued one (see docs/lldap.md), trusted via SSL_CERT_FILE
+# (docker/tinyauth/compose.yaml), so hostname verification should
+# always succeed. Templated (not hardcoded in config.yaml.j2) purely so
+# tinyauth's own Molecule scenario can point this at a throwaway
+# self-signed cert without forking the template — see
+# ansible/roles/tinyauth/molecule/default's host_vars.
+tinyauth_ldap_insecure: false
+
+# Value alone doesn't make tinyauth's LDAP bind work — the "observer"
+# account must also be created in lldap with this same password. See
+# docs/secrets.md's "Syncing the LDAP observer account password".
+tinyauth_ldap_observer_password: "{{ secrets_generated['tinyauth-ldap-observer-password'] }}"
+
+# step-ca's own bootstrap secret — not step_ca_provisioner_password
+# (group_vars/all/main.yaml, kept global: other future step-ca
+# consumers on other hosts may need it, unlike this one).
+step_ca_password: "{{ secrets_generated['step-ca-password'] }}"
+
 lldap_host: lldap
 
 compose_apps:

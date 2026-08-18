@@ -25,6 +25,18 @@ any new secret or config value goes through the registry instead:
    ```yaml
    my_new_thing: "{{ secrets_generated['my-new-thing'] }}"
    ```
+   Unless it's only ever needed on one specific host — no other host's
+   template or role references it — in which case put the var in that
+   host's own `host_vars/<host>.yaml` instead of `main.yaml`. Templates
+   reference it identically either way (`{{ my_new_thing }}`); this is
+   purely about where the value is visible, not how it's used. Check
+   for cross-host references before choosing `host_vars` — e.g.
+   `tinyauth_host` looks single-host at a glance but every host's Caddy
+   config references it for forward-auth, so it stays in `main.yaml`;
+   `step_ca_password` (the server's own bootstrap secret) has no such
+   reference and lives in `host_vars/security.yaml` instead. See
+   `ansible/inventory/host_vars/{storage,security,services}.yaml` for
+   more examples of the split.
 3. Use `{{ my_new_thing }}` in the app's `configs/*.j2` template, with
    `no_log: true` on its `app_registry` entry if it's a real secret (see
    `no_log: true` below).
@@ -75,9 +87,15 @@ secret, gitignored, never committed. Target hosts only ever receive the
 rendered config the value ends up in.
 
 **Rotating a credential**: delete the file under `ansible/files/secrets/`,
-then redeploy every host that renders a config depending on it. For
-`seaweedfs-s3-*` that's `storage` plus every `backup_agent` host (either
+then redeploy every host that renders a config depending on it. Since the
+per-host SeaweedFS identity redesign
+([`disaster-recovery.md`](disaster-recovery.md)), each `seaweedfs-s3-*-key-<host>`
+is independent — rotating `services`' key only needs `storage` (identity
+config) and `services` redeployed, not `security`/`play` too (either
 order, but both are required or the S3 client and server will disagree).
+`seaweedfs-s3-*-key-admin` (bucket creation only) and
+`seaweedfs-s3-*-key-cloud-sync-reader` (`cloud_sync`'s own relay-outward
+reads) both only need `storage` — both live entirely on that one host.
 Single-host secrets (`lldap`'s three, `shlink`'s API key) just need that
 host redeployed.
 

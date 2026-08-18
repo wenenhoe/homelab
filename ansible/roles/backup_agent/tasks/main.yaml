@@ -1,19 +1,27 @@
 ---
-# Aggregates offsite-backup targets across every app on this host
-# (compose_apps is already resolved per-host by Play 1's preinit).
+# Aggregates SeaweedFS backup targets across every app on this host
+# (compose_apps is already resolved per-host by Play 1's preinit). See
+# docs/disaster-recovery.md (Architecture) for the full design,
+# including why cloud coverage (R2/B2/OCI) lives entirely on `storage`
+# (cloud_sync role) and never touches this role or these hosts at all —
+# a compromised app host holds only its own narrow, path-scoped
+# SeaweedFS write credential (docker/seaweedfs/configs/s3-identity.json.j2),
+# never anything cloud-capable.
 #
 # Any app_registry entry may declare:
 #   backup:
 #     volumes: [data, certs, ...]      # which volumes to back up
-#     stop_during_backup: true|false   # default false — see grouping below
+#     stop_during_backup: true|false   # default false
 #     retention_days: N                # override of offsite_backup_retention_days
 #     cron: "..."                      # override of offsite_backup_cron
 #
-# Apps split into at most two docker-volume-backup instances per host
-# (stop_during_backup true/false), not one-per-app: docker-volume-backup
-# stops/restarts labeled containers once per run, not per subdirectory,
-# so apps sharing an instance share its downtime window, schedule, and
-# retention. See docs/disaster-recovery.md.
+# One docker-volume-backup schedule per app, all sharing one container
+# per host. BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule
+# file, not once for the whole container — a schedule backing up app A
+# never stops app B regardless of what else shares this container.
+# Every stop_during_backup:true app's own compose.yaml carries
+# `docker-volume-backup.stop-during-backup=<app-name>` (its own name,
+# not a shared `true`) so each app's schedule can target only itself.
 #
 # A host with zero qualifying apps (e.g. `storage`) is skipped entirely.
 
@@ -42,48 +50,36 @@
     label: "{{ item.name }}"
   when: (item.backup.volumes | default([])) | length > 0
 
-- name: Split into stop-during-backup and no-stop groups
-  ansible.builtin.set_fact:
-    backup_agent_stop_group: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list }}"
-    backup_agent_no_stop_group: "{{ backup_agent_normalized | rejectattr('stop_during_backup') | list }}"
-
 - name: Skip this host entirely — no app here declares any backup volumes
   ansible.builtin.meta: end_host
-  when: (backup_agent_stop_group | length) + (backup_agent_no_stop_group | length) == 0
+  when: backup_agent_normalized | length == 0
 
-# Fail loudly on conflicting retention/cron within a shared group,
-# rather than silently picking one app's value.
-- name: Validate the stop-during-backup group agrees on retention/cron
-  ansible.builtin.assert:
-    that:
-      - backup_agent_stop_group | map(attribute='retention_days') | unique | length <= 1
-      - backup_agent_stop_group | map(attribute='cron') | unique | length <= 1
-    fail_msg: >-
-      Conflicting retention_days/cron among apps sharing the
-      stop-during-backup backup-agent on {{ inventory_hostname }}:
-      {{ backup_agent_stop_group | map(attribute='name') | list }}.
-      Apps sharing one aggregated instance must agree on retention/cron —
-      either align their backup.retention_days/backup.cron overrides, or
-      this pairing needs to change (see docs/disaster-recovery.md).
-  when: backup_agent_stop_group | length > 0
-
-- name: Validate the no-stop group agrees on retention/cron
-  ansible.builtin.assert:
-    that:
-      - backup_agent_no_stop_group | map(attribute='retention_days') | unique | length <= 1
-      - backup_agent_no_stop_group | map(attribute='cron') | unique | length <= 1
-    fail_msg: >-
-      Conflicting retention_days/cron among apps sharing the no-stop
-      backup-agent on {{ inventory_hostname }}:
-      {{ backup_agent_no_stop_group | map(attribute='name') | list }}.
-  when: backup_agent_no_stop_group | length > 0
-
-- name: Compute each group's effective retention/cron
+- name: Note whether any app on this host needs stopping during its own backup
   ansible.builtin.set_fact:
-    backup_agent_stop_group_retention: "{{ backup_agent_stop_group[0].retention_days if backup_agent_stop_group else offsite_backup_retention_days }}"
-    backup_agent_stop_group_cron: "{{ backup_agent_stop_group[0].cron if backup_agent_stop_group else offsite_backup_cron }}"
-    backup_agent_no_stop_group_retention: "{{ backup_agent_no_stop_group[0].retention_days if backup_agent_no_stop_group else offsite_backup_retention_days }}"
-    backup_agent_no_stop_group_cron: "{{ backup_agent_no_stop_group[0].cron if backup_agent_no_stop_group else offsite_backup_cron }}"
+    backup_agent_any_stop_apps: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list | length > 0 }}"
+
+# One dict per app: {app, sources, retention, cron, stop_label,
+# filename}. stop_label is '' (template omits the line) unless that app
+# opted into stop_during_backup.
+- name: Build the flat list of per-app schedules
+  ansible.builtin.set_fact:
+    backup_agent_schedules: >-
+      {%- set ns = namespace(out=[]) -%}
+      {%- for app in backup_agent_normalized -%}
+        {%- set sources = [] -%}
+        {%- for vol in app.volumes -%}
+          {%- set _ = sources.append('/backup/' ~ app.name ~ '_' ~ vol) -%}
+        {%- endfor -%}
+        {%- set _ = ns.out.append({
+              'app': app.name,
+              'sources': sources,
+              'retention': app.retention_days,
+              'cron': app.cron,
+              'stop_label': app.name if app.stop_during_backup else '',
+              'filename': app.name ~ '.env',
+            }) -%}
+      {%- endfor -%}
+      {{ ns.out }}
 
 - name: Ensure backup-agent deploy directory exists
   ansible.builtin.file:
@@ -92,6 +88,40 @@
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0755"
+
+- name: Ensure the conf.d directory exists
+  ansible.builtin.file:
+    path: "{{ backup_agent_deploy_dir }}/conf.d"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+# Reconciled against the current schedule list, not wiped-and-rebuilt:
+# a nuke-and-pave here would make ansible.builtin.template report
+# `changed` on every file on every single run regardless of whether its
+# content actually differs — a run with zero real config changes would
+# never show as a no-op. Only files that no longer correspond to any
+# current schedule are removed; everything else is left for the
+# `template` tasks below to update (or not) in the normal idempotent way.
+# This is also what quietly cleans up any R2/B2/OCI schedule files left
+# behind by an older version of this role — they're simply not in the
+# expected filename list below anymore.
+- name: Discover schedule files already on disk
+  ansible.builtin.find:
+    paths: "{{ backup_agent_deploy_dir }}/conf.d"
+    patterns: "*.env"
+  register: backup_agent_existing_schedule_files
+
+- name: Remove stale schedule files (app no longer configured, or an old per-cloud-target file)
+  ansible.builtin.file:
+    path: "{{ backup_agent_deploy_dir }}/conf.d/{{ item }}"
+    state: absent
+  loop: >-
+    {{ backup_agent_existing_schedule_files.files
+       | map(attribute='path') | map('basename')
+       | reject('in', backup_agent_schedules | map(attribute='filename') | list)
+       | list }}
 
 - name: Render backup-agent compose.yaml
   ansible.builtin.template:
@@ -109,24 +139,24 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
-- name: Render env for the stop-during-backup group
+- name: Render the shared env (settings common to every schedule)
   ansible.builtin.template:
-    src: env-stop-group.j2
-    dest: "{{ backup_agent_deploy_dir }}/.env.stop-group"
+    src: env.j2
+    dest: "{{ backup_agent_deploy_dir }}/.env"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0600"
-  when: backup_agent_stop_group | length > 0
-  no_log: true
 
-- name: Render env for the no-stop group
+- name: Render one conf.d schedule per app
   ansible.builtin.template:
-    src: env-no-stop-group.j2
-    dest: "{{ backup_agent_deploy_dir }}/.env.no-stop-group"
+    src: schedule.env.j2
+    dest: "{{ backup_agent_deploy_dir }}/conf.d/{{ item.filename }}"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0600"
-  when: backup_agent_no_stop_group | length > 0
+  loop: "{{ backup_agent_schedules }}"
+  loop_control:
+    label: "{{ item.filename }}"
   no_log: true
 
 - name: Pull backup-agent images

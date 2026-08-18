@@ -8,39 +8,71 @@
 # backup_agent itself: bucket creation is a one-time storage-side
 # concern, not something every backup_agent host should redundantly
 # handle.
-
-# Play 4 (compose_app) returns once `docker compose up` exits, not once
-# SeaweedFS is healthy — on a cold start this call (routed through Caddy,
-# see offsite_backup_s3_endpoint) can hit a 502 before the S3 listener is
-# up. Retry only on 502; anything else fails immediately below.
-- name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
+#
+# community.docker.docker_container with detach:false hard-crashes the
+# whole play ("Module failed", not a normal failed:true result) on ANY
+# nonzero exit from the containerized command — confirmed live, not
+# assumed. That's not an edge case here: aws s3 mb on an
+# already-existing bucket (BucketAlreadyOwnedByYou) itself exits
+# nonzero, i.e. this crashed on essentially every redeploy after the
+# first, not just on a genuine failure. community.docker.
+# docker_container_exec instead returns a normal result (.rc/.stdout/
+# .stderr), so a nonzero exit is just data to inspect, not a crash —
+# this repo's own molecule_helpers already established that as the
+# reliable pattern (see its own header comment) after hitting the
+# docker_container problem twice before. Needs a real container to
+# exec into.
+#
+# That container is left running (state: started, never removed)
+# rather than created-and-torn-down on every single deploy —
+# confirmed live that create+destroy every run reports `changed` both
+# times, every time, since those genuinely are state transitions each
+# run; there's no way to make an ephemeral container "idempotent"
+# short of not recreating it. A persistent one instead gets ordinary
+# Ansible resource idempotence for free: docker_container's own
+# state:started comparison correctly reports unchanged once the
+# container already matches, the same as any other declarative
+# resource. The trivial idle container left on `storage` is a
+# reasonable trade for that.
+- name: Ensure a persistent aws-cli utility container exists for S3 bucket management commands
   community.docker.docker_container:
     name: seaweedfs-ensure-bucket
     image: amazon/aws-cli:2.36.24
+    entrypoint: ["sleep"]
+    command: ["infinity"]
     env:
-      AWS_ACCESS_KEY_ID: "{{ seaweedfs_s3_access_key }}"
-      AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_s3_secret_key }}"
+      AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+      AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
       AWS_DEFAULT_REGION: us-east-1
+    state: started
+    detach: true
+
+# Play 4 (compose_app) returns once `docker compose up` exits, not once
+# SeaweedFS is healthy — on a cold start this call (routed through
+# Caddy, see offsite_backup_s3_endpoint) can hit a 502 before the S3
+# listener is up. Retry only on 502; anything else (including the
+# tolerated already-exists case) stops retrying immediately below.
+- name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
+  community.docker.docker_container_exec:
+    container: seaweedfs-ensure-bucket
     command: >-
-      --endpoint-url {{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}
+      aws --endpoint-url {{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}
       s3 mb s3://{{ offsite_backup_s3_bucket }}
-    detach: false
-    cleanup: true
-    output_logs: true
   register: seaweedfs_bucket_create
   changed_when: false
   until: >-
-    seaweedfs_bucket_create is not failed
-    or 'BucketAlreadyExists' in (seaweedfs_bucket_create.msg | default(''))
-    or 'BucketAlreadyOwnedByYou' in (seaweedfs_bucket_create.msg | default(''))
-    or '(502)' not in (seaweedfs_bucket_create.msg | default(''))
+    seaweedfs_bucket_create.rc == 0
+    or 'BucketAlreadyExists' in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
+    or 'BucketAlreadyOwnedByYou' in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
+    or '(502)' not in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
   retries: 15
   delay: 2
   # Tolerate "already exists" (both BucketAlreadyExists and
-  # BucketAlreadyOwnedByYou — the latter is what a single-owner target
-  # like this one actually returns on an idempotent re-run). Anything
-  # else is a real failure.
+  # BucketAlreadyOwnedByYou — the latter is what a single-owner
+  # target like this one actually returns on an idempotent re-run,
+  # and itself exits nonzero — see header comment). Anything else is
+  # a real failure.
   failed_when: >-
-    seaweedfs_bucket_create is failed
-    and 'BucketAlreadyExists' not in (seaweedfs_bucket_create.msg | default(''))
-    and 'BucketAlreadyOwnedByYou' not in (seaweedfs_bucket_create.msg | default(''))
+    seaweedfs_bucket_create.rc != 0
+    and 'BucketAlreadyExists' not in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
+    and 'BucketAlreadyOwnedByYou' not in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)

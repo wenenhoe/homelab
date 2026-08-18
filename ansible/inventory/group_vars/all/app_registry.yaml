@@ -230,6 +230,12 @@ app_registry:
       # Never `data` (risks a mid-write world file) or bluemap_*/extras
       # (regenerable render cache / Ansible-managed — see docs/volumes.md).
       volumes: [backups]
+      # Overrides cloud_sync_default_targets (group_vars/all/main.yaml)
+      # — additional clouds beyond SeaweedFS only; SeaweedFS itself is
+      # never listed here, it's implicit for every backed-up app. See
+      # docs/disaster-recovery.md's "Cloud target selection" for why
+      # minecraft gets OCI instead of the R2+B2 default.
+      extra_cloud_targets: [oci]
     caddy:
       default:
         upstream: "bluemap:8100"

@@ -1,0 +1,28 @@
+# Rendered by cloud_sync — do not edit by hand, changes are overwritten
+# on the next deploy.
+#
+# endpoint includes the scheme (https://) for every remote, not a bare
+# hostname — the opposite convention from docker-volume-backup's
+# minio-go client elsewhere in this repo. rclone's own examples are
+# inconsistent about this across providers; several (non-AWS ones
+# especially) explicitly require the scheme. NEEDS LIVE VERIFICATION:
+# confirm each remote with `rclone lsd <name>:` before trusting the
+# nightly run — see docs/disaster-recovery.md.
+
+[seaweedfs]
+type = s3
+provider = Other
+access_key_id = {{ seaweedfs_cloud_sync_reader_access_key }}
+secret_access_key = {{ seaweedfs_cloud_sync_reader_secret_key }}
+endpoint = {{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}
+force_path_style = true
+{% for target, config in cloud_sync_targets.items() %}
+
+[{{ target }}]
+type = s3
+provider = Other
+access_key_id = {{ config.access_key }}
+secret_access_key = {{ config.secret_key }}
+endpoint = {{ config.endpoint }}
+force_path_style = true
+{% endfor %}

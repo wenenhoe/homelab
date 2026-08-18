@@ -1,0 +1,27 @@
+#!/bin/sh
+# Rendered by cloud_sync — do not edit by hand, changes are overwritten
+# on the next deploy.
+#
+# No `set -e`: one job failing (e.g. a single provider outage) shouldn't
+# abort every other job in the same run. Every job is still attempted;
+# failures are logged individually and the script's own exit code
+# reflects whether ANY job failed, so a failed systemd run is still
+# visible in `journalctl -u cloud-sync.service` even though partial
+# progress was made.
+set -u
+
+overall_status=0
+
+while read -r src_bucket path target_remote target_bucket; do
+  case "$src_bucket" in
+    "#"* | "") continue ;;
+  esac
+
+  echo "Copying seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}"
+  if ! rclone copy "seaweedfs:${src_bucket}/${path}" "${target_remote}:${target_bucket}/${path}"; then
+    echo "FAILED: seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}" >&2
+    overall_status=1
+  fi
+done < /jobs.txt
+
+exit "$overall_status"

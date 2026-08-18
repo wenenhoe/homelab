@@ -7,6 +7,62 @@ caddy_domain: "store.{{ lab_domain }}"
 seaweedfs_admin_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-admin'] }}"
 seaweedfs_admin_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-admin'] }}"
 
+# cloud_sync's own identity — Read/List only, whole bucket. See
+# docs/disaster-recovery.md and the matching secrets_registry.yaml entry.
+seaweedfs_cloud_sync_reader_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-cloud-sync-reader'] }}"
+seaweedfs_cloud_sync_reader_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-cloud-sync-reader'] }}"
+
+# Which hosts run backup_agent and get their own path-scoped SeaweedFS
+# identity (docker/seaweedfs/configs/s3-identity.json.j2) — add a host
+# here AND a matching secrets_registry.yaml pair AND that host's own
+# seaweedfs_s3_access_key/secret_key in its host_vars file. Single-host
+# consumers only (this file's own s3-identity.json.j2 rendering, and
+# cloud_sync's job-building loop below — both storage-only; backup_agent
+# itself never needs to know about the other hosts running it) — see
+# docs/secrets.md on why some vars live here instead of
+# group_vars/all/main.yaml. See docs/disaster-recovery.md.
+seaweedfs_backup_hosts: [services, security, play]
+
+# --- cloud_sync — see docs/disaster-recovery.md ---
+# Every app's extra_cloud_targets (app_registry.yaml, defaults to
+# cloud_sync_default_targets below if omitted) picks which of these it
+# fans out to, beyond SeaweedFS. bucket/endpoint values for R2/B2/OCI
+# themselves are still manual, out-of-band setup — see
+# docs/disaster-recovery.md's "Before first use" checklist.
+cloud_sync_targets:
+  r2:
+    bucket: homelab-backups
+    endpoint: "https://{{ secrets_generated['cloudflare-r2-account-id'] }}.r2.cloudflarestorage.com"
+    access_key: "{{ secrets_generated['cloudflare-r2-access-key'] }}"
+    secret_key: "{{ secrets_generated['cloudflare-r2-secret-key'] }}"
+  b2:
+    bucket: homelab-backups
+    # Guess — B2 assigns your bucket's actual region at creation. See
+    # docs/disaster-recovery.md.
+    endpoint: "https://s3.us-west-004.backblazeb2.com"
+    access_key: "{{ secrets_generated['backblaze-b2-access-key'] }}"
+    secret_key: "{{ secrets_generated['backblaze-b2-secret-key'] }}"
+  oci:
+    bucket: homelab-backups
+    endpoint: "https://{{ secrets_generated['oci-namespace'] }}.compat.objectstorage.{{ secrets_generated['oci-region'] }}.oraclecloud.com"
+    access_key: "{{ secrets_generated['oci-access-key'] }}"
+    secret_key: "{{ secrets_generated['oci-secret-key'] }}"
+
+# Small config-app archives (everything except minecraft) go to both
+# free-tier clouds for offsite redundancy. minecraft overrides this in
+# app_registry.yaml — see docs/disaster-recovery.md's "Cloud target
+# selection" for why it gets OCI instead.
+cloud_sync_default_targets: [r2, b2]
+
+# 90min after offsite_backup_cron (group_vars/all/main.yaml), not
+# immediately after — gives every backup_agent host's own nightly run
+# room to actually finish landing objects in SeaweedFS first, across
+# all three hosts, before cloud_sync reads from it. systemd OnCalendar
+# syntax (matching cert-renewer@.timer's own convention), not cron — a
+# different format from offsite_backup_cron/backup.cron, which feed
+# docker-volume-backup's own BACKUP_CRON_EXPRESSION instead.
+cloud_sync_on_calendar: "*-*-* 06:00:00"
+
 compose_apps:
   - name: caddy
 

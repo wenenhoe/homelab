@@ -1,0 +1,103 @@
+---
+# Relays already-GPG-encrypted archives that backup_agent hosts already
+# pushed to SeaweedFS onward to R2/B2/OCI — storage-only (see
+# deploy.yaml), never touches an app host at all. See
+# docs/disaster-recovery.md's Threat model for why cloud credentials
+# live only here, never on services/security/play.
+#
+# rclone copy, not sync: one-way, additive-only — this role's own
+# identity (seaweedfs-cloud-sync-reader) can't write back to SeaweedFS
+# even if it wanted to, and copy never deletes anything on the
+# destination side either. Retention on the cloud side is a
+# provider-native lifecycle rule, not anything this role manages — see
+# docs/disaster-recovery.md's "Before first use" checklist. A
+# compromised `storage` host still can't touch what's already landed in
+# R2/B2/OCI, only add to it.
+#
+# One flat job per (app, cloud target) across every backup_agent host —
+# built from the same app_registry `backup.extra_cloud_targets` data
+# every host already declares (dormant from every OTHER role's
+# perspective; this is the one role that reads it), via
+# hostvars[host].compose_apps rather than requiring those hosts' own
+# plays to have already run in this same playbook invocation — host_vars
+# are static inventory data, resolvable regardless of play order.
+- name: Build the flat list of per-app-per-target cloud sync jobs
+  ansible.builtin.set_fact:
+    cloud_sync_jobs: >-
+      {%- set ns = namespace(out=[]) -%}
+      {%- for host in seaweedfs_backup_hosts -%}
+        {%- for app in hostvars[host].compose_apps -%}
+          {%- set app_def = app_registry[app.name] | default({}) -%}
+          {%- if app_def.backup is defined -%}
+            {%- set targets = app_def.backup.extra_cloud_targets | default(cloud_sync_default_targets) -%}
+            {%- for target in targets -%}
+              {%- set _ = ns.out.append({
+                    'path': host ~ '-' ~ app.name,
+                    'target': target,
+                    'target_bucket': cloud_sync_targets[target].bucket,
+                  }) -%}
+            {%- endfor -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ ns.out }}
+
+- name: Ensure the cloud-sync deploy directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/cloud-sync"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Render rclone.conf (seaweedfs + every cloud target's credentials)
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: "{{ compose_deploy_dir }}/cloud-sync/rclone.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  no_log: true
+
+- name: Render the job manifest
+  ansible.builtin.template:
+    src: jobs.txt.j2
+    dest: "{{ compose_deploy_dir }}/cloud-sync/jobs.txt"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Render the wrapper script the systemd service runs
+  ansible.builtin.template:
+    src: run.sh.j2
+    dest: "{{ compose_deploy_dir }}/cloud-sync/run.sh"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+
+- name: Install the cloud-sync systemd service
+  ansible.builtin.template:
+    src: cloud-sync.service.j2
+    dest: /etc/systemd/system/cloud-sync.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the cloud-sync systemd timer
+  ansible.builtin.template:
+    src: cloud-sync.timer.j2
+    dest: /etc/systemd/system/cloud-sync.timer
+    mode: "0644"
+  notify: Reload systemd
+
+# Handlers only flush at the end of the play by default — "Enable and
+# start" below needs systemd to have already picked up the current unit
+# content first, same reasoning as lldap_cert's own identical task (see
+# its tasks/main.yaml).
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the cloud-sync timer
+  ansible.builtin.systemd:
+    name: cloud-sync.timer
+    state: started
+    enabled: true

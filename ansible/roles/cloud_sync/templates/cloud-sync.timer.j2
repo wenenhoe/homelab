@@ -1,0 +1,15 @@
+[Unit]
+Description=Timer for cloud-sync
+
+[Timer]
+Persistent=true
+OnCalendar={{ cloud_sync_on_calendar }}
+AccuracySec=1min
+
+# Small jitter, unlike cert-renewer@.timer's 5m — this only runs once
+# nightly system-wide (not once per instance across every host at the
+# same moment), so there's no thundering-herd risk to spread out.
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target

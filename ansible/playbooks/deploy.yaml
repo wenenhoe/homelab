@@ -142,9 +142,10 @@
       tags:
         - images
 
-# Play 8 — Offsite backup agent. Runs last deliberately: it mounts
-# other apps' volumes as `external: true`, which requires each app's own
-# Play 4 ensure_volume step to have already created them.
+# Play 8 — Offsite backup agent. Runs last among the managed_hosts
+# plays deliberately: it mounts other apps' volumes as `external:
+# true`, which requires each app's own Play 4 ensure_volume step to
+# have already created them. Play 9 (storage-only) runs after this one.
 - name: Deploy offsite backup agent
   hosts: managed_hosts # not all — see inventory.yaml's controller group / Play 1's comment
   gather_facts: false
@@ -153,5 +154,23 @@
     - name: Include backup_agent role
       ansible.builtin.include_role:
         name: backup_agent
+      tags:
+        - images
+
+# Play 9 — Cloud sync. storage only, unlike Play 8 — reads every backup
+# host's app_registry-declared extra_cloud_targets via hostvars rather
+# than depending on those hosts' own plays having already run in this
+# same invocation (host_vars are static inventory data either way), so
+# ordering after Play 8 isn't a hard dependency — it's just the natural
+# place for "the next stage of the backup pipeline" to live. See
+# docs/disaster-recovery.md.
+- name: Deploy cloud sync
+  hosts: storage
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include cloud_sync role
+      ansible.builtin.include_role:
+        name: cloud_sync
       tags:
         - images

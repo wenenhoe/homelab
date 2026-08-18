@@ -93,7 +93,9 @@ per-host SeaweedFS identity redesign
 is independent — rotating `services`' key only needs `storage` (identity
 config) and `services` redeployed, not `security`/`play` too (either
 order, but both are required or the S3 client and server will disagree).
-`seaweedfs-s3-*-key-admin` (bucket creation only) only needs `storage`.
+`seaweedfs-s3-*-key-admin` (bucket creation only) and
+`seaweedfs-s3-*-key-cloud-sync-reader` (`cloud_sync`'s own relay-outward
+reads) both only need `storage` — both live entirely on that one host.
 Single-host secrets (`lldap`'s three, `shlink`'s API key) just need that
 host redeployed.
 

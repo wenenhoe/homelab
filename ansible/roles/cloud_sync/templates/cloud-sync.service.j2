@@ -1,0 +1,23 @@
+[Unit]
+Description=Copy SeaweedFS backup archives onward to R2/B2/OCI
+After=network-online.target docker.service
+Requires=docker.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+User=root
+
+# --entrypoint sh, not the image's own rclone entrypoint — run.sh is the
+# actual command here, rclone itself is invoked repeatedly from inside
+# it, once per job in jobs.txt.
+ExecStart=/usr/bin/docker run --rm \
+  -v {{ compose_deploy_dir }}/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
+  -v {{ compose_deploy_dir }}/cloud-sync/jobs.txt:/jobs.txt:ro \
+  -v {{ compose_deploy_dir }}/cloud-sync/run.sh:/run.sh:ro \
+  --entrypoint sh \
+  rclone/rclone:1.68 \
+  /run.sh
+
+[Install]
+WantedBy=multi-user.target

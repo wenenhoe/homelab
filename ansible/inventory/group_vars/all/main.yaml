@@ -61,10 +61,3 @@ offsite_backup_s3_proto: "https"
 # archived mid-write. See docs/disaster-recovery.md.
 offsite_backup_cron: "30 4 * * *"
 offsite_backup_retention_days: 7
-
-# Which hosts run backup_agent and get their own path-scoped SeaweedFS
-# identity (docker/seaweedfs/configs/s3-identity.json.j2) — add a host
-# here AND a matching secrets_registry.yaml pair AND that host's own
-# seaweedfs_s3_access_key/secret_key in its host_vars file. See
-# docs/disaster-recovery.md.
-seaweedfs_backup_hosts: [services, security, play]

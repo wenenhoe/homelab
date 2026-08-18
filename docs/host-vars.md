@@ -58,6 +58,23 @@ briefly:
 - `dns_ddns_target` — the OPNsense DDNS name this host resolves to; every auto-generated CNAME for this host's apps points here.
 - `dns_zones` — one entry per zone this host contributes records to (usually just `caddy_domain` itself), with SOA/TTL details and any `extra_records` that aren't auto-derived from `compose_apps` (e.g. the zone's own `NS`/`A` glue records, or a hand-written CNAME like `security.yaml`'s `sso`).
 
+## Single-host config and secrets
+
+Not every var here started life host-specific — a good number were
+originally in `group_vars/all/main.yaml` and moved once nothing outside
+their one consuming host ever referenced them: `storage.yaml`'s
+`seaweedfs_admin_access_key`/`seaweedfs_cloud_sync_reader_access_key`
+pairs and `cloud_sync_targets`, `security.yaml`'s `step_ca_password`,
+`services.yaml`'s `shlink_api_key`, among others. The rule for whether a
+new var belongs here or in `main.yaml`, and the worked examples of
+telling a genuinely-single-host var apart from one that only looks that
+way (`tinyauth_host` vs `step_ca_password`), live in
+[`secrets.md`](secrets.md) — that's the canonical explanation; this
+section just flags that `host_vars` isn't only about things that
+*inherently* vary per host (`caddy_domain`, `compose_apps`) but also
+things that happen to be *consumed* by only one host, secrets and plain
+config alike.
+
 ## Excerpt (from `ansible/inventory/host_vars/services.yaml`)
 
 Trimmed to the parts that illustrate each field above — see the real

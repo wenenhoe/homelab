@@ -1,0 +1,11 @@
+# Rendered by cloud_sync — do not edit by hand, changes are overwritten
+# on the next deploy. One line per (app, cloud target): the SeaweedFS
+# path under offsite_backup_s3_bucket, the destination remote name (a
+# [section] in rclone.conf), and that remote's own bucket name (not
+# assumed identical to SeaweedFS's, even though it is today for all
+# three — see group_vars/all/main.yaml's cloud_sync_targets).
+#
+# Read by cloud-sync.service's wrapper script — see cloud-sync.service.j2.
+{% for job in cloud_sync_jobs %}
+{{ offsite_backup_s3_bucket }} {{ job.path }} {{ job.target }} {{ job.target_bucket }}
+{% endfor %}

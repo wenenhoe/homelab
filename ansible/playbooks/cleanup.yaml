@@ -20,6 +20,15 @@
 #   compose_cleanup_stale_volume_remove   — Play 2 keep/remove policy
 #   compose_cleanup_dry_run               — report only, no changes (both plays)
 #
+# Defined below, in this file's own Play 1 vars — not a role default,
+# despite being part of the same cleanup config family — see that var's
+# own comment for why:
+#   compose_cleanup_exclude               — directories under
+#                                           compose_deploy_dir that are never
+#                                           compose_apps entries at all
+#                                           (backup_agent, cloud_sync) and so
+#                                           must never be treated as orphaned
+#
 # Usage:
 #   ansible-playbook cleanup.yaml --check --diff              # see what --check would do
 #   ansible-playbook cleanup.yaml -e compose_cleanup_dry_run=true
@@ -41,6 +50,27 @@
   hosts: app_hosts
   gather_facts: false
   become: true
+  vars:
+    # Not a role default (roles/compose/defaults/main.yaml) despite
+    # being part of the same cleanup config family — confirmed live:
+    # role defaults are only in scope once that role has actually been
+    # *included* somewhere in the current play, and this play's own
+    # orphan-detection task below references this var before the
+    # compose role is ever included in this play (that only happens
+    # later, in the teardown step, conditionally, only if orphans were
+    # found) — a role default there is simply undefined when needed,
+    # failing the whole play outright rather than being silently wrong.
+    # backup_agent's is the more serious of the two to get right: it
+    # actually runs a real docker compose stack, so an unexcluded run
+    # would bring the backup pipeline's own container down via
+    # community.docker.docker_compose_v2: state: absent — not gated by
+    # compose_cleanup_remove_content at all, that only governs the
+    # directory/volume decision *after* the stack's already stopped.
+    # Add here, by directory name under compose_deploy_dir, if another
+    # role ever needs the same exemption.
+    compose_cleanup_exclude:
+      - backup-agent
+      - cloud-sync
   tasks:
     - name: Determine apps still wanted on this host
       ansible.builtin.set_fact:
@@ -59,7 +89,7 @@
       failed_when: false
       register: compose_cleanup_compose_ls
 
-    - name: Work out which stacks are orphaned (on disk or running, not in compose_apps)
+    - name: Work out which stacks are orphaned (on disk or running, not in compose_apps, not exempt)
       ansible.builtin.set_fact:
         compose_cleanup_orphaned_stacks: >-
           {{
@@ -69,7 +99,7 @@
                   (compose_cleanup_compose_ls.stdout | default('[]') | from_json | default([]))
                   | map(attribute='Name') | list
                 )
-            ) | unique | difference(compose_cleanup_wanted_apps) | sort
+            ) | unique | difference(compose_cleanup_wanted_apps) | difference(compose_cleanup_exclude) | sort
           }}
 
     - name: Report - nothing to clean up on this host

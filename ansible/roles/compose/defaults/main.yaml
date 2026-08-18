@@ -20,6 +20,17 @@ compose_cleanup_remove_content: false
 compose_cleanup_app_overrides: {}
 compose_cleanup_dry_run: false
 
+# compose_cleanup_exclude does NOT live here despite being part of the
+# same cleanup config family — it's defined as a play-level var in
+# ansible/playbooks/cleanup.yaml itself instead. Confirmed live (not
+# assumed): role defaults are only in scope once that role has actually
+# been *included* somewhere in the current play, and Play 1's orphan
+# detection references this var in the playbook's own task, before the
+# compose role is ever included in that play (that only happens later,
+# in the teardown step, conditionally, only if orphans were found) —
+# so a role default here is simply invisible when it's needed and the
+# whole play fails outright ("is undefined"), not silently wrong.
+
 # Same keep-by-default posture, for volumes a still-deployed app's
 # registry entry no longer declares (e.g. a volume renamed/removed from
 # app_registry, but the app itself wasn't). No per-app override list yet —

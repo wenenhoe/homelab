@@ -1,0 +1,40 @@
+---
+# The real production s3-identity.json.j2, not a synthetic scenario —
+# proves the per-host path-scoping actually gets enforced by SeaweedFS,
+# not just that the template renders valid JSON. No other scenario
+# renders this file at all (they each build their own trivial
+# single-identity config via molecule_helpers' default), so without
+# this, the scoping in ansible/inventory/group_vars/all/main.yaml's
+# threat model has never been checked against a running server.
+driver:
+  name: docker
+platforms:
+  - name: seaweedfs-identity-scoping-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

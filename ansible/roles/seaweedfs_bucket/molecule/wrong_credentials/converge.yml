@@ -53,7 +53,7 @@
     - name: "Run seaweedfs_bucket [block / rescue] (wrong credentials, failure is deliberate and expected)"
       block:
         - name: Run seaweedfs_bucket with mismatched credentials
-          # noqa: var-naming[no-role-prefix] — seaweedfs_s3_access_key/
+          # noqa: var-naming[no-role-prefix] — seaweedfs_admin_access_key/
           # secret_key are the fixed global var names the role's own
           # tasks/main.yaml consumes; overriding them per-include is the
           # whole point of this scenario (deliberately wrong values,
@@ -61,8 +61,8 @@
           ansible.builtin.include_role:
             name: seaweedfs_bucket
           vars:
-            seaweedfs_s3_access_key: molecule-test-WRONG-access-key
-            seaweedfs_s3_secret_key: molecule-test-WRONG-secret-key
+            seaweedfs_admin_access_key: molecule-test-WRONG-access-key
+            seaweedfs_admin_secret_key: molecule-test-WRONG-secret-key
       rescue:
         - name: Leave a marker proving the auth failure actually surfaced
           ansible.builtin.copy:

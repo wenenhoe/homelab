@@ -18,14 +18,11 @@
     # mechanics already covered by the `default` scenario).
     offsite_backup_cron: "0 4 * * *"
     offsite_backup_retention_days: 7
-    cloud_backup_targets:
-      seaweedfs:
-        bucket: molecule-test-backups
-        endpoint: "unused-in-this-scenario:8333"
-        proto: http
-        access_key: molecule-test-access-key
-        secret_key: molecule-test-secret-key
-    cloud_backup_default_targets: [seaweedfs]
+    offsite_backup_s3_bucket: molecule-test-backups
+    offsite_backup_s3_endpoint: "unused-in-this-scenario:8333"
+    offsite_backup_s3_proto: http
+    seaweedfs_s3_access_key: molecule-test-access-key
+    seaweedfs_s3_secret_key: molecule-test-secret-key
 
     # The one app on this host declares no stop_during_backup at all —
     # the shape no current real host has (services/security both have

@@ -35,30 +35,29 @@
           happy_app_no_backup_data appeared despite declaring no backup: key
           — the normalization task's `when` guard isn't excluding it.
 
-    # --- One schedule per (app, cloud target), not per app -------------
+    # --- One schedule per app, always SeaweedFS ------------------------
     - name: List the rendered conf.d schedule files
       ansible.builtin.find:
         paths: "{{ compose_deploy_dir }}/backup-agent/conf.d"
       register: backup_agent_conf_d_files
 
-    - name: Confirm exactly the three expected schedules exist — no more, no fewer
+    - name: Confirm exactly the two expected schedules exist — no more, no fewer
       ansible.builtin.assert:
         that:
           - (backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort) ==
-            ['happy_app_nostop-seaweedfs.env', 'happy_app_nostop-seaweedfs2.env', 'happy_app_stop-seaweedfs.env']
+            ['happy_app_nostop.env', 'happy_app_stop.env']
         fail_msg: >-
-          Expected happy_app_stop-seaweedfs.env (its one cloud_targets entry),
-          happy_app_nostop-seaweedfs.env + happy_app_nostop-seaweedfs2.env (its
-          two), and nothing for happy_app_no_backup. Got:
+          Expected happy_app_stop.env, happy_app_nostop.env, and nothing
+          for happy_app_no_backup. Got:
           {{ backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort }}
-          — if long_gone_app-seaweedfs.env is still present, the
-          stale-file-removal task (converge.yml seeds it before the role's
-          first run to exercise exactly this) isn't actually deleting
-          obsolete schedules anymore.
+          — if long_gone_app.env is still present, the stale-file-removal
+          task (converge.yml seeds it before the role's first run to
+          exercise exactly this) isn't actually deleting obsolete
+          schedules anymore.
 
     - name: Read back happy_app_stop's schedule
       ansible.builtin.slurp:
-        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_stop-seaweedfs.env"
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_stop.env"
       register: backup_agent_stop_schedule_raw
 
     - name: Confirm it's scoped to happy_app_stop's own volume and carries its own stop label
@@ -67,23 +66,16 @@
           - "'BACKUP_SOURCES=/backup/happy_app_stop_data' in (backup_agent_stop_schedule_raw.content | b64decode)"
           - "'BACKUP_STOP_DURING_BACKUP_LABEL=happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
 
-    - name: Read back happy_app_nostop's two schedules
+    - name: Read back happy_app_nostop's schedule
       ansible.builtin.slurp:
-        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/{{ item }}"
-      register: backup_agent_nostop_schedules_raw
-      loop:
-        - happy_app_nostop-seaweedfs.env
-        - happy_app_nostop-seaweedfs2.env
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_nostop.env"
+      register: backup_agent_nostop_schedule_raw
 
-    - name: Confirm NEITHER carries any stop label — happy_app_nostop must never be stopped by its own schedules
+    - name: Confirm it carries no stop label — happy_app_nostop must never be stopped by its own schedule
       ansible.builtin.assert:
         that:
-          - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (item.content | b64decode)"
-          - "'BACKUP_SOURCES=/backup/happy_app_nostop_data' in (item.content | b64decode)"
-        fail_msg: "{{ item.source }} unexpectedly carries a stop label, or has the wrong BACKUP_SOURCES."
-      loop: "{{ backup_agent_nostop_schedules_raw.results }}"
-      loop_control:
-        label: "{{ item.source }}"
+          - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_nostop_schedule_raw.content | b64decode)"
+          - "'BACKUP_SOURCES=/backup/happy_app_nostop_data' in (backup_agent_nostop_schedule_raw.content | b64decode)"
 
     # --- Shared env carries only what's actually shared -----------------
     - name: Read back the shared env file
@@ -170,7 +162,7 @@
              | selectattr('Name', 'search', 'backup-agent-net')
              | map(attribute='Name') | list | first }}
 
-    - name: List objects uploaded to the test SeaweedFS bucket, waiting for all three schedules
+    - name: List objects uploaded to the test SeaweedFS bucket, waiting for both schedules
       community.docker.docker_container:
         name: backup-agent-s3-listing
         image: amazon/aws-cli:2.15.0
@@ -186,25 +178,17 @@
         output_logs: true
       register: backup_agent_s3_listing
       changed_when: false
-      # BACKUP_FILENAME always embeds the target name (see
-      # schedule.env.j2), so <app>-<target>- is a distinct, unambiguous
-      # substring for each of the three schedules — unlike a bare
-      # <app>-nostop- prefix, which would also match its own
-      # -seaweedfs2- sibling.
       until: >-
-        ('backup-agent-instance-happy_app_stop-seaweedfs-' in backup_agent_s3_listing.container.Output)
-        and ('backup-agent-instance-happy_app_nostop-seaweedfs-' in backup_agent_s3_listing.container.Output)
-        and ('backup-agent-instance-happy_app_nostop-seaweedfs2-' in backup_agent_s3_listing.container.Output)
+        ('backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output)
+        and ('backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output)
       retries: 12
       delay: 10
 
-    - name: Confirm all three expected archives reached S3 — one per (app, cloud target)
+    - name: Confirm both expected archives reached S3
       ansible.builtin.assert:
         that:
-          - "'backup-agent-instance-happy_app_stop-seaweedfs-' in backup_agent_s3_listing.container.Output"
-          - "'backup-agent-instance-happy_app_nostop-seaweedfs-' in backup_agent_s3_listing.container.Output"
-          - "'backup-agent-instance-happy_app_nostop-seaweedfs2-' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output"
         fail_msg: >-
-          Expected archives for happy_app_stop (seaweedfs),
-          happy_app_nostop (seaweedfs), and happy_app_nostop (seaweedfs2).
+          Expected archives for happy_app_stop and happy_app_nostop.
           Listing: {{ backup_agent_s3_listing.container.Output }}

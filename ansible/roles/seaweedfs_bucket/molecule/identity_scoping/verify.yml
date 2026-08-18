@@ -1,0 +1,176 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    molecule_test_bucket: molecule-test-backups
+  tasks:
+    # molecule_helpers_seaweedfs_ip is a set_fact from converge.yml's own
+    # run — molecule runs converge and verify as separate
+    # ansible-playbook invocations, so that fact doesn't carry over here.
+    # seaweedfs-test the container (and the three persistent aws-cli
+    # containers below) do persist between the two — only facts don't —
+    # so rediscover the IP the same way the helper computes it
+    # internally (start_seaweedfs_test_target.yaml). No custom network
+    # was created for this scenario, so 'bridge' matches converge.yml's
+    # implicit default.
+    - name: Query seaweedfs-test's info to rediscover its IP
+      community.docker.docker_container_info:
+        name: seaweedfs-test
+      register: identity_scoping_seaweedfs_info
+
+    - name: Extract its IP
+      ansible.builtin.set_fact:
+        molecule_helpers_seaweedfs_ip: "{{ identity_scoping_seaweedfs_info.container.NetworkSettings.Networks.bridge.IPAddress }}"
+
+    # Every check below execs into one of the three persistent aws-cli
+    # containers converge.yml created (identity-scoping-<alpha|beta|admin>-cli,
+    # each with that identity's credentials already baked in at
+    # creation time) via community.docker.docker_container_exec, not
+    # community.docker.docker_container with detach:false — that module
+    # hard-crashes the whole play ("Module failed", not a normal
+    # failed:true result) on ANY nonzero exit from the containerized
+    # command, confirmed live. docker_container_exec instead returns a
+    # normal result (.rc/.stdout/.stderr) regardless of exit code — the
+    # same reliable pattern this repo's own molecule_helpers already
+    # established (see its header comment) after hitting the
+    # docker_container problem twice before switching to it. Every
+    # assertion checks aws-cli's own distinct success-message prefixes
+    # (upload:/download:/make_bucket:/remove_bucket:) alongside denial
+    # text in .stdout/.stderr — not just .rc — since a check that only
+    # confirms "something failed" can't distinguish access being
+    # correctly denied from an unrelated error.
+
+    # --- alpha can read/write its own prefix -----------------------------
+    - name: alpha writes into its own prefix — must succeed
+      community.docker.docker_container_exec:
+        container: identity-scoping-alpha-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 cp /etc/hostname s3://{{ molecule_test_bucket }}/alpha-owned.txt"
+      register: identity_scoping_alpha_write_own
+
+    - name: Confirm it succeeded
+      ansible.builtin.assert:
+        that:
+          - "'upload:' in (identity_scoping_alpha_write_own.stdout ~ identity_scoping_alpha_write_own.stderr)"
+        fail_msg: >-
+          alpha should be able to write its own prefix — if this fails,
+          the scoping is too tight, not too loose (check the actions
+          list s3-identity.json.j2 rendered for alpha). rc:
+          {{ identity_scoping_alpha_write_own.rc }} stdout/stderr:
+          {{ identity_scoping_alpha_write_own.stdout }} {{ identity_scoping_alpha_write_own.stderr }}
+
+    - name: alpha reads back what it just wrote — must succeed
+      community.docker.docker_container_exec:
+        container: identity-scoping-alpha-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 cp s3://{{ molecule_test_bucket }}/alpha-owned.txt /tmp/readback.txt"
+      register: identity_scoping_alpha_read_own
+
+    - name: Confirm it succeeded
+      ansible.builtin.assert:
+        that:
+          - "'download:' in (identity_scoping_alpha_read_own.stdout ~ identity_scoping_alpha_read_own.stderr)"
+        fail_msg: >-
+          alpha should be able to read its own prefix. rc:
+          {{ identity_scoping_alpha_read_own.rc }} stdout/stderr:
+          {{ identity_scoping_alpha_read_own.stdout }} {{ identity_scoping_alpha_read_own.stderr }}
+
+    # --- beta writes its own object, for the cross-prefix checks below ---
+    - name: beta writes into its own prefix (setup for the cross-prefix checks)
+      community.docker.docker_container_exec:
+        container: identity-scoping-beta-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 cp /etc/hostname s3://{{ molecule_test_bucket }}/beta-owned.txt"
+      register: identity_scoping_beta_write_own
+
+    - name: Confirm beta's own setup write succeeded (or the checks below prove nothing)
+      ansible.builtin.assert:
+        that:
+          - "'upload:' in (identity_scoping_beta_write_own.stdout ~ identity_scoping_beta_write_own.stderr)"
+        fail_msg: >-
+          Setup step failed — beta couldn't even write its own prefix.
+          rc: {{ identity_scoping_beta_write_own.rc }} stdout/stderr:
+          {{ identity_scoping_beta_write_own.stdout }} {{ identity_scoping_beta_write_own.stderr }}
+
+    # --- The actual security property: alpha cannot touch beta's prefix ---
+    - name: alpha attempts to write into beta's prefix — must be denied
+      community.docker.docker_container_exec:
+        container: identity-scoping-alpha-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 cp /etc/hostname s3://{{ molecule_test_bucket }}/beta-owned.txt"
+      register: identity_scoping_alpha_write_beta
+      # A nonzero exit here is the expected, desired outcome (denial).
+      # community.docker.docker_container_exec fails-by-default on
+      # nonzero rc, same as ansible.builtin.command — confirmed live
+      # (the error output itself showed a normal populated
+      # rc/stdout/stderr result, unlike community.docker.docker_container's
+      # true hard-crash shape, so this override is the right fix here,
+      # not a workaround for something deeper).
+      failed_when: false
+
+    - name: Confirm the cross-prefix write was actually denied, not silently succeeding
+      ansible.builtin.assert:
+        that:
+          - "'upload:' not in (identity_scoping_alpha_write_beta.stdout ~ identity_scoping_alpha_write_beta.stderr)"
+          - (identity_scoping_alpha_write_beta.stdout ~ identity_scoping_alpha_write_beta.stderr) is search('(?i)accessdenied|access denied|forbidden|403')
+        fail_msg: >-
+          alpha's identity was able to write into beta's prefix, or
+          failed for a reason unrelated to access control — the
+          path-scoping in s3-identity.json.j2 is not being confirmed as
+          enforced. This is the load-bearing check the whole per-host
+          credential redesign depends on (see docs/disaster-recovery.md's
+          Threat model). rc: {{ identity_scoping_alpha_write_beta.rc }}
+          stdout/stderr: {{ identity_scoping_alpha_write_beta.stdout }}
+          {{ identity_scoping_alpha_write_beta.stderr }}
+
+    - name: alpha attempts to read beta's object — must also be denied
+      community.docker.docker_container_exec:
+        container: identity-scoping-alpha-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 cp s3://{{ molecule_test_bucket }}/beta-owned.txt /tmp/should-fail.txt"
+      register: identity_scoping_alpha_read_beta
+      # Same reason as the write-beta task above.
+      failed_when: false
+
+    - name: Confirm the cross-prefix read was actually denied, not silently succeeding
+      ansible.builtin.assert:
+        that:
+          - "'download:' not in (identity_scoping_alpha_read_beta.stdout ~ identity_scoping_alpha_read_beta.stderr)"
+          - (identity_scoping_alpha_read_beta.stdout ~ identity_scoping_alpha_read_beta.stderr) is search('(?i)accessdenied|access denied|forbidden|403')
+        fail_msg: >-
+          alpha's identity was able to read beta's object, or failed for
+          an unrelated reason — Read scoping isn't confirmed enforced
+          (Write may still be fine if that check above passed). rc:
+          {{ identity_scoping_alpha_read_beta.rc }} stdout/stderr:
+          {{ identity_scoping_alpha_read_beta.stdout }} {{ identity_scoping_alpha_read_beta.stderr }}
+
+    # --- A scoped identity has no Admin action anywhere, own prefix or not ---
+    - name: alpha attempts to remove the bucket itself (Admin-only) — must be denied
+      community.docker.docker_container_exec:
+        container: identity-scoping-alpha-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 rb s3://{{ molecule_test_bucket }} --force"
+      register: identity_scoping_alpha_admin_action
+      # Same reason as the write-beta task above.
+      failed_when: false
+
+    # Independent of the above's own output: ask the ADMIN identity
+    # whether the bucket is still there at all. This doesn't depend on
+    # correctly parsing alpha's own remove-bucket output/error shape —
+    # if alpha's attempt had actually worked, this listing would itself
+    # fail with a real NoSuchBucket-style error.
+    - name: Confirm the bucket still exists, using the admin identity
+      community.docker.docker_container_exec:
+        container: identity-scoping-admin-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 ls s3://{{ molecule_test_bucket }}"
+      register: identity_scoping_bucket_survives
+
+    - name: Assert on it
+      ansible.builtin.assert:
+        that:
+          - "'remove_bucket:' not in (identity_scoping_alpha_admin_action.stdout ~ identity_scoping_alpha_admin_action.stderr)"
+          - not ((identity_scoping_bucket_survives.stdout ~ identity_scoping_bucket_survives.stderr) is search('(?i)nosuchbucket|accessdenied|access denied'))
+        fail_msg: >-
+          alpha's scoped identity was able to remove the bucket, or the
+          admin identity itself can no longer list it — Admin actions
+          aren't restricted to the admin identity. Remove attempt rc:
+          {{ identity_scoping_alpha_admin_action.rc }} stdout/stderr:
+          {{ identity_scoping_alpha_admin_action.stdout }}
+          {{ identity_scoping_alpha_admin_action.stderr }} — Survival
+          check stdout/stderr: {{ identity_scoping_bucket_survives.stdout }}
+          {{ identity_scoping_bucket_survives.stderr }}

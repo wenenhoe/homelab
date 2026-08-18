@@ -8,8 +8,8 @@
 
     offsite_backup_s3_bucket: molecule-test-ensure-bucket
     offsite_backup_s3_proto: "http"
-    seaweedfs_s3_access_key: molecule-test-access-key
-    seaweedfs_s3_secret_key: molecule-test-secret-key
+    seaweedfs_admin_access_key: molecule-test-access-key
+    seaweedfs_admin_secret_key: molecule-test-secret-key
   tasks:
     - name: Include docker role (this role's own task assumes Docker is already installed and running)
       ansible.builtin.include_role:
@@ -33,8 +33,8 @@
         name: molecule_helpers
         tasks_from: start_seaweedfs_test_target.yaml
       vars:
-        molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_s3_access_key }}"
-        molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_s3_secret_key }}"
+        molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_admin_access_key }}"
+        molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_admin_secret_key }}"
         molecule_helpers_seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
 
     # molecule_helpers_seaweedfs_ip is exposed by the shared task above —

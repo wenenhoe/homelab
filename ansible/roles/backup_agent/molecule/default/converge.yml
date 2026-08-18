@@ -20,44 +20,31 @@
     # the role's own idempotent re-render on every single converge run
     # (confirmed the hard way — an earlier version of this file did
     # exactly that via `ansible.builtin.replace` + a manual container
-    # restart, and both permanently failed the `idempotence` step,
-    # since the role would reset the file to this var's real value on
-    # its next run, which the replace task would then "fix" again).
+    # restart, and both permanently failed the `idempotence` step).
     offsite_backup_cron: "* * * * *"
     offsite_backup_retention_days: 7
 
     # A real SeaweedFS instance (started below) stands in for the actual
-    # S3 target(s), with a real -s3.config identity, so this exercises
-    # real upload/auth wiring, not just "the container is running". Two
-    # target *keys* (seaweedfs, seaweedfs2) pointed at the SAME real
-    # server/bucket — proves one app fanning out to multiple
-    # cloud_targets produces multiple independent schedules/archives;
-    # the provider-specific bits of R2/B2/OCI's real endpoints aren't
-    # testable in CI without live credentials anyway (see
-    # docs/disaster-recovery.md's manual-verification callouts for
-    # those), so this only needs to prove the fan-out mechanism itself.
+    # target, with a real -s3.config identity, so this exercises real
+    # upload/auth wiring, not just "the container is running". This
+    # scenario's credential is deliberately shared by every app on the
+    # host — real hosts get one path-scoped identity each
+    # (docker/seaweedfs/configs/s3-identity.json.j2), which is a
+    # property of that template, not of backup_agent itself; nothing
+    # here would catch a scoping regression there. See
+    # docs/disaster-recovery.md for that coverage instead.
     molecule_test_bucket: molecule-test-backups
-    cloud_backup_targets:
-      seaweedfs:
-        bucket: "{{ molecule_test_bucket }}"
-        endpoint: "seaweedfs-test:8333"
-        proto: http
-        access_key: molecule-test-access-key
-        secret_key: molecule-test-secret-key
-      seaweedfs2:
-        bucket: "{{ molecule_test_bucket }}"
-        endpoint: "seaweedfs-test:8333"
-        proto: http
-        access_key: molecule-test-access-key
-        secret_key: molecule-test-secret-key
-    cloud_backup_default_targets: [seaweedfs]
+    offsite_backup_s3_bucket: "{{ molecule_test_bucket }}"
+    offsite_backup_s3_endpoint: "seaweedfs-test:8333"
+    offsite_backup_s3_proto: http
+    seaweedfs_s3_access_key: molecule-test-access-key
+    seaweedfs_s3_secret_key: molecule-test-secret-key
 
     # happy_app_stop carries docker-volume-backup.stop-during-backup=
     # happy_app_stop on its own container and stop_during_backup: true
     # here — the pairing backup_agent's per-schedule stop label depends
-    # on. happy_app_nostop carries neither, and fans out to BOTH cloud
-    # targets (the multi-target case). happy_app_no_backup declares no
-    # `backup:` key at all — mirrors real apps like caddy/beszel-agent/
+    # on. happy_app_nostop carries neither. happy_app_no_backup declares
+    # no `backup:` key at all — mirrors real apps like caddy/beszel-agent/
     # diun, which coexist with backed-up apps: confirms the
     # normalization task's `when: ... | length > 0` skip branch actually
     # excludes it.
@@ -73,7 +60,6 @@
           - name: data
         backup:
           volumes: [data]
-          cloud_targets: [seaweedfs, seaweedfs2]
       happy_app_no_backup:
         volumes:
           - name: data
@@ -105,18 +91,16 @@
         name: compose_app
 
     # Seeded before the role's own first run, standing in for a
-    # schedule left over from an app/cloud_targets combination that
-    # used to exist but doesn't anymore — the actual case the
-    # stale-file-removal task in tasks/main.yaml exists to handle.
-    # Without this, that task's loop is empty on every real run this
-    # scenario exercises (nothing here ever changes app_registry
-    # between runs), so its deletion behavior itself was never
-    # actually observed to work — confirmed via molecule's coverage
-    # report, which flagged exactly that gap. Guarded by a marker file
-    # so this seeds exactly once, not on molecule's `idempotence`
+    # schedule left over from an app that used to exist but doesn't
+    # anymore — the actual case the stale-file-removal task in
+    # tasks/main.yaml exists to handle. Without this, that task's loop
+    # is empty on every real run this scenario exercises (nothing here
+    # ever changes app_registry between runs), so its deletion behavior
+    # itself was never actually observed to work. Guarded by a marker
+    # file so this seeds exactly once, not on molecule's `idempotence`
     # re-run of this same converge.yml — reseeding there would give the
-    # removal task real work on every run, which is a different way of
-    # landing back in the same non-idempotent trap patch 4 already fixed.
+    # removal task real work on every run, landing back in the same
+    # non-idempotent trap an earlier version of this role hit.
     - name: Check whether the stale-file seed already ran (guards against reseeding on the idempotence re-run)
       ansible.builtin.stat:
         path: /tmp/backup_agent_molecule_stale_seed_done
@@ -129,9 +113,9 @@
         mode: "0755"
       when: not backup_agent_stale_seed_marker.stat.exists
 
-    - name: Seed a stale schedule file predating this run, simulating a removed app/target
+    - name: Seed a stale schedule file predating this run, simulating a removed app
       ansible.builtin.copy:
-        dest: "{{ compose_deploy_dir }}/backup-agent/conf.d/long_gone_app-seaweedfs.env"
+        dest: "{{ compose_deploy_dir }}/backup-agent/conf.d/long_gone_app.env"
         content: |
           AWS_S3_BUCKET_NAME=molecule-test-backups
           BACKUP_SOURCES=/backup/long_gone_app_data
@@ -180,34 +164,60 @@
         name: molecule_helpers
         tasks_from: start_seaweedfs_test_target.yaml
       vars:
-        molecule_helpers_seaweedfs_access_key: "{{ cloud_backup_targets.seaweedfs.access_key }}"
-        molecule_helpers_seaweedfs_secret_key: "{{ cloud_backup_targets.seaweedfs.secret_key }}"
+        molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_s3_access_key }}"
+        molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_s3_secret_key }}"
         molecule_helpers_seaweedfs_bucket: "{{ molecule_test_bucket }}"
         molecule_helpers_seaweedfs_network_name: "{{ backup_agent_network_name }}"
 
     # amazon/aws-cli's `s3 mb` needs to reach seaweedfs-test by name, so
-    # this one-off container joins the same discovered network.
-    - name: Create the test bucket in SeaweedFS ahead of time
+    # this persistent utility container joins the same discovered
+    # network. Persistent (state: started, never removed), not
+    # created-and-torn-down each run: an ephemeral container reports
+    # `changed` on both creation and removal every single time by
+    # definition, which molecule's idempotence check (this scenario's
+    # own test_sequence) correctly flags — there's no way to make
+    # ephemeral churn idempotent short of not recreating it.
+    # docker_container's own state:started comparison correctly reports
+    # unchanged once it already matches, same as any other declarative
+    # resource.
+    - name: Start a persistent aws-cli utility container to run the bucket-creation command in
       community.docker.docker_container:
         name: backup-agent-bucket-create
         image: amazon/aws-cli:2.15.0
         networks:
           - name: "{{ backup_agent_network_name }}"
+        entrypoint: ["sleep"]
+        command: ["infinity"]
         env:
-          AWS_ACCESS_KEY_ID: "{{ cloud_backup_targets.seaweedfs.access_key }}"
-          AWS_SECRET_ACCESS_KEY: "{{ cloud_backup_targets.seaweedfs.secret_key }}"
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_s3_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_s3_secret_key }}"
           AWS_DEFAULT_REGION: us-east-1
-        command: "--endpoint-url http://seaweedfs-test:8333 s3 mb s3://{{ molecule_test_bucket }}"
-        detach: false
-        cleanup: true
-        output_logs: true
+        state: started
+        detach: true
+
+    # community.docker.docker_container with detach:false hard-crashes
+    # the whole play ("Module failed", not a normal failed:true result)
+    # on ANY nonzero exit from the containerized command — confirmed
+    # live, not assumed. That's not an edge case here: aws s3 mb on an
+    # already-existing bucket (BucketAlreadyOwnedByYou) itself exits
+    # nonzero, which is exactly the idempotence re-run's own path.
+    # community.docker.docker_container_exec instead returns a normal
+    # result (.rc/.stdout/.stderr) regardless of exit code — the same
+    # reliable pattern this repo's own molecule_helpers already
+    # established (see its header comment) after hitting the
+    # docker_container problem twice before.
+    - name: Create the test bucket in SeaweedFS ahead of time
+      community.docker.docker_container_exec:
+        container: backup-agent-bucket-create
+        command: "aws --endpoint-url http://seaweedfs-test:8333 s3 mb s3://{{ molecule_test_bucket }}"
       register: backup_agent_bucket_create
       changed_when: false
       # seaweedfs-test (and its data volume) persists across the
       # idempotence re-run, so the bucket genuinely already exists the
-      # second time. Tolerates both
-      # BucketAlreadyExists and BucketAlreadyOwnedByYou.
+      # second time. Tolerates both BucketAlreadyExists and
+      # BucketAlreadyOwnedByYou — anything else (including a genuine
+      # auth failure) is a real failure.
       failed_when: >-
-        backup_agent_bucket_create is failed
-        and 'BucketAlreadyExists' not in (backup_agent_bucket_create.msg | default(''))
-        and 'BucketAlreadyOwnedByYou' not in (backup_agent_bucket_create.msg | default(''))
+        backup_agent_bucket_create.rc != 0
+        and 'BucketAlreadyExists' not in (backup_agent_bucket_create.stdout ~ backup_agent_bucket_create.stderr)
+        and 'BucketAlreadyOwnedByYou' not in (backup_agent_bucket_create.stdout ~ backup_agent_bucket_create.stderr)

@@ -24,6 +24,15 @@
 # (credentials for the identity config), molecule_helpers_seaweedfs_bucket
 # (bucket the identity is scoped to).
 #
+# Optional: molecule_helpers_seaweedfs_identity_json — a complete,
+# pre-rendered identity config (string) to use verbatim instead of the
+# single-identity default below. For scenarios testing the real
+# production identity template's scoping rather than just "is a backup
+# reachable" — access/secret_key above are unused in that case, but
+# still required (used nowhere, but every caller already sets them, so
+# making this identity_json path skip that requirement isn't worth the
+# extra conditional).
+#
 # Optional: molecule_helpers_seaweedfs_network_name — attach to this
 # docker network at creation time (SeaweedFS likely binds to whichever
 # address is available at startup), for callers whose own role already
@@ -37,7 +46,10 @@
   ansible.builtin.copy:
     dest: /tmp/seaweedfs-test-s3-identity.json
     mode: "0644"
-    content: |
+    content: >-
+      {% if molecule_helpers_seaweedfs_identity_json is defined -%}
+      {{ molecule_helpers_seaweedfs_identity_json }}
+      {%- else -%}
       {
         "identities": [
           {
@@ -58,6 +70,7 @@
           }
         ]
       }
+      {%- endif %}
 
 - name: Run a throwaway SeaweedFS S3 target for this scenario
   community.docker.docker_container:

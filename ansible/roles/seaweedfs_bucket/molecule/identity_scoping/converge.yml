@@ -1,0 +1,118 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    seaweedfs_admin_access_key: molecule-test-admin-ak
+    seaweedfs_admin_secret_key: molecule-test-admin-sk
+    molecule_test_bucket: molecule-test-backups
+    offsite_backup_s3_bucket: "{{ molecule_test_bucket }}"
+    # alpha/beta, not real host names — this scenario tests the
+    # template's scoping mechanism generically, not any specific
+    # inventory's shape.
+    seaweedfs_backup_hosts: [alpha, beta]
+    seaweedfs_alpha_access_key: molecule-test-alpha-ak
+    seaweedfs_alpha_secret_key: molecule-test-alpha-sk
+    seaweedfs_beta_access_key: molecule-test-beta-ak
+    seaweedfs_beta_secret_key: molecule-test-beta-sk
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Install python3-requests (docker_container/docker_container_info talk to the API directly)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: install_docker_api_requests.yaml
+
+    # Registers alpha/beta as real (if ephemeral) inventory hosts for
+    # the rest of this play, each carrying its own
+    # seaweedfs_s3_access_key/secret_key — the same vars the real
+    # s3-identity.json.j2 reads via hostvars[host].*. Confirmed live
+    # (python3 ansible-playbook, outside molecule) that add_host +
+    # lookup('ansible.builtin.template', ...) resolves hostvars[host]
+    # for a host added this way, not just ones from real inventory —
+    # this scenario depends on that.
+    - name: Register alpha/beta as ephemeral inventory hosts so hostvars[...] resolves like production
+      ansible.builtin.add_host:
+        name: "{{ item.name }}"
+        groups: molecule_fake_backup_hosts
+        seaweedfs_s3_access_key: "{{ item.access_key }}"
+        seaweedfs_s3_secret_key: "{{ item.secret_key }}"
+      loop:
+        - { name: alpha, access_key: "{{ seaweedfs_alpha_access_key }}", secret_key: "{{ seaweedfs_alpha_secret_key }}" }
+        - { name: beta, access_key: "{{ seaweedfs_beta_access_key }}", secret_key: "{{ seaweedfs_beta_secret_key }}" }
+      loop_control:
+        label: "{{ item.name }}"
+
+    # The actual file under test, rendered exactly as a real deploy
+    # would — not a hand-copied approximation of its content.
+    - name: Render the real production s3-identity.json.j2
+      ansible.builtin.set_fact:
+        seaweedfs_rendered_identity_json: >-
+          {{ lookup('ansible.builtin.template', repo_root ~ '/docker/seaweedfs/configs/s3-identity.json.j2') }}
+      vars:
+        repo_root: "{{ (playbook_dir ~ '/../../../../../') | realpath }}"
+
+    - name: Start a real SeaweedFS S3 target using that exact rendered file
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_seaweedfs_test_target.yaml
+      vars:
+        molecule_helpers_seaweedfs_identity_json: "{{ seaweedfs_rendered_identity_json }}"
+        # Unused when identity_json is supplied — still required by the
+        # helper's own interface. See its header comment.
+        molecule_helpers_seaweedfs_access_key: unused
+        molecule_helpers_seaweedfs_secret_key: unused
+        molecule_helpers_seaweedfs_bucket: "{{ molecule_test_bucket }}"
+
+    # One persistent container per identity, credentials baked in at
+    # creation time (env: is proven reliable there — this is how it
+    # already worked before, just now idling instead of running the
+    # real command directly) rather than one ephemeral container per
+    # check. verify.yml execs the actual aws commands into these via
+    # community.docker.docker_container_exec, not
+    # community.docker.docker_container with detach:false — that
+    # module hard-crashes the whole play ("Module failed", not a normal
+    # failed:true result) on ANY nonzero exit from the containerized
+    # command, confirmed live — fatal for "must be denied" checks where
+    # a nonzero exit is the entire point, and also for bucket creation
+    # itself once a bucket already exists (aws s3 mb's
+    # BucketAlreadyOwnedByYou case itself exits nonzero). Survive from
+    # this run into verify.yml's separate ansible-playbook invocation
+    # the same way seaweedfs-test itself already does — only facts
+    # don't carry over between the two, not containers.
+    - name: Start one persistent aws-cli container per identity
+      community.docker.docker_container:
+        name: "identity-scoping-{{ item.name }}-cli"
+        image: amazon/aws-cli:2.15.0
+        entrypoint: ["sleep"]
+        command: ["infinity"]
+        env:
+          AWS_ACCESS_KEY_ID: "{{ item.access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ item.secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        state: started
+        detach: true
+      loop:
+        - { name: alpha, access_key: "{{ seaweedfs_alpha_access_key }}", secret_key: "{{ seaweedfs_alpha_secret_key }}" }
+        - { name: beta, access_key: "{{ seaweedfs_beta_access_key }}", secret_key: "{{ seaweedfs_beta_secret_key }}" }
+        - { name: admin, access_key: "{{ seaweedfs_admin_access_key }}", secret_key: "{{ seaweedfs_admin_secret_key }}" }
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Create the test bucket using the admin identity's persistent container
+      community.docker.docker_container_exec:
+        container: identity-scoping-admin-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 mb s3://{{ molecule_test_bucket }}"
+      register: identity_scoping_bucket_create
+      changed_when: false
+      # Tolerate "already exists" (BucketAlreadyOwnedByYou is what a
+      # single-owner target like this one actually returns on an
+      # idempotent re-run, and itself exits nonzero — see header
+      # comment above). Anything else is a real failure.
+      failed_when: >-
+        identity_scoping_bucket_create.rc != 0
+        and 'BucketAlreadyExists' not in (identity_scoping_bucket_create.stdout ~ identity_scoping_bucket_create.stderr)
+        and 'BucketAlreadyOwnedByYou' not in (identity_scoping_bucket_create.stdout ~ identity_scoping_bucket_create.stderr)

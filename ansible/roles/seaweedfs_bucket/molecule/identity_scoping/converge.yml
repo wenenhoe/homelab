@@ -50,7 +50,7 @@
     # would — not a hand-copied approximation of its content.
     - name: Render the real production s3-identity.json.j2
       ansible.builtin.set_fact:
-        seaweedfs_rendered_identity_json: >-
+        seaweedfs_bucket_rendered_identity_json: >-
           {{ lookup('ansible.builtin.template', repo_root ~ '/docker/seaweedfs/configs/s3-identity.json.j2') }}
       vars:
         repo_root: "{{ (playbook_dir ~ '/../../../../../') | realpath }}"
@@ -60,12 +60,21 @@
         name: molecule_helpers
         tasks_from: start_seaweedfs_test_target.yaml
       vars:
-        molecule_helpers_seaweedfs_identity_json: "{{ seaweedfs_rendered_identity_json }}"
+        molecule_helpers_seaweedfs_identity_json: "{{ seaweedfs_bucket_rendered_identity_json }}"
         # Unused when identity_json is supplied — still required by the
         # helper's own interface. See its header comment.
         molecule_helpers_seaweedfs_access_key: unused
         molecule_helpers_seaweedfs_secret_key: unused
         molecule_helpers_seaweedfs_bucket: "{{ molecule_test_bucket }}"
+
+    # molecule_helpers_seaweedfs_ip is exposed by the shared task above —
+    # aliased to this role's own naming convention right away, matching
+    # ../default/converge.yml's identical pattern, since var-naming
+    # requires a seaweedfs_bucket_ prefix within this role but the
+    # shared helper's own return-value name isn't ours to rename.
+    - name: Alias the discovered IP under this scenario's own name
+      ansible.builtin.set_fact:
+        seaweedfs_bucket_test_ip: "{{ molecule_helpers_seaweedfs_ip }}"
 
     # One persistent container per identity, credentials baked in at
     # creation time (env: is proven reliable there — this is how it
@@ -105,14 +114,14 @@
     - name: Create the test bucket using the admin identity's persistent container
       community.docker.docker_container_exec:
         container: identity-scoping-admin-cli
-        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 mb s3://{{ molecule_test_bucket }}"
-      register: identity_scoping_bucket_create
+        command: "aws --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333 s3 mb s3://{{ molecule_test_bucket }}"
+      register: seaweedfs_bucket_test_bucket_create
       changed_when: false
       # Tolerate "already exists" (BucketAlreadyOwnedByYou is what a
       # single-owner target like this one actually returns on an
       # idempotent re-run, and itself exits nonzero — see header
       # comment above). Anything else is a real failure.
       failed_when: >-
-        identity_scoping_bucket_create.rc != 0
-        and 'BucketAlreadyExists' not in (identity_scoping_bucket_create.stdout ~ identity_scoping_bucket_create.stderr)
-        and 'BucketAlreadyOwnedByYou' not in (identity_scoping_bucket_create.stdout ~ identity_scoping_bucket_create.stderr)
+        seaweedfs_bucket_test_bucket_create.rc != 0
+        and 'BucketAlreadyExists' not in (seaweedfs_bucket_test_bucket_create.stdout ~ seaweedfs_bucket_test_bucket_create.stderr)
+        and 'BucketAlreadyOwnedByYou' not in (seaweedfs_bucket_test_bucket_create.stdout ~ seaweedfs_bucket_test_bucket_create.stderr)

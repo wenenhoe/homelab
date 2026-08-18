@@ -47,10 +47,7 @@
     dest: /tmp/seaweedfs-test-s3-identity.json
     mode: "0644"
     content: >-
-      {% if molecule_helpers_seaweedfs_identity_json is defined -%}
-      {{ molecule_helpers_seaweedfs_identity_json }}
-      {%- else -%}
-      {
+      {% if molecule_helpers_seaweedfs_identity_json is defined -%} {{ molecule_helpers_seaweedfs_identity_json }}{%- else -%} {
         "identities": [
           {
             "name": "molecule-test",
@@ -69,8 +66,7 @@
             ]
           }
         ]
-      }
-      {%- endif %}
+      }{%- endif %}
 
 - name: Run a throwaway SeaweedFS S3 target for this scenario
   community.docker.docker_container:

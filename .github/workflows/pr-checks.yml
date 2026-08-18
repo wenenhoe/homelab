@@ -210,6 +210,7 @@ jobs:
           printf '%s' 'ci-dummy-r2-account-id' > ansible/files/secrets/cloudflare-r2-account-id
           printf '%s' 'ci-dummy-b2-access-key' > ansible/files/secrets/backblaze-b2-access-key
           printf '%s' 'ci-dummy-b2-secret-key' > ansible/files/secrets/backblaze-b2-secret-key
+          printf '%s' 'ci-dummy-b2-region' > ansible/files/secrets/backblaze-b2-region
           printf '%s' 'ci-dummy-oci-access-key' > ansible/files/secrets/oci-access-key
           printf '%s' 'ci-dummy-oci-secret-key' > ansible/files/secrets/oci-secret-key
           printf '%s' 'ci-dummy-oci-namespace' > ansible/files/secrets/oci-namespace

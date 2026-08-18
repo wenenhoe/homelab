@@ -36,10 +36,12 @@ cloud_sync_targets:
     access_key: "{{ secrets_generated['cloudflare-r2-access-key'] }}"
     secret_key: "{{ secrets_generated['cloudflare-r2-secret-key'] }}"
   b2:
-    bucket: homelab-backups
-    # Guess — B2 assigns your bucket's actual region at creation. See
-    # docs/disaster-recovery.md.
-    endpoint: "https://s3.us-west-004.backblazeb2.com"
+    # -b2 suffix, unlike r2/oci's bare "homelab-backups": B2 bucket
+    # names are globally unique across every B2 account, not
+    # account-scoped like R2/OCI — "homelab-backups" was already taken.
+    # Confirmed live, not a hypothetical.
+    bucket: homelab-backups-b2
+    endpoint: "https://s3.{{ secrets_generated['backblaze-b2-region'] }}.backblazeb2.com"
     access_key: "{{ secrets_generated['backblaze-b2-access-key'] }}"
     secret_key: "{{ secrets_generated['backblaze-b2-secret-key'] }}"
   oci:

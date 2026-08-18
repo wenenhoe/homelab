@@ -202,20 +202,24 @@ rest of that run.
 
 **Before first use:**
 
-- Create a `homelab-backups` bucket by hand on each of R2/B2/OCI (not
-  Ansible-managed, same as the earlier note for SeaweedFS being the one
-  exception) — a reasonable first OpenTofu project once that expansion
-  starts.
-- Fill in the six `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries in
+- Create a bucket by hand on each of R2/B2/OCI — `homelab-backups` for
+  R2/OCI (account-scoped naming, so this is fine); B2 bucket names are
+  globally unique across *every* B2 account, not just yours, so
+  `homelab-backups` will likely already be taken — confirmed live, not
+  hypothetical, this repo's own real deploy needed `homelab-backups-b2`
+  instead, hence the `-b2` suffix already baked into
+  `cloud_sync_targets.b2.bucket` (`host_vars/storage.yaml`). None of
+  this is Ansible-managed (same as the earlier note for SeaweedFS being
+  the one exception) — a reasonable first OpenTofu project once that
+  expansion starts.
+- Fill in the ten `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries in
   `secrets_registry.yaml` via `bootstrap_secrets.py` — see
   [`secrets.md`](secrets.md). Scope each credential to just that bucket,
   **without** delete/lifecycle-modification permission — see the
   paragraph above on why that's load-bearing, not just tidiness.
-- `cloud_sync_targets.b2.endpoint` (`host_vars/storage.yaml`) is a
-  guess (`https://s3.us-west-004.backblazeb2.com`) — B2 assigns your
-  bucket's actual region at creation. Confirm it in the B2 console
-  (Bucket Details) before deploying, or that provider fails closed
-  (wrong endpoint → connection/auth error, not a silent skip).
+  `backblaze-b2-region` specifically (B2 Console > Buckets > Bucket
+  Details) is the one value here B2 assigns rather than you choosing it
+  — get the real one from your own bucket, not a copied example.
 - **Needs live verification, not yet confirmed:** every `rclone.conf`
   endpoint is written with its scheme (`https://`) included, not a bare
   hostname — the opposite convention from `docker-volume-backup`'s

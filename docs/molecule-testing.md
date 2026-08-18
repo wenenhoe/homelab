@@ -20,6 +20,7 @@ result, then re-converges to check idempotence — mirroring what
 | | `scripts` | The two script-deployment paths in `init.yaml` (direct copy vs. volume-seeded). |
 | | `build` | The `build: true` branch of `deploy.yaml`. |
 | | `cleanup` | `cleanup.yaml` dry-run, keep-content path, and label-fallback teardown. |
+| | `reset` | Wiping a volume that mixes seeded config with app-written runtime state restores the config, discards the runtime state; a pure-runtime volume with no seeded content comes back genuinely empty; running without explicit confirmation refuses and leaves everything untouched. |
 | `compose_app` | `default` | Batch-driving `compose/` across apps, continuing past a failure. |
 | | `strict` | `compose_app_continue_on_error: false`. |
 | | `continue_on_error` | One broken app (bad config source) alongside healthy ones: batch reports the failure, healthy apps still deploy, self-managed apps (`bind9`/`caddy`) untouched. |
@@ -41,8 +42,9 @@ result, then re-converges to check idempotence — mirroring what
 | `tinyauth` | `default` | Stands up a throwaway lldap target, runs `lldap_bootstrap` against it for real, then deploys the real tinyauth compose app and waits for it to report healthy — only reachable having already bound to LDAP at boot. Molecule-only; not wired into `deploy.yaml`. |
 | `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — the scenario that empirically confirmed the SSL_CERT_FILE/Go-cert-pool mechanism `docs/lldap.md` documents, rather than leaving it as an unverified design note. Asserts on `docker logs`-observed process-start count (`>= 2`), not `RestartCount` — that counter turned out to be reset by the scenario's own restart, confirmed live — and `>= 2`, not tinyauth's own `== 0`, since this scenario's whole point is reproducing the cold-start-then-recover race, not avoiding it. |
 | | `not_running` | No running tinyauth target at all — the guard at the top of the role fails loudly, before anything CA-bundle-related runs. |
-| `backup_agent` | `default` | One schedule per (app, cloud target), not per app — happy_app_nostop fans out to two targets, producing two independent archives. Per-schedule stop-label isolation confirmed behaviorally: happy_app_stop's `StartedAt` changes when its own schedule's real (test-sped-up) cron fires, happy_app_nostop's never does, even though every schedule shares one container. All expected archives land in the test bucket. |
+| `backup_agent` | `default` | One schedule per app, always SeaweedFS (no per-target fan-out — that was reverted back to app-host-side simplicity when cloud coverage moved to `cloud_sync`, storage-only). Per-schedule stop-label isolation confirmed behaviorally: happy_app_stop's `StartedAt` changes when its own schedule's real (test-sped-up) cron fires, happy_app_nostop's never does, even though every schedule shares one container. Archives land in the test bucket. Stale-schedule-file removal exercised via a seeded leftover file, guarded so it only runs once (not on the `idempotence` re-run). |
 | | `no_stop_apps` | No app on the host opts into `stop_during_backup` — confirms `backup-dockerproxy` (and `DOCKER_HOST`) are entirely absent from the rendered compose.yaml, not just unused. |
+| `cloud_sync` | `default` | Real SeaweedFS target standing in for both the source and the R2/B2/OCI destinations (real credentials aren't reachable from CI regardless — see the scenario's own header). Two synthetic backup hosts, one app with no override (must fan out to every default target) and one with `extra_cloud_targets` restricted to a single target (must reach only that one, not the other) — resolved via `hostvars[host].compose_apps`, the same cross-host mechanism the real role uses. `idempotence` covers only the role's own rendering; triggering the real `Type=oneshot` service and asserting the destination buckets' actual contents happens in `verify.yml` instead, deliberately outside the idempotence-checked path — a oneshot job is supposed to report changed every time it fires, which isn't a bug to fix, just not what that check is for. |
 | `restore` | `default` | Full restore of a single volume: stop → extract → overwrite → redeploy, with `StartedAt` and content checks. |
 | | `multi_volume` | Multiple volumes restored from one archive at different nesting depths, ignoring a decoy and an unrelated app's directory. |
 | | `validation_failure` | Missing archive path blocks every destructive step (asserted via unchanged `StartedAt`/content, not just task failure). |
@@ -96,8 +98,8 @@ One scenario of one role, without `cd`-ing into it:
 ```
 
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
-scenario glob doesn't recurse into `roles/*/molecule/*/`, and 16 of this
-repo's 36 scenarios share the name `default`, which a recursive glob
+scenario glob doesn't recurse into `roles/*/molecule/*/`, and 17 of this
+repo's 37 scenarios share the name `default`, which a recursive glob
 would reject as a collision. `molecule-test-all.sh` runs `molecule test
 --all` once per role directory instead, so each invocation only sees that
 role's own unique scenario names.
@@ -113,7 +115,7 @@ Shared scaffolding for scenarios, not a role under test:
 | `tasks/install_docker_api_requests.yaml` | Installs `python3-requests`, needed by `community.docker` modules that talk to the Docker API directly. |
 | `tasks/bootstrap_docker.yaml` | `include_role: docker` for scenarios that assume Docker is already installed, mirroring `deploy.yaml`'s Play 1. |
 | `tasks/resolve_compose_apps.yaml` | Resolves a scenario's `compose_apps` against `app_registry`, same merge as `deploy.yaml`. |
-| `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config; exposes its IP as `molecule_helpers_seaweedfs_ip`. |
+| `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
 | `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
 | `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |
 | `requirements.yml` / `role-requirements.yml` | Shared Galaxy collection/role deps (`community.docker`, `ansible.posix`). |

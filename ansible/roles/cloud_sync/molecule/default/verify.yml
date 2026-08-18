@@ -1,0 +1,154 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+    molecule_source_bucket: molecule-test-source
+    molecule_dest_a_bucket: molecule-test-dest-a
+    molecule_dest_b_bucket: molecule-test-dest-b
+    seaweedfs_admin_access_key: molecule-test-admin-ak
+    seaweedfs_admin_secret_key: molecule-test-admin-sk
+  tasks:
+    # cloud_sync_test_ip is a set_fact from converge.yml's own
+    # run — molecule runs converge and verify as separate
+    # ansible-playbook invocations, so that fact doesn't carry over here.
+    # seaweedfs-test the container (and cloud-sync-test-admin-cli) do
+    # persist between the two — only facts don't — so rediscover the IP
+    # the same way the helper computes it internally
+    # (start_seaweedfs_test_target.yaml). No custom network was created
+    # for this scenario, so 'bridge' matches converge.yml's implicit
+    # default — same pattern as identity_scoping/verify.yml.
+    - name: Query seaweedfs-test's info to rediscover its IP
+      community.docker.docker_container_info:
+        name: seaweedfs-test
+      register: cloud_sync_seaweedfs_info
+
+    - name: Extract its IP
+      ansible.builtin.set_fact:
+        cloud_sync_test_ip: "{{ cloud_sync_seaweedfs_info.container.NetworkSettings.Networks.bridge.IPAddress }}"
+
+    # --- Structural: the right files, with the right content ------------
+    - name: Read back the rendered rclone.conf
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/cloud-sync/rclone.conf"
+      register: cloud_sync_rclone_conf_raw
+
+    - name: Confirm all three remotes are present with the right endpoints
+      ansible.builtin.assert:
+        that:
+          - "'[seaweedfs]' in (cloud_sync_rclone_conf_raw.content | b64decode)"
+          - "'[target_a]' in (cloud_sync_rclone_conf_raw.content | b64decode)"
+          - "'[target_b]' in (cloud_sync_rclone_conf_raw.content | b64decode)"
+          - "'endpoint = http://' + cloud_sync_test_ip + ':8333' in (cloud_sync_rclone_conf_raw.content | b64decode)"
+        fail_msg: "rclone.conf: {{ cloud_sync_rclone_conf_raw.content | b64decode }}"
+
+    - name: List the rendered job manifest
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/cloud-sync/jobs.txt"
+      register: cloud_sync_jobs_raw
+
+    - name: Confirm exactly the three expected jobs exist — no more, no fewer
+      ansible.builtin.assert:
+        that:
+          - (cloud_sync_jobs_raw.content | b64decode).count('alpha-host-happy_app_default_targets') == 2
+          - (cloud_sync_jobs_raw.content | b64decode).count('beta-host-happy_app_override_targets') == 1
+          - "'caddy' not in (cloud_sync_jobs_raw.content | b64decode)"
+          - "'beta-host-happy_app_override_targets target_b' not in (cloud_sync_jobs_raw.content | b64decode)"
+        fail_msg: >-
+          Expected happy_app_default_targets fanned out to both targets,
+          happy_app_override_targets restricted to target_a only, and
+          caddy (no backup: key) entirely absent. Got:
+          {{ cloud_sync_jobs_raw.content | b64decode }}
+
+    - name: Confirm the systemd units are installed
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: cloud_sync_unit_files
+      loop:
+        - /etc/systemd/system/cloud-sync.service
+        - /etc/systemd/system/cloud-sync.timer
+
+    - name: Assert on it
+      ansible.builtin.assert:
+        that:
+          - cloud_sync_unit_files.results | map(attribute='stat.exists') | list == [true, true]
+
+    - name: Confirm the timer is enabled and active
+      # daemon_reload: false is a required-but-inert param here — the
+      # module's own argument spec requires at least one of
+      # state/enabled/masked/daemon_reload/daemon_reexec to be present
+      # (confirmed from its actual source: required_one_of=[[...]]), even
+      # though this task only wants the read-only `systemctl show`
+      # it always runs internally once name: is given, not to change
+      # anything. false matches the module's own default, so this is a
+      # genuine no-op, not a disguised action.
+      ansible.builtin.systemd:
+        name: cloud-sync.timer
+        daemon_reload: false
+      register: cloud_sync_timer_status
+
+    - name: Assert on it
+      ansible.builtin.assert:
+        that:
+          - cloud_sync_timer_status.status.ActiveState == 'active'
+          - cloud_sync_timer_status.status.UnitFileState == 'enabled'
+        fail_msg: >-
+          ActiveState={{ cloud_sync_timer_status.status.ActiveState }}
+          UnitFileState={{ cloud_sync_timer_status.status.UnitFileState }}
+
+    # --- Behavioral: does triggering the real service actually move data? ---
+    # cloud-sync.service is Type=oneshot with no RemainAfterExit —
+    # `systemctl start` (and this module, which shells out to it)
+    # blocks until the ExecStart itself completes, standard systemd
+    # semantics for that combination. Not exhaustively re-verified here
+    # the way the docker_container/docker_container_exec distinction
+    # was earlier in this project — if this assumption is wrong, the
+    # bucket-listing checks below will simply find nothing and fail
+    # clearly, which is itself the signal to revisit this.
+    - name: Trigger the real cloud-sync.service once
+      ansible.builtin.systemd:
+        name: cloud-sync.service
+        state: started
+
+    - name: List target_a's bucket, waiting for both jobs to land
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: "aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333 s3 ls s3://{{ molecule_dest_a_bucket }} --recursive"
+      register: cloud_sync_dest_a_listing
+      until: >-
+        'alpha-host-happy_app_default_targets' in cloud_sync_dest_a_listing.stdout
+        and 'beta-host-happy_app_override_targets' in cloud_sync_dest_a_listing.stdout
+      retries: 12
+      delay: 10
+
+    - name: Confirm both jobs actually landed in target_a
+      ansible.builtin.assert:
+        that:
+          - "'alpha-host-happy_app_default_targets' in cloud_sync_dest_a_listing.stdout"
+          - "'beta-host-happy_app_override_targets' in cloud_sync_dest_a_listing.stdout"
+        fail_msg: "target_a listing: {{ cloud_sync_dest_a_listing.stdout }}"
+
+    - name: List target_b's bucket
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: "aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333 s3 ls s3://{{ molecule_dest_b_bucket }} --recursive"
+      register: cloud_sync_dest_b_listing
+      until: "'alpha-host-happy_app_default_targets' in cloud_sync_dest_b_listing.stdout"
+      retries: 12
+      delay: 10
+
+    # This is the one that actually proves extra_cloud_targets scoping
+    # works, not just that copying works at all: happy_app_override_targets
+    # declared target_a only, so it must never show up here.
+    - name: Confirm the default-target app landed in target_b, but the overridden one did not
+      ansible.builtin.assert:
+        that:
+          - "'alpha-host-happy_app_default_targets' in cloud_sync_dest_b_listing.stdout"
+          - "'beta-host-happy_app_override_targets' not in cloud_sync_dest_b_listing.stdout"
+        fail_msg: >-
+          happy_app_override_targets (extra_cloud_targets: [target_a])
+          showed up in target_b — the per-app target restriction isn't
+          being enforced, every app is landing everywhere regardless of
+          its own extra_cloud_targets. target_b listing:
+          {{ cloud_sync_dest_b_listing.stdout }}

@@ -4,12 +4,14 @@
 
 ## How an orphan is identified
 
-For each host, "orphaned" means: present on disk under `compose_deploy_dir` **or** currently running as a Docker Compose project, but **not** in that host's resolved `compose_apps`.
+For each host, "orphaned" means: present on disk under `compose_deploy_dir` **or** currently running as a Docker Compose project, but **not** in that host's resolved `compose_apps` **and not** in `compose_cleanup_exclude`.
 
 1. `compose_cleanup_wanted_apps` — the host's current `compose_apps`, reduced to just their `.name`s.
 2. `compose_cleanup_found_dirs` — every directory directly under `compose_deploy_dir` (`ansible.builtin.find`).
 3. `compose_cleanup_compose_ls` — every running Compose project (`docker compose ls --format json`).
-4. `compose_cleanup_orphaned_stacks` — the union of (2) and (3), minus (1), deduplicated and sorted.
+4. `compose_cleanup_orphaned_stacks` — the union of (2) and (3), minus (1) and `compose_cleanup_exclude`, deduplicated and sorted.
+
+`compose_cleanup_exclude` (a `vars:` default on `cleanup.yaml`'s own Play 1, not a role default — see its own comment there) covers directories that are never going to be a `compose_apps` entry at all: `backup_agent` and `cloud_sync` are separate roles, included directly from `deploy.yaml`, not through the app registry, so without this they'd be misidentified as orphaned on every single run.
 
 Union-ing disk and runtime state (not disk alone) catches a stack whose
 containers are still running but whose directory was already deleted by

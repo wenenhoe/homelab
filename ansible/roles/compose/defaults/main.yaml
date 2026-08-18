@@ -20,6 +20,10 @@ compose_cleanup_remove_content: false
 compose_cleanup_app_overrides: {}
 compose_cleanup_dry_run: false
 
+# compose_cleanup_exclude lives in ansible/playbooks/cleanup.yaml's own
+# Play 1 vars instead — a role default here would be undefined at the
+# point it's needed. See that var's own comment.
+
 # Same keep-by-default posture, for volumes a still-deployed app's
 # registry entry no longer declares (e.g. a volume renamed/removed from
 # app_registry, but the app itself wasn't). No per-app override list yet —

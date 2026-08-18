@@ -20,6 +20,10 @@
 #   compose_cleanup_stale_volume_remove   — Play 2 keep/remove policy
 #   compose_cleanup_dry_run               — report only, no changes (both plays)
 #
+# compose_cleanup_exclude is defined in this file's own Play 1 vars
+# instead (see there for why) — directories under compose_deploy_dir
+# that are never compose_apps entries (backup_agent, cloud_sync).
+#
 # Usage:
 #   ansible-playbook cleanup.yaml --check --diff              # see what --check would do
 #   ansible-playbook cleanup.yaml -e compose_cleanup_dry_run=true
@@ -41,6 +45,16 @@
   hosts: app_hosts
   gather_facts: false
   become: true
+  vars:
+    # Not a role default — role defaults are only visible once that
+    # role is included in the play, and Play 1's own task below needs
+    # this before compose is ever included. backup_agent specifically:
+    # it runs a real compose stack, so missing this would actually stop
+    # its container (docker_compose_v2: state: absent), not just
+    # mis-report it as orphaned.
+    compose_cleanup_exclude:
+      - backup-agent
+      - cloud-sync
   tasks:
     - name: Determine apps still wanted on this host
       ansible.builtin.set_fact:
@@ -59,7 +73,7 @@
       failed_when: false
       register: compose_cleanup_compose_ls
 
-    - name: Work out which stacks are orphaned (on disk or running, not in compose_apps)
+    - name: Work out which stacks are orphaned (on disk or running, not in compose_apps, not exempt)
       ansible.builtin.set_fact:
         compose_cleanup_orphaned_stacks: >-
           {{
@@ -69,7 +83,7 @@
                   (compose_cleanup_compose_ls.stdout | default('[]') | from_json | default([]))
                   | map(attribute='Name') | list
                 )
-            ) | unique | difference(compose_cleanup_wanted_apps) | sort
+            ) | unique | difference(compose_cleanup_wanted_apps) | difference(compose_cleanup_exclude) | sort
           }}
 
     - name: Report - nothing to clean up on this host

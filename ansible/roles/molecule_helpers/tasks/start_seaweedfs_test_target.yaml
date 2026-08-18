@@ -62,7 +62,7 @@
 - name: Run a throwaway SeaweedFS S3 target for this scenario
   community.docker.docker_container:
     name: seaweedfs-test
-    image: ghcr.io/chrislusf/seaweedfs:4.41
+    image: ghcr.io/chrislusf/seaweedfs:4.42
     command: "server -dir=/data -filer -s3 -s3.port=8333 -s3.config=/etc/seaweedfs/s3-identity.json"
     volumes:
       - /tmp/seaweedfs-test-s3-identity.json:/etc/seaweedfs/s3-identity.json:ro

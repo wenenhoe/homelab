@@ -24,6 +24,21 @@
     offsite_backup_cron: "* * * * *"
     offsite_backup_retention_days: 7
 
+    # env.j2 now renders NOTIFICATION_URLS from these — see
+    # docs/telegram-notifications.md.
+    # shoutrrr's telegram service reconstructs "token" from the URL's
+    # userinfo as username + ":" + password and validates it against
+    # ^[0-9]+:[a-zA-Z0-9_-]+$ — a token without that digits:alnum shape
+    # fails NOTIFICATION_URLS's sender setup at every single scheduled
+    # run, never reaching the actual backup logic (confirmed live: this
+    # value used to be "molecule-dummy-telegram-token", which doesn't
+    # embed a ":" at all, and every cron tick logged "error creating
+    # sender: ... telegram: failed to initialize service"). A real bot
+    # token from BotFather already has this shape, so production is
+    # unaffected — only this placeholder needed to match it.
+    telegram_token: "123456789:molecule-dummy-token"
+    telegram_chatid_backups: "molecule-dummy-chat-id"
+
     # A real SeaweedFS instance (started below) stands in for the actual
     # target, with a real -s3.config identity, so this exercises real
     # upload/auth wiring, not just "the container is running". This

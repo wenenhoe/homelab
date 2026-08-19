@@ -111,6 +111,7 @@ nothing is hand-authored on the servers themselves.
 | [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
 | [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
 | [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
+| [`docs/telegram-notifications.md`](docs/telegram-notifications.md) | Bot/topic scheme shared by diun, Beszel, backups, and cert-renewal alerts. |
 | [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
 | [`docs/wastebin.md`](docs/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |

@@ -62,6 +62,9 @@ lldap_ldap_user_pass: "ci-dummy-lldap-user-pass"
 
 telegram_token: "ci-dummy-telegram-token"
 telegram_chat_id: "0"
+# diun's env.j2 renders this (topic-routed chat ID) instead of
+# telegram_chat_id directly — see docs/telegram-notifications.md.
+telegram_chatid_updates: "0"
 
 shlink_short_host: "short"
 shlink_web_host: "shlink"

@@ -75,6 +75,31 @@
     group: "{{ ansible_user }}"
     mode: "0755"
 
+- name: Ensure curl is present (telegram-notify-cloud-sync's ExecStart needs it)
+  ansible.builtin.apt:
+    name: curl
+    state: present
+
+- name: Ensure /etc/telegram-notify exists
+  ansible.builtin.file:
+    path: /etc/telegram-notify
+    state: directory
+    mode: "0700"
+
+- name: Render telegram-notify-cloud-sync's credentials
+  ansible.builtin.template:
+    src: telegram-notify-cloud-sync.env.j2
+    dest: /etc/telegram-notify/env
+    mode: "0600"
+  no_log: true
+
+- name: Install the cloud-sync Telegram notifier service
+  ansible.builtin.template:
+    src: telegram-notify-cloud-sync.service.j2
+    dest: /etc/systemd/system/telegram-notify-cloud-sync.service
+    mode: "0644"
+  notify: Reload systemd
+
 - name: Install the cloud-sync systemd service
   ansible.builtin.template:
     src: cloud-sync.service.j2

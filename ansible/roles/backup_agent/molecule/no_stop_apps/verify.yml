@@ -32,6 +32,7 @@
       ansible.builtin.assert:
         that:
           - "'DOCKER_HOST' not in (backup_agent_env_raw.content | b64decode)"
+          - "'NOTIFICATION_URLS=telegram://123456789:molecule-dummy-token@telegram?chats=molecule-dummy-chat-id' in (backup_agent_env_raw.content | b64decode)"
 
     - name: Confirm the one schedule carries no stop label
       ansible.builtin.slurp:

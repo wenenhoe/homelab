@@ -29,6 +29,12 @@ lldap_ldap_user_pass: molecule-test-admin-password
 # isn't used here — see start_step_ca_test_target.yaml's own comment).
 step_ca_provisioner_password: molecule-test-step-ca-password
 step_ca_provisioner_name: admin
+
+# telegram-notify@.service.j2 (this role) needs these — see
+# docs/telegram-notifications.md.
+telegram_token: molecule-dummy-telegram-token
+telegram_chat_id: molecule-dummy-chat-id
+telegram_topic_id_certs: ""
 # step-ca-test's own container name: lldap_cert's own tasks run `step`
 # via a container on caddy-proxy now, not a host-installed binary, so it
 # resolves "step-ca-test" the same way any other container on that

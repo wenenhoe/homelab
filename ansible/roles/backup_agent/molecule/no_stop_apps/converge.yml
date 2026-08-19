@@ -12,6 +12,13 @@
     project_root: "{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}"
     server_timezone: "Etc/UTC"
 
+    # env.j2 now renders NOTIFICATION_URLS from these — see
+    # docs/telegram-notifications.md.
+    # Must be digits:alnum-shaped — see default scenario's converge.yml
+    # for why (shoutrrr's own token validation, not this repo's).
+    telegram_token: "123456789:molecule-dummy-token"
+    telegram_chatid_backups: "molecule-dummy-chat-id"
+
     # backup_agent's global vars are still required to render env/conf.d
     # files, even though nothing here ever reaches an S3 target — no
     # cron fires, and verify.yml doesn't trigger a backup (upload

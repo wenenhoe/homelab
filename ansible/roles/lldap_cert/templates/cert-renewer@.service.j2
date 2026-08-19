@@ -5,6 +5,11 @@ Requires=docker.service
 Documentation=https://smallstep.com/docs/step-ca/renewal
 StartLimitIntervalSec=0
 PartOf=cert-renewer.target
+# %i here is this unit's own instance (e.g. "lldap"), reused as-is for
+# telegram-notify@'s instance - see its own template for why that
+# coupling matters. Fires on any failure: an ExecCondition skip is not
+# a failure (see below), so this never fires on the common no-op path.
+OnFailure=telegram-notify@%i.service
 
 [Service]
 Type=oneshot

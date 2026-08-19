@@ -134,7 +134,7 @@
           - "'TELEGRAM_TOKEN=molecule-dummy-telegram-token' in (lldap_cert_verify_notify_env_raw.content | b64decode)"
           - "'TELEGRAM_CHAT_ID=molecule-dummy-chat-id' in (lldap_cert_verify_notify_env_raw.content | b64decode)"
 
-    - name: Read back the rendered telegram-notify@ unit
+    - name: Read back the rendered telegram-notify@ unit  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl cat telegram-notify@lldap.service
       register: lldap_cert_verify_notify_unit
       changed_when: false
@@ -160,13 +160,13 @@
     # and runs cleanly under real systemd rather than just "the file
     # looks right" (catches quoting/escaping bugs the static content
     # check below can't).
-    - name: Confirm cert-renewer@ actually declares the OnFailure link
+    - name: Confirm cert-renewer@ actually declares the OnFailure link  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl cat cert-renewer@lldap.service
       register: lldap_cert_verify_onfailure
       changed_when: false
       failed_when: "'OnFailure=telegram-notify@%i.service' not in lldap_cert_verify_onfailure.stdout"
 
-    - name: Start telegram-notify@lldap.service directly, as OnFailure= would
+    - name: Start telegram-notify@lldap.service directly, as OnFailure= would  # noqa: command-instead-of-module
       # Deliberately raw systemctl, not the systemd_service module — same
       # reasoning renewal_timing/verify.yml already documents for
       # Type=oneshot units: the module's own success/failure handling
@@ -174,35 +174,35 @@
       # includes a `status` key) isn't reliable for a oneshot whose
       # ExecStart is expected to fail. The command's own exit code is
       # irrelevant either way — no real Telegram creds in CI — so this
-      # only cares about the state queries below.
-      ansible.builtin.command: systemctl start telegram-notify@lldap.service  # noqa: command-instead-of-module
+      # only cares about the read-only state query below.
+      ansible.builtin.command: systemctl start telegram-notify@lldap.service
       failed_when: false
       changed_when: false
 
-    # Two separate `show` calls, not one `--property=LoadState,ActiveState`
-    # — systemctl show's own multi-property output order follows DBus
-    # property order, not the order given on the command line (see
-    # systemd/systemd#28205), so indexing into combined output by
-    # position isn't safe. One property per call has no such ambiguity.
-    - name: Query the unit's actual LoadState
-      ansible.builtin.command: systemctl show telegram-notify@lldap.service --property=LoadState --value
-      register: lldap_cert_verify_notify_loadstate
-      changed_when: false
-
-    - name: Query the unit's actual ActiveState
-      ansible.builtin.command: systemctl show telegram-notify@lldap.service --property=ActiveState --value
-      register: lldap_cert_verify_notify_activestate
-      changed_when: false
+    # Unlike the trigger above, this is a genuine read: no state: given,
+    # so the module never calls systemctl start/stop internally and its
+    # result reliably includes `status` regardless of how the unit's own
+    # last run went — same precedent cloud_sync/molecule/default/verify.yml
+    # already established for exactly this "query only" case.
+    # daemon_reload: false is required-but-inert (the module's argument
+    # spec demands at least one of state/enabled/masked/daemon_reload/
+    # daemon_reexec; false matches its own default, so this changes
+    # nothing) — not a second lint dodge, an actual no-op query.
+    - name: Query the unit's actual state (not via raw systemctl show, whose multi-property output order isn't guaranteed — see systemd/systemd#28205)
+      ansible.builtin.systemd_service:
+        name: telegram-notify@lldap.service
+        daemon_reload: false
+      register: lldap_cert_verify_notify_state
 
     - name: Confirm systemd actually loaded and ran the unit (not a syntax/templating error)
       ansible.builtin.assert:
         that:
-          - lldap_cert_verify_notify_loadstate.stdout | trim == 'loaded'
-          - (lldap_cert_verify_notify_activestate.stdout | trim) in ['inactive', 'failed']
+          - lldap_cert_verify_notify_state.status.LoadState == 'loaded'
+          - lldap_cert_verify_notify_state.status.ActiveState in ['inactive', 'failed']
         fail_msg: >-
           telegram-notify@lldap.service didn't load/run cleanly:
-          LoadState={{ lldap_cert_verify_notify_loadstate.stdout | trim }}
-          ActiveState={{ lldap_cert_verify_notify_activestate.stdout | trim }}
+          LoadState={{ lldap_cert_verify_notify_state.status.LoadState | default('?') }}
+          ActiveState={{ lldap_cert_verify_notify_state.status.ActiveState | default('?') }}
           — 'failed' here just means curl couldn't reach the real API
           (expected in CI), 'not-found' or 'masked' would mean the unit
           itself is broken.

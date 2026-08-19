@@ -1,0 +1,19 @@
+[Unit]
+Description=Telegram alert for a failed cloud-sync run
+Documentation=https://core.telegram.org/bots/api#sendmessage
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/telegram-notify/env
+
+; Not shared with lldap_cert's telegram-notify@ — cloud-sync and cert
+; renewal run on different hosts (storage vs security), so there's
+; nothing to actually share on disk; this is its own plain (non-
+; templated) unit for cloud-sync.service specifically, posting to the
+; Backups topic since cloud-sync is the "relay it onward" half of the
+; same disaster-recovery story as backup_agent (see
+; docs/disaster-recovery.md). message_thread_id is only added when a
+; topic ID is actually configured — Telegram's API rejects the param
+; outright if passed empty rather than ignoring it (see
+; docs/telegram-notifications.md).
+ExecStart=/usr/bin/curl -fsS --max-time 10 --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text=cloud-sync failed on {{ ansible_facts['hostname'] }} — at least one job did not relay, check journalctl -u cloud-sync.service" {{ ('--data-urlencode "message_thread_id=' ~ telegram_topic_id_backups ~ '"') if telegram_topic_id_backups else '' }} https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage

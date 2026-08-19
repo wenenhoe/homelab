@@ -3,6 +3,11 @@ Description=Copy SeaweedFS backup archives onward to R2/B2/OCI
 After=network-online.target docker.service
 Requires=docker.service
 StartLimitIntervalSec=0
+# Fires whenever run.sh's own overall_status reflects at least one
+# failed job (see run.sh.j2) — that's what ExecStart's own exit code
+# carries through to systemd here, there's no separate skip condition
+# to distinguish from a real failure the way cert-renewer@ has.
+OnFailure=telegram-notify-cloud-sync.service
 
 [Service]
 Type=oneshot

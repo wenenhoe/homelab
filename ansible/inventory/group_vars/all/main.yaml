@@ -45,12 +45,15 @@ letsencrypt_email: "{{ secrets_generated['letsencrypt-email'] }}"
 telegram_token: "{{ secrets_generated['telegram-token'] }}"
 telegram_chat_id: "{{ secrets_generated['telegram-chat-id'] }}"
 
-# Raw per-concern topic IDs (no chat-id prefix) — used directly by the
-# one consumer that calls the Telegram Bot API itself instead of going
+# Raw per-concern topic IDs (no chat-id prefix) — used directly by
+# consumers that call the Telegram Bot API themselves instead of going
 # through shoutrrr/diun's own "chat:topic" convenience syntax (Telegram's
 # real sendMessage endpoint takes chat_id and message_thread_id as two
-# separate params). See
-# ansible/roles/lldap_cert/templates/telegram-notify@.service.j2.
+# separate params). Two such consumers today, each a plain curl-based
+# systemd OnFailure notifier rather than a shared one — see
+# docs/telegram-notifications.md for why they're not consolidated:
+# ansible/roles/lldap_cert/templates/telegram-notify@.service.j2 and
+# ansible/roles/cloud_sync/templates/telegram-notify-cloud-sync.service.j2.
 telegram_topic_id_updates: "{{ secrets_generated['telegram-topic-id-updates'] }}"
 telegram_topic_id_monitoring: "{{ secrets_generated['telegram-topic-id-monitoring'] }}"
 telegram_topic_id_backups: "{{ secrets_generated['telegram-topic-id-backups'] }}"
@@ -60,11 +63,13 @@ telegram_topic_id_certs: "{{ secrets_generated['telegram-topic-id-certs'] }}"
 # see docs/telegram-notifications.md for the full scheme and how to get
 # a topic's ID. Each var appends ":<topic_id>" to the shared chat ID,
 # Telegram's own addressing format for a specific topic within a chat;
-# blank topic ID (unset secret) falls back to the chat ID alone.
+# blank topic ID (unset secret) falls back to the chat ID alone. Only
+# the shoutrrr-based consumers (diun, backup_agent, Beszel) use these —
+# the raw-curl consumers (cert renewal, cloud-sync) read
+# telegram_chat_id/telegram_topic_id_* directly instead, see above.
 telegram_chatid_updates: "{{ telegram_chat_id }}{{ ':' ~ telegram_topic_id_updates if telegram_topic_id_updates else '' }}"
 telegram_chatid_monitoring: "{{ telegram_chat_id }}{{ ':' ~ telegram_topic_id_monitoring if telegram_topic_id_monitoring else '' }}"
 telegram_chatid_backups: "{{ telegram_chat_id }}{{ ':' ~ telegram_topic_id_backups if telegram_topic_id_backups else '' }}"
-telegram_chatid_certs: "{{ telegram_chat_id }}{{ ':' ~ telegram_topic_id_certs if telegram_topic_id_certs else '' }}"
 
 # Unknown until after beszel-hub's first boot (self-generated ED25519
 # keypair; token created by hand in Settings > Tokens). allow_blank: true

@@ -68,11 +68,12 @@
       loop:
         - /etc/systemd/system/cloud-sync.service
         - /etc/systemd/system/cloud-sync.timer
+        - /etc/systemd/system/telegram-notify-cloud-sync.service
 
     - name: Assert on it
       ansible.builtin.assert:
         that:
-          - cloud_sync_unit_files.results | map(attribute='stat.exists') | list == [true, true]
+          - cloud_sync_unit_files.results | map(attribute='stat.exists') | list == [true, true, true]
 
     - name: Confirm the timer is enabled and active
       # daemon_reload: false is a required-but-inert param here — the
@@ -152,3 +153,79 @@
           being enforced, every app is landing everywhere regardless of
           its own extra_cloud_targets. target_b listing:
           {{ cloud_sync_dest_b_listing.stdout }}
+
+    # --- telegram-notify-cloud-sync wiring -------------------------------
+    # Doesn't exercise a real Telegram delivery (no live bot/network in
+    # CI) — that part still needs a manual live check, see
+    # docs/telegram-notifications.md. What this confirms instead: the
+    # OnFailure= link is actually present, and the templated unit loads
+    # and runs cleanly under real systemd rather than just "the file
+    # looks right".
+    - name: Confirm cloud-sync.service actually declares the OnFailure link  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl cat cloud-sync.service
+      register: cloud_sync_verify_onfailure
+      changed_when: false
+      failed_when: "'OnFailure=telegram-notify-cloud-sync.service' not in cloud_sync_verify_onfailure.stdout"
+
+    - name: Read back telegram-notify-cloud-sync's rendered env file
+      ansible.builtin.slurp:
+        path: /etc/telegram-notify/env
+      register: cloud_sync_verify_notify_env_raw
+
+    - name: Confirm it carries the scenario's dummy bot credentials, not empty/template-literal values
+      ansible.builtin.assert:
+        that:
+          - "'TELEGRAM_TOKEN=molecule-dummy-telegram-token' in (cloud_sync_verify_notify_env_raw.content | b64decode)"
+          - "'TELEGRAM_CHAT_ID=molecule-dummy-chat-id' in (cloud_sync_verify_notify_env_raw.content | b64decode)"
+
+    - name: Read back the rendered telegram-notify-cloud-sync unit  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl cat telegram-notify-cloud-sync.service
+      register: cloud_sync_verify_notify_unit
+      changed_when: false
+
+    - name: Confirm message_thread_id is omitted when no topic ID is configured (this scenario's telegram_topic_id_backups is blank)
+      ansible.builtin.assert:
+        that:
+          # 'message_thread_id=' (with the '='), not the bare word — the
+          # template's own explanatory comment mentions the bare word
+          # unconditionally, so matching on that alone doesn't actually
+          # test the conditional; only the '=' form is exclusive to the
+          # rendered ExecStart line.
+          - "'message_thread_id=' not in cloud_sync_verify_notify_unit.stdout"
+        fail_msg: >-
+          message_thread_id= appeared despite a blank telegram_topic_id_backups
+          — the Jinja conditional in telegram-notify-cloud-sync.service.j2 regressed.
+
+    - name: Start telegram-notify-cloud-sync.service directly, as OnFailure= would  # noqa: command-instead-of-module
+      # Deliberately raw systemctl, not the systemd_service module —
+      # same reasoning lldap_cert/molecule/default/verify.yml documents
+      # for its own equivalent task: the module's own success/failure
+      # handling isn't reliable for a oneshot whose ExecStart is
+      # expected to fail (no real Telegram creds in CI).
+      ansible.builtin.command: systemctl start telegram-notify-cloud-sync.service
+      failed_when: false
+      changed_when: false
+
+    # Genuine read: no state: given, so the module never calls
+    # systemctl start/stop internally and its result reliably includes
+    # `status` regardless of how the unit's own last run went — same
+    # precedent this file's own "Confirm the timer is enabled and
+    # active" task above already established.
+    - name: Query the notifier unit's actual state
+      ansible.builtin.systemd_service:
+        name: telegram-notify-cloud-sync.service
+        daemon_reload: false
+      register: cloud_sync_verify_notify_state
+
+    - name: Confirm systemd actually loaded and ran the unit (not a syntax/templating error)
+      ansible.builtin.assert:
+        that:
+          - cloud_sync_verify_notify_state.status.LoadState == 'loaded'
+          - cloud_sync_verify_notify_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          telegram-notify-cloud-sync.service didn't load/run cleanly:
+          LoadState={{ cloud_sync_verify_notify_state.status.LoadState | default('?') }}
+          ActiveState={{ cloud_sync_verify_notify_state.status.ActiveState | default('?') }}
+          — 'failed' here just means curl couldn't reach the real API
+          (expected in CI), 'not-found' or 'masked' would mean the unit
+          itself is broken.

@@ -1,14 +1,17 @@
 # Telegram Notifications
 
 One bot, one group chat with [Topics](https://telegram.org/blog/topics-in-groups-collectible-usernames)
-enabled, a different topic per concern. Four consumers today:
+enabled, a different topic per concern. Five consumers today, two of
+which share the Backups topic since they're the two halves of the same
+disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)):
 
 | Concern | Sends via | Topic var |
 | :--- | :--- | :--- |
 | Image updates (diun) | diun's own Telegram notifier | `telegram_chatid_updates` |
 | Host/container monitoring (Beszel) | Beszel's built-in notifications | `telegram_chatid_monitoring` |
 | Backup job failures | `docker-volume-backup`'s notifier | `telegram_chatid_backups` |
-| Cert renewal failures | `telegram-notify@` (systemd) | `telegram_chatid_certs` / `telegram_topic_id_certs` |
+| Cloud-sync relay failures | `telegram-notify-cloud-sync` (systemd) | `telegram_chat_id` / `telegram_topic_id_backups` |
+| Cert renewal failures | `telegram-notify@` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
 
 ## One-time Telegram-side setup
 
@@ -72,6 +75,15 @@ a placeholder that isn't shaped like one.
   (`ansible/roles/backup_agent/templates/env.j2`) — fires on failed
   backup runs only (`docker-volume-backup`'s own default
   `NOTIFICATION_LEVEL=error`), not on every successful one.
+- **cloud_sync**: `ansible/roles/cloud_sync/templates/cloud-sync.service.j2`
+  sets `OnFailure=telegram-notify-cloud-sync.service`, its own plain
+  (non-templated) unit — posts to the same Backups topic as
+  backup_agent above, since it's the "relay it onward" half of the same
+  disaster-recovery story (see
+  [`disaster-recovery.md`](disaster-recovery.md)). Not shared with
+  `cert-renewer@`'s notifier below despite the near-identical shape:
+  the two run on different hosts (storage vs security), so there's
+  nothing to actually share on disk — each role owns its own copy.
 - **Cert renewal**: `ansible/roles/lldap_cert/templates/cert-renewer@.service.j2`
   sets `OnFailure=telegram-notify@%i.service`, a generic systemd
   instantiated unit (`telegram-notify@.service.j2`, same role) that curls
@@ -86,16 +98,21 @@ a placeholder that isn't shaped like one.
 
 ## Verifying it actually delivers
 
-Molecule (`ansible/roles/lldap_cert/molecule/default`) confirms the
+Molecule (`ansible/roles/lldap_cert/molecule/default` and
+`ansible/roles/cloud_sync/molecule/default`) confirms the
 `OnFailure=` link exists, the unit templates correctly, and it loads and
 runs under real systemd — it can't confirm a real Telegram message
 arrives, since CI has no live bot credentials. Check that part yourself
 after deploying:
 
 ```sh
-# Force the renewal unit to fail and confirm the alert fires
+# On the security host — force the cert-renewal alert to fire
 sudo systemctl start telegram-notify@lldap.service
 journalctl -u telegram-notify@lldap.service --no-pager -n 20
+
+# On the storage host — force the cloud-sync alert to fire
+sudo systemctl start telegram-notify-cloud-sync.service
+journalctl -u telegram-notify-cloud-sync.service --no-pager -n 20
 ```
 
 A `curl` exit status other than a clean `0` there (bad token, wrong chat

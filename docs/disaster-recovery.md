@@ -9,7 +9,8 @@ selected named volumes to SeaweedFS — nothing else. Cloud coverage
 `cloud_sync` role running only on `storage`, reading those same
 already-encrypted objects out of SeaweedFS and copying them onward — see
 "Threat model" below for why it's designed this way, "What's backed up"
-for SeaweedFS coverage, and "Cloud sync" for how the cloud leg works.
+for SeaweedFS coverage, and [`cloud-sync.md`](cloud-sync.md) for how the
+cloud leg works.
 
 S3 credential generation/rotation is covered in [`secrets.md`](secrets.md),
 not here.
@@ -130,8 +131,9 @@ with a redundant copy — losing it makes every backup unrecoverable.
 
 Apps without a `backup:` key in `app_registry.yaml` are out of scope.
 Every app above lands in SeaweedFS directly (`backup_agent`, per-host,
-nightly); "Extra cloud targets" is what `cloud_sync` (storage-only,
-next section) additionally relays it to, on its own separate schedule.
+nightly); "Extra cloud targets" is what `cloud_sync` (storage-only, see
+[`cloud-sync.md`](cloud-sync.md)) additionally relays it to, on its own
+separate schedule.
 
 `lldap` is deliberately never stopped — it's the auth backend, and every
 other app behind Caddy/tinyauth loses login for the stop window, a
@@ -159,78 +161,13 @@ is a broader grant than that.
 
 ## Cloud sync
 
-`cloud_sync` (`storage`-only) reads already-encrypted archives straight
-out of SeaweedFS and copies them onward to R2/B2/OCI via
-[rclone](https://rclone.org) `copy` — never `sync`. That distinction is
-deliberate, not a naming detail: `copy` only ever adds objects on the
-destination side, so nothing running on `storage` (or any app host) can
-delete or overwrite what's already landed in the cloud, even if fully
-compromised. `sync` would propagate a deletion outward, which is exactly
-the failure mode "Threat model" above is designed against — a
-compromised on-prem system shouldn't be able to touch the offsite copy.
-This was checked against SeaweedFS's own native remote-sync tooling
-first (`weed filer.remote.gateway`), which turned out to have `sync`
-semantics itself (its own docs: local deletions propagate to the
-remote) — ruled out for the same reason.
-
-**Retention on the cloud side** is a provider-native lifecycle rule you
-configure once, out-of-band, in each provider's own console — not
-managed by this repo at all, and deliberately so: a homelab-side
-retention job would need delete access to enforce it, which is the one
-capability `cloud_sync`'s own SeaweedFS-reading identity and the
-`copy`-only design both go out of their way to avoid granting anything
-running on-prem.
-
-**Which apps get which extra clouds:** `app_registry.yaml`'s
-`backup.extra_cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
-SeaweedFS only; SeaweedFS itself is implicit for every backed-up app,
-never listed. Defaults to `cloud_sync_default_targets`
-(`host_vars/storage.yaml`, currently `[r2, b2]`) when an app doesn't
-override it. Minecraft overrides to `[oci]` alone: its ~1.8GB/night
-archive at 7-day retention (~13GB) would eat most of a single 10GB
-R2/B2 free tier, so it gets OCI's 20GB allowance to itself instead.
-
-**Mechanism:** a systemd timer (`cloud-sync.timer`, daily, offset ~90min
-after `offsite_backup_cron` to give every backup host's own nightly run
-room to land in SeaweedFS first) triggers `cloud-sync.service`
-(`Type=oneshot`), which runs one container per firing — `rclone/rclone`,
-looping a job manifest Ansible renders from every backup host's
-`app_registry` data (cross-host, via `hostvars`, not requiring those
-hosts' own plays to have run first in the same invocation). One `rclone
-copy` per (app, cloud target) pair; one job failing doesn't block the
-rest of that run.
-
-**Before first use:**
-
-- Create a bucket by hand on each of R2/B2/OCI — `homelab-backups` for
-  R2/OCI (account-scoped naming, so this is fine); B2 bucket names are
-  globally unique across *every* B2 account, not just yours, so
-  `homelab-backups` will likely already be taken — confirmed live, not
-  hypothetical, this repo's own real deploy needed `homelab-backups-b2`
-  instead, hence the `-b2` suffix already baked into
-  `cloud_sync_targets.b2.bucket` (`host_vars/storage.yaml`). None of
-  this is Ansible-managed (same as the earlier note for SeaweedFS being
-  the one exception) — a reasonable first OpenTofu project once that
-  expansion starts.
-- Fill in the ten `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries in
-  `secrets_registry.yaml` via `bootstrap_secrets.py` — see
-  [`secrets.md`](secrets.md). Scope each credential to just that bucket,
-  **without** delete/lifecycle-modification permission — see the
-  paragraph above on why that's load-bearing, not just tidiness.
-  `backblaze-b2-region` specifically (B2 Console > Buckets > Bucket
-  Details) is the one value here B2 assigns rather than you choosing it
-  — get the real one from your own bucket, not a copied example.
-- **Needs live verification, not yet confirmed:** every `rclone.conf`
-  endpoint is written with its scheme (`https://`) included, not a bare
-  hostname — the opposite convention from `docker-volume-backup`'s
-  minio-go client elsewhere in this repo. rclone's own documented
-  examples are inconsistent about this across providers; several
-  non-AWS ones explicitly require the scheme, which is why it's
-  included everywhere here, but this hasn't been confirmed against a
-  real rclone binary. Before trusting the nightly run: `docker run --rm
-  -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro
-  rclone/rclone:1.68 lsd <name>:` for each of the four remote names —
-  confirm each one lists (or reports an empty, error-free) result.
+`cloud_sync` (`storage`-only) relays already-encrypted SeaweedFS
+archives onward to R2/B2/OCI via rclone `copy` — never `sync` — so
+nothing on-prem, even fully compromised, can delete or overwrite what's
+already landed in the cloud; that's the property "Threat model" above
+relies on for the offsite copy specifically. Setup, per-provider
+retention values, and the sync mechanism itself are covered in their
+own doc: [`cloud-sync.md`](cloud-sync.md).
 
 ## S3 endpoint format
 
@@ -241,7 +178,7 @@ rest of that run.
 have fully qualified paths`). Scheme is the separate
 `offsite_backup_s3_proto` var (default `https`). `cloud_sync`'s own
 `rclone.conf` is unrelated and follows the opposite convention — see
-"Cloud sync" above.
+[`cloud-sync.md`](cloud-sync.md).
 
 ## Restore
 

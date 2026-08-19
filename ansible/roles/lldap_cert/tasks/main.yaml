@@ -121,30 +121,23 @@
         path: /tmp/lldap-cert-provisioner-password
         state: absent
 
-- name: Ensure curl is present (telegram-notify@'s ExecStart needs it)
-  ansible.builtin.apt:
-    name: curl
-    state: present
+- name: Install Telegram alerting for cert-renewal failures
+  ansible.builtin.include_role:
+    name: telegram_notify
+    tasks_from: install.yaml
+  vars:
+    telegram_notify_unit_name: "telegram-notify@"
+    telegram_notify_description: "Telegram alert for a failed certificate renewal (%i)"
+    telegram_notify_message: "Certificate renewal failed for %i on {{ ansible_facts['hostname'] }}"
+    telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
 
-- name: Ensure /etc/telegram-notify exists
-  ansible.builtin.file:
-    path: /etc/telegram-notify
-    state: directory
-    mode: "0700"
-
-- name: Render telegram-notify@'s credentials
-  ansible.builtin.template:
-    src: telegram-notify.env.j2
-    dest: /etc/telegram-notify/env
-    mode: "0600"
-  no_log: true
-
-- name: Install the generic telegram-notify@ service template
-  ansible.builtin.template:
-    src: telegram-notify@.service.j2
-    dest: /etc/systemd/system/telegram-notify@.service
-    mode: "0644"
-  notify: Reload systemd
+# telegram_notify's own install.yaml deliberately doesn't reload systemd
+# or notify a handler itself (see its own header comment) - do it here
+# instead, off the results it registers.
+- name: Reload systemd if the Telegram notifier unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
 
 - name: Install the generic cert-renewer@ service template
   ansible.builtin.template:

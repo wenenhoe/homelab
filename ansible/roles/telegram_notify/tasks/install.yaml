@@ -9,6 +9,15 @@
 # using the changed results registered below, so this role never
 # depends on a same-named handler existing in whatever play includes it.
 #
+# A trailing "@" in telegram_notify_unit_name (e.g. "telegram-notify@")
+# renders a genuine systemd @-instantiated template unit, not a plain
+# one — nothing else needs to change for this: Jinja only substitutes
+# {{ }} expressions, so a literal "%i" left in telegram_notify_message/
+# _description passes straight through for systemd itself to substitute
+# at instantiation time. lldap_cert relies on this (see its own
+# tasks/main.yaml) to keep cert-renewer@'s existing %i-keyed OnFailure=
+# working unchanged.
+#
 # Required vars (no defaults/main.yaml — a missing one should fail
 # loudly here, not render a broken unit):
 #   telegram_notify_unit_name   systemd unit name, no ".service" suffix

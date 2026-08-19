@@ -54,18 +54,24 @@ separate parameters — it does **not** understand the colon-combined
 form. That's why the raw, un-prefixed `telegram_topic_id_*` vars exist
 alongside `telegram_chatid_*`.
 
-**The systemd-based notifiers share one library role**, `telegram_notify`
-(`ansible/roles/telegram_notify`) — a plain oneshot unit that curls
-`sendMessage` directly, parameterized by unit name, description, message
-text, and which topic to post to. It's included via `include_role` from
-each consumer's own `tasks/main.yaml`, has no `tasks/main.yaml` or
-molecule suite of its own (same shape as `molecule_helpers`), and never
-reloads systemd or notifies a handler itself — the including role does
-that off the `telegram_notify_env_result`/`telegram_notify_service_result`
-it registers, so the shared role never depends on a same-named handler
-existing in whatever play includes it. `telegram-notify@` and
-`telegram-notify-cloud-sync` predate this role and aren't migrated onto
-it yet — see the per-app notes below.
+**All three systemd-based notifiers share one library role**, `telegram_notify`
+(`ansible/roles/telegram_notify`) — a oneshot unit that curls `sendMessage`
+directly, parameterized by unit name, description, message text, and
+which topic to post to. It's included via `include_role` from each
+consumer's own `tasks/main.yaml`, has no `tasks/main.yaml` or molecule
+suite of its own (same shape as `molecule_helpers`), and never reloads
+systemd or notifies a handler itself — the including role does that off
+the `telegram_notify_env_result`/`telegram_notify_service_result` it
+registers, so the shared role never depends on a same-named handler
+existing in whatever play includes it.
+
+A trailing `@` in the unit name (`telegram-notify@`, `cert-renewer@`'s
+own notifier) renders a genuine systemd `@`-instantiated template unit,
+not a plain one — Jinja only substitutes `{{ }}` expressions, so a
+literal `%i` left in the message/description text passes straight
+through for systemd itself to substitute at instantiation time. This
+needs nothing extra from the shared role; it falls out of the interface
+as-is.
 
 **The bot token's own colon is load-bearing.** A real token from
 BotFather is already shaped `<bot-id>:<rest>` — shoutrrr's Telegram
@@ -93,25 +99,21 @@ a placeholder that isn't shaped like one.
   backup runs only (`docker-volume-backup`'s own default
   `NOTIFICATION_LEVEL=error`), not on every successful one.
 - **cloud_sync**: `ansible/roles/cloud_sync/templates/cloud-sync.service.j2`
-  sets `OnFailure=telegram-notify-cloud-sync.service`, its own plain
-  (non-templated) unit — posts to the same Backups topic as
-  backup_agent above, since it's the "relay it onward" half of the same
-  disaster-recovery story (see
-  [`disaster-recovery.md`](disaster-recovery.md)). Not shared with
-  `cert-renewer@`'s notifier below despite the near-identical shape:
-  the two run on different hosts (storage vs security), so there's
-  nothing to actually share on disk — each role owns its own copy.
+  sets `OnFailure=telegram-notify-cloud-sync.service`, a plain (non-`@`)
+  consumer of `telegram_notify` above — posts to the same Backups topic
+  as backup_agent above, since it's the "relay it onward" half of the
+  same disaster-recovery story (see
+  [`disaster-recovery.md`](disaster-recovery.md)).
 - **Cert renewal**: `ansible/roles/lldap_cert/templates/cert-renewer@.service.j2`
-  sets `OnFailure=telegram-notify@%i.service`, a generic systemd
-  instantiated unit (`telegram-notify@.service.j2`, same role) that curls
-  Telegram's `sendMessage` directly using `/etc/telegram-notify/env`
-  (rendered by the role, `no_log: true`). `%i` here is the *invoking*
-  unit's own instance (e.g. `lldap`), not a generic failed-unit name —
-  this template is coupled to `cert-renewer@`'s naming, not a catch-all
-  notifier for arbitrary units. An `ExecCondition` skip (the common,
-  nothing-due-for-renewal case) is not a failure and never triggers this
-  — systemd only treats exit codes 255 or an abnormal exit as a failure
-  for `ExecCondition`.
+  sets `OnFailure=telegram-notify@%i.service` — `telegram_notify` called
+  with `telegram_notify_unit_name: "telegram-notify@"`, the `@`-instantiated
+  case the shared-role paragraph above describes. `%i` here is the
+  *invoking* unit's own instance (e.g. `lldap`), not a generic
+  failed-unit name — this is coupled to `cert-renewer@`'s naming, not a
+  catch-all notifier for arbitrary units. An `ExecCondition` skip (the
+  common, nothing-due-for-renewal case) is not a failure and never
+  triggers this — systemd only treats exit codes 255 or an abnormal exit
+  as a failure for `ExecCondition`.
 - **Caddy cert-expiry**: `ansible/roles/caddy_cert_expiry` — a daily
   timer runs `check.sh`, which checks the certificate Caddy is actually
   serving (a live TLS handshake against one of this host's own routed

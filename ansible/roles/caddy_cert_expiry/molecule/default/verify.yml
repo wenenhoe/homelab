@@ -82,6 +82,13 @@
           # equivalent (opposite-branch) check for why that distinction matters.
           - "'message_thread_id=5' in caddy_cert_expiry_verify_notify_unit.stdout"
 
+    - name: Confirm parse_mode=Markdown is set and the message is backtick-styled
+      ansible.builtin.assert:
+        that:
+          - "'parse_mode=Markdown' in caddy_cert_expiry_verify_notify_unit.stdout"
+          - "'`bentopdf.apps.localhost`' in caddy_cert_expiry_verify_notify_unit.stdout"
+        fail_msg: "Rendered unit: {{ caddy_cert_expiry_verify_notify_unit.stdout }}"
+
     # --- Behavioral, real cert: the check passes at the exact boundary ---
     # --- it can actually reach against a genuine internal-CA cert -------
     - name: Run the check script directly against the live Caddy instance

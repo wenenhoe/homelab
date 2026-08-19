@@ -73,6 +73,17 @@ through for systemd itself to substitute at instantiation time. This
 needs nothing extra from the shared role; it falls out of the interface
 as-is.
 
+**Messages are sent with `parse_mode=Markdown`** (legacy, not
+MarkdownV2), so backtick-wrapping a value in `telegram_notify_message`
+renders as monospace in Telegram. Legacy mode only requires escaping
+`` ` ``, `_`, `*`, `[` when they appear literally (not MarkdownV2's 18
+characters, which include `.` and `-` — exactly what hostnames and unit
+names are full of, and which get the whole message rejected outright on
+any missed escape). None of this role's current callers interpolate a
+value containing one of those four characters, so no escaping logic
+exists today; a future caller whose value might contain one does need to
+escape it before passing `telegram_notify_message`.
+
 **The bot token's own colon is load-bearing.** A real token from
 BotFather is already shaped `<bot-id>:<rest>` — shoutrrr's Telegram
 service relies on that exact colon to split the URL's userinfo into

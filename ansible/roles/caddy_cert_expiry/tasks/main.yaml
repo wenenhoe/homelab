@@ -52,8 +52,8 @@
     telegram_notify_unit_name: telegram-notify-cert-expiry
     telegram_notify_description: Telegram alert for a failed Caddy certificate expiry check
     telegram_notify_message: >-
-      Caddy certificate expiry check failed for {{ caddy_cert_expiry_check_host }}
-      on {{ ansible_facts['hostname'] }} - check journalctl -u cert-expiry-check.service
+      Caddy certificate expiry check failed for `{{ caddy_cert_expiry_check_host }}`
+      on `{{ ansible_facts['hostname'] }}` - check `journalctl -u cert-expiry-check.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
 
 - name: Install the cert-expiry-check systemd service

@@ -83,8 +83,8 @@
     telegram_notify_unit_name: telegram-notify-cloud-sync
     telegram_notify_description: Telegram alert for a failed cloud-sync run
     telegram_notify_message: >-
-      cloud-sync failed on {{ ansible_facts['hostname'] }} — at least one job
-      did not relay, check journalctl -u cloud-sync.service
+      cloud-sync failed on `{{ ansible_facts['hostname'] }}` — at least one job
+      did not relay, check `journalctl -u cloud-sync.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_backups }}"
 
 # telegram_notify's own install.yaml deliberately doesn't reload systemd

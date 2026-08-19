@@ -128,7 +128,7 @@
   vars:
     telegram_notify_unit_name: "telegram-notify@"
     telegram_notify_description: "Telegram alert for a failed certificate renewal (%i)"
-    telegram_notify_message: "Certificate renewal failed for %i on {{ ansible_facts['hostname'] }}"
+    telegram_notify_message: "Certificate renewal failed for `%i` on `{{ ansible_facts['hostname'] }}`"
     telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
 
 # telegram_notify's own install.yaml deliberately doesn't reload systemd

@@ -152,6 +152,19 @@
           message_thread_id= appeared despite a blank telegram_topic_id_certs
           — the Jinja conditional in telegram_notify/templates/notify.service.j2 regressed.
 
+    - name: Confirm parse_mode=Markdown is set and the message is backtick-styled
+      ansible.builtin.assert:
+        that:
+          - "'parse_mode=Markdown' in lldap_cert_verify_notify_unit.stdout"
+          # Backtick-wrapping generically, not the exact '`%i`' substring:
+          # whether `systemctl cat` on an *instance* query shows the raw
+          # template's literal %i or an already-substituted value isn't
+          # confirmed either way from systemd's own docs - this only
+          # needs to prove the backtick syntax made it into the rendered
+          # unit, not pin down that specific behavior.
+          - "'`' in lldap_cert_verify_notify_unit.stdout"
+        fail_msg: "Rendered unit: {{ lldap_cert_verify_notify_unit.stdout }}"
+
     # --- telegram-notify@ wiring -----------------------------------------
     # Doesn't exercise a real Telegram delivery (no live bot/network in
     # CI) — that part still needs a manual live check, see

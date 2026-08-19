@@ -196,6 +196,13 @@
           message_thread_id= appeared despite a blank telegram_topic_id_backups
           — the Jinja conditional in telegram_notify/templates/notify.service.j2 regressed.
 
+    - name: Confirm parse_mode=Markdown is set and the message is backtick-styled
+      ansible.builtin.assert:
+        that:
+          - "'parse_mode=Markdown' in cloud_sync_verify_notify_unit.stdout"
+          - "'`' in cloud_sync_verify_notify_unit.stdout"
+        fail_msg: "Rendered unit: {{ cloud_sync_verify_notify_unit.stdout }}"
+
     - name: Start telegram-notify-cloud-sync.service directly, as OnFailure= would  # noqa: command-instead-of-module
       # Deliberately raw systemctl, not the systemd_service module —
       # same reasoning lldap_cert/molecule/default/verify.yml documents

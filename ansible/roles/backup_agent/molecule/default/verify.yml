@@ -90,6 +90,13 @@
           - "'AWS_S3_BUCKET_NAME' not in (backup_agent_shared_env_raw.content | b64decode)"
           - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_shared_env_raw.content | b64decode)"
 
+    - name: Confirm the Telegram notification URL was rendered from the role's own vars, not left as a template literal
+      ansible.builtin.assert:
+        that:
+          - >-
+            'NOTIFICATION_URLS=telegram://123456789:molecule-dummy-token@telegram?chats=molecule-dummy-chat-id'
+            in (backup_agent_shared_env_raw.content | b64decode)
+
     # --- Both containers actually came up --------------------------------
     - name: Confirm the backup-agent and dockerproxy containers are running
       community.docker.docker_host_info:

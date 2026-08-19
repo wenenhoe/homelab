@@ -1,13 +1,23 @@
 # Wastebin: Custom Image
 
 `quxfoo/wastebin` is `FROM scratch` — no shell, no libc, nothing a Docker
-`HEALTHCHECK` can exec. `docker/wastebin/Dockerfile` copies in
-`busybox:1.37.0-musl`'s statically linked `wget` as `/wget` for that
-purpose only; nothing else about the image changes. A GitHub Actions
-workflow (`.github/workflows/build-wastebin-image.yml`) builds and
-pushes it to `ghcr.io/wenenhoe/wastebin`, tagged by wastebin version.
-Hosts pull it like any other app's image — the generic `compose_app`
-role has no build step.
+`HEALTHCHECK` can exec, and no `/data` directory of its own. `docker/wastebin/Dockerfile`
+adds two things on top, neither changing how the app itself runs:
+
+- `busybox:1.37.0-musl`'s statically linked `wget` as `/wget`, for the
+  healthcheck.
+- An empty, `10001:10001`-owned `/data` directory (`10001` is the image's
+  own `app` user — see its README) plus a `VOLUME /data` declaration, so
+  the first, empty mount of `compose.yaml`'s `data` volume inherits that
+  ownership from the image instead of coming up root-owned. Without
+  this, wastebin (forced non-root by `user: 10001:10001` in
+  `compose.yaml`, matching the image) can't open its own SQLite database
+  file on a fresh volume.
+
+A GitHub Actions workflow (`.github/workflows/build-wastebin-image.yml`)
+builds and pushes the result to `ghcr.io/wenenhoe/wastebin`, tagged by
+wastebin version. Hosts pull it like any other app's image — the generic
+`compose_app` role has no build step.
 
 Triggers: push to `main` when `docker/wastebin/Dockerfile` changes,
 weekly on schedule (catches a `busybox:1.37.0-musl` patch landing with

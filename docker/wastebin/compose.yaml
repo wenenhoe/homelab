@@ -18,7 +18,9 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
-    user: 1000:1000
+    # Matches the image's own USER (app:app, UID/GID 10001) — see
+    # docker/wastebin/Dockerfile for why this has to match exactly.
+    user: 10001:10001
     expose:
       - '8088'
 networks:

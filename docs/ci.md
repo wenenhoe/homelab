@@ -134,6 +134,31 @@ Manual secrets are pre-seeded as plain files under
 — throwaway CI values, same non-secret status as
 `ci-inventory/group_vars/all/ci_dummy_vars.yaml`.
 
+## Docs drift check
+
+`.github/scripts/check-doc-drift.py`, wired into `.config/.pre-commit-config.yaml`
+as a local hook — no separate job of its own, it rides along inside
+`pre-commit-checks` above like every other commit-stage hook. Checks four
+narrow, structural things:
+
+- README's Repository Layout tree mentions every `ansible/roles/*/` and
+  `ansible/playbooks/*.yaml`, and every `docs/*.md` file is linked
+  somewhere in README.md (both directions — a link to a deleted file
+  fails too).
+- `docs/molecule-testing.md`'s Scenario matrix table lists exactly the
+  scenario directories that exist under `ansible/roles/*/molecule/*/`.
+- `docs/deployment-flow.md` has one `## Play N` heading per play in
+  `deploy.yaml`, numbered sequentially — title *wording* isn't compared,
+  only count and sequence, so a heading paraphrasing a play's name isn't
+  flagged as drift.
+- This file's own Jobs table lists every `pr-checks.yml` job id, except
+  `detect-changes` (internal plumbing) and `trivy-scan` (documented in
+  its own section instead).
+
+Deliberately presence/shape checks, not content review — it can't tell
+you a description is *wrong*, only that something's missing or a
+documented thing no longer exists.
+
 ## Molecule coverage gate
 
 Each `molecule` matrix job regenerates that role's task inventory

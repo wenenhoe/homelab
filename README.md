@@ -45,6 +45,8 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │   │   ├── maintenance.yaml      # apt + firmware updates
 │   │   ├── reset-network.yaml    # netplan re-apply
 │   │   ├── restore.yaml          # Stage 1 DR: restore one app's volume(s)
+│   │   ├── volume-file-rm.yaml   # Remove specific named file(s) from a volume in place
+│   │   ├── volume-reset.yaml     # Wipe a volume and recreate it from seeded config only
 │   │   ├── bootstrap-secrets.yaml# Leading play deploy.yaml/restore.yaml import for secrets
 │   │   └── ci_boot_test.yaml     # CI-only: seeds one app for the compose boot-test job
 │   ├── inventory/
@@ -61,6 +63,7 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │       ├── apt/             # System package updates
 │       ├── fwupd/           # Firmware updates
 │       ├── docker/          # Docker Engine install
+│       ├── qemu_guest_agent/# Installs qemu-guest-agent for Proxmox VM integration
 │       ├── compose/         # Reusable init/deploy/cleanup tasks for one compose app
 │       ├── compose_app/     # Batch-drives `compose/` for every non-infra app
 │       ├── caddy/           # Renders Caddyfile, builds custom image, deploys
@@ -72,6 +75,7 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │       ├── tinyauth_ca_trust/# Builds the CA bundle tinyauth needs to trust step-ca-issued certs
 │       ├── tinyauth/        # Molecule-only: deploys tinyauth for real in its own scenario
 │       ├── backup_agent/    # Per-host offsite backup aggregation (stage 1 DR)
+│       ├── cloud_sync/      # Offsite replication of SeaweedFS archives to R2/B2/OCI
 │       ├── restore/         # Restores a decrypted offsite archive back to a named volume
 │       ├── secrets/         # Generates/validates every entry in secrets_registry.yaml
 │       └── molecule_helpers/# Shared Molecule test fixtures/setup, not deployed
@@ -110,6 +114,7 @@ nothing is hand-authored on the servers themselves.
 | [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
 | [`docs/wastebin.md`](docs/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
+| [`docs/qemu-guest-agent.md`](docs/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
 
 ### Operations
 
@@ -118,6 +123,7 @@ nothing is hand-authored on the servers themselves.
 | [`docs/cleanup.md`](docs/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
 | [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
 | [`docs/cloud-sync.md`](docs/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
+| [`docs/volume-maintenance.md`](docs/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
 | [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
 
 ### Testing & CI
@@ -203,6 +209,8 @@ Two inventories exist for two different situations:
 | `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 | `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted offsite backup archive (stage 1 DR). See [`docs/disaster-recovery.md`](docs/disaster-recovery.md). |
+| `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`docs/volume-maintenance.md`](docs/volume-maintenance.md). |
+| `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`docs/volume-maintenance.md`](docs/volume-maintenance.md). |
 
 ## Basic Commands
 

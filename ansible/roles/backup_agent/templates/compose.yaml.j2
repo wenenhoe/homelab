@@ -14,6 +14,12 @@ services:
     networks:
       - backup-agent-net
     restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:2375/version" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 {% endif %}
 
   backup-agent:
@@ -32,6 +38,15 @@ services:
     networks:
       - backup-agent-net
     restart: unless-stopped
+    # -foreground's own scheduler is the entrypoint process itself (PID
+    # 1, named "backup") — no separate daemon and no HTTP endpoint to
+    # probe, so this only confirms that process is still alive.
+    healthcheck:
+      test: [ "CMD", "pgrep", "backup" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
 networks:
   backup-agent-net:

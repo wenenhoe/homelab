@@ -169,7 +169,7 @@
 
     - name: Read back telegram-notify-cloud-sync's rendered env file
       ansible.builtin.slurp:
-        path: /etc/telegram-notify/env
+        path: /etc/telegram-notify/telegram-notify-cloud-sync.env
       register: cloud_sync_verify_notify_env_raw
 
     - name: Confirm it carries the scenario's dummy bot credentials, not empty/template-literal values
@@ -194,7 +194,7 @@
           - "'message_thread_id=' not in cloud_sync_verify_notify_unit.stdout"
         fail_msg: >-
           message_thread_id= appeared despite a blank telegram_topic_id_backups
-          — the Jinja conditional in telegram-notify-cloud-sync.service.j2 regressed.
+          — the Jinja conditional in telegram_notify/templates/notify.service.j2 regressed.
 
     - name: Start telegram-notify-cloud-sync.service directly, as OnFailure= would  # noqa: command-instead-of-module
       # Deliberately raw systemctl, not the systemd_service module —

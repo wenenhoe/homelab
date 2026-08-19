@@ -1,0 +1,22 @@
+[Unit]
+Description={{ telegram_notify_description }}
+Documentation=https://core.telegram.org/bots/api#sendmessage
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/telegram-notify/{{ telegram_notify_unit_name }}.env
+
+; message_thread_id is only added when a topic ID is actually configured -
+; Telegram's API rejects the param outright if passed empty rather than
+; ignoring it (see docs/telegram-notifications.md).
+;
+; parse_mode=Markdown (legacy), not MarkdownV2: legacy mode only requires
+; escaping '_', '*', '`', '[' when used literally (Telegram's own docs,
+; core.telegram.org/bots/api) - MarkdownV2 requires escaping 18 characters
+; including '.' and '-', which hostnames/unit names are full of, and
+; rejects the whole message outright on any missed one. None of this
+; role's current callers interpolate a value containing '_', '*', '`', or
+; '[', so telegram_notify_message needs no escaping logic today - a
+; future caller whose interpolated value might contain one of those four
+; does need to escape it themselves before passing telegram_notify_message.
+ExecStart=/usr/bin/curl -fsS --max-time 10 --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text={{ telegram_notify_message }}" --data-urlencode "parse_mode=Markdown" {{ ('--data-urlencode "message_thread_id=' ~ telegram_notify_topic_id ~ '"') if telegram_notify_topic_id else '' }} https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage

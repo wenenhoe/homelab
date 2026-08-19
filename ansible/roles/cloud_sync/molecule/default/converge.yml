@@ -53,10 +53,11 @@
     cloud_sync_default_targets: [target_a, target_b]
     cloud_sync_on_calendar: "*-*-* 06:00:00" # never actually fires in this scenario — verify.yml triggers the service directly
 
-    # telegram-notify-cloud-sync.service.j2 (this role) needs these —
-    # see docs/telegram-notifications.md. Blank topic ID deliberately,
-    # to exercise the "no topic configured" branch — verify.yml checks
-    # message_thread_id is correctly omitted in that case.
+    # telegram_notify's install.yaml (included from cloud_sync's own
+    # tasks/main.yaml) needs these — see docs/telegram-notifications.md.
+    # Blank topic ID deliberately, to exercise the "no topic configured"
+    # branch — verify.yml checks message_thread_id is correctly omitted
+    # in that case.
     telegram_token: molecule-dummy-telegram-token
     telegram_chat_id: molecule-dummy-chat-id
     telegram_topic_id_backups: ""

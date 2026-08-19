@@ -1,0 +1,42 @@
+name: caddy
+
+services:
+  caddy:
+    image: ghcr.io/wenenhoe/caddy-digitalocean:2.11.4
+    container_name: caddy
+    volumes:
+      - type: volume
+        source: caddyfile
+        target: /etc/caddy/Caddyfile
+        volume:
+          subpath: Caddyfile
+      - data:/data
+      - config:/config
+    environment:
+      DO_API_TOKEN: ${DO_API_TOKEN}
+    ports:
+      - '0.0.0.0:80:80'
+      - '0.0.0.0:443:443'
+      - '0.0.0.0:443:443/udp' # HTTP/3 support
+    networks:
+      - caddy-proxy
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:2019/config/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+networks:
+  caddy-proxy:
+    name: caddy-proxy
+volumes:
+  caddyfile:
+    external: true
+    name: caddy_caddyfile
+  data:
+    external: true
+    name: caddy_data
+  config:
+    external: true
+    name: caddy_config

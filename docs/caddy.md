@@ -39,3 +39,9 @@ can't detect on its own. See [`volumes.md`](volumes.md).
 (HTTP/3), joins the `caddy-proxy` network, mounts `caddyfile` (single
 file via `volume.subpath`) plus `data`/`config` for certs and admin-API
 state.
+
+## Cert-expiry alerting
+
+`caddy_cert_expiry` (a separate role, runs right after this one in Play
+2) alerts if the live-serving cert on this host is expiring soon or
+unreachable — see [`telegram-notifications.md`](telegram-notifications.md).

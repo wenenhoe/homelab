@@ -1,0 +1,91 @@
+---
+# Checks the cert Caddy is actually serving, not a file on disk (see
+# check.sh.j2's header). One check per host: caddy_domain and its
+# wildcard cert are both per-host (see docs/telegram-notifications.md),
+# so there's nothing to enumerate beyond picking one routed hostname to
+# connect to - same source data and first-match selection Caddyfile.j2
+# itself uses for its *.{{ caddy_domain }} block.
+
+- name: Resolve this host's routable apps (same selectattr Caddyfile.j2 uses)
+  ansible.builtin.set_fact:
+    caddy_cert_expiry_routable_apps: "{{ compose_apps | selectattr('caddy', 'defined') | list }}"
+
+- name: Fail loudly if this host has no Caddy-routed app to check against
+  ansible.builtin.fail:
+    msg: >-
+      No compose_apps entry on this host declares a caddy: route, so
+      there's no live *.{{ caddy_domain }} cert to check - see
+      Caddyfile.j2's own routable_apps selection.
+  when: caddy_cert_expiry_routable_apps | length == 0
+
+- name: Pick the first routed hostname to check (the wildcard cert covers all of them)
+  ansible.builtin.set_fact:
+    caddy_cert_expiry_check_host: >-
+      {{ (caddy_cert_expiry_routable_apps[0].caddy.values() | list | first).host }}.{{ caddy_domain }}
+
+- name: Ensure openssl is present (check.sh's live TLS handshake needs it)
+  ansible.builtin.apt:
+    name: openssl
+    state: present
+
+- name: Ensure the cert-expiry check's deploy directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/caddy/_cert_expiry"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render the cert-expiry check script
+  ansible.builtin.template:
+    src: check.sh.j2
+    dest: "{{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install Telegram alerting for cert-expiry check failures
+  ansible.builtin.include_role:
+    name: telegram_notify
+    tasks_from: install.yaml
+  vars:
+    telegram_notify_unit_name: telegram-notify-cert-expiry
+    telegram_notify_description: Telegram alert for a failed Caddy certificate expiry check
+    telegram_notify_message: >-
+      Caddy certificate expiry check failed for `{{ caddy_cert_expiry_check_host }}`
+      on `{{ ansible_facts['hostname'] }}` - check `journalctl -u cert-expiry-check.service`
+    telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
+
+- name: Install the cert-expiry-check systemd service
+  ansible.builtin.template:
+    src: cert-expiry-check.service.j2
+    dest: /etc/systemd/system/cert-expiry-check.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the cert-expiry-check systemd timer
+  ansible.builtin.template:
+    src: cert-expiry-check.timer.j2
+    dest: /etc/systemd/system/cert-expiry-check.timer
+    mode: "0644"
+  notify: Reload systemd
+
+# telegram_notify's own install.yaml deliberately doesn't reload systemd
+# or notify a handler itself (see its own header comment) - do it here
+# instead, off the results it registers.
+- name: Reload systemd if the Telegram notifier unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
+
+# Same reasoning as lldap_cert/cloud_sync's identical task: "Enable and
+# start" below needs systemd to have already picked up the current unit
+# content, which only happens once handlers actually flush.
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the cert-expiry-check timer
+  ansible.builtin.systemd:
+    name: cert-expiry-check.timer
+    state: started
+    enabled: true

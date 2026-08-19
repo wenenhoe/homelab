@@ -1,0 +1,52 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    caddy_domain: apps.localhost
+    app_registry:
+      caddy: {}
+      diun: {}
+    # Deliberately no app with a caddy: key at all - that's the whole
+    # point of this scenario, unlike default's. The guard this tests is
+    # the first two tasks in caddy_cert_expiry/tasks/main.yaml, before
+    # anything Docker/Caddy-related runs, so no real Caddy target is
+    # needed here either.
+    compose_apps:
+      - name: caddy
+      - name: diun
+  tasks:
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: "Run caddy_cert_expiry [block / rescue] (no routed app on this host, failure is deliberate and expected)"
+      block:
+        - name: Run caddy_cert_expiry against a host with no Caddy-routed app
+          ansible.builtin.include_role:
+            name: caddy_cert_expiry
+      rescue:
+        # A bare rescue accepts ANY failure inside the block as "the
+        # guard worked" - assert on the exact task and reason before
+        # trusting the "expected" label, same reasoning lldap_cert's own
+        # not_running scenario documents for its identical pattern.
+        - name: Confirm the failure came from the "no routed app" guard itself
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == "Fail loudly if this host has no Caddy-routed app to check against"
+              - "'No compose_apps entry on this host declares a caddy: route' in ansible_failed_result.msg"
+            fail_msg: >-
+              caddy_cert_expiry failed, but not for the reason this
+              scenario exists to test. Expected the "Fail loudly if this
+              host has no Caddy-routed app to check against" task to
+              fail; got task "{{ ansible_failed_task.name | default('unknown') }}"
+              with message: {{ ansible_failed_result.msg | default('(no msg)') }}
+
+        - name: Leave a marker proving the guard actually caught the missing routed app
+          ansible.builtin.copy:
+            dest: /tmp/caddy_cert_expiry_no_routed_apps_halt_marker
+            content: "missing routed app caught as expected\n"
+            mode: "0644"

@@ -1,0 +1,16 @@
+[Unit]
+Description=Check Caddy's live-serving certificate expiry on this host
+Documentation=https://caddyserver.com/docs/automatic-https
+StartLimitIntervalSec=0
+# Fires on the check script's own exit code - unreadable/expiring-soon
+# cert and a hard connection failure both count as failure here, on
+# purpose (see check.sh.j2's header for why).
+OnFailure=telegram-notify-cert-expiry.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/bin/sh {{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh
+
+[Install]
+WantedBy=multi-user.target

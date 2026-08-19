@@ -1,0 +1,26 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the missing-routed-app guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/caddy_cert_expiry_no_routed_apps_halt_marker
+      register: caddy_cert_expiry_no_routed_apps_marker
+      failed_when: not caddy_cert_expiry_no_routed_apps_marker.stat.exists
+
+    - name: Confirm caddy_cert_expiry never got as far as installing the check script
+      ansible.builtin.stat:
+        path: /opt/stacks/caddy/_cert_expiry/check.sh
+      register: caddy_cert_expiry_no_routed_apps_script
+      failed_when: caddy_cert_expiry_no_routed_apps_script.stat.exists
+
+    - name: Confirm caddy_cert_expiry never got as far as installing any systemd unit
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/systemd/system/cert-expiry-check.service
+        - /etc/systemd/system/cert-expiry-check.timer
+        - /etc/systemd/system/telegram-notify-cert-expiry.service
+      register: caddy_cert_expiry_no_routed_apps_units
+      failed_when: caddy_cert_expiry_no_routed_apps_units.stat.exists

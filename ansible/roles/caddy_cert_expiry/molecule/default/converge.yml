@@ -1,0 +1,71 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    compose_source_dir: "{{ playbook_dir }}/files/docker"
+    project_root: "{{ playbook_dir }}"
+    # Same reasoning as caddy's own default scenario: .localhost isn't
+    # publicly issuable, so caddy_local_certs skips the real ACME
+    # issuer and Caddy falls back to its internal CA - a genuine,
+    # short-but-not-expiring-soon live cert to check against.
+    caddy_local_certs: true
+    tinyauth_host: sso
+    lab_domain: lan.localhost
+    caddy_domain: apps.localhost
+    digitalocean_api_key: test-token-not-real
+    # Caddy's internal issuer defaults leaf certs to a 12h lifetime
+    # (https://caddyserver.com/docs/caddyfile/directives/tls#tls),
+    # hardcoded, not something this Caddyfile overrides - a real
+    # internal-CA cert here can never clear the role's production
+    # default (caddy_cert_expiry_threshold_days: 30, see defaults/main.yaml,
+    # which isn't overridden here so its own default is what's actually
+    # exercised structurally). 0 exercises the exact boundary this
+    # scenario CAN reach live: a ~12h-lifetime cert floors to 0 days
+    # left, so threshold 0 confirms "exactly at the threshold" doesn't
+    # alert (days_left -lt threshold, not -le).
+    caddy_cert_expiry_threshold_days: 0
+    telegram_token: "111111:test-token-not-real"
+    telegram_chat_id: "-100000000"
+    telegram_topic_id_certs: "5"
+    app_registry:
+      caddy:
+        volumes:
+          - name: caddyfile
+          - name: data
+          - name: config
+        configs:
+          - src: env.j2
+            dest: .env
+            mode: "0600"
+            force: false
+      bentopdf:
+        caddy:
+          default:
+            upstream: "bentopdf:8080"
+    compose_apps:
+      - name: caddy
+      - name: bentopdf
+        caddy:
+          default:
+            host: bentopdf
+  tasks:
+    - name: Include docker role (compose assumes Docker is already installed and running)
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: bootstrap_docker.yaml
+
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Run the caddy role (needs to actually be serving before the check makes sense)
+      ansible.builtin.include_role:
+        name: caddy
+
+    - name: Run the role under test
+      ansible.builtin.include_role:
+        name: caddy_cert_expiry

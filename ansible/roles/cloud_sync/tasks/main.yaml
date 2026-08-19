@@ -75,30 +75,25 @@
     group: "{{ ansible_user }}"
     mode: "0755"
 
-- name: Ensure curl is present (telegram-notify-cloud-sync's ExecStart needs it)
-  ansible.builtin.apt:
-    name: curl
-    state: present
+- name: Install Telegram alerting for cloud-sync failures
+  ansible.builtin.include_role:
+    name: telegram_notify
+    tasks_from: install.yaml
+  vars:
+    telegram_notify_unit_name: telegram-notify-cloud-sync
+    telegram_notify_description: Telegram alert for a failed cloud-sync run
+    telegram_notify_message: >-
+      cloud-sync failed on `{{ ansible_facts['hostname'] }}` — at least one job
+      did not relay, check `journalctl -u cloud-sync.service`
+    telegram_notify_topic_id: "{{ telegram_topic_id_backups }}"
 
-- name: Ensure /etc/telegram-notify exists
-  ansible.builtin.file:
-    path: /etc/telegram-notify
-    state: directory
-    mode: "0700"
-
-- name: Render telegram-notify-cloud-sync's credentials
-  ansible.builtin.template:
-    src: telegram-notify-cloud-sync.env.j2
-    dest: /etc/telegram-notify/env
-    mode: "0600"
-  no_log: true
-
-- name: Install the cloud-sync Telegram notifier service
-  ansible.builtin.template:
-    src: telegram-notify-cloud-sync.service.j2
-    dest: /etc/systemd/system/telegram-notify-cloud-sync.service
-    mode: "0644"
-  notify: Reload systemd
+# telegram_notify's own install.yaml deliberately doesn't reload systemd
+# or notify a handler itself (see its own header comment) - do it here
+# instead, off the results it registers.
+- name: Reload systemd if the Telegram notifier unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
 
 - name: Install the cloud-sync systemd service
   ansible.builtin.template:

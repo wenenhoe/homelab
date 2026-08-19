@@ -1,0 +1,11 @@
+---
+# No Docker-in-Docker/systemd needed here (see molecule.yml) - this
+# playbook exists solely to reset molecule-coverage's JSONL before each
+# test run, same as apt/molecule/default's own prepare.yml.
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Reset coverage data from any previous test run
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: reset_coverage_data.yaml

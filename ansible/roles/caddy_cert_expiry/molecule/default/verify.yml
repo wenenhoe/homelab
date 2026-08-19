@@ -1,0 +1,149 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+  tasks:
+    # --- Caddy is actually up and serving before any check makes sense ---
+    - name: Wait for the caddy container to report healthy
+      community.docker.docker_container_info:
+        name: caddy
+      register: caddy_cert_expiry_verify_caddy_info
+      until: (caddy_cert_expiry_verify_caddy_info.container.State.Health.Status | default('')) == 'healthy'
+      retries: 15
+      delay: 10
+
+    # --- Rendered files exist -------------------------------------------
+    - name: Stat every file this role should have installed
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: caddy_cert_expiry_verify_files
+      loop:
+        - "{{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+        - /etc/systemd/system/cert-expiry-check.service
+        - /etc/systemd/system/cert-expiry-check.timer
+        - /etc/systemd/system/telegram-notify-cert-expiry.service
+        - /etc/telegram-notify/telegram-notify-cert-expiry.env
+
+    - name: Confirm they all exist
+      ansible.builtin.assert:
+        that:
+          - caddy_cert_expiry_verify_files.results | map(attribute='stat.exists') | list == [true, true, true, true, true]
+
+    - name: Read back the rendered check script
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+      register: caddy_cert_expiry_verify_check_sh_raw
+
+    - name: Confirm it targets the right hostname and threshold
+      ansible.builtin.assert:
+        that:
+          # bentopdf is this fixture's only routed app - selectattr('caddy',
+          # 'defined')'s single match, so it must be what got picked.
+          - "'HOST=\"bentopdf.apps.localhost\"' in (caddy_cert_expiry_verify_check_sh_raw.content | b64decode)"
+          - "'THRESHOLD_DAYS=0' in (caddy_cert_expiry_verify_check_sh_raw.content | b64decode)"
+
+    # --- OnFailure= link is real, not just documented ---------------------
+    - name: Confirm cert-expiry-check.service actually declares the OnFailure link  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl cat cert-expiry-check.service
+      register: caddy_cert_expiry_verify_onfailure
+      changed_when: false
+      failed_when: "'OnFailure=telegram-notify-cert-expiry.service' not in caddy_cert_expiry_verify_onfailure.stdout"
+
+    - name: Confirm the timer is enabled and active
+      # daemon_reload: false required-but-inert, matching the module's
+      # own default - same reasoning as cloud_sync/molecule/default's
+      # identical task (see its own comment for the full explanation).
+      ansible.builtin.systemd:
+        name: cert-expiry-check.timer
+        daemon_reload: false
+      register: caddy_cert_expiry_verify_timer_status
+
+    - name: Assert on it
+      ansible.builtin.assert:
+        that:
+          - caddy_cert_expiry_verify_timer_status.status.ActiveState == 'active'
+          - caddy_cert_expiry_verify_timer_status.status.UnitFileState == 'enabled'
+        fail_msg: >-
+          ActiveState={{ caddy_cert_expiry_verify_timer_status.status.ActiveState }}
+          UnitFileState={{ caddy_cert_expiry_verify_timer_status.status.UnitFileState }}
+
+    - name: Read back the rendered telegram-notify-cert-expiry unit  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl cat telegram-notify-cert-expiry.service
+      register: caddy_cert_expiry_verify_notify_unit
+      changed_when: false
+
+    - name: Confirm message_thread_id IS present (this scenario's telegram_topic_id_certs is "5", not blank)
+      ansible.builtin.assert:
+        that:
+          # '=' form only appears in the real rendered ExecStart line, not
+          # the template's own explanatory comment - see cloud_sync's
+          # equivalent (opposite-branch) check for why that distinction matters.
+          - "'message_thread_id=5' in caddy_cert_expiry_verify_notify_unit.stdout"
+
+    # --- Behavioral, real cert: the check passes at the exact boundary ---
+    # --- it can actually reach against a genuine internal-CA cert -------
+    - name: Run the check script directly against the live Caddy instance
+      ansible.builtin.command: "sh {{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+      register: caddy_cert_expiry_verify_real_check
+      changed_when: false
+
+    - name: Confirm it read a real certificate and didn't alert exactly at the threshold (0-day threshold, ~12h-lifetime cert)
+      ansible.builtin.assert:
+        that:
+          - "'bentopdf.apps.localhost: certificate expires' in caddy_cert_expiry_verify_real_check.stdout"
+          - "'days left)' in caddy_cert_expiry_verify_real_check.stdout"
+        fail_msg: "Unexpected output: {{ caddy_cert_expiry_verify_real_check.stdout }}"
+
+    # --- Behavioral, failure path: SNI matching no configured site --------
+    # HOST now only drives -servername (see check.sh.j2's own comment on
+    # why it connects to 127.0.0.1 instead). A hostname under
+    # *.apps.localhost still gets the wildcard cert at the TLS layer even
+    # if no handle block matches it (that's the 403 case caddy's own
+    # verify.yml tests, a routing failure, not a cert one) - this needs
+    # an SNI outside caddy_domain entirely, with no site address
+    # configured for it at all, to get a genuine TLS-layer failure.
+    - name: Overwrite the deployed check script to target a hostname Caddy has no site/cert for at all
+      ansible.builtin.replace:
+        path: "{{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+        regexp: 'HOST="bentopdf.apps.localhost"'
+        replace: 'HOST="nowhere.invalid"'
+
+    - name: Start cert-expiry-check.service directly, expecting it to fail  # noqa: command-instead-of-module
+      # Same reasoning as cloud_sync/lldap_cert's equivalent tasks: raw
+      # systemctl, not the systemd_service module, since this Type=oneshot
+      # unit's ExecStart is *expected* to fail here.
+      ansible.builtin.command: systemctl start cert-expiry-check.service
+      failed_when: false
+      changed_when: false
+
+    - name: Query the check service's actual state
+      ansible.builtin.systemd_service:
+        name: cert-expiry-check.service
+        daemon_reload: false
+      register: caddy_cert_expiry_verify_check_state
+
+    - name: Confirm it actually failed (not just skipped or never ran)
+      ansible.builtin.assert:
+        that:
+          - caddy_cert_expiry_verify_check_state.status.ActiveState == 'failed'
+
+    - name: Query the notifier unit's actual state after OnFailure= should have fired it
+      ansible.builtin.systemd_service:
+        name: telegram-notify-cert-expiry.service
+        daemon_reload: false
+      register: caddy_cert_expiry_verify_notify_state
+
+    - name: Confirm systemd actually loaded and ran the notifier (not a syntax/templating error)
+      ansible.builtin.assert:
+        that:
+          - caddy_cert_expiry_verify_notify_state.status.LoadState == 'loaded'
+          - caddy_cert_expiry_verify_notify_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          telegram-notify-cert-expiry.service didn't load/run cleanly:
+          LoadState={{ caddy_cert_expiry_verify_notify_state.status.LoadState | default('?') }}
+          ActiveState={{ caddy_cert_expiry_verify_notify_state.status.ActiveState | default('?') }}
+          — 'failed' here just means curl couldn't reach the real API
+          (expected in CI, no live bot credentials), 'not-found' or
+          'masked' would mean the unit itself is broken.

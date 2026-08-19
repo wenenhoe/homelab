@@ -45,3 +45,16 @@ repos:
     hooks:
       - id: markdownlint-cli2
         args: [--config, .config/.markdownlint.yaml]
+  - repo: local
+    hooks:
+      - id: check-doc-drift
+        name: check-doc-drift
+        description: >-
+          README/molecule-testing/deployment-flow/ci.md stay in sync
+          with the roles, playbooks, scenarios, and CI jobs they
+          describe — see .github/scripts/check-doc-drift.py.
+        entry: python3 .github/scripts/check-doc-drift.py
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        always_run: true

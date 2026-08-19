@@ -2,7 +2,7 @@ name: wastebin
 
 services:
   wastebin:
-    image: quxfoo/wastebin:3.7.2
+    image: ghcr.io/wenenhoe/wastebin:3.7.2
     container_name: wastebin
     volumes:
       - data:/data
@@ -11,10 +11,16 @@ services:
     networks:
       - caddy-proxy
     restart: always
-    user: 1000:1000
-    # TODO: Add healthcheck
-    # NOTE: Image has no shell, no wget/curl
-    # NOTE: Need more investigation
+    # docker/wastebin/Dockerfile adds the /wget this needs — see docs/wastebin.md
+    healthcheck:
+      test: [ "CMD", "/wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8088/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Matches the image's own USER (app:app, UID/GID 10001) — see
+    # docker/wastebin/Dockerfile for why this has to match exactly.
+    user: 10001:10001
     expose:
       - '8088'
 networks:

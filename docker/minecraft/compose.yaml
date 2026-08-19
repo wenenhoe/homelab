@@ -21,10 +21,16 @@ services:
       # there's one unambiguous prune rule instead of two overlapping ones.
       PRUNE_BACKUPS_COUNT: "1"
       PRUNE_BACKUPS_DAYS: "0"
-    # TODO: Add healthcheck
-    # NOTE: Runs on a cron schedule with no listening port/daemon in between
-    # NOTE: Can consider looking into the logs daily with a custom script
     restart: always
+    # No listening port to probe, so this checks that the cron scheduler
+    # (crond, the container's foreground process here) is alive — it does
+    # NOT confirm the most recent backup actually succeeded.
+    healthcheck:
+      test: [ "CMD", "pgrep", "crond" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
   bluemap:
     image: ghcr.io/bluemap-minecraft/bluemap:v5
     container_name: minecraft-bluemap
@@ -44,9 +50,14 @@ services:
       - caddy-proxy
     command: -r -u -w
     restart: always
-    # TODO: Add healthcheck
-    # NOTE: Image has no wget/curl
-    # NOTE: Can consider a sidecar/Dockerfile to compile a healthchecker JAR
+    # Image has bash but no curl/wget, so this uses bash's built-in
+    # /dev/tcp to confirm the webserver (-w) is accepting connections.
+    healthcheck:
+      test: [ "CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8100" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
     expose:
       - '8100'
   mc:

@@ -205,6 +205,13 @@ jobs:
           printf '%s' 'localhost' > ansible/files/secrets/wetty-ssh-host
           printf '%s' '' > ansible/files/secrets/beszel-hub-key
           printf '%s' '' > ansible/files/secrets/beszel-agent-token
+          # telegram-topic-id-* are allow_blank: true in the registry too
+          # (Topics is an optional feature — see docs/telegram-notifications.md),
+          # same reasoning as beszel-hub-key/-agent-token just above.
+          printf '%s' '' > ansible/files/secrets/telegram-topic-id-updates
+          printf '%s' '' > ansible/files/secrets/telegram-topic-id-monitoring
+          printf '%s' '' > ansible/files/secrets/telegram-topic-id-backups
+          printf '%s' '' > ansible/files/secrets/telegram-topic-id-certs
           printf '%s' 'ci-dummy-r2-access-key' > ansible/files/secrets/cloudflare-r2-access-key
           printf '%s' 'ci-dummy-r2-secret-key' > ansible/files/secrets/cloudflare-r2-secret-key
           printf '%s' 'ci-dummy-r2-account-id' > ansible/files/secrets/cloudflare-r2-account-id

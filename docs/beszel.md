@@ -33,3 +33,13 @@ Sequence:
 
 `docker/beszel-hub/compose.yaml`: `henrygd/beszel`, joins `caddy-proxy`, exposes `8090` to Caddy, persists its `data` volume to `/beszel_data`.
 `docker/beszel-agent/compose.yaml`: `henrygd/beszel-agent`, `network_mode: host` (required for host-level network interface stats — this also means it doesn't join `caddy-proxy`, since it isn't routed through Caddy at all). Container stats come via a `dockerproxy` sidecar (`CONTAINERS=1`-scoped, socket mounted read-only), with the agent reaching it over `DOCKER_HOST: tcp://localhost:2375` rather than mounting the socket itself.
+
+## Alert notifications
+
+Not Ansible-managed — Beszel's notification channels live in the hub's
+own database, same "only exists after first boot" category as the
+KEY/TOKEN above. Once logged in: **Settings → Notifications**, add
+`telegram://<telegram_token>@telegram?chats=<telegram_chatid_monitoring>`
+(both values from `ansible/inventory/group_vars/all/main.yaml`). See
+[`telegram-notifications.md`](telegram-notifications.md) for the full
+bot/topic scheme shared with diun and backups.

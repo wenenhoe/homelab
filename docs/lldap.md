@@ -52,7 +52,9 @@ flagged it as under-trusted — with `step`'s own renewal logic and a
 timer systemd itself supervises: a renewal failure now shows up as a
 failed systemd unit (`systemctl status cert-renewer@lldap.service`,
 `journalctl -u cert-renewer@lldap.service`), not a silently-swallowed
-exception inside a best-effort deploy hook.
+exception inside a best-effort deploy hook — and pages a Telegram topic
+via `OnFailure=` rather than waiting for you to notice
+(see [`telegram-notifications.md`](telegram-notifications.md)).
 
 ## `step` runs via its container image, not a host-installed binary
 

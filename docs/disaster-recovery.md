@@ -133,7 +133,8 @@ Apps without a `backup:` key in `app_registry.yaml` are out of scope.
 Every app above lands in SeaweedFS directly (`backup_agent`, per-host,
 nightly); "Extra cloud targets" is what `cloud_sync` (storage-only, see
 [`cloud-sync.md`](cloud-sync.md)) additionally relays it to, on its own
-separate schedule.
+separate schedule. A failed run alerts to Telegram — see
+[`telegram-notifications.md`](telegram-notifications.md).
 
 `lldap` is deliberately never stopped — it's the auth backend, and every
 other app behind Caddy/tinyauth loses login for the stop window, a

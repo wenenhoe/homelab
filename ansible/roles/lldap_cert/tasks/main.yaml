@@ -121,6 +121,31 @@
         path: /tmp/lldap-cert-provisioner-password
         state: absent
 
+- name: Ensure curl is present (telegram-notify@'s ExecStart needs it)
+  ansible.builtin.apt:
+    name: curl
+    state: present
+
+- name: Ensure /etc/telegram-notify exists
+  ansible.builtin.file:
+    path: /etc/telegram-notify
+    state: directory
+    mode: "0700"
+
+- name: Render telegram-notify@'s credentials
+  ansible.builtin.template:
+    src: telegram-notify.env.j2
+    dest: /etc/telegram-notify/env
+    mode: "0600"
+  no_log: true
+
+- name: Install the generic telegram-notify@ service template
+  ansible.builtin.template:
+    src: telegram-notify@.service.j2
+    dest: /etc/systemd/system/telegram-notify@.service
+    mode: "0644"
+  notify: Reload systemd
+
 - name: Install the generic cert-renewer@ service template
   ansible.builtin.template:
     src: cert-renewer@.service.j2

@@ -1,0 +1,59 @@
+---
+# Library role, no tasks/main.yaml — always called explicitly via
+# include_role: {name: telegram_notify, tasks_from: install.yaml} with
+# the vars below. Renders one plain systemd oneshot unit that curls
+# Telegram's Bot API directly (the direct-curl address shape, not
+# shoutrrr's chat:topic string — see docs/telegram-notifications.md).
+# Deliberately does not reload systemd or notify a handler itself (see
+# docs/telegram-notifications.md#adding-a-consumer) — the caller reloads
+# using the changed results registered below, so this role never
+# depends on a same-named handler existing in whatever play includes it.
+#
+# Required vars (no defaults/main.yaml — a missing one should fail
+# loudly here, not render a broken unit):
+#   telegram_notify_unit_name   systemd unit name, no ".service" suffix
+#   telegram_notify_description [Unit] Description= text
+#   telegram_notify_message     alert text, already fully composed by
+#                                the caller (host/domain interpolation
+#                                is the caller's job, not this role's)
+#   telegram_notify_topic_id    the raw telegram_topic_id_* var to embed
+#                                ("" is valid - falls back to the main
+#                                stream, see docs/telegram-notifications.md)
+
+- name: Fail loudly if a required telegram_notify_* var is missing
+  ansible.builtin.assert:
+    that:
+      - telegram_notify_unit_name is defined
+      - telegram_notify_description is defined
+      - telegram_notify_message is defined
+      - telegram_notify_topic_id is defined
+    fail_msg: >-
+      telegram_notify's install.yaml needs telegram_notify_unit_name,
+      _description, _message, and _topic_id all set by the including
+      role - see ansible/roles/telegram_notify/tasks/install.yaml.
+
+- name: Ensure curl is present (this unit's ExecStart needs it)
+  ansible.builtin.apt:
+    name: curl
+    state: present
+
+- name: Ensure /etc/telegram-notify exists
+  ansible.builtin.file:
+    path: /etc/telegram-notify
+    state: directory
+    mode: "0700"
+
+- name: "Render the notifier's credentials: {{ telegram_notify_unit_name }}"
+  ansible.builtin.template:
+    src: notify.env.j2
+    dest: "/etc/telegram-notify/{{ telegram_notify_unit_name }}.env"
+    mode: "0600"
+  register: telegram_notify_env_result
+  no_log: true
+
+- name: "Install the notifier's systemd unit: {{ telegram_notify_unit_name }}"
+  ansible.builtin.template:
+    src: notify.service.j2
+    dest: "/etc/systemd/system/{{ telegram_notify_unit_name }}.service"
+    mode: "0644"
+  register: telegram_notify_service_result

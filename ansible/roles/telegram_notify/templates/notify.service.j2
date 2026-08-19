@@ -1,0 +1,12 @@
+[Unit]
+Description={{ telegram_notify_description }}
+Documentation=https://core.telegram.org/bots/api#sendmessage
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/telegram-notify/{{ telegram_notify_unit_name }}.env
+
+; message_thread_id is only added when a topic ID is actually configured -
+; Telegram's API rejects the param outright if passed empty rather than
+; ignoring it (see docs/telegram-notifications.md).
+ExecStart=/usr/bin/curl -fsS --max-time 10 --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" --data-urlencode "text={{ telegram_notify_message }}" {{ ('--data-urlencode "message_thread_id=' ~ telegram_notify_topic_id ~ '"') if telegram_notify_topic_id else '' }} https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage

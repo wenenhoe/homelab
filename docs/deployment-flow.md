@@ -40,7 +40,9 @@ never get Docker installed or a container deployed to it.
 
 Renders each host's `Caddyfile`, pulls the custom Caddy image (DigitalOcean
 DNS plugin, built in CI), starts/restarts it — routing is live before any
-backend app starts. See [`caddy.md`](caddy.md).
+backend app starts. See [`caddy.md`](caddy.md). Then installs this host's
+certificate-expiry check timer, right after — see
+[`telegram-notifications.md`](telegram-notifications.md).
 
 ## Play 3 — Configure BIND9 (`hosts: dns`)
 

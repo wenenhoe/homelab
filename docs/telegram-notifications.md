@@ -1,9 +1,11 @@
 # Telegram Notifications
 
 One bot, one group chat with [Topics](https://telegram.org/blog/topics-in-groups-collectible-usernames)
-enabled, a different topic per concern. Five consumers today, two of
-which share the Backups topic since they're the two halves of the same
-disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)):
+enabled, a different topic per concern. Six consumers today: two share
+the Backups topic since they're the two halves of the same
+disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)),
+and two share the Certs topic since they're both certificate-lifecycle
+alerts, just for different certs:
 
 | Concern | Sends via | Topic var |
 | :--- | :--- | :--- |
@@ -11,7 +13,8 @@ disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)):
 | Host/container monitoring (Beszel) | Beszel's built-in notifications | `telegram_chatid_monitoring` |
 | Backup job failures | `docker-volume-backup`'s notifier | `telegram_chatid_backups` |
 | Cloud-sync relay failures | `telegram-notify-cloud-sync` (systemd) | `telegram_chat_id` / `telegram_topic_id_backups` |
-| Cert renewal failures | `telegram-notify@` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
+| Cert renewal failures (lldap) | `telegram-notify@` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
+| Caddy cert-expiry check failures | `telegram-notify-cert-expiry` (systemd) | `telegram_chat_id` / `telegram_topic_id_certs` |
 
 ## One-time Telegram-side setup
 
@@ -44,11 +47,25 @@ printf '%s' '<topic-id>' > ansible/files/secrets/telegram-topic-id-updates
 **Two different address formats, on purpose**: diun, `docker-volume-backup`,
 and Beszel all go through [shoutrrr](https://containrrr.dev/shoutrrr/v0.8/services/telegram/)
 (or diun's own equivalent), whose convenience syntax is a single
-`chat_id:topic_id` string — that's what `telegram_chatid_*` produces.
-`telegram-notify@` (below) calls Telegram's Bot API directly instead, and
-the real API takes `chat_id` and `message_thread_id` as two separate
-parameters — it does **not** understand the colon-combined form. That's
-why `telegram_topic_id_certs` exists as a separate, un-prefixed var.
+`chat_id:topic_id` string — that's what `telegram_chatid_*` produces. The
+three systemd-based notifiers below call Telegram's Bot API directly
+instead, and the real API takes `chat_id` and `message_thread_id` as two
+separate parameters — it does **not** understand the colon-combined
+form. That's why the raw, un-prefixed `telegram_topic_id_*` vars exist
+alongside `telegram_chatid_*`.
+
+**The systemd-based notifiers share one library role**, `telegram_notify`
+(`ansible/roles/telegram_notify`) — a plain oneshot unit that curls
+`sendMessage` directly, parameterized by unit name, description, message
+text, and which topic to post to. It's included via `include_role` from
+each consumer's own `tasks/main.yaml`, has no `tasks/main.yaml` or
+molecule suite of its own (same shape as `molecule_helpers`), and never
+reloads systemd or notifies a handler itself — the including role does
+that off the `telegram_notify_env_result`/`telegram_notify_service_result`
+it registers, so the shared role never depends on a same-named handler
+existing in whatever play includes it. `telegram-notify@` and
+`telegram-notify-cloud-sync` predate this role and aren't migrated onto
+it yet — see the per-app notes below.
 
 **The bot token's own colon is load-bearing.** A real token from
 BotFather is already shaped `<bot-id>:<rest>` — shoutrrr's Telegram
@@ -95,11 +112,25 @@ a placeholder that isn't shaped like one.
   nothing-due-for-renewal case) is not a failure and never triggers this
   — systemd only treats exit codes 255 or an abnormal exit as a failure
   for `ExecCondition`.
+- **Caddy cert-expiry**: `ansible/roles/caddy_cert_expiry` — a daily
+  timer runs `check.sh`, which checks the certificate Caddy is actually
+  serving (a live TLS handshake against one of this host's own routed
+  subdomains, not a file on disk) rather than renewal internals, since
+  Caddy manages its own ACME renewal and this is meant to catch that
+  process silently failing. One check per host: `caddy_domain` and its
+  wildcard cert are both per-host, so every routed subdomain shares the
+  same cert — no per-domain enumeration needed.
+  `OnFailure=telegram-notify-cert-expiry.service`, its own consumer of
+  the shared `telegram_notify` role above, posting to the same Certs
+  topic as `cert-renewer@` since it's the same kind of concern for a
+  different cert. Threshold is `caddy_cert_expiry_threshold_days`
+  (default 30).
 
 ## Verifying it actually delivers
 
-Molecule (`ansible/roles/lldap_cert/molecule/default` and
-`ansible/roles/cloud_sync/molecule/default`) confirms the
+Molecule (`ansible/roles/lldap_cert/molecule/default`,
+`ansible/roles/cloud_sync/molecule/default`, and
+`ansible/roles/caddy_cert_expiry/molecule/default`) confirms the
 `OnFailure=` link exists, the unit templates correctly, and it loads and
 runs under real systemd — it can't confirm a real Telegram message
 arrives, since CI has no live bot credentials. Check that part yourself
@@ -113,6 +144,10 @@ journalctl -u telegram-notify@lldap.service --no-pager -n 20
 # On the storage host — force the cloud-sync alert to fire
 sudo systemctl start telegram-notify-cloud-sync.service
 journalctl -u telegram-notify-cloud-sync.service --no-pager -n 20
+
+# On any host — force the cert-expiry alert to fire
+sudo systemctl start telegram-notify-cert-expiry.service
+journalctl -u telegram-notify-cert-expiry.service --no-pager -n 20
 ```
 
 A `curl` exit status other than a clean `0` there (bad token, wrong chat

@@ -50,6 +50,16 @@
         - images
         - infra
 
+    # Runs in the same play/hosts as caddy above, right after it - needs
+    # this host's own compose_apps resolved (Play 1) and its own
+    # caddy_domain, nothing from any other host. See
+    # docs/telegram-notifications.md.
+    - name: Include caddy_cert_expiry role
+      ansible.builtin.include_role:
+        name: caddy_cert_expiry
+      tags:
+        - infra
+
 # Play 3 — DNS config written and bind9 deployed/restarted before any
 # other container starts or this host's Docker daemon points at it.
 - name: Configure BIND9 on the DNS host

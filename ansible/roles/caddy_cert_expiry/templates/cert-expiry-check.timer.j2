@@ -1,0 +1,12 @@
+[Unit]
+Description=Timer for Caddy certificate expiry checks
+Documentation=https://caddyserver.com/docs/automatic-https
+
+[Timer]
+Persistent=true
+OnCalendar=daily
+AccuracySec=1h
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

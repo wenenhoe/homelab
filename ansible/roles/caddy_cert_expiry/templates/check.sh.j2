@@ -1,0 +1,40 @@
+#!/bin/sh
+# Checks the certificate Caddy is actually serving right now for
+# {{ caddy_cert_expiry_check_host }} - the live TLS handshake, not a
+# file on disk, so this catches a cert that's expired/wrong/missing on
+# the wire even if the reason turns out to be unrelated to renewal
+# timing (wrong SNI routing, Caddy down, DNS issuer failure, etc). One
+# check covers the whole host: every {{ caddy_domain }} subdomain
+# shares the same wildcard cert (see docs/telegram-notifications.md).
+#
+# Connects to 127.0.0.1, not $HOST — openssl s_client has no curl
+# --resolve equivalent, and this role always runs on the same host as
+# the Caddy it's checking (production binds 0.0.0.0:443, see
+# docker/caddy/compose.yaml), so loopback is always correct. -servername
+# still carries the real hostname for SNI, which is what Caddy actually
+# uses to pick the site/cert - connecting by IP only skips this host's
+# own DNS resolution of its own domain, a separate concern from whether
+# Caddy's cert is about to expire.
+set -eu
+
+HOST="{{ caddy_cert_expiry_check_host }}"
+THRESHOLD_DAYS={{ caddy_cert_expiry_threshold_days }}
+
+end_date=$(echo | openssl s_client -connect "127.0.0.1:443" -servername "${HOST}" 2>/dev/null \
+  | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
+
+if [ -z "${end_date}" ]; then
+    echo "Could not read a certificate from ${HOST}:443" >&2
+    exit 1
+fi
+
+end_epoch=$(date -d "${end_date}" +%s)
+now_epoch=$(date +%s)
+days_left=$(( (end_epoch - now_epoch) / 86400 ))
+
+echo "${HOST}: certificate expires ${end_date} (${days_left} days left)"
+
+if [ "${days_left}" -lt "${THRESHOLD_DAYS}" ]; then
+    echo "Below the ${THRESHOLD_DAYS}-day threshold" >&2
+    exit 1
+fi

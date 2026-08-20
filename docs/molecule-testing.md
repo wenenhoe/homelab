@@ -235,6 +235,11 @@ added later over a fixture directory needs the same.
     unreliable in some cases (`docker/compose#9530`) — if a future
     Compose version regresses it, this file is the first thing to
     check.
+  - `generic_alpine_app_with_env_file/compose.yaml` — no volume, plain
+    `env_file: [.env]`. Not every app with `env_file` qualifies for
+    this — only ones where the rendered `.env` content and its
+    assertions live entirely in the *consuming* scenario (its own
+    `app_registry`/`verify.yml`), not in the compose file itself.
   - Fixtures that used to declare `container_name:` purely so
     `verify.yml`/`converge.yml` could look them up by a fixed name
     (`happy_app_nostop`, `restore_target`, etc.) now get discovered by

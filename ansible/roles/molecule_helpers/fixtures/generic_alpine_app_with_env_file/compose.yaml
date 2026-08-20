@@ -1,0 +1,14 @@
+# dclint disable require-project-name-field
+# No top-level `name:`, same reasoning as generic_alpine_app/compose.yaml.
+#
+# env_file is a real production pattern (beszel-agent, beszel-hub, lldap,
+# seaweedfs, step-ca all use it) worth exercising, but nothing about
+# testing it needs a distinct fixture per consumer — the actual rendered
+# .env content and its assertion live in each scenario's own
+# app_registry/verify.yml, not in this file.
+services:
+  app:
+    image: alpine:3.20
+    env_file:
+      - .env
+    command: [ "sh", "-c", "sleep infinity" ]

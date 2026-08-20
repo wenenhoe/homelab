@@ -42,21 +42,17 @@ telegram_topic_id_certs: ""
 lldap_cert_step_ca_url: https://step-ca-test:9000
 
 # Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
-# lldap entry) — copied here rather than sourced from that file, same
-# reasoning tinyauth/molecule/default's own host_vars gives for its own
-# copy: host_vars-style registries in this repo are hand-authored
-# fixtures already, kept in sync with the real entry by convention, not
-# by import.
-app_registry:
-  lldap:
-    volumes:
-      - name: data
-      - name: certs
-    configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
-        no_log: true
+# lldap entry) — extracted via lookup rather than hand-copied. This used
+# to be a hand-authored copy kept in sync "by convention" per this
+# comment's previous wording; it had already drifted (missing the real
+# entry's backup: and caddy: keys) by the time that was checked, which
+# is the whole reason it's a lookup now instead — see
+# docs/molecule-testing.md's "Fixture files" section.
+app_registry: >-
+  {{
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
+     | from_yaml).app_registry
+  }}
 
 compose_apps:
   - name: lldap

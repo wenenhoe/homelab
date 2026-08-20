@@ -16,20 +16,17 @@
     lab_domain: lan.localhost
     caddy_domain: apps.localhost
     digitalocean_api_key: test-token-not-real
-    app_registry:
-      caddy:
-        volumes:
-          - name: caddyfile
-          - name: data
-          - name: config
-        configs:
-          - src: env.j2
-            dest: .env
-            mode: "0600"
-            force: false
-      tinyauth: {}
-      authed_app: {}
-      public_app: {}
+    app_registry: >-
+      {{
+        (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
+         | from_yaml).app_registry
+        | combine({'tinyauth': {}, 'authed_app': {}, 'public_app': {}})
+      }}
+    # Extracted from the real registry rather than hand-copied — see
+    # docs/molecule-testing.md's "Fixture files" section and bind9's own
+    # host_vars for why. combine() adds the synthetic
+    # tinyauth/authed_app/public_app entries this scenario needs, none
+    # of which exist in the real registry.
     compose_apps:
       - name: caddy
       - name: tinyauth

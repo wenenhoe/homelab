@@ -206,6 +206,46 @@ added later over a fixture directory needs the same.
   one real file, and the same test run that exercises the role
   exercises prod's actual compose file — there's no separate fixture
   pin left to drift.
+- **`app_registry` entries**, for scenarios that carry their own local
+  copy (molecule never loads the real inventory, so `host_vars/*.yaml`
+  or `converge.yml`'s play `vars:` duplicate the relevant entry rather
+  than reference it — see `bind9`'s `host_vars` for why it has to be a
+  `host_vars` file specifically, not play `vars:`), extract from the
+  real registry instead of hand-copying it:
+  ```yaml
+  app_registry: >-
+    {{
+      (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
+       | from_yaml).app_registry
+      | combine({'testapp': {}})
+    }}
+  ```
+  `playbook_dir` here resolves to the *scenario's* directory (wherever
+  `converge.yml` lives), not wherever this expression is written —
+  confirmed with a standalone Ansible run before trusting it, the same
+  discipline as the `find`/symlink gotcha above. `combine()` adds
+  whatever synthetic fixture-only apps the scenario needs (`testapp`
+  above has no real registry entry to extract). `bind9`, `caddy`,
+  `caddy_cert_expiry`, `lldap_cert` (×2), `tinyauth`, and
+  `tinyauth_ca_trust` all do this now — converting the last six also
+  surfaced real, pre-existing drift in three of them (`lldap_cert` ×2
+  and `tinyauth_ca_trust` were missing their real entry's `backup:`/
+  `caddy:` keys; `caddy`/`caddy_cert_expiry` were missing `no_log: true`
+  and carrying a stray `force: false` neither real entry has) — exactly
+  the failure this pattern makes structurally impossible going forward.
+  `caddy_cert_expiry`'s `no_routed_apps` scenario is the one deliberate
+  holdout: its `app_registry` entries are empty stubs on purpose (the
+  guard it tests fires before any of that content would matter), not a
+  real duplicate at risk of drift, so converting it would add nothing.
+  The remaining synthetic-app scenarios (`compose`, `compose_app`,
+  `backup_agent`, `restore`, ...) still hand-copy an `app_registry` and
+  always will — there's no real entry to extract for a fixture app like
+  `testapp`/`happy_app_a` that doesn't exist in production. A dedicated
+  drift check for this (`check_app_registry_configs_exist` in
+  `.github/scripts/check-doc-drift.py`) existed briefly but was removed
+  as YAGNI — every scenario with a *real* prod counterpart uses this
+  pattern now, so the residual risk is scoped to purely-synthetic test
+  fixtures only.
 - **Cross-scenario generic fixtures with no app-specific content** —
   `configs/env.j2` (`GREETING=hello-from-{{ compose_app_item.name }}`),
   `configs/seeded.txt.j2`, and `scripts/run.sh` were byte-identical

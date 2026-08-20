@@ -32,22 +32,15 @@ tinyauth_ldap_observer_password: molecule-test-observer-password
 tinyauth_ldap_insecure: true
 
 # Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
-# tinyauth entry) — copied here rather than sourced from that file
-# because host_vars-style registries in this repo are hand-authored
-# fixtures already (see bind9-instance.yaml's own app_registry), kept in
-# sync with the real entry by convention, not by import.
-app_registry:
-  tinyauth:
-    volumes:
-      - name: data
-    configs:
-      - src: config.yaml.j2
-        dest: "data/config.yaml"
-        no_log: true
-    backup:
-      volumes: [data]
-      stop_during_backup: true
-    upstream: "tinyauth:3000"
+# tinyauth entry) — extracted via lookup rather than hand-copied, so it
+# can't drift from the real entry the way tinyauth_ca_trust's own
+# fixture already had (missing backup:) before converting to this same
+# pattern — see docs/molecule-testing.md's "Fixture files" section.
+app_registry: >-
+  {{
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
+     | from_yaml).app_registry
+  }}
 
 # No caddy: block — matches host_vars/security.yaml's real tinyauth
 # entry (it fronts its own top-level auth domain rather than the

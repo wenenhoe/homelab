@@ -1,5 +1,1 @@
-name: cleanup_app_b
-services:
-  cleanup_app_b:
-    image: alpine:3.20
-    command: [ "sh", "-c", "sleep infinity" ]
+../../../../../../molecule_helpers/fixtures/generic_alpine_app/compose.yaml

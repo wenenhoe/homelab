@@ -1,2 +1,1 @@
-#!/bin/sh
-echo "hello from run.sh"
+../../../../../../../molecule_helpers/fixtures/generic_run.sh

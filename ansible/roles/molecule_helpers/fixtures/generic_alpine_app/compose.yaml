@@ -1,0 +1,12 @@
+# dclint disable require-project-name-field
+# No top-level `name:` — Compose falls back to the basename of the
+# directory containing this file as the project name (see
+# docs/molecule-testing.md), which is already whatever app name each
+# consuming scenario's compose_apps entry gives it. That's what makes
+# one file safe to symlink into every zero-frills placeholder app: each
+# instance still gets its own project/label namespace, just derived from
+# its directory instead of restated here.
+services:
+  app:
+    image: alpine:3.20
+    command: [ "sh", "-c", "sleep infinity" ]

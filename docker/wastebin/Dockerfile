@@ -1,4 +1,4 @@
-FROM busybox:1.37.0-musl AS data-dir
+FROM busybox:1.38.0-musl AS data-dir
 RUN mkdir -p /data
 
 FROM quxfoo/wastebin:3.7.2
@@ -6,7 +6,7 @@ FROM quxfoo/wastebin:3.7.2
 # quxfoo/wastebin is FROM scratch — no shell, no libc, nothing a
 # HEALTHCHECK can exec. busybox:musl's wget is a single statically
 # linked binary, so it copies in without pulling in a shell or libc.
-COPY --chmod=755 --from=busybox:1.37.0-musl /bin/wget /wget
+COPY --chmod=755 --from=busybox:1.38.0-musl /bin/wget /wget
 
 # The image's own USER is app:app (UID/GID 10001, see its Dockerfile
 # and README — "Make sure the ./data folder is writable by the user

@@ -8,7 +8,7 @@
 # app_registry/verify.yml, not in this file.
 services:
   app:
-    image: alpine:3.20
+    image: alpine:3.24
     env_file:
       - .env
     command: [ "sh", "-c", "sleep infinity" ]

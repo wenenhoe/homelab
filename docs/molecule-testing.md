@@ -43,7 +43,7 @@ result, then re-converges to check idempotence — mirroring what
 | `lldap_bootstrap` | `default` | Observer account doesn't exist → role creates it (in `lldap_strict_readonly`) against a real throwaway lldap target, verified by querying its group membership as admin. |
 | | `not_running` | No running lldap target at all — the guard at the top of the role fails loudly, naming the missing container, before touching anything. |
 | `tinyauth` | `default` | Stands up a throwaway lldap target, runs `lldap_bootstrap` against it for real, then deploys the real tinyauth compose app and waits for it to report healthy — only reachable having already bound to LDAP at boot. Molecule-only; not wired into `deploy.yaml`. |
-| `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — the scenario that empirically confirmed the SSL_CERT_FILE/Go-cert-pool mechanism `docs/lldap.md` documents, rather than leaving it as an unverified design note. Asserts on `docker logs`-observed process-start count (`>= 2`), not `RestartCount` — that counter turned out to be reset by the scenario's own restart, confirmed live — and `>= 2`, not tinyauth's own `== 0`, since this scenario's whole point is reproducing the cold-start-then-recover race, not avoiding it. |
+| `tinyauth_ca_trust` | `default` | Runs `lldap_bootstrap` against a real step-ca-issued lldap target (same dependency chain `tinyauth/default` exercises), then deploys real tinyauth with `tinyauth_ldap_insecure: false` — confirms the SSL_CERT_FILE/Go-cert-pool mechanism `docs/lldap.md` documents. Asserts on `docker logs`-observed process-start count (`>= 2`) rather than `RestartCount`, which resets on the scenario's own restart; `>= 2`, not tinyauth's own `== 0`, since reproducing the cold-start-then-recover race is the point, not avoiding it. |
 | | `not_running` | No running tinyauth target at all — the guard at the top of the role fails loudly, before anything CA-bundle-related runs. |
 | `backup_agent` | `default` | One schedule per app, always SeaweedFS (no per-target fan-out — that was reverted back to app-host-side simplicity when cloud coverage moved to `cloud_sync`, storage-only). Per-schedule stop-label isolation confirmed behaviorally: happy_app_stop's `StartedAt` changes when its own schedule's real (test-sped-up) cron fires, happy_app_nostop's never does, even though every schedule shares one container. Archives land in the test bucket. Stale-schedule-file removal exercised via a seeded leftover file, guarded so it only runs once (not on the `idempotence` re-run). |
 | | `no_stop_apps` | No app on the host opts into `stop_during_backup` — confirms `backup-dockerproxy` (and `DOCKER_HOST`) are entirely absent from the rendered compose.yaml, not just unused. |
@@ -122,7 +122,7 @@ Shared scaffolding for scenarios, not a role under test:
 | `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
 | `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
 | `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |
-| `fixtures/` | Shared compose fixtures symlinked into multiple scenarios/roles — see "Fixture files" below for what's in here and why. |
+| `fixtures/` | Shared compose fixtures symlinked into multiple scenarios/roles — see [`molecule-fixtures.md`](molecule-fixtures.md) for what's in here and why. |
 | `requirements.yml` / `role-requirements.yml` | Shared Galaxy collection/role deps (`community.docker`, `ansible.posix`). |
 
 ### Why `fuse-overlayfs`
@@ -182,123 +182,9 @@ Every other DinD scenario is on this image. Migrating one: swap the
 `bootstrap_docker.yaml` include task (and the `install_docker_api_requests.yaml`
 one right after it, where present) from `converge.yml`.
 
-### Fixture files
-
-A scenario's `files/docker/<app>/` is read directly off disk by
-`compose_source_dir` (an Ansible controller-side path, not a Docker build
-context), so a fixture can be a symlink and nothing downstream needs to
-know — with one gotcha: `ansible.builtin.find`'s default `file_type`
-never matches a symlink, even with `follow: true` (verified — that
-option only affects recursion/stat-following, not this classification).
-`compose/tasks/init.yaml`'s `find` for `compose*.yaml`/`Dockerfile*`
-sets `file_type: any` because of this; any other `find`-based discovery
-added later over a fixture directory needs the same.
-
-- **Apps with a real prod counterpart** (`caddy`, `lldap`, `bind9`,
-  `tinyauth`) symlink their compose file and any `configs/*.j2` straight
-  at `docker/<app>/` instead of keeping a hand-copied duplicate. `bind9`
-  symlinks `compose.yaml.j2` specifically (see
-  [`adding-an-app.md`](adding-an-app.md) for the `.j2` convention) — it
-  inlines `server_timezone` directly rather than carrying a separate
-  `.env`, so there's no `configs/env.j2` to symlink alongside it
-  anymore. This is stronger than keeping the two in sync by convention:
-  Renovate ignores symlinks outright, so a version-bump PR touches the
-  one real file, and the same test run that exercises the role
-  exercises prod's actual compose file — there's no separate fixture
-  pin left to drift.
-- **`app_registry` entries**, for scenarios that carry their own local
-  copy (molecule never loads the real inventory, so `host_vars/*.yaml`
-  or `converge.yml`'s play `vars:` duplicate the relevant entry rather
-  than reference it — see `bind9`'s `host_vars` for why it has to be a
-  `host_vars` file specifically, not play `vars:`), extract from the
-  real registry instead of hand-copying it:
-  ```yaml
-  app_registry: >-
-    {{
-      (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
-       | from_yaml).app_registry
-      | combine({'testapp': {}})
-    }}
-  ```
-  `playbook_dir` here resolves to the *scenario's* directory (wherever
-  `converge.yml` lives), not wherever this expression is written —
-  confirmed with a standalone Ansible run before trusting it, the same
-  discipline as the `find`/symlink gotcha above. `combine()` adds
-  whatever synthetic fixture-only apps the scenario needs (`testapp`
-  above has no real registry entry to extract). `bind9`, `caddy`,
-  `caddy_cert_expiry`, `lldap_cert` (×2), `tinyauth`, and
-  `tinyauth_ca_trust` all do this now — converting the last six also
-  surfaced real, pre-existing drift in three of them (`lldap_cert` ×2
-  and `tinyauth_ca_trust` were missing their real entry's `backup:`/
-  `caddy:` keys; `caddy`/`caddy_cert_expiry` were missing `no_log: true`
-  and carrying a stray `force: false` neither real entry has) — exactly
-  the failure this pattern makes structurally impossible going forward.
-  `caddy_cert_expiry`'s `no_routed_apps` scenario is the one deliberate
-  holdout: its `app_registry` entries are empty stubs on purpose (the
-  guard it tests fires before any of that content would matter), not a
-  real duplicate at risk of drift, so converting it would add nothing.
-  The remaining synthetic-app scenarios (`compose`, `compose_app`,
-  `backup_agent`, `restore`, ...) still hand-copy an `app_registry` and
-  always will — there's no real entry to extract for a fixture app like
-  `testapp`/`happy_app_a` that doesn't exist in production. A dedicated
-  drift check for this (`check_app_registry_configs_exist` in
-  `.github/scripts/check-doc-drift.py`) existed briefly but was removed
-  as YAGNI — every scenario with a *real* prod counterpart uses this
-  pattern now, so the residual risk is scoped to purely-synthetic test
-  fixtures only.
-- **Cross-scenario generic fixtures with no app-specific content** —
-  `configs/env.j2` (`GREETING=hello-from-{{ compose_app_item.name }}`),
-  `configs/seeded.txt.j2`, and `scripts/run.sh` were byte-identical
-  across scenarios purely because nothing in them ever referenced a
-  specific app. These live once under
-  `ansible/roles/molecule_helpers/fixtures/` (`generic_env.j2`,
-  `generic_seeded.txt.j2`, `generic_run.sh`) and get symlinked in.
-  `molecule_helpers` is the right home for anything shared across more
-  than one role — it's already excluded from the scenario matrix check
-  below, so nothing role-local has to carry it.
-- **Synthetic placeholder apps** (the `alpine:3.20` / `sleep infinity`
-  fixtures used to test `compose`/`compose_app`'s batch logic) mostly
-  aren't identical to each other — the volume count, `container_name`,
-  `labels`, and `env_file` presence *are* what each test is exercising,
-  so keeping those as distinct static files is clearer than templating
-  one generic shape with conditionals. Three shapes recur often enough
-  to be worth a shared file instead, all under
-  `molecule_helpers/fixtures/`:
-  - `generic_alpine_app/compose.yaml` — no volume, no `container_name`,
-    nothing else. No top-level `name:` either: Compose resolves the
-    project name from, in order, a `-p` flag, `COMPOSE_PROJECT_NAME`,
-    the file's own `name:`, then the containing directory's basename —
-    the compose role's deploy calls pass none of the first two, so a
-    fixture with no `name:` at all gets its project name from its
-    directory, which is already the right value.
-  - `generic_alpine_app_with_volume/compose.yaml` — same, plus one
-    volume mounted at `/data`. The external volume's `name:` uses
-    `${COMPOSE_PROJECT_NAME}_data` interpolation instead of a literal
-    string — confirmed live (`docker compose config`) that Compose
-    exposes its own resolved project name for interpolation within the
-    same file, matching what `ensure_volume.yaml` creates on the
-    Ansible side. Upstream has an open issue about this being
-    unreliable in some cases (`docker/compose#9530`) — if a future
-    Compose version regresses it, this file is the first thing to
-    check.
-  - `generic_alpine_app_with_env_file/compose.yaml` — no volume, plain
-    `env_file: [.env]`. Not every app with `env_file` qualifies for
-    this — only ones where the rendered `.env` content and its
-    assertions live entirely in the *consuming* scenario (its own
-    `app_registry`/`verify.yml`), not in the compose file itself.
-- Fixtures that used to declare `container_name:` purely so
-  `verify.yml`/`converge.yml` could look them up by a fixed name
-  (`happy_app_nostop`, `restore_target`, etc.) now get discovered by
-  Compose project label instead, since a shared fixture can't carry a
-  distinct literal name — a `docker_host_info` lookup by
-  `com.docker.compose.project=<app>` label, feeding the discovered
-  container ID into `docker_container_info`. See
-  `ansible/roles/restore/molecule/default/verify.yml` for the pattern to
-  copy. Deliberately kept as two tasks rather than switching to
-  `docker_host_info`'s own `verbose_output` container shape — that keeps
-  the already-proven `.container.State.*` shape from
-  `docker_container_info` instead of trusting an unverified nested
-  structure for something version-drift could silently break.
+See [`molecule-fixtures.md`](molecule-fixtures.md) for how fixtures
+avoid duplicating prod compose files, `app_registry` entries, and
+generic placeholder shapes across scenarios.
 
 ### Base config
 

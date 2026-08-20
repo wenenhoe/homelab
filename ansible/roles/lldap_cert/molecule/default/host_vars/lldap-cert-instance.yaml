@@ -47,7 +47,7 @@ lldap_cert_step_ca_url: https://step-ca-test:9000
 # comment's previous wording; it had already drifted (missing the real
 # entry's backup: and caddy: keys) by the time that was checked, which
 # is the whole reason it's a lookup now instead — see
-# docs/molecule-testing.md's "Fixture files" section.
+# docs/molecule-fixtures.md.
 app_registry: >-
   {{
     (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')

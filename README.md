@@ -138,6 +138,7 @@ test scaffolding, not a deployed app.
 | Doc | Covers |
 | :--- | :--- |
 | [`docs/molecule-testing.md`](docs/molecule-testing.md) | Molecule scenario matrix and how to add one. |
+| [`docs/molecule-fixtures.md`](docs/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes. |
 | [`docs/ci.md`](docs/ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check. |
 
 ## Setup

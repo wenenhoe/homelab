@@ -35,7 +35,7 @@ tinyauth_ldap_insecure: true
 # tinyauth entry) — extracted via lookup rather than hand-copied, so it
 # can't drift from the real entry the way tinyauth_ca_trust's own
 # fixture already had (missing backup:) before converting to this same
-# pattern — see docs/molecule-testing.md's "Fixture files" section.
+# pattern — see docs/molecule-fixtures.md.
 app_registry: >-
   {{
     (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')

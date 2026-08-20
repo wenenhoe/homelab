@@ -32,7 +32,7 @@
     telegram_topic_id_certs: "5"
     app_registry: "{{ (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml') | from_yaml).app_registry }}"
     # Extracted from the real registry rather than hand-copied — see
-    # docs/molecule-testing.md's "Fixture files" section. Both caddy and
+    # docs/molecule-fixtures.md. Both caddy and
     # bentopdf used here already have real entries, so no combine()
     # override is needed, unlike caddy/molecule/default's own scenario.
     compose_apps:

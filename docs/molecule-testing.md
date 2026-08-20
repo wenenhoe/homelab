@@ -181,6 +181,82 @@ Every other DinD scenario is on this image. Migrating one: swap the
 `bootstrap_docker.yaml` include task (and the `install_docker_api_requests.yaml`
 one right after it, where present) from `converge.yml`.
 
+### Fixture files
+
+A scenario's `files/docker/<app>/` is read directly off disk by
+`compose_source_dir` (an Ansible controller-side path, not a Docker build
+context), so a fixture can be a symlink and nothing downstream needs to
+know — with one gotcha: `ansible.builtin.find`'s default `file_type`
+never matches a symlink, even with `follow: true` (verified — that
+option only affects recursion/stat-following, not this classification).
+`compose/tasks/init.yaml`'s `find` for `compose*.yaml`/`Dockerfile*`
+sets `file_type: any` because of this; any other `find`-based discovery
+added later over a fixture directory needs the same.
+
+- **Apps with a real prod counterpart** (`caddy`, `lldap`, `bind9`,
+  `tinyauth`) symlink `compose.yaml` and their `configs/*.j2` straight at
+  `docker/<app>/` instead of keeping a hand-copied duplicate. This is
+  stronger than keeping the two in sync by convention: Renovate ignores
+  symlinks outright, so a version-bump PR touches the one real file, and
+  the same test run that exercises the role exercises prod's actual
+  compose file — there's no separate fixture pin left to drift.
+- **Cross-scenario generic fixtures with no app-specific content** —
+  `configs/env.j2` (`GREETING=hello-from-{{ compose_app_item.name }}`),
+  `configs/seeded.txt.j2`, and `scripts/run.sh` were byte-identical
+  across scenarios purely because nothing in them ever referenced a
+  specific app. These live once under
+  `ansible/roles/molecule_helpers/fixtures/` (`generic_env.j2`,
+  `generic_seeded.txt.j2`, `generic_run.sh`) and get symlinked in.
+  `molecule_helpers` is the right home for anything shared across more
+  than one role — it's already excluded from the scenario matrix check
+  below, so nothing role-local has to carry it.
+- **Synthetic placeholder apps** (the `alpine:3.20` / `sleep infinity`
+  fixtures used to test `compose`/`compose_app`'s batch logic) mostly
+  aren't identical to each other — the volume count, `container_name`,
+  `labels`, and `env_file` presence *are* what each test is exercising,
+  so keeping those as distinct static files is clearer than templating
+  one generic shape with conditionals. Three shapes recur often enough
+  to be worth a shared file instead, all under
+  `molecule_helpers/fixtures/`:
+  - `generic_alpine_app/compose.yaml` — no volume, no `container_name`,
+    nothing else. No top-level `name:` either: Compose resolves the
+    project name from, in order, a `-p` flag, `COMPOSE_PROJECT_NAME`,
+    the file's own `name:`, then the containing directory's basename —
+    the compose role's deploy calls pass none of the first two, so a
+    fixture with no `name:` at all gets its project name from its
+    directory, which is already the right value.
+  - `generic_alpine_app_with_volume/compose.yaml` — same, plus one
+    volume mounted at `/data`. The external volume's `name:` uses
+    `${COMPOSE_PROJECT_NAME}_data` interpolation instead of a literal
+    string — confirmed live (`docker compose config`) that Compose
+    exposes its own resolved project name for interpolation within the
+    same file, matching what `ensure_volume.yaml` creates on the
+    Ansible side. Upstream has an open issue about this being
+    unreliable in some cases (`docker/compose#9530`) — if a future
+    Compose version regresses it, this file is the first thing to
+    check.
+  - Fixtures that used to declare `container_name:` purely so
+    `verify.yml`/`converge.yml` could look them up by a fixed name
+    (`happy_app_nostop`, `restore_target`, etc.) now get discovered by
+    Compose project label instead, since a shared fixture can't carry
+    a distinct literal name:
+    ```yaml
+    - community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project={{ app_name }}"
+      register: some_lookup
+      failed_when: some_lookup.containers | length != 1
+    - community.docker.docker_container_info:
+        name: "{{ some_lookup.containers[0].Id }}"
+    ```
+    Deliberately kept as two tasks feeding `docker_container_info` by
+    discovered ID, rather than switching to `docker_host_info`'s own
+    `verbose_output` container shape — that keeps the already-proven
+    `.container.State.*` shape from `docker_container_info` instead of
+    trusting an unverified nested structure for something version-drift
+    could silently break.
+
 ### Base config
 
 `.config/molecule/config.yml` at the repo root is Molecule's auto-discovered

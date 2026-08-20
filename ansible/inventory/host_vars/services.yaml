@@ -52,7 +52,7 @@ compose_apps:
       default:
         host: kms
 
-  - name: openspeedtest
+  - name: librespeed
     caddy:
       default:
         host: speedtest

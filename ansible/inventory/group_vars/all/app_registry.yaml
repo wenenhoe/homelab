@@ -96,10 +96,10 @@ app_registry:
       default:
         upstream: "kms-gui:3000"
 
-  openspeedtest:
+  librespeed:
     caddy:
       default:
-        upstream: "openspeedtest:3000"
+        upstream: "librespeed:8080"
 
   shlink:
     configs:

@@ -24,15 +24,23 @@
       ansible.builtin.include_role:
         name: compose_app
 
+    - name: Discover restore_val_target's container id (no fixed container_name anymore — see molecule_helpers/fixtures/generic_alpine_app_with_volume)
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=restore_val_target"
+      register: restore_val_target_lookup
+      failed_when: restore_val_target_lookup.containers | length != 1
+
     - name: Seed content that must SURVIVE this run untouched
       community.docker.docker_container_exec:
-        container: restore_val_target
+        container: "{{ restore_val_target_lookup.containers[0].Id }}"
         command: "sh -c 'echo original-content-must-survive > /data/canary.txt'"
       changed_when: false
 
     - name: Capture restore_val_target's StartedAt — must be UNCHANGED after this run
       community.docker.docker_container_info:
-        name: restore_val_target
+        name: "{{ restore_val_target_lookup.containers[0].Id }}"
       register: restore_val_before_info
 
     - name: Persist the BEFORE StartedAt for verify.yml to compare against

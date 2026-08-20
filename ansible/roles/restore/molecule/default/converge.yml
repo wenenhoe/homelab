@@ -37,17 +37,25 @@
       ansible.builtin.include_role:
         name: compose_app
 
+    - name: Discover restore_target's container id (no fixed container_name anymore — see molecule_helpers/fixtures/generic_alpine_app_with_volume)
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=restore_target"
+      register: restore_target_lookup
+      failed_when: restore_target_lookup.containers | length != 1
+
     # changed_when: false — test setup, not something idempotence should
     # count.
     - name: Seed STALE content into the volume, to prove restore overwrites it
       community.docker.docker_container_exec:
-        container: restore_target
+        container: "{{ restore_target_lookup.containers[0].Id }}"
         command: "sh -c 'echo stale-content-should-be-overwritten > /data/canary.txt'"
       changed_when: false
 
     - name: Capture restore_target's StartedAt BEFORE the restore
       community.docker.docker_container_info:
-        name: restore_target
+        name: "{{ restore_target_lookup.containers[0].Id }}"
       register: restore_default_before_info
 
     # Persisted to a file, not just a fact — verify.yml is a separate

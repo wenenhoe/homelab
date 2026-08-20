@@ -20,9 +20,17 @@
         path: "{{ restore_before_marker }}"
       register: restore_val_before_raw
 
+    - name: Discover restore_val_target's container id
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=restore_val_target"
+      register: restore_val_target_lookup
+      failed_when: restore_val_target_lookup.containers | length != 1
+
     - name: Capture restore_val_target's StartedAt now
       community.docker.docker_container_info:
-        name: restore_val_target
+        name: "{{ restore_val_target_lookup.containers[0].Id }}"
       register: restore_val_after_info
 
     - name: Confirm restore_val_target was NEVER stopped (StartedAt unchanged)

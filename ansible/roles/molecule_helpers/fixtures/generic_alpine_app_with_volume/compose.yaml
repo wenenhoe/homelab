@@ -1,0 +1,25 @@
+# dclint disable require-project-name-field
+# No top-level `name:`, same as generic_alpine_app/compose.yaml — Compose
+# derives the project name from the directory basename.
+#
+# The volume's `name:` uses ${COMPOSE_PROJECT_NAME} interpolation rather
+# than a literal app-prefixed string — Compose exposes its own resolved
+# project name for interpolation within the same file (confirmed live
+# against this repo's pinned docker-compose-plugin: `docker compose
+# config` resolves `${COMPOSE_PROJECT_NAME}_data` to `<dir>_data`), so
+# this still ends up as "<app>_data" per instance, exactly matching what
+# ensure_volume.yaml (compose_app_item.name ~ '_' ~ volume.name) creates
+# on the Ansible side. Upstream has an open issue about this
+# interpolation being unreliable in some cases (docker/compose#9530) —
+# if a future Compose version regresses it, this is the file to check
+# first.
+services:
+  app:
+    image: alpine:3.20
+    volumes:
+      - data:/data
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  data:
+    external: true
+    name: ${COMPOSE_PROJECT_NAME}_data

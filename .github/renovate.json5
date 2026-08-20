@@ -71,8 +71,10 @@
     enabled: true,
   },
 
-  // backup_agent's compose file is a Jinja2 template (compose.yaml.j2)
-  // with static, non-interpolated image: lines — Renovate can parse it
+  // backup_agent's compose file, and now several docker/<app>/ ones too
+  // (bind9, kms, lldap, minecraft, seaweedfs, step-ca — see
+  // docs/adding-an-app.md), are Jinja2 templates (compose.yaml.j2) with
+  // static, non-interpolated image: lines — Renovate can parse them
   // fine, it just never looks at .j2 files by default. This pattern is
   // additive to the manager's built-in default, not a replacement.
   "docker-compose": {

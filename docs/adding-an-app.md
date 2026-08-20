@@ -26,7 +26,7 @@ docker/<app>/
   pattern.
 
   **Never a real secret, and never anything that leaks the domain.**
-  This task copies every app's `compose.yaml` in one shared loop at a
+  This task deploys every app's `compose.yaml` in one shared loop at a
   fixed `mode: "0644"`, world-readable, with no per-app `no_log:`
   support — the opposite of what `configs` gives you (see below). A
   real secret (API key, password, token) still belongs in a

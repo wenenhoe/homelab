@@ -83,16 +83,20 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │       └── molecule_helpers/# Shared Molecule test fixtures/setup, not deployed
 ├── docker/                  # One directory per application
 │   ├── caddy/               # compose.yaml + env template for the proxy
-│   ├── bind9/               # compose.yaml + env template for DNS
+│   ├── bind9/               # compose.yaml.j2 — timezone templated in, no separate .env
 │   ├── seaweedfs/           # compose.yaml + S3 identity config for the offsite-backup target
-│   └── <app>/               # compose.yaml + configs/scripts per app
+│   ├── molecule-dind/       # Not an app — pre-baked DinD image for Molecule, see docs/molecule-testing.md
+│   └── <app>/               # compose.yaml (or compose.yaml.j2) + configs/scripts per app
 ├── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 └── docs/                    # Deep dives — see below
 ```
 
-Each app under `docker/<app>/` holds its `compose.yaml` plus a `configs/`
-directory of Jinja2 templates that Ansible renders onto the target host —
-nothing is hand-authored on the servers themselves.
+Each app under `docker/<app>/` holds its `compose.yaml` (or
+`compose.yaml.j2` — see [`adding-an-app.md`](docs/adding-an-app.md))
+plus a `configs/` directory of Jinja2 templates that Ansible renders
+onto the target host — nothing is hand-authored on the servers
+themselves. `docker/molecule-dind/` is the one exception: it's Molecule
+test scaffolding, not a deployed app.
 
 ## Further Reading
 

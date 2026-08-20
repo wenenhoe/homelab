@@ -122,6 +122,7 @@ Shared scaffolding for scenarios, not a role under test:
 | `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
 | `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
 | `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |
+| `fixtures/` | Shared compose fixtures symlinked into multiple scenarios/roles — see "Fixture files" below for what's in here and why. |
 | `requirements.yml` / `role-requirements.yml` | Shared Galaxy collection/role deps (`community.docker`, `ansible.posix`). |
 
 ### Why `fuse-overlayfs`
@@ -196,14 +197,15 @@ added later over a fixture directory needs the same.
 - **Apps with a real prod counterpart** (`caddy`, `lldap`, `bind9`,
   `tinyauth`) symlink their compose file and any `configs/*.j2` straight
   at `docker/<app>/` instead of keeping a hand-copied duplicate. `bind9`
-  symlinks `compose.yaml.j2` specifically (see "Fixture files" below and
-  `docs/adding-an-app.md` for the `.j2` convention) — it inlines
-  `server_timezone` directly rather than carrying a separate `.env`, so
-  there's no `configs/env.j2` to symlink alongside it anymore. This is
-  stronger than keeping the two in sync by convention: Renovate ignores
-  symlinks outright, so a version-bump PR touches the one real file, and
-  the same test run that exercises the role exercises prod's actual
-  compose file — there's no separate fixture pin left to drift.
+  symlinks `compose.yaml.j2` specifically (see
+  [`adding-an-app.md`](adding-an-app.md) for the `.j2` convention) — it
+  inlines `server_timezone` directly rather than carrying a separate
+  `.env`, so there's no `configs/env.j2` to symlink alongside it
+  anymore. This is stronger than keeping the two in sync by convention:
+  Renovate ignores symlinks outright, so a version-bump PR touches the
+  one real file, and the same test run that exercises the role
+  exercises prod's actual compose file — there's no separate fixture
+  pin left to drift.
 - **Cross-scenario generic fixtures with no app-specific content** —
   `configs/env.j2` (`GREETING=hello-from-{{ compose_app_item.name }}`),
   `configs/seeded.txt.j2`, and `scripts/run.sh` were byte-identical
@@ -244,27 +246,19 @@ added later over a fixture directory needs the same.
     this — only ones where the rendered `.env` content and its
     assertions live entirely in the *consuming* scenario (its own
     `app_registry`/`verify.yml`), not in the compose file itself.
-  - Fixtures that used to declare `container_name:` purely so
-    `verify.yml`/`converge.yml` could look them up by a fixed name
-    (`happy_app_nostop`, `restore_target`, etc.) now get discovered by
-    Compose project label instead, since a shared fixture can't carry
-    a distinct literal name:
-    ```yaml
-    - community.docker.docker_host_info:
-        containers: true
-        containers_filters:
-          label: "com.docker.compose.project={{ app_name }}"
-      register: some_lookup
-      failed_when: some_lookup.containers | length != 1
-    - community.docker.docker_container_info:
-        name: "{{ some_lookup.containers[0].Id }}"
-    ```
-    Deliberately kept as two tasks feeding `docker_container_info` by
-    discovered ID, rather than switching to `docker_host_info`'s own
-    `verbose_output` container shape — that keeps the already-proven
-    `.container.State.*` shape from `docker_container_info` instead of
-    trusting an unverified nested structure for something version-drift
-    could silently break.
+- Fixtures that used to declare `container_name:` purely so
+  `verify.yml`/`converge.yml` could look them up by a fixed name
+  (`happy_app_nostop`, `restore_target`, etc.) now get discovered by
+  Compose project label instead, since a shared fixture can't carry a
+  distinct literal name — a `docker_host_info` lookup by
+  `com.docker.compose.project=<app>` label, feeding the discovered
+  container ID into `docker_container_info`. See
+  `ansible/roles/restore/molecule/default/verify.yml` for the pattern to
+  copy. Deliberately kept as two tasks rather than switching to
+  `docker_host_info`'s own `verbose_output` container shape — that keeps
+  the already-proven `.container.State.*` shape from
+  `docker_container_info` instead of trusting an unverified nested
+  structure for something version-drift could silently break.
 
 ### Base config
 

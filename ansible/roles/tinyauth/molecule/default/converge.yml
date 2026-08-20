@@ -11,20 +11,10 @@
     # compose_apps live in host_vars/tinyauth-instance.yaml instead — see
     # the comment there.
   tasks:
-    - name: Include docker role (compose assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml
-
-    - name: Install python3-requests (docker_container_info/docker_network talk to the API directly)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
 
     # tinyauth's own compose.yaml declares caddy-proxy as `external: true`
     # — real production gets it from caddy's own compose deploy (Play 2),

@@ -34,6 +34,7 @@ app_registry:
       - src: env.j2
         dest: .env
         mode: "0600"
+        no_log: true   # APP_URL leaks the domain
     backup:
       volumes: [data]
       stop_during_backup: true
@@ -57,10 +58,6 @@ app_registry:
       - name: cache
       - name: records
       - name: run
-    configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
 
   bentopdf:
     caddy:
@@ -72,6 +69,7 @@ app_registry:
       - src: env.j2
         dest: .env
         mode: "0600"
+        no_log: true   # COBALT_API_URL leaks the domain
     caddy:
       default:
         upstream: "cobalt:9000"
@@ -91,10 +89,6 @@ app_registry:
   kms:
     volumes:
       - name: data
-    configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
     backup:
       volumes: [data]
       stop_during_backup: true
@@ -125,9 +119,6 @@ app_registry:
     volumes:
       - name: data
     configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
       - src: s3-identity.json.j2
         dest: "data/s3-identity.json"
         mode: "0600"
@@ -220,9 +211,6 @@ app_registry:
       - run_upgrade.sh
       - run_restore.sh
     configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
       - src: modrinth-mods.txt
         dest: extras/modrinth-mods.txt
       - src: bluemap-core.conf

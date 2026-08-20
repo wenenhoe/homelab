@@ -11,7 +11,7 @@ services:
       - data:/data:ro
       - backups:/backups
     environment:
-      TZ: ${TIMEZONE}
+      TZ: "{{ server_timezone }}"
       CRON_SCHEDULE: "0 4 * * *" # backup everyday at 4am
       CRON_BACKUP_UID: "1000"
       RCON_HOST: mc
@@ -67,7 +67,7 @@ services:
       - data:/data
       - extras:/extras:ro
     environment:
-      TZ: ${TIMEZONE}
+      TZ: "{{ server_timezone }}"
       EULA: "TRUE"
       INIT_MEMORY: 1G
       MAX_MEMORY: 2G

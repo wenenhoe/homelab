@@ -1,13 +1,16 @@
 ---
 # compose deploys via `docker compose`, so this needs genuine
 # Docker-in-Docker: a privileged, systemd-enabled container with cgroups
-# exposed. This role doesn't install Docker itself, so converge.yml
-# installs it first, same as Play 1 of the real deploy.yaml.
+# exposed. This role doesn't install Docker itself; unlike the bare
+# geerlingguy base other scenarios still use, ghcr.io/wenenhoe/molecule-dind
+# (docker/molecule-dind/Dockerfile) already has Docker, fuse-overlayfs,
+# and python3-requests baked in, so converge.yml no longer installs
+# Docker itself — it relies on the daemon systemd starts at boot.
 driver:
   name: docker
 platforms:
   - name: compose-instance
-    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    image: ghcr.io/wenenhoe/molecule-dind:latest
     privileged: true
     cgroupns_mode: host
     volumes:
@@ -20,7 +23,7 @@ platforms:
 provisioner:
   name: ansible
   playbooks:
-    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind_prebuilt.yml
     converge: converge.yml
     verify: verify.yml
 verifier:

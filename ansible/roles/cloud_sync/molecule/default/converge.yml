@@ -90,16 +90,6 @@
           volumes: [backups]
           extra_cloud_targets: [target_a]
   tasks:
-    - name: Include docker role (this role's own tasks assume Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
-    - name: Install python3-requests (docker_container/docker_container_exec/docker_container_info talk to the API directly)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
-
     - name: Register alpha-host/beta-host as ephemeral inventory hosts so hostvars[...].compose_apps resolves like production
       # add_host is pure in-memory bookkeeping for this run — it has no
       # "already added with these exact vars" state to compare against,

@@ -140,7 +140,7 @@ separate schedule. A failed run alerts to Telegram — see
 other app behind Caddy/tinyauth loses login for the stop window, a
 bigger blast radius than the SQLite-consistency risk it'd guard against.
 `minecraft`'s `backups` volume is already RCON-quiesced by `itzg/mc-backup`
-before this ever reads it (`docker/minecraft/compose.yaml`), so stopping
+before this ever reads it (`docker/minecraft/compose.yaml.j2`), so stopping
 `mc` here would add downtime with no consistency benefit. If a restore
 ever turns up a corrupt SQLite/LDAP file for `wastebin`/`lldap`, add
 `stop_during_backup: true` and the matching compose label (see

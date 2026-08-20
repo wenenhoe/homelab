@@ -10,7 +10,7 @@ services:
       - records:/var/lib/bind
       - run:/run/named
     environment:
-      - TZ=${TIMEZONE}
+      - TZ={{ server_timezone }}
     ports:
       - '0.0.0.0:53:53/tcp'
       - '0.0.0.0:53:53/udp'

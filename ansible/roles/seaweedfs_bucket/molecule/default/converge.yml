@@ -11,16 +11,6 @@
     seaweedfs_admin_access_key: molecule-test-access-key
     seaweedfs_admin_secret_key: molecule-test-secret-key
   tasks:
-    - name: Include docker role (this role's own task assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
-    - name: Install python3-requests (docker_container/docker_container_info talk to the API directly)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
-
     # --- Real S3 target for this scenario ---------------------------------
     # See molecule_helpers/tasks/start_seaweedfs_test_target.yaml for what
     # this does and why. No custom network name given — this role's own

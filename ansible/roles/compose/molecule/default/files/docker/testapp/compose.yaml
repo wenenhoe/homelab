@@ -1,7 +1,1 @@
-name: testapp
-services:
-  testapp:
-    image: alpine:3.20
-    env_file:
-      - .env
-    command: [ "sh", "-c", "sleep infinity" ]
+../../../../../../molecule_helpers/fixtures/generic_alpine_app_with_env_file/compose.yaml

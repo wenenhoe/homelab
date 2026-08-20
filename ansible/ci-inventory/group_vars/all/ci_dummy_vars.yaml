@@ -51,6 +51,12 @@ beszel_hub_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIK1qzZTpouhFnR76Ftn+/xMHL7T
 beszel_agent_token: "ci-dummy-beszel-agent-token"
 
 cobalt_host: "cobalt"
+# docker/cobalt/configs/env.j2 references this composed var directly
+# rather than cobalt_host/caddy_domain separately (see
+# ansible/inventory/host_vars/services.yaml for the real definition,
+# same expression) — both pieces above are already CI-safe, so this
+# just needs to exist here too.
+cobalt_url: "https://{{ cobalt_host }}.{{ caddy_domain }}"
 
 # lldap's env.j2 needs these three — real values are Ansible-generated
 # (secrets role), which doesn't run in this single-app CI path. lldap
@@ -68,6 +74,12 @@ telegram_chatid_updates: "0"
 
 shlink_short_host: "short"
 shlink_web_host: "shlink"
+# docker/shlink/configs/env.j2 references these composed vars directly
+# rather than the *_host/caddy_domain pieces separately — same reasoning
+# as cobalt_url above, see ansible/inventory/host_vars/services.yaml for
+# the real (identical) definitions.
+shlink_short_domain: "{{ shlink_short_host }}.{{ caddy_domain }}"
+shlink_web_domain: "{{ shlink_web_host }}.{{ caddy_domain }}"
 # Normally generated once by the `secrets` role (deploy.yaml Play 1) and
 # read back from secrets_generated — see group_vars/all/main.yaml. That
 # role never runs in this single-app CI path (ci_boot_test.yaml only

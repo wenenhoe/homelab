@@ -17,16 +17,6 @@
     restore_test_archive: /tmp/restore-molecule-confirmation-declined-archive.tar.gz
     restore_before_marker: /tmp/restore-molecule-confirmation-declined-before-started-at
   tasks:
-    - name: Include docker role (compose assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
-    - name: Install python3-requests (docker_container/docker_volume/docker_host_info talk to the API directly)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
-
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
         name: molecule_helpers
@@ -36,15 +26,23 @@
       ansible.builtin.include_role:
         name: compose_app
 
+    - name: Discover restore_confirm_target's container id (no fixed container_name anymore — see molecule_helpers/fixtures/generic_alpine_app_with_volume)
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=restore_confirm_target"
+      register: restore_confirm_target_lookup
+      failed_when: restore_confirm_target_lookup.containers | length != 1
+
     - name: Seed content that must SURVIVE this run untouched
       community.docker.docker_container_exec:
-        container: restore_confirm_target
+        container: "{{ restore_confirm_target_lookup.containers[0].Id }}"
         command: "sh -c 'echo original-content-must-survive > /data/canary.txt'"
       changed_when: false
 
     - name: Capture restore_confirm_target's StartedAt — must be UNCHANGED after this run
       community.docker.docker_container_info:
-        name: restore_confirm_target
+        name: "{{ restore_confirm_target_lookup.containers[0].Id }}"
       register: restore_confirm_before_info
 
     - name: Persist the BEFORE StartedAt for verify.yml to compare against

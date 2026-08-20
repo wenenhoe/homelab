@@ -17,11 +17,6 @@
     compose_apps:
       - name: volapp
   tasks:
-    - name: Include docker role (compose assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
     # Plants a legacy bind-mount directory with pre-existing content, so
     # ensure_volume.yaml's migration branch has something to do. Guarded
     # on the ".migrated" marker to stay idempotent across the

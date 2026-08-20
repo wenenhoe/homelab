@@ -8,11 +8,6 @@
     # production's real "step-ca" container name.
     step_ca_client_container_name: step-ca-test
   tasks:
-    - name: Include docker role (compose assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
     # Not strictly required by step_ca_client itself (it only joins
     # whatever network name it's given) — created here so the network
     # name matches production and the other two step-ca-dependent

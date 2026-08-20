@@ -5,16 +5,6 @@
   vars:
     ansible_user: root
   tasks:
-    - name: Include docker role (community.docker assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
-    - name: Install python3-requests (docker_container_info talks to the API directly)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
-
     # Deliberately no tinyauth target started at all — that's the whole
     # point of this scenario, unlike default's. The guard this tests is
     # the very first task in tinyauth_ca_trust/tasks/main.yaml, before

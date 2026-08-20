@@ -1,5 +1,1 @@
-name: scriptapp-direct
-services:
-  scriptapp-direct:
-    image: alpine:3.20
-    command: [ "sh", "-c", "sleep infinity" ]
+../../../../../../molecule_helpers/fixtures/generic_alpine_app/compose.yaml

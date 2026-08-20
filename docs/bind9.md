@@ -59,7 +59,7 @@ image; `--tags images` redeploys without touching DNS data. See
 
 ## Runtime config
 
-`docker/bind9/compose.yaml`: `ubuntu/bind9` runs as a dedicated
+`docker/bind9/compose.yaml.j2`: `ubuntu/bind9` runs as a dedicated
 `bind:bind` user/group (uid/gid `9970`), binds `53/tcp` and `53/udp` on
 all interfaces, and mounts four volumes: `config` (seeded when
 `bind9_dns_changed`, see [`volumes.md`](volumes.md)) plus

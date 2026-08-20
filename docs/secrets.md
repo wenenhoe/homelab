@@ -39,7 +39,10 @@ any new secret or config value goes through the registry instead:
    more examples of the split.
 3. Use `{{ my_new_thing }}` in the app's `configs/*.j2` template, with
    `no_log: true` on its `app_registry` entry if it's a real secret (see
-   `no_log: true` below).
+   `no_log: true` below). Never in `compose.yaml` itself, even though it
+   can also reference Ansible vars now — its deploy task has no
+   per-app `no_log:`/mode handling, unlike `configs` (see
+   [`adding-an-app.md`](adding-an-app.md)).
 
 ## Three formats
 
@@ -111,11 +114,16 @@ host.
 ## `no_log: true`
 
 Every `app_registry` entry whose `configs` render a real secret (API key,
-token, password — not a hostname or timezone) sets `no_log: true`. Without
-it, `ansible-playbook --diff` prints the new value in plaintext on any
-task where content changes — including the first deploy, since a
-not-yet-existing file still counts as a diff. `no_log: true` suppresses
-this (including on task failure) while still reporting `changed: true`.
+token, password) sets `no_log: true` — and so does anything that reveals
+the actual configured domain (a routed URL, an LDAP base DN, a DNS name
+list), even though it isn't a credential. A bare timezone or a short
+host label that carries no domain information doesn't need it. See
+[`adding-an-app.md`](adding-an-app.md) for the quick check on whether a
+value counts. Without `no_log: true`, `ansible-playbook --diff` prints
+the new value in plaintext on any task where content changes —
+including the first deploy, since a not-yet-existing file still counts
+as a diff. `no_log: true` suppresses this (including on task failure)
+while still reporting `changed: true`.
 
 ## `force: false`
 

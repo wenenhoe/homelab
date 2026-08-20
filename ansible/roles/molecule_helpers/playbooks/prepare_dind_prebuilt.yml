@@ -1,0 +1,15 @@
+---
+# Prepare step for DinD scenarios running on the ghcr.io/wenenhoe/molecule-dind
+# image (docker/molecule-dind/Dockerfile) instead of the bare geerlingguy
+# base — Docker, the fuse-overlayfs storage driver, and python3-requests
+# are already baked in, so this only resets coverage data. Scenarios
+# still on the bare base image use prepare_dind.yml instead, which
+# installs all three fresh.
+- name: Prepare
+  hosts: all
+  become: true
+  tasks:
+    - name: Reset coverage data from any previous test run
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: reset_coverage_data.yaml

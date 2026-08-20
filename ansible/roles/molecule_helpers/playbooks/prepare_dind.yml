@@ -1,13 +1,17 @@
 ---
-# Shared prepare playbook for every Docker-in-Docker Molecule scenario that
-# installs/uses Docker via /etc/docker/daemon.json AND exercises
-# docker_volume/docker_host_info (or other community.docker modules that
-# talk to the Docker API directly via the `requests` library, rather than
-# through the CLI plugin the docker role already installs).
+# Shared prepare playbook for every Docker-in-Docker Molecule scenario
+# still on the bare geerlingguy base image: installs Docker itself,
+# forces the nested daemon onto /etc/docker/daemon.json's fuse-overlayfs
+# storage driver, and installs python3-requests for community.docker
+# modules that talk to the Docker API directly (docker_volume,
+# docker_host_info) rather than through the CLI plugin the docker role
+# already installs.
 #
-# Used as-is by: caddy/default, compose/build, compose/cleanup,
-# compose/default, compose/scripts, compose/volumes, compose_app/default,
-# compose_app/strict, docker/default.
+# Scenarios on ghcr.io/wenenhoe/molecule-dind (docker/molecule-dind/Dockerfile)
+# already have all three baked in and use prepare_dind_prebuilt.yml
+# instead — see that file's own comment for which. docker/default is
+# never migrated to the pre-baked image: it tests that installation from
+# a clean base, and baking Docker in would make that test tautological.
 #
 # NOT used by bind9 — it manages its own daemon.json for DNS settings and
 # would fight over the same file, so it uses a systemd drop-in override

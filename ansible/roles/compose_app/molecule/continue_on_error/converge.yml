@@ -29,11 +29,6 @@
       - name: bind9
       - name: caddy
   tasks:
-    - name: Include docker role (compose assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
         name: molecule_helpers

@@ -1,12 +1,1 @@
-name: happy_app_nostop
-services:
-  happy_app_nostop:
-    image: alpine:3.20
-    container_name: happy_app_nostop
-    volumes:
-      - data:/data
-    command: [ "sh", "-c", "sleep infinity" ]
-volumes:
-  data:
-    external: true
-    name: happy_app_nostop_data
+../../../../../../molecule_helpers/fixtures/generic_alpine_app_with_volume/compose.yaml

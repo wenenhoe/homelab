@@ -38,11 +38,6 @@ app_registry:
       - name: cache
       - name: records
       - name: run
-    configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
-        force: false
   testapp: {}
 
 # testapp carries its own `caddy` route directly (matching how real

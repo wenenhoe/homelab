@@ -23,16 +23,6 @@
     seaweedfs_beta_access_key: molecule-test-beta-ak
     seaweedfs_beta_secret_key: molecule-test-beta-sk
   tasks:
-    - name: Include docker role (compose assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
-    - name: Install python3-requests (docker_container/docker_container_info talk to the API directly)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
-
     # Registers alpha/beta as real (if ephemeral) inventory hosts for
     # the rest of this play, each carrying its own
     # seaweedfs_s3_access_key/secret_key — the same vars the real

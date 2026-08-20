@@ -8,13 +8,46 @@ Create a directory holding the app's Compose stack:
 
 ```
 docker/<app>/
-├── compose.yaml          # Required
+├── compose.yaml           # Required — or compose.yaml.j2, see below
 └── configs/               # Optional — Jinja2 templates rendered onto the host
     └── env.j2
 ```
 
-- `compose.yaml` is copied as-is to `{{ compose_deploy_dir }}/<app>/` on the target host.
-- Anything in `configs/` is rendered through Ansible's `template` module (so it can reference any Ansible variable, e.g. `{{ server_timezone }}`) and written to whatever `dest` its `app_registry` entry specifies — this is also how `.env` files are generated.
+- `compose.yaml` is rendered through Ansible's `template` module and
+  written to `{{ compose_deploy_dir }}/<app>/` on the target host — same
+  mechanism as `configs/`, just always on regardless of whether the file
+  actually contains any Jinja2. That means it can reference an Ansible
+  var directly (`TZ: "{{ server_timezone }}"`) for anything
+  **non-secret and domain-free**. Name the file `compose.yaml.j2` when
+  it does this — the `.j2` suffix is stripped back off at deploy time,
+  so it still lands as plain `compose.yaml` on the host, but it's a
+  visible marker in the repo for which apps actually template their
+  compose file. See `kms` or `bind9`'s `compose.yaml.j2` for the
+  pattern.
+
+  **Never a real secret, and never anything that leaks the domain.**
+  This task deploys every app's `compose.yaml` in one shared loop at a
+  fixed `mode: "0644"`, world-readable, with no per-app `no_log:`
+  support — the opposite of what `configs` gives you (see below). A
+  real secret (API key, password, token) still belongs in a
+  `configs/*.j2` template with `no_log: true`, never inlined here — and
+  so does anything derived from `main_domain`/`lab_domain`/
+  `caddy_domain` (a routed URL, an LDAP base DN, a DNS name list — see
+  `cobalt`/`shlink`/`lldap`/`step-ca`'s `env.j2` for what stayed there).
+  The domain isn't a credential, but it's still the one piece of
+  identifying info that shouldn't sit in a world-readable file on the
+  host — `main-domain`'s own entry in `secrets_registry.yaml` routes it
+  through the same cached/gitignored mechanism as everything else in
+  `secrets.md` for that reason. A quick check before inlining anything:
+  if the value or anything it's built from ultimately traces back to
+  `main_domain`, it goes in `configs/*.j2` with `no_log: true`, not here.
+- Anything in `configs/` is rendered through Ansible's `template` module
+  (so it can reference any Ansible variable, e.g. `{{ server_timezone }}`)
+  and written to whatever `dest` its `app_registry` entry specifies —
+  this is also how `.env` files are generated, for apps that either need
+  `env_file:` to inject a whole set of container-facing vars at once, or
+  where the value is a real secret and needs `configs`' `no_log:`/`mode`
+  handling regardless of whether it's a single value.
 
 ## 2. Register it in `app_registry`
 

@@ -14,6 +14,17 @@ cobalt_host: cobalt
 shlink_short_host: short
 shlink_web_host: shlink
 
+# Full FQDN each app needs for its own self-referential config (telling
+# it its own public URL) — computed once here rather than concatenating
+# {{ x_host }}.{{ caddy_domain }} at every docker/<app>/compose.yaml.j2
+# use site. Domain-only (no scheme) for shlink's two, since one of its
+# three use sites (DEFAULT_DOMAIN) needs a bare domain, not a URL —
+# https:// gets prefixed at the two sites that need it instead of baking
+# it in here and being wrong for the third.
+cobalt_url: "https://{{ cobalt_host }}.{{ caddy_domain }}"
+shlink_short_domain: "{{ shlink_short_host }}.{{ caddy_domain }}"
+shlink_web_domain: "{{ shlink_web_host }}.{{ caddy_domain }}"
+
 compose_apps:
   - name: caddy
 

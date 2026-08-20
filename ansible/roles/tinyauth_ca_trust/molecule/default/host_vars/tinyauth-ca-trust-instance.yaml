@@ -29,18 +29,16 @@ step_ca_provisioner_password: molecule-test-step-ca-password
 step_ca_provisioner_name: admin
 
 # Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
-# tinyauth entry) — copied here rather than sourced from that file, same
-# reasoning tinyauth/molecule/default's own host_vars gives for its own
-# copy.
-app_registry:
-  tinyauth:
-    volumes:
-      - name: data
-    configs:
-      - src: config.yaml.j2
-        dest: "data/config.yaml"
-        no_log: true
-    upstream: "tinyauth:3000"
+# tinyauth entry) — extracted via lookup rather than hand-copied. This
+# used to be a hand-authored copy kept in sync "by convention" per this
+# comment's previous wording; it had already drifted (missing the real
+# entry's backup: key) by the time that was checked, which is the whole
+# reason it's a lookup now instead — see docs/molecule-fixtures.md.
+app_registry: >-
+  {{
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
+     | from_yaml).app_registry
+  }}
 
 compose_apps:
   - name: tinyauth

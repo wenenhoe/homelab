@@ -30,21 +30,11 @@
     telegram_token: "111111:test-token-not-real"
     telegram_chat_id: "-100000000"
     telegram_topic_id_certs: "5"
-    app_registry:
-      caddy:
-        volumes:
-          - name: caddyfile
-          - name: data
-          - name: config
-        configs:
-          - src: env.j2
-            dest: .env
-            mode: "0600"
-            force: false
-      bentopdf:
-        caddy:
-          default:
-            upstream: "bentopdf:8080"
+    app_registry: "{{ (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml') | from_yaml).app_registry }}"
+    # Extracted from the real registry rather than hand-copied — see
+    # docs/molecule-fixtures.md. Both caddy and
+    # bentopdf used here already have real entries, so no combine()
+    # override is needed, unlike caddy/molecule/default's own scenario.
     compose_apps:
       - name: caddy
       - name: bentopdf

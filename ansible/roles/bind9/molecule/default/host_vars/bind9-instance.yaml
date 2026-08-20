@@ -31,14 +31,23 @@ dns_zones:
     extra_records:
       - { name: "sensor1", type: A, value: "10.20.0.5" }
 
-app_registry:
-  bind9:
-    volumes:
-      - name: config
-      - name: cache
-      - name: records
-      - name: run
-  testapp: {}
+app_registry: >-
+  {{
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
+     | from_yaml).app_registry
+    | combine({'testapp': {}})
+  }}
+# The real app_registry.yaml's own bind9 entry, extracted rather than
+# hand-copied — can't go stale the way a copy can (see
+# check_app_registry_configs_exist in check-doc-drift.py for what
+# happens when a copy does). combine() adds testapp, the synthetic
+# fixture app with no real registry entry to extract. playbook_dir here
+# is converge.yml's directory (ansible/roles/bind9/molecule/default/),
+# not wherever this file itself lives — confirmed live with a
+# standalone Ansible run before trusting it, since lookup() paths inside
+# a host_vars file are exactly the kind of thing that looks obviously
+# right and silently isn't (see the comment above this block for the
+# other host_vars/hostvars[] subtlety already found the hard way here).
 
 # testapp carries its own `caddy` route directly (matching how real
 # host_vars declare per-host route labels), so zone.db.j2 has something to

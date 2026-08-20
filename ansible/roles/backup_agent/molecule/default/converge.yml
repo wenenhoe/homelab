@@ -78,10 +78,20 @@
       happy_app_no_backup:
         volumes:
           - name: data
+      # Two volumes on one app, mirroring lldap's real backup.volumes:
+      # [data, certs] shape — catches BACKUP_SOURCES regressions that
+      # only show up once an app has more than one backed-up volume.
+      happy_app_multivol:
+        volumes:
+          - name: data
+          - name: certs
+        backup:
+          volumes: [data, certs]
     compose_apps:
       - name: happy_app_stop
       - name: happy_app_nostop
       - name: happy_app_no_backup
+      - name: happy_app_multivol
   tasks:
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:

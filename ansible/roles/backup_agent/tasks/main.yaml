@@ -58,21 +58,20 @@
   ansible.builtin.set_fact:
     backup_agent_any_stop_apps: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list | length > 0 }}"
 
-# One dict per app: {app, sources, retention, cron, stop_label,
+# One dict per app: {app, source, retention, cron, stop_label,
 # filename}. stop_label is '' (template omits the line) unless that app
-# opted into stop_during_backup.
+# opted into stop_during_backup. `source` is singular and always one
+# path: BACKUP_SOURCES takes exactly one directory, never a list, so
+# every app's volumes are mounted under one shared parent dir
+# (compose.yaml.j2) instead of being passed as separate sources.
 - name: Build the flat list of per-app schedules
   ansible.builtin.set_fact:
     backup_agent_schedules: >-
       {%- set ns = namespace(out=[]) -%}
       {%- for app in backup_agent_normalized -%}
-        {%- set sources = [] -%}
-        {%- for vol in app.volumes -%}
-          {%- set _ = sources.append('/backup/' ~ app.name ~ '_' ~ vol) -%}
-        {%- endfor -%}
         {%- set _ = ns.out.append({
               'app': app.name,
-              'sources': sources,
+              'source': '/backup/' ~ app.name,
               'retention': app.retention_days,
               'cron': app.cron,
               'stop_label': app.name if app.stop_during_backup else '',

@@ -25,12 +25,16 @@
           - "'backup-dockerproxy' in backup_agent_compose_parsed.services"
         fail_msg: "Expected services: {{ backup_agent_compose_parsed.services.keys() | list }}"
 
-    - name: Confirm the one container mounts both backed-up apps' volumes, not happy_app_no_backup's
+    - name: Confirm the one container mounts every backed-up app's volumes under its own per-app dir, not happy_app_no_backup's
+      vars:
+        backup_agent_mounted_volumes: "{{ backup_agent_compose_parsed.services['backup-agent'].volumes }}"
       ansible.builtin.assert:
         that:
-          - "'happy_app_stop_data:/backup/happy_app_stop_data:ro' in backup_agent_compose_parsed.services['backup-agent'].volumes"
-          - "'happy_app_nostop_data:/backup/happy_app_nostop_data:ro' in backup_agent_compose_parsed.services['backup-agent'].volumes"
-          - "'happy_app_no_backup_data:/backup/happy_app_no_backup_data:ro' not in backup_agent_compose_parsed.services['backup-agent'].volumes"
+          - "'happy_app_stop_data:/backup/happy_app_stop/happy_app_stop_data:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_nostop_data:/backup/happy_app_nostop/happy_app_nostop_data:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_multivol_data:/backup/happy_app_multivol/happy_app_multivol_data:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_multivol_certs:/backup/happy_app_multivol/happy_app_multivol_certs:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_no_backup_data:/backup/happy_app_no_backup/happy_app_no_backup_data:ro' not in backup_agent_mounted_volumes"
         fail_msg: >-
           happy_app_no_backup_data appeared despite declaring no backup: key
           — the normalization task's `when` guard isn't excluding it.
@@ -41,14 +45,14 @@
         paths: "{{ compose_deploy_dir }}/backup-agent/conf.d"
       register: backup_agent_conf_d_files
 
-    - name: Confirm exactly the two expected schedules exist — no more, no fewer
+    - name: Confirm exactly the expected schedules exist — no more, no fewer
       ansible.builtin.assert:
         that:
           - (backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort) ==
-            ['happy_app_nostop.env', 'happy_app_stop.env']
+            ['happy_app_multivol.env', 'happy_app_nostop.env', 'happy_app_stop.env']
         fail_msg: >-
-          Expected happy_app_stop.env, happy_app_nostop.env, and nothing
-          for happy_app_no_backup. Got:
+          Expected happy_app_stop.env, happy_app_nostop.env,
+          happy_app_multivol.env, and nothing for happy_app_no_backup. Got:
           {{ backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort }}
           — if long_gone_app.env is still present, the stale-file-removal
           task (converge.yml seeds it before the role's first run to
@@ -60,10 +64,10 @@
         path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_stop.env"
       register: backup_agent_stop_schedule_raw
 
-    - name: Confirm it's scoped to happy_app_stop's own volume and carries its own stop label
+    - name: Confirm it's scoped to happy_app_stop's own dir and carries its own stop label
       ansible.builtin.assert:
         that:
-          - "'BACKUP_SOURCES=/backup/happy_app_stop_data' in (backup_agent_stop_schedule_raw.content | b64decode)"
+          - "'BACKUP_SOURCES=/backup/happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
           - "'BACKUP_STOP_DURING_BACKUP_LABEL=happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
 
     - name: Read back happy_app_nostop's schedule
@@ -75,7 +79,22 @@
       ansible.builtin.assert:
         that:
           - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_nostop_schedule_raw.content | b64decode)"
-          - "'BACKUP_SOURCES=/backup/happy_app_nostop_data' in (backup_agent_nostop_schedule_raw.content | b64decode)"
+          - "'BACKUP_SOURCES=/backup/happy_app_nostop' in (backup_agent_nostop_schedule_raw.content | b64decode)"
+
+    - name: Read back happy_app_multivol's schedule
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_multivol.env"
+      register: backup_agent_multivol_schedule_raw
+
+    - name: Confirm BACKUP_SOURCES is exactly one path with no space in it
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_SOURCES=/backup/happy_app_multivol' in (backup_agent_multivol_schedule_raw.content | b64decode)"
+          - "(backup_agent_multivol_schedule_raw.content | b64decode | regex_findall('BACKUP_SOURCES=(.*)'))[0] is not search(' ')"
+        fail_msg: >-
+          A space in BACKUP_SOURCES means docker-volume-backup lstats a
+          single bogus multi-word path and every run fails — this is the
+          actual bug this fixture exists to catch.
 
     # --- Shared env carries only what's actually shared -----------------
     - name: Read back the shared env file
@@ -204,14 +223,19 @@
       until: >-
         ('backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output)
         and ('backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output)
+        and ('backup-agent-instance-happy_app_multivol-' in backup_agent_s3_listing.container.Output)
       retries: 12
       delay: 10
 
-    - name: Confirm both expected archives reached S3
+    - name: Confirm all three expected archives reached S3, including the multi-volume app's
       ansible.builtin.assert:
         that:
           - "'backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output"
           - "'backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_multivol-' in backup_agent_s3_listing.container.Output"
         fail_msg: >-
-          Expected archives for happy_app_stop and happy_app_nostop.
-          Listing: {{ backup_agent_s3_listing.container.Output }}
+          Expected archives for happy_app_stop, happy_app_nostop, and
+          happy_app_multivol. A missing happy_app_multivol archive means
+          its BACKUP_SOURCES run failed — the actual bug this fixture
+          exists to catch. Listing:
+          {{ backup_agent_s3_listing.container.Output }}

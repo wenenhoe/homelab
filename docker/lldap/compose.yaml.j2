@@ -14,6 +14,8 @@ services:
       LLDAP_LDAPS_OPTIONS__ENABLED: true
       LLDAP_LDAPS_OPTIONS__CERT_FILE: /data/certs/fullchain.pem
       LLDAP_LDAPS_OPTIONS__KEY_FILE: /data/certs/privkey.pem
+    env_file:
+      - .env
     ports:
       - '0.0.0.0:6360:6360' # For LDAPS (LDAP Over SSL)
     networks:

@@ -4,6 +4,8 @@ services:
   cobalt:
     image: ghcr.io/imputnet/cobalt:11
     container_name: cobalt
+    env_file:
+      - .env
     networks:
       - caddy-proxy
     restart: unless-stopped

@@ -19,6 +19,8 @@ services:
       # step-ca's own default is 24h, built for constant automated
       # renewal this repo doesn't have yet - see docs/step-ca.md.
       STEP_CA_DEFAULT_CERT_DURATION: 720h
+    env_file:
+      - .env
     networks:
       - caddy-proxy
     entrypoint: /scripts/entrypoint.sh

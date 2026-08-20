@@ -14,7 +14,7 @@ driver:
   name: docker
 platforms:
   - name: restore-confirmation-declined-instance
-    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    image: ghcr.io/wenenhoe/molecule-dind:latest
     privileged: true
     cgroupns_mode: host
     volumes:
@@ -27,7 +27,7 @@ platforms:
 provisioner:
   name: ansible
   playbooks:
-    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind_prebuilt.yml
     converge: converge.yml
     verify: verify.yml
 verifier:

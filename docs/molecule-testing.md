@@ -113,7 +113,8 @@ Shared scaffolding for scenarios, not a role under test:
 
 | File | Used for |
 | :--- | :--- |
-| `playbooks/prepare_dind.yml` | Shared `prepare` playbook (below). |
+| `playbooks/prepare_dind.yml` | Shared `prepare` playbook for scenarios on the bare base image (below). |
+| `playbooks/prepare_dind_prebuilt.yml` | Shared `prepare` playbook for scenarios on the pre-baked DinD image (below) — coverage reset only. |
 | `tasks/dind_storage_driver.yaml` | Forces the nested Docker daemon onto `fuse-overlayfs` via `/etc/docker/daemon.json`. |
 | `tasks/install_docker_api_requests.yaml` | Installs `python3-requests`, needed by `community.docker` modules that talk to the Docker API directly. |
 | `tasks/bootstrap_docker.yaml` | `include_role: docker` for scenarios that assume Docker is already installed, mirroring `deploy.yaml`'s Play 1. |
@@ -136,9 +137,9 @@ in the nested daemon. Test scaffolding only — real hosts keep using
 
 ### Shared `prepare`
 
-Every Docker-in-Docker scenario except `bind9` needs the `fuse-overlayfs`
-override and `python3-requests`, so they all point at one playbook
-instead of each keeping its own:
+`prepare_dind.yml` installs Docker, forces `fuse-overlayfs`, and
+installs `python3-requests` — needed by any DinD scenario on the bare
+`geerlingguy` base image instead of the pre-baked one below:
 
 ```yaml
 # molecule.yml
@@ -150,10 +151,35 @@ provisioner:
     verify: verify.yml
 ```
 
-`bind9` keeps its own `prepare.yml` (it manages its own `daemon.json` and
-would fight over the same file, so it forces `fuse-overlayfs` via a
-systemd drop-in instead). `apt` keeps a minimal `prepare.yml` whose only
-job is calling `reset_coverage_data.yaml`.
+`docker`'s own scenario is the only one still on it today — see
+"Pre-baked DinD image" below for why, and for what every other scenario
+uses instead. `bind9` keeps its own `prepare.yml` regardless of which
+image it's on (it manages its own `daemon.json` and would fight over the
+same file, so it forces `fuse-overlayfs` via a systemd drop-in instead).
+`apt` keeps a minimal `prepare.yml` whose only job is calling
+`reset_coverage_data.yaml`.
+
+### Pre-baked DinD image
+
+`ghcr.io/wenenhoe/molecule-dind` (`docker/molecule-dind/Dockerfile`) is
+the `geerlingguy/docker-ubuntu2604-ansible` base with Docker Engine,
+`fuse-overlayfs`, and `python3-requests` already installed, so scenarios
+on it skip all three `apt` installs `prepare_dind.yml` otherwise does on
+every run. They use `prepare_dind_prebuilt.yml` (coverage reset only)
+and drop the `bootstrap_docker.yaml` include from `converge.yml`, relying
+on the daemon systemd starts at container boot.
+
+`docker`'s own scenario is never migrated to this image — it tests that
+installation from a clean base, and baking Docker in would make that
+test tautological. `bind9` uses it too: its own storage-driver override
+doesn't touch the baked `daemon.json`, so only its now-redundant
+`fuse-overlayfs` package install and `python3-requests` install were
+dropped from its own `prepare.yml`, the systemd drop-in stays.
+
+Every other DinD scenario is on this image. Migrating one: swap the
+`image:` and `prepare:` playbook in `molecule.yml`, then delete the
+`bootstrap_docker.yaml` include task (and the `install_docker_api_requests.yaml`
+one right after it, where present) from `converge.yml`.
 
 ### Base config
 
@@ -167,12 +193,16 @@ beyond its own `molecule.yml`.
 
 1. Copy an existing scenario directory (e.g. `compose/molecule/default`
    for anything deployed via Compose).
-2. If the role assumes Docker is running, point `converge.yml` at
-   `molecule_helpers`'s `bootstrap_docker.yaml` (and
-   `resolve_compose_apps.yaml` if it uses `app_registry`/`compose_apps`).
-3. If it needs Docker-in-Docker, point `prepare` at
-   `molecule_helpers/playbooks/prepare_dind.yml` unless, like `bind9`,
-   the role's own tasks conflict with its `daemon.json` write.
+2. If it needs Docker-in-Docker, use `ghcr.io/wenenhoe/molecule-dind:latest`
+   as the platform `image:` and point `prepare` at
+   `molecule_helpers/playbooks/prepare_dind_prebuilt.yml` — that's what
+   every scenario uses except `docker`'s own (tests installing Docker
+   from a clean base) and `bind9`'s (its own tasks conflict with the
+   baked `daemon.json`, see "Pre-baked DinD image" above). Docker is
+   already running once the container boots, so `converge.yml` doesn't
+   need a `bootstrap_docker.yaml` include.
+3. If the role uses `app_registry`/`compose_apps`, point `converge.yml`
+   at `molecule_helpers`'s `resolve_compose_apps.yaml`.
 4. Don't add `dependency.options` or a `provisioner.env` block — the base
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR — there's no CI for

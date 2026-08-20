@@ -7,8 +7,9 @@
 # for a reason unrelated to bind9 itself. A CLI flag and daemon.json
 # don't conflict as long as they don't set the same key.
 #
-# fuse-overlayfs, not vfs: see dind_storage_driver.yaml's comment for why
-# — same fix, just applied via CLI flag instead of daemon.json here.
+# fuse-overlayfs itself is baked into ghcr.io/wenenhoe/molecule-dind
+# already (docker/molecule-dind/Dockerfile) — this only wires it up via
+# the CLI flag daemon.json can't carry here, see above.
 - name: Prepare
   hosts: all
   become: true
@@ -17,12 +18,6 @@
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: reset_coverage_data.yaml
-
-    - name: Install fuse-overlayfs
-      ansible.builtin.apt:
-        name: fuse-overlayfs
-        state: present
-        update_cache: true
 
     - name: Ensure the docker.service systemd override directory exists
       ansible.builtin.file:
@@ -43,19 +38,16 @@
       ansible.builtin.systemd:
         daemon_reload: true
 
-    - name: Install python3-requests
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
-      # docker_volume/docker_host_info (ensure_volume.yaml, for bind9's
-      # four declared volumes) talk to the Docker API directly via
-      # requests.
-
     - name: Install dnsutils
       ansible.builtin.apt:
         name: dnsutils
         state: present
+        update_cache: true
       # for verify.yml's live dig query against the running bind9 server.
+      # update_cache here because this is the first apt task in the play
+      # now that fuse-overlayfs is baked into the image — the image's
+      # own apt package lists are deliberately stripped at build time
+      # (docker/molecule-dind/Dockerfile), so nothing else refreshes them.
 
     - name: Ensure systemd-resolved is installed
       ansible.builtin.apt:

@@ -9,16 +9,6 @@
     # host_vars/lldap-bootstrap-instance.yaml instead — see the comment
     # there.
   tasks:
-    - name: Include docker role (community.docker assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
-    - name: Install python3-requests (docker_container_info talks to the API directly)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: install_docker_api_requests.yaml
-
     # Not strictly required by lldap_bootstrap itself (it only joins
     # whatever network name it's given) — created here so the network
     # name this scenario uses can stay "caddy-proxy", matching

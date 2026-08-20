@@ -10,7 +10,7 @@ driver:
   name: docker
 platforms:
   - name: bind9-instance
-    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    image: ghcr.io/wenenhoe/molecule-dind:latest
     privileged: true
     cgroupns_mode: host
     volumes:

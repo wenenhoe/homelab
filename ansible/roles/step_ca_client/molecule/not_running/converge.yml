@@ -5,11 +5,6 @@
   vars:
     ansible_user: root
   tasks:
-    - name: Include docker role (community.docker assumes Docker is already installed and running)
-      ansible.builtin.include_role:
-        name: molecule_helpers
-        tasks_from: bootstrap_docker.yaml
-
     # Deliberately no step-ca target started at all — that's the whole
     # point of this scenario, unlike default's. The guard this tests is
     # the very first task in step_ca_client/tasks/main.yaml now, so this

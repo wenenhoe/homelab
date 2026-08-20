@@ -1,0 +1,25 @@
+name: librespeed
+
+services:
+  librespeed:
+    image: ghcr.io/librespeed/speedtest:6.2.0
+    container_name: librespeed
+    environment:
+      - MODE=standalone
+      - TELEMETRY=false
+    networks:
+      - caddy-proxy
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    expose:
+      - '8080'
+    security_opt:
+      - no-new-privileges:true
+networks:
+  caddy-proxy:
+    external: true

@@ -36,6 +36,13 @@
     patterns:
       - "compose*.yaml"
       - "Dockerfile*"
+    # file_type: any, not the default "file" — find's default file_type
+    # classifies a symlink as type "link" and never matches it as "file",
+    # even with follow: true (that only affects recursion/stat-following,
+    # not this classification). Molecule fixtures that symlink straight
+    # at a production compose.yaml (see docs/molecule-testing.md) would
+    # silently vanish here without this.
+    file_type: any
   register: compose_compose_files_raw
   delegate_to: localhost
   become: false

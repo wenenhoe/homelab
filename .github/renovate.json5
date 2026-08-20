@@ -49,11 +49,13 @@
   // image (buildapp:local) Renovate can't resolve anyway — keep those out
   // of scope entirely.
   //
-  // This is an explicit per-role list, not a blanket "**/molecule/**",
-  // and bind9/caddy are deliberately left off it: unlike the others,
-  // their molecule fixtures stand up a real image that mirrors their
-  // production compose.yaml's pin — see the packageRules below for why
-  // those two have to stay trackable.
+  // This is an explicit per-role list, not a blanket "**/molecule/**".
+  // bind9/caddy/lldap_cert aren't on it, but need no entry either: their
+  // molecule fixtures are symlinks to the real production compose.yaml/
+  // configs (see docs/molecule-testing.md's "Fixtures for apps with a
+  // real prod counterpart" section), and Renovate ignores symlinks
+  // outright, so there's nothing for it to see there regardless of this
+  // list.
   ignorePaths: [
     "ansible/roles/backup_agent/molecule/**",
     "ansible/roles/compose/molecule/**",
@@ -185,8 +187,8 @@
     // lumped into one PR instead of ~15 separate ones. Majors stay
     // individual — more likely to need their own changelog read and their
     // own revert. Placed *before* the per-image groups below so their
-    // matchDepNames rules (which match regardless of update type) still win
-    // for caddy/bind9/seaweedfs, keeping those tied to their test fixtures.
+    // matchDepNames rules (which match regardless of update type) still
+    // win for seaweedfs, keeping that tied to its test fixture.
     {
       matchManagers: ["docker-compose", "dockerfile"],
       matchUpdateTypes: ["minor", "patch"],
@@ -231,27 +233,12 @@
       groupName: "ansible galaxy collections (playbook + molecule — must move together)",
     },
 
-    // docker/caddy/compose.yaml (production) and
-    // ansible/roles/caddy/molecule/default/files/docker/caddy/compose.yaml
-    // (the real GHCR image the caddy role's molecule scenario deploys
-    // against) are two independent, hard-coded pins of the same image —
-    // same reasoning as the bind9/seaweedfs pairs below: group them so
-    // they can only ever be bumped together.
-    {
-      matchDepNames: ["ghcr.io/wenenhoe/caddy-digitalocean"],
-      groupName: "caddy-digitalocean (prod + molecule test fixture — must move together)",
-    },
-
-    // docker/bind9/compose.yaml (production) and
-    // ansible/roles/bind9/molecule/default/files/docker/bind9/compose.yaml
-    // (the real BIND9 instance the bind9 role's molecule scenario tests
-    // against) are two independent, hard-coded pins of the same image —
-    // same reasoning and same fix as the seaweedfs pair above: group them
-    // so they can only ever be bumped together.
-    {
-      matchDepNames: ["ubuntu/bind9"],
-      groupName: "bind9 (prod + molecule test fixture — must move together)",
-    },
+    // docker/lldap/compose.yaml, docker/bind9/compose.yaml, and
+    // docker/caddy/compose.yaml's molecule fixtures are symlinks to
+    // these same files (see docs/molecule-testing.md), so there is only
+    // ever one real occurrence of each of those image pins for Renovate
+    // to see — no groupName needed to keep prod and test fixture in
+    // lockstep, because there's nothing left to drift apart.
 
     // docker/seaweedfs/compose.yaml (production) and
     // molecule_helpers/tasks/start_seaweedfs_test_target.yaml (the real

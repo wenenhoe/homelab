@@ -4,8 +4,17 @@ services:
   cobalt:
     image: ghcr.io/imputnet/cobalt:11
     container_name: cobalt
-    env_file:
-      - .env
+    environment:
+      # for tunneling functionality — API_URL is what the cobalt process
+      # itself reads; COBALT_API_URL (the .env's name) is prefixed to
+      # avoid collisions across apps sharing this repo's .env convention.
+      # env_file: wouldn't rename it, so this has to be explicit.
+      API_URL: ${COBALT_API_URL}
+      # to use cookies for fetching data from services,
+      # uncomment next line & volumes section
+      # COOKIE_PATH: "/cookies.json"
+      # volumes:
+      # - ./cookies.json:/cookies.json
     networks:
       - caddy-proxy
     restart: unless-stopped

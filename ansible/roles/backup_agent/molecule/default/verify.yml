@@ -25,12 +25,16 @@
           - "'backup-dockerproxy' in backup_agent_compose_parsed.services"
         fail_msg: "Expected services: {{ backup_agent_compose_parsed.services.keys() | list }}"
 
-    - name: Confirm the one container mounts both backed-up apps' volumes, not happy_app_no_backup's
+    - name: Confirm the one container mounts every backed-up app's volumes under its own per-app dir, not happy_app_no_backup's
+      vars:
+        backup_agent_mounted_volumes: "{{ backup_agent_compose_parsed.services['backup-agent'].volumes }}"
       ansible.builtin.assert:
         that:
-          - "'happy_app_stop_data:/backup/happy_app_stop_data:ro' in backup_agent_compose_parsed.services['backup-agent'].volumes"
-          - "'happy_app_nostop_data:/backup/happy_app_nostop_data:ro' in backup_agent_compose_parsed.services['backup-agent'].volumes"
-          - "'happy_app_no_backup_data:/backup/happy_app_no_backup_data:ro' not in backup_agent_compose_parsed.services['backup-agent'].volumes"
+          - "'happy_app_stop_data:/backup/happy_app_stop/happy_app_stop_data:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_nostop_data:/backup/happy_app_nostop/happy_app_nostop_data:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_multivol_data:/backup/happy_app_multivol/happy_app_multivol_data:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_multivol_certs:/backup/happy_app_multivol/happy_app_multivol_certs:ro' in backup_agent_mounted_volumes"
+          - "'happy_app_no_backup_data:/backup/happy_app_no_backup/happy_app_no_backup_data:ro' not in backup_agent_mounted_volumes"
         fail_msg: >-
           happy_app_no_backup_data appeared despite declaring no backup: key
           — the normalization task's `when` guard isn't excluding it.
@@ -41,14 +45,14 @@
         paths: "{{ compose_deploy_dir }}/backup-agent/conf.d"
       register: backup_agent_conf_d_files
 
-    - name: Confirm exactly the two expected schedules exist — no more, no fewer
+    - name: Confirm exactly the expected schedules exist — no more, no fewer
       ansible.builtin.assert:
         that:
           - (backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort) ==
-            ['happy_app_nostop.env', 'happy_app_stop.env']
+            ['happy_app_multivol.env', 'happy_app_nostop.env', 'happy_app_stop.env']
         fail_msg: >-
-          Expected happy_app_stop.env, happy_app_nostop.env, and nothing
-          for happy_app_no_backup. Got:
+          Expected happy_app_stop.env, happy_app_nostop.env,
+          happy_app_multivol.env, and nothing for happy_app_no_backup. Got:
           {{ backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort }}
           — if long_gone_app.env is still present, the stale-file-removal
           task (converge.yml seeds it before the role's first run to
@@ -60,10 +64,10 @@
         path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_stop.env"
       register: backup_agent_stop_schedule_raw
 
-    - name: Confirm it's scoped to happy_app_stop's own volume and carries its own stop label
+    - name: Confirm it's scoped to happy_app_stop's own dir and carries its own stop label
       ansible.builtin.assert:
         that:
-          - "'BACKUP_SOURCES=/backup/happy_app_stop_data' in (backup_agent_stop_schedule_raw.content | b64decode)"
+          - "'BACKUP_SOURCES=/backup/happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
           - "'BACKUP_STOP_DURING_BACKUP_LABEL=happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
 
     - name: Read back happy_app_nostop's schedule
@@ -75,7 +79,22 @@
       ansible.builtin.assert:
         that:
           - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_nostop_schedule_raw.content | b64decode)"
-          - "'BACKUP_SOURCES=/backup/happy_app_nostop_data' in (backup_agent_nostop_schedule_raw.content | b64decode)"
+          - "'BACKUP_SOURCES=/backup/happy_app_nostop' in (backup_agent_nostop_schedule_raw.content | b64decode)"
+
+    - name: Read back happy_app_multivol's schedule
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_multivol.env"
+      register: backup_agent_multivol_schedule_raw
+
+    - name: Confirm BACKUP_SOURCES is exactly one path with no space in it
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_SOURCES=/backup/happy_app_multivol' in (backup_agent_multivol_schedule_raw.content | b64decode)"
+          - "(backup_agent_multivol_schedule_raw.content | b64decode | regex_findall('BACKUP_SOURCES=(.*)'))[0] is not search(' ')"
+        fail_msg: >-
+          A space in BACKUP_SOURCES means docker-volume-backup lstats a
+          single bogus multi-word path and every run fails — this is the
+          actual bug this fixture exists to catch.
 
     # --- Shared env carries only what's actually shared -----------------
     - name: Read back the shared env file
@@ -204,14 +223,142 @@
       until: >-
         ('backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output)
         and ('backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output)
+        and ('backup-agent-instance-happy_app_multivol-' in backup_agent_s3_listing.container.Output)
       retries: 12
       delay: 10
 
-    - name: Confirm both expected archives reached S3
+    - name: Confirm all three expected archives reached S3, including the multi-volume app's
       ansible.builtin.assert:
         that:
           - "'backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output"
           - "'backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_multivol-' in backup_agent_s3_listing.container.Output"
         fail_msg: >-
-          Expected archives for happy_app_stop and happy_app_nostop.
-          Listing: {{ backup_agent_s3_listing.container.Output }}
+          Expected archives for happy_app_stop, happy_app_nostop, and
+          happy_app_multivol. A missing happy_app_multivol archive means
+          its BACKUP_SOURCES run failed — the actual bug this fixture
+          exists to catch. Listing:
+          {{ backup_agent_s3_listing.container.Output }}
+
+    # --- Encryption: a file existing in S3 says nothing about whether it's
+    # actually encrypted — this is the check that would have caught
+    # GPG_PUBLIC_KEY_FILE (wrong var name, silently ignored, encryption
+    # never engaged) instead of just landing archives in S3 unencrypted. ---
+    - name: Create a scratch volume to move the downloaded archive between containers
+      community.docker.docker_volume:
+        name: backup-agent-gpg-check-scratch
+        state: present
+
+    - name: Start a persistent aws-cli utility container to list+download the archive in
+      community.docker.docker_container:
+        name: backup-agent-gpg-aws
+        image: amazon/aws-cli:2.15.0
+        networks:
+          - name: "{{ backup_agent_network_name }}"
+        volumes:
+          - backup-agent-gpg-check-scratch:/scratch
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        entrypoint: ["sleep"]
+        command: ["infinity"]
+        state: started
+        detach: true
+
+    # Re-listing and downloading in one shell invocation (rather than reusing
+    # the key captured by the earlier listing task, further up this file)
+    # keeps the gap between "find the key" and "use the key" as small as
+    # possible. Wrapped in until/retries via docker_container_exec — unlike
+    # docker_container with detach:false, this returns a normal .rc instead
+    # of hard-crashing the play on the first nonzero exit, so a transient
+    # miss (upload/listing propagation lag) gets retried instead of failing
+    # the whole run outright.
+    - name: List the current newest happy_app_nostop archive and download it, retrying to absorb any propagation lag
+      community.docker.docker_container_exec:
+        container: backup-agent-gpg-aws
+        command: >-
+          sh -c "
+          key=$(aws --endpoint-url http://seaweedfs-test:8333 s3api list-objects-v2
+          --bucket {{ molecule_test_bucket }}
+          --prefix backup-agent-instance-happy_app_nostop/
+          --query 'sort_by(Contents,&LastModified)[-1].Key' --output text) &&
+          aws --endpoint-url http://seaweedfs-test:8333 s3 cp
+          s3://{{ molecule_test_bucket }}/$key /scratch/archive.tar.gz
+          "
+      register: backup_agent_gpg_download
+      changed_when: false
+      until: backup_agent_gpg_download.rc == 0
+      retries: 6
+      delay: 5
+
+    - name: Fail with the actual aws-cli output if the download never succeeded
+      ansible.builtin.assert:
+        that:
+          - backup_agent_gpg_download.rc == 0
+        fail_msg: >-
+          Never managed to list+download a happy_app_nostop archive after
+          retrying. stdout: {{ backup_agent_gpg_download.stdout }}
+          stderr: {{ backup_agent_gpg_download.stderr }}
+
+    - name: Remove the aws-cli utility container
+      community.docker.docker_container:
+        name: backup-agent-gpg-aws
+        state: absent
+
+    - name: Start a persistent utility container to inspect the downloaded archive in
+      community.docker.docker_container:
+        name: backup-agent-gpg-check
+        image: alpine:3.20
+        volumes:
+          - backup-agent-gpg-check-scratch:/scratch:ro
+        entrypoint: ["sleep"]
+        command: ["infinity"]
+        state: started
+        detach: true
+
+    - name: Confirm the downloaded file is non-empty (rules out an empty/failed download masquerading as an encryption failure below)
+      community.docker.docker_container_exec:
+        container: backup-agent-gpg-check
+        command: "test -s /scratch/archive.tar.gz"
+      register: backup_agent_gpg_size_check
+      changed_when: false
+      failed_when: backup_agent_gpg_size_check.rc != 0
+
+    # docker_container with detach:false hard-crashes the whole play on ANY
+    # nonzero exit (same gotcha converge.yml's bucket-create step hits).
+    # docker_container_exec avoids that hard crash, but its default
+    # failed_when still fails the task itself on nonzero rc — same as
+    # converge.yml's bucket-create task, which carries its own explicit
+    # failed_when for the same reason. Needed here because a nonzero
+    # exit is the EXPECTED, passing outcome; the real pass/fail check is
+    # the assert below, not this task.
+    - name: Attempt to list the downloaded archive as a plain tar.gz — this must FAIL if it's really GPG-encrypted
+      community.docker.docker_container_exec:
+        container: backup-agent-gpg-check
+        command: "tar -tzf /scratch/archive.tar.gz"
+      register: backup_agent_gpg_tar_check
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm the archive is NOT a readable plain tar.gz (i.e. it really is GPG-encrypted)
+      ansible.builtin.assert:
+        that:
+          - backup_agent_gpg_tar_check.rc != 0
+        fail_msg: >-
+          `tar -tzf` successfully listed the downloaded archive's contents
+          ({{ backup_agent_gpg_tar_check.stdout }}), meaning it's a plain,
+          unencrypted tar.gz — GPG encryption isn't actually engaging.
+          Check the env var name backup_agent's shared .env renders for
+          the public keyring against
+          https://offen.github.io/docker-volume-backup/reference/.
+
+    - name: Remove the gpg-check utility container
+      community.docker.docker_container:
+        name: backup-agent-gpg-check
+        state: absent
+
+    - name: Remove the scratch volume
+      community.docker.docker_volume:
+        name: backup-agent-gpg-check-scratch
+        state: absent

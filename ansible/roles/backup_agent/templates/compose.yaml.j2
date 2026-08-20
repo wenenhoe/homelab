@@ -28,7 +28,7 @@ services:
     volumes:
 {% for app in backup_agent_normalized %}
 {% for vol in app.volumes %}
-      - {{ app.name }}_{{ vol }}:/backup/{{ app.name }}_{{ vol }}:ro
+      - {{ app.name }}_{{ vol }}:/backup/{{ app.name }}/{{ app.name }}_{{ vol }}:ro
 {% endfor %}
 {% endfor %}
       - ./gpg-public-key.asc:/etc/backup/gpg-public-key.asc:ro

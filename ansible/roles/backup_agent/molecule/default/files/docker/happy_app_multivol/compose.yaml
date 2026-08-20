@@ -1,0 +1,16 @@
+name: happy_app_multivol
+services:
+  happy_app_multivol:
+    image: alpine:3.24
+    container_name: happy_app_multivol
+    volumes:
+      - data:/data
+      - certs:/certs
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  data:
+    external: true
+    name: happy_app_multivol_data
+  certs:
+    external: true
+    name: happy_app_multivol_certs

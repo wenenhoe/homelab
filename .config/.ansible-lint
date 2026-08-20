@@ -2,6 +2,7 @@ exclude_paths:
     - .config/.pre-commit-config.yaml
     - .pre-commit-config.yaml
     - docker/
+    - ansible/roles/molecule_helpers/fixtures/
     - ansible/roles/bind9/molecule/default/host_vars/
     - ansible/roles/lldap_bootstrap/molecule/default/host_vars/
     - ansible/roles/tinyauth/molecule/default/host_vars/

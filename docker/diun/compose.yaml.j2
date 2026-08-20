@@ -9,7 +9,7 @@ services:
     volumes:
       - data:/data
     environment:
-      TZ: ${TIMEZONE}
+      TZ: "{{ server_timezone }}"
       LOG_LEVEL: info
       LOG_JSON: false
       DIUN_WATCH_WORKERS: 10

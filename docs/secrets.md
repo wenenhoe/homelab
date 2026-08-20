@@ -39,7 +39,10 @@ any new secret or config value goes through the registry instead:
    more examples of the split.
 3. Use `{{ my_new_thing }}` in the app's `configs/*.j2` template, with
    `no_log: true` on its `app_registry` entry if it's a real secret (see
-   `no_log: true` below).
+   `no_log: true` below). Never in `compose.yaml` itself, even though it
+   can also reference Ansible vars now — its deploy task has no
+   per-app `no_log:`/mode handling, unlike `configs` (see
+   [`adding-an-app.md`](adding-an-app.md)).
 
 ## Three formats
 

@@ -7,8 +7,13 @@ services:
     volumes:
       - data:/data
       - certs:/data/certs
-    env_file:
-      - .env
+    environment:
+      UID: 1000
+      GID: 1000
+      TZ: "{{ server_timezone }}"
+      LLDAP_LDAPS_OPTIONS__ENABLED: true
+      LLDAP_LDAPS_OPTIONS__CERT_FILE: /data/certs/fullchain.pem
+      LLDAP_LDAPS_OPTIONS__KEY_FILE: /data/certs/privkey.pem
     ports:
       - '0.0.0.0:6360:6360' # For LDAPS (LDAP Over SSL)
     networks:

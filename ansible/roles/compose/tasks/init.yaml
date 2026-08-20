@@ -33,8 +33,15 @@
     paths: "{{ compose_source_dir }}/{{ compose_app_item.name }}/"
     # Dockerfile* also matches variants like Dockerfile.staging — needed
     # by any build: true app to get its build context onto the target.
+    #
+    # compose*.yaml.j2 is the same file, just referencing an Ansible var
+    # directly instead of staying a plain static file — see the template
+    # task below for why, and .j2 is a visible marker for which apps do
+    # this (docs/adding-an-app.md). The destination path strips the
+    # .j2 suffix back off, so this is invisible past this file.
     patterns:
       - "compose*.yaml"
+      - "compose*.yaml.j2"
       - "Dockerfile*"
     # file_type: any, not the default "file" — find's default file_type
     # classifies a symlink as type "link" and never matches it as "file",
@@ -47,10 +54,29 @@
   delegate_to: localhost
   become: false
 
-- name: Copy compose files to remote host ({{ compose_app_item.name }})
-  ansible.builtin.copy:
+- name: Deploy compose and Dockerfile files to remote host ({{ compose_app_item.name }})
+  # template, not copy — every current compose.yaml/Dockerfile without a
+  # .j2 suffix contains no Jinja2 syntax, confirmed byte-for-byte
+  # identical output either way, so this is transparent everywhere it
+  # isn't used. What it buys: an app whose only variable content is
+  # non-secret and domain-free (a timezone, a hardcoded port — never a
+  # real secret or anything derived from main_domain/lab_domain/
+  # caddy_domain, those stay in configs/*.j2 per docs/adding-an-app.md)
+  # can reference an Ansible var directly in its compose.yaml.j2 instead
+  # of carrying a separate one-line .env just to get it into the
+  # container. mode stays 0644 unconditionally — this task has no
+  # per-app awareness of which files might contain a secret or the
+  # domain, so nothing with that content should ever go through this
+  # path (compose.yaml only, never configs).
+  ansible.builtin.template:
     src: "{{ item.path }}"
-    dest: "{{ compose_deploy_dir }}/{{ item.path | regex_replace('^' ~ compose_source_dir ~ '/', '') }}"
+    # .j2 stripped from the deployed filename — docker compose looks for
+    # a file literally named compose.yaml, not compose.yaml.j2.
+    dest: >-
+      {{ compose_deploy_dir }}/{{
+        (item.path | regex_replace('^' ~ compose_source_dir ~ '/', ''))
+        | regex_replace('\.j2$', '')
+      }}
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
     mode: "0644"

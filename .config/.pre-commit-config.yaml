@@ -38,7 +38,13 @@ repos:
     rev: v3.1.0
     hooks:
       - id: dclint-docker
-        files: (docker-)?compose(\..+)?\.ya?ml$
+        # (\.j2)? at the end — same reasoning as renovate.json5's
+        # docker-compose managerFilePatterns: compose.yaml.j2 is still
+        # a compose file, just also referencing an Ansible var (see
+        # docs/adding-an-app.md). Confirmed dclint parses the embedded
+        # {{ }} fine (it's just YAML scalar content) and --fix doesn't
+        # touch it.
+        files: (docker-)?compose(\..+)?\.ya?ml(\.j2)?$
         args: [--fix, --config, .config/.dclintrc]
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2

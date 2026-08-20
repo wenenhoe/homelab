@@ -11,8 +11,8 @@ services:
         target: /etc/seaweedfs/s3-identity.json
         volume:
           subpath: s3-identity.json
-    env_file:
-      - .env
+    environment:
+      TZ: "{{ server_timezone }}"
     networks:
       - caddy-proxy
     # All-in-one mode (master+volume+filer+S3 in one process) — no HA,

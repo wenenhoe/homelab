@@ -7,7 +7,7 @@ services:
     volumes:
       - data:/kms/var
     environment:
-      TZ: ${TIMEZONE}
+      TZ: "{{ server_timezone }}"
     ports:
       - '0.0.0.0:1688:1688/tcp'
     networks:
@@ -29,7 +29,7 @@ services:
     volumes:
       - data:/kms/var
     environment:
-      TZ: ${TIMEZONE}
+      TZ: "{{ server_timezone }}"
     networks:
       - frontend
       - caddy-proxy

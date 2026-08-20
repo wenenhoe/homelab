@@ -194,8 +194,12 @@ sets `file_type: any` because of this; any other `find`-based discovery
 added later over a fixture directory needs the same.
 
 - **Apps with a real prod counterpart** (`caddy`, `lldap`, `bind9`,
-  `tinyauth`) symlink `compose.yaml` and their `configs/*.j2` straight at
-  `docker/<app>/` instead of keeping a hand-copied duplicate. This is
+  `tinyauth`) symlink their compose file and any `configs/*.j2` straight
+  at `docker/<app>/` instead of keeping a hand-copied duplicate. `bind9`
+  symlinks `compose.yaml.j2` specifically (see "Fixture files" below and
+  `docs/adding-an-app.md` for the `.j2` convention) — it inlines
+  `server_timezone` directly rather than carrying a separate `.env`, so
+  there's no `configs/env.j2` to symlink alongside it anymore. This is
   stronger than keeping the two in sync by convention: Renovate ignores
   symlinks outright, so a version-bump PR touches the one real file, and
   the same test run that exercises the role exercises prod's actual

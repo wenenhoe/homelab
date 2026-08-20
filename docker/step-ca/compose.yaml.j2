@@ -1,0 +1,37 @@
+name: step-ca
+
+services:
+  step-ca:
+    image: smallstep/step-ca:0.30.2
+    container_name: step-ca
+    volumes:
+      - data:/home/step
+      - scripts:/scripts
+    environment:
+      TZ: "{{ server_timezone }}"
+      STEPPATH: /home/step
+      STEP_CA_PROVISIONER_NAME: "{{ step_ca_provisioner_name }}"
+      # defaults.json's ca-url - and so the image's own HEALTHCHECK
+      # (`step ca health`) - is derived from the FIRST name below, so it
+      # must be one the container resolves to itself. Keep `step-ca`
+      # (this compose service's own name on caddy-proxy) first. See
+      # docs/step-ca.md.
+      # step-ca's own default is 24h, built for constant automated
+      # renewal this repo doesn't have yet - see docs/step-ca.md.
+      STEP_CA_DEFAULT_CERT_DURATION: 720h
+    networks:
+      - caddy-proxy
+    entrypoint: /scripts/entrypoint.sh
+    restart: unless-stopped
+    expose:
+      - '9000'
+networks:
+  caddy-proxy:
+    external: true
+volumes:
+  data:
+    external: true
+    name: step-ca_data
+  scripts:
+    external: true
+    name: step-ca_scripts

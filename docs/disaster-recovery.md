@@ -92,7 +92,7 @@ since bucket creation is a one-time storage-side concern.
 
 ## Encryption
 
-Archives are GPG-encrypted (`GPG_PUBLIC_KEY_FILE`) with an asymmetric
+Archives are GPG-encrypted (`GPG_PUBLIC_KEY_RING_FILE`) with an asymmetric
 keypair: hosts hold only the public key; the private key stays offline and
 is never on any homelab host, so a compromised host can't decrypt existing
 backups.

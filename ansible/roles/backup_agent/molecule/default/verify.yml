@@ -239,3 +239,126 @@
           its BACKUP_SOURCES run failed — the actual bug this fixture
           exists to catch. Listing:
           {{ backup_agent_s3_listing.container.Output }}
+
+    # --- Encryption: a file existing in S3 says nothing about whether it's
+    # actually encrypted — this is the check that would have caught
+    # GPG_PUBLIC_KEY_FILE (wrong var name, silently ignored, encryption
+    # never engaged) instead of just landing archives in S3 unencrypted. ---
+    - name: Create a scratch volume to move the downloaded archive between containers
+      community.docker.docker_volume:
+        name: backup-agent-gpg-check-scratch
+        state: present
+
+    - name: Start a persistent aws-cli utility container to list+download the archive in
+      community.docker.docker_container:
+        name: backup-agent-gpg-aws
+        image: amazon/aws-cli:2.15.0
+        networks:
+          - name: "{{ backup_agent_network_name }}"
+        volumes:
+          - backup-agent-gpg-check-scratch:/scratch
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        entrypoint: ["sleep"]
+        command: ["infinity"]
+        state: started
+        detach: true
+
+    # Re-listing and downloading in one shell invocation (rather than reusing
+    # the key captured by the earlier listing task, further up this file)
+    # keeps the gap between "find the key" and "use the key" as small as
+    # possible. Wrapped in until/retries via docker_container_exec — unlike
+    # docker_container with detach:false, this returns a normal .rc instead
+    # of hard-crashing the play on the first nonzero exit, so a transient
+    # miss (upload/listing propagation lag) gets retried instead of failing
+    # the whole run outright.
+    - name: List the current newest happy_app_nostop archive and download it, retrying to absorb any propagation lag
+      community.docker.docker_container_exec:
+        container: backup-agent-gpg-aws
+        command: >-
+          sh -c "
+          key=$(aws --endpoint-url http://seaweedfs-test:8333 s3api list-objects-v2
+          --bucket {{ molecule_test_bucket }}
+          --prefix backup-agent-instance-happy_app_nostop/
+          --query 'sort_by(Contents,&LastModified)[-1].Key' --output text) &&
+          aws --endpoint-url http://seaweedfs-test:8333 s3 cp
+          s3://{{ molecule_test_bucket }}/$key /scratch/archive.tar.gz
+          "
+      register: backup_agent_gpg_download
+      changed_when: false
+      until: backup_agent_gpg_download.rc == 0
+      retries: 6
+      delay: 5
+
+    - name: Fail with the actual aws-cli output if the download never succeeded
+      ansible.builtin.assert:
+        that:
+          - backup_agent_gpg_download.rc == 0
+        fail_msg: >-
+          Never managed to list+download a happy_app_nostop archive after
+          retrying. stdout: {{ backup_agent_gpg_download.stdout }}
+          stderr: {{ backup_agent_gpg_download.stderr }}
+
+    - name: Remove the aws-cli utility container
+      community.docker.docker_container:
+        name: backup-agent-gpg-aws
+        state: absent
+
+    - name: Start a persistent utility container to inspect the downloaded archive in
+      community.docker.docker_container:
+        name: backup-agent-gpg-check
+        image: alpine:3.20
+        volumes:
+          - backup-agent-gpg-check-scratch:/scratch:ro
+        entrypoint: ["sleep"]
+        command: ["infinity"]
+        state: started
+        detach: true
+
+    - name: Confirm the downloaded file is non-empty (rules out an empty/failed download masquerading as an encryption failure below)
+      community.docker.docker_container_exec:
+        container: backup-agent-gpg-check
+        command: "test -s /scratch/archive.tar.gz"
+      register: backup_agent_gpg_size_check
+      changed_when: false
+      failed_when: backup_agent_gpg_size_check.rc != 0
+
+    # docker_container with detach:false hard-crashes the whole play on ANY
+    # nonzero exit (same gotcha converge.yml's bucket-create step hits).
+    # docker_container_exec avoids that hard crash, but its default
+    # failed_when still fails the task itself on nonzero rc — same as
+    # converge.yml's bucket-create task, which carries its own explicit
+    # failed_when for the same reason. Needed here because a nonzero
+    # exit is the EXPECTED, passing outcome; the real pass/fail check is
+    # the assert below, not this task.
+    - name: Attempt to list the downloaded archive as a plain tar.gz — this must FAIL if it's really GPG-encrypted
+      community.docker.docker_container_exec:
+        container: backup-agent-gpg-check
+        command: "tar -tzf /scratch/archive.tar.gz"
+      register: backup_agent_gpg_tar_check
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm the archive is NOT a readable plain tar.gz (i.e. it really is GPG-encrypted)
+      ansible.builtin.assert:
+        that:
+          - backup_agent_gpg_tar_check.rc != 0
+        fail_msg: >-
+          `tar -tzf` successfully listed the downloaded archive's contents
+          ({{ backup_agent_gpg_tar_check.stdout }}), meaning it's a plain,
+          unencrypted tar.gz — GPG encryption isn't actually engaging.
+          Check the env var name backup_agent's shared .env renders for
+          the public keyring against
+          https://offen.github.io/docker-volume-backup/reference/.
+
+    - name: Remove the gpg-check utility container
+      community.docker.docker_container:
+        name: backup-agent-gpg-check
+        state: absent
+
+    - name: Remove the scratch volume
+      community.docker.docker_volume:
+        name: backup-agent-gpg-check-scratch
+        state: absent

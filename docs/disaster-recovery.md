@@ -237,10 +237,17 @@ Manual steps before running it (private key never touches a homelab host):
 2. `gpg --decrypt` it into a plain `.tar.gz`.
 3. Point `restore_archive_local_path` at that file.
 
-The playbook copies the archive to the target host, stops the app, extracts
-into a scratch volume, matches each name in `restore_volumes` against the
-archive's directory structure, copies it over the live volume, cleans up,
-and redeploys. It pauses for `yes` before touching anything.
+The playbook then runs through the restore itself in order:
+
+1. Copies the archive to the target host.
+2. Stops the app.
+3. Extracts into a scratch volume.
+4. Matches each name in `restore_volumes` against the archive's
+   directory structure.
+5. Copies it over the live volume.
+6. Cleans up and redeploys.
+
+It pauses for `yes` before touching anything.
 
 For `lldap` (multiple volumes in one archive):
 

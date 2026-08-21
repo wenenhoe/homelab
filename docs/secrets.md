@@ -46,22 +46,11 @@ any new secret or config value goes through the registry instead:
 
 ## Three formats
 
-- **`hex`** (most secrets) — wraps `lookup('password', <path>
-  chars=hexdigits length=<n>)`; `password` itself generates once and
-  caches to a file. `chars=hexdigits` must be the named charset, never a
-  literal alphabet string, so `gitleaks` doesn't flag it next to a
-  `_secret`/`_key`-shaped var name.
-- **`uuid4`** (`shlink-api-key` only) — `password`'s `chars=` can't
-  produce a structurally valid UUID4, so this format generates via
-  `python3 -c "import uuid; print(uuid.uuid4())"` on first use and caches
-  it with `mode: "0600"`. See `ansible/roles/secrets/tasks/ensure_secret.yaml`.
-- **`manual`** (externally-issued credentials and plain config Ansible
-  can't generate, e.g. the DigitalOcean API key, `main_domain`, Beszel's
-  post-boot key/token) — no generation step; the cache file must already
-  exist. Missing → the play fails immediately with the registry entry's
-  `description` and the command to create the file. Present-but-empty is
-  valid (not an error) for entries marked `allow_blank: true`, which lets
-  Beszel's two values start blank.
+| Format | Used for | Mechanism |
+| :--- | :--- | :--- |
+| `hex` | Most secrets | Wraps `lookup('password', <path> chars=hexdigits length=<n>)`; `password` itself generates once and caches to a file. `chars=hexdigits` must be the named charset, never a literal alphabet string, so `gitleaks` doesn't flag it next to a `_secret`/`_key`-shaped var name. |
+| `uuid4` | `shlink-api-key` only | `password`'s `chars=` can't produce a structurally valid UUID4, so this format generates via `python3 -c "import uuid; print(uuid.uuid4())"` on first use and caches it with `mode: "0600"`. See `ansible/roles/secrets/tasks/ensure_secret.yaml`. |
+| `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, `main_domain`, Beszel's post-boot key/token) | No generation step — the cache file must already exist. Missing → the play fails immediately with the registry entry's `description` and the command to create the file. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank. |
 
 ## Bootstrapping manual secrets
 

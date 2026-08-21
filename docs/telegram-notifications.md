@@ -54,16 +54,20 @@ separate parameters — it does **not** understand the colon-combined
 form. That's why the raw, un-prefixed `telegram_topic_id_*` vars exist
 alongside `telegram_chatid_*`.
 
-**All three systemd-based notifiers share one library role**, `telegram_notify`
-(`ansible/roles/telegram_notify`) — a oneshot unit that curls `sendMessage`
-directly, parameterized by unit name, description, message text, and
-which topic to post to. It's included via `include_role` from each
-consumer's own `tasks/main.yaml`, has no `tasks/main.yaml` or molecule
-suite of its own (same shape as `molecule_helpers`), and never reloads
-systemd or notifies a handler itself — the including role does that off
-the `telegram_notify_env_result`/`telegram_notify_service_result` it
-registers, so the shared role never depends on a same-named handler
-existing in whatever play includes it.
+**All three systemd-based notifiers share one library role**,
+`telegram_notify` (`ansible/roles/telegram_notify`):
+
+- A oneshot unit that curls `sendMessage` directly, parameterized by
+  unit name, description, message text, and which topic to post to.
+- Included via `include_role` from each consumer's own
+  `tasks/main.yaml`.
+- Has no `tasks/main.yaml` or molecule suite of its own (same shape as
+  `molecule_helpers`).
+- Never reloads systemd or notifies a handler itself — the including
+  role does that off the `telegram_notify_env_result`/
+  `telegram_notify_service_result` it registers, so the shared role
+  never depends on a same-named handler existing in whatever play
+  includes it.
 
 A trailing `@` in the unit name (`telegram-notify@`, `cert-renewer@`'s
 own notifier) renders a genuine systemd `@`-instantiated template unit,

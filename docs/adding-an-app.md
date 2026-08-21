@@ -68,11 +68,13 @@ app_registry:
         upstream: "my-app:8080"
 ```
 
-- `volumes`: named Docker volumes Ansible creates and migrates existing bind-mount data into (`./data:/data` becomes `data:/data`). See [`volumes.md`](volumes.md). Omit for stateless apps or to keep a plain bind mount.
-- `create_dirs`: subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount.
-- `configs`: templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself (see `dashy`'s entry). Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](secrets.md)). Secrets this repo can generate go in `secrets_registry.yaml`, not a raw `lookup('password', ...)` in the template.
-- `scripts`: helper scripts copied verbatim into `<app>/scripts/`.
-- `caddy`: omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth.
+| Field | Purpose |
+| :--- | :--- |
+| `volumes` | Named Docker volumes Ansible creates and migrates existing bind-mount data into (`./data:/data` becomes `data:/data`). See [`volumes.md`](volumes.md). Omit for stateless apps or to keep a plain bind mount. |
+| `create_dirs` | Subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount. |
+| `configs` | Templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself (see `dashy`'s entry). Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](secrets.md)). Secrets this repo can generate go in `secrets_registry.yaml`, not a raw `lookup('password', ...)` in the template. |
+| `scripts` | Helper scripts copied verbatim into `<app>/scripts/`. |
+| `caddy` | Omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth. |
 
 ## 3. Add it to a host's `compose_apps`
 

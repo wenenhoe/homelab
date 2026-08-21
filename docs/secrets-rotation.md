@@ -91,3 +91,13 @@ down. `reset_volume.yaml` now detects any other compose project still
 referencing the volume, tears it down first, and brings it back up once
 the volume is safe again — this happens automatically, no separate
 manual step needed anymore.
+
+## App-generated secrets (not in `secrets_registry.yaml` either)
+
+`beszel-hub`'s KEY and TOKEN are a harder case than lldap's cert above:
+they're generated inside the hub's own database on first boot, with no
+way to replace just the keypair without also wiping the admin account,
+monitoring history, and notification config that live in the same
+volume. See [`beszel.md`](beszel.md#rotating-the-key-and-token) for the
+full procedure — it's long enough, and specific enough to Beszel's own
+UI, that it belongs there rather than duplicated here.

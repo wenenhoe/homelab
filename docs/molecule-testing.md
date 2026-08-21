@@ -101,98 +101,15 @@ One scenario of one role, without `cd`-ing into it:
 ```
 
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
-scenario glob doesn't recurse into `roles/*/molecule/*/`, and 17 of this
-repo's 37 scenarios share the name `default`, which a recursive glob
-would reject as a collision. `molecule-test-all.sh` runs `molecule test
---all` once per role directory instead, so each invocation only sees that
-role's own unique scenario names.
+scenario glob doesn't recurse into `roles/*/molecule/*/`, and many
+scenarios across different roles share the name `default`, which a
+recursive glob would reject as a collision. `molecule-test-all.sh` runs
+`molecule test --all` once per role directory instead, so each
+invocation only sees that role's own unique scenario names.
 
-## `molecule_helpers`
-
-Shared scaffolding for scenarios, not a role under test:
-
-| File | Used for |
-| :--- | :--- |
-| `playbooks/prepare_dind.yml` | Shared `prepare` playbook for scenarios on the bare base image (below). |
-| `playbooks/prepare_dind_prebuilt.yml` | Shared `prepare` playbook for scenarios on the pre-baked DinD image (below) — coverage reset only. |
-| `tasks/dind_storage_driver.yaml` | Forces the nested Docker daemon onto `fuse-overlayfs` via `/etc/docker/daemon.json`. |
-| `tasks/install_docker_api_requests.yaml` | Installs `python3-requests`, needed by `community.docker` modules that talk to the Docker API directly. |
-| `tasks/bootstrap_docker.yaml` | `include_role: docker` for scenarios that assume Docker is already installed, mirroring `deploy.yaml`'s Play 1. |
-| `tasks/resolve_compose_apps.yaml` | Resolves a scenario's `compose_apps` against `app_registry`, same merge as `deploy.yaml`. |
-| `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
-| `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
-| `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |
-| `fixtures/` | Shared compose fixtures symlinked into multiple scenarios/roles — see [`molecule-fixtures.md`](molecule-fixtures.md) for what's in here and why. |
-| `requirements.yml` / `role-requirements.yml` | Shared Galaxy collection/role deps (`community.docker`, `ansible.posix`). |
-
-### Why `fuse-overlayfs`
-
-The test container's own root filesystem is already overlay-mounted by
-the host's Docker, and `overlay2` can't stack a second overlay on top of
-that (`failed to mount ... fstype: overlay`). `fuse-overlayfs` is a
-userspace overlay implementation that avoids that kernel-level stacking
-restriction while still getting real copy-on-write, unlike `vfs`'s
-full-copy-per-layer behavior — meaningfully faster for image pulls/builds
-in the nested daemon. Test scaffolding only — real hosts keep using
-`overlay2`.
-
-### Shared `prepare`
-
-`prepare_dind.yml` installs Docker, forces `fuse-overlayfs`, and
-installs `python3-requests` — needed by any DinD scenario on the bare
-`geerlingguy` base image instead of the pre-baked one below:
-
-```yaml
-# molecule.yml
-provisioner:
-  name: ansible
-  playbooks:
-    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind.yml
-    converge: converge.yml
-    verify: verify.yml
-```
-
-`docker`'s own scenario is the only one still on it today — see
-"Pre-baked DinD image" below for why, and for what every other scenario
-uses instead. `bind9` keeps its own `prepare.yml` regardless of which
-image it's on (it manages its own `daemon.json` and would fight over the
-same file, so it forces `fuse-overlayfs` via a systemd drop-in instead).
-`apt` keeps a minimal `prepare.yml` whose only job is calling
-`reset_coverage_data.yaml`.
-
-### Pre-baked DinD image
-
-`ghcr.io/wenenhoe/molecule-dind` (`docker/molecule-dind/Dockerfile`) is
-the `geerlingguy/docker-ubuntu2604-ansible` base with Docker Engine,
-`fuse-overlayfs`, and `python3-requests` already installed, so scenarios
-on it skip all three `apt` installs `prepare_dind.yml` otherwise does on
-every run. They use `prepare_dind_prebuilt.yml` (coverage reset only)
-and drop the `bootstrap_docker.yaml` include from `converge.yml`, relying
-on the daemon systemd starts at container boot.
-
-`docker`'s own scenario is never migrated to this image — it tests that
-installation from a clean base, and baking Docker in would make that
-test tautological. `bind9` uses it too: its own storage-driver override
-doesn't touch the baked `daemon.json`, so only its now-redundant
-`fuse-overlayfs` package install and `python3-requests` install were
-dropped from its own `prepare.yml`, the systemd drop-in stays.
-
-Every other DinD scenario is on this image. Migrating one: swap the
-`image:` and `prepare:` playbook in `molecule.yml`, then delete the
-`bootstrap_docker.yaml` include task (and the `install_docker_api_requests.yaml`
-one right after it, where present) from `converge.yml`.
-
-See [`molecule-fixtures.md`](molecule-fixtures.md) for how fixtures
-avoid duplicating prod compose files, `app_registry` entries, and
-generic placeholder shapes across scenarios.
-
-### Base config
-
-`.config/molecule/config.yml` at the repo root is Molecule's auto-discovered
-base config, deep-merged into every scenario before that scenario's own
-`molecule.yml` applies. It supplies the shared `dependency` collections
-and `provisioner.env` to every scenario — nothing to add for a new one
-beyond its own `molecule.yml`.
+`molecule_helpers`'s shared scaffolding — the reference table of its
+task files, and how the DinD test containers it prepares actually
+work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
 
 ## Adding a new scenario
 
@@ -203,8 +120,9 @@ beyond its own `molecule.yml`.
    `molecule_helpers/playbooks/prepare_dind_prebuilt.yml` — that's what
    every scenario uses except `docker`'s own (tests installing Docker
    from a clean base) and `bind9`'s (its own tasks conflict with the
-   baked `daemon.json`, see "Pre-baked DinD image" above). Docker is
-   already running once the container boots, so `converge.yml` doesn't
+   baked `daemon.json`, see [Pre-baked DinD image in
+   `molecule-fixtures.md`](molecule-fixtures.md#pre-baked-dind-image)). Docker
+   is already running once the container boots, so `converge.yml` doesn't
    need a `bootstrap_docker.yaml` include.
 3. If the role uses `app_registry`/`compose_apps`, point `converge.yml`
    at `molecule_helpers`'s `resolve_compose_apps.yaml`.

@@ -368,7 +368,7 @@ jobs:
             [ "$rc" -eq 0 ] || exit "$rc"
           done
 
-  # See docs/ci.md#trivy-security-scans.
+  # See docs/security-scanning.md#trivy-security-scans.
   trivy-scan:
     needs: detect-changes
     permissions:

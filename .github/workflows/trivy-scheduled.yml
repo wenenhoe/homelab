@@ -1,7 +1,7 @@
 name: Trivy scheduled scan
 
 # Weekly, unscoped re-run of the two Trivy checks this repo keeps (see
-# docs/ci.md#trivy-security-scans) so a new misconfig check added to
+# docs/security-scanning.md#trivy-security-scans) so a new misconfig check added to
 # Trivy itself still gets caught even when nothing in this repo
 # changed — pr-checks.yml's trivy-scan job only runs the Ansible check
 # when a PR actually touches ansible/.

@@ -38,50 +38,11 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │   ├── bootstrap_secrets.py # Interactive prompt for values Ansible can't generate itself
 │   ├── molecule-test-all.sh # Runs every role's molecule scenarios; see docs/molecule-testing.md
 │   ├── molecule-coverage/   # Task/loop/branch coverage tool for molecule scenarios
-│   ├── files/                   # Non-secret static files (e.g. the backup GPG public key)
-│   ├── playbooks/
-│   │   ├── deploy.yaml           # Master playbook — full infra convergence
-│   │   ├── cleanup.yaml          # Tear down stacks no longer in a host's compose_apps
-│   │   ├── maintenance.yaml      # apt + firmware updates
-│   │   ├── reset-network.yaml    # netplan re-apply
-│   │   ├── restore.yaml          # Stage 1 DR: restore one app's volume(s)
-│   │   ├── volume-file-rm.yaml   # Remove specific named file(s) from a volume in place
-│   │   ├── volume-reset.yaml     # Wipe a volume and recreate it from seeded config only
-│   │   ├── rotate-secret.yaml    # Delete one generated secret's cached value
-│   │   ├── bootstrap-secrets.yaml# Leading play deploy.yaml/restore.yaml import for secrets
-│   │   └── ci_boot_test.yaml     # CI-only: seeds one app for the compose boot-test job
-│   ├── inventory/
-│   │   ├── inventory.yaml                     # Hosts reachable over DNS (day-to-day use)
-│   │   ├── sos-inventory.yaml                 # Hosts reachable by raw IP (recovery use)
-│   │   ├── ci-deploy-ordering-inventory.yaml  # CI-only: see docs/ci.md
-│   │   ├── group_vars/
-│   │   │   ├── all/main.yaml             # Global vars (timezone, DNS domains, Beszel/backup secrets)
-│   │   │   ├── all/app_registry.yaml     # The app registry (see below)
-│   │   │   └── all/secrets_registry.yaml # Declares every generated/manual secret; see docs/secrets.md
-│   │   └── host_vars/*.yaml     # Per-host compose_apps, caddy_domain, dns_zones
+│   ├── files/               # Non-secret static files (e.g. the backup GPG public key)
+│   ├── playbooks/           # See docs/ansible.md#playbooks
+│   ├── inventory/           # See docs/ansible.md#inventory
 │   ├── ci-inventory/        # CI-only inventory/vars for the compose-boot-test job
-│   └── roles/
-│       ├── apt/             # System package updates
-│       ├── fwupd/           # Firmware updates
-│       ├── docker/          # Docker Engine install
-│       ├── qemu_guest_agent/# Installs qemu-guest-agent for Proxmox VM integration
-│       ├── compose/         # Reusable init/deploy/cleanup tasks for one compose app
-│       ├── compose_app/     # Batch-drives `compose/` for every non-infra app
-│       ├── caddy/           # Renders Caddyfile, builds custom image, deploys
-│       ├── caddy_cert_expiry/# Alerts if Caddy's live-serving cert is expiring/unreachable
-│       ├── bind9/           # Renders zone files, deploys, rewires host DNS
-│       ├── seaweedfs_bucket/# Ensures the offsite-backup S3 bucket exists on `storage`
-│       ├── lldap_bootstrap/ # Automates lldap's `observer` account for tinyauth's LDAP bind
-│       ├── step_ca_client/  # Shared prerequisite: caches step-ca's root cert on the host
-│       ├── lldap_cert/      # Issues/renews lldap's LDAPS cert from step-ca
-│       ├── telegram_notify/ # Shared library role: direct-curl Telegram alert unit
-│       ├── tinyauth_ca_trust/# Builds the CA bundle tinyauth needs to trust step-ca-issued certs
-│       ├── tinyauth/        # Molecule-only: deploys tinyauth for real in its own scenario
-│       ├── backup_agent/    # Per-host offsite backup aggregation (stage 1 DR)
-│       ├── cloud_sync/      # Offsite replication of SeaweedFS archives to R2/B2/OCI
-│       ├── restore/         # Restores a decrypted offsite archive back to a named volume
-│       ├── secrets/         # Generates/validates every entry in secrets_registry.yaml
-│       └── molecule_helpers/# Shared Molecule test fixtures/setup, not deployed
+│   └── roles/               # See docs/ansible.md#roles
 ├── docker/                  # One directory per application
 │   ├── caddy/               # compose.yaml + env template for the proxy
 │   ├── bind9/               # compose.yaml.j2 — timezone templated in, no separate .env
@@ -105,11 +66,17 @@ test scaffolding, not a deployed app.
 
 | Doc | Covers |
 | :--- | :--- |
+| [`docs/ansible.md`](docs/ansible.md) | Playbook, role, and inventory reference tables. |
 | [`docs/deployment-flow.md`](docs/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
 | [`docs/volumes.md`](docs/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
 | [`docs/host-vars.md`](docs/host-vars.md) | `host_vars/<host>.yaml` field reference. |
 | [`docs/adding-an-app.md`](docs/adding-an-app.md) | Wiring a new Compose app into the registry. |
-| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP scheme, OPNsense, migration staging. |
+
+### Planned, not yet implemented
+
+| Doc | Covers |
+| :--- | :--- |
+| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP scheme, OPNsense, migration staging. No OpenTofu code exists in this repo yet. |
 
 ### Per-app infra
 
@@ -130,6 +97,7 @@ test scaffolding, not a deployed app.
 | :--- | :--- |
 | [`docs/cleanup.md`](docs/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
 | [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
+| [`docs/restore.md`](docs/restore.md) | Restoring an app's volume(s) from a backup archive: the runbook. |
 | [`docs/cloud-sync.md`](docs/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
 | [`docs/volume-maintenance.md`](docs/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
 | [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
@@ -140,8 +108,9 @@ test scaffolding, not a deployed app.
 | Doc | Covers |
 | :--- | :--- |
 | [`docs/molecule-testing.md`](docs/molecule-testing.md) | Molecule scenario matrix and how to add one. |
-| [`docs/molecule-fixtures.md`](docs/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes. |
+| [`docs/molecule-fixtures.md`](docs/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
 | [`docs/ci.md`](docs/ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check. |
+| [`docs/security-scanning.md`](docs/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
 
 ## Setup
 
@@ -196,33 +165,6 @@ reproducible dependency set.
 
 Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
 
-## Inventory
-
-Two inventories exist for two different situations:
-
-| Inventory | Used by | Host addressing | Purpose |
-| :--- | :--- | :--- | :--- |
-| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) | Day-to-day operation once DNS is up |
-| `inventory/sos-inventory.yaml` | `playbooks/reset-network.yaml` | Static `192.168.20.x` IPs | Recovery path when DNS/network is down |
-
-`inventory/inventory.yaml` also defines two groups the roles depend on directly:
-
-- **`app_hosts`** — every host that owns `compose_apps` / `dns_zones` / `caddy_domain`; the `bind9` role iterates this group's `hostvars` to build DNS zone files.
-- **`dns`** — the single host (`services`) the `bind9` role actually runs on.
-
-## Ansible Playbooks
-
-| Playbook File | Inventory | Description |
-| :--- | :--- | :--- |
-| `playbooks/deploy.yaml` | `inventory/inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`docs/deployment-flow.md`](docs/deployment-flow.md). |
-| `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`docs/cleanup.md`](docs/cleanup.md). |
-| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
-| `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
-| `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted offsite backup archive (stage 1 DR). See [`docs/disaster-recovery.md`](docs/disaster-recovery.md). |
-| `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`docs/volume-maintenance.md`](docs/volume-maintenance.md). |
-| `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`docs/volume-maintenance.md`](docs/volume-maintenance.md). |
-| `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Deletes one generated secret's cached value, so the next `deploy.yaml` run regenerates it. Doesn't redeploy anything itself. See [`docs/secrets-rotation.md`](docs/secrets-rotation.md). |
-
 ## Basic Commands
 
 ### `ansible` commands
@@ -240,25 +182,13 @@ Two inventories exist for two different situations:
   ```sh
   ansible-playbook playbooks/deploy.yaml --check --diff
   ```
-- Filter roles by tags (e.g. skip the Docker Engine install on hosts that already have it):
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --skip-tags "initial-setup"
-  ```
-- Pull/rebuild changed images and recreate their containers only:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --tags "images"
-  ```
-- Re-render Caddyfile/DNS zones, restarting only containers whose config
-  changed:
-  ```sh
-  ansible-playbook playbooks/deploy.yaml --tags "infra"
-  ```
-  Both assume the host is already provisioned once (a full, untagged run
-  first). See [Tags in `deployment-flow.md`](docs/deployment-flow.md#tags).
 - Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
   ```sh
   ansible-inventory -i inventory/inventory.yaml --host services
   ```
+
+Tag-based runs (skip provisioning, pull only images, re-render
+infra-only) are in [`docs/ansible.md`](docs/ansible.md#tag-based-commands).
 
 ### `docker` commands
 
@@ -279,8 +209,8 @@ pushing GPG-encrypted archives to **SeaweedFS** on `storage` nightly —
 see [`docs/disaster-recovery.md`](docs/disaster-recovery.md). The rest of
 `docker/` is independently deployable Compose stacks (dashboards, media
 tools, Minecraft, link shortener, pastebin, web terminal, etc.), each
-just an `app_registry` entry plus a `docker/<app>/` directory. See
-[`docs/adding-an-app.md`](docs/adding-an-app.md) to add one.
+just an `app_registry` entry plus a `docker/<app>/` directory (see
+Further Reading above to add one).
 
 ## Testing
 

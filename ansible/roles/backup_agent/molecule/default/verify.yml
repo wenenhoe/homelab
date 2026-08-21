@@ -49,10 +49,11 @@
       ansible.builtin.assert:
         that:
           - (backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort) ==
-            ['happy_app_multivol.env', 'happy_app_nostop.env', 'happy_app_stop.env']
+            ['happy_app_multivol.env', 'happy_app_nostop.env', 'happy_app_precompressed.env', 'happy_app_stop.env']
         fail_msg: >-
           Expected happy_app_stop.env, happy_app_nostop.env,
-          happy_app_multivol.env, and nothing for happy_app_no_backup. Got:
+          happy_app_multivol.env, happy_app_precompressed.env, and nothing
+          for happy_app_no_backup. Got:
           {{ backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort }}
           — if long_gone_app.env is still present, the stale-file-removal
           task (converge.yml seeds it before the role's first run to
@@ -95,6 +96,32 @@
           A space in BACKUP_SOURCES means docker-volume-backup lstats a
           single bogus multi-word path and every run fails — this is the
           actual bug this fixture exists to catch.
+
+    - name: Confirm an app with no compression override still defaults to gz
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_COMPRESSION=gz' in (backup_agent_multivol_schedule_raw.content | b64decode)"
+
+    - name: Read back happy_app_precompressed's schedule
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_precompressed.env"
+      register: backup_agent_precompressed_schedule_raw
+
+    - name: Confirm its compression:none override reached BACKUP_COMPRESSION, and its filename template uses the .Extension verb rather than a hardcoded .tar.gz
+      ansible.builtin.assert:
+        that:
+          - "'BACKUP_COMPRESSION=none' in (backup_agent_precompressed_schedule_raw.content | b64decode)"
+          - >-
+            (backup_agent_precompressed_schedule_raw.content | b64decode
+            | regex_findall('BACKUP_FILENAME=(.*)'))[0]
+            is search('\{\{ .Extension \}\}\s*$')
+        fail_msg: >-
+          Expected BACKUP_COMPRESSION=none and a BACKUP_FILENAME ending in
+          the literal `{{ '{{' }} .Extension {{ '}}' }}` verb (not a
+          hardcoded .tar.gz) — otherwise this app's archive would be named
+          .tar.gz while actually being an uncompressed tar, which breaks
+          any manual or scripted decrypt+extract. Got:
+          {{ backup_agent_precompressed_schedule_raw.content | b64decode }}
 
     # --- Shared env carries only what's actually shared -----------------
     - name: Read back the shared env file
@@ -224,20 +251,49 @@
         ('backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output)
         and ('backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output)
         and ('backup-agent-instance-happy_app_multivol-' in backup_agent_s3_listing.container.Output)
+        and ('backup-agent-instance-happy_app_precompressed-' in backup_agent_s3_listing.container.Output)
       retries: 12
       delay: 10
 
-    - name: Confirm all three expected archives reached S3, including the multi-volume app's
+    - name: Confirm all expected archives reached S3, including the multi-volume and precompressed apps'
       ansible.builtin.assert:
         that:
           - "'backup-agent-instance-happy_app_stop-' in backup_agent_s3_listing.container.Output"
           - "'backup-agent-instance-happy_app_nostop-' in backup_agent_s3_listing.container.Output"
           - "'backup-agent-instance-happy_app_multivol-' in backup_agent_s3_listing.container.Output"
+          - "'backup-agent-instance-happy_app_precompressed-' in backup_agent_s3_listing.container.Output"
         fail_msg: >-
-          Expected archives for happy_app_stop, happy_app_nostop, and
-          happy_app_multivol. A missing happy_app_multivol archive means
-          its BACKUP_SOURCES run failed — the actual bug this fixture
-          exists to catch. Listing:
+          Expected archives for happy_app_stop, happy_app_nostop,
+          happy_app_multivol, and happy_app_precompressed. A missing
+          happy_app_multivol archive means its BACKUP_SOURCES run failed;
+          a missing happy_app_precompressed archive means its
+          BACKUP_COMPRESSION=none run failed — both are the actual bugs
+          this fixture exists to catch. Listing:
+          {{ backup_agent_s3_listing.container.Output }}
+
+    # Static template text (checked above) only proves the schedule *asked*
+    # for no compression — this proves docker-volume-backup actually
+    # produced an uncompressed archive, by checking the real object name
+    # ls returned rather than assuming BACKUP_FILENAME's .Extension verb
+    # resolved the way the docs say it does.
+    - name: Confirm happy_app_precompressed's actual uploaded object is a plain .tar.gpg, not .tar.gz.gpg
+      ansible.builtin.assert:
+        that:
+          - >-
+            backup_agent_s3_listing.container.Output
+            | regex_findall('backup-agent-instance-happy_app_precompressed-\S+')
+            | select('search', '\.tar\.gpg$')
+            | list | length > 0
+          - >-
+            backup_agent_s3_listing.container.Output
+            | regex_findall('backup-agent-instance-happy_app_precompressed-\S+')
+            | select('search', '\.tar\.gz\.gpg$')
+            | list | length == 0
+        fail_msg: >-
+          Expected happy_app_precompressed's uploaded object to end in
+          .tar.gpg (BACKUP_COMPRESSION=none, then GPG's own .gpg suffix on
+          top), not .tar.gz.gpg — otherwise the filename lies about the
+          archive's actual format. Listing:
           {{ backup_agent_s3_listing.container.Output }}
 
     # --- Encryption: a file existing in S3 says nothing about whether it's

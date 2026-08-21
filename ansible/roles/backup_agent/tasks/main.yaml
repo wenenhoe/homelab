@@ -14,6 +14,8 @@
 #     stop_during_backup: true|false   # default false
 #     retention_days: N                # override of offsite_backup_retention_days
 #     cron: "..."                      # override of offsite_backup_cron
+#     compression: gz|zst|none         # default "gz"; use "none" when the
+#                                       # source volume is already compressed
 #
 # One docker-volume-backup schedule per app, all sharing one container
 # per host. BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule
@@ -43,6 +45,7 @@
           'stop_during_backup': item.backup.stop_during_backup | default(false),
           'retention_days': item.backup.retention_days | default(offsite_backup_retention_days),
           'cron': item.backup.cron | default(offsite_backup_cron),
+          'compression': item.backup.compression | default('gz'),
         }]
       }}
   loop: "{{ compose_apps }}"
@@ -58,12 +61,13 @@
   ansible.builtin.set_fact:
     backup_agent_any_stop_apps: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list | length > 0 }}"
 
-# One dict per app: {app, source, retention, cron, stop_label,
-# filename}. stop_label is '' (template omits the line) unless that app
-# opted into stop_during_backup. `source` is singular and always one
-# path: BACKUP_SOURCES takes exactly one directory, never a list, so
-# every app's volumes are mounted under one shared parent dir
-# (compose.yaml.j2) instead of being passed as separate sources.
+# One dict per app: {app, source, retention, cron, compression,
+# stop_label, filename}. stop_label is '' (template omits the line)
+# unless that app opted into stop_during_backup. `source` is singular
+# and always one path: BACKUP_SOURCES takes exactly one directory,
+# never a list, so every app's volumes are mounted under one shared
+# parent dir (compose.yaml.j2) instead of being passed as separate
+# sources.
 - name: Build the flat list of per-app schedules
   ansible.builtin.set_fact:
     backup_agent_schedules: >-
@@ -74,6 +78,7 @@
               'source': '/backup/' ~ app.name,
               'retention': app.retention_days,
               'cron': app.cron,
+              'compression': app.compression,
               'stop_label': app.name if app.stop_during_backup else '',
               'filename': app.name ~ '.env',
             }) -%}

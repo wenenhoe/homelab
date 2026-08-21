@@ -1,0 +1,11 @@
+name: reset_app_c_backup_sim
+services:
+  reset_app_c_backup_sim:
+    image: alpine:3.20
+    container_name: reset_app_c_backup_sim
+    volumes:
+      - reset_app_b_cache:/backup/reset_app_b_cache:ro
+    command: [ "sh", "-c", "sleep infinity" ]
+volumes:
+  reset_app_b_cache:
+    external: true

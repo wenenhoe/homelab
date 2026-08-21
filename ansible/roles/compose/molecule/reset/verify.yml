@@ -91,7 +91,21 @@
         or ('seeded-hello-from-reset_app_a' not in compose_reset_a_after.stdout)
 
     # --- reset_app_b: no seeded content declared, volume ends up empty ----
-    - name: "Reset reset_app_b's volume (confirmed, no seeded content)"
+    - name: Confirm the backup-agent-like fixture is running before the reset
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=reset_app_c_backup_sim"
+      register: compose_reset_c_before
+      failed_when: compose_reset_c_before.containers | length == 0
+
+    # Before the fix in reset_volume.yaml, this step failed with a 409
+    # "volume is in use" — reset_app_c_backup_sim's read-only mount of
+    # reset_app_b_cache (mirroring backup_agent's real cross-app mount)
+    # held a reference the old teardown never touched. If this task
+    # succeeds at all, the fix is already doing its job; the tasks below
+    # additionally confirm the blocking project came back up afterward.
+    - name: "Reset reset_app_b's volume while a second project still mounts it (confirmed)"
       ansible.builtin.include_role:
         name: compose
         tasks_from: reset_volume.yaml
@@ -115,3 +129,18 @@
       register: compose_reset_b_after
       changed_when: false
       failed_when: compose_reset_b_after.stdout | trim | length > 0
+
+    - name: Confirm the backup-agent-like fixture was brought back up after the reset, not left down
+      community.docker.docker_host_info:
+        containers: true
+        containers_filters:
+          label: "com.docker.compose.project=reset_app_c_backup_sim"
+      register: compose_reset_c_after
+      failed_when: compose_reset_c_after.containers | length == 0
+
+    - name: Confirm the fixture's read-only mount reflects the fresh, empty volume — not a stale view from before the reset
+      ansible.builtin.command: >-
+        docker exec reset_app_c_backup_sim sh -c "ls -A /backup/reset_app_b_cache"
+      register: compose_reset_c_mount_after
+      changed_when: false
+      failed_when: compose_reset_c_mount_after.stdout | trim | length > 0

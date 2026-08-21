@@ -28,28 +28,13 @@ def read(path: Path) -> str:
 
 
 def check_readme() -> None:
-    """Every role/playbook has an entry in README's Repository Layout
-    tree; every docs/*.md file is linked somewhere in README.md; every
+    """Every docs/*.md file is linked somewhere in README.md; every
     docs/*.md link in README.md resolves to a real file. Substring
     matching, not table parsing — cheap, and false positives (a name
     coincidentally appearing elsewhere) are the safe failure mode here,
     not false negatives.
     """
     readme = read(ROOT / "README.md")
-
-    tree_match = re.search(r"```\n\.\n(.*?)```", readme, re.DOTALL)
-    if not tree_match:
-        fail("README: couldn't find the Repository Layout tree block")
-        return
-    tree = tree_match.group(1)
-
-    for role_dir in sorted((ROOT / "ansible/roles").iterdir()):
-        if role_dir.is_dir() and role_dir.name not in tree:
-            fail(f"README tree: missing ansible/roles/{role_dir.name}/")
-
-    for pb in sorted((ROOT / "ansible/playbooks").glob("*.yaml")):
-        if pb.name not in tree:
-            fail(f"README tree: missing ansible/playbooks/{pb.name}")
 
     for doc in sorted((ROOT / "docs").glob("*.md")):
         if f"docs/{doc.name}" not in readme:
@@ -58,6 +43,37 @@ def check_readme() -> None:
     for link in re.findall(r"docs/[\w-]+\.md", readme):
         if not (ROOT / link).is_file():
             fail(f"README: links {link}, which doesn't exist")
+
+
+def check_ansible_reference() -> None:
+    """docs/ansible.md's Playbooks table lists every ansible/playbooks/*.yaml
+    file; its Roles table lists every ansible/roles/*/ directory. Same
+    presence-only matching as check_readme() used to do against README's
+    tree, before that moved here.
+    """
+    doc = read(ROOT / "docs/ansible.md")
+
+    pb_section = re.search(r"## Playbooks\n\n(.*?)\n\n", doc, re.DOTALL)
+    if not pb_section:
+        fail("ansible.md: couldn't find the ## Playbooks table")
+    else:
+        documented = set(re.findall(r"^\| `playbooks/([\w.-]+)`", pb_section.group(1), re.MULTILINE))
+        actual = {pb.name for pb in (ROOT / "ansible/playbooks").glob("*.yaml")}
+        for pb in sorted(actual - documented):
+            fail(f"ansible.md Playbooks table: missing a row for ansible/playbooks/{pb}")
+        for pb in sorted(documented - actual):
+            fail(f"ansible.md Playbooks table: documents playbooks/{pb}, which doesn't exist")
+
+    roles_section = re.search(r"## Roles\n\n(.*?)\n\n", doc, re.DOTALL)
+    if not roles_section:
+        fail("ansible.md: couldn't find the ## Roles table")
+    else:
+        documented = set(re.findall(r"^\| `([\w]+)`", roles_section.group(1), re.MULTILINE))
+        actual = {d.name for d in (ROOT / "ansible/roles").iterdir() if d.is_dir()}
+        for role in sorted(actual - documented):
+            fail(f"ansible.md Roles table: missing a row for ansible/roles/{role}/")
+        for role in sorted(documented - actual):
+            fail(f"ansible.md Roles table: documents role '{role}', which doesn't exist")
 
 
 def check_molecule_matrix() -> None:
@@ -146,8 +162,8 @@ def check_ci_jobs_table() -> None:
     documented = set(re.findall(r"^\| `([\w-]+)`", section.group(1), re.MULTILINE))
 
     # detect-changes is internal plumbing (feeds other jobs' outputs, not
-    # itself a check); trivy-scan has its own dedicated "## Trivy
-    # security scans" section below instead of a Jobs table row.
+    # itself a check); trivy-scan is documented in security-scanning.md
+    # instead of a Jobs table row.
     allowed_undocumented = {"detect-changes", "trivy-scan"}
 
     for job in sorted(job_ids - documented - allowed_undocumented):
@@ -158,6 +174,7 @@ def check_ci_jobs_table() -> None:
 
 def main() -> int:
     check_readme()
+    check_ansible_reference()
     check_molecule_matrix()
     check_deploy_flow()
     check_ci_jobs_table()

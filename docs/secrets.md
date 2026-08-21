@@ -89,18 +89,13 @@ redeploy sequence in [`beszel.md`](beszel.md).
 secret, gitignored, never committed. Target hosts only ever receive the
 rendered config the value ends up in.
 
-**Rotating a credential**: delete the file under `ansible/files/secrets/`,
-then redeploy every host that renders a config depending on it. Since the
-per-host SeaweedFS identity redesign
-([`disaster-recovery.md`](disaster-recovery.md)), each `seaweedfs-s3-*-key-<host>`
-is independent — rotating `services`' key only needs `storage` (identity
-config) and `services` redeployed, not `security`/`play` too (either
-order, but both are required or the S3 client and server will disagree).
-`seaweedfs-s3-*-key-admin` (bucket creation only) and
-`seaweedfs-s3-*-key-cloud-sync-reader` (`cloud_sync`'s own relay-outward
-reads) both only need `storage` — both live entirely on that one host.
-Single-host secrets (`lldap`'s three, `shlink`'s API key) just need that
-host redeployed.
+**Rotating a credential**: see [`secrets-rotation.md`](secrets-rotation.md)
+for the `rotate-secret.yaml` playbook and exactly which host(s) each
+secret needs redeployed — the per-host SeaweedFS identity keys in
+particular need both the owning host *and* `storage` redeployed, not
+just one, since SeaweedFS's own identity config
+([`disaster-recovery.md`](disaster-recovery.md)) is rendered on
+`storage` but pulls each host's key in via `hostvars`.
 
 ## Why S3 credentials need a controller-side cache
 
@@ -141,7 +136,5 @@ in-UI config editor (`data/conf.yml`) is ever used — see the comment on
 secret, but it's also consumed by the `lldap_bootstrap` role
 (`deploy.yaml`'s Play 7), which sets it as the lldap `observer`
 account's real password via lldap's own `bootstrap.sh` — see
-[`lldap.md`](lldap.md#bootstrapping-the-observer-account). Rotating it
-is the same as any other secret (see "Rotating a credential" above):
-delete the cache file and redeploy `security` — Play 7 updates the
-existing account in place, no manual web-UI step required.
+[`lldap.md`](lldap.md#bootstrapping-the-observer-account). See
+[`secrets-rotation.md`](secrets-rotation.md) for rotating it.

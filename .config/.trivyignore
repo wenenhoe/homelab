@@ -1,5 +1,5 @@
 # Accepted-risk findings for Trivy's ansible-misconfig/secret scans —
-# see docs/ci.md#trivy-security-scans. One shared file, referenced by
+# see docs/security-scanning.md#trivy-security-scans. One shared file, referenced by
 # both scan jobs' `trivyignores:` input via its .config/ path — same
 # location as this repo's other tool configs (.ansible-lint, .yamllint,
 # .dclintrc).

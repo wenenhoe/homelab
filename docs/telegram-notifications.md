@@ -1,7 +1,7 @@
 # Telegram Notifications
 
 One bot, one group chat with [Topics](https://telegram.org/blog/topics-in-groups-collectible-usernames)
-enabled, a different topic per concern. Six consumers today: two share
+enabled, a different topic per concern. Two consumers share
 the Backups topic since they're the two halves of the same
 disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)),
 and two share the Certs topic since they're both certificate-lifecycle

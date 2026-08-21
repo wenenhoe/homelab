@@ -3,7 +3,7 @@ name: Trivy scan (reusable)
 # Shared scan logic for pr-checks.yml (change-scoped) and
 # trivy-scheduled.yml (weekly, unscoped) — same workflow_call pattern as
 # _compose-boot-test.yml, one copy of the scan steps instead of two
-# drifting by hand. See docs/ci.md#trivy-security-scans.
+# drifting by hand. See docs/security-scanning.md#trivy-security-scans.
 #
 # Image CVE scanning and the Vulnerability Dashboard (_trivy-dashboard.yml)
 # that aggregated it used to live here too, in a few different forms —
@@ -13,7 +13,7 @@ name: Trivy scan (reusable)
 # repo could act on regardless of where the scan ran, how often, or how
 # results were displayed. Ansible misconfig and secrets stay because a
 # finding in either is something this repo actually controls and would
-# fix. See docs/ci.md#trivy-security-scans for the full reasoning.
+# fix. See docs/security-scanning.md#trivy-security-scans for the full reasoning.
 
 on:  # yamllint disable-line rule:truthy
   workflow_call:
@@ -45,7 +45,7 @@ jobs:
     # of this repo's real task content. Job-level (not step-level) so it
     # reaches the trivy-action composite's own process regardless of
     # composite-action env-inheritance behavior. See
-    # docs/ci.md#trivy-security-scans.
+    # docs/security-scanning.md#trivy-security-scans.
     env:
       DEFAULT_ROLES_PATH: ${{ github.workspace }}/ansible/roles
     permissions:
@@ -97,7 +97,7 @@ jobs:
           trivy-config: /tmp/trivy-ansible.yaml
           format: sarif
           output: trivy-ansible-misconfig.sarif
-          exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
+          exit-code: '0' # report-only for now — see docs/security-scanning.md#trivy-security-scans
           trivyignores: .config/.trivyignore
 
       - name: Upload SARIF
@@ -124,7 +124,7 @@ jobs:
           scanners: secret
           format: sarif
           output: trivy-secrets.sarif
-          exit-code: '0' # report-only for now — see docs/ci.md#trivy-security-scans
+          exit-code: '0' # report-only for now — see docs/security-scanning.md#trivy-security-scans
           trivyignores: .config/.trivyignore
 
       - name: Upload SARIF

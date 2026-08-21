@@ -101,11 +101,11 @@ One scenario of one role, without `cd`-ing into it:
 ```
 
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
-scenario glob doesn't recurse into `roles/*/molecule/*/`, and 17 of this
-repo's 37 scenarios share the name `default`, which a recursive glob
-would reject as a collision. `molecule-test-all.sh` runs `molecule test
---all` once per role directory instead, so each invocation only sees that
-role's own unique scenario names.
+scenario glob doesn't recurse into `roles/*/molecule/*/`, and many
+scenarios across different roles share the name `default`, which a
+recursive glob would reject as a collision. `molecule-test-all.sh` runs
+`molecule test --all` once per role directory instead, so each
+invocation only sees that role's own unique scenario names.
 
 ## `molecule_helpers`
 

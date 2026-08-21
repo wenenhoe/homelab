@@ -1,6 +1,6 @@
 # Disaster Recovery — Off-host and Cloud Backups
 
-A separate VM (`storage`, `192.168.20.6`) runs
+A separate VM (`storage`) runs
 [SeaweedFS](https://github.com/seaweedfs/seaweedfs) as a self-hosted
 S3-compatible target. One [`offen/docker-volume-backup`](https://github.com/offen/docker-volume-backup)
 agent per host (`backup_agent` role) pushes GPG-encrypted archives of

@@ -174,14 +174,15 @@ for what the report actually measures.
 A role with no entry in `thresholds.yaml` fails the check (exit 2, not a
 silent pass) - a new role needs a deliberate floor, not an inherited
 default. Every floor is hand-verified against a real run, not a guess -
-the three below 100% are legitimate, understood gaps rather than
-untested code:
+the below-100% floors are legitimate, understood gaps rather than
+untested code (see [`thresholds.yaml`](../ansible/molecule-coverage/thresholds.yaml)
+for the current values):
 
-- `apt` (75%) - the reboot-if-required task needs rebooting the test
+- `apt` - the reboot-if-required task needs rebooting the test
   container itself to exercise.
-- `bind9` (94.4%) - the resolv.conf-upstream task needs a pre-existing
+- `bind9` - the resolv.conf-upstream task needs a pre-existing
   non-upstream resolv.conf to be worth simulating.
-- `restore` (92.9%) - the interactive confirmation prompt is bypassed on
+- `restore` - the interactive confirmation prompt is bypassed on
   purpose in every scenario, to test the rest of the role
   non-interactively.
 

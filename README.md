@@ -47,6 +47,7 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 │   │   ├── restore.yaml          # Stage 1 DR: restore one app's volume(s)
 │   │   ├── volume-file-rm.yaml   # Remove specific named file(s) from a volume in place
 │   │   ├── volume-reset.yaml     # Wipe a volume and recreate it from seeded config only
+│   │   ├── rotate-secret.yaml    # Delete one generated secret's cached value
 │   │   ├── bootstrap-secrets.yaml# Leading play deploy.yaml/restore.yaml import for secrets
 │   │   └── ci_boot_test.yaml     # CI-only: seeds one app for the compose boot-test job
 │   ├── inventory/
@@ -132,6 +133,7 @@ test scaffolding, not a deployed app.
 | [`docs/cloud-sync.md`](docs/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
 | [`docs/volume-maintenance.md`](docs/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
 | [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
+| [`docs/secrets-rotation.md`](docs/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
 
 ### Testing & CI
 
@@ -219,6 +221,7 @@ Two inventories exist for two different situations:
 | `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted offsite backup archive (stage 1 DR). See [`docs/disaster-recovery.md`](docs/disaster-recovery.md). |
 | `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`docs/volume-maintenance.md`](docs/volume-maintenance.md). |
 | `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`docs/volume-maintenance.md`](docs/volume-maintenance.md). |
+| `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Deletes one generated secret's cached value, so the next `deploy.yaml` run regenerates it. Doesn't redeploy anything itself. See [`docs/secrets-rotation.md`](docs/secrets-rotation.md). |
 
 ## Basic Commands
 

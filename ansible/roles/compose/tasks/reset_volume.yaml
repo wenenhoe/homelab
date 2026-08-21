@@ -27,6 +27,43 @@
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
     state: absent
 
+# Any OTHER container still referencing this volume (backup_agent mounts
+# every backed-up app's volumes read-only into its own always-running
+# container) blocks the delete below with a 409 "volume is in use" even
+# with the app's own container already gone above — confirmed live
+# against backup_agent's lldap_certs mount. Stopping alone doesn't
+# release the reference either, same reasoning as the teardown above —
+# so whichever compose project(s) those containers belong to get torn
+# down here too, and brought back at the very end once the volume is
+# safe again. A blocker with no compose project label (an unmanaged,
+# hand-run container) falls through this and hits the same 409 the
+# delete task always produced — that's an acceptable fallback for a
+# situation this role has no safe way to resolve on its own.
+- name: "Find any other containers still referencing this volume ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
+  ansible.builtin.command:
+    cmd: >-
+      docker ps -a
+      --filter volume={{ compose_app_item.name }}_{{ compose_volume_item.name }}
+      --format {% raw %}'{{ .Label "com.docker.compose.project" }}'{% endraw %}
+  register: compose_reset_volume_blocking_raw
+  changed_when: false
+
+- name: "Reduce that to the distinct compose projects to tear down and restore"
+  ansible.builtin.set_fact:
+    compose_reset_volume_blocking_projects: >-
+      {{ compose_reset_volume_blocking_raw.stdout_lines
+         | reject('equalto', '')
+         | reject('equalto', compose_app_item.name)
+         | unique | list }}
+
+- name: "Tear down every other project still referencing this volume"
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ item }}"
+    state: absent
+  loop: "{{ compose_reset_volume_blocking_projects }}"
+  loop_control:
+    label: "{{ item }}"
+
 # docker_volume below fails with "volume is in use" if any container -
 # running OR stopped - still references it; only removing the container
 # (state: absent above, not stopped) releases that reference. compose's
@@ -58,3 +95,11 @@
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
     state: present
+
+- name: "Recreate every other project that referenced this volume"
+  community.docker.docker_compose_v2:
+    project_src: "{{ compose_deploy_dir }}/{{ item }}"
+    state: present
+  loop: "{{ compose_reset_volume_blocking_projects }}"
+  loop_control:
+    label: "{{ item }}"

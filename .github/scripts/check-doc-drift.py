@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Checks a handful of docs/README sections against the files they
-describe, so an added/removed role, playbook, scenario, or CI job can't
-silently drift out of sync with what documents it.
+describe, so an added/removed role, playbook, scenario, CI job, or
+cross-doc link can't silently drift out of sync with what documents it.
 
 Narrow presence/shape checks only, deliberately not content-equality —
 see each check's docstring for what it does and doesn't catch, and
@@ -17,6 +17,13 @@ import yaml
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
+
+ANCHOR_SCAN_EXTS = {".md", ".yml", ".yaml", ".py"}
+ANCHOR_SCAN_EXTRA_NAMES = {".trivyignore"}
+ANCHOR_SCAN_EXCLUDE_DIRS = {".git", "node_modules", ".venv"}
+
+CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
+SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")
 
 
 def fail(msg: str) -> None:
@@ -172,12 +179,89 @@ def check_ci_jobs_table() -> None:
         fail(f"ci.md Jobs table: documents '{job}', which isn't a job in pr-checks.yml")
 
 
+def _slugify(heading: str) -> str:
+    """Approximates GitHub's heading-to-anchor algorithm: lowercase,
+    drop anything that isn't a word char/space/hyphen, then turn every
+    individual whitespace char into its own hyphen (consecutive spaces
+    stay separate hyphens, they don't collapse into one).
+    """
+    text = heading.strip().lower()
+    text = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE)
+    return re.sub(r"\s", "-", text)
+
+
+def _heading_slugs(path: Path) -> set[str]:
+    slugs: set[str] = set()
+    seen: dict[str, int] = {}
+    for line in read(path).splitlines():
+        m = re.match(r"^#{1,6}\s+(.+)$", line)
+        if not m:
+            continue
+        base = _slugify(m.group(1))
+        n = seen.get(base, 0)
+        seen[base] = n + 1
+        slugs.add(base if n == 0 else f"{base}-{n}")
+    return slugs
+
+
+def _resolve_anchor_target(referencing: Path, rel: str) -> Path | None:
+    """docs/*.md files reference each other by bare filename (relative
+    to docs/); everything else references docs by their docs/-prefixed
+    path (relative to repo root). Try both.
+    """
+    for base in (referencing.parent, ROOT):
+        candidate = (base / rel).resolve()
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def check_no_stale_anchors() -> None:
+    """Every cross-file `#anchor` reference anywhere in the repo
+    (markdown links or plain-text mentions in YAML/Python comments)
+    resolves to a real file with a heading that slugs to that anchor;
+    every same-file link (just `#anchor`, no filename) in a .md file
+    does too. Catches the class of bug a file move/rename/split leaves
+    behind — a reference nothing else here checks for.
+    """
+    heading_cache: dict[Path, set[str]] = {}
+
+    def slugs_for(path: Path) -> set[str]:
+        if path not in heading_cache:
+            heading_cache[path] = _heading_slugs(path)
+        return heading_cache[path]
+
+    for f in sorted(ROOT.rglob("*")):
+        if not f.is_file():
+            continue
+        if any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts):
+            continue
+        if f.suffix not in ANCHOR_SCAN_EXTS and f.name not in ANCHOR_SCAN_EXTRA_NAMES:
+            continue
+
+        text = re.sub(r"https?://\S+", "", read(f))  # don't chase external URLs
+        rel_f = f.relative_to(ROOT)
+
+        for rel, anchor in CROSS_FILE_ANCHOR_RE.findall(text):
+            target = _resolve_anchor_target(f, rel)
+            if target is None:
+                fail(f"{rel_f}: references {rel}#{anchor}, which doesn't resolve to a real file")
+            elif anchor not in slugs_for(target):
+                fail(f"{rel_f}: references {rel}#{anchor}, but {rel} has no heading that slugs to '{anchor}'")
+
+        if f.suffix == ".md":
+            for anchor in SAME_FILE_ANCHOR_RE.findall(text):
+                if anchor not in slugs_for(f):
+                    fail(f"{rel_f}: references #{anchor} (same-file), but has no heading that slugs to '{anchor}'")
+
+
 def main() -> int:
     check_readme()
     check_ansible_reference()
     check_molecule_matrix()
     check_deploy_flow()
     check_ci_jobs_table()
+    check_no_stale_anchors()
 
     if errors:
         for e in errors:

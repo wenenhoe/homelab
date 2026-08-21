@@ -5,7 +5,7 @@
 # Telegram's Bot API directly (the direct-curl address shape, not
 # shoutrrr's chat:topic string — see docs/telegram-notifications.md).
 # Deliberately does not reload systemd or notify a handler itself (see
-# docs/telegram-notifications.md#adding-a-consumer) — the caller reloads
+# docs/telegram-notifications.md#wiring-it-into-this-repo) — the caller reloads
 # using the changed results registered below, so this role never
 # depends on a same-named handler existing in whatever play includes it.
 #

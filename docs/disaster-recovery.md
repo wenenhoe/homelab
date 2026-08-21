@@ -147,6 +147,12 @@ ever turns up a corrupt SQLite/LDAP file for `wastebin`/`lldap`, add
 `stop_during_backup: true` and the matching compose label (see
 Architecture above) rather than assuming it's needed by default.
 
+For the same reason, `minecraft` also sets `backup.compression: none` —
+`itzg/mc-backup` already gzips the archive `backup_agent` mounts, so
+`backup_agent`'s own default `gz` pass would just be re-compressing an
+already-compressed file for no size benefit. Every other app above uses
+the `gz` default since their sources are raw, uncompressed volume data.
+
 **Migration note:** every app host previously also pushed directly to
 R2/B2/OCI (a design this doc's Threat model section replaces). Any
 objects already sitting in those buckets from that period are now

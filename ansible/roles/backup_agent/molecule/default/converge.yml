@@ -87,11 +87,21 @@
           - name: certs
         backup:
           volumes: [data, certs]
+      # Mirrors minecraft's real backup.compression: none — its source
+      # volume is already gzipped upstream (see app_registry.yaml),
+      # so the schedule must skip a redundant second compression pass.
+      happy_app_precompressed:
+        volumes:
+          - name: data
+        backup:
+          volumes: [data]
+          compression: none
     compose_apps:
       - name: happy_app_stop
       - name: happy_app_nostop
       - name: happy_app_no_backup
       - name: happy_app_multivol
+      - name: happy_app_precompressed
   tasks:
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
@@ -101,7 +111,7 @@
     # Mirrors Play 4 running before Play 5 in the real deploy.yaml —
     # backup_agent's compose.yaml references these apps' volumes as
     # `external: true`, requiring them to already exist.
-    - name: Deploy the three synthetic "source" apps so their volumes/containers exist
+    - name: Deploy the synthetic "source" apps so their volumes/containers exist
       ansible.builtin.include_role:
         name: compose_app
 

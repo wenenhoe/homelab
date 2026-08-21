@@ -220,6 +220,10 @@ app_registry:
       # Never `data` (risks a mid-write world file) or bluemap_*/extras
       # (regenerable render cache / Ansible-managed — see docs/volumes.md).
       volumes: [backups]
+      # itzg/mc-backup already gzips this volume's contents itself, so a
+      # second gzip pass here would just be compressing a .tar.gz again
+      # for no size benefit — see docs/disaster-recovery.md.
+      compression: none
       # Overrides cloud_sync_default_targets (group_vars/all/main.yaml)
       # — additional clouds beyond SeaweedFS only; SeaweedFS itself is
       # never listed here, it's implicit for every backed-up app. See

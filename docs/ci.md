@@ -121,7 +121,7 @@ job runs the real playbooks through the uv-managed `ansible-core`, so an
 
 `restore.yaml` gets a second, separate step: it can't import
 `bootstrap-secrets.yaml` as a leading play the way `deploy.yaml` does
-(see [`disaster-recovery.md`](disaster-recovery.md#restore)), so this
+(see [`restore.md`](restore.md)), so this
 step is the regression check for that two-file invocation pattern
 specifically — not for `restore`'s own validation logic, which
 [Molecule](molecule-testing.md) already covers. It deliberately points

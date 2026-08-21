@@ -1,5 +1,10 @@
 # VM Provisioning: Proxmox via OpenTofu
 
+**Status: planned, not yet implemented.** No OpenTofu code exists in
+this repo yet — this is the design record for the scheme it'll follow,
+written ahead of the work so the boundary with Ansible is settled
+before any code lands. Nothing below is running today.
+
 OpenTofu owns everything up to "the VM exists, boots, and can be reached
 over SSH with the right network config." Ansible's job starts there,
 unchanged from today. This doc is the decision record for that boundary

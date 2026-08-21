@@ -71,7 +71,12 @@ test scaffolding, not a deployed app.
 | [`docs/volumes.md`](docs/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
 | [`docs/host-vars.md`](docs/host-vars.md) | `host_vars/<host>.yaml` field reference. |
 | [`docs/adding-an-app.md`](docs/adding-an-app.md) | Wiring a new Compose app into the registry. |
-| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP scheme, OPNsense, migration staging. |
+
+### Planned, not yet implemented
+
+| Doc | Covers |
+| :--- | :--- |
+| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP scheme, OPNsense, migration staging. No OpenTofu code exists in this repo yet. |
 
 ### Per-app infra
 

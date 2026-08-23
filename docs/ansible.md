@@ -39,6 +39,7 @@ play-by-play and role responsibilities during a deploy, see
 | `lldap_cert` | Issues/renews lldap's LDAPS cert from step-ca. |
 | `telegram_notify` | Shared library role: direct-curl Telegram alert unit. |
 | `telegram_topic_pins` | Shared library role: posts/pins a static per-topic header message, control-node-only. |
+| `uptime_kuma_push` | Shared library role: direct-curl unit for a job's Uptime Kuma push-monitor URL. |
 | `tinyauth_ca_trust` | Builds the CA bundle tinyauth needs to trust step-ca-issued certs. |
 | `tinyauth` | Molecule-only: deploys tinyauth for real in its own scenario. |
 | `backup_agent` | Per-host offsite backup aggregation (stage 1 DR). |

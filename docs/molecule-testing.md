@@ -32,6 +32,7 @@ result, then re-converges to check idempotence — mirroring what
 | | `no_routed_apps` | The guard clause fires before anything Docker/Caddy-related runs, so this needs no privileged/Docker-in-Docker driver at all (same lightweight shape as `apt`'s own scenario) — a host whose `compose_apps` has no `caddy:` route at all, confirming the role fails loudly naming the missing route rather than proceeding with nothing to check. |
 | `telegram_notify` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through whatever role includes it: `caddy_cert_expiry` above, `lldap_cert`, and `cloud_sync` (see `docs/telegram-notifications.md`). |
 | `telegram_topic_pins` | *(none)* | Library role, control-node-only (`hosts: localhost` in `playbooks/pin-telegram-topics.yaml`) — nothing here to containerize in Molecule's per-host model. |
+| `uptime_kuma_push` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through whatever role includes it: `cloud_sync` today (see `docs/uptime-kuma.md`). |
 | `bind9` | `default` | Zone-file aggregation/rendering/reload against a single self-hosting instance. |
 | `seaweedfs_bucket` | `default` | Bucket doesn't exist → role creates it against a real throwaway SeaweedFS target, verified by listing the bucket after. |
 | | `wrong_credentials` | Mismatched credentials must fail loudly, not get swallowed by `BucketAlreadyExists` tolerance. |

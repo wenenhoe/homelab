@@ -143,6 +143,26 @@ a placeholder that isn't shaped like one.
   different cert. Threshold is `caddy_cert_expiry_threshold_days`
   (default 30).
 
+## Pinned topic headers
+
+`ansible-playbook ansible/playbooks/pin-telegram-topics.yaml` posts one
+static header message per topic in the table above and pins it, so
+opening the group shows what each topic is for without scrolling.
+Control-node-only (`hosts: localhost`) — nothing to do with any managed
+host. Safe to re-run: each topic's pinned `message_id` is cached in
+`ansible/files/telegram-pins/` (gitignored, same convention as
+`ansible/files/secrets/`) and skipped on later runs, since Telegram's
+API has no per-topic "already pinned?" query to check against instead.
+The bot needs the **Pin Messages** admin right in the group for this,
+in addition to the admin right the setup steps above already require.
+
+To change the wording or add a topic, edit the `telegram_topic_pins`
+list in the playbook directly — there's no separate vars file for it.
+
+This covers the header only; it doesn't build the live status pin
+(edited in place with each topic's latest state) — that's a separate,
+larger change to every notifier above, not implemented here.
+
 ## Verifying it actually delivers
 
 Molecule (`ansible/roles/lldap_cert/molecule/default`,

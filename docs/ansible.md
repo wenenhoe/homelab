@@ -17,6 +17,7 @@ play-by-play and role responsibilities during a deploy, see
 | `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`volume-maintenance.md`](volume-maintenance.md). |
 | `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Deletes one generated secret's cached value, so the next `deploy.yaml` run regenerates it. Doesn't redeploy anything itself. See [`secrets-rotation.md`](secrets-rotation.md). |
 | `playbooks/bootstrap-secrets.yaml` | none — `hosts: localhost` | Leading play imported by `deploy.yaml`/`restore.yaml` to resolve `secrets_registry.yaml`. See [`secrets.md`](secrets.md). |
+| `playbooks/pin-telegram-topics.yaml` | none — `hosts: localhost` | Pins a static header message in each Telegram forum topic. See [`telegram-notifications.md`](telegram-notifications.md). |
 | `playbooks/ci_boot_test.yaml` | `ci-inventory/` | CI-only: seeds one app for the compose boot-test job. See [`ci.md`](ci.md). |
 
 ## Roles
@@ -37,6 +38,7 @@ play-by-play and role responsibilities during a deploy, see
 | `step_ca_client` | Shared prerequisite: caches step-ca's root cert on the host. |
 | `lldap_cert` | Issues/renews lldap's LDAPS cert from step-ca. |
 | `telegram_notify` | Shared library role: direct-curl Telegram alert unit. |
+| `telegram_topic_pins` | Shared library role: posts/pins a static per-topic header message, control-node-only. |
 | `tinyauth_ca_trust` | Builds the CA bundle tinyauth needs to trust step-ca-issued certs. |
 | `tinyauth` | Molecule-only: deploys tinyauth for real in its own scenario. |
 | `backup_agent` | Per-host offsite backup aggregation (stage 1 DR). |

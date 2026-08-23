@@ -1,0 +1,95 @@
+---
+# One-time, control-node-only: posts a static header message into a
+# forum topic and pins it, then caches the resulting message_id under
+# ansible/files/telegram-pins/ (gitignored, same convention as
+# ansible/files/secrets/) so re-running this doesn't post/pin a new
+# header on top of the existing one.
+#
+# Telegram's Bot API has no per-topic "is this already pinned" query —
+# getChat only ever returns the whole chat's single most recent pinned
+# message, not one per forum topic (core.telegram.org/bots/api,
+# ChatFullInfo.pinned_message) — so the cache file, not a live API
+# check, is what makes this idempotent.
+#
+# Required vars (set by the including playbook - see
+# ansible/playbooks/pin-telegram-topics.yaml):
+#   telegram_pin_key      short slug used as the cache filename (e.g. "updates")
+#   telegram_pin_topic_id raw telegram_topic_id_* value for this topic
+#   telegram_pin_text     the header message text (legacy Markdown)
+
+- name: Fail loudly if a required telegram_pin_* var is missing
+  ansible.builtin.assert:
+    that:
+      - telegram_pin_key is defined
+      - telegram_pin_topic_id is defined
+      - telegram_pin_text is defined
+    fail_msg: >-
+      pin.yaml needs telegram_pin_key, _topic_id, and _text all set by
+      the including playbook - see
+      ansible/playbooks/pin-telegram-topics.yaml.
+
+- name: "Skip {{ telegram_pin_key }} - no topic ID configured yet"
+  ansible.builtin.debug:
+    msg: >-
+      telegram_topic_id_{{ telegram_pin_key }} is blank (Topics not set
+      up for this concern yet, see docs/telegram-notifications.md) -
+      nothing to pin.
+  when: telegram_pin_topic_id | length == 0
+
+- name: Ensure the pin-state cache directory exists
+  ansible.builtin.file:
+    path: "{{ project_root }}/ansible/files/telegram-pins"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  when: telegram_pin_topic_id | length > 0
+
+- name: "Check whether {{ telegram_pin_key }}'s header is already pinned"
+  ansible.builtin.stat:
+    path: "{{ project_root }}/ansible/files/telegram-pins/{{ telegram_pin_key }}"
+  register: telegram_pin_cache
+  delegate_to: localhost
+  become: false
+  when: telegram_pin_topic_id | length > 0
+
+- name: "Post {{ telegram_pin_key }}'s header message"
+  ansible.builtin.uri:
+    url: "https://api.telegram.org/bot{{ telegram_token }}/sendMessage"
+    method: POST
+    body_format: json
+    body:
+      chat_id: "{{ telegram_chat_id }}"
+      message_thread_id: "{{ telegram_pin_topic_id }}"
+      text: "{{ telegram_pin_text }}"
+      parse_mode: Markdown
+    status_code: 200
+  register: telegram_pin_send
+  delegate_to: localhost
+  become: false
+  no_log: true
+  when: telegram_pin_topic_id | length > 0 and not telegram_pin_cache.stat.exists
+
+- name: "Pin {{ telegram_pin_key }}'s header message"
+  ansible.builtin.uri:
+    url: "https://api.telegram.org/bot{{ telegram_token }}/pinChatMessage"
+    method: POST
+    body_format: json
+    body:
+      chat_id: "{{ telegram_chat_id }}"
+      message_id: "{{ telegram_pin_send.json.result.message_id }}"
+      disable_notification: true
+    status_code: 200
+  delegate_to: localhost
+  become: false
+  no_log: true
+  when: telegram_pin_topic_id | length > 0 and not telegram_pin_cache.stat.exists
+
+- name: "Cache {{ telegram_pin_key }}'s pinned message_id"
+  ansible.builtin.copy:
+    dest: "{{ project_root }}/ansible/files/telegram-pins/{{ telegram_pin_key }}"
+    content: "{{ telegram_pin_send.json.result.message_id }}\n"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  when: telegram_pin_topic_id | length > 0 and not telegram_pin_cache.stat.exists

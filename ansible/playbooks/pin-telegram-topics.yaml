@@ -1,0 +1,55 @@
+---
+# One-time control-node action: pins a static header message in each
+# Telegram forum topic listed in docs/telegram-notifications.md's
+# table. Safe to re-run — already-pinned topics are skipped (see
+# ansible/roles/telegram_topic_pins/tasks/pin.yaml).
+#
+# Usage: ansible-playbook ansible/playbooks/pin-telegram-topics.yaml
+
+- name: Secrets
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Include secrets role
+      ansible.builtin.include_role:
+        name: secrets
+
+- name: Pin Telegram topic headers
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    telegram_topic_pins:
+      - key: updates
+        topic_id: "{{ telegram_topic_id_updates }}"
+        text: |-
+          📦 *Image Updates*
+          Diun alerts when a container image has a newer version available.
+      - key: monitoring
+        topic_id: "{{ telegram_topic_id_monitoring }}"
+        text: |-
+          📈 *Monitoring*
+          Beszel host/container alerts (CPU, RAM, disk, uptime).
+      - key: backups
+        topic_id: "{{ telegram_topic_id_backups }}"
+        text: |-
+          💾 *Backups*
+          docker-volume-backup job failures and cloud-sync relay failures.
+      - key: certs
+        topic_id: "{{ telegram_topic_id_certs }}"
+        text: |-
+          🔐 *Certs*
+          lldap cert-renewal failures and Caddy cert-expiry check failures.
+  tasks:
+    - name: Pin topic header
+      ansible.builtin.include_role:
+        name: telegram_topic_pins
+        tasks_from: pin.yaml
+      vars:
+        telegram_pin_key: "{{ item.key }}"
+        telegram_pin_topic_id: "{{ item.topic_id }}"
+        telegram_pin_text: "{{ item.text }}"
+      loop: "{{ telegram_topic_pins }}"
+      loop_control:
+        label: "{{ item.key }}"

@@ -20,6 +20,9 @@ tinyauth_host: sso
 beszel_hub_host: beszel
 beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_domain }}"
 
+uptime_kuma_host: uptime-kuma
+uptime_kuma_url: "https://{{ uptime_kuma_host }}.{{ hostvars['security'].caddy_domain }}"
+
 # Every value below is sourced from secrets_generated (secrets role, Play 0
 # of deploy.yaml), driven by secrets_registry.yaml. See docs/secrets.md.
 # New entry: add to secrets_registry.yaml, then a line here referencing

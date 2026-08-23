@@ -52,6 +52,11 @@ compose_apps:
       default:
         host: "{{ beszel_hub_host }}"
 
+  - name: uptime-kuma
+    caddy:
+      default:
+        host: "{{ uptime_kuma_host }}"
+
   - name: beszel-agent
 
   - name: diun

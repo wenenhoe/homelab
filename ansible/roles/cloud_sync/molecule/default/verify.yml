@@ -69,11 +69,12 @@
         - /etc/systemd/system/cloud-sync.service
         - /etc/systemd/system/cloud-sync.timer
         - /etc/systemd/system/telegram-notify-cloud-sync.service
+        - /etc/systemd/system/uptime-kuma-push-cloud-sync.service
 
     - name: Assert on it
       ansible.builtin.assert:
         that:
-          - cloud_sync_unit_files.results | map(attribute='stat.exists') | list == [true, true, true]
+          - cloud_sync_unit_files.results | map(attribute='stat.exists') | list == [true, true, true, true]
 
     - name: Confirm the timer is enabled and active
       # daemon_reload: false is a required-but-inert param here — the
@@ -161,11 +162,13 @@
     # OnFailure= link is actually present, and the templated unit loads
     # and runs cleanly under real systemd rather than just "the file
     # looks right".
-    - name: Confirm cloud-sync.service actually declares the OnFailure link  # noqa: command-instead-of-module
+    - name: Confirm cloud-sync.service actually declares the OnFailure/OnSuccess links  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl cat cloud-sync.service
       register: cloud_sync_verify_onfailure
       changed_when: false
-      failed_when: "'OnFailure=telegram-notify-cloud-sync.service' not in cloud_sync_verify_onfailure.stdout"
+      failed_when: >-
+        'OnFailure=telegram-notify-cloud-sync.service' not in cloud_sync_verify_onfailure.stdout
+        or 'OnSuccess=uptime-kuma-push-cloud-sync.service' not in cloud_sync_verify_onfailure.stdout
 
     - name: Read back telegram-notify-cloud-sync's rendered env file
       ansible.builtin.slurp:
@@ -236,3 +239,46 @@
           — 'failed' here just means curl couldn't reach the real API
           (expected in CI), 'not-found' or 'masked' would mean the unit
           itself is broken.
+
+    # --- uptime-kuma-push-cloud-sync wiring ------------------------------
+    # Same shape as the telegram-notify block above, for the same
+    # reason: no live Kuma instance in CI, so what this confirms is the
+    # OnSuccess= link is present and the templated unit loads and runs
+    # cleanly under real systemd, not a live push delivery.
+    - name: Read back uptime-kuma-push-cloud-sync's rendered env file
+      ansible.builtin.slurp:
+        path: /etc/uptime-kuma-push/uptime-kuma-push-cloud-sync.env
+      register: cloud_sync_verify_push_env_raw
+
+    - name: Confirm it renders an empty URL rather than a template literal (this scenario's uptime_kuma_push_url_cloud_sync is blank)
+      ansible.builtin.assert:
+        that:
+          - (cloud_sync_verify_push_env_raw.content | b64decode | trim) == 'UPTIME_KUMA_PUSH_URL='
+        fail_msg: "Rendered env: {{ cloud_sync_verify_push_env_raw.content | b64decode }}"
+
+    - name: Start uptime-kuma-push-cloud-sync.service directly, as OnSuccess= would  # noqa: command-instead-of-module
+      # Deliberately raw systemctl, same reasoning as the equivalent
+      # telegram-notify-cloud-sync task above: this unit's ExecStart is
+      # expected to fail (blank URL, no real Kuma in CI either way).
+      ansible.builtin.command: systemctl start uptime-kuma-push-cloud-sync.service
+      failed_when: false
+      changed_when: false
+
+    - name: Query the pusher unit's actual state
+      ansible.builtin.systemd_service:
+        name: uptime-kuma-push-cloud-sync.service
+        daemon_reload: false
+      register: cloud_sync_verify_push_state
+
+    - name: Confirm systemd actually loaded and ran the pusher unit (not a syntax/templating error)
+      ansible.builtin.assert:
+        that:
+          - cloud_sync_verify_push_state.status.LoadState == 'loaded'
+          - cloud_sync_verify_push_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          uptime-kuma-push-cloud-sync.service didn't load/run cleanly:
+          LoadState={{ cloud_sync_verify_push_state.status.LoadState | default('?') }}
+          ActiveState={{ cloud_sync_verify_push_state.status.ActiveState | default('?') }}
+          — 'failed' here just means curl had no URL to hit (expected in
+          CI with a blank push URL), 'not-found' or 'masked' would mean
+          the unit itself is broken.

@@ -45,8 +45,21 @@ unlike Beszel's KEY/TOKEN, nothing outside Kuma itself needs to know it.
 
 ## Wiring a job to its push monitor
 
-Not done yet for any job — this is the next step once the monitors above
-exist. **Only `OnSuccess=` pushes to Kuma** (`?status=up`); `OnFailure=`
+**Done for `cloud_sync`.** Its `cloud-sync.service` now carries
+`OnSuccess=uptime-kuma-push-cloud-sync.service` alongside the existing
+`OnFailure=telegram-notify-cloud-sync.service` — see
+`ansible/roles/cloud_sync/tasks/main.yaml` and
+`ansible/roles/uptime_kuma_push/tasks/install.yaml`. The push URL itself
+lives in `secrets_registry.yaml` as `uptime-kuma-push-url-cloud-sync`
+(`allow_blank: true`, same first-deploy-blank-is-fine shape as
+`beszel-hub-key`) — until the "storage — cloud_sync" Push monitor above
+is created and its URL pasted into `ansible/files/secrets/` (or via
+`bootstrap_secrets.py`) and `storage` redeployed, the pusher unit just
+fails harmlessly on its own (`curl: no URL specified`,
+`journalctl -u uptime-kuma-push-cloud-sync`) without affecting
+`cloud-sync.service`'s own result or its existing failure alert.
+
+**Only `OnSuccess=` pushes to Kuma** (`?status=up`); `OnFailure=`
 stays exactly as it is today, going straight to
 `telegram-notify-*`/Telegram, unchanged. Confirmed live on the deployed
 2.5.3: an explicit `?status=down` push doesn't mark a Push monitor Down,
@@ -61,13 +74,13 @@ missing-heartbeat detection (the *normal* path, not the buggy explicit
 one) is still the backstop for a job that fails silently enough that
 even `OnFailure=` never fires (host down, timer masked, unit hung).
 
-Each of `cert-renewer@`, `cert-expiry-check`, and `cloud_sync` needs its
-push URL added as a systemd `Environment=`/curl call alongside its
-existing `OnSuccess=` hook point (new — none of these fire one today,
-only `OnFailure=` exists so far), and `backup_agent`'s
-`docker-volume-backup` instances need a hook (exact mechanism still to be
-confirmed against `docker-volume-backup`'s own docs) that fires only on
-success, for the same reason.
+Still to do: `cert-renewer@` and `cert-expiry-check` need the same
+`OnSuccess=` treatment, and `backup_agent`'s `docker-volume-backup`
+instances need a different mechanism entirely — `NOTIFICATION_LEVEL` is
+one global setting for the whole container, so there's no way to make it
+report every run to Kuma while keeping the existing Telegram alert quiet
+on success only. The exact hook to use instead is still to be confirmed
+against `docker-volume-backup`'s own docs.
 
 ## Runtime config
 

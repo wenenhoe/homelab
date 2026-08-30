@@ -42,7 +42,7 @@ check_app() {
   # it's actually attached to. backup_agent_network_name is discovered
   # in tasks/main.yaml, not hardcoded - the network's actual runtime
   # name isn't simply "backup-agent-net" (see that task's own comment).
-  output=$(docker run --rm --network {{ backup_agent_network_name }} rclone/rclone:1.72 lsf \
+  output=$(docker run --rm --network {{ backup_agent_network_name }} rclone/rclone:1.75 lsf \
     ":s3:{{ offsite_backup_s3_bucket }}/${s3_path}/" \
     --s3-endpoint "{{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}" \
     --s3-access-key-id "{{ seaweedfs_s3_access_key }}" \

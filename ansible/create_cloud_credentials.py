@@ -7,11 +7,18 @@ secrets_registry.yaml — this script is just an automated way to fill
 them in. See docs/cloud-credential-creation.md for the exact grant
 each leg gets, provider-by-provider.
 
-Authenticates to each provider using a rotation-key credential —
-narrower than the account's master credential, created once by
+B2 and OCI authenticate using a rotation-key credential — narrower
+than the account's master credential, created once by
 ansible/create_rotation_keys.py — never the raw master key itself. If
-a rotation-key cache file is missing, this script tells you which
-`create_rotation_keys.py --provider <x>` to run first.
+a rotation-key cache file is missing for either, this script tells you
+which `create_rotation_keys.py --provider <x>` to run first.
+
+R2 has no rotation-key tier at all — confirmed live: Cloudflare
+rejects granting "manage other tokens" permission to any
+API-created token, so there is no delegate credential to cache. R2's
+leg is prompted for the master token directly, in memory only, every
+time it actually needs to create a leg token. See
+docs/cloud-credential-creation.md's R2 section.
 
 Safe to re-run: a credential whose both cache files already exist is
 left untouched, same convention as bootstrap_secrets.py. To rotate one,
@@ -25,6 +32,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
 import sys
 from pathlib import Path
@@ -72,10 +80,25 @@ def create_r2() -> None:
         print("r2: both credentials already cached, skipping")
         return
 
-    token = require_cache_file(
-        "_rotation-key-cloudflare-r2-token",
-        "Run: python3 ansible/create_rotation_keys.py --provider r2",
+    # No cached rotation key for R2 — confirmed live, not a design
+    # choice: Cloudflare rejects granting "manage other tokens"
+    # permission to any token created via the API ("sub-token is not
+    # allowed to have permissions to manage other tokens"), so there is
+    # no way to mint a delegate credential that could stand in for the
+    # master token here the way B2's and OCI's rotation keys do. The
+    # leg tokens below only need R2-specific permissions, not
+    # token-management ones, so they aren't affected by that
+    # restriction — only a credential that could itself mint further
+    # tokens would be. Master token is prompted fresh every time this
+    # actually needs to create a leg token, never cached, same
+    # in-memory-only handling as create_rotation_keys.py.
+    print(
+        "Cloudflare admin token — a Custom Token (NOT the 'Create Additional "
+        "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
+        "permission, scoped to this account (dashboard.cloudflare.com > My "
+        "Profile > API Tokens) — input hidden, held in memory only:"
     )
+    token = getpass.getpass("> ")
     account_id = require_cache_file(
         "cloudflare-r2-account-id",
         "Already required for cloud-sync.md's endpoint — same file, no new step.",
@@ -83,10 +106,13 @@ def create_r2() -> None:
     session = requests.Session()
     session.headers["Authorization"] = f"Bearer {token}"
 
-    groups = session.get(
+    groups_resp = session.get(
         f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/permission_groups",
-    ).json()["result"]
-    group_by_name = {g["name"]: g["id"] for g in groups}
+    ).json()
+    if not groups_resp.get("success"):
+        print(f"r2: listing permission groups failed: {groups_resp.get('errors')}", file=sys.stderr)
+        sys.exit(1)
+    group_by_name = {g["name"]: g["id"] for g in groups_resp["result"]}
 
     resource_key = f"com.cloudflare.edge.r2.bucket.{account_id}_default_{R2_BUCKET}"
 
@@ -97,6 +123,14 @@ def create_r2() -> None:
     for leg, group_name, done in legs:
         if done:
             continue
+        if group_name not in group_by_name:
+            available = ", ".join(sorted(group_by_name))
+            print(
+                f"r2 {leg}: no permission group named {group_name!r} found. "
+                f"Available account-scoped permission groups: {available}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
         group_id = group_by_name[group_name]
         resp = session.post(
             f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
@@ -172,18 +206,34 @@ def create_b2() -> None:
         sys.exit(1)
     bucket_id = buckets[0]["bucketId"]
 
-    # writeFiles without deleteFiles, readFiles without writeFiles — B2's
-    # native capability list treats these as independent grants (confirmed
-    # via b2_list_keys' own documented response examples). No readFiles on
-    # the write leg: NEEDS LIVE VERIFICATION — if rclone copy's
-    # skip-already-copied check turns out to need HeadObject rather than
-    # ListObjectsV2 for existing objects, B2 maps HeadObject to readFiles,
-    # not listFiles, and the nightly run will start failing with 403s.
-    # Verify with: rclone copy --dry-run -vv storage:<path> b2:<bucket>
-    # against a real write-leg key before trusting this in production.
+    # writeFiles without deleteFiles — still holds. deleteFiles is the
+    # one capability genuinely excluded from this key; everything else
+    # here is required for rclone to function at all, not a privilege
+    # choice.
+    #
+    # listAllBucketNames is required here, confirmed live and by
+    # Backblaze's own docs (three separate pages state it) plus a real
+    # rclone issue (rclone/rclone#5020) with this exact symptom: a
+    # bucket-restricted key without it gets a blanket 403 on the
+    # S3-compatible API, even for operations its other capabilities
+    # should allow. listBuckets alone isn't enough for S3-compat access
+    # to a bucket-restricted key — this is unrelated to file-level
+    # capabilities and applies regardless of read/write/delete scope.
+    #
+    # readFiles is required on the write leg too, confirmed live — not
+    # a guess anymore. rclone's S3 backend calls HeadObject on the
+    # destination before every copy, fresh object or not, to decide
+    # skip-vs-upload; it doesn't rely on ListObjectsV2 for this despite
+    # what rclone's own docs suggest. B2 maps HeadObject to readFiles,
+    # not listFiles, so a write leg without readFiles fails outright on
+    # every copy attempt with "operation error S3: HeadObject ... 403",
+    # not just on already-existing objects. This means the write leg
+    # can read backup contents, not just list/write them — the actual
+    # boundary this key still holds is deleteFiles being absent, not
+    # read access.
     legs = [
-        ("write", ["listBuckets", "listFiles", "writeFiles"], write_done),
-        ("read", ["listBuckets", "listFiles", "readFiles"], read_done),
+        ("write", ["listBuckets", "listAllBucketNames", "listFiles", "readFiles", "writeFiles"], write_done),
+        ("read", ["listBuckets", "listAllBucketNames", "listFiles", "readFiles"], read_done),
     ]
     for leg, capabilities, done in legs:
         if done:

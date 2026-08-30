@@ -6,17 +6,25 @@ keys but can't touch backup data itself. ansible/create_cloud_credentials.py
 authenticates with the cached rotation key from here on — the master
 credential is never read by that script.
 
-See docs/cloud-credential-creation.md for what each provider's rotation
-key is actually scoped to (the achievable floor differs a lot by
-provider — R2 and OCI both have real, documented limits on how far this
-can be narrowed, not a uniform "create/delete keys only" guarantee).
+R2 has no provider here at all — confirmed live, not an oversight:
+Cloudflare rejects granting "manage other tokens" permission to any
+token created via the API, so no delegate credential can ever be
+minted for R2. Its master token is prompted directly by
+create_cloud_credentials.py instead, in memory only, every time it's
+actually needed. See docs/cloud-credential-creation.md's R2 section.
+
+See docs/cloud-credential-creation.md for what each remaining
+provider's rotation key is actually scoped to (the achievable floor
+differs a lot by provider — OCI has real, documented limits on how far
+this can be narrowed, not a uniform "create/delete keys only"
+guarantee).
 
 Run this again only when a rotation key itself needs rotating — routine
 leg-key rotation is create_cloud_credentials.py's job and doesn't touch
 this script or the master credential at all.
 
 Usage:
-    python3 ansible/create_rotation_keys.py [--provider {r2,b2,oci,all}]
+    python3 ansible/create_rotation_keys.py [--provider {b2,oci,all}]
 """
 
 from __future__ import annotations
@@ -35,14 +43,7 @@ from oci.signer import Signer as OCISigner
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SECRETS_DIR = PROJECT_ROOT / "ansible/files/secrets"
 
-R2_BUCKET = "homelab-backups"
-B2_BUCKET = "homelab-backups-b2"
 OCI_BUCKET = "homelab-backups"
-
-# Cloudflare has no way to scope a token-creating token below "can
-# create any token" (see docs/cloud-credential-creation.md) — a short
-# TTL is the only lever available to limit standing exposure.
-R2_ROTATION_KEY_TTL_DAYS = 90
 
 
 def cached(name: str) -> bool:
@@ -53,58 +54,6 @@ def write_cache(name: str, value: str) -> None:
     dest = SECRETS_DIR / name
     dest.write_text(value)
     dest.chmod(0o600)
-
-
-# --- Cloudflare R2 ----------------------------------------------------
-
-
-def create_r2_rotation_key() -> None:
-    if cached("_rotation-key-cloudflare-r2-token"):
-        print("r2: rotation key already cached, skipping")
-        return
-
-    print(
-        "Cloudflare admin token, Custom Token with the account-level "
-        "'Create Additional Tokens' permission (dashboard.cloudflare.com "
-        "> My Profile > API Tokens) — input hidden, held in memory only:"
-    )
-    master_token = getpass.getpass("> ")
-    account_id = (SECRETS_DIR / "cloudflare-r2-account-id").read_text().strip()
-
-    session = requests.Session()
-    session.headers["Authorization"] = f"Bearer {master_token}"
-    groups = session.get(
-        f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/permission_groups",
-    ).json()["result"]
-    group_id = next(g["id"] for g in groups if g["name"] == "Create Additional Tokens")
-
-    import datetime
-
-    expires_on = (
-        datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=R2_ROTATION_KEY_TTL_DAYS)
-    ).strftime("%Y-%m-%dT%H:%M:%SZ")
-    resp = session.post(
-        f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
-        json={
-            "name": "homelab-cloud-sync-rotation-key",
-            "expires_on": expires_on,
-            "policies": [
-                {
-                    "effect": "allow",
-                    # Account-wide, not bucket-scoped — Create Additional
-                    # Tokens has no resource restriction narrower than
-                    # the account (see docs/cloud-credential-creation.md).
-                    "resources": {f"com.cloudflare.api.account.{account_id}": "*"},
-                    "permission_groups": [{"id": group_id}],
-                }
-            ],
-        },
-    ).json()
-    if not resp.get("success"):
-        print(f"r2: rotation key creation failed: {resp['errors']}", file=sys.stderr)
-        sys.exit(1)
-    write_cache("_rotation-key-cloudflare-r2-token", resp["result"]["value"])
-    print(f"r2: rotation key cached, expires {expires_on}")
 
 
 # --- Backblaze B2 -------------------------------------------------------
@@ -131,32 +80,26 @@ def create_b2_rotation_key() -> None:
     session = requests.Session()
     session.headers["Authorization"] = auth["authorizationToken"]
 
-    bucket_resp = session.post(
-        f"{api_url}/b2api/v2/b2_list_buckets",
-        json={"accountId": account_id, "bucketName": B2_BUCKET},
-    )
-    bucket_resp.raise_for_status()
-    buckets = bucket_resp.json()["buckets"]
-    if not buckets:
-        print(f"b2: bucket {B2_BUCKET!r} doesn't exist yet — create it first", file=sys.stderr)
-        sys.exit(1)
-    bucket_id = buckets[0]["bucketId"]
-
     # listKeys/writeKeys/deleteKeys are B2's native "manage other keys"
     # capabilities, independent of writeFiles/readFiles — this key can
     # create and delete application keys but can't read or write file
-    # contents itself. NEEDS LIVE VERIFICATION: whether a bucket-restricted
-    # key can only create further keys restricted to that same bucket, or
-    # can mint an all-bucket key too — Backblaze's docs describe the
-    # bucketId restriction field but don't state this constraint
-    # explicitly either way. Test with a throwaway key before trusting it.
+    # contents itself.
+    #
+    # No bucketId here — confirmed, not a guess: Backblaze's own docs
+    # enumerate every capability a bucket-restricted key is allowed to
+    # carry, and listKeys/writeKeys/deleteKeys aren't on that list. Key
+    # management is inherently account-wide on B2; a live 400 ("Invalid
+    # capability for bucket-level application key") is what surfaced
+    # this. This rotation key can create/delete any key on the account,
+    # not just ones for homelab-backups-b2 — the actual scoping this key
+    # gets is that it holds no file/bucket-data capabilities at all, not
+    # that it's bucket-restricted.
     key_resp = session.post(
         f"{api_url}/b2api/v2/b2_create_key",
         json={
             "accountId": account_id,
             "capabilities": ["listKeys", "writeKeys", "deleteKeys", "listBuckets"],
             "keyName": "homelab-cloud-sync-rotation-key",
-            "bucketId": bucket_id,
         },
     )
     key_resp.raise_for_status()
@@ -185,107 +128,200 @@ def oci_master_auth_and_endpoint() -> tuple[OCISigner, str, str, str]:
     return signer, endpoint, config["tenancy"], config["region"]
 
 
-def oci_ensure_leg_identity(session, endpoint, post, tenancy: str, leg: str, permissions: list[str]) -> str:
-    """Create the leg's IAM user/group/policy if missing; return its user OCID.
+def user_email(admin_email: str, name: str) -> str:
+    # +tag addressing off one real mailbox — required because
+    # Identity-Domain-enabled OCI tenancies mandate a unique email per
+    # user (confirmed via Oracle's own CreateUserDetails docs: "You must
+    # provide an email for each user"), even for API-only service
+    # identities that will never receive mail. Classic (non-domain)
+    # tenancies don't require this at all, so this is a no-op cost for
+    # a domain-enabled tenancy and irrelevant for others.
+    local, domain = admin_email.split("@", 1)
+    return f"{local}+{name}@{domain}"
 
-    Idempotent via 409-on-create — if homelab-cloud-sync-<leg> already
-    exists this looks it up instead of failing the whole run.
-    """
-    cache_key = f"_oci-leg-user-ocid-{leg}"
-    if cached(cache_key):
-        return (SECRETS_DIR / cache_key).read_text().strip()
 
-    name = f"homelab-cloud-sync-{leg}"
+def oci_lookup_one(session, endpoint, tenancy: str, resource_path: str, name: str) -> dict:
+    # NEEDS LIVE VERIFICATION: this is OCI's documented List{Users,Groups}
+    # shape (GET with compartmentId+name query params) — confirmed for
+    # users via a real 409 in this tenancy; groups uses the identical
+    # pattern per Oracle's docs but hasn't independently hit a 409 yet.
+    resp = session.get(f"{endpoint}/20160918/{resource_path}", params={"compartmentId": tenancy, "name": name})
+    resp.raise_for_status()
+    matches = resp.json()
+    if len(matches) != 1:
+        kind = resource_path[:-1]
+        print(f"oci: expected exactly one existing {kind} named {name}, found {len(matches)}", file=sys.stderr)
+        sys.exit(1)
+    return matches[0]
+
+
+def oci_get_or_create_user(session, endpoint, post, tenancy: str, name: str, description: str, admin_email: str) -> dict:
     try:
-        user = post(
+        return post(
             "/20160918/users",
             {
                 "compartmentId": tenancy,
                 "name": name,
-                "description": f"cloud_sync {leg} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
+                "description": description,
+                "email": user_email(admin_email, name),
             },
         )
     except requests.HTTPError as exc:
         if exc.response.status_code != 409:
             raise
         print(f"oci: user {name} already exists, looking it up instead of recreating it", file=sys.stderr)
-        # NEEDS LIVE VERIFICATION: this is OCI's documented ListUsers
-        # shape (GET with compartmentId+name query params), but this
-        # 409 path hasn't been exercised against a real tenancy — if it
-        # 404s or returns more than one match, that's the first thing to
-        # check before assuming anything else is wrong.
-        resp = session.get(
-            f"{endpoint}/20160918/users",
-            params={"compartmentId": tenancy, "name": name},
-        )
-        resp.raise_for_status()
-        matches = resp.json()
-        if len(matches) != 1:
-            print(f"oci: expected exactly one existing user named {name}, found {len(matches)}", file=sys.stderr)
-            sys.exit(1)
-        user = matches[0]
-        write_cache(cache_key, user["id"])
-        return user["id"]
+        return oci_lookup_one(session, endpoint, tenancy, "users", name)
 
-    group = post(
-        "/20160918/groups",
-        {"compartmentId": tenancy, "name": name, "description": f"Grants {name} its bucket-scoped policy"},
+
+def oci_get_or_create_group(session, endpoint, post, tenancy: str, name: str, description: str) -> dict:
+    try:
+        return post("/20160918/groups", {"compartmentId": tenancy, "name": name, "description": description})
+    except requests.HTTPError as exc:
+        if exc.response.status_code != 409:
+            raise
+        print(f"oci: group {name} already exists, looking it up instead of recreating it", file=sys.stderr)
+        return oci_lookup_one(session, endpoint, tenancy, "groups", name)
+
+
+def oci_ensure_leg_identity(
+    session, endpoint, post, tenancy: str, leg: str, permissions: list[str], admin_email: str
+) -> str:
+    """Create the leg's IAM user/group/policy if missing; return its user OCID.
+
+    Idempotent via 409-on-create at each step (user, group, membership,
+    policy) — safe to resume if a prior run failed partway through,
+    rather than only being all-or-nothing at the user level.
+    """
+    cache_key = f"_oci-leg-user-ocid-{leg}"
+    if cached(cache_key):
+        return (SECRETS_DIR / cache_key).read_text().strip()
+
+    name = f"homelab-cloud-sync-{leg}"
+    user = oci_get_or_create_user(
+        session,
+        endpoint,
+        post,
+        tenancy,
+        name,
+        f"cloud_sync {leg} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
+        admin_email,
     )
-    post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
+    group = oci_get_or_create_group(session, endpoint, post, tenancy, name, f"Grants {name} its bucket-scoped policy")
+    try:
+        post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
+    except requests.HTTPError as exc:
+        if exc.response.status_code != 409:
+            raise
+        print(f"oci: {name} is already a member of its group, skipping", file=sys.stderr)
 
     permission_clause = ", ".join(f"request.permission='{p}'" for p in permissions)
     statement = (
         f"Allow group id {group['id']} to manage objects in tenancy "
         f"where all {{target.bucket.name='{OCI_BUCKET}', any {{{permission_clause}}}}}"
     )
-    post(
-        "/20160918/policies",
-        {
-            "compartmentId": tenancy,
-            "name": name,
-            "description": f"Scopes {name} to {OCI_BUCKET}, {leg} only",
-            "statements": [statement],
-        },
-    )
+    try:
+        post(
+            "/20160918/policies",
+            {
+                "compartmentId": tenancy,
+                "name": name,
+                "description": f"Scopes {name} to {OCI_BUCKET}, {leg} only",
+                "statements": [statement],
+            },
+        )
+    except requests.HTTPError as exc:
+        if exc.response.status_code != 409:
+            raise
+        print(f"oci: policy {name} already exists, skipping", file=sys.stderr)
+
     write_cache(cache_key, user["id"])
     return user["id"]
 
 
-def oci_create_rotation_identity(post, tenancy: str) -> str:
-    """Create the dedicated key-rotation IAM user/group/policy. Returns its user OCID."""
+def oci_create_rotation_identity(session, endpoint, post, put, tenancy: str, admin_email: str) -> str:
+    """Create the dedicated key-rotation IAM user/group/policy. Returns its user OCID.
+
+    Idempotent via 409-on-create at each step, same as
+    oci_ensure_leg_identity — safe to resume after a prior run failed
+    partway through (e.g. on the policy step, as happened here once).
+    """
     name = "homelab-key-rotation"
-    user = post(
-        "/20160918/users",
-        {
-            "compartmentId": tenancy,
-            "name": name,
-            "description": "Rotates cloud_sync's OCI customer secret keys — see docs/cloud-credential-creation.md",
-        },
+    user = oci_get_or_create_user(
+        session,
+        endpoint,
+        post,
+        tenancy,
+        name,
+        "Rotates cloud_sync's OCI customer secret keys — see docs/cloud-credential-creation.md",
+        admin_email,
     )
-    group = post("/20160918/groups", {"compartmentId": tenancy, "name": name, "description": f"Grants {name} its policy"})
-    post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
-    # manage customer-secret-keys, tenancy-wide — NOT scoped to just the
-    # two homelab-cloud-sync-* users. NEEDS LIVE VERIFICATION: I found no
-    # confirmed OCI policy condition (target.user.name= or similar) that
-    # narrows identity-family resources to a specific named user the way
-    # target.bucket.name= narrows object storage — see
-    # docs/cloud-credential-creation.md. This is the achievable floor,
-    # not the ideal: it can rotate ANY user's secret keys in the tenancy,
-    # but nothing else (no manage users/groups/policies, no object storage,
-    # no compute/network/billing).
-    post(
-        "/20160918/policies",
-        {
-            "compartmentId": tenancy,
-            "name": name,
-            "description": "Scopes homelab-key-rotation to customer secret keys only",
-            "statements": [f"Allow group id {group['id']} to manage customer-secret-keys in tenancy"],
-        },
-    )
+    group = oci_get_or_create_group(session, endpoint, post, tenancy, name, f"Grants {name} its policy")
+    try:
+        post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
+    except requests.HTTPError as exc:
+        if exc.response.status_code != 409:
+            raise
+        print(f"oci: {name} is already a member of its group, skipping", file=sys.stderr)
+
+    # manage users + permission-level conditions — not "manage
+    # customer-secret-keys". That resource-type doesn't exist in OCI's
+    # policy language; OCI rejected it outright with 400 "No permissions
+    # found" (confirmed live).
+    #
+    # USER_UPDATE is required alongside USER_SECRETKEY_ADD/_REMOVE, not
+    # optional — confirmed against Oracle's own "Details for IAM with
+    # Identity Domains" permissions table, which lists CreateSecretKey
+    # as requiring "USER_UPDATE and USER_SECRETKEY_ADD" (an AND, not an
+    # OR) and DeleteCustomerSecretKey as "USER_UPDATE and
+    # USER_SECRETKEY_REMOVE". Every credential-mutating operation in
+    # that table follows this same pattern — the specific permission
+    # alone is never sufficient. Omitting USER_UPDATE is what caused a
+    # live 404 "NotAuthorizedOrNotFound" on CreateCustomerSecretKey.
+    #
+    # Side effect worth being honest about: USER_UPDATE by itself also
+    # covers plain UpdateUser (renaming/redescribing a user) — nothing
+    # more dangerous (not USER_UNBLOCK, not USER_DELETE, not password
+    # reset, those are separate permissions not granted here), but it
+    # is a real capability beyond pure secret-key management that comes
+    # bundled in because OCI requires it as a co-permission for every
+    # per-user credential mutation. Still tenancy-wide across all
+    # users, not scoped to just the two homelab-cloud-sync-* ones — see
+    # docs/cloud-credential-creation.md for why.
+    statement_list = [
+        f"Allow group id {group['id']} to manage users in tenancy "
+        "where any {request.permission='USER_UPDATE', "
+        "request.permission='USER_SECRETKEY_ADD', "
+        "request.permission='USER_SECRETKEY_REMOVE'}"
+    ]
+    try:
+        post(
+            "/20160918/policies",
+            {
+                "compartmentId": tenancy,
+                "name": name,
+                "description": "Scopes homelab-key-rotation to add/remove customer secret keys only",
+                "statements": statement_list,
+            },
+        )
+    except requests.HTTPError as exc:
+        if exc.response.status_code != 409:
+            raise
+        # Update, not skip: an existing policy here might be the
+        # pre-fix version (missing USER_UPDATE, as this tenancy's was)
+        # — leaving it in place on 409 would silently keep the broken
+        # grant forever. NEEDS LIVE VERIFICATION: the UpdatePolicy
+        # request shape (PUT with a bare {"statements": [...]} body) —
+        # confirmed the lookup-by-name path works (see oci_lookup_one),
+        # not yet confirmed this specific PUT shape against a real
+        # tenancy.
+        print(f"oci: policy {name} already exists, updating its statements", file=sys.stderr)
+        existing = oci_lookup_one(session, endpoint, tenancy, "policies", name)
+        put(f"/20160918/policies/{existing['id']}", {"statements": statement_list})
+
     return user["id"]
 
 
-def create_oci_rotation_key() -> None:
+def create_oci_rotation_key(admin_email: str) -> None:
     rotation_files = [
         "_rotation-key-oci-user-ocid",
         "_rotation-key-oci-fingerprint",
@@ -307,13 +343,18 @@ def create_oci_rotation_key() -> None:
         resp.raise_for_status()
         return resp.json()
 
+    def put(path: str, body: dict) -> dict:
+        resp = session.put(f"{endpoint}{path}", json=body)
+        resp.raise_for_status()
+        return resp.json() if resp.text else {}
+
     # OBJECT_INSPECT+OBJECT_CREATE (no OBJECT_DELETE) / OBJECT_INSPECT+
     # OBJECT_READ — confirmed against Oracle's own Policy Builder
     # templates and the Object Storage Objects reference doc.
-    oci_ensure_leg_identity(session, endpoint, post, tenancy, "write", ["OBJECT_INSPECT", "OBJECT_CREATE"])
-    oci_ensure_leg_identity(session, endpoint, post, tenancy, "read", ["OBJECT_INSPECT", "OBJECT_READ"])
+    oci_ensure_leg_identity(session, endpoint, post, tenancy, "write", ["OBJECT_INSPECT", "OBJECT_CREATE"], admin_email)
+    oci_ensure_leg_identity(session, endpoint, post, tenancy, "read", ["OBJECT_INSPECT", "OBJECT_READ"], admin_email)
 
-    rotation_user_id = oci_create_rotation_identity(post, tenancy)
+    rotation_user_id = oci_create_rotation_identity(session, endpoint, post, put, tenancy, admin_email)
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     private_pem = private_key.private_bytes(
@@ -326,14 +367,10 @@ def create_oci_rotation_key() -> None:
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     ).decode()
 
-    # NEEDS LIVE VERIFICATION: the UploadApiKey request body's JSON field
-    # name for the PEM public key — Oracle's docs confirm the operation
-    # and that the fingerprint comes back computed in the response, but
-    # every source I found described it via SDK/Terraform field names
-    # (key_value, keyValue) rather than the raw REST JSON key. "key" is
-    # my best-supported guess (matches the Java/Python SDK's UploadApiKeyDetails
-    # model); if this 400s, check the exact field name against a live
-    # OCI tenancy before changing anything else.
+    # "key" is confirmed, not a guess — Oracle's Python SDK model
+    # reference (CreateApiKeyDetails) documents it as the sole required
+    # field, generated directly from their API spec. The fingerprint
+    # comes back computed in the response; we don't need to derive it.
     api_key = post(f"/20160918/users/{rotation_user_id}/apiKeys", {"key": public_pem})
 
     write_cache("_rotation-key-oci-user-ocid", rotation_user_id)
@@ -346,15 +383,29 @@ def create_oci_rotation_key() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", choices=["r2", "b2", "oci", "all"], default="all")
+    parser.add_argument("--provider", choices=["b2", "oci", "all"], default="all")
+    parser.add_argument(
+        "--admin-email",
+        help=(
+            "Required for --provider oci/all. One real mailbox you control — "
+            "each OCI service user gets a +tag off it "
+            "(you+homelab-cloud-sync-write@domain, etc.), since "
+            "Identity-Domain-enabled tenancies require a unique email per user."
+        ),
+    )
     args = parser.parse_args()
+
+    if args.provider in ("oci", "all") and not args.admin_email:
+        parser.error(
+            "--admin-email is required for --provider oci (your tenancy's "
+            "Identity Domains require a unique email per OCI user)"
+        )
 
     SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
 
     providers = {
-        "r2": create_r2_rotation_key,
         "b2": create_b2_rotation_key,
-        "oci": create_oci_rotation_key,
+        "oci": lambda: create_oci_rotation_key(args.admin_email),
     }
     targets = providers if args.provider == "all" else {args.provider: providers[args.provider]}
     for name, fn in targets.items():

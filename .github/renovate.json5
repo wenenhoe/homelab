@@ -111,6 +111,46 @@
       depNameTemplate: "ghcr.io/renovatebot/renovate",
       versioningTemplate: "docker",
     },
+
+    // The four entries below share one root cause: an image pin sitting
+    // in a systemd unit template, a shell script, or a plain Ansible
+    // variable default — none of which docker-compose/dockerfile/ansible
+    // (the managers already active here) ever look inside. Found while
+    // chasing why cloud_sync's rclone pin wasn't getting bump PRs; the
+    // same blind spot turned out to apply to three other pins too.
+    {
+      customType: "regex",
+      description: "cloud_sync's pinned rclone image, embedded in a systemd ExecStart= line rather than a compose file",
+      managerFilePatterns: ["/^ansible/roles/cloud_sync/templates/cloud-sync\\.service\\.j2$/"],
+      matchStrings: ["rclone/rclone:(?<currentValue>[0-9.]+)"],
+      datasourceTemplate: "docker",
+      depNameTemplate: "rclone/rclone",
+    },
+    {
+      customType: "regex",
+      description: "backup_agent's pinned rclone image, embedded in a shell script's docker run line rather than a compose file",
+      managerFilePatterns: ["/^ansible/roles/backup_agent/templates/check-freshness\\.sh\\.j2$/"],
+      matchStrings: ["rclone/rclone:(?<currentValue>[0-9.]+)"],
+      datasourceTemplate: "docker",
+      depNameTemplate: "rclone/rclone",
+    },
+    {
+      customType: "regex",
+      description: "lldap_cert's step-cli image, a plain Ansible variable default rather than a recognized image: key under a docker module",
+      managerFilePatterns: ["/^ansible/roles/lldap_cert/defaults/main\\.ya?ml$/"],
+      matchStrings: ["lldap_cert_step_cli_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "seed-lldap-ci-cert.sh's step-ca/step-cli images, shell variables rather than a recognized image: key",
+      managerFilePatterns: ["/^\\.github/scripts/seed-lldap-ci-cert\\.sh$/"],
+      matchStrings: [
+        "step_ca_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
+        "step_cli_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
+      ],
+      datasourceTemplate: "docker",
+    },
   ],
 
   packageRules: [
@@ -222,6 +262,32 @@
     {
       matchDepNames: ["ghcr.io/itzg/mc-backup"],
       groupName: "mc-backup (compose + restore — must move together)",
+    },
+
+    // rclone/rclone is pinned independently in cloud_sync's ExecStart=
+    // and backup_agent's freshness-check script (both need the custom
+    // regex managers above, neither is a real compose/dockerfile image:
+    // line) — aligned to the same version (1.72) as of this rule being
+    // added; group them so they can't drift apart again the way they
+    // already had before this was noticed.
+    {
+      matchDepNames: ["rclone/rclone"],
+      groupName: "rclone (cloud_sync + backup_agent — must move together)",
+    },
+
+    // smallstep/step-ca and smallstep/step-cli are each pinned in three
+    // independent places with no shared source of truth: the real
+    // step_cli image lldap_cert uses in production
+    // (defaults/main.yaml), the CI script that seeds a matching step-ca
+    // instance for the compose-boot-test workflow
+    // (seed-lldap-ci-cert.sh), and molecule_helpers' own step-ca test
+    // target. All three need custom regex managers above except the
+    // last (a real image: key under community.docker.docker_container,
+    // already covered) — group all of them so a version bump can't
+    // land in just one and leave the others stale.
+    {
+      matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
+      groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",
     },
 
     // community.docker/ansible.posix are pinned identically in

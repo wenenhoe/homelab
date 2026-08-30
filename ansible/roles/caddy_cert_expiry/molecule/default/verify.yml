@@ -25,11 +25,13 @@
         - /etc/systemd/system/cert-expiry-check.timer
         - /etc/systemd/system/telegram-notify-cert-expiry.service
         - /etc/telegram-notify/telegram-notify-cert-expiry.env
+        - /etc/systemd/system/uptime-kuma-push-cert-expiry.service
+        - /etc/uptime-kuma-push/uptime-kuma-push-cert-expiry.env
 
     - name: Confirm they all exist
       ansible.builtin.assert:
         that:
-          - caddy_cert_expiry_verify_files.results | map(attribute='stat.exists') | list == [true, true, true, true, true]
+          - caddy_cert_expiry_verify_files.results | map(attribute='stat.exists') | list == [true, true, true, true, true, true, true]
 
     - name: Read back the rendered check script
       ansible.builtin.slurp:
@@ -44,12 +46,14 @@
           - "'HOST=\"bentopdf.apps.localhost\"' in (caddy_cert_expiry_verify_check_sh_raw.content | b64decode)"
           - "'THRESHOLD_DAYS=0' in (caddy_cert_expiry_verify_check_sh_raw.content | b64decode)"
 
-    # --- OnFailure= link is real, not just documented ---------------------
-    - name: Confirm cert-expiry-check.service actually declares the OnFailure link  # noqa: command-instead-of-module
+    # --- OnFailure=/OnSuccess= links are real, not just documented ------
+    - name: Confirm cert-expiry-check.service actually declares both links  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl cat cert-expiry-check.service
       register: caddy_cert_expiry_verify_onfailure
       changed_when: false
-      failed_when: "'OnFailure=telegram-notify-cert-expiry.service' not in caddy_cert_expiry_verify_onfailure.stdout"
+      failed_when: >-
+        'OnFailure=telegram-notify-cert-expiry.service' not in caddy_cert_expiry_verify_onfailure.stdout
+        or 'OnSuccess=uptime-kuma-push-cert-expiry.service' not in caddy_cert_expiry_verify_onfailure.stdout
 
     - name: Confirm the timer is enabled and active
       # daemon_reload: false required-but-inert, matching the module's
@@ -102,6 +106,45 @@
           - "'bentopdf.apps.localhost: certificate expires' in caddy_cert_expiry_verify_real_check.stdout"
           - "'days left)' in caddy_cert_expiry_verify_real_check.stdout"
         fail_msg: "Unexpected output: {{ caddy_cert_expiry_verify_real_check.stdout }}"
+
+    # --- OnSuccess= wiring, while HOST still targets a genuinely healthy
+    # --- cert (before the deliberate breakage below) ---------------------
+    - name: Start uptime-kuma-push-cert-expiry.service directly, as OnSuccess= would  # noqa: command-instead-of-module
+      # Same reasoning as cloud_sync's equivalent task: this unit's
+      # ExecStart is expected to fail (blank push URL, no live Kuma in CI).
+      ansible.builtin.command: systemctl start uptime-kuma-push-cert-expiry.service
+      failed_when: false
+      changed_when: false
+
+    - name: Read back uptime-kuma-push-cert-expiry's rendered env file
+      ansible.builtin.slurp:
+        path: /etc/uptime-kuma-push/uptime-kuma-push-cert-expiry.env
+      register: caddy_cert_expiry_verify_push_env_raw
+
+    - name: Confirm it renders an empty URL (this scenario's uptime_kuma_push_url_cert_expiry is blank)
+      ansible.builtin.assert:
+        that:
+          - (caddy_cert_expiry_verify_push_env_raw.content | b64decode | trim) == 'UPTIME_KUMA_PUSH_URL='
+        fail_msg: "Rendered env: {{ caddy_cert_expiry_verify_push_env_raw.content | b64decode }}"
+
+    - name: Query the pusher unit's actual state
+      ansible.builtin.systemd_service:
+        name: uptime-kuma-push-cert-expiry.service
+        daemon_reload: false
+      register: caddy_cert_expiry_verify_push_state
+
+    - name: Confirm systemd actually loaded and ran the pusher unit (not a syntax/templating error)
+      ansible.builtin.assert:
+        that:
+          - caddy_cert_expiry_verify_push_state.status.LoadState == 'loaded'
+          - caddy_cert_expiry_verify_push_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          uptime-kuma-push-cert-expiry.service didn't load/run cleanly:
+          LoadState={{ caddy_cert_expiry_verify_push_state.status.LoadState | default('?') }}
+          ActiveState={{ caddy_cert_expiry_verify_push_state.status.ActiveState | default('?') }}
+          — 'failed' here just means curl had no URL to hit (expected in
+          CI with a blank push URL), 'not-found' or 'masked' would mean
+          the unit itself is broken.
 
     # --- Behavioral, failure path: SNI matching no configured site --------
     # HOST now only drives -servername (see check.sh.j2's own comment on

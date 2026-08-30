@@ -33,6 +33,14 @@ tinyauth_ldap_observer_password: "{{ secrets_generated['tinyauth-ldap-observer-p
 # consumers on other hosts may need it, unlike this one).
 step_ca_password: "{{ secrets_generated['step-ca-password'] }}"
 
+# lldap's own cert-renewer@ instance only — see docs/uptime-kuma.md.
+uptime_kuma_push_url_cert_renewer_lldap: "{{ secrets_generated['uptime-kuma-push-url-cert-renewer-lldap'] }}"
+
+# backup_agent's freshness-check push URL, one for the whole host
+# (covers tinyauth, lldap, and step-ca all at once) — see
+# docs/uptime-kuma.md.
+backup_agent_freshness_push_url: "{{ secrets_generated['uptime-kuma-push-url-backup-security'] }}"
+
 lldap_host: lldap
 
 compose_apps:
@@ -51,6 +59,11 @@ compose_apps:
     caddy:
       default:
         host: "{{ beszel_hub_host }}"
+
+  - name: uptime-kuma
+    caddy:
+      default:
+        host: "{{ uptime_kuma_host }}"
 
   - name: beszel-agent
 

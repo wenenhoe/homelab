@@ -7,4 +7,5 @@
 .venv/
 ansible/molecule-coverage/.data/
 ansible/files/secrets/
+ansible/files/telegram-pins/
 **/__pycache__/

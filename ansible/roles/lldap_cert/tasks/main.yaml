@@ -131,13 +131,31 @@
     telegram_notify_message: "Certificate renewal failed for `%i` on `{{ ansible_facts['hostname'] }}`"
     telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
 
+# Only ever pushes on success (see docs/uptime-kuma.md) — failure
+# alerting stays on the telegram_notify@ unit above, unchanged. A
+# concrete unit for this specific instance, not a template - see
+# cert-renewer@.service.j2's own OnSuccess= comment for why a per-
+# instance push URL can't share telegram_notify@'s one-shared-unit
+# approach.
+- name: Install the Uptime Kuma push-on-success unit for lldap's cert renewal
+  ansible.builtin.include_role:
+    name: uptime_kuma_push
+    tasks_from: install.yaml
+  vars:
+    uptime_kuma_push_unit_name: uptime-kuma-push-cert-renewer-lldap
+    uptime_kuma_push_description: Uptime Kuma liveness push for a successful lldap cert renewal
+    uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_lldap }}"
+
 # telegram_notify's own install.yaml deliberately doesn't reload systemd
 # or notify a handler itself (see its own header comment) - do it here
-# instead, off the results it registers.
-- name: Reload systemd if the Telegram notifier unit changed
+# instead, off the results it registers. uptime_kuma_push follows the
+# same convention, for the same reason.
+- name: Reload systemd if either notifier unit changed
   ansible.builtin.systemd:
     daemon_reload: true
-  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
+  when: >-
+    telegram_notify_env_result.changed or telegram_notify_service_result.changed or
+    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
 
 - name: Install the generic cert-renewer@ service template
   ansible.builtin.template:

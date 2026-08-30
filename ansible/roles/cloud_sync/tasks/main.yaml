@@ -87,13 +87,27 @@
       did not relay, check `journalctl -u cloud-sync.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_backups }}"
 
+# Only ever pushes on success (see docs/uptime-kuma.md) — failure
+# alerting stays on the telegram_notify unit above, unchanged.
+- name: Install the Uptime Kuma push-on-success unit for cloud-sync
+  ansible.builtin.include_role:
+    name: uptime_kuma_push
+    tasks_from: install.yaml
+  vars:
+    uptime_kuma_push_unit_name: uptime-kuma-push-cloud-sync
+    uptime_kuma_push_description: Uptime Kuma liveness push for a successful cloud-sync run
+    uptime_kuma_push_url: "{{ uptime_kuma_push_url_cloud_sync }}"
+
 # telegram_notify's own install.yaml deliberately doesn't reload systemd
 # or notify a handler itself (see its own header comment) - do it here
-# instead, off the results it registers.
-- name: Reload systemd if the Telegram notifier unit changed
+# instead, off the results it registers. uptime_kuma_push follows the
+# same convention, for the same reason.
+- name: Reload systemd if either notifier unit changed
   ansible.builtin.systemd:
     daemon_reload: true
-  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
+  when: >-
+    telegram_notify_env_result.changed or telegram_notify_service_result.changed or
+    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
 
 - name: Install the cloud-sync systemd service
   ansible.builtin.template:

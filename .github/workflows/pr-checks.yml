@@ -218,6 +218,19 @@ jobs:
           printf '%s' 'ci-dummy-b2-access-key' > ansible/files/secrets/backblaze-b2-access-key
           printf '%s' 'ci-dummy-b2-secret-key' > ansible/files/secrets/backblaze-b2-secret-key
           printf '%s' 'ci-dummy-b2-region' > ansible/files/secrets/backblaze-b2-region
+          # uptime-kuma-push-url-* are allow_blank: true too - each
+          # monitor's URL doesn't exist until created by hand in Kuma's
+          # own UI (see docs/uptime-kuma.md), same reasoning as
+          # telegram-topic-id-*/beszel-hub-key/-agent-token above.
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cloud-sync
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-renewer-lldap
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-security
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-storage
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-play
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-services
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-services
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-play
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-security
           printf '%s' 'ci-dummy-oci-access-key' > ansible/files/secrets/oci-access-key
           printf '%s' 'ci-dummy-oci-secret-key' > ansible/files/secrets/oci-secret-key
           printf '%s' 'ci-dummy-oci-namespace' > ansible/files/secrets/oci-namespace

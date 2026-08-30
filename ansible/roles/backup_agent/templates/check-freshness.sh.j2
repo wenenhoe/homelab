@@ -1,0 +1,105 @@
+#!/bin/sh
+# Checks whether every app's newest backup object in SeaweedFS is
+# within offsite_backup_freshness_hours, and pushes ONCE to this host's
+# single Uptime Kuma monitor only if every app currently checked is
+# fresh — see docs/uptime-kuma.md for why this exists instead of
+# docker-volume-backup's own exec-hook labels (would need Docker `exec`
+# access this host's socket-proxy deliberately doesn't grant), and why
+# it's one push per HOST rather than one per app: every app's
+# credential is already scoped to this host's own {host}-* prefix, so a
+# future app added to this host needs no new config here at all.
+#
+# One stale app suppresses the whole host's push - Kuma shows "this
+# host's backups" as one monitor, not one per app. Which specific app
+# is stale is only visible in this unit's own journal, not from Kuma.
+#
+# check_app's three possible outcomes matter, not just pass/fail:
+#   0 = fresh                                      -> counts toward the push
+#   1 = ran fine, nothing fresh yet (not an error)  -> suppresses the push, no alert
+#   2 = rclone/docker itself failed to run          -> suppresses the push, DOES alert
+# Collapsing 1 and 2 into the same "failure" would make this alert on
+# ordinary staleness constantly, defeating the point of leaving that to
+# Kuma's own missing-heartbeat timeout instead.
+set -eu
+
+check_app() {
+  app_name="$1"
+  s3_path="$2"
+  max_age="$3"
+
+  # stdout and stderr captured separately, not merged with 2>&1: rclone
+  # always emits at least one NOTICE line to stderr (its own "no config
+  # file, using defaults" message) regardless of whether any file
+  # matched --max-age, so a merged capture is never actually empty even
+  # when the real file listing correctly found nothing - confirmed live
+  # against a real rclone run, not assumed.
+  rclone_stderr=$(mktemp)
+  set +e
+  # --network: harmless in production (a bridge network still has
+  # normal outbound internet access to the real public HTTPS endpoint)
+  # but required for Molecule's own test target, a container-name-only
+  # endpoint only resolvable via Docker's embedded DNS on the network
+  # it's actually attached to. backup_agent_network_name is discovered
+  # in tasks/main.yaml, not hardcoded - the network's actual runtime
+  # name isn't simply "backup-agent-net" (see that task's own comment).
+  output=$(docker run --rm --network {{ backup_agent_network_name }} rclone/rclone:1.72 lsf \
+    ":s3:{{ offsite_backup_s3_bucket }}/${s3_path}/" \
+    --s3-endpoint "{{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}" \
+    --s3-access-key-id "{{ seaweedfs_s3_access_key }}" \
+    --s3-secret-access-key "{{ seaweedfs_s3_secret_key }}" \
+    --s3-provider Other \
+    --s3-region global \
+    --s3-force-path-style \
+    --max-age "${max_age}" \
+    --files-only 2>"${rclone_stderr}")
+  rc=$?
+  set -e
+  stderr_content=$(cat "${rclone_stderr}")
+  rm -f "${rclone_stderr}"
+
+  if [ "${rc}" -ne 0 ]; then
+    echo "${app_name}: rclone failed (exit ${rc}): ${stderr_content}" >&2
+    return 2
+  fi
+
+  if [ -n "${output}" ]; then
+    echo "${app_name}: backup newer than ${max_age} found"
+    return 0
+  else
+    echo "${app_name}: no backup newer than ${max_age} found (not an error)"
+    return 1
+  fi
+}
+
+overall_fresh=true
+had_infra_error=false
+
+{% for app in backup_agent_schedules %}
+if check_app "{{ app.app }}" "{{ inventory_hostname }}-{{ app.app }}" "{{ offsite_backup_freshness_hours }}h"; then
+  app_rc=0
+else
+  app_rc=$?
+fi
+if [ "${app_rc}" -eq 2 ]; then
+  had_infra_error=true
+  overall_fresh=false
+elif [ "${app_rc}" -eq 1 ]; then
+  overall_fresh=false
+fi
+{% endfor %}
+
+push_url="{{ backup_agent_freshness_push_url }}"
+
+if [ -z "${push_url}" ]; then
+  echo "no push URL configured yet for this host, skipping (apps above were still checked for their own log output)"
+elif [ "${overall_fresh}" = "true" ]; then
+  echo "every app on this host is fresh, pushing"
+  curl -fsS --max-time 10 "${push_url}" >/dev/null
+else
+  echo "at least one app is not fresh (see above) - not pushing, relying on Kuma's own timeout"
+fi
+
+if [ "${had_infra_error}" = "true" ]; then
+  exit 1
+fi
+exit 0

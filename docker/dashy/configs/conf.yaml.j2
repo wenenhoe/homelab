@@ -52,25 +52,31 @@ sections:
         url: '{{ beszel_hub_url }}'
         statusCheck: true
         id: 1_1774_beszel
+      - title: Uptime Kuma
+        description: Push-monitor liveness tracker
+        icon: hl-uptime-kuma
+        url: '{{ uptime_kuma_url }}'
+        statusCheck: true
+        id: 2_1774_uptimekuma
       - title: LLDAP
         description: LDAP directory management
         icon: hl-lldap
         url: 'https://lldap.sec.{{ lab_domain }}'
         statusCheck: true
-        id: 2_1774_lldap
+        id: 3_1774_lldap
       - title: Tinyauth
         description: Forward-auth / SSO provider
         icon: hl-tinyauth
         url: 'https://sso.{{ lab_domain }}'
         statusCheck: true
-        id: 3_1774_tinyauth
+        id: 4_1774_tinyauth
       - title: SeaweedFS Filer
         description: Offsite-backup file browser
         icon: https://seaweedfs.com/favicon.ico
         url: 'https://filer.store.{{ lab_domain }}'
         statusCheck: true
         statusCheckAcceptCodes: '401'
-        id: 4_1774_seaweedfsfiler
+        id: 5_1774_seaweedfsfiler
   - name: Game Tools
     icon: fa fa-gamepad
     items:

@@ -1,0 +1,16 @@
+[Unit]
+Description=Check whether every backed-up app's S3 backup is still fresh
+Documentation=https://rclone.org/commands/rclone_lsf/
+StartLimitIntervalSec=0
+# Fires only on a genuine check failure (rclone/docker couldn't run at
+# all) - never on "no fresh backup found", which the script itself
+# treats as a normal non-error result. See check-freshness.sh.j2.
+OnFailure=telegram-notify-backup-freshness.service
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/bin/sh {{ backup_agent_deploy_dir }}/check-freshness.sh
+
+[Install]
+WantedBy=multi-user.target

@@ -10,6 +10,17 @@ PartOf=cert-renewer.target
 # coupling matters. Fires on any failure: an ExecCondition skip is not
 # a failure (see below), so this never fires on the common no-op path.
 OnFailure=telegram-notify@%i.service
+# Also %i-parameterized, but unlike telegram-notify@ this can't share
+# one unit/env file across every instance - each cert needs its own
+# Kuma monitor, so its own push URL, not one shared bot's credentials.
+# The unit this resolves to (uptime-kuma-push-cert-renewer-%i.service)
+# is installed by whichever role owns that %i - lldap_cert installs
+# uptime-kuma-push-cert-renewer-lldap.service today (see its own
+# tasks/main.yaml). A future cert-renewer@ instance with no matching
+# unit installed just gets a harmless "unit not found" line in the
+# journal at trigger time - standard systemd dependency-resolution
+# behavior, not a failure of the renewal itself. See docs/uptime-kuma.md.
+OnSuccess=uptime-kuma-push-cert-renewer-%i.service
 
 [Service]
 Type=oneshot

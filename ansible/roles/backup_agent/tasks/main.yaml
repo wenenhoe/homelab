@@ -178,3 +178,88 @@
     state: present
   tags:
     - images
+
+# compose.yaml.j2's own "backup-agent-net" key is not the network's
+# actual runtime name — Docker Compose prefixes it with this project's
+# name ("backup-agent"), and the exact separator/format isn't something
+# to hardcode and assume stable across compose versions. Discovered
+# here, not assumed, for the freshness-check container below to join -
+# it needs to resolve this stack's own SeaweedFS target the same way
+# backup-agent itself does.
+- name: Discover the docker network this compose stack created
+  community.docker.docker_host_info:
+    networks: true
+  register: backup_agent_docker_networks
+
+- name: Extract its name
+  ansible.builtin.set_fact:
+    backup_agent_network_name: >-
+      {{ backup_agent_docker_networks.networks
+         | selectattr('Name', 'search', 'backup-agent-net')
+         | map(attribute='Name') | list | first }}
+
+# --- Freshness check: liveness signal for Uptime Kuma -----------------
+# See docs/uptime-kuma.md. Runs host-side, outside the backup-agent
+# container entirely - offen/docker-volume-backup's own exec-hook
+# labels need Docker `exec` access, which this host's socket-proxy
+# deliberately doesn't grant (see compose.yaml.j2's own comment on
+# backup_agent_any_stop_apps). Checking S3 object freshness instead
+# needs no new privilege at all: it reuses this host's own
+# already-scoped SeaweedFS credential (read access is strictly less
+# than the write access it already has).
+
+- name: Install Telegram alerting for freshness-check failures
+  ansible.builtin.include_role:
+    name: telegram_notify
+    tasks_from: install.yaml
+  vars:
+    telegram_notify_unit_name: telegram-notify-backup-freshness
+    telegram_notify_description: Telegram alert for a failed backup freshness check
+    telegram_notify_message: >-
+      Backup freshness check failed on `{{ ansible_facts['hostname'] }}` -
+      check `journalctl -u check-freshness.service`
+    telegram_notify_topic_id: "{{ telegram_topic_id_backups }}"
+
+- name: Render the freshness-check script
+  ansible.builtin.template:
+    src: check-freshness.sh.j2
+    dest: "{{ backup_agent_deploy_dir }}/check-freshness.sh"
+    owner: root
+    group: root
+    mode: "0700"
+  # Embeds seaweedfs_s3_secret_key - same no_log rule as .env above.
+  no_log: true
+
+- name: Install the freshness-check systemd service
+  ansible.builtin.template:
+    src: check-freshness.service.j2
+    dest: /etc/systemd/system/check-freshness.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the freshness-check systemd timer
+  ansible.builtin.template:
+    src: check-freshness.timer.j2
+    dest: /etc/systemd/system/check-freshness.timer
+    mode: "0644"
+  notify: Reload systemd
+
+# telegram_notify's own install.yaml deliberately doesn't reload systemd
+# or notify a handler itself (see its own header comment) - do it here
+# instead, off the results it registers.
+- name: Reload systemd if the Telegram notifier unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
+
+# Same reasoning as lldap_cert/cloud_sync/caddy_cert_expiry's identical
+# task: "Enable and start" below needs systemd to have already picked
+# up the current unit content, which only happens once handlers flush.
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start the freshness-check timer
+  ansible.builtin.systemd:
+    name: check-freshness.timer
+    state: started
+    enabled: true

@@ -1,0 +1,53 @@
+---
+# Library role, no tasks/main.yaml — always called explicitly via
+# include_role: {name: uptime_kuma_push, tasks_from: install.yaml} with
+# the vars below. Renders one plain systemd oneshot unit that curls a
+# pre-generated Uptime Kuma push-monitor URL. Deliberately only ever
+# used from OnSuccess= (never OnFailure=/an explicit ?status=down push)
+# — see docs/uptime-kuma.md's "Wiring a job to its push monitor" for why.
+#
+# Required vars (no defaults/main.yaml - a missing one should fail
+# loudly here, not render a broken unit):
+#   uptime_kuma_push_unit_name  systemd unit name, no ".service" suffix
+#   uptime_kuma_push_description [Unit] Description= text
+#   uptime_kuma_push_url        the full push URL from Kuma's own UI,
+#                                including its query string - "" is
+#                                valid (monitor not created yet), see
+#                                below
+
+- name: Fail loudly if a required uptime_kuma_push_* var is missing
+  ansible.builtin.assert:
+    that:
+      - uptime_kuma_push_unit_name is defined
+      - uptime_kuma_push_description is defined
+      - uptime_kuma_push_url is defined
+    fail_msg: >-
+      uptime_kuma_push's install.yaml needs uptime_kuma_push_unit_name,
+      _description, and _url all set by the including role - see
+      ansible/roles/uptime_kuma_push/tasks/install.yaml.
+
+- name: Ensure curl is present (this unit's ExecStart needs it)
+  ansible.builtin.apt:
+    name: curl
+    state: present
+
+- name: Ensure /etc/uptime-kuma-push exists
+  ansible.builtin.file:
+    path: /etc/uptime-kuma-push
+    state: directory
+    mode: "0700"
+
+- name: "Render the pusher's URL: {{ uptime_kuma_push_unit_name }}"
+  ansible.builtin.template:
+    src: push.env.j2
+    dest: "/etc/uptime-kuma-push/{{ uptime_kuma_push_unit_name }}.env"
+    mode: "0600"
+  register: uptime_kuma_push_env_result
+  no_log: true
+
+- name: "Install the pusher's systemd unit: {{ uptime_kuma_push_unit_name }}"
+  ansible.builtin.template:
+    src: push.service.j2
+    dest: "/etc/systemd/system/{{ uptime_kuma_push_unit_name }}.service"
+    mode: "0644"
+  register: uptime_kuma_push_service_result

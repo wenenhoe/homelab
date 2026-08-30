@@ -1,0 +1,11 @@
+[Unit]
+Description={{ uptime_kuma_push_description }}
+Documentation=https://github.com/louislam/uptime-kuma/wiki
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/uptime-kuma-push/{{ uptime_kuma_push_unit_name }}.env
+; The URL Kuma generates already carries its own status/msg query
+; string (defaults to status=up) - never overridden to status=down here,
+; see docs/uptime-kuma.md.
+ExecStart=/usr/bin/curl -fsS --max-time 10 "${UPTIME_KUMA_PUSH_URL}"

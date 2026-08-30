@@ -233,3 +233,21 @@ app_registry:
     caddy:
       default:
         upstream: "bluemap:8100"
+
+  uptime-kuma:
+    volumes:
+      - name: data
+    backup:
+      volumes: [data]
+      stop_during_backup: true
+    caddy:
+      default:
+        upstream: "uptime-kuma:3001"
+        # Push-monitor pings (plain HTTP GETs from cert-renewer@,
+        # cert-expiry-check, cloud_sync, etc. on every host) are
+        # machine-to-machine, not a browser session - same reasoning as
+        # beszel-hub's auth: false. Tinyauth's forward_auth would
+        # redirect those GETs to a login page instead of letting them
+        # reach Kuma, silently breaking every push monitor. Kuma's own
+        # login still gates the dashboard itself. See docs/uptime-kuma.md.
+        auth: false

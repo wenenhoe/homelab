@@ -6,6 +6,9 @@ StartLimitIntervalSec=0
 # cert and a hard connection failure both count as failure here, on
 # purpose (see check.sh.j2's header for why).
 OnFailure=telegram-notify-cert-expiry.service
+# Liveness signal only - see docs/uptime-kuma.md for why this never
+# pushes an explicit down status on failure instead.
+OnSuccess=uptime-kuma-push-cert-expiry.service
 
 [Service]
 Type=oneshot

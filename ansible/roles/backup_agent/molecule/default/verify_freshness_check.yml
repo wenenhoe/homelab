@@ -1,0 +1,161 @@
+---
+# --- Freshness check: liveness signal for Uptime Kuma ----------------
+# See docs/uptime-kuma.md. Runs against the real backups already
+# confirmed in S3 above, not synthetic data - happy_app_nostop
+# genuinely has a fresh object by this point in the run, and
+# converge.yml gave it a (fake, unreachable) push URL specifically
+# to exercise the "found, attempt push" branch for real.
+
+- name: Stat every file this mechanism should have installed
+  ansible.builtin.stat:
+    path: "{{ item }}"
+  register: backup_agent_verify_freshness_files
+  loop:
+    - "{{ compose_deploy_dir }}/backup-agent/check-freshness.sh"
+    - /etc/systemd/system/check-freshness.service
+    - /etc/systemd/system/check-freshness.timer
+    - /etc/systemd/system/telegram-notify-backup-freshness.service
+
+- name: Confirm they all exist
+  ansible.builtin.assert:
+    that:
+      - backup_agent_verify_freshness_files.results | map(attribute='stat.exists') | list == [true, true, true, true]
+
+- name: Confirm check-freshness.service actually declares the OnFailure link  # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl cat check-freshness.service
+  register: backup_agent_verify_onfailure
+  changed_when: false
+  failed_when: "'OnFailure=telegram-notify-backup-freshness.service' not in backup_agent_verify_onfailure.stdout"
+
+- name: Confirm the timer is enabled and active
+  ansible.builtin.systemd:
+    name: check-freshness.timer
+    daemon_reload: false
+  register: backup_agent_verify_timer_status
+
+- name: Assert on it
+  ansible.builtin.assert:
+    that:
+      - backup_agent_verify_timer_status.status.ActiveState == 'active'
+      - backup_agent_verify_timer_status.status.UnitFileState == 'enabled'
+    fail_msg: >-
+      ActiveState={{ backup_agent_verify_timer_status.status.ActiveState }}
+      UnitFileState={{ backup_agent_verify_timer_status.status.UnitFileState }}
+
+# Real trigger, not a static content check — this genuinely runs
+# rclone against the same SeaweedFS target the backups above landed
+# in. All 4 apps have a genuinely fresh backup by this point in the
+# run, so the aggregate "every app fresh" push should fire exactly
+# once for the whole host — not per app (see check-freshness.sh.j2's
+# header on why one stale app would suppress the whole push).
+- name: Capture a timestamp right before this run, to scope the journal read below
+  ansible.builtin.command: date -u +%s
+  register: backup_agent_verify_freshness_marker
+  changed_when: false
+
+- name: Run the freshness check for real  # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl start check-freshness.service
+  register: backup_agent_verify_freshness_run
+  failed_when: false
+  changed_when: false
+
+- name: Read the freshness check's own journal output  # noqa: command-instead-of-module
+  # --since, not -n 50: check-freshness.timer is already enabled by
+  # this point and could in principle have auto-fired once on its
+  # own (hourly, with up to 10m of its own jitter) before this
+  # manual trigger — --since scopes this to only the run just
+  # started above, regardless of what came before it.
+  ansible.builtin.command: >-
+    journalctl -u check-freshness.service
+    --since "@{{ backup_agent_verify_freshness_marker.stdout | trim }}"
+    --no-pager
+  register: backup_agent_verify_freshness_journal
+  changed_when: false
+
+- name: Confirm every app was individually checked and found fresh, and the aggregate push was attempted
+  ansible.builtin.assert:
+    that:
+      - "'happy_app_stop: backup newer than' in backup_agent_verify_freshness_journal.stdout"
+      - "'happy_app_nostop: backup newer than' in backup_agent_verify_freshness_journal.stdout"
+      - "'happy_app_multivol: backup newer than' in backup_agent_verify_freshness_journal.stdout"
+      - "'happy_app_precompressed: backup newer than' in backup_agent_verify_freshness_journal.stdout"
+      - "'no backup newer than' not in backup_agent_verify_freshness_journal.stdout"
+      - "'every app on this host is fresh, pushing' in backup_agent_verify_freshness_journal.stdout"
+    fail_msg: "Journal: {{ backup_agent_verify_freshness_journal.stdout }}"
+
+# This scenario's push URL is a real but unreachable host
+# (uptime-kuma-test.invalid, RFC 2606 reserved - guaranteed never to
+# resolve) - curl is expected to fail there, which correctly makes
+# this run's own exit code nonzero via set -e's own abort at the
+# push line (see check-freshness.sh.j2 - there's no explicit
+# try/catch around the final push, a failed push aborts the script
+# the same way any other unhandled command failure would under
+# set -e, which still ends up nonzero either way).
+- name: Confirm the run's own exit reflects the failed push, not a false pass
+  ansible.builtin.assert:
+    that:
+      - backup_agent_verify_freshness_run.rc != 0
+    fail_msg: >-
+      Expected a nonzero exit from the failed push to
+      uptime-kuma-test.invalid. Journal:
+      {{ backup_agent_verify_freshness_journal.stdout }}
+
+# --- Behavioral: a stale app suppresses the host's push --------------
+# In-place sed on the already-deployed script, not a second
+# ansible.builtin.template render — template's own file-transfer
+# mechanism needs meaningfully more remote scratch space than a
+# plain command, and this scenario is already heavy (SeaweedFS, two
+# aws-cli containers, alpine, docker-socket-proxy, backup-agent,
+# rclone). Forces the freshness window down to 1ms for every app at
+# once - they all share one offsite_backup_freshness_hours value in
+# the rendered script, so this one substitution affects all 4,
+# which also means this exercises real multi-app aggregation, not
+# just a single app, at no extra image-pull cost (rclone/rclone:1.72
+# is already cached from the run above). Not 0h: rclone's --max-age
+# treats a literal 0 duration as "unset" rather than "age <= 0"
+# (its own displayed default is an enormous sentinel, ~2562047h, not
+# 0), so 0h would match everything instead of nothing. 1ms is small
+# enough that no real object can satisfy it without hitting that
+# special case.
+- name: Force every app's threshold down to 1ms via in-place sed  # noqa: command-instead-of-module
+  ansible.builtin.command: >-
+    sed -i 's/{{ offsite_backup_freshness_hours }}h/1ms/'
+    {{ compose_deploy_dir }}/backup-agent/check-freshness.sh
+  changed_when: true
+
+- name: Capture a timestamp right before the second run, to scope the journal read below
+  ansible.builtin.command: date -u +%s
+  register: backup_agent_verify_freshness_stale_marker
+  changed_when: false
+
+- name: Run the freshness check again with every app now "stale"  # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl start check-freshness.service
+  register: backup_agent_verify_freshness_stale_run
+  failed_when: false
+  changed_when: false
+
+- name: Read the journal from this second run only  # noqa: command-instead-of-module
+  # --since, not -n 50: a fixed line count spans BOTH the "fresh"
+  # run above and this one, and the fresh run's own "pushing" line
+  # would then wrongly fail the assertion below that checks THIS
+  # run alone never pushed.
+  ansible.builtin.command: >-
+    journalctl -u check-freshness.service
+    --since "@{{ backup_agent_verify_freshness_stale_marker.stdout | trim }}"
+    --no-pager
+  register: backup_agent_verify_freshness_stale_journal
+  changed_when: false
+
+- name: Confirm no app satisfied the 1ms threshold, no push was attempted, and this counts as a normal (non-error) result
+  ansible.builtin.assert:
+    that:
+      - "'no backup newer than 1ms found' in backup_agent_verify_freshness_stale_journal.stdout"
+      - "'every app on this host is fresh, pushing' not in backup_agent_verify_freshness_stale_journal.stdout"
+      - "'not pushing, relying on' in backup_agent_verify_freshness_stale_journal.stdout"
+      - backup_agent_verify_freshness_stale_run.rc == 0
+    fail_msg: >-
+      Expected every app to miss the 1ms threshold, no push attempt,
+      and a clean exit (staleness alone is not an error - see
+      check-freshness.sh.j2's header). Journal:
+      {{ backup_agent_verify_freshness_stale_journal.stdout }}
+      rc={{ backup_agent_verify_freshness_stale_run.rc }}

@@ -65,6 +65,10 @@ cloud_sync_default_targets: [r2, b2]
 # docker-volume-backup's own BACKUP_CRON_EXPRESSION instead.
 cloud_sync_on_calendar: "*-*-* 06:00:00"
 
+# See docs/uptime-kuma.md — "" (blank) until the matching Push monitor
+# is created by hand in Kuma's own UI.
+uptime_kuma_push_url_cloud_sync: "{{ secrets_generated['uptime-kuma-push-url-cloud-sync'] }}"
+
 compose_apps:
   - name: caddy
 

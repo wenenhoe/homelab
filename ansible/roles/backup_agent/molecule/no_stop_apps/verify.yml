@@ -64,3 +64,22 @@
           - backup_agent_no_stop_names | select('search', '^/backup-agent$') | list | length == 1
           - backup_agent_no_stop_names | select('search', 'backup-agent-dockerproxy') | list | length == 0
         fail_msg: "Expected only /backup-agent, no dockerproxy. Got: {{ backup_agent_no_stop_names }}"
+
+    # --- Freshness check renders even without the dockerproxy branch ----
+    # Light touch only — full behavioral coverage (real trigger, real S3
+    # target, both branches) lives in the default scenario. This just
+    # confirms the mechanism doesn't implicitly depend on
+    # backup_agent_any_stop_apps being true.
+    - name: Stat the freshness-check files
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: backup_agent_no_stop_freshness_files
+      loop:
+        - "{{ compose_deploy_dir }}/backup-agent/check-freshness.sh"
+        - /etc/systemd/system/check-freshness.service
+        - /etc/systemd/system/check-freshness.timer
+
+    - name: Confirm they all exist
+      ansible.builtin.assert:
+        that:
+          - backup_agent_no_stop_freshness_files.results | map(attribute='stat.exists') | list == [true, true, true]

@@ -8,6 +8,9 @@ StartLimitIntervalSec=0
 # carries through to systemd here, there's no separate skip condition
 # to distinguish from a real failure the way cert-renewer@ has.
 OnFailure=telegram-notify-cloud-sync.service
+# Liveness signal only - see docs/uptime-kuma.md for why this never
+# pushes an explicit down status on failure instead.
+OnSuccess=uptime-kuma-push-cloud-sync.service
 
 [Service]
 Type=oneshot

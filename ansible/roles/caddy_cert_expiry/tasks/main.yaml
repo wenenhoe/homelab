@@ -56,6 +56,21 @@
       on `{{ ansible_facts['hostname'] }}` - check `journalctl -u cert-expiry-check.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
 
+# Only ever pushes on success (see docs/uptime-kuma.md) — failure
+# alerting stays on the telegram_notify unit above, unchanged. One
+# concrete unit per host, not a systemd @-template - this role already
+# runs once per app_host via Ansible's own per-host loop, and each
+# host's push URL already differs (uptime_kuma_push_url_cert_expiry is
+# an inventory_hostname-keyed lookup - see group_vars/all/main.yaml).
+- name: Install the Uptime Kuma push-on-success unit for cert-expiry-check
+  ansible.builtin.include_role:
+    name: uptime_kuma_push
+    tasks_from: install.yaml
+  vars:
+    uptime_kuma_push_unit_name: uptime-kuma-push-cert-expiry
+    uptime_kuma_push_description: Uptime Kuma liveness push for a successful Caddy cert-expiry check
+    uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_expiry }}"
+
 - name: Install the cert-expiry-check systemd service
   ansible.builtin.template:
     src: cert-expiry-check.service.j2
@@ -72,11 +87,14 @@
 
 # telegram_notify's own install.yaml deliberately doesn't reload systemd
 # or notify a handler itself (see its own header comment) - do it here
-# instead, off the results it registers.
-- name: Reload systemd if the Telegram notifier unit changed
+# instead, off the results it registers. uptime_kuma_push follows the
+# same convention, for the same reason.
+- name: Reload systemd if either notifier unit changed
   ansible.builtin.systemd:
     daemon_reload: true
-  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
+  when: >-
+    telegram_notify_env_result.changed or telegram_notify_service_result.changed or
+    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
 
 # Same reasoning as lldap_cert/cloud_sync's identical task: "Enable and
 # start" below needs systemd to have already picked up the current unit

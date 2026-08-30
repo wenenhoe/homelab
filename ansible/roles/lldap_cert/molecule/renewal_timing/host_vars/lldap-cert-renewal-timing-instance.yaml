@@ -32,9 +32,15 @@ step_ca_provisioner_name: admin
 
 # telegram_notify's install.yaml (included from lldap_cert's own
 # tasks/main.yaml) needs these — see docs/telegram-notifications.md.
+# telegram_notify's install.yaml (included from lldap_cert's own
+# tasks/main.yaml) needs these — see docs/telegram-notifications.md.
 telegram_token: molecule-dummy-telegram-token
 telegram_chat_id: molecule-dummy-chat-id
 telegram_topic_id_certs: ""
+
+# uptime_kuma_push's install.yaml (included from lldap_cert's own
+# tasks/main.yaml) needs this — see docs/uptime-kuma.md.
+uptime_kuma_push_url_cert_renewer_lldap: ""
 # step-ca-test's own container name: lldap_cert's own tasks run `step`
 # via a container on caddy-proxy now, not a host-installed binary, so it
 # resolves "step-ca-test" the same way any other container on that

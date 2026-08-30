@@ -88,7 +88,7 @@ elif [ "${app_rc}" -eq 1 ]; then
 fi
 {% endfor %}
 
-push_url="{{ backup_freshness_push_url }}"
+push_url="{{ backup_agent_freshness_push_url }}"
 
 if [ -z "${push_url}" ]; then
   echo "no push URL configured yet for this host, skipping (apps above were still checked for their own log output)"

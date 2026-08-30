@@ -47,9 +47,9 @@
         name: telegram_topic_pins
         tasks_from: pin.yaml
       vars:
-        telegram_pin_key: "{{ item.key }}"
-        telegram_pin_topic_id: "{{ item.topic_id }}"
-        telegram_pin_text: "{{ item.text }}"
+        telegram_topic_pins_key: "{{ item.key }}"
+        telegram_topic_pins_topic_id: "{{ item.topic_id }}"
+        telegram_topic_pins_text: "{{ item.text }}"
       loop: "{{ telegram_topic_pins }}"
       loop_control:
         label: "{{ item.key }}"

@@ -73,7 +73,7 @@
     # gets a real backup uploaded below, so this exercises the "every
     # app fresh, one push fires" path.
     offsite_backup_freshness_hours: 1
-    backup_freshness_push_url: "http://uptime-kuma-test.invalid/api/push/molecule-fake-token"
+    backup_agent_freshness_push_url: "http://uptime-kuma-test.invalid/api/push/molecule-fake-token"
 
     # happy_app_stop carries docker-volume-backup.stop-during-backup=
     # happy_app_stop on its own container and stop_during_backup: true

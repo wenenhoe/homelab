@@ -128,7 +128,7 @@
   register: backup_agent_verify_freshness_stale_marker
   changed_when: false
 
-- name: Run the freshness check again with every app now "stale"
+- name: Run the freshness check again with every app now "stale"  # noqa: command-instead-of-module
   ansible.builtin.command: systemctl start check-freshness.service
   register: backup_agent_verify_freshness_stale_run
   failed_when: false

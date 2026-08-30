@@ -45,7 +45,7 @@
     # Left blank: this scenario doesn't trigger a check run either, same
     # as it doesn't trigger a backup (see the comment below).
     offsite_backup_freshness_hours: 26
-    backup_freshness_push_url: ""
+    backup_agent_freshness_push_url: ""
 
     # The one app on this host declares no stop_during_backup at all —
     # the shape no current real host has (services/security both have

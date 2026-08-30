@@ -100,6 +100,7 @@ test scaffolding, not a deployed app.
 | [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
 | [`docs/restore.md`](docs/restore.md) | Restoring an app's volume(s) from a backup archive: the runbook. |
 | [`docs/cloud-sync.md`](docs/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
+| [`docs/cloud-credential-creation.md`](docs/cloud-credential-creation.md) | Creating the 6 R2/B2/OCI write+read credentials via each provider's HTTP API, what each is scoped to, rotation. |
 | [`docs/volume-maintenance.md`](docs/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
 | [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
 | [`docs/secrets-rotation.md`](docs/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |

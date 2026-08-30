@@ -59,6 +59,14 @@ then:
 python3 ansible/bootstrap_secrets.py
 ```
 
+The six R2/B2/OCI write/read credentials are the one exception with a
+scripted path instead of a console round-trip: delete the cache
+file(s) for the leg you're rotating, then re-run
+`ansible/create_cloud_credentials.py --provider <r2|b2|oci>` — see
+[`cloud-credential-creation.md`](cloud-credential-creation.md#rotation)
+for what it does and doesn't do (it doesn't revoke the old provider-side
+key, by design — that's a manual cleanup step at the provider).
+
 ## Certificate-backed material (not in `secrets_registry.yaml` at all)
 
 lldap's LDAPS keypair isn't a registry secret — it's issued into the

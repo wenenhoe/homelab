@@ -30,11 +30,16 @@ seaweedfs_backup_hosts: [services, security, play]
 # themselves are still manual, out-of-band setup — see
 # docs/disaster-recovery.md's "Before first use" checklist.
 cloud_sync_targets:
+  # write credentials only — cloud_sync uploads, never reads back. The
+  # matching read-only credentials (cloudflare-r2-read-*, etc.) are
+  # created alongside these but aren't consumed here; the future
+  # restore-discovery script is what reads them. See
+  # docs/cloud-credential-creation.md.
   r2:
     bucket: homelab-backups
     endpoint: "https://{{ secrets_generated['cloudflare-r2-account-id'] }}.r2.cloudflarestorage.com"
-    access_key: "{{ secrets_generated['cloudflare-r2-access-key'] }}"
-    secret_key: "{{ secrets_generated['cloudflare-r2-secret-key'] }}"
+    access_key: "{{ secrets_generated['cloudflare-r2-write-access-key'] }}"
+    secret_key: "{{ secrets_generated['cloudflare-r2-write-secret-key'] }}"
   b2:
     # -b2 suffix, unlike r2/oci's bare "homelab-backups": B2 bucket
     # names are globally unique across every B2 account, not
@@ -42,13 +47,13 @@ cloud_sync_targets:
     # Confirmed live, not a hypothetical.
     bucket: homelab-backups-b2
     endpoint: "https://s3.{{ secrets_generated['backblaze-b2-region'] }}.backblazeb2.com"
-    access_key: "{{ secrets_generated['backblaze-b2-access-key'] }}"
-    secret_key: "{{ secrets_generated['backblaze-b2-secret-key'] }}"
+    access_key: "{{ secrets_generated['backblaze-b2-write-access-key'] }}"
+    secret_key: "{{ secrets_generated['backblaze-b2-write-secret-key'] }}"
   oci:
     bucket: homelab-backups
     endpoint: "https://{{ secrets_generated['oci-namespace'] }}.compat.objectstorage.{{ secrets_generated['oci-region'] }}.oraclecloud.com"
-    access_key: "{{ secrets_generated['oci-access-key'] }}"
-    secret_key: "{{ secrets_generated['oci-secret-key'] }}"
+    access_key: "{{ secrets_generated['oci-write-access-key'] }}"
+    secret_key: "{{ secrets_generated['oci-write-secret-key'] }}"
 
 # Small config-app archives (everything except minecraft) go to both
 # free-tier clouds for offsite redundancy. minecraft overrides this in

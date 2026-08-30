@@ -212,11 +212,15 @@ jobs:
           printf '%s' '' > ansible/files/secrets/telegram-topic-id-monitoring
           printf '%s' '' > ansible/files/secrets/telegram-topic-id-backups
           printf '%s' '' > ansible/files/secrets/telegram-topic-id-certs
-          printf '%s' 'ci-dummy-r2-access-key' > ansible/files/secrets/cloudflare-r2-access-key
-          printf '%s' 'ci-dummy-r2-secret-key' > ansible/files/secrets/cloudflare-r2-secret-key
+          printf '%s' 'ci-dummy-r2-write-access-key' > ansible/files/secrets/cloudflare-r2-write-access-key
+          printf '%s' 'ci-dummy-r2-write-secret-key' > ansible/files/secrets/cloudflare-r2-write-secret-key
+          printf '%s' 'ci-dummy-r2-read-access-key' > ansible/files/secrets/cloudflare-r2-read-access-key
+          printf '%s' 'ci-dummy-r2-read-secret-key' > ansible/files/secrets/cloudflare-r2-read-secret-key
           printf '%s' 'ci-dummy-r2-account-id' > ansible/files/secrets/cloudflare-r2-account-id
-          printf '%s' 'ci-dummy-b2-access-key' > ansible/files/secrets/backblaze-b2-access-key
-          printf '%s' 'ci-dummy-b2-secret-key' > ansible/files/secrets/backblaze-b2-secret-key
+          printf '%s' 'ci-dummy-b2-write-access-key' > ansible/files/secrets/backblaze-b2-write-access-key
+          printf '%s' 'ci-dummy-b2-write-secret-key' > ansible/files/secrets/backblaze-b2-write-secret-key
+          printf '%s' 'ci-dummy-b2-read-access-key' > ansible/files/secrets/backblaze-b2-read-access-key
+          printf '%s' 'ci-dummy-b2-read-secret-key' > ansible/files/secrets/backblaze-b2-read-secret-key
           printf '%s' 'ci-dummy-b2-region' > ansible/files/secrets/backblaze-b2-region
           # uptime-kuma-push-url-* are allow_blank: true too - each
           # monitor's URL doesn't exist until created by hand in Kuma's
@@ -231,8 +235,10 @@ jobs:
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-services
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-play
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-security
-          printf '%s' 'ci-dummy-oci-access-key' > ansible/files/secrets/oci-access-key
-          printf '%s' 'ci-dummy-oci-secret-key' > ansible/files/secrets/oci-secret-key
+          printf '%s' 'ci-dummy-oci-write-access-key' > ansible/files/secrets/oci-write-access-key
+          printf '%s' 'ci-dummy-oci-write-secret-key' > ansible/files/secrets/oci-write-secret-key
+          printf '%s' 'ci-dummy-oci-read-access-key' > ansible/files/secrets/oci-read-access-key
+          printf '%s' 'ci-dummy-oci-read-secret-key' > ansible/files/secrets/oci-read-secret-key
           printf '%s' 'ci-dummy-oci-namespace' > ansible/files/secrets/oci-namespace
           printf '%s' 'ci-dummy-oci-region' > ansible/files/secrets/oci-region
 

@@ -3,7 +3,7 @@ lldap_cert_container_name: lldap
 lldap_cert_certs_volume_name: lldap_certs
 lldap_cert_network_name: caddy-proxy
 # Same version as docker/step-ca's own pin — see docs/step-ca.md.
-lldap_cert_step_cli_image: "smallstep/step-cli:0.30.2"
+lldap_cert_step_cli_image: "smallstep/step-cli:0.30.6"
 # step-ca's own container name, not localhost: `step` now always runs
 # inside a container on caddy-proxy (this role's own one-time issuance,
 # and the systemd renewal unit's ExecStart/ExecCondition), which resolves

@@ -22,7 +22,7 @@ network="$1"
 lldap_fqdn="$2"
 ca_password="ci-dummy-step-ca-password"
 step_ca_image="smallstep/step-ca:0.30.2"
-step_cli_image="smallstep/step-cli:0.30.2"
+step_cli_image="smallstep/step-cli:0.30.6"
 
 workdir=$(mktemp -d)
 # mktemp -d defaults to 0700 — smallstep/step-cli runs as a non-root uid

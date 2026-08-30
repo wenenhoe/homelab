@@ -93,3 +93,11 @@ offsite_backup_s3_proto: "https"
 # archived mid-write. See docs/disaster-recovery.md.
 offsite_backup_cron: "30 4 * * *"
 offsite_backup_retention_days: 7
+
+# How stale a host/app's newest S3 object can be before the freshness
+# check (docs/uptime-kuma.md) stops pushing to Kuma - 2h buffer beyond
+# offsite_backup_cron's default daily cadence for backup duration and
+# scheduling slack. Not per-app overridable today - every app currently
+# shares the same daily default cron, unlike retention_days/cron/
+# compression above.
+offsite_backup_freshness_hours: 26

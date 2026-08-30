@@ -1,0 +1,7 @@
+---
+# Referenced in check-freshness.sh.j2, so a host with backup-enabled
+# apps but no host_vars entry for this yet doesn't hard-fail with an
+# undefined-variable error - it just skips the push, same "not
+# configured yet" tolerance as everywhere else in this role. See
+# docs/uptime-kuma.md.
+backup_freshness_push_url: ""

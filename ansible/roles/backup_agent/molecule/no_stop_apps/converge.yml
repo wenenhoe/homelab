@@ -18,6 +18,15 @@
     # for why (shoutrrr's own token validation, not this repo's).
     telegram_token: "123456789:molecule-dummy-token"
     telegram_chatid_backups: "molecule-dummy-chat-id"
+    # telegram_notify's install.yaml also needs this — see default
+    # scenario's converge.yml for why it's separate from
+    # telegram_chatid_backups above.
+    telegram_chat_id: "molecule-dummy-chat-id"
+    # telegram_notify's install.yaml (included from backup_agent's own
+    # tasks/main.yaml, for freshness-check failures) needs this — see
+    # default scenario's converge.yml for why it's separate from
+    # telegram_chatid_backups above.
+    telegram_topic_id_backups: ""
 
     # backup_agent's global vars are still required to render env/conf.d
     # files, even though nothing here ever reaches an S3 target — no
@@ -30,6 +39,13 @@
     offsite_backup_s3_proto: http
     seaweedfs_s3_access_key: molecule-test-access-key
     seaweedfs_s3_secret_key: molecule-test-secret-key
+
+    # check-freshness.sh.j2 needs these too — rendered unconditionally,
+    # regardless of the stop-apps branch this scenario exists to test.
+    # Left blank: this scenario doesn't trigger a check run either, same
+    # as it doesn't trigger a backup (see the comment below).
+    offsite_backup_freshness_hours: 26
+    backup_freshness_push_url: ""
 
     # The one app on this host declares no stop_during_backup at all —
     # the shape no current real host has (services/security both have

@@ -99,21 +99,71 @@ missing-heartbeat detection (the *normal* path, not the buggy explicit
 one) is still the backstop for a job that fails silently enough that
 even `OnFailure=` never fires (host down, timer masked, unit hung).
 
-Still to do: `backup_agent`'s `docker-volume-backup` instances need a
-different mechanism entirely — `NOTIFICATION_LEVEL` is one global setting
-for the whole container, so there's no way to make it report every run
-to Kuma while keeping the existing Telegram alert quiet on success only.
-The exact hook to use instead is still to be confirmed against
-`docker-volume-backup`'s own docs.
+**Done for `backup_agent`, via a different mechanism than the other
+three, and one push per *host* rather than per app.** `docker-volume-backup`'s
+own exec-hook labels (`copy-post` etc.) need Docker `exec` access, which
+this host's socket-proxy deliberately doesn't grant (`EXEC=1` isn't in
+`CONTAINERS=1, POST=1, INFO=1`) — widening that would mean "run
+arbitrary commands inside any labeled container" as a standing
+capability, a real security trade-off for a nice-to-have liveness
+signal, not something to grant quietly. Instead, a new host-side
+`check-freshness.timer`/`.service` (hourly, outside the backup container
+entirely) checks whether *every* app's newest object in SeaweedFS is
+within `offsite_backup_freshness_hours` (26h default) using `rclone lsf
+--max-age`, and pushes **once, only if every app on that host is
+fresh** — see
+`ansible/roles/backup_agent/templates/check-freshness.sh.j2`. One stale
+app suppresses the whole host's push; Kuma shows "this host's backups"
+as one monitor, not one per app — which specific app is stale is only
+visible in that unit's own journal.
 
-Every push URL above (`uptime-kuma-push-url-cloud-sync`,
-`uptime-kuma-push-url-cert-renewer-lldap`, and the 4 per-host
-`uptime-kuma-push-url-cert-expiry-<host>` entries) still needs its
-matching Push monitor created in Kuma's UI and the real URL pasted into
+This needs no new credential or privilege: it reuses the same
+already-scoped `seaweedfs_s3_access_key`/`secret_key` each host already
+has write access with (see `docs/disaster-recovery.md`) — read is
+strictly less than what it can already do. One push per host, not per
+app, also means **a future app added to an existing host needs no new
+config at all** — no new `secrets_registry.yaml` entry, no new
+`host_vars` key. A genuinely new *host* running `backup_agent` for the
+first time is the only case that needs new setup (one new
+`secrets_registry.yaml` entry, one new `backup_freshness_push_url` in
+that host's `host_vars`) — a much rarer event than adding an app.
+
+`rclone` (actively maintained) runs the check, not `mc` — MinIO archived
+both `minio/minio` and `minio/mc` on Docker Hub as part of their move to
+a commercial "AIStor" product, freezing the last published `mc` image
+with no further security patches.
+
+The script's own exit code distinguishes three outcomes per app, not
+two — collapsing "ran fine, nothing fresh yet" into the same failure
+path as "rclone/docker itself couldn't run" would alert on ordinary
+staleness constantly, defeating the point of leaving that to Kuma's own
+missing-heartbeat timeout instead:
+
+| Outcome | Counts toward the push | Triggers `OnFailure=` |
+| :--- | :--- | :--- |
+| Fresh backup found | Yes | No |
+| Ran fine, nothing fresh yet | No | No — silent, Kuma's own timeout catches persistent staleness |
+| `rclone`/`docker` itself failed | No | Yes — a real infra problem, not a backup problem |
+
+A **centralized checker on `storage`** (reusing `cloud_sync`'s own
+existing bucket-wide `seaweedfs-cloud-sync-reader` credential) was
+considered and rejected — not on privilege-cost grounds (there isn't
+one, `storage` already holds that broader credential), but because it
+would need `hostvars['services'].compose_apps`-style cross-host fact
+access to know what to check, which is only populated when those hosts
+are part of the *same* playbook run. That breaks silently under
+`ansible-playbook deploy.yaml --limit services` — the checker would work
+off stale/absent data for other hosts until someone remembers to also
+run the full, unlimited playbook. The current per-host design keeps
+every host self-contained, consistent with every other check in this
+project.
+
+Every push URL across all four mechanisms above (`cloud_sync`,
+`cert-renewer-lldap`, the 4 `cert-expiry-check` entries, and the 3
+per-host `backup_freshness_push_url` entries) still needs its matching
+Push monitor created in Kuma's UI and the real URL pasted into
 `ansible/files/secrets/` (or via `bootstrap_secrets.py`) before any of
-this actually reports anywhere — until then every pusher unit just fails
-harmlessly on its own blank URL, exactly like `cloud_sync`'s did before
-that monitor existed.
+this actually reports anywhere.
 
 ## Runtime config
 

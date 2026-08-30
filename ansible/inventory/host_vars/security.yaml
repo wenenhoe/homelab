@@ -36,6 +36,11 @@ step_ca_password: "{{ secrets_generated['step-ca-password'] }}"
 # lldap's own cert-renewer@ instance only — see docs/uptime-kuma.md.
 uptime_kuma_push_url_cert_renewer_lldap: "{{ secrets_generated['uptime-kuma-push-url-cert-renewer-lldap'] }}"
 
+# backup_agent's freshness-check push URL, one for the whole host
+# (covers tinyauth, lldap, and step-ca all at once) — see
+# docs/uptime-kuma.md.
+backup_freshness_push_url: "{{ secrets_generated['uptime-kuma-push-url-backup-security'] }}"
+
 lldap_host: lldap
 
 compose_apps:

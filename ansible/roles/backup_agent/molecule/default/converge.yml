@@ -38,6 +38,17 @@
     # unaffected — only this placeholder needed to match it.
     telegram_token: "123456789:molecule-dummy-token"
     telegram_chatid_backups: "molecule-dummy-chat-id"
+    # telegram_notify's install.yaml also needs this — the bare chat
+    # ID, distinct from telegram_chatid_backups above (that one's
+    # backup_agent's own shoutrrr-formatted "chat_id:topic_id" string).
+    telegram_chat_id: "molecule-dummy-chat-id"
+    # telegram_notify's install.yaml (included from backup_agent's own
+    # tasks/main.yaml, for freshness-check failures) needs this — a
+    # different var from telegram_chatid_backups above, which is
+    # backup_agent's own direct shoutrrr config, not our telegram_notify
+    # role. Blank, same "not configured yet" happy path used everywhere
+    # else in this repo.
+    telegram_topic_id_backups: ""
 
     # A real SeaweedFS instance (started below) stands in for the actual
     # target, with a real -s3.config identity, so this exercises real
@@ -54,6 +65,15 @@
     offsite_backup_s3_proto: http
     seaweedfs_s3_access_key: molecule-test-access-key
     seaweedfs_s3_secret_key: molecule-test-secret-key
+
+    # check-freshness.sh.j2 (included from backup_agent's own
+    # tasks/main.yaml) needs these — see docs/uptime-kuma.md. A short
+    # threshold so verify.yml doesn't need to wait. One push URL for
+    # the whole host now (not per-app) — every app in this scenario
+    # gets a real backup uploaded below, so this exercises the "every
+    # app fresh, one push fires" path.
+    offsite_backup_freshness_hours: 1
+    backup_freshness_push_url: "http://uptime-kuma-test.invalid/api/push/molecule-fake-token"
 
     # happy_app_stop carries docker-volume-backup.stop-during-backup=
     # happy_app_stop on its own container and stop_during_backup: true

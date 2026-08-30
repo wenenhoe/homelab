@@ -6,6 +6,10 @@ caddy_domain: "play.{{ lab_domain }}"
 seaweedfs_s3_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-play'] }}"
 seaweedfs_s3_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-play'] }}"
 
+# backup_agent's freshness-check push URL, one for the whole host — see
+# docs/uptime-kuma.md.
+backup_freshness_push_url: "{{ secrets_generated['uptime-kuma-push-url-backup-play'] }}"
+
 compose_apps:
   - name: caddy
 

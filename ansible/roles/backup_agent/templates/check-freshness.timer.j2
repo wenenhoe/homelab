@@ -1,0 +1,12 @@
+[Unit]
+Description=Timer for the backup freshness check
+Documentation=https://rclone.org/commands/rclone_lsf/
+
+[Timer]
+Persistent=true
+OnCalendar=hourly
+AccuracySec=5m
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

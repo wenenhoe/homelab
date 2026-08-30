@@ -73,14 +73,17 @@ rest of that run.
   this is Ansible-managed (same as the earlier note for SeaweedFS being
   the one exception) — a reasonable first OpenTofu project once that
   expansion starts.
-- Fill in the ten `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries in
-  `secrets_registry.yaml` via `bootstrap_secrets.py` — see
-  [`secrets.md`](secrets.md). Scope each credential to just that bucket,
-  **without** delete/lifecycle-modification permission — see the
-  paragraph above on why that's load-bearing, not just tidiness.
-  `backblaze-b2-region` specifically (B2 Console > Buckets > Bucket
-  Details) is the one value here B2 assigns rather than you choosing it
-  — get the real one from your own bucket, not a copied example.
+- Fill in the sixteen `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
+  in `secrets_registry.yaml` via `bootstrap_secrets.py` — see
+  [`secrets.md`](secrets.md). Two credentials per provider now (write
+  for `cloud_sync` here, read for a future restore-discovery script),
+  plus the three shared endpoint values. Scope each write credential to
+  just that bucket, **without** delete/lifecycle-modification
+  permission — see the paragraph above on why that's load-bearing, not
+  just tidiness. `backblaze-b2-region` specifically (B2 Console >
+  Buckets > Bucket Details) is the one value here B2 assigns rather
+  than you choosing it — get the real one from your own bucket, not a
+  copied example.
 - **Needs live verification, not yet confirmed:** every `rclone.conf`
   endpoint is written with its scheme (`https://`) included, not a bare
   hostname — the opposite convention from `docker-volume-backup`'s

@@ -2,14 +2,23 @@
 
 Two trust tiers, two scripts:
 
-- **`ansible/create_rotation_keys.py`** (this doc) — run rarely. Takes
-  each provider's master credential in memory only (never written to
-  disk, never logged) and uses it to mint a narrower **rotation key**:
-  scoped to creating/deleting keys, not to reading or writing backup
-  data itself. The rotation key is what gets cached.
-- **`ansible/create_cloud_credentials.py`** — run routinely, covered in
-  its own follow-up doc update. Authenticates with the cached rotation
-  key, never the master credential.
+- **`ansible/create_rotation_keys.py`** — run rarely. Takes each
+  provider's master credential in memory only (never written to disk,
+  never logged) and uses it to mint a narrower **rotation key**: scoped
+  to creating/deleting keys, not to reading or writing backup data
+  itself. The rotation key is what gets cached.
+- **`ansible/create_cloud_credentials.py`** — run routinely. This is
+  what actually creates/rotates the 6 `cloud_sync`/restore-discovery
+  credentials (`cloudflare-r2-write-*`/`-read-*`,
+  `backblaze-b2-write-*`/`-read-*`, `oci-write-*`/`-read-*` in
+  `secrets_registry.yaml` — **write** for `cloud_sync`'s own upload leg
+  in `host_vars/storage.yaml`, **read** for the controller-side
+  restore-discovery script, separate and not yet built — see
+  `disaster-recovery.md`'s Restoring section once it exists).
+  Authenticates with the cached rotation key, never the master
+  credential — it never reads a master credential at all. All six stay
+  `format: manual` in the registry; this script is just an automated
+  way to fill them in.
 
 Rotation keys are cached to `ansible/files/secrets/` for now, same as
 everything else in this repo. Moving that cache to an actual secrets
@@ -17,15 +26,16 @@ manager is a separate, not-yet-scoped subproject; nothing here depends
 on it.
 
 ```sh
-python3 ansible/create_rotation_keys.py [--provider {r2,b2,oci,all}]
+python3 ansible/create_rotation_keys.py            # rare — needs the master credential
+python3 ansible/create_cloud_credentials.py        # routine — uses the cached rotation key
 ```
 
-Safe to re-run — a rotation key whose cache files already exist is left
-alone. Uses each provider's HTTP API directly, no `b2`/`oci` CLI binary
-required — just the `requests`, `oci`, and `cryptography` packages
-pinned in `pyproject.toml` (`oci` supplies only its
-`oci.signer.Signer` request-signing helper; nothing here calls the
-SDK's generated per-service clients).
+Safe to re-run either one — a credential whose cache files already
+exist is left alone. Both scripts use each provider's HTTP API
+directly, no `b2`/`oci` CLI binary required — just the `requests`,
+`oci`, and `cryptography` packages pinned in `pyproject.toml` (`oci`
+supplies only its `oci.signer.Signer` request-signing helper; nothing
+here calls the SDK's generated per-service clients).
 
 ## What "master credential" means per provider, and how scoped the resulting rotation key actually is
 
@@ -116,16 +126,23 @@ actually prevents an on-prem compromise from deleting R2 objects — see
 `disaster-recovery.md`'s Threat model. R2's defense-in-depth here is
 `copy`-vs-`sync`, not IAM.
 
-## Rotating a rotation key itself
+## Rotation
 
-Rare — delete its cache file(s) under `ansible/files/secrets/`, re-run
-`create_rotation_keys.py --provider <r2|b2|oci>`. This needs the master
-credential again, so it's the one operation in this whole system that
-isn't fully unattended, by design.
+**Rotating a leg key** (routine): delete its cache file(s) under
+`ansible/files/secrets/`, re-run `create_cloud_credentials.py --provider
+<r2|b2|oci>`. Both legs per provider are checked independently, so
+rotating just the write leg (delete only its two files) doesn't touch
+the read leg's cache.
 
-**Known limitation, deliberately not built:** the script doesn't revoke
-the *old* provider-side rotation key when it creates a new one — same
-reasoning as leg-key rotation (covered in the follow-up doc update):
-auto-revoking safely means confirming the new key works before killing
-the old one, which is real design work, not something that falls out
-for free.
+**Rotating a rotation key itself** (rare): delete its cache file(s),
+re-run `create_rotation_keys.py --provider <r2|b2|oci>` — this needs
+the master credential again, so it's the one operation in this whole
+system that isn't fully unattended, by design.
+
+**Known limitation, deliberately not built at either tier:** neither
+script revokes the *old* provider-side key when it creates a new one —
+you'll end up with an orphaned-but-still-valid key until you delete it
+by hand (B2/OCI Console, or the R2 dashboard's token list). Auto-revoking
+safely means confirming the new key actually works before killing the
+old one, which is real design work, not something that falls out for
+free the way file-based rotation does for `hex`/`uuid4` secrets.

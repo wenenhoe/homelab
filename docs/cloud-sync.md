@@ -74,16 +74,22 @@ rest of that run.
   the one exception) — a reasonable first OpenTofu project once that
   expansion starts.
 - Fill in the sixteen `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
-  in `secrets_registry.yaml` via `bootstrap_secrets.py` — see
-  [`secrets.md`](secrets.md). Two credentials per provider now (write
-  for `cloud_sync` here, read for a future restore-discovery script),
-  plus the three shared endpoint values. Scope each write credential to
-  just that bucket, **without** delete/lifecycle-modification
-  permission — see the paragraph above on why that's load-bearing, not
-  just tidiness. `backblaze-b2-region` specifically (B2 Console >
-  Buckets > Bucket Details) is the one value here B2 assigns rather
-  than you choosing it — get the real one from your own bucket, not a
-  copied example.
+  in `secrets_registry.yaml` — a write and a read credential per
+  provider, plus the three shared endpoint values (account ID, B2
+  region, OCI namespace/region). `ansible/create_rotation_keys.py`
+  followed by `ansible/create_cloud_credentials.py` does this via each
+  provider's HTTP API rather than console click-through (or
+  `bootstrap_secrets.py` by hand, if you'd rather paste in
+  console-created values — both write to the same cache files); see
+  [`cloud-credential-creation.md`](cloud-credential-creation.md)
+  for exactly what each credential is scoped to, provider by provider —
+  B2 and OCI both fully exclude delete from the write credential, R2
+  can't (a platform limitation, not something worth re-chasing; see
+  that doc's R2 section for why `copy`-vs-`sync` above is what actually
+  carries the defense for R2 specifically). `backblaze-b2-region`
+  specifically (B2 Console > Buckets > Bucket Details) is the one value
+  here B2 assigns rather than you choosing it — get the real one from
+  your own bucket, not a copied example.
 - **Needs live verification, not yet confirmed:** every `rclone.conf`
   endpoint is written with its scheme (`https://`) included, not a bare
   hostname — the opposite convention from `docker-volume-backup`'s

@@ -45,99 +45,77 @@ unlike Beszel's KEY/TOKEN, nothing outside Kuma itself needs to know it.
 
 ## Wiring a job to its push monitor
 
-**Done for `cloud_sync`, `cert-renewer@lldap`, and `cert-expiry-check`
-(all 4 hosts).** Same shape throughout — `OnSuccess=` push, `OnFailure=`
-unchanged.
+**Done for `cloud_sync`, `cert-renewer@lldap`, `cert-expiry-check` (all 4
+hosts), and `backup_agent`.** Every one of them pushes on success only —
+`OnFailure=` always stays exactly as it was before Kuma existed, going
+straight to `telegram-notify-*`, unchanged. Never pushing an explicit
+`status=down` is deliberate: on the deployed 2.5.3, that sits in Pending
+rather than marking Down until a retry-grace window elapses (fixed
+upstream in 3.0.0 — [louislam/uptime-kuma#6406](https://github.com/louislam/uptime-kuma/issues/6406)),
+so Kuma's own missing-heartbeat detection is the real backstop for a job
+that fails silently enough that even `OnFailure=` never fires.
 
-`cert-renewer@` has one real difference from the other two: its
-`ExecCondition` skips the run entirely on the vast majority of the
-timer's 15-minute ticks (not due for renewal yet), and a skip is neither
-success nor failure at the systemd level — `OnSuccess=`/`OnFailure=`
-only fire on a genuine completed run. With step-ca's default
-`defaultTLSCertDuration` of 24h (unconfigured in this repo, confirmed —
-no `claims` override exists anywhere in `ca.json`/provisioner config)
-and `step ca renew`'s own ⅔-of-lifetime renewal trigger, a real renewal
-— and therefore a real push — happens roughly once a day, not every 15
-minutes. Size that Push monitor's Heartbeat Interval accordingly (~28h,
-with sixth-of-that-scale retries/grace, the same shape as `cloud_sync`'s
-own once-daily cadence below) — a shorter interval will false-alarm on
-every ordinary skip.
+Two different push mechanisms are in use, not one:
+
+- `cloud_sync`, `cert-renewer@lldap`, `cert-expiry-check` each install a
+  dedicated `uptime-kuma-push-*.service` unit via the shared
+  `uptime_kuma_push` role (`ansible/roles/uptime_kuma_push/`).
+- `backup_agent` inlines its own `curl` directly inside
+  `check-freshness.sh` instead, since its push is conditional on an
+  aggregate check across every app on the host, not a single job's own
+  exit code — see below.
+
+`cert-renewer@` has one real difference from the other two systemd-unit
+consumers: its `ExecCondition` skips the run entirely on the vast
+majority of the timer's 15-minute ticks (not due for renewal yet), and a
+skip is neither success nor failure at the systemd level. With step-ca's
+default 24h cert lifetime (no `claims` override in this repo) and `step
+ca renew`'s ⅔-of-lifetime trigger, a real push happens roughly once a
+day — size that monitor's Heartbeat Interval accordingly (~28h), not to
+the 15-minute tick rate.
 
 `cert-renewer@` is also a genuine systemd `@`-template, shared by any
-future cert under it — not just lldap's. Unlike `telegram_notify@`
-(one shared bot, one shared credentials file works for every instance),
-each cert needs its *own* Kuma monitor and push URL, so `OnSuccess=`
-resolves to `uptime-kuma-push-cert-renewer-%i.service`, and each
-consuming role installs its own concretely-named unit (`lldap_cert`
-installs `uptime-kuma-push-cert-renewer-lldap.service` — see its own
-`tasks/main.yaml`). A future instance with no matching unit installed
-just gets a harmless "unit not found" line in the journal at trigger
-time — standard systemd dependency-resolution behavior, not a failure
-of the renewal itself.
+future cert under it — not just lldap's. Unlike `telegram_notify@` (one
+shared bot, one shared credentials file works for every instance), each
+cert needs its *own* Kuma monitor and push URL, so `OnSuccess=` resolves
+to `uptime-kuma-push-cert-renewer-%i.service`, and each consuming role
+installs its own concretely-named unit (`lldap_cert` installs
+`uptime-kuma-push-cert-renewer-lldap.service`). A future instance with
+no matching unit installed just gets a harmless "unit not found" line in
+the journal at trigger time — standard systemd dependency-resolution
+behavior, not a failure of the renewal itself.
 
-`cert-expiry-check` has no `ExecCondition` — every timer tick genuinely
-runs the check, so it behaves exactly like `cloud_sync`: one push per
-host per day. It also runs on **all 4 app_hosts**, so it needed 4
-separate `secrets_registry.yaml` entries and its own push URL
-(`uptime_kuma_push_url_cert_expiry`) is a single `inventory_hostname`-keyed
-lookup in `group_vars/all/main.yaml` rather than 4 separate `host_vars`
-entries — the role already runs once per host via Ansible's normal loop,
-so no per-host role logic was needed beyond that one dynamic var.
+`cert-expiry-check` has no `ExecCondition` — every tick genuinely runs,
+so it pushes once per host per day like `cloud_sync`. It runs on all 4
+app_hosts, so its push URL (`uptime_kuma_push_url_cert_expiry`) is a
+single `inventory_hostname`-keyed lookup in `group_vars/all/main.yaml`
+rather than 4 separate `host_vars` entries.
 
-**Only `OnSuccess=` pushes to Kuma** (`?status=up`); `OnFailure=`
-stays exactly as it is today, going straight to
-`telegram-notify-*`/Telegram, unchanged. Confirmed live on the deployed
-2.5.3: an explicit `?status=down` push doesn't mark a Push monitor Down,
-it sits in Pending until the Retries × Heartbeat Retry Interval grace
-window elapses (fixed upstream in 3.0.0, not yet released — see
-[louislam/uptime-kuma#6406](https://github.com/louislam/uptime-kuma/issues/6406)).
-Pushing `status=down` on failure would just delay that alert behind the
-grace window instead of speeding anything up, on top of duplicating the
-already-immediate direct alert. Never pushing a down status sidesteps
-the bug entirely rather than depending on a fix landing — Kuma's own
-missing-heartbeat detection (the *normal* path, not the buggy explicit
-one) is still the backstop for a job that fails silently enough that
-even `OnFailure=` never fires (host down, timer masked, unit hung).
+`backup_agent` pushes **once per host, not once per app** — a new
+`check-freshness.timer`/`.service` (hourly, host-side, entirely outside
+the backup container) checks whether *every* app's newest SeaweedFS
+object is within `offsite_backup_freshness_hours` (26h default, via
+`rclone lsf --max-age`; `rclone` not `mc` — MinIO archived `mc`'s Docker
+Hub image), and pushes only if all of them are. One stale app suppresses
+the whole host's push; which specific app is stale is only visible in
+that unit's own journal, not from Kuma. This needs no new credential:
+it reuses each host's own already-scoped SeaweedFS write key (read is
+strictly less access than that). One push per host also means a future
+app added to an *existing* host needs zero new config — only a
+genuinely new host running `backup_agent` needs a new
+`secrets_registry.yaml` entry and `host_vars` key. (A checker
+centralized on `storage` was considered — no privilege cost, since
+`cloud_sync` already holds a bucket-wide read credential there — but
+rejected: it would need cross-host `hostvars` fact access that isn't
+populated under `ansible-playbook deploy.yaml --limit <host>`, breaking
+silently on exactly the partial-deploy flow this repo's `--limit`
+pattern is built around.)
 
-**Done for `backup_agent`, via a different mechanism than the other
-three, and one push per *host* rather than per app.** `docker-volume-backup`'s
-own exec-hook labels (`copy-post` etc.) need Docker `exec` access, which
-this host's socket-proxy deliberately doesn't grant (`EXEC=1` isn't in
-`CONTAINERS=1, POST=1, INFO=1`) — widening that would mean "run
-arbitrary commands inside any labeled container" as a standing
-capability, a real security trade-off for a nice-to-have liveness
-signal, not something to grant quietly. Instead, a new host-side
-`check-freshness.timer`/`.service` (hourly, outside the backup container
-entirely) checks whether *every* app's newest object in SeaweedFS is
-within `offsite_backup_freshness_hours` (26h default) using `rclone lsf
---max-age`, and pushes **once, only if every app on that host is
-fresh** — see
-`ansible/roles/backup_agent/templates/check-freshness.sh.j2`. One stale
-app suppresses the whole host's push; Kuma shows "this host's backups"
-as one monitor, not one per app — which specific app is stale is only
-visible in that unit's own journal.
-
-This needs no new credential or privilege: it reuses the same
-already-scoped `seaweedfs_s3_access_key`/`secret_key` each host already
-has write access with (see `docs/disaster-recovery.md`) — read is
-strictly less than what it can already do. One push per host, not per
-app, also means **a future app added to an existing host needs no new
-config at all** — no new `secrets_registry.yaml` entry, no new
-`host_vars` key. A genuinely new *host* running `backup_agent` for the
-first time is the only case that needs new setup (one new
-`secrets_registry.yaml` entry, one new `backup_freshness_push_url` in
-that host's `host_vars`) — a much rarer event than adding an app.
-
-`rclone` (actively maintained) runs the check, not `mc` — MinIO archived
-both `minio/minio` and `minio/mc` on Docker Hub as part of their move to
-a commercial "AIStor" product, freezing the last published `mc` image
-with no further security patches.
-
-The script's own exit code distinguishes three outcomes per app, not
-two — collapsing "ran fine, nothing fresh yet" into the same failure
-path as "rclone/docker itself couldn't run" would alert on ordinary
-staleness constantly, defeating the point of leaving that to Kuma's own
-missing-heartbeat timeout instead:
+The freshness script's exit code distinguishes three outcomes per app,
+not two — collapsing "ran fine, nothing fresh yet" into the same
+failure path as "rclone/docker itself couldn't run" would alert on
+ordinary staleness constantly, defeating the point of leaving that to
+Kuma's own timeout instead:
 
 | Outcome | Counts toward the push | Triggers `OnFailure=` |
 | :--- | :--- | :--- |
@@ -145,20 +123,7 @@ missing-heartbeat timeout instead:
 | Ran fine, nothing fresh yet | No | No — silent, Kuma's own timeout catches persistent staleness |
 | `rclone`/`docker` itself failed | No | Yes — a real infra problem, not a backup problem |
 
-A **centralized checker on `storage`** (reusing `cloud_sync`'s own
-existing bucket-wide `seaweedfs-cloud-sync-reader` credential) was
-considered and rejected — not on privilege-cost grounds (there isn't
-one, `storage` already holds that broader credential), but because it
-would need `hostvars['services'].compose_apps`-style cross-host fact
-access to know what to check, which is only populated when those hosts
-are part of the *same* playbook run. That breaks silently under
-`ansible-playbook deploy.yaml --limit services` — the checker would work
-off stale/absent data for other hosts until someone remembers to also
-run the full, unlimited playbook. The current per-host design keeps
-every host self-contained, consistent with every other check in this
-project.
-
-Every push URL across all four mechanisms above (`cloud_sync`,
+Every push URL across all mechanisms above (`cloud_sync`,
 `cert-renewer-lldap`, the 4 `cert-expiry-check` entries, and the 3
 per-host `backup_freshness_push_url` entries) still needs its matching
 Push monitor created in Kuma's UI and the real URL pasted into

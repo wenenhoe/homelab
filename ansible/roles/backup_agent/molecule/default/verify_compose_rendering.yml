@@ -1,0 +1,135 @@
+---
+# --- Structural checks: rendering is correct -----------------------
+- name: Read back the rendered backup-agent compose.yaml
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/compose.yaml"
+  register: backup_agent_compose_raw
+
+- name: Parse it
+  ansible.builtin.set_fact:
+    backup_agent_compose_parsed: "{{ backup_agent_compose_raw.content | b64decode | from_yaml }}"
+
+- name: Confirm the single backup-agent service was rendered, plus the proxy (a stop app is present)
+  ansible.builtin.assert:
+    that:
+      - "'backup-agent' in backup_agent_compose_parsed.services"
+      - "'backup-dockerproxy' in backup_agent_compose_parsed.services"
+    fail_msg: "Expected services: {{ backup_agent_compose_parsed.services.keys() | list }}"
+
+- name: Confirm the one container mounts every backed-up app's volumes under its own per-app dir, not happy_app_no_backup's
+  vars:
+    backup_agent_mounted_volumes: "{{ backup_agent_compose_parsed.services['backup-agent'].volumes }}"
+  ansible.builtin.assert:
+    that:
+      - "'happy_app_stop_data:/backup/happy_app_stop/happy_app_stop_data:ro' in backup_agent_mounted_volumes"
+      - "'happy_app_nostop_data:/backup/happy_app_nostop/happy_app_nostop_data:ro' in backup_agent_mounted_volumes"
+      - "'happy_app_multivol_data:/backup/happy_app_multivol/happy_app_multivol_data:ro' in backup_agent_mounted_volumes"
+      - "'happy_app_multivol_certs:/backup/happy_app_multivol/happy_app_multivol_certs:ro' in backup_agent_mounted_volumes"
+      - "'happy_app_no_backup_data:/backup/happy_app_no_backup/happy_app_no_backup_data:ro' not in backup_agent_mounted_volumes"
+    fail_msg: >-
+      happy_app_no_backup_data appeared despite declaring no backup: key
+      — the normalization task's `when` guard isn't excluding it.
+
+# --- One schedule per app, always SeaweedFS ------------------------
+- name: List the rendered conf.d schedule files
+  ansible.builtin.find:
+    paths: "{{ compose_deploy_dir }}/backup-agent/conf.d"
+  register: backup_agent_conf_d_files
+
+- name: Confirm exactly the expected schedules exist — no more, no fewer
+  ansible.builtin.assert:
+    that:
+      - (backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort) ==
+        ['happy_app_multivol.env', 'happy_app_nostop.env', 'happy_app_precompressed.env', 'happy_app_stop.env']
+    fail_msg: >-
+      Expected happy_app_stop.env, happy_app_nostop.env,
+      happy_app_multivol.env, happy_app_precompressed.env, and nothing
+      for happy_app_no_backup. Got:
+      {{ backup_agent_conf_d_files.files | map(attribute='path') | map('basename') | sort }}
+      — if long_gone_app.env is still present, the stale-file-removal
+      task (converge.yml seeds it before the role's first run to
+      exercise exactly this) isn't actually deleting obsolete
+      schedules anymore.
+
+- name: Read back happy_app_stop's schedule
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_stop.env"
+  register: backup_agent_stop_schedule_raw
+
+- name: Confirm it's scoped to happy_app_stop's own dir and carries its own stop label
+  ansible.builtin.assert:
+    that:
+      - "'BACKUP_SOURCES=/backup/happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
+      - "'BACKUP_STOP_DURING_BACKUP_LABEL=happy_app_stop' in (backup_agent_stop_schedule_raw.content | b64decode)"
+
+- name: Read back happy_app_nostop's schedule
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_nostop.env"
+  register: backup_agent_nostop_schedule_raw
+
+- name: Confirm it carries no stop label — happy_app_nostop must never be stopped by its own schedule
+  ansible.builtin.assert:
+    that:
+      - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_nostop_schedule_raw.content | b64decode)"
+      - "'BACKUP_SOURCES=/backup/happy_app_nostop' in (backup_agent_nostop_schedule_raw.content | b64decode)"
+
+- name: Read back happy_app_multivol's schedule
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_multivol.env"
+  register: backup_agent_multivol_schedule_raw
+
+- name: Confirm BACKUP_SOURCES is exactly one path with no space in it
+  ansible.builtin.assert:
+    that:
+      - "'BACKUP_SOURCES=/backup/happy_app_multivol' in (backup_agent_multivol_schedule_raw.content | b64decode)"
+      - "(backup_agent_multivol_schedule_raw.content | b64decode | regex_findall('BACKUP_SOURCES=(.*)'))[0] is not search(' ')"
+    fail_msg: >-
+      A space in BACKUP_SOURCES means docker-volume-backup lstats a
+      single bogus multi-word path and every run fails — this is the
+      actual bug this fixture exists to catch.
+
+- name: Confirm an app with no compression override still defaults to gz
+  ansible.builtin.assert:
+    that:
+      - "'BACKUP_COMPRESSION=gz' in (backup_agent_multivol_schedule_raw.content | b64decode)"
+
+- name: Read back happy_app_precompressed's schedule
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_precompressed.env"
+  register: backup_agent_precompressed_schedule_raw
+
+- name: Confirm its compression:none override reached BACKUP_COMPRESSION, and its filename template uses the .Extension verb rather than a hardcoded .tar.gz
+  ansible.builtin.assert:
+    that:
+      - "'BACKUP_COMPRESSION=none' in (backup_agent_precompressed_schedule_raw.content | b64decode)"
+      - >-
+        (backup_agent_precompressed_schedule_raw.content | b64decode
+        | regex_findall('BACKUP_FILENAME=(.*)'))[0]
+        is search('\{\{ .Extension \}\}\s*$')
+    fail_msg: >-
+      Expected BACKUP_COMPRESSION=none and a BACKUP_FILENAME ending in
+      the literal `{{ '{{' }} .Extension {{ '}}' }}` verb (not a
+      hardcoded .tar.gz) — otherwise this app's archive would be named
+      .tar.gz while actually being an uncompressed tar, which breaks
+      any manual or scripted decrypt+extract. Got:
+      {{ backup_agent_precompressed_schedule_raw.content | b64decode }}
+
+# --- Shared env carries only what's actually shared -----------------
+- name: Read back the shared env file
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/.env"
+  register: backup_agent_shared_env_raw
+
+- name: Confirm it carries DOCKER_HOST (a stop app is present) and nothing schedule-specific
+  ansible.builtin.assert:
+    that:
+      - "'DOCKER_HOST=tcp://backup-agent-dockerproxy:2375' in (backup_agent_shared_env_raw.content | b64decode)"
+      - "'AWS_S3_BUCKET_NAME' not in (backup_agent_shared_env_raw.content | b64decode)"
+      - "'BACKUP_STOP_DURING_BACKUP_LABEL=' not in (backup_agent_shared_env_raw.content | b64decode)"
+
+- name: Confirm the Telegram notification URL was rendered from the role's own vars, not left as a template literal
+  ansible.builtin.assert:
+    that:
+      - >-
+        'NOTIFICATION_URLS=telegram://123456789:molecule-dummy-token@telegram?chats=molecule-dummy-chat-id'
+        in (backup_agent_shared_env_raw.content | b64decode)

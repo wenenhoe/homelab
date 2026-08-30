@@ -1,0 +1,75 @@
+---
+# --- Both containers actually came up --------------------------------
+- name: Confirm the backup-agent and dockerproxy containers are running
+  community.docker.docker_host_info:
+    containers: true
+    containers_filters:
+      name: "{{ item }}"
+  register: backup_agent_containers
+  failed_when: backup_agent_containers.containers | length == 0
+  loop:
+    - backup-agent
+    - backup-agent-dockerproxy
+
+# --- Behavioral: per-schedule stop-label isolation --------------------
+# The load-bearing assumption behind collapsing to one container:
+# BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule file, not
+# once for the whole container. Confirmed live by hand before this
+# test existed (see docs/disaster-recovery.md's Architecture
+# section) — this codifies that check so it can't silently regress
+# on an image version bump.
+- name: Capture happy_app_stop's StartedAt BEFORE any cron-triggered backup
+  community.docker.docker_container_info:
+    name: happy_app_stop
+  register: backup_agent_stop_before
+
+- name: Discover happy_app_nostop's container id BEFORE (no fixed container_name anymore — see molecule_helpers/fixtures/generic_alpine_app_with_volume)
+  community.docker.docker_host_info:
+    containers: true
+    containers_filters:
+      label: "com.docker.compose.project=happy_app_nostop"
+  register: backup_agent_nostop_lookup_before
+  failed_when: backup_agent_nostop_lookup_before.containers | length != 1
+
+- name: Capture happy_app_nostop's StartedAt BEFORE any cron-triggered backup
+  community.docker.docker_container_info:
+    name: "{{ backup_agent_nostop_lookup_before.containers[0].Id }}"
+  register: backup_agent_nostop_before
+
+# Real cron (every minute, test-only — see converge.yml), not a
+# manual trigger: v2's manual-trigger CLI has no way to target one
+# specific conf.d schedule, confirmed live (`backup --config-file
+# ...` isn't a real flag), and cron is the actual code path
+# production runs anyway.
+- name: Wait for the test cron to stop+restart happy_app_stop (its own schedule firing)
+  community.docker.docker_container_info:
+    name: happy_app_stop
+  register: backup_agent_stop_after
+  until: backup_agent_stop_after.container.State.StartedAt != backup_agent_stop_before.container.State.StartedAt
+  retries: 20
+  delay: 5
+
+- name: Discover happy_app_nostop's container id AFTER
+  community.docker.docker_host_info:
+    containers: true
+    containers_filters:
+      label: "com.docker.compose.project=happy_app_nostop"
+  register: backup_agent_nostop_lookup_after
+  failed_when: backup_agent_nostop_lookup_after.containers | length != 1
+
+- name: Capture happy_app_nostop's StartedAt again, after happy_app_stop's schedule fired
+  community.docker.docker_container_info:
+    name: "{{ backup_agent_nostop_lookup_after.containers[0].Id }}"
+  register: backup_agent_nostop_after
+
+- name: Confirm isolation — happy_app_stop restarted, happy_app_nostop was never touched
+  ansible.builtin.assert:
+    that:
+      - backup_agent_nostop_after.container.State.StartedAt == backup_agent_nostop_before.container.State.StartedAt
+    fail_msg: >-
+      happy_app_nostop's StartedAt changed (before=
+      {{ backup_agent_nostop_before.container.State.StartedAt }}, after=
+      {{ backup_agent_nostop_after.container.State.StartedAt }}) even
+      though only happy_app_stop's own schedule fired — a schedule
+      backing up one app must never stop a container sharing this
+      container that wasn't labeled for that app's own schedule.

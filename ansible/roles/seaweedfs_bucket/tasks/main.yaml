@@ -37,7 +37,7 @@
 - name: Ensure a persistent aws-cli utility container exists for S3 bucket management commands
   community.docker.docker_container:
     name: seaweedfs-ensure-bucket
-    image: amazon/aws-cli:2.36.27
+    image: amazon/aws-cli:2.36.34
     entrypoint: ["sleep"]
     command: ["infinity"]
     env:

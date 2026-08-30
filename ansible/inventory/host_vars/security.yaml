@@ -33,6 +33,9 @@ tinyauth_ldap_observer_password: "{{ secrets_generated['tinyauth-ldap-observer-p
 # consumers on other hosts may need it, unlike this one).
 step_ca_password: "{{ secrets_generated['step-ca-password'] }}"
 
+# lldap's own cert-renewer@ instance only — see docs/uptime-kuma.md.
+uptime_kuma_push_url_cert_renewer_lldap: "{{ secrets_generated['uptime-kuma-push-url-cert-renewer-lldap'] }}"
+
 lldap_host: lldap
 
 compose_apps:

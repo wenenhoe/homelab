@@ -23,6 +23,12 @@ beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_dom
 uptime_kuma_host: uptime-kuma
 uptime_kuma_url: "https://{{ uptime_kuma_host }}.{{ hostvars['security'].caddy_domain }}"
 
+# One secrets_registry.yaml entry per host (uptime-kuma-push-url-cert-
+# expiry-<host>) - inventory_hostname resolves this identically on
+# every app_host, no per-host host_vars entry needed. See
+# docs/uptime-kuma.md.
+uptime_kuma_push_url_cert_expiry: "{{ secrets_generated['uptime-kuma-push-url-cert-expiry-' + inventory_hostname] }}"
+
 # Every value below is sourced from secrets_generated (secrets role, Play 0
 # of deploy.yaml), driven by secrets_registry.yaml. See docs/secrets.md.
 # New entry: add to secrets_registry.yaml, then a line here referencing

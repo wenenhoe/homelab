@@ -45,19 +45,44 @@ unlike Beszel's KEY/TOKEN, nothing outside Kuma itself needs to know it.
 
 ## Wiring a job to its push monitor
 
-**Done for `cloud_sync`.** Its `cloud-sync.service` now carries
-`OnSuccess=uptime-kuma-push-cloud-sync.service` alongside the existing
-`OnFailure=telegram-notify-cloud-sync.service` — see
-`ansible/roles/cloud_sync/tasks/main.yaml` and
-`ansible/roles/uptime_kuma_push/tasks/install.yaml`. The push URL itself
-lives in `secrets_registry.yaml` as `uptime-kuma-push-url-cloud-sync`
-(`allow_blank: true`, same first-deploy-blank-is-fine shape as
-`beszel-hub-key`) — until the "storage — cloud_sync" Push monitor above
-is created and its URL pasted into `ansible/files/secrets/` (or via
-`bootstrap_secrets.py`) and `storage` redeployed, the pusher unit just
-fails harmlessly on its own (`curl: no URL specified`,
-`journalctl -u uptime-kuma-push-cloud-sync`) without affecting
-`cloud-sync.service`'s own result or its existing failure alert.
+**Done for `cloud_sync`, `cert-renewer@lldap`, and `cert-expiry-check`
+(all 4 hosts).** Same shape throughout — `OnSuccess=` push, `OnFailure=`
+unchanged.
+
+`cert-renewer@` has one real difference from the other two: its
+`ExecCondition` skips the run entirely on the vast majority of the
+timer's 15-minute ticks (not due for renewal yet), and a skip is neither
+success nor failure at the systemd level — `OnSuccess=`/`OnFailure=`
+only fire on a genuine completed run. With step-ca's default
+`defaultTLSCertDuration` of 24h (unconfigured in this repo, confirmed —
+no `claims` override exists anywhere in `ca.json`/provisioner config)
+and `step ca renew`'s own ⅔-of-lifetime renewal trigger, a real renewal
+— and therefore a real push — happens roughly once a day, not every 15
+minutes. Size that Push monitor's Heartbeat Interval accordingly (~28h,
+with sixth-of-that-scale retries/grace, the same shape as `cloud_sync`'s
+own once-daily cadence below) — a shorter interval will false-alarm on
+every ordinary skip.
+
+`cert-renewer@` is also a genuine systemd `@`-template, shared by any
+future cert under it — not just lldap's. Unlike `telegram_notify@`
+(one shared bot, one shared credentials file works for every instance),
+each cert needs its *own* Kuma monitor and push URL, so `OnSuccess=`
+resolves to `uptime-kuma-push-cert-renewer-%i.service`, and each
+consuming role installs its own concretely-named unit (`lldap_cert`
+installs `uptime-kuma-push-cert-renewer-lldap.service` — see its own
+`tasks/main.yaml`). A future instance with no matching unit installed
+just gets a harmless "unit not found" line in the journal at trigger
+time — standard systemd dependency-resolution behavior, not a failure
+of the renewal itself.
+
+`cert-expiry-check` has no `ExecCondition` — every timer tick genuinely
+runs the check, so it behaves exactly like `cloud_sync`: one push per
+host per day. It also runs on **all 4 app_hosts**, so it needed 4
+separate `secrets_registry.yaml` entries and its own push URL
+(`uptime_kuma_push_url_cert_expiry`) is a single `inventory_hostname`-keyed
+lookup in `group_vars/all/main.yaml` rather than 4 separate `host_vars`
+entries — the role already runs once per host via Ansible's normal loop,
+so no per-host role logic was needed beyond that one dynamic var.
 
 **Only `OnSuccess=` pushes to Kuma** (`?status=up`); `OnFailure=`
 stays exactly as it is today, going straight to
@@ -74,13 +99,21 @@ missing-heartbeat detection (the *normal* path, not the buggy explicit
 one) is still the backstop for a job that fails silently enough that
 even `OnFailure=` never fires (host down, timer masked, unit hung).
 
-Still to do: `cert-renewer@` and `cert-expiry-check` need the same
-`OnSuccess=` treatment, and `backup_agent`'s `docker-volume-backup`
-instances need a different mechanism entirely — `NOTIFICATION_LEVEL` is
-one global setting for the whole container, so there's no way to make it
-report every run to Kuma while keeping the existing Telegram alert quiet
-on success only. The exact hook to use instead is still to be confirmed
-against `docker-volume-backup`'s own docs.
+Still to do: `backup_agent`'s `docker-volume-backup` instances need a
+different mechanism entirely — `NOTIFICATION_LEVEL` is one global setting
+for the whole container, so there's no way to make it report every run
+to Kuma while keeping the existing Telegram alert quiet on success only.
+The exact hook to use instead is still to be confirmed against
+`docker-volume-backup`'s own docs.
+
+Every push URL above (`uptime-kuma-push-url-cloud-sync`,
+`uptime-kuma-push-url-cert-renewer-lldap`, and the 4 per-host
+`uptime-kuma-push-url-cert-expiry-<host>` entries) still needs its
+matching Push monitor created in Kuma's UI and the real URL pasted into
+`ansible/files/secrets/` (or via `bootstrap_secrets.py`) before any of
+this actually reports anywhere — until then every pusher unit just fails
+harmlessly on its own blank URL, exactly like `cloud_sync`'s did before
+that monitor existed.
 
 ## Runtime config
 

@@ -30,6 +30,10 @@
     telegram_token: "111111:test-token-not-real"
     telegram_chat_id: "-100000000"
     telegram_topic_id_certs: "5"
+    # uptime_kuma_push's install.yaml (included from caddy_cert_expiry's
+    # own tasks/main.yaml) needs this — see docs/uptime-kuma.md. Blank,
+    # same "not configured yet" happy path as the telegram vars above.
+    uptime_kuma_push_url_cert_expiry: ""
     app_registry: "{{ (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml') | from_yaml).app_registry }}"
     # Extracted from the real registry rather than hand-copied — see
     # docs/molecule-fixtures.md. Both caddy and

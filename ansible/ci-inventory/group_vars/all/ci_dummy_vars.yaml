@@ -36,6 +36,11 @@ caddy_domain: "svc.ci.invalid"
 # hostvars['security'].caddy_domain, which doesn't exist in a single-host
 # CI run — override it flatly instead of faking a multi-host inventory.
 beszel_hub_url: "http://ci-dummy-beszel-hub:8090"
+
+# uptime_kuma_url (main.yaml) has the same hostvars['security'] dependency
+# as beszel_hub_url above — same override, for dashy's conf.yaml.j2.
+uptime_kuma_url: "http://ci-dummy-uptime-kuma:3001"
+
 # Normally unset by default until manual post-bootstrap setup (see
 # docs/beszel.md) — CI needs *some* value for beszel-agent's config to
 # render at all. Must be a real, structurally valid SSH public key, not

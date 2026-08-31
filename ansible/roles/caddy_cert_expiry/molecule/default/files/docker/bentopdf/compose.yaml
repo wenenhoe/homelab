@@ -2,7 +2,7 @@ name: bentopdf
 
 services:
   bentopdf:
-    image: ghcr.io/alam00000/bentopdf-simple:v2.8.7
+    image: ghcr.io/alam00000/bentopdf-simple:2.8.8
     container_name: bentopdf
     networks:
       - caddy-proxy

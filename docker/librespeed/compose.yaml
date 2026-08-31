@@ -2,7 +2,7 @@ name: librespeed
 
 services:
   librespeed:
-    image: ghcr.io/librespeed/speedtest:6.2.0
+    image: ghcr.io/librespeed/speedtest:6.2.1
     container_name: librespeed
     environment:
       - MODE=standalone

@@ -206,6 +206,7 @@
       matchManagers: ["github-actions"],
       matchUpdateTypes: ["minor", "patch"],
       groupName: "github actions (minor/patch)",
+      groupSlug: "github-actions-minor-patch",
     },
 
     // Everything that actually touches deployed infra — compose files,
@@ -244,6 +245,7 @@
       matchManagers: ["pep621", "uv"],
       matchUpdateTypes: ["minor", "patch"],
       groupName: "python dependencies (minor/patch)",
+      groupSlug: "python-deps-minor-patch",
     },
 
     // Every other docker-compose/Dockerfile image's minor and patch bumps,
@@ -256,6 +258,7 @@
       matchManagers: ["docker-compose", "dockerfile"],
       matchUpdateTypes: ["minor", "patch"],
       groupName: "docker images (minor/patch)",
+      groupSlug: "docker-images-minor-patch",
     },
 
     // henrygd/beszel ships hub and agent from the same repo/release — the
@@ -265,6 +268,7 @@
     {
       matchDepNames: ["ghcr.io/henrygd/beszel/beszel", "ghcr.io/henrygd/beszel/beszel-agent"],
       groupName: "beszel hub + agent (must move together)",
+      groupSlug: "beszel",
     },
 
     // ghcr.io/tecnativa/docker-socket-proxy is the same security-sensitive
@@ -274,6 +278,7 @@
     {
       matchDepNames: ["ghcr.io/tecnativa/docker-socket-proxy"],
       groupName: "docker-socket-proxy (all instances)",
+      groupSlug: "docker-socket-proxy",
     },
 
     // ghcr.io/itzg/mc-backup is pinned identically in docker/minecraft/
@@ -283,6 +288,7 @@
     {
       matchDepNames: ["ghcr.io/itzg/mc-backup"],
       groupName: "mc-backup (compose + restore — must move together)",
+      groupSlug: "mc-backup",
     },
 
     // rclone/rclone is pinned independently in cloud_sync's ExecStart=
@@ -294,6 +300,7 @@
     {
       matchDepNames: ["rclone/rclone"],
       groupName: "rclone (cloud_sync + backup_agent — must move together)",
+      groupSlug: "rclone",
     },
 
     // smallstep/step-ca and smallstep/step-cli are each pinned in three
@@ -309,6 +316,7 @@
     {
       matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
       groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",
+      groupSlug: "smallstep",
     },
 
     // Every other ansible-galaxy collection bump, lumped into one PR —
@@ -320,6 +328,7 @@
       matchManagers: ["ansible-galaxy"],
       matchUpdateTypes: ["minor", "patch"],
       groupName: "ansible galaxy collections (minor/patch)",
+      groupSlug: "ansible-galaxy-minor-patch",
     },
 
     // community.docker/ansible.posix are pinned identically in
@@ -331,6 +340,7 @@
       matchManagers: ["ansible-galaxy"],
       matchDepNames: ["community.docker", "ansible.posix"],
       groupName: "ansible galaxy collections (playbook + molecule — must move together)",
+      groupSlug: "ansible-galaxy-core",
     },
 
     // docker/lldap/compose.yaml, docker/bind9/compose.yaml, and
@@ -356,6 +366,7 @@
     {
       matchDepNames: ["ghcr.io/chrislusf/seaweedfs"],
       groupName: "seaweedfs (prod + molecule test target — must move together)",
+      groupSlug: "seaweedfs",
     },
 
     // seaweedfs is critical storage backend

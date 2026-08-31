@@ -128,6 +128,7 @@ with a redundant copy — losing it makes every backup unrecoverable.
 | `security` | `tinyauth` → `data` | yes (`tinyauth`) | 7 days | R2, B2 (default) |
 | `security` | `lldap` → `data`, `certs` | no | 7 days | R2, B2 (default) |
 | `security` | `step-ca` → `data` | no | 7 days | R2, B2 (default) |
+| `security` | `uptime-kuma` → `data` | yes (`uptime-kuma`) | 7 days | R2, B2 (default) |
 | `play` | `minecraft` → `backups` only | no | 7 days | OCI (override) |
 
 Apps without a `backup:` key in `app_registry.yaml` are out of scope.

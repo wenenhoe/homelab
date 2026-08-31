@@ -122,8 +122,9 @@ drift) — this repo is the source of truth. Reserve `force: false` for a
 destination the *app itself* writes back to after Ansible first renders
 it, where overwriting would destroy state no template can reconstruct.
 Nothing currently needs it. `dashy`'s `conf.yaml.j2` is a candidate if its
-in-UI config editor (`data/conf.yml`) is ever used — see the comment on
-`dashy`'s `app_registry` entry.
+in-UI config editor (`data/conf.yml`) is ever used — see
+[`adding-an-app.md`](adding-an-app.md#2-register-it-in-app_registry)
+for the general rule.
 
 ## Syncing the LDAP observer account password
 

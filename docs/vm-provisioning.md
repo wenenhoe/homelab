@@ -104,7 +104,7 @@ direct file access — same constraint as its UI/API-only config model).
 The existing Kea-DDNS-push design is what causes the journal corruption;
 since Tofu now assigns every managed VM's IP deterministically at
 provision time, DDNS is dropped in favor of static host overrides,
-pushed through OPNsense's API in phase (c). Non-Tofu-managed DHCP
+pushed through OPNsense's API in Phase 2. Non-Tofu-managed DHCP
 clients (the `.50`–`.254` pool) have no fixed IP to override statically
 and keep using DDNS.
 

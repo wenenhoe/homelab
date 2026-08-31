@@ -214,6 +214,11 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   LDAP-bound state — the dependency chain compose-boot-test's per-app
   isolation can never provide, since no `lldap` host exists to resolve
   in that model.
+- `molecule-dind` — not a deployed compose app at all, so there's
+  nothing for `docker compose up` to run against: it's CI scaffolding,
+  a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for
+  Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no
+  `compose.yaml`/`.j2` of its own.
 
 `lldap` is no longer in that list: `_compose-boot-test.yml` issues a real
 cert for it from a throwaway `smallstep/step-ca` container (the official

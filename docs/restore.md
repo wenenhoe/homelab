@@ -65,7 +65,7 @@ It pauses for `yes` before touching anything.
 For `lldap` (multiple volumes in one archive):
 
 ```sh
--e restore_volumes='["lldap_data","lldap_certs","lldap_creds","lldap_letsencrypt_conf","lldap_letsencrypt_lib"]'
+-e restore_volumes='["lldap_data","lldap_certs"]'
 ```
 
 For `minecraft`, restoring `minecraft_backups` only gets you the on-host

@@ -102,7 +102,16 @@ rest of that run.
   examples are inconsistent about this across providers; several
   non-AWS ones explicitly require the scheme, which is why it's
   included everywhere here, but this hasn't been confirmed against a
-  real rclone binary. Before trusting the nightly run: `docker run --rm
-  -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro
-  rclone/rclone:1.68 lsd <name>:` for each of the four remote names —
-  confirm each one lists (or reports an empty, error-free) result.
+  real rclone binary. Before trusting the nightly run, verify against
+  the exact image actually deployed — pulled live from
+  `cloud-sync.service.j2` rather than a hardcoded tag here, so this
+  command can't quietly drift from what's really running:
+  ```sh
+  docker run --rm \
+    -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
+    rclone/rclone:$(grep -oP 'rclone/rclone:\K[0-9.]+' \
+      ansible/roles/cloud_sync/templates/cloud-sync.service.j2) \
+    lsd <name>:
+  ```
+  for each of the four remote names — confirm each one lists (or
+  reports an empty, error-free) result.

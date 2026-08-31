@@ -203,7 +203,7 @@ infra-only) are in [`docs/ansible.md`](docs/ansible.md#tag-based-commands).
 
 Everything routed through Caddy sits behind **Tinyauth** forward-auth by
 default (per-route `auth: false` opts out, e.g. Cobalt, Dashy,
-OpenSpeedTest), backed by **LLDAP** as the directory. **DIUN** watches
+Beszel's hub, and Uptime Kuma), backed by **LLDAP** as the directory. **DIUN** watches
 deployed images and notifies over Telegram on updates. **Beszel**
 monitors host/container health lab-wide — see
 [`docs/beszel.md`](docs/beszel.md). Every host runs a **`backup_agent`**

@@ -24,6 +24,14 @@ separation at all; see its section below for why.
   in-memory-only handling everywhere else uses for master credentials.
   All six stay `format: manual` in the registry; this script is just an
   automated way to fill them in.
+- **`ansible/audit_secrets.py`** — run whenever, read-only. `--local`
+  diffs `ansible/files/secrets/` against `secrets_registry.yaml` to
+  flag cache files nothing currently references (e.g. leftover from a
+  naming change). `--provider {oci,b2,r2,all}` lists each provider's
+  actual write/read-leg credentials and flags any not matching the
+  current cache as an orphan — e.g. a key from an interrupted rotation
+  never cleaned up on the provider's side. Flags only; deleting
+  anything it finds is a separate, deliberate step.
 
 Rotation keys (B2, OCI) are cached to `ansible/files/secrets/` for now,
 same as everything else in this repo. Moving that cache to an actual

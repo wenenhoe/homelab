@@ -66,6 +66,10 @@ file(s) for the leg you're rotating, then re-run
 [`cloud-credential-creation.md`](cloud-credential-creation.md#rotation)
 for what it does and doesn't do (it doesn't revoke the old provider-side
 key, by design — that's a manual cleanup step at the provider).
+`ansible/audit_secrets.py --provider <r2|b2|oci>` lists what's actually
+on each provider's console and flags anything not matching the current
+cache, so that cleanup step doesn't rely on remembering which key was
+the old one.
 
 ## Certificate-backed material (not in `secrets_registry.yaml` at all)
 

@@ -44,6 +44,14 @@
   semanticCommitType: "chore",
   semanticCommitScope: "deps",
 
+  // Renovate's default (2) queues anything beyond the first 2 new PRs in
+  // a run to the next scheduled run instead of opening them same-day.
+  // Redundant here: `schedule` above already gates *when* new PRs can
+  // open (Mon/Thu only), and packageRules grouping already gates *how
+  // many* a run produces — an hourly cap on top just adds multi-day
+  // delay for updates that are already batched and already infrequent.
+  prHourlyLimit: 0,
+
   // Most molecule fixtures pin specific images (mostly alpine:3.20) on
   // purpose for reproducibility, or reference a locally-built, non-registry
   // image (buildapp:local) Renovate can't resolve anyway — keep those out
@@ -197,6 +205,18 @@
       automergeType: "pr",
     },
 
+    // Same reasoning as the "docker images (minor/patch)" group below:
+    // unrelated actions' minor/patch bumps carry the same low-risk profile
+    // as unrelated docker minor/patch bumps. Majors stay individual (own
+    // changelog read, own revert). Doesn't touch automerge — inherits
+    // automerge:false from the blanket github-actions rule above.
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "github actions (minor/patch)",
+      groupSlug: "github-actions-minor-patch",
+    },
+
     // Everything that actually touches deployed infra — compose files,
     // inline image: refs in Ansible tasks, the Caddy Dockerfile, Ansible
     // Galaxy collections — stays manual-review. These get applied to hosts
@@ -225,6 +245,17 @@
       rangeStrategy: "update-lockfile",
     },
 
+    // Direct-dependency minor/patch bumps only — lockFileMaintenance above
+    // already groups the weekly transitive-pin refresh separately. Same
+    // minor/patch-only, majors-stay-individual split as github-actions and
+    // docker-compose/dockerfile groups.
+    {
+      matchManagers: ["pep621", "uv"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "python dependencies (minor/patch)",
+      groupSlug: "python-deps-minor-patch",
+    },
+
     // Every other docker-compose/Dockerfile image's minor and patch bumps,
     // lumped into one PR instead of ~15 separate ones. Majors stay
     // individual — more likely to need their own changelog read and their
@@ -235,6 +266,7 @@
       matchManagers: ["docker-compose", "dockerfile"],
       matchUpdateTypes: ["minor", "patch"],
       groupName: "docker images (minor/patch)",
+      groupSlug: "docker-images-minor-patch",
     },
 
     // henrygd/beszel ships hub and agent from the same repo/release — the
@@ -244,6 +276,7 @@
     {
       matchDepNames: ["ghcr.io/henrygd/beszel/beszel", "ghcr.io/henrygd/beszel/beszel-agent"],
       groupName: "beszel hub + agent (must move together)",
+      groupSlug: "beszel",
     },
 
     // ghcr.io/tecnativa/docker-socket-proxy is the same security-sensitive
@@ -253,6 +286,7 @@
     {
       matchDepNames: ["ghcr.io/tecnativa/docker-socket-proxy"],
       groupName: "docker-socket-proxy (all instances)",
+      groupSlug: "docker-socket-proxy",
     },
 
     // ghcr.io/itzg/mc-backup is pinned identically in docker/minecraft/
@@ -262,6 +296,7 @@
     {
       matchDepNames: ["ghcr.io/itzg/mc-backup"],
       groupName: "mc-backup (compose + restore — must move together)",
+      groupSlug: "mc-backup",
     },
 
     // rclone/rclone is pinned independently in cloud_sync's ExecStart=
@@ -273,6 +308,7 @@
     {
       matchDepNames: ["rclone/rclone"],
       groupName: "rclone (cloud_sync + backup_agent — must move together)",
+      groupSlug: "rclone",
     },
 
     // smallstep/step-ca and smallstep/step-cli are each pinned in three
@@ -288,6 +324,19 @@
     {
       matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
       groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",
+      groupSlug: "smallstep",
+    },
+
+    // Every other ansible-galaxy collection bump, lumped into one PR —
+    // same minor/patch-only, majors-stay-individual split as the other
+    // groups here. Placed *before* the community.docker/ansible.posix
+    // override below so that rule's groupName still wins for those two
+    // (same ordering reasoning as "docker images (minor/patch)" above).
+    {
+      matchManagers: ["ansible-galaxy"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "ansible galaxy collections (minor/patch)",
+      groupSlug: "ansible-galaxy-minor-patch",
     },
 
     // community.docker/ansible.posix are pinned identically in
@@ -299,6 +348,7 @@
       matchManagers: ["ansible-galaxy"],
       matchDepNames: ["community.docker", "ansible.posix"],
       groupName: "ansible galaxy collections (playbook + molecule — must move together)",
+      groupSlug: "ansible-galaxy-core",
     },
 
     // docker/lldap/compose.yaml, docker/bind9/compose.yaml, and
@@ -324,6 +374,7 @@
     {
       matchDepNames: ["ghcr.io/chrislusf/seaweedfs"],
       groupName: "seaweedfs (prod + molecule test target — must move together)",
+      groupSlug: "seaweedfs",
     },
 
     // seaweedfs is critical storage backend

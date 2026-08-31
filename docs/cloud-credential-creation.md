@@ -186,8 +186,22 @@ tightening.
 
 The leg users' policies themselves: write gets `any
 {request.permission='OBJECT_INSPECT',
-request.permission='OBJECT_CREATE'}` (no `OBJECT_DELETE`), read swaps
-in `OBJECT_READ` — confirmed against Oracle's Policy Builder templates.
+request.permission='OBJECT_CREATE',
+request.permission='OBJECT_OVERWRITE'}`, read swaps in `OBJECT_READ`
+in place of the latter two. `OBJECT_OVERWRITE` is required alongside
+`OBJECT_CREATE` specifically for multipart uploads — confirmed in
+Oracle's own multipart-uploads documentation, which states this as a
+named requirement beyond what a normal write policy needs. Without it,
+`CreateMultipartUpload` 404s as `NoSuchBucket`, the same ambiguous
+not-found-or-unauthorized response this API gives for every other
+authorization gap — a single-part `PutObject` doesn't hit this, so it
+went unnoticed until an archive large enough to trigger rclone's
+multi-thread/multipart path (minecraft's) actually ran against OCI.
+`OBJECT_DELETE` is still excluded from both legs; `OBJECT_OVERWRITE`
+lets the write leg replace an existing object's content but not remove
+one — a real (if currently unexercised, since every archive filename
+embeds a unique timestamp and is never reused) capability beyond pure
+append-only that wasn't granted before.
 
 **Verified against this deployment's tenancy:** home region and the
 region configured in `~/.oci/config` match — no mismatch, so no code

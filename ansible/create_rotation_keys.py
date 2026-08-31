@@ -184,35 +184,46 @@ def oci_get_or_create_group(session, endpoint, post, tenancy: str, name: str, de
 
 
 def oci_ensure_leg_identity(
-    session, endpoint, post, tenancy: str, leg: str, permissions: list[str], admin_email: str
+    session, endpoint, post, put, tenancy: str, leg: str, permissions: list[str], admin_email: str
 ) -> str:
-    """Create the leg's IAM user/group/policy if missing; return its user OCID.
+    """Create the leg's IAM user/group if missing, and always (re-)verify its
+    policy statement matches `permissions`; return its user OCID.
 
-    Idempotent via 409-on-create at each step (user, group, membership,
-    policy) — safe to resume if a prior run failed partway through,
-    rather than only being all-or-nothing at the user level.
+    The user/group/membership steps are skipped once `cache_key` exists —
+    those never change after creation. The policy step is NOT gated by that
+    cache: it 409-and-updates every run, so a permissions-list change here
+    (e.g. adding OBJECT_OVERWRITE) actually reaches an already-bootstrapped
+    tenancy on the next run, instead of being silently skipped forever the
+    way `oci_create_rotation_identity`'s own top-level cache check already
+    documents as a known gap for the rotation key — this closes the same
+    gap for leg identities before it bites the same way twice.
     """
     cache_key = f"_oci-leg-user-ocid-{leg}"
-    if cached(cache_key):
-        return (SECRETS_DIR / cache_key).read_text().strip()
-
     name = f"homelab-cloud-sync-{leg}"
-    user = oci_get_or_create_user(
-        session,
-        endpoint,
-        post,
-        tenancy,
-        name,
-        f"cloud_sync {leg} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
-        admin_email,
-    )
-    group = oci_get_or_create_group(session, endpoint, post, tenancy, name, f"Grants {name} its bucket-scoped policy")
-    try:
-        post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
-    except requests.HTTPError as exc:
-        if exc.response.status_code != 409:
-            raise
-        print(f"oci: {name} is already a member of its group, skipping", file=sys.stderr)
+
+    if cached(cache_key):
+        user_id = (SECRETS_DIR / cache_key).read_text().strip()
+        group = oci_lookup_one(session, endpoint, tenancy, "groups", name)
+    else:
+        user = oci_get_or_create_user(
+            session,
+            endpoint,
+            post,
+            tenancy,
+            name,
+            f"cloud_sync {leg} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
+            admin_email,
+        )
+        group = oci_get_or_create_group(
+            session, endpoint, post, tenancy, name, f"Grants {name} its bucket-scoped policy"
+        )
+        try:
+            post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
+        except requests.HTTPError as exc:
+            if exc.response.status_code != 409:
+                raise
+            print(f"oci: {name} is already a member of its group, skipping", file=sys.stderr)
+        user_id = user["id"]
 
     permission_clause = ", ".join(f"request.permission='{p}'" for p in permissions)
     statement = (
@@ -232,10 +243,12 @@ def oci_ensure_leg_identity(
     except requests.HTTPError as exc:
         if exc.response.status_code != 409:
             raise
-        print(f"oci: policy {name} already exists, skipping", file=sys.stderr)
+        print(f"oci: policy {name} already exists, updating its statements", file=sys.stderr)
+        existing = oci_lookup_one(session, endpoint, tenancy, "policies", name)
+        put(f"/20160918/policies/{existing['id']}", {"statements": [statement]})
 
-    write_cache(cache_key, user["id"])
-    return user["id"]
+    write_cache(cache_key, user_id)
+    return user_id
 
 
 def oci_create_rotation_identity(session, endpoint, post, put, tenancy: str, admin_email: str) -> str:
@@ -348,11 +361,22 @@ def create_oci_rotation_key(admin_email: str) -> None:
         resp.raise_for_status()
         return resp.json() if resp.text else {}
 
-    # OBJECT_INSPECT+OBJECT_CREATE (no OBJECT_DELETE) / OBJECT_INSPECT+
-    # OBJECT_READ — confirmed against Oracle's own Policy Builder
-    # templates and the Object Storage Objects reference doc.
-    oci_ensure_leg_identity(session, endpoint, post, tenancy, "write", ["OBJECT_INSPECT", "OBJECT_CREATE"], admin_email)
-    oci_ensure_leg_identity(session, endpoint, post, tenancy, "read", ["OBJECT_INSPECT", "OBJECT_READ"], admin_email)
+    # OBJECT_OVERWRITE is required alongside OBJECT_CREATE for multipart
+    # uploads specifically (Oracle's own multipart-uploads doc states this
+    # as a named requirement beyond a normal write policy) — without it,
+    # CreateMultipartUpload 404s as NoSuchBucket like any other
+    # unauthorized-vs-missing case on this API, even though OBJECT_CREATE
+    # alone is sufficient for a single-part PutObject. No OBJECT_DELETE on
+    # either leg — OBJECT_OVERWRITE lets the write leg replace an existing
+    # object's content but still can't remove one.
+    oci_ensure_leg_identity(
+        session, endpoint, post, put, tenancy, "write",
+        ["OBJECT_INSPECT", "OBJECT_CREATE", "OBJECT_OVERWRITE"], admin_email,
+    )
+    oci_ensure_leg_identity(
+        session, endpoint, post, put, tenancy, "read",
+        ["OBJECT_INSPECT", "OBJECT_READ"], admin_email,
+    )
 
     rotation_user_id = oci_create_rotation_identity(session, endpoint, post, put, tenancy, admin_email)
 

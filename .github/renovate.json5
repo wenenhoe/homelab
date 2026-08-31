@@ -197,6 +197,17 @@
       automergeType: "pr",
     },
 
+    // Same reasoning as the "docker images (minor/patch)" group below:
+    // unrelated actions' minor/patch bumps carry the same low-risk profile
+    // as unrelated docker minor/patch bumps. Majors stay individual (own
+    // changelog read, own revert). Doesn't touch automerge — inherits
+    // automerge:false from the blanket github-actions rule above.
+    {
+      matchManagers: ["github-actions"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "github actions (minor/patch)",
+    },
+
     // Everything that actually touches deployed infra — compose files,
     // inline image: refs in Ansible tasks, the Caddy Dockerfile, Ansible
     // Galaxy collections — stays manual-review. These get applied to hosts
@@ -223,6 +234,16 @@
       matchManagers: ["pep621", "uv"],
       automerge: false,
       rangeStrategy: "update-lockfile",
+    },
+
+    // Direct-dependency minor/patch bumps only — lockFileMaintenance above
+    // already groups the weekly transitive-pin refresh separately. Same
+    // minor/patch-only, majors-stay-individual split as github-actions and
+    // docker-compose/dockerfile groups.
+    {
+      matchManagers: ["pep621", "uv"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "python dependencies (minor/patch)",
     },
 
     // Every other docker-compose/Dockerfile image's minor and patch bumps,
@@ -288,6 +309,17 @@
     {
       matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
       groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",
+    },
+
+    // Every other ansible-galaxy collection bump, lumped into one PR —
+    // same minor/patch-only, majors-stay-individual split as the other
+    // groups here. Placed *before* the community.docker/ansible.posix
+    // override below so that rule's groupName still wins for those two
+    // (same ordering reasoning as "docker images (minor/patch)" above).
+    {
+      matchManagers: ["ansible-galaxy"],
+      matchUpdateTypes: ["minor", "patch"],
+      groupName: "ansible galaxy collections (minor/patch)",
     },
 
     // community.docker/ansible.posix are pinned identically in

@@ -4,8 +4,9 @@
 `HEALTHCHECK` can exec, and no `/data` directory of its own. `docker/wastebin/Dockerfile`
 adds two things on top, neither changing how the app itself runs:
 
-- `busybox:1.37.0-musl`'s statically linked `wget` as `/wget`, for the
-  healthcheck.
+- `busybox`'s musl-variant statically linked `wget` as `/wget`, for the
+  healthcheck (pinned version lives in `docker/wastebin/Dockerfile`,
+  not duplicated here).
 - An empty, `10001:10001`-owned `/data` directory (`10001` is the image's
   own `app` user — see its README) plus a `VOLUME /data` declaration, so
   the first, empty mount of `compose.yaml`'s `data` volume inherits that
@@ -20,7 +21,7 @@ wastebin version. Hosts pull it like any other app's image — the generic
 `compose_app` role has no build step.
 
 Triggers: push to `main` when `docker/wastebin/Dockerfile` changes,
-weekly on schedule (catches a `busybox:1.37.0-musl` patch landing with
-no Dockerfile text change), and `workflow_dispatch`. Same shape as
+weekly on schedule (catches an upstream `busybox`-musl patch landing
+with no Dockerfile text change), and `workflow_dispatch`. Same shape as
 `build-caddy-image.yml` — see [`caddy.md`](caddy.md) for the more
 heavily-annotated original.

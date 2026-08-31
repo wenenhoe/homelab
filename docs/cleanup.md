@@ -79,7 +79,7 @@ compose_cleanup_remove_content: false      # default: stop, don't delete
 compose_cleanup_app_overrides: {}          # per-app opt-in, e.g.:
 #   old_test_app: true
 #   scratch_service: true
-compose_cleanup_dry_run: false
+compose_cleanup_dry_run: true              # default: report only, see below
 ```
 
 ## Dry-running before you delete anything
@@ -87,12 +87,13 @@ compose_cleanup_dry_run: false
 Two independent ways to preview a cleanup run, and they can be combined:
 
 - **`--check --diff`** — Ansible's own check mode. `ansible-playbook cleanup.yaml --check --diff`
-- **`-e compose_cleanup_dry_run=true`** — a playbook-level flag read by both `cleanup.yaml` and `roles/compose/tasks/cleanup.yaml`. When set, the teardown/removal tasks are skipped and replaced with `debug` messages describing what *would* happen — including, for each stack, whether its directory and volumes would be kept or deleted.
+- **`compose_cleanup_dry_run`** — a playbook-level flag read by both `cleanup.yaml` and `roles/compose/tasks/cleanup.yaml`, **`true` by default**. While true, the teardown/removal tasks are skipped and replaced with `debug` messages describing what *would* happen — including, for each stack, whether its directory and volumes would be kept or deleted. A plain `ansible-playbook cleanup.yaml` with no extra flags is therefore already a dry run; pass **`-e compose_cleanup_dry_run=false`** to actually tear anything down.
 
 ## Usage
 
 ```sh
-ansible-playbook cleanup.yaml --check --diff              # Ansible check mode
-ansible-playbook cleanup.yaml -e compose_cleanup_dry_run=true   # explicit dry-run reporting
-ansible-playbook cleanup.yaml --limit services             # scope to one host
+ansible-playbook cleanup.yaml                              # dry run (the default) — reports only
+ansible-playbook cleanup.yaml --check --diff               # Ansible check mode, same effect
+ansible-playbook cleanup.yaml -e compose_cleanup_dry_run=false  # actually tear down orphaned stacks
+ansible-playbook cleanup.yaml -e compose_cleanup_dry_run=false --limit services  # scope to one host
 ```

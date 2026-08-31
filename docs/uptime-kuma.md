@@ -68,11 +68,13 @@ Two different push mechanisms are in use, not one:
 `cert-renewer@` has one real difference from the other two systemd-unit
 consumers: its `ExecCondition` skips the run entirely on the vast
 majority of the timer's 15-minute ticks (not due for renewal yet), and a
-skip is neither success nor failure at the systemd level. With step-ca's
-default 24h cert lifetime (no `claims` override in this repo) and `step
-ca renew`'s ⅔-of-lifetime trigger, a real push happens roughly once a
-day — size that monitor's Heartbeat Interval accordingly (~28h), not to
-the 15-minute tick rate.
+skip is neither success nor failure at the systemd level. This repo
+overrides step-ca's own 24h default to a 720h (30-day) cert lifetime
+(see [`step-ca.md`](step-ca.md#why-the-cert-duration-is-720h-not-step-cas-own-24h-default)),
+so with `step ca renew`'s ⅔-of-lifetime trigger, a real push happens
+roughly once every 20 days (~480h) — size that monitor's Heartbeat
+Interval accordingly (with margin above ~480h), not to the 15-minute
+tick rate or a daily cadence.
 
 `cert-renewer@` is also a genuine systemd `@`-template, shared by any
 future cert under it — not just lldap's. Unlike `telegram_notify@` (one

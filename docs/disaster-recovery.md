@@ -193,6 +193,40 @@ have fully qualified paths`). Scheme is the separate
 
 Covered in its own runbook: [`restore.md`](restore.md).
 
+## Fire drill
+
+Two levels of "does this actually work," proving different things:
+
+- **`ansible/roles/restore_discovery/molecule/{default,discovery_and_restore}`** —
+  automated, runs in CI/dev like any other Molecule scenario, and
+  currently passing with 100% task coverage on both. `default` renders
+  the manifest/rclone.conf against synthetic fixtures and asserts on
+  their content (scope derivation, step-ca ordering, cloud-target
+  fan-out). `discovery_and_restore` runs the real role against a real
+  throwaway SeaweedFS target and a real freshly-generated GPG keypair,
+  proving `restore_all.py`'s own discovery logic — newest-object-by-
+  timestamp selection, and falling over to a cloud target when
+  SeaweedFS is unreachable — against genuine S3 responses and a
+  genuine decrypt, not mocked. Neither touches a real app host or the
+  real offline private key.
+- **A real fire drill** — the only thing that proves the *whole* path
+  end to end: real `services`/`security`/`play` backups, the real
+  offline GPG key, and a scratch/test host standing in for a lost
+  `services`/`security`/`play`, run by hand:
+  1. Stand up a scratch host in the `services` (or `security`/`play`)
+     role — same base image/user as the real one, added to inventory
+     under a throwaway name.
+  2. `python3 ansible/restore_all.py` (or, for a single app,
+     `playbooks/restore.yaml` directly per [`restore.md`](restore.md))
+     targeting that scratch host.
+  3. Confirm the app actually boots clean against the restored data —
+     not just that Ansible reported success.
+  4. Record the result below, dated, and tear the scratch host down.
+
+| Date | Apps covered | SeaweedFS path | Cloud-fallback path | Result |
+| :--- | :--- | :--- | :--- | :--- |
+| *pending* | — | — | — | Not yet run — this row is a template, not a claim; fill it in after an actual run. See the steps above. |
+
 ## Out of scope
 
 - Off-site/cloud replication of the `storage` host's own SeaweedFS data

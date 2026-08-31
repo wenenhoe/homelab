@@ -54,6 +54,8 @@ result, then re-converges to check idempotence — mirroring what
 | | `multi_volume` | Multiple volumes restored from one archive at different nesting depths, ignoring a decoy and an unrelated app's directory. |
 | | `validation_failure` | Missing archive path blocks every destructive step (asserted via unchanged `StartedAt`/content, not just task failure). |
 | | `confirmation_declined` | Valid vars/archive but `restore_confirm: false` — same side-effect assertions as `validation_failure`. |
+| `restore_discovery` | `default` | Manifest/rclone.conf content and ordering against synthetic fixtures — scope derivation from `app_registry`'s `backup:` key, `restore_discovery_excluded_apps`, step-ca hoisting, cloud-target fan-out/override, read-not-write credentials. No Docker needed — every task is `delegate_to: localhost`, same shape as `secrets`' own scenario. |
+| | `discovery_and_restore` | Runs the real role against a real throwaway SeaweedFS target and a real freshly-generated GPG keypair, then drives `restore_all.py`'s `load_manifest()`/`discover_and_decrypt()` directly against that real output: newest-object-by-timestamp selection, and falling over to a cloud target when SeaweedFS is unreachable, both against genuine S3 responses and a genuine decrypt. |
 
 Negative-path scenarios assert on `ansible_failed_task`/`ansible_failed_result`
 (task name + a distinctive substring of the failure message) rather than a

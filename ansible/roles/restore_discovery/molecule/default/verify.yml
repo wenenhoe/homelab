@@ -1,0 +1,77 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    project_root: /tmp/restore-discovery-default
+  tasks:
+    - name: Read back the rendered manifest
+      ansible.builtin.slurp:
+        path: "{{ project_root }}/ansible/files/restore/manifest.json"
+      register: restore_discovery_manifest_raw
+      delegate_to: localhost
+      become: false
+
+    - name: Parse it
+      ansible.builtin.set_fact:
+        restore_discovery_manifest_parsed: "{{ restore_discovery_manifest_raw.content | b64decode | from_json }}"
+
+    - name: Confirm the bucket name, discovery-vs-allow-list behavior, and step-ca hoisting
+      ansible.builtin.assert:
+        that:
+          - restore_discovery_manifest_parsed.seaweedfs_bucket == 'molecule-test-backups'
+          # caddy has no backup: key -> never discovered at all.
+          - "'caddy' not in (restore_discovery_manifest_parsed.apps | map(attribute='app') | list)"
+          # excluded_app HAS a backup: key (would otherwise be
+          # discovered) but is opted out via
+          # restore_discovery_excluded_apps -> must not appear either.
+          - "'excluded_app' not in (restore_discovery_manifest_parsed.apps | map(attribute='app') | list)"
+          # step-ca sits on the SECOND host, after override_app, in
+          # converge.yml's own compose_apps ordering — only the role's
+          # step-ca-first hoist puts it ahead of plain_app/override_app
+          # here.
+          - restore_discovery_manifest_parsed.apps | map(attribute='app') | list == ['step-ca', 'plain_app', 'override_app']
+          - (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'override_app') | first).host == 'beta-host'
+          - (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'plain_app') | first).host == 'alpha-host'
+          - (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'override_app') | first).seaweedfs_path == 'beta-host-override_app'
+        fail_msg: "Manifest: {{ restore_discovery_manifest_parsed }}"
+
+    - name: Confirm volume names get the app_ prefix, including the multi-volume (step-ca) case
+      ansible.builtin.assert:
+        that:
+          - (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'plain_app') | first).volumes == ['plain_app_data']
+          - (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'step-ca') | first).volumes == ['step-ca_data', 'step-ca_certs']
+        fail_msg: "Manifest: {{ restore_discovery_manifest_parsed }}"
+
+    - name: Confirm cloud-target fan-out — plain_app gets both defaults, override_app is restricted to target_a only
+      ansible.builtin.assert:
+        that:
+          - >-
+            (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'plain_app') | first).cloud_targets
+            | map(attribute='name') | list == ['target_a', 'target_b']
+          - >-
+            (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'override_app') | first).cloud_targets
+            | map(attribute='name') | list == ['target_a']
+          - >-
+            (restore_discovery_manifest_parsed.apps | selectattr('app', 'equalto', 'override_app') | first).cloud_targets
+            | selectattr('name', 'equalto', 'target_b') | list | length == 0
+        fail_msg: "Manifest: {{ restore_discovery_manifest_parsed }}"
+
+    - name: Read back the rendered rclone.conf
+      ansible.builtin.slurp:
+        path: "{{ project_root }}/ansible/files/restore/rclone.conf"
+      register: restore_discovery_rclone_conf_raw
+      delegate_to: localhost
+      become: false
+
+    - name: Confirm rclone.conf carries the READ credentials, not any write-leg value, for every remote
+      ansible.builtin.assert:
+        that:
+          - "'[seaweedfs]' in (restore_discovery_rclone_conf_raw.content | b64decode)"
+          - "'access_key_id = molecule-seaweedfs-reader-ak' in (restore_discovery_rclone_conf_raw.content | b64decode)"
+          - "'[target_a]' in (restore_discovery_rclone_conf_raw.content | b64decode)"
+          - "'access_key_id = molecule-target-a-read-ak' in (restore_discovery_rclone_conf_raw.content | b64decode)"
+          - "'[target_b]' in (restore_discovery_rclone_conf_raw.content | b64decode)"
+          - "'access_key_id = molecule-target-b-read-ak' in (restore_discovery_rclone_conf_raw.content | b64decode)"
+          - "'endpoint = https://a.example.invalid' in (restore_discovery_rclone_conf_raw.content | b64decode)"
+        fail_msg: "rclone.conf: {{ restore_discovery_rclone_conf_raw.content | b64decode }}"

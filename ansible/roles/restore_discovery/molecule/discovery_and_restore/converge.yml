@@ -1,0 +1,358 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    molecule_primary_bucket: molecule-test-primary
+    molecule_fallback_bucket: molecule-test-fallback
+
+    seaweedfs_admin_access_key: molecule-test-admin-ak
+    seaweedfs_admin_secret_key: molecule-test-admin-sk
+    seaweedfs_primary_reader_access_key: molecule-test-primary-reader-ak
+    seaweedfs_primary_reader_secret_key: molecule-test-primary-reader-sk
+    seaweedfs_fallback_reader_access_key: molecule-test-fallback-reader-ak
+    seaweedfs_fallback_reader_secret_key: molecule-test-fallback-reader-sk
+
+    restore_test_root: /tmp/restore-molecule-discovery
+    restore_test_fixtures_dir: /tmp/restore-molecule-fixtures
+
+    # Fixtures for two REAL restore_discovery role runs below (not
+    # hand-rolled rclone.conf/manifest files) — this is what actually
+    # exercises the role itself from this scenario, and proves
+    # restore_all.load_manifest() parses what the role really renders,
+    # not a hand-typed stand-in for it. kms stands in for the happy
+    # path (SeaweedFS reachable), lldap for the fallback path
+    # (SeaweedFS unreachable, cloud_targets -> fallback_target).
+    secrets_generated:
+      seaweedfs-s3-access-key-cloud-sync-reader: "{{ seaweedfs_primary_reader_access_key }}"
+      seaweedfs-s3-secret-key-cloud-sync-reader: "{{ seaweedfs_primary_reader_secret_key }}"
+    restore_discovery_cloud_read_credentials:
+      fallback_target:
+        access_key: "{{ seaweedfs_fallback_reader_access_key }}"
+        secret_key: "{{ seaweedfs_fallback_reader_secret_key }}"
+    app_registry:
+      kms:
+        volumes:
+          - name: data
+        backup:
+          volumes: [data]
+      lldap:
+        volumes:
+          - name: data
+        backup:
+          volumes: [data]
+          extra_cloud_targets: [fallback_target]
+  tasks:
+    - name: Install rclone and gnupg
+      ansible.builtin.apt:
+        name: [rclone, gnupg2]
+        update_cache: true
+      # Confirmed live: both packages install from this base image's
+      # default apt sources (Ubuntu universe) at versions new enough
+      # for `rclone lsjson`/`--config` and the batch GPG keygen below.
+
+    - name: Generate a real, passphrase-less GPG keypair (test stand-in for the offline backup key)
+      ansible.builtin.copy:
+        dest: /tmp/gpg-genkey-params
+        mode: "0600"
+        content: |
+          %no-protection
+          Key-Type: RSA
+          Key-Length: 2048
+          Name-Real: molecule-test
+          Name-Email: test@molecule.local
+          Expire-Date: 0
+          %commit
+      changed_when: false
+
+    - name: Import it  # noqa: command-instead-of-module — no ansible.builtin module generates GPG keys
+      ansible.builtin.command: gpg --batch --gen-key /tmp/gpg-genkey-params
+      changed_when: true
+
+    - name: Export the public key for encrypting test fixtures
+      ansible.builtin.command: gpg --batch --yes --armor --export molecule-test
+      register: restore_test_pubkey
+      changed_when: false
+
+    - name: Save it for reference (not read by anything — the key is already in this container's own keyring)
+      ansible.builtin.copy:
+        dest: /tmp/molecule-test-pubkey.asc
+        content: "{{ restore_test_pubkey.stdout }}"
+        mode: "0644"
+      changed_when: false
+
+    # A real identity config with THREE identities on one SeaweedFS
+    # server — one admin (bucket creation + upload via the aws-cli
+    # sidecar below), two read-only, each scoped to its own bucket. The
+    # scoping itself is what proves [seaweedfs] vs [fallback_target] in
+    # rclone.conf really are separate, independently-authenticated
+    # remotes, not just two names for the same access.
+    - name: Start a real SeaweedFS S3 target standing in for both SeaweedFS itself and a cloud fallback
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: start_seaweedfs_test_target.yaml
+      vars:
+        molecule_helpers_seaweedfs_identity_json: |
+          {
+            "identities": [
+              {
+                "name": "test-admin",
+                "credentials": [{"accessKey": "{{ seaweedfs_admin_access_key }}", "secretKey": "{{ seaweedfs_admin_secret_key }}"}],
+                "actions": [
+                  "Admin:{{ molecule_primary_bucket }}", "Write:{{ molecule_primary_bucket }}",
+                  "Read:{{ molecule_primary_bucket }}", "List:{{ molecule_primary_bucket }}",
+                  "Admin:{{ molecule_fallback_bucket }}", "Write:{{ molecule_fallback_bucket }}",
+                  "Read:{{ molecule_fallback_bucket }}", "List:{{ molecule_fallback_bucket }}"
+                ]
+              },
+              {
+                "name": "primary-reader",
+                "credentials": [{"accessKey": "{{ seaweedfs_primary_reader_access_key }}", "secretKey": "{{ seaweedfs_primary_reader_secret_key }}"}],
+                "actions": ["Read:{{ molecule_primary_bucket }}", "List:{{ molecule_primary_bucket }}"]
+              },
+              {
+                "name": "fallback-reader",
+                "credentials": [{"accessKey": "{{ seaweedfs_fallback_reader_access_key }}", "secretKey": "{{ seaweedfs_fallback_reader_secret_key }}"}],
+                "actions": ["Read:{{ molecule_fallback_bucket }}", "List:{{ molecule_fallback_bucket }}"]
+              }
+            ]
+          }
+        molecule_helpers_seaweedfs_access_key: unused
+        molecule_helpers_seaweedfs_secret_key: unused
+        molecule_helpers_seaweedfs_bucket: "{{ molecule_primary_bucket }}"
+
+    - name: Ensure the shared fixtures dir exists (bind-mounted into the aws-cli sidecar below)
+      ansible.builtin.file:
+        path: "{{ restore_test_fixtures_dir }}"
+        state: directory
+        mode: "0755"
+
+    # Content is the assertion target in verify.yml — proves gpg
+    # --decrypt in restore_all.py round-trips real data, not just "some
+    # file appeared". Filenames follow backup_agent's real convention
+    # (schedule.env.j2's BACKUP_FILENAME + the .gpg suffix
+    # docker-volume-backup appends — see restore_all.py's own header
+    # comment on _TIMESTAMP_RE for the confirmed source).
+    - name: Write the plaintext fixture markers
+      ansible.builtin.copy:
+        dest: "{{ restore_test_fixtures_dir }}/{{ item.plain }}"
+        content: "{{ item.marker }}"
+        mode: "0644"
+      loop:
+        - { plain: happy-marker.txt, marker: "HAPPY-PATH-MARKER" }
+        - { plain: older-marker.txt, marker: "OLDER-MARKER-should-not-be-picked" }
+        - { plain: newer-marker.txt, marker: "NEWER-MARKER-should-be-picked" }
+      loop_control:
+        label: "{{ item.plain }}"
+
+    - name: Encrypt each fixture to its real backup-object filename
+      ansible.builtin.command: >-
+        gpg --batch --yes --trust-model always
+        -o {{ restore_test_fixtures_dir }}/{{ item.encrypted }}
+        -e -r molecule-test
+        {{ restore_test_fixtures_dir }}/{{ item.plain }}
+      loop:
+        - { plain: happy-marker.txt, encrypted: "alpha-kms-2026-03-01T04-00-00.tar.gz.gpg" }
+        - { plain: older-marker.txt, encrypted: "beta-lldap-2026-01-01T00-00-00.tar.gz.gpg" }
+        - { plain: newer-marker.txt, encrypted: "beta-lldap-2026-06-15T12-00-00.tar.gz.gpg" }
+      loop_control:
+        label: "{{ item.encrypted }}"
+      changed_when: true
+
+    - name: Start a persistent aws-cli utility container, sharing the fixtures dir
+      community.docker.docker_container:
+        name: restore-discovery-test-admin-cli
+        image: amazon/aws-cli:2.15.0
+        entrypoint: ["sleep"]
+        command: ["infinity"]
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        volumes:
+          - "{{ restore_test_fixtures_dir }}:/fixtures:ro"
+        state: started
+        detach: true
+
+    - name: Create both test buckets
+      community.docker.docker_container_exec:
+        container: restore-discovery-test-admin-cli
+        command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 mb s3://{{ item }}"
+      register: restore_test_bucket_create
+      changed_when: false
+      failed_when: restore_test_bucket_create.rc != 0
+      loop:
+        - "{{ molecule_primary_bucket }}"
+        - "{{ molecule_fallback_bucket }}"
+
+    - name: Upload the happy-path object to the primary bucket
+      community.docker.docker_container_exec:
+        container: restore-discovery-test-admin-cli
+        command: >-
+          aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333
+          s3 cp /fixtures/alpha-kms-2026-03-01T04-00-00.tar.gz.gpg
+          s3://{{ molecule_primary_bucket }}/alpha-kms/alpha-kms-2026-03-01T04-00-00.tar.gz.gpg
+      changed_when: false
+
+    # Fallback bucket only — the primary bucket has nothing under
+    # beta-lldap/, so "SeaweedFS unreachable" (via the deliberately bad
+    # offsite_backup_s3_endpoint passed to the role's fallback run
+    # below) is what forces the fallback path, not a missing prefix.
+    - name: Upload both lldap objects (older + newer) to the fallback bucket only
+      community.docker.docker_container_exec:
+        container: restore-discovery-test-admin-cli
+        command: >-
+          aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333
+          s3 cp /fixtures/{{ item }}
+          s3://{{ molecule_fallback_bucket }}/beta-lldap/{{ item }}
+      loop:
+        - beta-lldap-2026-01-01T00-00-00.tar.gz.gpg
+        - beta-lldap-2026-06-15T12-00-00.tar.gz.gpg
+      changed_when: false
+
+    # alpha/beta stand in for real managed hosts (kms/lldap's actual
+    # hosts are services/security in production — irrelevant here,
+    # only the app->host->seaweedfs_path shape matters, and it must
+    # match the alpha-kms/beta-lldap object paths already uploaded
+    # above). storage stands in for the real host_vars/storage.yaml,
+    # providing fallback_target's bucket/endpoint the same way
+    # cloud_sync_targets does in production.
+    - name: Register alpha/beta (managed hosts) and storage (cloud-target definitions) as ephemeral inventory hosts
+      ansible.builtin.add_host:
+        name: "{{ item.name }}"
+        groups: "{{ item.groups }}"
+        compose_apps: "{{ item.compose_apps | default(omit) }}"
+        cloud_sync_targets: "{{ item.cloud_sync_targets | default(omit) }}"
+        cloud_sync_default_targets: "{{ item.cloud_sync_default_targets | default(omit) }}"
+      changed_when: false
+      loop:
+        - name: alpha
+          groups: [managed_hosts]
+          compose_apps:
+            - name: kms
+        - name: beta
+          groups: [managed_hosts]
+          compose_apps:
+            - name: lldap
+        - name: storage
+          groups: [molecule_fake_storage]
+          cloud_sync_targets:
+            fallback_target:
+              bucket: "{{ molecule_fallback_bucket }}"
+              endpoint: "http://{{ molecule_helpers_seaweedfs_ip }}:8333"
+          cloud_sync_default_targets: [fallback_target]
+      loop_control:
+        label: "{{ item.name }}"
+
+    # Two REAL runs of the role under test (not a hand-rolled
+    # rclone.conf) — same app_registry/hostvars fixtures, different
+    # offsite_backup_s3_endpoint/restore_discovery_dir per run, since
+    # [seaweedfs] has to be genuinely reachable in one and genuinely
+    # unreachable in the other. Both discover kms AND lldap (both are
+    # in groups['managed_hosts'] regardless of which run this is) —
+    # the driver script below just picks out the one entry each phase
+    # actually needs from whichever manifest.json this produced.
+    - name: Render the real manifest/rclone.conf for the happy path ([seaweedfs] genuinely reachable)
+      ansible.builtin.include_role:
+        name: restore_discovery
+      vars:
+        restore_discovery_dir: "{{ restore_test_root }}/happy"
+        offsite_backup_s3_bucket: "{{ molecule_primary_bucket }}"
+        offsite_backup_s3_proto: http
+        offsite_backup_s3_endpoint: "{{ molecule_helpers_seaweedfs_ip }}:8333"
+
+    - name: Render the real manifest/rclone.conf for the fallback path ([seaweedfs] deliberately unreachable)
+      ansible.builtin.include_role:
+        name: restore_discovery
+      vars:
+        restore_discovery_dir: "{{ restore_test_root }}/fallback"
+        offsite_backup_s3_bucket: "{{ molecule_primary_bucket }}"
+        offsite_backup_s3_proto: http
+        offsite_backup_s3_endpoint: "127.0.0.1:1"
+
+    # restore_discovery's own tasks are ALL delegate_to: localhost (see
+    # that role's own tasks/main.yaml header) — correct for production
+    # (it always runs on the real controller) but it means the two
+    # include_role calls above just wrote manifest.json/rclone.conf onto
+    # the REAL machine running Molecule, not into this container's own
+    # filesystem, where the driver script below actually runs (hosts:
+    # all, reached over Molecule's docker connection — a different
+    # filesystem entirely, even on the same physical box). copy's `src`
+    # resolves on the controller and `dest` on the current task's target
+    # with no delegate_to given, i.e. this container — the same
+    # local-to-remote transfer the earlier "Copy restore_all.py..." task
+    # already relies on, just for the role's own two output files instead
+    # of one already-known repo file.
+    - name: Ensure the container has directories to receive the role's rendered output
+      ansible.builtin.file:
+        path: "{{ restore_test_root }}/{{ item }}"
+        state: directory
+        mode: "0700"
+      loop: [happy, fallback]
+
+    - name: Relay the role's real rendered output from the controller into the container
+      ansible.builtin.copy:
+        src: "{{ restore_test_root }}/{{ item.dir }}/{{ item.file }}"
+        dest: "{{ restore_test_root }}/{{ item.dir }}/{{ item.file }}"
+        mode: "0600"
+      loop:
+        - { dir: happy, file: manifest.json }
+        - { dir: happy, file: rclone.conf }
+        - { dir: fallback, file: manifest.json }
+        - { dir: fallback, file: rclone.conf }
+      loop_control:
+        label: "{{ item.dir }}/{{ item.file }}"
+
+    - name: Ensure the test root's ansible/ directory exists (ansible.builtin.copy doesn't create parent dirs)
+      ansible.builtin.file:
+        path: "{{ restore_test_root }}/ansible"
+        state: directory
+        mode: "0755"
+
+    - name: Copy restore_all.py into the test root at the path its own module docstring assumes ({{ restore_test_root }}/ansible/restore_all.py)
+      ansible.builtin.copy:
+        src: "{{ playbook_dir }}/../../../../restore_all.py"
+        dest: "{{ restore_test_root }}/ansible/restore_all.py"
+        mode: "0755"
+
+    # Drives restore_all.load_manifest() + discover_and_decrypt()
+    # directly against the two REAL manifest.json/rclone.conf pairs the
+    # role just rendered above — the unit under test is that pairing,
+    # not the CLI's argparse/subprocess-to-ansible-playbook plumbing
+    # around it (already covered by roles/restore's own scenarios once
+    # restore_all.py hands it a real decrypted path). MANIFEST_PATH/
+    # RCLONE_CONF_PATH/SCRATCH_DIR are reassigned per phase so one
+    # process can exercise both the happy path and the fallback path
+    # against the two different role outputs.
+    - name: Write the discovery test driver script
+      ansible.builtin.copy:
+        dest: /tmp/discovery_test.py
+        mode: "0644"
+        content: |
+          import json
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, "{{ restore_test_root }}/ansible")
+          import restore_all
+
+          def run(label, restore_dir, app_name, scratch_dir):
+              restore_all.MANIFEST_PATH = Path(restore_dir) / "manifest.json"
+              restore_all.RCLONE_CONF_PATH = Path(restore_dir) / "rclone.conf"
+              restore_all.SCRATCH_DIR = Path(scratch_dir)
+              seaweedfs_bucket, entries = restore_all.load_manifest()
+              entry = next(e for e in entries if e.app == app_name)
+              result = restore_all.discover_and_decrypt(entry, seaweedfs_bucket)
+              Path(f"/tmp/{label}-result.json").write_text(json.dumps({
+                  "source": result.source,
+                  "object_name": result.object_name,
+                  "decrypted_content": Path(result.decrypted_path).read_text(),
+              }))
+
+          run("happy", "{{ restore_test_root }}/happy", "kms", "/tmp/scratch-happy")
+          run("fallback", "{{ restore_test_root }}/fallback", "lldap", "/tmp/scratch-fallback")
+
+    - name: Run it
+      ansible.builtin.command: python3 /tmp/discovery_test.py
+      changed_when: true

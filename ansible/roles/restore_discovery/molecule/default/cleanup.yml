@@ -1,0 +1,21 @@
+---
+# Removes this scenario's whole project_root from the controller
+# (molecule control node) — nothing under it is driver-managed, so
+# `destroy` never touches it. Runs via molecule's own `cleanup` step,
+# before create and after verify (see molecule.yml's test_sequence).
+# Same shape as roles/secrets/molecule/default/cleanup.yml, same reason.
+#
+# hosts: localhost, not hosts: all: the pre-create run happens before
+# restore-discovery-instance exists, so hosts: all's implicit Gathering
+# Facts task would fail UNREACHABLE. Every task here is controller-only
+# anyway, since restore_discovery's own tasks are too (delegate_to:
+# localhost throughout).
+- name: Cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove this scenario's project_root from the controller
+      ansible.builtin.file:
+        path: /tmp/restore-discovery-default/
+        state: absent

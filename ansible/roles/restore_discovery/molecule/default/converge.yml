@@ -1,0 +1,109 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    project_root: /tmp/restore-discovery-default
+
+    offsite_backup_s3_bucket: molecule-test-backups
+    offsite_backup_s3_proto: https
+    offsite_backup_s3_endpoint: s3.store.molecule.invalid
+
+    secrets_generated:
+      seaweedfs-s3-access-key-cloud-sync-reader: molecule-seaweedfs-reader-ak
+      seaweedfs-s3-secret-key-cloud-sync-reader: molecule-seaweedfs-reader-sk
+
+    # target_a/target_b, not r2/b2 — proves the mechanism generically
+    # rather than hardcoding real provider names, same reasoning
+    # cloud_sync's own molecule/default scenario documents for its
+    # identical choice.
+    restore_discovery_cloud_read_credentials:
+      target_a:
+        access_key: molecule-target-a-read-ak
+        secret_key: molecule-target-a-read-sk
+      target_b:
+        access_key: molecule-target-b-read-ak
+        secret_key: molecule-target-b-read-sk
+
+    # excluded_app has a real backup: key below (so it WOULD be
+    # discovered) but is opted out here — proves
+    # restore_discovery_excluded_apps actually removes an otherwise-
+    # eligible app rather than just documenting an intent to.
+    restore_discovery_excluded_apps: [excluded_app]
+
+    # caddy: no backup: key -> excluded by discovery itself, no
+    # allow-list involved. plain_app: no extra_cloud_targets override
+    # -> both default targets. override_app: restricted to target_a
+    # only -> must NOT show up under target_b. step-ca: the real app
+    # name (not a placeholder) — the only one discovery must hoist to
+    # the front regardless of where it sits in host/compose_apps
+    # iteration order; also multi-volume, standing in for step-ca's own
+    # real backup.volumes. excluded_app: has a backup: key but is
+    # opted out via restore_discovery_excluded_apps above.
+    app_registry:
+      caddy:
+        volumes: []
+      plain_app:
+        volumes:
+          - name: data
+        backup:
+          volumes: [data]
+      override_app:
+        volumes:
+          - name: backups
+        backup:
+          volumes: [backups]
+          extra_cloud_targets: [target_a]
+      step-ca:
+        volumes:
+          - name: data
+          - name: certs
+        backup:
+          volumes: [data, certs]
+      excluded_app:
+        volumes:
+          - name: data
+        backup:
+          volumes: [data]
+  tasks:
+    - name: Register ephemeral inventory hosts (two managed hosts + a storage stand-in) so hostvars[...] resolves like production
+      ansible.builtin.add_host:
+        name: "{{ item.name }}"
+        groups: "{{ item.groups }}"
+        compose_apps: "{{ item.compose_apps | default(omit) }}"
+        cloud_sync_targets: "{{ item.cloud_sync_targets | default(omit) }}"
+        cloud_sync_default_targets: "{{ item.cloud_sync_default_targets | default(omit) }}"
+      changed_when: false
+      loop:
+        # step-ca deliberately listed on the SECOND host, after
+        # override_app — natural discovery order alone would put it
+        # last; only the role's own step-ca-first hoist should move it
+        # to the front of the manifest.
+        - name: alpha-host
+          groups: [managed_hosts]
+          compose_apps:
+            - name: caddy
+            - name: plain_app
+            - name: excluded_app
+        - name: beta-host
+          groups: [managed_hosts]
+          compose_apps:
+            - name: override_app
+            - name: step-ca
+        - name: storage
+          groups: [molecule_fake_storage]
+          cloud_sync_targets:
+            target_a:
+              bucket: molecule-bucket-a
+              endpoint: https://a.example.invalid
+            target_b:
+              bucket: molecule-bucket-b
+              endpoint: https://b.example.invalid
+          cloud_sync_default_targets: [target_a, target_b]
+      loop_control:
+        label: "{{ item.name }}"
+
+    - name: Run the restore_discovery role
+      ansible.builtin.include_role:
+        name: restore_discovery

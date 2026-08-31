@@ -44,6 +44,14 @@
   semanticCommitType: "chore",
   semanticCommitScope: "deps",
 
+  // Renovate's default (2) queues anything beyond the first 2 new PRs in
+  // a run to the next scheduled run instead of opening them same-day.
+  // Redundant here: `schedule` above already gates *when* new PRs can
+  // open (Mon/Thu only), and packageRules grouping already gates *how
+  // many* a run produces — an hourly cap on top just adds multi-day
+  // delay for updates that are already batched and already infrequent.
+  prHourlyLimit: 0,
+
   // Most molecule fixtures pin specific images (mostly alpine:3.20) on
   // purpose for reproducibility, or reference a locally-built, non-registry
   // image (buildapp:local) Renovate can't resolve anyway — keep those out

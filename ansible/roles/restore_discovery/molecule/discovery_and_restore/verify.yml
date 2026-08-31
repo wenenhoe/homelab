@@ -6,28 +6,28 @@
     - name: Read back the happy-path result
       ansible.builtin.slurp:
         path: /tmp/happy-result.json
-      register: restore_test_happy_raw
+      register: restore_discovery_test_happy_raw
 
     - name: Confirm the happy path used SeaweedFS directly and decrypted the real content
       ansible.builtin.set_fact:
-        restore_test_happy: "{{ restore_test_happy_raw.content | b64decode | from_json }}"
+        restore_discovery_test_happy: "{{ restore_discovery_test_happy_raw.content | b64decode | from_json }}"
 
     - name: Assert on it
       ansible.builtin.assert:
         that:
-          - restore_test_happy.source == 'seaweedfs'
-          - restore_test_happy.object_name == 'alpha-kms-2026-03-01T04-00-00.tar.gz.gpg'
-          - restore_test_happy.decrypted_content == 'HAPPY-PATH-MARKER'
-        fail_msg: "Happy-path result: {{ restore_test_happy }}"
+          - restore_discovery_test_happy.source == 'seaweedfs'
+          - restore_discovery_test_happy.object_name == 'alpha-kms-2026-03-01T04-00-00.tar.gz.gpg'
+          - restore_discovery_test_happy.decrypted_content == 'HAPPY-PATH-MARKER'
+        fail_msg: "Happy-path result: {{ restore_discovery_test_happy }}"
 
     - name: Read back the fallback-path result
       ansible.builtin.slurp:
         path: /tmp/fallback-result.json
-      register: restore_test_fallback_raw
+      register: restore_discovery_test_fallback_raw
 
     - name: Parse it
       ansible.builtin.set_fact:
-        restore_test_fallback: "{{ restore_test_fallback_raw.content | b64decode | from_json }}"
+        restore_discovery_test_fallback: "{{ restore_discovery_test_fallback_raw.content | b64decode | from_json }}"
 
     # The real point of this scenario: SeaweedFS was unreachable (a
     # closed port in rclone-fallback.conf), so this must have come from
@@ -36,11 +36,11 @@
     - name: Assert the fallback target was used and the NEWER of the two objects was picked
       ansible.builtin.assert:
         that:
-          - restore_test_fallback.source == 'fallback_target'
-          - restore_test_fallback.object_name == 'beta-lldap-2026-06-15T12-00-00.tar.gz.gpg'
-          - restore_test_fallback.decrypted_content == 'NEWER-MARKER-should-be-picked'
+          - restore_discovery_test_fallback.source == 'fallback_target'
+          - restore_discovery_test_fallback.object_name == 'beta-lldap-2026-06-15T12-00-00.tar.gz.gpg'
+          - restore_discovery_test_fallback.decrypted_content == 'NEWER-MARKER-should-be-picked'
         fail_msg: >-
-          Fallback-path result: {{ restore_test_fallback }} — expected the
+          Fallback-path result: {{ restore_discovery_test_fallback }} — expected the
           2026-06-15 object (newer), not the 2026-01-01 one, and expected
           fallback_target since [seaweedfs] in rclone-fallback.conf points
           at a closed port.
@@ -48,8 +48,8 @@
     - name: Confirm discover_and_decrypt cleaned up the encrypted copies it downloaded
       ansible.builtin.stat:
         path: "{{ item }}"
-      register: restore_test_leftover_encrypted
+      register: restore_discovery_test_leftover_encrypted
       loop:
         - /tmp/scratch-happy/alpha-kms-2026-03-01T04-00-00.tar.gz.gpg
         - /tmp/scratch-fallback/beta-lldap-2026-06-15T12-00-00.tar.gz.gpg
-      failed_when: restore_test_leftover_encrypted.stat.exists
+      failed_when: restore_discovery_test_leftover_encrypted.stat.exists

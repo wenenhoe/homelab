@@ -72,13 +72,13 @@
 
     - name: Export the public key for encrypting test fixtures
       ansible.builtin.command: gpg --batch --yes --armor --export molecule-test
-      register: restore_test_pubkey
+      register: restore_discovery_test_pubkey
       changed_when: false
 
     - name: Save it for reference (not read by anything — the key is already in this container's own keyring)
       ansible.builtin.copy:
         dest: /tmp/molecule-test-pubkey.asc
-        content: "{{ restore_test_pubkey.stdout }}"
+        content: "{{ restore_discovery_test_pubkey.stdout }}"
         mode: "0644"
       changed_when: false
 
@@ -179,9 +179,9 @@
       community.docker.docker_container_exec:
         container: restore-discovery-test-admin-cli
         command: "aws --endpoint-url http://{{ molecule_helpers_seaweedfs_ip }}:8333 s3 mb s3://{{ item }}"
-      register: restore_test_bucket_create
+      register: restore_discovery_test_bucket_create
       changed_when: false
-      failed_when: restore_test_bucket_create.rc != 0
+      failed_when: restore_discovery_test_bucket_create.rc != 0
       loop:
         - "{{ molecule_primary_bucket }}"
         - "{{ molecule_fallback_bucket }}"
@@ -254,6 +254,12 @@
     # the driver script below just picks out the one entry each phase
     # actually needs from whichever manifest.json this produced.
     - name: Render the real manifest/rclone.conf for the happy path ([seaweedfs] genuinely reachable)
+      # noqa: var-naming[no-role-prefix] — offsite_backup_s3_bucket/_proto/
+      # _endpoint are fixed global var names group_vars/all/main.yaml
+      # defines and restore_discovery's own templates/tasks consume
+      # unprefixed; can't be renamed. Same false positive
+      # cloud_sync/molecule/default/converge.yml documents for its own
+      # identical override of offsite_backup_s3_endpoint.
       ansible.builtin.include_role:
         name: restore_discovery
       vars:
@@ -263,6 +269,7 @@
         offsite_backup_s3_endpoint: "{{ molecule_helpers_seaweedfs_ip }}:8333"
 
     - name: Render the real manifest/rclone.conf for the fallback path ([seaweedfs] deliberately unreachable)
+      # noqa: var-naming[no-role-prefix] — see the happy-path task above.
       ansible.builtin.include_role:
         name: restore_discovery
       vars:
@@ -310,7 +317,7 @@
         state: directory
         mode: "0755"
 
-    - name: Copy restore_all.py into the test root at the path its own module docstring assumes ({{ restore_test_root }}/ansible/restore_all.py)
+    - name: "Copy restore_all.py into the test root at the path its own module docstring assumes: {{ restore_test_root ~ '/ansible/restore_all.py' }}"
       ansible.builtin.copy:
         src: "{{ playbook_dir }}/../../../../restore_all.py"
         dest: "{{ restore_test_root }}/ansible/restore_all.py"

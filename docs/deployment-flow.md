@@ -134,7 +134,7 @@ See [`adding-an-app.md`](adding-an-app.md) for a worked example.
 | Tag | Covers | Skips |
 | :--- | :--- | :--- |
 | `initial-setup` | Docker Engine + qemu-guest-agent install (Play 1) | Everything else still runs. |
-| `images` | Pull/rebuild every app's image and recreate containers whose image changed (Plays 2–8) | Config rendering, directory/volume provisioning, Docker install |
+| `images` | Pull/rebuild every app's image and recreate containers whose image changed (Plays 2–9) | Config rendering, directory/volume provisioning, Docker install |
 | `infra` | Re-render Caddyfile/`named.conf`/zones, restart only changed containers | Image pulls/rebuilds, directory/volume provisioning, Docker install |
 
 `preinit` and the `secrets` role always run regardless of tags, since

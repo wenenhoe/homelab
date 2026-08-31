@@ -22,7 +22,7 @@ app_registry:
         dest: "data/conf.yml"
 ```
 
-Each entry becomes a Docker volume named `<app>-<name>` (see `ensure_volume.yaml`), referenced in `compose.yaml` as an `external: true` volume so Ansible — not `docker compose` — owns its lifecycle:
+Each entry becomes a Docker volume named `<app>_<name>` (see `ensure_volume.yaml`), referenced in `compose.yaml` as an `external: true` volume so Ansible — not `docker compose` — owns its lifecycle:
 
 ```yaml
 services:
@@ -123,7 +123,7 @@ for subpath support.
 
 ## What stays a bind mount
 
-- **Host system resources** — the Docker socket (`lldap`/`diun`/`beszel-agent`'s
+- **Host system resources** — the Docker socket (`backup_agent`/`diun`/`beszel-agent`'s
   `dockerproxy` sidecars).
 - **Anything not declared as a volume.**
 

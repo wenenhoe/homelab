@@ -26,3 +26,9 @@ caddy
 # lldap host exists for tinyauth to resolve in that model, regardless of
 # config correctness).
 tinyauth
+
+# molecule-dind: not a deployed compose app at all — it's CI scaffolding,
+# a Dockerfile built and pushed to ghcr.io/wenenhoe/molecule-dind:latest
+# for Molecule's DinD scenarios (build-molecule-dind-image.yml). No
+# compose.yaml/.j2, so there's nothing for `docker compose up` to run.
+molecule-dind

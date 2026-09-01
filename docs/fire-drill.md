@@ -105,6 +105,8 @@ Two levels of "does this actually work," proving different things:
   orchestration logic are covered — just never both at once, and never
   against real infrastructure at the same time.
 
+Append a new row per drill — this is a running log, not a single slot.
+
 | Date | Apps covered | SeaweedFS path | Cloud-fallback path | Result |
 | :--- | :--- | :--- | :--- | :--- |
-| *pending* | — | — | — | Not yet run — this row is a template, not a claim; fill it in after an actual run. See the steps above. |
+| 2026-09-01 | wastebin | Yes — today's `04:30` backup, discovered and decrypted for real | Not exercised this run (covered separately by the automated `discovery_and_restore` scenario) | Pass. Real object → decrypt → extract → volume-swap → redeploy all confirmed against actual content (checksum and original mtime matched the source archive, not a freshly-created empty file). Caught and fixed a real bug along the way: `restore_all.py`'s `-e` extra-vars were never reaching the role as a list (see `restore.md`). App-level write access wasn't independently verified this run — blocked by an unrelated, pre-existing volume-ownership mismatch on production `wastebin` itself, out of scope for this drill. |

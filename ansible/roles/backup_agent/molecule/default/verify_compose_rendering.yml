@@ -133,3 +133,39 @@
       - >-
         'NOTIFICATION_URLS=telegram://123456789:molecule-dummy-token@telegram?chats=molecule-dummy-chat-id'
         in (backup_agent_shared_env_raw.content | b64decode)
+
+- name: Confirm BACKUP_HOST_NAME was rendered — the failure template's body_failure reads it via env
+  ansible.builtin.assert:
+    that:
+      - "'BACKUP_HOST_NAME=backup-agent-instance' in (backup_agent_shared_env_raw.content | b64decode)"
+
+# --- Failure-notification template: mounted, and not silently drifted from its own source ---
+- name: Confirm the failure-notification template is mounted into notifications.d
+  ansible.builtin.assert:
+    that:
+      - >-
+        './notification-failure.template:/etc/dockervolumebackup/notifications.d/01-failure.template:ro'
+        in backup_agent_compose_parsed.services['backup-agent'].volumes
+
+- name: Read back the deployed failure-notification template
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/notification-failure.template"
+  register: backup_agent_notification_template_raw
+
+- name: Confirm the deployed copy matches the role's own files/notification-failure.template exactly
+  vars:
+    # lookup('file', ...) rstrips trailing whitespace by default (this
+    # is Ansible's own lookup behavior, not something this role does) —
+    # slurp's b64decoded content is the exact bytes `copy` deployed,
+    # trailing newline included. Comparing both rstripped catches a
+    # real content edit (anywhere but the very end) without a false
+    # positive from that mismatch.
+    backup_agent_notification_template_deployed: "{{ (backup_agent_notification_template_raw.content | b64decode).rstrip() }}"
+    backup_agent_notification_template_source: "{{ lookup('file', playbook_dir ~ '/../../files/notification-failure.template').rstrip() }}"
+  ansible.builtin.assert:
+    that:
+      - backup_agent_notification_template_deployed == backup_agent_notification_template_source
+    fail_msg: >-
+      Deployed notification-failure.template has drifted from the role's
+      own source file at ansible/roles/backup_agent/files/ — `copy`
+      should always deploy it byte-for-byte.

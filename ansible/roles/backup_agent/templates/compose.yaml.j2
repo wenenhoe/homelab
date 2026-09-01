@@ -33,6 +33,7 @@ services:
 {% endfor %}
       - ./gpg-public-key.asc:/etc/backup/gpg-public-key.asc:ro
       - ./conf.d:/etc/dockervolumebackup/conf.d:ro
+      - ./notification-failure.template:/etc/dockervolumebackup/notifications.d/01-failure.template:ro
     env_file:
       - .env
     networks:

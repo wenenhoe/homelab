@@ -1,0 +1,23 @@
+---
+# Removes this scenario's controller-side output — restore_discovery's
+# own tasks are delegate_to: localhost throughout (see that role's
+# tasks/main.yaml), so the two "Render the real manifest/rclone.conf
+# for..." tasks in converge.yml write onto the REAL machine running
+# Molecule, not into restore-discovery-fire-drill-instance's own
+# filesystem (see converge.yml's own comment on this). `destroy` never
+# touches that, so it has to be cleaned up explicitly. Same shape as
+# roles/restore_discovery/molecule/default/cleanup.yml and
+# roles/secrets/molecule/default/cleanup.yml, same reason.
+#
+# hosts: localhost, not hosts: all: the pre-create run happens before
+# restore-discovery-fire-drill-instance exists, so hosts: all's implicit
+# Gathering Facts task would fail UNREACHABLE.
+- name: Cleanup
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Remove this scenario's controller-side output
+      ansible.builtin.file:
+        path: /tmp/restore-molecule-discovery/
+        state: absent

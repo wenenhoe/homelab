@@ -193,6 +193,10 @@ have fully qualified paths`). Scheme is the separate
 
 Covered in its own runbook: [`restore.md`](restore.md).
 
+## Fire drill
+
+Covered in its own doc: [`fire-drill.md`](fire-drill.md).
+
 ## Out of scope
 
 - Off-site/cloud replication of the `storage` host's own SeaweedFS data

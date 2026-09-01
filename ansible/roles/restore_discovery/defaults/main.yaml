@@ -1,0 +1,34 @@
+---
+# Batch-restore scope (restore_all.py) is derived in tasks/main.yaml
+# from app_registry's own `backup:` key — the same test backup_agent
+# itself uses to decide what it backs up, so there's no separate
+# allow-list that can drift out of sync with what's actually backed up.
+# This is the only override: an app that DOES have a `backup:` key but
+# should never be included in an automated batch restore (e.g. a
+# cold-storage archive you always want restored by hand, deliberately,
+# one at a time). Empty by default — nothing is excluded unless you
+# list it here.
+restore_discovery_excluded_apps: []
+
+# Where this role writes its controller-local output — read by
+# restore_all.py. Not under ansible/files/secrets/ (that dir is
+# per-secret cache files, this is derived/generated output) but
+# alongside it, same gitignore treatment. See docs/restore.md.
+restore_discovery_dir: "{{ project_root }}/ansible/files/restore"
+
+# Read-only counterparts of host_vars/storage.yaml's cloud_sync_targets
+# (which holds the WRITE legs cloud_sync itself uploads with). Bucket
+# and endpoint are identical for a given provider regardless of which
+# leg is used, so those are read from hostvars['storage'].cloud_sync_targets
+# directly in rclone.conf.j2 rather than repeated here — only the
+# credentials differ.
+restore_discovery_cloud_read_credentials:
+  r2:
+    access_key: "{{ secrets_generated['cloudflare-r2-read-access-key'] }}"
+    secret_key: "{{ secrets_generated['cloudflare-r2-read-secret-key'] }}"
+  b2:
+    access_key: "{{ secrets_generated['backblaze-b2-read-access-key'] }}"
+    secret_key: "{{ secrets_generated['backblaze-b2-read-secret-key'] }}"
+  oci:
+    access_key: "{{ secrets_generated['oci-read-access-key'] }}"
+    secret_key: "{{ secrets_generated['oci-read-secret-key'] }}"

@@ -1,0 +1,48 @@
+---
+# Real SeaweedFS target (standing in for both "SeaweedFS itself" and a
+# cloud fallback target, same reasoning cloud_sync's own scenario uses —
+# see its molecule.yml) plus real rclone/gpg binaries, to prove
+# restore_all.py's discover_and_decrypt() against actual S3 and GPG
+# behavior, not mocked. Needs a nested Docker daemon (to run
+# seaweedfs-test itself) — hence the same privileged/systemd DinD image
+# as cloud_sync/restore, unlike restore_discovery's own `default`
+# scenario, which only renders config files and needs no Docker at all.
+driver:
+  name: docker
+platforms:
+  - name: restore-discovery-fire-drill-instance
+    image: ghcr.io/wenenhoe/molecule-dind:latest
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    cleanup: cleanup.yml
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind_prebuilt.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  # No idempotence: this scenario's converge step generates a fresh GPG
+  # keypair and uploads fresh timestamped objects every run — by design
+  # not idempotent, same reasoning restore/molecule/default's own
+  # scenario documents for the restore role itself.
+  test_sequence:
+    - dependency
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - cleanup
+    - destroy

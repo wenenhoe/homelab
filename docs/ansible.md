@@ -13,6 +13,8 @@ play-by-play and role responsibilities during a deploy, see
 | `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 | `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted offsite backup archive (stage 1 DR). See [`restore.md`](restore.md). |
+| `playbooks/restore-discovery-setup.yaml` | `inventory/inventory.yaml` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` `restore_all.py` uses. See [`restore.md`](restore.md). |
+| `playbooks/restore-minecraft-world.yaml` | `inventory/inventory.yaml` | Phase 2 of a minecraft restore: unpacks the newest backup tar into the live world. See [`restore.md`](restore.md). |
 | `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`volume-maintenance.md`](volume-maintenance.md). |
 | `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`volume-maintenance.md`](volume-maintenance.md). |
 | `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Deletes one generated secret's cached value, so the next `deploy.yaml` run regenerates it. Doesn't redeploy anything itself. See [`secrets-rotation.md`](secrets-rotation.md). |
@@ -45,6 +47,7 @@ play-by-play and role responsibilities during a deploy, see
 | `backup_agent` | Per-host offsite backup aggregation (stage 1 DR). |
 | `cloud_sync` | Offsite replication of SeaweedFS archives to R2/B2/OCI. |
 | `restore` | Restores a decrypted offsite archive back to a named volume. |
+| `restore_discovery` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` for `restore_all.py`. |
 | `secrets` | Generates/validates every entry in `secrets_registry.yaml`. |
 | `molecule_helpers` | Shared Molecule test fixtures/setup, not deployed. |
 

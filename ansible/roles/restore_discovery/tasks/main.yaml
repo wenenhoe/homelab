@@ -1,0 +1,130 @@
+---
+# Controller-local setup for restore_all.py: a manifest.json describing
+# what to restore and from where, plus an rclone.conf to read it with.
+# Never touches a real host — hosts: controller only (see
+# playbooks/restore-discovery-setup.yaml) — every task still carries its
+# own delegate_to/become in case a future caller includes this role from
+# a differently-scoped play, same defensive convention as
+# roles/secrets/tasks/ensure_secret.yaml.
+#
+# Building the manifest here (Jinja/app_registry/host_vars), not in
+# restore_all.py, keeps app→host/volume/cloud-target resolution in one
+# place — the same data compose_app and cloud_sync already resolve from
+# app_registry and host_vars/storage.yaml. Duplicating that logic in
+# Python would be a second, driftable copy of it.
+
+# app_registry's own `backup:` key is authoritative for scope — the
+# same `(item.backup.volumes | default([])) | length > 0` test
+# backup_agent's own tasks/main.yaml uses to decide what it backs up in
+# the first place, so batch-restore covers exactly what's actually
+# backed up with no separate list to keep in sync. Only
+# restore_discovery_excluded_apps (defaults/main.yaml, empty by
+# default) can narrow this — for an app you back up but deliberately
+# never want auto-restored in a batch run.
+- name: Determine which host runs each backed-up, non-excluded app
+  ansible.builtin.set_fact:
+    restore_discovery_app_hosts: >-
+      {%- set ns = namespace(out={}) -%}
+      {%- for host in groups['managed_hosts'] -%}
+        {%- for app in hostvars[host].compose_apps -%}
+          {%- set backed_up = (app_registry[app.name].backup.volumes | default([])) | length > 0 -%}
+          {%- if backed_up and app.name not in restore_discovery_excluded_apps -%}
+            {%- set _ = ns.out.update({app.name: host}) -%}
+          {%- endif -%}
+        {%- endfor -%}
+      {%- endfor -%}
+      {{ ns.out }}
+  delegate_to: localhost
+  become: false
+
+- name: Fail loudly if nothing was discovered (empty inventory/app_registry, or restore_discovery_excluded_apps excluded everything)
+  ansible.builtin.assert:
+    that: restore_discovery_app_hosts | length > 0
+    fail_msg: >-
+      No app on any managed host has a backup: key in app_registry.yaml
+      (after restore_discovery_excluded_apps) — nothing for restore_all.py
+      to discover. Check app_registry.yaml and
+      roles/restore_discovery/defaults/main.yaml.
+  delegate_to: localhost
+  become: false
+
+# step-ca first if it's actually in scope — see docs/restore.md's
+# batch-restore section for why. If step-ca itself has no backup: key,
+# this silently can't hoist anything — an app_registry gap to fix
+# there, not something this role can detect on its own.
+- name: Order the discovered apps, step-ca first
+  ansible.builtin.set_fact:
+    restore_discovery_apps: >-
+      {%- set names = restore_discovery_app_hosts.keys() | list -%}
+      {%- if 'step-ca' in names -%}
+      {{ ['step-ca'] + (names | reject('equalto', 'step-ca') | list) }}{%- else -%}
+      {{ names }}{%- endif -%}
+  delegate_to: localhost
+  become: false
+
+# One dict per app: which host, the SeaweedFS path (matches
+# AWS_S3_PATH in backup_agent's schedule.env.j2 — always
+# "<host>-<app>"), its full volume names, and which cloud target(s) to
+# fall back to (same extra_cloud_targets/cloud_sync_default_targets
+# resolution cloud_sync's own tasks/main.yaml uses, so a change to
+# either stays in sync automatically).
+- name: Build the ordered restore manifest
+  ansible.builtin.set_fact:
+    restore_discovery_manifest: >-
+      {%- set ns = namespace(out=[]) -%}
+      {%- for app in restore_discovery_apps -%}
+        {%- set host = restore_discovery_app_hosts[app] -%}
+        {%- set backup_def = app_registry[app].backup -%}
+        {%- set target_names = backup_def.extra_cloud_targets | default(hostvars['storage'].cloud_sync_default_targets) -%}
+        {%- set target_ns = namespace(list=[]) -%}
+        {%- for t in target_names -%}
+          {%- set _ = target_ns.list.append({'name': t, 'bucket': hostvars['storage'].cloud_sync_targets[t].bucket}) -%}
+        {%- endfor -%}
+        {%- set volume_ns = namespace(list=[]) -%}
+        {%- for v in backup_def.volumes -%}
+          {%- set _ = volume_ns.list.append(app ~ '_' ~ v) -%}
+        {%- endfor -%}
+        {%- set _ = ns.out.append({
+              'app': app,
+              'host': host,
+              'seaweedfs_path': host ~ '-' ~ app,
+              'volumes': volume_ns.list,
+              'cloud_targets': target_ns.list,
+            }) -%}
+      {%- endfor -%}
+      {{ ns.out }}
+  delegate_to: localhost
+  become: false
+
+- name: Combine the manifest with the SeaweedFS bucket name for rendering
+  ansible.builtin.set_fact:
+    restore_discovery_manifest_full:
+      seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
+      apps: "{{ restore_discovery_manifest }}"
+  delegate_to: localhost
+  become: false
+
+- name: Ensure the restore-discovery output directory exists
+  ansible.builtin.file:
+    path: "{{ restore_discovery_dir }}"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+
+- name: Render the batch-restore manifest
+  ansible.builtin.template:
+    src: manifest.json.j2
+    dest: "{{ restore_discovery_dir }}/manifest.json"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+
+- name: Render the read-only rclone.conf (SeaweedFS + every cloud fallback target)
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: "{{ restore_discovery_dir }}/rclone.conf"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  no_log: true

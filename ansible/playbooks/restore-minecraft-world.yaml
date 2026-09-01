@@ -1,0 +1,32 @@
+---
+# Phase 2 of a minecraft restore, after playbooks/restore.yaml has
+# reconstituted minecraft_backups (phase 1). Runs
+# docker/minecraft/scripts/run_restore.sh -y on `play`, which unpacks
+# the newest tar in ./backups into ./data via itzg/mc-backup's
+# restore-tar-backup entrypoint — deliberately kept out of the
+# `restore` role itself, see that script's own header and
+# docs/restore.md.
+#
+# restore_all.py always runs phase 1 immediately before this. Standalone
+# use (e.g. an ordinary same-day rollback with no offsite archive
+# involved) should call docker/minecraft/scripts/run_restore.sh
+# directly on `play` instead — see the script's own -y usage.
+#
+# REQUIRES bootstrap-secrets.yaml passed on the SAME command line ahead
+# of this file, same reason as playbooks/restore.yaml.
+#
+# Usage:
+#   ansible-playbook playbooks/bootstrap-secrets.yaml \
+#     playbooks/restore-minecraft-world.yaml \
+#     -i inventory/inventory.yaml --limit play,localhost
+
+- name: Run minecraft's on-host world restore script
+  hosts: play
+  gather_facts: false
+  become: true
+  strategy: linear
+  tasks:
+    - name: Run run_restore.sh -y
+      ansible.builtin.command:
+        cmd: "{{ compose_deploy_dir }}/minecraft/scripts/run_restore.sh -y"
+      changed_when: true

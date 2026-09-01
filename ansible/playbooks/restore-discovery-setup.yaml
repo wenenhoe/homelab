@@ -1,0 +1,25 @@
+---
+# Renders ansible/files/restore/{manifest.json,rclone.conf} for
+# restore_all.py. hosts: controller (localhost only) — never touches a
+# real host, unlike playbooks/restore.yaml. See
+# ansible/roles/restore_discovery and docs/restore.md's batch-restore
+# section.
+#
+# REQUIRES bootstrap-secrets.yaml passed on the SAME command line ahead
+# of this file, same reason as playbooks/restore.yaml — see that
+# file's header. restore_all.py always does this for you; this file is
+# only run standalone for debugging the manifest/rclone.conf
+# themselves.
+#
+# Usage:
+#   ansible-playbook playbooks/bootstrap-secrets.yaml \
+#     playbooks/restore-discovery-setup.yaml \
+#     -i inventory/inventory.yaml --limit localhost
+
+- name: Render the batch-restore manifest and rclone.conf
+  hosts: controller
+  gather_facts: false
+  tasks:
+    - name: Run the restore_discovery role
+      ansible.builtin.include_role:
+        name: restore_discovery

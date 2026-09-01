@@ -1,0 +1,36 @@
+---
+# restore_discovery needs nothing beyond a container with Python present
+# — every task is delegate_to: localhost against the molecule control
+# node itself (same convention roles/secrets/molecule/default documents
+# for its own identical shape), so there's no Docker-in-Docker, no
+# systemd, no privileged mode. See molecule/discovery_and_restore for
+# the scenario that actually needs real Docker (to run a throwaway
+# SeaweedFS target for restore_all.py's own discovery logic).
+driver:
+  name: docker
+platforms:
+  - name: restore-discovery-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    command: sleep infinity
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    cleanup: cleanup.yml
+    prepare: prepare.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - cleanup
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - idempotence
+    - verify
+    - cleanup
+    - destroy

@@ -1,0 +1,9 @@
+{{ define "title_failure" -}}
+❌ Backup failed: {{ .Config.BackupSources }}
+{{- end }}
+
+{{ define "body_failure" -}}
+Host: {{ env "BACKUP_HOST_NAME" }}
+Source: {{ .Config.BackupSources }}
+Error: {{ .Error }}
+{{- end }}

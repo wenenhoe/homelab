@@ -112,7 +112,13 @@ a placeholder that isn't shaped like one.
 - **backup_agent**: `NOTIFICATION_URLS` in the role's shared `.env`
   (`ansible/roles/backup_agent/templates/env.j2`) — fires on failed
   backup runs only (`docker-volume-backup`'s own default
-  `NOTIFICATION_LEVEL=error`), not on every successful one.
+  `NOTIFICATION_LEVEL=error`), not on every successful one. Since every
+  app's schedule shares this one container and one `NOTIFICATION_URLS`,
+  `ansible/roles/backup_agent/files/notification-failure.template`
+  overrides the default failure title/body to include
+  `Config.BackupSources` (`/backup/<app>`) and `BACKUP_HOST_NAME` — so
+  the alert names which app and host failed instead of just "backup
+  failed".
 - **cloud_sync**: `ansible/roles/cloud_sync/templates/cloud-sync.service.j2`
   sets `OnFailure=telegram-notify-cloud-sync.service`, a plain (non-`@`)
   consumer of `telegram_notify` above — posts to the same Backups topic

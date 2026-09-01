@@ -288,6 +288,23 @@ def append_audit_log(entries: list[dict]) -> None:
 
 
 def run_app_restore(result: DiscoveryResult) -> bool:
+    # A single JSON-object -e argument, not separate -e key=value pairs —
+    # confirmed live: -e restore_volumes='["x"]' (key=value form) leaves
+    # restore_volumes as the literal 17-character STRING '["x"]', not a
+    # list — the restore role's own `| join(', ')` on it then iterates
+    # per character (visible directly in the pause prompt: "[, ", x, ",
+    # ]"), and its `loop: "{{ restore_volumes }}"` would do the same
+    # against real volume names. `restore_confirm` happens to survive
+    # the same string-typing because the role applies `| bool` to it;
+    # `restore_volumes` has no such filter and needs to actually be a
+    # list. A single JSON-object -e argument (confirmed live, see above)
+    # gets every value's real type instead.
+    extra_vars = {
+        "restore_app": result.entry.app,
+        "restore_archive_local_path": str(result.decrypted_path),
+        "restore_volumes": result.entry.volumes,
+        "restore_confirm": True,
+    }
     cmd = [
         "ansible-playbook",
         "playbooks/bootstrap-secrets.yaml",
@@ -297,13 +314,7 @@ def run_app_restore(result: DiscoveryResult) -> bool:
         "--limit",
         f"{result.entry.host},localhost",
         "-e",
-        f"restore_app={result.entry.app}",
-        "-e",
-        f"restore_archive_local_path={result.decrypted_path}",
-        "-e",
-        f"restore_volumes={json.dumps(result.entry.volumes)}",
-        "-e",
-        "restore_confirm=true",
+        json.dumps(extra_vars),
     ]
     print(f"\n=== Restoring {result.entry.app} on {result.entry.host} ===")
     return subprocess.run(cmd, cwd=ANSIBLE_DIR).returncode == 0

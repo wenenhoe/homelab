@@ -78,14 +78,16 @@ Two levels of "does this actually work," proving different things:
      ```sh
      ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
        -i inventory/scratch-firedrill.yaml --limit scratch-wastebin,localhost \
-       -e restore_app=wastebin \
-       -e restore_archive_local_path=<result.decrypted_path from step 2> \
-       -e restore_volumes='["wastebin_data"]'
+       -e '{"restore_app": "wastebin", "restore_archive_local_path": "<result.decrypted_path from step 2>", "restore_volumes": ["wastebin_data"]}'
      ```
+     One JSON-object `-e` argument, not separate `-e key=value` pairs —
+     see [`restore.md`](restore.md) for why that distinction actually
+     matters here, not just style.
      Leave `restore_confirm` unset — read the real `pause` prompt's
-     "About to STOP wastebin on scratch-wastebin..." line before typing
-     `yes`, as a last check that `-i`/`--limit` actually did what you
-     expect.
+     "About to STOP wastebin on scratch-wastebin...", with
+     `wastebin_data` actually named once (not split into characters —
+     that would mean the fix above didn't take), before typing `yes`,
+     as a last check that `-i`/`--limit` actually did what you expect.
   5. Confirm the app actually boots clean against the restored data —
      not just that Ansible reported success — then tear the scratch
      host down and `rm -rf ansible/files/restore/scratch/` to clear the

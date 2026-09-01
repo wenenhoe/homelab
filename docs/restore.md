@@ -25,10 +25,21 @@ Two gates block the destructive steps, each covered by a
 ```sh
 ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
   -i inventory/inventory.yaml --limit services,localhost \
-  -e restore_app=kms \
-  -e restore_archive_local_path=/home/you/services-kms-2026-07-29T04-00-00.tar.gz \
-  -e restore_volumes='["kms_data"]'
+  -e '{"restore_app": "kms", "restore_archive_local_path": "/home/you/services-kms-2026-07-29T04-00-00.tar.gz", "restore_volumes": ["kms_data"]}'
 ```
+
+All of `restore_app`/`restore_archive_local_path`/`restore_volumes` need
+to be **one JSON-object `-e` argument**, not separate `-e key=value`
+pairs. Confirmed live: `-e restore_volumes='["kms_data"]'` (the
+`key=value` form) leaves `restore_volumes` as the literal string
+`["kms_data"]`, not a list — Ansible only parses `-e`'s value as JSON
+when the whole `-e` argument is itself a JSON object. The pause
+prompt's own `{{ restore_volumes | join(', ') }}` then silently joins
+that string's individual *characters* instead of the volume name(s) —
+visible directly in the confirmation text if this regresses, so it's
+hard to miss before typing `yes`, but easy to miss in a script that
+never shows a human that prompt (see `ansible/restore_all.py`'s own
+`run_app_restore()`, fixed for exactly this).
 
 Each archive holds exactly one app (one schedule = one app — see
 [Architecture in `disaster-recovery.md`](disaster-recovery.md#architecture)),
@@ -62,10 +73,11 @@ The playbook then runs through the restore itself in order:
 
 It pauses for `yes` before touching anything.
 
-For `lldap` (multiple volumes in one archive):
+For `lldap` (multiple volumes in one archive), same rule — one
+JSON-object `-e`:
 
 ```sh
--e restore_volumes='["lldap_data","lldap_certs"]'
+-e '{"restore_volumes": ["lldap_data", "lldap_certs"]}'
 ```
 
 ## Batch restore (all apps, disaster-recovery scenario)

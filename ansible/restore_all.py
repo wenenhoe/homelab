@@ -16,9 +16,9 @@ rendered by the `restore_discovery` role) and to `gpg`, and delegates
 the actual stop/extract/redeploy to the already-tested `restore` role
 via `ansible-playbook`, the same as a manual per-app restore would. See
 docs/restore.md's batch-restore section for the full design, and
-docs/disaster-recovery.md's Fire drill section for how to validate this
-against real infrastructure (a real fire drill is a manual step, not
-run by CI or by this script itself).
+docs/fire-drill.md for how to validate this against real infrastructure
+(a real fire drill is a manual step, not run by CI or by this script
+itself).
 
 Requires, on the controller (see docs/disaster-recovery.md's Threat
 model for why this only ever runs on a dedicated/hardened admin

@@ -177,8 +177,7 @@ Worth watching for on the first real restore over anything other than
 a fast LAN link.
 
 For a fire drill proving the whole path end to end against real
-infrastructure, see
-[`disaster-recovery.md`'s Fire drill section](disaster-recovery.md#fire-drill).
+infrastructure, see [`fire-drill.md`](fire-drill.md).
 
 For `minecraft`, restoring `minecraft_backups` only gets you the on-host
 `mc-backup` tar window — unpacking the newest tar into `minecraft_data`

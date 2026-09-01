@@ -160,18 +160,24 @@ the tenancy as a side effect of being grantable at all, not because
 that's a capability anyone wanted — OCI bundles it into the same
 permission that gates every per-user credential mutation.
 
-**Known gap: the script can't detect a stale policy behind an
-already-cached rotation key.** `create_rotation_keys.py`'s top-level
-check is "do the rotation key's cache files exist" — if they do, it
-skips everything, including the 409-then-update logic that would
-otherwise fix a policy that changed since the key was cached (exactly
-what happened here: the first run cached a working keypair attached to
-a policy that was later found to be wrong). Recovering from this needs
-either deleting the `_rotation-key-oci-*` cache files and accepting a
-new orphaned keypair, or fixing the policy directly in the Console —
-there's no built-in way to force a policy-only re-check while keeping
-the existing keypair. Worth building if this turns out to be a
-recurring need rather than a one-time bootstrapping hiccup.
+**Fixed: policy drift behind an already-cached rotation key.**
+`create_rotation_keys.py --provider oci` used to gate everything —
+including the 409-then-update logic that fixes a changed policy —
+behind "do the rotation key's cache files exist" (exactly what
+happened here: the first run cached a working keypair attached to a
+policy that was later found to be wrong, and a second run wouldn't
+have caught it). The keypair-exists check now only gates keypair
+*generation*; leg-identity and rotation-identity policy verification
+run on every invocation regardless, the same way `oci_ensure_leg_identity`
+already re-verified leg policies unconditionally. Re-running
+`create_rotation_keys.py --provider oci --admin-email you@example.com`
+is now enough to pick up a policy change without touching the cached
+keypair — no flag needed, no cache files to delete. Confirmed live:
+the fix applies immediately (a raw API re-GET right after reflects
+it), but the Console's own policy detail view can lag visibly behind
+that — don't trust the Console alone when checking whether this ran
+correctly; re-GET via the API (or just wait a bit and refresh) instead
+of concluding the fix didn't work.
 
 **Identity-Domain tenancies require an email per user, confirmed
 live** (`400 IdcsConversionError` from `CreateUser` without one).

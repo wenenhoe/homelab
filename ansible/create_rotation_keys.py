@@ -19,9 +19,11 @@ differs a lot by provider — OCI has real, documented limits on how far
 this can be narrowed, not a uniform "create/delete keys only"
 guarantee).
 
-Run this again only when a rotation key itself needs rotating — routine
-leg-key rotation is create_cloud_credentials.py's job and doesn't touch
-this script or the master credential at all.
+Run this again when a rotation key itself needs rotating, or to
+re-verify/repair IAM policies (OCI) against an already-cached keypair —
+neither regenerates the keypair unless its cache files are missing.
+Routine leg-key rotation is create_cloud_credentials.py's job and
+doesn't touch this script or the master credential at all.
 
 Usage:
     python3 ansible/create_rotation_keys.py [--provider {b2,oci,all}]
@@ -251,12 +253,16 @@ def oci_ensure_leg_identity(
     return user_id
 
 
-def oci_create_rotation_identity(session, endpoint, post, put, tenancy: str, admin_email: str) -> str:
-    """Create the dedicated key-rotation IAM user/group/policy. Returns its user OCID.
+def oci_ensure_rotation_identity(session, endpoint, post, put, tenancy: str, admin_email: str) -> str:
+    """Create the dedicated key-rotation IAM user/group, and always
+    (re-)verify its policy statement. Returns its user OCID.
 
-    Idempotent via 409-on-create at each step, same as
-    oci_ensure_leg_identity — safe to resume after a prior run failed
-    partway through (e.g. on the policy step, as happened here once).
+    Mirrors oci_ensure_leg_identity's split: user/group/membership are
+    skipped once they exist, but the policy 409-and-updates every call —
+    so this is safe (and cheap) to run unconditionally, independent of
+    whether the rotation keypair itself is already cached. See
+    docs/cloud-credential-creation.md's Known gap entry for why that
+    split matters here specifically.
     """
     name = "homelab-key-rotation"
     user = oci_get_or_create_user(
@@ -322,11 +328,12 @@ def oci_create_rotation_identity(session, endpoint, post, put, tenancy: str, adm
         # Update, not skip: an existing policy here might be the
         # pre-fix version (missing USER_UPDATE, as this tenancy's was)
         # — leaving it in place on 409 would silently keep the broken
-        # grant forever. NEEDS LIVE VERIFICATION: the UpdatePolicy
-        # request shape (PUT with a bare {"statements": [...]} body) —
-        # confirmed the lookup-by-name path works (see oci_lookup_one),
-        # not yet confirmed this specific PUT shape against a real
-        # tenancy.
+        # grant forever. UpdatePolicy's PUT with a bare
+        # {"statements": [...]} body is confirmed live: it applies
+        # immediately (a raw re-GET right after reflects it), though
+        # the OCI Console's own policy detail view can lag behind that
+        # by a short, inconsistent delay — don't trust the Console
+        # alone when verifying this against a real tenancy.
         print(f"oci: policy {name} already exists, updating its statements", file=sys.stderr)
         existing = oci_lookup_one(session, endpoint, tenancy, "policies", name)
         put(f"/20160918/policies/{existing['id']}", {"statements": statement_list})
@@ -342,9 +349,7 @@ def create_oci_rotation_key(admin_email: str) -> None:
         "_rotation-key-oci-tenancy-ocid",
         "_rotation-key-oci-region",
     ]
-    if all(cached(f) for f in rotation_files):
-        print("oci: rotation identity already cached, skipping")
-        return
+    keypair_cached = all(cached(f) for f in rotation_files)
 
     signer, endpoint, tenancy, region = oci_master_auth_and_endpoint()
     session = requests.Session()
@@ -378,7 +383,23 @@ def create_oci_rotation_key(admin_email: str) -> None:
         ["OBJECT_INSPECT", "OBJECT_READ"], admin_email,
     )
 
-    rotation_user_id = oci_create_rotation_identity(session, endpoint, post, put, tenancy, admin_email)
+    rotation_user_id = oci_ensure_rotation_identity(session, endpoint, post, put, tenancy, admin_email)
+
+    if keypair_cached:
+        cached_user_id = (SECRETS_DIR / "_rotation-key-oci-user-ocid").read_text().strip()
+        if rotation_user_id != cached_user_id:
+            # The lookup-by-name above found a different user OCID than the one
+            # the cached keypair was issued for — that keypair no longer
+            # belongs to "homelab-key-rotation" and won't authenticate as it.
+            print(
+                f"oci: cached rotation keypair is for user {cached_user_id}, but "
+                f"'homelab-key-rotation' now resolves to {rotation_user_id} — "
+                "delete the _rotation-key-oci-* cache files and re-run to fix",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        print("oci: rotation keypair already cached (unchanged); leg + rotation policies re-verified above")
+        return
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     private_pem = private_key.private_bytes(

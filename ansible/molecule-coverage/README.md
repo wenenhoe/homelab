@@ -25,8 +25,8 @@ loop results) via a callback plugin - no changes to your roles or
 
 Not measured: which specific clause of a compound `when: [a, b]` caused a
 skip (Ansible's callbacks only expose the final combined result, never
-individual clause values - see `DEVLOG.md` for why this was ruled out
-rather than attempted).
+individual clause values - see `molecule_cov/aggregate.py`'s module
+docstring for why this was ruled out rather than attempted).
 
 ## Quick start
 
@@ -38,18 +38,21 @@ cd ansible
 molecule test -s default   # or --all for one role, or ./molecule-test-all.sh for every role
 
 # 2. Generate (or refresh) the static task inventory for a role
-python3 molecule-coverage/inventory.py roles/caddy \
-  --coverage-dir molecule-coverage/.data
+cd molecule-coverage
+python3 -m molecule_cov.cli inventory ../roles/caddy --coverage-dir .data
 
 # 3. View the report
-python3 molecule-coverage/report.py \
-  --coverage-dir molecule-coverage/.data --role caddy
+python3 -m molecule_cov.cli report --coverage-dir .data --role caddy
 ```
 
-`inventory.py` only needs re-running when a role's tasks change (or after
-moving/re-cloning the repo - its output contains absolute paths tied to
-your checkout, which is why it's gitignored). `report.py` reads whatever
-inventory + execution data already exists in the coverage dir.
+The `inventory` subcommand only needs re-running when a role's tasks
+change (or after moving/re-cloning the repo - its output contains
+absolute paths tied to your checkout, which is why it's gitignored).
+`report` reads whatever inventory + execution data already exists in the
+coverage dir. Both subcommands are backed by the `molecule_cov` package
+in this directory (`inventory.py`/`aggregate.py`/`report.py` hold the
+logic, `cli.py` wires it into subcommands) - see `ansible/tests/molecule_cov/`
+for its test suite.
 
 To regenerate the inventory for every role with a `molecule/` folder (or
 one role by name) in one go, instead of re-running step 2 by hand for
@@ -63,22 +66,24 @@ cd ansible
 
 ## Usage
 
+Run from this directory (`cd ansible/molecule-coverage`):
+
 ```bash
 # Summary table across every role with data under the coverage dir
-python3 report.py --coverage-dir molecule-coverage/.data
+python3 -m molecule_cov.cli report --coverage-dir .data
 
 # Per-task drill-down for one role - sorted in source order (file
 # alphabetically, then line in sequence), so it reads like the code
-python3 report.py --coverage-dir molecule-coverage/.data --role caddy
+python3 -m molecule_cov.cli report --coverage-dir .data --role caddy
 
 # Summary, then every role's drill-down, in one go
-python3 report.py --coverage-dir molecule-coverage/.data --show-all
+python3 -m molecule_cov.cli report --coverage-dir .data --show-all
 
 # Exit 1 if any role's coverage is below a threshold - pr-checks.yml's
 # molecule job uses --thresholds-file instead, for per-role floors
-python3 report.py --coverage-dir molecule-coverage/.data --fail-under 80
-python3 report.py --coverage-dir molecule-coverage/.data --role caddy \
-  --thresholds-file molecule-coverage/thresholds.yaml
+python3 -m molecule_cov.cli report --coverage-dir .data --fail-under 80
+python3 -m molecule_cov.cli report --coverage-dir .data --role caddy \
+  --thresholds-file thresholds.yaml
 ```
 
 A drill-down row looks like this:

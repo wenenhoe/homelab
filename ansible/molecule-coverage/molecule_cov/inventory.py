@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """molecule-coverage: static task inventory
 
 Enumerates every task defined anywhere under <role>/tasks/, recursing into
@@ -23,17 +22,9 @@ empirically), so including them would produce permanent, unfixable
 This means dead/unreachable task files would currently be silently
 included as "should be covered" - a known limitation, not a goal for this
 stage.
-
-Usage:
-    python3 inventory.py ansible/roles/caddy
-    python3 inventory.py ansible/roles/caddy --coverage-dir ansible/molecule-coverage/.data
 """
 from __future__ import annotations
 
-import argparse
-import json
-import os
-import sys
 from pathlib import Path
 
 from ansible.errors import AnsibleParserError
@@ -190,42 +181,3 @@ def scan_role(role_dir: Path) -> list[dict]:
     # Stable ordering: by file, then line.
     results.sort(key=lambda t: (t["task_file"] or "", t["task_line"] or 0))
     return results
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("role_dir", type=Path, help="Path to a role directory, e.g. ansible/roles/caddy")
-    parser.add_argument(
-        "--coverage-dir",
-        type=Path,
-        default=Path(os.environ.get("MOLECULE_COVERAGE_DIR", "./.molecule-coverage-data")),
-        help="Directory to write <role>/_inventory.json into (same root the callback plugin writes JSONL under).",
-    )
-    parser.add_argument(
-        "--stdout",
-        action="store_true",
-        help="Print the inventory to stdout instead of writing a file.",
-    )
-    args = parser.parse_args()
-
-    role_dir = args.role_dir.resolve()
-    if not role_dir.is_dir():
-        print(f"error: {role_dir} is not a directory", file=sys.stderr)
-        return 1
-
-    inventory = scan_role(role_dir)
-    role_name = role_dir.name
-
-    if args.stdout:
-        print(json.dumps(inventory, indent=2))
-        return 0
-
-    out_path = args.coverage_dir / role_name / "_inventory.json"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(inventory, indent=2) + "\n", encoding="utf-8")
-    print(f"wrote {len(inventory)} task(s) to {out_path}")
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

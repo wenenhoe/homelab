@@ -66,12 +66,12 @@ jobs:
             trivy_ansible:
               - 'ansible/**'
             # ansible/tests/ has no molecule/ scenario of its own (see
-            # docs/ci.md#change-scoped-not-a-full-sweep) — these two scripts
-            # are plain controller-side Python, covered by
-            # ansible/tests/ instead.
+            # docs/ci.md#change-scoped-not-a-full-sweep) — these are plain
+            # controller-side Python, covered by ansible/tests/ instead.
             python_unit_tests:
               - 'ansible/create_cloud_credentials.py'
               - 'ansible/create_rotation_keys.py'
+              - 'ansible/molecule-coverage/molecule_cov/**'
               - 'ansible/tests/**'
               - 'pyproject.toml'
               - 'uv.lock'
@@ -358,13 +358,13 @@ jobs:
         if: always()
         run: |
           set -o pipefail
-          uv run python3 molecule-coverage/inventory.py "roles/${{ matrix.role }}" \
-            --coverage-dir molecule-coverage/.data
-          uv run python3 molecule-coverage/report.py \
-            --coverage-dir molecule-coverage/.data --role "${{ matrix.role }}" \
-            --thresholds-file molecule-coverage/thresholds.yaml \
+          uv run python3 -m molecule_cov.cli inventory "../roles/${{ matrix.role }}" \
+            --coverage-dir .data
+          uv run python3 -m molecule_cov.cli report \
+            --coverage-dir .data --role "${{ matrix.role }}" \
+            --thresholds-file thresholds.yaml \
             | tee -a "$GITHUB_STEP_SUMMARY"
-        working-directory: ansible
+        working-directory: ansible/molecule-coverage
 
   # Shared logic — see docs/ci.md#compose-boot-test.
   compose-boot-test:

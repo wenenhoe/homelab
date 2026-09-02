@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """molecule-coverage: aggregation
 
 Joins the static task inventory against the per-scenario execution/skip
@@ -70,15 +69,10 @@ attribution would need to hook Ansible's conditional evaluator itself,
 which a callback plugin can't do. The clauses are still captured
 statically (inventory.py's "when" field) for context when reading a
 "never negated" finding, but there's no empirical claim about which one.
-
-Usage:
-    python3 aggregate.py ansible/molecule-coverage/.data/caddy
 """
 from __future__ import annotations
 
-import argparse
 import json
-import sys
 from pathlib import Path
 
 _EXECUTED_STATUSES = {"ok", "changed", "failed"}
@@ -361,31 +355,3 @@ def compute_coverage(role_data_dir: Path) -> dict:
             "coverage_pct": round(100 * covered / total, 1) if total else None,
         },
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "role_data_dir",
-        type=Path,
-        help="Path to <coverage-dir>/<role> (containing _inventory.json and *.jsonl scenario files)",
-    )
-    args = parser.parse_args()
-
-    role_data_dir = args.role_data_dir.resolve()
-    if not role_data_dir.is_dir():
-        print(f"error: {role_data_dir} is not a directory", file=sys.stderr)
-        return 1
-
-    try:
-        report = compute_coverage(role_data_dir)
-    except FileNotFoundError as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
-
-    print(json.dumps(report, indent=2))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

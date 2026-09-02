@@ -37,8 +37,8 @@ separation at all; see its section below for why.
 model (`docs/molecule-testing.md`) doesn't apply. `ansible/tests/`
 holds `unittest.TestCase`-style tests, run via pytest — every provider
 HTTP call and `rclone` invocation mocked — via
-`uv run pytest ansible/tests/ -v`. Not currently wired into CI; see
-`pr-checks.yml` if that changes.
+`uv run pytest ansible/tests/ -v`, and wired into CI as `pr-checks.yml`'s
+`python-unit-tests` job (see `docs/ci.md`).
 
 Rotation keys (B2, OCI) are cached to `ansible/files/secrets/` for now,
 same as everything else in this repo. Moving that cache to an actual

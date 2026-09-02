@@ -50,7 +50,7 @@ any new secret or config value goes through the registry instead:
 | :--- | :--- | :--- |
 | `hex` | Most secrets | Wraps `lookup('password', <path> chars=hexdigits length=<n>)`; `password` itself generates once and caches to a file. `chars=hexdigits` must be the named charset, never a literal alphabet string, so `gitleaks` doesn't flag it next to a `_secret`/`_key`-shaped var name. |
 | `uuid4` | `shlink-api-key` only | `password`'s `chars=` can't produce a structurally valid UUID4, so this format generates via `python3 -c "import uuid; print(uuid.uuid4())"` on first use and caches it with `mode: "0600"`. See `ansible/roles/secrets/tasks/ensure_secret.yaml`. |
-| `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, `main_domain`, Beszel's post-boot key/token) | No generation step — the cache file must already exist. Missing → the play fails immediately with the registry entry's `description` and the command to create the file. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank. The six `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` write/read pairs are still `manual` but get filled in by `ansible/create_cloud_credentials.py` instead of by hand — see [`cloud-credential-creation.md`](cloud-credential-creation.md). |
+| `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, `main_domain`, Beszel's post-boot key/token) | No generation step — the cache file must already exist. Missing → the play fails immediately with the registry entry's `description` and the command to create the file. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank. The six `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` write/read pairs are still `manual` but get filled in by `ansible/cloud_credentials/create_leaf_keys.py` instead of by hand — see [`cloud-credential-creation.md`](cloud-credential-creation.md). |
 
 ## Bootstrapping manual secrets
 
@@ -74,7 +74,7 @@ redeploy sequence in [`beszel.md`](beszel.md).
 
 The R2/B2/OCI entries are `manual` too, so `bootstrap_secrets.py` will
 prompt for any of them still missing after `create_rotation_keys.py`
-and `create_cloud_credentials.py` run (or instead of them, if you'd
+and `create_leaf_keys.py` run (or instead of them, if you'd
 rather paste in console-created values by hand) — all three write to
 the same cache files, so it doesn't matter which gets there first.
 

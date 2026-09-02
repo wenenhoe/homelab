@@ -64,7 +64,7 @@
       delegate_to: localhost
       become: false
 
-    - name: Confirm rclone.conf carries the READ credentials, not any write-leg value, for every remote
+    - name: Confirm rclone.conf carries the READ credentials, not any write-leaf value, for every remote
       ansible.builtin.assert:
         that:
           - "'[seaweedfs]' in (restore_discovery_rclone_conf_raw.content | b64decode)"

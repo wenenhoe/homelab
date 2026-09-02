@@ -70,6 +70,7 @@ which a callback plugin can't do. The clauses are still captured
 statically (inventory.py's "when" field) for context when reading a
 "never negated" finding, but there's no empirical claim about which one.
 """
+
 from __future__ import annotations
 
 import json
@@ -107,9 +108,7 @@ def _item_repr(item) -> str:
 def load_inventory(role_data_dir: Path) -> list[dict]:
     inventory_path = role_data_dir / "_inventory.json"
     if not inventory_path.is_file():
-        raise FileNotFoundError(
-            f"no {inventory_path} - run inventory.py for this role first"
-        )
+        raise FileNotFoundError(f"no {inventory_path} - run inventory.py for this role first")
     return json.loads(inventory_path.read_text(encoding="utf-8"))
 
 
@@ -150,9 +149,7 @@ def _loop_events_by_key(
             continue
         key = _task_key(event)
         item_repr = _item_repr(event.get("item"))
-        by_key.setdefault(key, {}).setdefault(item_repr, set()).add(
-            event.get("status", "")
-        )
+        by_key.setdefault(key, {}).setdefault(item_repr, set()).add(event.get("status", ""))
     return by_key
 
 
@@ -162,11 +159,7 @@ def _empty_loop_observed_by_key(events: list[dict]) -> set[TaskKey]:
     zero items, as opposed to a plain when:-false skip."""
     keys: set[TaskKey] = set()
     for event in events:
-        if (
-            not event.get("is_item")
-            and event.get("status") == "skipped"
-            and event.get("skip_reason") == _EMPTY_LOOP_SKIP_REASON
-        ):
+        if not event.get("is_item") and event.get("status") == "skipped" and event.get("skip_reason") == _EMPTY_LOOP_SKIP_REASON:
             keys.add(_task_key(event))
     return keys
 
@@ -237,14 +230,8 @@ def _loop_coverage_for_task(
         for item_repr, statuses in events_by_item.get(key, {}).items():
             item_statuses.setdefault(item_repr, set()).update(statuses)
 
-    observed_items = sorted(
-        repr_ for repr_, statuses in item_statuses.items() if statuses & _EXECUTED_STATUSES
-    )
-    skipped_only_items = sorted(
-        repr_
-        for repr_, statuses in item_statuses.items()
-        if statuses & _SKIPPED_STATUSES and not (statuses & _EXECUTED_STATUSES)
-    )
+    observed_items = sorted(repr_ for repr_, statuses in item_statuses.items() if statuses & _EXECUTED_STATUSES)
+    skipped_only_items = sorted(repr_ for repr_, statuses in item_statuses.items() if statuses & _SKIPPED_STATUSES and not (statuses & _EXECUTED_STATUSES))
     observed_empty_loop = any(key in keys for keys in scenario_empty_keys.values())
 
     truncated = len(skipped_only_items) > _MAX_SKIPPED_ITEMS_SHOWN
@@ -295,23 +282,14 @@ def compute_coverage(role_data_dir: Path) -> dict:
     inventory = load_inventory(role_data_dir)
     scenario_events = load_scenario_events(role_data_dir)
     scenario_statuses = {name: _statuses_by_key(events) for name, events in scenario_events.items()}
-    scenario_loop_events = {
-        name: _loop_events_by_key(events) for name, events in scenario_events.items()
-    }
-    scenario_empty_keys = {
-        name: _empty_loop_observed_by_key(events) for name, events in scenario_events.items()
-    }
-    scenario_branch_signals = {
-        name: _branch_signals_by_key(events) for name, events in scenario_events.items()
-    }
+    scenario_loop_events = {name: _loop_events_by_key(events) for name, events in scenario_events.items()}
+    scenario_empty_keys = {name: _empty_loop_observed_by_key(events) for name, events in scenario_events.items()}
+    scenario_branch_signals = {name: _branch_signals_by_key(events) for name, events in scenario_events.items()}
 
     tasks_report = []
     for task in inventory:
         key = _task_key(task)
-        per_scenario = {
-            scenario: _classify(statuses.get(key))
-            for scenario, statuses in scenario_statuses.items()
-        }
+        per_scenario = {scenario: _classify(statuses.get(key)) for scenario, statuses in scenario_statuses.items()}
         # Aggregate/union: covered if covered in ANY scenario; else
         # skipped_only if skipped in any scenario that at least reached it;
         # else never_observed.
@@ -329,13 +307,9 @@ def compute_coverage(role_data_dir: Path) -> dict:
             "aggregate_status": aggregate_status,
         }
         if task.get("has_loop"):
-            task_report["loop_coverage"] = _loop_coverage_for_task(
-                key, scenario_loop_events, scenario_empty_keys
-            )
+            task_report["loop_coverage"] = _loop_coverage_for_task(key, scenario_loop_events, scenario_empty_keys)
         if task.get("when"):
-            task_report["branch_coverage"] = _branch_coverage_for_task(
-                key, scenario_branch_signals
-            )
+            task_report["branch_coverage"] = _branch_coverage_for_task(key, scenario_branch_signals)
         tasks_report.append(task_report)
 
     total = len(tasks_report)

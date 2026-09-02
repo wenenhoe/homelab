@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from _base import RotationTestBase  # noqa: E402
-from cloud_credentials.leaf_keys import oci  # noqa: E402
+from _base import RotationTestBase
+from cloud_credentials.leaf_keys import oci
 
 
 class OciRotationTests(RotationTestBase):
@@ -42,8 +42,12 @@ class OciRotationTests(RotationTestBase):
 
         self.assertTrue(ok)
         mock_verify.assert_called_once_with(
-            "NEW_OCID", "NEW_SECRET", "https://mynamespace.compat.objectstorage.us-ashburn-1.oraclecloud.com",
-            "us-ashburn-1", oci.OCI_BUCKET, "read",
+            "NEW_OCID",
+            "NEW_SECRET",
+            "https://mynamespace.compat.objectstorage.us-ashburn-1.oraclecloud.com",
+            "us-ashburn-1",
+            oci.OCI_BUCKET,
+            "read",
         )
         session.delete.assert_called_once()
         self.assertIn("OLD_OCID", session.delete.call_args.args[0])

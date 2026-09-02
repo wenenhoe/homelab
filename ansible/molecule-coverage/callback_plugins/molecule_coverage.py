@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Ansible callback plugin: molecule_coverage
 
 Records, as JSON lines, whether each task (and, for looped tasks, each
@@ -12,6 +11,7 @@ Disabled by default; enable per-run via:
 
 See ../README.md for usage.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -65,19 +65,9 @@ class CallbackModule(CallbackBase):
 
     def __init__(self):
         super().__init__()
-        self._coverage_dir = Path(
-            os.environ.get("MOLECULE_COVERAGE_DIR", "./.molecule-coverage-data")
-        )
-        self._role = (
-            os.environ.get("MOLECULE_COVERAGE_ROLE")
-            or self._role_from_molecule_env()
-            or "unknown"
-        )
-        self._scenario = (
-            os.environ.get("MOLECULE_COVERAGE_SCENARIO")
-            or os.environ.get("MOLECULE_SCENARIO_NAME")
-            or "unknown"
-        )
+        self._coverage_dir = Path(os.environ.get("MOLECULE_COVERAGE_DIR", "./.molecule-coverage-data"))
+        self._role = os.environ.get("MOLECULE_COVERAGE_ROLE") or self._role_from_molecule_env() or "unknown"
+        self._scenario = os.environ.get("MOLECULE_COVERAGE_SCENARIO") or os.environ.get("MOLECULE_SCENARIO_NAME") or "unknown"
         self._out_path = self._coverage_dir / self._role / f"{self._scenario}.jsonl"
 
     @staticmethod
@@ -101,9 +91,7 @@ class CallbackModule(CallbackBase):
         except TypeError:
             return str(item)
 
-    def _write_event(
-        self, result, status: str, is_item: bool = False, item=_NO_ITEM
-    ) -> None:
+    def _write_event(self, result, status: str, is_item: bool = False, item=_NO_ITEM) -> None:
         task = result._task
         location = task.get_path() if task else ""
         task_file, _, task_line = location.rpartition(":")
@@ -145,7 +133,7 @@ class CallbackModule(CallbackBase):
             # those two apart, which look identical as a bare "skipped"
             # status. None when Ansible didn't set one (e.g. ok/changed).
             "skip_reason": r.get("skip_reason"),
-            "timestamp": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "timestamp": datetime.datetime.now(datetime.UTC).isoformat(),
         }
         self._out_path.parent.mkdir(parents=True, exist_ok=True)
         with self._out_path.open("a", encoding="utf-8") as f:

@@ -49,7 +49,7 @@ import json
 import re
 import subprocess
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -118,6 +118,7 @@ def run_discovery_setup() -> None:
             "localhost",
         ],
         cwd=ANSIBLE_DIR,
+        check=False,
     )
     if result.returncode != 0:
         raise SystemExit("restore-discovery-setup.yaml failed — see the output above.")
@@ -140,7 +141,7 @@ def _run_rclone(args: list[str], timeout: int) -> subprocess.CompletedProcess | 
     """
     cmd = ["rclone", "--config", str(RCLONE_CONF_PATH), "--contimeout", "5s", "--timeout", "20s", "--low-level-retries", "1", *args]
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
     except subprocess.TimeoutExpired:
         return None
 
@@ -168,7 +169,7 @@ def pick_latest(objects: list[dict], host: str, app: str) -> tuple[str, datetime
         match = pattern.match(name)
         if not match:
             continue
-        timestamp = datetime.strptime(match.group(1), _TIMESTAMP_FORMAT).replace(tzinfo=timezone.utc)
+        timestamp = datetime.strptime(match.group(1), _TIMESTAMP_FORMAT).replace(tzinfo=UTC)
         if best is None or timestamp > best[1]:
             best = (name, timestamp)
     return best
@@ -189,9 +190,7 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
                 break
         if source is None:
             tried = ", ".join(t["name"] for t in entry.cloud_targets)
-            raise RestoreAllError(
-                f"SeaweedFS unreachable and no cloud fallback ({tried}) had any objects either"
-            )
+            raise RestoreAllError(f"SeaweedFS unreachable and no cloud fallback ({tried}) had any objects either")
 
     if not objects:
         raise RestoreAllError(f"{source} reachable but no objects found under {prefix}/")
@@ -199,8 +198,7 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
     latest = pick_latest(objects, entry.host, entry.app)
     if latest is None:
         raise RestoreAllError(
-            f"none of the {len(objects)} object(s) under {prefix}/ on {source} match "
-            f"the expected '{entry.host}-{entry.app}-<timestamp>.*' filename pattern"
+            f"none of the {len(objects)} object(s) under {prefix}/ on {source} match the expected '{entry.host}-{entry.app}-<timestamp>.*' filename pattern"
         )
     name, backup_timestamp = latest
 
@@ -236,18 +234,15 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
             capture_output=True,
             text=True,
             timeout=600,
+            check=False,
         )
     except subprocess.TimeoutExpired:
         raise RestoreAllError(
-            "gpg --decrypt hung for 10 minutes — is gpg-agent waiting on a passphrase "
-            "prompt with no tty to answer it on? See this script's module docstring."
+            "gpg --decrypt hung for 10 minutes — is gpg-agent waiting on a passphrase prompt with no tty to answer it on? See this script's module docstring."
         ) from None
     encrypted_path.unlink(missing_ok=True)
     if gpg_result.returncode != 0:
-        raise RestoreAllError(
-            f"gpg --decrypt failed: {gpg_result.stderr.strip()} — is the private key "
-            "loaded and gpg-agent unlocked non-interactively?"
-        )
+        raise RestoreAllError(f"gpg --decrypt failed: {gpg_result.stderr.strip()} — is the private key loaded and gpg-agent unlocked non-interactively?")
 
     return DiscoveryResult(
         entry=entry,
@@ -273,7 +268,7 @@ def print_summary(results: dict[str, DiscoveryResult], errors: dict[str, str]) -
         )
     widths = [max(len(row[i]) for row in rows) for i in range(5)]
     for row in rows:
-        print("  ".join(cell.ljust(width) for cell, width in zip(row, widths)))
+        print("  ".join(cell.ljust(width) for cell, width in zip(row, widths, strict=True)))
     if errors:
         print("\nFAILED DISCOVERY (will not be restored):")
         for app, message in errors.items():
@@ -317,7 +312,7 @@ def run_app_restore(result: DiscoveryResult) -> bool:
         json.dumps(extra_vars),
     ]
     print(f"\n=== Restoring {result.entry.app} on {result.entry.host} ===")
-    return subprocess.run(cmd, cwd=ANSIBLE_DIR).returncode == 0
+    return subprocess.run(cmd, cwd=ANSIBLE_DIR, check=False).returncode == 0
 
 
 def run_minecraft_world_restore() -> bool:
@@ -331,7 +326,7 @@ def run_minecraft_world_restore() -> bool:
         "play,localhost",
     ]
     print("\n=== Unpacking the restored backup into minecraft's live world ===")
-    return subprocess.run(cmd, cwd=ANSIBLE_DIR).returncode == 0
+    return subprocess.run(cmd, cwd=ANSIBLE_DIR, check=False).returncode == 0
 
 
 def main() -> int:
@@ -380,7 +375,7 @@ def main() -> int:
     step_ca_ok = run_app_restore(step_ca_result)
     audit_entries.append(
         {
-            "restored_at": datetime.now(timezone.utc).isoformat(),
+            "restored_at": datetime.now(UTC).isoformat(),
             "app": "step-ca",
             "host": step_ca_result.entry.host,
             "source": step_ca_result.source,
@@ -406,7 +401,7 @@ def main() -> int:
         append_audit_log(
             [
                 {
-                    "restored_at": datetime.now(timezone.utc).isoformat(),
+                    "restored_at": datetime.now(UTC).isoformat(),
                     "app": app,
                     "host": result.entry.host,
                     "source": result.source,

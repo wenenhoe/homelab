@@ -2,6 +2,7 @@
 bootstrap flows in oci_bootstrap.py: master-identity auth, and
 get-or-create/lookup for users and groups.
 """
+
 from __future__ import annotations
 
 import sys

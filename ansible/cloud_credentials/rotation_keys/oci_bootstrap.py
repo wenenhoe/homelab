@@ -2,6 +2,7 @@
 users/groups/policies a fresh tenancy needs, and (re-)verify their
 policy statements on every run even once cached.
 """
+
 from __future__ import annotations
 
 import sys
@@ -25,9 +26,7 @@ from cloud_credentials.rotation_keys.oci_iam import (
 OCI_BUCKET = "homelab-backups"
 
 
-def oci_ensure_leaf_identity(
-    session, endpoint, post, put, tenancy: str, leaf: str, permissions: list[str], admin_email: str
-) -> str:
+def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: str, permissions: list[str], admin_email: str) -> str:
     """Create the leaf's IAM user/group if missing, and always (re-)verify its
     policy statement matches `permissions`; return its user OCID.
 
@@ -56,9 +55,7 @@ def oci_ensure_leaf_identity(
             f"cloud_sync {leaf} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
             admin_email,
         )
-        group = oci_get_or_create_group(
-            session, endpoint, post, tenancy, name, f"Grants {name} its bucket-scoped policy"
-        )
+        group = oci_get_or_create_group(session, endpoint, post, tenancy, name, f"Grants {name} its bucket-scoped policy")
         try:
             post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
         except requests.HTTPError as exc:
@@ -68,10 +65,7 @@ def oci_ensure_leaf_identity(
         user_id = user["id"]
 
     permission_clause = ", ".join(f"request.permission='{p}'" for p in permissions)
-    statement = (
-        f"Allow group id {group['id']} to manage objects in tenancy "
-        f"where all {{target.bucket.name='{OCI_BUCKET}', any {{{permission_clause}}}}}"
-    )
+    statement = f"Allow group id {group['id']} to manage objects in tenancy where all {{target.bucket.name='{OCI_BUCKET}', any {{{permission_clause}}}}}"
     try:
         post(
             "/20160918/policies",
@@ -215,12 +209,24 @@ def create_oci_rotation_key(admin_email: str) -> None:
     # either leaf — OBJECT_OVERWRITE lets the write leaf replace an existing
     # object's content but still can't remove one.
     oci_ensure_leaf_identity(
-        session, endpoint, post, put, tenancy, "write",
-        ["OBJECT_INSPECT", "OBJECT_CREATE", "OBJECT_OVERWRITE"], admin_email,
+        session,
+        endpoint,
+        post,
+        put,
+        tenancy,
+        "write",
+        ["OBJECT_INSPECT", "OBJECT_CREATE", "OBJECT_OVERWRITE"],
+        admin_email,
     )
     oci_ensure_leaf_identity(
-        session, endpoint, post, put, tenancy, "read",
-        ["OBJECT_INSPECT", "OBJECT_READ"], admin_email,
+        session,
+        endpoint,
+        post,
+        put,
+        tenancy,
+        "read",
+        ["OBJECT_INSPECT", "OBJECT_READ"],
+        admin_email,
     )
 
     rotation_user_id = oci_ensure_rotation_identity(session, endpoint, post, put, tenancy, admin_email)
@@ -247,10 +253,14 @@ def create_oci_rotation_key(admin_email: str) -> None:
         format=serialization.PrivateFormat.TraditionalOpenSSL,
         encryption_algorithm=serialization.NoEncryption(),
     ).decode()
-    public_pem = private_key.public_key().public_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PublicFormat.SubjectPublicKeyInfo,
-    ).decode()
+    public_pem = (
+        private_key.public_key()
+        .public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+        )
+        .decode()
+    )
 
     # "key" is confirmed, not a guess — Oracle's Python SDK model
     # reference (CreateApiKeyDetails) documents it as the sole required

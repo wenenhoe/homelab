@@ -21,3 +21,35 @@ dev = [
 
 [tool.uv]
 package = false
+
+[tool.ruff]
+line-length = 160 # matches .config/.yamllint's line-length so both linters agree on one repo-wide wrap width
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",       # pycodestyle errors
+    "F",       # pyflakes
+    "I",       # import sorting
+    "UP",      # pyupgrade — flags patterns older than the pinned py314 target
+    "B",       # flake8-bugbear — likely bugs and footguns
+    "C4",      # flake8-comprehensions
+    "SIM",     # flake8-simplify
+    "RUF",     # ruff-specific rules
+    "S",       # flake8-bandit — this repo mints and rotates real cloud credentials, so security lint carries its weight here
+    "PLW1510", # subprocess-run-without-check: this repo's subprocess.run() calls all check returncode manually instead of via check=True
+]
+ignore = [
+    # Every subprocess.run() call in this repo passes a hardcoded argv list
+    # (ansible-playbook, rclone, gpg) built from fixed strings, never a
+    # shell=True string or unsanitized external input — S603/S607 have
+    # nothing to catch here that PLW1510 above doesn't already cover.
+    "S603",
+    "S607",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# assert is pytest's own idiom, not an accidental production check;
+# /tmp paths in these tests are argument values under test, never touch a
+# real file.
+"ansible/tests/**" = ["S101", "S108"]

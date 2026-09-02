@@ -7,6 +7,7 @@ Version 1 scheme (RSA-SHA256 over a canonical header set) so this
 module doesn't reimplement request signing by hand; every call below is
 still a direct requests.post/get, not a client-library method call.
 """
+
 from __future__ import annotations
 
 import sys
@@ -46,8 +47,7 @@ def oci_rotation_auth_and_endpoint() -> tuple[OCISigner, str]:
 def oci_leaf_user_id(leaf: str) -> str:
     return require_cache_file(
         f"_oci-leaf-user-ocid-{leaf}",
-        f"Missing the {leaf}-leaf IAM user's OCID — run: "
-        "python3 -m cloud_credentials.create_rotation_keys --provider oci",
+        f"Missing the {leaf}-leaf IAM user's OCID — run: python3 -m cloud_credentials.create_rotation_keys --provider oci",
     )
 
 
@@ -133,8 +133,7 @@ def rotate_oci(leaves: list[str]) -> bool:
                 print(f"oci {leaf}: old key {old_key_id} revoked")
             except requests.HTTPError as exc:
                 print(
-                    f"oci {leaf}: new key verified and will be cached, but revoking old key "
-                    f"{old_key_id} failed ({exc}) — revoke it by hand.",
+                    f"oci {leaf}: new key verified and will be cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand.",
                     file=sys.stderr,
                 )
 

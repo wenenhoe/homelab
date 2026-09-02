@@ -5,6 +5,7 @@ files under SECRETS_DIR as their cache - no database, no encryption at
 rest beyond the directory's 0700/0600 permissions (matches
 bootstrap_secrets.py's own convention for manually-provisioned secrets).
 """
+
 from __future__ import annotations
 
 import sys

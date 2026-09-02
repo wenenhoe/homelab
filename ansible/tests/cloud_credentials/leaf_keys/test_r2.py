@@ -13,8 +13,8 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from _base import RotationTestBase  # noqa: E402
-from cloud_credentials.leaf_keys import r2  # noqa: E402
+from _base import RotationTestBase
+from cloud_credentials.leaf_keys import r2
 
 
 class R2RotationTokenTests(RotationTestBase):
@@ -71,8 +71,12 @@ class R2RotationTests(RotationTestBase):
 
         self.assertTrue(ok)
         mock_verify.assert_called_once_with(
-            "NEW_TOKEN_ID", hashlib.sha256(b"new-token-value").hexdigest(),
-            "https://acct123.r2.cloudflarestorage.com", "auto", r2.R2_BUCKET, "write",
+            "NEW_TOKEN_ID",
+            hashlib.sha256(b"new-token-value").hexdigest(),
+            "https://acct123.r2.cloudflarestorage.com",
+            "auto",
+            r2.R2_BUCKET,
+            "write",
         )
         session.delete.assert_called_once()
         self.assertIn("OLD_TOKEN_ID", session.delete.call_args.args[0])

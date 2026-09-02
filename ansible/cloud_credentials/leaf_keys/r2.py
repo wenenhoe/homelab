@@ -1,4 +1,5 @@
 """Cloudflare R2 leaf-key create/rotate logic."""
+
 from __future__ import annotations
 
 import getpass
@@ -70,8 +71,7 @@ def r2_create_leaf_token(session, account_id: str, group_by_name: dict, leaf: st
     if group_name not in group_by_name:
         available = ", ".join(sorted(group_by_name))
         print(
-            f"r2 {leaf}: no permission group named {group_name!r} found. "
-            f"Available account-scoped permission groups: {available}",
+            f"r2 {leaf}: no permission group named {group_name!r} found. Available account-scoped permission groups: {available}",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -102,12 +102,8 @@ def r2_delete_token(session, account_id: str, token_id: str) -> None:
 
 
 def create_r2() -> None:
-    write_done = cached("cloudflare-r2-write-access-key") and cached(
-        "cloudflare-r2-write-secret-key"
-    )
-    read_done = cached("cloudflare-r2-read-access-key") and cached(
-        "cloudflare-r2-read-secret-key"
-    )
+    write_done = cached("cloudflare-r2-write-access-key") and cached("cloudflare-r2-write-secret-key")
+    read_done = cached("cloudflare-r2-read-access-key") and cached("cloudflare-r2-read-secret-key")
     if write_done and read_done:
         print("r2: both credentials already cached, skipping")
         return

@@ -123,13 +123,8 @@ def audit_oci() -> None:
             marker = "ACTIVE (matches cache)" if key["id"] == active_access_key else "ORPHAN"
             print(f"    {key['id']}  created={key['timeCreated']}  state={key['lifecycleState']}  [{marker}]")
             if marker == "ORPHAN":
-                print(
-                    f"      delete: DELETE {endpoint}/20160918/users/{user_id}/customerSecretKeys/{key['id']}"
-                )
-                print(
-                    "      or Console: Identity & Security > Users > "
-                    f"homelab-cloud-sync-{leaf} > Customer Secret Keys > Delete"
-                )
+                print(f"      delete: DELETE {endpoint}/20160918/users/{user_id}/customerSecretKeys/{key['id']}")
+                print(f"      or Console: Identity & Security > Users > homelab-cloud-sync-{leaf} > Customer Secret Keys > Delete")
 
 
 # --- B2: list keys via the rotation key -----------------------------------
@@ -143,9 +138,7 @@ def audit_b2() -> None:
         print("  no cached rotation key — run python3 -m cloud_credentials.create_rotation_keys --provider b2 first")
         return
 
-    auth = requests.get(
-        "https://api.backblazeb2.com/b2api/v2/b2_authorize_account", auth=(rotation_key_id, rotation_key)
-    )
+    auth = requests.get("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", auth=(rotation_key_id, rotation_key), timeout=45)
     auth.raise_for_status()
     auth = auth.json()
     session = requests.Session()
@@ -189,10 +182,7 @@ def audit_r2() -> None:
     if not account_id:
         print("  no cached cloudflare-r2-account-id, skipping")
         return
-    print(
-        "Cloudflare admin token (same one create_leaf_keys asks "
-        "for — read-only use here, input hidden, held in memory only):"
-    )
+    print("Cloudflare admin token (same one create_leaf_keys asks for — read-only use here, input hidden, held in memory only):")
     token = getpass.getpass("> ")
     session = requests.Session()
     session.headers["Authorization"] = f"Bearer {token}"

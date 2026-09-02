@@ -28,6 +28,7 @@ touch this script or the master credential at all.
 Usage (run from ansible/):
     python3 -m cloud_credentials.create_rotation_keys [--provider {b2,oci,all}]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -55,10 +56,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.provider in ("oci", "all") and not args.admin_email:
-        parser.error(
-            "--admin-email is required for --provider oci (your tenancy's "
-            "Identity Domains require a unique email per OCI user)"
-        )
+        parser.error("--admin-email is required for --provider oci (your tenancy's Identity Domains require a unique email per OCI user)")
 
     SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
 

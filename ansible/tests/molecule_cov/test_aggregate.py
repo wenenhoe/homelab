@@ -175,6 +175,6 @@ def test_missing_inventory_file_raises_filenotfounderror(tmp_path):
     role_dir.mkdir()
     try:
         agg.compute_coverage(role_dir)
-        assert False, "expected FileNotFoundError"
+        raise AssertionError("expected FileNotFoundError")
     except FileNotFoundError:
         pass

@@ -305,28 +305,113 @@ on-prem compromise from deleting R2 objects — see
 
 ## Rotation
 
-**Rotating a leg key** (routine for B2/OCI, the *only* option for R2):
-delete its cache file(s) under `ansible/files/secrets/`, re-run
-`create_cloud_credentials.py --provider <r2|b2|oci>`. Both legs per
-provider are checked independently, so rotating just the write leg
-(delete only its two files) doesn't touch the read leg's cache. For
-R2 specifically, this always prompts for the master token — there's no
-cached credential to fall back on, so this is never unattended for R2
-the way it can be for B2/OCI.
+**Rotating a B2/OCI leg key — `--rotate {write,read,both}`:**
+
+```sh
+python3 ansible/create_cloud_credentials.py --provider b2 --rotate write
+python3 ansible/create_cloud_credentials.py --provider oci --rotate both
+```
+
+Order of operations, per leg: create a new provider-side key → verify
+it actually works over the same rclone S3-compatible path
+cloud_sync/restore-discovery use in production (a real `ListObjectsV2`
+for the read leg, a real `PutObject` for the write leg — see
+`verify_leg_via_rclone` in `create_cloud_credentials.py`) → only then
+revoke the old key (B2 `b2_delete_key`, OCI `DeleteCustomerSecretKey`)
+and overwrite its cache entry. **If verification fails, both keys are
+left live and the cache is left untouched** — the old key keeps
+working, the new (unverified, unrevoked) key is reported so it can be
+investigated or deleted by hand; nothing is silently rolled back or
+retried. Each leg is independent, so `--rotate write` never touches the
+read leg's key or cache.
+
+**Retries through OCI's key-propagation window, confirmed live three
+times, across two different S3 operations.** A brand-new OCI customer
+secret key isn't always immediately usable by Object Storage's
+S3-compat API — the exact same request with an already-propagated key
+succeeds, a just-created one fails until it propagates. `ListObjects`
+(the read leg) fails with a 403 `SignatureDoesNotMatch` naming a
+missing secret key; `HeadObject` (rclone's pre-flight check before
+every write-leg copy) fails with a bare 403 `Forbidden` — no
+distinguishing text at all. Measured live: 60s and 507s for the read
+leg, 234s for the write leg, all comfortably inside the ~885s
+(14m45s) window `verify_leg_via_rclone` retries for.
+
+**The retry gate matches on `StatusCode: 403` alone, not specific error
+text — a deliberate trade-off, not an oversight.** OCI gives no way to
+distinguish "not yet propagated" from "genuinely denied by policy" in
+the response for `HeadObject`, so a real write-leg policy problem now
+also retries the full ~885s before failing, instead of failing
+instantly. Accepted because the alternative is worse for the common
+case: without this retry, every manual re-run of a failed `--rotate`
+mints and orphans a fresh provider-side key while waiting out
+propagation by hand. NEEDS LIVE VERIFICATION: three data points, all
+well inside the window — widen further if a real rotation exhausts
+retries.
+
+**Verification's rclone config sets `no_check_bucket = true`, confirmed
+required against B2, live.** rclone's S3 backend runs a pre-flight
+bucket-existence check before every copy; a bucket-restricted key
+(what both providers' leg keys always are) can't satisfy that check the
+same way an account-wide key can, so rclone falls back to `CreateBucket`
+— which a correctly least-privileged key has no rights to, producing a
+403 that has nothing to do with the actual object being written. Same
+behavior independently documented against AWS S3 in
+rclone/rclone#4703 and #5119. **Worth checking separately: production's
+`cloud_sync`/`restore_discovery` rclone.conf.j2 templates render the
+same kind of bucket-restricted key and do not set this** — that's a
+possible live production issue, not something this fix touches; verify
+via Uptime Kuma's cloud_sync push monitor and the buckets' actual
+recent object timestamps before assuming it isn't affected.
+
+**Verification's rclone config sets `region` explicitly, confirmed
+required for OCI, live.** A bucket outside the tenancy's home region
+gets a 403 `SignatureDoesNotMatch` from OCI's S3-compatible API without
+it — OCI's own error text names the missing region as the cause. This
+is the same gap `cloud_sync/templates/rclone.conf.j2`'s header comment
+already flags as unconfirmed for every remote it renders; this is just
+the first place in the repo it's actually been hit. Included for B2
+too on the same principle, though that hasn't independently hit this
+failure mode.
+
+**The write leg's verification object is unique per rotation and never
+deleted — confirmed live why it has to be.** An earlier version reused
+one fixed object path, overwritten on every rotation; a real run hit a
+`RetentionRuleViolation` the moment that bucket had a retention rule,
+since the first write created the object and every later write to that
+same key was a genuine, permanent overwrite-of-a-retained-object
+failure — not propagation, not permissions, and it never resolved by
+waiting. Each verification now writes to a freshly-timestamped key
+under `_rotation-verify/` instead (see `_verify_marker_key`). Both
+providers' write legs deliberately exclude delete capability (see each
+provider's section above), so there's no credential in this flow that
+could clean these up — they accumulate forever, accepted as a
+negligible cost since rotations are rare and each marker is a few
+bytes.
+
+**Confirmed working end-to-end, live, for both OCI legs**
+(create → verify, including the propagation retry above → revoke old
+→ cache new). B2 hasn't independently been exercised live yet.
+
+**R2 has no `--rotate`:** there's no rotation-key tier to authenticate
+an unattended revoke call with (see R2's section above), so R2 rotation
+stays the original flow — delete its cache file(s) under
+`ansible/files/secrets/`, re-run
+`create_cloud_credentials.py --provider r2`, which always prompts for
+the master token fresh. The old R2 token is left orphaned-but-valid
+until revoked by hand in the dashboard's token list; auto-revoking it
+would need the same verify-then-revoke design as B2/OCI, but with no
+cached credential to run it unattended, there's no way to build it
+without also removing R2's "never runs unattended" property this
+prompts-every-time design already accepts.
 
 **Rotating a rotation key itself** (B2/OCI only, rare): delete its
 cache file(s), re-run `create_rotation_keys.py --provider <b2|oci>` —
 this needs the master credential again, so it's the one operation for
 these two providers that isn't fully unattended. Doesn't apply to R2,
-which has no rotation key to rotate.
-
-**Known limitation, deliberately not built at either tier:** neither
-script revokes the *old* provider-side key when it creates a new one —
-you'll end up with an orphaned-but-still-valid key until you delete it
-by hand (B2/OCI Console, or the R2 dashboard's token list). Auto-revoking
-safely means confirming the new key actually works before killing the
-old one, which is real design work, not something that falls out for
-free the way file-based rotation does for `hex`/`uuid4` secrets.
+which has no rotation key to rotate. The old rotation key itself is
+still not auto-revoked here — it's a low-frequency, human-attended
+operation already, unlike the routine leg-key rotation above.
 
 ## Future: Stage 2 (secrets manager)
 

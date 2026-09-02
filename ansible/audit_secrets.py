@@ -10,7 +10,7 @@ current config — a leftover from a naming change, a one-off manual test
 file, or similar. Flagged, never deleted by this script.
 
 --provider {oci,b2,r2,all} (needs the same credentials
-create_rotation_keys.py/create_cloud_credentials.py use): lists what
+create_rotation_keys/create_leaf_keys use): lists what
 actually exists on each provider's console for the write/read leaves, and
 flags anything not matching the currently cached access key as an
 apparent orphan — e.g. a key from a rotation that was interrupted or
@@ -40,7 +40,7 @@ REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registr
 
 # Cache files this repo's own scripts write outside secrets_registry.yaml
 # (that file only covers what the `secrets` Ansible role generates/caches —
-# these are create_rotation_keys.py's own bookkeeping, by design not routed
+# these are create_rotation_keys's own bookkeeping, by design not routed
 # through that role). Anything on disk matching neither this nor the
 # registry is the actual audit target.
 KNOWN_INTERNAL_PATTERNS = [
@@ -140,7 +140,7 @@ def audit_b2() -> None:
     rotation_key_id = cached("_rotation-key-backblaze-b2-key-id")
     rotation_key = cached("_rotation-key-backblaze-b2-application-key")
     if not rotation_key_id or not rotation_key:
-        print("  no cached rotation key — run create_rotation_keys.py --provider b2 first")
+        print("  no cached rotation key — run python3 -m cloud_credentials.create_rotation_keys --provider b2 first")
         return
 
     auth = requests.get(
@@ -190,7 +190,7 @@ def audit_r2() -> None:
         print("  no cached cloudflare-r2-account-id, skipping")
         return
     print(
-        "Cloudflare admin token (same one create_cloud_credentials.py asks "
+        "Cloudflare admin token (same one create_leaf_keys asks "
         "for — read-only use here, input hidden, held in memory only):"
     )
     token = getpass.getpass("> ")

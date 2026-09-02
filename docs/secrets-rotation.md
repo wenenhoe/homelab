@@ -66,7 +66,8 @@ mention at all.
 All three providers now have the same scripted rotate-with-verify-then-revoke path:
 
 ```
-python3 ansible/create_cloud_credentials.py --provider <r2|b2|oci> --rotate {write,read,both}
+cd ansible
+python3 -m cloud_credentials.create_leaf_keys --provider <r2|b2|oci> --rotate {write,read,both}
 ```
 
 This creates the new key, verifies it actually works over the same

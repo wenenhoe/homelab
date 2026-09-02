@@ -2,18 +2,18 @@
 
 Two scripts, plus an audit tool:
 
-- **`ansible/create_rotation_keys.py`** — run rarely, for B2 and OCI
-  only. Takes each provider's master credential in memory only (never
-  written to disk, never logged) and uses it to mint a narrower
-  **rotation key**: scoped to creating/deleting keys, not to reading or
-  writing backup data itself. The rotation key is what gets cached.
-  `--provider r2` doesn't exist here — Cloudflare has no way to mint
-  such a delegate credential via its API at all (confirmed live, see
-  the R2 section); R2's admin token is cached differently, by
-  `create_cloud_credentials.py` itself, below.
-- **`ansible/create_cloud_credentials.py`** — run routinely. This is
-  what actually creates/rotates the 6 `cloud_sync`/restore-discovery
-  credentials (`cloudflare-r2-write-*`/`-read-*`,
+- **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely,
+  for B2 and OCI only. Takes each provider's master credential in
+  memory only (never written to disk, never logged) and uses it to
+  mint a narrower **rotation key**: scoped to creating/deleting keys,
+  not to reading or writing backup data itself. The rotation key is
+  what gets cached. `--provider r2` doesn't exist here — Cloudflare has
+  no way to mint such a delegate credential via its API at all
+  (confirmed live, see the R2 section); R2's admin token is cached
+  differently, by `create_leaf_keys.py` itself, below.
+- **`ansible/cloud_credentials/create_leaf_keys.py`** — run routinely.
+  This is what actually creates/rotates the 6 `cloud_sync`/
+  restore-discovery credentials (`cloudflare-r2-write-*`/`-read-*`,
   `backblaze-b2-write-*`/`-read-*`, `oci-write-*`/`-read-*` in
   `secrets_registry.yaml` — **write** for `cloud_sync`'s own upload leaf
   in `host_vars/storage.yaml`, **read** for the controller-side
@@ -47,9 +47,10 @@ current candidate) is a separate, not-yet-scoped subproject — see
 Future: Stage 2 below; nothing here depends on it.
 
 ```sh
-python3 ansible/create_rotation_keys.py --provider b2
-python3 ansible/create_rotation_keys.py --provider oci --admin-email you@example.com
-python3 ansible/create_cloud_credentials.py   # all three leaves; prompts for R2's admin token once, if not yet cached
+cd ansible
+python3 -m cloud_credentials.create_rotation_keys --provider b2
+python3 -m cloud_credentials.create_rotation_keys --provider oci --admin-email you@example.com
+python3 -m cloud_credentials.create_leaf_keys   # all three leaves; prompts for R2's admin token once, if not yet cached
 ```
 
 Safe to re-run either script — a credential whose cache files already
@@ -168,7 +169,7 @@ that's a capability anyone wanted — OCI bundles it into the same
 permission that gates every per-user credential mutation.
 
 **Fixed: policy drift behind an already-cached rotation key.**
-`create_rotation_keys.py --provider oci` used to gate everything —
+`create_rotation_keys --provider oci` used to gate everything —
 including the 409-then-update logic that fixes a changed policy —
 behind "do the rotation key's cache files exist" (exactly what
 happened here: the first run cached a working keypair attached to a
@@ -177,7 +178,7 @@ have caught it). The keypair-exists check now only gates keypair
 *generation*; leaf-identity and rotation-identity policy verification
 run on every invocation regardless, the same way `oci_ensure_leaf_identity`
 already re-verified leaf policies unconditionally. Re-running
-`create_rotation_keys.py --provider oci --admin-email you@example.com`
+`create_rotation_keys --provider oci --admin-email you@example.com`
 is now enough to pick up a policy change without touching the cached
 keypair — no flag needed, no cache files to delete. Confirmed live:
 the fix applies immediately (a raw API re-GET right after reflects
@@ -190,7 +191,7 @@ of concluding the fix didn't work.
 live** (`400 IdcsConversionError` from `CreateUser` without one).
 Classic (non-domain) OCI IAM doesn't require this at all. Since email
 must be unique per user and these are three service identities, not
-people, `create_rotation_keys.py --provider oci` requires
+people, `create_rotation_keys --provider oci` requires
 `--admin-email you@example.com` and derives a distinct `+`-tagged
 address per user (`you+homelab-cloud-sync-write@example.com`, etc.) off
 it — one real mailbox you control, nothing fake. Required
@@ -258,10 +259,11 @@ around.** Cloudflare's tokens API rejects granting `API Tokens Write`
 to any token created via the API itself — `400 {"code": 1001,
 "message": "sub-token is not allowed to have permissions to manage
 other tokens"}`, confirmed live. That's a hard stop on ever *minting* a
-delegate credential the way `create_rotation_keys.py` does for B2/OCI.
+delegate credential the way `create_rotation_keys` does for B2/OCI.
 It does **not**, however, block *caching* a token a human already
 created directly in the Console — that restriction is about creation,
-not reuse. `r2_rotation_token()` in `create_cloud_credentials.py` does
+not reuse. `r2_rotation_token()` in `cloud_credentials/leaf_keys/r2.py`
+does
 exactly that: prompts once, caches to
 `_rotation-key-cloudflare-r2-token`, and every later call (including
 `--rotate`) reads the cache instead of re-prompting.
@@ -339,16 +341,17 @@ the word "leg" itself.
 **`--rotate {write,read,both}`, all three providers now:**
 
 ```sh
-python3 ansible/create_cloud_credentials.py --provider b2 --rotate write
-python3 ansible/create_cloud_credentials.py --provider oci --rotate both
-python3 ansible/create_cloud_credentials.py --provider r2 --rotate read
+cd ansible
+python3 -m cloud_credentials.create_leaf_keys --provider b2 --rotate write
+python3 -m cloud_credentials.create_leaf_keys --provider oci --rotate both
+python3 -m cloud_credentials.create_leaf_keys --provider r2 --rotate read
 ```
 
 Order of operations, per leaf: create a new provider-side key → verify
 it actually works over the same rclone S3-compatible path
 cloud_sync/restore-discovery use in production (a real `ListObjectsV2`
 for the read leaf, a real `PutObject` for the write leaf — see
-`verify_leaf_via_rclone` in `create_cloud_credentials.py`) → only then
+`verify_leaf_via_rclone` in `cloud_credentials/verify.py`) → only then
 revoke the old key and overwrite its cache entry. **If verification
 fails, both keys are left live and the cache is left untouched** — the
 old key keeps working, the new (unverified, unrevoked) key is reported
@@ -409,7 +412,7 @@ to prompting every time.
 **Rotating the rotation credential itself** (B2/OCI's rotation keys,
 or R2's cached admin token): none of the three auto-rotate or
 auto-revoke this — it's a low-frequency, human-attended action.
-B2/OCI: delete the cache file(s), re-run `create_rotation_keys.py
+B2/OCI: delete the cache file(s), re-run `create_rotation_keys
 --provider <b2|oci>` (needs the master credential again). R2: create a
 new Custom Token in the Console, overwrite
 `_rotation-key-cloudflare-r2-token` by hand.

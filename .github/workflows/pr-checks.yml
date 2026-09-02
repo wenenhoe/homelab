@@ -69,8 +69,7 @@ jobs:
             # docs/ci.md#change-scoped-not-a-full-sweep) — these are plain
             # controller-side Python, covered by ansible/tests/ instead.
             python_unit_tests:
-              - 'ansible/create_cloud_credentials.py'
-              - 'ansible/create_rotation_keys.py'
+              - 'ansible/cloud_credentials/**'
               - 'ansible/molecule-coverage/molecule_cov/**'
               - 'ansible/tests/**'
               - 'pyproject.toml'

@@ -12,8 +12,8 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from _base import RotationTestBase  # noqa: E402
-from cloud_credentials.leaf_keys import b2  # noqa: E402
+from _base import RotationTestBase
+from cloud_credentials.leaf_keys import b2
 
 
 def _b2_create_key_response(access_key: str, secret_key: str) -> MagicMock:
@@ -38,7 +38,10 @@ class B2RotationTests(RotationTestBase):
         session = mock_session_cls.return_value
         # b2_authorize uses requests.get directly, not session — patch separately below.
         with patch.object(b2.requests, "get") as mock_get:
-            mock_get.return_value = MagicMock(raise_for_status=lambda: None, json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"})
+            mock_get.return_value = MagicMock(
+                raise_for_status=lambda: None,
+                json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"},
+            )
             session.post.side_effect = [
                 MagicMock(raise_for_status=lambda: None, json=lambda: {"buckets": [{"bucketId": "bkt"}]}),  # bucket lookup
                 _b2_create_key_response("NEW_ACCESS", "NEW_SECRET"),  # new key
@@ -64,7 +67,10 @@ class B2RotationTests(RotationTestBase):
     def test_failed_verification_leaves_old_key_untouched(self, mock_session_cls, mock_verify):
         session = mock_session_cls.return_value
         with patch.object(b2.requests, "get") as mock_get:
-            mock_get.return_value = MagicMock(raise_for_status=lambda: None, json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"})
+            mock_get.return_value = MagicMock(
+                raise_for_status=lambda: None,
+                json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"},
+            )
             session.post.side_effect = [
                 MagicMock(raise_for_status=lambda: None, json=lambda: {"buckets": [{"bucketId": "bkt"}]}),  # bucket lookup
                 _b2_create_key_response("NEW_ACCESS", "NEW_SECRET"),  # new key created

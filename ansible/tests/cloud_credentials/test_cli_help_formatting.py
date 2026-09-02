@@ -21,7 +21,7 @@ import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from cloud_credentials import create_leaf_keys, create_rotation_keys  # noqa: E402
+from cloud_credentials import create_leaf_keys, create_rotation_keys
 
 
 def _help_text(module, monkeypatch) -> str:
@@ -49,6 +49,5 @@ def test_create_rotation_keys_help_preserves_paragraph_breaks(monkeypatch):
     # the one that was actually missing RawDescriptionHelpFormatter.
     assert "\nR2 has no provider here at all" in help_text
     assert "\n\nR2 has no provider here at all" in help_text, (
-        "expected a blank line before this paragraph - argparse's default "
-        "formatter re-wraps the whole multi-paragraph docstring as one blob"
+        "expected a blank line before this paragraph - argparse's default formatter re-wraps the whole multi-paragraph docstring as one blob"
     )

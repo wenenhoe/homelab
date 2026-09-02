@@ -2,6 +2,7 @@
 master credential, that can create/delete leaf keys but holds no
 file/bucket-data capabilities itself.
 """
+
 from __future__ import annotations
 
 import getpass
@@ -14,9 +15,7 @@ B2_AUTHORIZE_URL = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
 
 
 def create_b2_rotation_key() -> None:
-    if cached("_rotation-key-backblaze-b2-key-id") and cached(
-        "_rotation-key-backblaze-b2-application-key"
-    ):
+    if cached("_rotation-key-backblaze-b2-key-id") and cached("_rotation-key-backblaze-b2-application-key"):
         print("b2: rotation key already cached, skipping")
         return
 
@@ -25,7 +24,7 @@ def create_b2_rotation_key() -> None:
     print("Backblaze B2 master application key — input hidden, held in memory only:")
     master_key = getpass.getpass("> ")
 
-    resp = requests.get(B2_AUTHORIZE_URL, auth=(master_key_id, master_key))
+    resp = requests.get(B2_AUTHORIZE_URL, auth=(master_key_id, master_key), timeout=45)
     resp.raise_for_status()
     auth = resp.json()
     account_id, api_url = auth["accountId"], auth["apiUrl"]

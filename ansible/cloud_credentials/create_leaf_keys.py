@@ -39,6 +39,7 @@ Usage (run from ansible/):
     python3 -m cloud_credentials.create_leaf_keys [--provider {r2,b2,oci,all}]
     python3 -m cloud_credentials.create_leaf_keys --provider {r2,b2,oci} --rotate {write,read,both}
 """
+
 from __future__ import annotations
 
 import argparse

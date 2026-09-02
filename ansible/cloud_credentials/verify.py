@@ -3,6 +3,7 @@ rclone S3-compatible path production uses, before an old key is ever
 revoked. Used by create_leaf_keys.py's --rotate flow across all three
 providers.
 """
+
 from __future__ import annotations
 
 import secrets
@@ -11,6 +12,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+
 
 # Unique per verification, never reused: confirmed live that reusing
 # one fixed path breaks permanently the moment a bucket has a retention
@@ -47,7 +49,7 @@ _PROPAGATION_ERROR_MARKERS = ("StatusCode: 403", "StatusCode: 401")
 def _run_rclone_with_retry(cmd: list[str], timeout: int, retries: int = 60, delay: int = 15) -> subprocess.CompletedProcess:
     result = None
     for attempt in range(1, retries + 1):
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
         if result.returncode == 0:
             return result
         if attempt < retries and any(marker in result.stderr for marker in _PROPAGATION_ERROR_MARKERS):
@@ -59,9 +61,7 @@ def _run_rclone_with_retry(cmd: list[str], timeout: int, retries: int = 60, dela
     return result
 
 
-def verify_leaf_via_rclone(
-    access_key: str, secret_key: str, endpoint: str, region: str, bucket: str, leaf: str, timeout: int = 45
-) -> tuple[bool, str]:
+def verify_leaf_via_rclone(access_key: str, secret_key: str, endpoint: str, region: str, bucket: str, leaf: str, timeout: int = 45) -> tuple[bool, str]:
     """Prove a freshly-minted leaf key can do its actual job over the same
     rclone S3-compatible path cloud_sync/restore-discovery use in
     production — not just that the provider's native API accepts it
@@ -104,9 +104,7 @@ def verify_leaf_via_rclone(
 
         marker_path = Path(tmp) / "marker.txt"
         marker_path.write_text(f"homelab rotation-verify marker for the {leaf} leaf\n")
-        result = _run_rclone_with_retry(
-            [*cmd, "copyto", str(marker_path), f"verify:{bucket}/{_verify_marker_key(leaf)}"], timeout
-        )
+        result = _run_rclone_with_retry([*cmd, "copyto", str(marker_path), f"verify:{bucket}/{_verify_marker_key(leaf)}"], timeout)
         if result.returncode != 0:
             return False, f"rclone copyto (PutObject) failed: {result.stderr.strip()}"
         return True, "PutObject succeeded"

@@ -10,6 +10,7 @@ See ../README.md for the full command reference. aggregate.py has no
 subcommand of its own - compute_coverage() is used as a library, by
 `report` above.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -91,8 +92,7 @@ def _report(args: argparse.Namespace) -> int:
         missing, failing = missing_and_failing_against_thresholds(reports, thresholds)
         if missing:
             print(
-                f"\nERROR: no threshold entry for: {', '.join(missing)} "
-                f"in {args.thresholds_file} - add one before this can gate.",
+                f"\nERROR: no threshold entry for: {', '.join(missing)} in {args.thresholds_file} - add one before this can gate.",
                 file=sys.stderr,
             )
             return 2
@@ -104,14 +104,10 @@ def _report(args: argparse.Namespace) -> int:
 
 
 def _build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        prog="molecule_cov.cli", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
-    )
+    parser = argparse.ArgumentParser(prog="molecule_cov.cli", description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    inventory_parser = subparsers.add_parser(
-        "inventory", help="Scan a role's tasks/ into a static inventory JSON file."
-    )
+    inventory_parser = subparsers.add_parser("inventory", help="Scan a role's tasks/ into a static inventory JSON file.")
     inventory_parser.add_argument("role_dir", type=Path, help="Path to a role directory, e.g. ../roles/caddy")
     inventory_parser.add_argument(
         "--coverage-dir",
@@ -119,9 +115,7 @@ def _build_parser() -> argparse.ArgumentParser:
         default=Path(os.environ.get("MOLECULE_COVERAGE_DIR", "./.molecule-coverage-data")),
         help="Directory to write <role>/_inventory.json into (same root the callback plugin writes JSONL under).",
     )
-    inventory_parser.add_argument(
-        "--stdout", action="store_true", help="Print the inventory to stdout instead of writing a file."
-    )
+    inventory_parser.add_argument("--stdout", action="store_true", help="Print the inventory to stdout instead of writing a file.")
     inventory_parser.set_defaults(func=_inventory)
 
     report_parser = subparsers.add_parser("report", help="Print a coverage report from previously-collected data.")
@@ -136,9 +130,7 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Directory containing <role>/_inventory.json + <role>/<scenario>.jsonl for each role",
     )
     role_selection = report_parser.add_mutually_exclusive_group()
-    role_selection.add_argument(
-        "--role", help="Show a per-task drill-down for this one role instead of the summary table"
-    )
+    role_selection.add_argument("--role", help="Show a per-task drill-down for this one role instead of the summary table")
     role_selection.add_argument(
         "--show-all",
         action="store_true",
@@ -155,8 +147,7 @@ def _build_parser() -> argparse.ArgumentParser:
         "--thresholds-file",
         type=Path,
         default=None,
-        help="YAML file of {role: floor}. Exit 1 if any reported role is below its floor, "
-        "or 2 if a reported role has no entry (see thresholds.yaml)",
+        help="YAML file of {role: floor}. Exit 1 if any reported role is below its floor, or 2 if a reported role has no entry (see thresholds.yaml)",
     )
     report_parser.set_defaults(func=_report)
 

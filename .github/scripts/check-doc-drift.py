@@ -7,6 +7,7 @@ Narrow presence/shape checks only, deliberately not content-equality —
 see each check's docstring for what it does and doesn't catch, and
 docs/ci.md#docs-drift-check for the summary.
 """
+
 from __future__ import annotations
 
 import re
@@ -89,7 +90,7 @@ def check_molecule_matrix() -> None:
     ansible/roles/*/molecule/*/ directories.
     """
     lines = read(ROOT / "docs/molecule-testing.md").splitlines()
-    start = next(i for i, l in enumerate(lines) if l.strip() == "## Scenario matrix")
+    start = next(i for i, line in enumerate(lines) if line.strip() == "## Scenario matrix")
     table_lines: list[str] = []
     for line in lines[start:]:
         if line.startswith("|"):
@@ -121,10 +122,7 @@ def check_molecule_matrix() -> None:
             continue
         role = role_dir.name
         molecule_dir = role_dir / "molecule"
-        if molecule_dir.is_dir():
-            actual = {p.name for p in molecule_dir.iterdir() if p.is_dir()}
-        else:
-            actual = {"__none__"}
+        actual = {p.name for p in molecule_dir.iterdir() if p.is_dir()} if molecule_dir.is_dir() else {"__none__"}
 
         if role not in documented:
             fail(f"molecule-testing.md: role '{role}' has no Scenario matrix row at all")
@@ -149,10 +147,7 @@ def check_deploy_flow() -> None:
     heading_nums = [int(n) for n in re.findall(r"^## Play (\d+)", read(ROOT / "docs/deployment-flow.md"), re.MULTILINE)]
 
     if len(heading_nums) != len(play_names):
-        fail(
-            f"deployment-flow.md: {len(heading_nums)} 'Play N' headings vs "
-            f"{len(play_names)} plays in deploy.yaml — one was added/removed without the other"
-        )
+        fail(f"deployment-flow.md: {len(heading_nums)} 'Play N' headings vs {len(play_names)} plays in deploy.yaml — one was added/removed without the other")
     elif heading_nums != list(range(len(heading_nums))):
         fail(f"deployment-flow.md: 'Play N' headings aren't sequential from 0: {heading_nums}")
 

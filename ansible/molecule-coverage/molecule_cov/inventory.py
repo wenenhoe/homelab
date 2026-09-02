@@ -23,6 +23,7 @@ This means dead/unreachable task files would currently be silently
 included as "should be covered" - a known limitation, not a goal for this
 stage.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -94,7 +95,7 @@ def _iter_task_files(role_dir: Path) -> list[Path]:
     tasks_dir = role_dir / "tasks"
     if not tasks_dir.is_dir():
         return []
-    files = {p for p in tasks_dir.rglob("*.yaml")} | {p for p in tasks_dir.rglob("*.yml")}
+    files = set(tasks_dir.rglob("*.yaml")) | set(tasks_dir.rglob("*.yml"))
     return sorted(files)
 
 

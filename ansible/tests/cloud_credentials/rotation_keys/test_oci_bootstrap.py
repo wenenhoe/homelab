@@ -13,8 +13,8 @@ from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
-from cloud_credentials import cache  # noqa: E402
-from cloud_credentials.rotation_keys import oci_bootstrap  # noqa: E402
+from cloud_credentials import cache
+from cloud_credentials.rotation_keys import oci_bootstrap
 
 
 class OciPolicyRecheckTests(unittest.TestCase):
@@ -48,9 +48,7 @@ class OciPolicyRecheckTests(unittest.TestCase):
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
     @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    def test_policy_recheck_runs_when_keypair_already_cached(
-        self, mock_ensure_rotation, mock_ensure_leaf, mock_auth
-    ):
+    def test_policy_recheck_runs_when_keypair_already_cached(self, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
         self._cache_full_keypair()
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
@@ -66,9 +64,7 @@ class OciPolicyRecheckTests(unittest.TestCase):
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
     @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
     @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
-    def test_keypair_not_regenerated_when_cached(
-        self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth
-    ):
+    def test_keypair_not_regenerated_when_cached(self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
         self._cache_full_keypair()
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
@@ -96,9 +92,7 @@ class OciPolicyRecheckTests(unittest.TestCase):
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
     @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
     @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
-    def test_keypair_generated_and_cached_on_first_run(
-        self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth
-    ):
+    def test_keypair_generated_and_cached_on_first_run(self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
         # Nothing cached yet: full first-run path, including the API-key
         # upload — this is the pre-existing behavior and must survive
         # the refactor unchanged.

@@ -16,9 +16,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-CALLBACK_PLUGINS_DIR = (
-    Path(__file__).resolve().parent.parent.parent / "molecule-coverage" / "callback_plugins"
-)
+CALLBACK_PLUGINS_DIR = Path(__file__).resolve().parent.parent.parent / "molecule-coverage" / "callback_plugins"
 sys.path.insert(0, str(CALLBACK_PLUGINS_DIR))
 
 import molecule_coverage as callback_mod  # noqa: E402

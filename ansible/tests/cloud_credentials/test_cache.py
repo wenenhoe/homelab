@@ -14,7 +14,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from cloud_credentials import cache  # noqa: E402
+from cloud_credentials import cache
 
 
 class CacheTests(unittest.TestCase):

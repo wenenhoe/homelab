@@ -11,6 +11,7 @@ reports and an already-parsed thresholds mapping - no file I/O - so they're
 directly unit-testable without a coverage-dir fixture on disk. cli.py owns
 reading `--thresholds-file` and turning these into exit codes.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -60,9 +61,7 @@ def _has_untested_false_branch(task: dict) -> bool:
 def discover_roles(coverage_dir: Path) -> list[Path]:
     if not coverage_dir.is_dir():
         return []
-    return sorted(
-        p.parent for p in coverage_dir.glob("*/_inventory.json") if p.is_file()
-    )
+    return sorted(p.parent for p in coverage_dir.glob("*/_inventory.json") if p.is_file())
 
 
 def _fmt_pct(pct: float | None) -> str:
@@ -103,9 +102,7 @@ def print_summary(reports: list[dict]) -> None:
         ]
     )
 
-    widths = [
-        max(len(headers[i]), *(len(row[i]) for row in rows)) for i in range(len(headers))
-    ]
+    widths = [max(len(headers[i]), *(len(row[i]) for row in rows)) for i in range(len(headers))]
     line = "  ".join(h.ljust(widths[i]) for i, h in enumerate(headers))
     print(line)
     print("-" * len(line))
@@ -162,16 +159,10 @@ def print_role_detail(report: dict) -> None:
     )
     partial_loop_tasks = [t for t in report["tasks"] if _has_partial_loop_gap(t)]
     if partial_loop_tasks:
-        print(
-            f"note: {len(partial_loop_tasks)} looped task(s) show 'covered' above "
-            f"but have items that never ran - see the Loop column"
-        )
+        print(f"note: {len(partial_loop_tasks)} looped task(s) show 'covered' above but have items that never ran - see the Loop column")
     untested_false = [t for t in report["tasks"] if _has_untested_false_branch(t)]
     if untested_false:
-        print(
-            f"note: {len(untested_false)} task(s) show 'covered' above but their "
-            f"when: has never been observed false - i.e. its skip path is untested:"
-        )
+        print(f"note: {len(untested_false)} task(s) show 'covered' above but their when: has never been observed false - i.e. its skip path is untested:")
         for t in untested_false:
             loc = f"{Path(t['task_file']).name if t['task_file'] else '?'}:{t['task_line'] or '?'}"
             clauses = " and ".join(t["when"] or [])
@@ -182,16 +173,10 @@ def failing_roles_under(reports: list[dict], threshold: float) -> list[str]:
     """Roles whose aggregate coverage_pct is below a single global floor.
     A role with coverage_pct None (no tasks at all) never fails - there's
     nothing to be below the threshold."""
-    return [
-        r["role"]
-        for r in reports
-        if r["summary"]["coverage_pct"] is not None and r["summary"]["coverage_pct"] < threshold
-    ]
+    return [r["role"] for r in reports if r["summary"]["coverage_pct"] is not None and r["summary"]["coverage_pct"] < threshold]
 
 
-def missing_and_failing_against_thresholds(
-    reports: list[dict], thresholds: dict[str, float]
-) -> tuple[list[str], list[str]]:
+def missing_and_failing_against_thresholds(reports: list[dict], thresholds: dict[str, float]) -> tuple[list[str], list[str]]:
     """(missing, failing) against a per-role {role: floor} mapping. A role
     with data but no threshold entry is reported as missing rather than
     silently passing - a new role should get a deliberate floor, not an
@@ -201,8 +186,6 @@ def missing_and_failing_against_thresholds(
     failing = [
         r["role"]
         for r in reports
-        if r["role"] in thresholds
-        and r["summary"]["coverage_pct"] is not None
-        and r["summary"]["coverage_pct"] < thresholds[r["role"]]
+        if r["role"] in thresholds and r["summary"]["coverage_pct"] is not None and r["summary"]["coverage_pct"] < thresholds[r["role"]]
     ]
     return missing, failing

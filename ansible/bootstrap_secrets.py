@@ -31,11 +31,7 @@ SECRETS_DIR = PROJECT_ROOT / "ansible/files/secrets"
 def load_manual_entries() -> dict[str, dict]:
     with REGISTRY_PATH.open() as f:
         registry = yaml.safe_load(f)["secrets_registry"]
-    return {
-        name: spec
-        for name, spec in registry.items()
-        if spec.get("format") == "manual"
-    }
+    return {name: spec for name, spec in registry.items() if spec.get("format") == "manual"}
 
 
 def prompt_for_value(name: str, spec: dict) -> str:
@@ -46,9 +42,7 @@ def prompt_for_value(name: str, spec: dict) -> str:
     print(f"\n{name}")
     print(f"  {description}")
 
-    reader = (lambda: getpass.getpass("  value (input hidden): ")) if sensitive else (
-        lambda: input("  value: ")
-    )
+    reader = (lambda: getpass.getpass("  value (input hidden): ")) if sensitive else (lambda: input("  value: "))
 
     if allow_blank:
         print("  This one doesn't have to be known yet — press Enter to leave it")
@@ -88,7 +82,7 @@ def main() -> int:
 
         try:
             value = prompt_for_value(name, spec)
-        except (KeyboardInterrupt, EOFError):
+        except KeyboardInterrupt, EOFError:
             print("\nAborted — nothing further was written.", file=sys.stderr)
             return 1
 
@@ -105,11 +99,7 @@ def main() -> int:
         print(f"Already set (untouched): {', '.join(skipped)}")
     if left_blank:
         print(f"Left blank on purpose: {', '.join(left_blank)}")
-        print(
-            "Re-run this script after you have real values for these — an "
-            "existing file, even a blank one, is never re-prompted for "
-            "automatically."
-        )
+        print("Re-run this script after you have real values for these — an existing file, even a blank one, is never re-prompted for automatically.")
 
     return 0
 

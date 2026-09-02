@@ -1,4 +1,5 @@
 """Backblaze B2 leaf-key create/rotate logic."""
+
 from __future__ import annotations
 
 import sys
@@ -14,7 +15,7 @@ B2_AUTHORIZE_URL = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
 
 
 def b2_authorize(key_id: str, key: str) -> dict:
-    resp = requests.get(B2_AUTHORIZE_URL, auth=(key_id, key))
+    resp = requests.get(B2_AUTHORIZE_URL, auth=(key_id, key), timeout=45)
     resp.raise_for_status()
     return resp.json()
 
@@ -90,12 +91,8 @@ def b2_rotation_session() -> tuple[requests.Session, str, str]:
 
 
 def create_b2() -> None:
-    write_done = cached("backblaze-b2-write-access-key") and cached(
-        "backblaze-b2-write-secret-key"
-    )
-    read_done = cached("backblaze-b2-read-access-key") and cached(
-        "backblaze-b2-read-secret-key"
-    )
+    write_done = cached("backblaze-b2-write-access-key") and cached("backblaze-b2-write-secret-key")
+    read_done = cached("backblaze-b2-read-access-key") and cached("backblaze-b2-read-secret-key")
     if write_done and read_done:
         print("b2: both credentials already cached, skipping")
         return
@@ -115,9 +112,7 @@ def create_b2() -> None:
 def rotate_b2(leaves: list[str]) -> bool:
     session, account_id, api_url = b2_rotation_session()
     bucket_id = b2_lookup_bucket_id(session, api_url, account_id)
-    region = require_cache_file(
-        "backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses."
-    )
+    region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses.")
     endpoint = f"https://s3.{region}.backblazeb2.com"
 
     all_ok = True
@@ -145,8 +140,7 @@ def rotate_b2(leaves: list[str]) -> bool:
                 print(f"b2 {leaf}: old key {old_key_id} revoked")
             except requests.HTTPError as exc:
                 print(
-                    f"b2 {leaf}: new key verified and will be cached, but revoking old key "
-                    f"{old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
+                    f"b2 {leaf}: new key verified and will be cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
                     file=sys.stderr,
                 )
 

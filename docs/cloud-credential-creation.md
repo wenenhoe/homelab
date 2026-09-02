@@ -33,6 +33,13 @@ separation at all; see its section below for why.
   never cleaned up on the provider's side. Flags only; deleting
   anything it finds is a separate, deliberate step.
 
+**Testing:** neither script is an Ansible role, so Molecule's per-host
+model (`docs/molecule-testing.md`) doesn't apply. `ansible/tests/`
+holds `unittest.TestCase`-style tests, run via pytest — every provider
+HTTP call and `rclone` invocation mocked — via
+`uv run pytest ansible/tests/ -v`. Not currently wired into CI; see
+`pr-checks.yml` if that changes.
+
 Rotation keys (B2, OCI) are cached to `ansible/files/secrets/` for now,
 same as everything else in this repo. Moving that cache to an actual
 secrets manager (OpenBao is the current candidate) is a separate,

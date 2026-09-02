@@ -13,28 +13,31 @@ ansible/create_rotation_keys.py — never the raw master key itself. If
 a rotation-key cache file is missing for either, this script tells you
 which `create_rotation_keys.py --provider <x>` to run first.
 
-R2 has no rotation-key tier at all — confirmed live: Cloudflare
-rejects granting "manage other tokens" permission to any
-API-created token, so there is no delegate credential to cache. R2's
-leg is prompted for the master token directly, in memory only, every
-time it actually needs to create a leg token. See
-docs/cloud-credential-creation.md's R2 section.
+R2 caches its admin token too (r2_rotation_token), but it's a
+materially different credential than B2's/OCI's rotation keys: it can
+mint a token with ANY permission the account holder has, not just
+R2-scoped ones, because Cloudflare has no equivalent of "manage tokens
+but only for R2 permissions" (confirmed live: the tokens API rejects
+granting token-management permission to any API-created token, so this
+can only be a human-created Console token in the first place — caching
+it doesn't change what it can do, only how often you have to paste it
+in). This is a deliberate, accepted risk — see
+docs/cloud-credential-creation.md's R2 section for the trade-off and
+what's expected to narrow it later (a secrets-manager migration, not
+this script).
 
 Safe to re-run: a credential whose both cache files already exist is
 left untouched, same convention as bootstrap_secrets.py.
 
-To rotate a B2/OCI leg key with verify-before-revoke of the old one
-(the new key must actually pass a live read/write check over the same
-rclone S3-compatible path production uses before the old key is
-touched), use --rotate instead of deleting cache files — see
-docs/cloud-credential-creation.md's Rotation section. --rotate isn't
-available for R2: there's no rotation-key tier to authenticate the
-revoke call unattended, so R2 rotation stays the delete-cache-and-rerun
-flow it's always been (docs/secrets-rotation.md).
+To rotate a leg key with verify-before-revoke of the old one (the new
+key must actually pass a live read/write check over the same rclone
+S3-compatible path production uses before the old key is touched), use
+--rotate instead of deleting cache files for all three providers now —
+see docs/cloud-credential-creation.md's Rotation section.
 
 Usage:
     python3 ansible/create_cloud_credentials.py [--provider {r2,b2,oci,all}]
-    python3 ansible/create_cloud_credentials.py --provider {b2,oci} --rotate {write,read,both}
+    python3 ansible/create_cloud_credentials.py --provider {r2,b2,oci} --rotate {write,read,both}
 """
 
 from __future__ import annotations
@@ -77,26 +80,35 @@ def _verify_marker_key(leg: str) -> str:
     # avoid (see this function's header comment).
     return f"_rotation-verify/{leg}-{time.time_ns()}-{secrets.token_hex(4)}"
 
-# OCI-specific, confirmed live twice on two different S3 operations: a
-# brand-new customer secret key isn't always usable by Object Storage's
-# S3-compat API the instant CreateCustomerSecretKey returns. Retried
-# below rather than failed fast — but this means a genuine policy
-# problem now ALSO retries the full window before failing, not just a
-# real propagation delay. OCI gives no way to tell them apart from the
-# response alone:
-#   - ListObjects: 403 SignatureDoesNotMatch, "secret key ... could not
-#     be found" — confirmed transient (60s and 507s to resolve).
-#   - HeadObject (the write leg's rclone pre-flight check before every
-#     copy): a bare 403 Forbidden, no distinguishing text at all —
-#     confirmed transient too (234s to resolve), but a real policy
-#     denial on this same call would look identical. Retrying broadly
-#     on "StatusCode: 403" is a deliberate trade-off: a genuinely wrong
-#     write-leg policy now takes ~885s to surface as a failure instead
-#     of failing instantly. Accepted because the alternative — no
-#     retry, so every manual re-run of `--rotate write` mints and
-#     orphans a fresh key while propagation finishes — is worse for the
-#     common case, and this is a rare, manually-triggered operation.
-_PROPAGATION_ERROR_MARKER = "StatusCode: 403"
+# Confirmed live across all three providers: a brand-new leg
+# credential isn't always usable by the provider's S3-compat API the
+# instant the create call returns. Retried below rather than failed
+# fast — but this means a genuine policy/permission problem now ALSO
+# retries the full window before failing, not just a real propagation
+# delay. None of the three give a way to tell them apart from the
+# response alone, and each uses a different HTTP status for the exact
+# same underlying condition:
+#   - OCI ListObjects: 403 SignatureDoesNotMatch, "secret key ... could
+#     not be found" — confirmed transient (60s and 507s to resolve).
+#   - OCI HeadObject (the write leg's rclone pre-flight check before
+#     every copy): a bare 403 Forbidden, no distinguishing text at all
+#     — confirmed transient too (234s to resolve), but a real policy
+#     denial on this same call would look identical.
+#   - R2 ListObjects: a bare 401 Unauthorized, no distinguishing text —
+#     confirmed transient, resolved in 10s on a throwaway measurement
+#     token. Different status code from OCI's, same underlying "key
+#     not propagated yet" condition.
+# Retrying broadly on "StatusCode: 403" or "StatusCode: 401" is a
+# deliberate trade-off: a genuinely wrong policy/token now takes
+# ~885s to surface as a failure instead of failing instantly. Accepted
+# because the alternative — no retry, so every manual re-run of
+# `--rotate` mints and orphans a fresh credential while propagation
+# finishes — is worse for the common case, and this is a rare,
+# manually-triggered operation. B2 hasn't independently hit either
+# shape yet; if it does, it's expected to be one of these two, not a
+# third status code, but that's a guess, not a confirmed fact — check
+# before assuming if it comes up.
+_PROPAGATION_ERROR_MARKERS = ("StatusCode: 403", "StatusCode: 401")
 
 
 def _run_rclone_with_retry(cmd: list[str], timeout: int, retries: int = 60, delay: int = 15) -> subprocess.CompletedProcess:
@@ -105,7 +117,7 @@ def _run_rclone_with_retry(cmd: list[str], timeout: int, retries: int = 60, dela
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
         if result.returncode == 0:
             return result
-        if attempt < retries and _PROPAGATION_ERROR_MARKER in result.stderr:
+        if attempt < retries and any(marker in result.stderr for marker in _PROPAGATION_ERROR_MARKERS):
             elapsed = attempt * delay
             print(f"  (new key not yet recognized by the provider, attempt {attempt}/{retries}, ~{elapsed}s elapsed — retrying in {delay}s)", file=sys.stderr)
             time.sleep(delay)
@@ -159,14 +171,16 @@ def verify_leg_via_rclone(
     own region, shouldn't be harmful) though that hasn't independently
     hit this failure mode yet.
 
-    Retries on OCI's key-propagation window — see
-    _PROPAGATION_ERROR_MARKER — up to ~885s (14m45s) total before
-    giving up. Confirmed live three times, across two different S3
-    operations: ListObjects took 60s and 507s, HeadObject (the write
-    leg's pre-flight check) took 234s — all comfortably inside the
-    window, but a real policy problem now also takes the full ~885s to
-    surface as a failure rather than failing instantly; see
-    _PROPAGATION_ERROR_MARKER's comment for why that trade-off was
+    Retries on a provider's key-propagation window — see
+    _PROPAGATION_ERROR_MARKERS — up to ~885s (14m45s) total before
+    giving up. Confirmed live five times, across three different S3
+    operations on three providers: OCI ListObjects took 60s and 507s,
+    OCI HeadObject (the write leg's pre-flight check) took 234s, R2
+    ListObjects took ~15-30s on both legs (one retry each) — all
+    comfortably inside the window, but a
+    real policy problem now also takes the full ~885s to surface as a
+    failure rather than failing instantly; see
+    _PROPAGATION_ERROR_MARKERS's comment for why that trade-off was
     accepted. NEEDS LIVE VERIFICATION: widen further if a real rotation
     exhausts retries.
 
@@ -217,6 +231,94 @@ def verify_leg_via_rclone(
 # --- Cloudflare R2 ----------------------------------------------------
 
 
+R2_PERMISSION_GROUP_BY_LEG = {
+    "write": "Workers R2 Storage Bucket Item Write",
+    "read": "Workers R2 Storage Bucket Item Read",
+}
+
+
+def r2_rotation_token() -> str:
+    """The Cloudflare admin token used to create/revoke R2 leg tokens.
+
+    Cached from here on — a deliberate, accepted risk, not an oversight.
+    This token needs "Account API Tokens: Edit", which Cloudflare will
+    only let a human grant via the Console (confirmed live: the tokens
+    API rejects granting that permission to any token minted via the
+    API itself — "sub-token is not allowed to have permissions to
+    manage other tokens"). That restriction is about *creating* such a
+    token, not about *reusing* one a human already created; caching it
+    doesn't work around anything, it just stops re-prompting for a
+    value that was always going to be the same one from the user's
+    password manager. The real trade-off: unlike B2's/OCI's rotation
+    keys, Cloudflare has no equivalent of "manage users but only
+    R2-related permissions" — this credential can mint a token with
+    *any* permission the account holder has, not just R2 ones. See
+    docs/cloud-credential-creation.md's R2 section for why that's
+    accepted rather than avoided, and what narrows the blast radius in
+    the meantime (a future secrets-manager migration is the intended
+    next mitigation, not this script).
+    """
+    cache_key = "_rotation-key-cloudflare-r2-token"
+    if cached(cache_key):
+        return (SECRETS_DIR / cache_key).read_text().strip()
+    print(
+        "Cloudflare admin token — a Custom Token named "
+        "'homelab-cloud-sync-r2-rotation-key' (NOT the 'Create Additional "
+        "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
+        "permission, scoped to this account (dashboard.cloudflare.com > My "
+        "Profile > API Tokens) — input hidden, cached after this:"
+    )
+    token = getpass.getpass("> ")
+    write_cache(cache_key, token)
+    return token
+
+
+def r2_permission_group_ids(session, account_id: str) -> dict:
+    resp = session.get(
+        f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/permission_groups",
+    ).json()
+    if not resp.get("success"):
+        print(f"r2: listing permission groups failed: {resp.get('errors')}", file=sys.stderr)
+        sys.exit(1)
+    return {g["name"]: g["id"] for g in resp["result"]}
+
+
+def r2_create_leg_token(session, account_id: str, group_by_name: dict, leg: str) -> dict:
+    group_name = R2_PERMISSION_GROUP_BY_LEG[leg]
+    if group_name not in group_by_name:
+        available = ", ".join(sorted(group_by_name))
+        print(
+            f"r2 {leg}: no permission group named {group_name!r} found. "
+            f"Available account-scoped permission groups: {available}",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    resource_key = f"com.cloudflare.edge.r2.bucket.{account_id}_default_{R2_BUCKET}"
+    resp = session.post(
+        f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
+        json={
+            "name": f"homelab-cloud-sync-r2-{leg}",
+            "policies": [
+                {
+                    "effect": "allow",
+                    "resources": {resource_key: "*"},
+                    "permission_groups": [{"id": group_by_name[group_name]}],
+                }
+            ],
+        },
+    ).json()
+    if not resp.get("success"):
+        print(f"r2 {leg}: token creation failed: {resp['errors']}", file=sys.stderr)
+        sys.exit(1)
+    return resp["result"]
+
+
+def r2_delete_token(session, account_id: str, token_id: str) -> None:
+    resp = session.delete(f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/{token_id}").json()
+    if not resp.get("success"):
+        raise RuntimeError(f"delete failed: {resp.get('errors')}")
+
+
 def create_r2() -> None:
     write_done = cached("cloudflare-r2-write-access-key") and cached(
         "cloudflare-r2-write-secret-key"
@@ -228,83 +330,83 @@ def create_r2() -> None:
         print("r2: both credentials already cached, skipping")
         return
 
-    # No cached rotation key for R2 — confirmed live, not a design
-    # choice: Cloudflare rejects granting "manage other tokens"
-    # permission to any token created via the API ("sub-token is not
-    # allowed to have permissions to manage other tokens"), so there is
-    # no way to mint a delegate credential that could stand in for the
-    # master token here the way B2's and OCI's rotation keys do. The
-    # leg tokens below only need R2-specific permissions, not
-    # token-management ones, so they aren't affected by that
-    # restriction — only a credential that could itself mint further
-    # tokens would be. Master token is prompted fresh every time this
-    # actually needs to create a leg token, never cached, same
-    # in-memory-only handling as create_rotation_keys.py.
-    print(
-        "Cloudflare admin token — a Custom Token (NOT the 'Create Additional "
-        "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
-        "permission, scoped to this account (dashboard.cloudflare.com > My "
-        "Profile > API Tokens) — input hidden, held in memory only:"
-    )
-    token = getpass.getpass("> ")
+    token = r2_rotation_token()
     account_id = require_cache_file(
         "cloudflare-r2-account-id",
         "Already required for cloud-sync.md's endpoint — same file, no new step.",
     )
     session = requests.Session()
     session.headers["Authorization"] = f"Bearer {token}"
+    group_by_name = r2_permission_group_ids(session, account_id)
 
-    groups_resp = session.get(
-        f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/permission_groups",
-    ).json()
-    if not groups_resp.get("success"):
-        print(f"r2: listing permission groups failed: {groups_resp.get('errors')}", file=sys.stderr)
-        sys.exit(1)
-    group_by_name = {g["name"]: g["id"] for g in groups_resp["result"]}
-
-    resource_key = f"com.cloudflare.edge.r2.bucket.{account_id}_default_{R2_BUCKET}"
-
-    legs = [
-        ("write", "Workers R2 Storage Bucket Item Write", write_done),
-        ("read", "Workers R2 Storage Bucket Item Read", read_done),
-    ]
-    for leg, group_name, done in legs:
+    for leg, done in [("write", write_done), ("read", read_done)]:
         if done:
             continue
-        if group_name not in group_by_name:
-            available = ", ".join(sorted(group_by_name))
-            print(
-                f"r2 {leg}: no permission group named {group_name!r} found. "
-                f"Available account-scoped permission groups: {available}",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        group_id = group_by_name[group_name]
-        resp = session.post(
-            f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
-            json={
-                "name": f"homelab-cloud-sync-r2-{leg}",
-                "policies": [
-                    {
-                        "effect": "allow",
-                        "resources": {resource_key: "*"},
-                        "permission_groups": [{"id": group_id}],
-                    }
-                ],
-            },
-        ).json()
-        if not resp.get("success"):
-            print(f"r2 {leg}: token creation failed: {resp['errors']}", file=sys.stderr)
-            sys.exit(1)
-        token_id = resp["result"]["id"]
-        token_value = resp["result"]["value"]
+        result = r2_create_leg_token(session, account_id, group_by_name, leg)
         # Cloudflare's own docs: Secret Access Key = SHA-256 hash of the
         # token value, computed locally — the raw token value itself is
         # never the S3 secret key. https://developers.cloudflare.com/r2/api/tokens/
-        secret_key = hashlib.sha256(token_value.encode()).hexdigest()
-        write_cache(f"cloudflare-r2-{leg}-access-key", token_id)
+        secret_key = hashlib.sha256(result["value"].encode()).hexdigest()
+        write_cache(f"cloudflare-r2-{leg}-access-key", result["id"])
         write_cache(f"cloudflare-r2-{leg}-secret-key", secret_key)
         print(f"r2 {leg}: cached")
+
+
+def rotate_r2(legs: list[str]) -> bool:
+    token = r2_rotation_token()
+    account_id = require_cache_file(
+        "cloudflare-r2-account-id",
+        "Already required for cloud-sync.md's endpoint — same file, no new step.",
+    )
+    session = requests.Session()
+    session.headers["Authorization"] = f"Bearer {token}"
+    group_by_name = r2_permission_group_ids(session, account_id)
+    # Confirmed live: R2's S3-compat API only ever uses region "auto" —
+    # https://developers.cloudflare.com/r2/api/s3/api/. Unlike OCI, it's
+    # explicitly lenient about near-misses (empty or us-east-1 also
+    # alias to auto), so there's no equivalent risk of a silent
+    # SignatureDoesNotMatch from getting this wrong.
+    endpoint = f"https://{account_id}.r2.cloudflarestorage.com"
+    region = "auto"
+
+    all_ok = True
+    for leg in legs:
+        old_token_id = None
+        if cached(f"cloudflare-r2-{leg}-access-key"):
+            old_token_id = (SECRETS_DIR / f"cloudflare-r2-{leg}-access-key").read_text().strip()
+
+        result = r2_create_leg_token(session, account_id, group_by_name, leg)
+        new_token_id = result["id"]
+        new_secret_key = hashlib.sha256(result["value"].encode()).hexdigest()
+
+        ok, detail = verify_leg_via_rclone(new_token_id, new_secret_key, endpoint, region, R2_BUCKET, leg)
+        if not ok:
+            print(
+                f"r2 {leg}: new token {new_token_id} failed verification ({detail}). "
+                f"Old token {old_token_id or '(none cached)'} left untouched and still in use; "
+                f"new token left live but NOT cached or revoked — investigate, then either "
+                f"retry or delete {new_token_id} by hand in the Cloudflare dashboard.",
+                file=sys.stderr,
+            )
+            all_ok = False
+            continue
+
+        if old_token_id:
+            try:
+                r2_delete_token(session, account_id, old_token_id)
+                print(f"r2 {leg}: old token {old_token_id} revoked")
+            except RuntimeError as exc:
+                print(
+                    f"r2 {leg}: new token verified and will be cached, but revoking old token "
+                    f"{old_token_id} failed ({exc}) — revoke it by hand in the Cloudflare dashboard.",
+                    file=sys.stderr,
+                )
+
+        write_cache(f"cloudflare-r2-{leg}-access-key", new_token_id)
+        write_cache(f"cloudflare-r2-{leg}-secret-key", new_secret_key)
+        print(f"r2 {leg}: rotated and verified")
+
+    return all_ok
 
 
 # --- Backblaze B2 -------------------------------------------------------
@@ -607,7 +709,7 @@ def main() -> int:
         help=(
             "Rotate a leg key: create a new one, verify it over the same rclone "
             "S3-compatible path production uses, only then revoke the old one. "
-            "Requires --provider b2 or oci (not r2 or all) — see this script's "
+            "Requires --provider r2, b2, or oci (not all) — see this script's "
             "module docstring."
         ),
     )
@@ -616,10 +718,10 @@ def main() -> int:
     SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
 
     if args.rotate:
-        if args.provider not in ("b2", "oci"):
-            parser.error("--rotate requires --provider b2 or oci")
+        if args.provider not in ("r2", "b2", "oci"):
+            parser.error("--rotate requires --provider r2, b2, or oci")
         legs = ["write", "read"] if args.rotate == "both" else [args.rotate]
-        rotate_fn = {"b2": rotate_b2, "oci": rotate_oci}[args.provider]
+        rotate_fn = {"r2": rotate_r2, "b2": rotate_b2, "oci": rotate_oci}[args.provider]
         try:
             ok = rotate_fn(legs)
         except requests.HTTPError as exc:

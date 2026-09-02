@@ -254,34 +254,38 @@ real 409 yet.
   lookup-by-name path that feeds it is confirmed live, this specific
   PUT hasn't independently been exercised yet.
 
-### Cloudflare R2 — no rotation tier exists, full stop
+### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 
-**There is no delegate credential for R2 — confirmed live, not a
-missing feature.** The earlier design here assumed a "rotation key"
-(created via the master token, cached, and itself able to mint leg
-tokens) was possible, the same shape as B2's and OCI's. It isn't:
-attempting to mint a token with `API Tokens Write` using a token that
-was *itself* created via the API fails outright — `400 {"code": 1001,
+**A cached R2 rotation key is a materially different credential than
+B2's/OCI's — accepted as a deliberate risk, not something worked
+around.** Cloudflare's tokens API rejects granting `API Tokens Write`
+to any token created via the API itself — `400 {"code": 1001,
 "message": "sub-token is not allowed to have permissions to manage
-other tokens"}`. Cloudflare allows exactly one level of
-"this token can create other tokens" delegation, and it only exists
-for tokens created directly in the dashboard by a human. Nothing
-minted via the API can ever be granted that permission, regardless of
-its own scope — there's no narrower variant to chase here, this is a
-hard stop.
+other tokens"}`, confirmed live. That's a hard stop on ever *minting* a
+delegate credential the way `create_rotation_keys.py` does for B2/OCI.
+It does **not**, however, block *caching* a token a human already
+created directly in the Console — that restriction is about creation,
+not reuse. `r2_rotation_token()` in `create_cloud_credentials.py` does
+exactly that: prompts once, caches to
+`_rotation-key-cloudflare-r2-token`, and every later call (including
+`--rotate`) reads the cache instead of re-prompting.
 
-Consequently `create_rotation_keys.py` has no `r2` provider at all.
-`create_cloud_credentials.py` prompts for the master token directly —
-hidden input, memory only, same handling every other master credential
-in this system gets — every time it actually needs to create a leg
-token (skipped entirely if both legs are already cached, same
-idempotency as everywhere else). The real cost: unlike B2 and OCI, R2's
-leg-token creation/rotation can never run unattended — a human has to
-be present to type in the master token each time, since nothing that
-could stand in for it is ever cached. That's a genuine capability gap
-versus the other two providers, not a design choice.
+The trade-off this doesn't remove: because Cloudflare has no equivalent
+of OCI's `any {request.permission='USER_SECRETKEY_ADD', ...}` — a
+policy condition restricting *which* permissions a delegated identity
+can grant — this cached token can mint a token with **any** permission
+the account holder has (DNS, Zones, Workers, Access, billing,
+everything), not just R2-scoped ones. B2's and OCI's rotation keys are
+genuinely narrower than their master credentials; R2's cached token
+**is** the master credential in every way that matters for blast
+radius, just persisted to disk instead of re-typed each time. Accepted
+here on the basis that (a) it was already being typed in from the same
+password-manager entry every run, so caching it changes convenience,
+not exposure to a new party, and (b) the planned Stage 2 secrets
+manager migration (see below) is expected to narrow this properly —
+this script isn't where that gets fixed.
 
-**The master token itself needs correcting too — confirmed live**
+**The master token itself needed correcting too — confirmed live**
 (`Unauthorized to access requested resource` on the very first API
 call, before the sub-token issue above was even reached). Cloudflare's
 own template reference table shows the dashboard's "Create Additional
@@ -291,24 +295,31 @@ Tokens" template grants `API Tokens Write` scoped to **User**, not
 throughout (chosen because R2 buckets are account resources). The
 original assumption that "Create Additional Tokens" was an
 "account-level" permission was never independently checked against
-Cloudflare's docs before this. Create the master token as a **Custom
-Token** instead — not the template — with **Account > Account API
-Tokens > Edit**, scoped to the account. Its own permission_groups
+Cloudflare's docs before this. Create the token as a **Custom
+Token** instead — not the template — named
+**`homelab-cloud-sync-r2-rotation-key`** (matching B2's rotation key
+naming, with the `r2` disambiguator R2's own leg tokens already use)
+— with **Account > Account API Tokens > Edit**, scoped to the account.
+Its own permission_groups
 lookup (used to find the R2-specific groups the leg tokens actually
 get) matches by substring against known group names rather than exact
 match, and prints every available name if nothing matches — a
 mismatch here is a one-line fix, not another blind guess.
 
-Once past both of those, there's no further ceiling to chase: the leg
-tokens themselves are bucket-scoped (`Workers R2 Storage Bucket Item
-Write`/`Read`, restricted to `homelab-backups`) and only ever hold
-R2-specific permissions, never `API Tokens Write` — so they're not
-subject to the sub-token restriction above at all, only the (now
-removed) rotation key ever was. Practically, `cloud_sync`'s own
-`rclone copy`-only design (never `sync`) is what actually prevents an
-on-prem compromise from deleting R2 objects — see
-`disaster-recovery.md`'s Threat model. R2's defense-in-depth here is
-`copy`-vs-`sync`, not IAM.
+The leg tokens themselves stay properly bucket-scoped (`Workers R2
+Storage Bucket Item Write`/`Read`, restricted to `homelab-backups`) and
+only ever hold R2-specific permissions, never `API Tokens Write` — so
+they're not subject to the sub-token restriction above at all, only the
+rotation token is. Practically, `cloud_sync`'s own `rclone copy`-only
+design (never `sync`) is what actually prevents an on-prem compromise
+from deleting R2 objects — see `disaster-recovery.md`'s Threat model.
+R2's defense-in-depth here is `copy`-vs-`sync` at the leg-token level,
+not IAM narrowing at the rotation-token level, which is the part this
+provider can't get to parity with B2/OCI on.
+
+R2's S3-compat region is always `auto` — Cloudflare's own docs confirm
+this is lenient (empty or `us-east-1` also alias to it), unlike OCI's
+strict enforcement.
 
 ## Rotation
 
@@ -332,27 +343,33 @@ investigated or deleted by hand; nothing is silently rolled back or
 retried. Each leg is independent, so `--rotate write` never touches the
 read leg's key or cache.
 
-**Retries through OCI's key-propagation window, confirmed live three
-times, across two different S3 operations.** A brand-new OCI customer
-secret key isn't always immediately usable by Object Storage's
-S3-compat API — the exact same request with an already-propagated key
-succeeds, a just-created one fails until it propagates. `ListObjects`
-(the read leg) fails with a 403 `SignatureDoesNotMatch` naming a
-missing secret key; `HeadObject` (rclone's pre-flight check before
-every write-leg copy) fails with a bare 403 `Forbidden` — no
-distinguishing text at all. Measured live: 60s and 507s for the read
-leg, 234s for the write leg, all comfortably inside the ~885s
-(14m45s) window `verify_leg_via_rclone` retries for.
+**Retries through a provider's key-propagation window, confirmed live
+across all three providers, four times, across three different S3
+operations.** A brand-new leg credential isn't always immediately
+usable by the provider's S3-compat API — the exact same request with
+an already-propagated key succeeds, a just-created one fails until it
+propagates, and each provider uses a different HTTP status for the
+same underlying condition. OCI `ListObjects` (the read leg) fails with
+a 403 `SignatureDoesNotMatch` naming a missing secret key; OCI
+`HeadObject` (rclone's pre-flight check before every write-leg copy)
+fails with a bare 403 `Forbidden`; R2 `ListObjects` fails with a bare
+401 `Unauthorized` — neither of the latter two has any distinguishing
+text at all. Measured live: 60s and 507s for OCI's read leg, 234s for
+OCI's write leg, ~15-30s (one retry) for both R2 legs, all comfortably
+inside the ~885s (14m45s) window `verify_leg_via_rclone` retries for.
 
-**The retry gate matches on `StatusCode: 403` alone, not specific error
-text — a deliberate trade-off, not an oversight.** OCI gives no way to
-distinguish "not yet propagated" from "genuinely denied by policy" in
-the response for `HeadObject`, so a real write-leg policy problem now
-also retries the full ~885s before failing, instead of failing
-instantly. Accepted because the alternative is worse for the common
-case: without this retry, every manual re-run of a failed `--rotate`
-mints and orphans a fresh provider-side key while waiting out
-propagation by hand. NEEDS LIVE VERIFICATION: three data points, all
+**The retry gate matches on `StatusCode: 403` or `StatusCode: 401`
+alone, not specific error text — a deliberate trade-off, not an
+oversight.** Neither OCI nor R2 gives a way to distinguish "not yet
+propagated" from "genuinely denied by policy" in these responses, so a
+real policy problem now also retries the full ~885s before failing,
+instead of failing instantly. Accepted because the alternative is worse
+for the common case: without this retry, every manual re-run of a
+failed `--rotate` mints and orphans a fresh provider-side key while
+waiting out propagation by hand. B2 hasn't independently hit either
+shape yet — if it does, check the actual status code before assuming
+it matches rather than extending this list on guess. NEEDS LIVE
+VERIFICATION: five data points, all
 well inside the window — widen further if a real rotation exhausts
 retries.
 
@@ -396,29 +413,32 @@ could clean these up — they accumulate forever, accepted as a
 negligible cost since rotations are rare and each marker is a few
 bytes.
 
-**Confirmed working end-to-end, live, for both OCI legs**
-(create → verify, including the propagation retry above → revoke old
-→ cache new). B2 hasn't independently been exercised live yet.
+**Confirmed working end-to-end, live, for all three providers, both
+legs.** OCI (create → verify, including the propagation retry above →
+revoke old → cache new), B2's write leg (region, retry-gate, and
+`no_check_bucket` fixes all validated against a real rotation), and R2
+(both legs, each resolving in a single retry — R2's propagation window
+is markedly faster than OCI's or B2's, ~15-30s vs. up to several
+minutes, though still real and still needed the same retry mechanism).
 
-**R2 has no `--rotate`:** there's no rotation-key tier to authenticate
-an unattended revoke call with (see R2's section above), so R2 rotation
-stays the original flow — delete its cache file(s) under
-`ansible/files/secrets/`, re-run
-`create_cloud_credentials.py --provider r2`, which always prompts for
-the master token fresh. The old R2 token is left orphaned-but-valid
-until revoked by hand in the dashboard's token list; auto-revoking it
-would need the same verify-then-revoke design as B2/OCI, but with no
-cached credential to run it unattended, there's no way to build it
-without also removing R2's "never runs unattended" property this
-prompts-every-time design already accepts.
+**R2 now supports `--rotate` too**, same verify-then-revoke mechanics
+as B2/OCI (`create_cloud_credentials.py --provider r2 --rotate
+{write,read,both}`) — the only difference is what authenticates the
+create/revoke calls: R2's cached `_rotation-key-cloudflare-r2-token`
+rather than a purpose-built delegate identity, with the broader blast
+radius that implies (see R2's section above). Deleting that cache file
+and re-running falls back to the original prompt-every-time flow if
+you ever want to stop caching it.
 
-**Rotating a rotation key itself** (B2/OCI only, rare): delete its
-cache file(s), re-run `create_rotation_keys.py --provider <b2|oci>` —
-this needs the master credential again, so it's the one operation for
-these two providers that isn't fully unattended. Doesn't apply to R2,
-which has no rotation key to rotate. The old rotation key itself is
-still not auto-revoked here — it's a low-frequency, human-attended
-operation already, unlike the routine leg-key rotation above.
+**Rotating the rotation credential itself:** B2/OCI's rotation keys —
+delete the cache file(s), re-run `create_rotation_keys.py --provider
+<b2|oci>` — needs the master credential again, so it's the one
+operation for these two that isn't fully unattended, low-frequency and
+human-attended by nature. R2's cached token isn't something this
+tooling rotates on its own either — it's a human-created Console
+token; replacing it means creating a new one there and overwriting
+`_rotation-key-cloudflare-r2-token`. None of the three auto-revoke the
+old rotation credential itself here.
 
 ## Future: Stage 2 (secrets manager)
 

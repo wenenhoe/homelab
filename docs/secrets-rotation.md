@@ -63,25 +63,20 @@ The six R2/B2/OCI write/read credentials split into two different
 rotation flows, and need a redeploy step this section never used to
 mention at all.
 
-**B2 and OCI** have a scripted rotate-with-verify-then-revoke path:
+All three providers now have the same scripted rotate-with-verify-then-revoke path:
 
 ```
-python3 ansible/create_cloud_credentials.py --provider <b2|oci> --rotate {write,read,both}
+python3 ansible/create_cloud_credentials.py --provider <r2|b2|oci> --rotate {write,read,both}
 ```
 
 This creates the new key, verifies it actually works over the same
 path production uses, and only then revokes the old one — no manual
-provider-console cleanup step, unlike R2 below. See
+provider-console cleanup step for any of them. See
 [`cloud-credential-creation.md`](cloud-credential-creation.md#rotation)
 for exactly what it does and doesn't do, including what happens if
-verification fails.
-
-**R2** has no rotation-key tier to authenticate an unattended revoke
-call with (see that same doc's R2 section), so it stays the older
-flow: delete the cache file(s) for the leg you're rotating, then
-re-run `ansible/create_cloud_credentials.py --provider r2` — this
-always prompts for the master token fresh, and leaves the old R2 token
-orphaned-but-valid until revoked by hand in the dashboard's token list.
+verification fails, and that same doc's R2 section for why R2's cached
+rotation credential is a materially broader-blast-radius risk than
+B2's/OCI's — a deliberate, accepted trade-off, not parity.
 
 **Redeploy needed, and it differs by leg — confirmed live:**
 
@@ -100,8 +95,8 @@ orphaned-but-valid until revoked by hand in the dashboard's token list.
 
 `ansible/audit_secrets.py --provider <r2|b2|oci>` lists what's actually
 on each provider's console and flags anything not matching the current
-cache — most useful for R2's manual-cleanup step above, but works for
-all three.
+cache — useful after any `--rotate`, or after a failed one that left an
+unverified key orphaned, for all three providers.
 
 ## Certificate-backed material (not in `secrets_registry.yaml` at all)
 

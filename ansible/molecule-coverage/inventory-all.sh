@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Regenerates inventory.py's static task inventory for every role with a
+# Regenerates molecule_cov.cli's static task inventory for every role with a
 # molecule/ folder. Only reads roles/<role>/tasks/, not execution data,
 # so it's safe to run any time and doesn't require `molecule test` to
 # have run first - re-run after pulling changes to a role's tasks, or
@@ -22,5 +22,5 @@ else
 fi
 
 for role in "${roles[@]}"; do
-    python3 molecule-coverage/inventory.py "roles/$role" --coverage-dir molecule-coverage/.data
+    (cd molecule-coverage && python3 -m molecule_cov.cli inventory "../roles/$role" --coverage-dir .data)
 done

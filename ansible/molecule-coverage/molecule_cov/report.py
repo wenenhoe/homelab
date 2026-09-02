@@ -1,43 +1,20 @@
-#!/usr/bin/env python3
-"""molecule-coverage: CLI report
+"""molecule-coverage: report formatting
 
 Human-readable view on top of aggregate.py's JSON: a summary table across
 all roles found in a coverage directory, or a per-task drill-down for one
 role. Stdlib only - no tabulate/rich dependency, to keep this easy to run
 anywhere.
 
-Usage:
-    # Summary across every role with data under the coverage dir
-    python3 report.py --coverage-dir ansible/molecule-coverage/.data
-
-    # Drill down into one role's per-task, per-scenario breakdown
-    python3 report.py --coverage-dir ansible/molecule-coverage/.data --role caddy
-
-    # Summary, followed by every role's drill-down, in one go
-    python3 report.py --coverage-dir ansible/molecule-coverage/.data --show-all
-
-    # Exit 1 if any reported role's aggregate coverage is below a threshold
-    python3 report.py --coverage-dir ansible/molecule-coverage/.data --fail-under 80
-
-    # Same, but per-role floors from a checked-in file instead of one
-    # global number - see molecule-coverage/thresholds.yaml
-    python3 report.py --coverage-dir ansible/molecule-coverage/.data \
-      --thresholds-file ansible/molecule-coverage/thresholds.yaml --role caddy
+The two threshold-checking functions (`failing_roles_under`,
+`missing_and_failing_against_thresholds`) take an already-computed list of
+reports and an already-parsed thresholds mapping - no file I/O - so they're
+directly unit-testable without a coverage-dir fixture on disk. cli.py owns
+reading `--thresholds-file` and turning these into exit codes.
 """
 from __future__ import annotations
 
-import argparse
-import sys
 from pathlib import Path
 
-import yaml
-
-# So this runs correctly regardless of the caller's cwd (e.g. `python3
-# ansible/molecule-coverage/report.py ...` from a repo root), not just when
-# invoked from inside this directory.
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-
-from aggregate import compute_coverage
 
 def _loop_summary(loop_coverage: dict | None) -> str:
     if loop_coverage is None:
@@ -201,102 +178,31 @@ def print_role_detail(report: dict) -> None:
             print(f"  - {t['task_name']} ({loc}): when: {clauses}")
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--coverage-dir",
-        type=Path,
-        default=Path("./.molecule-coverage-data"),
-        help="Directory containing <role>/_inventory.json + <role>/<scenario>.jsonl for each role",
-    )
-    role_selection = parser.add_mutually_exclusive_group()
-    role_selection.add_argument(
-        "--role",
-        help="Show a per-task drill-down for this one role instead of the summary table",
-    )
-    role_selection.add_argument(
-        "--show-all",
-        action="store_true",
-        help="Print the summary table, then every role's per-task drill-down, in one go",
-    )
-    threshold_group = parser.add_mutually_exclusive_group()
-    threshold_group.add_argument(
-        "--fail-under",
-        type=float,
-        default=None,
-        help="Exit 1 if any reported role's aggregate coverage_pct is below this single threshold",
-    )
-    threshold_group.add_argument(
-        "--thresholds-file",
-        type=Path,
-        default=None,
-        help="YAML file of {role: floor}. Exit 1 if any reported role is below its floor, "
-        "or 2 if a reported role has no entry (see molecule-coverage/thresholds.yaml)",
-    )
-    args = parser.parse_args()
-
-    coverage_dir = args.coverage_dir.resolve()
-
-    if args.role:
-        role_dir = coverage_dir / args.role
-        if not role_dir.is_dir():
-            print(f"error: no data for role '{args.role}' under {coverage_dir}", file=sys.stderr)
-            return 1
-        try:
-            report = compute_coverage(role_dir)
-        except FileNotFoundError as e:
-            print(f"error: {e}", file=sys.stderr)
-            return 1
-        print_role_detail(report)
-        reports = [report]
-    else:
-        role_dirs = discover_roles(coverage_dir)
-        if not role_dirs:
-            print(f"no roles with coverage data found under {coverage_dir}", file=sys.stderr)
-            return 1
-        reports = [compute_coverage(d) for d in role_dirs]
-        print_summary(reports)
-        if args.show_all:
-            for report in reports:
-                print()
-                print("=" * 40)
-                print()
-                print_role_detail(report)
-
-    if args.fail_under is not None:
-        failing = [
-            r["role"]
-            for r in reports
-            if r["summary"]["coverage_pct"] is not None and r["summary"]["coverage_pct"] < args.fail_under
-        ]
-        if failing:
-            print(f"\nFAIL: below {args.fail_under}% coverage: {', '.join(failing)}", file=sys.stderr)
-            return 1
-
-    if args.thresholds_file is not None:
-        thresholds = yaml.safe_load(args.thresholds_file.read_text(encoding="utf-8")) or {}
-        # A role with data but no threshold entry is an error, not a pass -
-        # a new role should get a deliberate floor, not an accidental free ride.
-        missing = [r["role"] for r in reports if r["role"] not in thresholds]
-        if missing:
-            print(
-                f"\nERROR: no threshold entry for: {', '.join(missing)} "
-                f"in {args.thresholds_file} - add one before this can gate.",
-                file=sys.stderr,
-            )
-            return 2
-        failing = [
-            r["role"]
-            for r in reports
-            if r["summary"]["coverage_pct"] is not None
-            and r["summary"]["coverage_pct"] < thresholds[r["role"]]
-        ]
-        if failing:
-            print(f"\nFAIL: below its threshold: {', '.join(failing)}", file=sys.stderr)
-            return 1
-
-    return 0
+def failing_roles_under(reports: list[dict], threshold: float) -> list[str]:
+    """Roles whose aggregate coverage_pct is below a single global floor.
+    A role with coverage_pct None (no tasks at all) never fails - there's
+    nothing to be below the threshold."""
+    return [
+        r["role"]
+        for r in reports
+        if r["summary"]["coverage_pct"] is not None and r["summary"]["coverage_pct"] < threshold
+    ]
 
 
-if __name__ == "__main__":
-    raise SystemExit(main())
+def missing_and_failing_against_thresholds(
+    reports: list[dict], thresholds: dict[str, float]
+) -> tuple[list[str], list[str]]:
+    """(missing, failing) against a per-role {role: floor} mapping. A role
+    with data but no threshold entry is reported as missing rather than
+    silently passing - a new role should get a deliberate floor, not an
+    accidental free ride. Failing is only evaluated for roles that do have
+    an entry."""
+    missing = [r["role"] for r in reports if r["role"] not in thresholds]
+    failing = [
+        r["role"]
+        for r in reports
+        if r["role"] in thresholds
+        and r["summary"]["coverage_pct"] is not None
+        and r["summary"]["coverage_pct"] < thresholds[r["role"]]
+    ]
+    return missing, failing

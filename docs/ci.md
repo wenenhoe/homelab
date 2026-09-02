@@ -170,11 +170,12 @@ documented thing no longer exists.
 ## Molecule coverage gate
 
 Each `molecule` matrix job regenerates that role's task inventory
-(`molecule-coverage/inventory.py`, gitignored - tied to the checkout's
-absolute paths, so not committed) and runs `report.py --thresholds-file
-molecule-coverage/thresholds.yaml`, both against the coverage data that
-role's own `molecule test` run just produced. Per-role, not one global
-number, since roles aren't structurally comparable - see
+(`molecule_cov.cli inventory` - its output is gitignored, tied to the
+checkout's absolute paths, so not committed) and runs
+`molecule_cov.cli report --thresholds-file thresholds.yaml`, both against
+the coverage data that role's own `molecule test` run just produced.
+Per-role, not one global number, since roles aren't structurally
+comparable - see
 [`molecule-coverage/README.md`](../ansible/molecule-coverage/README.md)
 for what the report actually measures.
 

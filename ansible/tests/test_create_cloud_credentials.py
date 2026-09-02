@@ -8,6 +8,7 @@ binary or talks to a real provider.
 
 from __future__ import annotations
 
+import hashlib
 import shutil
 import sys
 import tempfile
@@ -59,8 +60,9 @@ class RunRcloneWithRetryTests(unittest.TestCase):
         "authentication could not be found."
     )
     PROPAGATION_ERR_HEAD = "operation error S3: HeadObject, https response error StatusCode: 403, api error Forbidden: Forbidden"
-    # Not a 403 at all — must still fail fast regardless of how broadly
-    # 403s are retried.
+    PROPAGATION_ERR_R2 = "operation error S3: ListObjects, https response error StatusCode: 401, api error Unauthorized: Unauthorized"
+    # Not a 403 or 401 at all — must still fail fast regardless of how
+    # broadly those two are retried.
     NON_RETRYABLE_ERR = "operation error S3: PutObject, https response error StatusCode: 400, api error InvalidRequest: bad bucket name"
 
     def _completed(self, returncode: int, stderr: str = "") -> MagicMock:
@@ -96,7 +98,23 @@ class RunRcloneWithRetryTests(unittest.TestCase):
 
     @patch.object(ccc.time, "sleep")
     @patch.object(ccc.subprocess, "run")
-    def test_does_not_retry_a_non_403_error(self, mock_run, mock_sleep):
+    def test_retries_on_r2_401_propagation_error_then_succeeds(self, mock_run, mock_sleep):
+        # R2's version of the exact same underlying condition — a bare
+        # 401 Unauthorized, no distinguishing text, different status
+        # code from OCI's 403s. Confirmed live: 10s to resolve on a
+        # throwaway measurement token.
+        mock_run.side_effect = [
+            self._completed(1, self.PROPAGATION_ERR_R2),
+            self._completed(0),
+        ]
+        result = ccc._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(mock_run.call_count, 2)
+        mock_sleep.assert_called_once()
+
+    @patch.object(ccc.time, "sleep")
+    @patch.object(ccc.subprocess, "run")
+    def test_does_not_retry_a_non_403_or_401_error(self, mock_run, mock_sleep):
         mock_run.side_effect = [self._completed(1, self.NON_RETRYABLE_ERR)]
         result = ccc._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
         self.assertEqual(result.returncode, 1)
@@ -123,6 +141,81 @@ class RotationTestBase(unittest.TestCase):
 
     def seed(self, name: str, value: str) -> None:
         ccc.write_cache(name, value)
+
+
+class R2RotationTokenTests(RotationTestBase):
+    """Covers caching the R2 admin token — the actual change requested:
+    stop re-prompting for a value that was always the same human-created
+    Console token."""
+
+    def test_prompts_and_caches_when_nothing_cached(self):
+        with patch.object(ccc.getpass, "getpass", return_value="cf-token-value") as mock_prompt:
+            token = ccc.r2_rotation_token()
+        mock_prompt.assert_called_once()
+        self.assertEqual(token, "cf-token-value")
+        self.assertEqual((self.tmp / "_rotation-key-cloudflare-r2-token").read_text(), "cf-token-value")
+
+    def test_uses_cache_without_prompting_on_subsequent_calls(self):
+        self.seed("_rotation-key-cloudflare-r2-token", "cached-token-value")
+        with patch.object(ccc.getpass, "getpass") as mock_prompt:
+            token = ccc.r2_rotation_token()
+        mock_prompt.assert_not_called()
+        self.assertEqual(token, "cached-token-value")
+
+
+class R2RotationTests(RotationTestBase):
+    def setUp(self):
+        super().setUp()
+        self.seed("_rotation-key-cloudflare-r2-token", "admin-token")
+        self.seed("cloudflare-r2-account-id", "acct123")
+        self.seed("cloudflare-r2-write-access-key", "OLD_TOKEN_ID")
+        self.seed("cloudflare-r2-write-secret-key", "old_secret_hash")
+
+    def _permission_groups_response(self):
+        return MagicMock(
+            json=lambda: {
+                "success": True,
+                "result": [
+                    {"name": "Workers R2 Storage Bucket Item Write", "id": "grp-write"},
+                    {"name": "Workers R2 Storage Bucket Item Read", "id": "grp-read"},
+                ],
+            }
+        )
+
+    def _create_token_response(self, token_id, token_value):
+        return MagicMock(json=lambda: {"success": True, "result": {"id": token_id, "value": token_value}})
+
+    @patch.object(ccc, "verify_leg_via_rclone", return_value=(True, "ok"))
+    @patch.object(ccc.requests, "Session")
+    def test_successful_rotation_deletes_old_token_and_caches_new_one(self, mock_session_cls, mock_verify):
+        session = mock_session_cls.return_value
+        session.get.return_value = self._permission_groups_response()
+        session.post.return_value = self._create_token_response("NEW_TOKEN_ID", "new-token-value")
+        session.delete.return_value = MagicMock(json=lambda: {"success": True})
+
+        ok = ccc.rotate_r2(["write"])
+
+        self.assertTrue(ok)
+        mock_verify.assert_called_once_with(
+            "NEW_TOKEN_ID", hashlib.sha256(b"new-token-value").hexdigest(),
+            "https://acct123.r2.cloudflarestorage.com", "auto", ccc.R2_BUCKET, "write",
+        )
+        session.delete.assert_called_once()
+        self.assertIn("OLD_TOKEN_ID", session.delete.call_args.args[0])
+        self.assertEqual((self.tmp / "cloudflare-r2-write-access-key").read_text(), "NEW_TOKEN_ID")
+
+    @patch.object(ccc, "verify_leg_via_rclone", return_value=(False, "denied"))
+    @patch.object(ccc.requests, "Session")
+    def test_failed_verification_leaves_old_token_untouched(self, mock_session_cls, mock_verify):
+        session = mock_session_cls.return_value
+        session.get.return_value = self._permission_groups_response()
+        session.post.return_value = self._create_token_response("NEW_TOKEN_ID", "new-token-value")
+
+        ok = ccc.rotate_r2(["write"])
+
+        self.assertFalse(ok)
+        session.delete.assert_not_called()
+        self.assertEqual((self.tmp / "cloudflare-r2-write-access-key").read_text(), "OLD_TOKEN_ID")
 
 
 class B2RotationTests(RotationTestBase):

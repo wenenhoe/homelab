@@ -59,17 +59,44 @@ then:
 python3 ansible/bootstrap_secrets.py
 ```
 
-The six R2/B2/OCI write/read credentials are the one exception with a
-scripted path instead of a console round-trip: delete the cache
-file(s) for the leg you're rotating, then re-run
-`ansible/create_cloud_credentials.py --provider <r2|b2|oci>` — see
+The six R2/B2/OCI write/read credentials split into two different
+rotation flows, and need a redeploy step this section never used to
+mention at all.
+
+All three providers now have the same scripted rotate-with-verify-then-revoke path:
+
+```
+python3 ansible/create_cloud_credentials.py --provider <r2|b2|oci> --rotate {write,read,both}
+```
+
+This creates the new key, verifies it actually works over the same
+path production uses, and only then revokes the old one — no manual
+provider-console cleanup step for any of them. See
 [`cloud-credential-creation.md`](cloud-credential-creation.md#rotation)
-for what it does and doesn't do (it doesn't revoke the old provider-side
-key, by design — that's a manual cleanup step at the provider).
+for exactly what it does and doesn't do, including what happens if
+verification fails, and that same doc's R2 section for why R2's cached
+rotation credential is a materially broader-blast-radius risk than
+B2's/OCI's — a deliberate, accepted trade-off, not parity.
+
+**Redeploy needed, and it differs by leg — confirmed live:**
+
+- **Write leg** (`cloud_sync`, all three providers): a real deployed
+  systemd timer on `storage`, only re-rendered on the next
+  `deploy.yaml` run. Needs:
+  ```
+  ansible-playbook playbooks/deploy.yaml --limit storage,localhost
+  ```
+  same `,localhost` reasoning as every row in the table above.
+- **Read leg** (`restore_discovery`): runs entirely on `hosts:
+  controller` (your machine), rendered fresh from the current cache on
+  every invocation — `restore_all.py` always does this for you before
+  a restore. **No redeploy needed at all**: the next restore just picks
+  up the new value automatically.
+
 `ansible/audit_secrets.py --provider <r2|b2|oci>` lists what's actually
 on each provider's console and flags anything not matching the current
-cache, so that cleanup step doesn't rely on remembering which key was
-the old one.
+cache — useful after any `--rotate`, or after a failed one that left an
+unverified key orphaned, for all three providers.
 
 ## Certificate-backed material (not in `secrets_registry.yaml` at all)
 

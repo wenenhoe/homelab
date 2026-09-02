@@ -22,6 +22,7 @@ jobs:
       deploy_ordering: ${{ steps.filter.outputs.deploy_ordering }}
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
+      python_unit_tests: ${{ steps.filter.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
     steps:
@@ -64,6 +65,16 @@ jobs:
             # own config doesn't change what Trivy would find.
             trivy_ansible:
               - 'ansible/**'
+            # ansible/tests/ has no molecule/ scenario of its own (see
+            # docs/ci.md#change-scoped-not-a-full-sweep) — these two scripts
+            # are plain controller-side Python, covered by
+            # ansible/tests/ instead.
+            python_unit_tests:
+              - 'ansible/create_cloud_credentials.py'
+              - 'ansible/create_rotation_keys.py'
+              - 'ansible/tests/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
 
       - name: Determine which ansible roles to test
         id: roles
@@ -171,6 +182,27 @@ jobs:
         with:
           check-lock: "true"
           locked: "true"
+
+  # Plain controller-side Python, not an Ansible role — no molecule/
+  # scenario applies (see docs/molecule-testing.md). Every provider HTTP
+  # call and rclone invocation is mocked; nothing here needs network
+  # access or Galaxy collections.
+  python-unit-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.python_unit_tests == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          locked: "true"
+
+      - name: Run unit tests
+        run: uv run pytest tests/ -v
+        working-directory: ansible
 
   # Regression coverage for the ansible_host resolution ordering incident —
   # see docs/ci.md#deploy-ordering-check for what it catches and why.

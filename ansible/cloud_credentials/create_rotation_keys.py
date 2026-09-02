@@ -41,7 +41,7 @@ from cloud_credentials.rotation_keys.oci_bootstrap import create_oci_rotation_ke
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--provider", choices=["b2", "oci", "all"], default="all")
     parser.add_argument(
         "--admin-email",

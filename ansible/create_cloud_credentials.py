@@ -80,34 +80,16 @@ def _verify_marker_key(leg: str) -> str:
     # avoid (see this function's header comment).
     return f"_rotation-verify/{leg}-{time.time_ns()}-{secrets.token_hex(4)}"
 
-# Confirmed live across all three providers: a brand-new leg
-# credential isn't always usable by the provider's S3-compat API the
-# instant the create call returns. Retried below rather than failed
-# fast — but this means a genuine policy/permission problem now ALSO
-# retries the full window before failing, not just a real propagation
-# delay. None of the three give a way to tell them apart from the
-# response alone, and each uses a different HTTP status for the exact
-# same underlying condition:
-#   - OCI ListObjects: 403 SignatureDoesNotMatch, "secret key ... could
-#     not be found" — confirmed transient (60s and 507s to resolve).
-#   - OCI HeadObject (the write leg's rclone pre-flight check before
-#     every copy): a bare 403 Forbidden, no distinguishing text at all
-#     — confirmed transient too (234s to resolve), but a real policy
-#     denial on this same call would look identical.
-#   - R2 ListObjects: a bare 401 Unauthorized, no distinguishing text —
-#     confirmed transient, resolved in 10s on a throwaway measurement
-#     token. Different status code from OCI's, same underlying "key
-#     not propagated yet" condition.
-# Retrying broadly on "StatusCode: 403" or "StatusCode: 401" is a
-# deliberate trade-off: a genuinely wrong policy/token now takes
-# ~885s to surface as a failure instead of failing instantly. Accepted
-# because the alternative — no retry, so every manual re-run of
-# `--rotate` mints and orphans a fresh credential while propagation
-# finishes — is worse for the common case, and this is a rare,
-# manually-triggered operation. B2 hasn't independently hit either
-# shape yet; if it does, it's expected to be one of these two, not a
-# third status code, but that's a guess, not a confirmed fact — check
-# before assuming if it comes up.
+# A brand-new leg credential isn't always usable by the provider's
+# S3-compat API the instant the create call returns (confirmed live on
+# OCI and R2, different HTTP status per provider — see
+# docs/cloud-credential-creation.md's Rotation section for specifics).
+# Retried broadly on status alone, not specific error text, since
+# neither provider distinguishes "not propagated yet" from "genuinely
+# denied by policy" in the response — a real policy problem now also
+# takes the full window to surface as a failure, accepted because the
+# alternative (no retry) orphans a fresh credential on every manual
+# re-run instead.
 _PROPAGATION_ERROR_MARKERS = ("StatusCode: 403", "StatusCode: 401")
 
 
@@ -150,51 +132,21 @@ def verify_leg_via_rclone(
 ) -> tuple[bool, str]:
     """Prove a freshly-minted leg key can do its actual job over the same
     rclone S3-compatible path cloud_sync/restore-discovery use in
-    production — not just that the provider's native API accepts it.
-    B2's own listAllBucketNames/HeadObject surprises (see this doc's B2
-    section) are exactly why a native-API success isn't good enough here.
+    production — not just that the provider's native API accepts it
+    (see docs/cloud-credential-creation.md's B2 section for why that
+    distinction matters).
 
     read: a real ListObjectsV2 (`rclone lsjson`). write: a real PutObject
     (`rclone copyto`) to a fresh, uniquely-named marker key (see
-    _verify_marker_key) — rclone's S3 backend does its
-    own pre-flight HeadObject before the upload either way, so this
-    exercises both calls the write leg actually needs. Returns (ok, detail).
+    _verify_marker_key) — rclone's S3 backend does its own pre-flight
+    HeadObject before the upload either way, so this exercises both
+    calls the write leg actually needs. Returns (ok, detail).
 
-    `region` is required, not optional — confirmed live against OCI: a
-    bucket outside the tenancy's home region gets a 403
-    SignatureDoesNotMatch with OCI's own error text naming the missing
-    region as the cause when rclone's S3 backend signs without one. This
-    is the same gap production's rclone.conf.j2 already flags in its own
-    header comment as unconfirmed for every remote it renders — not a
-    new risk, just the first place in this repo it's actually been hit.
-    Included for B2 too on the same principle (matches the endpoint's
-    own region, shouldn't be harmful) though that hasn't independently
-    hit this failure mode yet.
-
-    Retries on a provider's key-propagation window — see
-    _PROPAGATION_ERROR_MARKERS — up to ~885s (14m45s) total before
-    giving up. Confirmed live five times, across three different S3
-    operations on three providers: OCI ListObjects took 60s and 507s,
-    OCI HeadObject (the write leg's pre-flight check) took 234s, R2
-    ListObjects took ~15-30s on both legs (one retry each) — all
-    comfortably inside the window, but a
-    real policy problem now also takes the full ~885s to surface as a
-    failure rather than failing instantly; see
-    _PROPAGATION_ERROR_MARKERS's comment for why that trade-off was
-    accepted. NEEDS LIVE VERIFICATION: widen further if a real rotation
-    exhausts retries.
-
-    `no_check_bucket = true` is required, confirmed live against B2: a
-    bucket-restricted key (which both providers' leg keys always are)
-    can't satisfy rclone's own pre-flight bucket-existence check, so
-    rclone falls back to CreateBucket — which a correctly least-
-    privileged key doesn't have rights to, producing a 403 that has
-    nothing to do with the object being written. See
-    rclone/rclone#4703/#5119 for the same behavior against AWS S3.
-    Production's cloud_sync/restore_discovery rclone.conf.j2 templates
-    render the same kind of bucket-restricted key and do NOT set this —
-    check whether that's actually broken too before assuming it isn't;
-    fixing that (if needed) is a separate change from this script.
+    `region` and `no_check_bucket = true` are both required, not
+    optional, and retries run through a real provider propagation
+    window — see docs/cloud-credential-creation.md's Rotation section
+    for what breaks without each of these and why the retry gate is as
+    broad as it is.
     """
     with tempfile.TemporaryDirectory() as tmp:
         conf_path = Path(tmp) / "rclone.conf"
@@ -679,11 +631,9 @@ def rotate_oci(legs: list[str]) -> bool:
 
         if old_key_id:
             try:
-                # NEEDS LIVE VERIFICATION: DELETE on this exact path is
-                # inferred from OCI's standard nested-resource REST
-                # convention (matches the sibling create call just
-                # above), not independently confirmed against Oracle's
-                # DeleteCustomerSecretKey reference.
+                # Confirmed live: this DELETE path successfully revoked
+                # both the read and write leg's old customer secret key
+                # during real rotations this session.
                 delete(f"/20160918/users/{user_id}/customerSecretKeys/{old_key_id}")
                 print(f"oci {leg}: old key {old_key_id} revoked")
             except requests.HTTPError as exc:

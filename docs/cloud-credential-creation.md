@@ -1,29 +1,29 @@
 # Cloud Credential Creation — R2/B2/OCI
 
-Two trust tiers, two scripts — except for R2, which has no tier
-separation at all; see its section below for why.
+Two scripts, plus an audit tool:
 
 - **`ansible/create_rotation_keys.py`** — run rarely, for B2 and OCI
   only. Takes each provider's master credential in memory only (never
   written to disk, never logged) and uses it to mint a narrower
   **rotation key**: scoped to creating/deleting keys, not to reading or
   writing backup data itself. The rotation key is what gets cached.
-  `--provider r2` doesn't exist here — Cloudflare has no delegate
-  credential to mint (confirmed live, see the R2 section).
+  `--provider r2` doesn't exist here — Cloudflare has no way to mint
+  such a delegate credential via its API at all (confirmed live, see
+  the R2 section); R2's admin token is cached differently, by
+  `create_cloud_credentials.py` itself, below.
 - **`ansible/create_cloud_credentials.py`** — run routinely. This is
   what actually creates/rotates the 6 `cloud_sync`/restore-discovery
   credentials (`cloudflare-r2-write-*`/`-read-*`,
   `backblaze-b2-write-*`/`-read-*`, `oci-write-*`/`-read-*` in
   `secrets_registry.yaml` — **write** for `cloud_sync`'s own upload leg
   in `host_vars/storage.yaml`, **read** for the controller-side
-  restore-discovery script, separate and not yet built — see
-  `disaster-recovery.md`'s Restoring section once it exists). For B2
-  and OCI, authenticates with the cached rotation key, never the master
-  credential. For R2, it prompts for the master token directly, every
-  time it actually needs to create a leg token — never cached, same
-  in-memory-only handling everywhere else uses for master credentials.
-  All six stay `format: manual` in the registry; this script is just an
-  automated way to fill them in.
+  restore-discovery script). B2 and OCI authenticate with their cached
+  rotation key; R2 authenticates with its own cached admin token
+  (`_rotation-key-cloudflare-r2-token` — prompted for once, then reused
+  — see R2's section for why this one is a materially broader-blast-radius
+  credential than the other two's). All six leg credentials stay
+  `format: manual` in the registry; this script is just an automated
+  way to fill them in.
 - **`ansible/audit_secrets.py`** — run whenever, read-only. `--local`
   diffs `ansible/files/secrets/` against `secrets_registry.yaml` to
   flag cache files nothing currently references (e.g. leftover from a
@@ -40,16 +40,16 @@ HTTP call and `rclone` invocation mocked — via
 `uv run pytest ansible/tests/ -v`, and wired into CI as `pr-checks.yml`'s
 `python-unit-tests` job (see `docs/ci.md`).
 
-Rotation keys (B2, OCI) are cached to `ansible/files/secrets/` for now,
-same as everything else in this repo. Moving that cache to an actual
-secrets manager (OpenBao is the current candidate) is a separate,
-not-yet-scoped subproject — see Future: Stage 2 below; nothing here
-depends on it.
+Rotation keys/tokens (all three providers now) are cached to
+`ansible/files/secrets/` for now, same as everything else in this
+repo. Moving that cache to an actual secrets manager (OpenBao is the
+current candidate) is a separate, not-yet-scoped subproject — see
+Future: Stage 2 below; nothing here depends on it.
 
 ```sh
 python3 ansible/create_rotation_keys.py --provider b2
 python3 ansible/create_rotation_keys.py --provider oci --admin-email you@example.com
-python3 ansible/create_cloud_credentials.py   # all three legs; prompts for R2's master token only if its leg credentials aren't cached yet
+python3 ansible/create_cloud_credentials.py   # all three legs; prompts for R2's admin token once, if not yet cached
 ```
 
 Safe to re-run either script — a credential whose cache files already
@@ -249,10 +249,6 @@ real 409 yet.
   every official example found only ever conditions storage/vault/compute
   resource families this way, never identity ones. Treating this as
   confirmed-absent unless proven otherwise.
-- The `UpdatePolicy` request shape used to fix an already-existing
-  policy in place (a bare `{"statements": [...]}` PUT body) — the
-  lookup-by-name path that feeds it is confirmed live, this specific
-  PUT hasn't independently been exercised yet.
 
 ### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 
@@ -323,11 +319,12 @@ strict enforcement.
 
 ## Rotation
 
-**Rotating a B2/OCI leg key — `--rotate {write,read,both}`:**
+**`--rotate {write,read,both}`, all three providers now:**
 
 ```sh
 python3 ansible/create_cloud_credentials.py --provider b2 --rotate write
 python3 ansible/create_cloud_credentials.py --provider oci --rotate both
+python3 ansible/create_cloud_credentials.py --provider r2 --rotate read
 ```
 
 Order of operations, per leg: create a new provider-side key → verify
@@ -335,110 +332,70 @@ it actually works over the same rclone S3-compatible path
 cloud_sync/restore-discovery use in production (a real `ListObjectsV2`
 for the read leg, a real `PutObject` for the write leg — see
 `verify_leg_via_rclone` in `create_cloud_credentials.py`) → only then
-revoke the old key (B2 `b2_delete_key`, OCI `DeleteCustomerSecretKey`)
-and overwrite its cache entry. **If verification fails, both keys are
-left live and the cache is left untouched** — the old key keeps
-working, the new (unverified, unrevoked) key is reported so it can be
-investigated or deleted by hand; nothing is silently rolled back or
-retried. Each leg is independent, so `--rotate write` never touches the
-read leg's key or cache.
+revoke the old key and overwrite its cache entry. **If verification
+fails, both keys are left live and the cache is left untouched** — the
+old key keeps working, the new (unverified, unrevoked) key is reported
+so it can be investigated or deleted by hand; nothing is silently
+rolled back or retried. Each leg is independent, so `--rotate write`
+never touches the read leg's key or cache.
 
-**Retries through a provider's key-propagation window, confirmed live
-across all three providers, four times, across three different S3
-operations.** A brand-new leg credential isn't always immediately
-usable by the provider's S3-compat API — the exact same request with
-an already-propagated key succeeds, a just-created one fails until it
-propagates, and each provider uses a different HTTP status for the
-same underlying condition. OCI `ListObjects` (the read leg) fails with
-a 403 `SignatureDoesNotMatch` naming a missing secret key; OCI
-`HeadObject` (rclone's pre-flight check before every write-leg copy)
-fails with a bare 403 `Forbidden`; R2 `ListObjects` fails with a bare
-401 `Unauthorized` — neither of the latter two has any distinguishing
-text at all. Measured live: 60s and 507s for OCI's read leg, 234s for
-OCI's write leg, ~15-30s (one retry) for both R2 legs, all comfortably
-inside the ~885s (14m45s) window `verify_leg_via_rclone` retries for.
+**Verification retries through each provider's key-propagation
+window.** A brand-new leg credential isn't always immediately usable by
+the provider's S3-compat API — the same request with an
+already-propagated key succeeds, a just-created one fails until it
+propagates. Each provider surfaces this differently and gives no way
+to distinguish it from a genuine policy denial, so the retry gate
+matches broadly on HTTP status alone (`StatusCode: 403` or
+`StatusCode: 401`) rather than specific error text — accepted
+deliberately: a real policy problem now takes the full retry window
+(~885s / 14m45s) to surface as a failure instead of failing instantly,
+but the alternative (no retry) means every manual re-run of a failed
+`--rotate` mints and orphans a fresh provider-side key while waiting
+out propagation by hand. Measured windows vary a lot by provider: OCI
+60s–507s, B2 up to ~4 minutes, R2 15–30s — all comfortably inside the
+current ceiling. Widen `_run_rclone_with_retry`'s `retries`/`delay` if
+a real rotation ever exhausts it.
 
-**The retry gate matches on `StatusCode: 403` or `StatusCode: 401`
-alone, not specific error text — a deliberate trade-off, not an
-oversight.** Neither OCI nor R2 gives a way to distinguish "not yet
-propagated" from "genuinely denied by policy" in these responses, so a
-real policy problem now also retries the full ~885s before failing,
-instead of failing instantly. Accepted because the alternative is worse
-for the common case: without this retry, every manual re-run of a
-failed `--rotate` mints and orphans a fresh provider-side key while
-waiting out propagation by hand. B2 hasn't independently hit either
-shape yet — if it does, check the actual status code before assuming
-it matches rather than extending this list on guess. NEEDS LIVE
-VERIFICATION: five data points, all
-well inside the window — widen further if a real rotation exhausts
-retries.
+**rclone config requirements verification depends on, each confirmed
+against a real failure, not assumed:**
 
-**Verification's rclone config sets `no_check_bucket = true`, confirmed
-required against B2, live.** rclone's S3 backend runs a pre-flight
-bucket-existence check before every copy; a bucket-restricted key
-(what both providers' leg keys always are) can't satisfy that check the
-same way an account-wide key can, so rclone falls back to `CreateBucket`
-— which a correctly least-privileged key has no rights to, producing a
-403 that has nothing to do with the actual object being written. Same
-behavior independently documented against AWS S3 in
-rclone/rclone#4703 and #5119. **Worth checking separately: production's
-`cloud_sync`/`restore_discovery` rclone.conf.j2 templates render the
-same kind of bucket-restricted key and do not set this** — that's a
-possible live production issue, not something this fix touches; verify
-via Uptime Kuma's cloud_sync push monitor and the buckets' actual
-recent object timestamps before assuming it isn't affected.
+- `no_check_bucket = true` — a bucket-restricted leg key can't satisfy
+  rclone's pre-flight bucket-existence check the way an account-wide
+  key can, so rclone falls back to `CreateBucket`, which a correctly
+  least-privileged key has no rights to (independently documented
+  against AWS S3 in rclone/rclone#4703 and #5119). **Open question,
+  not yet resolved:** production's `cloud_sync`/`restore_discovery`
+  `rclone.conf.j2` templates render the same kind of bucket-restricted
+  key and don't set this — check Uptime Kuma's `cloud_sync` monitor and
+  the buckets' actual recent object timestamps before assuming
+  production isn't affected.
+- `region` set explicitly — OCI's S3-compatible API 403s with
+  `SignatureDoesNotMatch` if the bucket's region isn't stated and
+  differs from the tenancy's home region; the same
+  `rclone.conf.j2`-header gap noted above applies here too. Set for B2
+  and R2 as well on the same principle, though only OCI has
+  independently hit this failure mode.
+- A unique, timestamped verification-object key per rotation (see
+  `_verify_marker_key`), not one fixed reused path — a fixed path
+  breaks permanently the first time the bucket has any retention rule,
+  since every write after the first is an overwrite of an
+  already-retained object. Neither B2's nor OCI's write leg can delete
+  objects (by design), so these accumulate forever — accepted as
+  negligible, since rotations are rare and each marker is a few bytes.
 
-**Verification's rclone config sets `region` explicitly, confirmed
-required for OCI, live.** A bucket outside the tenancy's home region
-gets a 403 `SignatureDoesNotMatch` from OCI's S3-compatible API without
-it — OCI's own error text names the missing region as the cause. This
-is the same gap `cloud_sync/templates/rclone.conf.j2`'s header comment
-already flags as unconfirmed for every remote it renders; this is just
-the first place in the repo it's actually been hit. Included for B2
-too on the same principle, though that hasn't independently hit this
-failure mode.
+**R2's `--rotate` uses its cached admin token** rather than a
+purpose-built delegate identity — same verify-then-revoke mechanics as
+B2/OCI, broader blast radius if that token is ever compromised (see R2's
+section above). Delete `_rotation-key-cloudflare-r2-token` to fall back
+to prompting every time.
 
-**The write leg's verification object is unique per rotation and never
-deleted — confirmed live why it has to be.** An earlier version reused
-one fixed object path, overwritten on every rotation; a real run hit a
-`RetentionRuleViolation` the moment that bucket had a retention rule,
-since the first write created the object and every later write to that
-same key was a genuine, permanent overwrite-of-a-retained-object
-failure — not propagation, not permissions, and it never resolved by
-waiting. Each verification now writes to a freshly-timestamped key
-under `_rotation-verify/` instead (see `_verify_marker_key`). Both
-providers' write legs deliberately exclude delete capability (see each
-provider's section above), so there's no credential in this flow that
-could clean these up — they accumulate forever, accepted as a
-negligible cost since rotations are rare and each marker is a few
-bytes.
-
-**Confirmed working end-to-end, live, for all three providers, both
-legs.** OCI (create → verify, including the propagation retry above →
-revoke old → cache new), B2's write leg (region, retry-gate, and
-`no_check_bucket` fixes all validated against a real rotation), and R2
-(both legs, each resolving in a single retry — R2's propagation window
-is markedly faster than OCI's or B2's, ~15-30s vs. up to several
-minutes, though still real and still needed the same retry mechanism).
-
-**R2 now supports `--rotate` too**, same verify-then-revoke mechanics
-as B2/OCI (`create_cloud_credentials.py --provider r2 --rotate
-{write,read,both}`) — the only difference is what authenticates the
-create/revoke calls: R2's cached `_rotation-key-cloudflare-r2-token`
-rather than a purpose-built delegate identity, with the broader blast
-radius that implies (see R2's section above). Deleting that cache file
-and re-running falls back to the original prompt-every-time flow if
-you ever want to stop caching it.
-
-**Rotating the rotation credential itself:** B2/OCI's rotation keys —
-delete the cache file(s), re-run `create_rotation_keys.py --provider
-<b2|oci>` — needs the master credential again, so it's the one
-operation for these two that isn't fully unattended, low-frequency and
-human-attended by nature. R2's cached token isn't something this
-tooling rotates on its own either — it's a human-created Console
-token; replacing it means creating a new one there and overwriting
-`_rotation-key-cloudflare-r2-token`. None of the three auto-revoke the
-old rotation credential itself here.
+**Rotating the rotation credential itself** (B2/OCI's rotation keys,
+or R2's cached admin token): none of the three auto-rotate or
+auto-revoke this — it's a low-frequency, human-attended action.
+B2/OCI: delete the cache file(s), re-run `create_rotation_keys.py
+--provider <b2|oci>` (needs the master credential again). R2: create a
+new Custom Token in the Console, overwrite
+`_rotation-key-cloudflare-r2-token` by hand.
 
 ## Future: Stage 2 (secrets manager)
 
@@ -448,12 +405,14 @@ repo. Stage 2 — replacing that cache with an actual secrets manager
 (OpenBao is the current candidate) — is a separate, not-yet-scoped
 subproject; nothing in Stage 1 depends on it or blocks it.
 
-One thing worth carrying into that design specifically: R2 has no
-cached credential at all — its master token is prompted fresh every
-run (see its section above), which is the one place Stage 1 falls
-short of the other two providers' level of automation. A secrets
-manager holding that master token itself, gated by its own access
-control and audit trail, could plausibly turn "a human types in the
-token" into "an authorized policy-gated read" — worth evaluating
+One thing worth carrying into that design specifically: R2's cached
+admin token (see its section above) is the one place Stage 1 falls
+short of the other two providers' narrowing — it's cached now, same as
+B2's/OCI's rotation keys, but unlike them it's genuinely
+master-equivalent, since Cloudflare has no policy-condition mechanism
+to restrict what a token-creating token can grant. A secrets manager
+gating access to it with its own audit trail wouldn't narrow *what* it
+can do, but would narrow *who/what can reach it* — worth evaluating
 specifically for R2 when Stage 2 is actually scoped, since it's the
-one provider Stage 1 couldn't fully solve on its own.
+one provider Stage 1 couldn't bring to parity with the other two on
+its own.

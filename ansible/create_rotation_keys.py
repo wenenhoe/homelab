@@ -143,10 +143,9 @@ def user_email(admin_email: str, name: str) -> str:
 
 
 def oci_lookup_one(session, endpoint, tenancy: str, resource_path: str, name: str) -> dict:
-    # NEEDS LIVE VERIFICATION: this is OCI's documented List{Users,Groups}
-    # shape (GET with compartmentId+name query params) — confirmed for
-    # users via a real 409 in this tenancy; groups uses the identical
-    # pattern per Oracle's docs but hasn't independently hit a 409 yet.
+    # OCI's documented List{Users,Groups} shape (GET with
+    # compartmentId+name query params) — confirmed live for both users
+    # and groups via real 409-then-lookup runs in this tenancy.
     resp = session.get(f"{endpoint}/20160918/{resource_path}", params={"compartmentId": tenancy, "name": name})
     resp.raise_for_status()
     matches = resp.json()

@@ -1,0 +1,50 @@
+---
+- name: Plain task, no when, no loop
+  ansible.builtin.debug:
+    msg: hello
+
+- name: Task with a single when clause
+  ansible.builtin.debug:
+    msg: conditional
+  when: some_var is defined
+
+- name: Task with a compound when clause
+  ansible.builtin.debug:
+    msg: compound
+  when:
+    - some_var is defined
+    - other_var | bool
+
+- name: Looped task using loop
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+  loop:
+    - /tmp/a
+    - /tmp/b
+
+- name: Looped task using legacy with_items
+  ansible.builtin.debug:
+    msg: "{{ item }}"
+  with_items:
+    - one
+    - two
+
+- name: Block wrapping a nested task
+  block:
+    - name: Task nested inside a block
+      ansible.builtin.debug:
+        msg: nested
+  rescue:
+    - name: Task nested inside a rescue
+      ansible.builtin.debug:
+        msg: rescued
+
+- name: Pull in another task file
+  ansible.builtin.import_tasks: other.yaml
+
+- name: Flush handlers early
+  ansible.builtin.meta: flush_handlers
+
+- name: Dynamically include another task file
+  ansible.builtin.include_tasks: dynamic.yaml

@@ -5,7 +5,7 @@ the same ansible/files/secrets/<registry-key> paths bootstrap_secrets.py
 would have written by hand. Entries stay format: manual in
 secrets_registry.yaml — this script is just an automated way to fill
 them in. See docs/cloud-credential-creation.md for the exact grant
-each leg gets, provider-by-provider.
+each leaf gets, provider-by-provider.
 
 B2 and OCI authenticate using a rotation-key credential — narrower
 than the account's master credential, created once by
@@ -29,7 +29,7 @@ this script).
 Safe to re-run: a credential whose both cache files already exist is
 left untouched, same convention as bootstrap_secrets.py.
 
-To rotate a leg key with verify-before-revoke of the old one (the new
+To rotate a leaf key with verify-before-revoke of the old one (the new
 key must actually pass a live read/write check over the same rclone
 S3-compatible path production uses before the old key is touched), use
 --rotate instead of deleting cache files for all three providers now —
@@ -69,18 +69,18 @@ OCI_BUCKET = "homelab-backups"
 # propagation issue, and it never resolves by waiting. A fresh key
 # avoids that entirely, and better matches production anyway (cloud_sync
 # uses `rclone copy`, never `sync` — always new objects, never
-# overwrites, per this doc's Threat model section). The write leg
+# overwrites, per this doc's Threat model section). The write leaf
 # deliberately has no delete capability on either provider (see this
 # doc), so these accumulate forever — accepted cost, since rotations are
 # rare and each marker is a few bytes.
-def _verify_marker_key(leg: str) -> str:
+def _verify_marker_key(leaf: str) -> str:
     # time.time_ns() + a random suffix, not just second-resolution
     # time.time() — two verifications in the same second must not
     # collide and silently reintroduce the exact bug this exists to
     # avoid (see this function's header comment).
-    return f"_rotation-verify/{leg}-{time.time_ns()}-{secrets.token_hex(4)}"
+    return f"_rotation-verify/{leaf}-{time.time_ns()}-{secrets.token_hex(4)}"
 
-# A brand-new leg credential isn't always usable by the provider's
+# A brand-new leaf credential isn't always usable by the provider's
 # S3-compat API the instant the create call returns (confirmed live on
 # OCI and R2, different HTTP status per provider — see
 # docs/cloud-credential-creation.md's Rotation section for specifics).
@@ -127,10 +127,10 @@ def require_cache_file(name: str, how_to_get_it: str) -> str:
     return path.read_text().strip()
 
 
-def verify_leg_via_rclone(
-    access_key: str, secret_key: str, endpoint: str, region: str, bucket: str, leg: str, timeout: int = 45
+def verify_leaf_via_rclone(
+    access_key: str, secret_key: str, endpoint: str, region: str, bucket: str, leaf: str, timeout: int = 45
 ) -> tuple[bool, str]:
-    """Prove a freshly-minted leg key can do its actual job over the same
+    """Prove a freshly-minted leaf key can do its actual job over the same
     rclone S3-compatible path cloud_sync/restore-discovery use in
     production — not just that the provider's native API accepts it
     (see docs/cloud-credential-creation.md's B2 section for why that
@@ -140,7 +140,7 @@ def verify_leg_via_rclone(
     (`rclone copyto`) to a fresh, uniquely-named marker key (see
     _verify_marker_key) — rclone's S3 backend does its own pre-flight
     HeadObject before the upload either way, so this exercises both
-    calls the write leg actually needs. Returns (ok, detail).
+    calls the write leaf actually needs. Returns (ok, detail).
 
     `region` and `no_check_bucket = true` are both required, not
     optional, and retries run through a real provider propagation
@@ -164,16 +164,16 @@ def verify_leg_via_rclone(
         conf_path.chmod(0o600)
         cmd = ["rclone", "--config", str(conf_path), "--contimeout", "5s", "--timeout", f"{timeout}s", "--low-level-retries", "1"]
 
-        if leg == "read":
+        if leaf == "read":
             result = _run_rclone_with_retry([*cmd, "lsjson", f"verify:{bucket}", "--max-depth", "1"], timeout)
             if result.returncode != 0:
                 return False, f"rclone lsjson (ListObjectsV2) failed: {result.stderr.strip()}"
             return True, "ListObjectsV2 succeeded"
 
         marker_path = Path(tmp) / "marker.txt"
-        marker_path.write_text(f"homelab rotation-verify marker for the {leg} leg\n")
+        marker_path.write_text(f"homelab rotation-verify marker for the {leaf} leaf\n")
         result = _run_rclone_with_retry(
-            [*cmd, "copyto", str(marker_path), f"verify:{bucket}/{_verify_marker_key(leg)}"], timeout
+            [*cmd, "copyto", str(marker_path), f"verify:{bucket}/{_verify_marker_key(leaf)}"], timeout
         )
         if result.returncode != 0:
             return False, f"rclone copyto (PutObject) failed: {result.stderr.strip()}"
@@ -183,14 +183,14 @@ def verify_leg_via_rclone(
 # --- Cloudflare R2 ----------------------------------------------------
 
 
-R2_PERMISSION_GROUP_BY_LEG = {
+R2_PERMISSION_GROUP_BY_LEAF = {
     "write": "Workers R2 Storage Bucket Item Write",
     "read": "Workers R2 Storage Bucket Item Read",
 }
 
 
 def r2_rotation_token() -> str:
-    """The Cloudflare admin token used to create/revoke R2 leg tokens.
+    """The Cloudflare admin token used to create/revoke R2 leaf tokens.
 
     Cached from here on — a deliberate, accepted risk, not an oversight.
     This token needs "Account API Tokens: Edit", which Cloudflare will
@@ -235,12 +235,12 @@ def r2_permission_group_ids(session, account_id: str) -> dict:
     return {g["name"]: g["id"] for g in resp["result"]}
 
 
-def r2_create_leg_token(session, account_id: str, group_by_name: dict, leg: str) -> dict:
-    group_name = R2_PERMISSION_GROUP_BY_LEG[leg]
+def r2_create_leaf_token(session, account_id: str, group_by_name: dict, leaf: str) -> dict:
+    group_name = R2_PERMISSION_GROUP_BY_LEAF[leaf]
     if group_name not in group_by_name:
         available = ", ".join(sorted(group_by_name))
         print(
-            f"r2 {leg}: no permission group named {group_name!r} found. "
+            f"r2 {leaf}: no permission group named {group_name!r} found. "
             f"Available account-scoped permission groups: {available}",
             file=sys.stderr,
         )
@@ -249,7 +249,7 @@ def r2_create_leg_token(session, account_id: str, group_by_name: dict, leg: str)
     resp = session.post(
         f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
         json={
-            "name": f"homelab-cloud-sync-r2-{leg}",
+            "name": f"homelab-cloud-sync-r2-{leaf}",
             "policies": [
                 {
                     "effect": "allow",
@@ -260,7 +260,7 @@ def r2_create_leg_token(session, account_id: str, group_by_name: dict, leg: str)
         },
     ).json()
     if not resp.get("success"):
-        print(f"r2 {leg}: token creation failed: {resp['errors']}", file=sys.stderr)
+        print(f"r2 {leaf}: token creation failed: {resp['errors']}", file=sys.stderr)
         sys.exit(1)
     return resp["result"]
 
@@ -291,20 +291,20 @@ def create_r2() -> None:
     session.headers["Authorization"] = f"Bearer {token}"
     group_by_name = r2_permission_group_ids(session, account_id)
 
-    for leg, done in [("write", write_done), ("read", read_done)]:
+    for leaf, done in [("write", write_done), ("read", read_done)]:
         if done:
             continue
-        result = r2_create_leg_token(session, account_id, group_by_name, leg)
+        result = r2_create_leaf_token(session, account_id, group_by_name, leaf)
         # Cloudflare's own docs: Secret Access Key = SHA-256 hash of the
         # token value, computed locally — the raw token value itself is
         # never the S3 secret key. https://developers.cloudflare.com/r2/api/tokens/
         secret_key = hashlib.sha256(result["value"].encode()).hexdigest()
-        write_cache(f"cloudflare-r2-{leg}-access-key", result["id"])
-        write_cache(f"cloudflare-r2-{leg}-secret-key", secret_key)
-        print(f"r2 {leg}: cached")
+        write_cache(f"cloudflare-r2-{leaf}-access-key", result["id"])
+        write_cache(f"cloudflare-r2-{leaf}-secret-key", secret_key)
+        print(f"r2 {leaf}: cached")
 
 
-def rotate_r2(legs: list[str]) -> bool:
+def rotate_r2(leaves: list[str]) -> bool:
     token = r2_rotation_token()
     account_id = require_cache_file(
         "cloudflare-r2-account-id",
@@ -322,19 +322,19 @@ def rotate_r2(legs: list[str]) -> bool:
     region = "auto"
 
     all_ok = True
-    for leg in legs:
+    for leaf in leaves:
         old_token_id = None
-        if cached(f"cloudflare-r2-{leg}-access-key"):
-            old_token_id = (SECRETS_DIR / f"cloudflare-r2-{leg}-access-key").read_text().strip()
+        if cached(f"cloudflare-r2-{leaf}-access-key"):
+            old_token_id = (SECRETS_DIR / f"cloudflare-r2-{leaf}-access-key").read_text().strip()
 
-        result = r2_create_leg_token(session, account_id, group_by_name, leg)
+        result = r2_create_leaf_token(session, account_id, group_by_name, leaf)
         new_token_id = result["id"]
         new_secret_key = hashlib.sha256(result["value"].encode()).hexdigest()
 
-        ok, detail = verify_leg_via_rclone(new_token_id, new_secret_key, endpoint, region, R2_BUCKET, leg)
+        ok, detail = verify_leaf_via_rclone(new_token_id, new_secret_key, endpoint, region, R2_BUCKET, leaf)
         if not ok:
             print(
-                f"r2 {leg}: new token {new_token_id} failed verification ({detail}). "
+                f"r2 {leaf}: new token {new_token_id} failed verification ({detail}). "
                 f"Old token {old_token_id or '(none cached)'} left untouched and still in use; "
                 f"new token left live but NOT cached or revoked — investigate, then either "
                 f"retry or delete {new_token_id} by hand in the Cloudflare dashboard.",
@@ -346,17 +346,17 @@ def rotate_r2(legs: list[str]) -> bool:
         if old_token_id:
             try:
                 r2_delete_token(session, account_id, old_token_id)
-                print(f"r2 {leg}: old token {old_token_id} revoked")
+                print(f"r2 {leaf}: old token {old_token_id} revoked")
             except RuntimeError as exc:
                 print(
-                    f"r2 {leg}: new token verified and will be cached, but revoking old token "
+                    f"r2 {leaf}: new token verified and will be cached, but revoking old token "
                     f"{old_token_id} failed ({exc}) — revoke it by hand in the Cloudflare dashboard.",
                     file=sys.stderr,
                 )
 
-        write_cache(f"cloudflare-r2-{leg}-access-key", new_token_id)
-        write_cache(f"cloudflare-r2-{leg}-secret-key", new_secret_key)
-        print(f"r2 {leg}: rotated and verified")
+        write_cache(f"cloudflare-r2-{leaf}-access-key", new_token_id)
+        write_cache(f"cloudflare-r2-{leaf}-secret-key", new_secret_key)
+        print(f"r2 {leaf}: rotated and verified")
 
     return all_ok
 
@@ -385,12 +385,12 @@ def b2_authorize(key_id: str, key: str) -> dict:
 # bucket-restricted key — unrelated to file-level capabilities, applies
 # regardless of read/write/delete scope.
 #
-# readFiles is required on the write leg too, confirmed live. rclone's
+# readFiles is required on the write leaf too, confirmed live. rclone's
 # S3 backend calls HeadObject on the destination before every copy,
 # fresh object or not, to decide skip-vs-upload — B2 maps HeadObject to
-# readFiles, not listFiles. A write leg without readFiles fails
+# readFiles, not listFiles. A write leaf without readFiles fails
 # outright on every copy attempt, not just on already-existing objects.
-B2_LEG_CAPABILITIES = {
+B2_LEAF_CAPABILITIES = {
     "write": ["listBuckets", "listAllBucketNames", "listFiles", "readFiles", "writeFiles"],
     "read": ["listBuckets", "listAllBucketNames", "listFiles", "readFiles"],
 }
@@ -409,13 +409,13 @@ def b2_lookup_bucket_id(session, api_url: str, account_id: str) -> str:
     return buckets[0]["bucketId"]
 
 
-def b2_create_leg_key(session, api_url: str, account_id: str, bucket_id: str, leg: str) -> dict:
+def b2_create_leaf_key(session, api_url: str, account_id: str, bucket_id: str, leaf: str) -> dict:
     resp = session.post(
         f"{api_url}/b2api/v2/b2_create_key",
         json={
             "accountId": account_id,
-            "capabilities": B2_LEG_CAPABILITIES[leg],
-            "keyName": f"homelab-cloud-sync-{leg}",
+            "capabilities": B2_LEAF_CAPABILITIES[leaf],
+            "keyName": f"homelab-cloud-sync-{leaf}",
             "bucketId": bucket_id,
         },
     )
@@ -456,16 +456,16 @@ def create_b2() -> None:
     session, account_id, api_url = b2_rotation_session()
     bucket_id = b2_lookup_bucket_id(session, api_url, account_id)
 
-    for leg, done in [("write", write_done), ("read", read_done)]:
+    for leaf, done in [("write", write_done), ("read", read_done)]:
         if done:
             continue
-        body = b2_create_leg_key(session, api_url, account_id, bucket_id, leg)
-        write_cache(f"backblaze-b2-{leg}-access-key", body["applicationKeyId"])
-        write_cache(f"backblaze-b2-{leg}-secret-key", body["applicationKey"])
-        print(f"b2 {leg}: cached")
+        body = b2_create_leaf_key(session, api_url, account_id, bucket_id, leaf)
+        write_cache(f"backblaze-b2-{leaf}-access-key", body["applicationKeyId"])
+        write_cache(f"backblaze-b2-{leaf}-secret-key", body["applicationKey"])
+        print(f"b2 {leaf}: cached")
 
 
-def rotate_b2(legs: list[str]) -> bool:
+def rotate_b2(leaves: list[str]) -> bool:
     session, account_id, api_url = b2_rotation_session()
     bucket_id = b2_lookup_bucket_id(session, api_url, account_id)
     region = require_cache_file(
@@ -474,18 +474,18 @@ def rotate_b2(legs: list[str]) -> bool:
     endpoint = f"https://s3.{region}.backblazeb2.com"
 
     all_ok = True
-    for leg in legs:
+    for leaf in leaves:
         old_key_id = None
-        if cached(f"backblaze-b2-{leg}-access-key"):
-            old_key_id = (SECRETS_DIR / f"backblaze-b2-{leg}-access-key").read_text().strip()
+        if cached(f"backblaze-b2-{leaf}-access-key"):
+            old_key_id = (SECRETS_DIR / f"backblaze-b2-{leaf}-access-key").read_text().strip()
 
-        new_body = b2_create_leg_key(session, api_url, account_id, bucket_id, leg)
+        new_body = b2_create_leaf_key(session, api_url, account_id, bucket_id, leaf)
         new_access_key, new_secret_key = new_body["applicationKeyId"], new_body["applicationKey"]
 
-        ok, detail = verify_leg_via_rclone(new_access_key, new_secret_key, endpoint, region, B2_BUCKET, leg)
+        ok, detail = verify_leaf_via_rclone(new_access_key, new_secret_key, endpoint, region, B2_BUCKET, leaf)
         if not ok:
             print(
-                f"b2 {leg}: new key {new_access_key} failed verification ({detail}). "
+                f"b2 {leaf}: new key {new_access_key} failed verification ({detail}). "
                 f"Old key {old_key_id or '(none cached)'} left untouched and still in use; "
                 f"new key left live but NOT cached or revoked — investigate, then either "
                 f"retry or revoke {new_access_key} by hand in the B2 Console.",
@@ -497,17 +497,17 @@ def rotate_b2(legs: list[str]) -> bool:
         if old_key_id:
             try:
                 b2_delete_key(session, api_url, old_key_id)
-                print(f"b2 {leg}: old key {old_key_id} revoked")
+                print(f"b2 {leaf}: old key {old_key_id} revoked")
             except requests.HTTPError as exc:
                 print(
-                    f"b2 {leg}: new key verified and will be cached, but revoking old key "
+                    f"b2 {leaf}: new key verified and will be cached, but revoking old key "
                     f"{old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
                     file=sys.stderr,
                 )
 
-        write_cache(f"backblaze-b2-{leg}-access-key", new_access_key)
-        write_cache(f"backblaze-b2-{leg}-secret-key", new_secret_key)
-        print(f"b2 {leg}: rotated and verified")
+        write_cache(f"backblaze-b2-{leaf}-access-key", new_access_key)
+        write_cache(f"backblaze-b2-{leaf}-secret-key", new_secret_key)
+        print(f"b2 {leaf}: rotated and verified")
 
     return all_ok
 
@@ -546,10 +546,10 @@ def oci_rotation_auth_and_endpoint() -> tuple[OCISigner, str]:
     return signer, endpoint
 
 
-def oci_leg_user_id(leg: str) -> str:
+def oci_leaf_user_id(leaf: str) -> str:
     return require_cache_file(
-        f"_oci-leg-user-ocid-{leg}",
-        f"Missing the {leg}-leg IAM user's OCID — run: "
+        f"_oci-leaf-user-ocid-{leaf}",
+        f"Missing the {leaf}-leaf IAM user's OCID — run: "
         "python3 ansible/create_rotation_keys.py --provider oci",
     )
 
@@ -584,19 +584,19 @@ def create_oci() -> None:
     session.headers["Content-Type"] = "application/json"
     post, _delete = oci_rotation_calls(session, endpoint)
 
-    for leg, done in [("write", write_done), ("read", read_done)]:
+    for leaf, done in [("write", write_done), ("read", read_done)]:
         if done:
             continue
-        user_id = oci_leg_user_id(leg)
-        key = post(f"/20160918/users/{user_id}/customerSecretKeys", {"displayName": f"homelab-cloud-sync-{leg}"})
-        write_cache(f"oci-{leg}-access-key", key["id"])
+        user_id = oci_leaf_user_id(leaf)
+        key = post(f"/20160918/users/{user_id}/customerSecretKeys", {"displayName": f"homelab-cloud-sync-{leaf}"})
+        write_cache(f"oci-{leaf}-access-key", key["id"])
         # The secret is only ever returned on this create call — nothing
         # to read back later if this write is lost mid-run.
-        write_cache(f"oci-{leg}-secret-key", key["key"])
-        print(f"oci {leg}: cached")
+        write_cache(f"oci-{leaf}-secret-key", key["key"])
+        print(f"oci {leaf}: cached")
 
 
-def rotate_oci(legs: list[str]) -> bool:
+def rotate_oci(leaves: list[str]) -> bool:
     signer, endpoint = oci_rotation_auth_and_endpoint()
     session = requests.Session()
     session.auth = signer
@@ -608,19 +608,19 @@ def rotate_oci(legs: list[str]) -> bool:
     api_endpoint = f"https://{namespace}.compat.objectstorage.{region}.oraclecloud.com"
 
     all_ok = True
-    for leg in legs:
-        user_id = oci_leg_user_id(leg)
+    for leaf in leaves:
+        user_id = oci_leaf_user_id(leaf)
         old_key_id = None
-        if cached(f"oci-{leg}-access-key"):
-            old_key_id = (SECRETS_DIR / f"oci-{leg}-access-key").read_text().strip()
+        if cached(f"oci-{leaf}-access-key"):
+            old_key_id = (SECRETS_DIR / f"oci-{leaf}-access-key").read_text().strip()
 
-        new_key = post(f"/20160918/users/{user_id}/customerSecretKeys", {"displayName": f"homelab-cloud-sync-{leg}"})
+        new_key = post(f"/20160918/users/{user_id}/customerSecretKeys", {"displayName": f"homelab-cloud-sync-{leaf}"})
         new_access_key, new_secret_key = new_key["id"], new_key["key"]
 
-        ok, detail = verify_leg_via_rclone(new_access_key, new_secret_key, api_endpoint, region, OCI_BUCKET, leg)
+        ok, detail = verify_leaf_via_rclone(new_access_key, new_secret_key, api_endpoint, region, OCI_BUCKET, leaf)
         if not ok:
             print(
-                f"oci {leg}: new key {new_access_key} failed verification ({detail}). "
+                f"oci {leaf}: new key {new_access_key} failed verification ({detail}). "
                 f"Old key {old_key_id or '(none cached)'} left untouched and still in use; "
                 f"new key left live but NOT cached or revoked — investigate, then either "
                 f"retry or delete {new_access_key} by hand (Console or DeleteCustomerSecretKey).",
@@ -632,20 +632,20 @@ def rotate_oci(legs: list[str]) -> bool:
         if old_key_id:
             try:
                 # Confirmed live: this DELETE path successfully revoked
-                # both the read and write leg's old customer secret key
+                # both the read and write leaf's old customer secret key
                 # during real rotations this session.
                 delete(f"/20160918/users/{user_id}/customerSecretKeys/{old_key_id}")
-                print(f"oci {leg}: old key {old_key_id} revoked")
+                print(f"oci {leaf}: old key {old_key_id} revoked")
             except requests.HTTPError as exc:
                 print(
-                    f"oci {leg}: new key verified and will be cached, but revoking old key "
+                    f"oci {leaf}: new key verified and will be cached, but revoking old key "
                     f"{old_key_id} failed ({exc}) — revoke it by hand.",
                     file=sys.stderr,
                 )
 
-        write_cache(f"oci-{leg}-access-key", new_access_key)
-        write_cache(f"oci-{leg}-secret-key", new_secret_key)
-        print(f"oci {leg}: rotated and verified")
+        write_cache(f"oci-{leaf}-access-key", new_access_key)
+        write_cache(f"oci-{leaf}-secret-key", new_secret_key)
+        print(f"oci {leaf}: rotated and verified")
 
     return all_ok
 
@@ -657,7 +657,7 @@ def main() -> int:
         "--rotate",
         choices=["write", "read", "both"],
         help=(
-            "Rotate a leg key: create a new one, verify it over the same rclone "
+            "Rotate a leaf key: create a new one, verify it over the same rclone "
             "S3-compatible path production uses, only then revoke the old one. "
             "Requires --provider r2, b2, or oci (not all) — see this script's "
             "module docstring."
@@ -670,10 +670,10 @@ def main() -> int:
     if args.rotate:
         if args.provider not in ("r2", "b2", "oci"):
             parser.error("--rotate requires --provider r2, b2, or oci")
-        legs = ["write", "read"] if args.rotate == "both" else [args.rotate]
+        leaves = ["write", "read"] if args.rotate == "both" else [args.rotate]
         rotate_fn = {"r2": rotate_r2, "b2": rotate_b2, "oci": rotate_oci}[args.provider]
         try:
-            ok = rotate_fn(legs)
+            ok = rotate_fn(leaves)
         except requests.HTTPError as exc:
             print(f"{args.provider}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
             return 1

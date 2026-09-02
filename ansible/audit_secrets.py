@@ -4,14 +4,14 @@ checks, run separately since they need different access:
 
 --local (default, no credentials needed): diffs every file under
 ansible/files/secrets/ against secrets_registry.yaml's declared keys plus
-the known internal bookkeeping files (_rotation-key-*, _oci-leg-user-ocid-*)
+the known internal bookkeeping files (_rotation-key-*, _oci-leaf-user-ocid-*)
 this repo's own scripts write. Anything else on disk isn't referenced by
 current config — a leftover from a naming change, a one-off manual test
 file, or similar. Flagged, never deleted by this script.
 
 --provider {oci,b2,r2,all} (needs the same credentials
 create_rotation_keys.py/create_cloud_credentials.py use): lists what
-actually exists on each provider's console for the write/read legs, and
+actually exists on each provider's console for the write/read leaves, and
 flags anything not matching the currently cached access key as an
 apparent orphan — e.g. a key from a rotation that was interrupted or
 retried, never cleaned up on the provider's side afterward. Read-only:
@@ -51,8 +51,8 @@ KNOWN_INTERNAL_PATTERNS = [
     "_rotation-key-oci-private-key.pem",
     "_rotation-key-oci-tenancy-ocid",
     "_rotation-key-oci-region",
-    "_oci-leg-user-ocid-write",
-    "_oci-leg-user-ocid-read",
+    "_oci-leaf-user-ocid-write",
+    "_oci-leaf-user-ocid-read",
 ]
 
 B2_BUCKET = "homelab-backups-b2"
@@ -89,11 +89,11 @@ def audit_local() -> None:
     print("  checked, then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in orphans))
 
 
-# --- OCI: list customer secret keys per leg -------------------------------
+# --- OCI: list customer secret keys per leaf -------------------------------
 
 
 def audit_oci() -> None:
-    print("\n== OCI customer secret keys (write + read legs) ==")
+    print("\n== OCI customer secret keys (write + read leaves) ==")
     from oci.config import from_file as oci_config_from_file
     from oci.signer import Signer as OCISigner
 
@@ -109,16 +109,16 @@ def audit_oci() -> None:
     session.auth = signer
     endpoint = f"https://identity.{config['region']}.oraclecloud.com"
 
-    for leg in ("write", "read"):
-        user_id = cached(f"_oci-leg-user-ocid-{leg}")
-        active_access_key = cached(f"oci-{leg}-access-key")
+    for leaf in ("write", "read"):
+        user_id = cached(f"_oci-leaf-user-ocid-{leaf}")
+        active_access_key = cached(f"oci-{leaf}-access-key")
         if not user_id:
-            print(f"  {leg}: no cached user OCID, skipping")
+            print(f"  {leaf}: no cached user OCID, skipping")
             continue
         resp = session.get(f"{endpoint}/20160918/users/{user_id}/customerSecretKeys")
         resp.raise_for_status()
         keys = resp.json()
-        print(f"  {leg}-leg user has {len(keys)} customer secret key(s) (OCI allows max 2):")
+        print(f"  {leaf}-leaf user has {len(keys)} customer secret key(s) (OCI allows max 2):")
         for key in keys:
             marker = "ACTIVE (matches cache)" if key["id"] == active_access_key else "ORPHAN"
             print(f"    {key['id']}  created={key['timeCreated']}  state={key['lifecycleState']}  [{marker}]")
@@ -128,7 +128,7 @@ def audit_oci() -> None:
                 )
                 print(
                     "      or Console: Identity & Security > Users > "
-                    f"homelab-cloud-sync-{leg} > Customer Secret Keys > Delete"
+                    f"homelab-cloud-sync-{leaf} > Customer Secret Keys > Delete"
                 )
 
 

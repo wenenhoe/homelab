@@ -78,16 +78,16 @@ verification fails, and that same doc's R2 section for why R2's cached
 rotation credential is a materially broader-blast-radius risk than
 B2's/OCI's — a deliberate, accepted trade-off, not parity.
 
-**Redeploy needed, and it differs by leg — confirmed live:**
+**Redeploy needed, and it differs by leaf — confirmed live:**
 
-- **Write leg** (`cloud_sync`, all three providers): a real deployed
+- **Write leaf** (`cloud_sync`, all three providers): a real deployed
   systemd timer on `storage`, only re-rendered on the next
   `deploy.yaml` run. Needs:
   ```
   ansible-playbook playbooks/deploy.yaml --limit storage,localhost
   ```
   same `,localhost` reasoning as every row in the table above.
-- **Read leg** (`restore_discovery`): runs entirely on `hosts:
+- **Read leaf** (`restore_discovery`): runs entirely on `hosts:
   controller` (your machine), rendered fresh from the current cache on
   every invocation — `restore_all.py` always does this for you before
   a restore. **No redeploy needed at all**: the next restore just picks

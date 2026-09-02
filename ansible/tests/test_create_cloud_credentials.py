@@ -39,7 +39,7 @@ class VerifyMarkerKeyTests(unittest.TestCase):
         keys = {ccc._verify_marker_key("write") for _ in range(1000)}
         self.assertEqual(len(keys), 1000)
 
-    def test_key_is_scoped_under_the_reserved_prefix_and_leg(self):
+    def test_key_is_scoped_under_the_reserved_prefix_and_leaf(self):
         key = ccc._verify_marker_key("write")
         self.assertTrue(key.startswith("_rotation-verify/write-"))
 
@@ -84,7 +84,7 @@ class RunRcloneWithRetryTests(unittest.TestCase):
     @patch.object(ccc.time, "sleep")
     @patch.object(ccc.subprocess, "run")
     def test_retries_on_head_object_propagation_error_then_succeeds(self, mock_run, mock_sleep):
-        # The write leg's failure shape — bare 403 Forbidden, no
+        # The write leaf's failure shape — bare 403 Forbidden, no
         # SignatureDoesNotMatch text at all — is the specific case this
         # patch fixes; the previous two-marker gate never retried this.
         mock_run.side_effect = [
@@ -185,7 +185,7 @@ class R2RotationTests(RotationTestBase):
     def _create_token_response(self, token_id, token_value):
         return MagicMock(json=lambda: {"success": True, "result": {"id": token_id, "value": token_value}})
 
-    @patch.object(ccc, "verify_leg_via_rclone", return_value=(True, "ok"))
+    @patch.object(ccc, "verify_leaf_via_rclone", return_value=(True, "ok"))
     @patch.object(ccc.requests, "Session")
     def test_successful_rotation_deletes_old_token_and_caches_new_one(self, mock_session_cls, mock_verify):
         session = mock_session_cls.return_value
@@ -204,7 +204,7 @@ class R2RotationTests(RotationTestBase):
         self.assertIn("OLD_TOKEN_ID", session.delete.call_args.args[0])
         self.assertEqual((self.tmp / "cloudflare-r2-write-access-key").read_text(), "NEW_TOKEN_ID")
 
-    @patch.object(ccc, "verify_leg_via_rclone", return_value=(False, "denied"))
+    @patch.object(ccc, "verify_leaf_via_rclone", return_value=(False, "denied"))
     @patch.object(ccc.requests, "Session")
     def test_failed_verification_leaves_old_token_untouched(self, mock_session_cls, mock_verify):
         session = mock_session_cls.return_value
@@ -227,7 +227,7 @@ class B2RotationTests(RotationTestBase):
         self.seed("backblaze-b2-write-access-key", "OLD_ACCESS")
         self.seed("backblaze-b2-write-secret-key", "OLD_SECRET")
 
-    @patch.object(ccc, "verify_leg_via_rclone", return_value=(True, "ok"))
+    @patch.object(ccc, "verify_leaf_via_rclone", return_value=(True, "ok"))
     @patch.object(ccc.requests, "Session")
     def test_successful_rotation_revokes_old_key_and_caches_new_one(self, mock_session_cls, mock_verify):
         session = mock_session_cls.return_value
@@ -257,7 +257,7 @@ class B2RotationTests(RotationTestBase):
         self.assertEqual((self.tmp / "backblaze-b2-write-access-key").read_text(), "NEW_ACCESS")
         self.assertEqual((self.tmp / "backblaze-b2-write-secret-key").read_text(), "NEW_SECRET")
 
-    @patch.object(ccc, "verify_leg_via_rclone", return_value=(False, "auth failed"))
+    @patch.object(ccc, "verify_leaf_via_rclone", return_value=(False, "auth failed"))
     @patch.object(ccc.requests, "Session")
     def test_failed_verification_leaves_old_key_untouched(self, mock_session_cls, mock_verify):
         session = mock_session_cls.return_value
@@ -285,13 +285,13 @@ class OciRotationTests(RotationTestBase):
         self.seed("_rotation-key-oci-tenancy-ocid", "ocid1.tenancy.oc1..t")
         self.seed("_rotation-key-oci-region", "us-ashburn-1")
         (self.tmp / "_rotation-key-oci-private-key.pem").write_text("-----BEGIN-----")
-        self.seed("_oci-leg-user-ocid-read", "ocid1.user.oc1..readleg")
+        self.seed("_oci-leaf-user-ocid-read", "ocid1.user.oc1..readleg")
         self.seed("oci-namespace", "mynamespace")
         self.seed("oci-region", "us-ashburn-1")
         self.seed("oci-read-access-key", "OLD_OCID")
         self.seed("oci-read-secret-key", "OLD_SECRET")
 
-    @patch.object(ccc, "verify_leg_via_rclone", return_value=(True, "ok"))
+    @patch.object(ccc, "verify_leaf_via_rclone", return_value=(True, "ok"))
     @patch.object(ccc, "OCISigner")
     @patch.object(ccc.requests, "Session")
     def test_successful_rotation_deletes_old_secret_key(self, mock_session_cls, mock_signer, mock_verify):
@@ -311,7 +311,7 @@ class OciRotationTests(RotationTestBase):
         self.assertEqual((self.tmp / "oci-read-access-key").read_text(), "NEW_OCID")
         self.assertEqual((self.tmp / "oci-read-secret-key").read_text(), "NEW_SECRET")
 
-    @patch.object(ccc, "verify_leg_via_rclone", return_value=(False, "permission denied"))
+    @patch.object(ccc, "verify_leaf_via_rclone", return_value=(False, "permission denied"))
     @patch.object(ccc, "OCISigner")
     @patch.object(ccc.requests, "Session")
     def test_failed_verification_never_calls_delete(self, mock_session_cls, mock_signer, mock_verify):

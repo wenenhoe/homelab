@@ -15,20 +15,20 @@ Two scripts, plus an audit tool:
   what actually creates/rotates the 6 `cloud_sync`/restore-discovery
   credentials (`cloudflare-r2-write-*`/`-read-*`,
   `backblaze-b2-write-*`/`-read-*`, `oci-write-*`/`-read-*` in
-  `secrets_registry.yaml` — **write** for `cloud_sync`'s own upload leg
+  `secrets_registry.yaml` — **write** for `cloud_sync`'s own upload leaf
   in `host_vars/storage.yaml`, **read** for the controller-side
   restore-discovery script). B2 and OCI authenticate with their cached
   rotation key; R2 authenticates with its own cached admin token
   (`_rotation-key-cloudflare-r2-token` — prompted for once, then reused
   — see R2's section for why this one is a materially broader-blast-radius
-  credential than the other two's). All six leg credentials stay
+  credential than the other two's). All six leaf credentials stay
   `format: manual` in the registry; this script is just an automated
   way to fill them in.
 - **`ansible/audit_secrets.py`** — run whenever, read-only. `--local`
   diffs `ansible/files/secrets/` against `secrets_registry.yaml` to
   flag cache files nothing currently references (e.g. leftover from a
   naming change). `--provider {oci,b2,r2,all}` lists each provider's
-  actual write/read-leg credentials and flags any not matching the
+  actual write/read-leaf credentials and flags any not matching the
   current cache as an orphan — e.g. a key from an interrupted rotation
   never cleaned up on the provider's side. Flags only; deleting
   anything it finds is a separate, deliberate step.
@@ -49,7 +49,7 @@ Future: Stage 2 below; nothing here depends on it.
 ```sh
 python3 ansible/create_rotation_keys.py --provider b2
 python3 ansible/create_rotation_keys.py --provider oci --admin-email you@example.com
-python3 ansible/create_cloud_credentials.py   # all three legs; prompts for R2's admin token once, if not yet cached
+python3 ansible/create_cloud_credentials.py   # all three leaves; prompts for R2's admin token once, if not yet cached
 ```
 
 Safe to re-run either script — a credential whose cache files already
@@ -91,8 +91,8 @@ that it holds zero file/bucket-data capabilities (no
 account-wide reach it can't touch backup contents itself, only mint
 and revoke other keys.
 
-**B2's leg keys need `listAllBucketNames`, confirmed live.** Unlike the
-rotation key above, the write/read leg keys *are* bucket-restricted (to
+**B2's leaf keys need `listAllBucketNames`, confirmed live.** Unlike the
+rotation key above, the write/read leaf keys *are* bucket-restricted (to
 `homelab-backups-b2`) — and Backblaze's own docs state plainly, across
 three separate pages, that a bucket-restricted key needs
 `listAllBucketNames` for S3-compatible-API access to work at all,
@@ -101,20 +101,20 @@ produces a blanket `403 Forbidden` on the S3-compatible API — not a
 capability-specific error, so it's easy to misdiagnose.
 `rclone/rclone#5020` documents the same symptom independently.
 
-**The write leg needs `readFiles` too, confirmed live.** rclone's S3
+**The write leaf needs `readFiles` too, confirmed live.** rclone's S3
 backend calls `HeadObject` on the destination before *every* `copy`,
 fresh object or not, to decide skip-vs-upload — not `ListObjectsV2`,
 despite rclone's own prose docs ("testing by size and modification
 time") suggesting otherwise. B2 maps `HeadObject` to `readFiles`, not
-`listFiles`. A write leg without `readFiles` fails outright on every
+`listFiles`. A write leaf without `readFiles` fails outright on every
 copy attempt (`operation error S3: HeadObject ... 403`), not just on
-already-existing objects. So the write leg can read backup contents,
+already-existing objects. So the write leaf can read backup contents,
 not just list and write them — the boundary this key actually holds is
 narrower than "read-only excluded": it's `deleteFiles` being absent,
 which is the property that matters for the threat model in
 `disaster-recovery.md`, and it's untouched by this.
 
-Both leg keys request `listBuckets listAllBucketNames listFiles
+Both leaf keys request `listBuckets listAllBucketNames listFiles
 readFiles writeFiles` (write) / `listBuckets listAllBucketNames
 listFiles readFiles` (read) — identical except for `writeFiles`. A
 generic `Forbidden` with no named operation is a strong signal of an
@@ -123,7 +123,7 @@ actual failing S3 call (`HeadObject`/`PutObject`/`ListObjectsV2`),
 which narrows down which capability is missing far faster than
 guessing from the error text alone.
 
-### OCI — meaningful reduction, but not scoped to just the two leg users
+### OCI — meaningful reduction, but not scoped to just the two leaf users
 
 Master: your personal/admin OCI identity via `~/.oci/config` — this is
 the one master credential the script doesn't take interactively, since
@@ -158,7 +158,7 @@ Every credential-mutating operation in that table follows the same
 pattern — the specific permission alone is never sufficient. Omitting
 `USER_UPDATE` produced a live `404 NotAuthorizedOrNotFound` on
 `CreateCustomerSecretKey`; adding it, this policy statement went on to
-successfully create both leg users' customer secret keys end to end —
+successfully create both leaf users' customer secret keys end to end —
 this permission combination is confirmed correct in practice, not just
 against the reference table. `USER_UPDATE`'s own scope (bare
 `UpdateUser` only, nothing else) is the one real cost of this
@@ -174,9 +174,9 @@ behind "do the rotation key's cache files exist" (exactly what
 happened here: the first run cached a working keypair attached to a
 policy that was later found to be wrong, and a second run wouldn't
 have caught it). The keypair-exists check now only gates keypair
-*generation*; leg-identity and rotation-identity policy verification
-run on every invocation regardless, the same way `oci_ensure_leg_identity`
-already re-verified leg policies unconditionally. Re-running
+*generation*; leaf-identity and rotation-identity policy verification
+run on every invocation regardless, the same way `oci_ensure_leaf_identity`
+already re-verified leaf policies unconditionally. Re-running
 `create_rotation_keys.py --provider oci --admin-email you@example.com`
 is now enough to pick up a policy change without touching the cached
 keypair — no flag needed, no cache files to delete. Confirmed live:
@@ -205,7 +205,7 @@ storage) exists for narrowing identity-family resources to one named
 user, as far as I've found — if you find one, this is worth
 tightening.
 
-The leg users' policies themselves: write gets `any
+The leaf users' policies themselves: write gets `any
 {request.permission='OBJECT_INSPECT',
 request.permission='OBJECT_CREATE',
 request.permission='OBJECT_OVERWRITE'}`, read swaps in `OBJECT_READ`
@@ -218,8 +218,8 @@ not-found-or-unauthorized response this API gives for every other
 authorization gap — a single-part `PutObject` doesn't hit this, so it
 went unnoticed until an archive large enough to trigger rclone's
 multi-thread/multipart path (minecraft's) actually ran against OCI.
-`OBJECT_DELETE` is still excluded from both legs; `OBJECT_OVERWRITE`
-lets the write leg replace an existing object's content but not remove
+`OBJECT_DELETE` is still excluded from both leaves; `OBJECT_OVERWRITE`
+lets the write leaf replace an existing object's content but not remove
 one — a real (if currently unexercised, since every archive filename
 embeds a unique timestamp and is never reused) capability beyond pure
 append-only that wasn't granted before.
@@ -294,22 +294,22 @@ original assumption that "Create Additional Tokens" was an
 Cloudflare's docs before this. Create the token as a **Custom
 Token** instead — not the template — named
 **`homelab-cloud-sync-r2-rotation-key`** (matching B2's rotation key
-naming, with the `r2` disambiguator R2's own leg tokens already use)
+naming, with the `r2` disambiguator R2's own leaf tokens already use)
 — with **Account > Account API Tokens > Edit**, scoped to the account.
 Its own permission_groups
-lookup (used to find the R2-specific groups the leg tokens actually
+lookup (used to find the R2-specific groups the leaf tokens actually
 get) matches by substring against known group names rather than exact
 match, and prints every available name if nothing matches — a
 mismatch here is a one-line fix, not another blind guess.
 
-The leg tokens themselves stay properly bucket-scoped (`Workers R2
+The leaf tokens themselves stay properly bucket-scoped (`Workers R2
 Storage Bucket Item Write`/`Read`, restricted to `homelab-backups`) and
 only ever hold R2-specific permissions, never `API Tokens Write` — so
 they're not subject to the sub-token restriction above at all, only the
 rotation token is. Practically, `cloud_sync`'s own `rclone copy`-only
 design (never `sync`) is what actually prevents an on-prem compromise
 from deleting R2 objects — see `disaster-recovery.md`'s Threat model.
-R2's defense-in-depth here is `copy`-vs-`sync` at the leg-token level,
+R2's defense-in-depth here is `copy`-vs-`sync` at the leaf-token level,
 not IAM narrowing at the rotation-token level, which is the part this
 provider can't get to parity with B2/OCI on.
 
@@ -319,6 +319,23 @@ strict enforcement.
 
 ## Rotation
 
+**One-time migration if you have an existing deployment:** this repo's
+terminology changed from "leg" to "leaf" (write/read leaf key, matching
+the standard root/intermediate/leaf credential-hierarchy vocabulary).
+OCI's per-leaf IAM user OCID cache file followed suit — rename it under
+`ansible/files/secrets/` before the next run:
+
+```sh
+cd ansible/files/secrets
+mv _oci-leg-user-ocid-write _oci-leaf-user-ocid-write
+mv _oci-leg-user-ocid-read  _oci-leaf-user-ocid-read
+```
+
+No other cache file is affected — every other provider's file names
+(`cloudflare-r2-write-access-key`, `backblaze-b2-read-secret-key`,
+`oci-write-access-key`, etc.) always used "write"/"read" directly, never
+the word "leg" itself.
+
 **`--rotate {write,read,both}`, all three providers now:**
 
 ```sh
@@ -327,20 +344,20 @@ python3 ansible/create_cloud_credentials.py --provider oci --rotate both
 python3 ansible/create_cloud_credentials.py --provider r2 --rotate read
 ```
 
-Order of operations, per leg: create a new provider-side key → verify
+Order of operations, per leaf: create a new provider-side key → verify
 it actually works over the same rclone S3-compatible path
 cloud_sync/restore-discovery use in production (a real `ListObjectsV2`
-for the read leg, a real `PutObject` for the write leg — see
-`verify_leg_via_rclone` in `create_cloud_credentials.py`) → only then
+for the read leaf, a real `PutObject` for the write leaf — see
+`verify_leaf_via_rclone` in `create_cloud_credentials.py`) → only then
 revoke the old key and overwrite its cache entry. **If verification
 fails, both keys are left live and the cache is left untouched** — the
 old key keeps working, the new (unverified, unrevoked) key is reported
 so it can be investigated or deleted by hand; nothing is silently
-rolled back or retried. Each leg is independent, so `--rotate write`
-never touches the read leg's key or cache.
+rolled back or retried. Each leaf is independent, so `--rotate write`
+never touches the read leaf's key or cache.
 
 **Verification retries through each provider's key-propagation
-window.** A brand-new leg credential isn't always immediately usable by
+window.** A brand-new leaf credential isn't always immediately usable by
 the provider's S3-compat API — the same request with an
 already-propagated key succeeds, a just-created one fails until it
 propagates. Each provider surfaces this differently and gives no way
@@ -359,7 +376,7 @@ a real rotation ever exhausts it.
 **rclone config requirements verification depends on, each confirmed
 against a real failure, not assumed:**
 
-- `no_check_bucket = true` — a bucket-restricted leg key can't satisfy
+- `no_check_bucket = true` — a bucket-restricted leaf key can't satisfy
   rclone's pre-flight bucket-existence check the way an account-wide
   key can, so rclone falls back to `CreateBucket`, which a correctly
   least-privileged key has no rights to (independently documented
@@ -379,7 +396,7 @@ against a real failure, not assumed:**
   `_verify_marker_key`), not one fixed reused path — a fixed path
   breaks permanently the first time the bucket has any retention rule,
   since every write after the first is an overwrite of an
-  already-retained object. Neither B2's nor OCI's write leg can delete
+  already-retained object. Neither B2's nor OCI's write leaf can delete
   objects (by design), so these accumulate forever — accepted as
   negligible, since rotations are rare and each marker is a few bytes.
 
@@ -399,7 +416,7 @@ new Custom Token in the Console, overwrite
 
 ## Future: Stage 2 (secrets manager)
 
-Everything above is Stage 1: rotation keys and leg credentials both
+Everything above is Stage 1: rotation keys and leaf credentials both
 land in `ansible/files/secrets/`, same as every other secret in this
 repo. Stage 2 — replacing that cache with an actual secrets manager
 (OpenBao is the current candidate) — is a separate, not-yet-scoped

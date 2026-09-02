@@ -17,9 +17,9 @@ restore_discovery_excluded_apps: []
 restore_discovery_dir: "{{ project_root }}/ansible/files/restore"
 
 # Read-only counterparts of host_vars/storage.yaml's cloud_sync_targets
-# (which holds the WRITE legs cloud_sync itself uploads with). Bucket
+# (which holds the WRITE leaves cloud_sync itself uploads with). Bucket
 # and endpoint are identical for a given provider regardless of which
-# leg is used, so those are read from hostvars['storage'].cloud_sync_targets
+# leaf is used, so those are read from hostvars['storage'].cloud_sync_targets
 # directly in rclone.conf.j2 rather than repeated here — only the
 # credentials differ.
 restore_discovery_cloud_read_credentials:

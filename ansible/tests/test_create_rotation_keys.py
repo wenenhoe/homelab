@@ -53,10 +53,10 @@ class OciPolicyRecheckTests(unittest.TestCase):
             crk.write_cache(name, value)
 
     @patch.object(crk, "oci_master_auth_and_endpoint")
-    @patch.object(crk, "oci_ensure_leg_identity")
+    @patch.object(crk, "oci_ensure_leaf_identity")
     @patch.object(crk, "oci_ensure_rotation_identity")
     def test_policy_recheck_runs_when_keypair_already_cached(
-        self, mock_ensure_rotation, mock_ensure_leg, mock_auth
+        self, mock_ensure_rotation, mock_ensure_leaf, mock_auth
     ):
         self._cache_full_keypair()
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
@@ -64,17 +64,17 @@ class OciPolicyRecheckTests(unittest.TestCase):
 
         crk.create_oci_rotation_key(admin_email="you@example.com")
 
-        # The whole point of the fix: leg + rotation policy checks fire
+        # The whole point of the fix: leaf + rotation policy checks fire
         # unconditionally, not gated behind the keypair cache.
-        self.assertEqual(mock_ensure_leg.call_count, 2)
+        self.assertEqual(mock_ensure_leaf.call_count, 2)
         mock_ensure_rotation.assert_called_once()
 
     @patch.object(crk, "oci_master_auth_and_endpoint")
-    @patch.object(crk, "oci_ensure_leg_identity")
+    @patch.object(crk, "oci_ensure_leaf_identity")
     @patch.object(crk, "oci_ensure_rotation_identity")
     @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
     def test_keypair_not_regenerated_when_cached(
-        self, mock_genkey, mock_ensure_rotation, mock_ensure_leg, mock_auth
+        self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth
     ):
         self._cache_full_keypair()
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
@@ -85,9 +85,9 @@ class OciPolicyRecheckTests(unittest.TestCase):
         mock_genkey.assert_not_called()
 
     @patch.object(crk, "oci_master_auth_and_endpoint")
-    @patch.object(crk, "oci_ensure_leg_identity")
+    @patch.object(crk, "oci_ensure_leaf_identity")
     @patch.object(crk, "oci_ensure_rotation_identity")
-    def test_user_ocid_mismatch_is_a_hard_stop(self, mock_ensure_rotation, mock_ensure_leg, mock_auth):
+    def test_user_ocid_mismatch_is_a_hard_stop(self, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
         # If 'homelab-key-rotation' now resolves to a different user than
         # the cached keypair was issued for, that keypair can't
         # authenticate as it — this must fail loudly, not silently
@@ -100,11 +100,11 @@ class OciPolicyRecheckTests(unittest.TestCase):
             crk.create_oci_rotation_key(admin_email="you@example.com")
 
     @patch.object(crk, "oci_master_auth_and_endpoint")
-    @patch.object(crk, "oci_ensure_leg_identity")
+    @patch.object(crk, "oci_ensure_leaf_identity")
     @patch.object(crk, "oci_ensure_rotation_identity")
     @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
     def test_keypair_generated_and_cached_on_first_run(
-        self, mock_genkey, mock_ensure_rotation, mock_ensure_leg, mock_auth
+        self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth
     ):
         # Nothing cached yet: full first-run path, including the API-key
         # upload — this is the pre-existing behavior and must survive

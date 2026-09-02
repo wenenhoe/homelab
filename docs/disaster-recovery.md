@@ -10,7 +10,7 @@ selected named volumes to SeaweedFS — nothing else. Cloud coverage
 already-encrypted objects out of SeaweedFS and copying them onward — see
 "Threat model" below for why it's designed this way, "What's backed up"
 for SeaweedFS coverage, and [`cloud-sync.md`](cloud-sync.md) for how the
-cloud leg works.
+cloud leaf works.
 
 S3 credential generation/rotation is covered in [`secrets.md`](secrets.md),
 not here.

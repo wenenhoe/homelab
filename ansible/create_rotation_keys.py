@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-time-per-rotation-key bootstrap: take each provider's master
 credential in memory only (never written to disk, never logged) and use
-it to mint a narrower "rotation key" that can create/delete the leg
+it to mint a narrower "rotation key" that can create/delete the leaf
 keys but can't touch backup data itself. ansible/create_cloud_credentials.py
 authenticates with the cached rotation key from here on — the master
 credential is never read by that script.
@@ -22,7 +22,7 @@ guarantee).
 Run this again when a rotation key itself needs rotating, or to
 re-verify/repair IAM policies (OCI) against an already-cached keypair —
 neither regenerates the keypair unless its cache files are missing.
-Routine leg-key rotation is create_cloud_credentials.py's job and
+Routine leaf-key rotation is create_cloud_credentials.py's job and
 doesn't touch this script or the master credential at all.
 
 Usage:
@@ -184,10 +184,10 @@ def oci_get_or_create_group(session, endpoint, post, tenancy: str, name: str, de
         return oci_lookup_one(session, endpoint, tenancy, "groups", name)
 
 
-def oci_ensure_leg_identity(
-    session, endpoint, post, put, tenancy: str, leg: str, permissions: list[str], admin_email: str
+def oci_ensure_leaf_identity(
+    session, endpoint, post, put, tenancy: str, leaf: str, permissions: list[str], admin_email: str
 ) -> str:
-    """Create the leg's IAM user/group if missing, and always (re-)verify its
+    """Create the leaf's IAM user/group if missing, and always (re-)verify its
     policy statement matches `permissions`; return its user OCID.
 
     The user/group/membership steps are skipped once `cache_key` exists —
@@ -197,10 +197,14 @@ def oci_ensure_leg_identity(
     tenancy on the next run, instead of being silently skipped forever the
     way `oci_create_rotation_identity`'s own top-level cache check already
     documents as a known gap for the rotation key — this closes the same
-    gap for leg identities before it bites the same way twice.
+    gap for leaf identities before it bites the same way twice.
     """
-    cache_key = f"_oci-leg-user-ocid-{leg}"
-    name = f"homelab-cloud-sync-{leg}"
+    # "-leaf-" here matches "leaf" terminology throughout - see
+    # docs/cloud-credential-creation.md's Rotation section for the
+    # one-time file rename this required on an already-provisioned
+    # deployment (was "_oci-leg-user-ocid-*" before this rename).
+    cache_key = f"_oci-leaf-user-ocid-{leaf}"
+    name = f"homelab-cloud-sync-{leaf}"
 
     if cached(cache_key):
         user_id = (SECRETS_DIR / cache_key).read_text().strip()
@@ -212,7 +216,7 @@ def oci_ensure_leg_identity(
             post,
             tenancy,
             name,
-            f"cloud_sync {leg} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
+            f"cloud_sync {leaf} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
             admin_email,
         )
         group = oci_get_or_create_group(
@@ -237,7 +241,7 @@ def oci_ensure_leg_identity(
             {
                 "compartmentId": tenancy,
                 "name": name,
-                "description": f"Scopes {name} to {OCI_BUCKET}, {leg} only",
+                "description": f"Scopes {name} to {OCI_BUCKET}, {leaf} only",
                 "statements": [statement],
             },
         )
@@ -256,7 +260,7 @@ def oci_ensure_rotation_identity(session, endpoint, post, put, tenancy: str, adm
     """Create the dedicated key-rotation IAM user/group, and always
     (re-)verify its policy statement. Returns its user OCID.
 
-    Mirrors oci_ensure_leg_identity's split: user/group/membership are
+    Mirrors oci_ensure_leaf_identity's split: user/group/membership are
     skipped once they exist, but the policy 409-and-updates every call —
     so this is safe (and cheap) to run unconditionally, independent of
     whether the rotation keypair itself is already cached. See
@@ -371,13 +375,13 @@ def create_oci_rotation_key(admin_email: str) -> None:
     # CreateMultipartUpload 404s as NoSuchBucket like any other
     # unauthorized-vs-missing case on this API, even though OBJECT_CREATE
     # alone is sufficient for a single-part PutObject. No OBJECT_DELETE on
-    # either leg — OBJECT_OVERWRITE lets the write leg replace an existing
+    # either leaf — OBJECT_OVERWRITE lets the write leaf replace an existing
     # object's content but still can't remove one.
-    oci_ensure_leg_identity(
+    oci_ensure_leaf_identity(
         session, endpoint, post, put, tenancy, "write",
         ["OBJECT_INSPECT", "OBJECT_CREATE", "OBJECT_OVERWRITE"], admin_email,
     )
-    oci_ensure_leg_identity(
+    oci_ensure_leaf_identity(
         session, endpoint, post, put, tenancy, "read",
         ["OBJECT_INSPECT", "OBJECT_READ"], admin_email,
     )
@@ -397,7 +401,7 @@ def create_oci_rotation_key(admin_email: str) -> None:
                 file=sys.stderr,
             )
             sys.exit(1)
-        print("oci: rotation keypair already cached (unchanged); leg + rotation policies re-verified above")
+        print("oci: rotation keypair already cached (unchanged); leaf + rotation policies re-verified above")
         return
 
     private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -422,7 +426,7 @@ def create_oci_rotation_key(admin_email: str) -> None:
     write_cache("_rotation-key-oci-private-key.pem", private_pem)
     write_cache("_rotation-key-oci-tenancy-ocid", tenancy)
     write_cache("_rotation-key-oci-region", region)
-    print("oci: rotation identity and leg users cached")
+    print("oci: rotation identity and leaf users cached")
 
 
 def main() -> int:

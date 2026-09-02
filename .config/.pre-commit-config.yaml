@@ -34,6 +34,12 @@ repos:
         args: [-c, .config/.ansible-lint, --project-dir, ansible]
         additional_dependencies:
           - ansible
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.5
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+      - id: ruff-format
   - repo: https://github.com/docker-compose-linter/pre-commit-dclint
     rev: v3.1.0
     hooks:

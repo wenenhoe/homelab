@@ -19,14 +19,20 @@ differs a lot by provider — OCI has real, documented limits on how far
 this can be narrowed, not a uniform "create/delete keys only"
 guarantee).
 
-Run this again when a rotation key itself needs rotating, or to
-re-verify/repair IAM policies (OCI) against an already-cached keypair —
-neither regenerates the keypair unless its cache files are missing.
-Routine leaf-key rotation is create_leaf_keys.py's job and doesn't
-touch this script or the master credential at all.
+Without --rotate: idempotent bootstrap. Re-verifies/repairs IAM
+policies (OCI) against an already-cached keypair every run, but never
+regenerates the keypair itself if its cache files already exist — safe
+to re-run at any time, including against a rotation key that's already
+expiring, without accidentally reissuing it.
+
+With --rotate: mints a genuinely new rotation key/keypair, verifies it
+can actually do its job, only then revokes the old one — the only path
+that reissues an already-existing rotation key with fresh expiry.
+Requires --provider b2 or oci (not all, not r2 — see above).
 
 Usage (run from ansible/):
     python3 -m cloud_credentials.create_rotation_keys [--provider {b2,oci,all}]
+    python3 -m cloud_credentials.create_rotation_keys --provider {b2,oci} --rotate
 """
 
 from __future__ import annotations
@@ -37,8 +43,8 @@ import sys
 import requests
 
 from cloud_credentials.cache import SECRETS_DIR
-from cloud_credentials.rotation_keys.b2 import create_b2_rotation_key
-from cloud_credentials.rotation_keys.oci_bootstrap import create_oci_rotation_key
+from cloud_credentials.rotation_keys.b2 import create_b2_rotation_key, rotate_b2_rotation_key
+from cloud_credentials.rotation_keys.oci_bootstrap import create_oci_rotation_key, rotate_oci_rotation_key
 
 
 def main() -> int:
@@ -53,12 +59,33 @@ def main() -> int:
             "Identity-Domain-enabled tenancies require a unique email per user."
         ),
     )
+    parser.add_argument(
+        "--rotate",
+        action="store_true",
+        help=(
+            "Reissue an already-existing rotation key: mint new, verify it can "
+            "actually do its job, only then revoke the old one. Requires "
+            "--provider b2 or oci (not all)."
+        ),
+    )
     args = parser.parse_args()
 
     if args.provider in ("oci", "all") and not args.admin_email:
         parser.error("--admin-email is required for --provider oci (your tenancy's Identity Domains require a unique email per OCI user)")
 
+    if args.rotate and args.provider not in ("b2", "oci"):
+        parser.error("--rotate requires --provider b2 or oci")
+
     SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
+
+    if args.rotate:
+        rotate_fn = {"b2": rotate_b2_rotation_key, "oci": lambda: rotate_oci_rotation_key(args.admin_email)}[args.provider]
+        try:
+            ok = rotate_fn()
+        except requests.HTTPError as exc:
+            print(f"{args.provider}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
+            return 1
+        return 0 if ok else 1
 
     providers = {
         "b2": create_b2_rotation_key,

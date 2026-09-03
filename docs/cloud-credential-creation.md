@@ -398,13 +398,35 @@ B2/OCI, broader blast radius if that token is ever compromised (see R2's
 section above). Delete `_rotation-key-cloudflare-r2-token` to fall back
 to prompting every time.
 
-**Rotating the rotation credential itself** (B2/OCI's rotation keys,
-or R2's cached admin token): none of the three auto-rotate or
-auto-revoke this — it's a low-frequency, human-attended action.
-B2/OCI: delete the cache file(s), re-run `create_rotation_keys
---provider <b2|oci>` (needs the master credential again). R2: create a
-new Custom Token in the Console, overwrite
-`_rotation-key-cloudflare-r2-token` by hand.
+**Rotating the rotation credential itself:** low-frequency,
+human-attended, and none of the three auto-rotate on a schedule — but
+B2/OCI now have the same zero-downtime shape leaf rotation already has:
+
+```sh
+cd ansible
+python3 -m cloud_credentials.create_rotation_keys --provider b2 --rotate
+python3 -m cloud_credentials.create_rotation_keys --provider oci --rotate --admin-email you@example.com
+```
+
+Mints a new rotation key, verifies it can actually do its job, only
+then revokes the old one — same verify-before-revoke shape as leaf
+rotation, one level up. Verification differs by provider because
+what "actually do its job" means differs: B2's new key must
+successfully call `b2_list_keys`; OCI's new key must successfully
+create *and* delete a throwaway customer secret key on the write leaf,
+not just authenticate — its policy is conditioned on exactly
+`USER_UPDATE`/`USER_SECRETKEY_ADD`/`USER_SECRETKEY_REMOVE`, not a
+blanket read grant, so a lighter check (like fetching the user record)
+could pass or fail for reasons unrelated to whether the key can
+actually rotate leaf credentials. If verification fails, the old key
+is left untouched and still in use, same failure-handling guarantee as
+leaf rotation. Requires the master credential again (B2) or your
+personal admin OCI identity (OCI), same as the very first bootstrap —
+this was never going to be a fully unattended operation. **R2** has no
+equivalent: create a new Custom Token in the Console, overwrite
+`_rotation-key-cloudflare-r2-token` by hand — Cloudflare's API
+structurally can't mint a delegate credential for this at all (see
+[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)).
 
 ## Future: secrets manager
 

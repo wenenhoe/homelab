@@ -15,27 +15,23 @@ whether this repo would have to track it itself.
 native, and queryable later via `b2_list_keys`.
 
 **OCI** looked like it might have the same via Identity Domains'
-Customer Secret Key resource, which does have a real `expiresOn` field.
-But that field lives on a different resource entirely
+Customer Secret Key resource, which does have a real `expiresOn` field
+— but that field lives on a different resource entirely
 (`oci.identity_domains.models.CustomerSecretKey`, reachable only
 through the Identity Domain's own SCIM endpoint), not on the classic
 `/20160918/users/{id}/customerSecretKeys` endpoint this repo actually
-calls. Confirmed against Oracle's own SDK model for that exact
-endpoint's request body: `CreateCustomerSecretKeyDetails` has exactly
-one attribute, `display_name`. Moving to the SCIM endpoint would mean a
-different base URL and a different resource/auth model — not an
-addition alongside the existing rotation-key auth flow, close to a
-second integration. Confirmed live against this tenancy
-(`cloud_credentials/spikes/oci_scim_auth_check.py`, a read-only
-`GET /admin/v1/Schemas` signed with the existing rotation identity):
-the rotation identity's Signature V1 auth (`OCISigner`) is rejected by
-the SCIM endpoint outright (`401 error.common.common.accessDenied`),
-not merely under-permissioned — Identity Domains authenticates SCIM
-calls on its own terms, most likely OAuth2 client-credentials,
-unrelated to the request-signing this repo's classic-API calls use
-everywhere else. A SCIM migration is therefore a second auth
-integration on top of a second resource model, not a two-line change.
-Out of scope for this thread.
+calls. Confirmed against Oracle's own SDK model for that endpoint's
+request body: `CreateCustomerSecretKeyDetails` has exactly one
+attribute, `display_name`. Confirmed live too
+(`cloud_credentials/spikes/oci_scim_auth_check.py`): the rotation
+identity's `OCISigner` gets `401 error.common.common.accessDenied`
+from the SCIM endpoint — rejected outright, not under-permissioned.
+Identity Domains authenticates SCIM calls via OAuth2 client-credentials
+from a registered Confidential Application (per Oracle's own Identity
+Domains REST API docs), an unrelated model to the request-signing used
+everywhere else in this repo. A SCIM migration is a second auth
+integration on a second resource model, not an extension of the
+existing one. Out of scope for this thread.
 
 **R2** turned out better than assumed going in: `POST
 /accounts/{account_id}/tokens` (the exact call `r2_create_leaf_token`

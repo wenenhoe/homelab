@@ -71,6 +71,36 @@ the SeaweedFS-specific case this generalizes from.
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
 | `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results into one fixed check name — see below. |
 
+```mermaid
+flowchart TD
+    detect["detect-changes<br/>(always runs first)"]
+    precommit["pre-commit-checks<br/>(always)"]
+    trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
+    lint["ansible-lint<br/>(ansible/** or lint config changed)"]
+    uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
+    pytest["python-unit-tests<br/>(controller-side Python changed)"]
+    deployorder["deploy-ordering-check<br/>(inventory/playbooks/secrets/restore changed)"]
+    molecule["molecule<br/>(any role touched — matrix)"]
+    boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
+    synchk["compose-syntax-check<br/>(any compose file touched, fallback)"]
+    gate["matrix-jobs-gate<br/>(always)"]
+
+    detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk
+    detect --> trivy
+    molecule --> gate
+    boottest --> gate
+
+    style precommit stroke-dasharray: 5 5
+    style trivy stroke-dasharray: 5 5
+```
+
+`pre-commit-checks` runs unconditionally and independently of
+`detect-changes` (dashed above) — its hooks span nearly every file
+type in the repo, so scoping it would defeat the point. `trivy-scan`
+also always runs as a job, but reads `detect-changes`' output to decide
+internally whether to run its Ansible-misconfig sub-check — see
+[security-scanning.md](security-scanning.md).
+
 ## Requiring checks before merge
 
 Not configured in this repo — GitHub only blocks merges via branch

@@ -7,6 +7,13 @@ if a diagram would just illustrate one existing page, it lives embedded
 in that page instead (e.g. [`deployment-flow.md`](../deployment-flow.md)
 has its own play-order diagram).
 
+Split into one high-level diagram (`system-overview.md` — the whole
+fleet, at a glance) and several low-level ones (one concern each: DNS
+routing, auth, backup/restore). A single diagram trying to show every
+cross-host concern at once stops being something you can read at a
+glance — that's a sign to split by concern, not to add more subgraphs
+to the one diagram.
+
 This is a different kind of artifact from [`docs/decisions/`](../decisions/README.md):
 a diagram says **what exists**; a decision record says **why**. Keep
 them separate rather than folding rationale into a diagram's labels —
@@ -20,6 +27,15 @@ slow-changing set of hosts, so a diagram a person updates by hand in the
 same PR as the change it reflects is more trustworthy here than one a
 separate tool infers after the fact. Revisit that choice if this ever
 grows past a few hosts or gains more than one active contributor.
+
+## Index
+
+| Doc | Covers |
+| :--- | :--- |
+| [`system-overview.md`](system-overview.md) | High-level: the four hosts, controller, and cloud targets, at a glance. Links out to the low-level diagrams below. |
+| [`reverse-proxy-and-dns.md`](reverse-proxy-and-dns.md) | Low-level: how a hostname resolves and reaches the right host's Caddy, wildcard TLS via DNS-01. |
+| [`auth-flow.md`](auth-flow.md) | Low-level: Tinyauth forward-auth + LLDAP, and the one host that skips it. |
+| [`backup-and-restore-data-flow.md`](backup-and-restore-data-flow.md) | Low-level: how a backup moves from an app host to SeaweedFS to the cloud targets, and how a restore reverses that path — spans `disaster-recovery.md`, `cloud-sync.md`, and `restore.md`, none of which has this end-to-end view on its own. |
 
 ## Keeping these current
 

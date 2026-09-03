@@ -12,6 +12,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
 from cloud_credentials.cache import cached, read_cache, write_cache
+from cloud_credentials.expiry import utcnow_iso
 from cloud_credentials.rotation_keys.oci_iam import (
     oci_get_or_create_group,
     oci_get_or_create_user,
@@ -273,4 +274,8 @@ def create_oci_rotation_key(admin_email: str) -> None:
     write_cache("_rotation-key-oci-private-key.pem", private_pem)
     write_cache("_rotation-key-oci-tenancy-ocid", tenancy)
     write_cache("_rotation-key-oci-region", region)
+    # Self-tracked for the same reason as the leaf credentials' own
+    # -created-at files (see leaf_keys/oci.py) - an API signing keypair
+    # has no expiry concept in OCI at all, native or otherwise.
+    write_cache("_rotation-key-oci-created-at", utcnow_iso())
     print("oci: rotation identity and leaf users cached")

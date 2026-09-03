@@ -1,0 +1,10 @@
+[Unit]
+Description=Check whether every cloud_credentials leaf/rotation credential is still fresh
+
+[Service]
+Type=oneshot
+# Edit to this clone's actual path before installing - not templated,
+# since this runs on the operator's own machine, not through Ansible.
+# See docs/cloud-credential-creation.md's Freshness check section.
+WorkingDirectory=%h/CHANGE-ME-path-to-this-repo/ansible
+ExecStart=/usr/bin/python3 -m cloud_credentials.check_freshness

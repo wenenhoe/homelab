@@ -9,6 +9,7 @@ import sys
 import requests
 
 from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 R2_BUCKET = "homelab-backups"
@@ -49,7 +50,10 @@ def r2_rotation_token() -> str:
         "'homelab-cloud-sync-r2-rotation-key' (NOT the 'Create Additional "
         "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
         "permission, scoped to this account (dashboard.cloudflare.com > My "
-        "Profile > API Tokens) — input hidden, cached after this:"
+        "Profile > API Tokens) — set an expiration date on it in the "
+        "Console (this script can't set one after the fact; "
+        "check_freshness.py reads it back live either way) — input "
+        "hidden, cached after this:"
     )
     token = getpass.getpass("> ")
     write_cache(cache_key, token)
@@ -87,6 +91,13 @@ def r2_create_leaf_token(session, account_id: str, group_by_name: dict, leaf: st
                     "permission_groups": [{"id": group_by_name[group_name]}],
                 }
             ],
+            # Native, confirmed against Cloudflare's own Create Token
+            # reference (top-level `expires_on`, RFC 3339, on the same
+            # POST /accounts/{account_id}/tokens this already calls) -
+            # unlike OCI, no self-tracked cache file needed here.
+            # check_freshness.py reads this back live via Get Token
+            # rather than trusting a local clock.
+            "expires_on": rfc3339_in(QUARTERLY_DAYS),
         },
     ).json()
     if not resp.get("success"):

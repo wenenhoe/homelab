@@ -10,6 +10,7 @@ import getpass
 import requests
 
 from cloud_credentials.cache import cached, write_cache
+from cloud_credentials.expiry import QUARTERLY_SECONDS
 
 B2_AUTHORIZE_URL = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
 
@@ -51,6 +52,7 @@ def create_b2_rotation_key() -> None:
             "accountId": account_id,
             "capabilities": ["listKeys", "writeKeys", "deleteKeys", "listBuckets"],
             "keyName": "homelab-cloud-sync-rotation-key",
+            "validDurationInSeconds": QUARTERLY_SECONDS,
         },
     )
     key_resp.raise_for_status()

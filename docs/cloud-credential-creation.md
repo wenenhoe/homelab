@@ -399,3 +399,56 @@ for why the current disk-cache design was chosen over a secrets
 manager, and [ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
 for the one gap (R2's cached admin token) worth carrying into that
 design specifically when it's eventually scoped.
+
+## Credential expiry
+
+All 9 credentials (6 leaf, 3 rotation) expire after 90 days now — see
+[ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)
+for why B2/R2 use native provider-side expiry and OCI uses a
+self-tracked cache-file timestamp instead, and why neither `create_leaf_keys.py`
+nor `create_rotation_keys.py` needs a new flag for this — expiry is set
+unconditionally on every create/rotate call, the same way capabilities
+already are.
+
+**B2** and **R2** enforce this themselves; an expired key/token simply
+stops authenticating provider-side. **OCI** doesn't — its classic
+Identity API has no expiry concept at all, so a self-tracked
+`<credential>-created-at` cache file (e.g. `oci-write-created-at`,
+`_rotation-key-oci-created-at`) is advisory only. Nothing currently
+enforces it beyond `check_freshness.py`'s own alert.
+
+**R2's rotation admin token** is human-created in the Console (see its
+section above) — set an expiration date on it there when you create
+it; this script has no way to set one after the fact.
+
+**`check_freshness.py`** reads all 9 back — natively for B2 (`b2_list_keys`)
+and R2 (`GET .../tokens/{id}` / `.../tokens/verify`), from the
+self-tracked cache files for OCI — and reports each as fresh, past its
+window, or check-failed (couldn't be read at all — bad auth, missing
+cache file, HTTP error). Only the last of those three fails the run's
+own exit code; ordinary expiry is meant to be read from the log, not
+alerted on as an outage.
+
+```sh
+cd ansible
+python3 -m cloud_credentials.check_freshness
+```
+
+Runs unattended via a systemd **user** timer on `controller` — the
+operator's own machine, where the cache already lives (see
+`docs/architecture/system-overview.md`) — not through any Ansible role,
+since `cloud_credentials` isn't one and doesn't deploy to any
+`managed_hosts` entry. Install once, by hand:
+
+```sh
+cd ansible/cloud_credentials/systemd
+# Edit check-freshness.service's WorkingDirectory to this clone's actual path first.
+mkdir -p ~/.config/systemd/user
+cp check-freshness.service check-freshness.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now check-freshness.timer
+```
+
+`Persistent=true` on the timer catches up on a missed weekly run once
+the machine's next on — see ADR 0015's Consequences for the real limit
+this still has on a machine that's off for longer than that.

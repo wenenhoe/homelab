@@ -40,6 +40,10 @@ cloud_sync_targets:
     endpoint: "https://{{ secrets_generated['cloudflare-r2-account-id'] }}.r2.cloudflarestorage.com"
     access_key: "{{ secrets_generated['cloudflare-r2-write-access-key'] }}"
     secret_key: "{{ secrets_generated['cloudflare-r2-write-secret-key'] }}"
+    # R2 has no regional endpoints — "auto" is Cloudflare's own documented
+    # value for every S3-compatible client, rclone included, not a
+    # per-account setting.
+    region: "auto"
   b2:
     # -b2 suffix, unlike r2/oci's bare "homelab-backups": B2 bucket
     # names are globally unique across every B2 account, not
@@ -49,11 +53,19 @@ cloud_sync_targets:
     endpoint: "https://s3.{{ secrets_generated['backblaze-b2-region'] }}.backblazeb2.com"
     access_key: "{{ secrets_generated['backblaze-b2-write-access-key'] }}"
     secret_key: "{{ secrets_generated['backblaze-b2-write-secret-key'] }}"
+    # Same value already embedded in the endpoint hostname above — not a
+    # new secret, just also handing it to rclone directly.
+    region: "{{ secrets_generated['backblaze-b2-region'] }}"
   oci:
     bucket: homelab-backups
     endpoint: "https://{{ secrets_generated['oci-namespace'] }}.compat.objectstorage.{{ secrets_generated['oci-region'] }}.oraclecloud.com"
     access_key: "{{ secrets_generated['oci-write-access-key'] }}"
     secret_key: "{{ secrets_generated['oci-write-secret-key'] }}"
+    # Required, not optional: OCI's S3-compatible API 403s with
+    # SignatureDoesNotMatch if this is left unset and the bucket's region
+    # differs from the tenancy's home region. Same value already used
+    # in the endpoint hostname above.
+    region: "{{ secrets_generated['oci-region'] }}"
 
 # Small config-app archives (everything except minecraft) go to both
 # free-tier clouds for offsite redundancy. minecraft overrides this in

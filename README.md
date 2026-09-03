@@ -62,6 +62,17 @@ test scaffolding, not a deployed app.
 
 ## Further Reading
 
+[`docs/README.md`](docs/README.md) explains how these docs are
+organized — start there if you're looking for where something new
+should go.
+
+### Architecture & System Design
+
+| Doc | Covers |
+| :--- | :--- |
+| [`docs/architecture/README.md`](docs/architecture/README.md) | Mermaid diagrams for cross-cutting views: system component map, end-to-end data flow. |
+| [`docs/decisions/README.md`](docs/decisions/README.md) | Index of architecture decision records — why a design was chosen when the reasoning isn't obvious from the code alone. |
+
 ### Architecture & workflow
 
 | Doc | Covers |

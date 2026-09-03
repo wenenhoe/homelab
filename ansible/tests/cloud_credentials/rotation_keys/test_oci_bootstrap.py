@@ -111,6 +111,25 @@ class OciPolicyRecheckTests(unittest.TestCase):
         mock_genkey.assert_called_once()
         self.assertTrue((self.tmp / "_rotation-key-oci-user-ocid").exists())
         self.assertEqual((self.tmp / "_rotation-key-oci-user-ocid").read_text(), "ocid1.user.oc1..new")
+        # Self-tracked expiry (see ADR 0015) — this keypair has no native
+        # expiry field, so a fresh creation must record its own timestamp.
+        self.assertTrue((self.tmp / "_rotation-key-oci-created-at").exists())
+
+    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
+    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
+    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
+    def test_created_at_not_touched_when_keypair_already_cached(self, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
+        self._cache_full_keypair()
+        cache.write_cache("_rotation-key-oci-created-at", "2020-01-01T00:00:00+00:00")
+        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
+        mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
+
+        oci_bootstrap.create_oci_rotation_key(admin_email="you@example.com")
+
+        # A re-run that only re-verifies policy must not reset the
+        # timestamp check_freshness.py alerts against — resetting it
+        # every run would make the credential appear permanently fresh.
+        self.assertEqual((self.tmp / "_rotation-key-oci-created-at").read_text(), "2020-01-01T00:00:00+00:00")
 
 
 if __name__ == "__main__":

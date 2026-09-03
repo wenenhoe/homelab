@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from _base import RotationTestBase
+from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.leaf_keys import b2
 
 
@@ -61,6 +62,10 @@ class B2RotationTests(RotationTestBase):
         self.assertEqual(delete_call.kwargs["json"]["applicationKeyId"], "OLD_ACCESS")
         self.assertEqual((self.tmp / "backblaze-b2-write-access-key").read_text(), "NEW_ACCESS")
         self.assertEqual((self.tmp / "backblaze-b2-write-secret-key").read_text(), "NEW_SECRET")
+        # The actual point of this test: every new leaf key must request
+        # native expiry, not just get created.
+        new_key_call = session.post.call_args_list[1]
+        self.assertEqual(new_key_call.kwargs["json"]["validDurationInSeconds"], QUARTERLY_SECONDS)
 
     @patch.object(b2, "verify_leaf_via_rclone", return_value=(False, "auth failed"))
     @patch.object(b2.requests, "Session")

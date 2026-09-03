@@ -244,6 +244,20 @@ real 409 yet.
   resource families this way, never identity ones. Treating this as
   confirmed-absent unless proven otherwise.
 
+**Confirmed live:** the existing rotation identity's Signature V1 auth
+(`OCISigner`) does not work against the Identity Domains SCIM API —
+the endpoint that carries a real, native `expiresOn` (see
+[ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)).
+A read-only `GET /admin/v1/Schemas` signed with it comes back
+`401 error.common.common.accessDenied`. `cloud_credentials/spikes/oci_scim_auth_check.py`
+is the script that confirmed this, kept around in case a future
+tenancy or auth setup changes the answer:
+
+```sh
+cd ansible
+python3 -m cloud_credentials.spikes.oci_scim_auth_check https://idcs-xxxxxxxxxxxx.identity.oraclecloud.com
+```
+
 ### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 
 Cloudflare's tokens API rejects granting `API Tokens Write` to any

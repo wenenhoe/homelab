@@ -25,7 +25,17 @@ endpoint's request body: `CreateCustomerSecretKeyDetails` has exactly
 one attribute, `display_name`. Moving to the SCIM endpoint would mean a
 different base URL and a different resource/auth model — not an
 addition alongside the existing rotation-key auth flow, close to a
-second integration. Out of scope for this thread.
+second integration. Confirmed live against this tenancy
+(`cloud_credentials/spikes/oci_scim_auth_check.py`, a read-only
+`GET /admin/v1/Schemas` signed with the existing rotation identity):
+the rotation identity's Signature V1 auth (`OCISigner`) is rejected by
+the SCIM endpoint outright (`401 error.common.common.accessDenied`),
+not merely under-permissioned — Identity Domains authenticates SCIM
+calls on its own terms, most likely OAuth2 client-credentials,
+unrelated to the request-signing this repo's classic-API calls use
+everywhere else. A SCIM migration is therefore a second auth
+integration on top of a second resource model, not a two-line change.
+Out of scope for this thread.
 
 **R2** turned out better than assumed going in: `POST
 /accounts/{account_id}/tokens` (the exact call `r2_create_leaf_token`

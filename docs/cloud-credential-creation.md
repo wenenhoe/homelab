@@ -167,24 +167,18 @@ the tenancy as a side effect of being grantable at all, not because
 that's a capability anyone wanted — OCI bundles it into the same
 permission that gates every per-user credential mutation.
 
-**Fixed: policy drift behind an already-cached rotation key.**
-`create_rotation_keys --provider oci` used to gate everything —
-including the 409-then-update logic that fixes a changed policy —
-behind "do the rotation key's cache files exist" (exactly what
-happened here: the first run cached a working keypair attached to a
-policy that was later found to be wrong, and a second run wouldn't
-have caught it). The keypair-exists check now only gates keypair
-*generation*; leaf-identity and rotation-identity policy verification
-run on every invocation regardless, the same way `oci_ensure_leaf_identity`
-already re-verified leaf policies unconditionally. Re-running
-`create_rotation_keys --provider oci --admin-email you@example.com`
-is now enough to pick up a policy change without touching the cached
-keypair — no flag needed, no cache files to delete. Confirmed live:
-the fix applies immediately (a raw API re-GET right after reflects
-it), but the Console's own policy detail view can lag visibly behind
-that — don't trust the Console alone when checking whether this ran
-correctly; re-GET via the API (or just wait a bit and refresh) instead
-of concluding the fix didn't work.
+**The keypair-exists cache check gates keypair *generation* only.**
+Leaf-identity and rotation-identity policy verification run on every
+`create_rotation_keys --provider oci` invocation regardless of whether
+the keypair is already cached, the same way `oci_ensure_leaf_identity`
+re-verifies leaf policies unconditionally. Re-running
+`create_rotation_keys --provider oci --admin-email you@example.com` is
+enough to pick up a policy change without touching the cached
+keypair — no flag needed, no cache files to delete. A raw API re-GET
+reflects a policy change immediately; the Console's own policy detail
+view can lag visibly behind that, so treat the API (or `oci
+iam policy get`) as the source of truth when confirming a policy
+change took effect, not the Console alone.
 
 **Identity-Domain tenancies require an email per user, confirmed
 live** (`400 IdcsConversionError` from `CreateUser` without one).

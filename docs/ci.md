@@ -62,7 +62,7 @@ the SeaweedFS-specific case this generalizes from.
 | Job | Runs when | What it does |
 | :--- | :--- | :--- |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
-| `ansible-lint` | always | `ansible-lint`, the one push-stage hook — always lints the whole `ansible/` tree, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
+| `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | `ansible/cloud_credentials/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` — every provider HTTP call and `rclone` invocation mocked. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |

@@ -40,11 +40,10 @@ HTTP call and `rclone` invocation mocked — via
 `uv run pytest ansible/tests/ -v`, and wired into CI as `pr-checks.yml`'s
 `python-unit-tests` job (see `docs/ci.md`).
 
-Rotation keys/tokens (all three providers now) are cached to
-`ansible/files/secrets/` for now, same as everything else in this
-repo. Moving that cache to an actual secrets manager (OpenBao is the
-current candidate) is a separate, not-yet-scoped subproject — see
-Future: Stage 2 below; nothing here depends on it.
+Rotation keys/tokens (all three providers) are cached to
+`ansible/files/secrets/`, same as everything else in this repo — see
+[ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
+for why a secrets manager isn't part of this design yet.
 
 ```sh
 cd ansible
@@ -253,67 +252,45 @@ real 409 yet.
 
 ### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 
-**A cached R2 rotation key is a materially different credential than
-B2's/OCI's — accepted as a deliberate risk, not something worked
-around.** Cloudflare's tokens API rejects granting `API Tokens Write`
-to any token created via the API itself — `400 {"code": 1001,
-"message": "sub-token is not allowed to have permissions to manage
-other tokens"}`, confirmed live. That's a hard stop on ever *minting* a
-delegate credential the way `create_rotation_keys` does for B2/OCI.
-It does **not**, however, block *caching* a token a human already
-created directly in the Console — that restriction is about creation,
-not reuse. `r2_rotation_token()` in `cloud_credentials/leaf_keys/r2.py`
-does
-exactly that: prompts once, caches to
-`_rotation-key-cloudflare-r2-token`, and every later call (including
-`--rotate`) reads the cache instead of re-prompting.
+Cloudflare's tokens API rejects granting `API Tokens Write` to any
+token created via the API itself — `400 {"code": 1001, "message":
+"sub-token is not allowed to have permissions to manage other
+tokens"}`. That rules out minting a delegate credential the way
+`create_rotation_keys` does for B2/OCI; it does **not** block *caching*
+a token a human already created directly in the Console, since that
+restriction is about creation, not reuse. `r2_rotation_token()` in
+`cloud_credentials/leaf_keys/r2.py` does exactly that: prompts once,
+caches to `_rotation-key-cloudflare-r2-token`, and every later call
+(including `--rotate`) reads the cache instead of re-prompting. This
+cached token is master-equivalent, not a narrower delegate like B2's/
+OCI's rotation keys — see
+[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
+for why that's accepted rather than worked around.
 
-The trade-off this doesn't remove: because Cloudflare has no equivalent
-of OCI's `any {request.permission='USER_SECRETKEY_ADD', ...}` — a
-policy condition restricting *which* permissions a delegated identity
-can grant — this cached token can mint a token with **any** permission
-the account holder has (DNS, Zones, Workers, Access, billing,
-everything), not just R2-scoped ones. B2's and OCI's rotation keys are
-genuinely narrower than their master credentials; R2's cached token
-**is** the master credential in every way that matters for blast
-radius, just persisted to disk instead of re-typed each time. Accepted
-here on the basis that (a) it was already being typed in from the same
-password-manager entry every run, so caching it changes convenience,
-not exposure to a new party, and (b) the planned Stage 2 secrets
-manager migration (see below) is expected to narrow this properly —
-this script isn't where that gets fixed.
-
-**The master token itself needed correcting too — confirmed live**
-(`Unauthorized to access requested resource` on the very first API
-call, before the sub-token issue above was even reached). Cloudflare's
-own template reference table shows the dashboard's "Create Additional
-Tokens" template grants `API Tokens Write` scoped to **User**, not
-**Account** — it can only call `/user/tokens/...`, not the
-`/accounts/{account_id}/tokens/...` endpoints this repo uses
-throughout (chosen because R2 buckets are account resources). The
-original assumption that "Create Additional Tokens" was an
-"account-level" permission was never independently checked against
-Cloudflare's docs before this. Create the token as a **Custom
-Token** instead — not the template — named
-**`homelab-cloud-sync-r2-rotation-key`** (matching B2's rotation key
-naming, with the `r2` disambiguator R2's own leaf tokens already use)
-— with **Account > Account API Tokens > Edit**, scoped to the account.
-Its own permission_groups
-lookup (used to find the R2-specific groups the leaf tokens actually
-get) matches by substring against known group names rather than exact
+**Create the master token as a Custom Token, not the "Create
+Additional Tokens" template.** The template grants `API Tokens Write`
+scoped to **User**, not **Account** — it can only call
+`/user/tokens/...`, not the `/accounts/{account_id}/tokens/...`
+endpoints this repo uses throughout (chosen because R2 buckets are
+account resources); using the template fails on the first API call
+with `Unauthorized to access requested resource`. Create a **Custom
+Token** instead, named **`homelab-cloud-sync-r2-rotation-key`**
+(matching B2's rotation key naming, with the `r2` disambiguator R2's
+own leaf tokens already use), with **Account > Account API Tokens >
+Edit**, scoped to the account. Its own `permission_groups` lookup
+(used to find the R2-specific groups the leaf tokens actually get)
+matches by substring against known group names rather than exact
 match, and prints every available name if nothing matches — a
 mismatch here is a one-line fix, not another blind guess.
 
 The leaf tokens themselves stay properly bucket-scoped (`Workers R2
 Storage Bucket Item Write`/`Read`, restricted to `homelab-backups`) and
 only ever hold R2-specific permissions, never `API Tokens Write` — so
-they're not subject to the sub-token restriction above at all, only the
-rotation token is. Practically, `cloud_sync`'s own `rclone copy`-only
-design (never `sync`) is what actually prevents an on-prem compromise
-from deleting R2 objects — see `disaster-recovery.md`'s Threat model.
-R2's defense-in-depth here is `copy`-vs-`sync` at the leaf-token level,
-not IAM narrowing at the rotation-token level, which is the part this
-provider can't get to parity with B2/OCI on.
+none of the above applies to them, only to the rotation token. See
+[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
+for what actually carries R2's defense-in-depth instead (the leaf
+tokens' `copy`-vs-`sync` boundary, not IAM narrowing at the
+rotation-token level).
 
 R2's S3-compat region is always `auto` — Cloudflare's own docs confirm
 this is lenient (empty or `us-east-1` also alias to it), unlike OCI's
@@ -417,22 +394,10 @@ B2/OCI: delete the cache file(s), re-run `create_rotation_keys
 new Custom Token in the Console, overwrite
 `_rotation-key-cloudflare-r2-token` by hand.
 
-## Future: Stage 2 (secrets manager)
+## Future: secrets manager
 
-Everything above is Stage 1: rotation keys and leaf credentials both
-land in `ansible/files/secrets/`, same as every other secret in this
-repo. Stage 2 — replacing that cache with an actual secrets manager
-(OpenBao is the current candidate) — is a separate, not-yet-scoped
-subproject; nothing in Stage 1 depends on it or blocks it.
-
-One thing worth carrying into that design specifically: R2's cached
-admin token (see its section above) is the one place Stage 1 falls
-short of the other two providers' narrowing — it's cached now, same as
-B2's/OCI's rotation keys, but unlike them it's genuinely
-master-equivalent, since Cloudflare has no policy-condition mechanism
-to restrict what a token-creating token can grant. A secrets manager
-gating access to it with its own audit trail wouldn't narrow *what* it
-can do, but would narrow *who/what can reach it* — worth evaluating
-specifically for R2 when Stage 2 is actually scoped, since it's the
-one provider Stage 1 couldn't bring to parity with the other two on
-its own.
+See [ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
+for why the current disk-cache design was chosen over a secrets
+manager, and [ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
+for the one gap (R2's cached admin token) worth carrying into that
+design specifically when it's eventually scoped.

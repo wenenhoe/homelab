@@ -1,7 +1,8 @@
 # Named Volumes: Storage Architecture
 
 Persistent app data lives in Docker-managed named volumes, not bind
-mounts. An app's stack directory under `compose_deploy_dir` still holds
+mounts — see [ADR 0012](decisions/0012-named-volumes-not-bind-mounts.md)
+for why. An app's stack directory under `compose_deploy_dir` still holds
 its `compose.yaml` and rendered `.env`/scripts, but real state (databases,
 caches, certs, world saves) lives in a volume Docker owns, created and
 populated by Ansible rather than a `./data`-style host path.

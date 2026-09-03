@@ -2,7 +2,9 @@
 
 Reference tables for everything under `ansible/`. For the `deploy.yaml`
 play-by-play and role responsibilities during a deploy, see
-[`deployment-flow.md`](deployment-flow.md).
+[`deployment-flow.md`](deployment-flow.md). See
+[ADR 0009](decisions/0009-adopt-ansible-not-manual-deployment.md) for
+why every host is Ansible-managed rather than configured by hand.
 
 ## Playbooks
 

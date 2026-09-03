@@ -1,7 +1,9 @@
 # Telegram Notifications
 
 One bot, one group chat with [Topics](https://telegram.org/blog/topics-in-groups-collectible-usernames)
-enabled, a different topic per concern. Two consumers share
+enabled, a different topic per concern — see
+[ADR 0014](decisions/0014-telegram-topics-not-direct-chat.md) for why
+this replaced the original one-on-one bot chat. Two consumers share
 the Backups topic since they're the two halves of the same
 disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)),
 and two share the Certs topic since they're both certificate-lifecycle

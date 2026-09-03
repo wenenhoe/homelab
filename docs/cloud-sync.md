@@ -2,26 +2,12 @@
 
 `cloud_sync` (`storage`-only) reads already-encrypted archives straight
 out of SeaweedFS and copies them onward to R2/B2/OCI via
-[rclone](https://rclone.org) `copy` — never `sync`. That distinction is
-deliberate, not a naming detail: `copy` only ever adds objects on the
-destination side, so nothing running on `storage` (or any app host) can
-delete or overwrite what's already landed in the cloud, even if fully
-compromised. `sync` would propagate a deletion outward, which is exactly
-the failure mode [`disaster-recovery.md`](disaster-recovery.md)'s
-Threat model section is designed against — a compromised on-prem system
-shouldn't be able to touch the offsite copy. This was checked against
-SeaweedFS's own native remote-sync tooling first
-(`weed filer.remote.gateway`), which turned out to have `sync` semantics
-itself (its own docs: local deletions propagate to the remote) — ruled
-out for the same reason.
-
-**Retention on the cloud side** is a provider-native lifecycle rule you
-configure once, out-of-band, in each provider's own console — not
-managed by this repo at all, and deliberately so: a homelab-side
-retention job would need delete access to enforce it, which is the one
-capability `cloud_sync`'s own SeaweedFS-reading identity and the
-`copy`-only design both go out of their way to avoid granting anything
-running on-prem.
+[rclone](https://rclone.org) `copy` — never `sync`, and cloud-side
+retention is a provider-native lifecycle rule configured out-of-band,
+not managed by this repo. See
+[ADR 0006](decisions/0006-cloud-sync-copy-not-sync.md) for why: that
+combination is what actually keeps a compromised on-prem host from
+touching the offsite copy, not IAM scoping alone.
 
 Current values, set directly in each console:
 

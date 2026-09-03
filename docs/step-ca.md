@@ -6,57 +6,25 @@ service-to-service TLS — signing certs for the lab's own `.{{ lab_domain
 `tinyauth_ca_trust` (see [`lldap.md`](lldap.md)) are its first two real
 consumers: lldap's LDAPS cert comes from here, and tinyauth trusts it.
 
-## Why a custom entrypoint instead of `DOCKER_STEPCA_INIT_*`
+## Custom entrypoint, not `DOCKER_STEPCA_INIT_*`
 
-The official image ships its own non-interactive bootstrap, driven by
-`DOCKER_STEPCA_INIT_*` env vars, and only initializes if
-`config/ca.json` doesn't exist yet — that idempotency (and persisting
-the CA's identity in an external volume rather than an image build
-layer) is why this uses the official image at all, rather than baking
-`step ca init` into a Dockerfile at build time the way the reference
-step-ca setup this was adapted from does. A build-time `step ca init`
-regenerates a fresh random root key on every image rebuild, silently
-rotating trust for every consumer that's already bootstrapped against
-the old one.
+`scripts/entrypoint.sh` runs `step ca init` by hand instead of using
+the official image's `DOCKER_STEPCA_INIT_*` auto-init, followed by one
+`step ca provisioner update --x509-default-dur` call to set the claim
+duration explicitly. Both only run once, gated on the same
+`config/ca.json`-doesn't-exist check the stock entrypoint uses — a
+restart with an already-initialized `data` volume skips straight to
+`exec step-ca`. See
+[ADR 0004](decisions/0004-stepca-custom-entrypoint-not-docker-init-vars.md)
+for why: the stock auto-init can't keep the CA's own password and the
+provisioner's password independent, and has no flag for claim
+durations.
 
-That said, the stock auto-init (`docker/entrypoint.sh` in
-`smallstep/certificates`) can't fully express this repo's design:
-
-- It encrypts the CA's own keys and the initial JWK provisioner's key
-  with the **same** password — `DOCKER_STEPCA_INIT_PASSWORD`/
-  `_FILE` gets copied to both `secrets/password` and
-  `secrets/provisioner_password`. There's no separate provisioner
-  password.
-- It has no flag for a provisioner's claim durations
-  (`defaultTLSCertDuration`) — only `step ca provisioner update`
-  (a separate, later command) can set that.
-
-`scripts/entrypoint.sh` runs the same underlying command
-(`step ca init`) by hand instead, so `step-ca-password` and
-`step-ca-provisioner-password` (`secrets_registry.yaml`) stay genuinely
-independent, followed by one `step ca provisioner update
---x509-default-dur` call to set the claim explicitly. Both only run
-once, gated on the same `config/ca.json`-doesn't-exist check the stock
-entrypoint uses — a restart with an already-initialized `data` volume
-skips straight to `exec step-ca`. Smallstep's own production-considerations
-guide recommends exactly this — securing the default provisioner with a
-different password than the CA's signing keys by passing separate
-`--password-file`/`--provisioner-password-file` — so this isn't just
-working around a gap, it's the documented-recommended setup the stock
-auto-init doesn't happen to offer a shortcut for.
-
-## Why the cert duration is 720h, not step-ca's own 24h default
-
-step-ca's own default (24h) assumes a consumer is always renewing
-constantly in the background — appropriate once something like
-`step ca renew --daemon` exists in this repo, the way the reference
-setup's `stepca-provision.sh`/`stepca-renew.sh` do it. At the time this
-value was chosen, nothing here ran that, so a 24h cert would have just
-expired unattended. `lldap_cert`'s systemd `cert-renewer@` timer (see
-[`lldap.md`](lldap.md)) is exactly that automation, and it exists now —
-720h hasn't been revisited since. Worth reconsidering downward (back
-toward step-ca's own 24h philosophy) as a deliberate follow-up, not
-something to change as a side effect of a docs pass.
+The claim duration itself is set to 720h, not step-ca's own 24h
+default — see
+[ADR 0005](decisions/0005-stepca-cert-duration-720h.md), which flags
+that decision's original premise as stale now that `lldap_cert`'s
+renewal timer exists.
 
 ## DNS names and the health check
 

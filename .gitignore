@@ -4,6 +4,8 @@
 
 # Excluded directories
 .ansible/
+.pytest_cache/
+.ruff_cache/
 .venv/
 ansible/molecule-coverage/.data/
 ansible/files/secrets/

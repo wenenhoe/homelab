@@ -62,7 +62,7 @@ the SeaweedFS-specific case this generalizes from.
 | Job | Runs when | What it does |
 | :--- | :--- | :--- |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
-| `ansible-lint` | always | `ansible-lint`, the one push-stage hook — always lints the whole `ansible/` tree, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
+| `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time locally too (see `.config/.pre-commit-config.yaml`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | `ansible/cloud_credentials/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` — every provider HTTP call and `rclone` invocation mocked. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
@@ -70,6 +70,36 @@ the SeaweedFS-specific case this generalizes from.
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
 | `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results into one fixed check name — see below. |
+
+```mermaid
+flowchart TD
+    detect["detect-changes<br/>(always runs first)"]
+    precommit["pre-commit-checks<br/>(always)"]
+    trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
+    lint["ansible-lint<br/>(ansible/** or lint config changed)"]
+    uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
+    pytest["python-unit-tests<br/>(controller-side Python changed)"]
+    deployorder["deploy-ordering-check<br/>(inventory/playbooks/secrets/restore changed)"]
+    molecule["molecule<br/>(any role touched — matrix)"]
+    boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
+    synchk["compose-syntax-check<br/>(any compose file touched, fallback)"]
+    gate["matrix-jobs-gate<br/>(always)"]
+
+    detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk
+    detect --> trivy
+    molecule --> gate
+    boottest --> gate
+
+    style precommit stroke-dasharray: 5 5
+    style trivy stroke-dasharray: 5 5
+```
+
+`pre-commit-checks` runs unconditionally and independently of
+`detect-changes` (dashed above) — its hooks span nearly every file
+type in the repo, so scoping it would defeat the point. `trivy-scan`
+also always runs as a job, but reads `detect-changes`' output to decide
+internally whether to run its Ansible-misconfig sub-check — see
+[security-scanning.md](security-scanning.md).
 
 ## Requiring checks before merge
 
@@ -145,11 +175,13 @@ Manual secrets are pre-seeded as plain files under
 
 `.github/scripts/check-doc-drift.py`, wired into `.config/.pre-commit-config.yaml`
 as a local hook — no separate job of its own, it rides along inside
-`pre-commit-checks` above like every other commit-stage hook. Checks four
-narrow, structural things:
+`pre-commit-checks` above like every other commit-stage hook. Checks
+these narrow, structural things:
 
 - Every `docs/*.md` file is linked somewhere in README.md (both
-  directions — a link to a deleted file fails too).
+  directions — a link to a deleted file fails too). The same check
+  applies one level down for `docs/decisions/` and
+  `docs/architecture/`, against their own `README.md` index.
 - `docs/ansible.md`'s Playbooks and Roles tables list exactly the files
   under `ansible/playbooks/*.yaml` and directories under
   `ansible/roles/*/`.
@@ -162,6 +194,11 @@ narrow, structural things:
 - This file's own Jobs table lists every `pr-checks.yml` job id, except
   `detect-changes` (internal plumbing) and `trivy-scan` (documented in
   [`security-scanning.md`](security-scanning.md) instead).
+- Every cross-file `#anchor` reference anywhere in the repo (not just
+  `.md` files — YAML/Python comments too) resolves to a real file with
+  a heading that actually slugs to that anchor; same for same-file
+  `#anchor` links. Catches the class of bug a file move/rename/split
+  leaves behind.
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a

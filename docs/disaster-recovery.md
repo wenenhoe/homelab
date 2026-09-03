@@ -18,25 +18,14 @@ not here.
 ## Threat model
 
 Every app host's `backup_agent` holds a live, write-capable S3
-credential — the whole point of an offsite backup is surviving
-compromise of the host it's protecting, so that credential's reach
-matters as much as its existence. Two constraints follow from that:
+credential, so its reach matters as much as its existence. See
+[ADR 0013](decisions/0013-backup-credential-blast-radius-threat-model.md)
+for the full threat model this design is built against and the two
+structural constraints that follow from it — in short: cloud
+credentials never touch an app host, and each app host's SeaweedFS
+identity is scoped to its own backup prefix only.
 
-- **Cloud credentials never touch an app host.** R2/B2/OCI write access
-  exists only on `storage` (`cloud_sync`) — the smallest, least-exposed
-  host in the fleet (nothing user-facing runs there; see the
-  compose_apps list per host in `ansible/inventory/host_vars/`).
-  Compromising `services`, `security`, or `play` yields no cloud
-  credential of any kind, only that host's own narrow SeaweedFS access
-  below.
-- **Each app host's SeaweedFS identity is scoped to its own prefix
-  only** (`docker/seaweedfs/configs/s3-identity.json.j2`,
-  `Write:homelab-backups/<hostname>-*` etc.) — a compromised `services`
-  can still tamper with `services`' own SeaweedFS archives (unavoidable:
-  whatever produces a backup needs some write path to stage it) but
-  can't touch `security`'s or `play`'s.
-
-**Automated coverage exists now** (`ansible/roles/seaweedfs_bucket/molecule/identity_scoping`) — it renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts cross-prefix write/read are denied and Admin actions aren't available to a scoped identity. The `AccessDenied` substring match for the write-denial case is confirmed against a real SeaweedFS error (`An error occurred (AccessDenied) when calling the PutObject operation: Access Denied.`, seen in an actual run) — not just a guess anymore. The read-denial and Admin-action checks use the same substring pattern but haven't individually been seen against real output yet; if either looks fragile on a run that reaches that far, that's the part still worth double-checking.
+**Automated coverage exists now** (`ansible/roles/seaweedfs_bucket/molecule/identity_scoping`) — it renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts cross-prefix write/read are denied and Admin actions aren't available to a scoped identity. The `AccessDenied` substring match for the write-denial case is confirmed against a real SeaweedFS error (`An error occurred (AccessDenied) when calling the PutObject operation: Access Denied.`, seen in an actual run) — not just a guess anymore. The read-denial and Admin-action checks use the same substring pattern but haven't independently been seen against real output yet; if either looks fragile on a run that reaches that far, that's the part still worth double-checking.
 
 ## Architecture
 
@@ -57,6 +46,9 @@ matters as much as its existence. Two constraints follow from that:
   uptime, even though every app's schedules share one container.
   `docker-socket-proxy` (`CONTAINERS=1 POST=1 INFO=1`) is only added to
   the compose file at all if at least one app on the host needs stopping.
+  See [ADR 0011](decisions/0011-docker-socket-proxy-not-raw-socket.md)
+  for why anything needing Docker API access gets a scoped proxy sidecar
+  like this instead of the real socket.
 - `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the
   only templated compose file in this repo) since mounted volumes vary
   per host.

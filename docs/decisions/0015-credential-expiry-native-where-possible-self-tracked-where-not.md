@@ -69,11 +69,19 @@ material or self-tracked timestamps anywhere new.
   alongside each credential's existing cache files, for both leaf
   credentials and the rotation keypair.
 - `check_freshness.py` queries B2/R2 live and reads OCI's self-tracked
-  timestamps, on the same fresh / past-window / check-failed triage
-  `backup_agent`'s `check-freshness.sh` already uses (see
-  `docs/uptime-kuma.md`) — a genuine check failure is the only thing
-  that fails the run itself; ordinary expiry is an alert, not an
-  error.
+  timestamps, classifying each as fresh, expiring within
+  `expiry.WARNING_DAYS` (30 days), expiring within `expiry.URGENT_DAYS`
+  (14 days), past its window, or check-failed — a genuine check
+  failure is the only thing that fails the run's own exit code; any
+  other non-fresh result posts a Telegram alert (to the `Backups`
+  topic, same secrets every other consumer in this repo already reads
+  from `ansible/files/secrets/`) instead of just sitting in the
+  journal. A plain fresh/past-window split was tried first and
+  dropped: B2/R2 enforce their own expiry server-side, so "past its
+  window" for either means `cloud_sync` is already broken by the time
+  anyone would see it. Two warning grades, not one, so the reminder
+  escalates as the deadline approaches instead of a single flat ping
+  repeated every run for a month.
 - Installed as a systemd **user** timer on `controller`, not as an
   Ansible role or a unit deployed to any managed host — plain files
   under `ansible/cloud_credentials/systemd/`, installed by hand once
@@ -106,6 +114,12 @@ material or self-tracked timestamps anywhere new.
 - OCI's gap noted in `cloud-credential-creation.md` — no confirmed
   policy condition scoping `manage users` to one named resource —
   remains open and unrelated to this change.
+- If `telegram-token`/`telegram-chat-id` aren't cached, an alert is
+  silently downgraded to a journal line instead of failing the run —
+  consistent with check failures being the only thing that fails
+  `check_freshness.py` itself, but it does mean a missing Telegram
+  secret produces no visible symptom beyond a log line nobody's
+  otherwise watching.
 
 See
 [`cloud-credential-creation.md`](../cloud-credential-creation.md#credential-expiry)

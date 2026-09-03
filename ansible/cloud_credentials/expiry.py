@@ -12,6 +12,15 @@ from datetime import UTC, datetime, timedelta
 
 QUARTERLY_DAYS = 90
 
+# How far ahead of the actual deadline check_freshness.py should start
+# warning, and when that escalates to urgent. B2/R2 enforce their own
+# expiry server-side - once a credential goes stale there, it's not
+# "advisory", cloud_sync is already broken. These are what buy time to
+# rotate before that happens, at two grades of urgency instead of one
+# cliff edge.
+WARNING_DAYS = 30
+URGENT_DAYS = 14
+
 # B2's validDurationInSeconds hard ceiling is 86,400,000 (1000 days) -
 # confirmed against Backblaze's own b2_create_key reference. 90 days is
 # comfortably under it for both leaf keys and B2's own rotation key.

@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from cloud_credentials import cache, check_freshness
-from cloud_credentials.expiry import QUARTERLY_DAYS
+from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 
 
 class FreshnessTestBase(unittest.TestCase):
@@ -37,7 +37,7 @@ class CheckB2Tests(FreshnessTestBase):
     @patch.object(check_freshness, "b2_list_keys")
     @patch.object(check_freshness, "b2_rotation_session", return_value=(MagicMock(), "acct", "https://api"))
     def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_session, mock_list_keys):
-        future_ms = (datetime.now(UTC) + timedelta(days=30)).timestamp() * 1000
+        future_ms = (datetime.now(UTC) + timedelta(days=45)).timestamp() * 1000
         past_ms = (datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000
         mock_list_keys.return_value = [
             {"keyName": "homelab-cloud-sync-write", "expirationTimestamp": future_ms},
@@ -57,6 +57,31 @@ class CheckB2Tests(FreshnessTestBase):
         results = check_freshness.check_b2()
         self.assertTrue(all(status == check_freshness.CHECK_FAILED for _, status, _ in results))
         self.assertEqual(len(results), 3)
+
+    @patch.object(check_freshness, "b2_list_keys")
+    @patch.object(check_freshness, "b2_rotation_session", return_value=(MagicMock(), "acct", "https://api"))
+    def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_session, mock_list_keys):
+        # This is the whole point of WARNING_DAYS: B2 enforces its own
+        # expiry server-side, so this key still authenticates today,
+        # but a plain fresh/stale split would say nothing until it's
+        # already broken cloud_sync's next run.
+        soon_ms = (datetime.now(UTC) + timedelta(days=WARNING_DAYS - 1)).timestamp() * 1000
+        mock_list_keys.return_value = [{"keyName": "homelab-cloud-sync-write", "expirationTimestamp": soon_ms}]
+        results = check_freshness.check_b2()
+        statuses = {name: status for name, status, _ in results}
+        self.assertEqual(statuses["b2 write"], check_freshness.WARNING)
+
+    @patch.object(check_freshness, "b2_list_keys")
+    @patch.object(check_freshness, "b2_rotation_session", return_value=(MagicMock(), "acct", "https://api"))
+    def test_within_urgent_window_escalates_past_plain_warning(self, mock_session, mock_list_keys):
+        # The whole point of a second tier: 10 days out is a different
+        # conversation than 25 days out, even though both are technically
+        # "not fresh". A single WARNING would flatten that distinction.
+        soon_ms = (datetime.now(UTC) + timedelta(days=URGENT_DAYS - 1)).timestamp() * 1000
+        mock_list_keys.return_value = [{"keyName": "homelab-cloud-sync-write", "expirationTimestamp": soon_ms}]
+        results = check_freshness.check_b2()
+        statuses = {name: status for name, status, _ in results}
+        self.assertEqual(statuses["b2 write"], check_freshness.URGENT)
 
 
 class CheckOciTests(FreshnessTestBase):
@@ -84,7 +109,7 @@ class CheckR2Tests(FreshnessTestBase):
     @patch.object(check_freshness.requests, "Session")
     def test_fresh_and_stale_and_rotation_token_all_reported(self, mock_session_cls):
         session = mock_session_cls.return_value
-        future = (datetime.now(UTC) + timedelta(days=30)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        future = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
         past = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         def get(url):
@@ -132,6 +157,66 @@ class MainExitCodeTests(FreshnessTestBase):
     @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")])
     def test_check_failure_fails_the_run(self, mock_b2, mock_oci, mock_r2):
         self.assertEqual(check_freshness.main(), 1)
+
+
+class TelegramAlertTests(FreshnessTestBase):
+    def setUp(self):
+        super().setUp()
+        self.seed("telegram-token", "123:abc")
+        self.seed("telegram-chat-id", "-100999")
+
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness.requests, "post")
+    def test_all_fresh_sends_no_telegram_message(self, mock_post, mock_b2, mock_oci, mock_r2):
+        # The whole point of alerting only on non-fresh outcomes: a
+        # healthy weekly run shouldn't page anyone.
+        check_freshness.main()
+        mock_post.assert_not_called()
+
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.WARNING, "expires in 5d")])
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness.requests, "post")
+    def test_warning_alone_still_sends_a_telegram_alert(self, mock_post, mock_b2, mock_oci, mock_r2):
+        # This is the actual point of adding WARNING — a checked-fine
+        # "past its window" result used to not even alert; a "expiring
+        # soon" result must, since it's the only outcome that gives any
+        # lead time before B2/R2 actually reject the credential.
+        self.seed("telegram-topic-id-backups", "42")
+        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+
+        check_freshness.main()
+
+        mock_post.assert_called_once()
+        url, kwargs = mock_post.call_args.args[0], mock_post.call_args.kwargs
+        self.assertIn("bot123:abc/sendMessage", url)
+        self.assertEqual(kwargs["data"]["chat_id"], "-100999")
+        self.assertEqual(kwargs["data"]["message_thread_id"], "42")
+        self.assertIn("oci write", kwargs["data"]["text"])
+
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")])
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness.requests, "post")
+    def test_no_topic_id_cached_omits_the_param_instead_of_sending_empty(self, mock_post, mock_b2, mock_oci, mock_r2):
+        # Telegram's API rejects message_thread_id outright if it's
+        # passed empty rather than ignoring it (see
+        # docs/telegram-notifications.md) - must be omitted, not "".
+        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        check_freshness.main()
+        self.assertNotIn("message_thread_id", mock_post.call_args.kwargs["data"])
+
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")])
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness.requests, "post")
+    def test_missing_telegram_credentials_does_not_crash_the_run(self, mock_post, mock_b2, mock_oci, mock_r2):
+        (self.tmp / "telegram-token").unlink()
+        rc = check_freshness.main()
+        mock_post.assert_not_called()
+        self.assertEqual(rc, 0)  # STALE alone still doesn't fail the run, even unalerted
 
 
 if __name__ == "__main__":

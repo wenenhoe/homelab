@@ -437,11 +437,32 @@ it; this script has no way to set one after the fact.
 
 **`check_freshness.py`** reads all 9 back — natively for B2 (`b2_list_keys`)
 and R2 (`GET .../tokens/{id}` / `.../tokens/verify`), from the
-self-tracked cache files for OCI — and reports each as fresh, past its
-window, or check-failed (couldn't be read at all — bad auth, missing
-cache file, HTTP error). Only the last of those three fails the run's
-own exit code; ordinary expiry is meant to be read from the log, not
-alerted on as an outage.
+self-tracked cache files for OCI — and reports each as fresh, expiring
+soon (within `expiry.WARNING_DAYS`, 30 days), expiring very soon (within
+`expiry.URGENT_DAYS`, 14 days), past its window, or
+check-failed (couldn't be read at all — bad auth, missing cache file,
+HTTP error). Only the last of those fails the run's own exit code —
+`systemctl --user status` reflects whether the check itself is
+healthy, not whether a credential happens to be due.
+
+Any non-fresh result posts a Telegram alert to the `Backups` topic
+(same one `telegram-notify-cloud-sync` already uses — see
+[`telegram-notifications.md`](telegram-notifications.md)), using the
+same cached `telegram-token`/`telegram-chat-id` every other consumer in
+this repo reads from `ansible/files/secrets/`. Not routed through the
+`telegram_notify` Ansible role — that's templated and deployed to
+`managed_hosts`, and `controller` deliberately isn't one — so this
+calls Telegram's `sendMessage` directly instead, same request shape.
+No alert on an all-fresh run.
+
+The 30/14-day warning ladder exists specifically because B2 and R2
+enforce their own expiry server-side: by the time either goes fully
+stale, the credential has already stopped authenticating and
+`cloud_sync` is already broken. A single threshold would still buy
+lead time, but two grades of urgency (heads-up at a month out, urgent
+at two weeks) means the reminder actually escalates as the deadline
+gets closer instead of one flat repeated ping — see ADR 0015 for why
+past-window alone wasn't enough.
 
 ```sh
 cd ansible

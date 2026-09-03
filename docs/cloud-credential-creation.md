@@ -362,10 +362,14 @@ against a real failure, not assumed:**
   production isn't affected.
 - `region` set explicitly — OCI's S3-compatible API 403s with
   `SignatureDoesNotMatch` if the bucket's region isn't stated and
-  differs from the tenancy's home region; the same
-  `rclone.conf.j2`-header gap noted above applies here too. Set for B2
-  and R2 as well on the same principle, though only OCI has
-  independently hit this failure mode.
+  differs from the tenancy's home region. Resolved in both
+  `rclone.conf.j2` templates: `region` is now rendered per target from
+  `cloud_sync_targets[target].region` — reusing the same
+  `secrets_generated['backblaze-b2-region']`/`['oci-region']` values
+  already embedded in each provider's endpoint hostname for B2/OCI,
+  and Cloudflare's documented `auto` for R2, which has no regional
+  endpoints. Only rendered when set, so the Molecule fixtures'
+  synthetic targets (which don't define one) are unaffected.
 - A unique, timestamped verification-object key per rotation (see
   `_verify_marker_key`), not one fixed reused path — a fixed path
   breaks permanently the first time the bucket has any retention rule,

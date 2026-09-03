@@ -53,6 +53,31 @@ def check_readme() -> None:
             fail(f"README: links {link}, which doesn't exist")
 
 
+def check_subdirectory_indexes() -> None:
+    """Same check as check_readme(), one level down: every ADR under
+    docs/decisions/ is linked in docs/decisions/README.md, and every
+    diagram under docs/architecture/ is linked in
+    docs/architecture/README.md — both directions, same substring
+    matching. check_readme()'s docs/*.md glob is non-recursive, so
+    these two subdirectories need their own pass.
+    """
+    for subdir in ("decisions", "architecture"):
+        index_path = ROOT / "docs" / subdir / "README.md"
+        index = read(index_path)
+
+        for doc in sorted((ROOT / "docs" / subdir).glob("*.md")):
+            if doc.name in ("README.md", "TEMPLATE.md"):
+                continue
+            if doc.name not in index:
+                fail(f"docs/{subdir}/README.md: {doc.name} exists but isn't linked in its index")
+
+        for link in re.findall(r"\]\(([\w-]+\.md)\)", index):
+            if link == "TEMPLATE.md":
+                continue
+            if not (index_path.parent / link).is_file():
+                fail(f"docs/{subdir}/README.md: links {link}, which doesn't exist")
+
+
 def check_ansible_reference() -> None:
     """docs/ansible.md's Playbooks table lists every ansible/playbooks/*.yaml
     file; its Roles table lists every ansible/roles/*/ directory. Same
@@ -252,6 +277,7 @@ def check_no_stale_anchors() -> None:
 
 def main() -> int:
     check_readme()
+    check_subdirectory_indexes()
     check_ansible_reference()
     check_molecule_matrix()
     check_deploy_flow()

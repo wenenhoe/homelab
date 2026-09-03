@@ -175,11 +175,13 @@ Manual secrets are pre-seeded as plain files under
 
 `.github/scripts/check-doc-drift.py`, wired into `.config/.pre-commit-config.yaml`
 as a local hook — no separate job of its own, it rides along inside
-`pre-commit-checks` above like every other commit-stage hook. Checks four
-narrow, structural things:
+`pre-commit-checks` above like every other commit-stage hook. Checks
+these narrow, structural things:
 
 - Every `docs/*.md` file is linked somewhere in README.md (both
-  directions — a link to a deleted file fails too).
+  directions — a link to a deleted file fails too). The same check
+  applies one level down for `docs/decisions/` and
+  `docs/architecture/`, against their own `README.md` index.
 - `docs/ansible.md`'s Playbooks and Roles tables list exactly the files
   under `ansible/playbooks/*.yaml` and directories under
   `ansible/roles/*/`.
@@ -192,6 +194,11 @@ narrow, structural things:
 - This file's own Jobs table lists every `pr-checks.yml` job id, except
   `detect-changes` (internal plumbing) and `trivy-scan` (documented in
   [`security-scanning.md`](security-scanning.md) instead).
+- Every cross-file `#anchor` reference anywhere in the repo (not just
+  `.md` files — YAML/Python comments too) resolves to a real file with
+  a heading that actually slugs to that anchor; same for same-file
+  `#anchor` links. Catches the class of bug a file move/rename/split
+  leaves behind.
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a

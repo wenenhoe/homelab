@@ -101,5 +101,79 @@ class AuditOciTests(unittest.TestCase):
         self.assertIn("ocid1.user.oc1..writeleaf", sent_filter)
 
 
+class AuditLocalTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
+        patcher = patch.object(audit_secrets, "SECRETS_DIR", self.tmp)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+        # Deliberately a separate directory from SECRETS_DIR - audit_local()
+        # scans every file under SECRETS_DIR, so a registry file placed
+        # inside it would incorrectly show up as its own orphan.
+        registry_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(registry_dir, ignore_errors=True))
+        registry_path = registry_dir / "secrets_registry.yaml"
+        registry_path.write_text("secrets_registry:\n  cloudflare-r2-write-access-key: {}\n  cloudflare-r2-write-secret-key: {}\n")
+        registry_patcher = patch.object(audit_secrets, "REGISTRY_PATH", registry_path)
+        registry_patcher.start()
+        self.addCleanup(registry_patcher.stop)
+
+    def seed(self, name: str, value: str) -> None:
+        (self.tmp / name).write_text(value)
+
+    def test_r2_rotation_token_is_not_flagged_as_an_orphan(self):
+        """Regression test: _rotation-key-cloudflare-r2-token was
+        missing from KNOWN_INTERNAL_PATTERNS despite being a real,
+        actively-used cache file (r2_rotation_token() reads it,
+        cache_r2_rotation_token()/rotate_r2_rotation_token() write it) -
+        a false-positive orphan that predates the OCI SCIM migration."""
+        self.seed("_rotation-key-cloudflare-r2-token", "shh")
+        self.seed("cloudflare-r2-write-access-key", "abc")
+        self.seed("cloudflare-r2-write-secret-key", "def")
+
+        with patch("sys.stdout") as mock_stdout:
+            audit_secrets.audit_local()
+
+        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
+        self.assertNotIn("not referenced by current config", printed)
+        self.assertIn("all match a current registry/internal entry", printed)
+
+    def test_genuinely_unreferenced_file_is_flagged(self):
+        self.seed("cloudflare-r2-write-access-key", "abc")
+        self.seed("cloudflare-r2-write-secret-key", "def")
+        self.seed("some-leftover-from-a-naming-change", "stale")
+
+        with patch("sys.stdout") as mock_stdout:
+            audit_secrets.audit_local()
+
+        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
+        self.assertIn("some-leftover-from-a-naming-change", printed)
+        self.assertIn("1 file(s) not referenced", printed)
+
+    def test_all_current_oci_scim_cache_keys_are_known(self):
+        for name in [
+            "_rotation-key-oci-domain-url",
+            "_rotation-key-oci-client-id",
+            "_rotation-key-oci-client-secret",
+            "_rotation-key-oci-app-id",
+            "_rotation-key-oci-created-at",
+            "_oci-leaf-user-ocid-write",
+            "_oci-leaf-user-ocid-read",
+            "oci-write-scim-id",
+            "oci-read-scim-id",
+        ]:
+            self.seed(name, "x")
+        self.seed("cloudflare-r2-write-access-key", "abc")
+        self.seed("cloudflare-r2-write-secret-key", "def")
+
+        with patch("sys.stdout") as mock_stdout:
+            audit_secrets.audit_local()
+
+        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
+        self.assertIn("all match a current registry/internal entry", printed)
+
+
 if __name__ == "__main__":
     unittest.main()

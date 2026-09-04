@@ -2,15 +2,16 @@
 
 Two scripts, plus an audit tool:
 
-- **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely,
-  for B2 and OCI only. Takes each provider's master credential in
-  memory only (never written to disk, never logged) and uses it to
-  mint a narrower **rotation key**: scoped to creating/deleting keys,
-  not to reading or writing backup data itself. The rotation key is
-  what gets cached. `--provider r2` doesn't exist here — Cloudflare has
-  no way to mint such a delegate credential via its API at all
-  (confirmed live, see the R2 section); R2's admin token is cached
-  differently, by `create_leaf_keys.py` itself, below.
+- **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely.
+  For B2/OCI, takes each provider's master credential in memory only
+  (never written to disk, never logged) and uses it to mint a narrower
+  **rotation key**: scoped to creating/deleting keys, not to reading or
+  writing backup data itself. For R2, there's nothing to mint —
+  Cloudflare has no way to create such a delegate credential via its
+  API at all (confirmed live, see the R2 section) — `--provider r2`
+  here only caches (or re-caches, via `--rotate`) the Custom Token a
+  human creates in the Console. The rotation key/token either way is
+  what gets cached, and `create_leaf_keys.py` is what actually reads it.
 - **`ansible/cloud_credentials/create_leaf_keys.py`** — run routinely.
   This is what actually creates/rotates the 6 `cloud_sync`/
   restore-discovery credentials (`cloudflare-r2-write-*`/`-read-*`,
@@ -395,8 +396,11 @@ against a real failure, not assumed:**
 **R2's `--rotate` uses its cached admin token** rather than a
 purpose-built delegate identity — same verify-then-revoke mechanics as
 B2/OCI, broader blast radius if that token is ever compromised (see R2's
-section above). Delete `_rotation-key-cloudflare-r2-token` to fall back
-to prompting every time.
+section above). To update that cached token itself (as opposed to the
+leaf keys it creates), see "Rotating the rotation credential itself"
+below — `create_rotation_keys --provider r2 --rotate` — rather than
+deleting `_rotation-key-cloudflare-r2-token` by hand, though that still
+works too if you'd rather just fall back to prompting on next use.
 
 **Rotating the rotation credential itself:** low-frequency,
 human-attended, and none of the three auto-rotate on a schedule — but
@@ -458,10 +462,27 @@ affected leaf user first — that name is what `_verify_rotation_key`'s
 throwaway key is always created with, so it's unambiguous to spot and
 safe to delete by hand.
 
-**R2** has no equivalent: create a new Custom Token in the Console,
-overwrite `_rotation-key-cloudflare-r2-token` by hand — Cloudflare's
-API structurally can't mint a delegate credential for this at all (see
-[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)).
+**R2** has no verify-then-revoke equivalent — Cloudflare's API
+structurally can't mint a delegate credential for this at all (see
+[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)) —
+but it does have the same `--rotate` entry point now, closing a real
+gap: create a new Custom Token in the Console first, then
+
+```sh
+cd ansible
+python3 -m cloud_credentials.create_rotation_keys --provider r2 --rotate
+```
+
+prompts for it and overwrites `_rotation-key-cloudflare-r2-token`
+unconditionally — no hand-editing the cache file. There's genuinely
+nothing to verify or revoke here: rolling the Custom Token in the
+Console already revokes the old one immediately, before this command
+ever runs, so unlike B2/OCI's `--rotate` there's no "old value kept
+working if the new one fails" guarantee — there is no old value left
+to fall back to by the time you're running this. `--provider r2`
+(without `--rotate`) does the same idempotent-if-cached bootstrap the
+other two providers get, and is never included in `--provider all`,
+since it blocks on that Console step existing first.
 
 ## Future: secrets manager
 

@@ -64,3 +64,42 @@ def test_plain_run_without_rotate_still_uses_create_path(mock_create_oci, mock_c
 
     mock_create_b2.assert_called_once()
     mock_create_oci.assert_called_once()
+
+
+@patch("cloud_credentials.create_rotation_keys.cache_r2_rotation_token")
+@patch("cloud_credentials.create_rotation_keys.create_b2_rotation_key")
+@patch("cloud_credentials.create_rotation_keys.create_oci_rotation_key")
+def test_provider_all_never_touches_r2(mock_create_oci, mock_create_b2, mock_cache_r2, monkeypatch, tmp_path):
+    # r2 needs a Console step the operator may not have done yet -
+    # --provider all must never block on it implicitly.
+    monkeypatch.setattr(sys, "argv", ["prog", "--provider", "all", "--admin-email", "you@example.com"])
+    monkeypatch.setattr(create_rotation_keys, "SECRETS_DIR", tmp_path)
+
+    create_rotation_keys.main()
+
+    mock_cache_r2.assert_not_called()
+
+
+@patch("cloud_credentials.create_rotation_keys.cache_r2_rotation_token")
+def test_provider_r2_without_rotate_calls_cache_not_rotate(mock_cache_r2, monkeypatch, tmp_path):
+    monkeypatch.setattr(sys, "argv", ["prog", "--provider", "r2"])
+    monkeypatch.setattr(create_rotation_keys, "SECRETS_DIR", tmp_path)
+
+    rc = create_rotation_keys.main()
+
+    mock_cache_r2.assert_called_once()
+    assert rc == 0
+
+
+@patch("cloud_credentials.create_rotation_keys.rotate_r2_rotation_token", return_value=True)
+def test_rotate_provider_r2_is_a_valid_combination(mock_rotate, monkeypatch, tmp_path):
+    # This is the actual feature request: --rotate --provider r2 must
+    # work, not just b2/oci, so updating the cached Console token never
+    # needs manual cache-file editing again.
+    monkeypatch.setattr(sys, "argv", ["prog", "--rotate", "--provider", "r2"])
+    monkeypatch.setattr(create_rotation_keys, "SECRETS_DIR", tmp_path)
+
+    rc = create_rotation_keys.main()
+
+    mock_rotate.assert_called_once()
+    assert rc == 0

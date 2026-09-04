@@ -10,8 +10,10 @@ holding no file/bucket-data capabilities itself. Cloudflare's tokens
 API structurally can't do the same: it rejects granting `API Tokens
 Write` to any token created via the API itself (`400 {"code": 1001,
 "message": "sub-token is not allowed to have permissions to manage
-other tokens"}`). There is no R2 equivalent of `create_rotation_keys
---provider r2`.
+other tokens"}`). `create_rotation_keys --provider r2` exists, but
+never mints anything — it only caches (or, via `--rotate`, re-caches)
+a token a human creates directly in the Console; creation via API is
+what's blocked, not reuse of a Console-created one.
 
 Cloudflare also has no policy-condition mechanism restricting *which*
 permissions a delegated identity can grant (unlike OCI's `any
@@ -20,12 +22,13 @@ token can therefore mint a token with any permission the account
 holder has — DNS, Zones, Workers, Access, billing — not just
 R2-scoped ones.
 
-The remaining option was caching a token a human creates directly in
-the Cloudflare Console (creation via API is what's blocked, not reuse
-of a Console-created one). `r2_rotation_token()` does exactly that:
-prompts once, caches to `_rotation-key-cloudflare-r2-token`, and every
-later call — including `--rotate` — reads the cache instead of
-re-prompting.
+`r2_rotation_token()` (`leaf_keys/r2.py`) and
+`cache_r2_rotation_token()`/`rotate_r2_rotation_token()`
+(`rotation_keys/r2.py`) share one prompt: caches to
+`_rotation-key-cloudflare-r2-token` on first use, and every later call
+— including `create_leaf_keys.py --rotate` — reads the cache instead
+of re-prompting, unless `create_rotation_keys --provider r2 --rotate`
+is run explicitly to overwrite it.
 
 ## Decision
 

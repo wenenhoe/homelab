@@ -47,7 +47,7 @@ def test_create_rotation_keys_help_preserves_paragraph_breaks(monkeypatch):
     help_text = _help_text(create_rotation_keys, monkeypatch)
     # Same check on create_rotation_keys.py's own docstring - this is
     # the one that was actually missing RawDescriptionHelpFormatter.
-    assert "\nR2 has no provider here at all" in help_text
-    assert "\n\nR2 has no provider here at all" in help_text, (
+    assert "\nR2 has no equivalent to mint via API" in help_text
+    assert "\n\nR2 has no equivalent to mint via API" in help_text, (
         "expected a blank line before this paragraph - argparse's default formatter re-wraps the whole multi-paragraph docstring as one blob"
     )

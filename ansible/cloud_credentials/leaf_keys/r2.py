@@ -20,6 +20,20 @@ R2_PERMISSION_GROUP_BY_LEAF = {
 }
 
 
+def _prompt_r2_admin_token() -> str:
+    print(
+        "Cloudflare admin token — a Custom Token named "
+        "'homelab-cloud-sync-r2-rotation-key' (NOT the 'Create Additional "
+        "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
+        "permission, scoped to this account (dashboard.cloudflare.com > My "
+        "Profile > API Tokens) — set an expiration date on it in the "
+        "Console (this script can't set one after the fact; "
+        "check_freshness.py reads it back live either way) — input "
+        "hidden, cached after this:"
+    )
+    return getpass.getpass("> ")
+
+
 def r2_rotation_token() -> str:
     """The Cloudflare admin token used to create/revoke R2 leaf tokens.
 
@@ -40,22 +54,19 @@ def r2_rotation_token() -> str:
     accepted rather than avoided, and what narrows the blast radius in
     the meantime (a future secrets-manager migration is the intended
     next mitigation, not this script).
+
+    To set or replace this token deliberately — rather than being
+    surprised by this prompt mid-run — see
+    rotation_keys/r2.py:cache_r2_rotation_token /
+    rotate_r2_rotation_token, invoked via create_rotation_keys.py
+    --provider r2. This function's own inline prompt is a fallback for
+    first-time use, not the intended everyday path anymore.
     """
     cache_key = "_rotation-key-cloudflare-r2-token"
     cached_value = read_cache(cache_key)
     if cached_value is not None:
         return cached_value
-    print(
-        "Cloudflare admin token — a Custom Token named "
-        "'homelab-cloud-sync-r2-rotation-key' (NOT the 'Create Additional "
-        "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
-        "permission, scoped to this account (dashboard.cloudflare.com > My "
-        "Profile > API Tokens) — set an expiration date on it in the "
-        "Console (this script can't set one after the fact; "
-        "check_freshness.py reads it back live either way) — input "
-        "hidden, cached after this:"
-    )
-    token = getpass.getpass("> ")
+    token = _prompt_r2_admin_token()
     write_cache(cache_key, token)
     return token
 

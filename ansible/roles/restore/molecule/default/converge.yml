@@ -27,6 +27,7 @@
     restore_staging_dir: /tmp/restore-molecule-default-staging
     restore_test_archive: /tmp/restore-molecule-default-archive.tar.gz
     restore_before_marker: /tmp/restore-molecule-default-before-started-at
+    restore_default_owner_marker: /tmp/restore-molecule-default-canary-owner
   tasks:
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
@@ -96,6 +97,26 @@
         mode: "0644"
       delegate_to: localhost
       become: false
+
+    # Whatever UID/GID actually owns this file on the controller (not a
+    # fixed value we assert — become: false means we can't chown to an
+    # arbitrary UID here) is what a real docker-volume-backup archive's
+    # tar entries would carry. restore's own extraction never runs as
+    # anyone but root with a plain `cp -a` (see the role's header), so
+    # this ownership must survive unchanged into the restored volume;
+    # verify.yml proves that rather than assuming it.
+    - name: Capture the staged canary's real ownership, for verify.yml to compare against
+      ansible.builtin.stat:
+        path: "{{ restore_staging_dir }}/offsite-source/restore_target_data/canary.txt"
+      register: restore_default_canary_source_stat
+      delegate_to: localhost
+      become: false
+
+    - name: Persist the source canary's owner for verify.yml to compare against
+      ansible.builtin.copy:
+        dest: "{{ restore_default_owner_marker }}"
+        content: "{{ restore_default_canary_source_stat.stat.uid }}:{{ restore_default_canary_source_stat.stat.gid }}"
+        mode: "0644"
 
     - name: Build the plain .tar.gz — this is what a real operator hands the playbook after gpg --decrypt
       ansible.builtin.command: # noqa: command-instead-of-module — creating a tar.gz, not extracting one;

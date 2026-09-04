@@ -4,6 +4,7 @@
   become: true
   vars:
     restore_before_marker: /tmp/restore-molecule-default-before-started-at
+    restore_default_owner_marker: /tmp/restore-molecule-default-canary-owner
   tasks:
     # --- Did the restore actually stop and redeploy the app? ---------------
     # StartedAt changing is direct evidence the container was actually
@@ -65,6 +66,41 @@
         fail_msg: >-
           Volume content after restore:
           {{ restore_default_content_check.container.Output }}
+
+    # --- Did the restore preserve the archive's ownership, not reset it? ---
+    # docker_volume_backup ships a legacy volume the same way it originally
+    # got populated — right or wrong. restore's own extraction preserves
+    # whatever it's handed (see docker-wastebin's live incident: a volume
+    # first populated under a since-corrected UID stays wrong until someone
+    # manually chowns it). If this ever regresses to reset ownership
+    # instead of preserving it, this is the test that would catch it.
+    - name: Read back the source canary's original owner
+      ansible.builtin.slurp:
+        path: "{{ restore_default_owner_marker }}"
+      register: restore_default_owner_raw
+
+    - name: Read back the restored canary's owner inside the volume
+      community.docker.docker_container:
+        name: restore-default-owner-check
+        image: alpine:3.20
+        volumes:
+          - restore_target_data:/data:ro
+        command: "stat -c %u:%g /data/canary.txt"
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: restore_default_owner_check
+      changed_when: false
+
+    - name: Confirm the restored file's ownership matches the archive's, not root or something else
+      ansible.builtin.assert:
+        that:
+          - (restore_default_owner_raw.content | b64decode) == (restore_default_owner_check.container.Output | trim)
+        fail_msg: >-
+          Restored canary owner
+          ({{ restore_default_owner_check.container.Output | trim }})
+          does not match the archive's original owner
+          ({{ restore_default_owner_raw.content | b64decode }}).
 
     # --- Cleanup: did the role actually tear down its scratch state? -------
     - name: Confirm the scratch extraction volume was removed

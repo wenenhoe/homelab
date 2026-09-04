@@ -10,10 +10,11 @@ rotation keypair, because the classic Identity API this repo calls has
 no expiry field at all, and scoped a SCIM-based alternative out as a
 second, unrelated auth integration not worth building speculatively.
 
-That integration has now been built as a throwaway spike
-(`cloud_credentials/spikes/oci_scim_oauth_check.py`) and run live
-against this tenancy, confirming what 0015 could only note as
-theoretically possible:
+That integration has been built and confirmed live against this
+tenancy (`cloud_credentials/spikes/oci_scim_oauth_check.py` and
+`oci_scim_app_secret_check.py`), then implemented as the real
+`leaf_keys/oci.py` and `rotation_keys/oci_bootstrap.py`, confirming
+what 0015 could only note as theoretically possible:
 
 - A Confidential Application with OAuth2 client-credentials, granted
   the **User Administrator** domain app role, successfully
@@ -74,18 +75,30 @@ neither has native expiry. This supersedes only the OCI portion of
   timestamp — the same shape 0015 used for the OCID+PEM keypair, just
   for a different credential. 0015's gap narrows here, it doesn't
   fully close.
-- A new long-lived credential is introduced (the Confidential
-  Application's client ID + secret) to replace the role the OCI
-  rotation keypair plays today; the keypair itself becomes redundant
-  once the SCIM path is fully built and cut over.
+- A new long-lived credential replaces the role the old OCI rotation
+  keypair played; the keypair itself is gone (removed along with
+  `oci_ensure_rotation_identity` and `_verify_rotation_key` — there is
+  no classic-IAM rotation identity for OCI anymore).
 - Regenerating the Confidential Application's own client secret is a
   hard cutover, not an overlap window (see Context) — unlike leaf-key
   rotation, there's no verify-before-revoke available for this specific
   credential; a regeneration that turns out broken has no old secret
-  left to fall back to.
-- The classic-API code path (`leaf_keys/oci.py`,
-  `rotation_keys/oci_bootstrap.py`) stays as-is until the SCIM path is
-  fully built and cut over — not touched by this decision alone.
+  left to fall back to. `rotation_keys/oci_bootstrap.py:rotate_oci_rotation_key`
+  caches the new secret immediately once returned, before attempting
+  to verify it, since the old one is already gone regardless of that
+  outcome.
+- `audit_secrets.py --provider oci` also moved to SCIM
+  (`GET /admin/v1/CustomerSecretKeys?filter=user.ocid eq "..."`,
+  confirmed to work live) — the last place this repo's OCI tooling
+  still touched `~/.oci/config` for anything customer-secret-key
+  related. `~/.oci/config` is still required, but only for
+  leaf-identity classic-IAM bootstrapping (`oci_ensure_leaf_identity`),
+  which this decision never touched.
+- The classic-API code path this superseded
+  (`oci_ensure_rotation_identity`, `_verify_rotation_key`, and the
+  RSA-keypair generation in both `leaf_keys/oci.py` and
+  `rotation_keys/oci_bootstrap.py`) has been removed, not left
+  alongside the new path.
 
-See `cloud-credential-creation.md`'s Credential expiry section (once
-updated) for the resulting setup/verification steps.
+See `cloud-credential-creation.md`'s Credential expiry section for the
+resulting setup/verification steps.

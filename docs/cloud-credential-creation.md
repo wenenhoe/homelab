@@ -3,15 +3,21 @@
 Two scripts, plus an audit tool:
 
 - **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely.
-  For B2/OCI, takes each provider's master credential in memory only
-  (never written to disk, never logged) and uses it to mint a narrower
-  **rotation key**: scoped to creating/deleting keys, not to reading or
-  writing backup data itself. For R2, there's nothing to mint —
-  Cloudflare has no way to create such a delegate credential via its
-  API at all (confirmed live, see the R2 section) — `--provider r2`
-  here only caches (or re-caches, via `--rotate`) the Custom Token a
-  human creates in the Console. The rotation key/token either way is
-  what gets cached, and `create_leaf_keys.py` is what actually reads it.
+  For B2, takes the master credential in memory only (never written to
+  disk, never logged) and uses it to mint a narrower **rotation key**:
+  scoped to creating/deleting keys, not to reading or writing backup
+  data itself. For OCI, there's no credential to mint — a human
+  registers a Confidential Application by hand in Console once (see
+  the OCI section), and this script prompts for and caches its client
+  ID/secret, alongside bootstrapping the two leaf identities' classic
+  IAM policies with your personal admin config (`~/.oci/config`) —
+  unrelated to the Confidential Application, still needed, see the OCI
+  section for why. For R2, there's nothing to mint either — Cloudflare
+  has no way to create such a delegate credential via its API at all
+  (confirmed live, see the R2 section) — `--provider r2` here only
+  caches (or re-caches, via `--rotate`) the Custom Token a human
+  creates in the Console. Whatever gets cached either way is what
+  `create_leaf_keys.py` actually reads.
 - **`ansible/cloud_credentials/create_leaf_keys.py`** — run routinely.
   This is what actually creates/rotates the 6 `cloud_sync`/
   restore-discovery credentials (`cloudflare-r2-write-*`/`-read-*`,
@@ -55,10 +61,16 @@ python3 -m cloud_credentials.create_leaf_keys   # all three leaves; prompts for 
 
 Safe to re-run either script — a credential whose cache files already
 exist is left alone. Both use each provider's HTTP API directly, no
-`b2`/`oci` CLI binary required — just the `requests`, `oci`, and
-`cryptography` packages pinned in `pyproject.toml` (`oci` supplies only
-its `oci.signer.Signer` request-signing helper; nothing here calls the
-SDK's generated per-service clients).
+`b2`/`oci` CLI binary required — just the `requests` and `oci` packages
+pinned in `pyproject.toml` (`oci` supplies `oci.signer.Signer`, used
+only for OCI's leaf-identity IAM bootstrap now — see the OCI section
+for why that's a separate, unrelated auth model from the SCIM
+credentials the rest of OCI's flow uses; nothing here calls the SDK's
+generated per-service clients). `cryptography` is still pinned in
+`pyproject.toml` but nothing in `cloud_credentials/` imports it
+anymore as of the OCI SCIM migration (it only ever existed here for
+OCI's now-removed RSA keypair generation) — worth removing as a
+separate cleanup, not done as part of this migration.
 
 ## What "master credential" means per provider, and how scoped the resulting rotation key actually is
 
@@ -79,10 +91,10 @@ Backblaze's own docs on Application Keys enumerate every capability a
 bucket-restricted key is allowed to carry, and `listKeys`/`writeKeys`/
 `deleteKeys` aren't on that list — key management is inherently
 account-wide on B2, full stop. Same shape of limitation as OCI's
-`manage users` (scoped to `USER_SECRETKEY_ADD`/`_REMOVE`, still
-tenancy-wide) and R2's `API Tokens Write` (account-wide) — none of the
-three providers let you scope a key-management credential down to one
-bucket/resource; that constraint appears structural to how "a
+Confidential Application role (User Administrator, domain-wide — see
+the OCI section) and R2's `API Tokens Write` (account-wide) — none of
+the three providers let you scope a key-management credential down to
+one bucket/resource; that constraint appears structural to how "a
 credential that can mint other credentials" works on all three, not
 specific to any one of them.
 
@@ -124,83 +136,19 @@ actual failing S3 call (`HeadObject`/`PutObject`/`ListObjectsV2`),
 which narrows down which capability is missing far faster than
 guessing from the error text alone.
 
-### OCI — meaningful reduction, but not scoped to just the two leaf users
+### OCI — two separate credentials, two separate auth models
 
-Master: your personal/admin OCI identity via `~/.oci/config` — this is
-the one master credential the script doesn't take interactively, since
-OCI's auth model requires a persistent signing keypair rather than a
-pasteable string. It's read once, by this script only, to do two
-things: create the `homelab-cloud-sync-write`/`-read` IAM
-users/groups/policies (idempotent at every step — user, group,
-membership, and policy are each looked up instead of recreated if they
-already exist, so a partially-completed prior run can be safely
-resumed), and create a dedicated `homelab-key-rotation` IAM user with
-its own freshly-generated RSA keypair (via `cryptography`, uploaded
-through `UploadApiKey`) and a policy granting exactly `manage users`
-scoped down to `USER_UPDATE`/`USER_SECRETKEY_ADD`/`USER_SECRETKEY_REMOVE`
-— add and remove secret keys, nothing else beyond what `USER_UPDATE`
-itself covers (plain `UpdateUser` — renaming/redescribing a user; not
-`USER_UNBLOCK`, not `USER_DELETE`, not password reset, none of those
-are granted). That's what gets cached.
+**Leaf identities (classic IAM, unchanged by the SCIM migration below):**
+Master: your personal/admin OCI identity via `~/.oci/config` — read
+once per `create_rotation_keys`/`--rotate` invocation, by this script
+only, to create/verify the `homelab-cloud-sync-write`/`-read` IAM
+users, groups, and bucket-scoped policies (idempotent at every step —
+user, group, membership, and policy are each looked up instead of
+recreated if they already exist). This has nothing to do with SCIM or
+customer-secret-key creation; it's the same classic-IAM object-storage
+policy scoping (`target.bucket.name='homelab-backups'`) as before.
 
-**`manage customer-secret-keys` isn't a real OCI policy resource-type
-— confirmed live** (`400 InvalidParameter: No permissions found`).
-That name was inferred from the API object's name
-(`CustomerSecretKey`) rather than checked against OCI's actual policy
-vocabulary, which was a mistake. Credential management in OCI's policy
-language lives under `manage users` with permission-level conditions.
-
-**`USER_UPDATE` is required alongside `USER_SECRETKEY_ADD`/`_REMOVE`,
-not optional — confirmed against Oracle's own permissions reference**
-("Details for IAM with Identity Domains"), which lists `CreateSecretKey`
-as needing `USER_UPDATE and USER_SECRETKEY_ADD` (an AND) and
-`DeleteCustomerSecretKey` as `USER_UPDATE and USER_SECRETKEY_REMOVE`.
-Every credential-mutating operation in that table follows the same
-pattern — the specific permission alone is never sufficient. Omitting
-`USER_UPDATE` produced a live `404 NotAuthorizedOrNotFound` on
-`CreateCustomerSecretKey`; adding it, this policy statement went on to
-successfully create both leaf users' customer secret keys end to end —
-this permission combination is confirmed correct in practice, not just
-against the reference table. `USER_UPDATE`'s own scope (bare
-`UpdateUser` only, nothing else) is the one real cost of this
-requirement: the rotation identity can rename/redescribe any user in
-the tenancy as a side effect of being grantable at all, not because
-that's a capability anyone wanted — OCI bundles it into the same
-permission that gates every per-user credential mutation.
-
-**The keypair-exists cache check gates keypair *generation* only.**
-Leaf-identity and rotation-identity policy verification run on every
-`create_rotation_keys --provider oci` invocation regardless of whether
-the keypair is already cached, the same way `oci_ensure_leaf_identity`
-re-verifies leaf policies unconditionally. Re-running
-`create_rotation_keys --provider oci --admin-email you@example.com` is
-enough to pick up a policy change without touching the cached
-keypair — no flag needed, no cache files to delete. A raw API re-GET
-reflects a policy change immediately; the Console's own policy detail
-view can lag visibly behind that, so treat the API (or `oci
-iam policy get`) as the source of truth when confirming a policy
-change took effect, not the Console alone.
-
-**Identity-Domain tenancies require an email per user, confirmed
-live** (`400 IdcsConversionError` from `CreateUser` without one).
-Classic (non-domain) OCI IAM doesn't require this at all. Since email
-must be unique per user and these are three service identities, not
-people, `create_rotation_keys --provider oci` requires
-`--admin-email you@example.com` and derives a distinct `+`-tagged
-address per user (`you+homelab-cloud-sync-write@example.com`, etc.) off
-it — one real mailbox you control, nothing fake. Required
-unconditionally for the `oci` provider rather than detecting tenancy
-type first; harmless on classic-IAM tenancies, where `email` is simply
-optional.
-
-The gap: this is tenancy-wide for customer-secret-keys, not scoped to
-just the two `homelab-cloud-sync-*` users specifically. No confirmed
-OCI policy condition (the way `target.bucket.name=` scopes object
-storage) exists for narrowing identity-family resources to one named
-user, as far as I've found — if you find one, this is worth
-tightening.
-
-The leaf users' policies themselves: write gets `any
+The leaf users' policies: write gets `any
 {request.permission='OBJECT_INSPECT',
 request.permission='OBJECT_CREATE',
 request.permission='OBJECT_OVERWRITE'}`, read swaps in `OBJECT_READ`
@@ -213,51 +161,94 @@ not-found-or-unauthorized response this API gives for every other
 authorization gap — a single-part `PutObject` doesn't hit this, so it
 went unnoticed until an archive large enough to trigger rclone's
 multi-thread/multipart path (minecraft's) actually ran against OCI.
-`OBJECT_DELETE` is still excluded from both leaves; `OBJECT_OVERWRITE`
-lets the write leaf replace an existing object's content but not remove
-one — a real (if currently unexercised, since every archive filename
-embeds a unique timestamp and is never reused) capability beyond pure
-append-only that wasn't granted before.
+`OBJECT_DELETE` is still excluded from both leaves.
 
-**Verified against this deployment's tenancy:** home region and the
-region configured in `~/.oci/config` match — no mismatch, so no code
-fix needed. Worth re-checking
-(Console > Governance & Administration > Tenancy Management > Tenancy
-Details, or `oci iam region-subscription list`) if this ever moves to
-a different tenancy or the config's region changes.
+**Identity-Domain tenancies require an email per user, confirmed
+live** (`400 IdcsConversionError` from `CreateUser` without one).
+Since these are three service identities, not people,
+`create_rotation_keys --provider oci` requires
+`--admin-email you@example.com` and derives a distinct `+`-tagged
+address per user off it — one real mailbox you control, nothing fake.
 
-**Confirmed, not a guess:** the `UploadApiKey` request body's JSON
-field name for the PEM public key is `key` (Oracle's Python SDK model
-reference documents it as the sole required attribute of
-`CreateApiKeyDetails`, generated directly from their API spec). The
-409-conflict fallback path — looking up an already-existing user by
-name via `GET /20160918/users?compartmentId=&name=` — is also
-confirmed live, having fired for real when a prior run failed partway
-through and left users already created. The equivalent group lookup
-uses the identical documented pattern but hasn't independently hit a
-real 409 yet.
+**Rotation credential (Identity Domains SCIM — replaces the old
+OCID+PEM keypair entirely; see
+[ADR 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)):**
+register a Confidential Application by hand in Console (Identity &
+Security > Domains > your domain > Integrated Applications > Add >
+Confidential Application), named exactly `homelab-oci-scim-rotation`
+(`OCI_SCIM_APP_DISPLAY_NAME` in `oci_bootstrap.py` — SCIM search finds
+it by this exact name, nothing else identifies it to this repo's
+tooling). Enable the **Client credentials** grant on its OAuth
+Configuration tab, skip Web Tier Policy (that's for browser-facing
+apps behind a gateway — irrelevant here), grant the **User
+Administrator** app role under Token Issuance Policy, then Activate
+it — a freshly created app is inactive by default, a separate state
+from its OAuth configuration; both are required before it will
+authenticate at all. `create_rotation_keys --provider oci` then
+prompts once for the domain URL, client ID, and client secret from
+this app's Configuration tab, verifies them with a real token
+exchange, looks up the app's own SCIM id, and caches all four
+alongside a self-tracked `_rotation-key-oci-created-at` (see Credential
+expiry below for why this one stays self-tracked).
 
-**Still needs a live test:**
+**User Administrator is confirmed sufficient for everything this repo
+needs from this app** — live-tested against a real tenancy for
+`POST /admin/v1/CustomerSecretKeys` (leaf key creation),
+`GET /admin/v1/Apps?filter=...` (finding the app's own id), and
+`POST /admin/v1/AppClientSecretRegenerator` (rotating the app's own
+secret). Oracle's own AppRole-to-endpoint tables list the latter two
+under Security Administrator instead, which made this worth confirming
+live rather than assuming the stricter table was the operative one —
+it wasn't.
 
-- Whether an OCI policy condition can scope `manage users` to one
-  named resource the way `target.bucket.name=` scopes object storage —
-  every official example found only ever conditions storage/vault/compute
-  resource families this way, never identity ones. Treating this as
-  confirmed-absent unless proven otherwise.
+**The gap this replaces didn't fully close, it moved.** The old
+rotation identity's classic-IAM policy was tenancy-wide `manage users`
+— not scoped to just the two leaf users — because no confirmed OCI
+policy condition narrows identity-family resources the way
+`target.bucket.name=` scopes object storage. That specific policy is
+gone now (there's no more classic rotation identity at all), but User
+Administrator is a domain-wide app role, not scoped to two users
+either. Same shape of trade-off, different mechanism.
 
-**Confirmed live:** the existing rotation identity's Signature V1 auth
-(`OCISigner`) does not work against the Identity Domains SCIM API —
-the endpoint that carries a real, native `expiresOn` (see
-[ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)).
-A read-only `GET /admin/v1/Schemas` signed with it comes back
-`401 error.common.common.accessDenied`. `cloud_credentials/spikes/oci_scim_auth_check.py`
-is the script that confirmed this, kept around in case a future
-tenancy or auth setup changes the answer:
+**SCIM-specific things confirmed live, not inferred from the schema
+alone:**
 
-```sh
-cd ansible
-python3 -m cloud_credentials.spikes.oci_scim_auth_check https://idcs-xxxxxxxxxxxx.identity.oraclecloud.com
-```
+- `CustomerSecretKey.user` takes the leaf user's OCID in its `ocid`
+  field, not `value` — `value` is a different, shorter SCIM-internal id
+  (max 40 characters) and rejects an OCID outright with
+  `error.common.validation.stringExceedsMaxLimit`.
+- `expiresOn` is `mutability: immutable`, meaning settable at create
+  (not server-computed) but never updatable afterward on an existing
+  key. Round-trips as the same instant OCI echoes it back with —
+  compare as parsed timestamps, not raw strings: OCI adds explicit
+  milliseconds even when the request sent none.
+- `accessKey`/`secretKey` are both `mutability: readOnly, returned:
+  default` and genuinely populated on create — SCIM's create call
+  produces real, usable S3-compatible credentials, not metadata layered
+  on a key still created some other way.
+- The Confidential Application's own client secret has no native
+  expiry field on the `App` resource itself, and OCI supports exactly
+  one active secret per app — regenerating (`AppClientSecretRegenerator`)
+  is a hard cutover, not an overlap window (confirmed via Oracle's own
+  product-feedback forum, where multi-secret support is an open feature
+  request). There is no verify-then-revoke available for this specific
+  credential the way there is for leaf keys — see Rotation below for
+  what that means in practice.
+- The classic API's `GET /20160918/users/{id}/customerSecretKeys` still
+  sees keys created via SCIM, and SCIM's own
+  `GET /admin/v1/CustomerSecretKeys?filter=user.ocid eq "..."` works too
+  — both confirmed live. `audit_secrets.py --provider oci` uses the
+  SCIM path, since it's the same credential everything else already
+  authenticates with; nothing here depends on `~/.oci/config` for
+  auditing.
+
+Two throwaway diagnostic scripts remain in `cloud_credentials/spikes/`
+from this migration, safe to re-run if anything about this ever needs
+re-confirming: `oci_scim_oauth_check.py` (the OAuth2 + SCIM create/
+expiry/delete round-trip) and `oci_scim_app_secret_check.py` — **not
+throwaway itself**, since it permanently regenerates whatever app you
+point it at; read its own docstring before running it against
+anything you're not prepared to reconfigure by hand.
 
 ### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 
@@ -403,8 +394,7 @@ deleting `_rotation-key-cloudflare-r2-token` by hand, though that still
 works too if you'd rather just fall back to prompting on next use.
 
 **Rotating the rotation credential itself:** low-frequency,
-human-attended, and none of the three auto-rotate on a schedule — but
-B2/OCI now have the same zero-downtime shape leaf rotation already has:
+human-attended, and none of the three auto-rotate on a schedule.
 
 ```sh
 cd ansible
@@ -412,53 +402,35 @@ python3 -m cloud_credentials.create_rotation_keys --provider b2 --rotate
 python3 -m cloud_credentials.create_rotation_keys --provider oci --rotate --admin-email you@example.com
 ```
 
-Mints a new rotation key, verifies it can actually do its job, only
-then revokes the old one — same verify-before-revoke shape as leaf
-rotation, one level up. Verification differs by provider because
-what "actually do its job" means differs: B2's new key must
-successfully call `b2_list_keys`; OCI's new key must successfully
-create *and* delete a throwaway customer secret key on the write leaf,
-not just authenticate — its policy is conditioned on exactly
-`USER_UPDATE`/`USER_SECRETKEY_ADD`/`USER_SECRETKEY_REMOVE`, not a
-blanket read grant, so a lighter check (like fetching the user record)
-could pass or fail for reasons unrelated to whether the key can
-actually rotate leaf credentials. If verification fails, the old key
-is left untouched and still in use, same failure-handling guarantee as
-leaf rotation. Requires the master credential again (B2) or your
-personal admin OCI identity (OCI), same as the very first bootstrap —
-this was never going to be a fully unattended operation.
+**B2** keeps the same verify-then-revoke shape leaf rotation has: mints
+a new rotation key, confirms it can actually call `b2_list_keys`, only
+then revokes the old one. If verification fails, the old key is left
+untouched and still in use.
 
-**OCI's new API signing key goes through the same key-propagation
-window leaf keys do:** a real rotation 401'd against the verification
-call for a full ~180s before OCI recognized the new key (confirmed via
-a diagnostic that ruled out auth/config issues first — the key
-genuinely existed provider-side and was being correctly signed
-against, this was purely OCI's own identity plane catching up).
-`_verify_rotation_key` retries broadly on 401 or 403 for the same
-reason `_run_rclone_with_retry` does above — OCI gives no way to
-distinguish "not propagated yet" from a genuine policy denial in the
-response — with the same default 60 retries / 15s delay (~900s
-ceiling), comfortably above the measured 180s. B2's rotation-key
-verification (`b2_list_keys`) hasn't hit this in practice and has no
-retry loop; add one the same way if it ever does.
+**OCI has no verify-then-revoke available for this credential — a
+hard cutover, not a choice this repo made.** Regenerating a
+Confidential Application's client secret
+(`POST /admin/v1/AppClientSecretRegenerator`) invalidates the old
+secret the instant it succeeds; OCI supports exactly one active secret
+per app (confirmed via Oracle's own product-feedback forum — see the
+OCI section above). There is no "old value kept working if the new one
+fails" guarantee here, unlike every other credential this repo
+rotates. The new secret is cached immediately once returned, before
+any verification round-trip — the old one is already gone regardless
+of whether that verification succeeds, so withholding the cache write
+on a verification failure would only discard the one copy of a value
+OCI shows exactly once, for no benefit. If verification does fail,
+the new secret is still cached (check it by hand), and the old one
+cannot be recovered — Console's own "Regenerate" button on the app's
+Configuration tab is the fallback if the cached value turns out
+unusable. `--rotate` still re-verifies the leaf identities' classic-IAM
+policies first, same as before — that part is unrelated and unaffected
+by any of this.
 
-**A second, unrelated failure mode on the same propagation window:**
-`_verify_rotation_key`'s cleanup delete (removing the throwaway
-customer secret key it creates on the write leaf to prove the new
-rotation key works) can hit the identical 401/403 window the create
-call does. If it fails and isn't retried, the throwaway key is left
-behind, silently consuming one of OCI's 2-per-user quota slots — the
-next real `create_leaf_keys.py --rotate` then fails on that quota,
-surfaced as an opaque `IdcsConversionError` /
-`"maximum quota limit of 2 has been reached"` that doesn't look like a
-propagation or quota problem at first glance. The delete step now
-retries the same way the create step does, and a failed cleanup is
-always printed loudly rather than swallowed. If you ever do see an OCI
-leaf rotation fail with `IdcsConversionError` and a quota message,
-check for a stray key named `homelab-cloud-sync-rotation-key-verify`
-on the affected leaf user first — that's the fixed name
-`_verify_rotation_key`'s throwaway key always gets, so it's
-unambiguous to spot and safe to delete by hand.
+Requires the master credential again (B2) or your personal admin OCI
+identity (for leaf-identity re-verification only, not for the secret
+regeneration itself) — this was never going to be a fully unattended
+operation.
 
 **R2** has no verify-then-revoke equivalent — Cloudflare's API
 structurally can't mint a delegate credential for this at all (see
@@ -494,33 +466,40 @@ design specifically when it's eventually scoped.
 
 All 9 credentials (6 leaf, 3 rotation) expire after 90 days now — see
 [ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)
-for why B2/R2 use native provider-side expiry and OCI uses a
-self-tracked cache-file timestamp instead, and why neither `create_leaf_keys.py`
-nor `create_rotation_keys.py` needs a new flag for this — expiry is set
+for B2/R2's native provider-side expiry, and
+[ADR 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)
+for OCI's leaf keys, which are native too now (via SCIM `expiresOn`) —
+only OCI's rotation credential (the Confidential Application's client
+secret) stays self-tracked, since that specific resource has no native
+expiry field of its own. Neither `create_leaf_keys.py` nor
+`create_rotation_keys.py` needs a new flag for this — expiry is set
 unconditionally on every create/rotate call, the same way capabilities
 already are.
 
 **B2** and **R2** enforce this themselves; an expired key/token simply
-stops authenticating provider-side. **OCI** doesn't — its classic
-Identity API has no expiry concept at all, so a self-tracked
-`<credential>-created-at` cache file (e.g. `oci-write-created-at`,
-`_rotation-key-oci-created-at`) is advisory only. Nothing currently
-enforces it beyond `check_freshness.py`'s own alert.
+stops authenticating provider-side. **OCI's leaf keys** do too now,
+via SCIM's native `expiresOn`. **OCI's rotation credential** doesn't —
+the `App` resource has no expiry field on its client secret at all
+(confirmed against Oracle's own SDK model), so a self-tracked
+`_rotation-key-oci-created-at` cache file is advisory only, same as
+every self-tracked credential in this repo. Nothing currently enforces
+it beyond `check_freshness.py`'s own alert.
 
 **R2's rotation admin token** is human-created in the Console (see its
 section above) — set an expiration date on it there when you create
 it; this script has no way to set one after the fact.
 
-**`check_freshness.py`** reads all 9 back — natively for B2 (`b2_list_keys`)
-and R2 (`GET .../tokens/{id}` for the leaf tokens, `GET /user/tokens/verify`
-for the rotation token — see below), from the self-tracked cache files
-for OCI — and reports each as fresh, expiring soon (within
-`expiry.WARNING_DAYS`, 30 days), expiring very soon (within
-`expiry.URGENT_DAYS`, 14 days), past its window, or check-failed
-(couldn't be read at all — bad auth, missing cache file, HTTP error).
-Only the last of those fails the run's own exit code —
-`systemctl --user status` reflects whether the check itself is
-healthy, not whether a credential happens to be due.
+**`check_freshness.py`** reads all 9 back — natively for B2
+(`b2_list_keys`), R2 (`GET .../tokens/{id}` for the leaf tokens,
+`GET /user/tokens/verify` for the rotation token — see below), and
+OCI's leaf keys (`GET /admin/v1/CustomerSecretKeys/{id}` via SCIM) —
+from the self-tracked cache file for OCI's rotation credential only —
+and reports each as fresh, expiring soon (within `expiry.WARNING_DAYS`,
+30 days), expiring very soon (within `expiry.URGENT_DAYS`, 14 days),
+past its window, or check-failed (couldn't be read at all — bad auth,
+missing cache file, HTTP error). Only the last of those fails the
+run's own exit code — `systemctl --user status` reflects whether the
+check itself is healthy, not whether a credential happens to be due.
 
 **The R2 rotation token is checked via `GET /user/tokens/verify`, not
 any `/accounts/{account_id}/tokens` endpoint:** this admin token is a

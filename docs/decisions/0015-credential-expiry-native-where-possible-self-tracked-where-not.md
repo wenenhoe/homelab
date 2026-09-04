@@ -42,8 +42,12 @@ needing the token itself — the rotation admin token's existing `Account
 API Tokens Edit` permission is enough to call it for the leaf tokens it
 created. The rotation admin token is a human-created Console token
 (see [0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)),
-so it can carry an expiration too, set by hand at creation, and its own
-`GET .../tokens/verify` reads that back live the same way.
+so it can carry an expiration too, set by hand at creation, and
+`check_freshness.py` reads that back live the same way — see
+`cloud-credential-creation.md`'s Credential expiry section for exactly
+which endpoint that requires and why (it changed once already, after
+this ADR was first written — don't restate the specific endpoint here
+a second time).
 
 That leaves a genuine three-way split: B2 and R2 are natively
 expirable *and* natively queryable, so neither needs a cache file

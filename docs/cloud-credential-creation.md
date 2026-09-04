@@ -428,39 +428,37 @@ leaf rotation. Requires the master credential again (B2) or your
 personal admin OCI identity (OCI), same as the very first bootstrap —
 this was never going to be a fully unattended operation.
 
-**OCI's new API signing key also goes through the same key-propagation
-window leaf keys do — confirmed live, not assumed:** a real rotation
-401'd against the verification call for a full ~180s before OCI
-recognized the new key, on a from-scratch diagnostic that ruled out
-everything else first (the key genuinely existed provider-side and was
-being correctly signed against — this was purely OCI's own identity
-plane catching up). `_verify_rotation_key` retries broadly on 401 or
-403 for the same reason `_run_rclone_with_retry` does above — OCI gives
-no way to distinguish "not propagated yet" from a genuine policy denial
-in the response — with the same default 60 retries / 15s delay
-(~900s ceiling), comfortably above the measured 180s. B2's rotation-key
+**OCI's new API signing key goes through the same key-propagation
+window leaf keys do:** a real rotation 401'd against the verification
+call for a full ~180s before OCI recognized the new key (confirmed via
+a diagnostic that ruled out auth/config issues first — the key
+genuinely existed provider-side and was being correctly signed
+against, this was purely OCI's own identity plane catching up).
+`_verify_rotation_key` retries broadly on 401 or 403 for the same
+reason `_run_rclone_with_retry` does above — OCI gives no way to
+distinguish "not propagated yet" from a genuine policy denial in the
+response — with the same default 60 retries / 15s delay (~900s
+ceiling), comfortably above the measured 180s. B2's rotation-key
 verification (`b2_list_keys`) hasn't hit this in practice and has no
 retry loop; add one the same way if it ever does.
 
-**A second, unrelated incident on top of that same propagation window:**
-`_verify_rotation_key`'s cleanup delete (removing the throwaway customer
-secret key it creates on the write leaf to prove the new rotation key
-works) can hit the identical 401/403 propagation window the create call
-does — and originally had no retry of its own, silently reported via a
-`detail` string that `rotate_oci_rotation_key`'s success path never
-printed. The result, confirmed live: a real orphaned customer secret
-key sat on the write leaf, invisible, until it consumed the second of
-OCI's 2-per-user quota and the next real `create_leaf_keys.py --rotate`
-failed on it — surfaced as an opaque `IdcsConversionError` /
-`"maximum quota limit of 2 has been reached"`, not anything that looked
-like a propagation or quota problem at first glance. Both the missing
-retry on the delete step and the unprinted `detail` are fixed now;
-either alone would have caught this. If you ever see an OCI leaf
-rotation fail with `IdcsConversionError` and a quota message, check for
-a stray key named `homelab-cloud-sync-rotation-key-verify` on the
-affected leaf user first — that name is what `_verify_rotation_key`'s
-throwaway key is always created with, so it's unambiguous to spot and
-safe to delete by hand.
+**A second, unrelated failure mode on the same propagation window:**
+`_verify_rotation_key`'s cleanup delete (removing the throwaway
+customer secret key it creates on the write leaf to prove the new
+rotation key works) can hit the identical 401/403 window the create
+call does. If it fails and isn't retried, the throwaway key is left
+behind, silently consuming one of OCI's 2-per-user quota slots — the
+next real `create_leaf_keys.py --rotate` then fails on that quota,
+surfaced as an opaque `IdcsConversionError` /
+`"maximum quota limit of 2 has been reached"` that doesn't look like a
+propagation or quota problem at first glance. The delete step now
+retries the same way the create step does, and a failed cleanup is
+always printed loudly rather than swallowed. If you ever do see an OCI
+leaf rotation fail with `IdcsConversionError` and a quota message,
+check for a stray key named `homelab-cloud-sync-rotation-key-verify`
+on the affected leaf user first — that's the fixed name
+`_verify_rotation_key`'s throwaway key always gets, so it's
+unambiguous to spot and safe to delete by hand.
 
 **R2** has no verify-then-revoke equivalent — Cloudflare's API
 structurally can't mint a delegate credential for this at all (see
@@ -525,21 +523,19 @@ Only the last of those fails the run's own exit code —
 healthy, not whether a credential happens to be due.
 
 **The R2 rotation token is checked via `GET /user/tokens/verify`, not
-any `/accounts/{account_id}/tokens` endpoint — confirmed live, after
-two wrong theories in a row, not a guess this time:** this admin
-token is a Cloudflare **User API Token**, created via *My Profile >
-API Tokens* exactly as `leaf_keys/r2.py`'s own prompt instructs — a
-genuinely different resource category from "Account Owned API
-Tokens" (`/accounts/{account_id}/tokens/*`, what the leaf tokens
-actually are, since those *are* created via that API). Confirmed by
-directly comparing all four combinations against a real token:
+any `/accounts/{account_id}/tokens` endpoint:** this admin token is a
+Cloudflare **User API Token**, created via *My Profile > API Tokens*
+exactly as `leaf_keys/r2.py`'s own prompt instructs — a different
+resource category from "Account Owned API Tokens"
+(`/accounts/{account_id}/tokens/*`, what the leaf tokens actually are,
+since those *are* created via that API). Confirmed by directly
+comparing all four combinations against a real token:
 `GET /user/tokens/verify` succeeded (200, valid and active);
 `GET /accounts/{account_id}/tokens/verify` and
 `GET /accounts/{account_id}/tokens` (List) both only ever operate on
-the Account-owned category and will never see a User token no matter
-how they're queried — not unreliable, the wrong resource type
-entirely. `/user/tokens/verify` needs no `account_id` at all: it
-verifies whichever token authenticated the request, scoped to the
+the Account-owned category and never see a User token no matter how
+they're queried. `/user/tokens/verify` needs no `account_id` at all:
+it verifies whichever token authenticated the request, scoped to the
 calling user, not a specific account.
 
 Any non-fresh result posts a Telegram alert to the `Backups` topic
@@ -553,40 +549,20 @@ calls Telegram's `sendMessage` directly instead, same request shape.
 No alert on an all-fresh run.
 
 **This call uses `parse_mode=HTML`, not the legacy Markdown mode
-`telegram_notify` and every other consumer in this repo use —
-deliberate, and only after two distinct incidents on Markdown in a
-row, both confirmed live against a real chat, not caught by any test
-beforehand:**
-
-1. The static header text itself, `"cloud_credentials freshness
-   check"`, has a literal underscore. Legacy Markdown reads a bare `_`
-   as the start of an italic span; with nothing to close it, Telegram
-   rejected the message outright with a 400 — on literally the first
-   non-fresh result this script ever actually alerted on, since every
-   prior test run had shown all-fresh and never exercised the send
-   path for real.
-2. Escaping that underscore (`\_`) didn't fix it — it silently made
-   things worse instead of erroring. The escape sequence sat *inside*
-   the header's bold `*...*` span, and Telegram's own documented rule
-   for legacy Markdown states plainly: "escaping inside entities is
-   not allowed." The message still sent (no error this time), but the
-   backslash rendered as a literal, visible character in the chat
-   instead of being consumed — a genuinely different, quieter failure
-   mode than the first, caught only by reading the actual delivered
-   message rather than checking for a non-200 response.
-
+`telegram_notify` and every other consumer in this repo use.**
+Legacy Markdown requires escaping `` ` ``/`_`/`*`/`[` when literal, but
+also forbids escaping inside an already-open entity (Telegram's own
+documented rule) — a message composed by wrapping a bold header around
+text containing one of those characters can't be made safe by
+escaping alone. `detail` strings here embed arbitrary provider error
+text and URLs, so that combination isn't a corner case, it's routine.
 HTML has no equivalent trap: a `<b>` tag is either well-formed or it
-isn't, and `_`/`*`/`` ` ``/`[` are always ordinary characters, whether
-inside a tag's content or outside it. Only `&`, `<`, `>` are ever
-special, and `_escape_telegram_html` covers exactly those three,
-applied to `detail` — the one field with genuinely arbitrary content
-(provider error text, URLs), for the same reason
-`telegram-notifications.md`'s own stated assumption ("none of this
-role's current callers interpolate a value containing one of the
-[Markdown] characters") never held for this consumer in the first
-place. `telegram-notifications.md` itself still documents the
-Markdown convention correctly — it's accurate for `telegram_notify`'s
-own static-template callers, which is all it ever claimed to cover.
+isn't, and `_`/`*`/`` ` ``/`[` are always ordinary characters inside
+or outside one. Only `&`, `<`, `>` are ever special; `_escape_telegram_html`
+covers exactly those three, applied to `detail`.
+`telegram-notifications.md` itself still documents the Markdown
+convention correctly — accurate for `telegram_notify`'s own
+static-template callers, which is all it ever claimed to cover.
 
 The 30/14-day warning ladder exists specifically because B2 and R2
 enforce their own expiry server-side: by the time either goes fully

@@ -242,14 +242,6 @@ alone:**
   authenticates with; nothing here depends on `~/.oci/config` for
   auditing.
 
-Two throwaway diagnostic scripts remain in `cloud_credentials/spikes/`
-from this migration, safe to re-run if anything about this ever needs
-re-confirming: `oci_scim_oauth_check.py` (the OAuth2 + SCIM create/
-expiry/delete round-trip) and `oci_scim_app_secret_check.py` — **not
-throwaway itself**, since it permanently regenerates whatever app you
-point it at; read its own docstring before running it against
-anything you're not prepared to reconfigure by hand.
-
 ### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 
 Cloudflare's tokens API rejects granting `API Tokens Write` to any
@@ -314,6 +306,38 @@ No other cache file is affected — every other provider's file names
 (`cloudflare-r2-write-access-key`, `backblaze-b2-read-secret-key`,
 `oci-write-access-key`, etc.) always used "write"/"read" directly, never
 the word "leg" itself.
+
+**One-time cleanup if you're migrating an existing OCI deployment to
+SCIM (see [ADR 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)):**
+the classic-API rotation identity's local cache files and its OCI-side
+IAM objects are both dead weight now — nothing reads or authenticates
+with either, but nothing deletes them for you automatically.
+
+Local cache files, safe to remove once you've confirmed
+`oci-{write,read}-access-key`/`-secret-key`/`-scim-id` are all present
+(the new code writes all three together):
+
+```sh
+cd ansible/files/secrets
+rm -f _rotation-key-oci-user-ocid _rotation-key-oci-fingerprint \
+      _rotation-key-oci-private-key.pem _rotation-key-oci-tenancy-ocid \
+      _rotation-key-oci-region oci-write-created-at oci-read-created-at
+```
+
+On the Console side, delete the now-unused `homelab-key-rotation`
+identity (Identity & Security > Domains > your domain), in this order —
+its API signing key first, then the `homelab-key-rotation` policy, then
+remove it from (or delete) the `homelab-key-rotation` group, then
+delete the `homelab-key-rotation` user itself. This was a standing,
+tenancy-wide `manage users` grant scoped to
+`USER_UPDATE`/`USER_SECRETKEY_ADD`/`USER_SECRETKEY_REMOVE` (see ADR
+0016's Context for why even that narrower grant was still tenancy-wide,
+not scoped to the two leaf users) — worth actually removing, not
+leaving unused, since an unused broad grant is exactly the kind of
+thing worth not leaving lying around. `audit_secrets.py --local` flags
+the stale local cache files above if you haven't cleaned them up yet;
+it has no visibility into Console-side IAM objects, so that half is
+manual.
 
 **`--rotate {write,read,both}`, all three providers now:**
 

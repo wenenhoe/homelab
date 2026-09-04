@@ -514,14 +514,33 @@ section above) — set an expiration date on it there when you create
 it; this script has no way to set one after the fact.
 
 **`check_freshness.py`** reads all 9 back — natively for B2 (`b2_list_keys`)
-and R2 (`GET .../tokens/{id}` / `.../tokens/verify`), from the
-self-tracked cache files for OCI — and reports each as fresh, expiring
-soon (within `expiry.WARNING_DAYS`, 30 days), expiring very soon (within
-`expiry.URGENT_DAYS`, 14 days), past its window, or
-check-failed (couldn't be read at all — bad auth, missing cache file,
-HTTP error). Only the last of those fails the run's own exit code —
+and R2 (`GET .../tokens/{id}` for the leaf tokens, `GET /user/tokens/verify`
+for the rotation token — see below), from the self-tracked cache files
+for OCI — and reports each as fresh, expiring soon (within
+`expiry.WARNING_DAYS`, 30 days), expiring very soon (within
+`expiry.URGENT_DAYS`, 14 days), past its window, or check-failed
+(couldn't be read at all — bad auth, missing cache file, HTTP error).
+Only the last of those fails the run's own exit code —
 `systemctl --user status` reflects whether the check itself is
 healthy, not whether a credential happens to be due.
+
+**The R2 rotation token is checked via `GET /user/tokens/verify`, not
+any `/accounts/{account_id}/tokens` endpoint — confirmed live, after
+two wrong theories in a row, not a guess this time:** this admin
+token is a Cloudflare **User API Token**, created via *My Profile >
+API Tokens* exactly as `leaf_keys/r2.py`'s own prompt instructs — a
+genuinely different resource category from "Account Owned API
+Tokens" (`/accounts/{account_id}/tokens/*`, what the leaf tokens
+actually are, since those *are* created via that API). Confirmed by
+directly comparing all four combinations against a real token:
+`GET /user/tokens/verify` succeeded (200, valid and active);
+`GET /accounts/{account_id}/tokens/verify` and
+`GET /accounts/{account_id}/tokens` (List) both only ever operate on
+the Account-owned category and will never see a User token no matter
+how they're queried — not unreliable, the wrong resource type
+entirely. `/user/tokens/verify` needs no `account_id` at all: it
+verifies whichever token authenticated the request, scoped to the
+calling user, not a specific account.
 
 Any non-fresh result posts a Telegram alert to the `Backups` topic
 (same one `telegram-notify-cloud-sync` already uses — see
@@ -532,6 +551,42 @@ this repo reads from `ansible/files/secrets/`. Not routed through the
 `managed_hosts`, and `controller` deliberately isn't one — so this
 calls Telegram's `sendMessage` directly instead, same request shape.
 No alert on an all-fresh run.
+
+**This call uses `parse_mode=HTML`, not the legacy Markdown mode
+`telegram_notify` and every other consumer in this repo use —
+deliberate, and only after two distinct incidents on Markdown in a
+row, both confirmed live against a real chat, not caught by any test
+beforehand:**
+
+1. The static header text itself, `"cloud_credentials freshness
+   check"`, has a literal underscore. Legacy Markdown reads a bare `_`
+   as the start of an italic span; with nothing to close it, Telegram
+   rejected the message outright with a 400 — on literally the first
+   non-fresh result this script ever actually alerted on, since every
+   prior test run had shown all-fresh and never exercised the send
+   path for real.
+2. Escaping that underscore (`\_`) didn't fix it — it silently made
+   things worse instead of erroring. The escape sequence sat *inside*
+   the header's bold `*...*` span, and Telegram's own documented rule
+   for legacy Markdown states plainly: "escaping inside entities is
+   not allowed." The message still sent (no error this time), but the
+   backslash rendered as a literal, visible character in the chat
+   instead of being consumed — a genuinely different, quieter failure
+   mode than the first, caught only by reading the actual delivered
+   message rather than checking for a non-200 response.
+
+HTML has no equivalent trap: a `<b>` tag is either well-formed or it
+isn't, and `_`/`*`/`` ` ``/`[` are always ordinary characters, whether
+inside a tag's content or outside it. Only `&`, `<`, `>` are ever
+special, and `_escape_telegram_html` covers exactly those three,
+applied to `detail` — the one field with genuinely arbitrary content
+(provider error text, URLs), for the same reason
+`telegram-notifications.md`'s own stated assumption ("none of this
+role's current callers interpolate a value containing one of the
+[Markdown] characters") never held for this consumer in the first
+place. `telegram-notifications.md` itself still documents the
+Markdown convention correctly — it's accurate for `telegram_notify`'s
+own static-template callers, which is all it ever claimed to cover.
 
 The 30/14-day warning ladder exists specifically because B2 and R2
 enforce their own expiry server-side: by the time either goes fully

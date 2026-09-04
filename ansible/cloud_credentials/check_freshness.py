@@ -130,12 +130,32 @@ def check_r2() -> list[tuple[str, str, str]]:
         token_id = read_cache(f"cloudflare-r2-{leaf}-access-key")
         results.append(_r2_get_token_result(f"r2 {leaf}", session, account_id, token_id))
 
-    verify = session.get(f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/verify").json()
-    if not verify.get("success"):
-        results.append(("r2 rotation token", CHECK_FAILED, str(verify.get("errors"))))
-    else:
-        results.append(_r2_expires_on_result("r2 rotation token", verify["result"].get("expires_on")))
+    results.append(_r2_rotation_token_result(session))
     return results
+
+
+def _r2_rotation_token_result(session: requests.Session) -> tuple[str, str, str]:
+    """GET /user/tokens/verify, not the /accounts/{account_id}/tokens
+    equivalents — confirmed live, not a guess, and not a Cloudflare bug
+    either (an earlier version of this function claimed exactly that;
+    wrong, corrected here). This admin token is a Cloudflare **User API
+    Token** — created via My Profile > API Tokens, exactly as
+    leaf_keys/r2.py's own prompt instructs — which is a genuinely
+    different resource category from "Account Owned API Tokens"
+    (/accounts/{account_id}/tokens/*). Confirmed by directly comparing
+    all four combinations against a real token: `/user/tokens/verify`
+    succeeded (200, valid+active); `/accounts/{account_id}/tokens/verify`
+    and `/accounts/{account_id}/tokens` (List) both operate on the
+    Account-owned category only and will never see a User token
+    regardless of how it's queried — not unreliable, just the wrong
+    resource type entirely. No account_id needed here at all: this
+    endpoint verifies whichever token authenticated the request,
+    scoped to the calling user, not a specific account.
+    """
+    resp = session.get("https://api.cloudflare.com/client/v4/user/tokens/verify").json()
+    if not resp.get("success"):
+        return ("r2 rotation token", CHECK_FAILED, str(resp.get("errors")))
+    return _r2_expires_on_result("r2 rotation token", resp["result"].get("expires_on"))
 
 
 def _r2_get_token_result(label: str, session: requests.Session, account_id: str, token_id: str | None) -> tuple[str, str, str]:
@@ -154,14 +174,33 @@ def _r2_expires_on_result(label: str, expires_on: str | None) -> tuple[str, str,
     return (label, status, detail)
 
 
+def _escape_telegram_html(text: str) -> str:
+    """`parse_mode=HTML`, not legacy Markdown — deliberately switched
+    after two distinct incidents on Markdown in a row, both confirmed
+    live: an unescaped literal underscore in the static header broke
+    every alert outright (400, "can't parse entities"); after escaping
+    that, Telegram's own documented rule for legacy Markdown —
+    "escaping inside entities is not allowed" — meant the
+    backslash-escaped underscore, sitting inside the bold `*...*`
+    span, rendered as a literal visible backslash instead of being
+    consumed. HTML has no equivalent trap: `<b>` is either well-formed
+    or it isn't, and `_`/`*`/`` ` ``/`[` are always ordinary characters,
+    inside a tag's content or outside it. Only `&`, `<`, `>` are ever
+    special, and only these three need escaping — no entity-nesting
+    rules to violate by accident."""
+    return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
 def _send_telegram_alert(lines: list[str]) -> None:
     """Same secrets, same directory, same Telegram Bot API call
     `telegram_notify` (ansible/roles/telegram_notify) already makes for
     every other consumer in this repo - just not through that role,
     since it's Ansible-templated and deployed to `managed_hosts`, and
     `controller` (where this actually runs - see ADR 0015) deliberately
-    isn't one. See docs/telegram-notifications.md for the shared
-    conventions (topic routing, Markdown escaping rules) this follows."""
+    isn't one. Also not that role's parse_mode: this call uses HTML,
+    not legacy Markdown - see _escape_telegram_html for why. See
+    docs/telegram-notifications.md for the shared conventions (topic
+    routing) this still follows."""
     token = read_cache("telegram-token")
     chat_id = read_cache("telegram-chat-id")
     if not token or not chat_id:
@@ -171,8 +210,8 @@ def _send_telegram_alert(lines: list[str]) -> None:
     topic_id = read_cache("telegram-topic-id-backups")
     data = {
         "chat_id": chat_id,
-        "text": "*cloud_credentials freshness check*\n\n" + "\n".join(lines),
-        "parse_mode": "Markdown",
+        "text": "<b>cloud_credentials freshness check</b>\n\n" + "\n".join(lines),
+        "parse_mode": "HTML",
     }
     if topic_id:
         # Telegram's API rejects this param outright if passed empty
@@ -196,7 +235,7 @@ def main() -> int:
         if status == CHECK_FAILED:
             had_check_failure = True
         if status != FRESH:
-            alert_lines.append(f"*{name}*: {status}" + (f" — {detail}" if detail else ""))
+            alert_lines.append(f"<b>{name}</b>: {status}" + (f" — {_escape_telegram_html(detail)}" if detail else ""))
 
     if alert_lines:
         _send_telegram_alert(alert_lines)

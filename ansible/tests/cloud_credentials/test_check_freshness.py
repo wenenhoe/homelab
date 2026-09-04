@@ -113,8 +113,8 @@ class CheckR2Tests(FreshnessTestBase):
         past = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         def get(url):
-            if url.endswith("/tokens/verify"):
-                return MagicMock(json=lambda: {"success": True, "result": {"expires_on": future}})
+            if url.endswith("/user/tokens/verify"):
+                return MagicMock(json=lambda: {"success": True, "result": {"id": "x", "status": "active", "expires_on": future}})
             if "TOKEN_ID_WRITE" in url:
                 return MagicMock(json=lambda: {"success": True, "result": {"expires_on": future}})
             if "TOKEN_ID_READ" in url:
@@ -129,6 +129,39 @@ class CheckR2Tests(FreshnessTestBase):
         self.assertEqual(statuses["r2 write"], check_freshness.FRESH)
         self.assertEqual(statuses["r2 read"], check_freshness.STALE)
         self.assertEqual(statuses["r2 rotation token"], check_freshness.FRESH)
+
+    @patch.object(check_freshness.requests, "Session")
+    def test_rotation_token_is_a_user_token_not_an_account_token(self, mock_session_cls):
+        """Regression test for two wrong theories in a row before this
+        one: the rotation token is a Cloudflare User API Token (My
+        Profile > API Tokens), not an Account Owned one -
+        /accounts/{account_id}/tokens/verify and List Tokens both only
+        ever see the Account-owned category and would never find this
+        token no matter how they're queried. /user/tokens/verify is the
+        only endpoint that can actually check it, and needs no
+        account_id to do so."""
+        session = mock_session_cls.return_value
+
+        def get(url):
+            if url == "https://api.cloudflare.com/client/v4/user/tokens/verify":
+                return MagicMock(json=lambda: {"success": True, "result": {"id": "x", "status": "active", "expires_on": "2099-01-01T00:00:00Z"}})
+            raise AssertionError(f"check_r2 must not call the account-scoped tokens endpoints for the rotation token: {url}")
+
+        session.get.side_effect = get
+
+        result = check_freshness._r2_rotation_token_result(session)
+
+        self.assertEqual(result[0], "r2 rotation token")
+        self.assertEqual(result[1], check_freshness.FRESH)
+
+    @patch.object(check_freshness.requests, "Session")
+    def test_rotation_token_verify_failure_is_check_failed(self, mock_session_cls):
+        session = mock_session_cls.return_value
+        session.get.return_value = MagicMock(json=lambda: {"success": False, "errors": [{"code": 1000, "message": "Invalid API Token"}]})
+
+        result = check_freshness._r2_rotation_token_result(session)
+
+        self.assertEqual(result[1], check_freshness.CHECK_FAILED)
 
     def test_missing_rotation_token_never_prompts_and_reports_check_failed(self):
         # Overwrite setUp's seeded token — this test wants the "nothing
@@ -217,6 +250,46 @@ class TelegramAlertTests(FreshnessTestBase):
         rc = check_freshness.main()
         mock_post.assert_not_called()
         self.assertEqual(rc, 0)  # STALE alone still doesn't fail the run, even unalerted
+
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")])
+    @patch.object(check_freshness.requests, "post")
+    def test_uses_html_parse_mode_not_legacy_markdown(self, mock_post, mock_b2, mock_oci, mock_r2):
+        """Regression test for two distinct incidents on legacy Markdown
+        in a row, both confirmed live: an unescaped literal underscore
+        in the static header broke every alert outright (400); after
+        escaping it, Telegram's own documented rule ("escaping inside
+        entities is not allowed") meant the escaped underscore inside
+        the bold *...* span rendered as a literal visible backslash
+        instead of being consumed. HTML mode has neither problem -
+        confirmed here by checking the actual parse_mode and tag shape
+        sent, not just that a message went out."""
+        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        check_freshness.main()
+        data = mock_post.call_args.kwargs["data"]
+        self.assertEqual(data["parse_mode"], "HTML")
+        self.assertIn("<b>cloud_credentials freshness check</b>", data["text"])
+        self.assertNotIn("\\_", data["text"])  # no leftover Markdown-escape artifact
+
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
+    @patch.object(
+        check_freshness,
+        "check_b2",
+        return_value=[("b2 write", check_freshness.CHECK_FAILED, "provider said <b>bad</b> & broken")],
+    )
+    @patch.object(check_freshness.requests, "post")
+    def test_detail_containing_html_special_chars_is_escaped(self, mock_post, mock_b2, mock_oci, mock_r2):
+        # Detail strings embed arbitrary provider error text and URLs -
+        # unlike telegram_notify's other callers (all static templates),
+        # this one will eventually interpolate a literal &, <, or > and
+        # must not let it be interpreted as real markup.
+        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        check_freshness.main()
+        text = mock_post.call_args.kwargs["data"]["text"]
+        self.assertIn("provider said &lt;b&gt;bad&lt;/b&gt; &amp; broken", text)
+        self.assertNotIn("<b>bad</b>", text)
 
 
 if __name__ == "__main__":

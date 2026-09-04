@@ -46,6 +46,7 @@ REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registr
 KNOWN_INTERNAL_PATTERNS = [
     "_rotation-key-backblaze-b2-key-id",
     "_rotation-key-backblaze-b2-application-key",
+    "_rotation-key-cloudflare-r2-token",
     "_rotation-key-oci-domain-url",
     "_rotation-key-oci-client-id",
     "_rotation-key-oci-client-secret",

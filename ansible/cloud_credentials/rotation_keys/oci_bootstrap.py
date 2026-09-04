@@ -5,7 +5,6 @@ policy statements on every run even once cached.
 
 from __future__ import annotations
 
-import contextlib
 import sys
 import time
 
@@ -267,10 +266,20 @@ def rotate_oci_rotation_key(admin_email: str) -> bool:
             f"DELETE /20160918/users/{rotation_user_id}/apiKeys/{new_fingerprint}",
             file=sys.stderr,
         )
-        # Best-effort cleanup of the unverified key - a failure here
-        # doesn't change the outcome, already reported above.
-        with contextlib.suppress(requests.HTTPError):
+        # Best-effort cleanup of the unverified key — reported, not
+        # silently swallowed. A quietly-failed delete here is exactly
+        # the class of bug that left an orphaned customer secret key on
+        # the write leaf once already (see docs/cloud-credential-creation.md's
+        # Rotation section) — that one hid in a success path's unprinted
+        # detail string; this is the same risk on the failure path, via
+        # a different mechanism (suppress instead of unprinted detail).
+        try:
             delete(f"/20160918/users/{rotation_user_id}/apiKeys/{new_fingerprint}")
+        except requests.HTTPError as exc:
+            print(
+                f"oci: also failed to clean up the unverified new key — DELETE /20160918/users/{rotation_user_id}/apiKeys/{new_fingerprint} by hand ({exc})",
+                file=sys.stderr,
+            )
         return False
 
     if old_fingerprint:
@@ -289,7 +298,24 @@ def rotate_oci_rotation_key(admin_email: str) -> bool:
     write_cache("_rotation-key-oci-tenancy-ocid", tenancy)
     write_cache("_rotation-key-oci-region", region)
     write_cache("_rotation-key-oci-created-at", utcnow_iso())
-    print("oci: rotation key rotated and verified")
+    if detail:
+        # ok=True from _verify_rotation_key means the key itself is
+        # genuinely verified — but a non-empty detail here means its
+        # own cleanup step failed, leaving a throwaway customer secret
+        # key live on the write leaf. This is exactly the bug that
+        # silently ate OCI's 2-key-per-user quota once already: ok=True
+        # was treated as "nothing to report" and this string was
+        # captured but never printed. Loud on purpose.
+        print(
+            f"oci: rotation key rotated and verified, BUT: {detail} — "
+            "OCI allows at most 2 customer secret keys per user; an "
+            "unresolved orphan here will make the next real leaf "
+            "rotation fail on quota, not on anything wrong with the "
+            "new rotation key itself.",
+            file=sys.stderr,
+        )
+    else:
+        print("oci: rotation key rotated and verified")
     return True
 
 
@@ -309,13 +335,24 @@ def _verify_rotation_key(
     A brand-new OCI API signing key isn't immediately usable for
     request-signing the instant the upload call returns — confirmed
     live, not assumed: a real rotation attempt 401'd for a full 3
-    minutes before succeeding. Retried broadly on 401 or 403 alone,
-    same shape (and same default retries/delay) as verify.py's leaf-key
-    retry, since OCI gives no way here either to distinguish "not
-    propagated yet" from a genuine policy denial in the response — a
-    real policy problem now also takes the full ~900s window to surface
-    as a failure, accepted for the same reason verify.py accepts it:
-    the alternative orphans a fresh key on every manual retry instead.
+    minutes before succeeding. Retried broadly on 401 or 403 alone, on
+    both the create and the delete step, same shape (and same default
+    retries/delay) as verify.py's leaf-key retry, since OCI gives no
+    way here either to distinguish "not propagated yet" from a genuine
+    policy denial in the response — a real policy problem now also
+    takes the full ~900s window to surface as a failure, accepted for
+    the same reason verify.py accepts it: the alternative orphans a
+    fresh key on every manual retry instead.
+
+    The delete retry specifically exists because its absence caused a
+    real incident: an unretried, silently-swallowed delete failure here
+    left an orphaned customer secret key on the write leaf, invisible
+    because the caller (rotate_oci_rotation_key) never printed this
+    function's own non-empty `detail` string on its success path — OCI
+    caps customer secret keys at 2 per user, so that orphan then made
+    the next real `create_leaf_keys.py --rotate` fail on quota, wrapped
+    in an opaque `IdcsConversionError`. Both the missing retry and the
+    unprinted detail are fixed now; either alone would have caught this.
     """
     signer = OCISigner(tenancy=tenancy, user=rotation_user_id, fingerprint=fingerprint, private_key_file_location=None, private_key_content=private_pem)
     session = requests.Session()
@@ -338,11 +375,28 @@ def _verify_rotation_key(
         return False, f"{resp.status_code} {resp.text}"
 
     key_id = resp.json()["id"]
-    try:
-        session.delete(f"{endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys/{key_id}").raise_for_status()
-    except requests.HTTPError as exc:
-        return True, f"verified, but cleanup of throwaway key {key_id} on {leaf_user_id} failed — delete it by hand ({exc})"
-    return True, ""
+    delete_resp = None
+    for attempt in range(1, retries + 1):
+        delete_resp = session.delete(f"{endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys/{key_id}")
+        if delete_resp.status_code in (200, 204):
+            return True, ""
+        if attempt < retries and delete_resp.status_code in (401, 403):
+            # Same propagation class as the create call above, but on
+            # the delete step this time — this exact gap (delete fails
+            # once, unretried, and the failure gets swallowed by an
+            # unprinted `detail`) is what left a real orphaned customer
+            # secret key on the write leaf and silently ate its 2-key
+            # quota. Retrying here is the actual fix; the caller
+            # printing `detail` on success is the backstop for whatever
+            # this retry still doesn't catch.
+            elapsed = attempt * delay
+            print(f"  oci: cleanup delete not yet authorized, attempt {attempt}/{retries}, ~{elapsed}s elapsed — retrying in {delay}s", file=sys.stderr)
+            time.sleep(delay)
+            continue
+        break
+    delete_url = f"DELETE {endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys/{key_id}"
+    status = f"({delete_resp.status_code} {delete_resp.text})"
+    return True, f"verified, but cleanup of throwaway key {key_id} on {leaf_user_id} failed — delete it by hand: {delete_url} {status}"
 
 
 def create_oci_rotation_key(admin_email: str) -> None:

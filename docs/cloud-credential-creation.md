@@ -438,6 +438,26 @@ in the response — with the same default 60 retries / 15s delay
 verification (`b2_list_keys`) hasn't hit this in practice and has no
 retry loop; add one the same way if it ever does.
 
+**A second, unrelated incident on top of that same propagation window:**
+`_verify_rotation_key`'s cleanup delete (removing the throwaway customer
+secret key it creates on the write leaf to prove the new rotation key
+works) can hit the identical 401/403 propagation window the create call
+does — and originally had no retry of its own, silently reported via a
+`detail` string that `rotate_oci_rotation_key`'s success path never
+printed. The result, confirmed live: a real orphaned customer secret
+key sat on the write leaf, invisible, until it consumed the second of
+OCI's 2-per-user quota and the next real `create_leaf_keys.py --rotate`
+failed on it — surfaced as an opaque `IdcsConversionError` /
+`"maximum quota limit of 2 has been reached"`, not anything that looked
+like a propagation or quota problem at first glance. Both the missing
+retry on the delete step and the unprinted `detail` are fixed now;
+either alone would have caught this. If you ever see an OCI leaf
+rotation fail with `IdcsConversionError` and a quota message, check for
+a stray key named `homelab-cloud-sync-rotation-key-verify` on the
+affected leaf user first — that name is what `_verify_rotation_key`'s
+throwaway key is always created with, so it's unambiguous to spot and
+safe to delete by hand.
+
 **R2** has no equivalent: create a new Custom Token in the Console,
 overwrite `_rotation-key-cloudflare-r2-token` by hand — Cloudflare's
 API structurally can't mint a delegate credential for this at all (see

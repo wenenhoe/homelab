@@ -18,8 +18,6 @@ from cloud_credentials.verify import verify_leaf_via_rclone
 
 OCI_BUCKET = "homelab-backups"
 
-how_to_get_it_oci = "Run: python3 -m cloud_credentials.create_rotation_keys --provider oci"
-
 
 def oci_leaf_user_id(leaf: str) -> str:
     return require_cache_file(

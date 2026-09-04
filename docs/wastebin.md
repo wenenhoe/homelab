@@ -13,7 +13,10 @@ adds two things on top, neither changing how the app itself runs:
   ownership from the image instead of coming up root-owned. Without
   this, wastebin (forced non-root by `user: 10001:10001` in
   `compose.yaml`, matching the image) can't open its own SQLite database
-  file on a fresh volume.
+  file on a fresh volume. This inheritance only happens on a volume's
+  first mount — a volume already populated before `user:`/the Dockerfile
+  matched `10001:10001` needs a manual one-time `chown -R 10001:10001`
+  against it directly; nothing does this automatically.
 
 A GitHub Actions workflow (`.github/workflows/build-wastebin-image.yml`)
 builds and pushes the result to `ghcr.io/wenenhoe/wastebin`, tagged by

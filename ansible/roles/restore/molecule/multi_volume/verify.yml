@@ -4,6 +4,8 @@
   become: true
   vars:
     restore_before_marker: /tmp/restore-molecule-multi-before-started-at
+    restore_multi_certs_owner_marker: /tmp/restore-molecule-multi-certs-owner
+    restore_multi_creds_owner_marker: /tmp/restore-molecule-multi-creds-owner
   tasks:
     - name: Read back the BEFORE StartedAt marker
       ansible.builtin.slurp:
@@ -77,6 +79,51 @@
           - "'decoy-should-never-be-copied' not in restore_multi_creds_check.container.Output"
           - "'stale-creds' not in restore_multi_creds_check.container.Output"
         fail_msg: "creds volume content: {{ restore_multi_creds_check.container.Output }}"
+
+    # --- Did restore preserve each volume's own ownership independently? ---
+    # See default/verify.yml's equivalent block for what this guards
+    # against. Checked per-volume here (not just once) because a bug that
+    # only affects the second loop iteration of the role's per-volume
+    # restore task wouldn't show up in the single-volume default scenario.
+    - name: Read back each source marker's original owner
+      ansible.builtin.slurp:
+        path: "{{ item }}"
+      register: restore_multi_owner_raw
+      loop:
+        - "{{ restore_multi_certs_owner_marker }}"
+        - "{{ restore_multi_creds_owner_marker }}"
+
+    - name: Read back each restored marker's owner inside its volume
+      community.docker.docker_container:
+        name: "restore-multi-{{ item.volume }}-owner-check"
+        image: alpine:3.20
+        volumes:
+          - "{{ item.volume }}:/data:ro"
+        command: "stat -c %u:%g /data/marker.txt"
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: restore_multi_owner_check
+      changed_when: false
+      loop:
+        - volume: restore_multi_certs
+          source_marker: "{{ restore_multi_owner_raw.results[0].content | b64decode }}"
+        - volume: restore_multi_creds
+          source_marker: "{{ restore_multi_owner_raw.results[1].content | b64decode }}"
+      loop_control:
+        label: "{{ item.volume }}"
+
+    - name: Confirm each restored file's ownership matches its own archive entry
+      ansible.builtin.assert:
+        that:
+          - (item.item.source_marker) == (item.container.Output | trim)
+        fail_msg: >-
+          {{ item.item.volume }} restored owner
+          ({{ item.container.Output | trim }}) does not match its
+          archive's original owner ({{ item.item.source_marker }}).
+      loop: "{{ restore_multi_owner_check.results }}"
+      loop_control:
+        label: "{{ item.item.volume }}"
 
     # --- Cleanup ---------------------------------------------------------
     - name: Confirm the scratch extraction volume was removed

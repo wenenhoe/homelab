@@ -21,6 +21,8 @@
     restore_staging_dir: /tmp/restore-molecule-multi-staging
     restore_test_archive: /tmp/restore-molecule-multi-archive.tar.gz
     restore_before_marker: /tmp/restore-molecule-multi-before-started-at
+    restore_multi_certs_owner_marker: /tmp/restore-molecule-multi-certs-owner
+    restore_multi_creds_owner_marker: /tmp/restore-molecule-multi-creds-owner
   tasks:
     - name: Resolve compose_apps against the app registry
       ansible.builtin.include_role:
@@ -124,6 +126,32 @@
         label: "{{ item.path }}"
       delegate_to: localhost
       become: false
+
+    # See default/converge.yml's equivalent task for why this is captured
+    # rather than asserted as a fixed value, and why it must survive
+    # restore unchanged.
+    - name: Capture each staged marker's real ownership, for verify.yml to compare against
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      register: restore_multi_owner_stats
+      loop:
+        - path: "{{ restore_staging_dir }}/offsite-source/restore_multi_certs/marker.txt"
+          marker: "{{ restore_multi_certs_owner_marker }}"
+        - path: "{{ restore_staging_dir }}/offsite-source/nested/deeper/restore_multi_creds/marker.txt"
+          marker: "{{ restore_multi_creds_owner_marker }}"
+      loop_control:
+        label: "{{ item.path }}"
+      delegate_to: localhost
+      become: false
+
+    - name: Persist each source marker's owner for verify.yml to compare against
+      ansible.builtin.copy:
+        dest: "{{ item.item.marker }}"
+        content: "{{ item.stat.uid }}:{{ item.stat.gid }}"
+        mode: "0644"
+      loop: "{{ restore_multi_owner_stats.results }}"
+      loop_control:
+        label: "{{ item.item.marker }}"
 
     - name: Build the plain .tar.gz — this is what a real operator hands the playbook after gpg --decrypt
       ansible.builtin.command: # noqa: command-instead-of-module — creating a tar.gz, not extracting one;

@@ -1,19 +1,18 @@
-"""OCI leaf-identity and rotation-identity bootstrap: create the IAM
-users/groups/policies a fresh tenancy needs, and (re-)verify their
-policy statements on every run even once cached.
+"""OCI leaf-identity bootstrap (classic IAM: users/groups/policies for
+the two cloud_sync leaves) and rotation-credential bootstrap (a
+Confidential Application's OAuth2 client credentials - see ADR 0016).
+These are two unrelated auth models sharing this module only because
+create_rotation_keys.py's --provider oci wires up both in one pass.
 """
 
 from __future__ import annotations
 
+import getpass
 import sys
-import time
 
 import requests
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
-from oci.signer import Signer as OCISigner
 
-from cloud_credentials.cache import cached, read_cache, write_cache
+from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
 from cloud_credentials.expiry import utcnow_iso
 from cloud_credentials.rotation_keys.oci_iam import (
     oci_get_or_create_group,
@@ -21,12 +20,28 @@ from cloud_credentials.rotation_keys.oci_iam import (
     oci_lookup_one,
     oci_master_auth_and_endpoint,
 )
+from cloud_credentials.rotation_keys.oci_scim import oci_scim_access_token, oci_scim_domain_and_credentials
 
 # Must match leaf_keys/oci.py's OCI_BUCKET exactly - both flows operate
 # on the same bucket, one scoping IAM policies to it, the other reading/
 # writing objects in it. A drift here would silently policy-scope one
 # bucket while cloud_sync/restore_discovery actually use another.
 OCI_BUCKET = "homelab-backups"
+
+# The Confidential Application is registered by hand in Console under
+# exactly this name (see docs/cloud-credential-creation.md) - there is
+# no API path here to create one. Automating Confidential Application
+# registration + OAuth configuration + app role grant + activation is a
+# materially larger, unverified surface than prompting once for values
+# a human already has in front of them (same trade-off R2's rotation
+# token makes - see rotation_keys/r2.py).
+OCI_SCIM_APP_DISPLAY_NAME = "homelab-oci-scim-rotation"
+
+# Confirmed live against this tenancy - not spelled out anywhere in
+# Oracle's own docs pages (unlike customerSecretKey's schema URN,
+# which is), but follows the same
+# urn:ietf:params:scim:schemas:oracle:idcs:<ResourceName> pattern.
+APP_CLIENT_SECRET_REGENERATOR_SCHEMA = "urn:ietf:params:scim:schemas:oracle:idcs:AppClientSecretRegenerator"  # noqa: S105 - a schema URN, not a credential
 
 
 def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: str, permissions: list[str], admin_email: str) -> str:
@@ -37,10 +52,7 @@ def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: s
     those never change after creation. The policy step is NOT gated by that
     cache: it 409-and-updates every run, so a permissions-list change here
     (e.g. adding OBJECT_OVERWRITE) actually reaches an already-bootstrapped
-    tenancy on the next run, instead of being silently skipped forever the
-    way `oci_create_rotation_identity`'s own top-level cache check already
-    documents as a known gap for the rotation key — this closes the same
-    gap for leaf identities before it bites the same way twice.
+    tenancy on the next run, instead of being silently skipped forever.
     """
     cache_key = f"_oci-leaf-user-ocid-{leaf}"
     name = f"homelab-cloud-sync-{leaf}"
@@ -90,326 +102,65 @@ def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: s
     return user_id
 
 
-def oci_ensure_rotation_identity(session, endpoint, post, put, tenancy: str, admin_email: str) -> str:
-    """Create the dedicated key-rotation IAM user/group, and always
-    (re-)verify its policy statement. Returns its user OCID.
-
-    Mirrors oci_ensure_leaf_identity's split: user/group/membership are
-    skipped once they exist, but the policy 409-and-updates every call —
-    so this is safe (and cheap) to run unconditionally, independent of
-    whether the rotation keypair itself is already cached. See
-    docs/cloud-credential-creation.md's Known gap entry for why that
-    split matters here specifically.
-    """
-    name = "homelab-key-rotation"
-    user = oci_get_or_create_user(
-        session,
-        endpoint,
-        post,
-        tenancy,
-        name,
-        "Rotates cloud_sync's OCI customer secret keys — see docs/cloud-credential-creation.md",
-        admin_email,
+def _prompt_oci_scim_app_credentials() -> tuple[str, str, str]:
+    print(
+        f"OCI Identity Domains Confidential Application — register "
+        f"'{OCI_SCIM_APP_DISPLAY_NAME}' by hand in Console (Identity & "
+        "Security > Domains > your domain > Integrated Applications > "
+        "Add > Confidential Application): enable the 'Client "
+        "credentials' grant, grant the 'User Administrator' app role "
+        "(confirmed sufficient for both CustomerSecretKeys and this "
+        "app's own secret regeneration — see "
+        "docs/cloud-credential-creation.md), skip Web Tier Policy, and "
+        "Activate it. Domain URL and Client ID aren't secret; Client "
+        "Secret input is hidden and cached after this:"
     )
-    group = oci_get_or_create_group(session, endpoint, post, tenancy, name, f"Grants {name} its policy")
-    try:
-        post("/20160918/userGroupMemberships", {"userId": user["id"], "groupId": group["id"]})
-    except requests.HTTPError as exc:
-        if exc.response.status_code != 409:
-            raise
-        print(f"oci: {name} is already a member of its group, skipping", file=sys.stderr)
+    domain_url = input("Domain URL (e.g. https://idcs-xxxx.identity.oraclecloud.com): ").strip().rstrip("/")
+    client_id = input("Client ID: ").strip()
+    client_secret = getpass.getpass("Client Secret (hidden): ")
+    return domain_url, client_id, client_secret
 
-    # manage users + permission-level conditions — not "manage
-    # customer-secret-keys". That resource-type doesn't exist in OCI's
-    # policy language; OCI rejected it outright with 400 "No permissions
-    # found" (confirmed live).
-    #
-    # USER_UPDATE is required alongside USER_SECRETKEY_ADD/_REMOVE, not
-    # optional — confirmed against Oracle's own "Details for IAM with
-    # Identity Domains" permissions table, which lists CreateSecretKey
-    # as requiring "USER_UPDATE and USER_SECRETKEY_ADD" (an AND, not an
-    # OR) and DeleteCustomerSecretKey as "USER_UPDATE and
-    # USER_SECRETKEY_REMOVE". Every credential-mutating operation in
-    # that table follows this same pattern — the specific permission
-    # alone is never sufficient. Omitting USER_UPDATE is what caused a
-    # live 404 "NotAuthorizedOrNotFound" on CreateCustomerSecretKey.
-    #
-    # Side effect worth being honest about: USER_UPDATE by itself also
-    # covers plain UpdateUser (renaming/redescribing a user) — nothing
-    # more dangerous (not USER_UNBLOCK, not USER_DELETE, not password
-    # reset, those are separate permissions not granted here), but it
-    # is a real capability beyond pure secret-key management that comes
-    # bundled in because OCI requires it as a co-permission for every
-    # per-user credential mutation. Still tenancy-wide across all
-    # users, not scoped to just the two homelab-cloud-sync-* ones — see
-    # docs/cloud-credential-creation.md for why.
-    statement_list = [
-        f"Allow group id {group['id']} to manage users in tenancy "
-        "where any {request.permission='USER_UPDATE', "
-        "request.permission='USER_SECRETKEY_ADD', "
-        "request.permission='USER_SECRETKEY_REMOVE'}"
-    ]
-    try:
-        post(
-            "/20160918/policies",
-            {
-                "compartmentId": tenancy,
-                "name": name,
-                "description": "Scopes homelab-key-rotation to add/remove customer secret keys only",
-                "statements": statement_list,
-            },
+
+def _find_app_id(session: requests.Session, domain_url: str, display_name: str) -> str:
+    resp = session.get(f"{domain_url}/admin/v1/Apps", params={"filter": f'displayName eq "{display_name}"'})
+    resp.raise_for_status()
+    resources = resp.json().get("Resources", [])
+    if not resources:
+        raise RuntimeError(
+            f"no Confidential Application found with displayName={display_name!r} - register it in Console first, see docs/cloud-credential-creation.md"
         )
-    except requests.HTTPError as exc:
-        if exc.response.status_code != 409:
-            raise
-        # Update, not skip: an existing policy here might be the
-        # pre-fix version (missing USER_UPDATE, as this tenancy's was)
-        # — leaving it in place on 409 would silently keep the broken
-        # grant forever. UpdatePolicy's PUT with a bare
-        # {"statements": [...]} body is confirmed live: it applies
-        # immediately (a raw re-GET right after reflects it), though
-        # the OCI Console's own policy detail view can lag behind that
-        # by a short, inconsistent delay — don't trust the Console
-        # alone when verifying this against a real tenancy.
-        print(f"oci: policy {name} already exists, updating its statements", file=sys.stderr)
-        existing = oci_lookup_one(session, endpoint, tenancy, "policies", name)
-        put(f"/20160918/policies/{existing['id']}", {"statements": statement_list})
-
-    return user["id"]
+    return resources[0]["id"]
 
 
-def rotate_oci_rotation_key(admin_email: str) -> bool:
-    """Mint a new API signing key on the SAME homelab-key-rotation user,
-    verify it, only then delete the old key by fingerprint — the
-    rotation identity itself never changes, only its signing key does
-    (mirrors leaf_keys/oci.py:rotate_oci's own shape: same user, new
-    customerSecretKey, old one revoked after verification).
+def _oci_ensure_scim_app_credentials() -> None:
+    """Idempotent: skips prompting entirely once all four cache files
+    exist. Verifies the credentials actually work (a token exchange)
+    before caching anything, so a typo doesn't silently get cached as
+    if it were good."""
+    cache_keys = ["_rotation-key-oci-domain-url", "_rotation-key-oci-client-id", "_rotation-key-oci-client-secret", "_rotation-key-oci-app-id"]
+    if all(cached(k) for k in cache_keys):
+        print("oci: SCIM app credentials already cached, skipping")
+        return
 
-    Uses admin credentials throughout, same as create_oci_rotation_key —
-    deliberately not the rotation identity's own (old) signer, so this
-    still works even if the old key is already broken or about to be
-    revoked mid-run.
-    """
-    signer, endpoint, tenancy, region = oci_master_auth_and_endpoint()
+    domain_url, client_id, client_secret = _prompt_oci_scim_app_credentials()
+    token = oci_scim_access_token(domain_url, client_id, client_secret)
     session = requests.Session()
-    session.auth = signer
-    session.headers["Content-Type"] = "application/json"
+    session.headers["Authorization"] = f"Bearer {token}"
+    session.headers["Content-Type"] = "application/scim+json"
+    app_id = _find_app_id(session, domain_url, OCI_SCIM_APP_DISPLAY_NAME)
 
-    def post(path: str, body: dict) -> dict:
-        resp = session.post(f"{endpoint}{path}", json=body)
-        resp.raise_for_status()
-        return resp.json()
-
-    def put(path: str, body: dict) -> dict:
-        resp = session.put(f"{endpoint}{path}", json=body)
-        resp.raise_for_status()
-        return resp.json() if resp.text else {}
-
-    def delete(path: str) -> None:
-        session.delete(f"{endpoint}{path}").raise_for_status()
-
-    # Re-verifies leaf/rotation policies too, same as
-    # create_oci_rotation_key — cheap, idempotent, and rotation time is
-    # exactly when you'd also want confirmation the policies are still
-    # correct.
-    write_leaf_user_id = oci_ensure_leaf_identity(
-        session,
-        endpoint,
-        post,
-        put,
-        tenancy,
-        "write",
-        ["OBJECT_INSPECT", "OBJECT_CREATE", "OBJECT_OVERWRITE"],
-        admin_email,
-    )
-    oci_ensure_leaf_identity(
-        session,
-        endpoint,
-        post,
-        put,
-        tenancy,
-        "read",
-        ["OBJECT_INSPECT", "OBJECT_READ"],
-        admin_email,
-    )
-    rotation_user_id = oci_ensure_rotation_identity(session, endpoint, post, put, tenancy, admin_email)
-
-    cached_user_id = read_cache("_rotation-key-oci-user-ocid")
-    if cached_user_id and rotation_user_id != cached_user_id:
-        print(
-            f"oci: cached rotation keypair is for user {cached_user_id}, but "
-            f"'homelab-key-rotation' now resolves to {rotation_user_id} — "
-            "delete the _rotation-key-oci-* cache files and re-run create_rotation_keys (without --rotate) to fix",
-            file=sys.stderr,
-        )
-        return False
-
-    old_fingerprint = read_cache("_rotation-key-oci-fingerprint")
-
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    private_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode()
-    public_pem = private_key.public_key().public_bytes(encoding=serialization.Encoding.PEM, format=serialization.PublicFormat.SubjectPublicKeyInfo).decode()
-
-    new_api_key = post(f"/20160918/users/{rotation_user_id}/apiKeys", {"key": public_pem})
-    new_fingerprint = new_api_key["fingerprint"]
-
-    ok, detail = _verify_rotation_key(rotation_user_id, new_fingerprint, private_pem, tenancy, endpoint, write_leaf_user_id)
-    if not ok:
-        print(
-            f"oci: new rotation key (fingerprint {new_fingerprint}) failed verification ({detail}). "
-            f"Old key (fingerprint {old_fingerprint or '(none cached)'}) left untouched and still in use; "
-            f"new key left live but NOT cached — investigate, then either retry or delete it by hand: "
-            f"DELETE /20160918/users/{rotation_user_id}/apiKeys/{new_fingerprint}",
-            file=sys.stderr,
-        )
-        # Best-effort cleanup of the unverified key — reported, not
-        # silently swallowed. A quietly-failed delete here is exactly
-        # the class of bug that left an orphaned customer secret key on
-        # the write leaf once already (see docs/cloud-credential-creation.md's
-        # Rotation section) — that one hid in a success path's unprinted
-        # detail string; this is the same risk on the failure path, via
-        # a different mechanism (suppress instead of unprinted detail).
-        try:
-            delete(f"/20160918/users/{rotation_user_id}/apiKeys/{new_fingerprint}")
-        except requests.HTTPError as exc:
-            print(
-                f"oci: also failed to clean up the unverified new key — DELETE /20160918/users/{rotation_user_id}/apiKeys/{new_fingerprint} by hand ({exc})",
-                file=sys.stderr,
-            )
-        return False
-
-    if old_fingerprint:
-        try:
-            delete(f"/20160918/users/{rotation_user_id}/apiKeys/{old_fingerprint}")
-            print(f"oci: old rotation key (fingerprint {old_fingerprint}) revoked")
-        except requests.HTTPError as exc:
-            print(
-                f"oci: new rotation key verified and will be cached, but revoking old key (fingerprint {old_fingerprint}) failed ({exc}) — revoke it by hand.",
-                file=sys.stderr,
-            )
-
-    write_cache("_rotation-key-oci-user-ocid", rotation_user_id)
-    write_cache("_rotation-key-oci-fingerprint", new_fingerprint)
-    write_cache("_rotation-key-oci-private-key.pem", private_pem)
-    write_cache("_rotation-key-oci-tenancy-ocid", tenancy)
-    write_cache("_rotation-key-oci-region", region)
+    write_cache("_rotation-key-oci-domain-url", domain_url)
+    write_cache("_rotation-key-oci-client-id", client_id)
+    write_cache("_rotation-key-oci-client-secret", client_secret)
+    write_cache("_rotation-key-oci-app-id", app_id)
+    # Self-tracked, not native (see ADR 0016's Context: the App
+    # resource has no expires_on field of its own).
     write_cache("_rotation-key-oci-created-at", utcnow_iso())
-    if detail:
-        # ok=True from _verify_rotation_key means the key itself is
-        # genuinely verified — but a non-empty detail here means its
-        # own cleanup step failed, leaving a throwaway customer secret
-        # key live on the write leaf. This is exactly the bug that
-        # silently ate OCI's 2-key-per-user quota once already: ok=True
-        # was treated as "nothing to report" and this string was
-        # captured but never printed. Loud on purpose.
-        print(
-            f"oci: rotation key rotated and verified, BUT: {detail} — "
-            "OCI allows at most 2 customer secret keys per user; an "
-            "unresolved orphan here will make the next real leaf "
-            "rotation fail on quota, not on anything wrong with the "
-            "new rotation key itself.",
-            file=sys.stderr,
-        )
-    else:
-        print("oci: rotation key rotated and verified")
-    return True
-
-
-def _verify_rotation_key(
-    rotation_user_id: str, fingerprint: str, private_pem: str, tenancy: str, endpoint: str, leaf_user_id: str, retries: int = 60, delay: int = 15
-) -> tuple[bool, str]:
-    """The rotation identity's policy is conditioned on exactly three
-    permissions — USER_UPDATE, USER_SECRETKEY_ADD, USER_SECRETKEY_REMOVE
-    — not a blanket read/inspect grant (see oci_ensure_rotation_identity's
-    own statement). A lightweight GET wouldn't actually prove the new
-    key can do its job, and could fail for an unrelated permissions
-    reason and look like a broken key. Create then immediately delete a
-    throwaway customer secret key on the write leaf instead — the exact
-    two operations create_leaf_keys.py --rotate depends on, cleaned up
-    either way regardless of outcome.
-
-    A brand-new OCI API signing key isn't immediately usable for
-    request-signing the instant the upload call returns — confirmed
-    live, not assumed: a real rotation attempt 401'd for a full 3
-    minutes before succeeding. Retried broadly on 401 or 403 alone, on
-    both the create and the delete step, same shape (and same default
-    retries/delay) as verify.py's leaf-key retry, since OCI gives no
-    way here either to distinguish "not propagated yet" from a genuine
-    policy denial in the response — a real policy problem now also
-    takes the full ~900s window to surface as a failure, accepted for
-    the same reason verify.py accepts it: the alternative orphans a
-    fresh key on every manual retry instead.
-
-    The delete retry specifically exists because its absence caused a
-    real incident: an unretried, silently-swallowed delete failure here
-    left an orphaned customer secret key on the write leaf, invisible
-    because the caller (rotate_oci_rotation_key) never printed this
-    function's own non-empty `detail` string on its success path — OCI
-    caps customer secret keys at 2 per user, so that orphan then made
-    the next real `create_leaf_keys.py --rotate` fail on quota, wrapped
-    in an opaque `IdcsConversionError`. Both the missing retry and the
-    unprinted detail are fixed now; either alone would have caught this.
-    """
-    signer = OCISigner(tenancy=tenancy, user=rotation_user_id, fingerprint=fingerprint, private_key_file_location=None, private_key_content=private_pem)
-    session = requests.Session()
-    session.auth = signer
-    session.headers["Content-Type"] = "application/json"
-
-    resp = None
-    for attempt in range(1, retries + 1):
-        resp = session.post(f"{endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys", json={"displayName": "homelab-cloud-sync-rotation-key-verify"})
-        if resp.status_code == 200:
-            break
-        if attempt < retries and resp.status_code in (401, 403):
-            elapsed = attempt * delay
-            print(f"  oci: new rotation key not yet recognized, attempt {attempt}/{retries}, ~{elapsed}s elapsed — retrying in {delay}s", file=sys.stderr)
-            time.sleep(delay)
-            continue
-        break
-
-    if resp.status_code != 200:
-        return False, f"{resp.status_code} {resp.text}"
-
-    key_id = resp.json()["id"]
-    delete_resp = None
-    for attempt in range(1, retries + 1):
-        delete_resp = session.delete(f"{endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys/{key_id}")
-        if delete_resp.status_code in (200, 204):
-            return True, ""
-        if attempt < retries and delete_resp.status_code in (401, 403):
-            # Same propagation class as the create call above, but on
-            # the delete step this time — this exact gap (delete fails
-            # once, unretried, and the failure gets swallowed by an
-            # unprinted `detail`) is what left a real orphaned customer
-            # secret key on the write leaf and silently ate its 2-key
-            # quota. Retrying here is the actual fix; the caller
-            # printing `detail` on success is the backstop for whatever
-            # this retry still doesn't catch.
-            elapsed = attempt * delay
-            print(f"  oci: cleanup delete not yet authorized, attempt {attempt}/{retries}, ~{elapsed}s elapsed — retrying in {delay}s", file=sys.stderr)
-            time.sleep(delay)
-            continue
-        break
-    delete_url = f"DELETE {endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys/{key_id}"
-    status = f"({delete_resp.status_code} {delete_resp.text})"
-    return True, f"verified, but cleanup of throwaway key {key_id} on {leaf_user_id} failed — delete it by hand: {delete_url} {status}"
+    print("oci: SCIM app credentials verified and cached")
 
 
 def create_oci_rotation_key(admin_email: str) -> None:
-    rotation_files = [
-        "_rotation-key-oci-user-ocid",
-        "_rotation-key-oci-fingerprint",
-        "_rotation-key-oci-private-key.pem",
-        "_rotation-key-oci-tenancy-ocid",
-        "_rotation-key-oci-region",
-    ]
-    keypair_cached = all(cached(f) for f in rotation_files)
-
-    signer, endpoint, tenancy, region = oci_master_auth_and_endpoint()
+    signer, endpoint, tenancy, _region = oci_master_auth_and_endpoint()
     session = requests.Session()
     session.auth = signer
     session.headers["Content-Type"] = "application/json"
@@ -453,52 +204,94 @@ def create_oci_rotation_key(admin_email: str) -> None:
         admin_email,
     )
 
-    rotation_user_id = oci_ensure_rotation_identity(session, endpoint, post, put, tenancy, admin_email)
+    _oci_ensure_scim_app_credentials()
 
-    if keypair_cached:
-        cached_user_id = read_cache("_rotation-key-oci-user-ocid")
-        if rotation_user_id != cached_user_id:
-            # The lookup-by-name above found a different user OCID than the one
-            # the cached keypair was issued for — that keypair no longer
-            # belongs to "homelab-key-rotation" and won't authenticate as it.
-            print(
-                f"oci: cached rotation keypair is for user {cached_user_id}, but "
-                f"'homelab-key-rotation' now resolves to {rotation_user_id} — "
-                "delete the _rotation-key-oci-* cache files and re-run to fix",
-                file=sys.stderr,
-            )
-            sys.exit(1)
-        print("oci: rotation keypair already cached (unchanged); leaf + rotation policies re-verified above")
-        return
 
-    private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    private_pem = private_key.private_bytes(
-        encoding=serialization.Encoding.PEM,
-        format=serialization.PrivateFormat.TraditionalOpenSSL,
-        encryption_algorithm=serialization.NoEncryption(),
-    ).decode()
-    public_pem = (
-        private_key.public_key()
-        .public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo,
+def rotate_oci_rotation_key(admin_email: str) -> bool:
+    """Re-verifies leaf policies (cheap, idempotent, worth confirming at
+    rotation time - same rationale as before), then regenerates the
+    Confidential Application's own client secret.
+
+    Unlike leaf-key rotation (leaf_keys/oci.py:rotate_oci) there is no
+    verify-then-revoke available here: OCI supports exactly one active
+    secret per App, and regenerating invalidates the old one
+    immediately (see ADR 0016). The new secret is cached as soon as
+    it's returned, before verification - the OLD secret is already
+    gone regardless of whether the verification round-trip below
+    succeeds, so withholding the cache write on a verification failure
+    would only throw away the one copy of a value OCI shows exactly
+    once, for no benefit.
+    """
+    signer, endpoint, tenancy, _region = oci_master_auth_and_endpoint()
+    session = requests.Session()
+    session.auth = signer
+    session.headers["Content-Type"] = "application/json"
+
+    def post(path: str, body: dict) -> dict:
+        resp = session.post(f"{endpoint}{path}", json=body)
+        resp.raise_for_status()
+        return resp.json()
+
+    def put(path: str, body: dict) -> dict:
+        resp = session.put(f"{endpoint}{path}", json=body)
+        resp.raise_for_status()
+        return resp.json() if resp.text else {}
+
+    oci_ensure_leaf_identity(session, endpoint, post, put, tenancy, "write", ["OBJECT_INSPECT", "OBJECT_CREATE", "OBJECT_OVERWRITE"], admin_email)
+    oci_ensure_leaf_identity(session, endpoint, post, put, tenancy, "read", ["OBJECT_INSPECT", "OBJECT_READ"], admin_email)
+
+    domain_url, client_id, old_secret = oci_scim_domain_and_credentials()
+    app_id = require_cache_file("_rotation-key-oci-app-id", "Run: python3 -m cloud_credentials.create_rotation_keys --provider oci")
+
+    try:
+        old_token = oci_scim_access_token(domain_url, client_id, old_secret)
+    except (requests.HTTPError, requests.RequestException, KeyError) as exc:
+        print(
+            f"oci: authenticating with the current cached secret failed ({exc}) — "
+            "can't safely regenerate without a working session first. Fix the "
+            "cached secret by hand (Console's Regenerate button) before retrying.",
+            file=sys.stderr,
         )
-        .decode()
+        return False
+
+    scim_session = requests.Session()
+    scim_session.headers["Authorization"] = f"Bearer {old_token}"
+    scim_session.headers["Content-Type"] = "application/scim+json"
+
+    regen_resp = scim_session.post(
+        f"{domain_url}/admin/v1/AppClientSecretRegenerator", json={"schemas": [APP_CLIENT_SECRET_REGENERATOR_SCHEMA], "appId": app_id}
     )
+    if regen_resp.status_code not in (200, 201):
+        print(
+            f"oci: regenerating the app's client secret failed ({regen_resp.status_code} {regen_resp.text}) "
+            "— the OLD secret is untouched, nothing was invalidated.",
+            file=sys.stderr,
+        )
+        return False
 
-    # "key" is confirmed, not a guess — Oracle's Python SDK model
-    # reference (CreateApiKeyDetails) documents it as the sole required
-    # field, generated directly from their API spec. The fingerprint
-    # comes back computed in the response; we don't need to derive it.
-    api_key = post(f"/20160918/users/{rotation_user_id}/apiKeys", {"key": public_pem})
+    new_secret = regen_resp.json().get("clientSecret")
+    if not new_secret:
+        print(
+            "oci: regenerate succeeded but returned no clientSecret — the OLD "
+            "secret is now invalid and there's nothing to fall back to. Use "
+            "Console's own Regenerate button now.",
+            file=sys.stderr,
+        )
+        return False
 
-    write_cache("_rotation-key-oci-user-ocid", rotation_user_id)
-    write_cache("_rotation-key-oci-fingerprint", api_key["fingerprint"])
-    write_cache("_rotation-key-oci-private-key.pem", private_pem)
-    write_cache("_rotation-key-oci-tenancy-ocid", tenancy)
-    write_cache("_rotation-key-oci-region", region)
-    # Self-tracked for the same reason as the leaf credentials' own
-    # -created-at files (see leaf_keys/oci.py) - an API signing keypair
-    # has no expiry concept in OCI at all, native or otherwise.
+    write_cache("_rotation-key-oci-client-secret", new_secret)
     write_cache("_rotation-key-oci-created-at", utcnow_iso())
-    print("oci: rotation identity and leaf users cached")
+
+    try:
+        oci_scim_access_token(domain_url, client_id, new_secret)
+    except (requests.HTTPError, requests.RequestException, KeyError) as exc:
+        print(
+            f"oci: new secret is cached, but verifying it with a fresh token "
+            f"exchange failed ({exc}). The OLD secret is already invalidated "
+            "regardless — check the cached value by hand.",
+            file=sys.stderr,
+        )
+        return False
+
+    print("oci: rotation credential (Confidential Application client secret) regenerated and verified")
+    return True

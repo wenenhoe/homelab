@@ -1,14 +1,15 @@
 """Unit tests for cloud_credentials.rotation_keys.oci_bootstrap.
 
-Run via `uv run pytest ansible/tests/ -v`. Every OCI HTTP call is
-mocked; nothing here talks to a real tenancy.
+Run via `uv run pytest ansible/tests/ -v`. Every HTTP call is mocked;
+nothing here talks to a real tenancy or registers/regenerates a real
+Confidential Application.
 """
 
 from __future__ import annotations
 
-import contextlib
-import io
+import shutil
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -19,382 +20,168 @@ from cloud_credentials import cache
 from cloud_credentials.rotation_keys import oci_bootstrap
 
 
-class OciPolicyRecheckTests(unittest.TestCase):
-    """Covers the fix for docs/cloud-credential-creation.md's former
-    'Known gap': policy verification must run even when the rotation
-    keypair is already cached, without regenerating that keypair."""
+def _mock_response(status_code: int, json_body: dict | None = None, text: str = ""):
+    resp = MagicMock(status_code=status_code, text=text or str(json_body))
+    resp.json.return_value = json_body or {}
+    resp.raise_for_status = MagicMock() if status_code < 400 else MagicMock(side_effect=Exception(f"{status_code} {text}"))
+    return resp
 
+
+class OciBootstrapTestBase(unittest.TestCase):
     def setUp(self):
-        self.tmp = self._make_tmp_secrets_dir()
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
         patcher = patch.object(cache, "SECRETS_DIR", self.tmp)
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def _make_tmp_secrets_dir(self) -> Path:
-        import tempfile
+    def seed(self, name: str, value: str) -> None:
+        cache.write_cache(name, value)
 
-        d = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: __import__("shutil").rmtree(d, ignore_errors=True))
-        return d
+    def seed_scim_app_credentials(self):
+        self.seed("_rotation-key-oci-domain-url", "https://idcs-example.identity.oraclecloud.com")
+        self.seed("_rotation-key-oci-client-id", "client-123")
+        self.seed("_rotation-key-oci-client-secret", "OLD_SECRET")
+        self.seed("_rotation-key-oci-app-id", "app-1")
 
-    def _cache_full_keypair(self, user_ocid="ocid1.user.oc1..existing"):
-        for name, value in [
-            ("_rotation-key-oci-user-ocid", user_ocid),
-            ("_rotation-key-oci-fingerprint", "aa:bb"),
-            ("_rotation-key-oci-private-key.pem", "-----BEGIN-----"),
-            ("_rotation-key-oci-tenancy-ocid", "ocid1.tenancy.oc1..t"),
-            ("_rotation-key-oci-region", "us-ashburn-1"),
-        ]:
-            cache.write_cache(name, value)
 
+class CreateOciRotationKeyTests(OciBootstrapTestBase):
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    def test_policy_recheck_runs_when_keypair_already_cached(self, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        self._cache_full_keypair()
+    @patch.object(oci_bootstrap, "_oci_ensure_scim_app_credentials")
+    def test_ensures_both_leaf_identities_and_scim_credentials(self, mock_ensure_scim, mock_ensure_leaf, mock_auth):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
 
         oci_bootstrap.create_oci_rotation_key(admin_email="you@example.com")
 
-        # The whole point of the fix: leaf + rotation policy checks fire
-        # unconditionally, not gated behind the keypair cache.
         self.assertEqual(mock_ensure_leaf.call_count, 2)
-        mock_ensure_rotation.assert_called_once()
+        leaves_seen = {call.args[5] for call in mock_ensure_leaf.call_args_list}
+        self.assertEqual(leaves_seen, {"write", "read"})
+        mock_ensure_scim.assert_called_once()
 
-    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
-    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
-    def test_keypair_not_regenerated_when_cached(self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        self._cache_full_keypair()
-        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
+    @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
+    def test_scim_credentials_already_cached_skips_prompting(self, mock_token):
+        self.seed_scim_app_credentials()
+        with patch.object(oci_bootstrap, "input") as mock_input:
+            oci_bootstrap._oci_ensure_scim_app_credentials()
+        mock_input.assert_not_called()
+        mock_token.assert_not_called()
 
-        oci_bootstrap.create_oci_rotation_key(admin_email="you@example.com")
+    @patch.object(oci_bootstrap.requests, "Session")
+    @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
+    def test_first_run_prompts_verifies_and_caches(self, mock_token, mock_session_cls):
+        session = mock_session_cls.return_value
+        session.get.return_value = _mock_response(200, {"Resources": [{"id": "app-1"}]})
 
-        mock_genkey.assert_not_called()
+        with (
+            patch.object(oci_bootstrap, "input", side_effect=["https://idcs-example.identity.oraclecloud.com/", "client-123"]),
+            patch("getpass.getpass", return_value="the-secret"),
+        ):
+            oci_bootstrap._oci_ensure_scim_app_credentials()
 
-    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
-    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    def test_user_ocid_mismatch_is_a_hard_stop(self, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        # If 'homelab-key-rotation' now resolves to a different user than
-        # the cached keypair was issued for, that keypair can't
-        # authenticate as it — this must fail loudly, not silently
-        # proceed with a mismatched identity.
-        self._cache_full_keypair(user_ocid="ocid1.user.oc1..old")
-        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..different"
-
-        with self.assertRaises(SystemExit):
-            oci_bootstrap.create_oci_rotation_key(admin_email="you@example.com")
-
-    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
-    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
-    def test_keypair_generated_and_cached_on_first_run(self, mock_genkey, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        # Nothing cached yet: full first-run path, including the API-key
-        # upload — this is the pre-existing behavior and must survive
-        # the refactor unchanged.
-        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..new"
-
-        fake_key = MagicMock()
-        fake_key.private_bytes.return_value = b"-----BEGIN PRIVATE-----"
-        fake_key.public_key.return_value.public_bytes.return_value = b"-----BEGIN PUBLIC-----"
-        mock_genkey.return_value = fake_key
-
-        with patch("requests.Session.post") as mock_post:
-            mock_post.return_value = MagicMock(status_code=200, json=lambda: {"fingerprint": "aa:bb:cc"})
-            oci_bootstrap.create_oci_rotation_key(admin_email="you@example.com")
-
-        mock_genkey.assert_called_once()
-        self.assertTrue((self.tmp / "_rotation-key-oci-user-ocid").exists())
-        self.assertEqual((self.tmp / "_rotation-key-oci-user-ocid").read_text(), "ocid1.user.oc1..new")
-        # Self-tracked expiry (see ADR 0015) — this keypair has no native
-        # expiry field, so a fresh creation must record its own timestamp.
+        # Trailing slash stripped, matching oci_scim.py's own convention.
+        self.assertEqual((self.tmp / "_rotation-key-oci-domain-url").read_text(), "https://idcs-example.identity.oraclecloud.com")
+        self.assertEqual((self.tmp / "_rotation-key-oci-client-id").read_text(), "client-123")
+        self.assertEqual((self.tmp / "_rotation-key-oci-client-secret").read_text(), "the-secret")
+        self.assertEqual((self.tmp / "_rotation-key-oci-app-id").read_text(), "app-1")
         self.assertTrue((self.tmp / "_rotation-key-oci-created-at").exists())
 
-    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
-    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    def test_created_at_not_touched_when_keypair_already_cached(self, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        self._cache_full_keypair()
-        cache.write_cache("_rotation-key-oci-created-at", "2020-01-01T00:00:00+00:00")
-        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
+    @patch.object(oci_bootstrap.requests, "Session")
+    @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
+    def test_app_not_found_raises_before_caching_anything(self, mock_token, mock_session_cls):
+        session = mock_session_cls.return_value
+        session.get.return_value = _mock_response(200, {"Resources": []})
 
-        oci_bootstrap.create_oci_rotation_key(admin_email="you@example.com")
+        with (
+            patch.object(oci_bootstrap, "input", side_effect=["https://idcs-example.identity.oraclecloud.com", "client-123"]),
+            patch("getpass.getpass", return_value="the-secret"),
+            self.assertRaises(RuntimeError),
+        ):
+            oci_bootstrap._oci_ensure_scim_app_credentials()
 
-        # A re-run that only re-verifies policy must not reset the
-        # timestamp check_freshness.py alerts against — resetting it
-        # every run would make the credential appear permanently fresh.
-        self.assertEqual((self.tmp / "_rotation-key-oci-created-at").read_text(), "2020-01-01T00:00:00+00:00")
+        self.assertFalse((self.tmp / "_rotation-key-oci-domain-url").exists())
 
-    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
-    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    @patch.object(oci_bootstrap, "_verify_rotation_key")
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
-    def test_successful_rotate_revokes_old_key_and_caches_new(self, mock_genkey, mock_verify, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        self._cache_full_keypair()
-        cache.write_cache("_rotation-key-oci-fingerprint", "old:fp")
-        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_leaf.return_value = "ocid1.user.oc1..write-leaf"
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
-        mock_verify.return_value = (True, "")
 
-        fake_key = MagicMock()
-        fake_key.private_bytes.return_value = b"-----BEGIN PRIVATE-----"
-        fake_key.public_key.return_value.public_bytes.return_value = b"-----BEGIN PUBLIC-----"
-        mock_genkey.return_value = fake_key
-
-        with patch("requests.Session.post") as mock_post, patch("requests.Session.delete") as mock_delete:
-            mock_post.return_value = MagicMock(status_code=200, json=lambda: {"fingerprint": "new:fp"})
-            mock_delete.return_value = MagicMock(status_code=204, raise_for_status=lambda: None)
-            ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
-
-        self.assertTrue(ok)
-        mock_verify.assert_called_once()
-        # Old key must actually be revoked — the whole point of rotating it.
-        deleted_paths = [c.args[0] for c in mock_delete.call_args_list]
-        self.assertTrue(any("old:fp" in p for p in deleted_paths))
-        self.assertEqual((self.tmp / "_rotation-key-oci-fingerprint").read_text(), "new:fp")
+class RotateOciRotationKeyTests(OciBootstrapTestBase):
+    def setUp(self):
+        super().setUp()
+        self.seed_scim_app_credentials()
 
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    @patch.object(oci_bootstrap, "_verify_rotation_key")
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
-    def test_verified_but_orphaned_cleanup_detail_is_printed_not_silent(self, mock_genkey, mock_verify, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        """Regression test for a real incident: _verify_rotation_key
-        returning (True, "<cleanup failed>") must be visible. Previously
-        this detail was captured and never printed on the success path
-        - the run reported "rotated and verified" while a customer
-        secret key sat orphaned on the write leaf, silently consuming
-        half of OCI's 2-key-per-user quota until the next real
-        create_leaf_keys.py --rotate failed on it."""
-        self._cache_full_keypair()
-        cache.write_cache("_rotation-key-oci-fingerprint", "old:fp")
+    @patch.object(oci_bootstrap, "oci_scim_access_token")
+    @patch.object(oci_bootstrap.requests, "Session")
+    def test_reverifies_leaf_identities_before_touching_the_secret(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_leaf.return_value = "ocid1.user.oc1..write-leaf"
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
-        mock_verify.return_value = (True, "verified, but cleanup of throwaway key abc123 on ocid1.user.oc1..write-leaf failed — delete it by hand")
+        mock_token.side_effect = ["old-tok", "new-tok"]
+        session = mock_session_cls.return_value
+        session.post.return_value = _mock_response(201, {"clientSecret": "NEW_SECRET"})
 
-        fake_key = MagicMock()
-        fake_key.private_bytes.return_value = b"-----BEGIN PRIVATE-----"
-        fake_key.public_key.return_value.public_bytes.return_value = b"-----BEGIN PUBLIC-----"
-        mock_genkey.return_value = fake_key
+        oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
-        stderr = io.StringIO()
-        with patch("requests.Session.post") as mock_post, patch("requests.Session.delete") as mock_delete, contextlib.redirect_stderr(stderr):
-            mock_post.return_value = MagicMock(status_code=200, json=lambda: {"fingerprint": "new:fp"})
-            mock_delete.return_value = MagicMock(status_code=204, raise_for_status=lambda: None)
-            ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
-
-        self.assertTrue(ok)  # the rotation key itself IS genuinely verified
-        # But the orphan warning must reach the operator, not just be captured and dropped.
-        self.assertIn("abc123", stderr.getvalue())
-        self.assertIn("quota", stderr.getvalue().lower())
+        self.assertEqual(mock_ensure_leaf.call_count, 2)
 
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    @patch.object(oci_bootstrap, "_verify_rotation_key")
-    @patch("cryptography.hazmat.primitives.asymmetric.rsa.generate_private_key")
-    def test_failed_verification_leaves_old_key_cached_and_cleans_up_new_one(self, mock_genkey, mock_verify, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        self._cache_full_keypair()
-        cache.write_cache("_rotation-key-oci-fingerprint", "old:fp")
+    @patch.object(oci_bootstrap, "oci_scim_access_token", side_effect=oci_bootstrap.requests.HTTPError("401 invalid_client"))
+    def test_old_secret_auth_failure_stops_before_any_regenerate_call(self, mock_token, mock_ensure_leaf, mock_auth):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_leaf.return_value = "ocid1.user.oc1..write-leaf"
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..existing"
-        mock_verify.return_value = (False, "401 unauthorized")
-
-        fake_key = MagicMock()
-        fake_key.private_bytes.return_value = b"-----BEGIN PRIVATE-----"
-        fake_key.public_key.return_value.public_bytes.return_value = b"-----BEGIN PUBLIC-----"
-        mock_genkey.return_value = fake_key
-
-        with patch("requests.Session.post") as mock_post, patch("requests.Session.delete") as mock_delete:
-            mock_post.return_value = MagicMock(status_code=200, json=lambda: {"fingerprint": "new:fp"})
-            mock_delete.return_value = MagicMock(status_code=204, raise_for_status=lambda: None)
-            ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
-
-        self.assertFalse(ok)
-        # The old, still-working key must survive a failed rotation untouched.
-        self.assertEqual((self.tmp / "_rotation-key-oci-fingerprint").read_text(), "old:fp")
-        # Best-effort cleanup of the unverified new key, not the old one.
-        deleted_paths = [c.args[0] for c in mock_delete.call_args_list]
-        self.assertTrue(any("new:fp" in p for p in deleted_paths))
-        self.assertFalse(any("old:fp" in p for p in deleted_paths))
-
-    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
-    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
-    @patch.object(oci_bootstrap, "oci_ensure_rotation_identity")
-    def test_rotate_user_ocid_mismatch_returns_false_not_sysexit(self, mock_ensure_rotation, mock_ensure_leaf, mock_auth):
-        # Unlike create's hard sys.exit (a one-time bootstrap failure),
-        # rotate must return a plain bool so create_rotation_keys.py's
-        # --rotate can report it as an ordinary failed run, matching how
-        # the leaf rotate_* functions already behave.
-        self._cache_full_keypair(user_ocid="ocid1.user.oc1..old")
-        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        mock_ensure_leaf.return_value = "ocid1.user.oc1..write-leaf"
-        mock_ensure_rotation.return_value = "ocid1.user.oc1..different"
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         self.assertFalse(ok)
+        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "OLD_SECRET")
 
+    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
+    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
+    @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="old-tok")
+    @patch.object(oci_bootstrap.requests, "Session")
+    def test_regenerate_failure_leaves_old_secret_untouched(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth):
+        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
+        session = mock_session_cls.return_value
+        session.post.return_value = _mock_response(403, text="insufficient_scope")
 
-class VerifyRotationKeyRetryTests(unittest.TestCase):
-    """Covers _verify_rotation_key's retry loop specifically — the fix
-    for a real live finding: a brand-new OCI API signing key 401'd for
-    ~180s before OCI recognized it (see ADR 0015-era investigation).
-    Every requests.Session call is mocked; time.sleep is patched out so
-    these run instantly regardless of the retry count exercised."""
-
-    @classmethod
-    def setUpClass(cls):
-        from cryptography.hazmat.primitives import serialization
-        from cryptography.hazmat.primitives.asymmetric import rsa
-
-        # OCISigner validates the key content immediately in __init__
-        # (tries to actually parse it) — a placeholder string like
-        # "-----BEGIN-----" fails before the retry loop ever runs. A
-        # real (throwaway) key is required even though its content is
-        # otherwise irrelevant to what these tests exercise.
-        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        cls.private_pem = key.private_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PrivateFormat.TraditionalOpenSSL,
-            encryption_algorithm=serialization.NoEncryption(),
-        ).decode()
-
-    @patch("time.sleep")
-    @patch("requests.Session.delete")
-    @patch("requests.Session.post")
-    def test_succeeds_immediately_with_no_retry_needed(self, mock_post, mock_delete, mock_sleep):
-        mock_post.return_value = MagicMock(status_code=200, json=lambda: {"id": "key-id"})
-        mock_delete.return_value = MagicMock(status_code=204, raise_for_status=lambda: None)
-
-        ok, detail = oci_bootstrap._verify_rotation_key("user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid")
-
-        self.assertTrue(ok)
-        self.assertEqual(detail, "")
-        mock_sleep.assert_not_called()
-
-    @patch("time.sleep")
-    @patch("requests.Session.delete")
-    @patch("requests.Session.post")
-    def test_retries_on_401_then_succeeds(self, mock_post, mock_delete, mock_sleep):
-        # This is the exact real-world sequence that motivated the fix:
-        # a fresh key 401s a few times, then OCI catches up.
-        mock_post.side_effect = [
-            MagicMock(status_code=401, text="Unauthorized"),
-            MagicMock(status_code=401, text="Unauthorized"),
-            MagicMock(status_code=200, json=lambda: {"id": "key-id"}),
-        ]
-        mock_delete.return_value = MagicMock(status_code=204, raise_for_status=lambda: None)
-
-        ok, detail = oci_bootstrap._verify_rotation_key(
-            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=5, delay=1
-        )
-
-        self.assertTrue(ok)
-        self.assertEqual(detail, "")
-        self.assertEqual(mock_post.call_count, 3)
-        self.assertEqual(mock_sleep.call_count, 2)
-
-    @patch("time.sleep")
-    @patch("requests.Session.post")
-    def test_retries_on_403_too_not_only_401(self, mock_post, mock_sleep):
-        # Same broad-match-on-status reasoning as verify.py's leaf-key
-        # retry: OCI doesn't distinguish "not propagated yet" from a
-        # genuine policy denial in the response for either status.
-        mock_post.side_effect = [
-            MagicMock(status_code=403, text="Forbidden"),
-            MagicMock(status_code=200, json=lambda: {"id": "key-id"}),
-        ]
-        with patch("requests.Session.delete", return_value=MagicMock(status_code=204, raise_for_status=lambda: None)):
-            ok, _ = oci_bootstrap._verify_rotation_key(
-                "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=5, delay=1
-            )
-        self.assertTrue(ok)
-
-    @patch("time.sleep")
-    @patch("requests.Session.delete")
-    @patch("requests.Session.post")
-    def test_delete_step_retries_on_401_before_reporting_orphan(self, mock_post, mock_delete, mock_sleep):
-        """Regression test for the actual root cause of a real orphaned
-        customer secret key: the create call succeeding didn't guarantee
-        the immediately-following delete would too. Retrying the delete
-        the same way the create is retried is the fix - not just
-        reporting the failure louder."""
-        mock_post.return_value = MagicMock(status_code=200, json=lambda: {"id": "key-id"})
-        mock_delete.side_effect = [
-            MagicMock(status_code=401, text="Unauthorized"),
-            MagicMock(status_code=204),
-        ]
-
-        ok, detail = oci_bootstrap._verify_rotation_key(
-            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=5, delay=1
-        )
-
-        self.assertTrue(ok)
-        self.assertEqual(detail, "")  # succeeded on retry - no orphan, nothing to report
-        self.assertEqual(mock_delete.call_count, 2)
-
-    @patch("time.sleep")
-    @patch("requests.Session.delete")
-    @patch("requests.Session.post")
-    def test_delete_step_exhausting_retries_reports_the_orphan_with_delete_command(self, mock_post, mock_delete, mock_sleep):
-        mock_post.return_value = MagicMock(status_code=200, json=lambda: {"id": "key-id"})
-        mock_delete.return_value = MagicMock(status_code=401, text="Unauthorized")
-
-        ok, detail = oci_bootstrap._verify_rotation_key(
-            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=3, delay=1
-        )
-
-        # The key itself is genuinely verified (create succeeded) - only
-        # cleanup failed. ok=True is correct; the orphan must still be
-        # reported with enough detail (a ready-to-run DELETE) to act on.
-        self.assertTrue(ok)
-        self.assertIn("key-id", detail)
-        self.assertIn("DELETE", detail)
-        self.assertEqual(mock_delete.call_count, 3)
-
-    @patch("time.sleep")
-    @patch("requests.Session.post")
-    def test_exhausting_retries_returns_false_with_detail(self, mock_post, mock_sleep):
-        mock_post.return_value = MagicMock(status_code=401, text="Unauthorized")
-
-        ok, detail = oci_bootstrap._verify_rotation_key(
-            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=3, delay=1
-        )
+        ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         self.assertFalse(ok)
-        self.assertIn("401", detail)
-        self.assertEqual(mock_post.call_count, 3)
-        # Retries in between attempts only, not after the last one.
-        self.assertEqual(mock_sleep.call_count, 2)
+        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "OLD_SECRET")
 
-    @patch("time.sleep")
-    @patch("requests.Session.post")
-    def test_non_propagation_error_fails_fast_without_retrying(self, mock_post, mock_sleep):
-        # A 400 (e.g. malformed request) is never going to resolve by
-        # waiting - retrying it for 15 minutes would just be a slow
-        # failure instead of a fast, accurate one.
-        mock_post.return_value = MagicMock(status_code=400, text="Bad Request")
+    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
+    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
+    @patch.object(oci_bootstrap, "oci_scim_access_token")
+    @patch.object(oci_bootstrap.requests, "Session")
+    def test_verification_failure_still_caches_the_new_secret(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth):
+        """The safety property that matters most here: once regenerate
+        succeeds, the OLD secret is already gone - a failed verification
+        round-trip must not throw away the only copy of the new one."""
+        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
+        mock_token.side_effect = ["old-tok", oci_bootstrap.requests.HTTPError("network blip")]
+        session = mock_session_cls.return_value
+        session.post.return_value = _mock_response(201, {"clientSecret": "NEW_SECRET"})
 
-        ok, _ = oci_bootstrap._verify_rotation_key(
-            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=5, delay=1
-        )
+        ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         self.assertFalse(ok)
-        self.assertEqual(mock_post.call_count, 1)
-        mock_sleep.assert_not_called()
+        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "NEW_SECRET")
+
+    @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
+    @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
+    @patch.object(oci_bootstrap, "oci_scim_access_token")
+    @patch.object(oci_bootstrap.requests, "Session")
+    def test_full_success_caches_new_secret_and_updates_timestamp(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth):
+        mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
+        mock_token.side_effect = ["old-tok", "new-tok"]
+        session = mock_session_cls.return_value
+        session.post.return_value = _mock_response(201, {"clientSecret": "NEW_SECRET"})
+        cache.write_cache("_rotation-key-oci-created-at", "2020-01-01T00:00:00+00:00")
+
+        ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
+
+        self.assertTrue(ok)
+        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "NEW_SECRET")
+        self.assertNotEqual(cache.read_cache("_rotation-key-oci-created-at"), "2020-01-01T00:00:00+00:00")
+        sent_body = session.post.call_args.kwargs["json"]
+        self.assertEqual(sent_body["appId"], "app-1")
 
 
 if __name__ == "__main__":

@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from cloud_credentials import cache, check_freshness
-from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
+from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
 
 class FreshnessTestBase(unittest.TestCase):
@@ -85,17 +85,59 @@ class CheckB2Tests(FreshnessTestBase):
 
 
 class CheckOciTests(FreshnessTestBase):
-    def test_fresh_stale_and_missing_all_reported(self):
-        self.seed("oci-write-created-at", datetime.now(UTC).isoformat())
-        self.seed("oci-read-created-at", (datetime.now(UTC) - timedelta(days=QUARTERLY_DAYS + 1)).isoformat())
-        # rotation keypair's -created-at deliberately not seeded
+    def _mock_scim_get_response(self, status_code: int, expires_on: str | None = None):
+        resp = MagicMock(status_code=status_code, text=f"status {status_code}")
+        resp.json.return_value = {"expiresOn": expires_on} if expires_on is not None else {}
+        return resp
+
+    @patch.object(check_freshness, "oci_scim_session")
+    def test_fresh_stale_and_missing_all_reported(self, mock_scim_session):
+        self.seed("oci-write-scim-id", "scim-write-1")
+        self.seed("oci-read-scim-id", "scim-read-1")
+        # rotation credential's -created-at deliberately not seeded
+
+        session = MagicMock()
+        fresh_expires_on = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        stale_expires_on = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        session.get.side_effect = [
+            self._mock_scim_get_response(200, fresh_expires_on),
+            self._mock_scim_get_response(200, stale_expires_on),
+        ]
+        mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         results = check_freshness.check_oci()
 
         statuses = {name: status for name, status, _ in results}
         self.assertEqual(statuses["oci write"], check_freshness.FRESH)
         self.assertEqual(statuses["oci read"], check_freshness.STALE)
-        self.assertEqual(statuses["oci rotation keypair"], check_freshness.CHECK_FAILED)
+        self.assertEqual(statuses["oci rotation credential"], check_freshness.CHECK_FAILED)
+
+    @patch.object(check_freshness, "oci_scim_session")
+    def test_missing_scim_id_is_a_check_failure_not_a_crash(self, mock_scim_session):
+        # oci-write-scim-id deliberately not seeded — a leaf key created
+        # before the SCIM migration (ADR 0016) would have no such file.
+        session = MagicMock()
+        mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
+
+        results = check_freshness.check_oci()
+
+        statuses = {name: status for name, status, _ in results}
+        self.assertEqual(statuses["oci write"], check_freshness.CHECK_FAILED)
+        session.get.assert_not_called()  # no scim_id, so no point calling out
+
+    @patch.object(check_freshness, "oci_scim_session", side_effect=SystemExit(1))
+    def test_auth_failure_fails_every_leaf_entry_but_not_the_rotation_credential_check(self, mock_scim_session):
+        self.seed("_rotation-key-oci-created-at", datetime.now(UTC).isoformat())
+
+        results = check_freshness.check_oci()
+
+        statuses = {name: status for name, status, _ in results}
+        self.assertEqual(statuses["oci write"], check_freshness.CHECK_FAILED)
+        self.assertEqual(statuses["oci read"], check_freshness.CHECK_FAILED)
+        # The rotation credential's own check is self-tracked and
+        # doesn't depend on the SCIM session at all — an OAuth2 auth
+        # failure for the leaf checks shouldn't also break this one.
+        self.assertEqual(statuses["oci rotation credential"], check_freshness.FRESH)
 
 
 class CheckR2Tests(FreshnessTestBase):

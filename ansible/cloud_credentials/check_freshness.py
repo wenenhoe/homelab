@@ -43,6 +43,7 @@ import requests
 from cloud_credentials.cache import cached, read_cache
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_session
+from cloud_credentials.rotation_keys.oci_scim import oci_scim_session
 
 FRESH, WARNING, URGENT, STALE, CHECK_FAILED = "fresh", "expiring soon", "expiring very soon", "past its window", "check failed"
 
@@ -99,11 +100,35 @@ def _b2_key_result(label: str, key: dict | None) -> tuple[str, str, str]:
 
 
 def check_oci() -> list[tuple[str, str, str]]:
-    results = []
-    for leaf in ("write", "read"):
-        results.append(_oci_created_at_result(f"oci {leaf}", f"oci-{leaf}-created-at"))
-    results.append(_oci_created_at_result("oci rotation keypair", "_rotation-key-oci-created-at"))
+    """Leaf keys are checked live via SCIM `expiresOn` - native, same as
+    B2/R2 (see ADR 0016). The rotation credential (a Confidential
+    Application's client secret) has no native expiry of its own, so it
+    stays self-tracked, same mechanism as before ADR 0016 just for a
+    different underlying credential."""
+    try:
+        session, domain_url = oci_scim_session()
+    except (requests.HTTPError, requests.RequestException, SystemExit, KeyError) as exc:
+        results = [(f"oci {leaf}", CHECK_FAILED, str(exc)) for leaf in ("write", "read")]
+        results.append(_oci_created_at_result("oci rotation credential", "_rotation-key-oci-created-at"))
+        return results
+
+    results = [_oci_scim_key_result(f"oci {leaf}", session, domain_url, f"oci-{leaf}-scim-id") for leaf in ("write", "read")]
+    results.append(_oci_created_at_result("oci rotation credential", "_rotation-key-oci-created-at"))
     return results
+
+
+def _oci_scim_key_result(label: str, session: requests.Session, domain_url: str, scim_id_cache_name: str) -> tuple[str, str, str]:
+    scim_id = read_cache(scim_id_cache_name)
+    if scim_id is None:
+        return (label, CHECK_FAILED, f"no {scim_id_cache_name} cache file - created before the SCIM migration (ADR 0016)?")
+    resp = session.get(f"{domain_url}/admin/v1/CustomerSecretKeys/{scim_id}")
+    if resp.status_code != 200:
+        return (label, CHECK_FAILED, f"{resp.status_code} {resp.text}")
+    expires_on = resp.json().get("expiresOn")
+    if expires_on is None:
+        return (label, CHECK_FAILED, "key has no expiresOn - created before the SCIM migration (ADR 0016)?")
+    status, detail = _classify(datetime.fromisoformat(expires_on.replace("Z", "+00:00")))
+    return (label, status, detail)
 
 
 def _oci_created_at_result(label: str, cache_name: str) -> tuple[str, str, str]:

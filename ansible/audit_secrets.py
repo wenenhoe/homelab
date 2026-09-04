@@ -46,13 +46,16 @@ REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registr
 KNOWN_INTERNAL_PATTERNS = [
     "_rotation-key-backblaze-b2-key-id",
     "_rotation-key-backblaze-b2-application-key",
-    "_rotation-key-oci-user-ocid",
-    "_rotation-key-oci-fingerprint",
-    "_rotation-key-oci-private-key.pem",
-    "_rotation-key-oci-tenancy-ocid",
-    "_rotation-key-oci-region",
+    "_rotation-key-cloudflare-r2-token",
+    "_rotation-key-oci-domain-url",
+    "_rotation-key-oci-client-id",
+    "_rotation-key-oci-client-secret",
+    "_rotation-key-oci-app-id",
+    "_rotation-key-oci-created-at",
     "_oci-leaf-user-ocid-write",
     "_oci-leaf-user-ocid-read",
+    "oci-write-scim-id",
+    "oci-read-scim-id",
 ]
 
 B2_BUCKET = "homelab-backups-b2"
@@ -89,41 +92,35 @@ def audit_local() -> None:
     print("  checked, then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in orphans))
 
 
-# --- OCI: list customer secret keys per leaf -------------------------------
+# --- OCI: list customer secret keys per leaf (via SCIM - see ADR 0016) ----
 
 
 def audit_oci() -> None:
     print("\n== OCI customer secret keys (write + read leaves) ==")
-    from oci.config import from_file as oci_config_from_file
-    from oci.signer import Signer as OCISigner
+    from cloud_credentials.rotation_keys.oci_scim import oci_scim_session
 
-    config = oci_config_from_file()
-    signer = OCISigner(
-        tenancy=config["tenancy"],
-        user=config["user"],
-        fingerprint=config["fingerprint"],
-        private_key_file_location=config["key_file"],
-        pass_phrase=config.get("pass_phrase"),
-    )
-    session = requests.Session()
-    session.auth = signer
-    endpoint = f"https://identity.{config['region']}.oraclecloud.com"
+    try:
+        session, domain_url = oci_scim_session()
+    except SystemExit:
+        # require_cache_file() already printed what's missing and why.
+        return
 
     for leaf in ("write", "read"):
         user_id = cached(f"_oci-leaf-user-ocid-{leaf}")
-        active_access_key = cached(f"oci-{leaf}-access-key")
+        active_scim_id = cached(f"oci-{leaf}-scim-id")
         if not user_id:
             print(f"  {leaf}: no cached user OCID, skipping")
             continue
-        resp = session.get(f"{endpoint}/20160918/users/{user_id}/customerSecretKeys")
+        resp = session.get(f"{domain_url}/admin/v1/CustomerSecretKeys", params={"filter": f'user.ocid eq "{user_id}"'})
         resp.raise_for_status()
-        keys = resp.json()
+        keys = resp.json().get("Resources", [])
         print(f"  {leaf}-leaf user has {len(keys)} customer secret key(s) (OCI allows max 2):")
         for key in keys:
-            marker = "ACTIVE (matches cache)" if key["id"] == active_access_key else "ORPHAN"
-            print(f"    {key['id']}  created={key['timeCreated']}  state={key['lifecycleState']}  [{marker}]")
+            marker = "ACTIVE (matches cache)" if key["id"] == active_scim_id else "ORPHAN"
+            created = key.get("meta", {}).get("created", "unknown")
+            print(f"    scim_id={key['id']}  accessKey={key.get('accessKey')}  created={created}  status={key.get('status', 'unknown')}  [{marker}]")
             if marker == "ORPHAN":
-                print(f"      delete: DELETE {endpoint}/20160918/users/{user_id}/customerSecretKeys/{key['id']}")
+                print(f"      delete: DELETE {domain_url}/admin/v1/CustomerSecretKeys/{key['id']}")
                 print(f"      or Console: Identity & Security > Users > homelab-cloud-sync-{leaf} > Customer Secret Keys > Delete")
 
 

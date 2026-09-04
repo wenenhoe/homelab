@@ -1,11 +1,8 @@
-"""OCI Object Storage leaf-key create/rotate logic.
-
-oci.signer.Signer is the OCI SDK's own request-signing helper — a
-requests-compatible auth object, not the oci CLI binary and not one of
-the generated per-service SDK clients. It implements OCI's Signature
-Version 1 scheme (RSA-SHA256 over a canonical header set) so this
-module doesn't reimplement request signing by hand; every call below is
-still a direct requests.post/get, not a client-library method call.
+"""OCI Object Storage leaf-key create/rotate logic, via Identity
+Domains SCIM (see ADR 0016) - not oci.signer.Signer / the classic
+Identity API this repo used before. Every call below is a direct
+requests call against the SCIM admin API, authenticated with a Bearer
+token from OAuth2 client-credentials (oci_scim.py).
 """
 
 from __future__ import annotations
@@ -13,36 +10,15 @@ from __future__ import annotations
 import sys
 
 import requests
-from oci.signer import Signer as OCISigner
 
-from cloud_credentials.cache import cache_path, cached, read_cache, require_cache_file, write_cache
-from cloud_credentials.expiry import utcnow_iso
+from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
+from cloud_credentials.rotation_keys.oci_scim import SCIM_CUSTOMER_SECRET_KEY_SCHEMA, oci_scim_session
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 OCI_BUCKET = "homelab-backups"
 
 how_to_get_it_oci = "Run: python3 -m cloud_credentials.create_rotation_keys --provider oci"
-
-
-def oci_rotation_auth_and_endpoint() -> tuple[OCISigner, str]:
-    # Built from the rotation identity create_rotation_keys.py created —
-    # not ~/.oci/config, which belongs to your personal/admin OCI user
-    # and is never read here. That's the whole point: this script's
-    # blast radius is capped at whatever the rotation identity's policy
-    # grants (manage customer-secret-keys only — see
-    # docs/cloud-credential-creation.md), not your personal admin rights.
-    user = require_cache_file("_rotation-key-oci-user-ocid", how_to_get_it_oci)
-    fingerprint = require_cache_file("_rotation-key-oci-fingerprint", how_to_get_it_oci)
-    tenancy = require_cache_file("_rotation-key-oci-tenancy-ocid", how_to_get_it_oci)
-    region = require_cache_file("_rotation-key-oci-region", how_to_get_it_oci)
-    signer = OCISigner(
-        tenancy=tenancy,
-        user=user,
-        fingerprint=fingerprint,
-        private_key_file_location=str(cache_path("_rotation-key-oci-private-key.pem")),
-    )
-    endpoint = f"https://identity.{region}.oraclecloud.com"
-    return signer, endpoint
 
 
 def oci_leaf_user_id(leaf: str) -> str:
@@ -52,16 +28,23 @@ def oci_leaf_user_id(leaf: str) -> str:
     )
 
 
-def oci_rotation_calls(session, endpoint: str):
-    def post(path: str, body: dict) -> dict:
-        resp = session.post(f"{endpoint}{path}", json=body)
-        resp.raise_for_status()
-        return resp.json()
+def _create_customer_secret_key(session: requests.Session, domain_url: str, leaf: str) -> dict:
+    body = {
+        "schemas": [SCIM_CUSTOMER_SECRET_KEY_SCHEMA],
+        "displayName": f"homelab-cloud-sync-{leaf}",
+        "expiresOn": rfc3339_in(QUARTERLY_DAYS),
+        # user.ocid, not user.value - value is a different, shorter
+        # SCIM-internal id (max 40 chars) and rejects an OCID outright.
+        # Confirmed live in spikes/oci_scim_oauth_check.py.
+        "user": {"ocid": oci_leaf_user_id(leaf)},
+    }
+    resp = session.post(f"{domain_url}/admin/v1/CustomerSecretKeys", json=body)
+    resp.raise_for_status()
+    return resp.json()
 
-    def delete(path: str) -> None:
-        session.delete(f"{endpoint}{path}").raise_for_status()
 
-    return post, delete
+def _delete_customer_secret_key(session: requests.Session, domain_url: str, scim_id: str) -> None:
+    session.delete(f"{domain_url}/admin/v1/CustomerSecretKeys/{scim_id}").raise_for_status()
 
 
 def create_oci() -> None:
@@ -73,41 +56,29 @@ def create_oci() -> None:
 
     # Deliberately does NOT create the homelab-cloud-sync-write/read
     # users, groups, or policies — create_rotation_keys.py does that
-    # once, using your personal admin identity, precisely so this
-    # script (the one that runs routinely) never needs IAM-write rights
-    # beyond customer-secret-keys. See docs/cloud-credential-creation.md.
-    signer, endpoint = oci_rotation_auth_and_endpoint()
-    session = requests.Session()
-    session.auth = signer
-    session.headers["Content-Type"] = "application/json"
-    post, _delete = oci_rotation_calls(session, endpoint)
+    # once, using your personal admin identity. That part is unrelated
+    # classic-IAM policy scoping and unaffected by ADR 0016 — only the
+    # secret-key material itself now comes from SCIM.
+    session, domain_url = oci_scim_session()
 
     for leaf, done in [("write", write_done), ("read", read_done)]:
         if done:
             continue
-        user_id = oci_leaf_user_id(leaf)
-        key = post(f"/20160918/users/{user_id}/customerSecretKeys", {"displayName": f"homelab-cloud-sync-{leaf}"})
-        write_cache(f"oci-{leaf}-access-key", key["id"])
-        # The secret is only ever returned on this create call — nothing
-        # to read back later if this write is lost mid-run.
-        write_cache(f"oci-{leaf}-secret-key", key["key"])
-        # Self-tracked, not native: OCI's classic Identity API (the one
-        # in use here) has no expiry field on CustomerSecretKeyDetails at
-        # all — confirmed against Oracle's own SDK model, which lists
-        # display_name as its only attribute. The `expiresOn` field
-        # some OCI docs mention belongs to a different resource (the
-        # Identity Domains SCIM API), reachable only via a different
-        # endpoint this script doesn't use. See ADR 0015.
-        write_cache(f"oci-{leaf}-created-at", utcnow_iso())
+        key = _create_customer_secret_key(session, domain_url, leaf)
+        write_cache(f"oci-{leaf}-access-key", key["accessKey"])
+        # The secret is only ever returned on this create call — same
+        # one-time disclosure as the classic API's own `key` field.
+        write_cache(f"oci-{leaf}-secret-key", key["secretKey"])
+        # The SCIM resource id, not the access key itself — needed
+        # later to GET/DELETE this exact key (rotation, freshness
+        # checks). expiresOn is native now, so unlike before there's
+        # no companion -created-at cache file to write. See ADR 0016.
+        write_cache(f"oci-{leaf}-scim-id", key["id"])
         print(f"oci {leaf}: cached")
 
 
 def rotate_oci(leaves: list[str]) -> bool:
-    signer, endpoint = oci_rotation_auth_and_endpoint()
-    session = requests.Session()
-    session.auth = signer
-    session.headers["Content-Type"] = "application/json"
-    post, delete = oci_rotation_calls(session, endpoint)
+    session, domain_url = oci_scim_session()
 
     namespace = require_cache_file("oci-namespace", "Set via bootstrap_secrets.py / secrets_registry.yaml.")
     region = require_cache_file("oci-region", "Set via bootstrap_secrets.py / secrets_registry.yaml.")
@@ -115,40 +86,36 @@ def rotate_oci(leaves: list[str]) -> bool:
 
     all_ok = True
     for leaf in leaves:
-        user_id = oci_leaf_user_id(leaf)
-        old_key_id = read_cache(f"oci-{leaf}-access-key")
+        old_scim_id = read_cache(f"oci-{leaf}-scim-id")
 
-        new_key = post(f"/20160918/users/{user_id}/customerSecretKeys", {"displayName": f"homelab-cloud-sync-{leaf}"})
-        new_access_key, new_secret_key = new_key["id"], new_key["key"]
+        new_key = _create_customer_secret_key(session, domain_url, leaf)
+        new_access_key, new_secret_key = new_key["accessKey"], new_key["secretKey"]
 
         ok, detail = verify_leaf_via_rclone(new_access_key, new_secret_key, api_endpoint, region, OCI_BUCKET, leaf)
         if not ok:
             print(
-                f"oci {leaf}: new key {new_access_key} failed verification ({detail}). "
-                f"Old key {old_key_id or '(none cached)'} left untouched and still in use; "
+                f"oci {leaf}: new key {new_key['id']} failed verification ({detail}). "
+                f"Old key {old_scim_id or '(none cached)'} left untouched and still in use; "
                 f"new key left live but NOT cached or revoked — investigate, then either "
-                f"retry or delete {new_access_key} by hand (Console or DeleteCustomerSecretKey).",
+                f"retry or delete it by hand: DELETE {domain_url}/admin/v1/CustomerSecretKeys/{new_key['id']}",
                 file=sys.stderr,
             )
             all_ok = False
             continue
 
-        if old_key_id:
+        if old_scim_id:
             try:
-                # Confirmed live: this DELETE path successfully revoked
-                # both the read and write leaf's old customer secret key
-                # during real rotations this session.
-                delete(f"/20160918/users/{user_id}/customerSecretKeys/{old_key_id}")
-                print(f"oci {leaf}: old key {old_key_id} revoked")
+                _delete_customer_secret_key(session, domain_url, old_scim_id)
+                print(f"oci {leaf}: old key {old_scim_id} revoked")
             except requests.HTTPError as exc:
                 print(
-                    f"oci {leaf}: new key verified and will be cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand.",
+                    f"oci {leaf}: new key verified and will be cached, but revoking old key {old_scim_id} failed ({exc}) — revoke it by hand.",
                     file=sys.stderr,
                 )
 
         write_cache(f"oci-{leaf}-access-key", new_access_key)
         write_cache(f"oci-{leaf}-secret-key", new_secret_key)
-        write_cache(f"oci-{leaf}-created-at", utcnow_iso())
+        write_cache(f"oci-{leaf}-scim-id", new_key["id"])
         print(f"oci {leaf}: rotated and verified")
 
     return all_ok

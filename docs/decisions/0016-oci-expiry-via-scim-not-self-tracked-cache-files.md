@@ -29,12 +29,19 @@ theoretically possible:
   field, not `value` — `value` is a shorter, unrelated SCIM-internal
   id capped at 40 characters and rejects an OCID outright. Confirmed
   live, not inferred from the schema's `maxLength` alone.
-- The Confidential Application's own OAuth2 client secret
-  (`oci.identity_domains.models.OAuth2ClientCredential`) has a native
-  `expires_on` of its own. The short-lived access token minted per run
-  is never itself cached or rotated — only the client ID + secret is
-  the long-lived credential, playing the role the current rotation
-  keypair plays today.
+- The Confidential Application's own client secret has **no native
+  expiry of its own** — confirmed against Oracle's own SDK model for
+  the `App` resource (no `expires_on`/`expiresOn` field anywhere on
+  it). `oci.identity_domains.models.OAuth2ClientCredential` looked
+  like a candidate but is a different, unrelated resource: it's scoped
+  to a `user`, not to an App, and has nothing to do with the client
+  credentials this repo's own Confidential Application authenticates
+  with. Regenerating an App's client secret (`POST
+  /admin/v1/AppClientSecretRegenerator`) is also a hard cutover, not an
+  overlap window — confirmed via Oracle's own product-feedback forum,
+  where "support multiple active client secrets" is an open feature
+  request, i.e. today there is exactly one active secret per App and
+  regenerating invalidates the old one immediately.
 
 This replaces the auth/IAM model for OCI expiry tracking: a
 Confidential Application (client ID + secret, authorizing via a domain
@@ -48,21 +55,34 @@ metadata bolted onto a key still created classic-API-side.
 
 ## Decision
 
-OCI leaf-key and rotation-keypair creation *and* expiry both move to
-the Identity Domains SCIM API, authenticated with a Confidential
-Application's OAuth2 client credentials — replacing the classic API's
+OCI leaf-key creation *and* expiry both move to the Identity Domains
+SCIM API, authenticated with a Confidential Application's OAuth2
+client credentials — replacing the classic API's
 `CreateCustomerSecretKeyDetails` call entirely, not just adding
-`expiresOn` on top of it. This supersedes only the OCI portion of
+`expiresOn` on top of it. The rotation credential itself changes shape
+(a Confidential Application's client ID + secret, replacing the OCID +
+PEM keypair) but keeps a self-tracked cache-file timestamp, since
+neither has native expiry. This supersedes only the OCI portion of
 0015 — B2's and R2's native handling is unaffected.
 
 ## Consequences
 
-- OCI joins B2/R2 in having zero self-tracked cache files for expiry —
-  the last gap 0015 left open closes.
+- OCI's **leaf keys** join B2/R2 in having zero self-tracked cache
+  files for expiry. The rotation credential is a different story:
+  since the Confidential Application's client secret has no native
+  expiry (see Context), it still needs a self-tracked cache-file
+  timestamp — the same shape 0015 used for the OCID+PEM keypair, just
+  for a different credential. 0015's gap narrows here, it doesn't
+  fully close.
 - A new long-lived credential is introduced (the Confidential
   Application's client ID + secret) to replace the role the OCI
   rotation keypair plays today; the keypair itself becomes redundant
   once the SCIM path is fully built and cut over.
+- Regenerating the Confidential Application's own client secret is a
+  hard cutover, not an overlap window (see Context) — unlike leaf-key
+  rotation, there's no verify-before-revoke available for this specific
+  credential; a regeneration that turns out broken has no old secret
+  left to fall back to.
 - The classic-API code path (`leaf_keys/oci.py`,
   `rotation_keys/oci_bootstrap.py`) stays as-is until the SCIM path is
   fully built and cut over — not touched by this decision alone.

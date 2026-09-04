@@ -38,7 +38,7 @@ never renumber or delete a superseded one — mark it `Superseded by
 | [0013](0013-backup-credential-blast-radius-threat-model.md) | Accepted | Threat model for the offsite backup: a compromised app host must never reach a cloud credential or another host's archives. Cloud credentials live only on `storage`; each app host's SeaweedFS identity is scoped to its own prefix. |
 | [0014](0014-telegram-topics-not-direct-chat.md) | Accepted | Move alerting from a direct one-on-one bot chat to a group chat with Topics, one topic per concern, so a real failure doesn't get lost in routine notification noise. |
 | [0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md) | Accepted (OCI superseded by 0016) | All 6 leaf credentials and 3 rotation keys/tokens now expire after 90 days — B2/R2 natively, OCI via a self-tracked cache-file timestamp — checked by a systemd user timer on `controller`, not an Ansible role. |
-| [0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md) | Accepted | OCI leaf-key/rotation-keypair creation and expiry both move to Identity Domains SCIM, authenticated with a Confidential Application's OAuth2 client credentials, replacing the classic OCID+PEM keypair path entirely. |
+| [0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md) | Accepted | OCI leaf-key creation and expiry both move to Identity Domains SCIM, replacing the classic API entirely; the rotation credential (now a Confidential Application's OAuth2 client credentials) keeps self-tracked expiry, since it has no native expiry of its own. |
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this

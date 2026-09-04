@@ -38,14 +38,28 @@ outright; confirmed live, not just from the schema's maxLength.
 `expiresOn` itself is confirmed live to round-trip correctly as an
 instant — OCI echoes it back with explicit milliseconds even when the
 request omitted them, so the comparison here parses both sides as
-timestamps rather than comparing strings. Safe to re-run: creates
-and deletes its own key each time, never touches an existing one. No
-retry-on-401 loop here unlike oci_bootstrap.py's key-propagation
-retries — that delay was confirmed specifically for freshly-uploaded
-API signing keys under Signature V1, not for OAuth2 tokens, and nothing
-here has confirmed the same class of delay exists on this path. If a
-create or delete 401/403s once, that's itself a data point — don't
-assume it's transient before checking the response body.
+timestamps rather than comparing strings.
+
+Also checks whether `accessKey`/`secretKey` come back on the create
+response — per Oracle's own SCIM schema reference, both are
+mutability:readOnly, returned:default, meaning the server generates
+them and returns them by default, the same shape as the classic API's
+one-time-only secret disclosure. This resolves ADR 0016's open
+question: if both are present, SCIM create produces a genuinely usable
+credential and can replace the classic API's create call outright, not
+just add expiry on top of it. Neither value is ever printed — only
+presence and length, since this spike's output ends up pasted into
+chat and possibly a terminal scrollback, and a throwaway key is still
+a real, briefly-live credential until its delete call runs.
+
+Safe to re-run: creates and deletes its own key each time, never
+touches an existing one. No retry-on-401 loop here unlike
+oci_bootstrap.py's key-propagation retries — that delay was confirmed
+specifically for freshly-uploaded API signing keys under Signature V1,
+not for OAuth2 tokens, and nothing here has confirmed the same class
+of delay exists on this path. If a create or delete 401/403s once,
+that's itself a data point — don't assume it's transient before
+checking the response body.
 
 Usage (run from ansible/):
     python3 -m cloud_credentials.spikes.oci_scim_oauth_check \
@@ -135,6 +149,21 @@ def main(argv: list[str]) -> int:
     key_id = key["id"]
     returned_expires_on = key.get("expiresOn")
     print(f"SCIM CreateCustomerSecretKey: succeeded (id={key_id})")
+
+    # Presence/length only - never the value itself. See module
+    # docstring: this is what resolves ADR 0016's open question about
+    # whether SCIM create yields real, usable credential material.
+    access_key, secret_key = key.get("accessKey"), key.get("secretKey")
+    if access_key and secret_key:
+        print(f"Live key material returned: accessKey present ({len(access_key)} chars), secretKey present ({len(secret_key)} chars)")
+    else:
+        print(
+            f"Live key material NOT returned (accessKey present: {bool(access_key)}, "
+            f"secretKey present: {bool(secret_key)}) — SCIM create looks metadata-only "
+            f"here; a real key would still need the classic API's create call.",
+            file=sys.stderr,
+        )
+
     # Compared as instants, not strings: confirmed live that OCI echoes
     # expiresOn with explicit milliseconds (...50.000Z) even when the
     # request sent none (...50Z) - same instant, different string. A
@@ -163,7 +192,7 @@ def main(argv: list[str]) -> int:
         return 1
     print(f"Cleanup delete of throwaway key {key_id}: succeeded")
 
-    print("\nEnd-to-end OAuth2 + SCIM CustomerSecretKey path: WORKS. See ADR 0015 for what this means for the migration decision.")
+    print("\nEnd-to-end OAuth2 + SCIM CustomerSecretKey path: WORKS. See ADR 0016 for what this means for the migration decision.")
     return 0
 
 

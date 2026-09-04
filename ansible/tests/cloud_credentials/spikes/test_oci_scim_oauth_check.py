@@ -102,6 +102,39 @@ class OciScimOauthCheckTests(unittest.TestCase):
         self.assertIn("confirmed", printed)
         self.assertNotIn("MISMATCH", printed)
 
+    @patch.object(oci_scim_oauth_check.requests.Session, "delete")
+    @patch.object(oci_scim_oauth_check.requests.Session, "post")
+    @patch.object(oci_scim_oauth_check.requests, "post")
+    def test_key_material_present_is_reported_without_ever_printing_the_secret(self, mock_token_post, mock_session_post, mock_session_delete):
+        mock_token_post.return_value = _mock_response(200, {"access_token": "tok123"})
+        fake_secret = "totally-fake-secret-value-do-not-leak-me"  # noqa: S105 - test fixture, not a real credential
+        mock_session_post.return_value = _mock_response(
+            201, {"id": "key-1", "expiresOn": oci_scim_oauth_check.rfc3339_in(1), "accessKey": "fake-access-key", "secretKey": fake_secret}
+        )
+        mock_session_delete.return_value = _mock_response(204)
+        with patch("sys.stdout") as mock_stdout, patch("sys.stderr") as mock_stderr:
+            rc = oci_scim_oauth_check.main(ARGV)
+        self.assertEqual(rc, 0)
+        printed = "".join(call.args[0] for calls in (mock_stdout.write.call_args_list, mock_stderr.write.call_args_list) for call in calls if call.args)
+        self.assertIn("Live key material returned", printed)
+        self.assertNotIn(fake_secret, printed)  # the actual secret must never appear in output
+
+    @patch.object(oci_scim_oauth_check.requests.Session, "delete")
+    @patch.object(oci_scim_oauth_check.requests.Session, "post")
+    @patch.object(oci_scim_oauth_check.requests, "post")
+    def test_missing_key_material_is_reported_but_still_succeeds(self, mock_token_post, mock_session_post, mock_session_delete):
+        """Absence of accessKey/secretKey answers ADR 0016's open question
+        the other way (SCIM create is metadata-only here) but isn't
+        itself a failure - auth, create, and delete all still worked."""
+        mock_token_post.return_value = _mock_response(200, {"access_token": "tok123"})
+        mock_session_post.return_value = _mock_response(201, {"id": "key-1", "expiresOn": oci_scim_oauth_check.rfc3339_in(1)})
+        mock_session_delete.return_value = _mock_response(204)
+        with patch("sys.stderr") as mock_stderr:
+            rc = oci_scim_oauth_check.main(ARGV)
+        self.assertEqual(rc, 0)
+        printed_err = "".join(call.args[0] for call in mock_stderr.write.call_args_list if call.args)
+        self.assertIn("NOT returned", printed_err)
+
 
 if __name__ == "__main__":
     unittest.main()

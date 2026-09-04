@@ -422,10 +422,25 @@ actually rotate leaf credentials. If verification fails, the old key
 is left untouched and still in use, same failure-handling guarantee as
 leaf rotation. Requires the master credential again (B2) or your
 personal admin OCI identity (OCI), same as the very first bootstrap —
-this was never going to be a fully unattended operation. **R2** has no
-equivalent: create a new Custom Token in the Console, overwrite
-`_rotation-key-cloudflare-r2-token` by hand — Cloudflare's API
-structurally can't mint a delegate credential for this at all (see
+this was never going to be a fully unattended operation.
+
+**OCI's new API signing key also goes through the same key-propagation
+window leaf keys do — confirmed live, not assumed:** a real rotation
+401'd against the verification call for a full ~180s before OCI
+recognized the new key, on a from-scratch diagnostic that ruled out
+everything else first (the key genuinely existed provider-side and was
+being correctly signed against — this was purely OCI's own identity
+plane catching up). `_verify_rotation_key` retries broadly on 401 or
+403 for the same reason `_run_rclone_with_retry` does above — OCI gives
+no way to distinguish "not propagated yet" from a genuine policy denial
+in the response — with the same default 60 retries / 15s delay
+(~900s ceiling), comfortably above the measured 180s. B2's rotation-key
+verification (`b2_list_keys`) hasn't hit this in practice and has no
+retry loop; add one the same way if it ever does.
+
+**R2** has no equivalent: create a new Custom Token in the Console,
+overwrite `_rotation-key-cloudflare-r2-token` by hand — Cloudflare's
+API structurally can't mint a delegate credential for this at all (see
 [ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)).
 
 ## Future: secrets manager

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import sys
+import time
 
 import requests
 from cryptography.hazmat.primitives import serialization
@@ -292,7 +293,9 @@ def rotate_oci_rotation_key(admin_email: str) -> bool:
     return True
 
 
-def _verify_rotation_key(rotation_user_id: str, fingerprint: str, private_pem: str, tenancy: str, endpoint: str, leaf_user_id: str) -> tuple[bool, str]:
+def _verify_rotation_key(
+    rotation_user_id: str, fingerprint: str, private_pem: str, tenancy: str, endpoint: str, leaf_user_id: str, retries: int = 60, delay: int = 15
+) -> tuple[bool, str]:
     """The rotation identity's policy is conditioned on exactly three
     permissions — USER_UPDATE, USER_SECRETKEY_ADD, USER_SECRETKEY_REMOVE
     — not a blanket read/inspect grant (see oci_ensure_rotation_identity's
@@ -301,19 +304,40 @@ def _verify_rotation_key(rotation_user_id: str, fingerprint: str, private_pem: s
     reason and look like a broken key. Create then immediately delete a
     throwaway customer secret key on the write leaf instead — the exact
     two operations create_leaf_keys.py --rotate depends on, cleaned up
-    either way regardless of outcome."""
+    either way regardless of outcome.
+
+    A brand-new OCI API signing key isn't immediately usable for
+    request-signing the instant the upload call returns — confirmed
+    live, not assumed: a real rotation attempt 401'd for a full 3
+    minutes before succeeding. Retried broadly on 401 or 403 alone,
+    same shape (and same default retries/delay) as verify.py's leaf-key
+    retry, since OCI gives no way here either to distinguish "not
+    propagated yet" from a genuine policy denial in the response — a
+    real policy problem now also takes the full ~900s window to surface
+    as a failure, accepted for the same reason verify.py accepts it:
+    the alternative orphans a fresh key on every manual retry instead.
+    """
     signer = OCISigner(tenancy=tenancy, user=rotation_user_id, fingerprint=fingerprint, private_key_file_location=None, private_key_content=private_pem)
     session = requests.Session()
     session.auth = signer
     session.headers["Content-Type"] = "application/json"
 
-    try:
+    resp = None
+    for attempt in range(1, retries + 1):
         resp = session.post(f"{endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys", json={"displayName": "homelab-cloud-sync-rotation-key-verify"})
-        resp.raise_for_status()
-        key_id = resp.json()["id"]
-    except requests.HTTPError as exc:
-        return False, str(exc)
+        if resp.status_code == 200:
+            break
+        if attempt < retries and resp.status_code in (401, 403):
+            elapsed = attempt * delay
+            print(f"  oci: new rotation key not yet recognized, attempt {attempt}/{retries}, ~{elapsed}s elapsed — retrying in {delay}s", file=sys.stderr)
+            time.sleep(delay)
+            continue
+        break
 
+    if resp.status_code != 200:
+        return False, f"{resp.status_code} {resp.text}"
+
+    key_id = resp.json()["id"]
     try:
         session.delete(f"{endpoint}/20160918/users/{leaf_user_id}/customerSecretKeys/{key_id}").raise_for_status()
     except requests.HTTPError as exc:

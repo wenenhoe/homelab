@@ -210,5 +210,112 @@ class OciPolicyRecheckTests(unittest.TestCase):
         self.assertFalse(ok)
 
 
+class VerifyRotationKeyRetryTests(unittest.TestCase):
+    """Covers _verify_rotation_key's retry loop specifically — the fix
+    for a real live finding: a brand-new OCI API signing key 401'd for
+    ~180s before OCI recognized it (see ADR 0015-era investigation).
+    Every requests.Session call is mocked; time.sleep is patched out so
+    these run instantly regardless of the retry count exercised."""
+
+    @classmethod
+    def setUpClass(cls):
+        from cryptography.hazmat.primitives import serialization
+        from cryptography.hazmat.primitives.asymmetric import rsa
+
+        # OCISigner validates the key content immediately in __init__
+        # (tries to actually parse it) — a placeholder string like
+        # "-----BEGIN-----" fails before the retry loop ever runs. A
+        # real (throwaway) key is required even though its content is
+        # otherwise irrelevant to what these tests exercise.
+        key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
+        cls.private_pem = key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.TraditionalOpenSSL,
+            encryption_algorithm=serialization.NoEncryption(),
+        ).decode()
+
+    @patch("time.sleep")
+    @patch("requests.Session.delete")
+    @patch("requests.Session.post")
+    def test_succeeds_immediately_with_no_retry_needed(self, mock_post, mock_delete, mock_sleep):
+        mock_post.return_value = MagicMock(status_code=200, json=lambda: {"id": "key-id"})
+        mock_delete.return_value = MagicMock(raise_for_status=lambda: None)
+
+        ok, detail = oci_bootstrap._verify_rotation_key("user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid")
+
+        self.assertTrue(ok)
+        self.assertEqual(detail, "")
+        mock_sleep.assert_not_called()
+
+    @patch("time.sleep")
+    @patch("requests.Session.delete")
+    @patch("requests.Session.post")
+    def test_retries_on_401_then_succeeds(self, mock_post, mock_delete, mock_sleep):
+        # This is the exact real-world sequence that motivated the fix:
+        # a fresh key 401s a few times, then OCI catches up.
+        mock_post.side_effect = [
+            MagicMock(status_code=401, text="Unauthorized"),
+            MagicMock(status_code=401, text="Unauthorized"),
+            MagicMock(status_code=200, json=lambda: {"id": "key-id"}),
+        ]
+        mock_delete.return_value = MagicMock(raise_for_status=lambda: None)
+
+        ok, detail = oci_bootstrap._verify_rotation_key(
+            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=5, delay=1
+        )
+
+        self.assertTrue(ok)
+        self.assertEqual(detail, "")
+        self.assertEqual(mock_post.call_count, 3)
+        self.assertEqual(mock_sleep.call_count, 2)
+
+    @patch("time.sleep")
+    @patch("requests.Session.post")
+    def test_retries_on_403_too_not_only_401(self, mock_post, mock_sleep):
+        # Same broad-match-on-status reasoning as verify.py's leaf-key
+        # retry: OCI doesn't distinguish "not propagated yet" from a
+        # genuine policy denial in the response for either status.
+        mock_post.side_effect = [
+            MagicMock(status_code=403, text="Forbidden"),
+            MagicMock(status_code=200, json=lambda: {"id": "key-id"}),
+        ]
+        with patch("requests.Session.delete", return_value=MagicMock(raise_for_status=lambda: None)):
+            ok, _ = oci_bootstrap._verify_rotation_key(
+                "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=5, delay=1
+            )
+        self.assertTrue(ok)
+
+    @patch("time.sleep")
+    @patch("requests.Session.post")
+    def test_exhausting_retries_returns_false_with_detail(self, mock_post, mock_sleep):
+        mock_post.return_value = MagicMock(status_code=401, text="Unauthorized")
+
+        ok, detail = oci_bootstrap._verify_rotation_key(
+            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=3, delay=1
+        )
+
+        self.assertFalse(ok)
+        self.assertIn("401", detail)
+        self.assertEqual(mock_post.call_count, 3)
+        # Retries in between attempts only, not after the last one.
+        self.assertEqual(mock_sleep.call_count, 2)
+
+    @patch("time.sleep")
+    @patch("requests.Session.post")
+    def test_non_propagation_error_fails_fast_without_retrying(self, mock_post, mock_sleep):
+        # A 400 (e.g. malformed request) is never going to resolve by
+        # waiting - retrying it for 15 minutes would just be a slow
+        # failure instead of a fast, accurate one.
+        mock_post.return_value = MagicMock(status_code=400, text="Bad Request")
+
+        ok, _ = oci_bootstrap._verify_rotation_key(
+            "user-ocid", "fp", self.private_pem, "tenancy-ocid", "https://identity.example", "leaf-user-ocid", retries=5, delay=1
+        )
+
+        self.assertFalse(ok)
+        self.assertEqual(mock_post.call_count, 1)
+        mock_sleep.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()

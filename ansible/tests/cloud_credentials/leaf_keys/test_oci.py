@@ -88,10 +88,37 @@ class OciRotationTests(RotationTestBase):
 
         oci.create_oci()
 
-        # Both leaves get created since neither is cached in setUp
-        # beyond "read"'s pre-existing key - "write" starts empty.
+        # Only "write" gets created here - "read" is already fully
+        # cached (access-key, secret-key, and scim-id all present, per
+        # setUp) so it's correctly skipped.
         write_call_bodies = [c.kwargs["json"] for c in session.post.call_args_list]
+        self.assertEqual(len(write_call_bodies), 1)
         self.assertTrue(all(body["user"].keys() == {"ocid"} for body in write_call_bodies))
+
+    @patch.object(oci.requests, "post")
+    @patch.object(oci.requests, "Session")
+    def test_missing_scim_id_alone_is_not_treated_as_already_done(self, mock_session_cls, mock_token_post):
+        """Regression test for a real incident: oci-{leaf}-access-key
+        and -secret-key existed but -scim-id didn't (from a run that
+        predates this cache key, or an interrupted write), and the old
+        two-field check treated that leaf as permanently 'done' -
+        silently never backfilling the missing scim-id, which then made
+        audit_secrets.py misreport the actually-in-use key as an
+        ORPHAN, since it had nothing to compare it against."""
+        self.seed("oci-write-access-key", "STALE_ACCESS_NO_SCIM_ID")
+        self.seed("oci-write-secret-key", "STALE_SECRET_NO_SCIM_ID")
+        # oci-write-scim-id deliberately not seeded.
+        mock_token_post.return_value = MagicMock(raise_for_status=lambda: None, json=lambda: {"access_token": "tok"})
+        session = mock_session_cls.return_value
+        session.post.return_value = _scim_key_response(scim_id="BACKFILLED_SCIM_ID", access_key="FRESH_ACCESS", secret_key="FRESH_SECRET")  # noqa: S106 - test fixture, not a real credential
+
+        oci.create_oci()
+
+        # "write" was NOT treated as done - a fresh key was created and
+        # all three fields are now fully cached together.
+        self.assertEqual((self.tmp / "oci-write-access-key").read_text(), "FRESH_ACCESS")
+        self.assertEqual((self.tmp / "oci-write-secret-key").read_text(), "FRESH_SECRET")
+        self.assertEqual((self.tmp / "oci-write-scim-id").read_text(), "BACKFILLED_SCIM_ID")
 
 
 if __name__ == "__main__":

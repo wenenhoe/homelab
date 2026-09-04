@@ -48,8 +48,15 @@ def _delete_customer_secret_key(session: requests.Session, domain_url: str, scim
 
 
 def create_oci() -> None:
-    write_done = cached("oci-write-access-key") and cached("oci-write-secret-key")
-    read_done = cached("oci-read-access-key") and cached("oci-read-secret-key")
+    # All three, not just access-key/secret-key: a leaf with those two
+    # cached but no scim-id (e.g. from an interrupted run, or a cache
+    # write that happened outside this function) would otherwise look
+    # "done" forever and never get its scim-id backfilled - the exact
+    # gap that made a genuinely-in-use key show up as an ORPHAN in
+    # audit_secrets.py, since that comparison has nothing to match
+    # against without it.
+    write_done = cached("oci-write-access-key") and cached("oci-write-secret-key") and cached("oci-write-scim-id")
+    read_done = cached("oci-read-access-key") and cached("oci-read-secret-key") and cached("oci-read-scim-id")
     if write_done and read_done:
         print("oci: both credentials already cached, skipping")
         return

@@ -7,6 +7,7 @@ import sys
 import requests
 
 from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 B2_BUCKET = "homelab-backups-b2"
@@ -65,6 +66,7 @@ def b2_create_leaf_key(session, api_url: str, account_id: str, bucket_id: str, l
             "capabilities": B2_LEAF_CAPABILITIES[leaf],
             "keyName": f"homelab-cloud-sync-{leaf}",
             "bucketId": bucket_id,
+            "validDurationInSeconds": QUARTERLY_SECONDS,
         },
     )
     resp.raise_for_status()
@@ -73,6 +75,16 @@ def b2_create_leaf_key(session, api_url: str, account_id: str, bucket_id: str, l
 
 def b2_delete_key(session, api_url: str, application_key_id: str) -> None:
     session.post(f"{api_url}/b2api/v2/b2_delete_key", json={"applicationKeyId": application_key_id}).raise_for_status()
+
+
+def b2_list_keys(session, api_url: str, account_id: str) -> list[dict]:
+    """Every key on the account, native `expirationTimestamp` (ms since
+    epoch) included when the key was created with validDurationInSeconds.
+    Used by check_freshness.py instead of self-tracking B2's expiry -
+    B2 already reports it, no separate cache file needed."""
+    resp = session.post(f"{api_url}/b2api/v2/b2_list_keys", json={"accountId": account_id})
+    resp.raise_for_status()
+    return resp.json()["keys"]
 
 
 def b2_rotation_session() -> tuple[requests.Session, str, str]:

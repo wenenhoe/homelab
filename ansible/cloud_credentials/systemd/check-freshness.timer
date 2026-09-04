@@ -1,0 +1,15 @@
+[Unit]
+Description=Timer for the cloud_credentials freshness check
+
+[Timer]
+# Persistent=true: this is a laptop/workstation, not an always-on
+# host - a missed weekly run (machine off) still fires once it's next
+# on, instead of silently skipping that week. A 90-day expiry window
+# tolerates a check that's a few days late; it doesn't tolerate one
+# that never runs at all.
+Persistent=true
+OnCalendar=weekly
+AccuracySec=1h
+
+[Install]
+WantedBy=timers.target

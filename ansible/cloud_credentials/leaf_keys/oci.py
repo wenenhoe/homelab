@@ -16,6 +16,7 @@ import requests
 from oci.signer import Signer as OCISigner
 
 from cloud_credentials.cache import cache_path, cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.expiry import utcnow_iso
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 OCI_BUCKET = "homelab-backups"
@@ -90,6 +91,14 @@ def create_oci() -> None:
         # The secret is only ever returned on this create call — nothing
         # to read back later if this write is lost mid-run.
         write_cache(f"oci-{leaf}-secret-key", key["key"])
+        # Self-tracked, not native: OCI's classic Identity API (the one
+        # in use here) has no expiry field on CustomerSecretKeyDetails at
+        # all — confirmed against Oracle's own SDK model, which lists
+        # display_name as its only attribute. The `expiresOn` field
+        # some OCI docs mention belongs to a different resource (the
+        # Identity Domains SCIM API), reachable only via a different
+        # endpoint this script doesn't use. See ADR 0015.
+        write_cache(f"oci-{leaf}-created-at", utcnow_iso())
         print(f"oci {leaf}: cached")
 
 
@@ -139,6 +148,7 @@ def rotate_oci(leaves: list[str]) -> bool:
 
         write_cache(f"oci-{leaf}-access-key", new_access_key)
         write_cache(f"oci-{leaf}-secret-key", new_secret_key)
+        write_cache(f"oci-{leaf}-created-at", utcnow_iso())
         print(f"oci {leaf}: rotated and verified")
 
     return all_ok

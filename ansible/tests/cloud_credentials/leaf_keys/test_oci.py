@@ -53,6 +53,9 @@ class OciRotationTests(RotationTestBase):
         self.assertIn("OLD_OCID", session.delete.call_args.args[0])
         self.assertEqual((self.tmp / "oci-read-access-key").read_text(), "NEW_OCID")
         self.assertEqual((self.tmp / "oci-read-secret-key").read_text(), "NEW_SECRET")
+        # Self-tracked expiry (see ADR 0015) only works if a rotation
+        # actually refreshes the timestamp, not just the key material.
+        self.assertTrue((self.tmp / "oci-read-created-at").exists())
 
     @patch.object(oci, "verify_leaf_via_rclone", return_value=(False, "permission denied"))
     @patch.object(oci, "OCISigner")

@@ -2,15 +2,16 @@
 
 Two scripts, plus an audit tool:
 
-- **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely,
-  for B2 and OCI only. Takes each provider's master credential in
-  memory only (never written to disk, never logged) and uses it to
-  mint a narrower **rotation key**: scoped to creating/deleting keys,
-  not to reading or writing backup data itself. The rotation key is
-  what gets cached. `--provider r2` doesn't exist here — Cloudflare has
-  no way to mint such a delegate credential via its API at all
-  (confirmed live, see the R2 section); R2's admin token is cached
-  differently, by `create_leaf_keys.py` itself, below.
+- **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely.
+  For B2/OCI, takes each provider's master credential in memory only
+  (never written to disk, never logged) and uses it to mint a narrower
+  **rotation key**: scoped to creating/deleting keys, not to reading or
+  writing backup data itself. For R2, there's nothing to mint —
+  Cloudflare has no way to create such a delegate credential via its
+  API at all (confirmed live, see the R2 section) — `--provider r2`
+  here only caches (or re-caches, via `--rotate`) the Custom Token a
+  human creates in the Console. The rotation key/token either way is
+  what gets cached, and `create_leaf_keys.py` is what actually reads it.
 - **`ansible/cloud_credentials/create_leaf_keys.py`** — run routinely.
   This is what actually creates/rotates the 6 `cloud_sync`/
   restore-discovery credentials (`cloudflare-r2-write-*`/`-read-*`,
@@ -244,6 +245,20 @@ real 409 yet.
   resource families this way, never identity ones. Treating this as
   confirmed-absent unless proven otherwise.
 
+**Confirmed live:** the existing rotation identity's Signature V1 auth
+(`OCISigner`) does not work against the Identity Domains SCIM API —
+the endpoint that carries a real, native `expiresOn` (see
+[ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)).
+A read-only `GET /admin/v1/Schemas` signed with it comes back
+`401 error.common.common.accessDenied`. `cloud_credentials/spikes/oci_scim_auth_check.py`
+is the script that confirmed this, kept around in case a future
+tenancy or auth setup changes the answer:
+
+```sh
+cd ansible
+python3 -m cloud_credentials.spikes.oci_scim_auth_check https://idcs-xxxxxxxxxxxx.identity.oraclecloud.com
+```
+
 ### Cloudflare R2 — rotation key exists now, but it's not scoped like the other two
 
 Cloudflare's tokens API rejects granting `API Tokens Write` to any
@@ -381,16 +396,91 @@ against a real failure, not assumed:**
 **R2's `--rotate` uses its cached admin token** rather than a
 purpose-built delegate identity — same verify-then-revoke mechanics as
 B2/OCI, broader blast radius if that token is ever compromised (see R2's
-section above). Delete `_rotation-key-cloudflare-r2-token` to fall back
-to prompting every time.
+section above). To update that cached token itself (as opposed to the
+leaf keys it creates), see "Rotating the rotation credential itself"
+below — `create_rotation_keys --provider r2 --rotate` — rather than
+deleting `_rotation-key-cloudflare-r2-token` by hand, though that still
+works too if you'd rather just fall back to prompting on next use.
 
-**Rotating the rotation credential itself** (B2/OCI's rotation keys,
-or R2's cached admin token): none of the three auto-rotate or
-auto-revoke this — it's a low-frequency, human-attended action.
-B2/OCI: delete the cache file(s), re-run `create_rotation_keys
---provider <b2|oci>` (needs the master credential again). R2: create a
-new Custom Token in the Console, overwrite
-`_rotation-key-cloudflare-r2-token` by hand.
+**Rotating the rotation credential itself:** low-frequency,
+human-attended, and none of the three auto-rotate on a schedule — but
+B2/OCI now have the same zero-downtime shape leaf rotation already has:
+
+```sh
+cd ansible
+python3 -m cloud_credentials.create_rotation_keys --provider b2 --rotate
+python3 -m cloud_credentials.create_rotation_keys --provider oci --rotate --admin-email you@example.com
+```
+
+Mints a new rotation key, verifies it can actually do its job, only
+then revokes the old one — same verify-before-revoke shape as leaf
+rotation, one level up. Verification differs by provider because
+what "actually do its job" means differs: B2's new key must
+successfully call `b2_list_keys`; OCI's new key must successfully
+create *and* delete a throwaway customer secret key on the write leaf,
+not just authenticate — its policy is conditioned on exactly
+`USER_UPDATE`/`USER_SECRETKEY_ADD`/`USER_SECRETKEY_REMOVE`, not a
+blanket read grant, so a lighter check (like fetching the user record)
+could pass or fail for reasons unrelated to whether the key can
+actually rotate leaf credentials. If verification fails, the old key
+is left untouched and still in use, same failure-handling guarantee as
+leaf rotation. Requires the master credential again (B2) or your
+personal admin OCI identity (OCI), same as the very first bootstrap —
+this was never going to be a fully unattended operation.
+
+**OCI's new API signing key goes through the same key-propagation
+window leaf keys do:** a real rotation 401'd against the verification
+call for a full ~180s before OCI recognized the new key (confirmed via
+a diagnostic that ruled out auth/config issues first — the key
+genuinely existed provider-side and was being correctly signed
+against, this was purely OCI's own identity plane catching up).
+`_verify_rotation_key` retries broadly on 401 or 403 for the same
+reason `_run_rclone_with_retry` does above — OCI gives no way to
+distinguish "not propagated yet" from a genuine policy denial in the
+response — with the same default 60 retries / 15s delay (~900s
+ceiling), comfortably above the measured 180s. B2's rotation-key
+verification (`b2_list_keys`) hasn't hit this in practice and has no
+retry loop; add one the same way if it ever does.
+
+**A second, unrelated failure mode on the same propagation window:**
+`_verify_rotation_key`'s cleanup delete (removing the throwaway
+customer secret key it creates on the write leaf to prove the new
+rotation key works) can hit the identical 401/403 window the create
+call does. If it fails and isn't retried, the throwaway key is left
+behind, silently consuming one of OCI's 2-per-user quota slots — the
+next real `create_leaf_keys.py --rotate` then fails on that quota,
+surfaced as an opaque `IdcsConversionError` /
+`"maximum quota limit of 2 has been reached"` that doesn't look like a
+propagation or quota problem at first glance. The delete step now
+retries the same way the create step does, and a failed cleanup is
+always printed loudly rather than swallowed. If you ever do see an OCI
+leaf rotation fail with `IdcsConversionError` and a quota message,
+check for a stray key named `homelab-cloud-sync-rotation-key-verify`
+on the affected leaf user first — that's the fixed name
+`_verify_rotation_key`'s throwaway key always gets, so it's
+unambiguous to spot and safe to delete by hand.
+
+**R2** has no verify-then-revoke equivalent — Cloudflare's API
+structurally can't mint a delegate credential for this at all (see
+[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)) —
+but it does have the same `--rotate` entry point now, closing a real
+gap: create a new Custom Token in the Console first, then
+
+```sh
+cd ansible
+python3 -m cloud_credentials.create_rotation_keys --provider r2 --rotate
+```
+
+prompts for it and overwrites `_rotation-key-cloudflare-r2-token`
+unconditionally — no hand-editing the cache file. There's genuinely
+nothing to verify or revoke here: rolling the Custom Token in the
+Console already revokes the old one immediately, before this command
+ever runs, so unlike B2/OCI's `--rotate` there's no "old value kept
+working if the new one fails" guarantee — there is no old value left
+to fall back to by the time you're running this. `--provider r2`
+(without `--rotate`) does the same idempotent-if-cached bootstrap the
+other two providers get, and is never included in `--provider all`,
+since it blocks on that Console step existing first.
 
 ## Future: secrets manager
 
@@ -399,3 +489,110 @@ for why the current disk-cache design was chosen over a secrets
 manager, and [ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
 for the one gap (R2's cached admin token) worth carrying into that
 design specifically when it's eventually scoped.
+
+## Credential expiry
+
+All 9 credentials (6 leaf, 3 rotation) expire after 90 days now — see
+[ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)
+for why B2/R2 use native provider-side expiry and OCI uses a
+self-tracked cache-file timestamp instead, and why neither `create_leaf_keys.py`
+nor `create_rotation_keys.py` needs a new flag for this — expiry is set
+unconditionally on every create/rotate call, the same way capabilities
+already are.
+
+**B2** and **R2** enforce this themselves; an expired key/token simply
+stops authenticating provider-side. **OCI** doesn't — its classic
+Identity API has no expiry concept at all, so a self-tracked
+`<credential>-created-at` cache file (e.g. `oci-write-created-at`,
+`_rotation-key-oci-created-at`) is advisory only. Nothing currently
+enforces it beyond `check_freshness.py`'s own alert.
+
+**R2's rotation admin token** is human-created in the Console (see its
+section above) — set an expiration date on it there when you create
+it; this script has no way to set one after the fact.
+
+**`check_freshness.py`** reads all 9 back — natively for B2 (`b2_list_keys`)
+and R2 (`GET .../tokens/{id}` for the leaf tokens, `GET /user/tokens/verify`
+for the rotation token — see below), from the self-tracked cache files
+for OCI — and reports each as fresh, expiring soon (within
+`expiry.WARNING_DAYS`, 30 days), expiring very soon (within
+`expiry.URGENT_DAYS`, 14 days), past its window, or check-failed
+(couldn't be read at all — bad auth, missing cache file, HTTP error).
+Only the last of those fails the run's own exit code —
+`systemctl --user status` reflects whether the check itself is
+healthy, not whether a credential happens to be due.
+
+**The R2 rotation token is checked via `GET /user/tokens/verify`, not
+any `/accounts/{account_id}/tokens` endpoint:** this admin token is a
+Cloudflare **User API Token**, created via *My Profile > API Tokens*
+exactly as `leaf_keys/r2.py`'s own prompt instructs — a different
+resource category from "Account Owned API Tokens"
+(`/accounts/{account_id}/tokens/*`, what the leaf tokens actually are,
+since those *are* created via that API). Confirmed by directly
+comparing all four combinations against a real token:
+`GET /user/tokens/verify` succeeded (200, valid and active);
+`GET /accounts/{account_id}/tokens/verify` and
+`GET /accounts/{account_id}/tokens` (List) both only ever operate on
+the Account-owned category and never see a User token no matter how
+they're queried. `/user/tokens/verify` needs no `account_id` at all:
+it verifies whichever token authenticated the request, scoped to the
+calling user, not a specific account.
+
+Any non-fresh result posts a Telegram alert to the `Backups` topic
+(same one `telegram-notify-cloud-sync` already uses — see
+[`telegram-notifications.md`](telegram-notifications.md)), using the
+same cached `telegram-token`/`telegram-chat-id` every other consumer in
+this repo reads from `ansible/files/secrets/`. Not routed through the
+`telegram_notify` Ansible role — that's templated and deployed to
+`managed_hosts`, and `controller` deliberately isn't one — so this
+calls Telegram's `sendMessage` directly instead, same request shape.
+No alert on an all-fresh run.
+
+**This call uses `parse_mode=HTML`, not the legacy Markdown mode
+`telegram_notify` and every other consumer in this repo use.**
+Legacy Markdown requires escaping `` ` ``/`_`/`*`/`[` when literal, but
+also forbids escaping inside an already-open entity (Telegram's own
+documented rule) — a message composed by wrapping a bold header around
+text containing one of those characters can't be made safe by
+escaping alone. `detail` strings here embed arbitrary provider error
+text and URLs, so that combination isn't a corner case, it's routine.
+HTML has no equivalent trap: a `<b>` tag is either well-formed or it
+isn't, and `_`/`*`/`` ` ``/`[` are always ordinary characters inside
+or outside one. Only `&`, `<`, `>` are ever special; `_escape_telegram_html`
+covers exactly those three, applied to `detail`.
+`telegram-notifications.md` itself still documents the Markdown
+convention correctly — accurate for `telegram_notify`'s own
+static-template callers, which is all it ever claimed to cover.
+
+The 30/14-day warning ladder exists specifically because B2 and R2
+enforce their own expiry server-side: by the time either goes fully
+stale, the credential has already stopped authenticating and
+`cloud_sync` is already broken. A single threshold would still buy
+lead time, but two grades of urgency (heads-up at a month out, urgent
+at two weeks) means the reminder actually escalates as the deadline
+gets closer instead of one flat repeated ping — see ADR 0015 for why
+past-window alone wasn't enough.
+
+```sh
+cd ansible
+python3 -m cloud_credentials.check_freshness
+```
+
+Runs unattended via a systemd **user** timer on `controller` — the
+operator's own machine, where the cache already lives (see
+`docs/architecture/system-overview.md`) — not through any Ansible role,
+since `cloud_credentials` isn't one and doesn't deploy to any
+`managed_hosts` entry. Install once, by hand:
+
+```sh
+cd ansible/cloud_credentials/systemd
+# Edit check-freshness.service's WorkingDirectory to this clone's actual path first.
+mkdir -p ~/.config/systemd/user
+cp check-freshness.service check-freshness.timer ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now check-freshness.timer
+```
+
+`Persistent=true` on the timer catches up on a missed weekly run once
+the machine's next on — see ADR 0015's Consequences for the real limit
+this still has on a machine that's off for longer than that.

@@ -9,6 +9,7 @@ import sys
 import requests
 
 from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 R2_BUCKET = "homelab-backups"
@@ -17,6 +18,20 @@ R2_PERMISSION_GROUP_BY_LEAF = {
     "write": "Workers R2 Storage Bucket Item Write",
     "read": "Workers R2 Storage Bucket Item Read",
 }
+
+
+def _prompt_r2_admin_token() -> str:
+    print(
+        "Cloudflare admin token — a Custom Token named "
+        "'homelab-cloud-sync-r2-rotation-key' (NOT the 'Create Additional "
+        "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
+        "permission, scoped to this account (dashboard.cloudflare.com > My "
+        "Profile > API Tokens) — set an expiration date on it in the "
+        "Console (this script can't set one after the fact; "
+        "check_freshness.py reads it back live either way) — input "
+        "hidden, cached after this:"
+    )
+    return getpass.getpass("> ")
 
 
 def r2_rotation_token() -> str:
@@ -39,19 +54,19 @@ def r2_rotation_token() -> str:
     accepted rather than avoided, and what narrows the blast radius in
     the meantime (a future secrets-manager migration is the intended
     next mitigation, not this script).
+
+    To set or replace this token deliberately — rather than being
+    surprised by this prompt mid-run — see
+    rotation_keys/r2.py:cache_r2_rotation_token /
+    rotate_r2_rotation_token, invoked via create_rotation_keys.py
+    --provider r2. This function's own inline prompt is a fallback for
+    first-time use, not the intended everyday path anymore.
     """
     cache_key = "_rotation-key-cloudflare-r2-token"
     cached_value = read_cache(cache_key)
     if cached_value is not None:
         return cached_value
-    print(
-        "Cloudflare admin token — a Custom Token named "
-        "'homelab-cloud-sync-r2-rotation-key' (NOT the 'Create Additional "
-        "Tokens' template) with 'Account' > 'Account API Tokens' > 'Edit' "
-        "permission, scoped to this account (dashboard.cloudflare.com > My "
-        "Profile > API Tokens) — input hidden, cached after this:"
-    )
-    token = getpass.getpass("> ")
+    token = _prompt_r2_admin_token()
     write_cache(cache_key, token)
     return token
 
@@ -87,6 +102,13 @@ def r2_create_leaf_token(session, account_id: str, group_by_name: dict, leaf: st
                     "permission_groups": [{"id": group_by_name[group_name]}],
                 }
             ],
+            # Native, confirmed against Cloudflare's own Create Token
+            # reference (top-level `expires_on`, RFC 3339, on the same
+            # POST /accounts/{account_id}/tokens this already calls) -
+            # unlike OCI, no self-tracked cache file needed here.
+            # check_freshness.py reads this back live via Get Token
+            # rather than trusting a local clock.
+            "expires_on": rfc3339_in(QUARTERLY_DAYS),
         },
     ).json()
     if not resp.get("success"):

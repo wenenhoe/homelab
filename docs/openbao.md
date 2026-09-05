@@ -299,22 +299,30 @@ eventually move into. The one registry entry this stage adds,
 push-monitor URL for the cert-renewal timer, same shape as
 [`lldap.md`](lldap.md)'s identical entry for lldap.
 
-## Open follow-up before this stage counts as proven
+## Verified live, on real hardware
 
-- `openbao_cert` now has Molecule coverage (`default` + `not_running`,
-  see [`molecule-testing.md`](molecule-testing.md)'s row for it), but
-  it's never actually been run — no Docker daemon was available to run
-  it against while writing it. `./molecule-test-all.sh openbao_cert`
-  still needs a real run, and its coverage number added to
-  `ansible/molecule-coverage/thresholds.yaml` (deliberately not guessed
-  here — see that file's own comment on hand-verified floors).
-- The data-volume and certs-volume permission fixes, the
-  duplicate-config fix, and the SIGHUP-not-restart cert renewal are all
-  backed by documentation/citations rather than a live run against real
-  hardware — the *fixed* compose file and `openbao_cert` role haven't
-  yet been run end-to-end themselves. A clean redeploy through init and
-  unseal, followed by an actual cert renewal, still needs to happen
-  before treating any of this as settled.
-- Everything above still needs to happen before
-  [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md)'s
-  stage 1 row moves from `In progress` to `Done`.
+Every fix and every design claim in this doc has now actually been run
+against `security`, not just reasoned about:
+
+- Init, unseal (3 shares / 2 threshold), and the healthcheck going
+  green.
+- The data-volume and certs-volume permission fixes — `openbao` came
+  up cleanly on a real cold deploy through the `roles/openbao` +
+  `openbao_cert` sequence.
+- `./molecule-test-all.sh openbao_cert` — both scenarios pass. Real
+  coverage, not a guess: 100.0% (14/14 tasks), now in
+  `ansible/molecule-coverage/thresholds.yaml`.
+- The `SIGHUP`-not-restart claim specifically — confirmed by hand on
+  `security`: `docker kill --signal=HUP openbao`, `bao status` before
+  and after showed an *identical* `Active Since` timestamp and
+  unchanged raft indices, and `docker ps` showed the container's
+  uptime never reset. `dumb-init` forwarding the signal through to
+  `bao`, and `bao` reloading without resealing, are no longer
+  documentation-only claims.
+
+What hasn't happened yet: a renewal triggered by the real
+`cert-renewer@openbao.timer` firing on its own schedule, rather than a
+bare manual `SIGHUP` with nothing to actually renew. Worth letting that
+happen naturally once, to see the full real sequence (renew → chown →
+reload) run unattended — not blocking, since the pieces it's made of
+have each been proven individually above.

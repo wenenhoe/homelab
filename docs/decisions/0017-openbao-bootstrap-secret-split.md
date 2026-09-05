@@ -1,6 +1,6 @@
 # 0017. Split secrets into recovery-critical and operational classes for OpenBao bootstrap
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

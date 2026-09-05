@@ -312,17 +312,27 @@ against `security`, not just reasoned about:
 - `./molecule-test-all.sh openbao_cert` — both scenarios pass. Real
   coverage, not a guess: 100.0% (14/14 tasks), now in
   `ansible/molecule-coverage/thresholds.yaml`.
-- The `SIGHUP`-not-restart claim specifically — confirmed by hand on
-  `security`: `docker kill --signal=HUP openbao`, `bao status` before
-  and after showed an *identical* `Active Since` timestamp and
-  unchanged raft indices, and `docker ps` showed the container's
-  uptime never reset. `dumb-init` forwarding the signal through to
-  `bao`, and `bao` reloading without resealing, are no longer
-  documentation-only claims.
+- The `SIGHUP`-not-restart claim, twice: once as a bare `SIGHUP` with
+  nothing to renew, once as a full forced renewal (`step ca renew
+  --force`, the chown, then `SIGHUP`) that genuinely changed the
+  served cert's serial. Both times, `bao status` before and after
+  showed an *identical* `Active Since` timestamp and unchanged raft
+  indices, and `docker ps` showed the container's uptime never reset.
+  `dumb-init` forwarding the signal through to `bao`, and `bao`
+  reloading without resealing, are no longer documentation-only
+  claims.
+- The break-glass bundle itself — Shamir shares, root token, and both
+  providers' read-only snapshot credentials (`R2`/`B2`, both bucketed
+  as `openbao-snapshots` — see
+  [`create_snapshot_readonly_keys.py`](../ansible/cloud_credentials/create_snapshot_readonly_keys.py)) —
+  minted and verified.
 
-What hasn't happened yet: a renewal triggered by the real
-`cert-renewer@openbao.timer` firing on its own schedule, rather than a
-bare manual `SIGHUP` with nothing to actually renew. Worth letting that
-happen naturally once, to see the full real sequence (renew → chown →
-reload) run unattended — not blocking, since the pieces it's made of
-have each been proven individually above.
+What hasn't happened yet: the real `cert-renewer@openbao.timer`
+firing entirely on its own schedule, unattended, rather than being
+forced by hand. Every piece it's built from (`ExecCondition`'s gate,
+the renew/chown/reload sequence itself) has now been exercised for
+real — this is closing the loop on the last one, not proving anything
+new.
+
+[`openbao-migration-roadmap.md`](openbao-migration-roadmap.md)'s stage
+1 row is `Done` as of the above.

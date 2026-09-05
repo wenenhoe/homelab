@@ -1,0 +1,38 @@
+name: openbao
+
+services:
+  openbao:
+    image: openbao/openbao:2.5.4
+    container_name: openbao
+    volumes:
+      - data:/openbao/data
+      - config:/openbao/config
+      - certs:/openbao/certs
+    command: ["server", "-config=/openbao/config/openbao.hcl"]
+    environment:
+      TZ: "{{ server_timezone }}"
+    cap_add:
+      - IPC_LOCK   # mlock, so secrets never get swapped to disk
+    networks:
+      - caddy-proxy
+    restart: unless-stopped
+    # Published directly (not routed through Caddy), same as lldap's
+    # LDAPS listener - see docs/openbao.md. The certs volume starts
+    # empty on a fresh deploy, so this crash-loops until openbao_cert
+    # issues the leaf cert (deploy.yaml's Play 6) - the same tolerated
+    # bootstrap race docs/lldap.md documents for tinyauth.
+    ports:
+      - "0.0.0.0:8200:8200"
+networks:
+  caddy-proxy:
+    external: true
+volumes:
+  data:
+    external: true
+    name: openbao_data
+  config:
+    external: true
+    name: openbao_config
+  certs:
+    external: true
+    name: openbao_certs

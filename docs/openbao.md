@@ -170,28 +170,49 @@ both stretches — an accurate reflection of "not currently serving
 anything", not a false alarm, but a different meaning than "unhealthy"
 carries for every other app here.
 
-## Open question: cert renewal currently reseals OpenBao
+## Cert renewal uses SIGHUP, not a restart
 
-Not yet resolved, flagging rather than deciding: `cert-renewer@openbao`'s
-`ExecStartPost` restarts the `openbao` container after every renewal —
-the same mechanism `lldap_cert` uses, copied over without checking
-whether it still made sense for this app. For lldap that's free (no
-seal state to lose); for OpenBao it means every renewal reseals the
-vault, requiring a manual unseal at whatever cadence cert renewal
-actually fires — not just "every reboot of `security`", which is the
-premise [0021](decisions/0021-manual-shamir-unseal.md)'s
-cost-benefit reasoning was actually built on.
+`cert-renewer@openbao`'s `ExecStartPost` originally restarted the
+container after every renewal — copied from `lldap_cert` without
+checking whether it still made sense here. For lldap that's free (no
+seal state to lose); for OpenBao it would mean every renewal reseals
+the vault, needing a manual unseal at whatever cadence cert renewal
+fires — not just "every reboot of `security`", which is the premise
+[0021](decisions/0021-manual-shamir-unseal.md)'s cost-benefit reasoning
+was actually built on.
 
-OpenBao's TLS listener documents `tls_cert_file`/`tls_key_file` as
-"reloads-on-SIGHUP" ([openbao.org](https://openbao.org/docs/configuration/listener/tcp/)),
-which would let `cert-renewer@openbao` pick up a renewed cert without
-resealing at all — but whether that actually works end-to-end through
-this image's `dumb-init` entrypoint hasn't been confirmed live, and
-this doc isn't the place to guess given how much guessing has already
-needed correcting during this stage's first real deploy. Needs an
-actual test (`docker kill -s HUP openbao`, then confirm both that the
-process is still up *and* serving the renewed cert) before either
-keeping the restart or switching to it.
+Fixed by sending `SIGHUP` instead, guarded on `%i` in the shared
+template so lldap's own renewal is unaffected. Three things back this:
+
+- OpenBao's TCP listener documents `tls_cert_file`/`tls_key_file` as
+  "reloads-on-SIGHUP"
+  ([openbao.org](https://openbao.org/docs/configuration/listener/tcp/)).
+- HashiCorp's own Vault SIGHUP reference (OpenBao's upstream, same
+  listener code lineage) is explicit that a SIGHUP reloads listener
+  TLS certs and leaves everything else — seal state included —
+  untouched: ["TLS certificates used by Vault listeners are
+  reloaded"](https://support.hashicorp.com/hc/en-us/articles/5767318985107-Vault-SIGHUP-Behavior),
+  with no mention of seal state anywhere in that document.
+- `dumb-init` (this image's entrypoint) forwards received signals to
+  its child by default — confirmed against its own README, not
+  inferred from general container-init behavior.
+
+One real caveat found during this research, not papered over: OpenBao
+issue [#2915](https://github.com/openbao/openbao/issues/2915) reports
+a SIGHUP-triggered seal-client wedge on 2.5.2 — but only for the
+combination of `seal "gcpckms"` plus a declarative `audit "file"`
+config stanza, neither of which this deployment uses (Shamir seal, no
+audit device configured yet). Worth re-checking if either of those
+changes later.
+
+`openbao_cert/molecule/default`'s own scenario tests this directly:
+runs the exact `ExecStartPost` command, confirms `StartedAt` doesn't
+change (proving it didn't restart), and confirms — via a raw
+`openssl s_client` TLS handshake, not `bao status` — that the listener
+is actually serving the renewed cert's serial afterwards, not just
+that the file on disk changed. That's the strongest confirmation
+available without live hardware; an actual renewal on `security` is
+still the final word before fully trusting it in production.
 
 ## Init and unseal — manual, not scripted
 

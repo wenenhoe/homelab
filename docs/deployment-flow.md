@@ -82,8 +82,10 @@ resolution at it. See [`bind9.md`](bind9.md).
 
 ## Play 4 — Deploy Compose apps (`hosts: managed_hosts`)
 
-Everything except `caddy`/`bind9` (already deployed in Plays 2–3) gets
-its directories/configs provisioned and its container started.
+Everything except `caddy`/`bind9` (already deployed in Plays 2–3) and
+`openbao` (deploys itself via a task at the start of this same play,
+not a separate one — see [`roles/openbao`](../ansible/roles/openbao))
+gets its directories/configs provisioned and its container started.
 
 ## Play 5 — Ensure offsite-backup bucket exists (`hosts: storage`)
 

@@ -76,11 +76,21 @@
 
 # Play 4 — Every remaining compose app, now that DNS/caddy are up.
 # bind9/caddy are excluded — they deployed themselves in Play 2/3.
+# openbao is excluded too, but deploys itself right here instead of its
+# own separate play — nothing else in this play depends on it being up
+# first or vice versa, unlike caddy/bind9, so a whole extra play (and
+# renumbering every one after it) bought nothing. See roles/openbao.
 - name: Deploy Compose apps
   hosts: managed_hosts # not all — see inventory.yaml's controller group / Play 1's comment
   gather_facts: false
   become: true
   tasks:
+    - name: Include openbao role
+      ansible.builtin.include_role:
+        name: openbao
+      tags:
+        - images
+
     - name: Include compose_app role
       ansible.builtin.include_role:
         name: compose_app

@@ -89,13 +89,27 @@ image has no such mechanism, so this repo has to handle two
 consequences directly:
 
 - A freshly-created named volume is root-owned, and the `openbao` user
-  can't write into one it doesn't own. `compose.yaml.j2`'s `openbao-init`
-  service — a one-shot `--user root` container that runs `chown -R
-  openbao:openbao /openbao/data` before the real `openbao` service is
-  allowed to start (`depends_on: condition: service_completed_successfully`)
-  — fixes this for the raft data volume. By username, not a hardcoded
-  UID: `adduser -S` assigns that number at image-build time, and it's
-  not this repo's business to pin it.
+  can't write into one it doesn't own. Fixed for the raft data volume
+  by [`roles/openbao`](../ansible/roles/openbao) — a plain, guarded
+  `docker run --rm --user root ... chown -R openbao:openbao` that only
+  actually runs when the volume's current owner doesn't already match,
+  checked before every deploy. By username, not a hardcoded UID:
+  `adduser -S` assigns that number at image-build time, and it's not
+  this repo's business to pin it.
+
+  The first version of this fix put the chown in a one-shot
+  `openbao-init` *compose service* instead, gated with `depends_on:
+  condition: service_completed_successfully`. Confirmed live, via
+  `./molecule-test-all.sh openbao_cert`'s idempotence check: `docker
+  compose up` brings every service to "running", and a `restart: "no"`
+  container that already exited successfully doesn't count as running
+  — so Compose restarts it on *every* `up`, which
+  `community.docker.docker_compose_v2` reports as changed,
+  unconditionally, forever. `openbao` is self-managed now
+  (`compose_self_managed_apps`, same mechanism `caddy`/`bind9` already
+  use, see [`deployment-flow.md`](deployment-flow.md)'s Play 4)
+  specifically so this chown could be a plain guarded task instead of
+  a service Compose has any opinion about.
 - `step ca certificate`/`step ca renew` both run as `--user root` too
   (same freshly-created-volume issue `lldap_cert` already documents),
   so every issuance and every renewal leaves `fullchain.pem`/`privkey.pem`
@@ -103,12 +117,18 @@ consequences directly:
   `openbao_cert`'s issuance task, and a second, `%i`-guarded
   `ExecStart=` line in the shared `cert-renewer@.service` template,
   both chown the `certs` volume back to `openbao:openbao` by the same
-  by-username approach right after `step` runs.
+  by-username approach right after `step` runs. This one was a plain
+  Ansible task and a systemd `ExecStart=` line from the start, never a
+  compose service, so it never hit the same problem.
 
-Neither of these showed up in review — both came from an actual first
-deploy attempt crash-looping with `permission denied` on
-`/openbao/data/vault.db`, which is the reason to actually run this on
-real hardware before trusting any of it (see "Open follow-up" below).
+Neither of these showed up in review — the certs-volume fix came from
+an actual first deploy attempt crash-looping with `permission denied`
+on `/openbao/data/vault.db`; the data-volume fix's *first* version
+(the `openbao-init` service) came from fixing that, and its own bug
+came from an actual `./molecule-test-all.sh` run once Molecule coverage
+existed to catch it — which is the reason to actually run things on
+real hardware and in CI before trusting any of it (see "Open follow-up"
+below).
 
 ## Duplicate configuration warning
 

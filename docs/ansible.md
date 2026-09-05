@@ -37,6 +37,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `caddy` | Renders Caddyfile, builds custom image, deploys. |
 | `caddy_cert_expiry` | Alerts if Caddy's live-serving cert is expiring/unreachable. |
 | `bind9` | Renders zone files, deploys, rewires host DNS. |
+| `openbao` | Chowns openbao's data volume to its own non-root user before it first starts, deploys. |
 | `seaweedfs_bucket` | Ensures the offsite-backup S3 bucket exists on `storage`. |
 | `lldap_bootstrap` | Automates lldap's `observer` account for tinyauth's LDAP bind. |
 | `step_ca_client` | Shared prerequisite: caches step-ca's root cert on the host. |

@@ -1,16 +1,47 @@
 name: openbao
 
 services:
+  # Freshly-created named volumes are root-owned; the image's own
+  # `openbao` user (its Dockerfile: `chown -R openbao:openbao /openbao`
+  # at build time, `USER openbao` — confirmed live against
+  # openbao/openbao:2.5.4's actual Dockerfile) can't write raft state
+  # into `data` until something chowns it first. Same class of issue
+  # lldap_cert's own step-cli invocation hits on a fresh `certs` volume
+  # (see lldap_cert/tasks/main.yaml) — fixed the same way, a one-off
+  # `--user root` container, but by username rather than a hardcoded
+  # UID: `adduser -S` assigns that UID at image-build time, not
+  # something this repo should pin a number to.
+  openbao-init:
+    image: openbao/openbao:2.5.4
+    container_name: openbao-init
+    user: root
+    entrypoint: ["chown", "-R", "openbao:openbao", "/openbao/data"]
+    volumes:
+      - data:/openbao/data
+    restart: "no"
+
   openbao:
     image: openbao/openbao:2.5.4
     container_name: openbao
+    depends_on:
+      openbao-init:
+        condition: service_completed_successfully
     volumes:
       - data:/openbao/data
       - config:/openbao/config
       - certs:/openbao/certs
-    command: ["server", "-config=/openbao/config/openbao.hcl"]
+    # No -config= flag: the entrypoint already scans /openbao/config by
+    # default (confirmed live - passing an explicit -config pointing at
+    # a file inside that same directory produced "ignoring duplicate
+    # configuration found in directory: /openbao/config/openbao.hcl",
+    # since both the default scan and the explicit flag loaded it).
+    command: ["server"]
     environment:
       TZ: "{{ server_timezone }}"
+      # Loopback-only, self-signed-from-our-own-internal-CA healthcheck
+      # - skipping verification here doesn't weaken anything external,
+      # see the healthcheck comment below.
+      BAO_SKIP_VERIFY: "true"
     cap_add:
       - IPC_LOCK   # mlock, so secrets never get swapped to disk
     networks:
@@ -23,6 +54,24 @@ services:
     # bootstrap race docs/lldap.md documents for tinyauth.
     ports:
       - "0.0.0.0:8200:8200"
+    # `bao status` exits non-zero whenever OpenBao is sealed, not just
+    # when it's actually down (confirmed against openbao.org's own exit
+    # code docs: sealed is a "remote error", exit 2) - so this reports
+    # unhealthy for the entire stretch between a restart and the next
+    # manual unseal (ADR 0021), not only on a genuine failure. That's
+    # the accurate state (sealed = not serving), not a false alarm, but
+    # it means "unhealthy" here reads differently than it does for
+    # every other app in this repo. See docs/openbao.md.
+    #
+    # BAO_SKIP_VERIFY (not a real trust decision): this is loopback,
+    # self-signed-from-our-own-internal-CA - the healthcheck only needs
+    # "is something answering on 8200", not a real chain-of-trust check.
+    healthcheck:
+      test: ["CMD", "bao", "status", "-address=https://127.0.0.1:8200"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 networks:
   caddy-proxy:
     external: true

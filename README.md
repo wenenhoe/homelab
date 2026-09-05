@@ -88,6 +88,7 @@ should go.
 | Doc | Covers |
 | :--- | :--- |
 | [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP scheme, OPNsense, migration staging. No OpenTofu code exists in this repo yet. |
+| [`docs/openbao-migration-roadmap.md`](docs/openbao-migration-roadmap.md) | Build order for replacing the file-based secrets cache with OpenBao and manual deploys with a pull-based CD agent. No code exists in this repo yet. |
 
 ### Per-app infra
 

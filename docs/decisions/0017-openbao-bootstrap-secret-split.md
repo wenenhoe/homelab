@@ -64,8 +64,8 @@ restore playbook pulls everything else from Vault.
   existing leaf credential (bucket/prefix-limited, read-only,
   provisioned outside the rotation machinery those scripts drive today,
   since it can't depend on the thing it's bootstrapping). Resolved for
-  Track A stage 1: R2 (`openbao-snapshots`) and B2
-  (`openbao-snapshots-b2`) — two providers rather than one, so recovery
+  Track A stage 1: R2 and B2, both using a bucket named
+  `openbao-snapshots` — two providers rather than one, so recovery
   doesn't depend on a single cloud vendor being reachable — minted by
   `ansible/cloud_credentials/create_snapshot_readonly_keys.py`, which
   prints each credential once rather than caching it. See

@@ -14,8 +14,11 @@ backup GPG key (docs/disaster-recovery.md).
 
 Two providers, not one — R2 and B2, per docs/openbao.md — so recovery
 doesn't depend on a single cloud vendor being reachable. Both point at a
-bucket dedicated to OpenBao's own snapshots (openbao-snapshots /
-openbao-snapshots-b2), separate from homelab-backups/-b2: the existing
+bucket dedicated to OpenBao's own snapshots (openbao-snapshots on both
+providers — B2 bucket names are globally unique across every B2
+customer, unlike R2's per-account uniqueness, so this name isn't
+guaranteed available on B2 the way it is on R2; confirmed available at
+setup time, not assumed), separate from homelab-backups/-b2: the existing
 per-app backup bucket is written to by every app host's backup_agent
 (see docs/disaster-recovery.md's threat model), and this credential's
 whole point is to keep working even if that path is compromised.
@@ -62,7 +65,13 @@ from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_permission_g
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 SNAPSHOT_BUCKET_R2 = "openbao-snapshots"
-SNAPSHOT_BUCKET_B2 = "openbao-snapshots-b2"
+# Same name as R2's, not homelab-backups-b2's "-b2" suffix pattern:
+# that suffix exists only because "homelab-backups" was already taken
+# on B2 (B2 bucket names are globally unique across every customer,
+# unlike R2's per-account uniqueness). "openbao-snapshots" happened to
+# be available on B2 too when this was set up — confirmed, not assumed
+# from the R2 name being free.
+SNAPSHOT_BUCKET_B2 = "openbao-snapshots"
 
 
 def mint_r2() -> bool:

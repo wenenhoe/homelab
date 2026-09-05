@@ -11,15 +11,29 @@ OnSuccess=uptime-kuma-push-cert-renewer-%i.service
 [Service]
 Type=oneshot
 User=root
-Environment=CA_URL={{ openbao_cert_step_ca_url }} ROOT_LOCATION={{ step_ca_client_root_cert_path }} STEP_CLI_IMAGE={{ openbao_cert_step_cli_image }} NETWORK={{ openbao_cert_network_name }}
+Environment=CA_URL={{ openbao_cert_step_ca_url }} ROOT_LOCATION={{ step_ca_client_root_cert_path }} STEP_CLI_IMAGE={{ openbao_cert_step_cli_image }} OPENBAO_IMAGE={{ openbao_cert_image }} NETWORK={{ openbao_cert_network_name }}
 
 ; %i_certs is the exact volume name ensure_volume.yaml gives any app's
-; "certs" volume (<app>_certs) — see lldap_cert's identical template for
-; the full rationale (this file's content is intentionally identical to
-; that one's, see openbao_cert/tasks/main.yaml).
+; "certs" volume (<app>_certs) — see lldap_cert's identical template.
+;
+; IMPORTANT: this destination path (/etc/systemd/system/cert-renewer@.service)
+; is shared by every step-ca cert consumer's %i instance, lldap's and
+; openbao's alike — there is only ever one file on disk, and whichever
+; role's own copy is installed last in deploy.yaml's Play 6 (currently
+; openbao_cert, after lldap_cert) is what's actually active for BOTH
+; `cert-renewer@lldap.timer` and `cert-renewer@openbao.timer`. This
+; copy's one addition versus lldap_cert's otherwise-identical template —
+; the second ExecStart= line below — is therefore guarded on `%i` itself
+; rather than applying unconditionally, so it stays a no-op for
+; `cert-renewer@lldap.timer` regardless of which role's copy wins.
+; Needed at all because openbao runs as its image's own non-root
+; `openbao` user (unlike lldap, which manages its own via
+; LLDAP_UID/GID), so every renewal needs the same chown-back-to-openbao
+; step the issuance task itself does (openbao_cert/tasks/main.yaml).
 ExecCondition=/usr/bin/docker run --rm --user root -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem
 
 ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} -v %i_certs:/certs -v ${ROOT_LOCATION}:/root_ca.crt:ro ${STEP_CLI_IMAGE} step ca renew --force --ca-url ${CA_URL} --root /root_ca.crt /certs/fullchain.pem /certs/privkey.pem
+ExecStart=/bin/sh -c '[ "%i" != "openbao" ] || /usr/bin/docker run --rm --user root -v %i_certs:/certs ${OPENBAO_IMAGE} chown -R openbao:openbao /certs'
 
 ExecStartPost=/usr/bin/docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i
 

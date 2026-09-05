@@ -90,6 +90,31 @@
       delay: 10
       changed_when: true
 
+    # The issuance above runs --user root, so fullchain.pem/privkey.pem
+    # land root-owned — unlike lldap, which runs as its own container's
+    # UID/GID (docker/lldap/compose.yaml.j2's LLDAP_UID/GID envs) and
+    # has no equivalent problem, openbao's container runs as the
+    # image's own non-root `openbao` user (see compose.yaml.j2), which
+    # can't read a root-owned, owner-only-mode private key. Fixed the
+    # same by-username way as openbao-init's data-volume chown
+    # (docker/openbao/compose.yaml.j2) rather than a hardcoded UID.
+    - name: Hand the issued cert back to the openbao user so the server can read it
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - -v
+          - "{{ openbao_cert_certs_volume_name }}:/certs"
+          - "{{ openbao_cert_image }}"
+          - chown
+          - -R
+          - openbao:openbao
+          - /certs
+      changed_when: true
+
     - name: Restart openbao so it picks up the new cert
       community.docker.docker_compose_v2:
         project_src: "{{ compose_deploy_dir }}/openbao"
@@ -129,12 +154,13 @@
     telegram_notify_env_result.changed or telegram_notify_service_result.changed or
     uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
 
-# Identical generic template to lldap_cert's own — every step-ca leaf-
-# cert consumer in this repo uses the same CA URL/network/image, so
-# both roles render byte-identical content to the same destination
-# path. Duplicated here rather than factored into step_ca_client
-# (this stage's own scope is deploying OpenBao, not refactoring an
-# already-Accepted role) — see docs/openbao.md.
+# Near-identical generic template to lldap_cert's own, duplicated here
+# rather than factored into step_ca_client (this stage's own scope is
+# deploying OpenBao, not refactoring an already-Accepted role) — see
+# docs/openbao.md. Not byte-identical, though: this copy has one
+# openbao-only addition (guarded on %i, harmless for other instances)
+# — see the template's own header comment for why it must be guarded,
+# not just added, given both roles install to the same shared path.
 - name: Install the generic cert-renewer@ service template
   ansible.builtin.template:
     src: cert-renewer@.service.j2

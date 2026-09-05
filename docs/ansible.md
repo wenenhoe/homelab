@@ -41,6 +41,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `lldap_bootstrap` | Automates lldap's `observer` account for tinyauth's LDAP bind. |
 | `step_ca_client` | Shared prerequisite: caches step-ca's root cert on the host. |
 | `lldap_cert` | Issues/renews lldap's LDAPS cert from step-ca. |
+| `openbao_cert` | Issues/renews OpenBao's TLS listener cert from step-ca. |
 | `telegram_notify` | Shared library role: direct-curl Telegram alert unit. |
 | `telegram_topic_pins` | Shared library role: posts/pins a static per-topic header message, control-node-only. |
 | `uptime_kuma_push` | Shared library role: direct-curl unit for a job's Uptime Kuma push-monitor URL. |

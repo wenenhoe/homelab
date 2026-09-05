@@ -1,0 +1,7 @@
+---
+# Only a daemon-reload is ever needed here — same reasoning as
+# lldap_cert's identical handler: the service unit is Type=oneshot,
+# invoked fresh by the timer on each fire, so a reload is enough.
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true

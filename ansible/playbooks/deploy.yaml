@@ -102,14 +102,15 @@
       tags:
         - images
 
-# Play 6 — Wire step-ca into its first two consumers. Runs after
-# lldap/step-ca/tinyauth all deploy (Play 4, on `security`):
+# Play 6 — Wire step-ca into its consumers. Runs after
+# lldap/step-ca/tinyauth/openbao all deploy (Play 4, on `security`):
 # step_ca_client needs a running step-ca to read its root cert from;
-# lldap_cert needs a running lldap to issue into and step_ca_client's
-# cached root; tinyauth_ca_trust needs a running tinyauth to seed into
-# and the same cached root. No ordering constraint between the latter
-# two — sequenced arbitrarily, both after the shared prerequisite.
-- name: Wire lldap and tinyauth into step-ca
+# lldap_cert/openbao_cert each need their own app already running to
+# issue into, plus step_ca_client's cached root; tinyauth_ca_trust
+# needs a running tinyauth to seed into and the same cached root. No
+# ordering constraint between the latter three — sequenced arbitrarily,
+# all after the shared prerequisite.
+- name: Wire lldap, tinyauth, and openbao into step-ca
   hosts: security
   gather_facts: false
   become: true
@@ -129,6 +130,12 @@
     - name: Include tinyauth_ca_trust role
       ansible.builtin.include_role:
         name: tinyauth_ca_trust
+      tags:
+        - images
+
+    - name: Include openbao_cert role
+      ansible.builtin.include_role:
+        name: openbao_cert
       tags:
         - images
 

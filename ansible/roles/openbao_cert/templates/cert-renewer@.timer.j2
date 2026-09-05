@@ -1,0 +1,13 @@
+[Unit]
+Description=Timer for certificate renewal of %I
+Documentation=https://smallstep.com/docs/step-ca/renewal
+PartOf=cert-renewer.target
+
+[Timer]
+Persistent=true
+OnCalendar=*:1/15
+AccuracySec=1us
+RandomizedDelaySec=5m
+
+[Install]
+WantedBy=timers.target

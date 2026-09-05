@@ -15,6 +15,19 @@ project_root: "{{ (playbook_dir ~ '/../..') | realpath }}"
 compose_source_dir: "{{ (project_root ~ '/docker') | realpath }}"
 compose_deploy_dir: /opt/stacks
 
+# rejectattr('name', 'in', ...)'d out of compose_app's generic Play 4
+# loop — each of these deploys itself instead (Play 2/Play 3, or an
+# extra task ahead of the generic loop within Play 4 itself), because
+# each needs something the generic loop can't do: caddy/bind9 need
+# custom config generation between volume-init and compose-up; openbao
+# needs its data volume chowned to the image's own non-root user
+# before it ever starts (see roles/openbao's own comment for why that
+# couldn't just be another compose service). See docs/deployment-flow.md.
+compose_self_managed_apps:
+  - bind9
+  - caddy
+  - openbao
+
 tinyauth_host: sso
 
 beszel_hub_host: beszel

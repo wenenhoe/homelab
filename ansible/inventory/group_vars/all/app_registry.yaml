@@ -196,6 +196,24 @@ app_registry:
     # name (step-ca:9000), the same no-Caddy-frontend pattern bind9
     # uses. See docs/step-ca.md.
 
+  openbao:
+    volumes:
+      - name: data
+      - name: config
+      - name: certs
+    configs:
+      - src: openbao.hcl.j2
+        dest: "config/openbao.hcl"
+    # No backup: entry — raft snapshots are OpenBao's own backup
+    # mechanism (Track A stage 2), not backup_agent's generic
+    # stop-and-tar path, which would mean sealing OpenBao (and a
+    # manual unseal per ADR 0021) on every backup cycle. See
+    # docs/openbao.md.
+    #
+    # No caddy: entry either, same reasoning as step-ca above — plus
+    # published directly (see compose.yaml.j2) rather than proxied,
+    # like lldap's LDAPS. See docs/openbao.md.
+
   minecraft:
     volumes:
       - name: data

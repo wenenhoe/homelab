@@ -1,0 +1,13 @@
+---
+openbao_cert_container_name: openbao
+openbao_cert_certs_volume_name: openbao_certs
+openbao_cert_network_name: caddy-proxy
+# Same version as docker/step-ca's own pin — see docs/step-ca.md.
+openbao_cert_step_cli_image: "smallstep/step-cli:0.30.6"
+# step-ca's own container name, not localhost — see lldap_cert's
+# identical default for why.
+openbao_cert_step_ca_url: "https://step-ca:9000"
+# Same tag as docker/openbao/compose.yaml.j2's own pin — used here only
+# to resolve the `openbao` username via that image's /etc/passwd for
+# the post-issuance/post-renewal chown, not to run the server itself.
+openbao_cert_image: "openbao/openbao:2.5.4"

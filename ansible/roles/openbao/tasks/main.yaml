@@ -1,0 +1,96 @@
+---
+# openbao is self-managed (like caddy/bind9 — see
+# compose_self_managed_apps in group_vars/all/main.yaml) for one reason:
+# its data volume needs chowning to the image's own non-root user
+# before the container first starts, and that fix has to run as a
+# plain, guarded `docker run`, not a persistent compose service — see
+# this file's own block below for why the more obvious approach
+# (a one-shot "init" service in the compose file itself) doesn't work.
+
+- name: Resolve openbao's own compose_apps entry, if present
+  ansible.builtin.set_fact:
+    openbao_compose_app_matches: "{{ compose_apps | selectattr('name', 'equalto', 'openbao') | list }}"
+  tags:
+    - always
+
+- name: Record whether openbao is present in compose_apps
+  ansible.builtin.set_fact:
+    openbao_has_compose_app: "{{ openbao_compose_app_matches | length > 0 }}"
+    openbao_compose_app_item: "{{ openbao_compose_app_matches | first if openbao_compose_app_matches | length > 0 else {} }}"
+  tags:
+    - always
+
+- name: Init openbao's own compose app files and directories
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: init
+  vars:
+    compose_app_item: "{{ openbao_compose_app_item }}"
+  when: openbao_has_compose_app
+
+# A one-shot "openbao-init" service inside compose.yaml.j2 itself was
+# tried first and confirmed live not to work: `docker compose up`
+# brings every service to "running", and a `restart: "no"` container
+# that already exited successfully doesn't count as running — so
+# Compose starts it again on every single `up`, which
+# community.docker.docker_compose_v2 reports as `changed`,
+# unconditionally, every deploy. That's a real Molecule idempotence
+# failure, not a cosmetic one: `./molecule-test-all.sh openbao_cert`
+# caught it directly, converging cleanly the first time and failing
+# idempotence on the second (see docs/openbao.md). A plain, guarded
+# `docker run` — checked before running, skipped once it's already
+# correct — has none of that, since nothing about it is a
+# Compose-managed service Compose has any opinion on.
+- name: "Ensure the data volume is owned by the openbao user, not root [block]"
+  when: openbao_has_compose_app
+  block:
+    - name: Read the openbao image's own non-root UID
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - "{{ openbao_image }}"
+          - id
+          - -u
+          - openbao
+      register: openbao_expected_uid
+      changed_when: false
+
+    - name: Discover the data volume's real host path
+      community.docker.docker_volume_info:
+        name: "{{ openbao_data_volume_name }}"
+      register: openbao_data_volume_info
+
+    - name: Check the data volume's current owner
+      ansible.builtin.stat:
+        path: "{{ openbao_data_volume_info.volume.Mountpoint }}"
+      register: openbao_data_owner
+
+    - name: Chown the data volume to the openbao user
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - -v
+          - "{{ openbao_data_volume_name }}:/openbao/data"
+          - "{{ openbao_image }}"
+          - chown
+          - -R
+          - openbao:openbao
+          - /openbao/data
+      when: openbao_data_owner.stat.uid | string != openbao_expected_uid.stdout | trim
+      changed_when: true
+
+- name: Deploy openbao with Docker Compose
+  ansible.builtin.include_role:
+    name: compose
+    tasks_from: deploy
+  vars:
+    compose_app_item: "{{ openbao_compose_app_item }}"
+  when: openbao_has_compose_app
+  tags:
+    - images

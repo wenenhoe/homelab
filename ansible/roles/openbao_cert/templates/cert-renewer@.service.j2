@@ -1,0 +1,52 @@
+[Unit]
+Description=Certificate renewer for %I
+After=network-online.target docker.service
+Requires=docker.service
+Documentation=https://smallstep.com/docs/step-ca/renewal
+StartLimitIntervalSec=0
+PartOf=cert-renewer.target
+OnFailure=telegram-notify@%i.service
+OnSuccess=uptime-kuma-push-cert-renewer-%i.service
+
+[Service]
+Type=oneshot
+User=root
+Environment=CA_URL={{ openbao_cert_step_ca_url }} ROOT_LOCATION={{ step_ca_client_root_cert_path }} STEP_CLI_IMAGE={{ openbao_cert_step_cli_image }} OPENBAO_IMAGE={{ openbao_cert_image }} NETWORK={{ openbao_cert_network_name }}
+
+; %i_certs is the exact volume name ensure_volume.yaml gives any app's
+; "certs" volume (<app>_certs) — see lldap_cert's identical template.
+;
+; IMPORTANT: this destination path (/etc/systemd/system/cert-renewer@.service)
+; is shared by every step-ca cert consumer's %i instance, lldap's and
+; openbao's alike — there is only ever one file on disk, and whichever
+; role's own copy is installed last in deploy.yaml's Play 6 (currently
+; openbao_cert, after lldap_cert) is what's actually active for BOTH
+; `cert-renewer@lldap.timer` and `cert-renewer@openbao.timer`. This
+; copy's two additions versus lldap_cert's otherwise-identical template
+; — the second ExecStart= line, and ExecStartPost='s branch — are both
+; guarded on `%i` itself rather than applying unconditionally, so both
+; stay a no-op/unchanged for `cert-renewer@lldap.timer` regardless of
+; which role's copy wins. The chown is needed because openbao runs as
+; its image's own non-root `openbao` user (unlike lldap, which manages
+; its own via LLDAP_UID/GID) — see the issuance task's identical fix
+; (openbao_cert/tasks/main.yaml). The SIGHUP branch is needed because
+; every restart requires a manual unseal (ADR 0021); see below.
+ExecCondition=/usr/bin/docker run --rm --user root -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem
+
+ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} -v %i_certs:/certs -v ${ROOT_LOCATION}:/root_ca.crt:ro ${STEP_CLI_IMAGE} step ca renew --force --ca-url ${CA_URL} --root /root_ca.crt /certs/fullchain.pem /certs/privkey.pem
+ExecStart=/bin/sh -c '[ "%i" != "openbao" ] || /usr/bin/docker run --rm --user root -v %i_certs:/certs ${OPENBAO_IMAGE} chown -R openbao:openbao /certs'
+
+; openbao gets SIGHUP instead of a restart, unlike lldap: a restart
+; reseals OpenBao (manual unseal, ADR 0021), defeating that ADR's own
+; cost-benefit premise if it happened on every renewal, not just every
+; reboot. OpenBao's TCP listener documents tls_cert_file/tls_key_file
+; as reloads-on-SIGHUP (openbao.org/docs/configuration/listener/tcp/),
+; matching HashiCorp's own documented Vault SIGHUP behavior (TLS
+; listener certs reload, seal state untouched), and dumb-init (this
+; image's entrypoint) forwards received signals to its child by
+; default (confirmed against its own README) — but this hasn't been
+; confirmed against a real running instance yet. See docs/openbao.md.
+ExecStartPost=/bin/sh -c 'if [ "%i" = "openbao" ]; then /usr/bin/docker kill --signal=HUP %i; else /usr/bin/docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i; fi'
+
+[Install]
+WantedBy=multi-user.target

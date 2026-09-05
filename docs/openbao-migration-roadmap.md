@@ -12,7 +12,7 @@ Update this table at the start and end of each PR that works a stage.
 
 | # | Stage | Track | Status |
 | :-: | :--- | :-: | :--- |
-| 1 | Deploy OpenBao | A | Not started |
+| 1 | Deploy OpenBao | A | Done |
 | 2 | Prove backup/restore loop | A | Not started |
 | 3 | Auth and least-privilege policies | A | Not started |
 | 4 | Migrate the secrets role | A | Not started |

@@ -259,6 +259,7 @@ jobs:
           # telegram-topic-id-*/beszel-hub-key/-agent-token above.
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cloud-sync
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-renewer-lldap
+          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-renewer-openbao
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-security
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-storage
           printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-play

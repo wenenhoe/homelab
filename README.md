@@ -101,6 +101,7 @@ should go.
 | [`docs/uptime-kuma.md`](docs/uptime-kuma.md) | Push-monitor dead-man's-switch status per job, routed into the Telegram topics above. |
 | [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
+| [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook (Track A stage 1). |
 | [`docs/wastebin.md`](docs/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
 | [`docs/qemu-guest-agent.md`](docs/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
 

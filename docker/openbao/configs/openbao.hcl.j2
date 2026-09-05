@@ -1,0 +1,25 @@
+# Single-node raft storage - see docs/openbao-migration-roadmap.md
+# (Track A only reaches multi-node if this homelab ever gets a second
+# host worth dedicating to it, not planned).
+storage "raft" {
+  path    = "/openbao/data"
+  node_id = "openbao-security"
+}
+
+listener "tcp" {
+  address          = "0.0.0.0:8200"
+  cluster_address  = "0.0.0.0:8201"
+  tls_cert_file    = "/openbao/certs/fullchain.pem"
+  tls_key_file     = "/openbao/certs/privkey.pem"
+}
+
+# Both must resolve for a client actually connecting - "openbao" is this
+# compose service's own name on caddy-proxy, the same first-name-must-
+# self-resolve convention step-ca's STEP_CA_DNS_NAMES already uses (see
+# docs/step-ca.md). cluster_addr is unused on a single-node cluster
+# (nothing ever joins) but still required config.
+api_addr     = "https://openbao:8200"
+cluster_addr = "https://openbao:8201"
+
+# No UI - see docs/openbao.md for why this stays CLI/API-only.
+ui = false

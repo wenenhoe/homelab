@@ -1,6 +1,6 @@
 # 0021. Manual Shamir unseal, not cloud auto-unseal
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

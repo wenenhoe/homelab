@@ -1,0 +1,4 @@
+---
+# Same tag as docker/openbao/compose.yaml.j2's own pin.
+openbao_image: "openbao/openbao:2.5.4"
+openbao_data_volume_name: openbao_data

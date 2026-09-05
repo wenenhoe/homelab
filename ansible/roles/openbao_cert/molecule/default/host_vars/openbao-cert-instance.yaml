@@ -1,0 +1,42 @@
+---
+# Must live here, not in converge.yml's play `vars:` — same reasoning as
+# lldap_cert/tinyauth's own host_vars: keeps every var resolvable the
+# same way real inventory data is.
+main_domain: molecule.test
+lab_domain: "lan.{{ main_domain }}"
+caddy_domain: "sec.{{ lab_domain }}"
+server_timezone: Asia/Singapore
+
+# The throwaway step-ca-test instance's own bootstrap password
+# (molecule_helpers_step_ca_password in converge.yml) doubles as its
+# stock DOCKER_STEPCA_INIT_PASSWORD-derived provisioner password, and its
+# default provisioner is named "admin" — matching the official image's
+# own DOCKER_STEPCA_INIT_PROVISIONER_NAME default, not production's
+# "internal-services" (docker/step-ca's own custom-entrypoint bootstrap
+# isn't used here — see molecule_helpers/tasks/start_step_ca_test_target.yaml).
+step_ca_provisioner_password: molecule-test-step-ca-password
+step_ca_provisioner_name: admin
+
+# telegram_notify's install.yaml (included from openbao_cert's own
+# tasks/main.yaml) needs these — see docs/telegram-notifications.md.
+telegram_token: molecule-dummy-telegram-token
+telegram_chat_id: molecule-dummy-chat-id
+telegram_topic_id_certs: ""
+
+# uptime_kuma_push's install.yaml (included from openbao_cert's own
+# tasks/main.yaml) needs this — see docs/uptime-kuma.md. Blank, same
+# "not configured yet" happy path as the telegram vars above.
+uptime_kuma_push_url_cert_renewer_openbao: ""
+
+# Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
+# openbao entry) — extracted via lookup rather than hand-copied, same
+# reasoning as lldap_cert's own host_vars (see docs/molecule-fixtures.md):
+# a hand-copied fixture drifts silently, a lookup can't.
+app_registry: >-
+  {{
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
+     | from_yaml).app_registry
+  }}
+
+compose_apps:
+  - name: openbao

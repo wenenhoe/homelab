@@ -13,7 +13,7 @@ flowchart TD
     p3["Play 3 — Configure BIND9<br/>(services)"]
     p4["Play 4 — Deploy Compose apps<br/>(managed_hosts)"]
     p5["Play 5 — Ensure offsite-backup<br/>bucket exists (storage)"]
-    p6["Play 6 — Wire lldap/tinyauth<br/>into step-ca (security)"]
+    p6["Play 6 — Wire lldap/tinyauth/<br/>openbao into step-ca (security)"]
     p7["Play 7 — Ensure lldap's<br/>observer account (security)"]
     p8["Play 8 — Deploy offsite<br/>backup agent (managed_hosts)"]
     p9["Play 9 — Deploy cloud sync<br/>(storage)"]
@@ -82,8 +82,10 @@ resolution at it. See [`bind9.md`](bind9.md).
 
 ## Play 4 — Deploy Compose apps (`hosts: managed_hosts`)
 
-Everything except `caddy`/`bind9` (already deployed in Plays 2–3) gets
-its directories/configs provisioned and its container started.
+Everything except `caddy`/`bind9` (already deployed in Plays 2–3) and
+`openbao` (deploys itself via a task at the start of this same play,
+not a separate one — see [`roles/openbao`](../ansible/roles/openbao))
+gets its directories/configs provisioned and its container started.
 
 ## Play 5 — Ensure offsite-backup bucket exists (`hosts: storage`)
 
@@ -92,15 +94,16 @@ explicitly — SeaweedFS doesn't auto-create one on first `PUT`. Must run
 before Play 8 or the first backup upload fails with `NoSuchBucket`. See
 [`disaster-recovery.md`](disaster-recovery.md).
 
-## Play 6 — Wire lldap and tinyauth into step-ca (`hosts: security`)
+## Play 6 — Wire lldap, tinyauth, and openbao into step-ca (`hosts: security`)
 
-After lldap/step-ca/tinyauth all deploy in Play 4. `step_ca_client`
+After lldap/step-ca/tinyauth/openbao all deploy in Play 4. `step_ca_client`
 caches step-ca's root cert on the host; `lldap_cert` issues lldap's
 initial LDAPS cert and installs its systemd renewal timer;
 `tinyauth_ca_trust` builds and seeds the CA bundle tinyauth needs to
-trust that cert. `step` itself runs via the `smallstep/step-cli`
-container image throughout, not a host-installed binary — see
-[`lldap.md`](lldap.md).
+trust that cert; `openbao_cert` issues OpenBao's TLS listener cert the
+same way `lldap_cert` does — see [`openbao.md`](openbao.md). `step`
+itself runs via the `smallstep/step-cli` container image throughout,
+not a host-installed binary — see [`lldap.md`](lldap.md).
 
 ## Play 7 — Ensure lldap's observer account exists (`hosts: security`)
 

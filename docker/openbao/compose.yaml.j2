@@ -1,0 +1,71 @@
+name: openbao
+
+services:
+  openbao:
+    image: openbao/openbao:2.5.4
+    container_name: openbao
+    volumes:
+      - data:/openbao/data
+      - config:/openbao/config
+      - certs:/openbao/certs
+    # No -config= flag: the entrypoint already scans /openbao/config by
+    # default (confirmed live - passing an explicit -config pointing at
+    # a file inside that same directory produced "ignoring duplicate
+    # configuration found in directory: /openbao/config/openbao.hcl",
+    # since both the default scan and the explicit flag loaded it).
+    command: ["server"]
+    environment:
+      TZ: "{{ server_timezone }}"
+      # Loopback-only, self-signed-from-our-own-internal-CA healthcheck
+      # - skipping verification here doesn't weaken anything external,
+      # see the healthcheck comment below.
+      BAO_SKIP_VERIFY: "true"
+    cap_add:
+      - IPC_LOCK   # mlock, so secrets never get swapped to disk
+    networks:
+      - caddy-proxy
+    restart: unless-stopped
+    # Published directly (not routed through Caddy), same as lldap's
+    # LDAPS listener - see docs/openbao.md. The certs volume starts
+    # empty on a fresh deploy, so this crash-loops until openbao_cert
+    # issues the leaf cert (deploy.yaml's Play 6) - the same tolerated
+    # bootstrap race docs/lldap.md documents for tinyauth. The data
+    # volume, unlike certs, is chowned by roles/openbao itself (see
+    # that role, and docs/openbao.md) BEFORE this container ever
+    # starts, not by anything in this compose file — see that role's
+    # own comment for why a persistent compose service turned out to
+    # be the wrong tool for that one-time fix.
+    ports:
+      - "0.0.0.0:8200:8200"
+    # `bao status` exits non-zero whenever OpenBao is sealed or
+    # uninitialized, not just when it's actually down (confirmed
+    # against openbao.org's own exit code docs: sealed is a "remote
+    # error", exit 2) - so this reports unhealthy for the entire
+    # stretch between a restart and the next manual unseal (ADR 0021),
+    # not only on a genuine failure. That's the accurate state (sealed
+    # = not serving), not a false alarm, but it means "unhealthy" here
+    # reads differently than it does for every other app in this repo.
+    # See docs/openbao.md.
+    #
+    # BAO_SKIP_VERIFY (not a real trust decision): this is loopback,
+    # self-signed-from-our-own-internal-CA - the healthcheck only needs
+    # "is something answering on 8200", not a real chain-of-trust check.
+    healthcheck:
+      test: ["CMD", "bao", "status", "-address=https://127.0.0.1:8200"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+networks:
+  caddy-proxy:
+    external: true
+volumes:
+  data:
+    external: true
+    name: openbao_data
+  config:
+    external: true
+    name: openbao_config
+  certs:
+    external: true
+    name: openbao_certs

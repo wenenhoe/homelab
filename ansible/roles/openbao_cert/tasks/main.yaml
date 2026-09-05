@@ -1,0 +1,185 @@
+---
+# Issues OpenBao's TLS listener cert from step-ca, the same one-time-
+# issuance-then-systemd-renewal shape as lldap_cert — see that role's
+# own header comment for the full rationale (JWK provisioner password
+# for initial issuance only, mTLS renewal after that, `step` always run
+# via the smallstep/step-cli image rather than a host-installed binary).
+# Expects step_ca_client to have already run in this play (deploy.yaml's
+# Play 6).
+
+- name: Confirm openbao is actually running before touching its cert volume
+  community.docker.docker_container_info:
+    name: "{{ openbao_cert_container_name }}"
+  register: openbao_cert_container_info
+
+- name: Fail loudly if openbao isn't running yet
+  ansible.builtin.fail:
+    msg: >-
+      No running "{{ openbao_cert_container_name }}" container found on
+      this host — openbao_cert must run after openbao's own compose
+      deploy (see deploy.yaml's Play ordering).
+  when: not openbao_cert_container_info.exists
+
+- name: Check whether a TLS cert has already been issued
+  community.docker.docker_container_exec:
+    container: "{{ openbao_cert_container_name }}"
+    command: test -f /openbao/certs/fullchain.pem
+  register: openbao_cert_existing_cert
+  changed_when: false
+  failed_when: false
+
+# Ongoing renewal is the systemd timer's job from here on (installed
+# unconditionally below) — this only ever runs once, on a genuinely
+# empty certs volume. Until this issues the cert, openbao's own
+# container is expected to be crash-looping on a missing tls_cert_file
+# — the same bootstrap race docs/lldap.md documents for tinyauth's
+# first-ever deploy, tolerated the same way here.
+- name: "Issue openbao's initial TLS cert [block / always]"
+  when: openbao_cert_existing_cert.rc | default(1) != 0
+  block:
+    - name: Render the provisioner password to a scratch file
+      ansible.builtin.copy:
+        dest: /tmp/openbao-cert-provisioner-password
+        content: "{{ step_ca_provisioner_password }}"
+        mode: "0600"
+      no_log: true
+
+    # --user root: same freshly-created-volume ownership issue
+    # lldap_cert's own issuance hits — see its tasks/main.yaml comment.
+    - name: Request the initial cert from step-ca
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - --network
+          - "{{ openbao_cert_network_name }}"
+          - -v
+          - "{{ openbao_cert_certs_volume_name }}:/certs"
+          - -v
+          - "/tmp/openbao-cert-provisioner-password:/tmp/provisioner_password:ro"
+          - -v
+          - "{{ step_ca_client_root_cert_path }}:/root_ca.crt:ro"
+          - "{{ openbao_cert_step_cli_image }}"
+          - step
+          - ca
+          - certificate
+          - openbao
+          - /certs/fullchain.pem
+          - /certs/privkey.pem
+          - --san
+          - openbao
+          - --san
+          - "openbao.{{ caddy_domain }}"
+          - --provisioner
+          - "{{ step_ca_provisioner_name }}"
+          - --password-file
+          - /tmp/provisioner_password
+          - --ca-url
+          - "{{ openbao_cert_step_ca_url }}"
+          - --root
+          - /root_ca.crt
+          - --force
+      register: openbao_cert_issue_result
+      until: openbao_cert_issue_result.rc == 0
+      # Same 5-attempt/10s shape as lldap_cert's own issuance — step-ca
+      # may not have finished its own first-boot init yet.
+      retries: 5
+      delay: 10
+      changed_when: true
+
+    # The issuance above runs --user root, so fullchain.pem/privkey.pem
+    # land root-owned — unlike lldap, which runs as its own container's
+    # UID/GID (docker/lldap/compose.yaml.j2's LLDAP_UID/GID envs) and
+    # has no equivalent problem, openbao's container runs as the
+    # image's own non-root `openbao` user (see compose.yaml.j2), which
+    # can't read a root-owned, owner-only-mode private key. Fixed the
+    # same by-username way as openbao-init's data-volume chown
+    # (docker/openbao/compose.yaml.j2) rather than a hardcoded UID.
+    - name: Hand the issued cert back to the openbao user so the server can read it
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - -v
+          - "{{ openbao_cert_certs_volume_name }}:/certs"
+          - "{{ openbao_cert_image }}"
+          - chown
+          - -R
+          - openbao:openbao
+          - /certs
+      changed_when: true
+
+    - name: Restart openbao so it picks up the new cert
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_deploy_dir }}/openbao"
+        state: restarted
+  always:
+    - name: Remove the scratch provisioner password file
+      ansible.builtin.file:
+        path: /tmp/openbao-cert-provisioner-password
+        state: absent
+
+- name: Install Telegram alerting for cert-renewal failures
+  ansible.builtin.include_role:
+    name: telegram_notify
+    tasks_from: install.yaml
+  vars:
+    telegram_notify_unit_name: "telegram-notify@"
+    telegram_notify_description: "Telegram alert for a failed certificate renewal (%i)"
+    telegram_notify_message: "Certificate renewal failed for `%i` on `{{ ansible_facts['hostname'] }}`"
+    telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
+
+# Only ever pushes on success, same as lldap_cert's identical unit — see
+# its own header comment for why a per-instance push URL can't share
+# telegram_notify@'s one-shared-unit approach.
+- name: Install the Uptime Kuma push-on-success unit for openbao's cert renewal
+  ansible.builtin.include_role:
+    name: uptime_kuma_push
+    tasks_from: install.yaml
+  vars:
+    uptime_kuma_push_unit_name: uptime-kuma-push-cert-renewer-openbao
+    uptime_kuma_push_description: Uptime Kuma liveness push for a successful openbao cert renewal
+    uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_openbao }}"
+
+- name: Reload systemd if either notifier unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: >-
+    telegram_notify_env_result.changed or telegram_notify_service_result.changed or
+    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
+
+# Near-identical generic template to lldap_cert's own, duplicated here
+# rather than factored into step_ca_client (this stage's own scope is
+# deploying OpenBao, not refactoring an already-Accepted role) — see
+# docs/openbao.md. Not byte-identical, though: this copy has one
+# openbao-only addition (guarded on %i, harmless for other instances)
+# — see the template's own header comment for why it must be guarded,
+# not just added, given both roles install to the same shared path.
+- name: Install the generic cert-renewer@ service template
+  ansible.builtin.template:
+    src: cert-renewer@.service.j2
+    dest: /etc/systemd/system/cert-renewer@.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the generic cert-renewer@ timer template
+  ansible.builtin.template:
+    src: cert-renewer@.timer.j2
+    dest: /etc/systemd/system/cert-renewer@.timer
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start openbao's renewal timer
+  ansible.builtin.systemd:
+    name: cert-renewer@openbao.timer
+    state: started
+    enabled: true

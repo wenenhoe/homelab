@@ -1,10 +1,13 @@
 ---
-# Batch init + deploy for every app that isn't self-managed (bind9, caddy).
+# Batch init + deploy for every app that isn't self-managed (bind9,
+# caddy, openbao — see compose_self_managed_apps, group_vars/all/main.yaml).
 # Runs last (Play 4), once DNS is serving the zones and caddy is already
 # routing — bind9 and caddy resolve/init/deploy themselves earlier (Play 2
-# / Play 3), see roles/caddy and roles/bind9. Non-infra apps don't get their
-# files/dirs provisioned until here either — no reason to have them on disk
-# any earlier than right before they start.
+# / Play 3); openbao resolves/init/deploys itself in an extra task ahead
+# of this one, still within Play 4 (see roles/caddy, roles/bind9,
+# roles/openbao). Non-infra apps don't get their files/dirs provisioned
+# until here either — no reason to have them on disk any earlier than
+# right before they start.
 
 - name: Reset per-run deploy results
   ansible.builtin.set_fact:
@@ -18,7 +21,7 @@
 # deploy_one_app.yaml's tasks.
 - name: Init and deploy each non-infra app
   ansible.builtin.include_tasks: deploy_one_app.yaml
-  loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy'])) | list }}"
+  loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy', 'openbao'])) | list }}"
   loop_control:
     loop_var: compose_app_target
     label: "{{ compose_app_target.name }}"

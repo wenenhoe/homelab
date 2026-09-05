@@ -301,19 +301,20 @@ push-monitor URL for the cert-renewal timer, same shape as
 
 ## Open follow-up before this stage counts as proven
 
-- No Molecule coverage for `openbao_cert` yet — see
-  [`molecule-testing.md`](molecule-testing.md)'s row for it. Needs a
-  `default` scenario mirroring `lldap_cert`'s (real step-ca, real
-  issuance, real renewal-unit side effects) and a `not_running` guard
-  scenario.
-- The cert-renewal-reseals-OpenBao question above — restart vs.
-  SIGHUP-reload — needs an actual test, not a decision made here.
-- The data-volume and certs-volume permission fixes, and the
-  duplicate-config fix, are all confirmed against one real deploy
-  attempt's actual failure, but the *fixed* compose file and
-  `openbao_cert` role haven't yet been run end-to-end themselves — a
-  clean redeploy through init and unseal still needs to happen before
-  treating this as settled.
+- `openbao_cert` now has Molecule coverage (`default` + `not_running`,
+  see [`molecule-testing.md`](molecule-testing.md)'s row for it), but
+  it's never actually been run — no Docker daemon was available to run
+  it against while writing it. `./molecule-test-all.sh openbao_cert`
+  still needs a real run, and its coverage number added to
+  `ansible/molecule-coverage/thresholds.yaml` (deliberately not guessed
+  here — see that file's own comment on hand-verified floors).
+- The data-volume and certs-volume permission fixes, the
+  duplicate-config fix, and the SIGHUP-not-restart cert renewal are all
+  backed by documentation/citations rather than a live run against real
+  hardware — the *fixed* compose file and `openbao_cert` role haven't
+  yet been run end-to-end themselves. A clean redeploy through init and
+  unseal, followed by an actual cert renewal, still needs to happen
+  before treating any of this as settled.
 - Everything above still needs to happen before
   [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md)'s
   stage 1 row moves from `In progress` to `Done`.

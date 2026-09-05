@@ -1,0 +1,43 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+  tasks:
+    # Deliberately no openbao target started at all — that's the whole
+    # point of this scenario, unlike default's. The guard this tests is
+    # the very first task in openbao_cert/tasks/main.yaml, before
+    # anything step-ca-related runs, so a throwaway step-ca isn't needed
+    # here either.
+    - name: "Run openbao_cert [block / rescue] (no running openbao target, failure is deliberate and expected)"
+      block:
+        - name: Run openbao_cert against a host with no openbao container
+          ansible.builtin.include_role:
+            name: openbao_cert
+          vars:
+            openbao_cert_container_name: openbao-test
+      rescue:
+        # A bare rescue: accepts ANY failure inside the block as "the
+        # guard worked" — a Docker hiccup or an unrelated task erroring
+        # out would leave the same halt marker behind and pass just as
+        # happily as the real guard catching the missing container.
+        # Assert on the exact task and reason before trusting the
+        # "expected" label at all.
+        - name: Confirm the failure came from the "no running openbao" guard itself
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == "Fail loudly if openbao isn't running yet"
+              - "'No running \\\"openbao-test\\\" container found' in ansible_failed_result.msg"
+            fail_msg: >-
+              openbao_cert failed, but not for the reason this scenario
+              exists to test. Expected the "Fail loudly if openbao isn't
+              running yet" task to fail naming "openbao-test"; got task
+              "{{ ansible_failed_task.name | default('unknown') }}" with
+              message: {{ ansible_failed_result.msg | default('(no msg)') }}
+
+        - name: Leave a marker proving the guard actually caught the missing container
+          ansible.builtin.copy:
+            dest: /tmp/openbao_cert_not_running_halt_marker
+            content: "missing openbao target caught as expected\n"
+            mode: "0644"

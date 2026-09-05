@@ -1,0 +1,353 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    openbao_cert_step_ca_url: https://step-ca-test:9000
+  tasks:
+    # --- shared setup: the openbao image's own non-root UID -------------
+    # By name, not a hardcoded number — see roles/openbao's own
+    # comment for why. Read from the real running container rather
+    # than assumed, so this stays correct even if a future image bump
+    # changes the number `adduser -S` happens to assign.
+    - name: Read the openbao image's own non-root UID
+      community.docker.docker_container_exec:
+        container: openbao
+        command: id -u openbao
+      register: openbao_cert_verify_openbao_uid
+      changed_when: false
+
+    - name: Discover the openbao certs volume's real host path
+      community.docker.docker_volume_info:
+        name: openbao_certs
+      register: openbao_cert_verify_certs_volume
+
+    - name: Discover the openbao data volume's real host path
+      community.docker.docker_volume_info:
+        name: openbao_data
+      register: openbao_cert_verify_data_volume
+
+    - name: Set the mountpoint facts
+      ansible.builtin.set_fact:
+        openbao_cert_verify_certs_mountpoint: "{{ openbao_cert_verify_certs_volume.volume.Mountpoint }}"
+        openbao_cert_verify_data_mountpoint: "{{ openbao_cert_verify_data_volume.volume.Mountpoint }}"
+
+    # --- roles/openbao's own fix, not this role's -----------------------
+    # Confirmed here rather than skipped just because it's a different
+    # role's fix: this role's own issuance/restart tasks would silently
+    # succeed even if that chown had failed, since nothing here touches
+    # the data volume. The actual proof that fix works is openbao
+    # itself reaching a running state at all (below), but checking the
+    # ownership directly catches a regression here even if some other
+    # change later made openbao tolerate a root-owned data dir some
+    # other way.
+    - name: Confirm the data volume is owned by the openbao user, not root
+      ansible.builtin.stat:
+        path: "{{ openbao_cert_verify_data_mountpoint }}"
+      register: openbao_cert_verify_data_owner
+      failed_when: openbao_cert_verify_data_owner.stat.uid | string != openbao_cert_verify_openbao_uid.stdout | trim
+
+    # --- this role's own issuance --------------------------------------
+    - name: Confirm the cert files actually exist
+      ansible.builtin.stat:
+        path: "{{ openbao_cert_verify_certs_mountpoint }}/{{ item }}"
+      register: openbao_cert_verify_files
+      loop:
+        - fullchain.pem
+        - privkey.pem
+      failed_when: not openbao_cert_verify_files.stat.exists
+
+    - name: Confirm the cert's SANs cover both the bare name and the FQDN
+      ansible.builtin.command:
+        argv:
+          - openssl
+          - x509
+          - -in
+          - "{{ openbao_cert_verify_certs_mountpoint }}/fullchain.pem"
+          - -noout
+          - -ext
+          - subjectAltName
+      register: openbao_cert_verify_sans
+      changed_when: false
+      failed_when: >-
+        'DNS:openbao' not in openbao_cert_verify_sans.stdout
+        or 'DNS:openbao.sec.lan.molecule.test' not in openbao_cert_verify_sans.stdout
+
+    # This is the actual regression this role's own fix (patch 0003.1)
+    # exists for: `step ca certificate` runs --user root, so without the
+    # follow-up chown these would be root-owned and openbao's own
+    # non-root process couldn't read privkey.pem at all — which
+    # "openbao actually recovered" below would also have caught, but
+    # this pins down which specific fix would have regressed.
+    - name: Confirm the issued cert is owned by the openbao user, not root
+      ansible.builtin.stat:
+        path: "{{ openbao_cert_verify_certs_mountpoint }}/privkey.pem"
+      register: openbao_cert_verify_privkey_owner
+      failed_when: openbao_cert_verify_privkey_owner.stat.uid | string != openbao_cert_verify_openbao_uid.stdout | trim
+
+    - name: Confirm openbao actually recovered from its cold-volume crash loop
+      community.docker.docker_container_info:
+        name: openbao
+      register: openbao_cert_verify_openbao_info
+      failed_when: openbao_cert_verify_openbao_info.container.State.Status != 'running'
+      # Not asserting on State.Health here: this scenario never runs
+      # `bao operator init`, so the healthcheck (`bao status`) is
+      # expected to report unhealthy the whole time — see
+      # docs/openbao.md's healthcheck section. "running" is the actual
+      # claim this task tests (recovered from the crash loop), not
+      # "healthy".
+
+    - name: Confirm the renewal timer is enabled and active
+      ansible.builtin.systemd_service:
+        name: cert-renewer@openbao.timer
+      register: openbao_cert_verify_timer_info
+      failed_when: >-
+        openbao_cert_verify_timer_info.status.UnitFileState != 'enabled'
+        or openbao_cert_verify_timer_info.status.ActiveState != 'active'
+
+    # --- renewal side effects -------------------------------------------
+    # Same shape as lldap_cert's own verify.yml: run the exact commands
+    # ExecStart would run, directly, rather than going through systemd's
+    # own ExecCondition gating (that's `lldap_cert`'s `renewal_timing`
+    # scenario's job, not duplicated here). Two ExecStart= lines here,
+    # not one — see cert-renewer@.service.j2's own header comment for
+    # why openbao's copy has a second line lldap's doesn't.
+    - name: Record the cert's serial number before a direct renewal
+      ansible.builtin.command: openssl x509 -in {{ openbao_cert_verify_certs_mountpoint }}/fullchain.pem -noout -serial
+      register: openbao_cert_verify_serial_before
+      changed_when: false
+
+    - name: Run the exact renewal command the first ExecStart= line would run
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - --network
+          - caddy-proxy
+          - -v
+          - openbao_certs:/certs
+          - -v
+          - /etc/step-ca/root_ca.crt:/root_ca.crt:ro
+          - smallstep/step-cli:0.30.6
+          - step
+          - ca
+          - renew
+          - --force
+          - --ca-url
+          - "{{ openbao_cert_step_ca_url }}"
+          - --root
+          - /root_ca.crt
+          - /certs/fullchain.pem
+          - /certs/privkey.pem
+      changed_when: true
+
+    - name: Record the cert's serial number after
+      ansible.builtin.command: openssl x509 -in {{ openbao_cert_verify_certs_mountpoint }}/fullchain.pem -noout -serial
+      register: openbao_cert_verify_serial_after
+      changed_when: false
+      failed_when: openbao_cert_verify_serial_after.stdout == openbao_cert_verify_serial_before.stdout
+
+    # NOT asserting privkey.pem is root-owned here between renew and
+    # the chown line, despite `step ca renew` also running --user
+    # root: confirmed live (a real molecule run) that it isn't — `step`
+    # overwrites the existing file in place rather than recreating it,
+    # and overwriting content doesn't change a file's ownership on
+    # Unix, only chown() does. So the file stays owned by whatever the
+    # previous chown already left it as (`openbao`) throughout renewal
+    # — unlike initial issuance, which genuinely creates a new file and
+    # is root-owned until this role's issuance task chowns it. The
+    # chown line below is still correct and still needed regardless
+    # (systemd doesn't know or care what the file's owner was before
+    # it runs, and chowning an already-correct owner is a harmless
+    # no-op) — this was only ever testing an intermediate assumption
+    # about *how* `step` writes the file, not anything the fix's
+    # correctness actually depends on, so it's removed rather than
+    # corrected to assert the opposite.
+
+    # The %i guard evaluates true here since this unit's real instance
+    # name is "openbao" — see cert-renewer@.service.j2's own comment for
+    # why the guard exists at all (this template's destination is shared
+    # with lldap_cert's, and this line must stay a no-op for %i=lldap).
+    - name: Run the exact command the second, %i-guarded ExecStart= line would run
+      ansible.builtin.command:
+        argv:
+          - /bin/sh
+          - -c
+          - '[ "openbao" != "openbao" ] || /usr/bin/docker run --rm --user root -v openbao_certs:/certs openbao/openbao:2.5.4 chown -R openbao:openbao /certs'
+      changed_when: true
+
+    - name: Confirm the renewed cert is handed back to the openbao user
+      ansible.builtin.stat:
+        path: "{{ openbao_cert_verify_certs_mountpoint }}/privkey.pem"
+      register: openbao_cert_verify_privkey_owner_final
+      failed_when: openbao_cert_verify_privkey_owner_final.stat.uid | string != openbao_cert_verify_openbao_uid.stdout | trim
+
+    - name: Confirm the rendered unit actually carries the %i guard (not silently dropped)
+      ansible.builtin.command: systemctl cat cert-renewer@openbao.service  # noqa: command-instead-of-module
+      register: openbao_cert_verify_unit_content
+      changed_when: false
+      failed_when: >-
+        '[ "%i" != "openbao" ]' not in openbao_cert_verify_unit_content.stdout
+        or 'chown -R openbao:openbao /certs' not in openbao_cert_verify_unit_content.stdout
+        or 'docker kill --signal=HUP %i' not in openbao_cert_verify_unit_content.stdout
+
+    # --- SIGHUP reload, not a restart (see cert-renewer@.service.j2's
+    # own comment for the citations this relies on) --------------------
+    # Two separate claims, both worth proving directly rather than
+    # trusting the docs alone:
+    #   1. openbao does NOT restart (unlike a plain `docker compose
+    #      restart`, which is what would happen for any %i other than
+    #      "openbao" — and was this role's own prior behavior).
+    #   2. The TLS listener actually serves the renewed cert afterwards
+    #      — not just that the file on disk changed, which the earlier
+    #      chown checks already cover.
+    - name: Record openbao's start time before the exact ExecStartPost command runs
+      community.docker.docker_container_info:
+        name: openbao
+      register: openbao_cert_verify_restart_before
+
+    - name: Run the exact command ExecStartPost would run for %i=openbao
+      ansible.builtin.command: docker kill --signal=HUP openbao
+      changed_when: true
+
+    - name: Record openbao's start time after
+      community.docker.docker_container_info:
+        name: openbao
+      register: openbao_cert_verify_restart_after
+
+    - name: Confirm openbao did NOT restart (SIGHUP reloads in place, doesn't reseal)
+      ansible.builtin.assert:
+        that:
+          - openbao_cert_verify_restart_after.container.State.StartedAt == openbao_cert_verify_restart_before.container.State.StartedAt
+          - openbao_cert_verify_restart_after.container.State.Status == 'running'
+        fail_msg: >-
+          openbao's StartedAt changed after a SIGHUP
+          ({{ openbao_cert_verify_restart_before.container.State.StartedAt }} ->
+          {{ openbao_cert_verify_restart_after.container.State.StartedAt }}) —
+          dumb-init may not be forwarding the signal the way
+          cert-renewer@.service.j2's header comment assumes it does.
+
+    # A sealed/uninitialized OpenBao (this scenario never runs `bao
+    # operator init`) still completes a TLS handshake — sealed only
+    # affects the application-layer API, not the listener — so this can
+    # confirm the in-memory served cert changed without needing a live
+    # Vault. openssl s_client, not `bao status`: this is specifically a
+    # transport-layer question, and s_client is what actually receives
+    # the server's certificate independent of anything OpenBao's own
+    # CLI does with it.
+    #
+    # 127.0.0.1, not the container name: this task runs directly on the
+    # molecule instance's own shell, not inside a container joined to
+    # caddy-proxy — confirmed live that "openbao" doesn't resolve from
+    # there (Docker's embedded DNS only resolves a container's name for
+    # other containers on the same network, not for the docker host's
+    # own network namespace). compose.yaml.j2 publishes 8200 to the
+    # host directly, so loopback reaches the same listener regardless.
+    # -servername is unchanged (still openbao) — SNI, not routing.
+    - name: Fetch the cert currently served over the wire, after the SIGHUP
+      ansible.builtin.shell: |
+        set -o pipefail
+        echo | openssl s_client -connect 127.0.0.1:8200 -servername openbao 2>&1 | openssl x509 -noout -serial
+      args:
+        executable: /bin/bash
+      register: openbao_cert_verify_served_serial
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm the serving listener actually picked up the renewed cert
+      ansible.builtin.assert:
+        that:
+          - openbao_cert_verify_served_serial.rc == 0
+          - openbao_cert_verify_served_serial.stdout | trim == openbao_cert_verify_serial_after.stdout | trim
+        fail_msg: >-
+          Couldn't confirm the renewed cert is being served (rc={{ openbao_cert_verify_served_serial.rc }}):
+          stdout: {{ openbao_cert_verify_served_serial.stdout }}
+          stderr: {{ openbao_cert_verify_served_serial.stderr }}
+          Expected serial {{ openbao_cert_verify_serial_after.stdout | trim }} — SIGHUP may not
+          have actually reloaded the TLS listener's in-memory certificate,
+          or the connection itself failed (see output above for which).
+
+    # --- telegram-notify@ / uptime-kuma-push wiring ----------------------
+    # Same shape as lldap_cert's own verify.yml — see its comments for
+    # the full rationale (no live Telegram/Kuma network access here,
+    # this confirms the units load and run cleanly, not real delivery).
+    - name: Read back telegram-notify's rendered env file
+      ansible.builtin.slurp:
+        path: /etc/telegram-notify/telegram-notify@.env
+      register: openbao_cert_verify_notify_env_raw
+
+    - name: Confirm it carries the scenario's dummy bot credentials, not empty/template-literal values
+      ansible.builtin.assert:
+        that:
+          - "'TELEGRAM_TOKEN=molecule-dummy-telegram-token' in (openbao_cert_verify_notify_env_raw.content | b64decode)"
+          - "'TELEGRAM_CHAT_ID=molecule-dummy-chat-id' in (openbao_cert_verify_notify_env_raw.content | b64decode)"
+
+    - name: Confirm cert-renewer@ actually declares both links  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl cat cert-renewer@openbao.service
+      register: openbao_cert_verify_onfailure
+      changed_when: false
+      failed_when: >-
+        'OnFailure=telegram-notify@%i.service' not in openbao_cert_verify_onfailure.stdout
+        or 'OnSuccess=uptime-kuma-push-cert-renewer-%i.service' not in openbao_cert_verify_onfailure.stdout
+
+    - name: Start telegram-notify@openbao.service directly, as OnFailure= would  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl start telegram-notify@openbao.service
+      failed_when: false
+      changed_when: false
+
+    - name: Query the unit's actual state (not via raw systemctl show, whose multi-property output order isn't guaranteed — see systemd/systemd#28205)
+      ansible.builtin.systemd_service:
+        name: telegram-notify@openbao.service
+        daemon_reload: false
+      register: openbao_cert_verify_notify_state
+
+    - name: Confirm systemd actually loaded and ran the unit (not a syntax/templating error)
+      ansible.builtin.assert:
+        that:
+          - openbao_cert_verify_notify_state.status.LoadState == 'loaded'
+          - openbao_cert_verify_notify_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          telegram-notify@openbao.service didn't load/run cleanly:
+          LoadState={{ openbao_cert_verify_notify_state.status.LoadState | default('?') }}
+          ActiveState={{ openbao_cert_verify_notify_state.status.ActiveState | default('?') }}
+          — 'failed' here just means curl couldn't reach the real API
+          (expected in CI), 'not-found' or 'masked' would mean the unit
+          itself is broken.
+
+    - name: Read back uptime-kuma-push-cert-renewer-openbao's rendered env file
+      ansible.builtin.slurp:
+        path: /etc/uptime-kuma-push/uptime-kuma-push-cert-renewer-openbao.env
+      register: openbao_cert_verify_push_env_raw
+
+    - name: Confirm it renders an empty URL (this scenario's uptime_kuma_push_url_cert_renewer_openbao is blank)
+      ansible.builtin.assert:
+        that:
+          - (openbao_cert_verify_push_env_raw.content | b64decode | trim) == 'UPTIME_KUMA_PUSH_URL='
+        fail_msg: "Rendered env: {{ openbao_cert_verify_push_env_raw.content | b64decode }}"
+
+    - name: Start uptime-kuma-push-cert-renewer-openbao.service directly, as OnSuccess= would  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl start uptime-kuma-push-cert-renewer-openbao.service
+      failed_when: false
+      changed_when: false
+
+    - name: Query the pusher unit's actual state
+      ansible.builtin.systemd_service:
+        name: uptime-kuma-push-cert-renewer-openbao.service
+        daemon_reload: false
+      register: openbao_cert_verify_push_state
+
+    - name: Confirm systemd actually loaded and ran the pusher unit (not a syntax/templating error)
+      ansible.builtin.assert:
+        that:
+          - openbao_cert_verify_push_state.status.LoadState == 'loaded'
+          - openbao_cert_verify_push_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          uptime-kuma-push-cert-renewer-openbao.service didn't load/run cleanly:
+          LoadState={{ openbao_cert_verify_push_state.status.LoadState | default('?') }}
+          ActiveState={{ openbao_cert_verify_push_state.status.ActiveState | default('?') }}
+          — 'failed' here just means curl had no URL to hit (expected in
+          CI with a blank push URL), 'not-found' or 'masked' would mean
+          the unit itself is broken.

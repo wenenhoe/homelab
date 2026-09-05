@@ -28,6 +28,14 @@ r2_rotation_token) — those still live in the file cache at the point
 this runs (Track A hasn't cut over to Vault-only yet), so reusing them
 here doesn't create a new dependency.
 
+Verified the same way create_leaf_keys.py --rotate verifies a new leaf
+before trusting it: a real `rclone lsjson` against the actual bucket,
+not just a 200 from the provider's create-token API. A credential
+that's about to sit dormant in a password manager for months until a
+real disaster is exactly the wrong place to discover it was scoped
+wrong — this fails loudly (non-zero exit, nothing printed as "copy this
+in") rather than handing back something unverified.
+
 No native or self-tracked expiry, deliberately: this credential isn't
 part of the quarterly leaf-rotation cycle create_leaf_keys.py drives
 (nothing here re-mints or refreshes it), it lives offline like the GPG
@@ -51,12 +59,13 @@ import requests
 from cloud_credentials.cache import require_cache_file
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_session
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_permission_group_ids, r2_rotation_token
+from cloud_credentials.verify import verify_leaf_via_rclone
 
 SNAPSHOT_BUCKET_R2 = "openbao-snapshots"
 SNAPSHOT_BUCKET_B2 = "openbao-snapshots-b2"
 
 
-def mint_r2() -> None:
+def mint_r2() -> bool:
     token = r2_rotation_token()
     account_id = require_cache_file(
         "cloudflare-r2-account-id",
@@ -75,17 +84,36 @@ def mint_r2() -> None:
         token_name="openbao-snapshot-readonly",  # noqa: S106 - a display label for the token, not the token value itself
         native_expiry=False,
     )
-    print("\n--- R2: openbao-snapshot-readonly ---")
-    print(f"  bucket:       {SNAPSHOT_BUCKET_R2}")
-    print(f"  access key:   {result['id']}")
     # Cloudflare's own docs: Secret Access Key = SHA-256 hash of the
     # token value, computed locally (see leaf_keys/r2.py's create_r2 for
     # the same derivation on cloud_sync's own leaves).
-    print(f"  secret key:   {hashlib.sha256(result['value'].encode()).hexdigest()}")
+    access_key, secret_key = result["id"], hashlib.sha256(result["value"].encode()).hexdigest()
+
+    # Same rclone S3-compatible path production would actually use to
+    # fetch a snapshot — proving the API accepted the token isn't the
+    # same claim as proving it can list this specific bucket (see
+    # docs/cloud-credential-creation.md's own reasoning for why
+    # create_leaf_keys.py --rotate does this same check before trusting
+    # a leaf). "auto" region: confirmed in leaf_keys/r2.py's rotate_r2.
+    ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://{account_id}.r2.cloudflarestorage.com", "auto", SNAPSHOT_BUCKET_R2, "read")
+    print("\n--- R2: openbao-snapshot-readonly ---")
+    print(f"  bucket:       {SNAPSHOT_BUCKET_R2}")
+    if not ok:
+        # Access key ID only, never the secret — nothing here should be
+        # copyable-by-habit into the break-glass entry if it didn't
+        # actually verify.
+        print(f"  access key:   {access_key}")
+        print(f"  VERIFICATION FAILED ({detail}) — do NOT save this into the break-glass entry.", file=sys.stderr)
+        print(f"  Revoke it by hand in the Cloudflare dashboard, confirm the {SNAPSHOT_BUCKET_R2!r} bucket exists, and re-run.", file=sys.stderr)
+        return False
+    print(f"  access key:   {access_key}")
+    print(f"  secret key:   {secret_key}")
+    print(f"  verified:     {detail} against {SNAPSHOT_BUCKET_R2}")
     print("  Copy both into the break-glass password manager entry now — not written to disk anywhere.")
+    return True
 
 
-def mint_b2() -> None:
+def mint_b2() -> bool:
     session, account_id, api_url = b2_rotation_session()
     bucket_id = b2_lookup_bucket_id(session, api_url, account_id, bucket_name=SNAPSHOT_BUCKET_B2)
     body = session.post(
@@ -100,11 +128,26 @@ def mint_b2() -> None:
     )
     body.raise_for_status()
     key_body = body.json()
+    access_key, secret_key = key_body["applicationKeyId"], key_body["applicationKey"]
+
+    # Same reasoning as mint_r2's own verification — region comes from
+    # the same cache file cloud_sync's own rclone.conf uses (storage.yaml),
+    # not guessed, since a wrong region is a silent SignatureDoesNotMatch
+    # on B2/S3-compat, not an obviously-wrong-looking error.
+    region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses.")
+    ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "read")
     print("\n--- B2: openbao-snapshot-readonly ---")
     print(f"  bucket:       {SNAPSHOT_BUCKET_B2}")
-    print(f"  key id:       {key_body['applicationKeyId']}")
-    print(f"  app key:      {key_body['applicationKey']}")
+    if not ok:
+        print(f"  key id:       {access_key}")
+        print(f"  VERIFICATION FAILED ({detail}) — do NOT save this into the break-glass entry.", file=sys.stderr)
+        print(f"  Revoke it by hand in the B2 Console, confirm the {SNAPSHOT_BUCKET_B2!r} bucket exists, and re-run.", file=sys.stderr)
+        return False
+    print(f"  key id:       {access_key}")
+    print(f"  app key:      {secret_key}")
+    print(f"  verified:     {detail} against {SNAPSHOT_BUCKET_B2}")
     print("  Copy both into the break-glass password manager entry now — not written to disk anywhere.")
+    return True
 
 
 def main() -> int:
@@ -114,13 +157,15 @@ def main() -> int:
 
     mint_fns = {"r2": mint_r2, "b2": mint_b2}
     targets = mint_fns if args.provider == "all" else {args.provider: mint_fns[args.provider]}
+    all_ok = True
     for name, fn in targets.items():
         try:
-            fn()
+            if not fn():
+                all_ok = False
         except requests.HTTPError as exc:
             print(f"{name}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
-            return 1
-    return 0
+            all_ok = False
+    return 0 if all_ok else 1
 
 
 if __name__ == "__main__":

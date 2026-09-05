@@ -42,12 +42,12 @@ Two real alternatives were considered:
 Split secrets into two classes:
 
 - **Recovery-critical** — must exist before OpenBao does. This is
-  exactly two things: the Shamir unseal key shares, and one narrowly
+  exactly two categories: the Shamir unseal key shares, and a narrowly
   scoped **read-only** cloud credential limited to OpenBao's own
-  snapshot bucket/prefix. Both live outside Vault permanently, with the
-  same offline handling this repo already gives its GPG private key —
-  password manager plus one offline copy, never committed, never only
-  on a host.
+  snapshot bucket/prefix, one per replica provider. Both live outside
+  Vault permanently, with the same offline handling this repo already
+  gives its GPG private key — password manager plus one offline copy,
+  never committed, never only on a host.
 - **Operational** — everything else: day-to-day cloud write/read
   credentials, app secrets, everything currently driven by
   `secrets_registry.yaml`. Fine to live only in Vault once it's up.
@@ -63,11 +63,13 @@ restore playbook pulls everything else from Vault.
   category for `ansible/cloud_credentials/` — narrower than any
   existing leaf credential (bucket/prefix-limited, read-only,
   provisioned outside the rotation machinery those scripts drive today,
-  since it can't depend on the thing it's bootstrapping). Which
-  provider hosts the snapshot bucket, and how this credential is
-  minted and refreshed, is a build detail for OpenBao's initial
-  deployment and the backup/restore proving work that follows it, not
-  decided here.
+  since it can't depend on the thing it's bootstrapping). Resolved for
+  Track A stage 1: R2 (`openbao-snapshots`) and B2
+  (`openbao-snapshots-b2`) — two providers rather than one, so recovery
+  doesn't depend on a single cloud vendor being reachable — minted by
+  `ansible/cloud_credentials/create_snapshot_readonly_keys.py`, which
+  prints each credential once rather than caching it. See
+  [`openbao.md`](../openbao.md).
 - This adds a second offline secret to the operator's break-glass
   process (the Shamir shares) alongside the existing GPG key, and a
   second narrowly-scoped credential outside any automated rotation.

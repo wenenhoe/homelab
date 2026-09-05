@@ -81,7 +81,22 @@ def r2_permission_group_ids(session, account_id: str) -> dict:
     return {g["name"]: g["id"] for g in resp["result"]}
 
 
-def r2_create_leaf_token(session, account_id: str, group_by_name: dict, leaf: str) -> dict:
+def r2_create_leaf_token(
+    session,
+    account_id: str,
+    group_by_name: dict,
+    leaf: str,
+    bucket: str = R2_BUCKET,
+    token_name: str | None = None,
+    native_expiry: bool = True,
+) -> dict:
+    # bucket/token_name/native_expiry default to cloud_sync's own leaf
+    # shape (R2_BUCKET, "homelab-cloud-sync-r2-<leaf>", quarterly native
+    # expiry) so every existing call site is unaffected. The one other
+    # caller — create_snapshot_readonly_keys.py — passes all three
+    # explicitly: a different bucket, a name that doesn't collide with
+    # cloud_sync's tokens, and native_expiry=False (see that script for
+    # why this particular credential isn't put on the quarterly cycle).
     group_name = R2_PERMISSION_GROUP_BY_LEAF[leaf]
     if group_name not in group_by_name:
         available = ", ".join(sorted(group_by_name))
@@ -90,26 +105,28 @@ def r2_create_leaf_token(session, account_id: str, group_by_name: dict, leaf: st
             file=sys.stderr,
         )
         sys.exit(1)
-    resource_key = f"com.cloudflare.edge.r2.bucket.{account_id}_default_{R2_BUCKET}"
+    resource_key = f"com.cloudflare.edge.r2.bucket.{account_id}_default_{bucket}"
+    policy = {
+        "name": token_name or f"homelab-cloud-sync-r2-{leaf}",
+        "policies": [
+            {
+                "effect": "allow",
+                "resources": {resource_key: "*"},
+                "permission_groups": [{"id": group_by_name[group_name]}],
+            }
+        ],
+    }
+    if native_expiry:
+        # Native, confirmed against Cloudflare's own Create Token
+        # reference (top-level `expires_on`, RFC 3339, on the same
+        # POST /accounts/{account_id}/tokens this already calls) -
+        # unlike OCI, no self-tracked cache file needed here.
+        # check_freshness.py reads this back live via Get Token
+        # rather than trusting a local clock.
+        policy["expires_on"] = rfc3339_in(QUARTERLY_DAYS)
     resp = session.post(
         f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens",
-        json={
-            "name": f"homelab-cloud-sync-r2-{leaf}",
-            "policies": [
-                {
-                    "effect": "allow",
-                    "resources": {resource_key: "*"},
-                    "permission_groups": [{"id": group_by_name[group_name]}],
-                }
-            ],
-            # Native, confirmed against Cloudflare's own Create Token
-            # reference (top-level `expires_on`, RFC 3339, on the same
-            # POST /accounts/{account_id}/tokens this already calls) -
-            # unlike OCI, no self-tracked cache file needed here.
-            # check_freshness.py reads this back live via Get Token
-            # rather than trusting a local clock.
-            "expires_on": rfc3339_in(QUARTERLY_DAYS),
-        },
+        json=policy,
     ).json()
     if not resp.get("success"):
         print(f"r2 {leaf}: token creation failed: {resp['errors']}", file=sys.stderr)

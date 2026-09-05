@@ -39,6 +39,13 @@ Two scripts, plus an audit tool:
   current cache as an orphan — e.g. a key from an interrupted rotation
   never cleaned up on the provider's side. Flags only; deleting
   anything it finds is a separate, deliberate step.
+- **`ansible/cloud_credentials/create_snapshot_readonly_keys.py`** —
+  run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
+  credentials [ADR 0017](decisions/0017-openbao-bootstrap-secret-split.md)
+  calls for — OpenBao's own break-glass snapshot-restore credential,
+  not a `cloud_sync` leaf. Prints each credential once instead of
+  caching it to `ansible/files/secrets/`; see
+  [`openbao.md`](openbao.md) for where it goes from there.
 
 **Testing:** neither script is an Ansible role, so Molecule's per-host
 model (`docs/molecule-testing.md`) doesn't apply. `ansible/tests/`

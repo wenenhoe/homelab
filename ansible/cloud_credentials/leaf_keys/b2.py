@@ -45,15 +45,18 @@ B2_LEAF_CAPABILITIES = {
 }
 
 
-def b2_lookup_bucket_id(session, api_url: str, account_id: str) -> str:
+def b2_lookup_bucket_id(session, api_url: str, account_id: str, bucket_name: str = B2_BUCKET) -> str:
+    # bucket_name defaults to cloud_sync's own B2_BUCKET so every
+    # existing call site is unaffected — create_snapshot_readonly_keys.py
+    # is the one caller that passes a different bucket.
     bucket_resp = session.post(
         f"{api_url}/b2api/v2/b2_list_buckets",
-        json={"accountId": account_id, "bucketName": B2_BUCKET},
+        json={"accountId": account_id, "bucketName": bucket_name},
     )
     bucket_resp.raise_for_status()
     buckets = bucket_resp.json()["buckets"]
     if not buckets:
-        print(f"b2: bucket {B2_BUCKET!r} doesn't exist yet — create it first", file=sys.stderr)
+        print(f"b2: bucket {bucket_name!r} doesn't exist yet — create it first", file=sys.stderr)
         sys.exit(1)
     return buckets[0]["bucketId"]
 

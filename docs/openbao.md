@@ -98,19 +98,16 @@ consequences directly:
   `adduser -S` assigns that number at image-build time, and it's not
   this repo's business to pin it.
 
-  The first version of this fix put the chown in a one-shot
-  `openbao-init` *compose service* instead, gated with `depends_on:
-  condition: service_completed_successfully`. Confirmed live, via
-  `./molecule-test-all.sh openbao_cert`'s idempotence check: `docker
-  compose up` brings every service to "running", and a `restart: "no"`
-  container that already exited successfully doesn't count as running
-  — so Compose restarts it on *every* `up`, which
+  A one-shot `openbao-init` compose service (`depends_on:
+  condition: service_completed_successfully`) doesn't work for this:
+  Compose brings every service to "running" on `docker compose up`, and
+  a `restart: "no"` container that already exited successfully doesn't
+  count as running — so Compose restarts it on *every* `up`, which
   `community.docker.docker_compose_v2` reports as changed,
-  unconditionally, forever. `openbao` is self-managed now
-  (`compose_self_managed_apps`, same mechanism `caddy`/`bind9` already
-  use, see [`deployment-flow.md`](deployment-flow.md)'s Play 4)
-  specifically so this chown could be a plain guarded task instead of
-  a service Compose has any opinion about.
+  unconditionally, forever. `openbao` is self-managed
+  (`compose_self_managed_apps`, same mechanism `caddy`/`bind9` use, see
+  [`deployment-flow.md`](deployment-flow.md)'s Play 4) specifically so
+  this chown could be a plain guarded task instead.
 - `step ca certificate`/`step ca renew` both run as `--user root` too
   (same freshly-created-volume issue `lldap_cert` already documents),
   so every issuance and every renewal leaves `fullchain.pem`/`privkey.pem`
@@ -122,28 +119,17 @@ consequences directly:
   Ansible task and a systemd `ExecStart=` line from the start, never a
   compose service, so it never hit the same problem.
 
-Neither of these showed up in review — the certs-volume fix came from
-an actual first deploy attempt crash-looping with `permission denied`
-on `/openbao/data/vault.db`; the data-volume fix's *first* version
-(the `openbao-init` service) came from fixing that, and its own bug
-came from an actual `./molecule-test-all.sh` run once Molecule coverage
-existed to catch it — which is the reason to actually run things on
-real hardware and in CI before trusting any of it (see "Open follow-up"
-below).
-
 ## Duplicate configuration warning
 
-An earlier version of `compose.yaml.j2` passed `command: ["server",
-"-config=/openbao/config/openbao.hcl"]`. Confirmed live: this produced
-`WARNING: ignoring duplicate configuration found in directory:
-/openbao/config/openbao.hcl` — the image's own entrypoint already
-scans `/openbao/config` as a directory by default (documented on
-[Docker Hub](https://hub.docker.com/r/openbao/openbao): "the server
+Don't pass `command: ["server", "-config=/openbao/config/openbao.hcl"]`
+in `compose.yaml.j2` — the image's own entrypoint already scans
+`/openbao/config` as a directory by default
+([Docker Hub](https://hub.docker.com/r/openbao/openbao): "the server
 will load any HCL or JSON configuration files placed here by binding a
-volume"), so the explicit flag loaded the same file a second time.
-Fixed by dropping the flag entirely — `command: ["server"]`, relying
-on the default directory scan, which is exactly what mounting
-`openbao.hcl` at `/openbao/config/openbao.hcl` is already set up for.
+volume"), so an explicit `-config=` flag loads the same file a second
+time, producing `WARNING: ignoring duplicate configuration found in
+directory: /openbao/config/openbao.hcl`. `command: ["server"]` alone is
+correct and relies on that default scan.
 
 ## Healthcheck
 
@@ -173,17 +159,16 @@ carries for every other app here.
 
 ## Cert renewal uses SIGHUP, not a restart
 
-`cert-renewer@openbao`'s `ExecStartPost` originally restarted the
-container after every renewal — copied from `lldap_cert` without
-checking whether it still made sense here. For lldap that's free (no
-seal state to lose); for OpenBao it would mean every renewal reseals
-the vault, needing a manual unseal at whatever cadence cert renewal
-fires — not just "every reboot of `security`", which is the premise
-[0021](decisions/0021-manual-shamir-unseal.md)'s cost-benefit reasoning
-was actually built on.
+`cert-renewer@openbao`'s `ExecStartPost` sends `SIGHUP`, not a restart
+— guarded on `%i` in the shared template so lldap's own renewal is
+unaffected (a restart is free for lldap, which has no seal state to
+lose). Restarting OpenBao on every renewal would reseal the vault at
+whatever cadence cert renewal fires, not just on reboot — undermining
+[0021](decisions/0021-manual-shamir-unseal.md)'s cost-benefit premise
+that unseal only costs a human at the moments they're already at the
+keyboard.
 
-Fixed by sending `SIGHUP` instead, guarded on `%i` in the shared
-template so lldap's own renewal is unaffected. Three things back this:
+Three things back the SIGHUP approach:
 
 - OpenBao's TCP listener documents `tls_cert_file`/`tls_key_file` as
   "reloads-on-SIGHUP"
@@ -198,22 +183,26 @@ template so lldap's own renewal is unaffected. Three things back this:
   its child by default — confirmed against its own README, not
   inferred from general container-init behavior.
 
-One real caveat found during this research, not papered over: OpenBao
-issue [#2915](https://github.com/openbao/openbao/issues/2915) reports
-a SIGHUP-triggered seal-client wedge on 2.5.2 — but only for the
+One real caveat: OpenBao issue
+[#2915](https://github.com/openbao/openbao/issues/2915) reports a
+SIGHUP-triggered seal-client wedge on 2.5.2, but only for the
 combination of `seal "gcpckms"` plus a declarative `audit "file"`
 config stanza, neither of which this deployment uses (Shamir seal, no
-audit device configured yet). Worth re-checking if either of those
-changes later.
+audit device configured). Worth re-checking if either changes later.
 
-`openbao_cert/molecule/default`'s own scenario tests this directly:
-runs the exact `ExecStartPost` command, confirms `StartedAt` doesn't
-change (proving it didn't restart), and confirms — via a raw
-`openssl s_client` TLS handshake, not `bao status` — that the listener
-is actually serving the renewed cert's serial afterwards, not just
-that the file on disk changed. That's the strongest confirmation
-available without live hardware; an actual renewal on `security` is
-still the final word before fully trusting it in production.
+`openbao_cert/molecule/default`'s own scenario runs the exact
+`ExecStartPost` command, confirms `StartedAt` doesn't change (proving
+it didn't restart), and confirms — via a raw `openssl s_client` TLS
+handshake, not `bao status` — that the listener is actually serving the
+renewed cert's serial afterwards, not just that the file on disk
+changed (100.0%, 14/14 tasks, in
+`ansible/molecule-coverage/thresholds.yaml`). A real forced renewal on
+`security` itself has since confirmed the same thing outside Molecule:
+`bao status` before and after showed an identical `Active Since`
+timestamp and unchanged raft indices, and `docker ps` showed the
+container's uptime never reset — `dumb-init` forwarding the signal
+through to `bao`, and `bao` reloading without resealing, are no longer
+documentation-only claims.
 
 ## Init and unseal — manual, not scripted
 
@@ -300,40 +289,14 @@ eventually move into. The one registry entry this stage adds,
 push-monitor URL for the cert-renewal timer, same shape as
 [`lldap.md`](lldap.md)'s identical entry for lldap.
 
-## Verified live, on real hardware
+## Open follow-up
 
-Every fix and every design claim in this doc has now actually been run
-against `security`, not just reasoned about:
-
-- Init, unseal (3 shares / 2 threshold), and the healthcheck going
-  green.
-- The data-volume and certs-volume permission fixes — `openbao` came
-  up cleanly on a real cold deploy through the `roles/openbao` +
-  `openbao_cert` sequence.
-- `./molecule-test-all.sh openbao_cert` — both scenarios pass. Real
-  coverage, not a guess: 100.0% (14/14 tasks), now in
-  `ansible/molecule-coverage/thresholds.yaml`.
-- The `SIGHUP`-not-restart claim, twice: once as a bare `SIGHUP` with
-  nothing to renew, once as a full forced renewal (`step ca renew
-  --force`, the chown, then `SIGHUP`) that genuinely changed the
-  served cert's serial. Both times, `bao status` before and after
-  showed an *identical* `Active Since` timestamp and unchanged raft
-  indices, and `docker ps` showed the container's uptime never reset.
-  `dumb-init` forwarding the signal through to `bao`, and `bao`
-  reloading without resealing, are no longer documentation-only
-  claims.
-- The break-glass bundle itself — Shamir shares, root token, and both
-  providers' read-only snapshot credentials (`R2`/`B2`, both bucketed
-  as `openbao-snapshots` — see
-  [`create_snapshot_readonly_keys.py`](../ansible/cloud_credentials/create_snapshot_readonly_keys.py)) —
-  minted and verified.
-
-What hasn't happened yet: the real `cert-renewer@openbao.timer`
-firing entirely on its own schedule, unattended, rather than being
-forced by hand. Every piece it's built from (`ExecCondition`'s gate,
-the renew/chown/reload sequence itself) has now been exercised for
-real — this is closing the loop on the last one, not proving anything
+`cert-renewer@openbao.timer` hasn't yet fired entirely on its own
+schedule, unattended — every renewal so far has been forced by hand.
+Every piece it's built from (`ExecCondition`'s gate, the
+renew/chown/reload sequence itself) has been exercised for real; this
+is closing the loop on the last untested piece, not proving anything
 new.
 
 [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md)'s stage
-1 row is `Done` as of the above.
+1 row is `Done`.

@@ -1,11 +1,10 @@
 ---
 # openbao is self-managed (like caddy/bind9 — see
-# compose_self_managed_apps in group_vars/all/main.yaml) for one reason:
-# its data volume needs chowning to the image's own non-root user
-# before the container first starts, and that fix has to run as a
-# plain, guarded `docker run`, not a persistent compose service — see
-# this file's own block below for why the more obvious approach
-# (a one-shot "init" service in the compose file itself) doesn't work.
+# compose_self_managed_apps in group_vars/all/main.yaml): its data
+# volume needs chowning to the image's own non-root user before first
+# start, and that fix has to be a plain guarded `docker run`, not a
+# compose service — see docs/openbao.md's "Non-root user" section for
+# why a one-shot compose service doesn't work here.
 
 - name: Resolve openbao's own compose_apps entry, if present
   ansible.builtin.set_fact:
@@ -28,19 +27,12 @@
     compose_app_item: "{{ openbao_compose_app_item }}"
   when: openbao_has_compose_app
 
-# A one-shot "openbao-init" service inside compose.yaml.j2 itself was
-# tried first and confirmed live not to work: `docker compose up`
-# brings every service to "running", and a `restart: "no"` container
-# that already exited successfully doesn't count as running — so
-# Compose starts it again on every single `up`, which
-# community.docker.docker_compose_v2 reports as `changed`,
-# unconditionally, every deploy. That's a real Molecule idempotence
-# failure, not a cosmetic one: `./molecule-test-all.sh openbao_cert`
-# caught it directly, converging cleanly the first time and failing
-# idempotence on the second (see docs/openbao.md). A plain, guarded
-# `docker run` — checked before running, skipped once it's already
-# correct — has none of that, since nothing about it is a
-# Compose-managed service Compose has any opinion on.
+# A one-shot compose service for this doesn't work: Compose always
+# reports a completed `restart: "no"` container as needing to run
+# again on every `up`, showing `changed` forever —
+# ./molecule-test-all.sh openbao_cert caught this directly via its
+# idempotence check. See docs/openbao.md for the full story. A plain,
+# guarded `docker run` (below) has no such issue.
 - name: "Ensure the data volume is owned by the openbao user, not root [block]"
   when: openbao_has_compose_app
   block:

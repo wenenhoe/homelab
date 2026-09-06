@@ -1,6 +1,6 @@
 # Deployment Flow
 
-`deploy.yaml` runs as ten ordered plays: secrets before anything needs
+`deploy.yaml` runs as eleven ordered plays: secrets before anything needs
 `ansible_host` resolved, DNS and the reverse proxy live before anything
 that depends on them starts, and the offsite-backup destination created
 before anything uploads to it.
@@ -17,6 +17,7 @@ flowchart TD
     p7["Play 7 — Ensure lldap's<br/>observer account (security)"]
     p8["Play 8 — Deploy offsite<br/>backup agent (managed_hosts)"]
     p9["Play 9 — Deploy cloud sync<br/>(storage)"]
+    p10["Play 10 — Deploy OpenBao<br/>snapshot push tooling (security)"]
 
     p0 --> p1 --> p2 --> p3 --> p4
     p4 -- "SeaweedFS deployed" --> p5
@@ -25,15 +26,18 @@ flowchart TD
     p4 -- "each app's volumes created" --> p8
     p5 -- "bucket must exist first" --> p8
     p8 -.-> p9
+    p6 -- "openbao deployed" --> p10
+    p9 -.-> p10
 
     style p9 stroke-dasharray: 5 5
+    style p10 stroke-dasharray: 5 5
 ```
 
-`p8 -.-> p9` is drawn dashed because it isn't a hard dependency —
-Play 9 resolves every backup host's cloud targets via static
-`hostvars`, not by depending on those hosts' Play 8 having run in this
-same invocation. It's just the natural place for the next stage of the
-pipeline to live; see Play 9 below.
+`p8 -.-> p9` and `p9 -.-> p10` are drawn dashed because neither is a
+hard dependency — Play 9 resolves every backup host's cloud targets via
+static `hostvars`, and Play 10 only needs Play 6's openbao deployment,
+not anything Play 9 does. Both just sit at the natural place for their
+own next stage of the pipeline to live; see Play 9 and Play 10 below.
 
 ## Play 0 — Secrets (`hosts: localhost`, imported from `bootstrap-secrets.yaml`)
 
@@ -129,6 +133,15 @@ place for "the next stage of the backup pipeline" to live. Installs the
 `cloud-sync.timer`/`cloud-sync.service` pair that relays SeaweedFS
 archives onward to R2/B2/OCI. See
 [`disaster-recovery.md`](disaster-recovery.md).
+
+## Play 10 — Deploy OpenBao snapshot push tooling (`hosts: security`)
+
+`security` only. Renders `openbao_backup`'s rclone config and push
+script — the tooling Track A stage 2's backup drill runs by hand, not
+a systemd timer (no Vault credential exists yet that's safe to leave
+on disk for an unattended job; see
+[`openbao-backup-restore.md`](openbao-backup-restore.md)). Depends only
+on Play 6's openbao deployment, not on Play 9.
 
 ## Roles
 

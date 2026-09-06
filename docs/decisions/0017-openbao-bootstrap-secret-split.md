@@ -78,6 +78,8 @@ restore playbook pulls everything else from Vault.
   ([0001](0001-credential-caching-stage-1-before-secrets-manager.md)).
 - The migration roadmap's backup/restore proving stage — proving the
   backup/restore loop before any secret's authoritative copy moves
-  into Vault — is the actual test of this split, see
-  `docs/disaster-recovery.md` once that stage lands for the drill
-  procedure.
+  into Vault — is the actual test of this split. See
+  [`openbao-backup-restore.md`](../openbao-backup-restore.md) for the
+  drill procedure — its own doc, not `disaster-recovery.md`, since the
+  mechanism (raft snapshot, not the volume-backup pipeline that doc
+  covers) is genuinely different.

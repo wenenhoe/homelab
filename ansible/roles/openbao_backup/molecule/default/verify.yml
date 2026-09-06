@@ -1,0 +1,120 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  vars:
+    compose_deploy_dir: /opt/stacks
+    project_root: "{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}"
+  tasks:
+    - name: Stat every rendered path
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      register: openbao_backup_verify_stats
+      loop:
+        - { path: "{{ compose_deploy_dir }}/openbao-backup", mode: "0700" }
+        - { path: "{{ compose_deploy_dir }}/openbao-backup/rclone.conf", mode: "0600" }
+        - { path: "{{ compose_deploy_dir }}/openbao-backup/gpg-public-key.asc", mode: "0644" }
+        - { path: "{{ compose_deploy_dir }}/openbao-backup/staging", mode: "0700" }
+        - { path: "{{ compose_deploy_dir }}/openbao-backup/snapshot-push.sh", mode: "0750" }
+      loop_control:
+        label: "{{ item.path }}"
+
+    - name: Confirm every rendered path exists with the expected mode
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == item.item.mode
+        fail_msg: "{{ item.item.path }} is missing or not mode {{ item.item.mode }} (got {{ item.stat.mode | default('missing') }})."
+      loop: "{{ openbao_backup_verify_stats.results }}"
+      loop_control:
+        label: "{{ item.item.path }}"
+
+    - name: Read the rendered rclone.conf
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/openbao-backup/rclone.conf"
+      register: openbao_backup_rclone_conf_raw
+      no_log: true
+
+    - name: Confirm rclone.conf contains both remotes with the right credentials, not the other target's
+      ansible.builtin.assert:
+        that:
+          - "'[r2]' in openbao_backup_rclone_conf_decoded"
+          - "'[b2]' in openbao_backup_rclone_conf_decoded"
+          - "'molecule-fake-r2-access-key' in openbao_backup_rclone_conf_decoded"
+          - "'molecule-fake-b2-access-key' in openbao_backup_rclone_conf_decoded"
+          - "'openbao-snapshots' in openbao_backup_rclone_conf_decoded"
+          - "'region = auto' in openbao_backup_rclone_conf_decoded"
+          - "'region = us-west-004' in openbao_backup_rclone_conf_decoded"
+          # Regression check for a real live failure: without this on
+          # BOTH remotes, rclone's own pre-flight bucket-existence
+          # check gets denied by this write leaf's deliberately-narrow
+          # capability set and falls back to a real CreateBucket call,
+          # which then also gets denied — surfacing as a confusing
+          # AccessDenied on CreateBucket rather than a clear permissions
+          # error. See rclone.conf.j2's own comment and
+          # docs/openbao-backup-restore.md's "Before first use".
+          #
+          # Matched as an exact config LINE, not a substring, since the
+          # file's own explanatory comment also contains this phrase in
+          # prose — a substring count would silently overcount by one
+          # and fail to catch it being missing from an actual remote.
+          - "openbao_backup_rclone_conf_no_check_bucket_lines | length == 2"
+        fail_msg: "rclone.conf doesn't contain the expected remotes/credentials — check the role's rclone.conf.j2 against openbao_snapshot_targets."
+      vars:
+        openbao_backup_rclone_conf_decoded: "{{ openbao_backup_rclone_conf_raw.content | b64decode }}"
+        openbao_backup_rclone_conf_no_check_bucket_lines: >-
+          {{ openbao_backup_rclone_conf_decoded.splitlines()
+             | select('equalto', 'no_check_bucket = true') | list }}
+      no_log: true
+
+    - name: Read the rendered GPG public key
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/openbao-backup/gpg-public-key.asc"
+      register: openbao_backup_gpg_rendered_raw
+
+    - name: Read the source fixture key directly
+      ansible.builtin.slurp:
+        path: "{{ project_root }}/ansible/files/backup-gpg-public-key.asc"
+      register: openbao_backup_gpg_source_raw
+      delegate_to: localhost
+      become: false
+
+    - name: Confirm the rendered GPG key is byte-identical to the source fixture
+      ansible.builtin.assert:
+        that:
+          - openbao_backup_gpg_rendered_raw.content == openbao_backup_gpg_source_raw.content
+        fail_msg: >-
+          Rendered gpg-public-key.asc doesn't match
+          ansible/files/backup-gpg-public-key.asc — the
+          lookup('file', ...) in gpg-public-key.asc.j2 isn't reading
+          the right source.
+
+    - name: Read the rendered push script
+      ansible.builtin.slurp:
+        path: "{{ compose_deploy_dir }}/openbao-backup/snapshot-push.sh"
+      register: openbao_backup_script_raw
+
+    - name: Confirm the push script's Jinja was actually substituted, not left literal
+      ansible.builtin.assert:
+        that:
+          - expected_staging_path in openbao_backup_script_decoded
+          - unrendered_jinja_marker not in openbao_backup_script_decoded
+          - "'#!/bin/sh' in openbao_backup_script_decoded"
+          - "'BAO_TOKEN' in openbao_backup_script_decoded"
+        fail_msg: "snapshot-push.sh.j2 wasn't rendered correctly — either compose_deploy_dir wasn't substituted, or raw Jinja leaked into the output."
+      vars:
+        openbao_backup_script_decoded: "{{ openbao_backup_script_raw.content | b64decode }}"
+        expected_staging_path: "{{ compose_deploy_dir }}/openbao-backup/staging"
+        # Built from repeated chars, not typed literally, so this file
+        # itself doesn't contain a Jinja open-tag for verify.yml's own
+        # templating to trip over.
+        unrendered_jinja_marker: "{{ '{' * 2 }}"
+
+    - name: Confirm no credential material leaked into the push script itself
+      ansible.builtin.assert:
+        that:
+          - "'molecule-fake-r2-access-key' not in openbao_backup_script_decoded"
+          - "'molecule-fake-b2-access-key' not in openbao_backup_script_decoded"
+        fail_msg: "snapshot-push.sh should read credentials from rclone.conf at run time, never have them baked into the script itself."
+      vars:
+        openbao_backup_script_decoded: "{{ openbao_backup_script_raw.content | b64decode }}"

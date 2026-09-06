@@ -201,3 +201,21 @@
         name: cloud_sync
       tags:
         - images
+
+# Play 10 — OpenBao snapshot push tooling. security only. Renders the
+# rclone.conf and push script the operator runs by hand for
+# Track A stage 2's backup/restore drill — see
+# docs/openbao-backup-restore.md. No systemd unit here (deliberately
+# manual for now, see that doc's "Why manual" section); this play just
+# keeps the rendered files current so the script an operator runs is
+# never stale relative to the cached credentials.
+- name: Deploy OpenBao snapshot push tooling
+  hosts: security
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Include openbao_backup role
+      ansible.builtin.include_role:
+        name: openbao_backup
+      tags:
+        - images

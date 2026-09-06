@@ -1,0 +1,50 @@
+#!/bin/sh
+# Rendered by openbao_backup — do not edit by hand, changes are
+# overwritten on the next deploy.
+#
+# Run BY HAND after exporting BAO_TOKEN in your own shell — see
+# docs/openbao-backup-restore.md for why this isn't a systemd timer
+# yet. The token is only ever passed via `docker exec -e BAO_TOKEN`,
+# which forwards the value already in this shell's environment straight
+# into the container — never written to a file, never a script
+# argument (arguments are visible in `ps`, env vars passed this way are
+# not persisted anywhere).
+set -eu
+
+: "${BAO_TOKEN:?Export BAO_TOKEN first (see docs/openbao-backup-restore.md), then re-run this script}"
+
+STAGING="{{ compose_deploy_dir }}/openbao-backup/staging"
+RCLONE_CONF="{{ compose_deploy_dir }}/openbao-backup/rclone.conf"
+GPG_PUBKEY="{{ compose_deploy_dir }}/openbao-backup/gpg-public-key.asc"
+
+TS=$(date -u +%Y%m%dT%H%M%SZ)
+RAW="${STAGING}/snapshot-${TS}.snap"
+ENC="${STAGING}/snapshot-${TS}.snap.gpg"
+
+echo "Saving raft snapshot from openbao..."
+# -address and BAO_SKIP_VERIFY match docs/openbao.md's own healthcheck
+# invocation — loopback-only, against our own internal CA's cert, same
+# trust decision already made there.
+docker exec -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao \
+  bao operator raft snapshot save -address=https://127.0.0.1:8200 /tmp/openbao-snapshot-push.snap
+docker cp openbao:/tmp/openbao-snapshot-push.snap "$RAW"
+docker exec openbao rm -f /tmp/openbao-snapshot-push.snap
+
+echo "Encrypting (independently of Vault's own encryption)..."
+gpg --batch --yes --trust-model always \
+  --output "$ENC" \
+  --encrypt --recipient-file "$GPG_PUBKEY" \
+  "$RAW"
+rm -f "$RAW"
+
+for remote in r2 b2; do
+  echo "Pushing to ${remote}:openbao-snapshots/..."
+  docker run --rm \
+    -v "${RCLONE_CONF}:/config/rclone/rclone.conf:ro" \
+    -v "${STAGING}:/data:ro" \
+    rclone/rclone:1.75 \
+    copy "/data/$(basename "$ENC")" "${remote}:openbao-snapshots/"
+done
+
+echo "Done: $(basename "$ENC") pushed to R2 and B2."
+echo "Local encrypted copy left at ${ENC} — this host's copy is a convenience only, not part of the recovery path; delete old ones by hand from ${STAGING}."

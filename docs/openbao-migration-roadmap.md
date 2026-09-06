@@ -14,7 +14,7 @@ Update this table at the start and end of each PR that works a stage.
 | :-: | :--- | :-: | :--- |
 | 1 | Deploy OpenBao | A | Done |
 | 2 | Prove backup/restore loop | A | Done |
-| 3 | Auth and least-privilege policies | A | Not started |
+| 3 | Auth and least-privilege policies | A | Done |
 | 4 | Migrate the secrets role | A | Not started |
 | 5 | Repoint the cloud-credential package | A | Not started |
 | 6 | Full cutover, decommission file cache | A | Not started |
@@ -61,7 +61,9 @@ built, but **proven**.
 3. **Auth and least-privilege policies** — `controller`'s Era A
    AppRole ([0022](decisions/0022-approle-policy-structure-two-eras.md)):
    one broad policy, since it's the only automation identity that
-   exists at this point.
+   exists at this point. See [`openbao-auth.md`](openbao-auth.md) for
+   the policy, the runbook, and the root-token revocation this stage
+   ends with.
 4. **Migrate the secrets role** — `ensure_secret.yaml`'s `hex`/`uuid4`
    generation moves to check-then-write against Vault KV v2 (CAS, to
    avoid races); `manual` secrets bootstrap via an updated
@@ -112,3 +114,9 @@ not against the file cache.
   isn't scoped yet.
 - The shared SSH private key across all managed hosts (and possibly
   the maintainer's laptop) hasn't been split into a CD-agent-only key.
+- `snapshot-push.sh` still needs a human-exported root token —
+  `controller`'s Era A policy now grants the read it needs, but the
+  script itself isn't wired to log in via that AppRole yet. Needs a
+  spike on `bao write -f auth/approle/login ...`'s exact output shape
+  first — see [`openbao-backup-restore.md`](openbao-backup-restore.md)'s
+  open follow-ups.

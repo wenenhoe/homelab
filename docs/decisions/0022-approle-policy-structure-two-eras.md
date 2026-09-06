@@ -1,6 +1,6 @@
 # 0022. AppRole/policy structure: controller today, split cd_agent roles after the CD-runner stage
 
-**Status:** Proposed
+**Status:** Accepted (Era A)
 
 ## Context
 
@@ -18,6 +18,19 @@ identity that exists at that point. Designing one static AppRole
 layout for the whole roadmap would either over-scope `controller`
 permanently or under-scope it during the stages that need it to do
 everything.
+
+One more consumer surfaced once the auth/policy stage was actually
+built: `openbao-backup-restore.md`'s snapshot-push script currently
+needs a human to export the root token by hand
+([0023](0023-openbao-snapshot-push-standalone.md)'s "Why manual"
+section says stage 3 is what fixes that), but that script runs on
+`security` itself, not from `controller`. Since Era A has exactly one
+automation identity, giving the snapshot job its own AppRole would
+mean a third identity solely for one read-only path — the Decision
+below folds it into `controller`'s policy instead. This does mean
+`controller`'s `secret_id` ends up cached on two hosts (the operator's
+laptop and `security`) rather than one; see
+[`openbao-auth.md`](../openbao-auth.md) for the runbook.
 
 `cd_agent` has a fixed LAN IP; `controller` doesn't (laptop, DHCP) —
 confirmed directly rather than assumed. That asymmetry is the other
@@ -39,10 +52,16 @@ recovery-critical material (which never enters Vault at all, per
 `secret/data/hosts/*` (mirroring the `security`/`services`/`storage`/
 `play` `host_vars` split) and on both
 `secret/data/cloud_credentials/leaf/*` and
-`secret/data/cloud_credentials/rotation/*`. This matches today's
-reality — one human/machine already does everything via the file
-cache — so it's not a new exposure, just the same scope moved to
-Vault. No `secret_id_bound_cidrs`/`token_bound_cidrs` on this role:
+`secret/data/cloud_credentials/rotation/*`, plus read-only on
+`sys/storage/raft/snapshot` for the reason above. The first three
+match today's reality — one human/machine already does everything via
+the file cache — so it's not a new exposure, just the same scope moved
+to Vault; the snapshot path is new scope, but read-only and narrow
+enough (one path, no `sudo` capability required — confirmed against a
+real snapshot-agent policy example, not just the endpoint's own docs)
+that it doesn't change the "one broad-but-bounded identity" shape this
+era is built around. No `secret_id_bound_cidrs`/`token_bound_cidrs` on
+this role:
 `controller` has no stable address to bind to, and this era is
 transitional by design.
 

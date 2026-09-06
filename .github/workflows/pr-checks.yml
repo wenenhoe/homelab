@@ -263,6 +263,12 @@ jobs:
           printf '%s' 'ci-dummy-r2-openbao-snapshot-write-secret-key' > ansible/files/secrets/cloudflare-r2-openbao-snapshot-write-secret-key
           printf '%s' 'ci-dummy-b2-openbao-snapshot-write-access-key' > ansible/files/secrets/backblaze-b2-openbao-snapshot-write-access-key
           printf '%s' 'ci-dummy-b2-openbao-snapshot-write-secret-key' > ansible/files/secrets/backblaze-b2-openbao-snapshot-write-secret-key
+          # openbao-controller-role-id/-secret-id are allow_blank: true
+          # too — Track A stage 4 is the first real consumer (see
+          # docs/openbao-auth.md), same reasoning as
+          # uptime-kuma-push-url-*/beszel-hub-key just below.
+          printf '%s' '' > ansible/files/secrets/openbao-controller-role-id
+          printf '%s' '' > ansible/files/secrets/openbao-controller-secret-id
           # uptime-kuma-push-url-* are allow_blank: true too - each
           # monitor's URL doesn't exist until created by hand in Kuma's
           # own UI (see docs/uptime-kuma.md), same reasoning as

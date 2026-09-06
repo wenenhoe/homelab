@@ -147,5 +147,14 @@ see the roadmap's own stage-status table.
   (`{{ compose_deploy_dir }}/openbao-backup/staging`) — encrypted
   snapshots accumulate there until deleted by hand. Low priority: the
   cloud copies, not this host's own, are the actual recovery path.
-- Track A stage 3 is what lets this become a real systemd timer — see
-  "Why manual" above.
+- Track A stage 3 ([`openbao-auth.md`](openbao-auth.md)) grants the
+  `controller` policy read access to `sys/storage/raft/snapshot`, but
+  `snapshot-push.sh` itself hasn't been changed to use it yet — it
+  still needs a human to export `BAO_TOKEN`. The exact output shape of
+  `bao write -f auth/approle/login role_id=... secret_id=...`
+  (`-format=json`'s field names, and how cleanly that composes with
+  the existing `docker exec -e` pattern) hasn't been checked against a
+  live instance. That's a time-boxed spike before writing the
+  login-and-save logic into the script and adding a systemd timer for
+  it, not a large change once answered — tracked here rather than
+  guessed at.

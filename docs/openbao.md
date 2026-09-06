@@ -4,10 +4,11 @@
 cache ([ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)) —
 see [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
 the full build order. This doc covers Track A stage 1 only: deploying
-it, its TLS cert, and getting it initialized and unsealed. Auth
-policies (stage 3) and the secrets role migration (stage 4) are
-separate stages with their own docs once they land. The actual
-backup/restore drill (stage 2) has its own doc:
+it, its TLS cert, and getting it initialized and unsealed. Auth and
+policies (stage 3) are covered in
+[`openbao-auth.md`](openbao-auth.md); the secrets role migration
+(stage 4) has its own doc once it lands. The actual backup/restore
+drill (stage 2) has its own doc:
 [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 ## Deployment
@@ -271,10 +272,10 @@ The command prints 3 unseal key shares and an initial root token,
 The root token is not one of 0017's two recovery-critical items, but
 treat it with the same discipline for now: it's the only credential
 that can configure anything in a freshly-initialized, empty Vault.
-Track A stage 3 (auth/policies) is what gives `controller` its own
-AppRole; once that's live and proven, revoke this initial root token
-(`bao token revoke -self`, run with it still active) rather than
-leaving a standing root credential around indefinitely.
+[`openbao-auth.md`](openbao-auth.md) (Track A stage 3) is what gives
+`controller` its own AppRole and revokes this initial root token once
+that AppRole is proven — don't revoke it before then, and don't leave
+it standing indefinitely after.
 
 ### Unsealing (every restart of the `openbao` container)
 

@@ -114,19 +114,27 @@ Confirmed against a real running instance, not inferred from docs:
 On a throwaway host — burn it afterward, don't reuse it:
 
 1. Install OpenBao (same version as the `security` deploy), start it
-   with a fresh raft config, and run `bao operator init` on it. This
-   gives the host a serving instance to force-restore onto; its own
-   keys are discarded in step 4.
+   with a fresh raft config, run `bao operator init` on it, then unseal
+   it with its own fresh keys — required before the restore endpoint is
+   even reachable (a sealed node returns `503`, not a clearer error).
+   Its own keys and root token are used once more, in the next step,
+   then discarded.
 2. Fetch the latest snapshot from R2 or B2 using the break-glass
    **read-only** credential
    ([`create_snapshot_readonly_keys.py`](../ansible/cloud_credentials/create_snapshot_readonly_keys.py)) —
    not the write leaf above, which can't read.
 3. Decrypt it with the offline GPG private key
    ([`disaster-recovery.md`](disaster-recovery.md#encryption)).
-4. `bao operator raft snapshot restore -force <path>`, then unseal
-   using the break-glass bundle's *original* Shamir shares (from the
-   password manager, not this host's own `init` output).
-5. Authenticate with the break-glass root token and read back a known
+4. Authenticate with the throwaway host's own root token (from step 1)
+   and run `bao operator raft snapshot restore -force <path>` — a
+   token is required even against a target with nothing real on it
+   yet. The node reseals itself immediately afterward; both the
+   throwaway host's root token and its own unseal keys become useless
+   against the restored data from this point on.
+5. Unseal again using the break-glass bundle's *original* Shamir
+   shares (from the password manager, not this host's own `init`
+   output).
+6. Authenticate with the break-glass root token and read back a known
    secret path to confirm the restore actually worked, not just that
    the command exited 0.
 

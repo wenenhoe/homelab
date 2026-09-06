@@ -5,6 +5,15 @@
   vars:
     lldap_cert_step_ca_url: https://step-ca-test:9000
   tasks:
+    # Single source of truth for the argv-embedded image reference below
+    # — loaded into a namespaced var (not shadowing the vars: block
+    # above) so this can't drift from ansible/roles/lldap_cert/defaults/
+    # main.yaml the way a hardcoded literal here already had
+    - name: Load lldap_cert's own role defaults
+      ansible.builtin.include_vars:
+        file: ../../defaults/main.yaml
+        name: lldap_cert_role_defaults
+
     - name: Discover the lldap certs volume's real host path
       community.docker.docker_volume_info:
         name: lldap_certs
@@ -80,7 +89,7 @@
           - lldap_certs:/certs
           - -v
           - /etc/step-ca/root_ca.crt:/root_ca.crt:ro
-          - smallstep/step-cli:0.30.2
+          - "{{ lldap_cert_role_defaults.lldap_cert_step_cli_image }}"
           - step
           - ca
           - renew

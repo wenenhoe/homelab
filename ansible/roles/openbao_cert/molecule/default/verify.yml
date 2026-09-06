@@ -5,6 +5,15 @@
   vars:
     openbao_cert_step_ca_url: https://step-ca-test:9000
   tasks:
+    # Single source of truth for the two argv-embedded image references
+    # below — loaded into a namespaced var (not shadowing the vars:
+    # block above) so this can't drift from ansible/roles/openbao_cert/
+    # defaults/main.yaml the way a hardcoded literal here already had
+    - name: Load openbao_cert's own role defaults
+      ansible.builtin.include_vars:
+        file: ../../defaults/main.yaml
+        name: openbao_cert_role_defaults
+
     # --- shared setup: the openbao image's own non-root UID -------------
     # By name, not a hardcoded number — see roles/openbao's own
     # comment for why. Read from the real running container rather
@@ -131,7 +140,7 @@
           - openbao_certs:/certs
           - -v
           - /etc/step-ca/root_ca.crt:/root_ca.crt:ro
-          - smallstep/step-cli:0.30.6
+          - "{{ openbao_cert_role_defaults.openbao_cert_step_cli_image }}"
           - step
           - ca
           - renew
@@ -176,7 +185,11 @@
         argv:
           - /bin/sh
           - -c
-          - '[ "openbao" != "openbao" ] || /usr/bin/docker run --rm --user root -v openbao_certs:/certs openbao/openbao:2.5.4 chown -R openbao:openbao /certs'
+          - >-
+            [ "openbao" != "openbao" ] || /usr/bin/docker run --rm --user
+            root -v openbao_certs:/certs
+            {{ openbao_cert_role_defaults.openbao_cert_image }}
+            chown -R openbao:openbao /certs
       changed_when: true
 
     - name: Confirm the renewed cert is handed back to the openbao user

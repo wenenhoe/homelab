@@ -50,6 +50,16 @@ Two scripts, plus an audit tool:
   until an actual disaster. Prints each credential once instead of
   caching it to `ansible/files/secrets/`; see
   [`openbao.md`](openbao.md) for where it goes from there.
+- **`ansible/cloud_credentials/create_snapshot_write_keys.py`** — run
+  routinely, same cadence as `create_leaf_keys.py`. Mints the standing,
+  quarterly-expiring write leaf the backup script in
+  [`openbao-backup-restore.md`](openbao-backup-restore.md) pushes
+  snapshots with — a different credential from the read-only one just
+  above, scoped to the same `openbao-snapshots` bucket but write-only
+  (no `deleteFiles`/admin capability, same shape as `cloud_sync`'s own
+  write leaves). Cached to `ansible/files/secrets/` like every other
+  leaf here, unlike the break-glass credential. Supports `--rotate`,
+  same verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
 
 **Testing:** neither script is an Ansible role, so Molecule's per-host
 model (`docs/molecule-testing.md`) doesn't apply. `ansible/tests/`

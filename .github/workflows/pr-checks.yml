@@ -253,6 +253,16 @@ jobs:
           printf '%s' 'ci-dummy-b2-read-access-key' > ansible/files/secrets/backblaze-b2-read-access-key
           printf '%s' 'ci-dummy-b2-read-secret-key' > ansible/files/secrets/backblaze-b2-read-secret-key
           printf '%s' 'ci-dummy-b2-region' > ansible/files/secrets/backblaze-b2-region
+          # Track A stage 2's standing write leaf — see
+          # docs/openbao-backup-restore.md. A different pair from the
+          # cloud_sync write/read leaves above; the break-glass
+          # read-only restore credential (ADR 0017) is deliberately
+          # NOT here, since create_snapshot_readonly_keys.py never
+          # caches it to a file for the secrets role to pick up.
+          printf '%s' 'ci-dummy-r2-openbao-snapshot-write-access-key' > ansible/files/secrets/cloudflare-r2-openbao-snapshot-write-access-key
+          printf '%s' 'ci-dummy-r2-openbao-snapshot-write-secret-key' > ansible/files/secrets/cloudflare-r2-openbao-snapshot-write-secret-key
+          printf '%s' 'ci-dummy-b2-openbao-snapshot-write-access-key' > ansible/files/secrets/backblaze-b2-openbao-snapshot-write-access-key
+          printf '%s' 'ci-dummy-b2-openbao-snapshot-write-secret-key' > ansible/files/secrets/backblaze-b2-openbao-snapshot-write-secret-key
           # uptime-kuma-push-url-* are allow_blank: true too - each
           # monitor's URL doesn't exist until created by hand in Kuma's
           # own UI (see docs/uptime-kuma.md), same reasoning as

@@ -159,6 +159,23 @@
       ],
       datasourceTemplate: "docker",
     },
+    {
+      customType: "regex",
+      description: "openbao's pinned image, a plain Ansible variable default rather than a recognized image: key under a docker module",
+      managerFilePatterns: ["/^ansible/roles/openbao/defaults/main\\.ya?ml$/"],
+      matchStrings: ["openbao_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "openbao_cert's step-cli and openbao images, plain Ansible variable defaults rather than recognized image: keys under a docker module",
+      managerFilePatterns: ["/^ansible/roles/openbao_cert/defaults/main\\.ya?ml$/"],
+      matchStrings: [
+        "openbao_cert_step_cli_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
+        "openbao_cert_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
+      ],
+      datasourceTemplate: "docker",
+    },
   ],
 
   packageRules: [
@@ -299,6 +316,17 @@
       groupSlug: "mc-backup",
     },
 
+    // openbao/openbao is pinned in the production compose file plus two
+    // ansible role defaults (openbao's own, and openbao_cert's — the
+    // latter resolves the image only to read its non-root UID for a
+    // post-issuance chown, never to run the server itself; see
+    // docs/openbao.md). All three need to stay in lockstep.
+    {
+      matchDepNames: ["openbao/openbao"],
+      groupName: "openbao (compose + ansible role defaults — must move together)",
+      groupSlug: "openbao",
+    },
+
     // rclone/rclone is pinned independently in cloud_sync's ExecStart=
     // and backup_agent's freshness-check script (both need the custom
     // regex managers above, neither is a real compose/dockerfile image:
@@ -311,16 +339,14 @@
       groupSlug: "rclone",
     },
 
-    // smallstep/step-ca and smallstep/step-cli are each pinned in three
-    // independent places with no shared source of truth: the real
-    // step_cli image lldap_cert uses in production
-    // (defaults/main.yaml), the CI script that seeds a matching step-ca
-    // instance for the compose-boot-test workflow
-    // (seed-lldap-ci-cert.sh), and molecule_helpers' own step-ca test
-    // target. All three need custom regex managers above except the
-    // last (a real image: key under community.docker.docker_container,
-    // already covered) — group all of them so a version bump can't
-    // land in just one and leave the others stale.
+    // smallstep/step-ca and smallstep/step-cli are pinned independently
+    // in four places with no shared source of truth: lldap_cert's and
+    // openbao_cert's own step-cli defaults, the CI script that seeds
+    // step-ca for the compose-boot-test workflow, and molecule_helpers'
+    // step-ca test target. All but the last need the custom regex
+    // managers above (that one's a real image: key, already covered) —
+    // group them so a version bump can't land in one place and leave
+    // the others stale.
     {
       matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
       groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",

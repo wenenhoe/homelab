@@ -6,7 +6,10 @@ generic volume-backup pipeline — `docker/openbao/compose.yaml.j2` has no
 OpenBao to tar its data volume means sealing it, which needs a manual
 unseal ([0021](decisions/0021-manual-shamir-unseal.md)) on every backup
 cycle. `bao operator raft snapshot save` is the backup mechanism here
-instead, pushed independently to R2/B2. See
+instead, pushed independently to R2/B2 — see
+[0023](decisions/0023-openbao-snapshot-push-standalone.md) for why the
+push itself also stays out of `backup_agent`/`cloud_sync` rather than
+reusing that pipeline. See
 [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
 where this sits in the overall migration.
 

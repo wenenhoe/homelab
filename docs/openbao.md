@@ -5,9 +5,10 @@ cache ([ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manag
 see [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
 the full build order. This doc covers Track A stage 1 only: deploying
 it, its TLS cert, and getting it initialized and unsealed. Auth
-policies (stage 3), the secrets role migration (stage 4), and the
-actual backup/restore drill (stage 2) are separate stages with their
-own docs once they land.
+policies (stage 3) and the secrets role migration (stage 4) are
+separate stages with their own docs once they land. The actual
+backup/restore drill (stage 2) has its own doc:
+[`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 ## Deployment
 

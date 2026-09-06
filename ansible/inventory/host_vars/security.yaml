@@ -84,6 +84,30 @@ dns_ddns_target: "security.{{ ddns_domain }}."
 
 # Zone name mirrors the caddy_domain so all Caddy-fronted service FQDNs
 # (host + '.' + caddy_domain) fall inside this zone automatically.
+# ---------------------------------------------------------------------------
+# OpenBao snapshot push — see docs/openbao-backup-restore.md
+# ---------------------------------------------------------------------------
+
+# R2 + B2 only, not OCI — mirrors ADR 0017's own reasoning for the
+# break-glass read-only credential (two providers so recovery doesn't
+# depend on a single cloud vendor), not cloud_sync_default_targets.
+# Separate credentials from cloud_sync's homelab-backups/-b2 leaves —
+# see docs/cloud-credential-creation.md's create_snapshot_write_keys.py
+# entry — and a dedicated bucket, not a path inside the existing one.
+openbao_snapshot_targets:
+  r2:
+    bucket: openbao-snapshots
+    endpoint: "https://{{ secrets_generated['cloudflare-r2-account-id'] }}.r2.cloudflarestorage.com"
+    access_key: "{{ secrets_generated['cloudflare-r2-openbao-snapshot-write-access-key'] }}"
+    secret_key: "{{ secrets_generated['cloudflare-r2-openbao-snapshot-write-secret-key'] }}"
+    region: "auto"
+  b2:
+    bucket: openbao-snapshots
+    endpoint: "https://s3.{{ secrets_generated['backblaze-b2-region'] }}.backblazeb2.com"
+    access_key: "{{ secrets_generated['backblaze-b2-openbao-snapshot-write-access-key'] }}"
+    secret_key: "{{ secrets_generated['backblaze-b2-openbao-snapshot-write-secret-key'] }}"
+    region: "{{ secrets_generated['backblaze-b2-region'] }}"
+
 dns_zones:
   - zone: "{{ lab_domain }}"
     ttl: 3600

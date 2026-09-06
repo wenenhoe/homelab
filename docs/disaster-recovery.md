@@ -15,6 +15,10 @@ cloud leaf works.
 S3 credential generation/rotation is covered in [`secrets.md`](secrets.md),
 not here.
 
+OpenBao's own backup/restore uses a different mechanism entirely (a
+raft snapshot, not this volume-backup pipeline) — see
+[`openbao-backup-restore.md`](openbao-backup-restore.md).
+
 ## Threat model
 
 Every app host's `backup_agent` holds a live, write-capable S3

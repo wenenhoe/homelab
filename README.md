@@ -102,6 +102,7 @@ should go.
 | [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
 | [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook (Track A stage 1). |
+| [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook (Track A stage 2). |
 | [`docs/wastebin.md`](docs/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
 | [`docs/qemu-guest-agent.md`](docs/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
 

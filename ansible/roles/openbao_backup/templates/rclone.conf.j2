@@ -1,0 +1,31 @@
+# Rendered by openbao_backup — do not edit by hand, changes are
+# overwritten on the next deploy.
+#
+# Same shape as cloud_sync's own rclone.conf (docs/cloud-sync.md) but a
+# separate file with separate credentials — this one only ever pushes
+# to openbao-snapshots, never touches homelab-backups/-b2, and isn't
+# read by cloud_sync's own systemd units.
+#
+# no_check_bucket = true is required here, not optional: rclone's S3
+# backend otherwise does its own pre-flight bucket-existence check
+# before every copy and falls back to a real CreateBucket call if that
+# check itself gets denied — which it does here, since this write leaf
+# has no bucket-admin capability on either provider (by design, see
+# cloud-credential-creation.md). ansible/cloud_credentials/verify.py's
+# own verification rclone.conf sets this for exactly this reason; the
+# bucket itself must already exist by hand regardless — see
+# docs/openbao-backup-restore.md's "Before first use".
+{% for target, config in openbao_snapshot_targets.items() %}
+
+[{{ target }}]
+type = s3
+provider = Other
+access_key_id = {{ config.access_key }}
+secret_access_key = {{ config.secret_key }}
+endpoint = {{ config.endpoint }}
+force_path_style = true
+no_check_bucket = true
+{% if config.region is defined and config.region %}
+region = {{ config.region }}
+{% endif %}
+{% endfor %}

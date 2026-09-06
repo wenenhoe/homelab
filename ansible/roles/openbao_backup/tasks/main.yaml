@@ -1,0 +1,49 @@
+---
+# Renders the tooling an operator runs BY HAND to push an OpenBao raft
+# snapshot to R2/B2 — see docs/openbao-backup-restore.md for why this
+# isn't wired to a systemd timer yet (Track A stage 2 has no Vault
+# credential safe to leave on disk for an unattended job; that's
+# stage 3's job). This role only keeps the rendered files current so
+# the script an operator runs is never stale relative to the cached
+# write-leaf credentials.
+
+- name: Ensure the openbao-backup deploy directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/openbao-backup"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0700"
+
+- name: Render rclone.conf (openbao-snapshots write leaves)
+  ansible.builtin.template:
+    src: rclone.conf.j2
+    dest: "{{ compose_deploy_dir }}/openbao-backup/rclone.conf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0600"
+  no_log: true
+
+- name: Render the backup GPG public key
+  ansible.builtin.template:
+    src: gpg-public-key.asc.j2
+    dest: "{{ compose_deploy_dir }}/openbao-backup/gpg-public-key.asc"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+
+- name: Ensure the local staging directory exists
+  ansible.builtin.file:
+    path: "{{ compose_deploy_dir }}/openbao-backup/staging"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0700"
+
+- name: Render the snapshot push script
+  ansible.builtin.template:
+    src: snapshot-push.sh.j2
+    dest: "{{ compose_deploy_dir }}/openbao-backup/snapshot-push.sh"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0750"

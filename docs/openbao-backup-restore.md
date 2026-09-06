@@ -74,12 +74,15 @@ and pushes it to both providers. `BAO_TOKEN` only ever passes through
 `docker exec -e` from your shell's environment — never written to a
 file or passed as an argument.
 
-**Version note:** the behavior below was confirmed against a real
-OpenBao v2.2.0 instance, not the `2.5.4` this repo's `openbao_image`
-pins — v2.5.4's release assets weren't reachable to test against
-directly. Worth a quick smoke test (a save/restore against a throwaway
-instance running the actual pinned image) before trusting this
-unattended.
+**Version note:** `bao operator raft snapshot save`'s behavior
+(described below) is now confirmed live against the actual pinned
+`2.5.4` image on `security` — a real backup has run successfully. The
+restore-side behavior below (`-force`, the reseal, the old token going
+invalid) is still only confirmed against a v2.2.0 spike instance, not
+`2.5.4` — v2.5.4's release assets weren't reachable to test against
+directly outside `security` itself. Worth confirming during the
+restore drill itself, since that's the first time this repo's tooling
+will exercise it against the real pinned version.
 
 ## `bao` CLI behavior this script and the restore drill depend on
 
@@ -136,9 +139,5 @@ see the roadmap's own stage-status table.
   (`{{ compose_deploy_dir }}/openbao-backup/staging`) — encrypted
   snapshots accumulate there until deleted by hand. Low priority: the
   cloud copies, not this host's own, are the actual recovery path.
-- No Molecule coverage yet for `openbao_backup` — it only renders
-  idempotent `file`/`template` resources, lower-risk than
-  `openbao_cert`'s docker-exec/handler logic, but that's untested
-  reasoning, not a proven claim.
 - Track A stage 3 is what lets this become a real systemd timer — see
   "Why manual" above.

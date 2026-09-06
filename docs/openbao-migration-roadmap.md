@@ -13,7 +13,7 @@ Update this table at the start and end of each PR that works a stage.
 | # | Stage | Track | Status |
 | :-: | :--- | :-: | :--- |
 | 1 | Deploy OpenBao | A | Done |
-| 2 | Prove backup/restore loop | A | In progress |
+| 2 | Prove backup/restore loop | A | Done |
 | 3 | Auth and least-privilege policies | A | Not started |
 | 4 | Migrate the secrets role | A | Not started |
 | 5 | Repoint the cloud-credential package | A | Not started |
@@ -50,9 +50,14 @@ built, but **proven**.
    ([0017](decisions/0017-openbao-bootstrap-secret-split.md)).
 2. **Prove the backup/restore loop** — scheduled
    `bao operator raft snapshot save`, GPG-encrypted independently of
-   Vault, pushed via the break-glass credential. An actual restore
-   drill on a throwaway host. No secret's authoritative copy moves
-   into Vault before this passes.
+   Vault, pushed via its own standing write-leaf credential — not the
+   break-glass restore credential, which stays read-only and reserved
+   for actual disaster recovery
+   ([0023](decisions/0023-openbao-snapshot-push-standalone.md)). An
+   actual restore drill on a throwaway host, verified against a real
+   secret value round-tripped through backup and restore, not just a
+   clean exit code. No secret's authoritative copy moves into Vault
+   before this passes.
 3. **Auth and least-privilege policies** — `controller`'s Era A
    AppRole ([0022](decisions/0022-approle-policy-structure-two-eras.md)):
    one broad policy, since it's the only automation identity that

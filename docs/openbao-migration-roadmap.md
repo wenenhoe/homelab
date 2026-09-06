@@ -14,7 +14,7 @@ Update this table at the start and end of each PR that works a stage.
 | :-: | :--- | :-: | :--- |
 | 1 | Deploy OpenBao | A | Done |
 | 2 | Prove backup/restore loop | A | Done |
-| 3 | Auth and least-privilege policies | A | Not started |
+| 3 | Auth and least-privilege policies | A | Done |
 | 4 | Migrate the secrets role | A | Not started |
 | 5 | Repoint the cloud-credential package | A | Not started |
 | 6 | Full cutover, decommission file cache | A | Not started |

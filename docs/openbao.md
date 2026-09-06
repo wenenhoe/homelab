@@ -42,7 +42,13 @@ lands. `compose.yaml.j2` publishes `8200` directly on the host
 (`0.0.0.0:8200:8200`), the same bypass-Caddy-but-still-TLS approach
 lldap's LDAPS listener uses (see [`lldap.md`](lldap.md)) — not proxied
 HTTP-through-Caddy, since API/token clients don't want Caddy's
-forward-auth in front of them the way a browser app does.
+forward-auth in front of them the way a browser app does. The hostname
+itself is a hand-written `extra_records` CNAME in
+`host_vars/security.yaml` — bind9's auto-generated CNAMEs only fire for
+apps with a `caddy:` route (see
+[`reverse-proxy-and-dns.md`](architecture/reverse-proxy-and-dns.md)),
+which this deliberately isn't, so it needed the same manual treatment
+`sso` already gets in the same file.
 
 `ui = false` in the rendered config — this repo's day-to-day OpenBao
 consumers are Ansible and (once Track B lands) the CD agent, not a

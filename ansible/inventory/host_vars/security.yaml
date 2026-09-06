@@ -124,3 +124,10 @@ dns_zones:
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
+      # Hand-written, not auto-generated: openbao has no caddy: route
+      # in app_registry.yaml (docs/openbao.md), so bind9's auto-CNAME
+      # (one per app with a caddy route, see
+      # docs/architecture/reverse-proxy-and-dns.md) never fires for
+      # it, even though its cert (openbao_cert) carries this exact
+      # SAN. Same pattern as sso above.
+      - { name: "openbao", type: CNAME, value: "{{ dns_ddns_target }}" }

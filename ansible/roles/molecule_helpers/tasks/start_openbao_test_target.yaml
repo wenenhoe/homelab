@@ -51,18 +51,21 @@
 # very first task below fails with a normal Docker connection error,
 # not a subtle wrong-behind-the-scenes result.
 #
-# ALSO UNVERIFIED: the /etc/hosts write below needs `sudo` on the
-# control node — confirmed possible in spike-openbao-runtime-
-# assumptions.sh's environment, but that says nothing about whatever
-# user/permissions this repo's real CI job actually runs Molecule as.
-# If CI can't sudo, this fails loudly at that one task, not silently.
-#
 # Required vars:
 #   molecule_helpers_openbao_network_name — docker network step-ca-test
 #     and openbao-test share
 #   molecule_helpers_openbao_extra_san — the hostname
-#     secrets_vault_base_url will actually request; this helper adds a
-#     127.0.0.1 /etc/hosts entry for it on the control node
+#     secrets_vault_base_url will actually request. Must resolve to
+#     127.0.0.1 without any control-node setup — pass a
+#     *.localtest.me subdomain (public DNS, wildcards to 127.0.0.1;
+#     confirmed live, including multi-label subdomains like
+#     openbao.vault-backed.localtest.me). Deliberately not an
+#     /etc/hosts entry: that needs passwordless sudo on the control
+#     node, which isn't something this scenario should assume any given
+#     CI/dev environment has configured — confirmed the hard way, not
+#     hypothetically (an earlier version of this file used a
+#     .molecule.invalid domain plus an /etc/hosts write, which failed
+#     outright wherever sudo requires interactive authentication).
 #   molecule_helpers_openbao_policy_hcl — policy body (string) applied
 #     to the AppRole role this creates
 #   molecule_helpers_openbao_approle_name
@@ -94,14 +97,27 @@
     molecule_helpers_openbao_cert_dir: /tmp/molecule-openbao-test-certs
     molecule_helpers_openbao_data_dir: /tmp/molecule-openbao-test-data
 
-- name: Ensure the certs and data directories exist
+- name: Ensure the certs directory exists
   ansible.builtin.file:
-    path: "{{ item }}"
+    path: "{{ molecule_helpers_openbao_cert_dir }}"
     state: directory
     mode: "0755"
-  loop:
-    - "{{ molecule_helpers_openbao_cert_dir }}"
-    - "{{ molecule_helpers_openbao_data_dir }}"
+
+# 0777, not 0755: this is a host bind-mount, not a Docker-managed named
+# volume — unlike production's roles/openbao (which chowns a real
+# volume to the image's actual "openbao" UID, discovered via
+# `docker run --rm IMAGE id -u openbao`, since that volume persists
+# across real redeploys), this directory is thrown away every run and
+# has zero real security value. OpenBao's container runs as that
+# non-root user internally either way (confirmed live — this exact
+# permission error is "failed to open bolt file: ... permission
+# denied" on a 0755 host directory), so raft storage needs write access
+# regardless of which host UID happens to be running Molecule.
+- name: Ensure the data directory exists and is writable by whatever UID openbao-test runs as
+  ansible.builtin.file:
+    path: "{{ molecule_helpers_openbao_data_dir }}"
+    state: directory
+    mode: "0777"
 
 # Confirmed-working pattern, verbatim from start_step_ca_test_target.yaml
 # — this specific call (no env:) is the one already proven in this repo.
@@ -205,10 +221,43 @@
       cluster_addr = "https://openbao-test:8201"
       ui = false
 
-- name: Check whether openbao-test is already running
-  community.docker.docker_container_info:
-    name: openbao-test
-  register: molecule_helpers_openbao_container_info
+- name: Check whether openbao-test already exists
+  ansible.builtin.command:
+    argv:
+      - docker
+      - inspect
+      - openbao-test
+  register: molecule_helpers_openbao_inspect
+  changed_when: false
+  failed_when: false
+
+# rc/stdout parsed directly rather than via community.docker.docker_container_info's
+# own `.exists`/`.container.State.*` fields: `.exists` alone doesn't
+# distinguish a genuinely running container from a stale, exited one
+# left over from a previous failed run (e.g. one that crash-looped on
+# the permission issue this file's data-dir fix addresses) — and this
+# repo hasn't otherwise exercised docker_container_info's own State
+# field shape, so raw `docker inspect` + `from_json` (already used
+# elsewhere in this file) avoids resting on an unverified field path.
+- name: Determine whether openbao-test is currently running
+  ansible.builtin.set_fact:
+    molecule_helpers_openbao_already_running: >-
+      {{
+        molecule_helpers_openbao_inspect.rc == 0
+        and (molecule_helpers_openbao_inspect.stdout | from_json)[0].State.Running
+      }}
+
+- name: Remove a stale, non-running openbao-test container, if one exists
+  ansible.builtin.command:
+    argv:
+      - docker
+      - rm
+      - -f
+      - openbao-test
+  when:
+    - molecule_helpers_openbao_inspect.rc == 0
+    - not molecule_helpers_openbao_already_running
+  changed_when: true
 
 # 127.0.0.1 only, not 0.0.0.0 — see this file's header comment.
 - name: Run the real OpenBao image as a throwaway test target
@@ -235,19 +284,26 @@
       - BAO_SKIP_VERIFY=true
       - openbao/openbao:2.5.4
       - server
-  when: not molecule_helpers_openbao_container_info.exists
+  when: not molecule_helpers_openbao_already_running
   changed_when: true
 
 # Same exit-code-aware wait as spike-openbao-runtime-assumptions.sh's
 # own fix: `bao status` exits non-zero for both sealed (2) and
 # uninitialized (3), not just down — treating those as "responding" is
 # the whole point of this check, since we haven't initialized it yet.
+# rc defaulted to -1: right after `docker run -d`, an early exec
+# attempt can fail at the docker-API level itself (container not yet
+# queryable) rather than the command inside it actually running and
+# exiting non-zero — that failure shape doesn't populate rc at all, and
+# with failed_when: false suppressing the task-level failure, the very
+# first `until` check would otherwise crash on a missing key instead of
+# just retrying like every other transient failure here does.
 - name: Wait for openbao-test to respond at all
   community.docker.docker_container_exec:
     container: openbao-test
     command: bao status -address=https://127.0.0.1:8200
   register: molecule_helpers_openbao_ready
-  until: molecule_helpers_openbao_ready.rc in [0, 2, 3]
+  until: (molecule_helpers_openbao_ready.rc | default(-1)) in [0, 2, 3]
   retries: 15
   delay: 2
   changed_when: false
@@ -256,7 +312,7 @@
 - name: Confirm openbao-test actually came up (not just timed out waiting)
   ansible.builtin.fail:
     msg: "openbao-test never responded on https://127.0.0.1:8200 inside the container — check `docker logs openbao-test`."
-  when: molecule_helpers_openbao_ready.rc not in [0, 2, 3]
+  when: (molecule_helpers_openbao_ready.rc | default(-1)) not in [0, 2, 3]
 
 - name: Check whether openbao-test is already initialized
   community.docker.docker_container_exec:
@@ -430,13 +486,3 @@
       loop_control:
         label: "{{ item.dest }}"
       no_log: true
-
-# Idempotent by nature (ansible.builtin.lineinfile only adds if
-# absent) — but the sudo requirement itself is the thing flagged as
-# unverified in this file's header comment, not the idempotence.
-- name: Add a control-node /etc/hosts entry so secrets_vault_base_url actually resolves
-  ansible.builtin.lineinfile:
-    path: /etc/hosts
-    line: "127.0.0.1 {{ molecule_helpers_openbao_extra_san }}"
-    state: present
-  become: true

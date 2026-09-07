@@ -753,7 +753,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.185.0"
+version = "2.185.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -767,9 +767,9 @@ dependencies = [
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a5/fd/5408374a5c732882fc7b6bc1b6e6a96f06984a325ed2b66d3a1f67cf8b8b/oci-2.185.0.tar.gz", hash = "sha256:375eec7c8568b0066bd5e6ff48cf406a4a1af34437c29abd7981f1ab78fac9c2", size = 18098448, upload-time = "2026-08-25T09:06:52.688Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/47/9dbc5ac04d7f4230d49be16f4d724d44877834eefe77290e5215e17364ab/oci-2.185.1.tar.gz", hash = "sha256:b703be0a94da5a2b10158ced904d2eaa732c72f0a5d4582e476758fa4db1a8ea", size = 18139822, upload-time = "2026-09-01T05:11:14.816Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/b8/75/0f9264cac734696c209117421fd35d373aaeae7a57ea43796b135281e65d/oci-2.185.0-py3-none-any.whl", hash = "sha256:93556f08c6270e2e174d59d94fcd49fa794ba3f4d60630af173bc9b6204b085c", size = 36716800, upload-time = "2026-08-25T09:06:45.243Z" },
+    { url = "https://files.pythonhosted.org/packages/fc/70/03c081f033f8bb1e73ed3098fa3340a2aafb97a0c96841a27188c6cc7ada/oci-2.185.1-py3-none-any.whl", hash = "sha256:b3028254c45e149806566b40fe981c32834a45160aad95570b4c2f9be3873578", size = 36808289, upload-time = "2026-09-01T05:11:07.385Z" },
 ]
 
 [[package]]
@@ -1106,7 +1106,7 @@ name = "selinux"
 version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "distro", marker = "sys_platform == 'linux' or sys_platform == 'linux2'" },
+    { name = "distro" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/25/07/51acd62e1e15e1172d46f7e32faf138725b147f8c08dbf2d512159d7a310/selinux-0.3.0.tar.gz", hash = "sha256:2a88b337ac46ad0f06f557b2806c3df62421972f766673dd8bf26732fb75a9ea", size = 13479, upload-time = "2022-12-24T16:42:13.163Z" }
 wheels = [

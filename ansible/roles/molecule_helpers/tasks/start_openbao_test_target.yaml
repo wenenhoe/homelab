@@ -92,11 +92,21 @@
     molecule_helpers_openbao_cert_dir: /tmp/molecule-openbao-test-certs
     molecule_helpers_openbao_data_dir: /tmp/molecule-openbao-test-data
 
+# 0777, not 0755: this is a host bind-mount, not a Docker-managed named
+# volume, and step-cli's container runs as some non-root UID internally
+# to write fullchain.pem/privkey.pem here — confirmed live on a
+# different environment than this was originally verified against
+# ("open /certs/fullchain.pem: permission denied" on a 0755 host
+# directory, exactly the same class of issue already confirmed for the
+# data directory below, just never applied here). Throwaway test
+# directory, zero real security value, same reasoning as the data
+# directory's own fix and the leaf cert/key's own world-readable chmod
+# just after issuance.
 - name: Ensure the certs directory exists
   ansible.builtin.file:
     path: "{{ molecule_helpers_openbao_cert_dir }}"
     state: directory
-    mode: "0755"
+    mode: "0777"
 
 # 0777, not 0755: this is a host bind-mount, not a Docker-managed named
 # volume — unlike production's roles/openbao (which chowns a real

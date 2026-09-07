@@ -69,3 +69,12 @@ never committed, never outliving the run that fetched it.
   future controller-side or CD-agent-side TLS client talking to an
   internal service — noted here since `cd_agent` (Track B) will need
   the same trust for its own Vault AppRole logins once it exists.
+- Confirmed live: a `delegate_to: security` task needs its own explicit
+  `connection: ssh` whenever the enclosing play sets `connection: local`
+  at the play level (as `bootstrap-secrets.yaml`'s own play does, since
+  most of its tasks genuinely delegate to `localhost`) — otherwise
+  Ansible silently defaults the connection to `local` instead of
+  `security`'s own SSH, and the fetch runs against the wrong machine
+  entirely. Anyone reusing this pattern needs the same explicit override
+  if their own enclosing play has the same shape — see
+  `vault_login.yaml`'s own task comment for the full mechanism.

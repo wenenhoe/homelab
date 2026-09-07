@@ -35,21 +35,16 @@
 # containers on the control node's own daemon avoid that entirely and
 # actually mirror production's real topology more faithfully.
 #
-# UNVERIFIED, FLAGGED (not silently assumed): this relies on
-# `ansible.builtin.command`/`community.docker.docker_container_exec`
-# tasks with delegate_to: localhost reaching the same Docker daemon
-# Molecule's own driver used to create the scenario's platform
-# container — true in every standard Molecule+docker-driver setup, but
-# never previously exercised by this repo's own scenarios (every other
-# one either needs nothing Docker-related from the control node at all,
-# or runs its Docker calls on a DinD target instead). Confirmed via a
-# bare, non-containerized process specifically (not a `docker run`
-# wrapper) in spike-openbao-runtime-assumptions.sh's Q4 — but that was
-# run standalone, not through Molecule's own actual provisioner
-# process, which is the one thing that genuinely can't be confirmed
-# without running the real scenario. If this assumption is wrong, the
-# very first task below fails with a normal Docker connection error,
-# not a subtle wrong-behind-the-scenes result.
+# Confirmed, not just assumed: `ansible.builtin.command`/
+# `community.docker.docker_container_exec` tasks with
+# `delegate_to: localhost` do reach the same Docker daemon Molecule's
+# own driver used to create the scenario's platform container — true
+# in every standard Molecule+docker-driver setup, and now proven
+# through Molecule's own actual provisioner process (both
+# `vault_backed` and `rotate_secret` pass, including their
+# `idempotence` step), not just via the standalone bare-process check
+# in spike-openbao-runtime-assumptions.sh's Q4 that originally
+# motivated this design.
 #
 # Required vars:
 #   molecule_helpers_openbao_network_name — docker network step-ca-test

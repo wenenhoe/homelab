@@ -223,72 +223,14 @@ jobs:
           install-galaxy-collections: "true"
 
       # Mirrors bootstrap_secrets.py's output — throwaway CI values, see
-      # docs/ci.md#deploy-ordering-check. beszel-hub-key/-agent-token are
-      # allow_blank: true in the registry, so empty is correct, not lazy.
+      # docs/ci.md#deploy-ordering-check. Driven off the real
+      # secrets_registry.yaml at CI-run time (see the script's own
+      # docstring for why) rather than a hand-maintained list of printf
+      # lines here — the previous approach needed a new line added
+      # every time a new manual secret was registered, with nothing
+      # enforcing that it actually happened.
       - name: Pre-seed manual secrets (mirrors bootstrap_secrets.py)
-        run: |
-          mkdir -p ansible/files/secrets
-          printf '%s' 'ci.invalid' > ansible/files/secrets/main-domain
-          printf '%s' 'ci-dummy-do-key' > ansible/files/secrets/digitalocean-api-key
-          printf '%s' 'ci@invalid.example' > ansible/files/secrets/letsencrypt-email
-          printf '%s' 'ci-dummy-telegram-token' > ansible/files/secrets/telegram-token
-          printf '%s' '0' > ansible/files/secrets/telegram-chat-id
-          printf '%s' 'localhost' > ansible/files/secrets/wetty-ssh-host
-          printf '%s' '' > ansible/files/secrets/beszel-hub-key
-          printf '%s' '' > ansible/files/secrets/beszel-agent-token
-          # telegram-topic-id-* are allow_blank: true in the registry too
-          # (Topics is an optional feature — see docs/telegram-notifications.md),
-          # same reasoning as beszel-hub-key/-agent-token just above.
-          printf '%s' '' > ansible/files/secrets/telegram-topic-id-updates
-          printf '%s' '' > ansible/files/secrets/telegram-topic-id-monitoring
-          printf '%s' '' > ansible/files/secrets/telegram-topic-id-backups
-          printf '%s' '' > ansible/files/secrets/telegram-topic-id-certs
-          printf '%s' 'ci-dummy-r2-write-access-key' > ansible/files/secrets/cloudflare-r2-write-access-key
-          printf '%s' 'ci-dummy-r2-write-secret-key' > ansible/files/secrets/cloudflare-r2-write-secret-key
-          printf '%s' 'ci-dummy-r2-read-access-key' > ansible/files/secrets/cloudflare-r2-read-access-key
-          printf '%s' 'ci-dummy-r2-read-secret-key' > ansible/files/secrets/cloudflare-r2-read-secret-key
-          printf '%s' 'ci-dummy-r2-account-id' > ansible/files/secrets/cloudflare-r2-account-id
-          printf '%s' 'ci-dummy-b2-write-access-key' > ansible/files/secrets/backblaze-b2-write-access-key
-          printf '%s' 'ci-dummy-b2-write-secret-key' > ansible/files/secrets/backblaze-b2-write-secret-key
-          printf '%s' 'ci-dummy-b2-read-access-key' > ansible/files/secrets/backblaze-b2-read-access-key
-          printf '%s' 'ci-dummy-b2-read-secret-key' > ansible/files/secrets/backblaze-b2-read-secret-key
-          printf '%s' 'ci-dummy-b2-region' > ansible/files/secrets/backblaze-b2-region
-          # Track A stage 2's standing write leaf — see
-          # docs/openbao-backup-restore.md. A different pair from the
-          # cloud_sync write/read leaves above; the break-glass
-          # read-only restore credential (ADR 0017) is deliberately
-          # NOT here, since create_snapshot_readonly_keys.py never
-          # caches it to a file for the secrets role to pick up.
-          printf '%s' 'ci-dummy-r2-openbao-snapshot-write-access-key' > ansible/files/secrets/cloudflare-r2-openbao-snapshot-write-access-key
-          printf '%s' 'ci-dummy-r2-openbao-snapshot-write-secret-key' > ansible/files/secrets/cloudflare-r2-openbao-snapshot-write-secret-key
-          printf '%s' 'ci-dummy-b2-openbao-snapshot-write-access-key' > ansible/files/secrets/backblaze-b2-openbao-snapshot-write-access-key
-          printf '%s' 'ci-dummy-b2-openbao-snapshot-write-secret-key' > ansible/files/secrets/backblaze-b2-openbao-snapshot-write-secret-key
-          # openbao-controller-role-id/-secret-id are allow_blank: true
-          # too — Track A stage 4 is the first real consumer (see
-          # docs/openbao-auth.md), same reasoning as
-          # uptime-kuma-push-url-*/beszel-hub-key just below.
-          printf '%s' '' > ansible/files/secrets/openbao-controller-role-id
-          printf '%s' '' > ansible/files/secrets/openbao-controller-secret-id
-          # uptime-kuma-push-url-* are allow_blank: true too - each
-          # monitor's URL doesn't exist until created by hand in Kuma's
-          # own UI (see docs/uptime-kuma.md), same reasoning as
-          # telegram-topic-id-*/beszel-hub-key/-agent-token above.
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cloud-sync
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-renewer-lldap
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-renewer-openbao
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-security
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-storage
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-play
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-cert-expiry-services
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-services
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-play
-          printf '%s' '' > ansible/files/secrets/uptime-kuma-push-url-backup-security
-          printf '%s' 'ci-dummy-oci-write-access-key' > ansible/files/secrets/oci-write-access-key
-          printf '%s' 'ci-dummy-oci-write-secret-key' > ansible/files/secrets/oci-write-secret-key
-          printf '%s' 'ci-dummy-oci-read-access-key' > ansible/files/secrets/oci-read-access-key
-          printf '%s' 'ci-dummy-oci-read-secret-key' > ansible/files/secrets/oci-read-secret-key
-          printf '%s' 'ci-dummy-oci-namespace' > ansible/files/secrets/oci-namespace
-          printf '%s' 'ci-dummy-oci-region' > ansible/files/secrets/oci-region
+        run: uv run python3 .github/scripts/preseed-manual-secrets-for-ci.py
 
       # Track A stage 4 gave most secrets_registry entries a
       # vault_scope, but this job has no real OpenBao/step-ca target —

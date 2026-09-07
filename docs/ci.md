@@ -230,6 +230,9 @@ for the current values):
 - `restore` - the interactive confirmation prompt is bypassed on
   purpose in every scenario, to test the rest of the role
   non-interactively.
+- `secrets` - the Vault CAS re-read-after-losing-a-create-race task
+  needs a genuine concurrent write conflict to trigger, which no single
+  Molecule scenario can engineer deliberately.
 
 ## Compose boot-test
 

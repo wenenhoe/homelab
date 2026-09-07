@@ -78,9 +78,14 @@ built, but **proven**.
    hop — including a real `delegate_to`/connection gotcha found and
    fixed along the way, see 0025's own Consequences). Proven against a
    real OpenBao instance: a live `openbao-auth.md` runbook, a real
-   `deploy.yaml`/`bootstrap_secrets.py` invocation, and both Molecule
-   scenarios (`vault_backed`, `rotate_secret`) all pass, including
-   `idempotence`.
+   `deploy.yaml`/`bootstrap_secrets.py` invocation, and all four
+   Molecule scenarios (`vault_backed`, `rotate_secret`,
+   `vault_approle_missing`, `vault_manual_missing`) pass, including
+   `idempotence` where applicable — 97.6% task coverage, with the one
+   remaining gap (a genuine concurrent CAS create-race, not
+   deliberately engineerable in a single scenario) documented as a
+   floor in `thresholds.yaml` rather than left silently untested — see
+   `docs/ci.md`'s coverage-gate section.
 5. **Repoint the cloud-credential package** —
    `ansible/cloud_credentials/` reads/writes Vault instead of files,
    preserving every provider quirk

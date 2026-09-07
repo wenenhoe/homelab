@@ -15,7 +15,7 @@ Update this table at the start and end of each PR that works a stage.
 | 1 | Deploy OpenBao | A | Done |
 | 2 | Prove backup/restore loop | A | Done |
 | 3 | Auth and least-privilege policies | A | Done |
-| 4 | Migrate the secrets role | A | In progress |
+| 4 | Migrate the secrets role | A | Blocked: needs live verification against a real OpenBao instance (see this stage's note below) |
 | 5 | Repoint the cloud-credential package | A | Not started |
 | 6 | Full cutover, decommission file cache | A | Not started |
 | 7 | CD agent build | B | Not started |
@@ -69,7 +69,20 @@ built, but **proven**.
    avoid races); `manual` secrets bootstrap via an updated
    `bootstrap_secrets.py`. Must preserve `no_log: true` and
    generate-once-and-cache semantics, and still work before
-   `ansible_host` resolves.
+   `ansible_host` resolves. See
+   [ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)/
+   [0025](decisions/0025-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
+   for two design points this stage needed that weren't settled going
+   in (the Vault path taxonomy for secrets with no single host owner,
+   and how the controller trusts OpenBao's TLS cert over a real network
+   hop). Built and unit-tested against a mock KV v2 server (CAS
+   create/read/lost-race-reread, manual-missing fail-loud, rotation's
+   CAS-versioned update-in-place) — **not yet proven against a real
+   OpenBao instance**: a real Shamir-unsealed boot, the actual AppRole
+   login response shape, and real TLS via the fetched root cert are
+   still open. Needs a live run of `openbao-auth.md`'s runbook followed
+   by a real `deploy.yaml`/`bootstrap_secrets.py` invocation against it
+   before this row can move to `Done`.
 5. **Repoint the cloud-credential package** —
    `ansible/cloud_credentials/` reads/writes Vault instead of files,
    preserving every provider quirk

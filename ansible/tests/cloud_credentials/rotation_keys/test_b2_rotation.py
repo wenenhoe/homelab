@@ -6,26 +6,23 @@ mocked; nothing here talks to a real account.
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
-import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cloud_credentials import cache
+from _fake_vault import FakeVaultTestCase
 from cloud_credentials.rotation_keys import b2 as rotation_b2
 
 
-class B2RotationKeyTestBase(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        patcher = patch.object(cache, "SECRETS_DIR", self.tmp)
-        patcher.start()
-        self.addCleanup(patcher.stop)
+class B2RotationKeyTestBase(FakeVaultTestCase):
+    def seed(self, name: str, value: str) -> None:
+        self.vault_seed("rotation", name, value)
+
+    def get(self, name: str) -> str | None:
+        return self.vault_get("rotation", name)
 
 
 class CreateB2RotationKeyTests(B2RotationKeyTestBase):
@@ -36,13 +33,13 @@ class CreateB2RotationKeyTests(B2RotationKeyTestBase):
 
         rotation_b2.create_b2_rotation_key()
 
-        self.assertEqual((self.tmp / "_rotation-key-backblaze-b2-key-id").read_text(), "NEW_ID")
-        self.assertEqual((self.tmp / "_rotation-key-backblaze-b2-application-key").read_text(), "NEW_KEY")
+        self.assertEqual(self.get("_rotation-key-backblaze-b2-key-id"), "NEW_ID")
+        self.assertEqual(self.get("_rotation-key-backblaze-b2-application-key"), "NEW_KEY")
 
     @patch.object(rotation_b2, "_prompt_master_credentials")
     def test_skips_entirely_when_already_cached(self, mock_prompt):
-        cache.write_cache("_rotation-key-backblaze-b2-key-id", "EXISTING_ID")
-        cache.write_cache("_rotation-key-backblaze-b2-application-key", "EXISTING_KEY")
+        self.seed("_rotation-key-backblaze-b2-key-id", "EXISTING_ID")
+        self.seed("_rotation-key-backblaze-b2-application-key", "EXISTING_KEY")
 
         rotation_b2.create_b2_rotation_key()
 
@@ -54,8 +51,8 @@ class CreateB2RotationKeyTests(B2RotationKeyTestBase):
 class RotateB2RotationKeyTests(B2RotationKeyTestBase):
     def setUp(self):
         super().setUp()
-        cache.write_cache("_rotation-key-backblaze-b2-key-id", "OLD_ID")
-        cache.write_cache("_rotation-key-backblaze-b2-application-key", "OLD_KEY")
+        self.seed("_rotation-key-backblaze-b2-key-id", "OLD_ID")
+        self.seed("_rotation-key-backblaze-b2-application-key", "OLD_KEY")
 
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
@@ -73,8 +70,8 @@ class RotateB2RotationKeyTests(B2RotationKeyTestBase):
         master_session.post.assert_called_once()
         self.assertIn("b2_delete_key", master_session.post.call_args.args[0])
         self.assertEqual(master_session.post.call_args.kwargs["json"]["applicationKeyId"], "OLD_ID")
-        self.assertEqual((self.tmp / "_rotation-key-backblaze-b2-key-id").read_text(), "NEW_ID")
-        self.assertEqual((self.tmp / "_rotation-key-backblaze-b2-application-key").read_text(), "NEW_KEY")
+        self.assertEqual(self.get("_rotation-key-backblaze-b2-key-id"), "NEW_ID")
+        self.assertEqual(self.get("_rotation-key-backblaze-b2-application-key"), "NEW_KEY")
 
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
@@ -89,7 +86,7 @@ class RotateB2RotationKeyTests(B2RotationKeyTestBase):
         # The old, still-working rotation key must survive a failed
         # rotation untouched — no revoke call at all.
         master_session.post.assert_not_called()
-        self.assertEqual((self.tmp / "_rotation-key-backblaze-b2-key-id").read_text(), "OLD_ID")
+        self.assertEqual(self.get("_rotation-key-backblaze-b2-key-id"), "OLD_ID")
 
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
@@ -106,4 +103,6 @@ class RotateB2RotationKeyTests(B2RotationKeyTestBase):
 
 
 if __name__ == "__main__":
+    import unittest
+
     unittest.main()

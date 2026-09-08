@@ -7,16 +7,14 @@ Confidential Application.
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
-import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cloud_credentials import cache
+from _fake_vault import FakeVaultTestCase
 from cloud_credentials.rotation_keys import oci_bootstrap
 
 
@@ -27,16 +25,12 @@ def _mock_response(status_code: int, json_body: dict | None = None, text: str = 
     return resp
 
 
-class OciBootstrapTestBase(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        patcher = patch.object(cache, "SECRETS_DIR", self.tmp)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
+class OciBootstrapTestBase(FakeVaultTestCase):
     def seed(self, name: str, value: str) -> None:
-        cache.write_cache(name, value)
+        self.vault_seed("rotation", name, value)
+
+    def get(self, name: str) -> str | None:
+        return self.vault_get("rotation", name)
 
     def seed_scim_app_credentials(self):
         self.seed("_rotation-key-oci-domain-url", "https://idcs-example.identity.oraclecloud.com")
@@ -80,11 +74,11 @@ class CreateOciRotationKeyTests(OciBootstrapTestBase):
             oci_bootstrap._oci_ensure_scim_app_credentials()
 
         # Trailing slash stripped, matching oci_scim.py's own convention.
-        self.assertEqual((self.tmp / "_rotation-key-oci-domain-url").read_text(), "https://idcs-example.identity.oraclecloud.com")
-        self.assertEqual((self.tmp / "_rotation-key-oci-client-id").read_text(), "client-123")
-        self.assertEqual((self.tmp / "_rotation-key-oci-client-secret").read_text(), "the-secret")
-        self.assertEqual((self.tmp / "_rotation-key-oci-app-id").read_text(), "app-1")
-        self.assertTrue((self.tmp / "_rotation-key-oci-created-at").exists())
+        self.assertEqual(self.get("_rotation-key-oci-domain-url"), "https://idcs-example.identity.oraclecloud.com")
+        self.assertEqual(self.get("_rotation-key-oci-client-id"), "client-123")
+        self.assertEqual(self.get("_rotation-key-oci-client-secret"), "the-secret")
+        self.assertEqual(self.get("_rotation-key-oci-app-id"), "app-1")
+        self.assertIsNotNone(self.get("_rotation-key-oci-created-at"))
 
     @patch.object(oci_bootstrap.requests, "Session")
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
@@ -99,7 +93,7 @@ class CreateOciRotationKeyTests(OciBootstrapTestBase):
         ):
             oci_bootstrap._oci_ensure_scim_app_credentials()
 
-        self.assertFalse((self.tmp / "_rotation-key-oci-domain-url").exists())
+        self.assertIsNone(self.get("_rotation-key-oci-domain-url"))
 
 
 class RotateOciRotationKeyTests(OciBootstrapTestBase):
@@ -130,7 +124,7 @@ class RotateOciRotationKeyTests(OciBootstrapTestBase):
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         self.assertFalse(ok)
-        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "OLD_SECRET")
+        self.assertEqual(self.get("_rotation-key-oci-client-secret"), "OLD_SECRET")
 
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
@@ -144,7 +138,7 @@ class RotateOciRotationKeyTests(OciBootstrapTestBase):
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         self.assertFalse(ok)
-        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "OLD_SECRET")
+        self.assertEqual(self.get("_rotation-key-oci-client-secret"), "OLD_SECRET")
 
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
@@ -162,7 +156,7 @@ class RotateOciRotationKeyTests(OciBootstrapTestBase):
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         self.assertFalse(ok)
-        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "NEW_SECRET")
+        self.assertEqual(self.get("_rotation-key-oci-client-secret"), "NEW_SECRET")
 
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
@@ -173,16 +167,18 @@ class RotateOciRotationKeyTests(OciBootstrapTestBase):
         mock_token.side_effect = ["old-tok", "new-tok"]
         session = mock_session_cls.return_value
         session.post.return_value = _mock_response(201, {"clientSecret": "NEW_SECRET"})
-        cache.write_cache("_rotation-key-oci-created-at", "2020-01-01T00:00:00+00:00")
+        self.seed("_rotation-key-oci-created-at", "2020-01-01T00:00:00+00:00")
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         self.assertTrue(ok)
-        self.assertEqual(cache.read_cache("_rotation-key-oci-client-secret"), "NEW_SECRET")
-        self.assertNotEqual(cache.read_cache("_rotation-key-oci-created-at"), "2020-01-01T00:00:00+00:00")
+        self.assertEqual(self.get("_rotation-key-oci-client-secret"), "NEW_SECRET")
+        self.assertNotEqual(self.get("_rotation-key-oci-created-at"), "2020-01-01T00:00:00+00:00")
         sent_body = session.post.call_args.kwargs["json"]
         self.assertEqual(sent_body["appId"], "app-1")
 
 
 if __name__ == "__main__":
+    import unittest
+
     unittest.main()

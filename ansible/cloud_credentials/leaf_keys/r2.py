@@ -8,9 +8,15 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
 from cloud_credentials.verify import verify_leaf_via_rclone
+
+cached, read_cache, write_cache, require_cache_file = scoped("leaf")
+# r2_rotation_token() below reads/writes the rotation-tier admin token
+# rotation_keys/r2.py also caches - a second, differently-scoped
+# binding, same reasoning as leaf_keys/b2.py's own rotation-session read.
+_, _rotation_read_cache, _rotation_write_cache, _ = scoped("rotation")
 
 R2_BUCKET = "homelab-backups"
 
@@ -63,11 +69,11 @@ def r2_rotation_token() -> str:
     first-time use, not the intended everyday path anymore.
     """
     cache_key = "_rotation-key-cloudflare-r2-token"
-    cached_value = read_cache(cache_key)
+    cached_value = _rotation_read_cache(cache_key)
     if cached_value is not None:
         return cached_value
     token = _prompt_r2_admin_token()
-    write_cache(cache_key, token)
+    _rotation_write_cache(cache_key, token)
     return token
 
 

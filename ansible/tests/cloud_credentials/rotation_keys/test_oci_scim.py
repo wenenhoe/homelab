@@ -6,29 +6,23 @@ nothing here talks to a real tenancy.
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
-import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from cloud_credentials import cache
+from _fake_vault import FakeVaultTestCase
 from cloud_credentials.rotation_keys import oci_scim
 
 
-class OciScimTests(unittest.TestCase):
+class OciScimTests(FakeVaultTestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        patcher = patch.object(cache, "SECRETS_DIR", self.tmp)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-        cache.write_cache("_rotation-key-oci-domain-url", "https://idcs-example.identity.oraclecloud.com/")
-        cache.write_cache("_rotation-key-oci-client-id", "client-123")
-        cache.write_cache("_rotation-key-oci-client-secret", "shh")
+        super().setUp()
+        self.vault_seed("rotation", "_rotation-key-oci-domain-url", "https://idcs-example.identity.oraclecloud.com/")
+        self.vault_seed("rotation", "_rotation-key-oci-client-id", "client-123")
+        self.vault_seed("rotation", "_rotation-key-oci-client-secret", "shh")
 
     def test_domain_url_trailing_slash_is_stripped(self):
         domain_url, client_id, client_secret = oci_scim.oci_scim_domain_and_credentials()
@@ -54,4 +48,6 @@ class OciScimTests(unittest.TestCase):
 
 
 if __name__ == "__main__":
+    import unittest
+
     unittest.main()

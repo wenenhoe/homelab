@@ -19,7 +19,7 @@ from cloud_credentials import create_snapshot_write_keys as snap
 class MintR2Tests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-cloudflare-r2-token", "admin-token")
+        self.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
         self.seed("cloudflare-r2-account-id", "acct123")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
@@ -71,8 +71,8 @@ class MintR2Tests(RotationTestBase):
 class MintB2Tests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id")
-        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key")
+        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
+        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
         self.seed("backblaze-b2-region", "us-west-004")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
@@ -140,7 +140,7 @@ class MintB2Tests(RotationTestBase):
 class RotateR2Tests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-cloudflare-r2-token", "admin-token")
+        self.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
         self.seed("cloudflare-r2-account-id", "acct123")
         self.seed(snap.CACHE_R2_ACCESS, "OLD_TOKEN_ID")
         self.seed(snap.CACHE_R2_SECRET, "old-secret")

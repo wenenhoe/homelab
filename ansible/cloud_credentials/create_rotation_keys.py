@@ -50,7 +50,6 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import SECRETS_DIR
 from cloud_credentials.rotation_keys.b2 import create_b2_rotation_key, rotate_b2_rotation_key
 from cloud_credentials.rotation_keys.oci_bootstrap import create_oci_rotation_key, rotate_oci_rotation_key
 from cloud_credentials.rotation_keys.r2 import cache_r2_rotation_token, rotate_r2_rotation_token
@@ -86,8 +85,6 @@ def main() -> int:
 
     if args.rotate and args.provider not in ("b2", "oci", "r2"):
         parser.error("--rotate requires --provider b2, oci, or r2")
-
-    SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
 
     if args.rotate:
         rotate_fn = {

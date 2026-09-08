@@ -29,10 +29,10 @@ class R2RotationTokenTests(RotationTestBase):
             token = r2.r2_rotation_token()
         mock_prompt.assert_called_once()
         self.assertEqual(token, "cf-token-value")
-        self.assertEqual((self.tmp / "_rotation-key-cloudflare-r2-token").read_text(), "cf-token-value")
+        self.assertEqual(self.get("_rotation-key-cloudflare-r2-token", category="rotation"), "cf-token-value")
 
     def test_uses_cache_without_prompting_on_subsequent_calls(self):
-        self.seed("_rotation-key-cloudflare-r2-token", "cached-token-value")
+        self.seed("_rotation-key-cloudflare-r2-token", "cached-token-value", category="rotation")
         with patch.object(r2.getpass, "getpass") as mock_prompt:
             token = r2.r2_rotation_token()
         mock_prompt.assert_not_called()
@@ -42,7 +42,7 @@ class R2RotationTokenTests(RotationTestBase):
 class R2RotationTests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-cloudflare-r2-token", "admin-token")
+        self.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
         self.seed("cloudflare-r2-account-id", "acct123")
         self.seed("cloudflare-r2-write-access-key", "OLD_TOKEN_ID")
         self.seed("cloudflare-r2-write-secret-key", "old_secret_hash")
@@ -82,7 +82,7 @@ class R2RotationTests(RotationTestBase):
         )
         session.delete.assert_called_once()
         self.assertIn("OLD_TOKEN_ID", session.delete.call_args.args[0])
-        self.assertEqual((self.tmp / "cloudflare-r2-write-access-key").read_text(), "NEW_TOKEN_ID")
+        self.assertEqual(self.get("cloudflare-r2-write-access-key"), "NEW_TOKEN_ID")
         # Every new leaf token must request native expiry (see ADR 0015)
         create_call = session.post.call_args
         expires_on = create_call.kwargs["json"]["expires_on"]
@@ -101,7 +101,7 @@ class R2RotationTests(RotationTestBase):
 
         self.assertFalse(ok)
         session.delete.assert_not_called()
-        self.assertEqual((self.tmp / "cloudflare-r2-write-access-key").read_text(), "OLD_TOKEN_ID")
+        self.assertEqual(self.get("cloudflare-r2-write-access-key"), "OLD_TOKEN_ID")
 
 
 if __name__ == "__main__":

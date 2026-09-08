@@ -48,7 +48,7 @@ Two scripts, plus an audit tool:
   `create_leaf_keys.py --rotate` already applies before trusting a new
   leaf, worth it here too since this credential otherwise sits unused
   until an actual disaster. Prints each credential once instead of
-  caching it to `ansible/files/secrets/`; see
+  caching it to OpenBao; see
   [`openbao.md`](openbao.md) for where it goes from there.
 - **`ansible/cloud_credentials/create_snapshot_write_keys.py`** — run
   routinely, same cadence as `create_leaf_keys.py`. Mints the standing,
@@ -57,8 +57,8 @@ Two scripts, plus an audit tool:
   snapshots with — a different credential from the read-only one just
   above, scoped to the same `openbao-snapshots` bucket but write-only
   (no `deleteFiles`/admin capability, same shape as `cloud_sync`'s own
-  write leaves). Cached to `ansible/files/secrets/` like every other
-  leaf here, unlike the break-glass credential. Supports `--rotate`,
+  write leaves). Cached to OpenBao like every other leaf here (Track A
+  stage 5), unlike the break-glass credential. Supports `--rotate`,
   same verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
 
 **Testing:** neither script is an Ansible role, so Molecule's per-host
@@ -68,10 +68,13 @@ HTTP call and `rclone` invocation mocked — via
 `uv run pytest ansible/tests/ -v`, and wired into CI as `pr-checks.yml`'s
 `python-unit-tests` job (see `docs/ci.md`).
 
-Rotation keys/tokens (all three providers) are cached to
-`ansible/files/secrets/`, same as everything else in this repo — see
-[ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
-for why a secrets manager isn't part of this design yet.
+Rotation keys/tokens (all three providers) are cached to OpenBao KV v2,
+at `secret/data/cloud_credentials/rotation/*` — see
+[ADR 0018](decisions/0018-openbao-repoint-not-native-plugin.md) for why
+this repointed the existing per-provider Python rather than replacing
+it, and [ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
+for the earlier decision that started it in a file cache in the first
+place.
 
 ```sh
 cd ansible

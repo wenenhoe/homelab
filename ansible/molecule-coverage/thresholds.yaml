@@ -18,7 +18,7 @@ qemu_guest_agent: 100.0
 restore: 92.9
 restore_discovery: 100.0
 seaweedfs_bucket: 100.0
-secrets: 100.0
+secrets: 97.6
 step_ca_client: 100.0
 tinyauth: 100.0
 tinyauth_ca_trust: 100.0

@@ -4,22 +4,36 @@ For the offsite-backup S3 credentials specifically, see
 [`disaster-recovery.md`](disaster-recovery.md).
 
 Every value this repo needs but doesn't want hardcoded is resolved once
-and cached on the controller by the `secrets` role
-(`ansible/roles/secrets/`), driven by a central registry
-(`ansible/inventory/group_vars/all/secrets_registry.yaml`). It runs as
-`deploy.yaml`'s Play 0, tagged `always`, `gather_facts: false` — before
-Play 1, since `ansible_host` itself resolves through a secret
+and cached by the `secrets` role (`ansible/roles/secrets/`), driven by a
+central registry (`ansible/inventory/group_vars/all/secrets_registry.yaml`).
+It runs as `deploy.yaml`'s Play 0, tagged `always`, `gather_facts: false`
+— before Play 1, since `ansible_host` itself resolves through a secret
 (`main_domain`) and Play 1's implicit fact-gathering needs a live
 connection first.
+
+Most secrets live in OpenBao (Track A stage 4) — each registry entry's
+`vault_scope` says where. Three permanent exceptions stay in the
+controller-side file cache instead: `main-domain` and the
+`openbao-controller-role-id`/`-secret-id` AppRole credential, because
+resolving any of them is a prerequisite for reaching Vault at all, and
+every `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entry, still written by
+`ansible/cloud_credentials/*.py` until Track A stage 5 repoints those
+scripts at Vault too. See `secrets_registry.yaml`'s own header comment,
+[`openbao-migration-roadmap.md`](openbao-migration-roadmap.md), and
+[ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)
+for the full picture.
 
 No template should call `lookup('password', ...)` / `lookup('pipe', ...)`
 directly, and `deploy.yaml` should never grow a new `vars_prompt` entry —
 any new secret or config value goes through the registry instead:
 
-1. Add an entry to `secrets_registry.yaml`:
+1. Add an entry to `secrets_registry.yaml`, with a `vault_scope`
+   (`hosts/<host>` if it's referenced from that host's own
+   `host_vars/<host>.yaml`, `hosts/all/<concern>` if it's referenced
+   from `group_vars/all/main.yaml` — see [ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)):
    ```yaml
    secrets_registry:
-     my-new-thing: { format: hex, length: 32 }
+     my-new-thing: { format: hex, length: 32, vault_scope: hosts/security }
    ```
 2. Reference it from a plain var in `group_vars/all/main.yaml`:
    ```yaml
@@ -48,9 +62,9 @@ any new secret or config value goes through the registry instead:
 
 | Format | Used for | Mechanism |
 | :--- | :--- | :--- |
-| `hex` | Most secrets | Wraps `lookup('password', <path> chars=hexdigits length=<n>)`; `password` itself generates once and caches to a file. `chars=hexdigits` must be the named charset, never a literal alphabet string, so `gitleaks` doesn't flag it next to a `_secret`/`_key`-shaped var name. |
-| `uuid4` | `shlink-api-key` only | `password`'s `chars=` can't produce a structurally valid UUID4, so this format generates via `python3 -c "import uuid; print(uuid.uuid4())"` on first use and caches it with `mode: "0600"`. See `ansible/roles/secrets/tasks/ensure_secret.yaml`. |
-| `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, `main_domain`, Beszel's post-boot key/token) | No generation step — the cache file must already exist. Missing → the play fails immediately with the registry entry's `description` and the command to create the file. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank. The six `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` write/read pairs are still `manual` but get filled in by `ansible/cloud_credentials/create_leaf_keys.py` instead of by hand — see [`cloud-credential-creation.md`](cloud-credential-creation.md). |
+| `hex` | Most secrets | Vault-backed (has `vault_scope`): check-then-write against KV v2 with `cas=0`, value generated via `python3 -c "import secrets; ..."` — see `ensure_secret.yaml`/`generate_vault_value.yaml`. File-cache-backed (no `vault_scope` — none of today's `hex` entries): wraps `lookup('password', <path> chars=hexdigits length=<n>)`, which generates once and caches to a file. `chars=hexdigits` must be the named charset, never a literal alphabet string, so `gitleaks` doesn't flag it next to a `_secret`/`_key`-shaped var name. |
+| `uuid4` | `shlink-api-key` only | Same Vault-vs-file split as `hex`, since `lookup('password')`'s `chars=` can't produce a structurally valid UUID4 either way — this format always generates via `python3 -c "import uuid; print(uuid.uuid4())"`. |
+| `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, Beszel's post-boot key/token) | No generation step. Vault-backed entries are populated by `bootstrap_secrets.py` before they're first read; missing → the play fails loudly naming the OpenBao path and pointing at that script. File-cache-backed entries (`main-domain`, the controller AppRole pair, every cloud-credential entry) work the same as before: missing cache file → same loud failure, naming the file to create by hand. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank either way. |
 
 ## Bootstrapping manual secrets
 
@@ -60,9 +74,15 @@ Before your first `deploy.yaml` run:
 python3 ansible/bootstrap_secrets.py
 ```
 
-Prompts for every `manual` entry that isn't already cached (masked input
+Prompts for every `manual` entry that isn't already set (masked input
 for anything marked `sensitive: true`), skipping entries that already
-have a cache file. Safe to re-run. To set a value without the script:
+have a value. Safe to re-run. Vault-backed entries need OpenBao
+reachable and the controller AppRole already provisioned
+([`openbao-auth.md`](openbao-auth.md)'s runbook) before this script can
+do anything with them; it fetches step-ca's root cert fresh each run to
+validate OpenBao's TLS cert, the same mechanism
+[ADR 0025](decisions/0025-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
+uses from Ansible. To set a file-cache-backed value without the script:
 
 ```sh
 printf '%s' '<value>' > ansible/files/secrets/<registry-key>
@@ -72,17 +92,20 @@ chmod 600 ansible/files/secrets/<registry-key>
 Beszel's key/token can't be known ahead of time — see the manual
 redeploy sequence in [`beszel.md`](beszel.md).
 
-The R2/B2/OCI entries are `manual` too, so `bootstrap_secrets.py` will
-prompt for any of them still missing after `create_rotation_keys.py`
-and `create_leaf_keys.py` run (or instead of them, if you'd
-rather paste in console-created values by hand) — all three write to
-the same cache files, so it doesn't matter which gets there first.
+The R2/B2/OCI entries are `manual` too (file-cache-backed, per this
+file's intro), so `bootstrap_secrets.py` will prompt for any of them
+still missing after `create_rotation_keys.py` and `create_leaf_keys.py`
+run (or instead of them, if you'd rather paste in console-created
+values by hand) — all three write to the same cache files, so it
+doesn't matter which gets there first.
 
-## Where the cache lives
+## Where secrets live
 
-`ansible/files/secrets/<registry-key>` on the controller, one file per
-secret, gitignored, never committed. Target hosts only ever receive the
-rendered config the value ends up in.
+Vault-backed: OpenBao, at `secret/data/{{ vault_scope }}/<registry-key>`
+(mount `secret`, KV v2). File-cache-backed: `ansible/files/secrets/<registry-key>`
+on the controller, one file per secret, gitignored, never committed.
+Either way, target hosts only ever receive the rendered config the
+value ends up in — never the registry key or its storage location.
 
 **Rotating a credential**: see [`secrets-rotation.md`](secrets-rotation.md)
 for the `rotate-secret.yaml` playbook and exactly which host(s) each

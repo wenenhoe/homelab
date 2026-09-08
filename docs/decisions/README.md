@@ -46,6 +46,8 @@ never renumber or delete a superseded one — mark it `Superseded by
 | [0021](0021-manual-shamir-unseal.md) | Accepted | Manual Shamir unseal, not cloud auto-unseal — `security`'s confirmed reboot history shows no unattended-reboot pattern, so the scenario auto-unseal defends against doesn't occur on this host. |
 | [0022](0022-approle-policy-structure-two-eras.md) | Proposed | `controller` holds one broad AppRole from the auth/policy stage through the file-cache cutover, since it's the only automation identity that exists yet; the CD-runner stage replaces it with two CIDR-bound `cd_agent` AppRoles (deploy, rotation) and revokes `controller`'s entirely. |
 | [0023](0023-openbao-snapshot-push-standalone.md) | Accepted | `snapshot-push.sh` pushes directly from `security` to R2/B2, never routed through `backup_agent`/`cloud_sync` — keeps `storage` (and the write leaf it would otherwise need) entirely out of OpenBao's recovery path. |
+| [0024](0024-vault-path-convention-hosts-all-for-global-secrets.md) | Accepted | Secrets with no single host owner (referenced from `group_vars/all/main.yaml`) live under `secret/data/hosts/all/<concern>/*`, inside 0022's already-Accepted `hosts/*` grant, instead of a new top-level Vault path. |
+| [0025](0025-controller-vault-tls-trust-via-per-run-fetched-root-cert.md) | Accepted | The controller trusts OpenBao's TLS cert by fetching step-ca's root cert fresh from `security` into a `tempfile`-backed path every run, mirroring `step_ca_client`'s pattern — never skip-verify, never a committed copy. |
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this

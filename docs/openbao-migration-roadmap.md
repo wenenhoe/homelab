@@ -1,9 +1,9 @@
 # OpenBao + CD-Agent Migration Roadmap
 
-**Status: planned, not yet built.** See
+**Status: Track A in progress, Track B not started.** See
 [`docs/decisions/`](decisions/README.md) (0017–0022) for the design
-records this roadmap builds on. Nothing below is running today — this
-is the build order once the first stage is greenlit.
+records this roadmap builds on. Stages 1–4 are built and proven live;
+see the table below for what's still ahead.
 
 ## Stage status
 
@@ -15,7 +15,7 @@ Update this table at the start and end of each PR that works a stage.
 | 1 | Deploy OpenBao | A | Done |
 | 2 | Prove backup/restore loop | A | Done |
 | 3 | Auth and least-privilege policies | A | Done |
-| 4 | Migrate the secrets role | A | Not started |
+| 4 | Migrate the secrets role | A | Done |
 | 5 | Repoint the cloud-credential package | A | Not started |
 | 6 | Full cutover, decommission file cache | A | Not started |
 | 7 | CD agent build | B | Not started |
@@ -69,7 +69,23 @@ built, but **proven**.
    avoid races); `manual` secrets bootstrap via an updated
    `bootstrap_secrets.py`. Must preserve `no_log: true` and
    generate-once-and-cache semantics, and still work before
-   `ansible_host` resolves.
+   `ansible_host` resolves. See
+   [ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)/
+   [0025](decisions/0025-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
+   for two design points this stage needed that weren't settled going
+   in (the Vault path taxonomy for secrets with no single host owner,
+   and how the controller trusts OpenBao's TLS cert over a real network
+   hop — including a real `delegate_to`/connection gotcha found and
+   fixed along the way, see 0025's own Consequences). Proven against a
+   real OpenBao instance: a live `openbao-auth.md` runbook, a real
+   `deploy.yaml`/`bootstrap_secrets.py` invocation, and all four
+   Molecule scenarios (`vault_backed`, `rotate_secret`,
+   `vault_approle_missing`, `vault_manual_missing`) pass, including
+   `idempotence` where applicable — 97.6% task coverage, with the one
+   remaining gap (a genuine concurrent CAS create-race, not
+   deliberately engineerable in a single scenario) documented as a
+   floor in `thresholds.yaml` rather than left silently untested — see
+   `docs/ci.md`'s coverage-gate section.
 5. **Repoint the cloud-credential package** —
    `ansible/cloud_credentials/` reads/writes Vault instead of files,
    preserving every provider quirk

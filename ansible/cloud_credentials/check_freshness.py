@@ -40,7 +40,7 @@ from datetime import UTC, datetime, timedelta
 
 import requests
 
-from cloud_credentials.cache import PROJECT_ROOT, scoped
+from cloud_credentials.cache import read_vault_path, scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_session
 from cloud_credentials.rotation_keys.oci_scim import oci_scim_session
@@ -219,17 +219,20 @@ def _escape_telegram_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-def _read_legacy_secrets_file(name: str) -> str | None:
-    """telegram-token/-chat-id/-topic-id-backups still read from
-    ansible/files/secrets/ here, not Vault - tracked as a known gap in
-    docs/openbao-migration-roadmap.md's stage 5 entry, fixed separately
-    from this stage's cloud_credentials leaf/rotation repoint."""
-    path = PROJECT_ROOT / "ansible/files/secrets" / name
-    return path.read_text().strip() if path.exists() else None
+_TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0024 - group_vars/all/main.yaml's own Vault path convention
+
+
+def _read_telegram_secret(name: str) -> str | None:
+    """telegram-token/-chat-id/-topic-id-backups live under the secrets
+    role's own hosts/all/telegram/* path (ADR 0024), not
+    cloud_credentials/{leaf,rotation}/* - a direct read via
+    read_vault_path(), not scoped(), since this is the one value this
+    package reads outside its own Vault taxonomy."""
+    return read_vault_path(f"{_TELEGRAM_VAULT_SCOPE}/{name}")
 
 
 def _send_telegram_alert(lines: list[str]) -> None:
-    """Same secrets, same directory, same Telegram Bot API call
+    """Same secrets, same Vault path, same Telegram Bot API call
     `telegram_notify` (ansible/roles/telegram_notify) already makes for
     every other consumer in this repo - just not through that role,
     since it's Ansible-templated and deployed to `managed_hosts`, and
@@ -238,13 +241,13 @@ def _send_telegram_alert(lines: list[str]) -> None:
     not legacy Markdown - see _escape_telegram_html for why. See
     docs/telegram-notifications.md for the shared conventions (topic
     routing) this still follows."""
-    token = _read_legacy_secrets_file("telegram-token")
-    chat_id = _read_legacy_secrets_file("telegram-chat-id")
+    token = _read_telegram_secret("telegram-token")
+    chat_id = _read_telegram_secret("telegram-chat-id")
     if not token or not chat_id:
         print("telegram: no telegram-token/telegram-chat-id cached, alert not sent:\n" + "\n".join(lines), file=sys.stderr)
         return
 
-    topic_id = _read_legacy_secrets_file("telegram-topic-id-backups")
+    topic_id = _read_telegram_secret("telegram-topic-id-backups")
     data = {
         "chat_id": chat_id,
         "text": "<b>cloud_credentials freshness check</b>\n\n" + "\n".join(lines),

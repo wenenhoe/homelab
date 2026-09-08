@@ -5,7 +5,9 @@ top-level create_*.py scripts read/write through the four functions
 scoped() returns - never a raw HTTP call of their own. Storage target
 is OpenBao KV v2, at secret/data/cloud_credentials/<category>/<name>
 (controller's Era A AppRole, ADR 0022, already grants read/write on
-both leaf/* and rotation/*).
+both leaf/* and rotation/*). read_vault_path() is the one exception:
+a direct read for the rare caller needing a Vault path outside that
+taxonomy (see its own docstring).
 
 Vault session/TLS-trust mechanics mirror ansible/bootstrap_secrets.py's
 own (ADR 0025): this package runs standalone, outside any Ansible play,
@@ -15,7 +17,7 @@ bootstrap_secrets.py - the two are deliberately independent, see
 ansible/tests/test_bootstrap_secrets.py's own comment on why.
 
 Two secrets live permanently in the file cache instead, read directly
-from SECRETS_DIR below, never through scoped(): main-domain and
+from SECRETS_DIR below, never through Vault: main-domain and
 openbao-controller-role-id/-secret-id - the credentials Vault access
 itself depends on, so they can't live in the thing they unlock (see
 secrets_registry.yaml's header comment for the equivalent exception on
@@ -157,10 +159,10 @@ def _vault_path(category: str, name: str) -> str:
     return f"cloud_credentials/{category}/{name}"
 
 
-def _vault_read(category: str, name: str) -> str | None:
+def _vault_read_at(full_path: str) -> str | None:
     session = _get_session()
     resp = requests.get(
-        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{_vault_path(category, name)}",
+        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{full_path}",
         headers={"X-Vault-Token": session["token"]},
         verify=session["ca_path"],
         timeout=10,
@@ -171,16 +173,37 @@ def _vault_read(category: str, name: str) -> str | None:
     return resp.json()["data"]["data"]["value"]
 
 
-def _vault_write(category: str, name: str, value: str) -> None:
+def _vault_write_at(full_path: str, value: str) -> None:
     session = _get_session()
     resp = requests.post(
-        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{_vault_path(category, name)}",
+        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{full_path}",
         headers={"X-Vault-Token": session["token"]},
         json={"data": {"value": value}},
         verify=session["ca_path"],
         timeout=10,
     )
     resp.raise_for_status()
+
+
+def read_vault_path(full_path: str) -> str | None:
+    """Read an arbitrary Vault KV v2 path directly, for the rare caller
+    outside the cloud_credentials/{leaf,rotation} taxonomy scoped()
+    covers - e.g. check_freshness.py's telegram-* reads, which live
+    under the secrets role's own hosts/all/telegram/* convention
+    (ADR 0024), a different top-level path this package doesn't own.
+    Controller's Era A AppRole already grants read/write on all of
+    secret/data/hosts/* (ADR 0022), so no policy change is needed to
+    use this from cloud_credentials.
+    """
+    return _vault_read_at(full_path)
+
+
+def _vault_read(category: str, name: str) -> str | None:
+    return _vault_read_at(_vault_path(category, name))
+
+
+def _vault_write(category: str, name: str, value: str) -> None:
+    _vault_write_at(_vault_path(category, name), value)
 
 
 def scoped(category: str):

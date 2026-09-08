@@ -568,8 +568,10 @@ calling user, not a specific account.
 Any non-fresh result posts a Telegram alert to the `Backups` topic
 (same one `telegram-notify-cloud-sync` already uses — see
 [`telegram-notifications.md`](telegram-notifications.md)), using the
-same cached `telegram-token`/`telegram-chat-id` every other consumer in
-this repo reads from `ansible/files/secrets/`. Not routed through the
+same `telegram-token`/`telegram-chat-id` every other consumer in this
+repo reads from Vault (`secret/data/hosts/all/telegram/*`, per
+[ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)).
+Not routed through the
 `telegram_notify` Ansible role — that's templated and deployed to
 `managed_hosts`, and `controller` deliberately isn't one — so this
 calls Telegram's `sendMessage` directly instead, same request shape.

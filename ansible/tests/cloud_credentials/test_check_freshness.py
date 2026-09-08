@@ -2,17 +2,12 @@
 
 Run via `uv run pytest ansible/tests/ -v`. Every provider HTTP call is
 mocked — this only exercises the fresh/stale/check-failed triage logic,
-not real B2/OCI/Cloudflare behavior. telegram-*'s legacy file-cache read
-(see check_freshness.py's own _read_legacy_secrets_file, tracked as a
-known gap in docs/openbao-migration-roadmap.md's stage 5 entry) still
-needs a real tmp file, not the fake Vault below.
+not real B2/OCI/Cloudflare behavior.
 """
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
 import unittest
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -27,25 +22,17 @@ from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
 
 class FreshnessTestBase(FakeVaultTestCase):
-    def setUp(self):
-        super().setUp()
-        self.legacy_root = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.legacy_root, ignore_errors=True))
-        (self.legacy_root / "ansible/files/secrets").mkdir(parents=True)
-        patch.object(check_freshness, "PROJECT_ROOT", self.legacy_root).start()
-        self.addCleanup(patch.stopall)
-
     def seed(self, name: str, value: str, category: str = "leaf") -> None:
         self.vault_seed(category, name, value)
 
     def delete(self, name: str, category: str = "leaf") -> None:
         self.vault_delete(category, name)
 
-    def seed_legacy_file(self, name: str, value: str) -> None:
-        (self.legacy_root / "ansible/files/secrets" / name).write_text(value)
+    def seed_telegram(self, name: str, value: str) -> None:
+        self.vault_seed_path(f"{check_freshness._TELEGRAM_VAULT_SCOPE}/{name}", value)
 
-    def legacy_file_path(self, name: str) -> Path:
-        return self.legacy_root / "ansible/files/secrets" / name
+    def delete_telegram(self, name: str) -> None:
+        self._store.pop(f"{check_freshness._TELEGRAM_VAULT_SCOPE}/{name}", None)
 
 
 class CheckB2Tests(FreshnessTestBase):
@@ -252,8 +239,8 @@ class MainExitCodeTests(FreshnessTestBase):
 class TelegramAlertTests(FreshnessTestBase):
     def setUp(self):
         super().setUp()
-        self.seed_legacy_file("telegram-token", "123:abc")
-        self.seed_legacy_file("telegram-chat-id", "-100999")
+        self.seed_telegram("telegram-token", "123:abc")
+        self.seed_telegram("telegram-chat-id", "-100999")
 
     @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
     @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
@@ -274,7 +261,7 @@ class TelegramAlertTests(FreshnessTestBase):
         # "past its window" result used to not even alert; a "expiring
         # soon" result must, since it's the only outcome that gives any
         # lead time before B2/R2 actually reject the credential.
-        self.seed_legacy_file("telegram-topic-id-backups", "42")
+        self.seed_telegram("telegram-topic-id-backups", "42")
         mock_post.return_value = MagicMock(raise_for_status=lambda: None)
 
         check_freshness.main()
@@ -303,7 +290,7 @@ class TelegramAlertTests(FreshnessTestBase):
     @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
     @patch.object(check_freshness.requests, "post")
     def test_missing_telegram_credentials_does_not_crash_the_run(self, mock_post, mock_b2, mock_oci, mock_r2):
-        self.legacy_file_path("telegram-token").unlink()
+        self.delete_telegram("telegram-token")
         rc = check_freshness.main()
         mock_post.assert_not_called()
         self.assertEqual(rc, 0)  # STALE alone still doesn't fail the run, even unalerted

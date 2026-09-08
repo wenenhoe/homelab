@@ -1,6 +1,6 @@
 # Cloud Credential Creation — R2/B2/OCI
 
-Two scripts, plus an audit tool:
+Two scripts, plus two audit/migration tools:
 
 - **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely.
   For B2, takes the master credential in memory only (never written to
@@ -60,6 +60,28 @@ Two scripts, plus an audit tool:
   write leaves). Cached to OpenBao like every other leaf here (Track A
   stage 5), unlike the break-glass credential. Supports `--rotate`,
   same verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
+- **`ansible/cloud_credentials/audit_vault_state.py`** — run whenever,
+  read-only. For every cloud_credentials leaf/rotation key, reports
+  whether it's in Vault, in the legacy file cache, both, or neither —
+  never printing an actual secret value. Run this before
+  `migrate_legacy_cache_to_vault.py` on any controller that had
+  credentials cached before Track A stage 5 landed, especially if an
+  earlier, ad hoc migration attempt might already have touched Vault.
+  A `DIFFERS` result most often just means this credential was rotated
+  since the migration ran — every rotate writes the new value to Vault
+  only, so the legacy file is stale by design from that point on; only
+  worth a closer look if you didn't expect that credential to have
+  changed. Only checks the specific paths this package uses —
+  controller's policy grants no `list` capability on anything, so this
+  can't discover a value written somewhere unexpected.
+- **`ansible/cloud_credentials/migrate_legacy_cache_to_vault.py`** —
+  run once per controller, by hand, after confirming with
+  `audit_vault_state.py` that there's nothing to reconcile first. Copies
+  every still-file-cached cloud_credentials value into its Vault path —
+  no re-minting, no provider API calls, no prompting, just the value
+  that already works. Idempotent (skips anything already in Vault) and
+  never deletes the legacy file — that happens at Track A stage 6's
+  cutover, not here.
 
 **Testing:** neither script is an Ansible role, so Molecule's per-host
 model (`docs/molecule-testing.md`) doesn't apply. `ansible/tests/`

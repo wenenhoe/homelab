@@ -2,7 +2,7 @@ name: beszel-agent
 
 services:
   beszel-agent:
-    image: ghcr.io/henrygd/beszel/beszel-agent:0.18-alpine
+    image: ghcr.io/henrygd/beszel/beszel-agent:0.19-alpine
     container_name: beszel-agent
     volumes:
       - data:/var/lib/beszel-agent

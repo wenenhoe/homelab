@@ -4,10 +4,10 @@ uses to push encrypted raft snapshots to R2/B2 — a separate credential
 from create_snapshot_readonly_keys.py's break-glass restore key, and
 deliberately not the same shape:
 
-- This one is cached to ansible/files/secrets/, like every other leaf
-  in create_leaf_keys.py, since it's a routine, standing credential a
-  script reads on every backup run — not a one-time value copied into
-  the break-glass password-manager entry.
+- This one is cached to OpenBao, like every other leaf in
+  create_leaf_keys.py (Track A stage 5), since it's a routine, standing
+  credential a script reads on every backup run — not a one-time value
+  copied into the break-glass password-manager entry.
 - It carries the same quarterly native expiry every other leaf gets
   (see docs/cloud-credential-creation.md), rotated by hand via
   --rotate the same way create_leaf_keys.py's leaves are, since it's
@@ -38,12 +38,18 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import SECRETS_DIR, cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.cache import scoped
 from cloud_credentials.create_snapshot_readonly_keys import SNAPSHOT_BUCKET_B2, SNAPSHOT_BUCKET_R2
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_session
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_delete_token, r2_permission_group_ids, r2_rotation_token
 from cloud_credentials.verify import verify_leaf_via_rclone
+
+# This script's own leaf-tier cache keys, alongside the general
+# cloud_sync leaves leaf_keys/{b2,r2}.py already declare - see
+# cache.py's own scoped() docstring for why the category lives with the
+# module that writes the key, not a central table.
+cached, read_cache, write_cache, require_cache_file = scoped("leaf")
 
 CACHE_R2_ACCESS = "cloudflare-r2-openbao-snapshot-write-access-key"
 CACHE_R2_SECRET = "cloudflare-r2-openbao-snapshot-write-secret-key"  # noqa: S105 - cache filename, not secret value
@@ -204,8 +210,6 @@ def main() -> int:
         "--rotate", action="store_true", help="Rotate: mint a new key, verify it, only then revoke the old one. Requires --provider r2 or b2 (not all)."
     )
     args = parser.parse_args()
-
-    SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
 
     if args.rotate:
         if args.provider not in ("r2", "b2"):

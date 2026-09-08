@@ -1,6 +1,6 @@
 # Cloud Credential Creation — R2/B2/OCI
 
-Two scripts, plus an audit tool:
+Two scripts, plus two audit/migration tools:
 
 - **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely.
   For B2, takes the master credential in memory only (never written to
@@ -48,7 +48,7 @@ Two scripts, plus an audit tool:
   `create_leaf_keys.py --rotate` already applies before trusting a new
   leaf, worth it here too since this credential otherwise sits unused
   until an actual disaster. Prints each credential once instead of
-  caching it to `ansible/files/secrets/`; see
+  caching it to OpenBao; see
   [`openbao.md`](openbao.md) for where it goes from there.
 - **`ansible/cloud_credentials/create_snapshot_write_keys.py`** — run
   routinely, same cadence as `create_leaf_keys.py`. Mints the standing,
@@ -57,9 +57,31 @@ Two scripts, plus an audit tool:
   snapshots with — a different credential from the read-only one just
   above, scoped to the same `openbao-snapshots` bucket but write-only
   (no `deleteFiles`/admin capability, same shape as `cloud_sync`'s own
-  write leaves). Cached to `ansible/files/secrets/` like every other
-  leaf here, unlike the break-glass credential. Supports `--rotate`,
+  write leaves). Cached to OpenBao like every other leaf here (Track A
+  stage 5), unlike the break-glass credential. Supports `--rotate`,
   same verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
+- **`ansible/cloud_credentials/audit_vault_state.py`** — run whenever,
+  read-only. For every cloud_credentials leaf/rotation key, reports
+  whether it's in Vault, in the legacy file cache, both, or neither —
+  never printing an actual secret value. Run this before
+  `migrate_legacy_cache_to_vault.py` on any controller that had
+  credentials cached before Track A stage 5 landed, especially if an
+  earlier, ad hoc migration attempt might already have touched Vault.
+  A `DIFFERS` result most often just means this credential was rotated
+  since the migration ran — every rotate writes the new value to Vault
+  only, so the legacy file is stale by design from that point on; only
+  worth a closer look if you didn't expect that credential to have
+  changed. Only checks the specific paths this package uses —
+  controller's policy grants no `list` capability on anything, so this
+  can't discover a value written somewhere unexpected.
+- **`ansible/cloud_credentials/migrate_legacy_cache_to_vault.py`** —
+  run once per controller, by hand, after confirming with
+  `audit_vault_state.py` that there's nothing to reconcile first. Copies
+  every still-file-cached cloud_credentials value into its Vault path —
+  no re-minting, no provider API calls, no prompting, just the value
+  that already works. Idempotent (skips anything already in Vault) and
+  never deletes the legacy file — that happens at Track A stage 6's
+  cutover, not here.
 
 **Testing:** neither script is an Ansible role, so Molecule's per-host
 model (`docs/molecule-testing.md`) doesn't apply. `ansible/tests/`
@@ -68,10 +90,13 @@ HTTP call and `rclone` invocation mocked — via
 `uv run pytest ansible/tests/ -v`, and wired into CI as `pr-checks.yml`'s
 `python-unit-tests` job (see `docs/ci.md`).
 
-Rotation keys/tokens (all three providers) are cached to
-`ansible/files/secrets/`, same as everything else in this repo — see
-[ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
-for why a secrets manager isn't part of this design yet.
+Rotation keys/tokens (all three providers) are cached to OpenBao KV v2,
+at `secret/data/cloud_credentials/rotation/*` — see
+[ADR 0018](decisions/0018-openbao-repoint-not-native-plugin.md) for why
+this repointed the existing per-provider Python rather than replacing
+it, and [ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
+for the earlier decision that started it in a file cache in the first
+place.
 
 ```sh
 cd ansible
@@ -565,8 +590,10 @@ calling user, not a specific account.
 Any non-fresh result posts a Telegram alert to the `Backups` topic
 (same one `telegram-notify-cloud-sync` already uses — see
 [`telegram-notifications.md`](telegram-notifications.md)), using the
-same cached `telegram-token`/`telegram-chat-id` every other consumer in
-this repo reads from `ansible/files/secrets/`. Not routed through the
+same `telegram-token`/`telegram-chat-id` every other consumer in this
+repo reads from Vault (`secret/data/hosts/all/telegram/*`, per
+[ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)).
+Not routed through the
 `telegram_notify` Ansible role — that's templated and deployed to
 `managed_hosts`, and `controller` deliberately isn't one — so this
 calls Telegram's `sendMessage` directly instead, same request shape.

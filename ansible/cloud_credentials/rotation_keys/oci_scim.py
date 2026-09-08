@@ -12,7 +12,9 @@ import base64
 
 import requests
 
-from cloud_credentials.cache import require_cache_file
+from cloud_credentials.cache import scoped
+
+_, _, _, require_cache_file = scoped("rotation")
 
 SCIM_CUSTOMER_SECRET_KEY_SCHEMA = "urn:ietf:params:scim:schemas:oracle:idcs:customerSecretKey"  # noqa: S105 - a schema URN, not a credential
 

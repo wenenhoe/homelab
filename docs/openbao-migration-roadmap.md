@@ -3,7 +3,9 @@
 **Status: Track A in progress, Track B not started.** See
 [`docs/decisions/`](decisions/README.md) (0017–0022) for the design
 records this roadmap builds on. Stages 1–4 are built and proven live;
-see the table below for what's still ahead.
+stage 5's storage-layer repoint is too, but the stage isn't Done until
+ADR 0019's own per-read alert requirement is built — see the table
+below and its Open items.
 
 ## Stage status
 
@@ -16,7 +18,7 @@ Update this table at the start and end of each PR that works a stage.
 | 2 | Prove backup/restore loop | A | Done |
 | 3 | Auth and least-privilege policies | A | Done |
 | 4 | Migrate the secrets role | A | Done |
-| 5 | Repoint the cloud-credential package | A | Not started |
+| 5 | Repoint the cloud-credential package | A | Blocked: R2 per-read alert (ADR 0019) — see Open items |
 | 6 | Full cutover, decommission file cache | A | Not started |
 | 7 | CD agent build | B | Not started |
 
@@ -136,3 +138,26 @@ not against the file cache.
   spike on `bao write -f auth/approle/login ...`'s exact output shape
   first — see [`openbao-backup-restore.md`](openbao-backup-restore.md)'s
   open follow-ups.
+- Root-token recovery once revoked (`openbao-auth.md`'s stage 3 step)
+  has no confirmed working path: a real 2.6.2 instance returned a 403
+  on `sys/generate-root-token/*` for controller's own AppRole token,
+  and nothing else in this Vault holds `sudo` to grant that access
+  either — confirmed live, not assumed, during Track A stage 5's own
+  testing. This also means `openbao-backup-restore.md`'s restore-drill
+  step 6 ("authenticate with the break-glass root token") assumes a
+  credential stage 3's revocation removes; the two docs contradict
+  each other and need reconciling. Not yet decided between: never
+  fully revoke root (keep it in the offline break-glass bundle
+  instead); grant a narrow `sudo`-on-`sys/generate-root-token/*`
+  policy before revoking root, specifically to keep this path open; a
+  full OpenBao re-init with a fresh break-glass bundle as part of a
+  future cutover (raised, not scoped); or confirming recovery-mode
+  server start as the real mechanism. Needs its own ADR once decided —
+  touches `openbao-auth.md`, `openbao-backup-restore.md`, and possibly
+  ADR 0022.
+- `openbao-backup-restore.md` states the pinned image is `2.5.4`; the
+  real, currently-running version is `2.6.2` (confirmed live, same
+  session as the finding above) — that doc, and anything else assuming
+  2.5.x behavior, needs a pass once the root-token question above is
+  settled, since the two are related (2.6.2 is also where
+  `generate-root`'s authenticated-endpoint behavior changed).

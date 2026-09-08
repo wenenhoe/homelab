@@ -47,7 +47,6 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import SECRETS_DIR
 from cloud_credentials.leaf_keys.b2 import create_b2, rotate_b2
 from cloud_credentials.leaf_keys.oci import create_oci, rotate_oci
 from cloud_credentials.leaf_keys.r2 import create_r2, rotate_r2
@@ -67,8 +66,6 @@ def main() -> int:
         ),
     )
     args = parser.parse_args()
-
-    SECRETS_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
 
     if args.rotate:
         if args.provider not in ("r2", "b2", "oci"):

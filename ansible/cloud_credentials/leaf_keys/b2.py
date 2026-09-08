@@ -6,9 +6,16 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.verify import verify_leaf_via_rclone
+
+cached, read_cache, write_cache, require_cache_file = scoped("leaf")
+# b2_rotation_session() below reads the rotation-tier session
+# credential rotation_keys/b2.py writes - a second, differently-scoped
+# binding, since this module's own leaf keys and that session live
+# under different top-level Vault paths (ADR 0022).
+_, _, _, _rotation_require_cache_file = scoped("rotation")
 
 B2_BUCKET = "homelab-backups-b2"
 
@@ -91,11 +98,11 @@ def b2_list_keys(session, api_url: str, account_id: str) -> list[dict]:
 
 
 def b2_rotation_session() -> tuple[requests.Session, str, str]:
-    rotation_key_id = require_cache_file(
+    rotation_key_id = _rotation_require_cache_file(
         "_rotation-key-backblaze-b2-key-id",
         "Run: python3 -m cloud_credentials.create_rotation_keys --provider b2",
     )
-    rotation_key = require_cache_file(
+    rotation_key = _rotation_require_cache_file(
         "_rotation-key-backblaze-b2-application-key",
         "Run: python3 -m cloud_credentials.create_rotation_keys --provider b2",
     )

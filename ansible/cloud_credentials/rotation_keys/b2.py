@@ -10,8 +10,10 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import cached, read_cache, write_cache
+from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
+
+cached, read_cache, write_cache, _ = scoped("rotation")
 
 B2_AUTHORIZE_URL = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
 

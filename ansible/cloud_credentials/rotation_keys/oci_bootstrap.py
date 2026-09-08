@@ -12,7 +12,7 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import utcnow_iso
 from cloud_credentials.rotation_keys.oci_iam import (
     oci_get_or_create_group,
@@ -21,6 +21,8 @@ from cloud_credentials.rotation_keys.oci_iam import (
     oci_master_auth_and_endpoint,
 )
 from cloud_credentials.rotation_keys.oci_scim import oci_scim_access_token, oci_scim_domain_and_credentials
+
+cached, read_cache, write_cache, require_cache_file = scoped("rotation")
 
 # Must match leaf_keys/oci.py's OCI_BUCKET exactly - both flows operate
 # on the same bucket, one scoping IAM policies to it, the other reading/

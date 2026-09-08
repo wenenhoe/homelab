@@ -59,7 +59,7 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import require_cache_file
+from cloud_credentials.cache import scoped
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_session
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_permission_group_ids, r2_rotation_token
 from cloud_credentials.verify import verify_leaf_via_rclone
@@ -72,6 +72,12 @@ SNAPSHOT_BUCKET_R2 = "openbao-snapshots"
 # be available on B2 too when this was set up — confirmed, not assumed
 # from the R2 name being free.
 SNAPSHOT_BUCKET_B2 = "openbao-snapshots"
+
+# Only reads config already declared leaf-tier by leaf_keys/{b2,r2}.py
+# (cloudflare-r2-account-id, backblaze-b2-region) - this script mints a
+# credential that's never itself cached (see module docstring), so it
+# has no leaf/rotation keys of its own to declare.
+_, _, _, require_cache_file = scoped("leaf")
 
 
 def mint_r2() -> bool:

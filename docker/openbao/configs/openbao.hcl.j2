@@ -23,3 +23,14 @@ cluster_addr = "https://openbao:8201"
 
 # No UI - see docs/openbao.md for why this stays CLI/API-only.
 ui = false
+
+# Declarative, not API-driven (unsafe_allow_api_audit_creation would be
+# needed for that route - see ADR 0026 for why that's rejected). Writes
+# to stdout, captured by Docker's own log driver - compose.yaml.j2's
+# logging: block is what bounds its growth, not this file.
+audit "file" "openbao" {
+  description = "Request/response audit log - see docs/openbao.md's Audit logging section and ADR 0026"
+  options {
+    file_path = "stdout"
+  }
+}

@@ -24,11 +24,11 @@ def _scim_key_response(scim_id="NEW_SCIM_ID", access_key="NEW_ACCESS", secret_ke
 class OciRotationTests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-oci-domain-url", "https://idcs-example.identity.oraclecloud.com")
-        self.seed("_rotation-key-oci-client-id", "client-123")
-        self.seed("_rotation-key-oci-client-secret", "shh")
-        self.seed("_oci-leaf-user-ocid-read", "ocid1.user.oc1..readleaf")
-        self.seed("_oci-leaf-user-ocid-write", "ocid1.user.oc1..writeleaf")
+        self.seed("_rotation-key-oci-domain-url", "https://idcs-example.identity.oraclecloud.com", category="rotation")
+        self.seed("_rotation-key-oci-client-id", "client-123", category="rotation")
+        self.seed("_rotation-key-oci-client-secret", "shh", category="rotation")
+        self.seed("_oci-leaf-user-ocid-read", "ocid1.user.oc1..readleaf", category="rotation")
+        self.seed("_oci-leaf-user-ocid-write", "ocid1.user.oc1..writeleaf", category="rotation")
         self.seed("oci-namespace", "mynamespace")
         self.seed("oci-region", "us-ashburn-1")
         self.seed("oci-read-access-key", "OLD_ACCESS")
@@ -57,12 +57,12 @@ class OciRotationTests(RotationTestBase):
         )
         session.delete.assert_called_once()
         self.assertIn("OLD_SCIM_ID", session.delete.call_args.args[0])
-        self.assertEqual((self.tmp / "oci-read-access-key").read_text(), "NEW_ACCESS")
-        self.assertEqual((self.tmp / "oci-read-secret-key").read_text(), "NEW_SECRET")
-        self.assertEqual((self.tmp / "oci-read-scim-id").read_text(), "NEW_SCIM_ID")
+        self.assertEqual(self.get("oci-read-access-key"), "NEW_ACCESS")
+        self.assertEqual(self.get("oci-read-secret-key"), "NEW_SECRET")
+        self.assertEqual(self.get("oci-read-scim-id"), "NEW_SCIM_ID")
         # expiresOn is native now (see ADR 0016) - no self-tracked
         # -created-at cache file should exist for a SCIM-created key.
-        self.assertFalse((self.tmp / "oci-read-created-at").exists())
+        self.assertIsNone(self.get("oci-read-created-at"))
 
     @patch.object(oci, "verify_leaf_via_rclone", return_value=(False, "permission denied"))
     @patch.object(oci.requests, "post")
@@ -76,8 +76,8 @@ class OciRotationTests(RotationTestBase):
 
         self.assertFalse(ok)
         session.delete.assert_not_called()
-        self.assertEqual((self.tmp / "oci-read-access-key").read_text(), "OLD_ACCESS")
-        self.assertEqual((self.tmp / "oci-read-scim-id").read_text(), "OLD_SCIM_ID")
+        self.assertEqual(self.get("oci-read-access-key"), "OLD_ACCESS")
+        self.assertEqual(self.get("oci-read-scim-id"), "OLD_SCIM_ID")
 
     @patch.object(oci.requests, "post")
     @patch.object(oci.requests, "Session")
@@ -116,9 +116,9 @@ class OciRotationTests(RotationTestBase):
 
         # "write" was NOT treated as done - a fresh key was created and
         # all three fields are now fully cached together.
-        self.assertEqual((self.tmp / "oci-write-access-key").read_text(), "FRESH_ACCESS")
-        self.assertEqual((self.tmp / "oci-write-secret-key").read_text(), "FRESH_SECRET")
-        self.assertEqual((self.tmp / "oci-write-scim-id").read_text(), "BACKFILLED_SCIM_ID")
+        self.assertEqual(self.get("oci-write-access-key"), "FRESH_ACCESS")
+        self.assertEqual(self.get("oci-write-secret-key"), "FRESH_SECRET")
+        self.assertEqual(self.get("oci-write-scim-id"), "BACKFILLED_SCIM_ID")
 
 
 if __name__ == "__main__":

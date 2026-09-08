@@ -27,8 +27,8 @@ def _b2_create_key_response(access_key: str, secret_key: str) -> MagicMock:
 class B2RotationTests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id")
-        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key")
+        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
+        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
         self.seed("backblaze-b2-region", "us-west-004")
         self.seed("backblaze-b2-write-access-key", "OLD_ACCESS")
         self.seed("backblaze-b2-write-secret-key", "OLD_SECRET")
@@ -60,8 +60,8 @@ class B2RotationTests(RotationTestBase):
         delete_call = session.post.call_args_list[2]
         self.assertIn("b2_delete_key", delete_call.args[0])
         self.assertEqual(delete_call.kwargs["json"]["applicationKeyId"], "OLD_ACCESS")
-        self.assertEqual((self.tmp / "backblaze-b2-write-access-key").read_text(), "NEW_ACCESS")
-        self.assertEqual((self.tmp / "backblaze-b2-write-secret-key").read_text(), "NEW_SECRET")
+        self.assertEqual(self.get("backblaze-b2-write-access-key"), "NEW_ACCESS")
+        self.assertEqual(self.get("backblaze-b2-write-secret-key"), "NEW_SECRET")
         # The actual point of this test: every new leaf key must request
         # native expiry, not just get created.
         new_key_call = session.post.call_args_list[1]
@@ -86,8 +86,8 @@ class B2RotationTests(RotationTestBase):
         # No delete call: only 2 session.post calls happened (bucket lookup + create).
         self.assertEqual(session.post.call_count, 2)
         # Cache must be untouched — the old, still-valid key stays authoritative.
-        self.assertEqual((self.tmp / "backblaze-b2-write-access-key").read_text(), "OLD_ACCESS")
-        self.assertEqual((self.tmp / "backblaze-b2-write-secret-key").read_text(), "OLD_SECRET")
+        self.assertEqual(self.get("backblaze-b2-write-access-key"), "OLD_ACCESS")
+        self.assertEqual(self.get("backblaze-b2-write-secret-key"), "OLD_SECRET")
 
 
 if __name__ == "__main__":

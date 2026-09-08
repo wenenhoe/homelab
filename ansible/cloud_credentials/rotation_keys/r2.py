@@ -11,8 +11,10 @@ revoked; there is nothing left to verify before revoking.
 
 from __future__ import annotations
 
-from cloud_credentials.cache import cached, write_cache
+from cloud_credentials.cache import scoped
 from cloud_credentials.leaf_keys.r2 import _prompt_r2_admin_token
+
+cached, read_cache, write_cache, _ = scoped("rotation")
 
 _CACHE_KEY = "_rotation-key-cloudflare-r2-token"
 

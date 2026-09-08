@@ -40,10 +40,13 @@ from datetime import UTC, datetime, timedelta
 
 import requests
 
-from cloud_credentials.cache import cached, read_cache
+from cloud_credentials.cache import read_vault_path, scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_session
 from cloud_credentials.rotation_keys.oci_scim import oci_scim_session
+
+_leaf_cached, _leaf_read_cache, _, _ = scoped("leaf")
+_rotation_cached, _rotation_read_cache, _, _ = scoped("rotation")
 
 FRESH, WARNING, URGENT, STALE, CHECK_FAILED = "fresh", "expiring soon", "expiring very soon", "past its window", "check failed"
 
@@ -118,7 +121,7 @@ def check_oci() -> list[tuple[str, str, str]]:
 
 
 def _oci_scim_key_result(label: str, session: requests.Session, domain_url: str, scim_id_cache_name: str) -> tuple[str, str, str]:
-    scim_id = read_cache(scim_id_cache_name)
+    scim_id = _leaf_read_cache(scim_id_cache_name)
     if scim_id is None:
         return (label, CHECK_FAILED, f"no {scim_id_cache_name} cache file - created before the SCIM migration (ADR 0016)?")
     resp = session.get(f"{domain_url}/admin/v1/CustomerSecretKeys/{scim_id}")
@@ -132,16 +135,16 @@ def _oci_scim_key_result(label: str, session: requests.Session, domain_url: str,
 
 
 def _oci_created_at_result(label: str, cache_name: str) -> tuple[str, str, str]:
-    if not cached(cache_name):
+    if not _rotation_cached(cache_name):
         return (label, CHECK_FAILED, f"no {cache_name} cache file - created before this thread's tracking was added?")
-    created_at = datetime.fromisoformat(read_cache(cache_name))
+    created_at = datetime.fromisoformat(_rotation_read_cache(cache_name))
     status, detail = _classify(created_at + timedelta(days=QUARTERLY_DAYS))
     return (label, status, detail)
 
 
 def check_r2() -> list[tuple[str, str, str]]:
-    token = read_cache("_rotation-key-cloudflare-r2-token")
-    account_id = read_cache("cloudflare-r2-account-id")
+    token = _rotation_read_cache("_rotation-key-cloudflare-r2-token")
+    account_id = _leaf_read_cache("cloudflare-r2-account-id")
     if token is None or account_id is None:
         missing = "rotation token" if token is None else "account id"
         detail = f"no cached {missing} - can't query Cloudflare without prompting"
@@ -152,7 +155,7 @@ def check_r2() -> list[tuple[str, str, str]]:
 
     results = []
     for leaf in ("write", "read"):
-        token_id = read_cache(f"cloudflare-r2-{leaf}-access-key")
+        token_id = _leaf_read_cache(f"cloudflare-r2-{leaf}-access-key")
         results.append(_r2_get_token_result(f"r2 {leaf}", session, account_id, token_id))
 
     results.append(_r2_rotation_token_result(session))
@@ -216,8 +219,20 @@ def _escape_telegram_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
+_TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0024 - group_vars/all/main.yaml's own Vault path convention
+
+
+def _read_telegram_secret(name: str) -> str | None:
+    """telegram-token/-chat-id/-topic-id-backups live under the secrets
+    role's own hosts/all/telegram/* path (ADR 0024), not
+    cloud_credentials/{leaf,rotation}/* - a direct read via
+    read_vault_path(), not scoped(), since this is the one value this
+    package reads outside its own Vault taxonomy."""
+    return read_vault_path(f"{_TELEGRAM_VAULT_SCOPE}/{name}")
+
+
 def _send_telegram_alert(lines: list[str]) -> None:
-    """Same secrets, same directory, same Telegram Bot API call
+    """Same secrets, same Vault path, same Telegram Bot API call
     `telegram_notify` (ansible/roles/telegram_notify) already makes for
     every other consumer in this repo - just not through that role,
     since it's Ansible-templated and deployed to `managed_hosts`, and
@@ -226,13 +241,13 @@ def _send_telegram_alert(lines: list[str]) -> None:
     not legacy Markdown - see _escape_telegram_html for why. See
     docs/telegram-notifications.md for the shared conventions (topic
     routing) this still follows."""
-    token = read_cache("telegram-token")
-    chat_id = read_cache("telegram-chat-id")
+    token = _read_telegram_secret("telegram-token")
+    chat_id = _read_telegram_secret("telegram-chat-id")
     if not token or not chat_id:
         print("telegram: no telegram-token/telegram-chat-id cached, alert not sent:\n" + "\n".join(lines), file=sys.stderr)
         return
 
-    topic_id = read_cache("telegram-topic-id-backups")
+    topic_id = _read_telegram_secret("telegram-topic-id-backups")
     data = {
         "chat_id": chat_id,
         "text": "<b>cloud_credentials freshness check</b>\n\n" + "\n".join(lines),

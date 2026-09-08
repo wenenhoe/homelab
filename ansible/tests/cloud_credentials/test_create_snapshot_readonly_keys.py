@@ -19,7 +19,7 @@ from cloud_credentials import create_snapshot_readonly_keys as snap
 class MintR2Tests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-cloudflare-r2-token", "admin-token")
+        self.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
         self.seed("cloudflare-r2-account-id", "acct123")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"))
@@ -66,9 +66,7 @@ class MintR2Tests(RotationTestBase):
         # is exercised via r2_rotation_token's underlying getpass path,
         # covered by test_r2.py already. This asserts the account-id
         # guard specifically, since mint_r2 needs both.
-        from cloud_credentials.cache import SECRETS_DIR
-
-        (SECRETS_DIR / "cloudflare-r2-account-id").unlink()
+        self.vault_delete("leaf", "cloudflare-r2-account-id")
         with self.assertRaises(SystemExit):
             snap.mint_r2()
 
@@ -76,8 +74,8 @@ class MintR2Tests(RotationTestBase):
 class MintB2Tests(RotationTestBase):
     def setUp(self):
         super().setUp()
-        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id")
-        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key")
+        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
+        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
         self.seed("backblaze-b2-region", "us-west-004")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"))
@@ -135,9 +133,7 @@ class MintB2Tests(RotationTestBase):
         # rotation key and bucket lookup don't need the region) — this
         # isolates the region guard specifically, needed only for the
         # verification step's endpoint.
-        from cloud_credentials.cache import SECRETS_DIR
-
-        (SECRETS_DIR / "backblaze-b2-region").unlink()
+        self.vault_delete("leaf", "backblaze-b2-region")
         with patch.object(snap.requests, "get") as mock_get, patch("cloud_credentials.leaf_keys.b2.requests.Session") as mock_session_cls:
             mock_get.return_value = MagicMock(
                 raise_for_status=lambda: None,

@@ -194,8 +194,11 @@ One real caveat: OpenBao issue
 [#2915](https://github.com/openbao/openbao/issues/2915) reports a
 SIGHUP-triggered seal-client wedge on 2.5.2, but only for the
 combination of `seal "gcpckms"` plus a declarative `audit "file"`
-config stanza, neither of which this deployment uses (Shamir seal, no
-audit device configured). Worth re-checking if either changes later.
+config stanza. This deployment does use a declarative `audit "file"`
+stanza (see the Audit logging section below) but stays on Shamir seal,
+not `gcpckms` — the specific combination the issue reports — so this
+doesn't apply here. Worth re-checking again if the seal type ever
+changes.
 
 `openbao_cert/molecule/default`'s own scenario runs the exact
 `ExecStartPost` command, confirms `StartedAt` doesn't change (proving
@@ -286,6 +289,17 @@ docker exec -it openbao bao operator unseal
 Run it 2 times (the threshold above), each time pasting one of the 3
 shares when prompted. `bao status` (same `docker exec` prefix) shows
 current seal state without needing a share.
+
+## Audit logging
+
+A declarative `audit "file"` device (`docker/openbao/configs/
+openbao.hcl.j2`) writes every request/response to `stdout`, captured
+by Docker's own log driver — not the API/CLI route, which needs
+`unsafe_allow_api_audit_creation` and a privileged token neither of
+which this deployment has. `logging:` on the `openbao` compose service
+caps growth (`max-size`/`max-file`). See
+[ADR 0026](decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md)
+for why, and its threat model for what this does and doesn't expose.
 
 ## Secrets
 

@@ -11,16 +11,22 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import cached, read_cache, require_cache_file, write_cache
+from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
 from cloud_credentials.rotation_keys.oci_scim import SCIM_CUSTOMER_SECRET_KEY_SCHEMA, oci_scim_session
 from cloud_credentials.verify import verify_leaf_via_rclone
+
+cached, read_cache, write_cache, require_cache_file = scoped("leaf")
+# oci_leaf_user_id() below reads the rotation-tier IAM user OCID
+# rotation_keys/oci_bootstrap.py writes during rotation-key bootstrap -
+# a second, differently-scoped binding, same reasoning as leaf_keys/b2.py's.
+_, _, _, _rotation_require_cache_file = scoped("rotation")
 
 OCI_BUCKET = "homelab-backups"
 
 
 def oci_leaf_user_id(leaf: str) -> str:
-    return require_cache_file(
+    return _rotation_require_cache_file(
         f"_oci-leaf-user-ocid-{leaf}",
         f"Missing the {leaf}-leaf IAM user's OCID — run: python3 -m cloud_credentials.create_rotation_keys --provider oci",
     )

@@ -25,6 +25,16 @@ services:
     networks:
       - caddy-proxy
     restart: unless-stopped
+    # Caps disk growth from the audit device above (docs/openbao.md's
+    # Audit logging section, ADR 0026) - every Vault operation writes a
+    # line here, not just app-level events like every other service's
+    # logs, so the default uncapped json-file driver bites here in a
+    # way it doesn't elsewhere in this repo.
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
     # Published directly (not routed through Caddy), same as lldap's
     # LDAPS listener - see docs/openbao.md. The certs volume starts
     # empty on a fresh deploy, so this crash-loops until openbao_cert

@@ -194,13 +194,31 @@
   changed_when: true
   when: not molecule_helpers_openbao_existing_cert.stat.exists
 
-- name: Make the leaf cert/key world-readable (throwaway test key — no real security value)
-  ansible.builtin.file:
-    path: "{{ item }}"
-    mode: "0644"
-  loop:
-    - "{{ molecule_helpers_openbao_cert_dir }}/fullchain.pem"
-    - "{{ molecule_helpers_openbao_cert_dir }}/privkey.pem"
+# Root inside a throwaway container, not ansible.builtin.file directly:
+# confirmed live that fullchain.pem/privkey.pem are owned by whatever
+# non-root UID step-cli's container used internally to write them (see
+# the certs directory's own 0777 comment above for why that write
+# succeeds at all) — chmod requires ownership or root regardless of the
+# parent directory's own permissions, so the host user running Ansible
+# can't chmod files it doesn't own. Same mechanism already established
+# for cleanup (../vault_backed/cleanup.yml's own force-rm task), but
+# unlike cleanup this isn't best-effort: no failed_when: false here,
+# since a silent failure here means OpenBao can't read its own cert
+# later, a confusing failure far from its real cause.
+- name: Make the leaf cert/key world-readable, as root inside a throwaway container (throwaway test key — no real security value)
+  ansible.builtin.command:
+    argv:
+      - docker
+      - run
+      - --rm
+      - -v
+      - /tmp:/tmp
+      - alpine
+      - chmod
+      - "0644"
+      - "{{ molecule_helpers_openbao_cert_dir }}/fullchain.pem"
+      - "{{ molecule_helpers_openbao_cert_dir }}/privkey.pem"
+  changed_when: true
   when: not molecule_helpers_openbao_existing_cert.stat.exists
 
 # Mirrors docker/openbao/configs/openbao.hcl.j2 closely enough for this

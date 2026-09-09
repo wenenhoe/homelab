@@ -119,11 +119,19 @@ can't fix.
    **before** any `ansible-playbook deploy.yaml` run against the fresh
    Vault. Skipping this means the next `deploy.yaml` silently mints new
    random values for every `hex`/`uuid4` secret in the registry
-   (ADR 0027's Context explains why).
-6. Copy the backup's `cloud_credentials`-covered files over the stale
-   ones in `ansible/files/secrets/`, then
-   `python3 -m cloud_credentials.migrate_legacy_cache_to_vault`
-   unchanged.
+   (ADR 0027's Context explains why). Since Track A stage 6 gave every
+   `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` registry entry its own
+   `vault_scope` (`cloud_credentials/leaf`), this one step now also
+   restores all 20 of those - not just the `hosts/*` ones.
+6. `python3 restore_cloud_credentials_from_backup.py <backup-dir>` -
+   restores what step 5 can't reach: cloud_credentials' internal
+   leaf/rotation bookkeeping keys with no `secrets_registry.yaml` entry
+   of their own (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two
+   `oci-{write,read}-scim-id` values). The `_oci-leaf-user-ocid-*`
+   duplicate under `cloud_credentials/leaf/` (see ADR 0027's Context) is
+   not recreated - this script, like the retired
+   `migrate_legacy_cache_to_vault.py` before it, only ever writes to
+   each key's own registered category.
 7. Provision the R2 watcher's AppRole (ADR 0026) using
    `vault-bootstrap`:
 

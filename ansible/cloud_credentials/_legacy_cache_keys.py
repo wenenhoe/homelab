@@ -1,10 +1,11 @@
-"""Every cache key name cloud_credentials has ever written to the file
-cache, paired with the module whose write_cache/cached/read_cache owns
-it. Shared by migrate_legacy_cache_to_vault.py and audit_vault_state.py
-so the two can't drift against each other - both are read-only /
-copy-only tools built for the same one-time migration, and duplicating
-this list would mean a future key addition could update one and miss
-the other.
+"""Every cache key name cloud_credentials has ever written to Vault,
+paired with the module whose write_cache/cached/read_cache owns it.
+Shared by restore_cloud_credentials_from_backup.py, audit_secrets.py,
+and bootstrap_secrets.py's own exclusion list, so none of them can
+drift against each other or against what cache.py's scoped() actually
+writes - duplicating this list per-consumer is what let
+secrets_registry.yaml's header comment and bootstrap_secrets.py's own
+behavior disagree, pre-Track-A-stage-6.
 
 Reusing each module's own bound functions (rather than reconstructing
 Vault paths by hand here) means this list can't drift from what the

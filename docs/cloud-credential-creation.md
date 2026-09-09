@@ -35,9 +35,14 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   diffs `ansible/files/secrets/` against `secrets_registry.yaml` to
   flag cache files nothing currently references (e.g. leftover from a
   naming change). `--provider {oci,b2,r2,all}` lists each provider's
-  actual write/read-leaf credentials and flags any not matching the
-  current cache as an orphan — e.g. a key from an interrupted rotation
-  never cleaned up on the provider's side. Flags only; deleting
+  actual write/read-leaf credentials — including the standing
+  `openbao-snapshot-write` leaf — and flags any not matching the
+  current Vault-backed cache as an orphan — e.g. a key from an
+  interrupted rotation never cleaned up on the provider's side. The one
+  exception: ADR 0017's break-glass `openbao-snapshot-readonly`
+  credential is never cached anywhere by design, so it's matched by its
+  known provider-side name instead of a cache lookup — a weaker check,
+  but this tool only ever flags, never deletes. Flags only; deleting
   anything it finds is a separate, deliberate step.
 - **`ansible/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2

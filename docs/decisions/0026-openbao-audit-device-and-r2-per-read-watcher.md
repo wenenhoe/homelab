@@ -114,12 +114,11 @@ silently going dark.
   goes stale the moment this lands; update it alongside this work,
   folded into the doc-cleanup already tracked in the roadmap's open
   items.
-- A fourth Vault identity now exists, alongside controller's Era A
-  AppRole and the two Era B `cd_agent` AppRoles
-  [0022](0022-approle-policy-structure-two-eras.md) already plans — a
-  deliberate, narrow exception to that ADR's "one broad identity
-  during Era A" framing, justified by this component's different job
-  and risk profile, not a reconsideration of Era A itself.
+- Another Vault identity now exists alongside `controller`'s broad
+  AppRole ([0022](0022-approle-policy-structure-two-eras.md)) — a
+  deliberate, narrow exception to that ADR's "one broad identity"
+  framing, justified by this component's different job and risk
+  profile, not a reconsideration of that design itself.
 - This is the first persistent, non-invoke-once process in
   `cloud_credentials`. If a scheduled poll of the log file ever proves
   simpler than a live-tail, that's a legitimate future revisit — the

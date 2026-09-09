@@ -1,6 +1,6 @@
-# 0020. Pull-based CD agent, not a self-hosted GitHub Actions runner
+# Pull-based CD agent, not a self-hosted GitHub Actions runner
 
-**Status:** Proposed
+**Status:** Draft
 
 ## Context
 
@@ -52,14 +52,13 @@ mints on the same box being protected would be circular.
 Introducing OpenBao doesn't change any of this by itself. It's worth
 doing regardless of execution mechanism (rotation, audit, no plaintext
 credential sitting on disk — see
-[0018](0018-openbao-repoint-not-native-plugin.md)), but a secrets
+[0018](../0018-openbao-repoint-not-native-plugin.md)), but a secrets
 manager only matters once a job is already running; the actual
 question here is what's allowed to make a job run in the first place.
 Whatever authenticates to OpenBao is itself just a relocated standing
-credential — the same problem one layer down, which is why the
-least-privilege identity design in
-[0022](0022-approle-policy-structure-two-eras.md) still matters no
-matter which mechanism ends up executing the job.
+credential — the same problem one layer down, which is why a
+least-privilege identity design for whatever ends up executing the job
+still matters no matter which mechanism is chosen.
 
 ## Decision
 
@@ -73,11 +72,11 @@ CD agent instead of a CD *runner*:
   only on a new commit.
 - Deploy and maintenance jobs are triggered this way; so are the
   automated credential-rotation and freshness jobs
-  [0018](0018-openbao-repoint-not-native-plugin.md) introduces. Rather
-  than invoking Ansible directly, the agent's poller invokes a local,
-  microVM-isolated execution engine (`preloop`) against a GitHub
-  Actions-format workflow file, using its direct CLI invocation path
-  (e.g. `preloop run -f <workflow> --event <event>`) — the same
+  [0018](../0018-openbao-repoint-not-native-plugin.md) introduces.
+  Rather than invoking Ansible directly, the agent's poller invokes a
+  local, microVM-isolated execution engine (`preloop`) against a
+  GitHub Actions-format workflow file, using its direct CLI invocation
+  path (e.g. `preloop run -f <workflow> --event <event>`) — the same
   mechanism already used for this repo's local pre-push CI, just
   pointed at different workflow files and events. This gets
   deploy/maintenance/rotation/freshness the same execution engine,
@@ -103,33 +102,39 @@ CD agent instead of a CD *runner*:
   from the CD agent's own deploy/rotation jobs — isolated so that
   local-CI execution has no path to whatever credentials those jobs
   hold. That path has no OpenBao or prod access and is out of scope
-  for this ADR beyond sharing the host and guard.
+  for this decision beyond sharing the host and guard.
+
+## Assumptions
+
+- **Claim:** `preloop`'s CLI event flags (equivalents of `--event
+  push`, `--event schedule`, `--event workflow_dispatch`) work
+  standalone, without needing an explicit event payload supplied.
+  Confirmed only for the bare pull-request case already used for local
+  CI.
+  **Breaks if wrong:** the poller's direct-invocation design for
+  deploy/maintenance/rotation/freshness jobs assumes this works the
+  same way for every event type it needs to trigger.
+  **Checked by:** a targeted spike against `preloop` before any of
+  those jobs are built on top of it.
+- **Claim:** even for the confirmed-working pull-request case, the
+  event carries enough payload for jobs that need a real base/head
+  diff (e.g. a changed-files detection step, or a step that orders
+  which hosts deploy first).
+  **Breaks if wrong:** those specific jobs would need the diff
+  supplied explicitly instead of relying on the event payload.
+  **Checked by:** the same spike above.
 
 ## Consequences
 
 - There's no CD platform to choose (Gitea Actions/Woodpecker/Drone/
   Jenkins/GitLab Runner never enter the picture) and no GitHub OIDC/JWT
   auth binding — AppRole is the auth binding outright, not a fallback.
-- **Unverified, spike before building on it:** whether the execution
-  engine's CLI event flags (equivalents of `--event push`,
-  `--event schedule`, `--event workflow_dispatch`) work standalone or
-  need an explicit event payload isn't confirmed for anything but the
-  bare pull-request case already used for local CI. This needs a
-  targeted spike, not an assumption, before the deploy/maintenance/
-  rotation/freshness jobs are built on top of it. A second, distinct
-  unknown even for the confirmed-working pull-request case: whether it
-  carries enough payload for jobs that need a real base/head diff
-  (e.g. a changed-files detection step, or a step that orders which
-  hosts deploy first) to get a usable comparison, or whether those
-  jobs need the event payload supplied explicitly.
-- The CD agent is a third identity in OpenBao's auth model, alongside
-  `controller` (the auth/policy stage) and whatever `managed_hosts`
-  themselves eventually need. The auth/policy stage's "AppRole for the
-  Ansible controller, one policy per secret-path family" plan assumed
-  `controller` was the only automated consumer; see
-  [0022](0022-approle-policy-structure-two-eras.md) for how this
-  splits across `controller` and the CD agent as the migration
-  progresses.
+- The CD agent will be a new identity in OpenBao's auth model,
+  alongside `controller`'s existing broad AppRole and whatever
+  `managed_hosts` themselves eventually need. How that identity is
+  scoped — one AppRole or several, and what each can reach — is its
+  own draft; see
+  [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md).
 - The CD agent's inventory entry, and its real network address, are
   still placeholders pending the box's actual build. Placing the
   deploy SSH key, accepting managed-host SSH host keys, and running
@@ -139,12 +144,12 @@ CD agent instead of a CD *runner*:
   possibly the maintainer's laptop too, is one key for everything — a
   known gap, flagged but not yet acted on. Splitting a CD-agent-only
   key is a decision of its own, worth making before or during this
-  stage rather than silently inherited from the current single-key
+  work rather than silently inherited from the current single-key
   setup.
 - Which cloud credentials get rotation/freshness automation, and
   whether "rotation" means alert-only freshness checks or full
   automated rotate-and-revoke for each, isn't fully scoped yet —
-  [0018](0018-openbao-repoint-not-native-plugin.md)/[0019](0019-r2-admin-token-into-openbao.md)
+  [0018](../0018-openbao-repoint-not-native-plugin.md)/[0019](../0019-r2-admin-token-into-openbao.md)
   cover B2/R2/OCI specifically; any other credential in
   `secrets_registry.yaml` needs the same scoping before it's assumed
   to follow the same pattern.

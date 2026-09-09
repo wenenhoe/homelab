@@ -55,11 +55,11 @@ reading from Vault's KV v2 (native fields where B2/R2/OCI SCIM already
 provide them, `custom_metadata` for OCI's self-tracked rotation-secret
 timestamp) instead of `ansible/files/secrets/`.
 
-Vault as the store, plus a persistent host that can reach it
-programmatically ([0020](0020-pull-based-cd-agent-not-self-hosted-github-runner.md)),
-removes the last reason rotation stayed human-attended. Rotation moves
-to a schedule: **leaf credentials** (all 6, across B2/R2/OCI) rotate
-every 30 days — a third of their 90-day expiry window
+Vault as the store makes rotation schedulable even before any host
+exists to run it unattended — the cadence itself is a policy decision,
+independent of what triggers it. Rotation moves to a schedule: **leaf
+credentials** (all 6, across B2/R2/OCI) rotate every 30 days — a third
+of their 90-day expiry window
 ([0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md)),
 so a leaf credential is never within `check_freshness.py`'s own
 WARNING threshold under normal operation; its alerting becomes a
@@ -72,18 +72,20 @@ verify-before-revoke at all, per
 [0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)), and
 a shorter cycle would multiply that risk without a clear benefit. For
 B2 and OCI, `create_rotation_keys.py --rotate {write,read,both}`'s
-existing mint-verify-revoke flow runs unattended on this schedule; R2
-is a structural exception — see
+existing mint-verify-revoke flow implements each rotation; R2 is a
+structural exception — see
 [0019](0019-r2-admin-token-into-openbao.md) for why its master token
 can't be minted the same way.
 
-Both schedules, and `check_freshness.py` itself, are triggered the
-same way as `cd_agent`'s deploy and maintenance jobs
-([0020](0020-pull-based-cd-agent-not-self-hosted-github-runner.md)) —
-run on that host, not on `controller`. `controller` (the operator's
-own machine) no longer runs any part of the credential lifecycle
-unattended once this lands; its remaining role is one-time bootstrap
-actions only, consistent with it never being a `managed_hosts` member.
+Today, both the freshness check and rotation itself are
+human-attended: `check_freshness.py` runs via a systemd **user** timer
+installed by hand on `controller` — the operator's own machine, not
+through any Ansible role (see `docs/cloud-credential-creation.md`'s
+Freshness check section) — and `create_rotation_keys.py --rotate` is
+run by hand against the schedule above rather than on it
+automatically. Moving both onto a dedicated always-on host, so they
+run truly unattended on this schedule, is separate, not-yet-built
+work.
 
 ## Consequences
 
@@ -101,12 +103,12 @@ actions only, consistent with it never being a `managed_hosts` member.
   status already describes.
 - If Path B is ever picked up, it starts from the same per-provider
   logic this ADR preserves rather than from scratch.
-- `cd_agent` now runs two categories of unattended, prod-touching work
-  under one host: `deploy.yaml`/`maintenance.yaml`
-  ([0020](0020-pull-based-cd-agent-not-self-hosted-github-runner.md))
-  and credential rotation/freshness. See
-  [0022](0022-approle-policy-structure-two-eras.md) for why these are
-  two separate AppRoles/policies rather than one shared identity.
+- Today, `controller` remains the only automation identity touching
+  credential rotation/freshness, run by hand as described above. If a
+  dedicated automation host is ever built to run this unattended,
+  whether it needs separate identities for deploy/maintenance versus
+  rotation/freshness — rather than one shared identity — is a design
+  question for that work, not decided here.
 - OCI's Confidential Application secret regenerating automatically
   every 90 days with no rollback (per
   [0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md))

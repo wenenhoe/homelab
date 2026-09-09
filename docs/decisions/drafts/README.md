@@ -10,4 +10,5 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 
 ## Open
 
-None currently.
+- [`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md)
+- [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md)

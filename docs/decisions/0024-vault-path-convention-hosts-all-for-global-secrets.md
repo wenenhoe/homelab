@@ -23,18 +23,24 @@ secret to Vault: does this get a new top-level path (parity with
 already-Accepted `hosts/*` grant?
 
 **Who actually reads these secrets settles it.** `cloud_credentials/leaf`
-and `.../rotation` earned separate top-level paths because they have a
-consumer `hosts/*` doesn't: Era B's `cd-agent-rotation` AppRole, on its
-own 30/90-day schedule, with `cd-agent-deploy` explicitly denied
-`rotation/*` access ([0022](0022-approle-policy-structure-two-eras.md)'s
-Decision). Global app-config secrets have no such consumer. Every one of
-them is read by `deploy.yaml`'s config-rendering plays exactly the way a
-host-scoped secret is (caddy needs `digitalocean-api-key` regardless of
-which host runs it; diun needs the `telegram-*` values the same way).
-That's `cd-agent-deploy`'s job in Era B, already granted read-only on all
-of `hosts/*`. Nothing today schedules rotation for a Telegram token or
-the DO key — the roadmap's own "Open items" section marks which secrets
-beyond cloud credentials ever get rotation automation as unscoped.
+and `.../rotation` earned separate top-level paths anticipating a
+consumer `hosts/*` doesn't have: a planned future split between a
+deploy-focused identity (read-only, leaf credentials only) and a
+rotation-focused identity (read/write, both leaf and rotation), so
+that whichever job runs deploys can't reach master-tier credentials.
+That split doesn't exist yet — today one identity (`controller`) reads
+all of it under one broad policy — but the taxonomy is already shaped
+for it. Global app-config secrets have no such planned consumer. Every
+one of them is read by `deploy.yaml`'s config-rendering plays exactly
+the way a host-scoped secret is (caddy needs `digitalocean-api-key`
+regardless of which host runs it; diun needs the `telegram-*` values
+the same way). `controller`'s existing broad grant on `hosts/*`
+already covers this today; if a future deploy-only identity is ever
+split out, it would need the same read access to `hosts/*` these
+global secrets already live under. Nothing today schedules rotation
+for a Telegram token or the DO key — the roadmap's own "Open items"
+section marks which secrets beyond cloud credentials ever get rotation
+automation as unscoped.
 Inventing a parallel top-level path now would be designing against a
 consumer that doesn't exist and isn't planned; if a specific global
 secret ever needs that consumer, that's a one-time path migration for

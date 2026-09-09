@@ -123,10 +123,8 @@ admin-capable credential again.
   `check_freshness.py`, `create_leaf_keys.py`/`create_rotation_keys.py`)
   is unusable for the duration of the runbook - real downtime,
   schedulable at will in a homelab, but not zero.
-- Track B's future `cd-agent-deploy`/`cd-agent-rotation` AppRoles
-  ([ADR 0022](0022-approle-policy-structure-two-eras.md)) get
-  provisioned through `vault-bootstrap` too, not through a repeat of
-  this gap.
+- Any future dedicated-automation-host AppRoles get provisioned
+  through `vault-bootstrap` too, not through a repeat of this gap.
 - Options 1 and 4 from the roadmap's open item are resolved by this
   ADR: 1 rejected outright, 4 ruled out on OpenBao's own documented
   behavior rather than left as a live spike.

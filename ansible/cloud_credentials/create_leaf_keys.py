@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Create the 6 cloud_sync credentials (write+read x R2/B2/OCI) via each
-provider's HTTP API instead of a console click-through, and cache them at
-the same ansible/files/secrets/<registry-key> paths bootstrap_secrets.py
-would have written by hand. Entries stay format: manual in
-secrets_registry.yaml — this script is just an automated way to fill
-them in. See docs/cloud-credential-creation.md for the exact grant
-each leaf gets, provider-by-provider.
+provider's HTTP API instead of a console click-through, and cache them
+in OpenBao at the same `cloud_credentials/leaf/<registry-key>` Vault
+paths `cache.py`'s `scoped("leaf")` always writes to (Track A stage 5).
+Entries stay format: manual in secrets_registry.yaml — this script is
+just an automated way to fill them in; `bootstrap_secrets.py` itself
+deliberately excludes these names from its own prompting (see that
+script's docstring). See docs/cloud-credential-creation.md for the
+exact grant each leaf gets, provider-by-provider.
 
 B2 and OCI authenticate using a rotation-key credential — narrower
 than the account's master credential, created once by

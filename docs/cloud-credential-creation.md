@@ -1,6 +1,6 @@
 # Cloud Credential Creation — R2/B2/OCI
 
-Two scripts, plus two audit/migration tools:
+Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
 
 - **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely.
   For B2, takes the master credential in memory only (never written to
@@ -35,9 +35,14 @@ Two scripts, plus two audit/migration tools:
   diffs `ansible/files/secrets/` against `secrets_registry.yaml` to
   flag cache files nothing currently references (e.g. leftover from a
   naming change). `--provider {oci,b2,r2,all}` lists each provider's
-  actual write/read-leaf credentials and flags any not matching the
-  current cache as an orphan — e.g. a key from an interrupted rotation
-  never cleaned up on the provider's side. Flags only; deleting
+  actual write/read-leaf credentials — including the standing
+  `openbao-snapshot-write` leaf — and flags any not matching the
+  current Vault-backed cache as an orphan — e.g. a key from an
+  interrupted rotation never cleaned up on the provider's side. The one
+  exception: ADR 0017's break-glass `openbao-snapshot-readonly`
+  credential is never cached anywhere by design, so it's matched by its
+  known provider-side name instead of a cache lookup — a weaker check,
+  but this tool only ever flags, never deletes. Flags only; deleting
   anything it finds is a separate, deliberate step.
 - **`ansible/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
@@ -60,30 +65,16 @@ Two scripts, plus two audit/migration tools:
   write leaves). Cached to OpenBao like every other leaf here (Track A
   stage 5), unlike the break-glass credential. Supports `--rotate`,
   same verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
-- **`ansible/cloud_credentials/audit_vault_state.py`** — run whenever,
-  read-only. For every cloud_credentials leaf/rotation key, reports
-  whether it's in Vault, in the legacy file cache, both, or neither —
-  never printing an actual secret value. Run this before
-  `migrate_legacy_cache_to_vault.py` on any controller that had
-  credentials cached before Track A stage 5 landed, especially if an
-  earlier, ad hoc migration attempt might already have touched Vault.
-  A `DIFFERS` result most often just means this credential was rotated
-  since the migration ran — every rotate writes the new value to Vault
-  only, so the legacy file is stale by design from that point on; only
-  worth a closer look if you didn't expect that credential to have
-  changed. Only checks the specific paths this package uses —
-  controller's policy grants no `list` capability on anything, so this
-  can't discover a value written somewhere unexpected.
-- **`ansible/cloud_credentials/migrate_legacy_cache_to_vault.py`** —
-  run once per controller, by hand, after confirming with
-  `audit_vault_state.py` that there's nothing to reconcile first. Copies
-  every still-file-cached cloud_credentials value into its Vault path —
-  no re-minting, no provider API calls, no prompting, just the value
-  that already works. Idempotent (skips anything already in Vault) and
-  never deletes the legacy file — that happens at Track A stage 6's
-  cutover, not here.
 
-**Testing:** neither script is an Ansible role, so Molecule's per-host
+Two now-retired tools, `audit_vault_state.py` and
+`migrate_legacy_cache_to_vault.py`, existed only to bridge the Track A
+stage 5→6 transition (file cache → Vault) and were removed once stage 6
+deleted the file cache they compared/copied from. Restoring
+cloud_credentials' Vault state after a genuine OpenBao re-init is now
+`restore_cloud_credentials_from_backup.py`'s job — see
+[`openbao-reinit-runbook.md`](openbao-reinit-runbook.md).
+
+**Testing:** none of these are an Ansible role, so Molecule's per-host
 model (`docs/molecule-testing.md`) doesn't apply. `ansible/tests/`
 holds `unittest.TestCase`-style tests, run via pytest — every provider
 HTTP call and `rclone` invocation mocked — via
@@ -336,54 +327,22 @@ strict enforcement.
 
 ## Rotation
 
-**One-time migration if you have an existing deployment:** this repo's
-terminology changed from "leg" to "leaf" (write/read leaf key, matching
-the standard root/intermediate/leaf credential-hierarchy vocabulary).
-OCI's per-leaf IAM user OCID cache file followed suit — rename it under
-`ansible/files/secrets/` before the next run:
-
-```sh
-cd ansible/files/secrets
-mv _oci-leg-user-ocid-write _oci-leaf-user-ocid-write
-mv _oci-leg-user-ocid-read  _oci-leaf-user-ocid-read
-```
-
-No other cache file is affected — every other provider's file names
-(`cloudflare-r2-write-access-key`, `backblaze-b2-read-secret-key`,
-`oci-write-access-key`, etc.) always used "write"/"read" directly, never
-the word "leg" itself.
-
-**One-time cleanup if you're migrating an existing OCI deployment to
-SCIM (see [ADR 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)):**
-the classic-API rotation identity's local cache files and its OCI-side
-IAM objects are both dead weight now — nothing reads or authenticates
-with either, but nothing deletes them for you automatically.
-
-Local cache files, safe to remove once you've confirmed
-`oci-{write,read}-access-key`/`-secret-key`/`-scim-id` are all present
-(the new code writes all three together):
-
-```sh
-cd ansible/files/secrets
-rm -f _rotation-key-oci-user-ocid _rotation-key-oci-fingerprint \
-      _rotation-key-oci-private-key.pem _rotation-key-oci-tenancy-ocid \
-      _rotation-key-oci-region oci-write-created-at oci-read-created-at
-```
-
-On the Console side, delete the now-unused `homelab-key-rotation`
-identity (Identity & Security > Domains > your domain), in this order —
-its API signing key first, then the `homelab-key-rotation` policy, then
-remove it from (or delete) the `homelab-key-rotation` group, then
-delete the `homelab-key-rotation` user itself. This was a standing,
-tenancy-wide `manage users` grant scoped to
-`USER_UPDATE`/`USER_SECRETKEY_ADD`/`USER_SECRETKEY_REMOVE` (see ADR
-0016's Context for why even that narrower grant was still tenancy-wide,
-not scoped to the two leaf users) — worth actually removing, not
-leaving unused, since an unused broad grant is exactly the kind of
-thing worth not leaving lying around. `audit_secrets.py --local` flags
-the stale local cache files above if you haven't cleaned them up yet;
-it has no visibility into Console-side IAM objects, so that half is
-manual.
+**Two historical one-time migrations, both now obsolete:** an earlier
+"leg"→"leaf" terminology rename, and an OCI classic-API→SCIM migration
+(ADR 0016), both used to instruct renaming/removing specific files
+under `ansible/files/secrets/`. Track A stage 6 removed that file cache
+entirely for cloud credentials — there's nothing left there to rename
+or clean up by hand. If you're restoring a controller old enough to
+still have pre-Track-A cache files lying around, `audit_secrets.py
+--local` flags anything under `ansible/files/secrets/` that doesn't
+match current config, regardless of vintage; see [ADR
+0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)'s
+own Context for why the OCI migration's Console-side cleanup (deleting
+the unused `homelab-key-rotation` identity — API signing key first,
+then the policy, then the group membership, then the user itself) is
+still relevant if you never did it: `audit_secrets.py` has no
+visibility into Console-side IAM objects, so that half stays manual
+regardless of file-cache retirement.
 
 **`--rotate {write,read,both}`, all three providers now:**
 

@@ -39,11 +39,12 @@ alerts, just for different certs:
 above has its own `telegram-topic-id-*` entry, `allow_blank: true` since
 Topics is optional — a blank topic ID falls back to posting in the
 group's main stream, no code change needed either way (see `main.yaml`'s
-`telegram_chatid_*` vars). Bootstrap them the same way as any other
-manual secret:
+`telegram_chatid_*` vars). All of these are Vault-backed
+(`vault_scope: hosts/all/telegram`); bootstrap them the same way as any
+other Vault-backed manual secret:
 
 ```sh
-printf '%s' '<topic-id>' > ansible/files/secrets/telegram-topic-id-updates
+python3 ansible/bootstrap_secrets.py
 ```
 
 **Two different address formats, on purpose**: diun, `docker-volume-backup`,

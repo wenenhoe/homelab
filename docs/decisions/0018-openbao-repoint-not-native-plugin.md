@@ -1,6 +1,6 @@
 # 0018. Repoint existing credential scripts at OpenBao KV v2, defer a native plugin
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

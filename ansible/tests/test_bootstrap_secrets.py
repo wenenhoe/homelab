@@ -69,6 +69,19 @@ class RegistryLoadingTests(unittest.TestCase):
         manual = bootstrap_secrets.load_manual_entries(registry)
         self.assertEqual(list(manual.keys()), ["main-domain"])
 
+    def test_load_manual_entries_excludes_cloud_credential_owned_names(self):
+        # cloudflare-r2-write-access-key is a real LEGACY_CACHE_KEYS name
+        # (create_leaf_keys.py/create_rotation_keys.py's own concern, per
+        # this script's module docstring) — even with format: manual and a
+        # vault_scope, it must never reach this script's prompt-and-write
+        # path.
+        self.write_registry(
+            "secrets_registry:\n  main-domain: { format: manual }\n  cloudflare-r2-write-access-key: { format: manual, vault_scope: cloud_credentials/leaf }\n"
+        )
+        registry = bootstrap_secrets.load_registry()
+        manual = bootstrap_secrets.load_manual_entries(registry)
+        self.assertEqual(list(manual.keys()), ["main-domain"])
+
 
 class ReadCacheFileTests(SecretsDirTestCase):
     def test_returns_none_when_missing(self):

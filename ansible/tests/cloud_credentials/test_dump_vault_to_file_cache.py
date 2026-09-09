@@ -2,7 +2,7 @@
 
 Run via `uv run pytest ansible/tests/ -v`. Exercises against fake
 Vault reads and a real tmp filesystem - no real Vault, same reasoning
-as test_audit_vault_state.py.
+as test_restore_cloud_credentials_from_backup.py.
 """
 
 from __future__ import annotations

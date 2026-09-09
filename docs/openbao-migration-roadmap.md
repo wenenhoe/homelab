@@ -1,9 +1,9 @@
 # OpenBao + CD-Agent Migration Roadmap
 
-**Status: Track A in progress, Track B not started.** See
+**Status: Track A complete, Track B not started.** See
 [`docs/decisions/`](decisions/README.md) (0017–0022) for the design
-records this roadmap builds on. Stages 1–5 are built and proven live;
-stage 6 (full cutover) hasn't started.
+records this roadmap builds on. All 6 Track A stages are built and
+proven live, including the full cutover drill.
 
 ## Stage status
 
@@ -17,7 +17,7 @@ Update this table at the start and end of each PR that works a stage.
 | 3 | Auth and least-privilege policies | A | Done |
 | 4 | Migrate the secrets role | A | Done |
 | 5 | Repoint the cloud-credential package | A | Done |
-| 6 | Full cutover, decommission file cache | A | Not started |
+| 6 | Full cutover, decommission file cache | A | Done |
 | 7 | CD agent build | B | Not started |
 
 ## Two tracks, run sequentially
@@ -92,13 +92,19 @@ built, but **proven**.
    ([0018](decisions/0018-openbao-repoint-not-native-plugin.md)),
    including R2's admin token moving in as a scoped exception
    ([0019](decisions/0019-r2-admin-token-into-openbao.md)).
-6. **Full cutover drill, then decommission the file cache** — wipe
-   `ansible/files/secrets/` on a test controller, restore a full
-   environment purely from Vault. Only after that passes: delete the
-   file-based mechanism, retire `bootstrap_secrets.py`'s file-writing
-   path, and update `secrets.md`/`secrets-rotation.md`/
-   `cloud-credential-creation.md`/`disaster-recovery.md` to describe
-   Vault as the sole source.
+6. **Full cutover drill, then decommission the file cache** — done.
+   Wiped `ansible/files/secrets/` down to the three permanent bootstrap
+   exceptions (`main-domain`, `openbao-controller-role-id`/
+   `-secret-id`) on a real controller, proved a full deploy — write
+   leaf, read leaf, and every other secret — resolves purely from
+   Vault, including live `rclone lsd` against R2/B2/OCI with the
+   rendered credentials, not just a non-empty value. The file-based
+   generation mechanism (hex/uuid4 file-cache branches, `bootstrap_secrets.py`'s
+   cloud-credential prompting) is deleted from the code, not just
+   unused — see `secrets.md`/`secrets-rotation.md`/
+   `cloud-credential-creation.md` for the current, Vault-as-sole-source
+   state. `disaster-recovery.md` never described the storage mechanism
+   directly, so it needed no change.
 
 ## Track B — CD agent
 
@@ -130,15 +136,25 @@ not against the file cache.
   isn't scoped yet.
 - The shared SSH private key across all managed hosts (and possibly
   the maintainer's laptop) hasn't been split into a CD-agent-only key.
-- `snapshot-push.sh` still needs a human-exported root token —
-  `controller`'s Era A policy now grants the read it needs, but the
-  script itself isn't wired to log in via that AppRole yet. Needs a
-  spike on `bao write -f auth/approle/login ...`'s exact output shape
-  first — see [`openbao-backup-restore.md`](openbao-backup-restore.md)'s
-  open follow-ups.
-- `openbao-backup-restore.md` states the pinned image is `2.5.4`; the
-  real, currently-running version is `2.6.2` (confirmed live, same
-  session as the finding above) — that doc, and anything else assuming
-  2.5.x behavior, needs a pass once the root-token question above is
-  settled, since the two are related (2.6.2 is also where
-  `generate-root`'s authenticated-endpoint behavior changed).
+- ~~`snapshot-push.sh` still needs a human-exported root token~~ —
+  resolved (Track A stage 6). Verified live against a real OpenBao
+  2.6.2 instance: `bao write -f auth/approle/login role_id=<x>
+  secret_id=@<file>` returns the client token under `-field=token`
+  cleanly, no different from the shape `bao-login-from-controller.sh`
+  already assumed. No code change needed in `snapshot-push.sh`
+  itself — it already just reads `BAO_TOKEN` from the environment,
+  agnostic to how it was obtained. Fixed
+  [`openbao-backup-restore.md`](openbao-backup-restore.md)'s "Running a
+  backup" section to obtain it via `controller`'s AppRole (same
+  `bao-login-from-controller.sh` flow `openbao-auth.md`'s own step 6
+  uses) instead of the break-glass root token.
+- `openbao-backup-restore.md` wrongly stated the pinned image was
+  `2.5.4`; the real, currently-running version is `2.6.2`. Fixed the
+  factual claim (Track A stage 6) — still open: the specific
+  snapshot-save/restore behaviors that doc describes as "confirmed
+  live" were only ever confirmed against `2.5.4`, not re-verified
+  against `2.6.2`, and `2.6.2` is also where `generate-root`'s
+  authenticated-endpoint behavior changed (see
+  [ADR 0027](decisions/0027-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
+  Context) — a live spike during the next restore drill, not something
+  fixable from reading code alone.

@@ -15,17 +15,21 @@ where this sits in the overall migration.
 
 ## Why manual, not a systemd timer
 
-A scheduled job needs a Vault token on disk to authenticate with. Right
-now the only one that exists is the initial root token, and
-[`openbao.md`](openbao.md)'s own Init runbook is explicit that it must
-never be written to a file on `security`. Track A stage 3 (auth and
-least-privilege policies) is what mints a credential actually safe to
-leave for an unattended job; until then, this stage proves the
-mechanism with a human running it interactively — same reasoning
-[`openbao.md`](openbao.md) already gives for why init/unseal are
-runbooks, not scripts. `ansible/roles/openbao_backup` only renders the
-push script and its supporting files; it doesn't install or enable any
-systemd unit.
+A scheduled job needs a Vault token on disk to authenticate with.
+Track A stage 3 (auth and least-privilege policies) minted exactly
+that — `controller`'s AppRole, whose policy grants read-only on
+`sys/storage/raft/snapshot` specifically for this — so lack of a safe
+credential is no longer the blocker it was when this doc was first
+written. What's still missing is somewhere unattended to run it from:
+`controller` is the operator's own machine, never a `managed_hosts`
+member, and isn't meant to run scheduled jobs at all. That's Track B's
+`cd_agent` host's job
+([0020](decisions/0020-pull-based-cd-agent-not-self-hosted-github-runner.md)),
+not built yet — until then, this stage proves the mechanism with a
+human running it interactively, authenticating as `controller`'s
+AppRole rather than the root token (see "Running a backup" below).
+`ansible/roles/openbao_backup` only renders the push script and its
+supporting files; it doesn't install or enable any systemd unit.
 
 ## Push credential
 
@@ -62,10 +66,30 @@ found," since rclone's own pre-flight check is what's being denied.
 ## Running a backup
 
 ```sh
+# From controller, using the role_id/secret_id files cached per
+# openbao-auth.md's runbook - the same AppRole login docs/openbao-auth.md's
+# own step 6 uses, not the root token. Prompts for secret_id (hidden
+# input, read ansible/files/secrets/openbao-controller-secret-id
+# yourself and paste it when asked - the script never takes it as an
+# argument).
+export BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh \
+  "$(cat ansible/files/secrets/openbao-controller-role-id)")
+echo "$BAO_TOKEN"   # copy this, then:
+
 ssh security
-export BAO_TOKEN=<current root token, from the break-glass password-manager entry>
+export BAO_TOKEN=<paste the token from the previous step>
 /opt/stacks/openbao-backup/snapshot-push.sh
 ```
+
+Confirmed live against a real OpenBao 2.6.2 instance:
+`bao write -f auth/approle/login role_id=<role_id> secret_id=@<file>`
+returns a 200 with the client token under the `token` field
+(`-field=token` extracts it cleanly, no trailing newline) — the same
+shape `bao-login-from-controller.sh` already builds on, just confirmed
+against the real pinned version rather than assumed. The token this
+mints is short-lived (`controller`'s role config: `token_ttl=1h`), so
+export it fresh each backup run rather than trying to reuse one across
+sessions.
 
 The script saves a snapshot, GPG-encrypts it (same public key as
 [`disaster-recovery.md`](disaster-recovery.md)'s
@@ -74,15 +98,23 @@ and pushes it to both providers. `BAO_TOKEN` only ever passes through
 `docker exec -e` from your shell's environment — never written to a
 file or passed as an argument.
 
-**Version note:** `bao operator raft snapshot save`'s behavior
-(described below) is now confirmed live against the actual pinned
-`2.5.4` image on `security` — a real backup has run successfully. The
-restore-side behavior below (`-force`, the reseal, the old token going
-invalid) is still only confirmed against a v2.2.0 spike instance, not
-`2.5.4` — v2.5.4's release assets weren't reachable to test against
-directly outside `security` itself. Worth confirming during the
-restore drill itself, since that's the first time this repo's tooling
-will exercise it against the real pinned version.
+**Version note — needs a pass:** `bao operator raft snapshot save`'s
+behavior (described below) was confirmed live against a real backup
+run, but against the `2.5.4` image that was pinned at the time —
+`docker/openbao/compose.yaml.j2` now pins `2.6.2`, and that confirmation
+has not been re-run since the pin moved. The restore-side behavior
+below (`-force`, the reseal, the old token going invalid) is still only
+confirmed against a v2.2.0 spike instance, never against either `2.5.4`
+or `2.6.2` directly — v2.5.4's release assets weren't reachable to test
+against outside `security` itself, and the same is true of `2.6.2`
+without repeating the exercise on a real host. This matters more than a
+version-number footnote: `2.6.2` is also where `generate-root`'s
+authenticated-endpoint behavior changed (see
+[ADR 0027](decisions/0027-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
+Context), so a version this far off isn't guaranteed to behave like
+`2.5.4` did here either. Confirm both the snapshot-save and restore-side
+behavior against the real `2.6.2` image during the next restore drill,
+before trusting either paragraph below as still accurate.
 
 ## `bao` CLI behavior this script and the restore drill depend on
 

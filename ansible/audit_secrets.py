@@ -3,20 +3,33 @@
 checks, run separately since they need different access:
 
 --local (default, no credentials needed): diffs every file under
-ansible/files/secrets/ against secrets_registry.yaml's declared keys plus
-the known internal bookkeeping files (_rotation-key-*, _oci-leaf-user-ocid-*)
-this repo's own scripts write. Anything else on disk isn't referenced by
-current config — a leftover from a naming change, a one-off manual test
-file, or similar. Flagged, never deleted by this script.
+ansible/files/secrets/ against secrets_registry.yaml's declared keys.
+Two different findings, not one:
+  - A file whose registry entry has a `vault_scope` is stale — Vault is
+    that entry's only real source since whichever stage moved it there
+    (Track A stage 4 for most, stage 5/6 for cloud credentials); the
+    file predates that move and nothing has read it since. Flagged
+    separately from a genuine orphan because it isn't unreferenced by
+    name, just unreferenced by mechanism — confirm Vault actually has
+    the value (this check alone doesn't, deliberately: that needs a
+    live Vault session, and this mode's whole point is not needing
+    one) before deleting.
+  - A name matching neither a registry entry nor cloud_credentials'
+    own internal bookkeeping (LEGACY_CACHE_KEYS) is a genuine orphan —
+    a stray manual test file, a leftover from a naming change, or
+    similar.
+Neither category is deleted by this script.
 
 --provider {oci,b2,r2,all} (needs the same credentials
-create_rotation_keys/create_leaf_keys use): lists what
-actually exists on each provider's console for the write/read leaves, and
-flags anything not matching the currently cached access key as an
-apparent orphan — e.g. a key from a rotation that was interrupted or
-retried, never cleaned up on the provider's side afterward. Read-only:
-lists and flags, never deletes. Delete the flagged ones yourself once
-you've confirmed they're not what's live in rclone.conf.
+create_rotation_keys/create_leaf_keys use): reads currently-active
+values from OpenBao (the same Vault-backed cache those scripts write
+to - cache.py's scoped()), lists what actually exists on each
+provider's console for the write/read leaves, and flags anything not
+matching the currently cached access key as an apparent orphan — e.g. a
+key from a rotation that was interrupted or retried, never cleaned up
+on the provider's side afterward. Read-only: lists and flags, never
+deletes. Delete the flagged ones yourself once you've confirmed they're
+not what's live in rclone.conf.
 
 Usage:
     python3 ansible/audit_secrets.py --local
@@ -26,44 +39,31 @@ Usage:
 from __future__ import annotations
 
 import argparse
-import fnmatch
 import getpass
 import sys
 from pathlib import Path
 
 import requests
 import yaml
+from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 SECRETS_DIR = PROJECT_ROOT / "ansible/files/secrets"
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
 
-# Cache files this repo's own scripts write outside secrets_registry.yaml
-# (that file only covers what the `secrets` Ansible role generates/caches —
-# these are create_rotation_keys's own bookkeeping, by design not routed
-# through that role). Anything on disk matching neither this nor the
-# registry is the actual audit target.
-KNOWN_INTERNAL_PATTERNS = [
-    "_rotation-key-backblaze-b2-key-id",
-    "_rotation-key-backblaze-b2-application-key",
-    "_rotation-key-cloudflare-r2-token",
-    "_rotation-key-oci-domain-url",
-    "_rotation-key-oci-client-id",
-    "_rotation-key-oci-client-secret",
-    "_rotation-key-oci-app-id",
-    "_rotation-key-oci-created-at",
-    "_oci-leaf-user-ocid-write",
-    "_oci-leaf-user-ocid-read",
-    "oci-write-scim-id",
-    "oci-read-scim-id",
-]
-
 B2_BUCKET = "homelab-backups-b2"
+
+_CACHE_MODULE_BY_NAME = dict(LEGACY_CACHE_KEYS)
 
 
 def cached(name: str) -> str | None:
-    path = SECRETS_DIR / name
-    return path.read_text().strip() if path.exists() else None
+    """Reads via cloud_credentials' own Vault-backed cache (cache.py's
+    scoped()) - the real store for every LEGACY_CACHE_KEYS name since
+    Track A stage 5, never the local file cache Track A stage 6
+    decommissioned. name must be one of LEGACY_CACHE_KEYS' own names -
+    a KeyError here means this script asked for a name that package
+    doesn't own, not a runtime possibility to paper over."""
+    return _CACHE_MODULE_BY_NAME[name].read_cache(name)
 
 
 # --- Local cache diff ----------------------------------------------------
@@ -72,24 +72,42 @@ def cached(name: str) -> str | None:
 def audit_local() -> None:
     print("== Local secrets cache vs. secrets_registry.yaml ==")
     registry = yaml.safe_load(REGISTRY_PATH.read_text())["secrets_registry"]
-    known = set(registry) | set(KNOWN_INTERNAL_PATTERNS)
+    vault_backed_scope = {name: spec["vault_scope"] for name, spec in registry.items() if spec.get("vault_scope")}
+    # cloud_credentials' own internal bookkeeping keys (_rotation-key-*,
+    # _oci-leaf-user-ocid-*, the two scim-ids) have no secrets_registry.yaml
+    # entry of their own - reusing LEGACY_CACHE_KEYS' own name list here,
+    # instead of a second hand-maintained one, is what keeps this from
+    # drifting the way this script's own cached() helper once did.
+    known = set(registry) | {name for name, _module in LEGACY_CACHE_KEYS}
 
     if not SECRETS_DIR.exists():
         print(f"  {SECRETS_DIR} doesn't exist here — nothing to check")
         return
 
     on_disk = sorted(p.name for p in SECRETS_DIR.iterdir() if p.is_file())
-    orphans = [name for name in on_disk if not any(fnmatch.fnmatch(name, pat) for pat in known)]
+    stale_vault_backed = [name for name in on_disk if name in vault_backed_scope]
+    orphans = [name for name in on_disk if name not in known]
 
-    if not orphans:
-        print(f"  {len(on_disk)} file(s) on disk, all match a current registry/internal entry — nothing to clean up")
+    if not stale_vault_backed and not orphans:
+        print(f"  {len(on_disk)} file(s) on disk, all belong to a permanent file-cache entry — nothing to clean up")
         return
 
-    print(f"  {len(orphans)} file(s) not referenced by current config:")
-    for name in orphans:
-        print(f"    {name}")
-    print("\n  Not deleted — confirm these aren't referenced by a branch/host you haven't")
-    print("  checked, then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in orphans))
+    if stale_vault_backed:
+        print(
+            f"  {len(stale_vault_backed)} file(s) for a Vault-backed entry — "
+            "unread since it moved to Vault, not confirmed against Vault by this check (no credentials needed for --local):"
+        )
+        for name in stale_vault_backed:
+            print(f"    {name}  (vault_scope: {vault_backed_scope[name]})")
+        print("\n  Confirm each has a real value in Vault before deleting (e.g. python3 bootstrap_secrets.py")
+        print("  reports it as already-set, or a direct kv get) — then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in stale_vault_backed))
+
+    if orphans:
+        print(f"\n  {len(orphans)} file(s) not referenced by current config at all:")
+        for name in orphans:
+            print(f"    {name}")
+        print("\n  Not deleted — confirm these aren't referenced by a branch/host you haven't")
+        print("  checked, then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in orphans))
 
 
 # --- OCI: list customer secret keys per leaf (via SCIM - see ADR 0016) ----
@@ -158,12 +176,26 @@ def audit_b2() -> None:
     active = {
         cached("backblaze-b2-write-access-key"): "write",
         cached("backblaze-b2-read-access-key"): "read",
+        cached("backblaze-b2-openbao-snapshot-write-access-key"): "openbao snapshot write leaf",
         rotation_key_id: "rotation key",
     }
     print(f"  {len(keys)} key(s) on the account (API {api_version}):")
     for key in keys:
         key_id = key["applicationKeyId"]
-        marker = f"ACTIVE ({active[key_id]})" if key_id in active else "ORPHAN"
+        if key_id in active:
+            marker = f"ACTIVE ({active[key_id]})"
+        elif key["keyName"] == "openbao-snapshot-readonly":
+            # ADR 0017: this credential is never cached anywhere by
+            # design (create_snapshot_readonly_keys.py prints it once,
+            # straight to the break-glass password-manager entry) - a
+            # cache lookup can never confirm it, so this is matched by
+            # its own known provider-side name instead. Weaker proof
+            # than a cache match (a genuine orphan could reuse this
+            # name), but this tool already only flags, never deletes -
+            # see its own module docstring.
+            marker = "ACTIVE (break-glass restore key, ADR 0017 - matched by name, not cache, since it's never cached)"
+        else:
+            marker = "ORPHAN"
         print(f"    {key_id}  name={key['keyName']}  [{marker}]")
         if marker == "ORPHAN":
             print(f"      delete: b2_delete_key with applicationKeyId={key_id}")
@@ -193,11 +225,27 @@ def audit_r2() -> None:
     active = {
         cached("cloudflare-r2-write-access-key"): "write",
         cached("cloudflare-r2-read-access-key"): "read",
+        cached("cloudflare-r2-openbao-snapshot-write-access-key"): "openbao snapshot write leaf",
     }
-    tokens = [t for t in body["result"] if t["name"].startswith("homelab-cloud-sync-r2-")]
-    print(f"  {len(tokens)} homelab-cloud-sync-r2-* token(s):")
+    # Both openbao-snapshot tokens (write and the break-glass readonly)
+    # use their own fixed names, not the "homelab-cloud-sync-r2-<leaf>"
+    # pattern cloud_sync's own leaves get (create_snapshot_write_keys.py's
+    # TOKEN_NAME_R2, create_snapshot_readonly_keys.py's own token_name) -
+    # excluding them from this filter meant neither ever showed up here
+    # at all, orphan or not.
+    tokens = [
+        t for t in body["result"] if t["name"].startswith("homelab-cloud-sync-r2-") or t["name"] in ("openbao-snapshot-write", "openbao-snapshot-readonly")
+    ]
+    print(f"  {len(tokens)} homelab-cloud-sync-r2-*/openbao-snapshot-* token(s):")
     for t in tokens:
-        marker = f"ACTIVE ({active[t['id']]})" if t["id"] in active else "ORPHAN"
+        if t["id"] in active:
+            marker = f"ACTIVE ({active[t['id']]})"
+        elif t["name"] == "openbao-snapshot-readonly":
+            # ADR 0017: never cached anywhere by design - see audit_b2's
+            # identical comment on why this is matched by name instead.
+            marker = "ACTIVE (break-glass restore key, ADR 0017 - matched by name, not cache, since it's never cached)"
+        else:
+            marker = "ORPHAN"
         print(f"    {t['id']}  name={t['name']}  status={t['status']}  [{marker}]")
         if marker == "ORPHAN":
             print(f"      delete: DELETE https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/{t['id']}")

@@ -1,8 +1,8 @@
 """Interface smoke test for cloud_credentials._legacy_cache_keys.
 
 Run via `uv run pytest ansible/tests/ -v`. Every other test for
-migrate_legacy_cache_to_vault.py/audit_vault_state.py exercises their
-own logic against a fake module double (see those tests' own
+restore_cloud_credentials_from_backup.py/audit_secrets.py exercises
+their own logic against a fake module double (see those tests' own
 comments for why) - which means neither one ever actually calls
 cached()/read_cache()/write_cache() on the real leaf_keys/
 rotation_keys modules LEGACY_CACHE_KEYS pairs each key with. This test
@@ -10,7 +10,7 @@ exists specifically to close that gap: a module bound via
 scoped()'s `_, _, _, _ = scoped(...)` pattern that discards one of the
 three names those scripts need (as rotation_keys/r2.py's `read_cache`
 once did) imports fine and passes every other test, but breaks the
-first time audit_vault_state.py actually runs against it.
+first time audit_secrets.py's cached() actually dispatches to it.
 
 No real Vault or file I/O here - purely checks that each paired module
 exposes the three callables both scripts call, before either script

@@ -119,9 +119,10 @@ Kuma's own timeout instead:
 Every push URL across all mechanisms above (`cloud_sync`,
 `cert-renewer-lldap`, the 4 `cert-expiry-check` entries, and the 3
 per-host `backup_agent_freshness_push_url` entries) still needs its matching
-Push monitor created in Kuma's UI and the real URL pasted into
-`ansible/files/secrets/` (or via `bootstrap_secrets.py`) before any of
-this actually reports anywhere.
+Push monitor created in Kuma's UI and the real URL set via
+`python3 ansible/bootstrap_secrets.py` (all Vault-backed — see
+[`secrets.md`](secrets.md)) before any of this actually reports
+anywhere.
 
 ## Runtime config
 

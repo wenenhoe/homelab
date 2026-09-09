@@ -3,14 +3,14 @@
 OpenBao's own raft-snapshot bucket, able to fetch a snapshot but nothing
 else, and — unlike every credential create_leaf_keys.py handles — never
 written to ansible/files/secrets/ at all. That cache is exactly the
-mechanism this migration retires; a credential meant to survive `security`
-being rebuilt from nothing can't depend on a file that (a) lives on the
-same class of host as the thing being rebuilt and (b) stops existing once
-Track A's cutover stage deletes it. Instead this script prints the
-credential once and exits — the operator copies it straight into the
-password manager entry that already holds the Shamir unseal shares (see
-docs/openbao.md), same offline handling this repo already gives the
-backup GPG key (docs/disaster-recovery.md).
+mechanism Track A stage 6 retired; a credential meant to survive
+`security` being rebuilt from nothing can't depend on a file that
+(a) lives on the same class of host as the thing being rebuilt and
+(b) no longer exists at all, post-cutover. Instead this script prints
+the credential once and exits — the operator copies it straight into
+the password manager entry that already holds the Shamir unseal shares
+(see docs/openbao.md), same offline handling this repo already gives
+the backup GPG key (docs/disaster-recovery.md).
 
 Two providers, not one — R2 and B2, per docs/openbao.md — so recovery
 doesn't depend on a single cloud vendor being reachable. Both point at a
@@ -27,9 +27,9 @@ Create the bucket by hand first, same as homelab-backups/-b2 (see
 docs/cloud-sync.md's Setup section) — this script doesn't create buckets,
 only credentials. Authenticates using the same cached rotation
 credentials create_leaf_keys.py already uses (b2_rotation_session,
-r2_rotation_token) — those still live in the file cache at the point
-this runs (Track A hasn't cut over to Vault-only yet), so reusing them
-here doesn't create a new dependency.
+r2_rotation_token) — Vault-backed via cache.py's own scoped("rotation")
+since Track A stage 5, so reusing them here doesn't create a new
+dependency on anything this migration retired.
 
 Verified the same way create_leaf_keys.py --rotate verifies a new leaf
 before trusting it: a real `rclone lsjson` against the actual bucket,

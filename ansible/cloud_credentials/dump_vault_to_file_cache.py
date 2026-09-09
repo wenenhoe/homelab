@@ -4,11 +4,12 @@ repo knows about into a fresh timestamped backup directory, for use
 before a destructive OpenBao re-init (see
 docs/openbao-migration-roadmap.md's Open items - root-token recovery).
 
-Opposite direction from migrate_legacy_cache_to_vault.py (file -> Vault,
-once); this one goes Vault -> file, and is meant to be re-run before any
-operation that could lose Vault's data, not just once ever - rotation
-since the last migration means the file cache alone is stale for
-several keys (see audit_vault_state.py's DIFFERS report).
+Opposite direction from restore_cloud_credentials_from_backup.py/
+restore_hosts_scope_from_backup.py (Vault -> file here, file/backup ->
+Vault there); this one is meant to be re-run before any operation that
+could lose Vault's data, not just once ever - this repo's own restore
+runbook (docs/openbao-reinit-runbook.md) is the actual consumer of what
+it produces.
 
 Covers:
   - Every cloud_credentials leaf/rotation key (_legacy_cache_keys.py's

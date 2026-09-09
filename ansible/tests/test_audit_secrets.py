@@ -1,10 +1,13 @@
-"""Unit tests for audit_secrets.audit_oci.
+"""Unit tests for audit_secrets.audit_oci/audit_local.
 
-Run via `uv run pytest ansible/tests/ -v`. Every SCIM call is mocked;
-nothing here talks to a real tenancy. audit_secrets.py has its own
-independent SECRETS_DIR/cached() (it's a standalone top-level script,
-not part of the cloud_credentials package), so this patches
-audit_secrets.SECRETS_DIR directly rather than cloud_credentials.cache.
+Run via `uv run pytest ansible/tests/ -v`. Every SCIM/Vault call is
+mocked; nothing here talks to a real tenancy or a real OpenBao.
+audit_secrets.py's cached() reads through cloud_credentials'
+own LEGACY_CACHE_KEYS-mapped modules (Vault-backed, since Track A
+stage 5) - AuditOciTests patches audit_secrets.cached directly rather
+than seeding files, since there's no longer a local file it reads.
+audit_local() is a different concern (scanning SECRETS_DIR for orphan
+files left on disk), so AuditLocalTests still seeds real files there.
 """
 
 from __future__ import annotations
@@ -30,14 +33,13 @@ def _mock_response(status_code: int, json_body: dict | None = None):
 
 class AuditOciTests(unittest.TestCase):
     def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        patcher = patch.object(audit_secrets, "SECRETS_DIR", self.tmp)
+        self._cached_values: dict[str, str] = {}
+        patcher = patch.object(audit_secrets, "cached", side_effect=lambda name: self._cached_values.get(name))
         patcher.start()
         self.addCleanup(patcher.stop)
 
     def seed(self, name: str, value: str) -> None:
-        (self.tmp / name).write_text(value)
+        self._cached_values[name] = value
 
     @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", side_effect=SystemExit(1))
     def test_no_scim_credentials_returns_gracefully_without_crashing(self, mock_session):
@@ -99,6 +101,20 @@ class AuditOciTests(unittest.TestCase):
 
         sent_filter = session.get.call_args.kwargs["params"]["filter"]
         self.assertIn("ocid1.user.oc1..writeleaf", sent_filter)
+
+
+class CachedDispatchTests(unittest.TestCase):
+    """cached() itself: confirms it reads through the correct
+    LEGACY_CACHE_KEYS-mapped module rather than any local file."""
+
+    def test_reads_via_the_names_own_module(self):
+        with patch.object(audit_secrets._CACHE_MODULE_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123") as mock_read:
+            self.assertEqual(audit_secrets.cached("cloudflare-r2-account-id"), "acct-123")
+        mock_read.assert_called_once_with("cloudflare-r2-account-id")
+
+    def test_unknown_name_raises_instead_of_silently_returning_none(self):
+        with self.assertRaises(KeyError):
+            audit_secrets.cached("not-a-real-cloud-credentials-name")
 
 
 class AuditLocalTests(unittest.TestCase):

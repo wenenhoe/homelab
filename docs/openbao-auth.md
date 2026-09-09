@@ -50,7 +50,7 @@ since it never leaves the `openbao` container's own network namespace.
 ```sh
 ssh security
 export BAO_TOKEN=<current root token, from the break-glass password-manager entry>
-alias bao='docker exec -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
+alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
 ```
 
 No `-address=` flag needed: `compose.yaml.j2` sets no `BAO_ADDR`/

@@ -90,9 +90,8 @@ work.
 ## Consequences
 
 - Every provider-specific quirk currently hard-won in
-  `ansible/cloud_credentials/` carries forward unchanged; the
-  migration roadmap's cloud-credential migration stage is a
-  storage-layer swap, not a rewrite.
+  `ansible/cloud_credentials/` carries forward unchanged; this
+  migration is a storage-layer swap, not a rewrite.
 - No new compiled-plugin toolchain (Go, plugin registration, OpenBao's
   plugin catalog) enters this repo for this migration.
 - Rotation and expiry remain script-driven and schedule-based, not

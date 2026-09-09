@@ -38,9 +38,8 @@ the same way). `controller`'s existing broad grant on `hosts/*`
 already covers this today; if a future deploy-only identity is ever
 split out, it would need the same read access to `hosts/*` these
 global secrets already live under. Nothing today schedules rotation
-for a Telegram token or the DO key — the roadmap's own "Open items"
-section marks which secrets beyond cloud credentials ever get rotation
-automation as unscoped.
+for a Telegram token or the DO key — which secrets beyond cloud
+credentials ever get rotation automation remains unscoped.
 Inventing a parallel top-level path now would be designing against a
 consumer that doesn't exist and isn't planned; if a specific global
 secret ever needs that consumer, that's a one-time path migration for

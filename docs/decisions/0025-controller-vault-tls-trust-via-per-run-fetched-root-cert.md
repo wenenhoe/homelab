@@ -8,7 +8,8 @@ Every existing `BAO_SKIP_VERIFY=true` use in this repo
 (`openbao-auth.md`'s runbook, `snapshot-push.sh.j2`) is documented as
 loopback-only, against the container's own self-signed-from-our-CA
 cert — "there's no real trust decision being loosened here" per
-[`openbao.md`](../openbao.md)'s healthcheck section. Track A stage 4's
+[`openbao.md`](../openbao.md)'s healthcheck section. Migrating the
+secrets role's
 `ensure_secret.yaml` breaks that precedent: its Vault calls run
 `delegate_to: localhost` (the operator's own machine, not `security`),
 over the real LAN, to `https://openbao.{{ caddy_domain }}:8200`. Reusing
@@ -67,8 +68,9 @@ never committed, never outliving the run that fetched it.
 - This pattern (delegate to a real host, `docker_container_exec`,
   `tempfile`-backed, never committed) is the one to reuse for any
   future controller-side or CD-agent-side TLS client talking to an
-  internal service — noted here since `cd_agent` (Track B) will need
-  the same trust for its own Vault AppRole logins once it exists.
+  internal service — noted here since a future dedicated automation
+  host will need the same trust for its own Vault AppRole logins once
+  it exists.
 - Confirmed live: a `delegate_to: security` task needs its own explicit
   `connection: ssh` whenever the enclosing play sets `connection: local`
   at the play level (as `bootstrap-secrets.yaml`'s own play does, since

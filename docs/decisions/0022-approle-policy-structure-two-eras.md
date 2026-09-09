@@ -1,10 +1,10 @@
 # 0022. One broad AppRole for `controller`, not split per secret family or by consumer
 
-**Status:** Accepted (Era A)
+**Status:** Accepted
 
 ## Context
 
-The migration roadmap's auth/policy stage originally assumed one
+This design originally assumed one
 automated consumer — "AppRole for the Ansible controller, one policy
 per secret-path family." A separate, not-yet-built proposal exists for
 a dedicated automation host (`cd_agent`) that would become the sole
@@ -16,12 +16,12 @@ static AppRole layout as if that future identity already existed would
 either over-scope `controller` permanently or under-scope it for what
 it actually has to do right now.
 
-One more consumer surfaced once the auth/policy stage was actually
+One more consumer surfaced once this was actually
 built: `openbao-backup-restore.md`'s snapshot-push script currently
 needs a human to export the root token by hand
 ([0023](0023-openbao-snapshot-push-standalone.md)'s "Why manual"
-section says stage 3 is what fixes that), but that script runs on
-`security` itself, not from `controller`. Since Era A has exactly one
+section explains what eventually fixes that), but that script runs on
+`security` itself, not from `controller`. Since this design has exactly one
 automation identity, giving the snapshot job its own AppRole would
 mean a third identity solely for one read-only path — the Decision
 below folds it into `controller`'s policy instead. This does mean

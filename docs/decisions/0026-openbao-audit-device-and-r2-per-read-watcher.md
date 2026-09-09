@@ -16,9 +16,8 @@ Two ways to enable one. API-driven (`bao audit enable`) requires
 subsystem (CVE-2025-54997). Reopening it to get this feature would
 reopen what that fix closed, and is rejected on that basis alone; it's
 moot anyway, since this repo currently has no working path to a
-root/`sudo`-capable token to call it with (tracked separately in
-[`openbao-migration-roadmap.md`](../openbao-migration-roadmap.md)'s
-open items). **Declarative audit config** — a server HCL stanza,
+root/`sudo`-capable token to call it with. **Declarative audit config**
+— a server HCL stanza,
 available since OpenBao 2.4.0, applied at restart/SIGHUP, no token or
 API call needed — is the supported alternative and has no such
 exposure.
@@ -111,9 +110,7 @@ silently going dark.
   log-shipping destination exists today — revisit the day one is
   added.
 - [`openbao.md`](../openbao.md)'s "no audit device configured" line
-  goes stale the moment this lands; update it alongside this work,
-  folded into the doc-cleanup already tracked in the roadmap's open
-  items.
+  goes stale the moment this lands; update it alongside this work.
 - Another Vault identity now exists alongside `controller`'s broad
   AppRole ([0022](0022-approle-policy-structure-two-eras.md)) — a
   deliberate, narrow exception to that ADR's "one broad identity"

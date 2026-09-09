@@ -4,7 +4,8 @@
 
 ## Context
 
-Track A stage 2 needed a way to get the encrypted raft snapshot
+Proving OpenBao's backup/restore loop needed a way to get the
+encrypted raft snapshot
 (`docs/openbao-backup-restore.md`) from `security` to R2/B2. Every
 other app's offsite backup goes through `backup_agent` (tar the volume,
 encrypt, land on SeaweedFS) and `cloud_sync` (relay SeaweedFS onward on
@@ -65,11 +66,15 @@ established for every other app's backup, just via a different
 mechanism (never granting the credential at all, rather than scoping
 it once granted).
 
-The trade-off this accepts: no shared scheduling infrastructure. Until
-Track A stage 3 mints a credential safe to leave on disk for an
-unattended job, this runs by hand
-(`docs/openbao-backup-restore.md#why-manual-not-a-systemd-timer`).
-Once stage 3 lands, the natural next step is `snapshot-push.sh`'s own
+The trade-off this accepts: no shared scheduling infrastructure.
+`controller`'s AppRole now provides a credential safe to leave on disk
+for an unattended job, but there's nowhere unattended to run it from
+yet — `controller` is the operator's own machine, never meant to run
+scheduled jobs. Until a dedicated automation host exists, this runs by
+hand, authenticating as `controller`'s AppRole rather than the root
+token (see
+`docs/openbao-backup-restore.md`'s "Why manual" section). Once that
+host exists, the natural next step is `snapshot-push.sh`'s own
 systemd timer on `security` — the same shape `cloud_sync` already is
 (a standalone timer, not living inside `backup_agent`), not an
 integration with the existing pipeline.

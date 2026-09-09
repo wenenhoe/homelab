@@ -63,8 +63,8 @@ restore playbook pulls everything else from Vault.
   category for `ansible/cloud_credentials/` — narrower than any
   existing leaf credential (bucket/prefix-limited, read-only,
   provisioned outside the rotation machinery those scripts drive today,
-  since it can't depend on the thing it's bootstrapping). Resolved for
-  Track A stage 1: R2 and B2, both using a bucket named
+  since it can't depend on the thing it's bootstrapping). Built for
+  R2 and B2, both using a bucket named
   `openbao-snapshots` — two providers rather than one, so recovery
   doesn't depend on a single cloud vendor being reachable — minted by
   `ansible/cloud_credentials/create_snapshot_readonly_keys.py`, which
@@ -76,9 +76,8 @@ restore playbook pulls everything else from Vault.
   Both are one-time, human-attended items, consistent with how this
   repo already treats the GPG key and initial rotation-key bootstrap
   ([0001](0001-credential-caching-stage-1-before-secrets-manager.md)).
-- The migration roadmap's backup/restore proving stage — proving the
-  backup/restore loop before any secret's authoritative copy moves
-  into Vault — is the actual test of this split. See
+- Proving the backup/restore loop before any secret's authoritative
+  copy moves into Vault is the actual test of this split. See
   [`openbao-backup-restore.md`](../openbao-backup-restore.md) for the
   drill procedure — its own doc, not `disaster-recovery.md`, since the
   mechanism (raft snapshot, not the volume-backup pipeline that doc

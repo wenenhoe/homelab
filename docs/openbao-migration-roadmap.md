@@ -2,10 +2,8 @@
 
 **Status: Track A in progress, Track B not started.** See
 [`docs/decisions/`](decisions/README.md) (0017–0022) for the design
-records this roadmap builds on. Stages 1–4 are built and proven live;
-stage 5's storage-layer repoint is too, but the stage isn't Done until
-ADR 0019's own per-read alert requirement is built — see the table
-below and its Open items.
+records this roadmap builds on. Stages 1–5 are built and proven live;
+stage 6 (full cutover) hasn't started.
 
 ## Stage status
 
@@ -18,7 +16,7 @@ Update this table at the start and end of each PR that works a stage.
 | 2 | Prove backup/restore loop | A | Done |
 | 3 | Auth and least-privilege policies | A | Done |
 | 4 | Migrate the secrets role | A | Done |
-| 5 | Repoint the cloud-credential package | A | In progress: OpenBao re-init proven live (ADR 0027 Accepted), `vault-bootstrap` + watcher AppRole provisioned, root revoked again. Remaining: ADR 0026's actual watcher process (systemd unit tailing `docker logs -f openbao`, alerting, heartbeat) still doesn't exist. |
+| 5 | Repoint the cloud-credential package | A | Done |
 | 6 | Full cutover, decommission file cache | A | Not started |
 | 7 | CD agent build | B | Not started |
 

@@ -1,0 +1,9 @@
+[Unit]
+Description=Periodic check that r2-read-watcher.service is still running
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+
+[Install]
+WantedBy=timers.target

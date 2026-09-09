@@ -1,6 +1,6 @@
 # 0026. Permanent stdout audit device, plus a dedicated watcher, for the R2 admin-token per-read alert
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

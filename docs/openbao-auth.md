@@ -50,7 +50,7 @@ since it never leaves the `openbao` container's own network namespace.
 ```sh
 ssh security
 export BAO_TOKEN=<current root token, from the break-glass password-manager entry>
-alias bao='docker exec -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
+alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
 ```
 
 No `-address=` flag needed: `compose.yaml.j2` sets no `BAO_ADDR`/
@@ -146,17 +146,30 @@ so it goes on the individual command, never baked into this alias.
    doesn't prove `controller` can reach Vault's API at all, which is
    the thing this stage exists to unblock for stage 4. From
    `controller`, using the `role_id`/`secret_id` files cached in step
-   5 (confirmed working over the real network, using `docker run
-   --entrypoint bao` there rather than a locally-installed binary):
+   5:
 
    ```sh
-   bao write auth/approle/login \
-     role_id="$(cat ansible/files/secrets/openbao-controller-role-id)" \
-     secret_id="$(cat ansible/files/secrets/openbao-controller-secret-id)"
-   export BAO_TOKEN=<the "token" value from that output>
-   bao kv put -mount=secret hosts/_stage3-test probe=stage3   # succeeds
-   bao kv get -mount=secret hosts/_stage3-test                # succeeds
-   bao kv metadata delete -mount=secret hosts/_stage3-test    # denied
+   export BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh \
+     "$(cat ansible/files/secrets/openbao-controller-role-id)")
+   ```
+
+   That script prompts for `secret_id` (hidden input, read from
+   `ansible/files/secrets/openbao-controller-secret-id` yourself and
+   paste it when asked — the script never takes it as an argument).
+   See the script's own header for what it does and why: real network
+   address, real TLS verification against step-ca's root cert, no
+   skip-verify.
+
+   The subsequent `kv put`/`kv get`/`kv metadata delete` calls also run
+   from `controller`, via
+   [`bao-from-controller.sh`](../docker/openbao/scripts/bao-from-controller.sh) -
+   real network address, real TLS verification, same as the login
+   above:
+
+   ```sh
+   docker/openbao/scripts/bao-from-controller.sh kv put -mount=secret hosts/_stage3-test probe=stage3   # succeeds
+   docker/openbao/scripts/bao-from-controller.sh kv get -mount=secret hosts/_stage3-test                # succeeds
+   docker/openbao/scripts/bao-from-controller.sh kv metadata delete -mount=secret hosts/_stage3-test    # denied
    unset BAO_TOKEN
    ```
 

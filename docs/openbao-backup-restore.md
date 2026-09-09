@@ -105,9 +105,11 @@ Confirmed against a real running instance, not inferred from docs:
   unsealed again using the *original snapshot's* Shamir shares — not
   the throwaway host's own freshly-generated ones from its local
   `bao operator init`. The throwaway host's own pre-restore root token
-  also stops working once the restore completes; only the original
-  bundle's root token (or, once Track A stage 3 lands, an AppRole
-  login) is valid against the restored data.
+  also stops working once the restore completes; `controller`'s
+  AppRole (part of the restored data itself, confirmed present since
+  Track A stage 3 landed) is what's valid against the restored data,
+  not a root token — see `openbao-vault-bootstrap.md` if a step ever
+  needs more than `controller`'s own read access.
 
 ## Restore drill
 
@@ -134,9 +136,13 @@ On a throwaway host — burn it afterward, don't reuse it:
 5. Unseal again using the break-glass bundle's *original* Shamir
    shares (from the password manager, not this host's own `init`
    output).
-6. Authenticate with the break-glass root token and read back a known
-   secret path to confirm the restore actually worked, not just that
-   the command exited 0.
+6. Authenticate as `controller` — its AppRole config is part of the
+   restored data, so this also proves the restore brought back more
+   than just secret values — and read back a known secret path to
+   confirm the restore actually worked, not just that the command
+   exited 0. No root token or `vault-bootstrap` needed for this: a
+   plain read is exactly what `controller`'s own policy already
+   grants.
 
 Only after this passes for real does Track A stage 2 count as proven —
 see the roadmap's own stage-status table.
@@ -150,11 +156,11 @@ see the roadmap's own stage-status table.
 - Track A stage 3 ([`openbao-auth.md`](openbao-auth.md)) grants the
   `controller` policy read access to `sys/storage/raft/snapshot`, but
   `snapshot-push.sh` itself hasn't been changed to use it yet — it
-  still needs a human to export `BAO_TOKEN`. The exact output shape of
-  `bao write -f auth/approle/login role_id=... secret_id=...`
-  (`-format=json`'s field names, and how cleanly that composes with
-  the existing `docker exec -e` pattern) hasn't been checked against a
-  live instance. That's a time-boxed spike before writing the
-  login-and-save logic into the script and adding a systemd timer for
-  it, not a large change once answered — tracked here rather than
-  guessed at.
+  still needs a human to export `BAO_TOKEN`. The login mechanics are
+  now confirmed live (see
+  [`docker/openbao/scripts/bao-login.sh`](../docker/openbao/scripts/bao-login.sh):
+  `-field=token` prints the raw `client_token` and nothing else, and
+  `@-` is *not* stdin shorthand for this `bao` build — a real temp
+  file is required). Writing that into `snapshot-push.sh` itself, and
+  adding the systemd timer, is still open — not a large change now
+  that the shape is known, just not done.

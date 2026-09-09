@@ -12,16 +12,17 @@ ansible-playbook playbooks/rotate-secret.yaml \
   -e secret_name=<key-from-secrets_registry.yaml> -e confirm=true
 ```
 
-Vault-backed entries (has a `vault_scope`) get a fresh value written in
-place with `cas=<current version>` — an update, not a delete, since
-`controller`'s AppRole policy grants no `delete` on `secret/data/hosts/*`
-by design ([`openbao-auth.md`](openbao-auth.md)'s stage-3 runbook proves
-this). File-cache-backed entries (none of today's `hex`/`uuid4` secrets
-— see `secrets_registry.yaml`) delete the cached value under
-`ansible/files/secrets/` instead, same as before this migration. Either
-way this does **not** redeploy anything itself — check the table below
-for which `--limit` group the secret you rotated actually needs, then
-run:
+Every `hex`/`uuid4` entry is required to have a `vault_scope` (see
+`secrets_registry.yaml`'s own header comment) and rotates the same way:
+a fresh value written in place with `cas=<current version>` — an
+update, not a delete, since `controller`'s AppRole policy grants no
+`delete` on `secret/data/hosts/*` by design
+([`openbao-auth.md`](openbao-auth.md)'s stage-3 runbook proves this).
+There's no file-cache-backed rotation path any more — Track A stage 6
+removed it, since no `hex`/`uuid4` entry had ever actually used it.
+Either way this does **not** redeploy anything itself — check the table
+below for which `--limit` group the secret you rotated actually needs,
+then run:
 
 ```
 ansible-playbook playbooks/deploy.yaml --limit <group>,localhost

@@ -322,54 +322,22 @@ strict enforcement.
 
 ## Rotation
 
-**One-time migration if you have an existing deployment:** this repo's
-terminology changed from "leg" to "leaf" (write/read leaf key, matching
-the standard root/intermediate/leaf credential-hierarchy vocabulary).
-OCI's per-leaf IAM user OCID cache file followed suit — rename it under
-`ansible/files/secrets/` before the next run:
-
-```sh
-cd ansible/files/secrets
-mv _oci-leg-user-ocid-write _oci-leaf-user-ocid-write
-mv _oci-leg-user-ocid-read  _oci-leaf-user-ocid-read
-```
-
-No other cache file is affected — every other provider's file names
-(`cloudflare-r2-write-access-key`, `backblaze-b2-read-secret-key`,
-`oci-write-access-key`, etc.) always used "write"/"read" directly, never
-the word "leg" itself.
-
-**One-time cleanup if you're migrating an existing OCI deployment to
-SCIM (see [ADR 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)):**
-the classic-API rotation identity's local cache files and its OCI-side
-IAM objects are both dead weight now — nothing reads or authenticates
-with either, but nothing deletes them for you automatically.
-
-Local cache files, safe to remove once you've confirmed
-`oci-{write,read}-access-key`/`-secret-key`/`-scim-id` are all present
-(the new code writes all three together):
-
-```sh
-cd ansible/files/secrets
-rm -f _rotation-key-oci-user-ocid _rotation-key-oci-fingerprint \
-      _rotation-key-oci-private-key.pem _rotation-key-oci-tenancy-ocid \
-      _rotation-key-oci-region oci-write-created-at oci-read-created-at
-```
-
-On the Console side, delete the now-unused `homelab-key-rotation`
-identity (Identity & Security > Domains > your domain), in this order —
-its API signing key first, then the `homelab-key-rotation` policy, then
-remove it from (or delete) the `homelab-key-rotation` group, then
-delete the `homelab-key-rotation` user itself. This was a standing,
-tenancy-wide `manage users` grant scoped to
-`USER_UPDATE`/`USER_SECRETKEY_ADD`/`USER_SECRETKEY_REMOVE` (see ADR
-0016's Context for why even that narrower grant was still tenancy-wide,
-not scoped to the two leaf users) — worth actually removing, not
-leaving unused, since an unused broad grant is exactly the kind of
-thing worth not leaving lying around. `audit_secrets.py --local` flags
-the stale local cache files above if you haven't cleaned them up yet;
-it has no visibility into Console-side IAM objects, so that half is
-manual.
+**Two historical one-time migrations, both now obsolete:** an earlier
+"leg"→"leaf" terminology rename, and an OCI classic-API→SCIM migration
+(ADR 0016), both used to instruct renaming/removing specific files
+under `ansible/files/secrets/`. Track A stage 6 removed that file cache
+entirely for cloud credentials — there's nothing left there to rename
+or clean up by hand. If you're restoring a controller old enough to
+still have pre-Track-A cache files lying around, `audit_secrets.py
+--local` flags anything under `ansible/files/secrets/` that doesn't
+match current config, regardless of vintage; see [ADR
+0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)'s
+own Context for why the OCI migration's Console-side cleanup (deleting
+the unused `homelab-key-rotation` identity — API signing key first,
+then the policy, then the group membership, then the user itself) is
+still relevant if you never did it: `audit_secrets.py` has no
+visibility into Console-side IAM objects, so that half stays manual
+regardless of file-cache retirement.
 
 **`--rotate {write,read,both}`, all three providers now:**
 

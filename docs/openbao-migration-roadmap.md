@@ -130,15 +130,25 @@ not against the file cache.
   isn't scoped yet.
 - The shared SSH private key across all managed hosts (and possibly
   the maintainer's laptop) hasn't been split into a CD-agent-only key.
-- `snapshot-push.sh` still needs a human-exported root token —
-  `controller`'s Era A policy now grants the read it needs, but the
-  script itself isn't wired to log in via that AppRole yet. Needs a
-  spike on `bao write -f auth/approle/login ...`'s exact output shape
-  first — see [`openbao-backup-restore.md`](openbao-backup-restore.md)'s
-  open follow-ups.
-- `openbao-backup-restore.md` states the pinned image is `2.5.4`; the
-  real, currently-running version is `2.6.2` (confirmed live, same
-  session as the finding above) — that doc, and anything else assuming
-  2.5.x behavior, needs a pass once the root-token question above is
-  settled, since the two are related (2.6.2 is also where
-  `generate-root`'s authenticated-endpoint behavior changed).
+- ~~`snapshot-push.sh` still needs a human-exported root token~~ —
+  resolved (Track A stage 6). Verified live against a real OpenBao
+  2.6.2 instance: `bao write -f auth/approle/login role_id=<x>
+  secret_id=@<file>` returns the client token under `-field=token`
+  cleanly, no different from the shape `bao-login-from-controller.sh`
+  already assumed. No code change needed in `snapshot-push.sh`
+  itself — it already just reads `BAO_TOKEN` from the environment,
+  agnostic to how it was obtained. Fixed
+  [`openbao-backup-restore.md`](openbao-backup-restore.md)'s "Running a
+  backup" section to obtain it via `controller`'s AppRole (same
+  `bao-login-from-controller.sh` flow `openbao-auth.md`'s own step 6
+  uses) instead of the break-glass root token.
+- `openbao-backup-restore.md` wrongly stated the pinned image was
+  `2.5.4`; the real, currently-running version is `2.6.2`. Fixed the
+  factual claim (Track A stage 6) — still open: the specific
+  snapshot-save/restore behaviors that doc describes as "confirmed
+  live" were only ever confirmed against `2.5.4`, not re-verified
+  against `2.6.2`, and `2.6.2` is also where `generate-root`'s
+  authenticated-endpoint behavior changed (see
+  [ADR 0027](decisions/0027-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
+  Context) — a live spike during the next restore drill, not something
+  fixable from reading code alone.

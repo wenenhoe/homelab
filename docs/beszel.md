@@ -23,10 +23,10 @@ value doesn't block the first deploy. `beszel-agent`'s `.env` uses
 
 Sequence:
 
-1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty cache files `bootstrap_secrets.py` created for these two).
+1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty Vault values `bootstrap_secrets.py` created for these two).
 2. Visit `https://beszel.sec.{{ lab_domain }}`, create the hub admin account.
-3. **Settings → Keys**: copy the hub's public key into `ansible/files/secrets/beszel-hub-key` (`printf '%s' '<key>' > ansible/files/secrets/beszel-hub-key`, or re-run `python3 ansible/bootstrap_secrets.py` and paste it in when prompted).
-4. **Settings → Tokens**: create a universal token, copy it into `ansible/files/secrets/beszel-agent-token` the same way.
+3. **Settings → Keys**: run `python3 ansible/bootstrap_secrets.py` and paste the hub's public key in when prompted for `beszel-hub-key` (already-set entries are skipped, so re-running is safe — see [`secrets.md`](secrets.md)).
+4. **Settings → Tokens**: create a universal token, set it as `beszel-agent-token` the same way.
 5. Re-run `ansible-playbook deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.
 
 ## Rotating the KEY and TOKEN
@@ -46,8 +46,24 @@ Sequence:
 
 1. `ansible-playbook playbooks/volume-reset.yaml --limit security,localhost -e volume_reset_app=beszel-hub -e volume_reset_volume=data -e volume_reset_confirm=true` (`--check` first to preview) — wipes the hub back to a genuinely un-booted state.
 2. `ansible-playbook playbooks/deploy.yaml --limit security,localhost` — hub restarts empty; every agent fleet-wide drops back into the same harmless auth-retry loop as first-time setup.
-3. Redo bootstrap steps 2–4 above: new admin account, new KEY from `Settings → Keys`, new TOKEN from `Settings → Tokens`.
-4. Overwrite both cache files: `ansible/files/secrets/beszel-hub-key` and `ansible/files/secrets/beszel-agent-token` (or `python3 ansible/bootstrap_secrets.py`, which only prompts for these two since everything else is already cached).
+3. New admin account; get a new KEY from `Settings → Keys` and a new
+   TOKEN from `Settings → Tokens` (same UI steps as the bootstrap
+   sequence's 2–4 above, but don't re-run `bootstrap_secrets.py` for
+   this part — it skips any already-set entry, blank or not, so it
+   won't touch either value here; step 4 below overwrites them
+   directly instead).
+4. Overwrite both Vault values directly — this is an update to an
+   existing path, which `controller`'s AppRole can do (its policy grants
+   `update` on `secret/data/hosts/*`, just not `delete` — see
+   `controller.hcl`), so `bootstrap_secrets.py`'s own skip-if-already-set
+   behavior doesn't get in the way here:
+   ```sh
+   BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh "$(cat ansible/files/secrets/openbao-controller-role-id)")
+   export BAO_TOKEN
+   docker/openbao/scripts/bao-from-controller.sh kv put -mount=secret hosts/all/beszel/beszel-hub-key value='<new key>'
+   docker/openbao/scripts/bao-from-controller.sh kv put -mount=secret hosts/all/beszel/beszel-agent-token value='<new token>'
+   unset BAO_TOKEN
+   ```
 5. `ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost` — **not** `security` alone. Every host in `app_hosts` (`services`, `security`, `play`, `storage`) runs an agent that needs the new KEY to verify the hub again.
 6. Confirm every host reappears as a connected system on the hub's dashboard, then re-add the Telegram notification channel from "Alert notifications" below — it lived in the wiped DB too and won't come back on its own.
 

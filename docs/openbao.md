@@ -269,8 +269,8 @@ The command prints 3 unseal key shares and an initial root token,
    uses for the GPG private key.
 3. Do not leave any of this in shell scrollback, a file on `security`,
    or a file on `controller`. Nothing here is written to
-   `ansible/files/secrets/` — that cache is exactly the mechanism this
-   migration retires.
+   `ansible/files/secrets/` — that cache is exactly the mechanism Track A
+   stage 6 retired.
 
 The root token is not one of 0017's two recovery-critical items, but
 treat it with the same discipline for now: it's the only credential

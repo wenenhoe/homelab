@@ -99,13 +99,13 @@ can't fix.
 
    **Confirm the scope actually holds before trusting it**, same
    reasoning as `openbao-auth.md`'s own step 6 - a policy file is a
-   claim until proven:
+   claim until proven. From `controller`, first:
+   `scp docker/openbao/scripts/bao-login.sh security:/tmp/` (used here
+   and again in step 7 - copy it once):
 
    ```sh
-   bao write auth/approle/login \
-     role_id="<role_id from above>" \
-     secret_id="<secret_id from above>"
-   export BAO_TOKEN=<the "token" value from that output>
+   BAO_TOKEN=$(/tmp/bao-login.sh "<role_id from above>")
+   export BAO_TOKEN
    bao policy write _stage-test-policy - <<< 'path "sys/health" { capabilities = ["read"] }'   # succeeds
    bao kv get -mount=secret hosts/security/lldap-jwt-secret                                    # denied
    unset BAO_TOKEN
@@ -129,10 +129,8 @@ can't fix.
 
    ```sh
    ssh security
-   docker exec -e BAO_SKIP_VERIFY=true openbao bao write auth/approle/login \
-     role_id="<vault-bootstrap role_id>" \
-     secret_id="<vault-bootstrap secret_id>"
-   export BAO_TOKEN=<the "token" value from that output>
+   BAO_TOKEN=$(/tmp/bao-login.sh "<vault-bootstrap role_id>")
+   export BAO_TOKEN
    alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
 
    # from controller, copy the checked-in policy over first:

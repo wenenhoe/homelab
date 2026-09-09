@@ -156,11 +156,11 @@ see the roadmap's own stage-status table.
 - Track A stage 3 ([`openbao-auth.md`](openbao-auth.md)) grants the
   `controller` policy read access to `sys/storage/raft/snapshot`, but
   `snapshot-push.sh` itself hasn't been changed to use it yet — it
-  still needs a human to export `BAO_TOKEN`. The exact output shape of
-  `bao write -f auth/approle/login role_id=... secret_id=...`
-  (`-format=json`'s field names, and how cleanly that composes with
-  the existing `docker exec -e` pattern) hasn't been checked against a
-  live instance. That's a time-boxed spike before writing the
-  login-and-save logic into the script and adding a systemd timer for
-  it, not a large change once answered — tracked here rather than
-  guessed at.
+  still needs a human to export `BAO_TOKEN`. The login mechanics are
+  now confirmed live (see
+  [`docker/openbao/scripts/bao-login.sh`](../docker/openbao/scripts/bao-login.sh):
+  `-field=token` prints the raw `client_token` and nothing else, and
+  `@-` is *not* stdin shorthand for this `bao` build — a real temp
+  file is required). Writing that into `snapshot-push.sh` itself, and
+  adding the systemd timer, is still open — not a large change now
+  that the shape is known, just not done.

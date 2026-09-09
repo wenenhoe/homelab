@@ -1,9 +1,9 @@
 # OpenBao + CD-Agent Migration Roadmap
 
-**Status: Track A in progress, Track B not started.** See
+**Status: Track A complete, Track B not started.** See
 [`docs/decisions/`](decisions/README.md) (0017–0022) for the design
-records this roadmap builds on. Stages 1–5 are built and proven live;
-stage 6 (full cutover) hasn't started.
+records this roadmap builds on. All 6 Track A stages are built and
+proven live, including the full cutover drill.
 
 ## Stage status
 
@@ -17,7 +17,7 @@ Update this table at the start and end of each PR that works a stage.
 | 3 | Auth and least-privilege policies | A | Done |
 | 4 | Migrate the secrets role | A | Done |
 | 5 | Repoint the cloud-credential package | A | Done |
-| 6 | Full cutover, decommission file cache | A | In progress |
+| 6 | Full cutover, decommission file cache | A | Done |
 | 7 | CD agent build | B | Not started |
 
 ## Two tracks, run sequentially
@@ -92,13 +92,19 @@ built, but **proven**.
    ([0018](decisions/0018-openbao-repoint-not-native-plugin.md)),
    including R2's admin token moving in as a scoped exception
    ([0019](decisions/0019-r2-admin-token-into-openbao.md)).
-6. **Full cutover drill, then decommission the file cache** — wipe
-   `ansible/files/secrets/` on a test controller, restore a full
-   environment purely from Vault. Only after that passes: delete the
-   file-based mechanism, retire `bootstrap_secrets.py`'s file-writing
-   path, and update `secrets.md`/`secrets-rotation.md`/
-   `cloud-credential-creation.md`/`disaster-recovery.md` to describe
-   Vault as the sole source.
+6. **Full cutover drill, then decommission the file cache** — done.
+   Wiped `ansible/files/secrets/` down to the three permanent bootstrap
+   exceptions (`main-domain`, `openbao-controller-role-id`/
+   `-secret-id`) on a real controller, proved a full deploy — write
+   leaf, read leaf, and every other secret — resolves purely from
+   Vault, including live `rclone lsd` against R2/B2/OCI with the
+   rendered credentials, not just a non-empty value. The file-based
+   generation mechanism (hex/uuid4 file-cache branches, `bootstrap_secrets.py`'s
+   cloud-credential prompting) is deleted from the code, not just
+   unused — see `secrets.md`/`secrets-rotation.md`/
+   `cloud-credential-creation.md` for the current, Vault-as-sole-source
+   state. `disaster-recovery.md` never described the storage mechanism
+   directly, so it needed no change.
 
 ## Track B — CD agent
 

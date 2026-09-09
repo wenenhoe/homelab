@@ -1,6 +1,6 @@
 # 0019. Move Cloudflare R2's admin token into OpenBao
 
-**Status:** Proposed
+**Status:** Accepted
 
 ## Context
 

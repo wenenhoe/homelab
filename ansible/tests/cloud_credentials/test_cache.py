@@ -218,6 +218,43 @@ class ScopedReadWriteTests(SecretsDirTestCase):
         self.assertEqual(self.require_cache_file("present-key", "unused"), "present-value")
 
 
+class VaultPathHelperTests(SecretsDirTestCase):
+    """read_vault_path/write_vault_path - the arbitrary-path escape
+    hatch outside the leaf/rotation taxonomy, e.g. hosts/* material."""
+
+    def setUp(self):
+        super().setUp()
+        self.seed("main-domain", "example.com")
+        self.seed("openbao-controller-role-id", "some-role-id")
+        self.seed("openbao-controller-secret-id", "some-secret-id")
+        patch.object(cache, "_fetch_root_cert", return_value="fake-cert").start()
+        patch.object(cache, "_vault_login", return_value="s.abc123").start()
+        self.addCleanup(patch.stopall)
+
+    @patch("cloud_credentials.cache.requests.get")
+    def test_read_vault_path_uses_the_exact_given_path(self, mock_get):
+        mock_get.return_value = _mock_response(200, {"data": {"data": {"value": "x"}}})
+        cache.read_vault_path("hosts/all/telegram/telegram-token")
+        mock_get.assert_called_once_with(
+            f"https://openbao.sec.lan.example.com:8200/v1/{cache.VAULT_KV_MOUNT}/data/hosts/all/telegram/telegram-token",
+            headers={"X-Vault-Token": "s.abc123"},
+            verify=mock_get.call_args.kwargs["verify"],
+            timeout=10,
+        )
+
+    @patch("cloud_credentials.cache.requests.post")
+    def test_write_vault_path_posts_to_the_exact_given_path(self, mock_post):
+        mock_post.return_value = _mock_response(200)
+        cache.write_vault_path("hosts/security/lldap-jwt-secret", "the-value")
+        mock_post.assert_called_once_with(
+            f"https://openbao.sec.lan.example.com:8200/v1/{cache.VAULT_KV_MOUNT}/data/hosts/security/lldap-jwt-secret",
+            headers={"X-Vault-Token": "s.abc123"},
+            json={"data": {"value": "the-value"}},
+            verify=mock_post.call_args.kwargs["verify"],
+            timeout=10,
+        )
+
+
 class ScopedRotationCategoryTests(SecretsDirTestCase):
     """One test confirming scoped("rotation") writes under the other
     top-level path - the leaf-side behavior is already exercised in

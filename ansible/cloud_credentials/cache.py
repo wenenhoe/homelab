@@ -198,6 +198,16 @@ def read_vault_path(full_path: str) -> str | None:
     return _vault_read_at(full_path)
 
 
+def write_vault_path(full_path: str, value: str) -> None:
+    """Write an arbitrary Vault KV v2 path directly - read_vault_path's
+    write counterpart, same rare-caller-outside-the-taxonomy case (e.g.
+    restoring hosts/* material after a re-init). Controller's Era A
+    AppRole already grants create/update on all of secret/data/hosts/*
+    (ADR 0022), so no policy change is needed to use this from
+    cloud_credentials."""
+    _vault_write_at(full_path, value)
+
+
 def _vault_read(category: str, name: str) -> str | None:
     return _vault_read_at(_vault_path(category, name))
 

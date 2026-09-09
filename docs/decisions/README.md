@@ -15,9 +15,28 @@ Write one when a decision:
   otherwise have to reconstruct by reading old commits/PRs
 - is still open (a known gap, tracked but not yet resolved)
 
-Use [`TEMPLATE.md`](TEMPLATE.md) for new entries. Number sequentially;
-never renumber or delete a superseded one — mark it `Superseded by
-000N` instead, so old links keep resolving.
+Use [`TEMPLATE.md`](TEMPLATE.md) for new entries once a decision is
+ready to record. Number sequentially; never renumber or delete a
+superseded one — mark it `Superseded by 000N` instead, so old links
+keep resolving.
+
+## Drafts
+
+A numbered ADR here means "decided, and either built or being built" —
+not "under consideration." A decision that depends on something
+unverified (another stage's not-yet-built design, a tool's real
+behavior, a component that doesn't exist yet) starts as a draft in
+[`drafts/`](drafts/) instead: same shape as `TEMPLATE.md`, plus an
+`Assumptions` section naming exactly what's unverified and how it gets
+checked. Drafts are unnumbered, freely rewritten or deleted in place —
+nothing else in this repo should ever cite one as settled.
+
+Promotion to a real ADR happens once the assumptions are resolved and
+the design is actually implemented — not at decide-time. At that
+point: assign the next sequential number, drop the `Assumptions`
+section entirely (everything in it is now either settled fact folded
+into Context, or moot), set `Status: Accepted` directly, move the file
+from `drafts/` into this directory, and add it to the index below.
 
 ## Index
 
@@ -44,7 +63,7 @@ never renumber or delete a superseded one — mark it `Superseded by
 | [0019](0019-r2-admin-token-into-openbao.md) | Accepted | Move R2's admin token into OpenBao after all, scoped to one path/one AppRole with a per-read alert, now that scheduled rotation gives it a real automated consumer. Its 90-day cycle can only be auto-cached, never auto-minted — Cloudflare's API can't mint a replacement token itself. |
 | [0020](0020-pull-based-cd-agent-not-self-hosted-github-runner.md) | Proposed | Reject anything GitHub-dispatched or requiring an inbound port for prod-touching work — a public-repo PR can add a trigger to run as a trusted contributor regardless of current trust, and even a webhook-based alternative reopens an inbound port. Replace with a pull-based `cd_agent` host whose poller invokes a local, microVM-isolated engine against GitHub Actions-format workflow files for deploy/maintenance/rotation/freshness. |
 | [0021](0021-manual-shamir-unseal.md) | Accepted | Manual Shamir unseal, not cloud auto-unseal — `security`'s confirmed reboot history shows no unattended-reboot pattern, so the scenario auto-unseal defends against doesn't occur on this host. |
-| [0022](0022-approle-policy-structure-two-eras.md) | Proposed | `controller` holds one broad AppRole from the auth/policy stage through the file-cache cutover, since it's the only automation identity that exists yet; the CD-runner stage replaces it with two CIDR-bound `cd_agent` AppRoles (deploy, rotation) and revokes `controller`'s entirely. |
+| [0022](0022-approle-policy-structure-two-eras.md) | Accepted (Era A) | `controller` holds one broad AppRole from the auth/policy stage through the file-cache cutover, since it's the only automation identity that exists yet; the CD-runner stage replaces it with two CIDR-bound `cd_agent` AppRoles (deploy, rotation) and revokes `controller`'s entirely. |
 | [0023](0023-openbao-snapshot-push-standalone.md) | Accepted | `snapshot-push.sh` pushes directly from `security` to R2/B2, never routed through `backup_agent`/`cloud_sync` — keeps `storage` (and the write leaf it would otherwise need) entirely out of OpenBao's recovery path. |
 | [0024](0024-vault-path-convention-hosts-all-for-global-secrets.md) | Accepted | Secrets with no single host owner (referenced from `group_vars/all/main.yaml`) live under `secret/data/hosts/all/<concern>/*`, inside 0022's already-Accepted `hosts/*` grant, instead of a new top-level Vault path. |
 | [0025](0025-controller-vault-tls-trust-via-per-run-fetched-root-cert.md) | Accepted | The controller trusts OpenBao's TLS cert by fetching step-ca's root cert fresh from `security` into a `tempfile`-backed path every run, mirroring `step_ca_client`'s pattern — never skip-verify, never a committed copy. |

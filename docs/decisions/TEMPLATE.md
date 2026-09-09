@@ -1,6 +1,10 @@
 # NNNN. Short, decision-shaped title
 
-**Status:** Proposed | Accepted | Superseded by [NNNN](NNNN-slug.md)
+**Status:** Accepted | Superseded by [NNNN](NNNN-slug.md)
+
+_Still depends on something unverified? Start in
+[`drafts/`](drafts/TEMPLATE.md) instead — see
+[`README.md#drafts`](README.md#drafts)._
 
 ## Context
 

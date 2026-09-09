@@ -17,7 +17,7 @@ Update this table at the start and end of each PR that works a stage.
 | 3 | Auth and least-privilege policies | A | Done |
 | 4 | Migrate the secrets role | A | Done |
 | 5 | Repoint the cloud-credential package | A | Done |
-| 6 | Full cutover, decommission file cache | A | Not started |
+| 6 | Full cutover, decommission file cache | A | In progress |
 | 7 | CD agent build | B | Not started |
 
 ## Two tracks, run sequentially

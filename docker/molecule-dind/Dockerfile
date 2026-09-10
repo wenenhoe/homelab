@@ -14,8 +14,10 @@
 # NOT used by ansible/roles/docker's own Molecule scenario, which tests
 # that installation from a clean image — baking Docker in here would make
 # that test tautological.
+# hadolint ignore=DL3007 # test scaffolding, not a deployed app — see top-of-file comment.
 FROM geerlingguy/docker-ubuntu2604-ansible:latest
 
+# hadolint ignore=DL3008 # mirrors ansible/roles/docker's own unpinned apt installs — see top-of-file comment.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         ca-certificates \

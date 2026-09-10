@@ -105,7 +105,7 @@ should go.
 | [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook (Track A stage 2). |
 | [`docs/openbao-auth.md`](docs/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token (Track A stage 3). |
 | [`docs/openbao-vault-bootstrap.md`](docs/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
-| [`docs/openbao-reinit-runbook.md`](docs/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0027) — distinct from the restore drill. |
+| [`docs/openbao-reinit-runbook.md`](docs/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
 | [`docs/openbao-r2-read-watcher.md`](docs/openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open `OnFailure=` gap. |
 | [`docs/wastebin.md`](docs/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
 | [`docs/qemu-guest-agent.md`](docs/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |

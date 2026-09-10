@@ -4,7 +4,7 @@
 
 ## Context
 
-[0019](0019-r2-admin-token-into-openbao.md) requires an alert on every
+[0024](0024-r2-admin-token-into-openbao.md) requires an alert on every
 read of the R2 admin token's Vault path, calling the audit log "the
 natural source" but leaving the exact mechanism to this stage.
 OpenBao currently has no audit device configured at all
@@ -16,9 +16,8 @@ Two ways to enable one. API-driven (`bao audit enable`) requires
 subsystem (CVE-2025-54997). Reopening it to get this feature would
 reopen what that fix closed, and is rejected on that basis alone; it's
 moot anyway, since this repo currently has no working path to a
-root/`sudo`-capable token to call it with (tracked separately in
-[`openbao-migration-roadmap.md`](../openbao-migration-roadmap.md)'s
-open items). **Declarative audit config** — a server HCL stanza,
+root/`sudo`-capable token to call it with. **Declarative audit config**
+— a server HCL stanza,
 available since OpenBao 2.4.0, applied at restart/SIGHUP, no token or
 API call needed — is the supported alternative and has no such
 exposure.
@@ -111,20 +110,17 @@ silently going dark.
   log-shipping destination exists today — revisit the day one is
   added.
 - [`openbao.md`](../openbao.md)'s "no audit device configured" line
-  goes stale the moment this lands; update it alongside this work,
-  folded into the doc-cleanup already tracked in the roadmap's open
-  items.
-- A fourth Vault identity now exists, alongside controller's Era A
-  AppRole and the two Era B `cd_agent` AppRoles
-  [0022](0022-approle-policy-structure-two-eras.md) already plans — a
-  deliberate, narrow exception to that ADR's "one broad identity
-  during Era A" framing, justified by this component's different job
-  and risk profile, not a reconsideration of Era A itself.
+  goes stale the moment this lands; update it alongside this work.
+- Another Vault identity now exists alongside `controller`'s broad
+  AppRole ([0020](0020-controller-single-broad-approle-not-split-by-consumer.md)) — a
+  deliberate, narrow exception to that ADR's "one broad identity"
+  framing, justified by this component's different job and risk
+  profile, not a reconsideration of that design itself.
 - This is the first persistent, non-invoke-once process in
   `cloud_credentials`. If a scheduled poll of the log file ever proves
   simpler than a live-tail, that's a legitimate future revisit — the
   live-tail choice here follows from
-  [0019](0019-r2-admin-token-into-openbao.md) explicitly wanting
+  [0024](0024-r2-admin-token-into-openbao.md) explicitly wanting
   event-driven alerting, not from polling being ruled out on the
   merits.
 - No mechanism exists to reduce what OpenBao itself logs; accepted as

@@ -1,4 +1,4 @@
-# 0007. Per-host backup freshness checks, not one centralized checker
+# 0012. Per-host backup freshness checks, not one centralized checker
 
 **Status:** Accepted
 

@@ -4,10 +4,10 @@ A different mechanism from [`disaster-recovery.md`](disaster-recovery.md)'s
 generic volume-backup pipeline — `docker/openbao/compose.yaml.j2` has no
 `backup:` entry, and [`openbao.md`](openbao.md) explains why: stopping
 OpenBao to tar its data volume means sealing it, which needs a manual
-unseal ([0021](decisions/0021-manual-shamir-unseal.md)) on every backup
+unseal ([0018](decisions/0018-manual-shamir-unseal.md)) on every backup
 cycle. `bao operator raft snapshot save` is the backup mechanism here
 instead, pushed independently to R2/B2 — see
-[0023](decisions/0023-openbao-snapshot-push-standalone.md) for why the
+[0019](decisions/0019-openbao-snapshot-push-standalone.md) for why the
 push itself also stays out of `backup_agent`/`cloud_sync` rather than
 reusing that pipeline. See
 [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
@@ -24,7 +24,7 @@ written. What's still missing is somewhere unattended to run it from:
 `controller` is the operator's own machine, never a `managed_hosts`
 member, and isn't meant to run scheduled jobs at all. That's Track B's
 `cd_agent` host's job
-([0020](decisions/0020-pull-based-cd-agent-not-self-hosted-github-runner.md)),
+([draft](decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)),
 not built yet — until then, this stage proves the mechanism with a
 human running it interactively, authenticating as `controller`'s
 AppRole rather than the root token (see "Running a backup" below).
@@ -110,7 +110,7 @@ against outside `security` itself, and the same is true of `2.6.2`
 without repeating the exercise on a real host. This matters more than a
 version-number footnote: `2.6.2` is also where `generate-root`'s
 authenticated-endpoint behavior changed (see
-[ADR 0027](decisions/0027-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
+[ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
 Context), so a version this far off isn't guaranteed to behave like
 `2.5.4` did here either. Confirm both the snapshot-save and restore-side
 behavior against the real `2.6.2` image during the next restore drill,

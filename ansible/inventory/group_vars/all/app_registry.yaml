@@ -207,7 +207,7 @@ app_registry:
     # No backup: entry — raft snapshots are OpenBao's own backup
     # mechanism (Track A stage 2), not backup_agent's generic
     # stop-and-tar path, which would mean sealing OpenBao (and a
-    # manual unseal per ADR 0021) on every backup cycle. See
+    # manual unseal per ADR 0018) on every backup cycle. See
     # docs/openbao.md.
     #
     # No caddy: entry either, same reasoning as step-ca above — plus

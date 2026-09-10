@@ -1,6 +1,6 @@
 # Caddy: Reverse Proxy & TLS
 
-The `caddy` role runs on **every** host in the inventory, giving each host its own reverse proxy fronting only the apps it locally runs. See [ADR 0008](decisions/0008-caddy-not-nginx-proxy-manager.md) for why Caddy over a UI-configured proxy like Nginx Proxy Manager.
+The `caddy` role runs on **every** host in the inventory, giving each host its own reverse proxy fronting only the apps it locally runs. See [ADR 0002](decisions/0002-caddy-not-nginx-proxy-manager.md) for why Caddy over a UI-configured proxy like Nginx Proxy Manager.
 
 ## Custom image
 
@@ -20,7 +20,7 @@ Caddy's DNS-01 challenge support for DigitalOcean isn't in the stock image, so `
    the auth provider).
 3. A single wildcard vhost, `*.{{ caddy_domain }}`, with one `handle`
    block per routable app (see
-   [ADR 0010](decisions/0010-caddy-wildcard-certs-not-per-app.md) for
+   [ADR 0003](decisions/0003-caddy-wildcard-certs-not-per-app.md) for
    why wildcard-by-default, and the one deliberate exception). Each
    matches `host {{ route.host
    }}.{{ caddy_domain }}`, optionally imports `tinyauth_forwarder`

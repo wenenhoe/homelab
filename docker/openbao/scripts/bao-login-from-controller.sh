@@ -3,7 +3,7 @@
 # not `docker exec` into the container (see bao-login.sh for that
 # case, used on `security` itself). Verifies TLS properly against
 # step-ca's root cert, fetched fresh each run over SSH - the same
-# trust mechanism ADR 0025 already established for cloud_credentials'
+# trust mechanism ADR 0022 already established for cloud_credentials'
 # own login flow (cache.py's _fetch_root_cert), reused here rather
 # than re-derived. Never skip-verify.
 #

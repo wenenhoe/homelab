@@ -7,7 +7,7 @@ deliberately preserves the original cluster's keys and data. See
 the AppRole this runbook creates in step 4 actually is and how it's
 used afterward; this doc is just the one-time procedure.
 
-See [ADR 0027](decisions/0027-openbao-reinit-with-standing-vault-bootstrap-role.md)
+See [ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)
 for why this was necessary the first time. It shouldn't be needed
 again for *that* reason - once `vault-bootstrap` exists, regaining
 root is a policy edit away (see `openbao-vault-bootstrap.md`'s
@@ -119,7 +119,7 @@ can't fix.
    **before** any `ansible-playbook deploy.yaml` run against the fresh
    Vault. Skipping this means the next `deploy.yaml` silently mints new
    random values for every `hex`/`uuid4` secret in the registry
-   (ADR 0027's Context explains why). Since Track A stage 6 gave every
+   (ADR 0025's Context explains why). Since Track A stage 6 gave every
    `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` registry entry its own
    `vault_scope` (`cloud_credentials/leaf`), this one step now also
    restores all 20 of those - not just the `hosts/*` ones.
@@ -128,7 +128,7 @@ can't fix.
    leaf/rotation bookkeeping keys with no `secrets_registry.yaml` entry
    of their own (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two
    `oci-{write,read}-scim-id` values). The `_oci-leaf-user-ocid-*`
-   duplicate under `cloud_credentials/leaf/` (see ADR 0027's Context) is
+   duplicate under `cloud_credentials/leaf/` (see ADR 0025's Context) is
    not recreated - this script, like the retired
    `migrate_legacy_cache_to_vault.py` before it, only ever writes to
    each key's own registered category.
@@ -160,7 +160,7 @@ can't fix.
    `secret_id_ttl=0` (never expires), unlike `controller`'s 90-day
    cycle: this identity lives permanently on `security` itself, not on
    a laptop with a rotation habit - same "always-on box" reasoning
-   [ADR 0022](decisions/0022-approle-policy-structure-two-eras.md)
+   [ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)
    gives for `cd_agent`'s own AppRoles, applied here a stage early
    since this identity exists before `cd_agent` does.
 

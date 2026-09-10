@@ -1,4 +1,4 @@
-# 0027. Re-init OpenBao now, with a standing narrow `vault-bootstrap` AppRole, instead of deferring to stage 6
+# 0025. Re-init OpenBao now, with a standing narrow `vault-bootstrap` AppRole, instead of deferring to the eventual full cutover
 
 **Status:** Accepted
 
@@ -11,17 +11,15 @@ Creating any new AppRole needs a token with `create`/`update` on
 ([`controller.hcl`](../../docker/openbao/policies/controller.hcl))
 grants neither, and the only token that ever could -
 the initial root token - was deliberately revoked at the end of
-[`openbao-auth.md`](../openbao-auth.md)'s stage 3 runbook. No live
+[`openbao-auth.md`](../openbao-auth.md)'s own runbook. No live
 credential in this Vault can currently create a new AppRole.
 
-Four candidates were on the table
-([`openbao-migration-roadmap.md`](../openbao-migration-roadmap.md)'s
-Open items):
+Four candidates were considered:
 
 1. **Never fully revoke root.** Rejected - reopens exactly the standing
    privileged credential `openbao-auth.md` was written to eliminate.
 2. **A narrow sudo/policy-admin grant before revoking.**
-3. **Defer to a full re-init at the roadmap's stage-6 cutover.**
+3. **Defer to a full re-init at the eventual full cutover.**
 4. **Confirm OpenBao's `-recovery` server mode as a way back to root.**
 
 Option 4 is ruled out on the merits, not left untested: OpenBao's own
@@ -33,7 +31,7 @@ or an AppRole role. Separately, `operator generate-root` on 2.6.x now
 calls the *authenticated* `/sys/generate-root-token` endpoints, replacing
 the old unauthenticated ones - so even a normal root-token regeneration
 needs an already-capable token, not Shamir shares alone. This also
-explains the roadmap's previously-unexplained 403 against `controller`'s
+explains a previously-unexplained 403 against `controller`'s
 token on that exact endpoint.
 
 Investigating option 3 surfaced two further findings, neither obvious
@@ -42,8 +40,9 @@ going in:
 - A **snapshot restore** (`openbao-backup-restore.md`'s proven drill)
   reproduces the source snapshot's entire barrier/keyring/ACL state,
   including whatever root-token status it was backed up with. Since
-  every snapshot since stage 3 was taken with root already revoked,
-  restoring one would reproduce this exact problem, not fix it. Only a
+  every snapshot taken since root was first revoked was taken with
+  root already revoked, restoring one would reproduce this exact
+  problem, not fix it. Only a
   genuine fresh `bao operator init` - discarding the old raft dataset
   entirely - produces a new keyring and a usable root token.
 - A fresh init means an **empty** Vault. `ensure_secret.yaml`'s
@@ -55,9 +54,11 @@ going in:
   authenticate with, etc.). Every existing value has to be restored
   before any `deploy.yaml` run touches the fresh Vault.
 
-Doing this now, rather than waiting for stage 6, is also when it's
-actually needed: stage 5 cannot finish without a way to create new
-AppRoles, and a live audit of Vault state
+Doing this now, rather than waiting for the eventual full cutover, is
+also when it's actually needed: the R2 watcher's AppRole
+([0026](0026-openbao-audit-device-and-r2-per-read-watcher.md)) can't
+be provisioned without a way to create new AppRoles, and a live audit
+of Vault state
 ([`dump_vault_to_file_cache.py`](../../ansible/cloud_credentials/dump_vault_to_file_cache.py))
 found `_oci-leaf-user-ocid-{read,write}` duplicated under
 `cloud_credentials/leaf/` as well as its correct `rotation/` home - a
@@ -99,8 +100,10 @@ admin-capable credential again.
    was never read from there, so nothing regresses by leaving it
    behind.
 7. Provision the R2 watcher's own AppRole (ADR 0026) using
-   `vault-bootstrap` - the step that actually finishes stage 5.
-8. Revoke root again, same as stage 3's own last step. This time it's
+   `vault-bootstrap` - the step that actually unblocks the R2 watcher's
+   AppRole above.
+8. Revoke root again, same as the original auth/policy setup's last
+   step. This time it's
    not a dead end: see
    [`openbao-vault-bootstrap.md`](../openbao-vault-bootstrap.md) for
    how `vault-bootstrap` bootstraps a fresh root token on demand if
@@ -123,10 +126,8 @@ admin-capable credential again.
   `check_freshness.py`, `create_leaf_keys.py`/`create_rotation_keys.py`)
   is unusable for the duration of the runbook - real downtime,
   schedulable at will in a homelab, but not zero.
-- Track B's future `cd-agent-deploy`/`cd-agent-rotation` AppRoles
-  ([ADR 0022](0022-approle-policy-structure-two-eras.md)) get
-  provisioned through `vault-bootstrap` too, not through a repeat of
-  this gap.
-- Options 1 and 4 from the roadmap's open item are resolved by this
+- Any future dedicated-automation-host AppRoles get provisioned
+  through `vault-bootstrap` too, not through a repeat of this gap.
+- Options 1 and 4 from the candidates above are resolved by this
   ADR: 1 rejected outright, 4 ruled out on OpenBao's own documented
   behavior rather than left as a live spike.

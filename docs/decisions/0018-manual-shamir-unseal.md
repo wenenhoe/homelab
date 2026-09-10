@@ -1,4 +1,4 @@
-# 0021. Manual Shamir unseal, not cloud auto-unseal
+# 0018. Manual Shamir unseal, not cloud auto-unseal
 
 **Status:** Accepted
 

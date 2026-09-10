@@ -1,4 +1,4 @@
-# 0012. Docker named volumes instead of bind mounts
+# 0005. Docker named volumes instead of bind mounts
 
 **Status:** Accepted
 

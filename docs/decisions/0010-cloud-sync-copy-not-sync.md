@@ -1,4 +1,4 @@
-# 0006. `cloud_sync` uses rclone `copy`, never `sync`
+# 0010. `cloud_sync` uses rclone `copy`, never `sync`
 
 **Status:** Accepted
 
@@ -38,7 +38,7 @@ it, can delete or overwrite an object that's already landed in the
 cloud — even with `cloud_sync`'s own credentials fully compromised.
 This is the actual mechanism (not IAM narrowing) that gives the
 offsite copies their compromise-resistance; see
-[ADR 0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)
+[ADR 0014](0014-r2-rotation-token-accepted-as-master-equivalent.md)
 for where that matters most (R2, where credential scoping alone can't
 carry the same guarantee).
 

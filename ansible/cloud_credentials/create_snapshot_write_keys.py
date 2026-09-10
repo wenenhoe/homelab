@@ -16,7 +16,7 @@ deliberately not the same shape:
 - It's write-only, no delete (B2_LEAF_CAPABILITIES["write"] already
   excludes deleteFiles; R2's permission group is item-level write, not
   admin) — the same no-delete shape cloud_sync's own write leaves use.
-  ADR 0006 is why that matters: on R2, where the capability itself
+  ADR 0010 is why that matters: on R2, where the capability itself
   can't be scoped away, the actual protection is that the backup
   script only ever calls rclone copy, never sync/delete — see that
   script for the invocation.

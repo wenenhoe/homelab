@@ -2,7 +2,7 @@
 
 The standing answer to "how does this repo create a new Vault
 policy/AppRole, now that the initial root token is revoked." See
-[ADR 0027](decisions/0027-openbao-reinit-with-standing-vault-bootstrap-role.md)
+[ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)
 for why this exists instead of a permanent root token or a repeat
 re-init every time a new identity is needed.
 

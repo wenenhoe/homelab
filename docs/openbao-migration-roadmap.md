@@ -25,10 +25,10 @@ Update this table at the start and end of each PR that works a stage.
 This migration is two largely independent pieces of work: replacing
 the file-based secrets cache with OpenBao, and replacing manual
 `ansible-playbook` deploys with a pull-based CD agent
-([0020](decisions/0020-pull-based-cd-agent-not-self-hosted-github-runner.md)).
+([draft](decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)).
 Only their final step actually depends on the other: the CD agent's
 own OpenBao AppRoles
-([0022](decisions/0022-approle-policy-structure-two-eras.md)) can't be
+([0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)) can't be
 built until OpenBao holds real credentials to scope policies against.
 
 Rather than build both at once, they run one after the other — the
@@ -45,7 +45,7 @@ built, but **proven**.
 1. **Deploy OpenBao** — single-node, raft storage, on `security` (same
    trust tier as `step-ca`/`tinyauth`/`lldap`), TLS via the existing
    internal PKI. Init, unseal
-   ([0021](decisions/0021-manual-shamir-unseal.md)), and immediately
+   ([0018](decisions/0018-manual-shamir-unseal.md)), and immediately
    generate the offline break-glass bundle
    ([0017](decisions/0017-openbao-bootstrap-secret-split.md)).
 2. **Prove the backup/restore loop** — scheduled
@@ -53,13 +53,13 @@ built, but **proven**.
    Vault, pushed via its own standing write-leaf credential — not the
    break-glass restore credential, which stays read-only and reserved
    for actual disaster recovery
-   ([0023](decisions/0023-openbao-snapshot-push-standalone.md)). An
+   ([0019](decisions/0019-openbao-snapshot-push-standalone.md)). An
    actual restore drill on a throwaway host, verified against a real
    secret value round-tripped through backup and restore, not just a
    clean exit code. No secret's authoritative copy moves into Vault
    before this passes.
 3. **Auth and least-privilege policies** — `controller`'s Era A
-   AppRole ([0022](decisions/0022-approle-policy-structure-two-eras.md)):
+   AppRole ([0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)):
    one broad policy, since it's the only automation identity that
    exists at this point. See [`openbao-auth.md`](openbao-auth.md) for
    the policy, the runbook, and the root-token revocation this stage
@@ -70,8 +70,8 @@ built, but **proven**.
    `bootstrap_secrets.py`. Must preserve `no_log: true` and
    generate-once-and-cache semantics, and still work before
    `ansible_host` resolves. See
-   [ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)/
-   [0025](decisions/0025-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
+   [ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)/
+   [0022](decisions/0022-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
    for two design points this stage needed that weren't settled going
    in (the Vault path taxonomy for secrets with no single host owner,
    and how the controller trusts OpenBao's TLS cert over a real network
@@ -89,9 +89,9 @@ built, but **proven**.
 5. **Repoint the cloud-credential package** —
    `ansible/cloud_credentials/` reads/writes Vault instead of files,
    preserving every provider quirk
-   ([0018](decisions/0018-openbao-repoint-not-native-plugin.md)),
+   ([0023](decisions/0023-openbao-repoint-not-native-plugin.md)),
    including R2's admin token moving in as a scoped exception
-   ([0019](decisions/0019-r2-admin-token-into-openbao.md)).
+   ([0024](decisions/0024-r2-admin-token-into-openbao.md)).
 6. **Full cutover drill, then decommission the file cache** — done.
    Wiped `ansible/files/secrets/` down to the three permanent bootstrap
    exceptions (`main-domain`, `openbao-controller-role-id`/
@@ -113,12 +113,12 @@ the only secrets store, so the CD agent is built against it directly,
 not against the file cache.
 
 - Pull-based CD agent per
-  [0020](decisions/0020-pull-based-cd-agent-not-self-hosted-github-runner.md):
+  [draft](decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md):
   a dedicated LAN host running systemd-timer pollers that invoke
   `preloop` against GitHub Actions-format workflow files for
   deploy/maintenance/rotation/freshness, zero inbound ports.
 - Its own OpenBao AppRoles
-  ([0022](decisions/0022-approle-policy-structure-two-eras.md)):
+  ([0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)):
   `cd-agent-deploy` and `cd-agent-rotation`, CIDR-bound to its fixed
   LAN address, scoped separately per job.
 - Once those AppRoles are live and proven, `controller`'s Era A
@@ -130,7 +130,7 @@ not against the file cache.
 - `preloop`'s CLI event-flag behavior beyond bare `pull_request` is
   unverified — needs a spike before Track B's deploy/rotation jobs are
   built on it
-  ([0020](decisions/0020-pull-based-cd-agent-not-self-hosted-github-runner.md)).
+  ([draft](decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)).
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,
   and whether "rotation" means alert-only or full rotate-and-revoke,
   isn't scoped yet.
@@ -155,6 +155,6 @@ not against the file cache.
   live" were only ever confirmed against `2.5.4`, not re-verified
   against `2.6.2`, and `2.6.2` is also where `generate-root`'s
   authenticated-endpoint behavior changed (see
-  [ADR 0027](decisions/0027-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
+  [ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
   Context) — a live spike during the next restore drill, not something
   fixable from reading code alone.

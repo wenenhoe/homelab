@@ -1,4 +1,4 @@
-# 0014. Telegram group chat with Topics, not direct bot chat
+# 0011. Telegram group chat with Topics, not direct bot chat
 
 **Status:** Accepted
 

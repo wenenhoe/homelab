@@ -5,7 +5,7 @@ freshly re-initialized, otherwise-empty OpenBao.
 
 Replaces migrate_legacy_cache_to_vault.py, retired at Track A stage 6
 alongside the file cache it read from (ansible/files/secrets/). That
-script's actual remaining job - re-init recovery, per ADR 0027's step 6,
+script's actual remaining job - re-init recovery, per ADR 0025's step 6,
 not its original stage-5 migration - needed a real source directory once
 the file cache stopped existing; this is that source-directory version,
 the restore-side mirror of restore_hosts_scope_from_backup.py for the

@@ -1,10 +1,11 @@
-# 0023. OpenBao snapshot push stays standalone, not routed through `backup_agent`/`cloud_sync`
+# 0019. OpenBao snapshot push stays standalone, not routed through `backup_agent`/`cloud_sync`
 
 **Status:** Accepted
 
 ## Context
 
-Track A stage 2 needed a way to get the encrypted raft snapshot
+Proving OpenBao's backup/restore loop needed a way to get the
+encrypted raft snapshot
 (`docs/openbao-backup-restore.md`) from `security` to R2/B2. Every
 other app's offsite backup goes through `backup_agent` (tar the volume,
 encrypt, land on SeaweedFS) and `cloud_sync` (relay SeaweedFS onward on
@@ -15,7 +16,7 @@ would have bought scheduling for free.
 `backup_agent`'s actual job is tarring a volume, and that doesn't fit
 here regardless of the pipeline question: `docs/openbao.md` already
 established that stopping OpenBao to tar its data volume means sealing
-it, needing a manual unseal ([0021](0021-manual-shamir-unseal.md)) on
+it, needing a manual unseal ([0018](0018-manual-shamir-unseal.md)) on
 every cycle. So `backup_agent` itself was never in scope. The open
 question was narrower: once `bao operator raft snapshot save` produces
 the encrypted file, should the *push* to R2/B2 happen directly, or
@@ -24,8 +25,8 @@ relay it — reusing the scheduling mechanism the rest of the fleet
 already has?
 
 **Threat model.** The adversary this decision considers is a
-compromised `storage` host — the same host [0006](0006-cloud-sync-copy-not-sync.md)
-and [0013](0013-backup-credential-blast-radius-threat-model.md) already
+compromised `storage` host — the same host [0010](0010-cloud-sync-copy-not-sync.md)
+and [0006](0006-backup-credential-blast-radius-threat-model.md) already
 reason about for every other app's backup, but a new participant for
 *this* one. The asset is the `openbao-snapshots` write leaf and the
 guarantee that a triggered push actually completes. Today, `storage`
@@ -60,16 +61,20 @@ It never touches SeaweedFS or `cloud_sync`. The write leaf
 
 `storage` remains uninvolved in OpenBao's backup pipeline entirely —
 compromising it yields nothing toward this recovery path, matching the
-same per-host credential containment [0013](0013-backup-credential-blast-radius-threat-model.md)
+same per-host credential containment [0006](0006-backup-credential-blast-radius-threat-model.md)
 established for every other app's backup, just via a different
 mechanism (never granting the credential at all, rather than scoping
 it once granted).
 
-The trade-off this accepts: no shared scheduling infrastructure. Until
-Track A stage 3 mints a credential safe to leave on disk for an
-unattended job, this runs by hand
-(`docs/openbao-backup-restore.md#why-manual-not-a-systemd-timer`).
-Once stage 3 lands, the natural next step is `snapshot-push.sh`'s own
+The trade-off this accepts: no shared scheduling infrastructure.
+`controller`'s AppRole now provides a credential safe to leave on disk
+for an unattended job, but there's nowhere unattended to run it from
+yet — `controller` is the operator's own machine, never meant to run
+scheduled jobs. Until a dedicated automation host exists, this runs by
+hand, authenticating as `controller`'s AppRole rather than the root
+token (see
+`docs/openbao-backup-restore.md`'s "Why manual" section). Once that
+host exists, the natural next step is `snapshot-push.sh`'s own
 systemd timer on `security` — the same shape `cloud_sync` already is
 (a standalone timer, not living inside `backup_agent`), not an
 integration with the existing pipeline.

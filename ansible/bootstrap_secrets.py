@@ -101,7 +101,7 @@ def prompt_for_value(name: str, spec: dict) -> str:
 
 
 # --- Vault plumbing --------------------------------------------------------
-# Mirrors docs/decisions/0025-controller-vault-tls-trust-via-per-run-fetched-root-cert.md's
+# Mirrors docs/decisions/0022-controller-vault-tls-trust-via-per-run-fetched-root-cert.md's
 # Ansible-side mechanism (fetch step-ca's root cert fresh every run, never
 # skip-verify, never committed) — this script runs standalone, outside any
 # Ansible play, so it has to do the SSH/docker-exec/tempfile steps itself

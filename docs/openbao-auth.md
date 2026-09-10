@@ -2,7 +2,7 @@
 
 Gives `controller` its own AppRole so day-to-day operation stops
 depending on the initial root token. See
-[ADR 0022](decisions/0022-approle-policy-structure-two-eras.md) for the
+[ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md) for the
 design this implements, and
 [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
 where this sits in the overall migration.
@@ -30,7 +30,7 @@ OpenBao's own config volume and auto-scanned at boot (see
 CLI after boot, not server config. Read/write on
 `secret/data/hosts/*` and both
 `secret/data/cloud_credentials/{leaf,rotation}/*`, plus read-only on
-`sys/storage/raft/snapshot` (ADR 0022's Context explains the last one:
+`sys/storage/raft/snapshot` (ADR 0020's Context explains the last one:
 it lets `snapshot-push.sh` eventually authenticate as this role
 instead of a human-exported root token).
 
@@ -96,7 +96,7 @@ so it goes on the individual command, never baked into this alias.
    ```
 
    No `secret_id_bound_cidrs`/`token_bound_cidrs` — `controller` has no
-   stable address to bind to (ADR 0022). Parameter choices, since 0022
+   stable address to bind to (ADR 0020). Parameter choices, since 0022
    leaves Era A's own values as a build question:
 
    - `token_ttl`/`token_max_ttl` **1h, non-renewable.** Long enough for

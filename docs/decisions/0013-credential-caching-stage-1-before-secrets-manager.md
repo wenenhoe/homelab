@@ -1,4 +1,4 @@
-# 0001. Cache cloud credentials to disk before adopting a secrets manager
+# 0013. Cache cloud credentials to disk before adopting a secrets manager
 
 **Status:** Accepted
 
@@ -36,7 +36,7 @@ Migrating to an actual secrets manager is intentionally deferred as a
 separate, not-yet-scoped project — nothing in the current design
 blocks it later. R2's cached admin token specifically won't reach
 parity with B2's/OCI's rotation keys even after that migration (see
-[0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)) — a
+[0014](0014-r2-rotation-token-accepted-as-master-equivalent.md)) — a
 secrets manager narrows *who/what can reach* that token, not *what it
 can do* once reached.
 

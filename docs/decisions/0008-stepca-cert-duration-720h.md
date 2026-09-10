@@ -1,4 +1,4 @@
-# 0005. step-ca cert duration set to 720h, not step-ca's own 24h default
+# 0008. step-ca cert duration set to 720h, not step-ca's own 24h default
 
 **Status:** Accepted, flagged for review — the premise below has since
 changed and this hasn't been revisited.
@@ -15,7 +15,7 @@ reference setup's own renewal automation
 
 Set the default provisioner's claim duration to 720h via `step ca
 provisioner update --x509-default-dur` (see
-[ADR 0004](0004-stepca-custom-entrypoint-not-docker-init-vars.md)),
+[ADR 0007](0007-stepca-custom-entrypoint-not-docker-init-vars.md)),
 rather than step-ca's own 24h default.
 
 ## Consequences

@@ -126,9 +126,15 @@ CD agent instead of a CD *runner*:
 
 ## Consequences
 
-- There's no CD platform to choose (Gitea Actions/Woodpecker/Drone/
-  Jenkins/GitLab Runner never enter the picture) and no GitHub OIDC/JWT
-  auth binding — AppRole is the auth binding outright, not a fallback.
+- For any publicly-dispatched CD platform (GitHub Actions, or
+  Gitea Actions/Woodpecker/Drone/Jenkins/GitLab Runner exposed to
+  outside contributors), there's no platform to choose — this decision
+  rules out the whole category regardless of which one. A private,
+  LAN-only instance with no outside contributors doesn't carry the
+  risk this draft is about; see
+  [`private-gitea-actions-not-pull-based-preloop-poller.md`](private-gitea-actions-not-pull-based-preloop-poller.md)
+  for that case. No GitHub OIDC/JWT auth binding either way — AppRole
+  is the auth binding outright, not a fallback.
 - The CD agent will be a new identity in OpenBao's auth model,
   alongside `controller`'s existing broad AppRole and whatever
   `managed_hosts` themselves eventually need. How that identity is

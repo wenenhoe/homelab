@@ -252,6 +252,20 @@ molecule test -s volumes   # named scenario (cd ansible/roles/compose first)
 See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full
 scenario matrix and how to add one.
 
+Plain controller-side Python (`ansible/cloud_credentials/`,
+`ansible/molecule-coverage/molecule_cov/`, `bootstrap_secrets.py`,
+`audit_secrets.py`, the R2 read-watcher) is tested separately with
+[pytest](https://docs.pytest.org/), from `ansible/`:
+
+```sh
+cd ansible
+pytest tests/ -v
+```
+
+Every provider HTTP call and `rclone` invocation is mocked — no
+network access or real cloud credentials needed. See
+[`docs/ci.md`](docs/ci.md) for how this runs in CI.
+
 ## Linting & Pre-commit
 
 `.config/.pre-commit-config.yaml` wires up:
@@ -261,6 +275,7 @@ scenario matrix and how to add one.
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
+- [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
 All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
 (lints `ansible/`; `docker/` excluded, it's Compose files not playbooks)
@@ -271,6 +286,9 @@ All tool configs live under `.config/` (each hook is passed an explicit
 `-c` flag, since these tools don't auto-discover configs there by
 default). `ansible-lint` also gets `--project-dir ansible`, since it
 resolves `roles_path` relative to cwd rather than the config file.
+`ruff` is the one exception — its config lives in `pyproject.toml` at
+the repo root, which it finds on its own, so no `-c` flag or
+`.config/` entry exists for it.
 
 Run `pre-commit install` once after
 cloning. CI enforces the same checks on every PR regardless of whether

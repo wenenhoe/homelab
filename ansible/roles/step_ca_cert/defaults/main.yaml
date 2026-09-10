@@ -1,0 +1,45 @@
+---
+# step_ca_cert_app_name has no default — every caller must set it. It's
+# used as the systemd %i instance, the compose_deploy_dir/<app> dir, and
+# (via step_ca_cert_certs_volume_name's own default) the <app>_certs
+# volume name ensure_volume.yaml gives any app's certs volume.
+step_ca_cert_container_name: "{{ step_ca_cert_app_name }}"
+step_ca_cert_certs_volume_name: "{{ step_ca_cert_app_name }}_certs"
+step_ca_cert_network_name: caddy-proxy
+# Same version as docker/step-ca's own pin — see docs/step-ca.md.
+step_ca_cert_step_cli_image: "smallstep/step-cli:0.30.6"
+# step-ca's own container name, not localhost: `step` always runs inside
+# a container on caddy-proxy (both this role's one-time issuance and the
+# systemd renewal unit's ExecStart/ExecCondition), which resolves
+# "step-ca" the same way any other container on that network does. See
+# docs/step-ca.md.
+step_ca_cert_step_ca_url: "https://step-ca:9000"
+
+# step_ca_cert_common_name has no default — every caller must set it
+# (e.g. lldap_host, or a literal like "openbao"). Used as both the `step
+# ca certificate` CN and its bare-name SAN; the FQDN SAN is always
+# "{{ step_ca_cert_common_name }}.{{ caddy_domain }}" — every consumer
+# in this repo needs exactly those two SANs, so there's no separate
+# knob for a SAN list.
+
+# Where THIS app's own container mounts its certs volume - varies by
+# app (e.g. lldap: /data/certs, openbao: /openbao/certs).
+step_ca_cert_container_cert_dir: "/data/certs"
+
+# restart | signal — see docs/step-ca.md's "Cert renewal action" section.
+# restart is correct for any app with no in-place TLS reload and no
+# state a restart would disturb. signal sends SIGHUP instead, for an
+# app that reloads its TLS listener on SIGHUP without restarting.
+step_ca_cert_renew_action: restart
+
+# Set both to hand a freshly-issued/renewed cert (root-owned, since
+# issuance/renewal always run --user root) back to an app that runs as
+# its own image's non-root user. Blank (the default) skips this step -
+# correct for an app that manages its own UID/GID instead (e.g. lldap).
+step_ca_cert_chown_image: ""
+step_ca_cert_chown_user: ""
+
+step_ca_cert_telegram_topic_id: "{{ telegram_topic_id_certs }}"
+# No default — every caller must set its own per-instance Kuma push URL
+# (e.g. uptime_kuma_push_url_cert_renewer_lldap). Each cert gets its own
+# monitor, so this can't share one shared value across instances.

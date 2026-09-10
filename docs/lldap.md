@@ -10,7 +10,7 @@ current by two host-level Ansible roles rather than a sidecar container.
 | Component | Type | Purpose |
 | :--- | :--- | :--- |
 | `lldap` | Container | The directory itself. Serves LDAPS on `6360` and a web UI on `17170` (routed through Caddy, `auth: false` — it's the identity provider, so it can't sit behind its own auth check). |
-| `lldap_cert` | Role (`ansible/roles/lldap_cert/`, `deploy.yaml`'s Play 6) | Issues the initial cert via `step ca certificate` (once, on a fresh `certs` volume) and installs a systemd `cert-renewer@lldap.timer` for every renewal after that. |
+| `step_ca_cert` | Role (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6, called once for lldap and once for openbao — see [`openbao.md`](openbao.md)) | For lldap's instance: issues the initial cert via `step ca certificate` (once, on a fresh `certs` volume) and installs a systemd `cert-renewer@lldap.timer` for every renewal after that. |
 | `step_ca_client` | Role (`ansible/roles/step_ca_client/`) | Shared prerequisite: caches step-ca's root cert on the host at `/etc/step-ca/root_ca.crt`, bind-mounted (read-only) into whichever `step` invocation needs it. Also used by `tinyauth_ca_trust` (below). |
 
 This replaces the previous `certbot`/`dockerproxy` sidecar pair
@@ -20,16 +20,16 @@ locked-down path to restart `lldap` after a renewal without mounting the
 real Docker socket into it. See
 [ADR 0009](decisions/0009-lldap-ldaps-cert-via-stepca-not-certbot.md)
 for why that design was replaced rather than patched. Neither problem
-exists once renewal moves to the host: `lldap_cert`'s systemd unit runs
-as `root` directly and
+exists once renewal moves to the host: `step_ca_cert`'s systemd unit
+runs as `root` directly and
 restarts the container via `docker compose`, no proxy needed.
 
 ## Why renewal is a systemd timer, not an in-container daemon
 
 Smallstep's own renewal docs recommend exactly this pattern — a
 `cert-renewer@.service`/`.timer` template pair, not a long-running
-`step ca renew --daemon` process — and `lldap_cert`'s templates
-(`ansible/roles/lldap_cert/templates/`) are adapted from their real
+`step ca renew --daemon` process — and `step_ca_cert`'s templates
+(`ansible/roles/step_ca_cert/templates/`) are adapted from their real
 `cert-renewer@.service`/`.timer` files
 (github.com/smallstep/cli/tree/master/systemd), not hand-rolled from
 scratch. The only real adaptation: their canonical `ExecStartPost`
@@ -37,10 +37,13 @@ reloads a systemd service unit matching the cert's name
 (`systemctl try-reload-or-restart %i`) — there's no systemd unit
 representing a Docker Compose service here, so it runs
 `docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i`
-instead. That happens to generalize to any future
+instead (or sends `SIGHUP` instead of restarting, for an instance whose
+own env file sets `RENEW_ACTION=signal` — see
+[`openbao.md`](openbao.md)). That generalizes to any
 `compose_deploy_dir/<app>/compose.yaml`-shaped step-ca consumer, not
-just lldap, since every app in this repo already follows that layout
-(see [`adding-an-app.md`](adding-an-app.md)).
+just lldap — openbao's own instance already uses it (see
+[`openbao.md`](openbao.md)), and every app in this repo already follows
+that layout (see [`adding-an-app.md`](adding-an-app.md)).
 
 This directly replaces the shell loop the old `certbot` entrypoint ran
 (`while :; do certbot renew ...; sleep 12h; done`) — the compose file's
@@ -56,7 +59,7 @@ via `OnFailure=` rather than waiting for you to notice
 ## `step` runs via its container image, not a host-installed binary
 
 Both `ExecCondition` and `ExecStart` in `cert-renewer@.service.j2` (and
-`lldap_cert`'s own one-time issuance task) run `step` as a throwaway
+`step_ca_cert`'s own one-time issuance task) run `step` as a throwaway
 `smallstep/step-cli` container (`docker run --rm ...`) rather than a
 package installed on the host. This repo has no other third-party apt
 repo anywhere, and the container approach avoids being the first one:
@@ -65,26 +68,28 @@ never installs anything.
 
 The container mounts the app's own `<app>_certs` volume directly by
 name — `%i_certs`, using systemd's own instance-parameter expansion —
-rather than resolving that volume's host filesystem path first. That
-also means the generic template needs no per-instance override at all:
-every field that used to require one (`CERT_LOCATION`/`KEY_LOCATION`)
-is now derived entirely from `%i`, so any future step-ca consumer
-following the same `ensure_volume.yaml` volume-naming convention (see
-[`volumes.md`](volumes.md)) gets a working renewer with zero extra
-wiring. `--user root` on the container sidesteps a real, confirmed
-issue: `smallstep/step-cli`'s default non-root user can read a freshly
-created Docker volume's root directory but not write new files into it.
+rather than resolving that volume's host filesystem path first. Every
+field that once needed a per-app copy of the whole template
+(`CA_URL`/`STEP_CLI_IMAGE`/`NETWORK`, and — for openbao's own instance —
+whether to restart or signal, and whether to chown the cert back to a
+non-root user) is instead resolved via `%i`'s own
+`/etc/cert-renewer/%i.env` (rendered per instance, read by systemd's
+`EnvironmentFile=`), so the template itself stays one file, identical
+for every instance. `--user root` on the container sidesteps a real,
+confirmed issue: `smallstep/step-cli`'s default non-root user can read a
+freshly created Docker volume's root directory but not write new files
+into it.
 
 ## Why initial issuance and renewal use different auth
 
-Initial issuance (`lldap_cert`'s own Ansible task, once) authenticates
+Initial issuance (`step_ca_cert`'s own Ansible task, once) authenticates
 with the JWK provisioner password — there's no existing cert yet to
 prove anything with. Renewal (the systemd timer, forever after)
 authenticates via mTLS using the cert `step ca renew` is renewing —
 `step ca renew`'s own documented default — so the provisioner password
 is never written to disk outside that one-time Ansible run (rendered to
 `/tmp`, used, removed in an `always:` block — see
-`ansible/roles/lldap_cert/tasks/main.yaml`).
+`ansible/roles/step_ca_cert/tasks/main.yaml`).
 
 ## Cert SANs
 

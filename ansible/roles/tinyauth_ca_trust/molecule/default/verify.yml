@@ -29,9 +29,10 @@
     # exactly one would actually be suspicious (it'd mean tinyauth somehow
     # verified successfully before tinyauth_ca_trust ever ran).
     #
-    # Deliberately NOT RestartCount, despite lldap_cert's own verify.yml
-    # already having established it doesn't *increment* on a manual
-    # restart — confirmed live here that it's worse than that: a manual
+    # Deliberately NOT RestartCount, despite step_ca_cert's own `default`
+    # scenario's verify.yml already having established it doesn't
+    # *increment* on a manual restart — confirmed live here that it's
+    # worse than that: a manual
     # `docker compose restart` (which tinyauth_ca_trust's own role always
     # performs once it seeds the bundle) resets the counter to 0
     # outright, even after genuine earlier crash-loop restarts. Counting

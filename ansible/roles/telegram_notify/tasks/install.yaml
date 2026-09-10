@@ -14,7 +14,7 @@
 # one — nothing else needs to change for this: Jinja only substitutes
 # {{ }} expressions, so a literal "%i" left in telegram_notify_message/
 # _description passes straight through for systemd itself to substitute
-# at instantiation time. lldap_cert relies on this (see its own
+# at instantiation time. step_ca_cert relies on this (see its own
 # tasks/main.yaml) to keep cert-renewer@'s existing %i-keyed OnFailure=
 # working unchanged.
 #

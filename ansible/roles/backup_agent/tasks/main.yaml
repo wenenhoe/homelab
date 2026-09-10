@@ -260,8 +260,7 @@
     daemon_reload: true
   when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
 
-# Same reasoning as lldap_cert/cloud_sync/caddy_cert_expiry's identical
-# task: "Enable and start" below needs systemd to have already picked
+# "Enable and start" below needs systemd to have already picked
 # up the current unit content, which only happens once handlers flush.
 - name: Flush handlers so systemd has the current unit definitions
   ansible.builtin.meta: flush_handlers

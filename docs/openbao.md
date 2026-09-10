@@ -60,19 +60,21 @@ session; there's no standing need to expose it.
 
 ## TLS
 
-`openbao_cert` (`ansible/roles/openbao_cert/`, `deploy.yaml`'s Play 6)
-issues OpenBao's leaf cert from step-ca and installs a
-`cert-renewer@openbao.timer`, the same one-time-issuance-then-renewal
-shape [`lldap_cert`](lldap.md) uses for lldap's LDAPS cert — same
+`step_ca_cert` (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6,
+called once per app) issues OpenBao's leaf cert from step-ca and
+installs a `cert-renewer@openbao.timer`, the same one-time-issuance-
+then-renewal shape it uses for [lldap's LDAPS cert](lldap.md) — same
 provisioner-password-for-initial-issuance/mTLS-for-renewal split, same
 `smallstep/step-cli` image rather than a host-installed `step` binary.
-The two roles' generic `cert-renewer@.service`/`.timer` templates both
-install to the same literal path (`/etc/systemd/system/cert-renewer@.service`,
-shared by every `%i` instance — there's only ever one file on disk, and
-whichever role runs last in Play 6 wins), and are near-identical, but
-not byte-identical: `openbao_cert`'s copy has one addition, guarded on
-`%i` so it's a no-op for `cert-renewer@lldap.timer` — see the section
-below for why openbao needs it and lldap doesn't.
+Both instances install the same generic `cert-renewer@.service`/`.timer`
+templates to the same literal path
+(`/etc/systemd/system/cert-renewer@.service`, shared by every `%i`
+instance — there's only ever one file on disk), but the content is
+identical regardless of which instance renders it: per-app behavior
+(restart vs. `SIGHUP`, whether to chown the cert back to a non-root
+user) comes from that instance's own `/etc/cert-renewer/<app>.env`, not
+from branching in the template — see the section below for why openbao
+needs `RENEW_ACTION=signal` and a chown, and lldap needs neither.
 
 On a genuinely first deploy, the `certs` volume starts empty and
 `openbao.hcl`'s listener requires `tls_cert_file`/`tls_key_file` to
@@ -116,15 +118,16 @@ consequences directly:
   [`deployment-flow.md`](deployment-flow.md)'s Play 4) specifically so
   this chown could be a plain guarded task instead.
 - `step ca certificate`/`step ca renew` both run as `--user root` too
-  (same freshly-created-volume issue `lldap_cert` already documents),
+  (same freshly-created-volume issue `step_ca_cert` already documents),
   so every issuance and every renewal leaves `fullchain.pem`/`privkey.pem`
   root-owned — which the non-root `openbao` process then can't read.
-  `openbao_cert`'s issuance task, and a second, `%i`-guarded
-  `ExecStart=` line in the shared `cert-renewer@.service` template,
-  both chown the `certs` volume back to `openbao:openbao` by the same
-  by-username approach right after `step` runs. This one was a plain
-  Ansible task and a systemd `ExecStart=` line from the start, never a
-  compose service, so it never hit the same problem.
+  `step_ca_cert`'s issuance task, and its `ExecStartPost=` chown line in
+  the shared `cert-renewer@.service` template (a no-op unless the
+  instance's own env file sets `CHOWN_IMAGE`), both hand the `certs`
+  volume back to `openbao:openbao` by the same by-username approach
+  right after `step` runs. This one was a plain Ansible task and a
+  systemd `ExecStart=` line from the start, never a compose service, so
+  it never hit the same problem.
 
 ## Duplicate configuration warning
 
@@ -167,10 +170,12 @@ carries for every other app here.
 ## Cert renewal uses SIGHUP, not a restart
 
 `cert-renewer@openbao`'s `ExecStartPost` sends `SIGHUP`, not a restart
-— guarded on `%i` in the shared template so lldap's own renewal is
-unaffected (a restart is free for lldap, which has no seal state to
-lose). Restarting OpenBao on every renewal would reseal the vault at
-whatever cadence cert renewal fires, not just on reboot — undermining
+— driven by `RENEW_ACTION=signal` in openbao's own
+`/etc/cert-renewer/openbao.env` (lldap's instance sets
+`RENEW_ACTION=restart` instead, since a restart is free for it — no
+seal state to lose). Restarting OpenBao on every renewal would reseal
+the vault at whatever cadence cert renewal fires, not just on reboot —
+undermining
 [0018](decisions/0018-manual-shamir-unseal.md)'s cost-benefit premise
 that unseal only costs a human at the moments they're already at the
 keyboard.
@@ -200,13 +205,13 @@ not `gcpckms` — the specific combination the issue reports — so this
 doesn't apply here. Worth re-checking again if the seal type ever
 changes.
 
-`openbao_cert/molecule/default`'s own scenario runs the exact
+`step_ca_cert/molecule/signal_chown`'s own scenario runs the exact
 `ExecStartPost` command, confirms `StartedAt` doesn't change (proving
 it didn't restart), and confirms — via a raw `openssl s_client` TLS
 handshake, not `bao status` — that the listener is actually serving the
 renewed cert's serial afterwards, not just that the file on disk
-changed (100.0%, 14/14 tasks, in
-`ansible/molecule-coverage/thresholds.yaml`). A real forced renewal on
+changed (100.0%, in `ansible/molecule-coverage/thresholds.yaml`'s
+`step_ca_cert` entry). A real forced renewal on
 `security` itself has since confirmed the same thing outside Molecule:
 `bao status` before and after showed an identical `Active Since`
 timestamp and unchanged raft indices, and `docker ps` showed the

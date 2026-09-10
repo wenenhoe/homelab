@@ -115,11 +115,12 @@
 # Play 6 — Wire step-ca into its consumers. Runs after
 # lldap/step-ca/tinyauth/openbao all deploy (Play 4, on `security`):
 # step_ca_client needs a running step-ca to read its root cert from;
-# lldap_cert/openbao_cert each need their own app already running to
-# issue into, plus step_ca_client's cached root; tinyauth_ca_trust
+# step_ca_cert's two instances each need their own app already running
+# to issue into, plus step_ca_client's cached root; tinyauth_ca_trust
 # needs a running tinyauth to seed into and the same cached root. No
 # ordering constraint between the latter three — sequenced arbitrarily,
-# all after the shared prerequisite.
+# all after the shared prerequisite. See docs/step-ca.md for why lldap
+# and openbao differ on cert dir, renew action, and chown.
 - name: Wire lldap, tinyauth, and openbao into step-ca
   hosts: security
   gather_facts: false
@@ -131,9 +132,14 @@
       tags:
         - images
 
-    - name: Include lldap_cert role
+    - name: Include step_ca_cert role for lldap
       ansible.builtin.include_role:
-        name: lldap_cert
+        name: step_ca_cert
+      vars:
+        step_ca_cert_app_name: lldap
+        step_ca_cert_common_name: "{{ lldap_host }}"
+        step_ca_cert_container_cert_dir: /data/certs
+        step_ca_cert_uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_lldap }}"
       tags:
         - images
 
@@ -143,9 +149,17 @@
       tags:
         - images
 
-    - name: Include openbao_cert role
+    - name: Include step_ca_cert role for openbao
       ansible.builtin.include_role:
-        name: openbao_cert
+        name: step_ca_cert
+      vars:
+        step_ca_cert_app_name: openbao
+        step_ca_cert_common_name: openbao
+        step_ca_cert_container_cert_dir: /openbao/certs
+        step_ca_cert_renew_action: signal
+        step_ca_cert_chown_image: "openbao/openbao:2.6.2"
+        step_ca_cert_chown_user: openbao
+        step_ca_cert_uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_openbao }}"
       tags:
         - images
 

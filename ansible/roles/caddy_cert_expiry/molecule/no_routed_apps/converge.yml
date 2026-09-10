@@ -31,8 +31,7 @@
       rescue:
         # A bare rescue accepts ANY failure inside the block as "the
         # guard worked" - assert on the exact task and reason before
-        # trusting the "expected" label, same reasoning lldap_cert's own
-        # not_running scenario documents for its identical pattern.
+        # trusting the "expected" label.
         - name: Confirm the failure came from the "no routed app" guard itself
           ansible.builtin.assert:
             that:

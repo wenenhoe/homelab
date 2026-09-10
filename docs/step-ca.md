@@ -2,9 +2,12 @@
 
 `step-ca` is a private X.509 certificate authority for internal,
 service-to-service TLS — signing certs for the lab's own `.{{ lab_domain
-}}`-style names, not proving control to a public CA. `lldap_cert` and
-`tinyauth_ca_trust` (see [`lldap.md`](lldap.md)) are its first two real
-consumers: lldap's LDAPS cert comes from here, and tinyauth trusts it.
+}}`-style names, not proving control to a public CA. `step_ca_cert` and
+`tinyauth_ca_trust` (see [`lldap.md`](lldap.md) and
+[`openbao.md`](openbao.md)) are its real consumers: lldap's LDAPS cert
+and OpenBao's TLS listener cert both come from here via `step_ca_cert`
+(one role, two per-app instances — see `ansible/roles/step_ca_cert`),
+and tinyauth trusts the root via `tinyauth_ca_trust`.
 
 ## Custom entrypoint, not `DOCKER_STEPCA_INIT_*`
 
@@ -23,7 +26,7 @@ durations.
 The claim duration itself is set to 720h, not step-ca's own 24h
 default — see
 [ADR 0008](decisions/0008-stepca-cert-duration-720h.md), which flags
-that decision's original premise as stale now that `lldap_cert`'s
+that decision's original premise as stale now that `step_ca_cert`'s
 renewal timer exists.
 
 ## DNS names and the health check
@@ -49,8 +52,9 @@ API isn't something to put behind a reverse proxy the way an ordinary
 web app is.
 
 No host-level access needed: every consumer of this CA, including
-`lldap_cert`'s own systemd renewal unit and one-time issuance task (see
-[`lldap.md`](lldap.md)), runs `step` via the official `smallstep/step-cli`
+`step_ca_cert`'s own systemd renewal unit and one-time issuance task
+(see [`lldap.md`](lldap.md) and [`openbao.md`](openbao.md)), runs `step`
+via the official `smallstep/step-cli`
 image rather than a host-installed binary — a container on `caddy-proxy`
 that reaches this one by its real container name, the same way any
 other consumer would. Nothing in this repo ever needed a host process
@@ -82,8 +86,8 @@ step ca certificate test-client.{{ lab_domain }} test.crt test.key \
   --provisioner internal-services
 ```
 
-`lldap_cert`'s own initial-issuance task
-(`ansible/roles/lldap_cert/tasks/main.yaml`) is the real, live version
+`step_ca_cert`'s own initial-issuance task
+(`ansible/roles/step_ca_cert/tasks/main.yaml`) is the real, live version
 of this — a single `step ca certificate` call with `--san`/`--password-file`/
 `--ca-url`/`--root` set explicitly, not the interactive
 `step ca bootstrap` flow above. That's the reference for a future

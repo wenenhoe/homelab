@@ -96,8 +96,7 @@
     telegram_notify_env_result.changed or telegram_notify_service_result.changed or
     uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
 
-# Same reasoning as lldap_cert/cloud_sync's identical task: "Enable and
-# start" below needs systemd to have already picked up the current unit
+# "Enable and start" below needs systemd to have already picked up the current unit
 # content, which only happens once handlers actually flush.
 - name: Flush handlers so systemd has the current unit definitions
   ansible.builtin.meta: flush_handlers

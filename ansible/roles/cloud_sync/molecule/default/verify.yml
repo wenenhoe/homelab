@@ -208,10 +208,8 @@
 
     - name: Start telegram-notify-cloud-sync.service directly, as OnFailure= would  # noqa: command-instead-of-module
       # Deliberately raw systemctl, not the systemd_service module —
-      # same reasoning lldap_cert/molecule/default/verify.yml documents
-      # for its own equivalent task: the module's own success/failure
-      # handling isn't reliable for a oneshot whose ExecStart is
-      # expected to fail (no real Telegram creds in CI).
+      # the module's own success/failure handling isn't reliable for a
+      # oneshot whose ExecStart is expected to fail (no real Telegram creds in CI).
       ansible.builtin.command: systemctl start telegram-notify-cloud-sync.service
       failed_when: false
       changed_when: false

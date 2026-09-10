@@ -1,0 +1,228 @@
+---
+# Issues a per-app cert from step-ca (replacing certbot's DNS-01
+# lifecycle) and installs the systemd renewal timer for it. Expects
+# step_ca_client to have already run in this play (caches step-ca's
+# root cert to a host path - see its own tasks/main.yaml).
+#
+# Two separate concerns, deliberately not merged into one command:
+#   1. Initial issuance (this role, Ansible-run, once) - needs the JWK
+#      provisioner password, since there's no existing cert yet to
+#      authenticate with.
+#   2. Ongoing renewal (systemd, host-level, forever after) - uses mTLS
+#      against the cert this role just issued, so it never touches the
+#      provisioner password at all. See docs/step-ca.md.
+
+- name: "Confirm the app is actually running before touching its cert volume: {{ step_ca_cert_app_name }}"
+  community.docker.docker_container_info:
+    name: "{{ step_ca_cert_container_name }}"
+  register: step_ca_cert_container_info
+
+- name: "Fail loudly if this app isn't running yet: {{ step_ca_cert_app_name }}"
+  ansible.builtin.fail:
+    msg: >-
+      No running "{{ step_ca_cert_container_name }}" container found on
+      this host — step_ca_cert must run after {{ step_ca_cert_app_name }}'s
+      own compose deploy (see deploy.yaml's Play ordering).
+  when: not step_ca_cert_container_info.exists
+
+# Checked inside the already-running container itself rather than
+# resolving the volume's host path - avoids needing that resolution at
+# all now that issuance itself mounts the volume directly by name
+# (below), not by host path.
+- name: Check whether a cert has already been issued
+  community.docker.docker_container_exec:
+    container: "{{ step_ca_cert_container_name }}"
+    command: "test -f {{ step_ca_cert_container_cert_dir }}/fullchain.pem"
+  register: step_ca_cert_existing_cert
+  changed_when: false
+  failed_when: false
+
+# Ongoing renewal is the systemd timer's job from here on (installed
+# unconditionally below, regardless of this block) - this only ever
+# runs once, on a genuinely empty certs volume.
+- name: "Issue the initial cert [block / always] for: {{ step_ca_cert_app_name }}"
+  when: step_ca_cert_existing_cert.rc | default(1) != 0
+  block:
+    - name: Render the provisioner password to a scratch file
+      ansible.builtin.copy:
+        dest: "/tmp/{{ step_ca_cert_app_name }}-cert-provisioner-password"
+        content: "{{ step_ca_provisioner_password }}"
+        mode: "0600"
+      no_log: true
+
+    # --user root: the certs volume is freshly created (no prior owner
+    # set on its root dir), and smallstep/step-cli's default non-root
+    # user can't write new files into a directory it doesn't own.
+    # Simpler and more certain than trying to pre-chown a volume to
+    # match the image's exact uid.
+    - name: Request the initial cert from step-ca
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - --network
+          - "{{ step_ca_cert_network_name }}"
+          - -v
+          - "{{ step_ca_cert_certs_volume_name }}:/certs"
+          - -v
+          - "/tmp/{{ step_ca_cert_app_name }}-cert-provisioner-password:/tmp/provisioner_password:ro"
+          - -v
+          - "{{ step_ca_client_root_cert_path }}:/root_ca.crt:ro"
+          - "{{ step_ca_cert_step_cli_image }}"
+          - step
+          - ca
+          - certificate
+          - "{{ step_ca_cert_common_name }}"
+          - /certs/fullchain.pem
+          - /certs/privkey.pem
+          - --san
+          - "{{ step_ca_cert_common_name }}"
+          - --san
+          - "{{ step_ca_cert_common_name }}.{{ caddy_domain }}"
+          - --provisioner
+          - "{{ step_ca_provisioner_name }}"
+          - --password-file
+          - /tmp/provisioner_password
+          - --ca-url
+          - "{{ step_ca_cert_step_ca_url }}"
+          - --root
+          - /root_ca.crt
+          - --force
+      register: step_ca_cert_issue_result
+      until: step_ca_cert_issue_result.rc == 0
+      # step-ca may not have finished its own first-boot init yet (no
+      # health-wait exists between Play 4's `docker compose up -d` and
+      # this play — see compose/tasks/deploy.yaml). `docker run --rm`
+      # guarantees the container is cleaned up after each attempt
+      # regardless of exit code, so retrying is safe.
+      retries: 5
+      delay: 10
+      changed_when: true
+
+    # Blank step_ca_cert_chown_image (the default) makes this a no-op -
+    # correct for an app that manages its own UID/GID instead of
+    # relying on its image's own non-root user (e.g. lldap, via
+    # LLDAP_UID/GID). Uses step_ca_cert_chown_image (not
+    # step_ca_cert_step_cli_image) only to resolve the target
+    # username via that image's own /etc/passwd, not to run the app
+    # itself.
+    - name: Hand the issued cert back to its owning user so the app can read it
+      ansible.builtin.command:
+        argv:
+          - docker
+          - run
+          - --rm
+          - --user
+          - root
+          - -v
+          - "{{ step_ca_cert_certs_volume_name }}:/certs"
+          - "{{ step_ca_cert_chown_image }}"
+          - chown
+          - -R
+          - "{{ step_ca_cert_chown_user }}:{{ step_ca_cert_chown_user }}"
+          - /certs
+      when: step_ca_cert_chown_image | length > 0
+      changed_when: true
+
+    - name: "Restart the app so it picks up the new cert: {{ step_ca_cert_app_name }}"
+      community.docker.docker_compose_v2:
+        project_src: "{{ compose_deploy_dir }}/{{ step_ca_cert_app_name }}"
+        state: restarted
+  always:
+    - name: Remove the scratch provisioner password file
+      ansible.builtin.file:
+        path: "/tmp/{{ step_ca_cert_app_name }}-cert-provisioner-password"
+        state: absent
+
+- name: Install Telegram alerting for cert-renewal failures
+  ansible.builtin.include_role:
+    name: telegram_notify
+    tasks_from: install.yaml
+  vars:
+    telegram_notify_unit_name: "telegram-notify@"
+    telegram_notify_description: "Telegram alert for a failed certificate renewal (%i)"
+    telegram_notify_message: "Certificate renewal failed for `%i` on `{{ ansible_facts['hostname'] }}`"
+    telegram_notify_topic_id: "{{ step_ca_cert_telegram_topic_id }}"
+
+# Only ever pushes on success (see docs/uptime-kuma.md) — failure
+# alerting stays on the telegram_notify@ unit above, unchanged. A
+# concrete unit for this specific instance, not a template - see
+# cert-renewer@.service.j2's own OnSuccess= comment for why a per-
+# instance push URL can't share telegram_notify@'s one-shared-unit
+# approach.
+- name: "Install the Uptime Kuma push-on-success unit for this app's cert renewal: {{ step_ca_cert_app_name }}"
+  ansible.builtin.include_role:
+    name: uptime_kuma_push
+    tasks_from: install.yaml
+  vars:
+    uptime_kuma_push_unit_name: "uptime-kuma-push-cert-renewer-{{ step_ca_cert_app_name }}"
+    uptime_kuma_push_description: "Uptime Kuma liveness push for a successful {{ step_ca_cert_app_name }} cert renewal"
+    uptime_kuma_push_url: "{{ step_ca_cert_uptime_kuma_push_url }}"
+
+# telegram_notify's own install.yaml deliberately doesn't reload systemd
+# or notify a handler itself (see its own header comment) - do it here
+# instead, off the results it registers. uptime_kuma_push follows the
+# same convention, for the same reason.
+- name: Reload systemd if either notifier unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: >-
+    telegram_notify_env_result.changed or telegram_notify_service_result.changed or
+    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
+
+- name: Ensure the cert-renewer env directory exists
+  ansible.builtin.file:
+    path: /etc/cert-renewer
+    state: directory
+    mode: "0755"
+
+# Per-instance values (RENEW_ACTION, CHOWN_IMAGE/USER, etc.) live here,
+# not in the shared unit template below - a content change here needs
+# no daemon-reload, since systemd reads EnvironmentFile fresh on every
+# activation rather than caching it the way unit *file* content is
+# cached. Don't add a `notify: Reload systemd` here on the assumption
+# it's needed; it isn't, and doing so would just tie env-only changes to
+# a slower reload/flush cycle for no reason.
+- name: "Render the cert-renewer env file for: {{ step_ca_cert_app_name }}"
+  ansible.builtin.template:
+    src: cert-renewer.env.j2
+    dest: "/etc/cert-renewer/{{ step_ca_cert_app_name }}.env"
+    mode: "0644"
+
+# Content is identical regardless of which app's step_ca_cert instance
+# renders it - every per-app value now lives in that app's own
+# /etc/cert-renewer/<app>.env, not here - so unlike the old
+# lldap_cert/openbao_cert split there's no "whichever role's copy is
+# installed last wins" ambiguity to guard against.
+- name: Install the generic cert-renewer@ service template
+  ansible.builtin.template:
+    src: cert-renewer@.service.j2
+    dest: /etc/systemd/system/cert-renewer@.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the generic cert-renewer@ timer template
+  ansible.builtin.template:
+    src: cert-renewer@.timer.j2
+    dest: /etc/systemd/system/cert-renewer@.timer
+    mode: "0644"
+  notify: Reload systemd
+
+# Handlers only flush at the end of the play by default (and this role
+# runs for both lldap and openbao, plus tinyauth_ca_trust, in the same
+# play — see deploy.yaml's Play 6), but "Enable and start" below needs
+# systemd to have already picked up the current unit content first: on
+# a genuinely first-ever run, the unit doesn't exist in systemd's own
+# cache at all until a reload happens. Force the flush here instead of
+# leaving it to the play's natural end.
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers
+
+- name: "Enable and start the renewal timer for: {{ step_ca_cert_app_name }}"
+  ansible.builtin.systemd:
+    name: "cert-renewer@{{ step_ca_cert_app_name }}.timer"
+    state: started
+    enabled: true

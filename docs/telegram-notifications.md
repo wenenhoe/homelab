@@ -128,7 +128,7 @@ a placeholder that isn't shaped like one.
   as backup_agent above, since it's the "relay it onward" half of the
   same disaster-recovery story (see
   [`disaster-recovery.md`](disaster-recovery.md)).
-- **Cert renewal**: `ansible/roles/lldap_cert/templates/cert-renewer@.service.j2`
+- **Cert renewal**: `ansible/roles/step_ca_cert/templates/cert-renewer@.service.j2`
   sets `OnFailure=telegram-notify@%i.service` — `telegram_notify` called
   with `telegram_notify_unit_name: "telegram-notify@"`, the `@`-instantiated
   case the shared-role paragraph above describes. `%i` here is the
@@ -174,7 +174,8 @@ larger change to every notifier above, not implemented here.
 
 ## Verifying it actually delivers
 
-Molecule (`ansible/roles/lldap_cert/molecule/default`,
+Molecule (`ansible/roles/step_ca_cert/molecule/default`,
+`ansible/roles/step_ca_cert/molecule/signal_chown`,
 `ansible/roles/cloud_sync/molecule/default`, and
 `ansible/roles/caddy_cert_expiry/molecule/default`) confirms the
 `OnFailure=` link exists, the unit templates correctly, and it loads and

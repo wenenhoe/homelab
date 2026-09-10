@@ -27,7 +27,7 @@ of failing loudly.
 ## Decision
 
 Replace both containers with two host-level Ansible roles —
-`step_ca_client` and `lldap_cert` — that issue and renew the LDAPS cert
+`step_ca_client` and `step_ca_cert` — that issue and renew the LDAPS cert
 from this repo's own internal `step-ca` (see
 [`step-ca.md`](../step-ca.md)) instead of an external ACME provider.
 Renewal runs as a systemd `cert-renewer@lldap.timer`, adapted from

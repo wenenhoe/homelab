@@ -110,7 +110,7 @@ unverified key orphaned, for all three providers.
 ## Certificate-backed material (not in `secrets_registry.yaml` at all)
 
 lldap's LDAPS keypair isn't a registry secret — it's issued into the
-`lldap_certs` volume by `lldap_cert`, and rotating it means forcing
+`lldap_certs` volume by `step_ca_cert`, and rotating it means forcing
 re-issuance, not deleting a cache file:
 
 ```
@@ -121,7 +121,7 @@ ansible-playbook playbooks/volume-reset.yaml --limit security,localhost \
 ansible-playbook playbooks/deploy.yaml --limit security,localhost
 ```
 
-The first command empties the volume; `lldap_cert`'s own idempotency
+The first command empties the volume; `step_ca_cert`'s own idempotency
 check (`test -f /data/certs/fullchain.pem`) then fails on the second run,
 triggering fresh issuance and an automatic lldap restart to pick it up.
 lldap has no other consumer that needs a matching re-sync the way

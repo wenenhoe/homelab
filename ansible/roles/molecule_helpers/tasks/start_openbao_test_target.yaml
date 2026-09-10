@@ -12,12 +12,12 @@
 # to keep in sync, and no admin token needed on a second run to re-read
 # them — see the block below for why that specifically matters).
 #
-# Deliberately NOT the real `openbao`/`openbao_cert` roles — those need
+# Deliberately NOT the real `openbao`/`step_ca_cert` roles — those need
 # become:true + systemd + a real target host (see
-# openbao_cert/molecule/default, which already proves OpenBao's OWN
-# deployment machinery works, including the real compose file). This
-# helper only needs A real, reachable OpenBao with a real cert, to
-# prove `secrets`' Vault-CALLING logic against it — reusing the heavier
+# step_ca_cert/molecule/signal_chown, which already proves
+# OpenBao's OWN deployment machinery works, including the real compose
+# file). This helper only needs A real, reachable OpenBao with a real
+# cert, to prove `secrets`' Vault-CALLING logic against it — reusing the heavier
 # roles here would just require the exact Docker-in-Docker nesting the
 # next paragraph explains this scenario can't use.
 #
@@ -28,7 +28,7 @@
 # `ensure_secret.yaml`'s own Vault calls are themselves
 # delegate_to: localhost (mirroring production's real network hop from
 # the operator's laptop to `security`) — nesting OpenBao inside a DinD
-# instance the way openbao_cert's own scenario does would mean the
+# instance the way step_ca_cert's own scenario does would mean the
 # control node has to reach *into* that nested container's inner
 # Docker network, which needs double-nested port-publishing plus an
 # extra TLS SAN that doesn't match anything actually issued. Sibling
@@ -83,7 +83,7 @@
 #
 # Expects step-ca-test already running (start_step_ca_test_target.yaml,
 # called by the caller first, same composition style
-# openbao_cert/molecule/default's own converge.yml already uses).
+# step_ca_cert/molecule/signal_chown's own converge.yml already uses).
 
 - name: Set this helper's optional-var defaults
   ansible.builtin.set_fact:
@@ -151,7 +151,7 @@
   register: molecule_helpers_openbao_existing_cert
 
 # ansible.builtin.command + argv, not community.docker.docker_container:
-# matches production's own openbao_cert role's exact approach for this
+# matches production's own step_ca_cert role's exact approach for this
 # same operation (step ca certificate via a throwaway step-cli
 # container) — precise flag control, no reliance on a module parameter
 # this repo has never actually exercised. Same dual-SAN shape that role

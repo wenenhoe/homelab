@@ -55,9 +55,10 @@ uptime_kuma_push_url_cert_expiry: "{{ secrets_generated['uptime-kuma-push-url-ce
 step_ca_provisioner_password: "{{ secrets_generated['step-ca-provisioner-password'] }}"
 
 # Not a secret - the provisioner's own label. Shared so docker/step-ca's
-# own bootstrap and every consumer requesting a cert from it (lldap_cert,
-# and any future one) reference the same value instead of each hardcoding
-# their own copy that could silently drift apart.
+# own bootstrap and every consumer requesting a cert from it
+# (step_ca_cert's lldap and openbao instances, and any future one)
+# reference the same value instead of each hardcoding their own copy
+# that could silently drift apart.
 step_ca_provisioner_name: internal-services
 
 # --- Supplied manually, outside Ansible ---

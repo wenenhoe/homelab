@@ -140,8 +140,7 @@ running through every migration stage — it's a dependency of the
 tooling itself, not just of the apps it hosts.
 
 Where Tofu's own secrets (Proxmox API token, OPNsense API key, the
-state-backend S3 credential) live is not yet decided — a real fork
-between keeping them genuinely separate from OpenBao, routing them
-through the existing OpenBao instance on `security`, or standing up a
-dedicated Tofu/controller-scoped OpenBao instance. See the project
-doc's Stage 1 for status.
+state-backend S3 credential) live is not yet decided — see the
+[decision draft](decisions/drafts/tofu-secrets-and-state-backend-location.md)
+for the three options under consideration, and the project doc's
+Stage 1 for status.

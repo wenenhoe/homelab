@@ -70,8 +70,9 @@ independent sequences that happen to share a word; see
   manual step, not yet Ansible-managed.
 - Tofu's own secrets (Proxmox API token, OPNsense API key,
   state-backend S3 credential):
-  a real open decision between three options — captured as a decision
-  draft once written. This stage is blocked on it.
+  a real open decision between three options — see the
+  [decision draft](../decisions/drafts/tofu-secrets-and-state-backend-location.md).
+  This stage is blocked on it.
 - Install: OpenTofu's official apt-repo installer, on VM 401
   ("Development") once it exists, otherwise wherever the repo's
   driven from today. `bpg/proxmox` needs no separate install — fetched
@@ -126,7 +127,7 @@ decision draft once written. This stage is blocked on it too.
 ## Open items
 
 - Tofu-only secrets and state-backend credential location (Stage 1) —
-  decision draft pending.
+  [decision draft](../decisions/drafts/tofu-secrets-and-state-backend-location.md).
 - Internal DNS for Tofu-provisioned VMs (Stage 7) — decision draft
   pending.
 - Migration Stage 2's exact rebuild sequence isn't scoped beyond

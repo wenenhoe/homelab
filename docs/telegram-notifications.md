@@ -2,7 +2,7 @@
 
 One bot, one group chat with [Topics](https://telegram.org/blog/topics-in-groups-collectible-usernames)
 enabled, a different topic per concern — see
-[ADR 0014](decisions/0014-telegram-topics-not-direct-chat.md) for why
+[ADR 0011](decisions/0011-telegram-topics-not-direct-chat.md) for why
 this replaced the original one-on-one bot chat. Two consumers share
 the Backups topic since they're the two halves of the same
 disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)),

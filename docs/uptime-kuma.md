@@ -70,7 +70,7 @@ consumers: its `ExecCondition` skips the run entirely on the vast
 majority of the timer's 15-minute ticks (not due for renewal yet), and a
 skip is neither success nor failure at the systemd level. This repo
 overrides step-ca's own 24h default to a 720h (30-day) cert lifetime
-(see [ADR 0005](decisions/0005-stepca-cert-duration-720h.md)),
+(see [ADR 0008](decisions/0008-stepca-cert-duration-720h.md)),
 so with `step ca renew`'s ⅔-of-lifetime trigger, a real push happens
 roughly once every 20 days (~480h) — size that monitor's Heartbeat
 Interval accordingly (with margin above ~480h), not to the 15-minute
@@ -101,7 +101,7 @@ object is within `offsite_backup_freshness_hours` (26h default, via
 Hub image), and pushes only if all of them are. One stale app suppresses
 the whole host's push; which specific app is stale is only visible in
 that unit's own journal, not from Kuma. See
-[ADR 0007](decisions/0007-backup-freshness-check-per-host.md) for why
+[ADR 0012](decisions/0012-backup-freshness-check-per-host.md) for why
 this runs per host instead of as one centralized checker on `storage`.
 
 The freshness script's exit code distinguishes three outcomes per app,

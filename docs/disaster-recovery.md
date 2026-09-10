@@ -23,7 +23,7 @@ raft snapshot, not this volume-backup pipeline) — see
 
 Every app host's `backup_agent` holds a live, write-capable S3
 credential, so its reach matters as much as its existence. See
-[ADR 0013](decisions/0013-backup-credential-blast-radius-threat-model.md)
+[ADR 0006](decisions/0006-backup-credential-blast-radius-threat-model.md)
 for the full threat model this design is built against and the two
 structural constraints that follow from it — in short: cloud
 credentials never touch an app host, and each app host's SeaweedFS
@@ -50,7 +50,7 @@ identity is scoped to its own backup prefix only.
   uptime, even though every app's schedules share one container.
   `docker-socket-proxy` (`CONTAINERS=1 POST=1 INFO=1`) is only added to
   the compose file at all if at least one app on the host needs stopping.
-  See [ADR 0011](decisions/0011-docker-socket-proxy-not-raw-socket.md)
+  See [ADR 0004](decisions/0004-docker-socket-proxy-not-raw-socket.md)
   for why anything needing Docker API access gets a scoped proxy sidecar
   like this instead of the real socket.
 - `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the

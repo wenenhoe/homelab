@@ -51,7 +51,7 @@ services:
     # uninitialized, not just when it's actually down (confirmed
     # against openbao.org's own exit code docs: sealed is a "remote
     # error", exit 2) - so this reports unhealthy for the entire
-    # stretch between a restart and the next manual unseal (ADR 0021),
+    # stretch between a restart and the next manual unseal (ADR 0023),
     # not only on a genuine failure. That's the accurate state (sealed
     # = not serving), not a false alarm, but it means "unhealthy" here
     # reads differently than it does for every other app in this repo.

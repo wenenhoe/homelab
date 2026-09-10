@@ -83,9 +83,9 @@ HTTP call and `rclone` invocation mocked — via
 
 Rotation keys/tokens (all three providers) are cached to OpenBao KV v2,
 at `secret/data/cloud_credentials/rotation/*` — see
-[ADR 0018](decisions/0018-openbao-repoint-not-native-plugin.md) for why
+[ADR 0023](decisions/0023-openbao-repoint-not-native-plugin.md) for why
 this repointed the existing per-provider Python rather than replacing
-it, and [ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
+it, and [ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)
 for the earlier decision that started it in a file cache in the first
 place.
 
@@ -293,7 +293,7 @@ caches to `_rotation-key-cloudflare-r2-token`, and every later call
 (including `--rotate`) reads the cache instead of re-prompting. This
 cached token is master-equivalent, not a narrower delegate like B2's/
 OCI's rotation keys — see
-[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
+[ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)
 for why that's accepted rather than worked around.
 
 **Create the master token as a Custom Token, not the "Create
@@ -316,7 +316,7 @@ The leaf tokens themselves stay properly bucket-scoped (`Workers R2
 Storage Bucket Item Write`/`Read`, restricted to `homelab-backups`) and
 only ever hold R2-specific permissions, never `API Tokens Write` — so
 none of the above applies to them, only to the rotation token. See
-[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
+[ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)
 for what actually carries R2's defense-in-depth instead (the leaf
 tokens' `copy`-vs-`sync` boundary, not IAM narrowing at the
 rotation-token level).
@@ -463,7 +463,7 @@ operation.
 
 **R2** has no verify-then-revoke equivalent — Cloudflare's API
 structurally can't mint a delegate credential for this at all (see
-[ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)) —
+[ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)) —
 but it does have the same `--rotate` entry point now, closing a real
 gap: create a new Custom Token in the Console first, then
 
@@ -485,9 +485,9 @@ since it blocks on that Console step existing first.
 
 ## Future: secrets manager
 
-See [ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)
+See [ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)
 for why the current disk-cache design was chosen over a secrets
-manager, and [ADR 0002](decisions/0002-r2-rotation-token-accepted-as-master-equivalent.md)
+manager, and [ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)
 for the one gap (R2's cached admin token) worth carrying into that
 design specifically when it's eventually scoped.
 
@@ -551,7 +551,7 @@ Any non-fresh result posts a Telegram alert to the `Backups` topic
 [`telegram-notifications.md`](telegram-notifications.md)), using the
 same `telegram-token`/`telegram-chat-id` every other consumer in this
 repo reads from Vault (`secret/data/hosts/all/telegram/*`, per
-[ADR 0024](decisions/0024-vault-path-convention-hosts-all-for-global-secrets.md)).
+[ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)).
 Not routed through the
 `telegram_notify` Ansible role — that's templated and deployed to
 `managed_hosts`, and `controller` deliberately isn't one — so this

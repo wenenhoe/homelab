@@ -18,7 +18,7 @@ entirely — `certbot`'s only job was DNS-01 issuance against
 DigitalOcean, and `dockerproxy` existed solely to give `certbot` a
 locked-down path to restart `lldap` after a renewal without mounting the
 real Docker socket into it. See
-[ADR 0003](decisions/0003-lldap-ldaps-cert-via-stepca-not-certbot.md)
+[ADR 0009](decisions/0009-lldap-ldaps-cert-via-stepca-not-certbot.md)
 for why that design was replaced rather than patched. Neither problem
 exists once renewal moves to the host: `lldap_cert`'s systemd unit runs
 as `root` directly and

@@ -1,4 +1,4 @@
-# Controller's Era A AppRole policy (ADR 0022, docs/openbao-auth.md).
+# Controller's Era A AppRole policy (ADR 0020, docs/openbao-auth.md).
 # Applied by hand via that doc's runbook, not by Ansible — writing it
 # requires the initial root token, which docs/openbao.md's Init runbook
 # already treats as something that must never touch a file or flow

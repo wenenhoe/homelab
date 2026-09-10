@@ -30,14 +30,14 @@ Environment=CA_URL={{ openbao_cert_step_ca_url }} ROOT_LOCATION={{ step_ca_clien
 ; its image's own non-root `openbao` user (unlike lldap, which manages
 ; its own via LLDAP_UID/GID) — see the issuance task's identical fix
 ; (openbao_cert/tasks/main.yaml). The SIGHUP branch is needed because
-; every restart requires a manual unseal (ADR 0021); see below.
+; every restart requires a manual unseal (ADR 0018); see below.
 ExecCondition=/usr/bin/docker run --rm --user root -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem
 
 ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} -v %i_certs:/certs -v ${ROOT_LOCATION}:/root_ca.crt:ro ${STEP_CLI_IMAGE} step ca renew --force --ca-url ${CA_URL} --root /root_ca.crt /certs/fullchain.pem /certs/privkey.pem
 ExecStart=/bin/sh -c '[ "%i" != "openbao" ] || /usr/bin/docker run --rm --user root -v %i_certs:/certs ${OPENBAO_IMAGE} chown -R openbao:openbao /certs'
 
 ; openbao gets SIGHUP instead of a restart, unlike lldap: a restart
-; reseals OpenBao (manual unseal, ADR 0021), defeating that ADR's own
+; reseals OpenBao (manual unseal, ADR 0018), defeating that ADR's own
 ; cost-benefit premise if it happened on every renewal, not just every
 ; reboot. OpenBao's TCP listener documents tls_cert_file/tls_key_file
 ; as reloads-on-SIGHUP (openbao.org/docs/configuration/listener/tcp/),

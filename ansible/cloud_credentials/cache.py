@@ -4,13 +4,13 @@ Every leaf_keys/rotation_keys module, check_freshness.py, and the
 top-level create_*.py scripts read/write through the four functions
 scoped() returns - never a raw HTTP call of their own. Storage target
 is OpenBao KV v2, at secret/data/cloud_credentials/<category>/<name>
-(controller's Era A AppRole, ADR 0022, already grants read/write on
+(controller's Era A AppRole, ADR 0020, already grants read/write on
 both leaf/* and rotation/*). read_vault_path() is the one exception:
 a direct read for the rare caller needing a Vault path outside that
 taxonomy (see its own docstring).
 
 Vault session/TLS-trust mechanics mirror ansible/bootstrap_secrets.py's
-own (ADR 0025): this package runs standalone, outside any Ansible play,
+own (ADR 0022): this package runs standalone, outside any Ansible play,
 so it fetches step-ca's root cert and logs in via AppRole itself rather
 than delegating to the secrets role. Duplicated rather than shared with
 bootstrap_secrets.py - the two are deliberately independent, see
@@ -190,9 +190,9 @@ def read_vault_path(full_path: str) -> str | None:
     outside the cloud_credentials/{leaf,rotation} taxonomy scoped()
     covers - e.g. check_freshness.py's telegram-* reads, which live
     under the secrets role's own hosts/all/telegram/* convention
-    (ADR 0024), a different top-level path this package doesn't own.
+    (ADR 0021), a different top-level path this package doesn't own.
     Controller's Era A AppRole already grants read/write on all of
-    secret/data/hosts/* (ADR 0022), so no policy change is needed to
+    secret/data/hosts/* (ADR 0020), so no policy change is needed to
     use this from cloud_credentials.
     """
     return _vault_read_at(full_path)
@@ -203,7 +203,7 @@ def write_vault_path(full_path: str, value: str) -> None:
     write counterpart, same rare-caller-outside-the-taxonomy case (e.g.
     restoring hosts/* material after a re-init). Controller's Era A
     AppRole already grants create/update on all of secret/data/hosts/*
-    (ADR 0022), so no policy change is needed to use this from
+    (ADR 0020), so no policy change is needed to use this from
     cloud_credentials."""
     _vault_write_at(full_path, value)
 
@@ -218,7 +218,7 @@ def _vault_write(category: str, name: str, value: str) -> None:
 
 def scoped(category: str):
     """Returns (cached, read_cache, write_cache, require_cache_file) bound
-    to one Vault category - "leaf" or "rotation", ADR 0022's two
+    to one Vault category - "leaf" or "rotation", ADR 0020's two
     top-level cloud_credentials paths. Each leaf_keys/rotation_keys
     module calls this once, at import time, with its own category: which
     path a key lives under is a property of which module writes it, not

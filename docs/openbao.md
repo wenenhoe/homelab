@@ -1,7 +1,7 @@
 # OpenBao: Secrets Store Bootstrap
 
 `openbao` is this migration's replacement for the file-based secrets
-cache ([ADR 0001](decisions/0001-credential-caching-stage-1-before-secrets-manager.md)) —
+cache ([ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)) —
 see [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
 the full build order. This doc covers Track A stage 1 only: deploying
 it, its TLS cert, and getting it initialized and unsealed. Auth and
@@ -30,7 +30,7 @@ No `backup:` entry in `app_registry.yaml` — the generic `backup_agent`
 path stops the container and tars its volumes
 ([`disaster-recovery.md`](disaster-recovery.md)), which for OpenBao
 would mean sealing it (and a manual unseal per
-[0021](decisions/0021-manual-shamir-unseal.md)) on every backup cycle.
+[0018](decisions/0018-manual-shamir-unseal.md)) on every backup cycle.
 OpenBao's own `bao operator raft snapshot save` is the backup mechanism
 here instead — Track A stage 2, not yet built.
 
@@ -156,7 +156,7 @@ same category of "server up, not yet able to serve" response, and
 way it reports `Sealed: true` — treating both as the same class of
 "unhealthy" here, not confirmed byte-for-byte against a live exit
 code). Since
-[0021](decisions/0021-manual-shamir-unseal.md) means every restart
+[0018](decisions/0018-manual-shamir-unseal.md) means every restart
 leaves OpenBao sealed until a human runs the unseal command above
 (and a genuinely fresh deploy starts out uninitialized on top of
 that), this container will show unhealthy in Beszel/Uptime-Kuma for
@@ -171,7 +171,7 @@ carries for every other app here.
 unaffected (a restart is free for lldap, which has no seal state to
 lose). Restarting OpenBao on every renewal would reseal the vault at
 whatever cadence cert renewal fires, not just on reboot — undermining
-[0021](decisions/0021-manual-shamir-unseal.md)'s cost-benefit premise
+[0018](decisions/0018-manual-shamir-unseal.md)'s cost-benefit premise
 that unseal only costs a human at the moments they're already at the
 keyboard.
 
@@ -216,7 +216,7 @@ documentation-only claims.
 
 ## Init and unseal — manual, not scripted
 
-[0021](decisions/0021-manual-shamir-unseal.md) chose manual Shamir
+[0018](decisions/0018-manual-shamir-unseal.md) chose manual Shamir
 unseal over cloud auto-unseal specifically because a human is already
 at the keyboard for every reboot `security` has ever had. That's also
 the reason this is written up as a runbook below rather than as a

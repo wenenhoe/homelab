@@ -1,4 +1,4 @@
-# vault-bootstrap's policy (ADR 0027, docs/openbao-vault-bootstrap.md).
+# vault-bootstrap's policy (ADR 0025, docs/openbao-vault-bootstrap.md).
 # Applied by hand via that doc's runbook, same reasoning as
 # controller.hcl's own header comment - not seeded via
 # docker/openbao/configs/, and not written by Ansible.

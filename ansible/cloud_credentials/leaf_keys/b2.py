@@ -14,7 +14,7 @@ cached, read_cache, write_cache, require_cache_file = scoped("leaf")
 # b2_rotation_session() below reads the rotation-tier session
 # credential rotation_keys/b2.py writes - a second, differently-scoped
 # binding, since this module's own leaf keys and that session live
-# under different top-level Vault paths (ADR 0022).
+# under different top-level Vault paths (ADR 0020).
 _, _, _, _rotation_require_cache_file = scoped("rotation")
 
 B2_BUCKET = "homelab-backups-b2"

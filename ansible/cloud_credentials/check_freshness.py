@@ -219,12 +219,12 @@ def _escape_telegram_html(text: str) -> str:
     return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
 
-_TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0024 - group_vars/all/main.yaml's own Vault path convention
+_TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021 - group_vars/all/main.yaml's own Vault path convention
 
 
 def _read_telegram_secret(name: str) -> str | None:
     """telegram-token/-chat-id/-topic-id-backups live under the secrets
-    role's own hosts/all/telegram/* path (ADR 0024), not
+    role's own hosts/all/telegram/* path (ADR 0021), not
     cloud_credentials/{leaf,rotation}/* - a direct read via
     read_vault_path(), not scoped(), since this is the one value this
     package reads outside its own Vault taxonomy."""

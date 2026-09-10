@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""ADR 0026's dedicated R2 per-read watcher (ADR 0019's own
+"""ADR 0026's dedicated R2 per-read watcher (ADR 0024's own
 requirement). Tails `docker logs -f openbao` (the audit device's
 stdout, per ADR 0026), alerts on any read of the R2 rotation token's
 Vault path, and does nothing else - no cloud_credentials access, no
@@ -35,7 +35,7 @@ TARGET_PATH = "secret/data/cloud_credentials/rotation/_rotation-key-cloudflare-r
 OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/openbao-r2-read-watcher.md
 ROLE_ID_PATH = "/etc/r2-read-watcher/role_id"
 SECRET_ID_PATH = "/etc/r2-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
-TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0024
+TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021
 
 
 def match_r2_read(raw_line: str) -> dict[str, Any] | None:

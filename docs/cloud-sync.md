@@ -5,7 +5,7 @@ out of SeaweedFS and copies them onward to R2/B2/OCI via
 [rclone](https://rclone.org) `copy` — never `sync`, and cloud-side
 retention is a provider-native lifecycle rule configured out-of-band,
 not managed by this repo. See
-[ADR 0006](decisions/0006-cloud-sync-copy-not-sync.md) for why: that
+[ADR 0010](decisions/0010-cloud-sync-copy-not-sync.md) for why: that
 combination is what actually keeps a compromised on-prem host from
 touching the offsite copy, not IAM scoping alone.
 

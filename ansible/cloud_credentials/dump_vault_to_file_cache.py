@@ -15,7 +15,7 @@ Covers:
   - Every cloud_credentials leaf/rotation key (_legacy_cache_keys.py's
     LEGACY_CACHE_KEYS), read via each key's own registered category.
   - Every secrets_registry.yaml entry with a vault_scope (the secrets
-    role's hosts/* material, ADR 0024).
+    role's hosts/* material, ADR 0021).
   - A live cross-check for _oci-leaf-user-ocid-{read,write}: reads both
     the leaf/ and rotation/ paths, not just the one LEGACY_CACHE_KEYS
     says is correct - a suspected migration mis-file, confirmed here

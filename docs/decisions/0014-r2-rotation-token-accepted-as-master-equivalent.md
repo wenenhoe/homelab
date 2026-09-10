@@ -1,4 +1,4 @@
-# 0002. Accept Cloudflare R2's cached rotation token as master-equivalent
+# 0014. Accept Cloudflare R2's cached rotation token as master-equivalent
 
 **Status:** Accepted
 
@@ -44,7 +44,7 @@ rather than worked around because: (a) the same token was already
 being typed in from the same password-manager entry on every run, so
 caching it changes convenience, not exposure to a new party; and (b) a
 future secrets manager (see
-[0001](0001-credential-caching-stage-1-before-secrets-manager.md))
+[0013](0013-credential-caching-stage-1-before-secrets-manager.md))
 narrows who/what can reach the cached token, not what it can do once
 reached — R2 is the one provider that gap won't close even after that
 migration.

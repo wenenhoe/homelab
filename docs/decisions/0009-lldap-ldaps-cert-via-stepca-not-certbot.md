@@ -1,4 +1,4 @@
-# 0003. Issue lldap's LDAPS cert from the internal step-ca, not certbot + DNS-01
+# 0009. Issue lldap's LDAPS cert from the internal step-ca, not certbot + DNS-01
 
 **Status:** Accepted
 

@@ -1,4 +1,4 @@
-# 0011. Docker-socket-proxy sidecar, never the raw socket, for anything needing the Docker API
+# 0004. Docker-socket-proxy sidecar, never the raw socket, for anything needing the Docker API
 
 **Status:** Accepted
 

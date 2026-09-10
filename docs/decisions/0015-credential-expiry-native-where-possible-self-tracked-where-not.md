@@ -41,7 +41,7 @@ Cloudflare's own Create Token reference. `GET
 needing the token itself — the rotation admin token's existing `Account
 API Tokens Edit` permission is enough to call it for the leaf tokens it
 created. The rotation admin token is a human-created Console token
-(see [0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)),
+(see [0014](0014-r2-rotation-token-accepted-as-master-equivalent.md)),
 so it can carry an expiration too, set by hand at creation, and
 `check_freshness.py` reads that back live the same way — see
 `cloud-credential-creation.md`'s Credential expiry section for exactly

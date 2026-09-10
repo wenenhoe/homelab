@@ -4,20 +4,20 @@
 
 ## Context
 
-[0022](../0022-approle-policy-structure-two-eras.md) gives `controller`
+[0020](../0020-controller-single-broad-approle-not-split-by-consumer.md) gives `controller`
 one broad AppRole because it's the only automation identity that
 exists today. A separate, not-yet-built proposal (see
 [`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md))
 would add a dedicated automation host (`cd_agent`) that becomes the
 sole path to prod deploys and takes over the rotation/freshness jobs
-[0018](../0018-openbao-repoint-not-native-plugin.md) schedules. Once
+[0023](../0023-openbao-repoint-not-native-plugin.md) schedules. Once
 that host exists, one broad identity stops being the right shape:
 `cd_agent` would run two categories of unattended, prod-touching work
 (deploy/maintenance, and credential rotation/freshness) that don't
 need the same access to each other's material.
 
 `cd_agent`, as proposed, would have a fixed LAN IP — unlike
-`controller` (the operator's laptop, DHCP), which is why 0022's grant
+`controller` (the operator's laptop, DHCP), which is why 0020's grant
 has no CIDR binding. OpenBao's AppRole auth method supports binding
 both the login step and the resulting token to specific CIDR blocks
 (`secret_id_bound_cidrs`, `token_bound_cidrs`, per OpenBao's own

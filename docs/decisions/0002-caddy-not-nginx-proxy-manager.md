@@ -1,4 +1,4 @@
-# 0008. Use Caddy, not Nginx Proxy Manager
+# 0002. Use Caddy, not Nginx Proxy Manager
 
 **Status:** Accepted
 

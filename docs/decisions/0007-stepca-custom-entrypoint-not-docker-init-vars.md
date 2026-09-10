@@ -1,4 +1,4 @@
-# 0004. Custom step-ca entrypoint instead of `DOCKER_STEPCA_INIT_*`
+# 0007. Custom step-ca entrypoint instead of `DOCKER_STEPCA_INIT_*`
 
 **Status:** Accepted
 

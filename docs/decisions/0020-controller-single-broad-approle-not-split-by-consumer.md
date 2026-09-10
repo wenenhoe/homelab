@@ -1,4 +1,4 @@
-# 0022. One broad AppRole for `controller`, not split per secret family or by consumer
+# 0020. One broad AppRole for `controller`, not split per secret family or by consumer
 
 **Status:** Accepted
 
@@ -9,7 +9,7 @@ automated consumer — "AppRole for the Ansible controller, one policy
 per secret-path family." A separate, not-yet-built proposal exists for
 a dedicated automation host (`cd_agent`) that would become the sole
 path to prod deploys and take over the rotation/freshness jobs
-[0018](0018-openbao-repoint-not-native-plugin.md) schedules — but that
+[0023](0023-openbao-repoint-not-native-plugin.md) schedules — but that
 host doesn't exist yet, and `controller` (the operator's own machine)
 is the only automation identity that exists today. Designing one
 static AppRole layout as if that future identity already existed would
@@ -19,7 +19,7 @@ it actually has to do right now.
 One more consumer surfaced once this was actually
 built: `openbao-backup-restore.md`'s snapshot-push script currently
 needs a human to export the root token by hand
-([0023](0023-openbao-snapshot-push-standalone.md)'s "Why manual"
+([0019](0019-openbao-snapshot-push-standalone.md)'s "Why manual"
 section explains what eventually fixes that), but that script runs on
 `security` itself, not from `controller`. Since this design has exactly one
 automation identity, giving the snapshot job its own AppRole would

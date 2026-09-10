@@ -1,4 +1,4 @@
-# 0027. Re-init OpenBao now, with a standing narrow `vault-bootstrap` AppRole, instead of deferring to the eventual full cutover
+# 0025. Re-init OpenBao now, with a standing narrow `vault-bootstrap` AppRole, instead of deferring to the eventual full cutover
 
 **Status:** Accepted
 

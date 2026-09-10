@@ -1,10 +1,10 @@
-# 0024. Vault path convention: `hosts/<host>/*` mirrors `host_vars`, `hosts/all/<concern>/*` mirrors `group_vars/all`
+# 0021. Vault path convention: `hosts/<host>/*` mirrors `host_vars`, `hosts/all/<concern>/*` mirrors `group_vars/all`
 
 **Status:** Accepted
 
 ## Context
 
-[0022](0022-approle-policy-structure-two-eras.md)'s Era A policy grants
+[0020](0020-controller-single-broad-approle-not-split-by-consumer.md)'s Era A policy grants
 `controller` read/write on `secret/data/hosts/*`, describing it as
 "mirroring the `security`/`services`/`storage`/`play` `host_vars`
 split." But `secrets_registry.yaml` also holds secrets with no single
@@ -14,7 +14,7 @@ one referenced from `group_vars/all/main.yaml`, not any `host_vars/*.yaml`
 file. The Accepted policy has no path for these: they aren't
 `cloud_credentials/*` (a different consumer, different lifecycle — see
 below), and forcing them under one specific host's namespace would
-misrepresent them and contradict 0022's own stated rationale for that
+misrepresent them and contradict 0020's own stated rationale for that
 path.
 
 The real question this stage needs answered before writing a single

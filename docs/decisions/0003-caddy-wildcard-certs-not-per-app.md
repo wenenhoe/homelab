@@ -1,4 +1,4 @@
-# 0010. Route most apps through one wildcard cert per host, not one cert per app
+# 0003. Route most apps through one wildcard cert per host, not one cert per app
 
 **Status:** Accepted, partially applied — see Consequences.
 

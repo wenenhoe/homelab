@@ -4,7 +4,7 @@
 
 ## Context
 
-OpenBao is the planned replacement for [0001](0001-credential-caching-stage-1-before-secrets-manager.md)'s
+OpenBao is the planned replacement for [0013](0013-credential-caching-stage-1-before-secrets-manager.md)'s
 file cache (see `cloud-credential-creation.md` for what's cached
 today). If every credential — including the ones needed to fetch and
 restore OpenBao's own backup — lives only inside OpenBao, a sealed or
@@ -15,7 +15,7 @@ to cloud storage and pull the snapshot that would unseal it.
 loss of the `security` host running OpenBao — disk failure, host
 rebuild, or a compromise requiring a clean rebuild — with recovery
 depending entirely on what survives outside that host. This is
-distinct from [0013](0013-backup-credential-blast-radius-threat-model.md)'s
+distinct from [0006](0006-backup-credential-blast-radius-threat-model.md)'s
 threat model (a compromised app host reaching the offsite backup): this
 one assumes the thing being restored *is* the credential store itself,
 so nothing stored only inside it can be part of its own recovery path.
@@ -75,7 +75,7 @@ restore playbook pulls everything else from Vault.
   second narrowly-scoped credential outside any automated rotation.
   Both are one-time, human-attended items, consistent with how this
   repo already treats the GPG key and initial rotation-key bootstrap
-  ([0001](0001-credential-caching-stage-1-before-secrets-manager.md)).
+  ([0013](0013-credential-caching-stage-1-before-secrets-manager.md)).
 - Proving the backup/restore loop before any secret's authoritative
   copy moves into Vault is the actual test of this split. See
   [`openbao-backup-restore.md`](../openbao-backup-restore.md) for the

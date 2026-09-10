@@ -4,7 +4,7 @@
 
 ## Context
 
-[0019](0019-r2-admin-token-into-openbao.md) requires an alert on every
+[0024](0024-r2-admin-token-into-openbao.md) requires an alert on every
 read of the R2 admin token's Vault path, calling the audit log "the
 natural source" but leaving the exact mechanism to this stage.
 OpenBao currently has no audit device configured at all
@@ -112,7 +112,7 @@ silently going dark.
 - [`openbao.md`](../openbao.md)'s "no audit device configured" line
   goes stale the moment this lands; update it alongside this work.
 - Another Vault identity now exists alongside `controller`'s broad
-  AppRole ([0022](0022-approle-policy-structure-two-eras.md)) — a
+  AppRole ([0020](0020-controller-single-broad-approle-not-split-by-consumer.md)) — a
   deliberate, narrow exception to that ADR's "one broad identity"
   framing, justified by this component's different job and risk
   profile, not a reconsideration of that design itself.
@@ -120,7 +120,7 @@ silently going dark.
   `cloud_credentials`. If a scheduled poll of the log file ever proves
   simpler than a live-tail, that's a legitimate future revisit — the
   live-tail choice here follows from
-  [0019](0019-r2-admin-token-into-openbao.md) explicitly wanting
+  [0024](0024-r2-admin-token-into-openbao.md) explicitly wanting
   event-driven alerting, not from polling being ruled out on the
   merits.
 - No mechanism exists to reduce what OpenBao itself logs; accepted as

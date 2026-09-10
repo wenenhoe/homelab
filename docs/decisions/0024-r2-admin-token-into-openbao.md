@@ -1,10 +1,10 @@
-# 0019. Move Cloudflare R2's admin token into OpenBao
+# 0024. Move Cloudflare R2's admin token into OpenBao
 
 **Status:** Accepted
 
 ## Context
 
-[0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)
+[0014](0014-r2-rotation-token-accepted-as-master-equivalent.md)
 established that R2's cached admin token is master-equivalent for
 blast-radius purposes and can't be narrowed — Cloudflare's tokens API
 rejects granting `API Tokens Write` to any token created via the API
@@ -15,7 +15,7 @@ it into Vault was worth doing given that limitation — worth it once a
 real automated consumer exists to justify the tighter access control
 Vault provides, not worth it for storage-location's own sake.
 
-[0018](0018-openbao-repoint-not-native-plugin.md) puts every other
+[0023](0023-openbao-repoint-not-native-plugin.md) puts every other
 credential's rotation on a schedule, currently run by hand on
 `controller`. Leaving R2's token as the one credential still living in
 `ansible/files/secrets/` would mean whatever eventually runs this
@@ -24,7 +24,7 @@ for this one provider, reintroducing the exact exposure this migration
 removes for the other 9 credentials.
 
 R2 stays a structural exception even once it's in Vault, though:
-moving the token doesn't change what [0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)
+moving the token doesn't change what [0014](0014-r2-rotation-token-accepted-as-master-equivalent.md)
 already established — Cloudflare's API can automate *caching* R2's
 rotation token, never *minting* its replacement.
 
@@ -33,12 +33,12 @@ rotation token, never *minting* its replacement.
 Move the R2 admin token into OpenBao KV v2, alongside the other 8
 credentials. Scope it to one Vault path, and alert on every read of
 that path, not just on its expiry. Today that path is reachable under
-`controller`'s single broad policy ([0022](0022-approle-policy-structure-two-eras.md)),
+`controller`'s single broad policy ([0020](0020-controller-single-broad-approle-not-split-by-consumer.md)),
 the only automation identity that exists; narrowing this to a
 dedicated, rotation-only identity is future work, once one exists.
 
 Because minting isn't automatable for this provider, the 90-day
-master-rotation cadence [0018](0018-openbao-repoint-not-native-plugin.md)
+master-rotation cadence [0023](0023-openbao-repoint-not-native-plugin.md)
 introduces runs differently here than for B2/OCI: `check_freshness.py`
 checks whether the cached token's `expires_on` (already tracked per
 [0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md))
@@ -51,7 +51,7 @@ local cache file today.
 
 ## Consequences
 
-- Blast radius is unchanged from [0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)'s
+- Blast radius is unchanged from [0014](0014-r2-rotation-token-accepted-as-master-equivalent.md)'s
   original finding — full Cloudflare account access if it leaks,
   regardless of where it's stored. This decision changes who/what can
   reach the token, not what it can do once reached.

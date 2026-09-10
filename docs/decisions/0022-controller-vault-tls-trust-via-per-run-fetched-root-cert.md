@@ -1,4 +1,4 @@
-# 0025. Controller trusts OpenBao's TLS cert via a per-run-fetched root cert, not a committed copy or skip-verify
+# 0022. Controller trusts OpenBao's TLS cert via a per-run-fetched root cert, not a committed copy or skip-verify
 
 **Status:** Accepted
 

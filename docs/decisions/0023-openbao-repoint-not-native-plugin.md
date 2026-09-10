@@ -1,4 +1,4 @@
-# 0018. Repoint existing credential scripts at OpenBao KV v2, defer a native plugin
+# 0023. Repoint existing credential scripts at OpenBao KV v2, defer a native plugin
 
 **Status:** Accepted
 
@@ -10,7 +10,7 @@ stored: B2's `validDurationInSeconds` and `readFiles`-for-`HeadObject`
 requirement, OCI's Identity Domains SCIM/Confidential-Application model
 ([0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)), and
 R2's hard no-sub-token-delegation ceiling
-([0002](0002-r2-rotation-token-accepted-as-master-equivalent.md)).
+([0014](0014-r2-rotation-token-accepted-as-master-equivalent.md)).
 Moving to OpenBao means deciding what changes: only the storage target,
 or the mechanism doing the minting/rotating too.
 
@@ -74,7 +74,7 @@ a shorter cycle would multiply that risk without a clear benefit. For
 B2 and OCI, `create_rotation_keys.py --rotate {write,read,both}`'s
 existing mint-verify-revoke flow implements each rotation; R2 is a
 structural exception — see
-[0019](0019-r2-admin-token-into-openbao.md) for why its master token
+[0024](0024-r2-admin-token-into-openbao.md) for why its master token
 can't be minted the same way.
 
 Today, both the freshness check and rotation itself are

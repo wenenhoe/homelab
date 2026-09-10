@@ -1,4 +1,4 @@
-# 0023. OpenBao snapshot push stays standalone, not routed through `backup_agent`/`cloud_sync`
+# 0019. OpenBao snapshot push stays standalone, not routed through `backup_agent`/`cloud_sync`
 
 **Status:** Accepted
 
@@ -16,7 +16,7 @@ would have bought scheduling for free.
 `backup_agent`'s actual job is tarring a volume, and that doesn't fit
 here regardless of the pipeline question: `docs/openbao.md` already
 established that stopping OpenBao to tar its data volume means sealing
-it, needing a manual unseal ([0021](0021-manual-shamir-unseal.md)) on
+it, needing a manual unseal ([0018](0018-manual-shamir-unseal.md)) on
 every cycle. So `backup_agent` itself was never in scope. The open
 question was narrower: once `bao operator raft snapshot save` produces
 the encrypted file, should the *push* to R2/B2 happen directly, or
@@ -25,8 +25,8 @@ relay it — reusing the scheduling mechanism the rest of the fleet
 already has?
 
 **Threat model.** The adversary this decision considers is a
-compromised `storage` host — the same host [0006](0006-cloud-sync-copy-not-sync.md)
-and [0013](0013-backup-credential-blast-radius-threat-model.md) already
+compromised `storage` host — the same host [0010](0010-cloud-sync-copy-not-sync.md)
+and [0006](0006-backup-credential-blast-radius-threat-model.md) already
 reason about for every other app's backup, but a new participant for
 *this* one. The asset is the `openbao-snapshots` write leaf and the
 guarantee that a triggered push actually completes. Today, `storage`
@@ -61,7 +61,7 @@ It never touches SeaweedFS or `cloud_sync`. The write leaf
 
 `storage` remains uninvolved in OpenBao's backup pipeline entirely —
 compromising it yields nothing toward this recovery path, matching the
-same per-host credential containment [0013](0013-backup-credential-blast-radius-threat-model.md)
+same per-host credential containment [0006](0006-backup-credential-blast-radius-threat-model.md)
 established for every other app's backup, just via a different
 mechanism (never granting the credential at all, rather than scoping
 it once granted).

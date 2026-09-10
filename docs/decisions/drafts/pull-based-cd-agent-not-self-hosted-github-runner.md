@@ -52,7 +52,7 @@ mints on the same box being protected would be circular.
 Introducing OpenBao doesn't change any of this by itself. It's worth
 doing regardless of execution mechanism (rotation, audit, no plaintext
 credential sitting on disk — see
-[0018](../0018-openbao-repoint-not-native-plugin.md)), but a secrets
+[0023](../0023-openbao-repoint-not-native-plugin.md)), but a secrets
 manager only matters once a job is already running; the actual
 question here is what's allowed to make a job run in the first place.
 Whatever authenticates to OpenBao is itself just a relocated standing
@@ -72,7 +72,7 @@ CD agent instead of a CD *runner*:
   only on a new commit.
 - Deploy and maintenance jobs are triggered this way; so are the
   automated credential-rotation and freshness jobs
-  [0018](../0018-openbao-repoint-not-native-plugin.md) introduces.
+  [0023](../0023-openbao-repoint-not-native-plugin.md) introduces.
   Rather than invoking Ansible directly, the agent's poller invokes a
   local, microVM-isolated execution engine (`preloop`) against a
   GitHub Actions-format workflow file, using its direct CLI invocation
@@ -149,7 +149,7 @@ CD agent instead of a CD *runner*:
 - Which cloud credentials get rotation/freshness automation, and
   whether "rotation" means alert-only freshness checks or full
   automated rotate-and-revoke for each, isn't fully scoped yet —
-  [0018](../0018-openbao-repoint-not-native-plugin.md)/[0019](../0019-r2-admin-token-into-openbao.md)
+  [0023](../0023-openbao-repoint-not-native-plugin.md)/[0024](../0024-r2-admin-token-into-openbao.md)
   cover B2/R2/OCI specifically; any other credential in
   `secrets_registry.yaml` needs the same scoping before it's assumed
   to follow the same pattern.

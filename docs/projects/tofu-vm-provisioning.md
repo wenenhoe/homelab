@@ -68,7 +68,8 @@ independent sequences that happen to share a word; see
   SeaweedFS doesn't auto-create buckets
   (`ansible/roles/seaweedfs_bucket`) — creating this one is a one-time
   manual step, not yet Ansible-managed.
-- Tofu's own secrets (Proxmox API token, state-backend S3 credential):
+- Tofu's own secrets (Proxmox API token, OPNsense API key,
+  state-backend S3 credential):
   a real open decision between three options — captured as a decision
   draft once written. This stage is blocked on it.
 - Install: OpenTofu's official apt-repo installer, on VM 401
@@ -82,6 +83,34 @@ independent sequences that happen to share a word; see
 VM shell + ISO fetch only, per `vm-provisioning.md`'s OPNsense
 section — install and initial config stay manual. Phase 2 (Stage 7)
 is where day-2 config becomes API-driven.
+
+### Stage 5 — Migration Stage 1 + 1.5
+
+The current 2XX hosts are live and can't be edited in place, and
+resources on `pve` are tight enough that downsizing during the move is
+part of the plan — migration happens in stages rather than a single
+cutover.
+
+**Migration Stage 1** — Tofu provisions a new OPNsense + one Ubuntu VM
+on the `5XX` block (VLAN 50), fully isolated from production. Its WAN
+NIC plugs into the same VLAN-aware trunk bridge as everything else,
+tagged into VLAN 20 — an ordinary DHCP client of the *current*
+OPNsense's LAN, not the physical WAN bridge. This lets it reach
+`storage` (still live, same VLAN) and the internet (NATed through the
+current OPNsense) with zero firewall/routing changes on production.
+
+**Migration Stage 1.5** — first real run of `restore.yaml` against the
+Stage 1 VM(s): validates disaster recovery and rehearses the actual
+cutover mechanics at the same time. See
+[`fire-drill.md`](../fire-drill.md) for how this doubles as the
+restore-path fire drill once OpenTofu is up.
+
+### Stage 6 — Migration Stage 2
+
+Once Migration Stage 1.5 is proven, rebuild on the real VMID ranges
+(1XX/2XX/...), cut over, decommission the old VMs. `storage` stays up
+throughout every stage — it holds both the Tofu state backend and the
+DR restore target.
 
 ### Stage 7 — OPNsense Phase 2
 

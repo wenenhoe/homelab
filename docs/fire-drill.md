@@ -60,7 +60,8 @@ Two levels of "does this actually work," proving different things:
        it just controls when you find out.
      - **Once OpenTofu is up**: VLAN 50 (`192.168.50.0/24`), the block
        [`vm-provisioning.md`](vm-provisioning.md) reserves for isolated
-       experimentation and migration staging — that doc's own Stage 1.5
+       experimentation — the provisioning project's own Migration Stage
+       1.5 ([`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md#stage-5--migration-stage-1--15))
        is literally "first real run of `restore.yaml`" against a VM
        there. Re-running the drill there afterward is a cheap
        re-verification of the same thing, not the first real test of it.

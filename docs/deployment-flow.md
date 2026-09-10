@@ -137,10 +137,10 @@ archives onward to R2/B2/OCI. See
 ## Play 10 — Deploy OpenBao snapshot push tooling (`hosts: security`)
 
 `security` only. Renders `openbao_backup`'s rclone config and push
-script — the tooling Track A stage 2's backup drill runs by hand, not
-a systemd timer (no Vault credential exists yet that's safe to leave
-on disk for an unattended job; see
-[`openbao-backup-restore.md`](openbao-backup-restore.md)). Depends only
+script — the tooling
+[`openbao-backup-restore.md`](openbao-backup-restore.md)'s backup
+drill runs by hand, not a systemd timer (no Vault credential exists
+yet that's safe to leave on disk for an unattended job). Depends only
 on Play 6's openbao deployment, not on Play 9.
 
 ## Roles

@@ -1,4 +1,4 @@
-# OpenBao Backup and Restore (Track A Stage 2)
+# OpenBao Backup and Restore
 
 A different mechanism from [`disaster-recovery.md`](disaster-recovery.md)'s
 generic volume-backup pipeline — `docker/openbao/compose.yaml.j2` has no
@@ -14,16 +14,14 @@ reusing that pipeline.
 ## Why manual, not a systemd timer
 
 A scheduled job needs a Vault token on disk to authenticate with.
-Track A stage 3 (auth and least-privilege policies) minted exactly
-that — `controller`'s AppRole, whose policy grants read-only on
-`sys/storage/raft/snapshot` specifically for this — so lack of a safe
-credential is no longer the blocker it was when this doc was first
-written. What's still missing is somewhere unattended to run it from:
+[`openbao-auth.md`](openbao-auth.md)'s policy for `controller`'s
+AppRole grants read-only on `sys/storage/raft/snapshot` specifically
+for this. What's still missing is somewhere unattended to run it from:
 `controller` is the operator's own machine, never a `managed_hosts`
-member, and isn't meant to run scheduled jobs at all. That's Track B's
-`cd_agent` host's job
+member, and isn't meant to run scheduled jobs at all. That's the
+[CD agent project](projects/cd-agent.md)'s `cd_agent` host's job
 ([draft](decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)),
-not built yet — until then, this stage proves the mechanism with a
+not built yet — for now, this proves the mechanism with a
 human running it interactively, authenticating as `controller`'s
 AppRole rather than the root token (see "Running a backup" below).
 `ansible/roles/openbao_backup` only renders the push script and its
@@ -136,10 +134,10 @@ Confirmed against a real running instance, not inferred from docs:
   the throwaway host's own freshly-generated ones from its local
   `bao operator init`. The throwaway host's own pre-restore root token
   also stops working once the restore completes; `controller`'s
-  AppRole (part of the restored data itself, confirmed present since
-  Track A stage 3 landed) is what's valid against the restored data,
-  not a root token — see `openbao-vault-bootstrap.md` if a step ever
-  needs more than `controller`'s own read access.
+  AppRole (part of the restored data itself) is what's valid against
+  the restored data, not a root token — see
+  `openbao-vault-bootstrap.md` if a step ever needs more than
+  `controller`'s own read access.
 
 ## Restore drill
 
@@ -174,16 +172,13 @@ On a throwaway host — burn it afterward, don't reuse it:
    plain read is exactly what `controller`'s own policy already
    grants.
 
-Only after this passes for real does Track A stage 2 count as proven —
-see the roadmap's own stage-status table.
-
 ## Open follow-ups
 
 - No local retention on the `security`-side staging directory
   (`{{ compose_deploy_dir }}/openbao-backup/staging`) — encrypted
   snapshots accumulate there until deleted by hand. Low priority: the
   cloud copies, not this host's own, are the actual recovery path.
-- Track A stage 3 ([`openbao-auth.md`](openbao-auth.md)) grants the
+- [`openbao-auth.md`](openbao-auth.md) grants the
   `controller` policy read access to `sys/storage/raft/snapshot`, but
   `snapshot-push.sh` itself hasn't been changed to use it yet — it
   still needs a human to export `BAO_TOKEN`. The login mechanics are

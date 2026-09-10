@@ -11,8 +11,7 @@ It runs as `deploy.yaml`'s Play 0, tagged `always`, `gather_facts: false`
 (`main_domain`) and Play 1's implicit fact-gathering needs a live
 connection first.
 
-Every secret lives in OpenBao (Track A stage 4) except three permanent
-exceptions that stay in the controller-side file cache instead:
+Every secret lives in OpenBao except three permanent exceptions that stay in the controller-side file cache instead:
 `main-domain` and the `openbao-controller-role-id`/`-secret-id` AppRole
 credential — because resolving any of them is a prerequisite for
 reaching Vault at all. Every registry entry's `vault_scope` says where
@@ -62,7 +61,7 @@ any new secret or config value goes through the registry instead:
 
 | Format | Used for | Mechanism |
 | :--- | :--- | :--- |
-| `hex` | Most secrets | Vault-backed only, since Track A stage 6 retired the file-cache-backed generation path: check-then-write against KV v2 with `cas=0`, value generated via `python3 -c "import secrets; ..."` — see `ensure_secret.yaml`/`generate_vault_value.yaml`. |
+| `hex` | Most secrets | Vault-backed only: check-then-write against KV v2 with `cas=0`, value generated via `python3 -c "import secrets; ..."` — see `ensure_secret.yaml`/`generate_vault_value.yaml`. |
 | `uuid4` | `shlink-api-key` only | Vault-backed only, same reasoning as `hex` above — this format always generates via `python3 -c "import uuid; print(uuid.uuid4())"`, since `lookup('password')`'s `chars=` can't produce a structurally valid UUID4. |
 | `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, Beszel's post-boot key/token) | No generation step. Vault-backed entries (everything except the three permanent exceptions) are populated by `create_leaf_keys.py`/`create_rotation_keys.py` for cloud credentials, or `bootstrap_secrets.py` for everything else, before they're first read; missing → the play fails loudly naming the OpenBao path and pointing at the right script. File-cache-backed entries (`main-domain`, the controller AppRole pair) work the same as before: missing cache file → same loud failure, naming the file to create by hand. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank either way. |
 

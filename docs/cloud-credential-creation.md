@@ -62,14 +62,14 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   snapshots with — a different credential from the read-only one just
   above, scoped to the same `openbao-snapshots` bucket but write-only
   (no `deleteFiles`/admin capability, same shape as `cloud_sync`'s own
-  write leaves). Cached to OpenBao like every other leaf here (Track A
-  stage 5), unlike the break-glass credential. Supports `--rotate`,
-  same verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
+  write leaves). Cached to OpenBao like every other leaf here, unlike
+  the break-glass credential. Supports `--rotate`, same
+  verify-before-revoke behavior as `create_leaf_keys.py --rotate`.
 
 Two now-retired tools, `audit_vault_state.py` and
-`migrate_legacy_cache_to_vault.py`, existed only to bridge the Track A
-stage 5→6 transition (file cache → Vault) and were removed once stage 6
-deleted the file cache they compared/copied from. Restoring
+`migrate_legacy_cache_to_vault.py`, existed only to bridge the
+transition from file cache to Vault, and were removed once that file
+cache was deleted. Restoring
 cloud_credentials' Vault state after a genuine OpenBao re-init is now
 `restore_cloud_credentials_from_backup.py`'s job — see
 [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md).
@@ -330,10 +330,10 @@ strict enforcement.
 **Two historical one-time migrations, both now obsolete:** an earlier
 "leg"→"leaf" terminology rename, and an OCI classic-API→SCIM migration
 (ADR 0016), both used to instruct renaming/removing specific files
-under `ansible/files/secrets/`. Track A stage 6 removed that file cache
-entirely for cloud credentials — there's nothing left there to rename
-or clean up by hand. If you're restoring a controller old enough to
-still have pre-Track-A cache files lying around, `audit_secrets.py
+under `ansible/files/secrets/`. That file cache is gone entirely for
+cloud credentials now — there's nothing left there to rename or clean
+up by hand. If you're restoring a controller old enough to still have
+pre-Vault cache files lying around, `audit_secrets.py
 --local` flags anything under `ansible/files/secrets/` that doesn't
 match current config, regardless of vintage; see [ADR
 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)'s

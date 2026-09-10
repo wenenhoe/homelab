@@ -101,9 +101,9 @@ should go.
 | [`docs/uptime-kuma.md`](docs/uptime-kuma.md) | Push-monitor dead-man's-switch status per job, routed into the Telegram topics above. |
 | [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
-| [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook (Track A stage 1). |
-| [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook (Track A stage 2). |
-| [`docs/openbao-auth.md`](docs/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token (Track A stage 3). |
+| [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
+| [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
+| [`docs/openbao-auth.md`](docs/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
 | [`docs/openbao-vault-bootstrap.md`](docs/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
 | [`docs/openbao-reinit-runbook.md`](docs/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
 | [`docs/openbao-r2-read-watcher.md`](docs/openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open `OnFailure=` gap. |

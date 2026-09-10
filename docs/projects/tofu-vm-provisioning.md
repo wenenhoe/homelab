@@ -145,10 +145,13 @@ This stage is blocked on it too.
   before Stage 1 lands — see the
   [decision draft](../decisions/drafts/checkov-for-opentofu-not-yet-for-ansible-misconfig.md).
 - VM 202 ("Tailscale") is currently unmanaged by Ansible or Tofu —
-  likely becomes a Tofu-managed VM once this project reaches that
-  VMID. Subnet-router/exit-node consolidation ideas from an earlier
-  planning thread are worth revisiting then as their own project, not
-  scoped here.
+  becomes a Tofu-managed VM once this project reaches that VMID. It's
+  the only Tailscale node in the lab today, already acting as the
+  subnet router — no fan-out of per-VM installs to consolidate, and no
+  exit-node use case exists. What's left for later is routine: advertise
+  new subnets as VLANs 30/40 come online, gated by Tailscale ACLs, and
+  apply a public-vs-Tailscale-only exposure policy once a public
+  service actually exists. Neither needs its own project.
 
 ## Closing checklist
 

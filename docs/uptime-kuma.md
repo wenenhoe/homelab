@@ -81,8 +81,10 @@ future cert under it — not just lldap's. Unlike `telegram_notify@` (one
 shared bot, one shared credentials file works for every instance), each
 cert needs its *own* Kuma monitor and push URL, so `OnSuccess=` resolves
 to `uptime-kuma-push-cert-renewer-%i.service`, and each consuming role
-installs its own concretely-named unit (`lldap_cert` installs
-`uptime-kuma-push-cert-renewer-lldap.service`). A future instance with
+installs its own concretely-named unit (`step_ca_cert` installs
+`uptime-kuma-push-cert-renewer-lldap.service` for its lldap instance,
+`uptime-kuma-push-cert-renewer-openbao.service` for its openbao
+instance). A future instance with
 no matching unit installed just gets a harmless "unit not found" line in
 the journal at trigger time — standard systemd dependency-resolution
 behavior, not a failure of the renewal itself.

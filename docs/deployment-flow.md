@@ -101,11 +101,11 @@ before Play 8 or the first backup upload fails with `NoSuchBucket`. See
 ## Play 6 — Wire lldap, tinyauth, and openbao into step-ca (`hosts: security`)
 
 After lldap/step-ca/tinyauth/openbao all deploy in Play 4. `step_ca_client`
-caches step-ca's root cert on the host; `lldap_cert` issues lldap's
+caches step-ca's root cert on the host; `step_ca_cert` issues lldap's
 initial LDAPS cert and installs its systemd renewal timer;
 `tinyauth_ca_trust` builds and seeds the CA bundle tinyauth needs to
-trust that cert; `openbao_cert` issues OpenBao's TLS listener cert the
-same way `lldap_cert` does — see [`openbao.md`](openbao.md). `step`
+trust that cert; `step_ca_cert`'s second instance issues OpenBao's TLS
+listener cert the same way — see [`openbao.md`](openbao.md). `step`
 itself runs via the `smallstep/step-cli` container image throughout,
 not a host-installed binary — see [`lldap.md`](lldap.md).
 

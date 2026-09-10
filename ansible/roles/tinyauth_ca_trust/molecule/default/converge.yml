@@ -36,7 +36,7 @@
     # trusts a cert that's actually step-ca-issued, with insecure:false,
     # not routing around that question with a shortcut. Same
     # step-cli-container technique .github/scripts/seed-lldap-ci-cert.sh
-    # and lldap_cert's own role both use for real issuance.
+    # and step_ca_cert's own role both use for real issuance.
     - name: Ensure a scratch dir exists for this scenario's lldap cert
       ansible.builtin.file:
         path: /tmp/tinyauth-ca-trust-lldap-certs

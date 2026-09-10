@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI-only: exercises the real lldap_cert issuance path against a
+# CI-only: exercises the real step_ca_cert issuance path against a
 # throwaway step-ca instead of an independently-authored openssl
 # self-signed cert, then seeds the result into lldap's `certs` volume —
 # used by _compose-boot-test.yml for the lldap matrix entry only. See
@@ -11,7 +11,7 @@
 # to exist for the length of this job, so the extra machinery that setup
 # exists for (separate CA/provisioner passwords, a non-default claim
 # duration, persistence across restarts) doesn't apply here. The `step
-# ca certificate` call below is the same one lldap_cert's real Ansible
+# ca certificate` call below is the same one step_ca_cert's real Ansible
 # task runs — same flags, same shape — against this throwaway CA
 # instead of production's.
 #

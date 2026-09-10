@@ -37,7 +37,7 @@ services:
         max-file: "5"
     # Published directly (not routed through Caddy), same as lldap's
     # LDAPS listener - see docs/openbao.md. The certs volume starts
-    # empty on a fresh deploy, so this crash-loops until openbao_cert
+    # empty on a fresh deploy, so this crash-loops until step_ca_cert
     # issues the leaf cert (deploy.yaml's Play 6) - the same tolerated
     # bootstrap race docs/lldap.md documents for tinyauth. The data
     # volume, unlike certs, is chowned by roles/openbao itself (see

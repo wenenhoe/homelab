@@ -125,8 +125,7 @@
 
 # Handlers only flush at the end of the play by default — "Enable and
 # start" below needs systemd to have already picked up the current unit
-# content first, same reasoning as lldap_cert's own identical task (see
-# its tasks/main.yaml).
+# content first.
 - name: Flush handlers so systemd has the current unit definitions
   ansible.builtin.meta: flush_handlers
 

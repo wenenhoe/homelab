@@ -58,7 +58,7 @@
   // of scope entirely.
   //
   // This is an explicit per-role list, not a blanket "**/molecule/**".
-  // bind9/caddy/lldap_cert aren't on it, but need no entry either: their
+  // bind9/caddy/step_ca_cert aren't on it, but need no entry either: their
   // molecule fixtures are symlinks to the real production compose.yaml/
   // configs (see docs/molecule-testing.md's "Fixtures for apps with a
   // real prod counterpart" section), and Renovate ignores symlinks
@@ -144,9 +144,9 @@
     },
     {
       customType: "regex",
-      description: "lldap_cert's step-cli image, a plain Ansible variable default rather than a recognized image: key under a docker module",
-      managerFilePatterns: ["/^ansible/roles/lldap_cert/defaults/main\\.ya?ml$/"],
-      matchStrings: ["lldap_cert_step_cli_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      description: "step_ca_cert's step-cli image, a plain Ansible variable default rather than a recognized image: key under a docker module",
+      managerFilePatterns: ["/^ansible/roles/step_ca_cert/defaults/main\\.ya?ml$/"],
+      matchStrings: ["step_ca_cert_step_cli_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
       datasourceTemplate: "docker",
     },
     {
@@ -168,12 +168,9 @@
     },
     {
       customType: "regex",
-      description: "openbao_cert's step-cli and openbao images, plain Ansible variable defaults rather than recognized image: keys under a docker module",
-      managerFilePatterns: ["/^ansible/roles/openbao_cert/defaults/main\\.ya?ml$/"],
-      matchStrings: [
-        "openbao_cert_step_cli_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
-        "openbao_cert_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
-      ],
+      description: "openbao's chown-image pin for cert post-issuance/renewal, a plain Ansible variable passed at include_role rather than a recognized image: key under a docker module",
+      managerFilePatterns: ["/^ansible/playbooks/deploy\\.yaml$/"],
+      matchStrings: ["step_ca_cert_chown_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
       datasourceTemplate: "docker",
     },
   ],
@@ -316,11 +313,12 @@
       groupSlug: "mc-backup",
     },
 
-    // openbao/openbao is pinned in the production compose file plus two
-    // ansible role defaults (openbao's own, and openbao_cert's — the
-    // latter resolves the image only to read its non-root UID for a
-    // post-issuance chown, never to run the server itself; see
-    // docs/openbao.md). All three need to stay in lockstep.
+    // openbao/openbao is pinned in the production compose file, openbao's
+    // own ansible role defaults, and deploy.yaml's step_ca_cert
+    // include_role vars (the latter resolves the image only to read its
+    // non-root UID for a post-issuance/renewal chown, never to run the
+    // server itself; see docs/openbao.md). All three need to stay in
+    // lockstep.
     {
       matchDepNames: ["openbao/openbao"],
       groupName: "openbao (compose + ansible role defaults — must move together)",
@@ -340,13 +338,12 @@
     },
 
     // smallstep/step-ca and smallstep/step-cli are pinned independently
-    // in four places with no shared source of truth: lldap_cert's and
-    // openbao_cert's own step-cli defaults, the CI script that seeds
-    // step-ca for the compose-boot-test workflow, and molecule_helpers'
-    // step-ca test target. All but the last need the custom regex
-    // managers above (that one's a real image: key, already covered) —
-    // group them so a version bump can't land in one place and leave
-    // the others stale.
+    // in three places with no shared source of truth: step_ca_cert's own
+    // step-cli default, the CI script that seeds step-ca for the
+    // compose-boot-test workflow, and molecule_helpers' step-ca test
+    // target. The first two need the custom regex managers above (the
+    // last one's a real image: key, already covered) — group them so a
+    // version bump can't land in one place and leave the others stale.
     {
       matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
       groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",

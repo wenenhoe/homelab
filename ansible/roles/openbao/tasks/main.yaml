@@ -30,7 +30,7 @@
 # A one-shot compose service for this doesn't work: Compose always
 # reports a completed `restart: "no"` container as needing to run
 # again on every `up`, showing `changed` forever —
-# ./molecule-test-all.sh openbao_cert caught this directly via its
+# ./molecule-test-all.sh step_ca_cert caught this directly via its
 # idempotence check. See docs/openbao.md for the full story. A plain,
 # guarded `docker run` (below) has no such issue.
 - name: "Ensure the data volume is owned by the openbao user, not root [block]"

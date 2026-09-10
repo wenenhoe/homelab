@@ -1,0 +1,16 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the missing-target guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/step_ca_cert_not_running_halt_marker
+      register: step_ca_cert_not_running_marker
+      failed_when: not step_ca_cert_not_running_marker.stat.exists
+
+    - name: Confirm step_ca_cert never got as far as installing any renewal unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/cert-renewer@.service
+      register: step_ca_cert_not_running_unit
+      failed_when: step_ca_cert_not_running_unit.stat.exists

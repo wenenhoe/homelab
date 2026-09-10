@@ -46,7 +46,8 @@ app_registry: >-
 `combine()` adds whatever synthetic fixture-only apps the scenario needs
 (`testapp` above has no real registry entry to extract). Every scenario
 with a real prod counterpart uses this now — `bind9`, `caddy`,
-`caddy_cert_expiry`, `lldap_cert` (×2), `tinyauth`, and
+`caddy_cert_expiry`, `step_ca_cert` (×3: `default`,
+`signal_chown`, `renewal_timing`), `tinyauth`, and
 `tinyauth_ca_trust`. `caddy_cert_expiry`'s `no_routed_apps` scenario is
 the one holdout: its `app_registry` entries are empty stubs on purpose
 (the guard it tests fires before that content would ever matter), not a

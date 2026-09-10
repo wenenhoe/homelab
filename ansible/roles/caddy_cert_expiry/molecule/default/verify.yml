@@ -161,9 +161,8 @@
         replace: 'HOST="nowhere.invalid"'
 
     - name: Start cert-expiry-check.service directly, expecting it to fail  # noqa: command-instead-of-module
-      # Same reasoning as cloud_sync/lldap_cert's equivalent tasks: raw
-      # systemctl, not the systemd_service module, since this Type=oneshot
-      # unit's ExecStart is *expected* to fail here.
+      # Raw systemctl, not the systemd_service module, since this
+      # Type=oneshot unit's ExecStart is *expected* to fail here.
       ansible.builtin.command: systemctl start cert-expiry-check.service
       failed_when: false
       changed_when: false

@@ -1,5 +1,5 @@
 ---
-# step_ca_client_root_cert_path is also referenced by lldap_cert and
+# step_ca_client_root_cert_path is also referenced by step_ca_cert and
 # tinyauth_ca_trust — both depend on this role having populated it first.
 step_ca_client_root_cert_path: /etc/step-ca/root_ca.crt
 step_ca_client_container_name: step-ca

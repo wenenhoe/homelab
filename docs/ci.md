@@ -273,7 +273,7 @@ cert for it from a throwaway `smallstep/step-ca` container (the official
 image, driven by its own stock `DOCKER_STEPCA_INIT_*` auto-init — not
 `docker/step-ca`'s own compose stack, which this CA only needs to
 outlive a single job step, not persist), using the same `step ca
-certificate` call `lldap_cert`'s real Ansible task runs — see
+certificate` call `step_ca_cert`'s real Ansible task runs — see
 [`seed-lldap-ci-cert.sh`](../.github/scripts/seed-lldap-ci-cert.sh). This
 exercises the real issuance path end to end rather than a parallel,
 independently-authored openssl fixture, and needs no real DigitalOcean

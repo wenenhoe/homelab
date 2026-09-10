@@ -83,3 +83,4 @@ how a real fact quietly gets lost instead of promoted.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | In progress | OpenTofu-driven Proxmox VM provisioning. |
+| [`cd-agent.md`](cd-agent.md) | Not started | Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole. |

@@ -19,9 +19,7 @@ reaching Vault at all. Every registry entry's `vault_scope` says where
 in Vault it lives, including every `cloudflare-r2-*`/`backblaze-b2-*`/
 `oci-*` entry (`vault_scope: cloud_credentials/leaf`, the same top-level
 path `ansible/cloud_credentials/*.py` itself writes to — see
-`cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See
-`secrets_registry.yaml`'s own header comment,
-[`openbao-migration-roadmap.md`](openbao-migration-roadmap.md), and
+`cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secrets_registry.yaml`'s own header comment and
 [ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)
 for the full picture.
 

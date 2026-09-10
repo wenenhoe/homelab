@@ -1,9 +1,9 @@
 # OpenBao: Secrets Store Bootstrap
 
 `openbao` is this migration's replacement for the file-based secrets
-cache ([ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)) —
-see [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
-the full build order. This doc covers Track A stage 1 only: deploying
+cache
+([ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)).
+This doc covers Track A stage 1 only: deploying
 it, its TLS cert, and getting it initialized and unsealed. Auth and
 policies (stage 3) are covered in
 [`openbao-auth.md`](openbao-auth.md); the secrets role migration
@@ -324,5 +324,6 @@ renew/chown/reload sequence itself) has been exercised for real; this
 is closing the loop on the last untested piece, not proving anything
 new.
 
-[`openbao-migration-roadmap.md`](openbao-migration-roadmap.md)'s stage
-1 row is `Done`.
+This doesn't block Track A's completion — see the
+[CD agent project doc](projects/cd-agent.md) for what's still in
+progress in the broader migration.

@@ -2,10 +2,8 @@
 
 Gives `controller` its own AppRole so day-to-day operation stops
 depending on the initial root token. See
-[ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md) for the
-design this implements, and
-[`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
-where this sits in the overall migration.
+[ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)
+for the design this implements.
 
 ## Why a runbook, not an Ansible role
 

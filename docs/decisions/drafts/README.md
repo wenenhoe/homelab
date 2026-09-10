@@ -11,4 +11,5 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 ## Open
 
 - [`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md)
+- [`private-gitea-actions-not-pull-based-preloop-poller.md`](private-gitea-actions-not-pull-based-preloop-poller.md)
 - [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md)

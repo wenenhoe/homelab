@@ -30,7 +30,7 @@
         - name: Confirm the failure came from the "not running" guard itself
           ansible.builtin.assert:
             that:
-              - ansible_failed_task.name == "Fail loudly if this app isn't running yet: widget"
+              - 'ansible_failed_task.name == "Fail loudly if this app isn''t running yet: widget"'
               - "'No running \"widget-test\" container found' in ansible_failed_result.msg"
             fail_msg: >-
               step_ca_cert failed, but not for the reason this scenario

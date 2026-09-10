@@ -10,8 +10,8 @@ The lab is organized as a small group of hosts, each owning a subdomain of `lan.
 | :--- | :--- | :--- |
 | `services` | Core infra: DNS (BIND9), utility apps, DIUN update notifications | `svc.lan.{{ main_domain }}` |
 | `play` | Game server hosting (Minecraft) | `play.lan.{{ main_domain }}` |
-| `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub | `sec.lan.{{ main_domain }}` |
-| `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host | `store.lan.{{ main_domain }}` |
+| `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub, OpenBao secrets store | `sec.lan.{{ main_domain }}` |
+| `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host, `cloud_sync` relay to R2/B2/OCI | `store.lan.{{ main_domain }}` |
 
 Every `app_hosts` member runs its own Caddy instance and terminates TLS
 for its own `*.{{ caddy_domain }}` wildcard via DNS-01 (DigitalOcean).
@@ -228,7 +228,10 @@ deployed images and notifies over Telegram on updates. **Beszel**
 monitors host/container health lab-wide — see
 [`docs/beszel.md`](docs/beszel.md). Every host runs a **`backup_agent`**
 pushing GPG-encrypted archives to **SeaweedFS** on `storage` nightly —
-see [`docs/disaster-recovery.md`](docs/disaster-recovery.md). The rest of
+see [`docs/disaster-recovery.md`](docs/disaster-recovery.md), relayed
+further offsite by **`cloud_sync`** to R2/B2/OCI. Every secret in this
+repo is generated, cached, and rotated through **OpenBao** on
+`security` — see [`docs/openbao.md`](docs/openbao.md). The rest of
 `docker/` is independently deployable Compose stacks (dashboards, media
 tools, Minecraft, link shortener, pastebin, web terminal, etc.), each
 just an `app_registry` entry plus a `docker/<app>/` directory (see

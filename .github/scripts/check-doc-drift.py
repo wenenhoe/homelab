@@ -25,6 +25,7 @@ ANCHOR_SCAN_EXCLUDE_DIRS = {".git", "node_modules", ".venv"}
 
 CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
 SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")
+PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
 
 
 def fail(msg: str) -> None:
@@ -55,13 +56,13 @@ def check_readme() -> None:
 
 def check_subdirectory_indexes() -> None:
     """Same check as check_readme(), one level down: every ADR under
-    docs/decisions/ is linked in docs/decisions/README.md, and every
-    diagram under docs/architecture/ is linked in
-    docs/architecture/README.md — both directions, same substring
-    matching. check_readme()'s docs/*.md glob is non-recursive, so
-    these two subdirectories need their own pass.
+    docs/decisions/, diagram under docs/architecture/, and project doc
+    under docs/projects/ is linked in that subdirectory's own
+    README.md — both directions, same substring matching.
+    check_readme()'s docs/*.md glob is non-recursive, so these
+    subdirectories need their own pass.
     """
-    for subdir in ("decisions", "architecture"):
+    for subdir in ("decisions", "architecture", "projects"):
         index_path = ROOT / "docs" / subdir / "README.md"
         index = read(index_path)
 
@@ -241,8 +242,10 @@ def check_no_stale_anchors() -> None:
     (markdown links or plain-text mentions in YAML/Python comments)
     resolves to a real file with a heading that slugs to that anchor;
     every same-file link (just `#anchor`, no filename) in a .md file
-    does too. Catches the class of bug a file move/rename/split leaves
-    behind — a reference nothing else here checks for.
+    does too. Every plain markdown link to a `.md` file with no
+    anchor also has to resolve to a real file — catches a link left
+    dangling by a file move/rename/delete that happens to not carry
+    an anchor, which the anchor checks above wouldn't otherwise see.
     """
     heading_cache: dict[Path, set[str]] = {}
 
@@ -273,6 +276,12 @@ def check_no_stale_anchors() -> None:
             for anchor in SAME_FILE_ANCHOR_RE.findall(text):
                 if anchor not in slugs_for(f):
                     fail(f"{rel_f}: references #{anchor} (same-file), but has no heading that slugs to '{anchor}'")
+
+        for rel in PLAIN_MD_LINK_RE.findall(text):
+            if f.name == "TEMPLATE.md":
+                continue  # placeholder syntax (e.g. NNNN-slug.md), not a real link
+            if _resolve_anchor_target(f, rel) is None:
+                fail(f"{rel_f}: links {rel}, which doesn't exist")
 
 
 def main() -> int:

@@ -1,9 +1,10 @@
 # VM Provisioning: Proxmox via OpenTofu
 
-**Status: planned, not yet implemented.** No OpenTofu code exists in
-this repo yet — this is the design record for the scheme it'll follow,
-written ahead of the work so the boundary with Ansible is settled
-before any code lands. Nothing below is running today.
+The design record for OpenTofu-driven Proxmox provisioning: VMID/VLAN/IP
+scheme, MAC scheme, Ubuntu/OPNsense provisioning, and the boundary with
+Ansible. Build status and staged rollout live in
+[`docs/projects/tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md),
+not here.
 
 OpenTofu owns everything up to "the VM exists, boots, and can be reached
 over SSH with the right network config." Ansible's job starts there,
@@ -24,7 +25,7 @@ VLAN/subnet:
 | 2XX | Production — Services | 20 | `192.168.20.0/24` | Primary target — current managed hosts + OPNsense |
 | 3XX | Production — Others | 30 | `192.168.30.0/24` | Reserved, unused today |
 | 4XX | Production — Desktops | 40 | `192.168.40.0/24` | **Out of scope** — GPU passthrough/manual OS installs, not cloud-init-able the same way |
-| 5XX | Experimental | 50 | `192.168.50.0/24` | Migration staging (see below) |
+| 5XX | Experimental | 50 | `192.168.50.0/24` | Migration staging — see the project doc |
 | 6XX–8XX | Unassigned | — | — | Reserved for future ranges as needed |
 | 9XX | Archived | — (not running) | — | No networking required |
 
@@ -57,8 +58,10 @@ prefix (stays recognizable as Proxmox-owned) and encodes the VMID plus
 NIC index into the rest: `BC:24:11:{VMID as 4 hex digits}:{NIC index}`
 — e.g. VMID 201, NIC 0 → `BC:24:11:00:C9:00`. Deterministic per VMID, so
 a rebuilt VM gets the same MAC every time — required for the netplan
-`match: macaddress` override to stay stable across rebuilds, and usable
-later as a Kea static-reservation key if any VLAN needs one.
+`match: macaddress` override below to stay stable across rebuilds.
+A Kea static-reservation key was the other option this MAC scheme
+would have supported, but that path isn't taken — see the Ubuntu VMs
+section for why.
 
 ## Ubuntu VMs
 
@@ -66,12 +69,17 @@ Tofu builds the cloud-init template itself (downloads the official
 Ubuntu 26.04 cloud image via `local-lvm`) rather than relying on a
 pre-existing one, registered as a proper Proxmox template VM in the 1XX
 range (e.g. the next free ID below 200) alongside the existing
-Windows templates (103–105), then clones from it per VM. Network config — including the `dhcp-identifier: mac`
-override needed for OPNsense compatibility — is injected via cloud-init
-`network-config` at first boot, keyed off the deterministic MAC above.
-This avoids the alternative (an Ansible-rendered netplan file post-boot)
-racing against whatever address the VM picks up before Ansible can
-connect at all.
+Windows templates (103–105), then clones from it per VM. Network
+config is injected via cloud-init `network-config` at first boot: a
+static IP (the VMID-derived address from the scheme above), gateway,
+and nameservers, matched to the VM by `match: macaddress` against the
+deterministic MAC — no DHCP involved at all. This avoids the
+alternative (an Ansible-rendered netplan file post-boot) racing
+against whatever address the VM picks up before Ansible can connect
+at all, and sidesteps DHCP/Kea entirely rather than working around it
+— see
+[`netplan-dhcp-identifier.md`](netplan-dhcp-identifier.md) for the
+current-fleet bug that's the real motivation for skipping DHCP here.
 
 Default sizing (adjust per host once real usage is observed):
 
@@ -99,40 +107,29 @@ phases:
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
 
-**DNS.** OPNsense's bind9 must be managed through OPNsense itself (no
-direct file access — same constraint as its UI/API-only config model).
-The existing Kea-DDNS-push design is what causes the journal corruption;
-since Tofu now assigns every managed VM's IP deterministically at
-provision time, DDNS is dropped in favor of static host overrides,
-pushed through OPNsense's API in Phase 2. Non-Tofu-managed DHCP
-clients (the `.50`–`.254` pool) have no fixed IP to override statically
-and keep using DDNS.
+**DNS.** OPNsense's BIND plugin manages zones through its own model —
+adding ordinary A-record host overrides via its config API is normal,
+supported usage; hand-editing raw zone files or adding custom
+`named.conf` directives isn't, and isn't needed here. Kea's DDNS-push
+against BIND (RFC 2136 dynamic updates) is a known source of
+zone-journal corruption in this class of setup — a documented class of
+BIND behavior, not specific to this lab. Since Tofu assigns every
+managed VM's IP deterministically at provision time, those VMs don't
+need DDNS at all: Phase 2 pushes static host overrides through
+OPNsense's API instead, sidestepping the corruption risk entirely for
+anything Tofu manages. Non-Tofu-managed DHCP clients (the
+`.50`–`.254` pool) have no fixed IP to override statically and keep
+using DDNS — the one place this class of risk still applies, since
+that pool is for devices Tofu doesn't know about.
+
+Whether Phase 2 stays OPNsense-API-driven, or Tofu-sourced A records
+move to a dedicated internal nameserver instead, is an open decision —
+see the
+[decision draft](decisions/drafts/dedicated-security-bind9-for-tofu-vm-dns.md).
 
 **Boot order.** `order=1` for OPNsense with `up=60` (60s) before any
 dependent VM is considered clear to start — gives DHCP/DNS time to come
 up before anything else races to request an address or resolve a name.
-
-## Migration staging
-
-The current 2XX hosts are live and can't be edited in place, and
-resources on `pve` are tight enough that downsizing during the move is
-part of the plan. Migration happens in stages rather than a single
-cutover:
-
-1. **Stage 1** — Tofu provisions a new OPNsense + one Ubuntu VM on the
-   `5XX` block (VLAN 50), fully isolated from production. Its WAN NIC
-   plugs into the same VLAN-aware trunk bridge as everything else,
-   tagged into VLAN 20 — an ordinary DHCP client of the *current*
-   OPNsense's LAN, not the physical WAN bridge. This lets it reach
-   `storage` (still live, same VLAN) and the internet (NATed through the
-   current OPNsense) with zero firewall/routing changes on production.
-2. **Stage 1.5** — first real run of `restore.yaml` against the Stage 1
-   VM(s): validates disaster recovery and rehearses the actual cutover
-   mechanics at the same time.
-3. **Stage 2** — once restore is proven, rebuild on the real VMID ranges
-   (1XX/2XX/...), cut over, decommission the old VMs. `storage` stays up
-   throughout every stage — it holds both the Tofu state backend and the
-   DR restore target.
 
 ## Tofu ↔ Ansible handoff
 
@@ -144,13 +141,14 @@ write-ownership single-purpose, consistent with how `host_vars` /
 
 ## State backend & secrets
 
-Tofu state lives in the SeaweedFS S3 bucket on `storage` (already
-S3-compatible; a proper offsite/cloud backend is a later replacement).
-This is why `storage` is the one host kept running through every
-migration stage — it's a dependency of the tooling itself, not just of
-the apps it hosts.
+Tofu state lives in a dedicated SeaweedFS S3 bucket (`opentofu-state`)
+on `storage` (already S3-compatible; a proper offsite/cloud backend is
+a later replacement). This is why `storage` is the one host kept
+running through every migration stage — it's a dependency of the
+tooling itself, not just of the apps it hosts.
 
-Proxmox API token and OPNsense API key are Tofu-only secrets, kept
-separate from `secrets_registry.yaml`/`bootstrap_secrets.py` since
-Ansible never reads them — likely a small gitignored `.tfvars` plus its
-own bootstrap helper, mirroring that pattern without merging into it.
+Where Tofu's own secrets (Proxmox API token, OPNsense API key, the
+state-backend S3 credential) live is not yet decided — see the
+[decision draft](decisions/drafts/tofu-secrets-and-state-backend-location.md)
+for the three options under consideration, and the project doc's
+Stage 1 for status.

@@ -119,9 +119,9 @@ can't fix.
    **before** any `ansible-playbook deploy.yaml` run against the fresh
    Vault. Skipping this means the next `deploy.yaml` silently mints new
    random values for every `hex`/`uuid4` secret in the registry
-   (ADR 0025's Context explains why). Since Track A stage 6 gave every
-   `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` registry entry its own
-   `vault_scope` (`cloud_credentials/leaf`), this one step now also
+   (ADR 0025's Context explains why). Since every
+   `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` registry entry now has its
+   own `vault_scope` (`cloud_credentials/leaf`), this one step now also
    restores all 20 of those - not just the `hosts/*` ones.
 6. `python3 restore_cloud_credentials_from_backup.py <backup-dir>` -
    restores what step 5 can't reach: cloud_credentials' internal

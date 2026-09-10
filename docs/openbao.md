@@ -1,15 +1,13 @@
 # OpenBao: Secrets Store Bootstrap
 
 `openbao` is this migration's replacement for the file-based secrets
-cache ([ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)) —
-see [`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
-the full build order. This doc covers Track A stage 1 only: deploying
-it, its TLS cert, and getting it initialized and unsealed. Auth and
-policies (stage 3) are covered in
-[`openbao-auth.md`](openbao-auth.md); the secrets role migration
-(stage 4) has its own doc once it lands. The actual backup/restore
-drill (stage 2) has its own doc:
-[`openbao-backup-restore.md`](openbao-backup-restore.md).
+cache
+([ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)).
+This doc covers deploying it, its TLS cert, and getting it initialized
+and unsealed. Auth and policies are covered in
+[`openbao-auth.md`](openbao-auth.md); the secrets role migration is
+covered in [`secrets.md`](secrets.md). The backup/restore drill has
+its own doc too: [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 ## Deployment
 
@@ -20,11 +18,11 @@ as `step-ca`/`tinyauth`/`lldap`
 config; `app_registry.yaml`'s `openbao` entry seeds it into a `config`
 named volume the same way `dashy` seeds its `conf.yml`
 ([`volumes.md`](volumes.md)). `data` (raft state) and `certs` (TLS
-material) are separate named volumes — `data` is the one volume in
-this whole repo that must never be wiped by `cleanup.yaml`/a volume
-reset outside a deliberate restore, since it's the only copy of
-whatever's been written to Vault until stage 2's snapshot backup
-exists and stage 6 retires the file cache it's currently backing up.
+material) are separate named volumes — `data` must never be wiped by
+`cleanup.yaml`/a volume reset outside a deliberate restore; recovering
+it means restoring from the raft snapshot backup
+([`openbao-backup-restore.md`](openbao-backup-restore.md)), not just
+recreating the volume.
 
 No `backup:` entry in `app_registry.yaml` — the generic `backup_agent`
 path stops the container and tars its volumes
@@ -32,14 +30,15 @@ path stops the container and tars its volumes
 would mean sealing it (and a manual unseal per
 [0018](decisions/0018-manual-shamir-unseal.md)) on every backup cycle.
 OpenBao's own `bao operator raft snapshot save` is the backup mechanism
-here instead — Track A stage 2, not yet built.
+here instead — see
+[`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 No `caddy:` entry either, same reasoning `step-ca` already documents:
 an admin/secrets API isn't something to put behind an ordinary
 reverse-proxy vhost. Unlike step-ca, though, OpenBao does need
 reachability from other hosts eventually — `controller`-run plays on
-hosts other than `security` will need to reach Vault's API once stage 4
-lands. `compose.yaml.j2` publishes `8200` directly on the host
+hosts other than `security` reach Vault's API for every secret now
+sourced from it. `compose.yaml.j2` publishes `8200` directly on the host
 (`0.0.0.0:8200:8200`), the same bypass-Caddy-but-still-TLS approach
 lldap's LDAPS listener uses (see [`lldap.md`](lldap.md)) — not proxied
 HTTP-through-Caddy, since API/token clients don't want Caddy's
@@ -52,7 +51,8 @@ which this deliberately isn't, so it needed the same manual treatment
 `sso` already gets in the same file.
 
 `ui = false` in the rendered config — this repo's day-to-day OpenBao
-consumers are Ansible and (once Track B lands) the CD agent, not a
+consumers are Ansible and, once the
+[CD agent project](projects/cd-agent.md) lands, the CD agent — not a
 human clicking through a browser. A human who needs to look inside
 Vault directly can still do it from the CLI (`docker exec -it openbao
 bao ...`, see below) or `ssh -L 8200:localhost:8200` for a one-off UI
@@ -274,13 +274,14 @@ The command prints 3 unseal key shares and an initial root token,
    uses for the GPG private key.
 3. Do not leave any of this in shell scrollback, a file on `security`,
    or a file on `controller`. Nothing here is written to
-   `ansible/files/secrets/` — that cache is exactly the mechanism Track A
-   stage 6 retired.
+   `ansible/files/secrets/` — that cache only holds the three
+   permanent bootstrap exceptions now (`main-domain`,
+   `openbao-controller-role-id`/`-secret-id`).
 
 The root token is not one of 0017's two recovery-critical items, but
 treat it with the same discipline for now: it's the only credential
 that can configure anything in a freshly-initialized, empty Vault.
-[`openbao-auth.md`](openbao-auth.md) (Track A stage 3) is what gives
+[`openbao-auth.md`](openbao-auth.md) is what gives
 `controller` its own AppRole and revokes this initial root token once
 that AppRole is proven — don't revoke it before then, and don't leave
 it standing indefinitely after.
@@ -324,5 +325,6 @@ renew/chown/reload sequence itself) has been exercised for real; this
 is closing the loop on the last untested piece, not proving anything
 new.
 
-[`openbao-migration-roadmap.md`](openbao-migration-roadmap.md)'s stage
-1 row is `Done`.
+This doesn't block Track A's completion — see the
+[CD agent project doc](projects/cd-agent.md) for what's still in
+progress in the broader migration.

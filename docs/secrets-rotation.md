@@ -17,9 +17,9 @@ Every `hex`/`uuid4` entry is required to have a `vault_scope` (see
 a fresh value written in place with `cas=<current version>` — an
 update, not a delete, since `controller`'s AppRole policy grants no
 `delete` on `secret/data/hosts/*` by design
-([`openbao-auth.md`](openbao-auth.md)'s stage-3 runbook proves this).
-There's no file-cache-backed rotation path any more — Track A stage 6
-removed it, since no `hex`/`uuid4` entry had ever actually used it.
+([`openbao-auth.md`](openbao-auth.md)'s runbook proves this).
+There's no file-cache-backed rotation path any more — no `hex`/`uuid4`
+entry had ever actually used it.
 Either way this does **not** redeploy anything itself — check the table
 below for which `--limit` group the secret you rotated actually needs,
 then run:

@@ -1,11 +1,9 @@
-# OpenBao Auth and Policies (Track A Stage 3)
+# OpenBao Auth and Policies
 
 Gives `controller` its own AppRole so day-to-day operation stops
 depending on the initial root token. See
-[ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md) for the
-design this implements, and
-[`openbao-migration-roadmap.md`](openbao-migration-roadmap.md) for
-where this sits in the overall migration.
+[ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)
+for the design this implements.
 
 ## Why a runbook, not an Ansible role
 
@@ -103,8 +101,8 @@ so it goes on the individual command, never baked into this alias.
      a full `deploy.yaml` run; short enough that a token leaked from
      one run doesn't outlive it by much. If a run genuinely needs
      longer, re-authenticate rather than renew — simpler than adding
-     a renewal path to a role this era deletes outright once Track B
-     lands.
+     a renewal path to a role deleted outright once the
+     [CD agent project](projects/cd-agent.md) lands.
    - `secret_id_ttl` **2160h (90 days), `secret_id_num_uses=0`
      (unlimited within that window).** Matches this repo's existing
      90-day rotation cadence for every other leaf/rotation credential
@@ -143,10 +141,10 @@ so it goes on the individual command, never baked into this alias.
 6. **Confirm the AppRole actually works — from `controller`, not just
    from inside the `openbao` container.** A login from `security` via
    `docker exec` only proves the policy/role config is right; it
-   doesn't prove `controller` can reach Vault's API at all, which is
-   the thing this stage exists to unblock for stage 4. From
-   `controller`, using the `role_id`/`secret_id` files cached in step
-   5:
+   doesn't prove `controller` can reach Vault's API at all, which the
+   secrets role migration (`ensure_secret.yaml` reading/writing Vault)
+   depends on. From `controller`, using the `role_id`/`secret_id`
+   files cached in step 5:
 
    ```sh
    export BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh \
@@ -198,7 +196,8 @@ so it goes on the individual command, never baked into this alias.
 
    From this point, the root token from `openbao.md`'s Init runbook no
    longer exists. Any future admin/debug access mints a fresh,
-   narrowly-scoped, short-lived token the same way stage 2's restore
+   narrowly-scoped, short-lived token the same way
+   [`openbao-backup-restore.md`](openbao-backup-restore.md)'s restore
    drill already does — never a standing root credential.
 
 ## What this doesn't cover yet
@@ -209,6 +208,6 @@ hand — see [`openbao-backup-restore.md`](openbao-backup-restore.md)'s
 script to actually log in via this AppRole is separate, deliberately
 deferred work (that doc explains why).
 
-Track A stage 4 (migrating `ensure_secret.yaml` to Vault) is the first
-thing that reads `openbao-controller-role-id`/`-secret-id` from
-Ansible's own secrets cache.
+`ensure_secret.yaml` is what reads
+`openbao-controller-role-id`/`-secret-id` from Ansible's own secrets
+cache.

@@ -37,6 +37,19 @@ point: assign the next sequential number, drop the `Assumptions`
 section entirely (everything in it is now either settled fact folded
 into Context, or moot), set `Status: Accepted` directly, move the file
 from `drafts/` into this directory, and add it to the index below.
+Update every place elsewhere in the repo that links to the draft's old
+path to the new one in the same patch — a link that still resolves
+(the file exists, just moved) is easy to miss, since nothing fails
+loudly the way a genuinely broken link does.
+
+A draft can also just be deleted — abandoned, or superseded by a
+different approach before ever being built. When that happens, every
+inward link to it needs resolving in the same patch: repoint it if
+the topic has a new home (the decision that replaced it, a topic doc,
+a project doc), or remove the reference outright if it doesn't.
+`check-doc-drift.py` catches a dangling link to a deleted file, but
+not a link quietly left pointing at the wrong thing — that part is on
+whoever's deleting it.
 
 ## Index
 
@@ -54,7 +67,7 @@ from `drafts/` into this directory, and add it to the index below.
 | [0010](0010-cloud-sync-copy-not-sync.md) | Accepted | `cloud_sync` relays to R2/B2/OCI via rclone `copy`, never `sync`, and cloud-side retention stays a provider-native, out-of-band lifecycle rule — the actual mechanism (not IAM scoping) that keeps a compromised on-prem host from touching the offsite copy. |
 | [0011](0011-telegram-topics-not-direct-chat.md) | Accepted | Move alerting from a direct one-on-one bot chat to a group chat with Topics, one topic per concern, so a real failure doesn't get lost in routine notification noise. |
 | [0012](0012-backup-freshness-check-per-host.md) | Accepted | Run backup-freshness checks per host instead of one centralized checker on `storage`, because a centralized checker needs cross-host `hostvars` facts that aren't populated under a partial `--limit` deploy. |
-| [0013](0013-credential-caching-stage-1-before-secrets-manager.md) | Accepted | Cache rotation/leaf credentials to `ansible/files/secrets/` now; defer a real secrets manager to a later, separately-scoped project. |
+| [0013](0013-credential-caching-stage-1-before-secrets-manager.md) | Superseded by [0027](0027-openbao-not-file-cache-or-committed-secrets.md) | Cache rotation/leaf credentials to `ansible/files/secrets/` now; defer a real secrets manager to a later, separately-scoped project. |
 | [0014](0014-r2-rotation-token-accepted-as-master-equivalent.md) | Accepted | Cache Cloudflare R2's admin token as the de facto rotation credential, accepting it's master-equivalent (unlike B2's/OCI's narrower rotation keys), because Cloudflare's API structurally can't mint a scoped delegate for it. |
 | [0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md) | Accepted (OCI superseded by 0016) | All 6 leaf credentials and 3 rotation keys/tokens now expire after 90 days — B2/R2 natively, OCI via a self-tracked cache-file timestamp — checked by a systemd user timer on `controller`, not an Ansible role. |
 | [0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md) | Accepted | OCI leaf-key creation and expiry both move to Identity Domains SCIM, replacing the classic API entirely; the rotation credential (now a Confidential Application's OAuth2 client credentials) keeps self-tracked expiry, since it has no native expiry of its own. |
@@ -68,6 +81,7 @@ from `drafts/` into this directory, and add it to the index below.
 | [0024](0024-r2-admin-token-into-openbao.md) | Accepted | Move R2's admin token into OpenBao after all, scoped to one path/one AppRole with a per-read alert, now that scheduled rotation gives it a real automated consumer. Its 90-day cycle can only be auto-cached, never auto-minted — Cloudflare's API can't mint a replacement token itself. |
 | [0025](0025-openbao-reinit-with-standing-vault-bootstrap-role.md) | Accepted | Re-init OpenBao now (not deferred to the eventual full cutover) with a standing narrow `vault-bootstrap` AppRole, so this repo can create new Vault policies/AppRoles - including ADR 0026's watcher - without a permanent root token. |
 | [0026](0026-openbao-audit-device-and-r2-per-read-watcher.md) | Accepted | Enable a permanent, declarative (not API-driven) stdout audit device on OpenBao, and build a dedicated, least-privilege watcher for ADR 0024's R2 admin-token per-read alert, rather than the API/CLI audit-enable route or reusing controller's own AppRole. |
+| [0027](0027-openbao-not-file-cache-or-committed-secrets.md) | Accepted | Adopt OpenBao as a standing secrets store, superseding 0013's file-cache-until-later approach — rejected Ansible Vault and SOPS/age too, since both are built around committing encrypted secrets to git, which the goal here was to avoid entirely. |
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this

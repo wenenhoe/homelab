@@ -10,8 +10,8 @@ The lab is organized as a small group of hosts, each owning a subdomain of `lan.
 | :--- | :--- | :--- |
 | `services` | Core infra: DNS (BIND9), utility apps, DIUN update notifications | `svc.lan.{{ main_domain }}` |
 | `play` | Game server hosting (Minecraft) | `play.lan.{{ main_domain }}` |
-| `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub | `sec.lan.{{ main_domain }}` |
-| `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host | `store.lan.{{ main_domain }}` |
+| `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub, OpenBao secrets store | `sec.lan.{{ main_domain }}` |
+| `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host, `cloud_sync` relay to R2/B2/OCI | `store.lan.{{ main_domain }}` |
 
 Every `app_hosts` member runs its own Caddy instance and terminates TLS
 for its own `*.{{ caddy_domain }}` wildcard via DNS-01 (DigitalOcean).
@@ -72,6 +72,7 @@ should go.
 | :--- | :--- |
 | [`docs/architecture/README.md`](docs/architecture/README.md) | Mermaid diagrams for cross-cutting views: system component map, end-to-end data flow. |
 | [`docs/decisions/README.md`](docs/decisions/README.md) | Index of architecture decision records — why a design was chosen when the reasoning isn't obvious from the code alone. |
+| [`docs/projects/README.md`](docs/projects/README.md) | Index of multi-stage projects — build status and sequencing for initiatives that span several PRs. |
 
 ### Architecture & workflow
 
@@ -87,8 +88,7 @@ should go.
 
 | Doc | Covers |
 | :--- | :--- |
-| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP scheme, OPNsense, migration staging. No OpenTofu code exists in this repo yet. |
-| [`docs/openbao-migration-roadmap.md`](docs/openbao-migration-roadmap.md) | Build order for replacing the file-based secrets cache with OpenBao and manual deploys with a pull-based CD agent. No code exists in this repo yet. |
+| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: [`docs/projects/tofu-vm-provisioning.md`](docs/projects/tofu-vm-provisioning.md). |
 
 ### Per-app infra
 
@@ -101,9 +101,9 @@ should go.
 | [`docs/uptime-kuma.md`](docs/uptime-kuma.md) | Push-monitor dead-man's-switch status per job, routed into the Telegram topics above. |
 | [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
 | [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
-| [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook (Track A stage 1). |
-| [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook (Track A stage 2). |
-| [`docs/openbao-auth.md`](docs/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token (Track A stage 3). |
+| [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
+| [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
+| [`docs/openbao-auth.md`](docs/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
 | [`docs/openbao-vault-bootstrap.md`](docs/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
 | [`docs/openbao-reinit-runbook.md`](docs/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
 | [`docs/openbao-r2-read-watcher.md`](docs/openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open `OnFailure=` gap. |
@@ -123,6 +123,7 @@ should go.
 | [`docs/volume-maintenance.md`](docs/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
 | [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
 | [`docs/secrets-rotation.md`](docs/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
+| [`docs/netplan-dhcp-identifier.md`](docs/netplan-dhcp-identifier.md) | Current-fleet-only fix for a DHCP dual-lease bug on boot; not Ansible-managed, transitional until the Tofu migration decommissions these hosts. |
 
 ### Testing & CI
 
@@ -227,7 +228,10 @@ deployed images and notifies over Telegram on updates. **Beszel**
 monitors host/container health lab-wide — see
 [`docs/beszel.md`](docs/beszel.md). Every host runs a **`backup_agent`**
 pushing GPG-encrypted archives to **SeaweedFS** on `storage` nightly —
-see [`docs/disaster-recovery.md`](docs/disaster-recovery.md). The rest of
+see [`docs/disaster-recovery.md`](docs/disaster-recovery.md), relayed
+further offsite by **`cloud_sync`** to R2/B2/OCI. Every secret in this
+repo is generated, cached, and rotated through **OpenBao** on
+`security` — see [`docs/openbao.md`](docs/openbao.md). The rest of
 `docker/` is independently deployable Compose stacks (dashboards, media
 tools, Minecraft, link shortener, pastebin, web terminal, etc.), each
 just an `app_registry` entry plus a `docker/<app>/` directory (see
@@ -248,6 +252,20 @@ molecule test -s volumes   # named scenario (cd ansible/roles/compose first)
 See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full
 scenario matrix and how to add one.
 
+Plain controller-side Python (`ansible/cloud_credentials/`,
+`ansible/molecule-coverage/molecule_cov/`, `bootstrap_secrets.py`,
+`audit_secrets.py`, the R2 read-watcher) is tested separately with
+[pytest](https://docs.pytest.org/), from `ansible/`:
+
+```sh
+cd ansible
+pytest tests/ -v
+```
+
+Every provider HTTP call and `rclone` invocation is mocked — no
+network access or real cloud credentials needed. See
+[`docs/ci.md`](docs/ci.md) for how this runs in CI.
+
 ## Linting & Pre-commit
 
 `.config/.pre-commit-config.yaml` wires up:
@@ -257,6 +275,7 @@ scenario matrix and how to add one.
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
+- [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
 All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
 (lints `ansible/`; `docker/` excluded, it's Compose files not playbooks)
@@ -267,6 +286,9 @@ All tool configs live under `.config/` (each hook is passed an explicit
 `-c` flag, since these tools don't auto-discover configs there by
 default). `ansible-lint` also gets `--project-dir ansible`, since it
 resolves `roles_path` relative to cwd rather than the config file.
+`ruff` is the one exception — its config lives in `pyproject.toml` at
+the repo root, which it finds on its own, so no `-c` flag or
+`.config/` entry exists for it.
 
 Run `pre-commit install` once after
 cloning. CI enforces the same checks on every PR regardless of whether

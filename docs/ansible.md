@@ -42,7 +42,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `lldap_bootstrap` | Automates lldap's `observer` account for tinyauth's LDAP bind. |
 | `step_ca_client` | Shared prerequisite: caches step-ca's root cert on the host. |
 | `step_ca_cert` | Issues/renews a per-app cert from step-ca (lldap's LDAPS cert, OpenBao's TLS listener cert). |
-| `openbao_backup` | Renders the rclone config and push script for OpenBao's raft-snapshot backup (Track A stage 2) — no systemd unit, run by hand. |
+| `openbao_backup` | Renders the rclone config and push script for OpenBao's raft-snapshot backup — no systemd unit, run by hand. |
 | `telegram_notify` | Shared library role: direct-curl Telegram alert unit. |
 | `telegram_topic_pins` | Shared library role: posts/pins a static per-topic header message, control-node-only. |
 | `uptime_kuma_push` | Shared library role: direct-curl unit for a job's Uptime Kuma push-monitor URL. |

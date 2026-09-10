@@ -12,7 +12,7 @@ flowchart TB
 
     services["services<br/>DNS (BIND9), utility apps"]
     play["play<br/>Minecraft"]
-    security["security<br/>LLDAP, Tinyauth, step-ca, Beszel hub"]
+    security["security<br/>LLDAP, Tinyauth, step-ca,<br/>OpenBao, Beszel hub"]
     storage["storage<br/>SeaweedFS, cloud_sync"]
 
     cloud[("Offsite cloud targets<br/>(R2 / B2 / OCI)")]
@@ -21,6 +21,7 @@ flowchart TB
     services & play & security -- "nightly, GPG-encrypted" --> storage
     storage -- "already-encrypted,<br/>relay onward" --> cloud
     controller -. "ansible-playbook<br/>(no manual host step)" .-> services & play & security & storage
+    controller -. "AppRole login,<br/>fetch secrets" .-> security
 ```
 
 ## Low-level diagrams
@@ -29,6 +30,7 @@ flowchart TB
 | :--- | :--- |
 | [`reverse-proxy-and-dns.md`](reverse-proxy-and-dns.md) | How a hostname resolves and reaches the right host's Caddy, per-host wildcard TLS via DNS-01. |
 | [`auth-flow.md`](auth-flow.md) | Tinyauth forward-auth + LLDAP, and the one host that skips it. |
+| [`secrets-and-credentials-flow.md`](secrets-and-credentials-flow.md) | `controller`'s day-to-day OpenBao secrets fetch, and cloud credential rotation plus the R2 per-read watcher. |
 | [`backup-and-restore-data-flow.md`](backup-and-restore-data-flow.md) | Backup path in full (app host to SeaweedFS to cloud) and restore reversing it. |
 
 `deployment-flow.md`'s own play-order diagram covers how `controller`

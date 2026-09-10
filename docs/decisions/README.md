@@ -37,6 +37,19 @@ point: assign the next sequential number, drop the `Assumptions`
 section entirely (everything in it is now either settled fact folded
 into Context, or moot), set `Status: Accepted` directly, move the file
 from `drafts/` into this directory, and add it to the index below.
+Update every place elsewhere in the repo that links to the draft's old
+path to the new one in the same patch — a link that still resolves
+(the file exists, just moved) is easy to miss, since nothing fails
+loudly the way a genuinely broken link does.
+
+A draft can also just be deleted — abandoned, or superseded by a
+different approach before ever being built. When that happens, every
+inward link to it needs resolving in the same patch: repoint it if
+the topic has a new home (the decision that replaced it, a topic doc,
+a project doc), or remove the reference outright if it doesn't.
+`check-doc-drift.py` catches a dangling link to a deleted file, but
+not a link quietly left pointing at the wrong thing — that part is on
+whoever's deleting it.
 
 ## Index
 

@@ -17,11 +17,26 @@ docs/openbao-r2-read-watcher.md for installation. Logs in once at
 startup to fetch Telegram's secrets, then never touches Vault again
 for the rest of the process's life; alerting itself is a direct
 Telegram Bot API call, not a Vault operation.
+
+`docker logs -f` with no `--since` replays the container's entire
+retained log history before following live, so every process restart
+would otherwise re-alert on every past real read. STATE_PATH persists
+the last-alerted match's time and request id; on startup that time is
+passed as `--since`. Confirmed live: `--since <T>` is inclusive of a
+line timestamped exactly `T`, so the request id is also checked to
+skip re-alerting on that one boundary line - the timestamp alone
+isn't enough to tell "the same read again" from "a new read in the
+same nanosecond" apart.
+
+Requires Python >=3.14 for the unparenthesized `except A, B:` below
+(PEP change: allowed without an `as` clause). Fails to import on
+earlier versions.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from typing import Any
@@ -36,6 +51,7 @@ OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/op
 ROLE_ID_PATH = "/etc/r2-read-watcher/role_id"
 SECRET_ID_PATH = "/etc/r2-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
 TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021
+STATE_PATH = "/var/lib/r2-read-watcher/state.json"
 
 
 def match_r2_read(raw_line: str) -> dict[str, Any] | None:
@@ -65,6 +81,7 @@ def match_r2_read(raw_line: str) -> dict[str, Any] | None:
     metadata = auth.get("metadata") or {}
     return {
         "time": entry.get("time", "unknown"),
+        "request_id": request.get("id", "unknown"),
         "role_name": metadata.get("role_name", "unknown"),
         "display_name": auth.get("display_name", "unknown"),
         "remote_address": request.get("remote_address", "unknown"),
@@ -74,6 +91,23 @@ def match_r2_read(raw_line: str) -> dict[str, Any] | None:
 def _read_file(path: str) -> str:
     with open(path) as f:
         return f.read().strip()
+
+
+def _load_state(path: str) -> dict[str, str] | None:
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return None
+
+
+def _save_state(path: str, match: dict[str, Any]) -> None:
+    """Writes {time, request_id} atomically (tmp file + rename) so a
+    crash mid-write can't leave a truncated state file."""
+    tmp_path = f"{path}.tmp"
+    with open(tmp_path, "w") as f:
+        json.dump({"time": match["time"], "request_id": match["request_id"]}, f)
+    os.replace(tmp_path, path)
 
 
 def _vault_login(role_id: str, secret_id: str) -> str:
@@ -143,9 +177,14 @@ def _fetch_telegram_secrets(token: str) -> dict[str, str] | None:
     }
 
 
-def watch(telegram: dict[str, str] | None) -> int:
+def watch(telegram: dict[str, str] | None, prior_state: dict[str, str] | None) -> int:
+    docker_logs_cmd = ["docker", "logs", "-f"]
+    if prior_state is not None:
+        docker_logs_cmd += ["--since", prior_state["time"]]
+    docker_logs_cmd.append("openbao")
+
     proc = subprocess.Popen(
-        ["docker", "logs", "-f", "openbao"],
+        docker_logs_cmd,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -153,13 +192,19 @@ def watch(telegram: dict[str, str] | None) -> int:
     )
     if proc.stdout is None:
         raise RuntimeError("Popen with stdout=PIPE should always set stdout")
+
+    skip_request_id = prior_state["request_id"] if prior_state is not None else None
     for line in proc.stdout:
         match = match_r2_read(line)
         if match is None:
             continue
+        if skip_request_id is not None and match["request_id"] == skip_request_id:
+            skip_request_id = None  # --since is inclusive; this is that boundary line, not a new read
+            continue
         print(f"R2 admin token read: {match}", file=sys.stderr)
         if telegram is not None:
             send_alert(telegram, match)
+        _save_state(STATE_PATH, match)
     return proc.wait()
 
 
@@ -168,7 +213,8 @@ def main() -> int:
     secret_id = _read_file(SECRET_ID_PATH)
     token = _vault_login(role_id, secret_id)
     telegram = _fetch_telegram_secrets(token)
-    return watch(telegram)
+    prior_state = _load_state(STATE_PATH)
+    return watch(telegram, prior_state)
 
 
 if __name__ == "__main__":

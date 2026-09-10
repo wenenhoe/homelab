@@ -15,6 +15,13 @@ convention as `controller.hcl`/`vault-bootstrap.hcl`/`r2-read-watcher.hcl`
 and the `bao-*.sh` scripts: this is bootstrap-tier OpenBao tooling, not
 `managed_hosts` application config.
 
+On restart, the watcher resumes from `/var/lib/r2-read-watcher/state.json`
+(last-alerted read's time and request id) and passes that time as
+`docker logs --since`, so a restart doesn't re-alert on every past
+read. See the script's own docstring for why the request id is also
+checked (`--since` is inclusive of its boundary timestamp, confirmed
+live).
+
 ## Installing
 
 The watcher's own AppRole (`r2-read-watcher`) is already provisioned —
@@ -24,7 +31,7 @@ picks up from there.
 1. Copy everything over, from `controller`:
 
    ```sh
-   ssh security 'sudo mkdir -p /opt/r2-read-watcher /etc/r2-read-watcher /etc/uptime-kuma-push'
+   ssh security 'sudo mkdir -p /opt/r2-read-watcher /etc/r2-read-watcher /etc/uptime-kuma-push /var/lib/r2-read-watcher'
    scp docker/openbao/watcher/* security:/tmp/
    ```
 

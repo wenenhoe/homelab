@@ -72,6 +72,7 @@ should go.
 | :--- | :--- |
 | [`docs/architecture/README.md`](docs/architecture/README.md) | Mermaid diagrams for cross-cutting views: system component map, end-to-end data flow. |
 | [`docs/decisions/README.md`](docs/decisions/README.md) | Index of architecture decision records — why a design was chosen when the reasoning isn't obvious from the code alone. |
+| [`docs/projects/README.md`](docs/projects/README.md) | Index of multi-stage projects — build status and sequencing for initiatives that span several PRs. |
 
 ### Architecture & workflow
 

@@ -1,7 +1,7 @@
 # Docs: where things go
 
 This repo's docs stay flat under `docs/` (see the categorized index in
-[`../README.md`](../README.md#further-reading)) plus two subdirectories
+[`../README.md`](../README.md#further-reading)) plus three subdirectories
 for artifact types that don't fit a per-topic page:
 
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
@@ -11,6 +11,11 @@ for artifact types that don't fit a per-topic page:
   views that cut across multiple topic docs (a system-wide component
   map, an end-to-end data flow). A diagram that only illustrates one
   existing page lives embedded in that page instead.
+- **[`projects/`](projects/README.md)** — build status and sequencing
+  for multi-stage initiatives spanning several PRs. Never carries
+  rationale (that's `decisions/`) or current-behavior detail (that's a
+  topic doc) — it links to both instead, and gets deleted once the
+  project's done and everything durable has been promoted out of it.
 
 Everything else is one topic, one doc, cross-referenced rather than
 duplicated — if you're about to explain the same gotcha in a second

@@ -55,13 +55,13 @@ def check_readme() -> None:
 
 def check_subdirectory_indexes() -> None:
     """Same check as check_readme(), one level down: every ADR under
-    docs/decisions/ is linked in docs/decisions/README.md, and every
-    diagram under docs/architecture/ is linked in
-    docs/architecture/README.md — both directions, same substring
-    matching. check_readme()'s docs/*.md glob is non-recursive, so
-    these two subdirectories need their own pass.
+    docs/decisions/, diagram under docs/architecture/, and project doc
+    under docs/projects/ is linked in that subdirectory's own
+    README.md — both directions, same substring matching.
+    check_readme()'s docs/*.md glob is non-recursive, so these
+    subdirectories need their own pass.
     """
-    for subdir in ("decisions", "architecture"):
+    for subdir in ("decisions", "architecture", "projects"):
         index_path = ROOT / "docs" / subdir / "README.md"
         index = read(index_path)
 

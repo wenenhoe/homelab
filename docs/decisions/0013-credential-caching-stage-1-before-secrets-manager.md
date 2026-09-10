@@ -1,6 +1,6 @@
 # 0013. Cache cloud credentials to disk before adopting a secrets manager
 
-**Status:** Accepted
+**Status:** Superseded by [0027](0027-openbao-not-file-cache-or-committed-secrets.md)
 
 ## Context
 

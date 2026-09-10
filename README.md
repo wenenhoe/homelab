@@ -274,6 +274,7 @@ network access or real cloud credentials needed. See
 - [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
+- [`hadolint`](https://github.com/hadolint/hadolint) — lints every `Dockerfile`, via its Docker-image variant
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
@@ -286,9 +287,13 @@ All tool configs live under `.config/` (each hook is passed an explicit
 `-c` flag, since these tools don't auto-discover configs there by
 default). `ansible-lint` also gets `--project-dir ansible`, since it
 resolves `roles_path` relative to cwd rather than the config file.
-`ruff` is the one exception — its config lives in `pyproject.toml` at
+`ruff` is one exception — its config lives in `pyproject.toml` at
 the repo root, which it finds on its own, so no `-c` flag or
-`.config/` entry exists for it.
+`.config/` entry exists for it. `hadolint` is the other: its accepted-risk
+findings are per-file, so they're justified inline with
+`# hadolint ignore=DLxxxx # reason` comments next to the line they apply
+to (`docker/caddy/Dockerfile`, `docker/molecule-dind/Dockerfile`) rather
+than a repo-wide `.config/` ignore list.
 
 Run `pre-commit install` once after
 cloning. CI enforces the same checks on every PR regardless of whether

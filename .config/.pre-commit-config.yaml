@@ -52,6 +52,14 @@ repos:
         # touch it.
         files: (docker-)?compose(\..+)?\.ya?ml(\.j2)?$
         args: [--fix, --config, .config/.dclintrc]
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.15.1
+    hooks:
+      - id: hadolint-docker
+        # No .config/ entry: accepted-risk findings here are per-file and
+        # justified inline (`# hadolint ignore=DLxxxx # reason`) next to
+        # the line they apply to, not a repo-wide ignore list — see
+        # docker/caddy/Dockerfile and docker/molecule-dind/Dockerfile.
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:

@@ -31,11 +31,14 @@ type in the repo:
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
-- `python_unit_tests` — `ansible/cloud_credentials/**`,
-  `ansible/molecule-coverage/molecule_cov/**`, `ansible/tests/**`,
-  `pyproject.toml`/`uv.lock`. This is all plain controller-side Python,
-  not Ansible roles, so it's covered by `ansible/tests/`'s `pytest`
-  suite instead of Molecule.
+- `python_unit_tests` — `ansible/*.py`, `ansible/cloud_credentials/**`,
+  `ansible/molecule-coverage/molecule_cov/**`,
+  `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
+  `docker/openbao/watcher/r2_read_watcher.py`, `pyproject.toml`/
+  `uv.lock`. This is all plain controller-side Python, not Ansible
+  roles, so it's covered by `ansible/tests/`'s `pytest` suite instead
+  of Molecule — including the two paths outside `ansible/` that
+  `ansible/tests/` imports directly via `sys.path`.
 
 ### `molecule_helpers` is repo-wide
 

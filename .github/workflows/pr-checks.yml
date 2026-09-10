@@ -69,9 +69,22 @@ jobs:
             # docs/ci.md#change-scoped-not-a-full-sweep) — these are plain
             # controller-side Python, covered by ansible/tests/ instead.
             python_unit_tests:
+              # Top-level scripts (audit_secrets.py, bootstrap_secrets.py,
+              # restore_hosts_scope_from_backup.py,
+              # restore_cloud_credentials_from_backup.py) - each has a
+              # same-named test in ansible/tests/ importing it directly.
+              # restore_all.py has no test yet, so this is a no-op for it.
+              - 'ansible/*.py'
               - 'ansible/cloud_credentials/**'
               - 'ansible/molecule-coverage/molecule_cov/**'
+              # Sibling of molecule_cov/ above - test_callback_plugin.py
+              # imports it directly via sys.path, same pattern.
+              - 'ansible/molecule-coverage/callback_plugins/**'
               - 'ansible/tests/**'
+              # Not under ansible/ — imported via sys.path in
+              # ansible/tests/test_r2_read_watcher.py (see that file's
+              # own docstring for why).
+              - 'docker/openbao/watcher/r2_read_watcher.py'
               - 'pyproject.toml'
               - 'uv.lock'
 

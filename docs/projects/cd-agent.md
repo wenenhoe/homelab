@@ -18,7 +18,7 @@ against — which it now does.
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | `cd_agent` host — dedicated LAN box, fixed IP, `preloop` pollers for deploy/maintenance/rotation/freshness | Not started |
+| 1 | `cd_agent` host — dedicated LAN box, fixed IP, `preloop` pollers for deploy/maintenance/rotation/freshness/security-reporting | Not started |
 | 2 | `cd-agent-deploy` / `cd-agent-rotation` AppRoles, CIDR-bound | Not started |
 | 3 | Retire `controller`'s standing AppRole | Not started |
 
@@ -29,7 +29,7 @@ against — which it now does.
 A dedicated LAN host, fixed IP, zero inbound ports, running
 systemd-timer pollers that invoke `preloop` against GitHub
 Actions-format workflow files for deploy/maintenance/rotation/
-freshness jobs. `preloop`'s CLI event-flag behavior beyond bare
+freshness/security-reporting jobs. `preloop`'s CLI event-flag behavior beyond bare
 `pull_request` is unverified — needs a spike before this stage's
 deploy/rotation jobs are built on it. See the
 [draft](../decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)
@@ -59,6 +59,16 @@ narrow, short-lived token on demand instead.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,
   and whether "rotation" means alert-only or full rotate-and-revoke,
   isn't scoped yet.
+- A weekly security-reporting job: Trivy image scanning, redesigned as
+  a PDF report sent to Telegram (trend visibility, not a CI gate) —
+  needs `cd_agent` specifically for its Telegram secret access, which
+  is why this wasn't feasible from `controller`. Previous CI-integrated
+  image scanning was dropped for being mostly non-actionable noise
+  (third-party images awaiting upstream rebuilds) — see
+  [`security-scanning.md`](../security-scanning.md#why-no-image-cve-scanning).
+  This reframes the same capability as informational rather than
+  actionable, which may sidestep that problem. Not scoped beyond the
+  idea yet.
 - The shared SSH private key across every managed host (and possibly
   the maintainer's laptop) hasn't been split into a `cd_agent`-only
   key.

@@ -58,8 +58,10 @@ prefix (stays recognizable as Proxmox-owned) and encodes the VMID plus
 NIC index into the rest: `BC:24:11:{VMID as 4 hex digits}:{NIC index}`
 — e.g. VMID 201, NIC 0 → `BC:24:11:00:C9:00`. Deterministic per VMID, so
 a rebuilt VM gets the same MAC every time — required for the netplan
-`match: macaddress` override to stay stable across rebuilds, and usable
-later as a Kea static-reservation key if any VLAN needs one.
+`match: macaddress` override below to stay stable across rebuilds.
+A Kea static-reservation key was the other option this MAC scheme
+would have supported, but that path isn't taken — see the Ubuntu VMs
+section for why.
 
 ## Ubuntu VMs
 
@@ -67,12 +69,17 @@ Tofu builds the cloud-init template itself (downloads the official
 Ubuntu 26.04 cloud image via `local-lvm`) rather than relying on a
 pre-existing one, registered as a proper Proxmox template VM in the 1XX
 range (e.g. the next free ID below 200) alongside the existing
-Windows templates (103–105), then clones from it per VM. Network config — including the `dhcp-identifier: mac`
-override needed for OPNsense compatibility — is injected via cloud-init
-`network-config` at first boot, keyed off the deterministic MAC above.
-This avoids the alternative (an Ansible-rendered netplan file post-boot)
-racing against whatever address the VM picks up before Ansible can
-connect at all.
+Windows templates (103–105), then clones from it per VM. Network
+config is injected via cloud-init `network-config` at first boot: a
+static IP (the VMID-derived address from the scheme above), gateway,
+and nameservers, matched to the VM by `match: macaddress` against the
+deterministic MAC — no DHCP involved at all. This avoids the
+alternative (an Ansible-rendered netplan file post-boot) racing
+against whatever address the VM picks up before Ansible can connect
+at all, and sidesteps DHCP/Kea entirely rather than working around it
+— see
+[`netplan-dhcp-identifier.md`](netplan-dhcp-identifier.md) for the
+current-fleet bug that's the real motivation for skipping DHCP here.
 
 Default sizing (adjust per host once real usage is observed):
 

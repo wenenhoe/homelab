@@ -5,7 +5,12 @@
 Builds the OpenTofu code implementing the design already recorded in
 [`docs/vm-provisioning.md`](../vm-provisioning.md) — VMID/VLAN/IP/MAC
 scheme, Ubuntu/OPNsense provisioning, and the Tofu↔Ansible boundary —
-through the migration cutover that design describes.
+through the migration cutover that design describes. Real motivation,
+not just a design preference: a DHCP dual-lease bug on the current
+fleet — see
+[`netplan-dhcp-identifier.md`](../netplan-dhcp-identifier.md) — is part
+of why this design gives Tofu-provisioned VMs static IPs with no DHCP
+at all, rather than carrying the same class of problem forward.
 
 ## Environment (baseline, at project start)
 
@@ -134,6 +139,13 @@ This stage is blocked on it too.
 - Migration Stage 2's exact rebuild sequence isn't scoped beyond
   "rebuild on real VMID ranges, cut over, decommission" — needs its
   own detail once Stage 5 is proven.
+- `checkov` (IaC scanning) for the OpenTofu code once it exists — not
+  scoped yet, not actionable before Stage 1 lands.
+- VM 202 ("Tailscale") is currently unmanaged by Ansible or Tofu —
+  likely becomes a Tofu-managed VM once this project reaches that
+  VMID. Subnet-router/exit-node consolidation ideas from an earlier
+  planning thread are worth revisiting then as their own project, not
+  scoped here.
 
 ## Closing checklist
 

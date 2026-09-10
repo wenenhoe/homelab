@@ -122,28 +122,30 @@ class SendAlertTests(unittest.TestCase):
 
 
 class WatchTests(unittest.TestCase):
+    @patch("r2_read_watcher._save_state")
     @patch("r2_read_watcher.subprocess.Popen")
-    def test_calls_send_alert_exactly_once_for_a_matching_line(self, mock_popen):
+    def test_calls_send_alert_exactly_once_for_a_matching_line(self, mock_popen, mock_save_state):
         mock_proc = Mock()
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n", REAL_UNRELATED_LINE + "\n"])
         mock_proc.wait.return_value = 0
         mock_popen.return_value = mock_proc
 
         with patch("r2_read_watcher.send_alert") as mock_send:
-            rc = watcher.watch({"token": "t", "chat_id": "c", "topic_id": ""})
+            rc = watcher.watch({"token": "t", "chat_id": "c", "topic_id": ""}, None)
 
         self.assertEqual(rc, 0)
         mock_send.assert_called_once()
 
+    @patch("r2_read_watcher._save_state")
     @patch("r2_read_watcher.subprocess.Popen")
-    def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen):
+    def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state):
         mock_proc = Mock()
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n"])
         mock_proc.wait.return_value = 0
         mock_popen.return_value = mock_proc
 
         with patch("r2_read_watcher.send_alert") as mock_send:
-            watcher.watch(None)
+            watcher.watch(None, None)
 
         mock_send.assert_not_called()
 

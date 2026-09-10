@@ -121,15 +121,16 @@ own config API against its BIND plugin's normal record model — not
 raw zone-file editing, which the plugin doesn't support (verified
 against the plugin's own issue tracker, not assumed). Whether this
 stays the design, or Tofu-sourced A records move to a dedicated
-internal nameserver instead, is a real open decision — captured as a
-decision draft once written. This stage is blocked on it too.
+internal nameserver instead, is a real open decision — see the
+[decision draft](../decisions/drafts/dedicated-security-bind9-for-tofu-vm-dns.md).
+This stage is blocked on it too.
 
 ## Open items
 
 - Tofu-only secrets and state-backend credential location (Stage 1) —
   [decision draft](../decisions/drafts/tofu-secrets-and-state-backend-location.md).
-- Internal DNS for Tofu-provisioned VMs (Stage 7) — decision draft
-  pending.
+- Internal DNS for Tofu-provisioned VMs (Stage 7) —
+  [decision draft](../decisions/drafts/dedicated-security-bind9-for-tofu-vm-dns.md).
 - Migration Stage 2's exact rebuild sequence isn't scoped beyond
   "rebuild on real VMID ranges, cut over, decommission" — needs its
   own detail once Stage 5 is proven.

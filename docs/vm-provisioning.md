@@ -117,7 +117,8 @@ that pool is for devices Tofu doesn't know about.
 
 Whether Phase 2 stays OPNsense-API-driven, or Tofu-sourced A records
 move to a dedicated internal nameserver instead, is an open decision —
-see the project doc's Stage 7.
+see the
+[decision draft](decisions/drafts/dedicated-security-bind9-for-tofu-vm-dns.md).
 
 **Boot order.** `order=1` for OPNsense with `up=60` (60s) before any
 dependent VM is considered clear to start — gives DHCP/DNS time to come

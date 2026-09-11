@@ -5,11 +5,11 @@
 
 A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. There is no manual step on a target host beyond running `ansible-playbook`.
 
-**Automation & networking:** Ansible · Docker Compose · Caddy · BIND9
-
-**Identity & secrets:** OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth
-
-**Data & ops:** SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate
+| Concern | Stack |
+| :--- | :--- |
+| Automation & networking | Ansible · Docker Compose · Caddy · BIND9 |
+| Identity & secrets | OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth |
+| Data & ops | SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate |
 
 OpenTofu/Proxmox provisioning is in progress — see [`docs/projects/`](docs/projects/README.md).
 

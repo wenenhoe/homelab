@@ -16,3 +16,4 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md)
 - [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md)
 - [`tofu-secrets-and-state-backend-location.md`](tofu-secrets-and-state-backend-location.md)
+- [`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)

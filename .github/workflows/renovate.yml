@@ -50,7 +50,7 @@ jobs:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_GIT_AUTHOR: "${{ github.repository_owner }} <${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com>"
         with:
-          renovate-version: "44.69.6"
+          renovate-version: "44.79.6"
           token: ${{ secrets.RENOVATE_TOKEN }}
 
       # renovate.json5's schedule only allows new branch/PR creation Mon/Thu

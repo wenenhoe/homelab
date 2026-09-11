@@ -85,3 +85,4 @@ how a real fact quietly gets lost instead of promoted.
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | In progress | OpenTofu-driven Proxmox VM provisioning. |
 | [`cd-agent.md`](cd-agent.md) | Not started | Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | Not started | Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `ansible/cloud_credentials`. |
+| [`openbao-python-client-hardening.md`](openbao-python-client-hardening.md) | Not started | `hvac` + `paramiko` adoption across every internal OpenBao/SSH client (`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`, `r2_read_watcher.py`), replacing duplicated hand-rolled clients. |

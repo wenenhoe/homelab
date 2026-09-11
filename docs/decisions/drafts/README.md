@@ -17,3 +17,4 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md)
 - [`tofu-secrets-and-state-backend-location.md`](tofu-secrets-and-state-backend-location.md)
 - [`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)
+- [`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)

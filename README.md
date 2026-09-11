@@ -62,77 +62,9 @@ test scaffolding, not a deployed app.
 
 ## Further Reading
 
-[`docs/README.md`](docs/README.md) explains how these docs are
-organized — start there if you're looking for where something new
-should go.
-
-### Architecture & System Design
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/architecture/README.md`](docs/architecture/README.md) | Mermaid diagrams for cross-cutting views: system component map, end-to-end data flow. |
-| [`docs/decisions/README.md`](docs/decisions/README.md) | Index of architecture decision records — why a design was chosen when the reasoning isn't obvious from the code alone. |
-| [`docs/projects/README.md`](docs/projects/README.md) | Index of multi-stage projects — build status and sequencing for initiatives that span several PRs. |
-
-### Architecture & workflow
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/ansible.md`](docs/ansible.md) | Playbook, role, and inventory reference tables. |
-| [`docs/deployment-flow.md`](docs/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
-| [`docs/volumes.md`](docs/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
-| [`docs/host-vars.md`](docs/host-vars.md) | `host_vars/<host>.yaml` field reference. |
-| [`docs/adding-an-app.md`](docs/adding-an-app.md) | Wiring a new Compose app into the registry. |
-
-### Planned, not yet implemented
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: [`docs/projects/tofu-vm-provisioning.md`](docs/projects/tofu-vm-provisioning.md). |
-
-### Per-app infra
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
-| [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
-| [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
-| [`docs/telegram-notifications.md`](docs/telegram-notifications.md) | Bot/topic scheme shared by diun, Beszel, backups, and cert-renewal alerts. |
-| [`docs/uptime-kuma.md`](docs/uptime-kuma.md) | Push-monitor dead-man's-switch status per job, routed into the Telegram topics above. |
-| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
-| [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
-| [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
-| [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
-| [`docs/openbao-auth.md`](docs/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
-| [`docs/openbao-vault-bootstrap.md`](docs/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
-| [`docs/openbao-reinit-runbook.md`](docs/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
-| [`docs/openbao-r2-read-watcher.md`](docs/openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open `OnFailure=` gap. |
-| [`docs/wastebin.md`](docs/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
-| [`docs/qemu-guest-agent.md`](docs/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
-
-### Operations
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/cleanup.md`](docs/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
-| [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
-| [`docs/restore.md`](docs/restore.md) | Restoring an app's volume(s) from a backup archive: the runbook. |
-| [`docs/fire-drill.md`](docs/fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
-| [`docs/cloud-sync.md`](docs/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
-| [`docs/cloud-credential-creation.md`](docs/cloud-credential-creation.md) | Creating the 6 R2/B2/OCI write+read credentials via each provider's HTTP API, what each is scoped to, rotation. |
-| [`docs/volume-maintenance.md`](docs/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
-| [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
-| [`docs/secrets-rotation.md`](docs/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
-| [`docs/netplan-dhcp-identifier.md`](docs/netplan-dhcp-identifier.md) | Current-fleet-only fix for a DHCP dual-lease bug on boot; not Ansible-managed, transitional until the Tofu migration decommissions these hosts. |
-
-### Testing & CI
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/molecule-testing.md`](docs/molecule-testing.md) | Molecule scenario matrix and how to add one. |
-| [`docs/molecule-fixtures.md`](docs/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
-| [`docs/ci.md`](docs/ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check. |
-| [`docs/security-scanning.md`](docs/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
+See [`docs/README.md`](docs/README.md) for how these docs are
+organized and its full categorized index — start there if you're
+looking for where something new should go, or for any specific topic.
 
 ## Setup
 

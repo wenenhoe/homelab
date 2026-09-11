@@ -181,11 +181,11 @@ as a local hook — no separate job of its own, it rides along inside
 `pre-commit-checks` above like every other commit-stage hook. Checks
 these narrow, structural things:
 
-- Every `docs/*.md` file is linked somewhere in README.md (both
-  directions — a link to a deleted file fails too). The same check
-  applies one level down for `docs/decisions/`, `docs/decisions/drafts/`,
-  `docs/architecture/`, and `docs/projects/`, against their own
-  `README.md` index.
+- Every doc directly under `docs/` is linked somewhere in
+  `docs/README.md` (both directions — a link to a deleted file fails
+  too). The same check applies one level down for `docs/decisions/`,
+  `docs/decisions/drafts/`, `docs/architecture/`, and `docs/projects/`,
+  each against its own `README.md` index.
 - `docs/ansible.md`'s Playbooks and Roles tables list exactly the files
   under `ansible/playbooks/*.yaml` and directories under
   `ansible/roles/*/`.

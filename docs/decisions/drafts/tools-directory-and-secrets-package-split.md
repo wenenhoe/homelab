@@ -39,7 +39,19 @@ moved) and `tools/secrets/` (the OpenBao/Vault client,
 hvac/paramiko helper if the sibling draft's Option B wins).
 `docker/openbao/watcher/r2_read_watcher.py`'s move is a separate
 question — its container build context may need it to stay where it is
-or import from the new location; unchecked either way.
+or import from the new location; unchecked either way. A further
+wrinkle since this draft was first written: `docker/openbao/scripts/`'s
+shell scripts and `openbao_backup/snapshot-push.sh.j2` are also
+candidates for the same shared client
+([`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)),
+and the `secrets` Ansible role's Vault tasks might go through
+`community.hashi_vault` instead of importing this package directly —
+which changes what "who consumes it" even means. If any Ansible task
+needs to import the shared client directly rather than through a
+collection module, that's an `ansible/roles/*/library/`- or
+`module_utils`-shaped need, a different packaging mechanism than a
+plain `tools/` package standalone scripts import — Option B below
+needs to say which, not just "a package," once that's known.
 
 ### C — Same split, no new root: `ansible/secrets/` alongside `ansible/cloud_credentials/`
 

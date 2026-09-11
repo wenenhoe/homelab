@@ -38,6 +38,34 @@ scheduled job re-invokes on failure. A hang or an uncaught exception
 here is a silent alerting gap, not a single failed run someone notices
 and re-runs.
 
+Two more consumers surfaced since this draft was first written, both a
+different shape from `cache.py`'s problem: `docker/openbao/scripts/`'s
+three shell scripts (`bao-login.sh`, `bao-login-from-controller.sh`,
+`bao-from-controller.sh`) wrap the official `bao` CLI directly, not a
+hand-rolled HTTP reimplementation — `bao-login.sh` has real, documented
+security handling (`secret_id` via a hidden prompt, piped through a
+temp file *inside* the container, deleted immediately, worked around
+because `bao`'s `@-` stdin shorthand doesn't work on the live version
+in use). A Python rewrite using this draft's client is still a
+legitimate candidate — it could drop the temp-file workaround
+entirely, since a value held only in a Python variable never appears
+in `ps` the way a shell argument-passing trick has to work around —
+but it must preserve or improve the "`secret_id` never touches disk or
+`argv`" property, not silently regress it. `openbao_backup`'s
+`snapshot-push.sh.j2` also makes its own OpenBao call —
+`docker exec ... bao operator raft snapshot save` — again the official
+CLI, not hand-rolled HTTP, but `hvac`'s raft-snapshot API method is a
+real alternative that would remove the `docker exec` dependency. Its
+own comment documents exactly why `BAO_TOKEN` is handled the way it is
+today (forwarded via `docker exec -e`, "never written to a file, never
+a script argument") — the same credentials-in-process question
+[`rclone-boto3-scope-not-blanket-swap.md`](rclone-boto3-scope-not-blanket-swap.md)
+already raises for `verify.py`/`restore_all.py`, showing up a third
+time. Both of these are officially-wrapped-CLI cases, not
+hand-rolled-HTTP cases like `cache.py`/`bootstrap_secrets.py`/`secrets`
+role — worth keeping that distinction explicit rather than treating
+every OpenBao touchpoint in this repo as the same kind of problem.
+
 This draft supersedes
 [`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
 original `cache.py`/`hvac`/`paramiko` Decision and Assumptions — that
@@ -126,6 +154,21 @@ surface.
   inheritance from the others.
   **Checked by:** a dedicated spike keeping an `hvac` session alive
   across a simulated OpenBao restart/token expiry.
+- **Claim:** wherever a shared client ends up living answers itself
+  once every consumer is known — a plain importable package if
+  standalone scripts and `docker/openbao/scripts` are the only
+  callers, or something `module_utils`-shaped if the `secrets` Ansible
+  role ([`ansible-collections-audit.md`](../../projects/ansible-collections-audit.md)
+  Stage 3) also needs to import it directly rather than going through
+  `community.hashi_vault`.
+  **Breaks if wrong:** if both a plain package *and* Ansible
+  `module_utils` end up needed, that's two packaging shapes for one
+  client, which is its own small design problem, not a free choice.
+  **Checked by:** deciding `community.hashi_vault` vs. a
+  directly-imported shared client for the `secrets` role first — that
+  choice determines which packaging shape is actually needed. See
+  [`tools-directory-and-secrets-package-split.md`](tools-directory-and-secrets-package-split.md)
+  for the sibling "where does this code live" question.
 
 ## Consequences
 

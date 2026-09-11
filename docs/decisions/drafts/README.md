@@ -20,3 +20,5 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`rclone-boto3-scope-not-blanket-swap.md`](rclone-boto3-scope-not-blanket-swap.md)
 - [`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)
 - [`tools-directory-and-secrets-package-split.md`](tools-directory-and-secrets-package-split.md)
+- [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md)
+- [`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md)

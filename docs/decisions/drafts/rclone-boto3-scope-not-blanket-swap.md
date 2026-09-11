@@ -183,3 +183,14 @@ read of `verify.py`'s existing credential handling.
   1 of the hardening project) gets fixed before this decision matters —
   if boto3 replaces the `rclone` call entirely, that bug becomes moot
   rather than fixed.
+- Swapping `rclone` for `boto3` doesn't *remove* a secret sitting on
+  disk in the clear — it relocates which one. `rclone.conf` today holds
+  real S3-compatible access/secret keys in plaintext (confirmed:
+  `openbao_backup`'s own `RCLONE_CONF` path is a plain file on the host,
+  mounted read-only into the container). A `boto3`+`hvac` combination
+  needs its own long-lived auth material somewhere unless it's fetched
+  fresh every run — an OpenBao token or AppRole `secret_id` on disk
+  instead of S3 keys on disk is not obviously a win, just a different
+  secret in the same kind of exposure. This is the same problem, one
+  level up, as whatever gets decided for Secret Zero more broadly — not
+  resolvable inside this draft alone.

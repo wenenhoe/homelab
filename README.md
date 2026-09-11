@@ -27,30 +27,11 @@ pushing GPG-encrypted archives of its own apps' named volumes to
 ```
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
-│   ├── .ansible-lint
-│   ├── .yamllint
-│   ├── .dclintrc
-│   ├── .pre-commit-config.yaml
-│   └── molecule/config.yml
-├── ansible/                 # All automation: playbooks, inventory, roles
-│   ├── ansible.cfg
-│   ├── requirements.yml
-│   ├── bootstrap_secrets.py # Interactive prompt for values Ansible can't generate itself
-│   ├── molecule-test-all.sh # Runs every role's molecule scenarios; see docs/molecule-testing.md
-│   ├── molecule-coverage/   # Task/loop/branch coverage tool for molecule scenarios
-│   ├── files/               # Non-secret static files (e.g. the backup GPG public key)
-│   ├── playbooks/           # See docs/ansible.md#playbooks
-│   ├── inventory/           # See docs/ansible.md#inventory
-│   ├── ci-inventory/        # CI-only inventory/vars for the compose-boot-test job
-│   └── roles/               # See docs/ansible.md#roles
+├── .github/                 # CI workflows, PR-check scripts, Renovate config — see docs/ci.md
+├── ansible/                 # All automation: playbooks, inventory, roles — see docs/ansible.md
 ├── docker/                  # One directory per application
-│   ├── caddy/               # compose.yaml + env template for the proxy
-│   ├── bind9/               # compose.yaml.j2 — timezone templated in, no separate .env
-│   ├── seaweedfs/           # compose.yaml + S3 identity config for the offsite-backup target
-│   ├── molecule-dind/       # Not an app — pre-baked DinD image for Molecule, see docs/molecule-testing.md
-│   └── <app>/               # compose.yaml (or compose.yaml.j2) + configs/scripts per app
-├── pyproject.toml / uv.lock # uv project files (must stay at repo root)
-└── docs/                    # Deep dives — see below
+├── docs/                    # Deep dives — see docs/README.md
+└── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
 
 Each app under `docker/<app>/` holds its `compose.yaml` (or

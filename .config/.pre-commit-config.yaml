@@ -22,6 +22,16 @@ repos:
     hooks:
       - id: ansible-lint
         stages: [pre-push]
+        # Upstream's own manifest sets always_run: true, which silently
+        # defeats a files: filter on its own — both overrides are
+        # required together, or this still fires on every push
+        # regardless of what changed (confirmed against the actual
+        # ansible/ansible-lint manifest, not assumed).
+        always_run: false
+        # Same file set as pr-checks.yml's ansible_lint path-filter —
+        # see docs/ci.md#docs-drift-check and that workflow's own
+        # comment on why pyproject.toml/uv.lock aren't included here.
+        files: ^(ansible/|\.config/\.ansible-lint$|\.config/\.pre-commit-config\.yaml$)
         # Overrides upstream's own `entry: python3 -m ansiblelint -v
         # --force-color` to force a UTF-8 locale explicitly — ansible-core
         # hard-requires one and errors ("Ansible requires the locale

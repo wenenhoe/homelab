@@ -1,6 +1,17 @@
 # My Homelab
 
-An Ansible-driven homelab: a small fleet of Ubuntu hosts, each running a set of Dockerized services behind a **Caddy** reverse proxy, with **BIND9** as the authoritative internal DNS server. Package installs, Docker Engine, DNS zones, TLS-terminating routes, and every application's config/directories are generated and converged by a handful of Ansible playbooks and roles. There is no manual step on a target host beyond running `ansible-playbook`.
+[![Renovate enabled](https://img.shields.io/badge/renovate-enabled-brightgreen.svg)](https://renovatebot.com)
+[![Trivy scheduled scan](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml/badge.svg)](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml)
+
+A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. There is no manual step on a target host beyond running `ansible-playbook`.
+
+| Concern | Stack |
+| :--- | :--- |
+| Automation & networking | Ansible · Docker Compose · Caddy · BIND9 |
+| Identity & secrets | OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth |
+| Data & ops | SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate |
+
+OpenTofu/Proxmox provisioning is in progress — see [`docs/projects/`](docs/projects/README.md).
 
 ## Architecture
 
@@ -22,35 +33,27 @@ CNAMEs back to each host's dynamic DNS target. Non-public apps sit behind
 pushing GPG-encrypted archives of its own apps' named volumes to
 `storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
 
+## Hardware
+
+Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM disk (1TB) plus a secondary 1TB HDD for backups.
+
+## Project Management
+
+- **Decisions** — non-obvious design choices become numbered [ADRs](docs/decisions/README.md).
+- **Multi-stage work** — tracked in a [project doc](docs/projects/README.md) until every stage is done, at which point its rationale and behavior get promoted into an ADR or topic doc and the project doc is deleted.
+- **Drift enforcement** — CI checks that docs stay in sync with the code, the playbook/role reference tables match what's on disk, and every cross-file link resolves.
+- **Testing** — Molecule role tests, boot-testing, and scheduled Trivy scans.
+
 ## Repository Layout
 
 ```
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
-│   ├── .ansible-lint
-│   ├── .yamllint
-│   ├── .dclintrc
-│   ├── .pre-commit-config.yaml
-│   └── molecule/config.yml
-├── ansible/                 # All automation: playbooks, inventory, roles
-│   ├── ansible.cfg
-│   ├── requirements.yml
-│   ├── bootstrap_secrets.py # Interactive prompt for values Ansible can't generate itself
-│   ├── molecule-test-all.sh # Runs every role's molecule scenarios; see docs/molecule-testing.md
-│   ├── molecule-coverage/   # Task/loop/branch coverage tool for molecule scenarios
-│   ├── files/               # Non-secret static files (e.g. the backup GPG public key)
-│   ├── playbooks/           # See docs/ansible.md#playbooks
-│   ├── inventory/           # See docs/ansible.md#inventory
-│   ├── ci-inventory/        # CI-only inventory/vars for the compose-boot-test job
-│   └── roles/               # See docs/ansible.md#roles
+├── .github/                 # CI workflows, PR-check scripts, Renovate config — see docs/ci.md
+├── ansible/                 # All automation: playbooks, inventory, roles — see docs/ansible.md
 ├── docker/                  # One directory per application
-│   ├── caddy/               # compose.yaml + env template for the proxy
-│   ├── bind9/               # compose.yaml.j2 — timezone templated in, no separate .env
-│   ├── seaweedfs/           # compose.yaml + S3 identity config for the offsite-backup target
-│   ├── molecule-dind/       # Not an app — pre-baked DinD image for Molecule, see docs/molecule-testing.md
-│   └── <app>/               # compose.yaml (or compose.yaml.j2) + configs/scripts per app
-├── pyproject.toml / uv.lock # uv project files (must stay at repo root)
-└── docs/                    # Deep dives — see below
+├── docs/                    # Deep dives — see docs/README.md
+└── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
 
 Each app under `docker/<app>/` holds its `compose.yaml` (or
@@ -62,77 +65,9 @@ test scaffolding, not a deployed app.
 
 ## Further Reading
 
-[`docs/README.md`](docs/README.md) explains how these docs are
-organized — start there if you're looking for where something new
-should go.
-
-### Architecture & System Design
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/architecture/README.md`](docs/architecture/README.md) | Mermaid diagrams for cross-cutting views: system component map, end-to-end data flow. |
-| [`docs/decisions/README.md`](docs/decisions/README.md) | Index of architecture decision records — why a design was chosen when the reasoning isn't obvious from the code alone. |
-| [`docs/projects/README.md`](docs/projects/README.md) | Index of multi-stage projects — build status and sequencing for initiatives that span several PRs. |
-
-### Architecture & workflow
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/ansible.md`](docs/ansible.md) | Playbook, role, and inventory reference tables. |
-| [`docs/deployment-flow.md`](docs/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
-| [`docs/volumes.md`](docs/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
-| [`docs/host-vars.md`](docs/host-vars.md) | `host_vars/<host>.yaml` field reference. |
-| [`docs/adding-an-app.md`](docs/adding-an-app.md) | Wiring a new Compose app into the registry. |
-
-### Planned, not yet implemented
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/vm-provisioning.md`](docs/vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: [`docs/projects/tofu-vm-provisioning.md`](docs/projects/tofu-vm-provisioning.md). |
-
-### Per-app infra
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/bind9.md`](docs/bind9.md) | Internal DNS zone aggregation and rendering. |
-| [`docs/caddy.md`](docs/caddy.md) | Custom Caddy build, Caddyfile generation, Tinyauth wiring. |
-| [`docs/beszel.md`](docs/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
-| [`docs/telegram-notifications.md`](docs/telegram-notifications.md) | Bot/topic scheme shared by diun, Beszel, backups, and cert-renewal alerts. |
-| [`docs/uptime-kuma.md`](docs/uptime-kuma.md) | Push-monitor dead-man's-switch status per job, routed into the Telegram topics above. |
-| [`docs/lldap.md`](docs/lldap.md) | LDAPS cert lifecycle via step-ca and a systemd renewal timer; bootstrapping the observer account tinyauth binds as. |
-| [`docs/step-ca.md`](docs/step-ca.md) | Internal PKI: bootstrap, provisioner claims, requesting a cert. |
-| [`docs/openbao.md`](docs/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
-| [`docs/openbao-backup-restore.md`](docs/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
-| [`docs/openbao-auth.md`](docs/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
-| [`docs/openbao-vault-bootstrap.md`](docs/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
-| [`docs/openbao-reinit-runbook.md`](docs/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
-| [`docs/openbao-r2-read-watcher.md`](docs/openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open `OnFailure=` gap. |
-| [`docs/wastebin.md`](docs/wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
-| [`docs/qemu-guest-agent.md`](docs/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
-
-### Operations
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/cleanup.md`](docs/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
-| [`docs/disaster-recovery.md`](docs/disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
-| [`docs/restore.md`](docs/restore.md) | Restoring an app's volume(s) from a backup archive: the runbook. |
-| [`docs/fire-drill.md`](docs/fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
-| [`docs/cloud-sync.md`](docs/cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
-| [`docs/cloud-credential-creation.md`](docs/cloud-credential-creation.md) | Creating the 6 R2/B2/OCI write+read credentials via each provider's HTTP API, what each is scoped to, rotation. |
-| [`docs/volume-maintenance.md`](docs/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
-| [`docs/secrets.md`](docs/secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
-| [`docs/secrets-rotation.md`](docs/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
-| [`docs/netplan-dhcp-identifier.md`](docs/netplan-dhcp-identifier.md) | Current-fleet-only fix for a DHCP dual-lease bug on boot; not Ansible-managed, transitional until the Tofu migration decommissions these hosts. |
-
-### Testing & CI
-
-| Doc | Covers |
-| :--- | :--- |
-| [`docs/molecule-testing.md`](docs/molecule-testing.md) | Molecule scenario matrix and how to add one. |
-| [`docs/molecule-fixtures.md`](docs/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
-| [`docs/ci.md`](docs/ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check. |
-| [`docs/security-scanning.md`](docs/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
+See [`docs/README.md`](docs/README.md) for how these docs are
+organized and its full categorized index — start there if you're
+looking for where something new should go, or for any specific topic.
 
 ## Setup
 
@@ -234,8 +169,8 @@ repo is generated, cached, and rotated through **OpenBao** on
 `security` — see [`docs/openbao.md`](docs/openbao.md). The rest of
 `docker/` is independently deployable Compose stacks (dashboards, media
 tools, Minecraft, link shortener, pastebin, web terminal, etc.), each
-just an `app_registry` entry plus a `docker/<app>/` directory (see
-Further Reading above to add one).
+just an `app_registry` entry plus a `docker/<app>/` directory — see
+[`adding-an-app.md`](docs/adding-an-app.md) to add one.
 
 ## Testing
 

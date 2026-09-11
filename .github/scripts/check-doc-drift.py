@@ -36,35 +36,19 @@ def read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def check_readme() -> None:
-    """Every docs/*.md file is linked somewhere in README.md; every
-    docs/*.md link in README.md resolves to a real file. Substring
-    matching, not table parsing — cheap, and false positives (a name
-    coincidentally appearing elsewhere) are the safe failure mode here,
-    not false negatives.
+def check_doc_indexes() -> None:
+    """Every doc directly under docs/, and every doc one level down under
+    docs/decisions/, docs/decisions/drafts/, docs/architecture/, and
+    docs/projects/, is linked in that directory's own README.md — both
+    directions, a link to a missing file fails too. Substring matching
+    for the forward direction, markdown-link-syntax matching for the
+    reverse — cheap, and a false positive (a name coincidentally
+    appearing elsewhere) is the safe failure mode here, not a false
+    negative. decisions/drafts gets its own pass distinct from decisions
+    itself since it's a second level down with its own README.md.
     """
-    readme = read(ROOT / "README.md")
-
-    for doc in sorted((ROOT / "docs").glob("*.md")):
-        if f"docs/{doc.name}" not in readme:
-            fail(f"README: docs/{doc.name} exists but isn't linked anywhere in README.md")
-
-    for link in re.findall(r"docs/[\w-]+\.md", readme):
-        if not (ROOT / link).is_file():
-            fail(f"README: links {link}, which doesn't exist")
-
-
-def check_subdirectory_indexes() -> None:
-    """Same check as check_readme(), one level down: every ADR under
-    docs/decisions/, draft ADR under docs/decisions/drafts/, diagram
-    under docs/architecture/, and project doc under docs/projects/ is
-    linked in that subdirectory's own README.md — both directions,
-    same substring matching. check_readme()'s docs/*.md glob is
-    non-recursive, so these subdirectories need their own pass, and
-    decisions/drafts needs a pass distinct from decisions itself since
-    it's a second level down with its own README.md.
-    """
-    for subdir in ("decisions", "decisions/drafts", "architecture", "projects"):
+    for subdir in ("", "decisions", "decisions/drafts", "architecture", "projects"):
+        label = f"docs/{subdir}" if subdir else "docs"
         index_path = ROOT / "docs" / subdir / "README.md"
         index = read(index_path)
 
@@ -72,20 +56,19 @@ def check_subdirectory_indexes() -> None:
             if doc.name in ("README.md", "TEMPLATE.md"):
                 continue
             if doc.name not in index:
-                fail(f"docs/{subdir}/README.md: {doc.name} exists but isn't linked in its index")
+                fail(f"{label}/README.md: {doc.name} exists but isn't linked in its index")
 
         for link in re.findall(r"\]\(([\w-]+\.md)\)", index):
             if link == "TEMPLATE.md":
                 continue
             if not (index_path.parent / link).is_file():
-                fail(f"docs/{subdir}/README.md: links {link}, which doesn't exist")
+                fail(f"{label}/README.md: links {link}, which doesn't exist")
 
 
 def check_ansible_reference() -> None:
     """docs/ansible.md's Playbooks table lists every ansible/playbooks/*.yaml
-    file; its Roles table lists every ansible/roles/*/ directory. Same
-    presence-only matching as check_readme() used to do against README's
-    tree, before that moved here.
+    file; its Roles table lists every ansible/roles/*/ directory.
+    Presence-only matching, not full link validation.
     """
     doc = read(ROOT / "docs/ansible.md")
 
@@ -287,8 +270,7 @@ def check_no_stale_anchors() -> None:
 
 
 def main() -> int:
-    check_readme()
-    check_subdirectory_indexes()
+    check_doc_indexes()
     check_ansible_reference()
     check_molecule_matrix()
     check_deploy_flow()

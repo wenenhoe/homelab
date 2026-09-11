@@ -1,6 +1,17 @@
 # My Homelab
 
-An Ansible-driven homelab: a small fleet of Ubuntu hosts, each running a set of Dockerized services behind a **Caddy** reverse proxy, with **BIND9** as the authoritative internal DNS server. Package installs, Docker Engine, DNS zones, TLS-terminating routes, and every application's config/directories are generated and converged by a handful of Ansible playbooks and roles. There is no manual step on a target host beyond running `ansible-playbook`.
+[![Renovate enabled](https://img.shields.io/badge/renovate-enabled-brightgreen.svg)](https://renovatebot.com)
+[![Trivy scheduled scan](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml/badge.svg)](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml)
+
+A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. There is no manual step on a target host beyond running `ansible-playbook`.
+
+**Automation & networking:** Ansible · Docker Compose · Caddy · BIND9
+
+**Identity & secrets:** OpenBao (Vault fork) · step-ca · LLDAP · Tinyauth
+
+**Data & ops:** SeaweedFS · GitHub Actions · Molecule · Trivy · Renovate
+
+OpenTofu/Proxmox provisioning is in progress — see [`docs/projects/`](docs/projects/README.md).
 
 ## Architecture
 
@@ -21,6 +32,13 @@ CNAMEs back to each host's dynamic DNS target. Non-public apps sit behind
 **Tinyauth** forward-auth. Every host also runs a `backup_agent` instance
 pushing GPG-encrypted archives of its own apps' named volumes to
 `storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
+
+## Project Management
+
+- **Decisions** — non-obvious design choices become numbered [ADRs](docs/decisions/README.md).
+- **Multi-stage work** — tracked in a [project doc](docs/projects/README.md) until every stage is done, at which point its rationale and behavior get promoted into an ADR or topic doc and the project doc is deleted.
+- **Drift enforcement** — CI checks that docs stay in sync with the code, the playbook/role reference tables match what's on disk, and every cross-file link resolves.
+- **Testing** — Molecule role tests, boot-testing, and scheduled Trivy scans.
 
 ## Repository Layout
 

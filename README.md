@@ -165,8 +165,8 @@ repo is generated, cached, and rotated through **OpenBao** on
 `security` — see [`docs/openbao.md`](docs/openbao.md). The rest of
 `docker/` is independently deployable Compose stacks (dashboards, media
 tools, Minecraft, link shortener, pastebin, web terminal, etc.), each
-just an `app_registry` entry plus a `docker/<app>/` directory (see
-Further Reading above to add one).
+just an `app_registry` entry plus a `docker/<app>/` directory — see
+[`adding-an-app.md`](docs/adding-an-app.md) to add one.
 
 ## Testing
 

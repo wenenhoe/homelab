@@ -12,6 +12,11 @@ The situation forcing a choice — constraints, the real alternatives
 considered, and why the obvious option doesn't work. Facts only; no
 narration of how the problem was discovered.
 
+If the decision follows from a threat model (adversary, asset, attack
+path), name it as its own bold-labeled paragraph here — see
+[0006](0006-backup-credential-blast-radius-threat-model.md) — rather
+than folding it into generic Context prose.
+
 ## Decision
 
 What was chosen, stated plainly.

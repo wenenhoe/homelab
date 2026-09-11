@@ -33,6 +33,10 @@ CNAMEs back to each host's dynamic DNS target. Non-public apps sit behind
 pushing GPG-encrypted archives of its own apps' named volumes to
 `storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
 
+## Hardware
+
+Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM disk (1TB) plus a secondary 1TB HDD for backups.
+
 ## Project Management
 
 - **Decisions** — non-obvious design choices become numbered [ADRs](docs/decisions/README.md).

@@ -3,15 +3,26 @@ name: Renovate
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}
   schedule:
-    # 20:00 UTC = 04:00 Asia/Singapore, every day. This only controls when
-    # the Renovate *process* runs, not when it's allowed to open new PRs —
-    # that's the separate, narrower `schedule` in renovate.json5. Running
-    # daily means: (1) vulnerabilityAlerts (which bypass renovate.json5's
-    # schedule entirely) land same-day instead of waiting for the next PR
-    # window, and (2) already-open PR branches get rebased daily against
-    # main, since Renovate's `updateNotScheduled` defaults to true (branch
-    # *updates* aren't schedule-gated — only new branch/PR *creation* is).
-    - cron: "0 20 * * *"
+    # 17:37 UTC = 01:37 Asia/Singapore, every day, inside renovate.json5's
+    # 0-5 PR-creation window with ~4h22m of buffer before it closes at
+    # 05:59. This only controls when the Renovate *process* runs, not when
+    # it's allowed to open new PRs — that's the separate `schedule` in
+    # renovate.json5. Running daily means: (1) vulnerabilityAlerts (which
+    # bypass that schedule entirely) land same-day, and (2) open PR
+    # branches get rebased daily against main, since `updateNotScheduled`
+    # defaults to true (branch *updates* aren't schedule-gated — only new
+    # branch/PR *creation* is).
+    #
+    # Not set to the window's start (00:00 SGT): active work can still be
+    # pushed to main up to ~01:30-02:00 SGT, and running before that risks
+    # Renovate rebasing branches against a commit that's about to be
+    # superseded. A non-zero minute (:37, not :00 or :30) also avoids the
+    # top-of-hour/half-hour load spikes GitHub's own scheduler is prone to.
+    # 01:37 still clears the observed scheduled-run lag on this workflow
+    # (1h44m-2h20m) well before the window's 05:59 close — see the
+    # schedule-window-compliance step below for what catches it if that
+    # stops being true.
+    - cron: "37 17 * * *"
 
 # Least privilege: Renovate authenticates to GitHub separately via
 # RENOVATE_TOKEN (a PAT — see docs/renovate-setup.md for scopes), so the
@@ -41,3 +52,22 @@ jobs:
         with:
           renovate-version: "44.69.6"
           token: ${{ secrets.RENOVATE_TOKEN }}
+
+      # renovate.json5's schedule only allows new branch/PR creation Mon/Thu
+      # 00:00-05:59 Asia/Singapore. GitHub's scheduled-run start lags the
+      # cron tick unpredictably (observed 1h44m-2h20m on this workflow), so
+      # a Mon/Thu run can land past 05:59 and silently skip PR creation for
+      # that cycle while this job still reports success. `if: always()`
+      # plus failing here (rather than folding this into the step above)
+      # keeps that distinct from an actual Renovate failure, and surfaces
+      # it via GitHub's default failed-workflow notification.
+      - name: Check schedule-window compliance
+        if: always()
+        run: |
+          dow=$(TZ=Asia/Singapore date +%u)  # 1=Mon .. 7=Sun
+          hour=$(TZ=Asia/Singapore date +%-H)
+          now=$(TZ=Asia/Singapore date)
+          if { [ "$dow" = "1" ] || [ "$dow" = "4" ]; } && [ "$hour" -ge 6 ]; then
+            echo "::error::Run started $now SGT, past the 05:59 PR-creation window — no new PRs opened this cycle."
+            exit 1
+          fi

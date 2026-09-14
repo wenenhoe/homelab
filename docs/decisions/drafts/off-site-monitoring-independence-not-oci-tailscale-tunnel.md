@@ -60,9 +60,10 @@ Staged, in this order:
   richer visibility but means bootstrapping Beszel's KEY/TOKEN and
   Kuma's admin account a second time, both documented as manual,
   DB-resident, and not template-able ahead of first boot.
-- VM 202's current configuration (OS, Tailscale version, ACL/tag setup)
-  hasn't been read yet — Stage 1 starts with an inventory pass, not an
-  assumption about what's already correct on it.
+- VM 202's current configuration is now read and recorded in
+  [`network-infra.md`](../../network-infra.md) (Stage 1, done) — the
+  tailnet-wide ACL policy itself is the one piece of that still
+  unreviewed.
 - Whether OCI compute is already available/budgeted for Stage 3, or is
   new spend — OCI's current use in this repo is object storage/IAM,
   not compute.

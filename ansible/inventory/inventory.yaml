@@ -10,9 +10,11 @@ all:
     # Every real, managed server (everything except the controller itself,
     # below). Playbooks that use THIS inventory and provision/deploy/
     # upgrade actual infrastructure (deploy.yaml's Plays 1/2/4/6,
-    # maintenance.yaml, restore.yaml) target this, NOT the bare `all`
+    # restore.yaml) target this, NOT the bare `all`
     # magic group — `all` also includes `controller` below, and none of
     # those plays should ever run against the operator's own machine.
+    # maintenance.yaml targets patched_hosts instead (below) — it isn't
+    # docker/compose-app-specific the way deploy.yaml's plays are.
     # reset-network.yaml does NOT use this inventory at all (see
     # inventory/sos-inventory.yaml and that playbook's own header) — this
     # group doesn't exist there and doesn't need to.
@@ -40,6 +42,31 @@ all:
     app_hosts:
       children:
         managed_hosts:
+
+    # Non-app infrastructure hosts: no Docker, no compose_apps, excluded
+    # from deploy.yaml entirely (see managed_hosts above) — only
+    # patched_hosts below (maintenance.yaml) and whatever infra-specific
+    # plays that file adds apply here. Addressed by static LAN IP, not
+    # "<host>.{{ ddns_domain }}" like managed_hosts — these hosts have no
+    # reason to be reachable over DDNS/WAN. See docs/network-infra.md.
+    network_infra:
+      hosts:
+        tailscale_router:
+          ansible_host: 192.168.20.2
+          ansible_user: tsadmin
+
+    # Every real host that gets OS-level patching (apt/fwupd) via
+    # maintenance.yaml — managed_hosts and network_infra alike, since
+    # patching isn't specific to running Docker/compose apps. Same
+    # alias pattern as app_hosts above: a distinct concept from
+    # managed_hosts (host Ansible patches vs. host Ansible deploys apps
+    # to), so this exists instead of folding network_infra into
+    # managed_hosts itself and having deploy.yaml wrongly try to deploy
+    # Docker/Caddy/compose apps onto it.
+    patched_hosts:
+      children:
+        managed_hosts:
+        network_infra:
 
     # The single authoritative DNS host.  bind9 role runs here only.
     dns:

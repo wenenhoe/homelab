@@ -2,13 +2,13 @@
 id: PROJ-off-site-monitoring
 title: "Off-Site Monitoring Independence"
 type: project
-status: not-started
+status: in-progress
 summary: "Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then OCI."
 ---
 
 # Off-Site Monitoring Independence
 
-**Status:** Not started
+**Status:** In progress
 
 Three-stage plan to stop Beszel/Kuma monitoring from being a single
 point of failure that lives entirely on the host (and site) it's
@@ -20,7 +20,7 @@ this doc tracks build status only.
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | Bring VM 202 (existing Tailscale subnet router) under repo management | Not started |
+| 1 | Bring VM 202 (existing Tailscale subnet router) under repo management | Done |
 | 2 | New Proxmox VM for Beszel/Kuma, on-prem, separate from `security` | Not started |
 | 3 | Relocate to OCI, reached over VM 202's existing subnet route | Not started |
 
@@ -28,10 +28,15 @@ this doc tracks build status only.
 
 ### Stage 1 — inventory VM 202
 
-Starts with reading its actual current state (OS, Tailscale version,
-ACL/tag configuration) — nothing about it is assumed correct or
-known yet. Once inventoried, bring it under whatever configuration
-management standard the rest of `managed_hosts` follows.
+Done. Current state read directly off the host and recorded in
+[`network-infra.md`](../network-infra.md) — Ubuntu 26.04, Tailscale
+1.102.3, no per-node ACL tags (tailnet-wide policy itself not yet
+reviewed). Brought under management as its own `network_infra`
+inventory group rather than `managed_hosts` (it runs no Docker/compose
+apps); `maintenance.yaml` now patches it via the new `patched_hosts`
+alias and installs `qemu_guest_agent` directly. See that doc for the
+three manual prerequisites (SSH key, passwordless sudo, Python
+interpreter) any new `network_infra` host needs first.
 
 ### Stage 2 — dedicated on-prem monitoring host
 
@@ -49,9 +54,8 @@ the decision draft's "Not yet done").
 
 ## Open items
 
-- Full-stack-vs-minimal-heartbeat choice for Stage 3 — deferred until
-  Stage 1's inventory pass gives a clearer picture of what's actually
-  worth duplicating remotely.
+- Full-stack-vs-minimal-heartbeat choice for Stage 3 — Stage 1's
+  inventory pass (above) is done, but the choice itself is still open.
 - OCI compute availability/budget for Stage 3 — not confirmed.
 
 ## Closing checklist

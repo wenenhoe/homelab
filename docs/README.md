@@ -43,6 +43,7 @@ note on that).
 | [`deployment-flow.md`](deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
 | [`volumes.md`](volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
 | [`host-vars.md`](host-vars.md) | `host_vars/<host>.yaml` field reference. |
+| [`network-infra.md`](network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, and their bootstrap prerequisites. |
 | [`adding-an-app.md`](adding-an-app.md) | Wiring a new Compose app into the registry. |
 
 ### Planned, not yet implemented

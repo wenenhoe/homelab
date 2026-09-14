@@ -25,7 +25,7 @@ this doc tracks build status only.
 | # | Stage | Status |
 | :-: | :--- | :--- |
 | 1 | `cache.py` → `hvac` + `paramiko` | Done |
-| 2 | `bootstrap_secrets.py` → same swap | Not started |
+| 2 | `bootstrap_secrets.py` → same swap | Done |
 | 3 | `audit_secrets.py`'s Vault calls → `hvac` | Not started |
 | 4 | `r2_read_watcher.py` → `hvac`, plus its own reconnect/token-renewal spike | Not started |
 | 5 | Extract a shared helper module (only if the draft's Option B wins) + re-baseline stage 1/2's tests against it | Not started |
@@ -44,11 +44,17 @@ tracked here, not duplicated as a stage in that project.
 
 ### Stage 2 — `bootstrap_secrets.py` → same swap
 
-Same Assumptions as Stage 1 — confirmed to be the identical gap
-(missing SSH timeout, hand-rolled Vault client), so this stage is
-"apply Stage 1's proven pattern here," not a separate evaluation.
-Whether this lands as independent code (Option A) or through a shared
-module (Option B) is the draft's open question, not decided per-stage.
+Built independently, per Stage 1's proven pattern (same missing-SSH-
+timeout gap, same hand-rolled Vault client, confirmed identical).
+Diffing the two now that both exist: `fetch_root_cert()`'s body is
+identical to `cache.py`'s `_fetch_root_cert()` apart from one
+cross-referencing comment; `vault_read`/`vault_write`'s bodies are
+identical to `cache.py`'s `_vault_read_at`/`_vault_write_at` apart from
+taking an `hvac.Client` as an explicit parameter instead of pulling one
+from `cache.py`'s process-lifetime session cache (this script makes far
+fewer Vault calls per run, so it doesn't need one). This is the actual
+evidence the Stage 5/Option B decision was waiting on — not a
+projection anymore.
 
 ### Stage 3 — `audit_secrets.py`
 

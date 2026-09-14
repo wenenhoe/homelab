@@ -17,18 +17,25 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import requests
+import hvac
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import bootstrap_secrets
 
 
-def _mock_response(status_code: int, json_body: dict | None = None):
-    resp = MagicMock(status_code=status_code)
-    resp.json.return_value = json_body or {}
-    resp.raise_for_status = MagicMock() if status_code < 400 else MagicMock(side_effect=requests.exceptions.HTTPError(str(status_code)))
-    return resp
+def _mock_ssh_client(exit_status: int = 0, stdout: bytes = b"", stderr: bytes = b""):
+    """A paramiko.SSHClient() stand-in - exec_command()'s 3-tuple, with
+    stdout.channel.recv_exit_status() driving fetch_root_cert()'s
+    success/failure branch."""
+    client = MagicMock()
+    stdout_stream = MagicMock()
+    stdout_stream.read.return_value = stdout
+    stdout_stream.channel.recv_exit_status.return_value = exit_status
+    stderr_stream = MagicMock()
+    stderr_stream.read.return_value = stderr
+    client.exec_command.return_value = (MagicMock(), stdout_stream, stderr_stream)
+    return client
 
 
 class SecretsDirTestCase(unittest.TestCase):
@@ -183,27 +190,38 @@ class FetchRootCertTests(SecretsDirTestCase):
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    @patch("bootstrap_secrets.subprocess.run")
-    def test_returns_stdout_on_success(self, mock_run):
-        mock_run.return_value = MagicMock(returncode=0, stdout="-----BEGIN CERTIFICATE-----\n...", stderr="")
+    @patch("bootstrap_secrets.paramiko.SSHClient")
+    def test_returns_stdout_on_success(self, mock_ssh_client_cls):
+        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=0, stdout=b"-----BEGIN CERTIFICATE-----\n...")
         cert = bootstrap_secrets.fetch_root_cert()
         self.assertIn("BEGIN CERTIFICATE", cert)
 
-    @patch("bootstrap_secrets.subprocess.run")
-    def test_uses_ssh_with_the_correct_container_and_command(self, mock_run):
-        mock_run.return_value = MagicMock(returncode=0, stdout="cert", stderr="")
+    @patch("bootstrap_secrets.paramiko.SSHClient")
+    def test_connects_to_the_correct_host_and_execs_the_correct_command(self, mock_ssh_client_cls):
+        mock_client = _mock_ssh_client(exit_status=0, stdout=b"cert")
+        mock_ssh_client_cls.return_value = mock_client
         bootstrap_secrets.fetch_root_cert()
-        argv = mock_run.call_args.args[0]
-        self.assertEqual(argv[0], "ssh")
-        self.assertIn("secadmin@security.internal.example.com", argv)
-        self.assertIn(bootstrap_secrets.VAULT_STEP_CA_CONTAINER, argv)
-        self.assertEqual(argv[-2:], ["cat", "/home/step/certs/root_ca.crt"])
+        args, kwargs = mock_client.connect.call_args
+        self.assertEqual(args[0], "security.internal.example.com")
+        self.assertEqual(kwargs["username"], "secadmin")
+        self.assertEqual(kwargs["key_filename"], "/home/x/.ssh/key")
+        command = mock_client.exec_command.call_args.args[0]
+        self.assertIn(bootstrap_secrets.VAULT_STEP_CA_CONTAINER, command)
+        self.assertIn("/home/step/certs/root_ca.crt", command)
 
-    @patch("bootstrap_secrets.subprocess.run")
-    def test_raises_system_exit_on_nonzero_returncode(self, mock_run):
-        mock_run.return_value = MagicMock(returncode=1, stdout="", stderr="Permission denied")
+    @patch("bootstrap_secrets.paramiko.SSHClient")
+    def test_raises_system_exit_on_nonzero_exit_status(self, mock_ssh_client_cls):
+        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=1, stderr=b"Permission denied")
         with self.assertRaises(SystemExit):
             bootstrap_secrets.fetch_root_cert()
+
+    @patch("bootstrap_secrets.paramiko.SSHClient")
+    def test_closes_the_client_even_on_failure(self, mock_ssh_client_cls):
+        mock_client = _mock_ssh_client(exit_status=1, stderr=b"boom")
+        mock_ssh_client_cls.return_value = mock_client
+        with self.assertRaises(SystemExit):
+            bootstrap_secrets.fetch_root_cert()
+        mock_client.close.assert_called_once()
 
 
 class VaultLoginTests(SecretsDirTestCase):
@@ -214,90 +232,73 @@ class VaultLoginTests(SecretsDirTestCase):
     def test_raises_system_exit_when_role_id_missing(self):
         self.seed("openbao-controller-secret-id", "some-secret-id")
         with self.assertRaises(SystemExit):
-            bootstrap_secrets.vault_login("/dev/null")
+            bootstrap_secrets.vault_login(MagicMock())
 
     def test_raises_system_exit_when_secret_id_blank(self):
         self.seed("openbao-controller-role-id", "some-role-id")
         self.seed("openbao-controller-secret-id", "   ")
         with self.assertRaises(SystemExit):
-            bootstrap_secrets.vault_login("/dev/null")
+            bootstrap_secrets.vault_login(MagicMock())
 
-    @patch("bootstrap_secrets.requests.post")
-    def test_returns_client_token_on_success(self, mock_post):
+    def test_logs_in_with_role_id_and_secret_id(self):
         self.seed("openbao-controller-role-id", "some-role-id")
         self.seed("openbao-controller-secret-id", "some-secret-id")
-        mock_post.return_value = _mock_response(200, {"auth": {"client_token": "s.abc123"}})
+        mock_client = MagicMock()
 
-        token = bootstrap_secrets.vault_login("/path/to/ca.crt")
+        bootstrap_secrets.vault_login(mock_client)
 
-        self.assertEqual(token, "s.abc123")
-        mock_post.assert_called_once_with(
-            "https://openbao.sec.lan.example.com:8200/v1/auth/approle/login",
-            json={"role_id": "some-role-id", "secret_id": "some-secret-id"},
-            verify="/path/to/ca.crt",
-            timeout=10,
-        )
+        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
 
-    @patch("bootstrap_secrets.requests.post")
-    def test_strips_whitespace_from_role_and_secret_id(self, mock_post):
+    def test_strips_whitespace_from_role_and_secret_id(self):
         self.seed("openbao-controller-role-id", "  some-role-id  \n")
         self.seed("openbao-controller-secret-id", "  some-secret-id  \n")
-        mock_post.return_value = _mock_response(200, {"auth": {"client_token": "s.abc123"}})
+        mock_client = MagicMock()
 
-        bootstrap_secrets.vault_login("/path/to/ca.crt")
+        bootstrap_secrets.vault_login(mock_client)
 
-        sent_json = mock_post.call_args.kwargs["json"]
-        self.assertEqual(sent_json, {"role_id": "some-role-id", "secret_id": "some-secret-id"})
+        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
 
 
 class VaultReadWriteTests(SecretsDirTestCase):
     def setUp(self):
         super().setUp()
         self.seed("main-domain", "example.com")
+        self.mock_client = MagicMock()
 
-    @patch("bootstrap_secrets.requests.get")
-    def test_read_returns_none_on_404(self, mock_get):
-        mock_get.return_value = _mock_response(404)
-        self.assertIsNone(bootstrap_secrets.vault_read("token", "/ca.crt", "hosts/security/some-key"))
+    def test_read_returns_none_on_invalid_path(self):
+        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
+        self.assertIsNone(bootstrap_secrets.vault_read(self.mock_client, "hosts/security/some-key"))
 
-    @patch("bootstrap_secrets.requests.get")
-    def test_read_returns_value_on_200(self, mock_get):
-        mock_get.return_value = _mock_response(200, {"data": {"data": {"value": "the-value"}}})
-        value = bootstrap_secrets.vault_read("token", "/ca.crt", "hosts/security/some-key")
+    def test_read_returns_value_on_success(self):
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-value"}}}
+        value = bootstrap_secrets.vault_read(self.mock_client, "hosts/security/some-key")
         self.assertEqual(value, "the-value")
 
-    @patch("bootstrap_secrets.requests.get")
-    def test_read_uses_the_correct_url_and_token_header(self, mock_get):
-        mock_get.return_value = _mock_response(200, {"data": {"data": {"value": "x"}}})
-        bootstrap_secrets.vault_read("s.abc123", "/ca.crt", "hosts/all/telegram/telegram-token")
-        mock_get.assert_called_once_with(
-            f"https://openbao.sec.lan.example.com:8200/v1/{bootstrap_secrets.VAULT_KV_MOUNT}/data/hosts/all/telegram/telegram-token",
-            headers={"X-Vault-Token": "s.abc123"},
-            verify="/ca.crt",
-            timeout=10,
+    def test_read_uses_the_correct_path_and_mount(self):
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+        bootstrap_secrets.vault_read(self.mock_client, "hosts/all/telegram/telegram-token")
+        self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            path="hosts/all/telegram/telegram-token",
+            mount_point=bootstrap_secrets.VAULT_KV_MOUNT,
         )
 
-    @patch("bootstrap_secrets.requests.get")
-    def test_read_raises_on_non_404_error_status(self, mock_get):
-        mock_get.return_value = _mock_response(500)
-        with self.assertRaises(requests.exceptions.HTTPError):
-            bootstrap_secrets.vault_read("token", "/ca.crt", "hosts/security/some-key")
+    def test_read_propagates_non_invalid_path_errors(self):
+        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.Forbidden
+        with self.assertRaises(hvac.exceptions.Forbidden):
+            bootstrap_secrets.vault_read(self.mock_client, "hosts/security/some-key")
 
-    @patch("bootstrap_secrets.requests.post")
-    def test_write_posts_the_correct_payload(self, mock_post):
-        mock_post.return_value = _mock_response(200)
-        bootstrap_secrets.vault_write("s.abc123", "/ca.crt", "hosts/security/some-key", "the-value")
-        mock_post.assert_called_once()
-        _, kwargs = mock_post.call_args
-        self.assertEqual(kwargs["headers"], {"X-Vault-Token": "s.abc123"})
-        self.assertEqual(kwargs["json"], {"data": {"value": "the-value"}})
-        self.assertEqual(kwargs["verify"], "/ca.crt")
+    def test_write_writes_the_correct_payload(self):
+        bootstrap_secrets.vault_write(self.mock_client, "hosts/security/some-key", "the-value")
+        self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
+            path="hosts/security/some-key",
+            secret={"value": "the-value"},
+            mount_point=bootstrap_secrets.VAULT_KV_MOUNT,
+        )
 
-    @patch("bootstrap_secrets.requests.post")
-    def test_write_raises_on_error_status(self, mock_post):
-        mock_post.return_value = _mock_response(400)
-        with self.assertRaises(requests.exceptions.HTTPError):
-            bootstrap_secrets.vault_write("token", "/ca.crt", "hosts/security/some-key", "value")
+    def test_write_propagates_errors(self):
+        self.mock_client.secrets.kv.v2.create_or_update_secret.side_effect = hvac.exceptions.Forbidden
+        with self.assertRaises(hvac.exceptions.Forbidden):
+            bootstrap_secrets.vault_write(self.mock_client, "hosts/security/some-key", "value")
 
 
 class MainNoRegistryTests(unittest.TestCase):
@@ -366,7 +367,7 @@ class MainVaultEntriesTests(SecretsDirTestCase):
         fetch_patcher.start()
         self.addCleanup(fetch_patcher.stop)
 
-        login_patcher = patch.object(bootstrap_secrets, "vault_login", return_value="s.abc123")
+        login_patcher = patch.object(bootstrap_secrets, "vault_login")
         login_patcher.start()
         self.addCleanup(login_patcher.stop)
 
@@ -376,11 +377,13 @@ class MainVaultEntriesTests(SecretsDirTestCase):
     def test_creates_a_missing_vault_entry(self, mock_prompt, mock_read, mock_write):
         self.assertEqual(bootstrap_secrets.main(), 0)
         mock_write.assert_called_once()
-        token, ca_path, vault_path, value = mock_write.call_args.args
-        self.assertEqual(token, "s.abc123")
-        self.assertTrue(ca_path, "ca_path should be a real temp-file path, not empty/None")
+        client_arg, vault_path, value = mock_write.call_args.args
         self.assertEqual(vault_path, "hosts/all/telegram/telegram-token")
         self.assertEqual(value, "a-telegram-token")
+        # One hvac.Client built and threaded through login/read/write -
+        # not reconstructed per call.
+        self.assertIs(bootstrap_secrets.vault_login.call_args.args[0], client_arg)
+        self.assertIs(mock_read.call_args.args[0], client_arg)
 
     @patch("bootstrap_secrets.vault_write")
     @patch("bootstrap_secrets.vault_read", return_value="already-there")
@@ -390,17 +393,15 @@ class MainVaultEntriesTests(SecretsDirTestCase):
         mock_prompt.assert_not_called()
         mock_write.assert_not_called()
 
+    @patch("bootstrap_secrets.hvac.Client")
     @patch("bootstrap_secrets.vault_write")
     @patch("bootstrap_secrets.vault_read", return_value=None)
-    def test_temp_ca_file_is_removed_after_use(self, mock_read, mock_write):
-        written_paths = []
-        mock_write.side_effect = lambda token, ca_path, vault_path, value: written_paths.append(ca_path)
-
-        with patch("bootstrap_secrets.prompt_for_value", return_value="x"):
-            bootstrap_secrets.main()
-
-        self.assertEqual(len(written_paths), 1)
-        self.assertFalse(Path(written_paths[0]).exists(), "temp CA file should be cleaned up after main() returns")
+    @patch("bootstrap_secrets.prompt_for_value", return_value="x")
+    def test_temp_ca_file_is_removed_after_use(self, mock_prompt, mock_read, mock_write, mock_client_cls):
+        bootstrap_secrets.main()
+        ca_path = mock_client_cls.call_args.kwargs["verify"]
+        self.assertTrue(ca_path, "ca_path should be a real temp-file path, not empty/None")
+        self.assertFalse(Path(ca_path).exists(), "temp CA file should be cleaned up after main() returns")
 
     @patch("bootstrap_secrets.vault_write")
     @patch("bootstrap_secrets.vault_read", return_value=None)

@@ -2,7 +2,7 @@
 
 Hosts that support the network itself rather than running Docker/
 compose apps — the `network_infra` inventory group. Currently one
-host: `tailscale_router` (VM 202), an existing Tailscale subnet router
+host: `tailscale` (VM 202), an existing Tailscale subnet router
 brought under Ansible management as Stage 1 of
 [`off-site-monitoring.md`](projects/off-site-monitoring.md); see that
 project doc for why (offsite monitoring's eventual OCI hop reuses this
@@ -22,13 +22,13 @@ see [`ansible.md`](ansible.md#inventory).
 
 ## Future: superseded by Tofu, not duplicated alongside it
 
-This group's `tailscale_router` entry is interim, not permanent.
+This group's `tailscale` entry is interim, not permanent.
 [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) already
 plans to rebuild VM 202 as a Tofu-managed VM once its migration reaches
 that VMID (Migration Stage 2 / that project's Stage 6), at which point
 its Stage 4 inventory generator produces this host's Ansible entry
 instead. When that lands: remove `network_infra`'s hand-written
-`tailscale_router` block from `inventory.yaml` rather than leaving both
+`tailscale` block from `inventory.yaml` rather than leaving both
 in place — a generated entry and this manual one both resolving the
 same host is exactly the kind of silent-drift risk this doc exists to
 avoid. `patched_hosts`/`network_infra` themselves may still be useful
@@ -36,7 +36,7 @@ as group *names* afterward (any future non-app infra host would want
 the same patching-without-Docker treatment); it's specifically this
 one host's manual entry that's temporary.
 
-## `tailscale_router` (VM 202) — current state
+## `tailscale` (VM 202) — current state
 
 Read directly off the host, not assumed:
 
@@ -45,7 +45,8 @@ Read directly off the host, not assumed:
 | OS | Ubuntu 26.04 LTS (`resolute`), kernel `7.0.0-28-generic` |
 | Tailscale | `1.102.3`, installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
-| LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained (`dynamic`, not netplan-static) |
+| DDNS name | `tailscale.{{ ddns_domain }}` — same `<host>.{{ ddns_domain }}` structure as every `managed_hosts` member; this is what `inventory.yaml`'s `ansible_host` actually uses |
+| LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
 | `qemu-guest-agent` | Already installed and active (pre-dates this being under management) |
 | SSH admin user | `tsadmin` |
 
@@ -55,9 +56,16 @@ VMID 202 — but that scheme is written for Tofu-provisioned VMs, VM 202
 predates Tofu, and the interface shows a DHCP-obtained lease rather
 than a static netplan config. Whether Kea holds a MAC-keyed
 reservation that makes this address effectively permanent, or it's
-coincidence, hasn't been confirmed — `ansible_host` uses the literal
-observed IP either way, and `reset-network.yaml`/`sos-inventory.yaml`
-don't cover this host (both are `managed_hosts`-only today).
+coincidence, still hasn't been confirmed — no longer operationally
+relevant to `ansible_host` now that it resolves through DDNS the same
+as every other host, but relevant to whether this host would ever
+belong in `sos-inventory.yaml` (static-IP-only, DNS-independent
+recovery path). Not added there yet: `reset-network.yaml`'s whole
+reason to exist is reaching a host when DNS itself might be down, and
+this host is reachable over its own `tailscale0` interface regardless
+of this repo's DNS — whether that makes `sos-inventory.yaml` coverage
+redundant or still worth having for netplan-reset specifically is an
+open question, not a settled "no."
 
 Per-node Tailscale ACL tags: none found (`tailscale status --self
 --json`'s `Self` has no `Tags` key). The tailnet-wide ACL policy itself
@@ -84,10 +92,16 @@ secrets):
    `ansible_python_interpreter: /usr/bin/python3.14` is a global
    `all.vars` default; confirm it exists on the host (or override it
    per-host) before the first run.
+4. **DDNS name** — confirm one actually exists (`<host>.{{ ddns_domain }}`)
+   before assuming a new `network_infra` host needs the static-IP
+   fallback pattern instead — an earlier revision of `tailscale`'s own
+   entry assumed no DDNS name existed here and used a hardcoded LAN IP
+   until that assumption turned out to be wrong.
 
-`tailscale_router` needed all three — `tsadmin`'s sudo currently
+`tailscale` needed the first three — `tsadmin`'s sudo currently
 prompts for a password (confirmed live: `sudo -n true` fails with
-"interactive authentication is required").
+"interactive authentication is required") — and, as it turned out, not
+the fourth.
 
 ## Verifying
 

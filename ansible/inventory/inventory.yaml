@@ -46,13 +46,19 @@ all:
     # Non-app infrastructure hosts: no Docker, no compose_apps, excluded
     # from deploy.yaml entirely (see managed_hosts above) — only
     # patched_hosts below (maintenance.yaml) and whatever infra-specific
-    # plays that file adds apply here. Addressed by static LAN IP, not
-    # "<host>.{{ ddns_domain }}" like managed_hosts — these hosts have no
-    # reason to be reachable over DDNS/WAN. See docs/network-infra.md.
+    # plays that file adds apply here. Addressed the same way as
+    # managed_hosts ("<host>.{{ ddns_domain }}") — confirmed this host
+    # follows the same DDNS convention as the rest of the fleet, not the
+    # static-LAN-IP fallback an earlier revision of this entry assumed.
+    # See docs/network-infra.md.
     network_infra:
       hosts:
-        tailscale_router:
-          ansible_host: 192.168.20.2
+        tailscale:
+          # management as Stage 1 of docs/projects/off-site-monitoring.md.
+          # See docs/network-infra.md for why this entry is interim
+          # (see that doc's "Future: superseded by Tofu" note) rather
+          # than permanent.
+          ansible_host: "tailscale.{{ ddns_domain }}"
           ansible_user: tsadmin
 
     # Every real host that gets OS-level patching (apt/fwupd) via

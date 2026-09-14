@@ -80,7 +80,7 @@ Separate inventories exist for different situations:
 
 | Inventory | Used by | Host addressing | Purpose |
 | :--- | :--- | :--- | :--- |
-| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `managed_hosts`: `<host>.{{ ddns_domain }}` (DNS name). `network_infra`: static LAN IP — see [`network-infra.md`](network-infra.md). | Day-to-day operation once DNS is up |
+| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) — same for `managed_hosts` and `network_infra` alike | Day-to-day operation once DNS is up |
 | `inventory/sos-inventory.yaml` | `playbooks/reset-network.yaml` | Static IPs (see [`vm-provisioning.md`](vm-provisioning.md#vmid--vlan--ip-scheme) for the scheme) | Recovery path when DNS/network is down |
 
 `inventory/inventory.yaml` also defines groups the roles depend on directly:

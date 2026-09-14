@@ -160,7 +160,7 @@ This stage is blocked on it too.
   of this project. It becomes Tofu-managed once this project reaches
   its VMID (Migration Stage 2, Stage 6 below); Stage 4's inventory
   generator should then supersede — not duplicate alongside —
-  `inventory.yaml`'s hand-written `tailscale_router` entry. It's the
+  `inventory.yaml`'s hand-written `tailscale` entry. It's the
   only Tailscale node in the lab today, already acting as the subnet
   router — no fan-out of per-VM installs to consolidate, and no
   exit-node use case exists. What's left for later is routine: advertise

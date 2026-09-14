@@ -9,6 +9,9 @@ all:
   children:
     sos:
       hosts:
+        tailscale:
+          ansible_host: 192.168.20.2
+          ansible_user: tsadmin
         services:
           ansible_host: 192.168.20.3
           ansible_user: svcadmin

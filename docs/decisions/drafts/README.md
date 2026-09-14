@@ -22,3 +22,5 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`tools-directory-and-secrets-package-split.md`](tools-directory-and-secrets-package-split.md)
 - [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md)
 - [`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md)
+- [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)
+- [`metadata-governance-system-evaluate-vs-existing.md`](metadata-governance-system-evaluate-vs-existing.md)

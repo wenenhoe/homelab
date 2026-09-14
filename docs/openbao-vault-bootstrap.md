@@ -52,21 +52,45 @@ narrow AppRole), `vault-bootstrap` can produce one without a second
 re-init - the same self-escalation property above, deliberately used
 on purpose this one time:
 
-1. Log in with `vault-bootstrap`.
-2. `bao policy write vault-bootstrap-emergency -` a copy of
+1. Log in with `vault-bootstrap`, using `-it` (not `-i`) on the
+   `docker exec` alias — step 4's unseal-key submission is an
+   interactive prompt and needs a TTY.
+2. `bao policy write vault-bootstrap-emergency -`: a copy of
    `vault-bootstrap.hcl` plus one added stanza:
-   `path "sys/generate-root-token/*" { capabilities = ["sudo", "create", "update"] }`.
-3. `bao write auth/approle/role/vault-bootstrap` (or a fresh short-lived
-   role) `token_policies="vault-bootstrap-emergency"`, log in again.
-4. `bao operator generate-root -init`, then supply the Shamir quorum
-   from the break-glass bundle - the login token above satisfies 2.6.x's
-   authenticated-endpoint requirement, the Shamir shares satisfy the
-   quorum. Confirm the exact `-init`/`-otp`/`-decode` sequence against
-   `bao operator generate-root -h` on the real running version before
-   relying on it live - not re-derived here from memory.
-5. Revert the policy to plain `vault-bootstrap.hcl` (remove the
-   `sys/generate-root-token/*` stanza) once done - the added capability
-   is for the duration of one recovery, not a standing grant.
+   `path "sys/generate-root-token/*" { capabilities = ["sudo", "create", "read", "update", "delete"] }`.
+   `read` and `delete` are both required, not just `sudo`/`create`/
+   `update` — `-generate-otp`'s status check and `-cancel` 403 without
+   them, confirmed live.
+3. `bao write auth/approle/role/vault-bootstrap token_policies="vault-bootstrap-emergency"`,
+   log in again. AppRole role writes on this backend merge into the
+   stored role rather than replacing it — `pathRoleCreateUpdate` loads
+   the existing role first and only overwrites fields present in the
+   request (confirmed from `path_role.go`/`tokenutil.go`), so a field
+   left off this command keeps its current stored value. Re-supplying
+   every field anyway is still worth doing for an explicit audit
+   trail, just not required to avoid data loss.
+4. `bao operator generate-root -generate-otp`, then
+   `bao operator generate-root -init -otp="<otp>"` — returns a
+   `Nonce`. Submit each Shamir key with
+   `bao operator generate-root -otp="<otp>" -nonce="<nonce>"`, repeated
+   once per key up to the configured threshold (`-status` checks
+   progress without consuming a key). The final submission returns an
+   `Encoded Token`; decode it with
+   `bao operator generate-root -decode="<encoded>" -otp="<otp>"` for
+   the actual root token. Confirmed against this CLI's own `-h` output
+   and a live run.
+5. Use the root token for whatever the actual emergency need is.
+6. Revert — three things, not one:
+   - Rebind `vault-bootstrap` back to `token_policies="vault-bootstrap"`.
+   - `bao policy delete vault-bootstrap-emergency` — deleting the
+     role's reference to it isn't enough; the policy object itself
+     stays unless removed, sitting unattached and unused, which is
+     exactly the kind of "slower-to-notice god-mode" this design
+     exists to avoid.
+   - `bao token revoke <root token>` — a live, unrevoked root token
+     defeats the point of not holding a standing one. Confirm with
+     `bao token lookup <root token>`: permission-denied means it's
+     gone.
 
 **This makes `vault-bootstrap` a single point of failure for the
 mechanism above**, and worse than the pre-2.6.x world in one specific

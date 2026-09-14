@@ -49,7 +49,15 @@ _PROPAGATION_ERROR_MARKERS = ("StatusCode: 403", "StatusCode: 401")
 def _run_rclone_with_retry(cmd: list[str], timeout: int, retries: int = 60, delay: int = 15) -> subprocess.CompletedProcess:
     result = None
     for attempt in range(1, retries + 1):
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=False)
+        except subprocess.TimeoutExpired:
+            # A hung rclone process isn't the propagation condition
+            # _PROPAGATION_ERROR_MARKERS exists for (see above) — folded
+            # into the same non-zero-exit path below via a synthetic
+            # result so this fails like any other non-retryable error
+            # instead of raising out of the retry loop uncaught.
+            result = subprocess.CompletedProcess(cmd, returncode=1, stdout="", stderr=f"rclone timed out after {timeout}s")
         if result.returncode == 0:
             return result
         if attempt < retries and any(marker in result.stderr for marker in _PROPAGATION_ERROR_MARKERS):

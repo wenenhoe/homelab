@@ -152,10 +152,17 @@ This stage is blocked on it too.
   time instead of keeping Trivy — not scoped yet, not actionable
   before Stage 1 lands — see the
   [decision draft](../decisions/drafts/checkov-for-opentofu-not-yet-for-ansible-misconfig.md).
-- VM 202 ("Tailscale") is currently unmanaged by Ansible or Tofu —
-  becomes a Tofu-managed VM once this project reaches that VMID. It's
-  the only Tailscale node in the lab today, already acting as the
-  subnet router — no fan-out of per-VM installs to consolidate, and no
+- VM 202 ("Tailscale") is Tofu-unmanaged but no longer wholly
+  untracked — Stage 1 of
+  [`off-site-monitoring.md`](off-site-monitoring.md) brought it under
+  interim Ansible management as the `network_infra` group (see
+  [`network-infra.md`](../network-infra.md)) ahead of and independent
+  of this project. It becomes Tofu-managed once this project reaches
+  its VMID (Migration Stage 2, Stage 6 below); Stage 4's inventory
+  generator should then supersede — not duplicate alongside —
+  `inventory.yaml`'s hand-written `tailscale` entry. It's the
+  only Tailscale node in the lab today, already acting as the subnet
+  router — no fan-out of per-VM installs to consolidate, and no
   exit-node use case exists. What's left for later is routine: advertise
   new subnets as VLANs 30/40 come online, gated by Tailscale ACLs, and
   apply a public-vs-Tailscale-only exposure policy once a public

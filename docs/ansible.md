@@ -12,7 +12,7 @@ why every host is Ansible-managed rather than configured by hand.
 | :--- | :--- | :--- |
 | `playbooks/deploy.yaml` | `inventory/inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`deployment-flow.md`](deployment-flow.md). |
 | `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`cleanup.md`](cleanup.md). |
-| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required. |
+| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required (`patched_hosts`), plus `qemu_guest_agent` presence (`network_infra` only). |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 | `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted offsite backup archive (stage 1 DR). See [`restore.md`](restore.md). |
 | `playbooks/restore-discovery-setup.yaml` | `inventory/inventory.yaml` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` `restore_all.py` uses. See [`restore.md`](restore.md). |
@@ -80,10 +80,11 @@ Separate inventories exist for different situations:
 
 | Inventory | Used by | Host addressing | Purpose |
 | :--- | :--- | :--- | :--- |
-| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) | Day-to-day operation once DNS is up |
+| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) — same for `managed_hosts` and `network_infra` alike | Day-to-day operation once DNS is up |
 | `inventory/sos-inventory.yaml` | `playbooks/reset-network.yaml` | Static IPs (see [`vm-provisioning.md`](vm-provisioning.md#vmid--vlan--ip-scheme) for the scheme) | Recovery path when DNS/network is down |
 
 `inventory/inventory.yaml` also defines groups the roles depend on directly:
 
 - **`app_hosts`** — every host that owns `compose_apps` / `dns_zones` / `caddy_domain`; the `bind9` role iterates this group's `hostvars` to build DNS zone files.
 - **`dns`** — the host (`services`) the `bind9` role actually runs on.
+- **`network_infra`** / **`patched_hosts`** — non-app infrastructure hosts and the managed_hosts+network_infra alias `maintenance.yaml` patches. See [`network-infra.md`](network-infra.md).

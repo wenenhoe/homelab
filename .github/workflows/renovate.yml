@@ -56,13 +56,17 @@ jobs:
       # renovate.json5's schedule only allows new branch/PR creation Mon/Thu
       # 00:00-05:59 Asia/Singapore. GitHub's scheduled-run start lags the
       # cron tick unpredictably (observed 1h44m-2h20m on this workflow), so
-      # a Mon/Thu run can land past 05:59 and silently skip PR creation for
-      # that cycle while this job still reports success. `if: always()`
-      # plus failing here (rather than folding this into the step above)
-      # keeps that distinct from an actual Renovate failure, and surfaces
-      # it via GitHub's default failed-workflow notification.
+      # a Mon/Thu *scheduled* run can land past 05:59 and silently skip PR
+      # creation for that cycle while this job still reports success.
+      # Scoped to `github.event_name == 'schedule'`: a manual
+      # workflow_dispatch run isn't waiting on a cron tick, so it has no
+      # missed window to detect, and would otherwise fail this check on any
+      # Mon/Thu run past 06:00 SGT regardless of why it was triggered.
+      # `if: always()` plus failing here (rather than folding this into the
+      # step above) keeps that distinct from an actual Renovate failure,
+      # and surfaces it via GitHub's default failed-workflow notification.
       - name: Check schedule-window compliance
-        if: always()
+        if: always() && github.event_name == 'schedule'
         run: |
           dow=$(TZ=Asia/Singapore date +%u)  # 1=Mon .. 7=Sun
           hour=$(TZ=Asia/Singapore date +%-H)

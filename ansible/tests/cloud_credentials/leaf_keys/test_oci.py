@@ -126,7 +126,7 @@ class OciRotationTests(RotationTestBase):
         client.create_customer_secret_key.return_value = _scim_key_response(
             scim_id="BACKFILLED_SCIM_ID",
             access_key="FRESH_ACCESS",
-            secret_key="FRESH_SECRET",  # noqa: S106 - test fixture, not a real credential
+            secret_key="FRESH_SECRET",
         )
 
         oci.create_oci()

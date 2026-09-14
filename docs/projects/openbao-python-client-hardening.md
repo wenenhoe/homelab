@@ -2,13 +2,13 @@
 id: PROJ-openbao-python-client-hardening
 title: "OpenBao Python Client Hardening"
 type: project
-status: not-started
+status: in-progress
 summary: "`hvac` + `paramiko` adoption across every internal OpenBao/SSH client (`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`, `r2_read_watcher.py`), replacing duplicated hand-rolled clients."
 ---
 
 # OpenBao Python Client Hardening
 
-**Status:** Not started
+**Status:** In progress
 
 Adopts `hvac` (and `paramiko` for the SSH root-cert fetch) across every
 internal Python client that talks to OpenBao directly — currently
@@ -24,7 +24,7 @@ this doc tracks build status only.
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | `cache.py` → `hvac` + `paramiko` | Not started |
+| 1 | `cache.py` → `hvac` + `paramiko` | Done |
 | 2 | `bootstrap_secrets.py` → same swap | Not started |
 | 3 | `audit_secrets.py`'s Vault calls → `hvac` | Not started |
 | 4 | `r2_read_watcher.py` → `hvac`, plus its own reconnect/token-renewal spike | Not started |
@@ -34,11 +34,10 @@ this doc tracks build status only.
 
 ### Stage 1 — `cache.py` → `hvac` + `paramiko`
 
-The decision draft's `hvac` and `paramiko` Assumptions are both
-confirmed (spikes run against the real OpenBao/`security` hosts) —
-unblocked to build. Every leaf/rotation module in
-`ansible/cloud_credentials/` reads and writes exclusively through
-`cache.py`'s `scoped()`, so
+Built, per the decision draft's confirmed `hvac`/`paramiko`
+Assumptions (spikes run against the real OpenBao/`security` hosts).
+Every leaf/rotation module in `ansible/cloud_credentials/` reads and
+writes exclusively through `cache.py`'s `scoped()`, so
 [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md)'s
 stages inherit this stage's error-handling improvement once it lands —
 tracked here, not duplicated as a stage in that project.

@@ -11,7 +11,7 @@ status: decided
 
 ## Context
 
-The idea: YAML frontmatter (`id`, `type`, `status`, `depends_on`) on
+The idea: YAML frontmatter (`id`, `type`, `status`) on
 every doc, a generated visibility layer, and a NIST SP 800-53
 control-coverage subset — explicitly to demonstrate the ability to
 identify and align with NIST for portfolio purposes, not because this
@@ -74,10 +74,7 @@ For visibility: **don't build a new root `INDEX.md`.** Auto-generate
 the tables that already exist — `docs/projects/README.md` and
 `docs/decisions/drafts/README.md` require a hand-edit every time a
 project or draft is added or changes status; that repeated, ongoing
-toil is the actual thing worth automating, not a hypothetical one. A
-dependency graph (`depends_on` → Mermaid), if
-built, goes in its own file, isolated from anything `check-doc-drift.py`
-parses — not injected into the same files as the regenerated tables.
+toil is the actual thing worth automating, not a hypothetical one.
 
 Frontmatter schema, kept minimal, `status` scoped per `type`:
 
@@ -94,15 +91,20 @@ status: accepted
 superseded_by: ADR-0027   # type: adr, status: superseded only
 blocked_reason: <reason>  # type: project, status: blocked only
 summary: <one-line>       # type: project only — feeds the generated Covers column
-depends_on: []            # doc IDs, only when a real dependency exists
 ```
+
+No `depends_on` field: a `depends_on` → Mermaid dependency graph was
+part of the original plan (Stage 5, optional from the start), but
+nothing was ever going to populate it before that stage actually got
+built — an unused schema field is the same mistake `nist_controls`
+turned out to be above, just caught before it shipped rather than
+after. If Stage 5 happens, the field comes back with it.
 
 `status` gained `superseded` during Stage 1 migration: the original
 enum had no way to express ADR 0013's actual state
 (`Superseded by 0027`) without losing it into prose a generator can't
 read. `superseded_by` only appears alongside it — a terminal ADR
-state, not a general-purpose link, so it's kept separate from
-`depends_on`.
+state, not a general-purpose cross-doc link.
 
 `status` gained `decided` and `blocked` right after Stage 1, once the
 migration's own output made two gaps visible:

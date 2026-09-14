@@ -18,7 +18,12 @@ Write one when a decision:
 Use [`TEMPLATE.md`](TEMPLATE.md) for new entries once a decision is
 ready to record. Number sequentially; never renumber or delete a
 superseded one — mark it `Superseded by 000N` instead, so old links
-keep resolving.
+keep resolving. If the superseded ADR is referenced from
+[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md), review
+whether the control mapping still holds and update it in the same
+patch — the file doesn't move on supersession, so nothing else makes
+that reference look broken; `check-doc-drift.py` fails the build until
+it's addressed precisely because of that.
 
 ## Drafts
 
@@ -46,7 +51,11 @@ from `drafts/` into this directory, and add it to the index below.
 Update every place elsewhere in the repo that links to the draft's old
 path to the new one in the same patch — a link that still resolves
 (the file exists, just moved) is easy to miss, since nothing fails
-loudly the way a genuinely broken link does.
+loudly the way a genuinely broken link does. If the draft is
+referenced from
+[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md),
+repointing the link isn't enough on its own — re-check the mapping
+still holds now that the design is final, in the same patch.
 
 A draft can also just be deleted — abandoned, or superseded by a
 different approach before ever being built. When that happens, every

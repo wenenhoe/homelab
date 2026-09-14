@@ -11,12 +11,12 @@ status: decided
 
 ## Context
 
-The idea: YAML frontmatter (`id`, `type`, `status`, `nist_controls`,
-`depends_on`) on every doc, a generated visibility layer, and a NIST
-SP 800-53 control-coverage subset — explicitly to demonstrate the
-ability to identify and align with NIST for portfolio purposes, not
-because this repo has a compliance driver. That framing matters: the
-goal is a credible, narrow demonstration, not exhaustive coverage.
+The idea: YAML frontmatter (`id`, `type`, `status`, `depends_on`) on
+every doc, a generated visibility layer, and a NIST SP 800-53
+control-coverage subset — explicitly to demonstrate the ability to
+identify and align with NIST for portfolio purposes, not because this
+repo has a compliance driver. That framing matters: the goal is a
+credible, narrow demonstration, not exhaustive coverage.
 
 Checked directly, not assumed: this repo already has a working,
 lightweight version of the core mechanism. `docs/decisions/README.md`
@@ -42,21 +42,33 @@ regex-parsed.
 
 ## Decision
 
-Adopt frontmatter. Adopt a narrow NIST subset, mapped onto practices
-that already exist rather than inventing new process to satisfy a
-control:
+Adopt frontmatter. For the NIST subset: **don't tag it onto individual
+docs' frontmatter — write one reference doc instead**, cross-linking to
+the ADRs/drafts/projects that already do the thing, without touching
+those files themselves.
 
-| Control | Where it already lives |
-| :--- | :--- |
-| RA-3 (Risk Assessment) | Every draft's `Assumptions` section |
-| CM-8 (Component Inventory) | `app_registry`/`host_vars` |
-| CM-2 (Baseline Configuration) | The Ansible roles themselves |
-| CA-7 (Continuous Monitoring) | Beszel/Kuma/`check_freshness`/push monitors |
-| CP-9 (System Backup) | `cloud_sync`/`openbao_backup` |
-| AC-2/IA-2 (Account Mgmt/Auth) | The OpenBao AppRole/`hvac` work |
+Two reasons, found in that order while actually trying the per-doc
+approach first:
 
-Tag `nist_controls` only where a mapping is genuinely true — most docs
-will have none, and that's correct, not incomplete.
+- **No consumer.** A `nist_controls` field with nothing rendering it
+  anywhere is inert — the only way to find it is to already know to
+  grep frontmatter across four dozen files. That defeats the stated
+  goal (demonstrate alignment to a portfolio reader): a reader
+  browsing `docs/` would never see it.
+- **`docs/README.md`'s own rule**: ADRs are "never edited after
+  acceptance (superseded instead)." Adding plain `id`/`type`/`status`
+  is defensible as pure structural metadata — it doesn't assert
+  anything about the decision itself. Stamping an evaluative NIST
+  label onto an already-Accepted ADR is a heavier edit than that: it's
+  a claim about the decision's compliance properties, made after the
+  fact, by someone other than whoever wrote the ADR. A doc that links
+  *to* the ADR instead carries that claim without touching it.
+
+[`docs/nist-800-53-alignment.md`](../../nist-800-53-alignment.md) is
+that single doc: a narrow, explicitly-not-compliance narrative — a few
+existing practices genuinely resemble a specific 800-53 control, most
+don't and aren't forced to, and it says so plainly where a mapping was
+evaluated and rejected (see its own notes on `CM-8`).
 
 For visibility: **don't build a new root `INDEX.md`.** Auto-generate
 the tables that already exist — `docs/projects/README.md` and
@@ -82,7 +94,6 @@ status: accepted
 superseded_by: ADR-0027   # type: adr, status: superseded only
 blocked_reason: <reason>  # type: project, status: blocked only
 summary: <one-line>       # type: project only — feeds the generated Covers column
-nist_controls: []         # omit entirely if none apply
 depends_on: []            # doc IDs, only when a real dependency exists
 ```
 
@@ -123,11 +134,6 @@ lightweight status indicator without duplicating their content.
 
 ## Not yet done
 
-- Wiring the generator into the existing pre-commit hook alongside
-  `check-doc-drift.py`/markdownlint — tracked as build work in the
-  project doc, not decided here.
 - Whether the dependency graph is worth building at all versus just
   the regenerated tables — the tables solve the demonstrated pain by
   themselves; the graph is a nice-to-have, not confirmed necessary.
-- Tagging the confirmed NIST subset onto the docs where it's genuinely
-  true — separate pass from frontmatter migration itself.

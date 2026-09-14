@@ -3,7 +3,7 @@ id: PROJ-doc-governance-metadata
 title: "Doc Governance: Frontmatter + Generated Visibility"
 type: project
 status: in-progress
-summary: "YAML frontmatter across project/decision docs, auto-generated README index tables, and a narrow NIST SP 800-53 mapping for portfolio purposes."
+summary: "YAML frontmatter across project/decision docs, auto-generated README index tables, and a single narrative NIST SP 800-53 alignment doc for portfolio purposes."
 ---
 
 # Doc Governance: Frontmatter + Generated Visibility
@@ -12,9 +12,9 @@ summary: "YAML frontmatter across project/decision docs, auto-generated README i
 
 Adds YAML frontmatter to project/decision docs and auto-generates the
 index tables in `docs/projects/README.md` and
-`docs/decisions/drafts/README.md` from it, plus a narrow NIST SP
-800-53 control mapping for portfolio purposes. Decision and schema are
-in
+`docs/decisions/drafts/README.md` from it, plus a single narrative
+NIST SP 800-53 alignment doc for portfolio purposes. Decision and
+schema are in
 [`metadata-governance-system-evaluate-vs-existing.md`](../decisions/drafts/metadata-governance-system-evaluate-vs-existing.md);
 this doc tracks build status only.
 
@@ -25,7 +25,7 @@ this doc tracks build status only.
 | 1 | Add frontmatter to every existing project/draft/ADR doc | Done |
 | 2 | Generator script: parse frontmatter, regenerate the two README index tables | Done |
 | 3 | Wire the generator into the existing pre-commit hook, alongside `check-doc-drift.py`/markdownlint | Done |
-| 4 | Tag the confirmed NIST subset (RA-3/CM-8/CM-2/CA-7/CP-9/AC-2/IA-2) onto the docs where it's genuinely true | Not started |
+| 4 | Write a single narrative doc mapping the confirmed NIST subset (RA-3/CM-8/CM-2/CA-7/CP-9/AC-2/IA-2) to existing decisions, linking out rather than tagging per-doc frontmatter | Done |
 | 5 | (Optional) `depends_on` → Mermaid dependency graph, in its own file | Not started |
 
 ## Stage detail
@@ -62,12 +62,28 @@ generate, then lint/drift-check the generated output, same as the
 table row above says. Documented in
 [`docs/ci.md#doc-index-generation`](../ci.md#doc-index-generation).
 
-### Stage 4 — NIST tagging pass
+### Stage 4 — NIST alignment doc
 
-Tag only where the mapping in the decision draft is genuinely true.
-Most docs get no `nist_controls` field at all — that's the intended,
-correct outcome for a "demo the capability" scope, not an
-incompleteness to fix later.
+Built as per-doc `nist_controls` frontmatter first, then reverted:
+nothing rendered the tags anywhere a reader would see them, and
+stamping an evaluative label onto an already-Accepted ADR sits
+uneasily next to `docs/README.md`'s "never edited after acceptance"
+rule for ADRs. Replaced with
+[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md): one
+narrative doc, cross-linking to the ADRs/drafts/projects that
+genuinely match a control, touching none of them. Full reasoning for
+the pivot is in the decision draft's own Decision section.
+
+A linked ADR going `status: superseded` doesn't move its file, so it's
+the one staleness case a plain dead-link check can't catch — a new
+`check_nist_alignment_currency` check in `check-doc-drift.py` catches
+that one transition mechanically; the promotion case is covered by
+`check-doc-drift.py`'s existing dead-link check plus an explicit
+reminder in `docs/decisions/README.md`'s promotion paragraph, since a
+promoted draft's file *does* move. `read_frontmatter`/`VALID_STATUS`
+moved out of `generate-doc-indexes.py` into a shared
+`doc_frontmatter.py` so both scripts validate against the same
+definition instead of two copies drifting apart from each other.
 
 ### Stage 5 — dependency graph (optional)
 

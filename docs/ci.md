@@ -221,6 +221,13 @@ these narrow, structural things:
   a heading that actually slugs to that anchor; same for same-file
   `#anchor` links. Catches the class of bug a file move/rename/split
   leaves behind.
+- Every ADR/draft linked from
+  [`nist-800-53-alignment.md`](nist-800-53-alignment.md) isn't
+  `status: superseded` — the one state transition the anchor check
+  above can't catch, since a superseded ADR's file doesn't move or
+  break any link. Doesn't check whether an *accepted* ADR's reasoning
+  drifted, or whether a new ADR should be added there — that's still
+  on whoever's making the change, per that page's own notes.
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a

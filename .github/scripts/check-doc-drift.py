@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 import yaml
+from doc_frontmatter import read_frontmatter
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -269,6 +270,41 @@ def check_no_stale_anchors() -> None:
                 fail(f"{rel_f}: links {rel}, which doesn't exist")
 
 
+def check_nist_alignment_currency() -> None:
+    """docs/nist-800-53-alignment.md links to specific ADRs/drafts as
+    evidence for a control mapping; unlike a plain dead link, an ADR
+    being marked superseded doesn't move or delete the file, so
+    check_no_stale_anchors's link-resolution check passes right through
+    it while the claim itself may no longer hold. This catches that one
+    state transition — status: superseded on any doc this page links
+    to — and fails loudly so the mapping gets a human look in the same
+    patch that supersedes it, instead of silently going stale. Doesn't
+    (and can't) catch a still-accepted ADR's reasoning changing enough
+    to break the mapping, or a new ADR that should be added here —
+    those stay on whoever's making that change, same as the page's own
+    "What this page is not" section says.
+    """
+    doc = ROOT / "docs/nist-800-53-alignment.md"
+    text = read(doc)
+
+    for rel in PLAIN_MD_LINK_RE.findall(text):
+        target = _resolve_anchor_target(doc, rel)
+        if target is None:
+            continue  # already reported by check_no_stale_anchors
+        if target.name in ("README.md", "TEMPLATE.md"):
+            continue  # index/template links, not an ADR/draft doc itself
+        if target.parent.name not in ("decisions", "drafts"):
+            continue  # not an ADR/draft link (e.g. deployment-flow.md, host-vars.md)
+        fm = read_frontmatter(target)
+        if fm["status"] == "superseded":
+            fail(
+                f"nist-800-53-alignment.md links to {rel}, which is now "
+                f"status: superseded (by {fm.get('superseded_by', '?')}) — "
+                "review whether the control mapping still holds and update "
+                "or repoint the reference"
+            )
+
+
 def main() -> int:
     check_doc_indexes()
     check_ansible_reference()
@@ -276,6 +312,7 @@ def main() -> int:
     check_deploy_flow()
     check_ci_jobs_table()
     check_no_stale_anchors()
+    check_nist_alignment_currency()
 
     if errors:
         for e in errors:

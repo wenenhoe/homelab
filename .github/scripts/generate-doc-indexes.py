@@ -4,7 +4,8 @@ every time a project or draft doc is added or changes status:
 docs/projects/README.md's Index table, and
 docs/decisions/drafts/README.md's Open list.
 
-Reads only YAML frontmatter — schema documented in
+Reads only YAML frontmatter, via doc_frontmatter.py (shared with
+check-doc-drift.py) — schema documented in
 docs/decisions/drafts/metadata-governance-system-evaluate-vs-existing.md.
 Also validates every ADR/draft/project doc's type+status combination
 along the way, even docs/decisions/*.md, which has no generated table
@@ -23,20 +24,8 @@ from __future__ import annotations
 
 import re
 import sys
-from pathlib import Path
 
-import yaml
-
-ROOT = Path(__file__).resolve().parents[2]
-
-# status values valid per `type`, mirroring the frontmatter schema in
-# metadata-governance-system-evaluate-vs-existing.md. Anything outside
-# its type's set fails loudly rather than rendering a raw enum value.
-VALID_STATUS = {
-    "adr": {"accepted", "superseded"},
-    "draft-adr": {"draft", "decided"},
-    "project": {"not-started", "in-progress", "done", "blocked"},
-}
+from doc_frontmatter import ROOT, docs_in, read_frontmatter
 
 # Project status -> display text for the regenerated table. "blocked"
 # is built separately below since its display text embeds blocked_reason.
@@ -45,29 +34,6 @@ STATUS_DISPLAY = {
     "in-progress": "In progress",
     "done": "Done",
 }
-
-
-def read_frontmatter(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8")
-    m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
-    if not m:
-        raise SystemExit(f"{path}: missing frontmatter")
-    data = yaml.safe_load(m.group(1)) or {}
-    for required in ("id", "title", "type", "status"):
-        if required not in data:
-            raise SystemExit(f"{path}: frontmatter missing required field '{required}'")
-    doc_type = data["type"]
-    if doc_type not in VALID_STATUS:
-        raise SystemExit(f"{path}: unknown type '{doc_type}'")
-    if data["status"] not in VALID_STATUS[doc_type]:
-        raise SystemExit(f"{path}: status '{data['status']}' isn't valid for type: {doc_type} (expected one of {sorted(VALID_STATUS[doc_type])})")
-    if data["status"] == "blocked" and not data.get("blocked_reason"):
-        raise SystemExit(f"{path}: status: blocked needs a 'blocked_reason' field")
-    return data
-
-
-def docs_in(dir_path: Path) -> list[Path]:
-    return sorted(p for p in dir_path.glob("*.md") if p.name not in ("README.md", "TEMPLATE.md"))
 
 
 def project_status_text(fm: dict) -> str:
@@ -117,7 +83,7 @@ def replace_section(text: str, heading: str, new_body: str) -> str:
     return text[: m.start(2)] + new_body + text[m.end(2) :]
 
 
-def regenerate(path: Path, heading: str, body: str) -> None:
+def regenerate(path, heading: str, body: str) -> None:
     text = path.read_text(encoding="utf-8")
     path.write_text(replace_section(text, heading, body), encoding="utf-8")
 

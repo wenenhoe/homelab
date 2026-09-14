@@ -6,17 +6,18 @@ docs/decisions/drafts/README.md's Open list.
 
 Reads only YAML frontmatter, via doc_frontmatter.py (shared with
 check-doc-drift.py) — schema documented in
-docs/decisions/drafts/metadata-governance-system-evaluate-vs-existing.md.
+docs/decisions/0028-doc-governance-frontmatter-and-nist-alignment.md.
 Also validates every ADR/draft/project doc's type+status combination
 along the way, even docs/decisions/*.md, which has no generated table
-of its own — see that schema doc for which status values are valid
-per type. Deliberately doesn't touch docs/decisions/README.md's
-numbered-ADR index itself: promotion into that index is a deliberate
-step (renumbering, moving the file out of drafts/), not a side effect
-of running this script — see doc-governance-metadata.md's Open items.
+of its own — see that ADR for which status values are valid per type.
+Deliberately doesn't touch docs/decisions/README.md's numbered-ADR
+index itself: promotion into that index is a deliberate step
+(renumbering, moving the file out of drafts/), not a side effect of
+running this script — see docs/decisions/README.md's own promotion
+section.
 
-Run standalone, or via the pre-commit hook once Stage 3 wires it in
-alongside check-doc-drift.py. Overwrites the two sections in place;
+Run standalone, or via the pre-commit hook (wired in per ADR 0028).
+Overwrites the two sections in place;
 `git diff` shows whether anything actually changed.
 """
 

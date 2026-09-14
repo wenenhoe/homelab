@@ -186,8 +186,8 @@ hand-edit already is. Reads every `docs/projects/*.md` and
 `docs/decisions/drafts/README.md`'s Open list in place; validates
 every ADR's frontmatter too, even though `docs/decisions/README.md`'s
 own numbered index isn't touched (see
-[`doc-governance-metadata.md`](projects/doc-governance-metadata.md)'s
-Open items for why promotion into that index stays manual). Same
+[`docs/decisions/README.md#drafts`](decisions/README.md#drafts) for
+why promotion into that index stays a manual, deliberate step). Same
 auto-fix pattern as `ruff --fix`/`dclint-docker` above: a stale table
 fails the commit and shows the regenerated diff, rather than silently
 passing.

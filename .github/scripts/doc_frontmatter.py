@@ -1,7 +1,7 @@
 """Shared YAML-frontmatter reading + validation for
 generate-doc-indexes.py and check-doc-drift.py. Not a standalone
 script — schema documented in
-docs/decisions/drafts/metadata-governance-system-evaluate-vs-existing.md.
+docs/decisions/0028-doc-governance-frontmatter-and-nist-alignment.md.
 """
 
 from __future__ import annotations

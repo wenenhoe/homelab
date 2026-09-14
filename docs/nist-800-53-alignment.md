@@ -8,7 +8,7 @@ control's intent. This page names those, honestly, in one place — it
 doesn't score coverage, chase a full control baseline, or tag
 individual docs with a label that then has to be kept in sync forever
 (see
-[`metadata-governance-system-evaluate-vs-existing.md`](decisions/drafts/metadata-governance-system-evaluate-vs-existing.md)
+[ADR 0028](decisions/0028-doc-governance-frontmatter-and-nist-alignment.md)
 for why per-doc tagging was tried and rejected).
 
 Six controls were checked against actual repo content, not assumed

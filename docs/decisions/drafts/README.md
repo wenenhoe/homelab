@@ -14,7 +14,6 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md)
 - [`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)
 - [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md)
-- [`metadata-governance-system-evaluate-vs-existing.md`](metadata-governance-system-evaluate-vs-existing.md)
 - [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)
 - [`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)
 - [`private-gitea-actions-not-pull-based-preloop-poller.md`](private-gitea-actions-not-pull-based-preloop-poller.md)

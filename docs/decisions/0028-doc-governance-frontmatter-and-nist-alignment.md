@@ -1,13 +1,13 @@
 ---
-id: DRAFT-metadata-governance-system-evaluate-vs-existing
+id: ADR-0028
 title: "Metadata-driven doc governance — adopt frontmatter and a narrow NIST subset"
-type: draft-adr
-status: decided
+type: adr
+status: accepted
 ---
 
-# Metadata-driven doc governance — adopt frontmatter and a narrow NIST subset
+# 0028. Metadata-driven doc governance — adopt frontmatter and a narrow NIST subset
 
-**Status:** Decided — see [`doc-governance-metadata.md`](../../projects/doc-governance-metadata.md) for build tracking
+**Status:** Accepted
 
 ## Context
 
@@ -64,7 +64,7 @@ approach first:
   fact, by someone other than whoever wrote the ADR. A doc that links
   *to* the ADR instead carries that claim without touching it.
 
-[`docs/nist-800-53-alignment.md`](../../nist-800-53-alignment.md) is
+[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md) is
 that single doc: a narrow, explicitly-not-compliance narrative — a few
 existing practices genuinely resemble a specific 800-53 control, most
 don't and aren't forced to, and it says so plainly where a mapping was
@@ -93,13 +93,6 @@ blocked_reason: <reason>  # type: project, status: blocked only
 summary: <one-line>       # type: project only — feeds the generated Covers column
 ```
 
-No `depends_on` field: a `depends_on` → Mermaid dependency graph was
-part of the original plan (Stage 5, optional from the start), but
-nothing was ever going to populate it before that stage actually got
-built — an unused schema field is the same mistake `nist_controls`
-turned out to be above, just caught before it shipped rather than
-after. If Stage 5 happens, the field comes back with it.
-
 `status` gained `superseded` during Stage 1 migration: the original
 enum had no way to express ADR 0013's actual state
 (`Superseded by 0027`) without losing it into prose a generator can't
@@ -109,14 +102,14 @@ state, not a general-purpose cross-doc link.
 `status` gained `decided` and `blocked` right after Stage 1, once the
 migration's own output made two gaps visible:
 
-- Two drafts' prose already reads "Decided" (this doc included) — a
-  draft that's settled but not yet promoted into a numbered ADR. `type:
-  draft-adr` already says "unpromoted"; `status: decided` now says
-  "and nothing left to resolve" without either field having to imply
-  the other. Promotion — moving the file into `decisions/`, assigning
-  a number, dropping `Assumptions` — is still the only thing that
-  changes a draft's status to `accepted`, and that happens on `type:
-  adr`, not on this one.
+- Two drafts' prose read "Decided" before promotion (this ADR was one
+  of them) — a draft that's settled but not yet promoted into a
+  numbered ADR. `type: draft-adr` already says "unpromoted";
+  `status: decided` now says "and nothing left to resolve" without
+  either field having to imply the other. Promotion — moving the file
+  into `decisions/`, assigning a number, dropping `Assumptions` — is
+  still the only thing that changes a draft's status to `accepted`,
+  and that happens on `type: adr`, not on this one.
 - `blocked` was never actually a schema gap so much as a generator gap:
   `docs/projects/README.md` and `docs/projects/TEMPLATE.md` already
   document `Blocked: <reason>` as a valid project status line: the
@@ -134,8 +127,29 @@ No `assumptions_remaining` array — the existing prose section stays
 authoritative; a generator can count open `Claim` bullets for a
 lightweight status indicator without duplicating their content.
 
-## Not yet done
+## Consequences
 
-- Whether the dependency graph is worth building at all versus just
-  the regenerated tables — the tables solve the demonstrated pain by
-  themselves; the graph is a nice-to-have, not confirmed necessary.
+Every project/decision doc now carries frontmatter and gets validated
+by `doc_frontmatter.py`'s type/status rules on every commit; a doc
+missing or misshaping it fails the build rather than drifting quietly.
+The generator and NIST alignment doc are both real, running tooling,
+not aspirational — see
+[`docs/ci.md#doc-index-generation`](../ci.md#doc-index-generation) and
+[`#docs-drift-check`](../ci.md#docs-drift-check) for what actually
+runs and what each check catches, and
+[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md) for the
+NIST mapping itself.
+
+A `depends_on`-field-driven Mermaid dependency graph was evaluated and
+not built: checked against the actual in-flight project/draft set
+rather than assumed, most real cross-project relationships turned out
+to be soft coordination or unresolved forks, not simple dependency
+edges — a generated graph would have flattened exactly the distinction
+that matters, and no doc ever populated the field in practice. A live
+fork found during that check
+(`cd-agent.md` Stage 1 vs.
+[`private-gitea-actions-not-pull-based-preloop-poller.md`](drafts/private-gitea-actions-not-pull-based-preloop-poller.md))
+got a direct cross-reference instead, which is the cheaper fix for the
+one case that actually carried real risk. `depends_on` was dropped
+from the schema entirely rather than kept as an unused field — the
+same reasoning `nist_controls` didn't survive above.

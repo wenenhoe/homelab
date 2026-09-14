@@ -75,7 +75,12 @@ explicitly does not extend to `cloud_sync`, `snapshot-push.sh.j2`, or
 that draft's Assumptions, in particular confirming `verify.py`'s
 credential already lives as a Python value before this swap, so the
 credentials-in-process trade `restore_all.py` avoids doesn't newly
-apply here.
+apply here. If this stage and
+[`ansible-collections-audit.md`](ansible-collections-audit.md)'s
+Stage 1 (`amazon.aws.s3_bucket`) both land, `boto3` becomes a real
+dependency in two unrelated parts of this repo independently — see
+that doc's Open items for the awareness note; not a conflict, just
+worth landing with eyes open.
 
 ## Open items
 

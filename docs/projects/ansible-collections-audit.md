@@ -2,13 +2,13 @@
 id: PROJ-ansible-collections-audit
 title: "Ansible Roles: Native Collection Module Audit"
 type: project
-status: not-started
+status: in-progress
 summary: "Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate."
 ---
 
 # Ansible Roles: Native Collection Module Audit
 
-**Status:** Not started
+**Status:** In progress
 
 Sweeps `ansible/roles/*` for hand-rolled `command`/`shell`/`uri` tasks
 a maintained collection module could replace outright — real
@@ -22,7 +22,7 @@ pinned: `community.docker` (5.3.0), `ansible.posix` (2.2.2) — per
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | `seaweedfs_bucket` → `amazon.aws.s3_bucket` | Not started |
+| 1 | `seaweedfs_bucket` → `amazon.aws.s3_bucket` | In progress |
 | 2 | Task-shape sweep of the remaining command/shell/uri-heavy roles | Done |
 | 3 | `secrets` role's 3 Vault `uri` tasks + `molecule_helpers`' OpenBao CLI setup → `community.hashi_vault` | Not started |
 | 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Not started |
@@ -42,12 +42,45 @@ SeaweedFS's cold-start behavior. `amazon.aws.s3_bucket`, pointed at the
 same `endpoint_url`, is a plausible direct replacement — real
 idempotence from the module itself, no standing container needed at
 all. Not yet a dependency: `amazon.aws` isn't in `ansible/requirements.yml`
-today (only `community.docker`/`ansible.posix` are). Needs a spike:
-does `amazon.aws.s3_bucket` work cleanly against SeaweedFS's
-S3-compatible endpoint (the same category of "S3-compatible but not
-AWS" verification this repo already does for B2/OCI/R2 elsewhere), and
-does it need its own retry/wait handling for the same cold-start 502
-this role's current task explicitly retries around.
+today (only `community.docker`/`ansible.posix` are).
+
+Spike done: `amazon.aws.s3_bucket` (collection 9.4.0) against a real
+`weed` 4.46 binary (the same version `ghcr.io/chrislusf/seaweedfs:4.46`
+pins) — the module's own docs list DigitalOcean/Ceph/Walrus/FakeS3/
+StorageGRID as its tested non-AWS targets and state the collection is
+otherwise "only tested against AWS," so SeaweedFS was worth checking
+rather than assuming.
+
+- **Bucket lifecycle works cleanly.** `state: present` against a
+  bucket scoped with production's exact `Admin:{{ bucket }}` identity
+  shape (`docker/seaweedfs/configs/s3-identity.json.j2`) created the
+  bucket and read back versioning/ownership/public-access-block/
+  encryption/tags without error on the first call.
+- **Real idempotence, confirmed** — two subsequent runs against the
+  same bucket both reported `changed: false`. This is the actual gap
+  the current role's standing-container workaround exists to paper
+  over, closed for free by the module.
+- **Least-privilege scoping still enforced** — a request against a
+  bucket this identity has no `Admin:` grant for came back
+  `AccessDenied`, same as production's per-identity model expects.
+- **Does not solve the cold-start-502 problem on its own.** The module
+  has no `wait`/`retry` option (checked its full option list). A
+  connection-level failure surfaces as `failed: true` with a clean
+  `msg` field ("Invalid endpoint provided: Could not connect to the
+  endpoint URL...") — a better `until:`/`failed_when:` match target
+  than the current task's raw stdout/stderr grep, but the replacement
+  task still needs the same `until:`/`retries:`/`delay:` wrapper the
+  current one has, just matching `msg` instead. **Not confirmed**: the
+  actual failure shape for a real HTTP 502 arriving *through Caddy*
+  (`offsite_backup_s3_proto`/`offsite_backup_s3_endpoint`) — this spike
+  only reproduced a direct connection-refused case (no Caddy in the
+  loop), so the exact `until:` condition needs a live check against
+  `storage`'s real endpoint before it's finalized, not assumed from
+  this result.
+
+Implementation (rewriting the role, updating
+`ansible/requirements.yml` and the three molecule scenarios) is next;
+not yet started.
 
 ### Stage 2 — sweep results
 

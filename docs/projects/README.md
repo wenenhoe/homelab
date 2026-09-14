@@ -82,7 +82,7 @@ how a real fact quietly gets lost instead of promoted.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`ansible-collections-audit.md`](ansible-collections-audit.md) | Not started | Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate. |
+| [`ansible-collections-audit.md`](ansible-collections-audit.md) | In progress | Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate. |
 | [`cd-agent.md`](cd-agent.md) | Not started | Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | In progress | Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `ansible/cloud_credentials`. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | In progress | Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then OCI. |

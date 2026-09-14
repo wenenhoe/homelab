@@ -23,7 +23,7 @@ it":
   access via AppRole, with `secret_id` handled carefully (hidden
   prompt, temp file inside a container, deleted immediately) but
   ultimately entered by a human or read from wherever it's stored
-  between logins — not fully traced in this pass.
+  between logins — not fully traced yet.
 - **Plaintext config on disk:** `rclone.conf` holds real B2/R2/OCI
   access/secret keys in the clear, mounted into containers as needed
   (`cloud_sync`, `openbao_backup`, `restore_discovery`).
@@ -102,7 +102,7 @@ homelab hosts needs, not assumed as the target.
 
 ## Why this probably isn't a small addition to an existing draft
 
-Every other draft from this session that touches a credential
+Every other draft that touches a credential
 (`rclone-boto3-scope-not-blanket-swap.md`,
 `openbao-client-hvac-paramiko-adoption.md`,
 `tools-directory-and-secrets-package-split.md`) currently treats

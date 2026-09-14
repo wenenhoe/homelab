@@ -47,9 +47,9 @@ candidates for the same shared client
 **Resolved:** the `secrets` Ansible role does not need to import this
 package directly. `ansible-collections-audit.md`'s Stage 3 already
 plans `community.hashi_vault` (a maintained collection) for that
-role's Vault tasks, not a custom import — same principle as everywhere
-else this session, prefer the vendor-maintained module over a
-hand-rolled one. Default: `tools/secrets/` is a plain importable
+role's Vault tasks, not a custom import — same principle applied
+throughout this repo's tooling: prefer the vendor-maintained module
+over a hand-rolled one. Default: `tools/secrets/` is a plain importable
 package, no `module_utils`/`library`-shaped packaging needed. Only
 revisit that if `community.hashi_vault`'s own spike (already an open
 Assumption in the sibling draft) finds it can't reproduce something

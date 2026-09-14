@@ -22,8 +22,8 @@ shapes:
   *"This never touches GPG/SeaweedFS/cloud credentials directly in
   Python — it shells out to `rclone`... and to `gpg`."*
 
-The bulk-copy sites aren't a boto3 candidate for one decisive reason,
-not two as originally framed: `cloud_sync`'s `rclone copy` specifically
+The bulk-copy sites aren't a boto3 candidate, for one decisive
+reason: `cloud_sync`'s `rclone copy` specifically
 *is* the security control
 [ADR 0010](../0010-cloud-sync-copy-not-sync.md) documents — the
 guarantee that a compromised on-prem host can't touch the offsite copy

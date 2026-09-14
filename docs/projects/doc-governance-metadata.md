@@ -26,16 +26,16 @@ this doc tracks build status only.
 
 Mechanical but real: every doc under `docs/projects/`,
 `docs/decisions/`, and `docs/decisions/drafts/` gets an `id`/`title`/
-`type`/`status` header. Sequencing this against the other projects
-already in flight (this session added or touched a dozen-plus docs)
-matters more than the mechanics — decide whether to do it as one pass
-now or incrementally as each doc is next touched anyway.
+`type`/`status` header. Sequencing this against the dozen-plus other
+projects and drafts already in flight matters more than the
+mechanics — decide whether to do it as one pass now or incrementally
+as each doc is next touched anyway.
 
 ### Stage 2 — generator script
 
 Reads frontmatter across the tree, regenerates the project index table
-and the drafts index table exactly — replacing the seven-times-by-hand
-`str_replace` pattern from this session with one script run. Does
+and the drafts index table exactly — replacing the current
+by-hand `str_replace`-per-addition pattern with one script run. Does
 *not* touch `check-doc-drift.py`'s existing checks; runs alongside it.
 
 ### Stage 3 — pre-commit wiring

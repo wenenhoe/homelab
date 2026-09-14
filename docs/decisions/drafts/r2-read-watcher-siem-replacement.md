@@ -34,7 +34,7 @@ session, just for alerting instead of secrets access.
 
 ## Why this is its own draft, not a stage of an existing project
 
-This isn't a library swap like the rest of this session's drafts — it's
+This isn't a library swap like most of the drafts in this repo — it's
 a new piece of infrastructure with its own resource footprint,
 operational surface, and maintenance burden. It doesn't belong under
 `openbao-python-client-hardening.md` (that's about which Python client

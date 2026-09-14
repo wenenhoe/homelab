@@ -14,12 +14,12 @@ That's structurally the same threat model
 [ADR 0010](../0010-cloud-sync-copy-not-sync.md) already solved for
 backups, just never applied to monitoring.
 
-Correction to an earlier pass on this: Tailscale isn't absent from the
+Tailscale isn't absent from the
 environment, only from the repo. **VM 202 already exists and already
 runs as a subnet router**, routing Tailscale clients to the 4 managed
 hosts — it's just not under Ansible/repo management yet. That's a
 real gap in its own right, the same category as the scattered OpenBao
-clients found earlier in this session: unmanaged-but-load-bearing
+clients this repo has elsewhere: unmanaged-but-load-bearing
 infrastructure that breaks silently because nothing tracks it. It also
 means the actual mechanism needed for an eventual OCI-hosted monitor
 to reach the 4 managed hosts already exists — no new tunnel technology

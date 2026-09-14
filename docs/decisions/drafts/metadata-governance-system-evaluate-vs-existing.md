@@ -24,7 +24,7 @@ doesn't compress into a YAML list without losing information density.
 
 One concrete, already-demonstrated cost worth designing around:
 `check-doc-drift.py`'s regex-based checks are already fragile around
-Mermaid content — this session hit exactly that failure mode once (a
+Mermaid content — this exact failure mode has already occurred once (a
 stray `+` at a line start got misread as a list marker), and the
 system's own standing guidance calls out "a Mermaid block right after
 a heading can silently break table matching" as a known case. The fix
@@ -51,12 +51,12 @@ control:
 Tag `nist_controls` only where a mapping is genuinely true — most docs
 will have none, and that's correct, not incomplete.
 
-For visibility (asked about twice already; this resolves it): **don't
-build a new root `INDEX.md`.** Auto-generate the tables that already
-exist — `docs/projects/README.md` and `docs/decisions/drafts/README.md`
-have been hand-edited seven times this session to add a row each; that
-repeated, demonstrated toil is the actual thing worth automating, not
-a hypothetical one. A dependency graph (`depends_on` → Mermaid), if
+For visibility: **don't build a new root `INDEX.md`.** Auto-generate
+the tables that already exist — `docs/projects/README.md` and
+`docs/decisions/drafts/README.md` require a hand-edit every time a
+project or draft is added or changes status; that repeated, ongoing
+toil is the actual thing worth automating, not a hypothetical one. A
+dependency graph (`depends_on` → Mermaid), if
 built, goes in its own file, isolated from anything `check-doc-drift.py`
 parses — not injected into the same files as the regenerated tables.
 

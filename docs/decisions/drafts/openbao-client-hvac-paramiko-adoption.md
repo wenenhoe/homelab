@@ -38,7 +38,7 @@ scheduled job re-invokes on failure. A hang or an uncaught exception
 here is a silent alerting gap, not a single failed run someone notices
 and re-runs.
 
-Two more consumers surfaced since this draft was first written, both a
+Two more consumers exist beyond the three above, both a
 different shape from `cache.py`'s problem: `docker/openbao/scripts/`'s
 three shell scripts (`bao-login.sh`, `bao-login-from-controller.sh`,
 `bao-from-controller.sh`) wrap the official `bao` CLI directly, not a

@@ -20,6 +20,22 @@ exclusion. `network_infra` stays out of `deploy.yaml` entirely;
 pattern as `app_hosts`) is what `maintenance.yaml` targets instead —
 see [`ansible.md`](ansible.md#inventory).
 
+## Future: superseded by Tofu, not duplicated alongside it
+
+This group's `tailscale_router` entry is interim, not permanent.
+[`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) already
+plans to rebuild VM 202 as a Tofu-managed VM once its migration reaches
+that VMID (Migration Stage 2 / that project's Stage 6), at which point
+its Stage 4 inventory generator produces this host's Ansible entry
+instead. When that lands: remove `network_infra`'s hand-written
+`tailscale_router` block from `inventory.yaml` rather than leaving both
+in place — a generated entry and this manual one both resolving the
+same host is exactly the kind of silent-drift risk this doc exists to
+avoid. `patched_hosts`/`network_infra` themselves may still be useful
+as group *names* afterward (any future non-app infra host would want
+the same patching-without-Docker treatment); it's specifically this
+one host's manual entry that's temporary.
+
 ## `tailscale_router` (VM 202) — current state
 
 Read directly off the host, not assumed:

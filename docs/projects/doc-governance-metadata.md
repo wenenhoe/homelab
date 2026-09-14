@@ -24,7 +24,7 @@ this doc tracks build status only.
 | :-: | :--- | :--- |
 | 1 | Add frontmatter to every existing project/draft/ADR doc | Done |
 | 2 | Generator script: parse frontmatter, regenerate the two README index tables | Done |
-| 3 | Wire the generator into the existing pre-commit hook, alongside `check-doc-drift.py`/markdownlint | Not started |
+| 3 | Wire the generator into the existing pre-commit hook, alongside `check-doc-drift.py`/markdownlint | Done |
 | 4 | Tag the confirmed NIST subset (RA-3/CM-8/CM-2/CA-7/CP-9/AC-2/IA-2) onto the docs where it's genuinely true | Not started |
 | 5 | (Optional) `depends_on` → Mermaid dependency graph, in its own file | Not started |
 
@@ -55,10 +55,12 @@ runs alongside both.
 
 ### Stage 3 — pre-commit wiring
 
-Same hook that already runs `check-doc-drift.py` and markdownlint.
-Ordering matters: generate first, then lint/drift-check the generated
-output, so a bad generation is caught the same way a bad hand-edit is
-today.
+`generate-doc-indexes` is a local hook in
+`.config/.pre-commit-config.yaml`, positioned immediately before
+`markdownlint-cli2`, both of which run ahead of `check-doc-drift` —
+generate, then lint/drift-check the generated output, same as the
+table row above says. Documented in
+[`docs/ci.md#doc-index-generation`](../ci.md#doc-index-generation).
 
 ### Stage 4 — NIST tagging pass
 

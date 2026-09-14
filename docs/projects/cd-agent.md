@@ -54,6 +54,13 @@ narrow, short-lived token on demand instead.
 
 ## Open items
 
+- Stage 3's "mints a fresh, narrow, short-lived token on demand
+  instead" doesn't specify how `controller` authenticates to do that
+  minting once its standing AppRole is retired — see
+  [`secret-zero-bootstrap-pattern.md`](../decisions/drafts/secret-zero-bootstrap-pattern.md)'s
+  leaning answer (mTLS via step-ca, same pattern `step_ca_cert` already
+  proves) and its response-wrapping answer for handing Stage 2's
+  `cd_agent` AppRole `secret_id` over at provisioning time.
 - `preloop`'s CLI event-flag behavior (Stage 1) — spike needed before
   building on it.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,

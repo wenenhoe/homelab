@@ -1,3 +1,10 @@
+---
+id: ADR-0025
+title: "Re-init OpenBao now, with a standing narrow `vault-bootstrap` AppRole, instead of deferring to the eventual full cutover"
+type: adr
+status: accepted
+---
+
 # 0025. Re-init OpenBao now, with a standing narrow `vault-bootstrap` AppRole, instead of deferring to the eventual full cutover
 
 **Status:** Accepted

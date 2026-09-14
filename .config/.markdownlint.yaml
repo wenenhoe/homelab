@@ -15,3 +15,13 @@ MD040: false
 # for command references (README.md's Setup/Basic Commands sections) - not
 # an oversight to reformat away.
 MD031: false
+
+# Project/ADR/draft docs carry both YAML frontmatter (with its own
+# `title` field, for the doc-governance generator) and a real body H1 -
+# by this repo's convention the two coexist, they're not duplicates.
+# MD025's default front_matter_title regex treats any `title:` line as
+# an implicit H1 and flags the real one as a second; disabling that
+# regex (not MD025 itself) keeps the actual "multiple H1s in one body"
+# check intact.
+MD025:
+  front_matter_title: ""

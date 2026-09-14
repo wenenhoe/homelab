@@ -1,3 +1,10 @@
+---
+id: ADR-0027
+title: "Adopt OpenBao, not a continued file cache or git-committed encrypted secrets"
+type: adr
+status: accepted
+---
+
 # 0027. Adopt OpenBao, not a continued file cache or git-committed encrypted secrets
 
 **Status:** Accepted

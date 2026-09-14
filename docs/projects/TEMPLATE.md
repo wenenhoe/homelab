@@ -1,3 +1,12 @@
+---
+id: PROJ-project-name
+title: "Project Name"
+type: project
+status: not-started           # not-started | in-progress | done | blocked
+# blocked_reason: <reason>    # required when status: blocked
+summary: "<one-line, feeds the regenerated Covers column in README.md>"
+---
+
 # Project Name
 
 **Status:** `Not started` | `In progress` | `Done` | `Blocked: <reason>`

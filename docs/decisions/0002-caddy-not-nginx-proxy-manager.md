@@ -1,3 +1,10 @@
+---
+id: ADR-0002
+title: "Use Caddy, not Nginx Proxy Manager"
+type: adr
+status: accepted
+---
+
 # 0002. Use Caddy, not Nginx Proxy Manager
 
 **Status:** Accepted

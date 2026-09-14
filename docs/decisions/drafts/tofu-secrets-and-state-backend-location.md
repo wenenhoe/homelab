@@ -1,3 +1,10 @@
+---
+id: DRAFT-tofu-secrets-and-state-backend-location
+title: "Where Tofu's own secrets and state-backend credential live"
+type: draft-adr
+status: draft
+---
+
 # Where Tofu's own secrets and state-backend credential live
 
 **Status:** Draft

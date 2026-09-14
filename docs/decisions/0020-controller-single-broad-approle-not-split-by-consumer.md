@@ -1,3 +1,10 @@
+---
+id: ADR-0020
+title: "One broad AppRole for `controller`, not split per secret family or by consumer"
+type: adr
+status: accepted
+---
+
 # 0020. One broad AppRole for `controller`, not split per secret family or by consumer
 
 **Status:** Accepted

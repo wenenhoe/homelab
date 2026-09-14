@@ -1,3 +1,11 @@
+---
+id: PROJ-tofu-vm-provisioning
+title: "OpenTofu-Driven Proxmox VM Provisioning"
+type: project
+status: in-progress
+summary: "OpenTofu-driven Proxmox VM provisioning."
+---
+
 # OpenTofu-Driven Proxmox VM Provisioning
 
 **Status:** `In progress`

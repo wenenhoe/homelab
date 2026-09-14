@@ -1,3 +1,10 @@
+---
+id: ADR-0009
+title: "Issue lldap's LDAPS cert from the internal step-ca, not certbot + DNS-01"
+type: adr
+status: accepted
+---
+
 # 0009. Issue lldap's LDAPS cert from the internal step-ca, not certbot + DNS-01
 
 **Status:** Accepted

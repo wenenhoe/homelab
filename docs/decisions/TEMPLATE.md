@@ -1,3 +1,10 @@
+---
+id: ADR-NNNN
+title: "Short, decision-shaped title"
+type: adr
+status: accepted            # or: superseded (add superseded_by: ADR-NNNN)
+---
+
 # NNNN. Short, decision-shaped title
 
 **Status:** Accepted | Superseded by [NNNN](NNNN-slug.md)

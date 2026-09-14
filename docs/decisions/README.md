@@ -18,7 +18,12 @@ Write one when a decision:
 Use [`TEMPLATE.md`](TEMPLATE.md) for new entries once a decision is
 ready to record. Number sequentially; never renumber or delete a
 superseded one — mark it `Superseded by 000N` instead, so old links
-keep resolving.
+keep resolving. If the superseded ADR is referenced from
+[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md), review
+whether the control mapping still holds and update it in the same
+patch — the file doesn't move on supersession, so nothing else makes
+that reference look broken; `check-doc-drift.py` fails the build until
+it's addressed precisely because of that.
 
 ## Drafts
 
@@ -31,6 +36,12 @@ behavior, a component that doesn't exist yet) starts as a draft in
 checked. Drafts are unnumbered, freely rewritten or deleted in place —
 nothing else in this repo should ever cite one as settled.
 
+A draft's own **Status:** line can read `Decided` once its design is
+settled and only implementation (or a still-unresolved Assumption)
+remains — a real, named state (`status: decided` in frontmatter), not
+a promise of promotion. It's still unnumbered and still lives in
+`drafts/` until promotion actually happens.
+
 Promotion to a real ADR happens once the assumptions are resolved and
 the design is actually implemented — not at decide-time. At that
 point: assign the next sequential number, drop the `Assumptions`
@@ -40,7 +51,11 @@ from `drafts/` into this directory, and add it to the index below.
 Update every place elsewhere in the repo that links to the draft's old
 path to the new one in the same patch — a link that still resolves
 (the file exists, just moved) is easy to miss, since nothing fails
-loudly the way a genuinely broken link does.
+loudly the way a genuinely broken link does. If the draft is
+referenced from
+[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md),
+repointing the link isn't enough on its own — re-check the mapping
+still holds now that the design is final, in the same patch.
 
 A draft can also just be deleted — abandoned, or superseded by a
 different approach before ever being built. When that happens, every
@@ -82,6 +97,7 @@ whoever's deleting it.
 | [0025](0025-openbao-reinit-with-standing-vault-bootstrap-role.md) | Accepted | Re-init OpenBao now (not deferred to the eventual full cutover) with a standing narrow `vault-bootstrap` AppRole, so this repo can create new Vault policies/AppRoles - including ADR 0026's watcher - without a permanent root token. |
 | [0026](0026-openbao-audit-device-and-r2-per-read-watcher.md) | Accepted | Enable a permanent, declarative (not API-driven) stdout audit device on OpenBao, and build a dedicated, least-privilege watcher for ADR 0024's R2 admin-token per-read alert, rather than the API/CLI audit-enable route or reusing controller's own AppRole. |
 | [0027](0027-openbao-not-file-cache-or-committed-secrets.md) | Accepted | Adopt OpenBao as a standing secrets store, superseding 0013's file-cache-until-later approach — rejected Ansible Vault and SOPS/age too, since both are built around committing encrypted secrets to git, which the goal here was to avoid entirely. |
+| [0028](0028-doc-governance-frontmatter-and-nist-alignment.md) | Accepted | Adopt YAML frontmatter (`id`/`type`/`status`, plus a few narrow extras) on every project/decision doc, a generator that regenerates the two hand-maintained README index tables from it, and a single narrative NIST SP 800-53 alignment doc — not per-doc compliance tags — for portfolio purposes. |
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this

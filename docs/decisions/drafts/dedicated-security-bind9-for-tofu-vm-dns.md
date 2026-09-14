@@ -1,3 +1,10 @@
+---
+id: DRAFT-dedicated-security-bind9-for-tofu-vm-dns
+title: "A dedicated BIND9 on `security` for Tofu-provisioned VM DNS"
+type: draft-adr
+status: draft
+---
+
 # A dedicated BIND9 on `security` for Tofu-provisioned VM DNS
 
 **Status:** Draft

@@ -1,3 +1,10 @@
+---
+id: ADR-0010
+title: "`cloud_sync` uses rclone `copy`, never `sync`"
+type: adr
+status: accepted
+---
+
 # 0010. `cloud_sync` uses rclone `copy`, never `sync`
 
 **Status:** Accepted

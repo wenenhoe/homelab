@@ -1,3 +1,10 @@
+---
+id: ADR-0021
+title: "Vault path convention: `hosts/<host>/*` mirrors `host_vars`, `hosts/all/<concern>/*` mirrors `group_vars/all`"
+type: adr
+status: accepted
+---
+
 # 0021. Vault path convention: `hosts/<host>/*` mirrors `host_vars`, `hosts/all/<concern>/*` mirrors `group_vars/all`
 
 **Status:** Accepted

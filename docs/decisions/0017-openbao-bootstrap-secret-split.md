@@ -1,3 +1,10 @@
+---
+id: ADR-0017
+title: "Split secrets into recovery-critical and operational classes for OpenBao bootstrap"
+type: adr
+status: accepted
+---
+
 # 0017. Split secrets into recovery-critical and operational classes for OpenBao bootstrap
 
 **Status:** Accepted

@@ -1,3 +1,10 @@
+---
+id: DRAFT-pull-based-cd-agent-not-self-hosted-github-runner
+title: "Pull-based CD agent, not a self-hosted GitHub Actions runner"
+type: draft-adr
+status: draft
+---
+
 # Pull-based CD agent, not a self-hosted GitHub Actions runner
 
 **Status:** Draft

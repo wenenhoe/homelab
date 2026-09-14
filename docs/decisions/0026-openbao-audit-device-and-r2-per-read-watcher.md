@@ -1,3 +1,10 @@
+---
+id: ADR-0026
+title: "Permanent stdout audit device, plus a dedicated watcher, for the R2 admin-token per-read alert"
+type: adr
+status: accepted
+---
+
 # 0026. Permanent stdout audit device, plus a dedicated watcher, for the R2 admin-token per-read alert
 
 **Status:** Accepted

@@ -1,3 +1,11 @@
+---
+id: PROJ-openbao-python-client-hardening
+title: "OpenBao Python Client Hardening"
+type: project
+status: not-started
+summary: "`hvac` + `paramiko` adoption across every internal OpenBao/SSH client (`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`, `r2_read_watcher.py`), replacing duplicated hand-rolled clients."
+---
+
 # OpenBao Python Client Hardening
 
 **Status:** Not started

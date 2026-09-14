@@ -1,3 +1,10 @@
+---
+id: ADR-0018
+title: "Manual Shamir unseal, not cloud auto-unseal"
+type: adr
+status: accepted
+---
+
 # 0018. Manual Shamir unseal, not cloud auto-unseal
 
 **Status:** Accepted

@@ -1,3 +1,11 @@
+---
+id: PROJ-off-site-monitoring
+title: "Off-Site Monitoring Independence"
+type: project
+status: not-started
+summary: "Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then OCI."
+---
+
 # Off-Site Monitoring Independence
 
 **Status:** Not started

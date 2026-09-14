@@ -1,3 +1,10 @@
+---
+id: DRAFT-off-site-monitoring-independence-not-oci-tailscale-tunnel
+title: "Off-site monitoring independence — staged, reusing the existing Tailscale subnet router"
+type: draft-adr
+status: decided
+---
+
 # Off-site monitoring independence — staged, reusing the existing Tailscale subnet router
 
 **Status:** Decided (staged) — see [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) for build tracking

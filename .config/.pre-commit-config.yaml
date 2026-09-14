@@ -70,6 +70,21 @@ repos:
         # justified inline (`# hadolint ignore=DLxxxx # reason`) next to
         # the line they apply to, not a repo-wide ignore list — see
         # docker/caddy/Dockerfile and docker/molecule-dind/Dockerfile.
+  - repo: local
+    hooks:
+      - id: generate-doc-indexes
+        name: generate-doc-indexes
+        description: >-
+          Regenerates docs/projects/README.md's Index table and
+          docs/decisions/drafts/README.md's Open list from frontmatter
+          — see .github/scripts/generate-doc-indexes.py. Runs before
+          markdownlint/check-doc-drift below, so a bad generation is
+          caught the same way a bad hand-edit already is.
+        entry: python3 .github/scripts/generate-doc-indexes.py
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        always_run: true
   - repo: https://github.com/DavidAnson/markdownlint-cli2
     rev: v0.23.2
     hooks:

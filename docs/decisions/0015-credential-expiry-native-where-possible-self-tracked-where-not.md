@@ -1,3 +1,10 @@
+---
+id: ADR-0015
+title: "Native expiry where providers offer it, self-tracked timestamps where they don't, checked by a controller-hosted timer"
+type: adr
+status: accepted
+---
+
 # 0015. Native expiry where providers offer it, self-tracked timestamps where they don't, checked by a controller-hosted timer
 
 **Status:** Accepted (OCI's self-tracked approach superseded by [0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md); B2/R2 unaffected)

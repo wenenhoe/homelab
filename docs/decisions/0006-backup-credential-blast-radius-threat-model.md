@@ -1,3 +1,10 @@
+---
+id: ADR-0006
+title: "Threat model: scope credentials so a compromised app host can't reach the offsite backup"
+type: adr
+status: accepted
+---
+
 # 0006. Threat model: scope credentials so a compromised app host can't reach the offsite backup
 
 **Status:** Accepted

@@ -1,3 +1,10 @@
+---
+id: ADR-0023
+title: "Repoint existing credential scripts at OpenBao KV v2, defer a native plugin"
+type: adr
+status: accepted
+---
+
 # 0023. Repoint existing credential scripts at OpenBao KV v2, defer a native plugin
 
 **Status:** Accepted

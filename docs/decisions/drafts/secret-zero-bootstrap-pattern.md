@@ -1,3 +1,10 @@
+---
+id: DRAFT-secret-zero-bootstrap-pattern
+title: "Secret Zero: mTLS for controller's own auth, response wrapping for one-time handoff"
+type: draft-adr
+status: draft
+---
+
 # Secret Zero: mTLS for controller's own auth, response wrapping for one-time handoff
 
 **Status:** Draft — leaning design reached, not yet spiked

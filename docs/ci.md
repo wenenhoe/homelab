@@ -174,6 +174,24 @@ Manual secrets are pre-seeded as plain files under
 — throwaway CI values, same non-secret status as
 `ci-inventory/group_vars/all/ci_dummy_vars.yaml`.
 
+## Doc index generation
+
+`.github/scripts/generate-doc-indexes.py`, wired into
+`.config/.pre-commit-config.yaml` as a local hook, positioned before
+markdownlint/`check-doc-drift` below — it needs to run first so a bad
+generation gets caught by the checks that follow, the same way a bad
+hand-edit already is. Reads every `docs/projects/*.md` and
+`docs/decisions/drafts/*.md`'s frontmatter and regenerates
+`docs/projects/README.md`'s Index table and
+`docs/decisions/drafts/README.md`'s Open list in place; validates
+every ADR's frontmatter too, even though `docs/decisions/README.md`'s
+own numbered index isn't touched (see
+[`docs/decisions/README.md#drafts`](decisions/README.md#drafts) for
+why promotion into that index stays a manual, deliberate step). Same
+auto-fix pattern as `ruff --fix`/`dclint-docker` above: a stale table
+fails the commit and shows the regenerated diff, rather than silently
+passing.
+
 ## Docs drift check
 
 `.github/scripts/check-doc-drift.py`, wired into `.config/.pre-commit-config.yaml`
@@ -203,6 +221,13 @@ these narrow, structural things:
   a heading that actually slugs to that anchor; same for same-file
   `#anchor` links. Catches the class of bug a file move/rename/split
   leaves behind.
+- Every ADR/draft linked from
+  [`nist-800-53-alignment.md`](nist-800-53-alignment.md) isn't
+  `status: superseded` — the one state transition the anchor check
+  above can't catch, since a superseded ADR's file doesn't move or
+  break any link. Doesn't check whether an *accepted* ADR's reasoning
+  drifted, or whether a new ADR should be added there — that's still
+  on whoever's making the change, per that page's own notes.
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a

@@ -1,3 +1,10 @@
+---
+id: ADR-0022
+title: "Controller trusts OpenBao's TLS cert via a per-run-fetched root cert, not a committed copy or skip-verify"
+type: adr
+status: accepted
+---
+
 # 0022. Controller trusts OpenBao's TLS cert via a per-run-fetched root cert, not a committed copy or skip-verify
 
 **Status:** Accepted

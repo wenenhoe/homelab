@@ -82,10 +82,9 @@ how a real fact quietly gets lost instead of promoted.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | In progress | OpenTofu-driven Proxmox VM provisioning. |
+| [`ansible-collections-audit.md`](ansible-collections-audit.md) | Not started | Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate. |
 | [`cd-agent.md`](cd-agent.md) | Not started | Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | Not started | Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `ansible/cloud_credentials`. |
-| [`openbao-python-client-hardening.md`](openbao-python-client-hardening.md) | Not started | `hvac` + `paramiko` adoption across every internal OpenBao/SSH client (`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`, `r2_read_watcher.py`), replacing duplicated hand-rolled clients. |
-| [`ansible-collections-audit.md`](ansible-collections-audit.md) | Not started | Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate. |
-| [`doc-governance-metadata.md`](doc-governance-metadata.md) | Not started | YAML frontmatter across project/decision docs, auto-generated README index tables, and a narrow NIST SP 800-53 mapping for portfolio purposes. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | Not started | Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then OCI. |
+| [`openbao-python-client-hardening.md`](openbao-python-client-hardening.md) | Not started | `hvac` + `paramiko` adoption across every internal OpenBao/SSH client (`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`, `r2_read_watcher.py`), replacing duplicated hand-rolled clients. |
+| [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | In progress | OpenTofu-driven Proxmox VM provisioning. |

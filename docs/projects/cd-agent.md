@@ -1,3 +1,11 @@
+---
+id: PROJ-cd-agent
+title: "CD Agent"
+type: project
+status: not-started
+summary: "Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole."
+---
+
 # CD Agent
 
 **Status:** `Not started`
@@ -35,6 +43,14 @@ deploy/rotation jobs are built on it. See the
 [draft](../decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)
 this stage implements.
 
+**Read before building this stage:**
+[`private-gitea-actions-not-pull-based-preloop-poller.md`](../decisions/drafts/private-gitea-actions-not-pull-based-preloop-poller.md)
+is a still-open, unresolved alternative that proposes replacing this
+stage's mechanism entirely — a private, LAN-only Gitea instance with
+an `act_runner`, dispatch-triggered on push, instead of a `preloop`
+poller. It's a live draft, not a rejected idea; the wording above
+shouldn't be read as having already decided against it.
+
 ### Stage 2 — AppRoles
 
 Two CIDR-bound AppRoles, per the
@@ -54,6 +70,10 @@ narrow, short-lived token on demand instead.
 
 ## Open items
 
+- Whether Stage 1 stays a `preloop` poller or gets replaced by
+  [`private-gitea-actions-not-pull-based-preloop-poller.md`](../decisions/drafts/private-gitea-actions-not-pull-based-preloop-poller.md)'s
+  Gitea Actions approach — a live, unresolved fork. Resolve this
+  before Stage 1 is actually built, not after.
 - Stage 3's "mints a fresh, narrow, short-lived token on demand
   instead" doesn't specify how `controller` authenticates to do that
   minting once its standing AppRole is retired — see

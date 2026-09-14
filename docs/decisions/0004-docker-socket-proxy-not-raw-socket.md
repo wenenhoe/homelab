@@ -1,3 +1,10 @@
+---
+id: ADR-0004
+title: "Docker-socket-proxy sidecar, never the raw socket, for anything needing the Docker API"
+type: adr
+status: accepted
+---
+
 # 0004. Docker-socket-proxy sidecar, never the raw socket, for anything needing the Docker API
 
 **Status:** Accepted

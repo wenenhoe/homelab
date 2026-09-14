@@ -34,9 +34,11 @@ this doc tracks build status only.
 
 ### Stage 1 — `cache.py` → `hvac` + `paramiko`
 
-Blocked on the decision draft's `hvac` and `paramiko` Assumptions.
-Every leaf/rotation module in `ansible/cloud_credentials/` reads and
-writes exclusively through `cache.py`'s `scoped()`, so
+The decision draft's `hvac` and `paramiko` Assumptions are both
+confirmed (spikes run against the real OpenBao/`security` hosts) —
+unblocked to build. Every leaf/rotation module in
+`ansible/cloud_credentials/` reads and writes exclusively through
+`cache.py`'s `scoped()`, so
 [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md)'s
 stages inherit this stage's error-handling improvement once it lands —
 tracked here, not duplicated as a stage in that project.

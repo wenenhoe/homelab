@@ -141,7 +141,15 @@ surface.
   larger restructure than a like-for-like client swap, in both places.
   **Checked by:** a throwaway spike logging into a real OpenBao
   instance via `hvac.Client(url=..., verify=ca_path)` +
-  `auth.approle.login()`, before Stage 1 is built for real.
+  `auth.approle.login()` — confirmed: `client.token` matches the raw
+  auth response, and `read_secret_version()`'s
+  `["data"]["data"]["value"]` shape is the exact walk `cache.py`'s
+  `_vault_read_at` already does, so Stage 1's swap is mechanical. The
+  same spike also confirmed controller's AppRole (`controller.hcl`)
+  has no delete capability on `secret/metadata/cloud_credentials/*` —
+  expected, given the policy only grants `create`/`read`/`update` —
+  but worth carrying into Stage 1: nothing built on this client should
+  assume it can delete what it wrote.
 - **Claim:** `paramiko` reproduces both files' current trust behavior
   (`StrictHostKeyChecking=accept-new`'s trust-on-first-use) and
   `docker exec ... cat ...` semantics over an exec channel, without
@@ -151,7 +159,15 @@ surface.
   silently loosen (or overly tighten, breaking the run) host-key trust.
   **Checked by:** a spike connecting to a real `security` host with
   `paramiko`, confirming host-key behavior and that its exec channel
-  returns the same cert bytes `ssh ... docker exec ... cat` does today.
+  returns the same cert bytes `ssh ... docker exec ... cat` does today —
+  confirmed: `load_system_host_keys()` + `AutoAddPolicy()` connected
+  using `security`'s existing (ed25519) known-hosts entry, and
+  `exec_command()`'s output matched `_fetch_root_cert()`'s current
+  `subprocess` output byte-for-byte. `AutoAddPolicy` is only consulted
+  when a host has no existing key — paramiko's own `client.py` raises
+  `BadHostKeyException` on a mismatch against an already-known host
+  regardless of policy, the same fail-closed shape `accept-new` gives
+  today; confirmed against the real host, not just read from source.
 - **Claim:** `r2_read_watcher.py`'s standing-process shape needs only
   the same client as the one-shot scripts, kept alive/reconnecting,
   not a fundamentally different design.

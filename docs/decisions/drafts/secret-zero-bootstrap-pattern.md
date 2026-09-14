@@ -1,6 +1,6 @@
-# Secret Zero: converge on one bootstrap pattern, or accept several
+# Secret Zero: mTLS for controller's own auth, response wrapping for one-time handoff
 
-**Status:** Draft — exploratory, not scoped for building yet
+**Status:** Draft — leaning design reached, not yet spiked
 
 ## Context
 
@@ -40,33 +40,48 @@ relocates which one. That's the actual Secret Zero problem surfacing
 again, not a new one — this repo has multiple ad hoc partial answers
 and no single deliberate one.
 
-## Directions raised, none evaluated yet
+## Directions raised, now converged into a leaning design
 
-- **Trusted Orchestrator Pattern:** a single, tightly-controlled host
-  or process holds the one long-lived credential and hands out
-  short-lived, scoped ones to everything else — `controller` (per the
-  `cd-agent.md` project) may already be conceptually close to this
-  role; worth checking before inventing a new component. OpenBao's own
-  **response wrapping** is the concrete, already-available mechanism
-  for this — no new infrastructure needed, unlike mTLS/attestation
-  below. Vault/OpenBao wraps a response (e.g. a freshly-generated
-  `secret_id`) in a single-use, short-TTL token; the orchestrator
-  relays only that wrapping token, never the real secret; the consumer
-  unwraps it exactly once. A second unwrap attempt fails outright —
-  turning a silent interception into an immediate, detectable failure
-  instead of a quietly-stolen, reusable credential. This maps directly
-  onto the real, already-documented next step in this repo: once
-  `cd_agent` exists, it needs to authenticate as `controller`'s AppRole
-  unattended (`docs/openbao-backup-restore.md`'s own "Open
-  follow-ups"), and `cache.py`/`bootstrap_secrets.py`'s currently vague
-  "entered by a human or read from wherever it's stored between
-  logins" is exactly the gap wrapping would make concrete and
-  auditable. It does **not** remove Secret Zero, though — the
-  orchestrator (`controller`) still needs its own credential to Vault
-  to request the wrapped response in the first place. Wrapping protects
-  the second hop (orchestrator → new consumer), not the first
-  (orchestrator → Vault); that first hop still needs its own answer,
-  from this list or another one.
+Checked directly against `cd-agent.md`, not assumed: the actual planned
+design is **not** an ongoing Trusted-Orchestrator-relays-everything
+model. `cd_agent` gets its **own** CIDR-bound AppRole (Stage 2:
+`cd-agent-deploy`/`cd-agent-rotation`, no shared access between them) —
+`controller` doesn't hand it credentials on a recurring basis.
+Stage 3 goes further: it retires `controller`'s own standing AppRole
+outright, so that "any admin/debug access mints a fresh, narrow,
+short-lived token on demand instead." That's already a better shape
+than a perpetual orchestrator — but the project doc doesn't say *how*
+`controller` authenticates to do that on-demand minting without a
+standing credential of its own. That's the real, concrete gap this
+draft converges on.
+
+- **mTLS closes that exact gap.** `controller` gets a step-ca-issued
+  client cert — the identical provisioner-password-once,
+  mTLS-renewal-forever pattern `step_ca_cert` already proves live —
+  and authenticates to OpenBao via Vault's `cert` auth method instead
+  of holding an AppRole. Nothing standing sits on `controller`'s disk
+  between uses; every on-demand token mint is backed by a
+  short-lived, renewable certificate instead of a static secret. Not
+  confirmed: whether OpenBao supports the `cert` auth method the same
+  way Vault does — very likely, given how broadly API-compatible it
+  is, but not verified live.
+- **Response wrapping handles the one remaining real gap: provisioning
+  `cd_agent` itself.** Not an ongoing relay — `cd_agent` uses its own
+  AppRole directly and repeatedly after this — just the single,
+  one-time handoff of its freshly-minted `secret_id` at build time.
+  `controller` (now mTLS-authenticated, per above) requests a wrapped
+  response for that `secret_id`; whoever provisions `cd_agent` unwraps
+  it exactly once. A second unwrap attempt fails outright, turning a
+  silent interception into an immediate, detectable failure instead of
+  a quietly-stolen, reusable credential. This also gives
+  `cache.py`/`bootstrap_secrets.py`'s currently vague "entered by a
+  human or read from wherever it's stored between logins" a concrete,
+  auditable answer for the same class of moment.
+
+Two directions considered and set aside, not because they're wrong,
+but because the above already answers the actual planned architecture
+more directly:
+
 - **Local OS secret stores:** e.g. `systemd-creds`, a TPM-sealed
   secret, or an OS keyring — keeps the bootstrap credential out of a
   plain file at the cost of tying it to a specific host's hardware/OS
@@ -74,32 +89,16 @@ and no single deliberate one.
   reproducible, re-creatable hosts.
 - **Something else / accept the status quo as the deliberate answer:**
   formalize "a human types it in when needed" as the actual chosen
-  pattern for low-frequency, high-sensitivity operations — but this
-  would be a deliberate reversal of the documented plan (`cd_agent`
-  automating this), not a continuation of an existing stance, per the
-  correction above. Worth stating honestly as "stop planned automation
-  here" if chosen, not "formalize what's already true."
-- **mTLS via CA-issued certs:** doesn't eliminate Secret Zero, but
-  shrinks it to a one-time event instead of a recurring one — this
-  repo already demonstrates the split in `step_ca_cert`'s own task
-  file: initial issuance "needs the JWK provisioner password, since
-  there's no existing cert yet to authenticate with," but renewal
-  forever after "uses mTLS against the cert this role just issued, so
-  it never touches the provisioner password at all." Structurally
-  better than a bearer secret too, if the private key is generated on
-  the target host itself and only the CSR (public material) is sent
-  for signing — the actual secret never has to be transmitted anywhere,
-  unlike an AppRole `secret_id` or an S3 access key. Doesn't solve
-  first-contact for a brand-new host: the provisioner password (or
-  equivalent) still has to reach it once, by some other means — that
-  delivery is the same open problem as every other direction here, not
-  resolved by adding mTLS. The more complete answer to *that* piece is
-  attestation-based issuance (SPIFFE/SPIRE-style: sign a CSR based on
-  something intrinsic to the host — a TPM key, a cloud instance
-  identity document — instead of a shared password), which removes the
-  shared-secret delivery step entirely but is likely heavier
-  operational weight than a handful of self-managed homelab hosts
-  needs; worth naming as the ceiling, not assumed as the target.
+  pattern — but this would be a deliberate reversal of the documented
+  plan (`cd_agent` automating this), not a continuation of an existing
+  stance, and the mTLS+wrapping combination above already gives that
+  automation a real mechanism instead of requiring a reversal.
+
+Attestation-based issuance (SPIFFE/SPIRE-style: sign a CSR based on
+something intrinsic to the host instead of a shared password) remains
+the theoretical ceiling above mTLS+wrapping, named for completeness —
+likely heavier operational weight than a handful of self-managed
+homelab hosts needs, not assumed as the target.
 
 ## Why this probably isn't a small addition to an existing draft
 
@@ -115,23 +114,17 @@ side effect of whichever draft gets picked up first.
 
 ## Not yet done
 
-- Enumerate every credential-bootstrap point in the repo properly —
-  this Context section is a first pass from what's already been read
-  this session, not a real audit.
-- Check whether `controller`/the `cd-agent` project already implements
-  something Trusted-Orchestrator-shaped, before assuming a new pattern
-  is needed.
-- Decide whether this repo's threat model (single operator, homelab
-  scale) even warrants solving this generally, versus formalizing the
-  human-typed pattern as the deliberate answer for the few places that
-  need it.
-- If mTLS is the direction: whether `step_ca_cert`'s existing
-  provisioner-password pattern is good enough to reuse as-is for
-  OpenBao/cloud-credential bootstrap too, or whether those need their
-  own enrollment flow — not assumed either way.
-- If response wrapping is the direction: what `controller`'s own
-  credential to Vault looks like once `cd_agent` needs to request
-  wrapped responses on a schedule rather than a human doing it
-  interactively — that's the first-hop problem wrapping doesn't solve,
-  and it's the actual blocker on `cd_agent`'s AppRole automation, not
-  a side detail.
+- Confirm OpenBao supports Vault's `cert` auth method the same way —
+  the whole `controller`-side of this design depends on it; not
+  verified live yet.
+- Whether `step_ca_cert`'s existing provisioner-password pattern is
+  good enough to reuse as-is for issuing `controller`'s own client
+  cert, or needs its own enrollment flow.
+- The actual mechanics of the one-time `cd_agent` provisioning handoff
+  — what unwraps the wrapped `secret_id`, and over what channel (SSH,
+  a provisioning script, something else) — not designed yet, just
+  identified as the one remaining real gap.
+- Whether this design should be written back into `cd-agent.md`
+  Stage 3 directly (it currently just says "mints a fresh... token on
+  demand" with no mechanism) once the `cert`-auth-method check above
+  confirms it's viable.

@@ -39,19 +39,23 @@ moved) and `tools/secrets/` (the OpenBao/Vault client,
 hvac/paramiko helper if the sibling draft's Option B wins).
 `docker/openbao/watcher/r2_read_watcher.py`'s move is a separate
 question — its container build context may need it to stay where it is
-or import from the new location; unchecked either way. A further
-wrinkle since this draft was first written: `docker/openbao/scripts/`'s
+or import from the new location; unchecked either way. `docker/openbao/scripts/`'s
 shell scripts and `openbao_backup/snapshot-push.sh.j2` are also
 candidates for the same shared client
-([`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)),
-and the `secrets` Ansible role's Vault tasks might go through
-`community.hashi_vault` instead of importing this package directly —
-which changes what "who consumes it" even means. If any Ansible task
-needs to import the shared client directly rather than through a
-collection module, that's an `ansible/roles/*/library/`- or
-`module_utils`-shaped need, a different packaging mechanism than a
-plain `tools/` package standalone scripts import — Option B below
-needs to say which, not just "a package," once that's known.
+([`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)).
+
+**Resolved:** the `secrets` Ansible role does not need to import this
+package directly. `ansible-collections-audit.md`'s Stage 3 already
+plans `community.hashi_vault` (a maintained collection) for that
+role's Vault tasks, not a custom import — same principle as everywhere
+else this session, prefer the vendor-maintained module over a
+hand-rolled one. Default: `tools/secrets/` is a plain importable
+package, no `module_utils`/`library`-shaped packaging needed. Only
+revisit that if `community.hashi_vault`'s own spike (already an open
+Assumption in the sibling draft) finds it can't reproduce something
+this repo specifically needs — e.g. the custom-CA-verify pattern —
+in which case Ansible would need to import the shared client directly
+after all.
 
 ### C — Same split, no new root: `ansible/secrets/` alongside `ansible/cloud_credentials/`
 
@@ -62,7 +66,11 @@ exists to fix (none of this code is a role or a plugin).
 
 ## Decision
 
-Not yet — itemized for later review, no lean recorded until scoped.
+Leaning **B** — new `tools/` root, split by domain, plain package for
+`tools/secrets/` (no Ansible-side packaging complexity, per the
+resolution above). Not yet promotable — the Assumptions below,
+especially the import-path inventory, need checking before an actual
+move is safe.
 
 ## Assumptions (todo, unchecked)
 

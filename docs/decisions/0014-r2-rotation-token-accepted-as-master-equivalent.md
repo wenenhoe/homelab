@@ -1,3 +1,10 @@
+---
+id: ADR-0014
+title: "Accept Cloudflare R2's cached rotation token as master-equivalent"
+type: adr
+status: accepted
+---
+
 # 0014. Accept Cloudflare R2's cached rotation token as master-equivalent
 
 **Status:** Accepted

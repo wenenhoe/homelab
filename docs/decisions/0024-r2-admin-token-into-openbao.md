@@ -1,3 +1,10 @@
+---
+id: ADR-0024
+title: "Move Cloudflare R2's admin token into OpenBao"
+type: adr
+status: accepted
+---
+
 # 0024. Move Cloudflare R2's admin token into OpenBao
 
 **Status:** Accepted

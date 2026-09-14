@@ -1,3 +1,10 @@
+---
+id: DRAFT-rclone-boto3-scope-not-blanket-swap
+title: "Scope boto3 to single-object Python calls, never the bulk-copy path"
+type: draft-adr
+status: draft
+---
+
 # Scope boto3 to single-object Python calls, never the bulk-copy path
 
 **Status:** Draft

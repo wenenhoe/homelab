@@ -31,6 +31,12 @@ behavior, a component that doesn't exist yet) starts as a draft in
 checked. Drafts are unnumbered, freely rewritten or deleted in place —
 nothing else in this repo should ever cite one as settled.
 
+A draft's own **Status:** line can read `Decided` once its design is
+settled and only implementation (or a still-unresolved Assumption)
+remains — a real, named state (`status: decided` in frontmatter), not
+a promise of promotion. It's still unnumbered and still lives in
+`drafts/` until promotion actually happens.
+
 Promotion to a real ADR happens once the assumptions are resolved and
 the design is actually implemented — not at decide-time. At that
 point: assign the next sequential number, drop the `Assumptions`

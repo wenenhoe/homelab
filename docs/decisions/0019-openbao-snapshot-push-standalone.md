@@ -1,3 +1,10 @@
+---
+id: ADR-0019
+title: "OpenBao snapshot push stays standalone, not routed through `backup_agent`/`cloud_sync`"
+type: adr
+status: accepted
+---
+
 # 0019. OpenBao snapshot push stays standalone, not routed through `backup_agent`/`cloud_sync`
 
 **Status:** Accepted

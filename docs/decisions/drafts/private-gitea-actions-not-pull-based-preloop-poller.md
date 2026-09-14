@@ -1,3 +1,10 @@
+---
+id: DRAFT-private-gitea-actions-not-pull-based-preloop-poller
+title: "Self-hosted, LAN-only Gitea Actions, not a `preloop`-poller, as the CD trigger"
+type: draft-adr
+status: draft
+---
+
 # Self-hosted, LAN-only Gitea Actions, not a `preloop`-poller, as the CD trigger
 
 **Status:** Draft

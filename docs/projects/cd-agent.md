@@ -1,3 +1,11 @@
+---
+id: PROJ-cd-agent
+title: "CD Agent"
+type: project
+status: not-started
+summary: "Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole."
+---
+
 # CD Agent
 
 **Status:** `Not started`

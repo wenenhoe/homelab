@@ -1,3 +1,10 @@
+---
+id: ADR-0016
+title: "OCI credential expiry via Identity Domains SCIM, not self-tracked cache files"
+type: adr
+status: accepted
+---
+
 # 0016. OCI credential expiry via Identity Domains SCIM, not self-tracked cache files
 
 **Status:** Accepted

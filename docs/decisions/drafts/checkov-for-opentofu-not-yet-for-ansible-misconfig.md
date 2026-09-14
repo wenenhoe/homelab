@@ -1,3 +1,10 @@
+---
+id: DRAFT-checkov-for-opentofu-not-yet-for-ansible-misconfig
+title: "Checkov for OpenTofu when it lands; Trivy stays for Ansible misconfig scanning until then"
+type: draft-adr
+status: draft
+---
+
 # Checkov for OpenTofu when it lands; Trivy stays for Ansible misconfig scanning until then
 
 **Status:** Draft

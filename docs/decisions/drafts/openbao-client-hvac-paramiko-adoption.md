@@ -1,3 +1,10 @@
+---
+id: DRAFT-openbao-client-hvac-paramiko-adoption
+title: "Adopt hvac + paramiko for every internal OpenBao/SSH client, not just cloud_credentials"
+type: draft-adr
+status: draft
+---
+
 # Adopt hvac + paramiko for every internal OpenBao/SSH client, not just cloud_credentials
 
 **Status:** Draft

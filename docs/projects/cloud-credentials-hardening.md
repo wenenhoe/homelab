@@ -1,3 +1,11 @@
+---
+id: PROJ-cloud-credentials-hardening
+title: "Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening"
+type: project
+status: not-started
+summary: "Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `ansible/cloud_credentials`."
+---
+
 # Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening
 
 **Status:** Not started

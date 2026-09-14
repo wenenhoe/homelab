@@ -1,3 +1,10 @@
+---
+id: ADR-0007
+title: "Custom step-ca entrypoint instead of `DOCKER_STEPCA_INIT_*`"
+type: adr
+status: accepted
+---
+
 # 0007. Custom step-ca entrypoint instead of `DOCKER_STEPCA_INIT_*`
 
 **Status:** Accepted

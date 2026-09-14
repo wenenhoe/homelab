@@ -1,3 +1,10 @@
+---
+id: ADR-0012
+title: "Per-host backup freshness checks, not one centralized checker"
+type: adr
+status: accepted
+---
+
 # 0012. Per-host backup freshness checks, not one centralized checker
 
 **Status:** Accepted

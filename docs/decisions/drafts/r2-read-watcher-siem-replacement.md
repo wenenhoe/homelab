@@ -1,3 +1,10 @@
+---
+id: DRAFT-r2-read-watcher-siem-replacement
+title: "Replace r2_read_watcher.py with a proper audit pipeline (e.g. Wazuh)?"
+type: draft-adr
+status: draft
+---
+
 # Replace r2_read_watcher.py with a proper audit pipeline (e.g. Wazuh)?
 
 **Status:** Draft — exploratory, not scoped for building yet

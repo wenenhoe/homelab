@@ -1,3 +1,10 @@
+---
+id: DRAFT-cd-agent-approle-policy
+title: "Two CIDR-bound AppRoles for the CD agent, replacing controller's broad grant"
+type: draft-adr
+status: draft
+---
+
 # Two CIDR-bound AppRoles for the CD agent, replacing controller's broad grant
 
 **Status:** Draft

@@ -1,3 +1,10 @@
+---
+id: ADR-0003
+title: "Route most apps through one wildcard cert per host, not one cert per app"
+type: adr
+status: accepted
+---
+
 # 0003. Route most apps through one wildcard cert per host, not one cert per app
 
 **Status:** Accepted, partially applied — see Consequences.

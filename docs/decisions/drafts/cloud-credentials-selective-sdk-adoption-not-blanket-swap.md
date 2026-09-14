@@ -1,3 +1,10 @@
+---
+id: DRAFT-cloud-credentials-selective-sdk-adoption-not-blanket-swap
+title: "Adopt official SDKs in cloud_credentials selectively, not as a blanket swap"
+type: draft-adr
+status: draft
+---
+
 # Adopt official SDKs in cloud_credentials selectively, not as a blanket swap
 
 **Status:** Draft

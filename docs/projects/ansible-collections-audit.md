@@ -1,3 +1,11 @@
+---
+id: PROJ-ansible-collections-audit
+title: "Ansible Roles: Native Collection Module Audit"
+type: project
+status: not-started
+summary: "Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate."
+---
+
 # Ansible Roles: Native Collection Module Audit
 
 **Status:** Not started

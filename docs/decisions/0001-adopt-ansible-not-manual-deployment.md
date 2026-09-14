@@ -1,3 +1,10 @@
+---
+id: ADR-0001
+title: "Adopt Ansible instead of manual per-host deployment"
+type: adr
+status: accepted
+---
+
 # 0001. Adopt Ansible instead of manual per-host deployment
 
 **Status:** Accepted

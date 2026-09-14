@@ -1,3 +1,11 @@
+---
+id: ADR-0013
+title: "Cache cloud credentials to disk before adopting a secrets manager"
+type: adr
+status: superseded
+superseded_by: ADR-0027
+---
+
 # 0013. Cache cloud credentials to disk before adopting a secrets manager
 
 **Status:** Superseded by [0027](0027-openbao-not-file-cache-or-committed-secrets.md)

@@ -1,3 +1,10 @@
+---
+id: ADR-0005
+title: "Docker named volumes instead of bind mounts"
+type: adr
+status: accepted
+---
+
 # 0005. Docker named volumes instead of bind mounts
 
 **Status:** Accepted

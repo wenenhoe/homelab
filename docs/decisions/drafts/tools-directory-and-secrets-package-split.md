@@ -1,3 +1,10 @@
+---
+id: DRAFT-tools-directory-and-secrets-package-split
+title: "Split OpenBao/secrets tooling out of cloud_credentials, into its own package"
+type: draft-adr
+status: draft
+---
+
 # Split OpenBao/secrets tooling out of cloud_credentials, into its own package
 
 **Status:** Draft

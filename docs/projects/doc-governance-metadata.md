@@ -1,6 +1,14 @@
+---
+id: PROJ-doc-governance-metadata
+title: "Doc Governance: Frontmatter + Generated Visibility"
+type: project
+status: in-progress
+summary: "YAML frontmatter across project/decision docs, auto-generated README index tables, and a narrow NIST SP 800-53 mapping for portfolio purposes."
+---
+
 # Doc Governance: Frontmatter + Generated Visibility
 
-**Status:** Not started
+**Status:** In progress
 
 Adds YAML frontmatter to project/decision docs and auto-generates the
 index tables in `docs/projects/README.md` and
@@ -14,8 +22,8 @@ this doc tracks build status only.
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | Add frontmatter to every existing project/draft/ADR doc | Not started |
-| 2 | Generator script: parse frontmatter, regenerate the two README index tables | Not started |
+| 1 | Add frontmatter to every existing project/draft/ADR doc | Done |
+| 2 | Generator script: parse frontmatter, regenerate the two README index tables | Done |
 | 3 | Wire the generator into the existing pre-commit hook, alongside `check-doc-drift.py`/markdownlint | Not started |
 | 4 | Tag the confirmed NIST subset (RA-3/CM-8/CM-2/CA-7/CP-9/AC-2/IA-2) onto the docs where it's genuinely true | Not started |
 | 5 | (Optional) `depends_on` → Mermaid dependency graph, in its own file | Not started |
@@ -24,19 +32,26 @@ this doc tracks build status only.
 
 ### Stage 1 — frontmatter migration
 
-Mechanical but real: every doc under `docs/projects/`,
-`docs/decisions/`, and `docs/decisions/drafts/` gets an `id`/`title`/
-`type`/`status` header. Sequencing this against the dozen-plus other
-projects and drafts already in flight matters more than the
-mechanics — decide whether to do it as one pass now or incrementally
-as each doc is next touched anyway.
+Every doc under `docs/projects/`, `docs/decisions/`, and
+`docs/decisions/drafts/` carries an `id`/`title`/`type`/`status`
+frontmatter block ahead of its existing H1; schema (including the
+`superseded`/`superseded_by` and project-only `summary` fields added
+during this pass) is in
+[`metadata-governance-system-evaluate-vs-existing.md`](../decisions/drafts/metadata-governance-system-evaluate-vs-existing.md).
+`.config/.markdownlint.yaml`'s `MD025.front_matter_title` is disabled
+repo-wide so a frontmatter `title` field and the real body H1 don't
+read as duplicate headings.
 
 ### Stage 2 — generator script
 
-Reads frontmatter across the tree, regenerates the project index table
-and the drafts index table exactly — replacing the current
-by-hand `str_replace`-per-addition pattern with one script run. Does
-*not* touch `check-doc-drift.py`'s existing checks; runs alongside it.
+[`generate-doc-indexes.py`](../../.github/scripts/generate-doc-indexes.py)
+reads frontmatter across the tree and regenerates
+`docs/projects/README.md`'s Index table and
+`docs/decisions/drafts/README.md`'s Open list in place — idempotent,
+alphabetical by filename (the prior hand-maintained insertion order
+isn't preserved). Doesn't touch `docs/decisions/README.md`'s numbered
+ADR index (see Open items) or `check-doc-drift.py`'s existing checks;
+runs alongside both.
 
 ### Stage 3 — pre-commit wiring
 

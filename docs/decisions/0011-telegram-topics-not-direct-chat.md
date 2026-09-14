@@ -1,3 +1,10 @@
+---
+id: ADR-0011
+title: "Telegram group chat with Topics, not direct bot chat"
+type: adr
+status: accepted
+---
+
 # 0011. Telegram group chat with Topics, not direct bot chat
 
 **Status:** Accepted

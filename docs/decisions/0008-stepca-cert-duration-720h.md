@@ -1,3 +1,10 @@
+---
+id: ADR-0008
+title: "step-ca cert duration set to 720h, not step-ca's own 24h default"
+type: adr
+status: accepted
+---
+
 # 0008. step-ca cert duration set to 720h, not step-ca's own 24h default
 
 **Status:** Accepted, flagged for review — the premise below has since

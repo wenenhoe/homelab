@@ -1,3 +1,10 @@
+---
+id: DRAFT-short-decision-shaped-title
+title: "Short, decision-shaped title"
+type: draft-adr
+status: draft                # or: decided, once settled but not yet promoted
+---
+
 # Short, decision-shaped title
 
 **Status:** Draft

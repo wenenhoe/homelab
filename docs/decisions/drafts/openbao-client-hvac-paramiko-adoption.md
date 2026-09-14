@@ -189,9 +189,13 @@ surface.
   client, which is its own small design problem, not a free choice.
   **Checked by:** deciding `community.hashi_vault` vs. a
   directly-imported shared client for the `secrets` role first — that
-  choice determines which packaging shape is actually needed. See
-  [`tools-directory-and-secrets-package-split.md`](tools-directory-and-secrets-package-split.md)
-  for the sibling "where does this code live" question.
+  choice determines which packaging shape is actually needed —
+  confirmed: [`tools-directory-and-secrets-package-split.md`](tools-directory-and-secrets-package-split.md)
+  resolves this directly, stating the `secrets` role uses
+  `community.hashi_vault`, not a direct import, so a plain importable
+  package is sufficient and no `module_utils` shape is needed. That
+  draft's own location question (`tools/secrets/` vs. elsewhere) is
+  still open, independent of this one.
 
 ## Consequences
 

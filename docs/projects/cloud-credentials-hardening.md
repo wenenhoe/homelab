@@ -75,7 +75,12 @@ explicitly does not extend to `cloud_sync`, `snapshot-push.sh.j2`, or
 that draft's Assumptions, in particular confirming `verify.py`'s
 credential already lives as a Python value before this swap, so the
 credentials-in-process trade `restore_all.py` avoids doesn't newly
-apply here.
+apply here. `boto3` is not already a `pyproject.toml` dependency from
+[`ansible-collections-audit.md`](ansible-collections-audit.md)'s
+Stage 1 (`amazon.aws.s3_bucket`) — that stage confirmed live it only
+needs `boto3` on the Ansible target host (`storage`, via `apt`), not
+the controller, so this would be the first stage to actually add it to
+`pyproject.toml`, not a second entry to reconcile with an existing one.
 
 ## Open items
 

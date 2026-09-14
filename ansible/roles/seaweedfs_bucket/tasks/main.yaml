@@ -1,4 +1,21 @@
 ---
+# amazon.aws.s3_bucket executes on whatever Python interpreter this
+# role actually runs against (storage's own, over SSH — not the
+# controller's), and needs boto3/botocore importable there. Confirmed
+# live: without this, the task below fails at import time with
+# "Failed to import the required Python libraries (botocore and
+# boto3)", not a connectivity or credentials error. `storage` is the
+# only host this role runs on (deploy.yaml Play 5), so this is scoped
+# to apt/Debian rather than anything more portable.
+- name: Ensure boto3/botocore are available for amazon.aws.s3_bucket
+  ansible.builtin.apt:
+    name:
+      - python3-boto3
+      - python3-botocore
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
 # SeaweedFS does not auto-create a bucket on first PUT, even with
 # Admin-scoped credentials (see
 # docker/seaweedfs/configs/s3-identity.json.j2) — this makes creation
@@ -9,70 +26,53 @@
 # concern, not something every backup_agent host should redundantly
 # handle.
 #
-# community.docker.docker_container with detach:false hard-crashes the
-# whole play ("Module failed", not a normal failed:true result) on ANY
-# nonzero exit from the containerized command — confirmed live, not
-# assumed. That's not an edge case here: aws s3 mb on an
-# already-existing bucket (BucketAlreadyOwnedByYou) itself exits
-# nonzero, i.e. this crashed on essentially every redeploy after the
-# first, not just on a genuine failure. community.docker.
-# docker_container_exec instead returns a normal result (.rc/.stdout/
-# .stderr), so a nonzero exit is just data to inspect, not a crash —
-# this repo's own molecule_helpers already established that as the
-# reliable pattern (see its own header comment) after hitting the
-# docker_container problem twice before. Needs a real container to
-# exec into.
+# amazon.aws.s3_bucket gives real create-if-missing idempotence
+# natively — confirmed live against a real SeaweedFS target running
+# production's exact identity-scoping model (bucket-scoped `Admin:`,
+# not an account-wide grant); see
+# docs/projects/ansible-collections-audit.md's Stage 1 detail.
+# No standing container needed the way the previous aws-cli-exec
+# implementation required just to get idempotence.
 #
-# That container is left running (state: started, never removed)
-# rather than created-and-torn-down on every single deploy —
-# confirmed live that create+destroy every run reports `changed` both
-# times, every time, since those genuinely are state transitions each
-# run; there's no way to make an ephemeral container "idempotent"
-# short of not recreating it. A persistent one instead gets ordinary
-# Ansible resource idempotence for free: docker_container's own
-# state:started comparison correctly reports unchanged once the
-# container already matches, the same as any other declarative
-# resource. The trivial idle container left on `storage` is a
-# reasonable trade for that.
-- name: Ensure a persistent aws-cli utility container exists for S3 bucket management commands
-  community.docker.docker_container:
-    name: seaweedfs-ensure-bucket
-    image: amazon/aws-cli:2.36.44
-    entrypoint: ["sleep"]
-    command: ["infinity"]
-    env:
-      AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
-      AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
-      AWS_DEFAULT_REGION: us-east-1
-    state: started
-    detach: true
-
 # Play 4 (compose_app) returns once `docker compose up` exits, not once
 # SeaweedFS is healthy — on a cold start this call (routed through
-# Caddy, see offsite_backup_s3_endpoint) can hit a 502 before the S3
-# listener is up. Retry only on 502; anything else (including the
-# tolerated already-exists case) stops retrying immediately below.
+# Caddy, see offsite_backup_s3_endpoint) can hit a connection failure
+# before the S3 listener is up. The module has no built-in wait/retry
+# (checked its full option list, confirmed live) — this task still
+# needs its own retry loop for that, same as the previous
+# implementation needed one around its aws-cli exec. `until:` retrying
+# past a module-level `failed: true` (not just a bad exit code) is
+# core Ansible behavior, confirmed live rather than assumed.
+#
+# Retry condition is deliberately narrower than "anything but success"
+# — confirmed live (real SeaweedFS target, real wrong-credentials
+# case) that a genuine 4xx (bad credentials, access denied, bad
+# request) comes back as a normal structured botocore error with
+# response_metadata.http_status_code populated, on the first attempt,
+# no connection ever having failed. Retrying that blindly would turn
+# the previous implementation's fail-fast-on-bad-auth behavior (see
+# the wrong_credentials molecule scenario) into a needless ~30s stall
+# before the same eventual failure. A genuine connection-level failure
+# has no response_metadata at all (never got an HTTP response to have
+# a status code from) — that, and any real 5xx, is what actually
+# retries here.
+#
+# No `failed_when`/"tolerate already-exists" carve-out needed here
+# unlike the previous implementation: an already-existing bucket is
+# just `changed: false` from this module, not an error to special-case
+# around.
 - name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
-  community.docker.docker_container_exec:
-    container: seaweedfs-ensure-bucket
-    command: >-
-      aws --endpoint-url {{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}
-      s3 mb s3://{{ offsite_backup_s3_bucket }}
+  amazon.aws.s3_bucket:
+    name: "{{ offsite_backup_s3_bucket }}"
+    state: present
+    endpoint_url: "{{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}"
+    access_key: "{{ seaweedfs_admin_access_key }}"
+    secret_key: "{{ seaweedfs_admin_secret_key }}"
+    region: us-east-1
   register: seaweedfs_bucket_create
-  changed_when: false
   until: >-
-    seaweedfs_bucket_create.rc == 0
-    or 'BucketAlreadyExists' in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
-    or 'BucketAlreadyOwnedByYou' in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
-    or '(502)' not in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
+    seaweedfs_bucket_create is succeeded
+    or (seaweedfs_bucket_create.response_metadata.http_status_code | default(0) | int >= 400
+        and seaweedfs_bucket_create.response_metadata.http_status_code | default(0) | int < 500)
   retries: 15
   delay: 2
-  # Tolerate "already exists" (both BucketAlreadyExists and
-  # BucketAlreadyOwnedByYou — the latter is what a single-owner
-  # target like this one actually returns on an idempotent re-run,
-  # and itself exits nonzero — see header comment). Anything else is
-  # a real failure.
-  failed_when: >-
-    seaweedfs_bucket_create.rc != 0
-    and 'BucketAlreadyExists' not in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)
-    and 'BucketAlreadyOwnedByYou' not in (seaweedfs_bucket_create.stdout ~ seaweedfs_bucket_create.stderr)

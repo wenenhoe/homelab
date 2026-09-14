@@ -39,7 +39,7 @@ result, then re-converges to check idempotence — mirroring what
 | `uptime_kuma_push` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through whatever role includes it: `cloud_sync` today (see `docs/uptime-kuma.md`). |
 | `bind9` | `default` | Zone-file aggregation/rendering/reload against a single self-hosting instance. |
 | `seaweedfs_bucket` | `default` | Bucket doesn't exist → role creates it against a real throwaway SeaweedFS target, verified by listing the bucket after. |
-| | `wrong_credentials` | Mismatched credentials must fail loudly, not get swallowed by `BucketAlreadyExists` tolerance. |
+| | `wrong_credentials` | Mismatched credentials must fail loudly, not get retried into a slow eventual failure or otherwise swallowed. |
 | | `identity_scoping` | Renders the real production `s3-identity.json.j2` (not a synthetic config) against a real SeaweedFS target with two fake backup hosts. Confirms each host's identity can read/write only its own prefix — cross-prefix write and read are both actually denied, not just untested — and that a scoped identity has no Admin-level access (can't remove the bucket). The one scenario that exercises this file at all; every other SeaweedFS-backed scenario uses `molecule_helpers`' own trivial single-identity default instead. |
 | `step_ca_client` | `default` | Caches a real, throwaway step-ca's root cert on the host, verified byte-for-byte against the container's actual root. |
 | | `not_running` | No running step-ca target at all — the guard at the top of the role fails loudly, before anything else runs. |

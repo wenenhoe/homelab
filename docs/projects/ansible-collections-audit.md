@@ -2,27 +2,27 @@
 id: PROJ-ansible-collections-audit
 title: "Ansible Roles: Native Collection Module Audit"
 type: project
-status: not-started
+status: in-progress
 summary: "Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate."
 ---
 
 # Ansible Roles: Native Collection Module Audit
 
-**Status:** Not started
+**Status:** In progress
 
 Sweeps `ansible/roles/*` for hand-rolled `command`/`shell`/`uri` tasks
 a maintained collection module could replace outright — real
 idempotence and error handling in place of a workaround, at the cost
 of a new collection dependency per role that adopts one. Currently
-pinned: `community.docker` (5.3.0), `ansible.posix` (2.2.2) — per
-`ansible/requirements.yml`. No decision draft yet; this doc's own Stage
-2 *is* the not-yet-done audit.
+pinned: `community.docker` (5.3.0), `ansible.posix` (2.2.2),
+`amazon.aws` (9.4.0) — per `ansible/requirements.yml`. No decision
+draft yet; this doc's own Stage 2 *is* the not-yet-done audit.
 
 ## Stages
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | `seaweedfs_bucket` → `amazon.aws.s3_bucket` | Not started |
+| 1 | `seaweedfs_bucket` → `amazon.aws.s3_bucket` | Done |
 | 2 | Task-shape sweep of the remaining command/shell/uri-heavy roles | Done |
 | 3 | `secrets` role's 3 Vault `uri` tasks + `molecule_helpers`' OpenBao CLI setup → `community.hashi_vault` | Not started |
 | 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Not started |
@@ -32,22 +32,63 @@ pinned: `community.docker` (5.3.0), `ansible.posix` (2.2.2) — per
 
 ### Stage 1 — `seaweedfs_bucket` → `amazon.aws`
 
-Confirmed concretely: the role keeps a standing `amazon/aws-cli:2.36.43`
-container alive (`community.docker.docker_container`,
-`state: started`) specifically because, per the task's own comment,
-"there's no way to make an ephemeral container idempotent short of not
-recreating it," then execs `aws s3 mb` inside it
-(`community.docker.docker_container_exec`) with a retry-on-502 for
-SeaweedFS's cold-start behavior. `amazon.aws.s3_bucket`, pointed at the
-same `endpoint_url`, is a plausible direct replacement — real
-idempotence from the module itself, no standing container needed at
-all. Not yet a dependency: `amazon.aws` isn't in `ansible/requirements.yml`
-today (only `community.docker`/`ansible.posix` are). Needs a spike:
-does `amazon.aws.s3_bucket` work cleanly against SeaweedFS's
-S3-compatible endpoint (the same category of "S3-compatible but not
-AWS" verification this repo already does for B2/OCI/R2 elsewhere), and
-does it need its own retry/wait handling for the same cold-start 502
-this role's current task explicitly retries around.
+Done. `amazon.aws.s3_bucket` (9.4.0, pinned in `ansible/requirements.yml`)
+replaced the standing `amazon/aws-cli` container +
+`docker_container_exec` entirely — confirmed live against a real `weed`
+4.46 binary (matching `ghcr.io/chrislusf/seaweedfs:4.46`) running
+production's exact `Admin:{{ bucket }}` identity shape: real
+create-if-missing idempotence from the module itself (two repeat runs
+both `changed: false`), least-privilege scoping still enforced
+(`AccessDenied` against an out-of-scope bucket), and no more
+`failed_when`/"tolerate already-exists" carve-out needed at all —
+an existing bucket is just `changed: false`, not a special-cased
+error.
+
+Two things the initial spike (previous revision of this section)
+didn't cover, both found by actually building and running the role
+rather than stopping at the spike:
+
+- **`storage` itself needs `boto3`/`botocore`.** `amazon.aws.s3_bucket`
+  runs on whatever Python interpreter the target host uses, not the
+  controller — confirmed live (a boto3-less interpreter fails at
+  import time, not with a connectivity/credentials error). The role
+  now installs `python3-boto3`/`python3-botocore` via `apt` as its
+  first task. Confirmed the other direction too, not just assumed:
+  ran the module over a real SSH connection with the *controller*
+  process genuinely lacking `boto3` at all (a separate, isolated
+  Python with only `ansible-core`) while the target had it —
+  succeeded normally. `pyproject.toml` doesn't need `boto3`; nothing
+  under `ansible/` imports it directly, and this confirms the module
+  itself doesn't need it controller-side either.
+- **The retry condition needs to be narrower than "anything but
+  success."** Confirmed live that a genuine wrong-credentials request
+  against a reachable server returns a normal structured botocore
+  error (`response_metadata.http_status_code`) on the first attempt —
+  retrying that blindly would have turned the old role's
+  fail-fast-on-bad-auth behavior (see the `wrong_credentials` molecule
+  scenario) into a ~30s stall before the same eventual failure. The
+  task's `until:` now only retries a connection-level failure (no
+  `response_metadata` at all) or a real 5xx; any 4xx fails immediately.
+  Re-verified the `wrong_credentials` scenario's exact block/rescue
+  shape against the real two-task role — `rescued: 1`, one attempt, no
+  retry stall.
+
+**Not confirmed, and can't be from a dev sandbox**: the exact failure
+shape for a real HTTP 502 arriving *through Caddy*
+(`offsite_backup_s3_proto`/`offsite_backup_s3_endpoint`) during
+SeaweedFS's actual cold start — every retry-condition test here talked
+to SeaweedFS directly, never through a real Caddy reverse proxy. The
+`until:` condition is written to retry any non-2xx/4xx outcome
+generally (which should cover a proxy 502), but whether Caddy's own
+error page produces a botocore response shape this condition still
+correctly matches needs a live check on `storage` after this first
+deploys — worth a deliberate first-deploy watch, not assumed safe.
+
+Molecule: `default` and `wrong_credentials` scenarios needed only
+comment updates (no functional changes — both scenarios already just
+`include_role: seaweedfs_bucket`). `identity_scoping` needed nothing —
+it tests `s3-identity.json.j2` directly via its own aws-cli containers
+and never invokes this role at all.
 
 ### Stage 2 — sweep results
 
@@ -110,8 +151,11 @@ self-signed cert). Lowest priority of the five.
 
 - If `amazon.aws.s3_bucket` (Stage 1) and `boto3` (via
   [`rclone-boto3-scope-not-blanket-swap.md`](../decisions/drafts/rclone-boto3-scope-not-blanket-swap.md))
-  both land, `boto3` becomes a real dependency in two unrelated parts
-  of this repo — worth knowing going in, not discovering by accident.
+  both land, `boto3` becomes a real `pyproject.toml` dependency for the
+  first time via that other stage, not this one — Stage 1 confirmed
+  live that it doesn't need `boto3` controller-side at all (see Stage 1
+  detail above), so there's no existing entry for that stage to reuse
+  or collide with.
 - `docker`/`compose_app` aren't flagged here since `community.docker`
   is already pinned and likely already covers them — confirm during
   Stage 2 rather than assume.

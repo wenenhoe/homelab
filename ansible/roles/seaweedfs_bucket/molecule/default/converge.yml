@@ -13,11 +13,10 @@
   tasks:
     # --- Real S3 target for this scenario ---------------------------------
     # See molecule_helpers/tasks/start_seaweedfs_test_target.yaml for what
-    # this does and why. No custom network name given — this role's own
-    # task doesn't create one to attach to (a single bare docker_container
-    # call, matching production, reaching SeaweedFS over the real LAN/DNS)
-    # — so this lands on Docker's default bridge network, same as the
-    # role's own ephemeral container will.
+    # this does and why. No custom network name given, so this lands on
+    # Docker's default bridge network — reachable by IP from the DinD
+    # instance itself, which is where the role's own amazon.aws.s3_bucket
+    # task actually runs (no container of its own anymore, see below).
     - name: Start a real SeaweedFS S3 target for this scenario
       ansible.builtin.include_role:
         name: molecule_helpers
@@ -42,9 +41,9 @@
       ansible.builtin.set_fact:
         offsite_backup_s3_endpoint: "{{ seaweedfs_bucket_test_ip }}:8333"
 
-    # The role under test creates an ephemeral aws-cli container with no
-    # custom networks: param, so it also lands on "bridge" — reachable at
-    # the IP just discovered above.
+    # The role under test talks to that IP directly via
+    # amazon.aws.s3_bucket (boto3/botocore on the DinD instance's own
+    # Python) — no container of its own to land on any network.
     - name: Run seaweedfs_bucket
       ansible.builtin.include_role:
         name: seaweedfs_bucket

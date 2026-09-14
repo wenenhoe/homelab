@@ -2,13 +2,13 @@
 id: PROJ-cloud-credentials-hardening
 title: "Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening"
 type: project
-status: not-started
+status: in-progress
 summary: "Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `ansible/cloud_credentials`."
 ---
 
 # Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening
 
-**Status:** Not started
+**Status:** In progress
 
 Replaces `ansible/cloud_credentials`'s raw `requests` calls with
 official SDKs where one exists and is a clear improvement, and closes
@@ -26,7 +26,7 @@ that project's Stage 1 lands, but none of them are blocked on it (raw
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | Fix uncaught `subprocess.TimeoutExpired` in `verify.py`'s rclone retry loop (bug fix, no SDK — `rclone` has no Python bindings) | Not started |
+| 1 | Fix uncaught `subprocess.TimeoutExpired` in `verify.py`'s rclone retry loop (bug fix, no SDK — `rclone` has no Python bindings) | Done |
 | 2 | OCI SCIM leaf/rotation → `oci.identity_domains.IdentityDomainsClient` | Not started |
 | 3 | B2 leaf/rotation → `b2sdk` | Not started |
 | 4 | `verify.py`'s `rclone` calls → `boto3` (leaning yes) / `restore_all.py`'s stay on `rclone` (leaning no) | Not started |
@@ -37,11 +37,11 @@ that project's Stage 1 lands, but none of them are blocked on it (raw
 
 ### Stage 1 — `verify.py` timeout fix
 
-Independent of every other stage and the decision draft's options —
-catch `subprocess.TimeoutExpired` around the rclone call in
-`_run_rclone_with_retry` and route it through the same
-transient-failure path a non-zero exit already takes. No blocking
-Assumption; can land on its own at any point.
+Done. `_run_rclone_with_retry` now catches `subprocess.TimeoutExpired`
+around the rclone call and folds it into the same non-zero-exit path
+via a synthetic `CompletedProcess` — a hang fails like any other
+non-retryable error instead of raising out of the retry loop
+uncaught.
 
 ### Stage 2 — OCI SCIM → `IdentityDomainsClient`
 

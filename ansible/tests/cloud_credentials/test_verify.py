@@ -7,6 +7,7 @@ real provider.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 import unittest
 from pathlib import Path
@@ -105,6 +106,15 @@ class RunRcloneWithRetryTests(unittest.TestCase):
     @patch.object(verify.subprocess, "run")
     def test_does_not_retry_a_non_403_or_401_error(self, mock_run, mock_sleep):
         mock_run.side_effect = [self._completed(1, self.NON_RETRYABLE_ERR)]
+        result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
+        self.assertEqual(result.returncode, 1)
+        mock_run.assert_called_once()
+        mock_sleep.assert_not_called()
+
+    @patch.object(verify.time, "sleep")
+    @patch.object(verify.subprocess, "run")
+    def test_timeout_expired_is_treated_as_non_retryable_failure(self, mock_run, mock_sleep):
+        mock_run.side_effect = subprocess.TimeoutExpired(cmd=["rclone", "lsjson"], timeout=45)
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
         self.assertEqual(result.returncode, 1)
         mock_run.assert_called_once()

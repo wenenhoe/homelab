@@ -1,9 +1,11 @@
 ---
 # Confirms a genuine auth failure actually surfaces and isn't
-# accidentally swallowed by the role's BucketAlreadyExists tolerance
-# logic — mirrors backup_agent's `conflict` scenario in spirit: the
-# point isn't the happy path, it's proving the negative case still
-# fails loudly.
+# accidentally swallowed by the role's own retry logic wrapping the
+# bucket-create task (its `until:` condition deliberately fails fast
+# on a real 4xx rather than retrying it — see
+# ansible/roles/seaweedfs_bucket/tasks/main.yaml) — mirrors
+# backup_agent's `conflict` scenario in spirit: the point isn't the
+# happy path, it's proving the negative case still fails loudly.
 driver:
   name: docker
 platforms:

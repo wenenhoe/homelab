@@ -56,7 +56,7 @@ class OciRotationTests(RotationTestBase):
             oci.OCI_BUCKET,
             "read",
         )
-        client.delete_customer_secret_key.assert_called_once_with(customer_secret_key_id="OLD_SCIM_ID")  # noqa: S106 - a SCIM resource id, not a credential
+        client.delete_customer_secret_key.assert_called_once_with(customer_secret_key_id="OLD_SCIM_ID")
         self.assertEqual(self.get("oci-read-access-key"), "NEW_ACCESS")
         self.assertEqual(self.get("oci-read-secret-key"), "NEW_SECRET")
         self.assertEqual(self.get("oci-read-scim-id"), "NEW_SCIM_ID")

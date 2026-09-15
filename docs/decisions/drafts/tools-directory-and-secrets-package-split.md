@@ -2,12 +2,12 @@
 id: DRAFT-tools-directory-and-secrets-package-split
 title: "Split OpenBao/secrets tooling out of cloud_credentials, into its own package"
 type: draft-adr
-status: draft
+status: decided
 ---
 
 # Split OpenBao/secrets tooling out of cloud_credentials, into its own package
 
-**Status:** Draft
+**Status:** Decided
 
 ## Context
 
@@ -25,9 +25,30 @@ in two files without anyone noticing the duplication
 ([`0030-openbao-hvac-paramiko-clients.md`](../0030-openbao-hvac-paramiko-clients.md))
 — a structural symptom, not just a naming complaint.
 
+`r2_read_watcher.py` is a special case among the three, confirmed by
+checking: no Dockerfile anywhere in this repo references it — it's
+genuinely hand-installed via `scp` onto `security`'s system Python
+(`docs/openbao-r2-read-watcher.md`), never containerized, never part
+of the `uv`-managed environment the other three live in. It stays
+excluded from actually importing the shared client this split builds,
+for the same reason ADR 0030 already gives: sharing code across that
+deployment boundary means shipping a whole package alongside a script
+whose deployment model deliberately stays a single file. It's grouped
+here only as evidence of how scattered this domain already is, not as
+a future consumer of `tools/secrets/`.
+
 No `tools/`-shaped root exists in this repo today. Standalone Python
 currently lives either inside `ansible/` (as a package or a top-level
 script) or under `docker/<app>/` (app-specific, e.g. the watcher).
+`pyproject.toml` itself already lives at the repo root, not nested
+under `ansible/` — confirmed by checking directly, correcting an
+earlier assumption in this draft. Package resolution here is manual
+`sys.path`/cwd manipulation throughout (no `[tool.pytest]` config, no
+setuptools/package-discovery config, `[tool.uv] package = false`), not
+real Python packaging — a `tools/` root works exactly the same way a
+new top-level directory under `ansible/` would, and shares the same
+root `pyproject.toml` and dependency set trivially. No second
+`pyproject.toml`/dependency group is needed.
 
 ## Options
 
@@ -42,14 +63,20 @@ reintroduce a fourth copy of the same client logic.
 ### B — New root-level `tools/` directory, split by domain
 
 `tools/cloud_credentials/` (B2/OCI/R2 minting, scope unchanged, just
-moved) and `tools/secrets/` (the OpenBao/Vault client,
-`bootstrap_secrets.py`/`audit_secrets.py`, and a real home for a shared
-hvac/paramiko helper if the sibling draft's Option B wins).
-`docker/openbao/watcher/r2_read_watcher.py`'s move is a separate
-question — its container build context may need it to stay where it is
-or import from the new location; unchecked either way. `docker/openbao/scripts/`'s
-shell scripts and `openbao_backup/snapshot-push.sh.j2` are also
-candidates for the same shared client
+moved) and `tools/secrets/` (the OpenBao/Vault client - `cache.py`'s
+generic pieces, `bootstrap_secrets.py`, and the real home for the
+shared `hvac`/`paramiko` primitives
+[ADR 0030](../0030-openbao-hvac-paramiko-clients.md) left as this
+draft's decision to make).
+`docker/openbao/watcher/r2_read_watcher.py` stays exactly where it is
+and doesn't import from either new location - confirmed no Dockerfile
+anywhere references it (never containerized, hand-installed onto
+`security`'s system Python instead), so there's no container-build
+question to resolve, but its standalone single-file deployment model
+is exactly why it doesn't become a `tools/secrets/` consumer either.
+`docker/openbao/scripts/`'s shell scripts and
+`openbao_backup/snapshot-push.sh.j2` are also candidates for the same
+shared client
 ([`0030-openbao-hvac-paramiko-clients.md`](../0030-openbao-hvac-paramiko-clients.md)).
 
 **Resolved:** the `secrets` Ansible role does not need to import this
@@ -76,60 +103,11 @@ exists to fix (none of this code is a role or a plugin).
 
 Leaning **B** — new `tools/` root, split by domain, plain package for
 `tools/secrets/` (no Ansible-side packaging complexity, per the
-resolution above). Not yet promotable — two Assumptions below (the
-container-build and `pyproject.toml` questions) are still unchecked;
-the import-path inventory is now complete and doesn't block Option B.
-
-## Assumptions
-
-- **Import-path inventory — confirmed complete:**
-  - **Genuinely on-topic** (leaf/rotation cloud-credential business,
-    unaffected by which domain owns the *client* underneath): every
-    import under `cloud_credentials.leaf_keys.*`/`.rotation_keys.*`,
-    `create_leaf_keys.py`/`create_rotation_keys.py`/
-    `create_snapshot_{readonly,write}_keys.py`/`check_freshness.py`/
-    `_legacy_cache_keys.py`, and their own test tree
-    (`ansible/tests/cloud_credentials/{leaf_keys,rotation_keys}/`).
-  - **Two consumers already reaching outside their own domain into
-    `cloud_credentials.cache` for generic infrastructure that isn't
-    cloud-credential business at all** - concrete evidence this split
-    is needed, not just a naming preference:
-    - `docker/openbao/scripts/bao-login-from-controller.sh` and
-      `bao-from-controller.sh`: `from cloud_credentials.cache import
-      _security_ssh_target, _main_domain`.
-    - `ansible/restore_hosts_scope_from_backup.py`: `from
-      cloud_credentials.cache import PROJECT_ROOT, read_vault_path,
-      write_vault_path` - restoring **host** secrets, not cloud
-      credentials, yet borrowing the generic Vault escape hatch from a
-      package named for a different domain.
-  - **`python3 -m cloud_credentials.X` invocation strings**, all
-    genuinely on-topic (leaf/rotation commands), needing a mechanical
-    rename if the package moves: `docs/cloud-credential-creation.md`
-    (8 occurrences), `docs/secrets-rotation.md`,
-    `docs/openbao-reinit-runbook.md` (`dump_vault_to_file_cache`,
-    `diff_vault_backups`).
-  - **One systemd unit**:
-    `ansible/cloud_credentials/systemd/check-freshness.service`'s
-    `ExecStart=/usr/bin/python3 -m cloud_credentials.check_freshness`.
-  - **CI**: `.github/workflows/pr-checks.yml` path-filters on
-    `ansible/cloud_credentials/**` - a one-line glob update on a move.
-  - Net effect: the inventory itself doesn't block Option B - every
-    reference is either staying together (leaf/rotation business,
-    moves as one unit) or is exactly the kind of misplaced-generic-
-    infrastructure import this split exists to fix.
-  - Related, smaller instance of the same root cause, worth folding
-    into the same move rather than a separate effort: `PROJECT_ROOT =
-    Path(__file__).resolve().parent.parent[.parent]` is independently
-    redefined in four places (`cache.py`, `bootstrap_secrets.py`,
-    `audit_secrets.py`, `restore_all.py`) rather than shared - no
-    wrong owner, just no shared home to import it from.
-- Whether `r2_read_watcher.py` can move out of `docker/openbao/watcher/`
-  without complicating its container build (Dockerfile `COPY` paths,
-  etc.) — unchecked.
-- Whether a `tools/` root needs its own `pyproject.toml`/dependency
-  group separate from `ansible/`'s existing one, or can share it — this
-  repo's current single-`pyproject.toml`-under-`ansible/` shape isn't
-  yet confirmed compatible with a sibling `tools/` root.
+resolution above). Design settled: every Assumption below is resolved
+and folded into Context above. Not yet promotable per this repo's own
+rule (promotion happens once implemented, not at decide-time) - the
+actual move is tracked in
+[`tools-secrets-package-split.md`](../../projects/tools-secrets-package-split.md).
 
 ## Consequences
 

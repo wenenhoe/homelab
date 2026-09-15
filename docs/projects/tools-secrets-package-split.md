@@ -2,22 +2,25 @@
 id: PROJ-tools-secrets-package-split
 title: "Split OpenBao/secrets tooling out of cloud_credentials, into tools/"
 type: project
-status: not-started
-summary: "Move ansible/cloud_credentials/ to tools/cloud_credentials/ and extract the scattered OpenBao/Vault client (cache.py, bootstrap_secrets.py, r2_read_watcher.py) into a shared tools/secrets/ package."
+status: in-progress
+summary: "Move ansible/cloud_credentials/ to tools/cloud_credentials/ and extract cache.py's generic OpenBao/Vault client pieces (also duplicated in bootstrap_secrets.py) into a shared tools/secrets/ package."
 ---
 
 # Split OpenBao/secrets tooling out of cloud_credentials, into tools/
 
-**Status:** Not started
+**Status:** In progress
 
 Moves `ansible/cloud_credentials/` to `tools/cloud_credentials/` and
 builds `tools/secrets/` as the real, generically-named home for the
-OpenBao/Vault client logic currently duplicated across `cache.py`,
-`bootstrap_secrets.py`, and `r2_read_watcher.py` - and already leaked
-sideways into `docker/openbao/scripts/bao-*.sh` and
+OpenBao/Vault client logic currently duplicated across `cache.py` and
+`bootstrap_secrets.py` - and already leaked sideways into
+`docker/openbao/scripts/bao-*.sh` and
 `restore_hosts_scope_from_backup.py`, which import generic
 `_security_ssh_target`/`_main_domain`/`read_vault_path` helpers from a
-package named for a completely different domain. Design lives in
+package named for a completely different domain. `r2_read_watcher.py`
+shares the same duplicated logic but stays independent - its
+hand-installed, single-file deployment model means it can't cleanly
+import a shared package the way the other two can. Design lives in
 [`tools-directory-and-secrets-package-split.md`](../decisions/drafts/tools-directory-and-secrets-package-split.md);
 this doc tracks build status only. Absorbs what was
 `openbao-python-client-hardening.md`'s own Stage 5 (that project has
@@ -28,22 +31,49 @@ since closed - its actual hvac/paramiko library decision is
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | Resolve the draft's two remaining Assumptions; promote to a real ADR | Not started |
+| 1 | Resolve the draft's two remaining Assumptions | Done |
 | 2 | Move `ansible/cloud_credentials/` → `tools/cloud_credentials/` (mechanical) | Not started |
 | 3 | Build `tools/secrets/`: extract the generic OpenBao/host-resolution helpers | Not started |
 | 4 | Re-point the misplaced-import consumers at `tools/secrets/` | Not started |
-| 5 | Re-baseline `cache.py`/`bootstrap_secrets.py`/`r2_read_watcher.py`'s tests | Not started |
+| 5 | Re-baseline `cache.py`/`bootstrap_secrets.py`'s tests | Not started |
 
 ## Stage detail
 
 ### Stage 1 — Resolve remaining Assumptions
 
-Two unchecked: whether `r2_read_watcher.py` can move out of
-`docker/openbao/watcher/` without complicating its container build,
-and whether a `tools/` root needs its own `pyproject.toml`/dependency
-group. The import-path inventory (the draft's third Assumption) is
-already complete - see the draft's Context for the full list, including
-the two misplaced-import consumers Stage 4 fixes.
+Both resolved by direct inventory, not left as open questions:
+`r2_read_watcher.py`'s container-build concern was moot (no Dockerfile
+anywhere references it - it's genuinely hand-installed, never
+containerized), which also confirmed it should stay independent rather
+than import `tools/secrets/`, matching ADR 0030's existing reasoning
+for why it doesn't share code with the other two. The `pyproject.toml`
+question resolved the other way: it already lives at the repo root
+(not nested under `ansible/`, correcting the draft's original
+premise), and package resolution here is manual `sys.path`/cwd-based
+throughout, so a `tools/` root shares it with no changes needed.
+
+### Stage 2 — Move `ansible/cloud_credentials/` → `tools/cloud_credentials/`
+
+Mechanical, but with a real checklist - every reference confirmed via
+direct inventory, not assumed:
+
+- `python3 -m cloud_credentials.X` invocation strings needing a
+  rename: `docs/cloud-credential-creation.md` (8 occurrences),
+  `docs/secrets-rotation.md`, `docs/openbao-reinit-runbook.md`
+  (`dump_vault_to_file_cache`, `diff_vault_backups`).
+- One systemd unit:
+  `ansible/cloud_credentials/systemd/check-freshness.service`'s
+  `ExecStart=/usr/bin/python3 -m cloud_credentials.check_freshness`.
+- CI: `.github/workflows/pr-checks.yml` path-filters on
+  `ansible/cloud_credentials/**` - a one-line glob update.
+- The test tree mirrors the package structure
+  (`ansible/tests/cloud_credentials/{leaf_keys,rotation_keys}/`) and
+  moves with it.
+- `PROJECT_ROOT`'s four independent redefinitions (`cache.py`,
+  `bootstrap_secrets.py`, `audit_secrets.py`, `restore_all.py`) are a
+  smaller instance of the same root cause, worth centralizing in the
+  same move rather than a separate effort - see Open items below for
+  where it should actually live.
 
 ### Stage 3 — Build `tools/secrets/`
 
@@ -55,12 +85,14 @@ OpenBao/repo-navigation infrastructure that happened to accrete in
 `cache.py` because leaf/rotation credentials were its first consumer.
 `cache.py`'s own remaining job shrinks to `_vault_path()`'s leaf/
 rotation taxonomy and `scoped()`'s session-caching convenience on top
-of the generic primitives. `bootstrap_secrets.py` and
-`r2_read_watcher.py` become thin callers of the same primitives
-instead of independently duplicating them - this is the actual
-extraction `openbao-python-client-hardening.md`'s Stage 5 was scoped
-to do, now landing in its correct final home instead of a nested
-`cloud_credentials/_openbao_client.py` interim location.
+of the generic primitives. `bootstrap_secrets.py` becomes a thin
+caller of the same primitives instead of independently duplicating
+them - this is the actual extraction `openbao-python-client-hardening.md`'s
+Stage 5 was scoped to do, now landing in its correct final home
+instead of a nested `cloud_credentials/_openbao_client.py` interim
+location. `r2_read_watcher.py` keeps its own independent copy (see
+this project doc's summary for why) - not a regression, a deliberate
+exclusion.
 
 ### Stage 4 — Re-point misplaced-import consumers
 

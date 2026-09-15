@@ -77,6 +77,8 @@ jobs:
               # restore_all.py has no test yet, so this is a no-op for it.
               - 'ansible/*.py'
               - 'tools/cloud_credentials/**'
+              - 'tools/openbao_utils/**'
+              - 'tools/utils/**'
               - 'ansible/molecule-coverage/molecule_cov/**'
               # Sibling of molecule_cov/ above - test_callback_plugin.py
               # imports it directly via sys.path, same pattern.

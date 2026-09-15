@@ -2,7 +2,7 @@
 of this is OpenBao/Vault-specific, even though openbao_utils.client
 is currently its only consumer. PROJECT_ROOT/SECRETS_DIR/main_domain()
 are used for main-domain and any other manual secret
-bootstrap_secrets.py prompts for, not just OpenBao's own
+openbao_utils/bootstrap.py prompts for, not just OpenBao's own
 role-id/secret-id; security_ssh_target()/fetch_root_cert() are plain
 "SSH to security, read step-ca's shared root cert" - nothing in either
 one touches OpenBao's API. See

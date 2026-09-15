@@ -1,10 +1,10 @@
 """Every cache key name cloud_credentials has ever written to Vault,
 paired with the module whose write_cache/cached/read_cache owns it.
 Shared by restore_cloud_credentials_from_backup.py, audit_secrets.py,
-and bootstrap_secrets.py's own exclusion list, so none of them can
+and openbao_utils/bootstrap.py's own exclusion list, so none of them can
 drift against each other or against what cache.py's scoped() actually
 writes - duplicating this list per-consumer is what let
-secrets_registry.yaml's header comment and bootstrap_secrets.py's own
+secrets_registry.yaml's header comment and openbao_utils/bootstrap.py's own
 behavior disagree, pre-Track-A-stage-6.
 
 Reusing each module's own bound functions (rather than reconstructing

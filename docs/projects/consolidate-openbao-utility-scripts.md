@@ -26,7 +26,7 @@ code written against it.
 | # | Stage | Status |
 | :-: | :--- | :--- |
 | 1 | Rename `tools/openbao_client/` → `tools/openbao_utils/` | Done |
-| 2 | Move + rename `bootstrap_secrets.py` → `openbao_utils/bootstrap.py` | Not started |
+| 2 | Move + rename `bootstrap_secrets.py` → `openbao_utils/bootstrap.py` | Done |
 | 3 | Move + rename `audit_secrets.py` → `openbao_utils/audit.py` | Not started |
 | 4 | Merge both restore scripts → `openbao_utils/restore.py` | Not started |
 | 5 | Move + rename `dump_vault_to_file_cache.py`/`diff_vault_backups.py` | Not started |
@@ -55,6 +55,49 @@ trigger paths: `tools/openbao_utils/**` (then `openbao_client`) and
 `python_unit_tests` trigger paths since Stages 3/6 created them -
 only incidentally covered if a paired test file also changed in the
 same PR. Added both, and updated `docs/ci.md`'s description to match.
+
+### Stage 2 — Move + rename `bootstrap_secrets.py`
+
+Done. Moved to `tools/openbao_utils/bootstrap.py`; the `sys.path.insert`
+it used to reach `tools/` from `ansible/` is gone entirely, since it's
+already inside `tools/` now. Absolute imports confirmed as the right
+convention by checking `cloud_credentials`'s own scripts first
+(`create_leaf_keys.py` imports `cloud_credentials.leaf_keys.b2` in
+full, not relatively, despite being siblings) - `bootstrap.py` does
+the same for `openbao_utils.client`.
+
+Two real bugs caught by actually running things, not assumed clean
+after a mechanical rename:
+
+- **Its test file's string-based `@patch("bootstrap.X")` calls would
+  have silently failed.** `bootstrap` isn't importable as a bare
+  top-level name - only as `openbao_utils.bootstrap`, since only
+  `tools/` is on `sys.path`. Fixed all of them to
+  `@patch("openbao_utils.bootstrap.X")`; confirmed by actually running
+  the test file before assuming the mechanical rename was enough.
+- **Two `secrets` role molecule scenarios
+  (`vault_manual_missing`/`manual_missing`) asserted on the literal
+  string `'bootstrap_secrets.py'` inside `ensure_secret.yaml`'s error
+  message** - which this stage's own invocation-string update
+  (`python3 ansible/bootstrap_secrets.py` → `cd tools && python3 -m
+  openbao_utils.bootstrap`) removed entirely from that message. Fixed
+  both assertions to check `'openbao_utils.bootstrap'` instead. Found
+  by inventorying every reference before touching invocation text, not
+  after something broke.
+
+Also confirmed, before touching it: `ansible/playbooks/bootstrap-secrets.yaml`
+(hyphen, `.yaml`) is a real, separate Ansible playbook - not this
+script, despite the similar name. Left untouched.
+
+Repo-wide inventory (~40 files: CI config, `README.md`, playbooks,
+role tasks, `cloud_credentials`'s own scripts, ~10 docs, several
+decision docs) fixed file by file, checking each one's actual context
+rather than a blind bulk substitution - historical/narrative mentions
+in already-accepted ADRs were left alone (same judgment call as
+Stage 1's rename), only genuine present-tense staleness fixed. Four
+lines exceeded the 160-char lint limit once the longer name pushed
+them over; shortened rather than wrapped, since they're short
+user-facing hints, not documentation.
 
 ### Stage 4 — Merge the restore scripts
 

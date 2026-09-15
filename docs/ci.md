@@ -172,7 +172,7 @@ archive-not-found message, not an `ansible_host`/`secrets_generated`
 resolution failure (that signature means the regression is back).
 
 Manual secrets are pre-seeded as plain files under
-`ansible/files/secrets/`, mirroring what `bootstrap_secrets.py` produces
+`ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py` produces
 — throwaway CI values, same non-secret status as
 `ci-inventory/group_vars/all/ci_dummy_vars.yaml`.
 

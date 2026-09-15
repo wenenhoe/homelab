@@ -48,7 +48,7 @@ class OpenbaoBaseUrlTests(SecretsDirTestCase):
 
 class VaultLoginTests(unittest.TestCase):
     """Bare login only - no file-reading/validation here, that's each
-    caller's own job (see cache.py's/bootstrap_secrets.py's own
+    caller's own job (see cache.py's/openbao_utils/bootstrap.py's own
     VaultLoginTests for the wrapper behavior)."""
 
     def test_logs_in_with_the_given_role_and_secret_id(self):

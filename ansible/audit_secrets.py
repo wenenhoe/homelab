@@ -103,7 +103,7 @@ def audit_local() -> None:
         )
         for name in stale_vault_backed:
             print(f"    {name}  (vault_scope: {vault_backed_scope[name]})")
-        print("\n  Confirm each has a real value in Vault before deleting (e.g. python3 bootstrap_secrets.py")
+        print("\n  Confirm each has a real value in Vault before deleting (e.g. openbao_utils/bootstrap.py")
         print("  reports it as already-set, or a direct kv get) — then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in stale_vault_backed))
 
     if orphans:

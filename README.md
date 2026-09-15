@@ -115,7 +115,7 @@ reproducible dependency set.
   generate itself (DigitalOcean API key, Let's Encrypt email, Diun's
   Telegram token/chat ID, and a few others):
    ```sh
-  python3 ansible/bootstrap_secrets.py
+  cd tools && python3 -m openbao_utils.bootstrap
    ```
   Safe to re-run — only fills in what's missing. See
   [`docs/secrets.md`](docs/secrets.md).
@@ -188,8 +188,8 @@ See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full
 scenario matrix and how to add one.
 
 Plain controller-side Python (`tools/cloud_credentials/`,
-`ansible/molecule-coverage/molecule_cov/`, `bootstrap_secrets.py`,
-`audit_secrets.py`, the R2 read-watcher) is tested separately with
+`tools/openbao_utils/`, `ansible/molecule-coverage/molecule_cov/`,
+the R2 read-watcher) is tested separately with
 [pytest](https://docs.pytest.org/), from the repo root:
 
 ```sh

@@ -25,7 +25,7 @@ it":
   "not built yet." Whatever replaces it needs its own answer to this
   same Secret Zero question, not a continuation of the human-typed
   pattern.
-- **AppRole `role_id`/`secret_id`:** `cache.py`, `bootstrap_secrets.py`,
+- **AppRole `role_id`/`secret_id`:** `cache.py`, `openbao_utils/bootstrap.py`,
   and `docker/openbao/scripts/bao-login.sh` all bootstrap OpenBao
   access via AppRole, with `secret_id` handled carefully (hidden
   prompt, temp file inside a container, deleted immediately) but
@@ -34,9 +34,9 @@ it":
 - **Plaintext config on disk:** `rclone.conf` holds real B2/R2/OCI
   access/secret keys in the clear, mounted into containers as needed
   (`cloud_sync`, `openbao_backup`, `restore_discovery`).
-- **SSH private keys:** `cache.py`/`bootstrap_secrets.py`'s
-  `_fetch_root_cert`/equivalent both rely on an SSH key to reach
-  `security` in the first place.
+- **SSH private keys:** `cache.py`/`openbao_utils/bootstrap.py` both
+  rely (via `utils.repo`'s shared `fetch_root_cert()`) on an SSH key
+  to reach `security` in the first place.
 
 None of these is wrong in isolation — each was a reasoned choice for
 its own script. But
@@ -81,7 +81,7 @@ draft converges on.
   it exactly once. A second unwrap attempt fails outright, turning a
   silent interception into an immediate, detectable failure instead of
   a quietly-stolen, reusable credential. This also gives
-  `cache.py`/`bootstrap_secrets.py`'s currently vague "entered by a
+  `cache.py`/`openbao_utils/bootstrap.py`'s currently vague "entered by a
   human or read from wherever it's stored between logins" a concrete,
   auditable answer for the same class of moment.
 

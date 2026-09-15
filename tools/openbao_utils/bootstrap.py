@@ -34,9 +34,9 @@ docs/decisions/0030-openbao-hvac-paramiko-clients.md and
 docs/decisions/0031-tools-secrets-package-split.md.
 
 Usage:
-    python3 ansible/bootstrap_secrets.py
+    cd tools && python3 -m openbao_utils.bootstrap
     # or, if you manage the project with uv:
-    uv run python3 ansible/bootstrap_secrets.py
+    cd tools && uv run python3 -m openbao_utils.bootstrap
 """
 
 from __future__ import annotations
@@ -48,15 +48,11 @@ from pathlib import Path
 
 import hvac
 import yaml
-
-# cloud_credentials/openbao_utils/utils now live in tools/, not
-# alongside this script - see
-# docs/decisions/0031-tools-secrets-package-split.md.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
+from utils.repo import PROJECT_ROOT, SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
+
 from openbao_utils.client import openbao_base_url, vault_read, vault_write
 from openbao_utils.client import vault_login as _bare_vault_login
-from utils.repo import PROJECT_ROOT, SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
 
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
 

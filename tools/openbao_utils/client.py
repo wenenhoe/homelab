@@ -1,7 +1,7 @@
 """OpenBao/Vault-specific client primitives: KV v2 read/write and
 AppRole login. Shared by every internal Python client that needs
 them: cloud_credentials/cache.py (its own session-caching layer sits
-on top of this) and bootstrap_secrets.py.
+on top of this) and openbao_utils/bootstrap.py.
 
 None of this is cloud-credential business - it accreted inside
 cloud_credentials/cache.py originally only because leaf/rotation

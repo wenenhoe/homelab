@@ -64,7 +64,7 @@ from (each entry's `description` in `secrets_registry.yaml` says where),
 then:
 
 ```
-python3 ansible/bootstrap_secrets.py
+cd tools && python3 -m openbao_utils.bootstrap
 ```
 
 The six R2/B2/OCI write/read credentials split into two different

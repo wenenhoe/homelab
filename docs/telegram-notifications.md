@@ -44,7 +44,7 @@ group's main stream, no code change needed either way (see `main.yaml`'s
 other Vault-backed manual secret:
 
 ```sh
-python3 ansible/bootstrap_secrets.py
+cd tools && python3 -m openbao_utils.bootstrap
 ```
 
 **Two different address formats, on purpose**: diun, `docker-volume-backup`,

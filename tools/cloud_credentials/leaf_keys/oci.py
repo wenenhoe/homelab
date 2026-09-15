@@ -90,8 +90,8 @@ def create_oci() -> None:
 def rotate_oci(leaves: list[str]) -> bool:
     client = oci_identity_domains_client()
 
-    namespace = require_cache_file("oci-namespace", "Set via bootstrap_secrets.py / secrets_registry.yaml.")
-    region = require_cache_file("oci-region", "Set via bootstrap_secrets.py / secrets_registry.yaml.")
+    namespace = require_cache_file("oci-namespace", "Set via openbao_utils/bootstrap.py / secrets_registry.yaml.")
+    region = require_cache_file("oci-region", "Set via openbao_utils/bootstrap.py / secrets_registry.yaml.")
     api_endpoint = f"https://{namespace}.compat.objectstorage.{region}.oraclecloud.com"
 
     all_ok = True

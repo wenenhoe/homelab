@@ -133,6 +133,7 @@ def mint_b2() -> bool:
 
     api = b2_rotation_api()
     bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
+    # Read back via .id_, not .application_key_id - see leaf_keys/b2.py's b2_create_leaf_key.
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
     access_key, secret_key = key.id_, key.application_key
 
@@ -152,6 +153,7 @@ def rotate_b2() -> bool:
     bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
     old_key_id = read_cache(CACHE_B2_ACCESS)
 
+    # Read back via .id_, not .application_key_id - see leaf_keys/b2.py's b2_create_leaf_key.
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
     new_key_id, new_app_key = key.id_, key.application_key
 

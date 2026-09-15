@@ -14,7 +14,7 @@ Replaces `ansible/cloud_credentials`'s raw `requests` calls with
 official SDKs where one exists and is a clear improvement, and closes
 the error-handling gap that review surfaced along the way. Scope and
 sequencing are decided in
-[`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](../decisions/drafts/cloud-credentials-selective-sdk-adoption-not-blanket-swap.md);
+[ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md);
 this doc tracks build status only. `cache.py`'s OpenBao/SSH client is
 tracked separately in
 [`openbao-python-client-hardening.md`](openbao-python-client-hardening.md) —
@@ -31,7 +31,7 @@ that project's Stage 1 lands, but none of them are blocked on it (raw
 | 3 | B2 leaf/rotation → `b2sdk` | Done |
 | 4 | `verify.py`'s `rclone` calls → `boto3` (leaning yes) / `restore_all.py`'s stay on `rclone` (leaning no) | Not started |
 | 5 | Re-baseline `ansible/tests/cloud_credentials/` mocks for stages 2-4 | Not started |
-| 6 | R2 / OCI classic-IAM bootstrap — only if a stage above changes the draft's call | Not started |
+| 6 | R2 / OCI classic-IAM bootstrap — only if a stage above changes ADR 0029's call | Not started |
 
 ## Stage detail
 
@@ -50,10 +50,10 @@ Done. Covers `leaf_keys/oci.py`, `rotation_keys/oci_bootstrap.py`, and
 bootstrap is a separate, unrelated auth model and isn't part of this
 stage — see Stage 6.
 
-**Confirmed live** — the decision draft's first Assumption (SDK's
-model classes reproduce the exact field shape
+**Confirmed live** — [ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+claim that the SDK's model classes reproduce the exact field shape
 [0016](../decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)
-confirmed live against the raw API) held: a real create+delete
+confirmed live against the raw API held: a real create+delete
 round-trip through `oci_identity_domains_client()` against the actual
 tenancy succeeded, with populated `access_key`/`secret_key` and a
 plausible `expires_on` ~90 days out. The Apps-by-displayName lookup
@@ -90,9 +90,10 @@ files (they share `leaf_keys/b2.py`'s `b2_rotation_api`/
 so a partial swap would leave callers broken); tests updated to mock
 `b2sdk.v2.B2Api` instead of raw `requests` calls.
 
-**Confirmed live, after one real bug caught along the way.** The
-decision draft's second Assumption (`b2sdk` exposes the precise
-capability list without abstracting it away) held —
+**Confirmed live, after one real bug caught along the way.**
+[ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+claim that `b2sdk` exposes the precise capability list without
+abstracting it away held —
 `B2Api.create_key(capabilities: list[str], ...)` takes the raw
 capability strings directly and a live create returned them back
 unwrapped on `.capabilities`, exactly matching what was requested. But
@@ -134,9 +135,6 @@ the controller, so this would be the first stage to actually add it to
 
 ## Open items
 
-- Whether Option B (selective adoption) holds, or a stage's spike
-  pushes toward Option A/C instead — see the decision draft's
-  Assumptions; each one names its own check.
 - Whether a shared retry/exception-mapping helper (translating
   `b2sdk`/`oci` errors into this repo's existing
   `print`-then-`SystemExit(1)`-with-guidance convention) gets built

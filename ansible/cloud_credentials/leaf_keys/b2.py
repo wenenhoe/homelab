@@ -78,6 +78,9 @@ def b2_lookup_bucket_id(api: B2Api, bucket_name: str = B2_BUCKET) -> str:
 
 
 def b2_create_leaf_key(api: B2Api, bucket_id: str, leaf: str):
+    # Returns a FullApplicationKey - read its key id back via .id_, not
+    # .application_key_id, despite that being the constructor's own
+    # parameter name (confirmed live; see ADR 0029).
     return api.create_key(
         capabilities=B2_LEAF_CAPABILITIES[leaf],
         key_name=f"homelab-cloud-sync-{leaf}",

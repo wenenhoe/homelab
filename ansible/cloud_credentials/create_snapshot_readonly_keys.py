@@ -133,6 +133,7 @@ def mint_b2() -> bool:
     api = b2_rotation_api()
     bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
     # No valid_duration_seconds — see module docstring.
+    # Read back via .id_, not .application_key_id - see leaf_keys/b2.py's b2_create_leaf_key.
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["read"], key_name="openbao-snapshot-readonly", bucket_id=bucket_id)
     access_key, secret_key = key.id_, key.application_key
 

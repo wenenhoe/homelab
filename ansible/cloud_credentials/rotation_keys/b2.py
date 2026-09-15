@@ -44,6 +44,7 @@ def _mint_rotation_key(master_key_id: str, master_key: str) -> dict:
     # not just ones for homelab-backups-b2 — the actual scoping this key
     # gets is that it holds no file/bucket-data capabilities at all, not
     # that it's bucket-restricted.
+    # Read back via .id_, not .application_key_id - see leaf_keys/b2.py's b2_create_leaf_key.
     key = master_api.create_key(
         capabilities=["listKeys", "writeKeys", "deleteKeys", "listBuckets"],
         key_name="homelab-cloud-sync-rotation-key",

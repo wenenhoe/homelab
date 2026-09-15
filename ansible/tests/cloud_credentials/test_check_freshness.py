@@ -36,14 +36,17 @@ class FreshnessTestBase(FakeVaultTestCase):
 
 
 class CheckB2Tests(FreshnessTestBase):
+    def _key(self, key_name: str, expiration_ms: float | None):
+        return MagicMock(key_name=key_name, expiration_timestamp_millis=expiration_ms)
+
     @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_session", return_value=(MagicMock(), "acct", "https://api"))
-    def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_session, mock_list_keys):
+    @patch.object(check_freshness, "b2_rotation_api", return_value=MagicMock())
+    def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_api, mock_list_keys):
         future_ms = (datetime.now(UTC) + timedelta(days=45)).timestamp() * 1000
         past_ms = (datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000
         mock_list_keys.return_value = [
-            {"keyName": "homelab-cloud-sync-write", "expirationTimestamp": future_ms},
-            {"keyName": "homelab-cloud-sync-read", "expirationTimestamp": past_ms},
+            self._key("homelab-cloud-sync-write", future_ms),
+            self._key("homelab-cloud-sync-read", past_ms),
             # rotation key deliberately absent from the response
         ]
 
@@ -54,33 +57,33 @@ class CheckB2Tests(FreshnessTestBase):
         self.assertEqual(statuses["b2 read"], check_freshness.STALE)
         self.assertEqual(statuses["b2 rotation key"], check_freshness.CHECK_FAILED)
 
-    @patch.object(check_freshness, "b2_rotation_session", side_effect=SystemExit(1))
-    def test_auth_failure_reports_check_failed_for_all_three(self, mock_session):
+    @patch.object(check_freshness, "b2_rotation_api", side_effect=SystemExit(1))
+    def test_auth_failure_reports_check_failed_for_all_three(self, mock_api):
         results = check_freshness.check_b2()
         self.assertTrue(all(status == check_freshness.CHECK_FAILED for _, status, _ in results))
         self.assertEqual(len(results), 3)
 
     @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_session", return_value=(MagicMock(), "acct", "https://api"))
-    def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_session, mock_list_keys):
+    @patch.object(check_freshness, "b2_rotation_api", return_value=MagicMock())
+    def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_api, mock_list_keys):
         # This is the whole point of WARNING_DAYS: B2 enforces its own
         # expiry server-side, so this key still authenticates today,
         # but a plain fresh/stale split would say nothing until it's
         # already broken cloud_sync's next run.
         soon_ms = (datetime.now(UTC) + timedelta(days=WARNING_DAYS - 1)).timestamp() * 1000
-        mock_list_keys.return_value = [{"keyName": "homelab-cloud-sync-write", "expirationTimestamp": soon_ms}]
+        mock_list_keys.return_value = [self._key("homelab-cloud-sync-write", soon_ms)]
         results = check_freshness.check_b2()
         statuses = {name: status for name, status, _ in results}
         self.assertEqual(statuses["b2 write"], check_freshness.WARNING)
 
     @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_session", return_value=(MagicMock(), "acct", "https://api"))
-    def test_within_urgent_window_escalates_past_plain_warning(self, mock_session, mock_list_keys):
+    @patch.object(check_freshness, "b2_rotation_api", return_value=MagicMock())
+    def test_within_urgent_window_escalates_past_plain_warning(self, mock_api, mock_list_keys):
         # The whole point of a second tier: 10 days out is a different
         # conversation than 25 days out, even though both are technically
         # "not fresh". A single WARNING would flatten that distinction.
         soon_ms = (datetime.now(UTC) + timedelta(days=URGENT_DAYS - 1)).timestamp() * 1000
-        mock_list_keys.return_value = [{"keyName": "homelab-cloud-sync-write", "expirationTimestamp": soon_ms}]
+        mock_list_keys.return_value = [self._key("homelab-cloud-sync-write", soon_ms)]
         results = check_freshness.check_b2()
         statuses = {name: status for name, status, _ in results}
         self.assertEqual(statuses["b2 write"], check_freshness.URGENT)

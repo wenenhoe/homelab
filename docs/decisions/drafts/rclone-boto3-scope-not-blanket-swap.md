@@ -79,7 +79,7 @@ secure, for scripts that run a handful of times per quarter — not
 worth it at this scale.
 
 The two Python sites are genuine candidates on the "does an official
-SDK reduce risk" question `cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`
+SDK reduce risk" question [ADR 0029](../0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)
 already applies elsewhere — but they carry the credentials-in-process
 trade the docstring above calls out, which needs its own decision, not
 an assumption inherited from the other drafts. Both already handle

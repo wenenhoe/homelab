@@ -12,7 +12,6 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 
 - [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md)
 - [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md)
-- [`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)
 - [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md)
 - [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)
 - [`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)

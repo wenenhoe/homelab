@@ -61,11 +61,11 @@ class CreateOciRotationKeyTests(OciBootstrapTestBase):
         mock_input.assert_not_called()
         mock_token.assert_not_called()
 
-    @patch.object(oci_bootstrap.requests, "Session")
+    @patch.object(oci_bootstrap, "identity_domains_client_for_token")
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
-    def test_first_run_prompts_verifies_and_caches(self, mock_token, mock_session_cls):
-        session = mock_session_cls.return_value
-        session.get.return_value = _mock_response(200, {"Resources": [{"id": "app-1"}]})
+    def test_first_run_prompts_verifies_and_caches(self, mock_token, mock_client_factory):
+        client = mock_client_factory.return_value
+        client.list_apps.return_value = MagicMock(data=MagicMock(resources=[MagicMock(id="app-1")]))
 
         with (
             patch.object(oci_bootstrap, "input", side_effect=["https://idcs-example.identity.oraclecloud.com/", "client-123"]),
@@ -79,12 +79,13 @@ class CreateOciRotationKeyTests(OciBootstrapTestBase):
         self.assertEqual(self.get("_rotation-key-oci-client-secret"), "the-secret")
         self.assertEqual(self.get("_rotation-key-oci-app-id"), "app-1")
         self.assertIsNotNone(self.get("_rotation-key-oci-created-at"))
+        mock_client_factory.assert_called_once_with("https://idcs-example.identity.oraclecloud.com", "tok")
 
-    @patch.object(oci_bootstrap.requests, "Session")
+    @patch.object(oci_bootstrap, "identity_domains_client_for_token")
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
-    def test_app_not_found_raises_before_caching_anything(self, mock_token, mock_session_cls):
-        session = mock_session_cls.return_value
-        session.get.return_value = _mock_response(200, {"Resources": []})
+    def test_app_not_found_raises_before_caching_anything(self, mock_token, mock_client_factory):
+        client = mock_client_factory.return_value
+        client.list_apps.return_value = MagicMock(data=MagicMock(resources=[]))
 
         with (
             patch.object(oci_bootstrap, "input", side_effect=["https://idcs-example.identity.oraclecloud.com", "client-123"]),

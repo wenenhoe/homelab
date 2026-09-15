@@ -1,31 +1,27 @@
-"""Backblaze B2 leaf-key create/rotate logic."""
+"""Backblaze B2 leaf-key create/rotate logic, via b2sdk (Stage 3,
+docs/projects/cloud-credentials-hardening.md) - not raw requests calls
+against B2's HTTP API directly.
+"""
 
 from __future__ import annotations
 
 import sys
 
-import requests
+from b2sdk.v2 import B2Api, InMemoryAccountInfo
+from b2sdk.v2.exception import B2Error, NonExistentBucket
 
 from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 cached, read_cache, write_cache, require_cache_file = scoped("leaf")
-# b2_rotation_session() below reads the rotation-tier session
-# credential rotation_keys/b2.py writes - a second, differently-scoped
-# binding, since this module's own leaf keys and that session live
-# under different top-level Vault paths (ADR 0020).
+# b2_rotation_api() below reads the rotation-tier session credential
+# rotation_keys/b2.py writes - a second, differently-scoped binding,
+# since this module's own leaf keys and that session live under
+# different top-level Vault paths (ADR 0020).
 _, _, _, _rotation_require_cache_file = scoped("rotation")
 
 B2_BUCKET = "homelab-backups-b2"
-
-B2_AUTHORIZE_URL = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
-
-
-def b2_authorize(key_id: str, key: str) -> dict:
-    resp = requests.get(B2_AUTHORIZE_URL, auth=(key_id, key), timeout=45)
-    resp.raise_for_status()
-    return resp.json()
 
 
 # writeFiles without deleteFiles — deleteFiles is the one capability
@@ -52,52 +48,11 @@ B2_LEAF_CAPABILITIES = {
 }
 
 
-def b2_lookup_bucket_id(session, api_url: str, account_id: str, bucket_name: str = B2_BUCKET) -> str:
-    # bucket_name defaults to cloud_sync's own B2_BUCKET so every
-    # existing call site is unaffected — create_snapshot_readonly_keys.py
-    # is the one caller that passes a different bucket.
-    bucket_resp = session.post(
-        f"{api_url}/b2api/v2/b2_list_buckets",
-        json={"accountId": account_id, "bucketName": bucket_name},
-    )
-    bucket_resp.raise_for_status()
-    buckets = bucket_resp.json()["buckets"]
-    if not buckets:
-        print(f"b2: bucket {bucket_name!r} doesn't exist yet — create it first", file=sys.stderr)
-        sys.exit(1)
-    return buckets[0]["bucketId"]
-
-
-def b2_create_leaf_key(session, api_url: str, account_id: str, bucket_id: str, leaf: str) -> dict:
-    resp = session.post(
-        f"{api_url}/b2api/v2/b2_create_key",
-        json={
-            "accountId": account_id,
-            "capabilities": B2_LEAF_CAPABILITIES[leaf],
-            "keyName": f"homelab-cloud-sync-{leaf}",
-            "bucketId": bucket_id,
-            "validDurationInSeconds": QUARTERLY_SECONDS,
-        },
-    )
-    resp.raise_for_status()
-    return resp.json()
-
-
-def b2_delete_key(session, api_url: str, application_key_id: str) -> None:
-    session.post(f"{api_url}/b2api/v2/b2_delete_key", json={"applicationKeyId": application_key_id}).raise_for_status()
-
-
-def b2_list_keys(session, api_url: str, account_id: str) -> list[dict]:
-    """Every key on the account, native `expirationTimestamp` (ms since
-    epoch) included when the key was created with validDurationInSeconds.
-    Used by check_freshness.py instead of self-tracking B2's expiry -
-    B2 already reports it, no separate cache file needed."""
-    resp = session.post(f"{api_url}/b2api/v2/b2_list_keys", json={"accountId": account_id})
-    resp.raise_for_status()
-    return resp.json()["keys"]
-
-
-def b2_rotation_session() -> tuple[requests.Session, str, str]:
+def b2_rotation_api() -> B2Api:
+    """A B2Api authorized with the cached rotation key - InMemoryAccountInfo,
+    not SqliteAccountInfo, since nothing here runs long enough to
+    benefit from b2sdk's own on-disk auth cache and this repo already
+    has its own cache (Vault, via cache.py)."""
     rotation_key_id = _rotation_require_cache_file(
         "_rotation-key-backblaze-b2-key-id",
         "Run: python3 -m cloud_credentials.create_rotation_keys --provider b2",
@@ -106,10 +61,44 @@ def b2_rotation_session() -> tuple[requests.Session, str, str]:
         "_rotation-key-backblaze-b2-application-key",
         "Run: python3 -m cloud_credentials.create_rotation_keys --provider b2",
     )
-    auth = b2_authorize(rotation_key_id, rotation_key)
-    session = requests.Session()
-    session.headers["Authorization"] = auth["authorizationToken"]
-    return session, auth["accountId"], auth["apiUrl"]
+    api = B2Api(InMemoryAccountInfo())
+    api.authorize_account("production", rotation_key_id, rotation_key)
+    return api
+
+
+def b2_lookup_bucket_id(api: B2Api, bucket_name: str = B2_BUCKET) -> str:
+    # bucket_name defaults to cloud_sync's own B2_BUCKET so every
+    # existing call site is unaffected — create_snapshot_readonly_keys.py
+    # is the one caller that passes a different bucket.
+    try:
+        return api.get_bucket_by_name(bucket_name).id_
+    except NonExistentBucket:
+        print(f"b2: bucket {bucket_name!r} doesn't exist yet — create it first", file=sys.stderr)
+        sys.exit(1)
+
+
+def b2_create_leaf_key(api: B2Api, bucket_id: str, leaf: str):
+    # Returns a FullApplicationKey - read its key id back via .id_, not
+    # .application_key_id, despite that being the constructor's own
+    # parameter name (confirmed live; see ADR 0029).
+    return api.create_key(
+        capabilities=B2_LEAF_CAPABILITIES[leaf],
+        key_name=f"homelab-cloud-sync-{leaf}",
+        bucket_id=bucket_id,
+        valid_duration_seconds=QUARTERLY_SECONDS,
+    )
+
+
+def b2_delete_key(api: B2Api, application_key_id: str) -> None:
+    api.session.delete_key(application_key_id)
+
+
+def b2_list_keys(api: B2Api):
+    """Every key on the account, native `expiration_timestamp_millis`
+    included when the key was created with valid_duration_seconds.
+    Used by check_freshness.py instead of self-tracking B2's expiry -
+    B2 already reports it, no separate cache file needed."""
+    return list(api.list_keys())
 
 
 def create_b2() -> None:
@@ -119,21 +108,21 @@ def create_b2() -> None:
         print("b2: both credentials already cached, skipping")
         return
 
-    session, account_id, api_url = b2_rotation_session()
-    bucket_id = b2_lookup_bucket_id(session, api_url, account_id)
+    api = b2_rotation_api()
+    bucket_id = b2_lookup_bucket_id(api)
 
     for leaf, done in [("write", write_done), ("read", read_done)]:
         if done:
             continue
-        body = b2_create_leaf_key(session, api_url, account_id, bucket_id, leaf)
-        write_cache(f"backblaze-b2-{leaf}-access-key", body["applicationKeyId"])
-        write_cache(f"backblaze-b2-{leaf}-secret-key", body["applicationKey"])
+        key = b2_create_leaf_key(api, bucket_id, leaf)
+        write_cache(f"backblaze-b2-{leaf}-access-key", key.id_)
+        write_cache(f"backblaze-b2-{leaf}-secret-key", key.application_key)
         print(f"b2 {leaf}: cached")
 
 
 def rotate_b2(leaves: list[str]) -> bool:
-    session, account_id, api_url = b2_rotation_session()
-    bucket_id = b2_lookup_bucket_id(session, api_url, account_id)
+    api = b2_rotation_api()
+    bucket_id = b2_lookup_bucket_id(api)
     region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses.")
     endpoint = f"https://s3.{region}.backblazeb2.com"
 
@@ -141,8 +130,8 @@ def rotate_b2(leaves: list[str]) -> bool:
     for leaf in leaves:
         old_key_id = read_cache(f"backblaze-b2-{leaf}-access-key")
 
-        new_body = b2_create_leaf_key(session, api_url, account_id, bucket_id, leaf)
-        new_access_key, new_secret_key = new_body["applicationKeyId"], new_body["applicationKey"]
+        new_key = b2_create_leaf_key(api, bucket_id, leaf)
+        new_access_key, new_secret_key = new_key.id_, new_key.application_key
 
         ok, detail = verify_leaf_via_rclone(new_access_key, new_secret_key, endpoint, region, B2_BUCKET, leaf)
         if not ok:
@@ -158,9 +147,9 @@ def rotate_b2(leaves: list[str]) -> bool:
 
         if old_key_id:
             try:
-                b2_delete_key(session, api_url, old_key_id)
+                b2_delete_key(api, old_key_id)
                 print(f"b2 {leaf}: old key {old_key_id} revoked")
-            except requests.HTTPError as exc:
+            except B2Error as exc:
                 print(
                     f"b2 {leaf}: new key verified and will be cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
                     file=sys.stderr,

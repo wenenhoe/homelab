@@ -98,6 +98,7 @@ whoever's deleting it.
 | [0026](0026-openbao-audit-device-and-r2-per-read-watcher.md) | Accepted | Enable a permanent, declarative (not API-driven) stdout audit device on OpenBao, and build a dedicated, least-privilege watcher for ADR 0024's R2 admin-token per-read alert, rather than the API/CLI audit-enable route or reusing controller's own AppRole. |
 | [0027](0027-openbao-not-file-cache-or-committed-secrets.md) | Accepted | Adopt OpenBao as a standing secrets store, superseding 0013's file-cache-until-later approach — rejected Ansible Vault and SOPS/age too, since both are built around committing encrypted secrets to git, which the goal here was to avoid entirely. |
 | [0028](0028-doc-governance-frontmatter-and-nist-alignment.md) | Accepted | Adopt YAML frontmatter (`id`/`type`/`status`, plus a few narrow extras) on every project/decision doc, a generator that regenerates the two hand-maintained README index tables from it, and a single narrative NIST SP 800-53 alignment doc — not per-doc compliance tags — for portfolio purposes. |
+| [0029](0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md) | Accepted | Move `ansible/cloud_credentials`'s OCI SCIM and B2 flows onto their official SDKs (`oci.identity_domains.IdentityDomainsClient`, `b2sdk`), confirmed live for both; R2 and OCI's classic-IAM bootstrap stay on raw `requests`. |
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this

@@ -48,11 +48,27 @@ from __future__ import annotations
 import argparse
 import sys
 
+import oci.exceptions
 import requests
+from b2sdk.v2.exception import B2Error
 
 from cloud_credentials.rotation_keys.b2 import create_b2_rotation_key, rotate_b2_rotation_key
 from cloud_credentials.rotation_keys.oci_bootstrap import create_oci_rotation_key, rotate_oci_rotation_key
 from cloud_credentials.rotation_keys.r2 import cache_r2_rotation_token, rotate_r2_rotation_token
+
+# See create_leaf_keys.py's identical helper - only requests.HTTPError
+# needs its .response pulled apart separately; oci.exceptions.ServiceError
+# and b2sdk.B2Error's own str() already carry the equivalent detail.
+# rotate_oci_rotation_key's AppClientSecretRegenerator call has no SDK
+# method (not modeled in oci.identity_domains) and stays on requests,
+# so ServiceError and HTTPError can both surface from the same OCI call.
+_PROVIDER_ERRORS = (requests.HTTPError, oci.exceptions.ServiceError, B2Error)
+
+
+def _format_provider_error(exc: Exception) -> str:
+    if isinstance(exc, requests.HTTPError):
+        return f"{exc.response.status_code} {exc.response.text}"
+    return str(exc)
 
 
 def main() -> int:
@@ -94,8 +110,8 @@ def main() -> int:
         }[args.provider]
         try:
             ok = rotate_fn()
-        except requests.HTTPError as exc:
-            print(f"{args.provider}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
+        except _PROVIDER_ERRORS as exc:
+            print(f"{args.provider}: request failed: {_format_provider_error(exc)}", file=sys.stderr)
             return 1
         return 0 if ok else 1
 
@@ -111,8 +127,8 @@ def main() -> int:
     for name, fn in targets.items():
         try:
             fn()
-        except requests.HTTPError as exc:
-            print(f"{name}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
+        except _PROVIDER_ERRORS as exc:
+            print(f"{name}: request failed: {_format_provider_error(exc)}", file=sys.stderr)
             return 1
     return 0
 

@@ -36,8 +36,8 @@ Two more files share this surface: `audit_secrets.py` reads the same
 OpenBao KV v2 paths (its `--local`/`--provider` diff logic, per
 `cloud-credential-creation.md`) over its own `requests` calls, and it
 also calls B2/OCI/R2's control-plane APIs directly — so it inherits
-whatever `cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`'s
-OCI/B2 stages decide, not just this draft's Vault-client question.
+[ADR 0029](../0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+OCI/B2 SDK choices, not just this draft's Vault-client question.
 `docker/openbao/watcher/r2_read_watcher.py` (ADR 0026) is
 architecturally different from the other three: a standing,
 continuously-running watcher, not a one-shot script a human or a
@@ -74,9 +74,9 @@ role — worth keeping that distinction explicit rather than treating
 every OpenBao touchpoint in this repo as the same kind of problem.
 
 This draft supersedes
-[`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+[ADR 0029](../0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
 original `cache.py`/`hvac`/`paramiko` Decision and Assumptions — that
-draft is trimmed back to what's actually specific to
+draft was trimmed back to what's actually specific to
 `ansible/cloud_credentials` (OCI SCIM, B2, R2, `oci_iam.py`), cross-
 referencing here for the Vault-client question instead.
 
@@ -195,8 +195,9 @@ surface.
 
 ## Consequences
 
-- Trims `cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`
-  back to OCI/B2/R2/`oci_iam.py` — its Vault-client content moves here.
+- Trimmed the draft that became
+  [ADR 0029](../0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)
+  back to OCI/B2/R2/`oci_iam.py` — its Vault-client content moved here.
 - If Option B wins, `cache.py`'s and `bootstrap_secrets.py`'s existing
   tests both move their mock boundary to the new shared module.
 - `audit_secrets.py`'s Vault-side stage should land in step with

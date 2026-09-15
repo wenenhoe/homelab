@@ -20,7 +20,7 @@ from cloud_credentials.rotation_keys.oci_iam import (
     oci_lookup_one,
     oci_master_auth_and_endpoint,
 )
-from cloud_credentials.rotation_keys.oci_scim import oci_scim_access_token, oci_scim_domain_and_credentials
+from cloud_credentials.rotation_keys.oci_scim import identity_domains_client_for_token, oci_scim_access_token, oci_scim_domain_and_credentials
 
 cached, read_cache, write_cache, require_cache_file = scoped("rotation")
 
@@ -123,15 +123,13 @@ def _prompt_oci_scim_app_credentials() -> tuple[str, str, str]:
     return domain_url, client_id, client_secret
 
 
-def _find_app_id(session: requests.Session, domain_url: str, display_name: str) -> str:
-    resp = session.get(f"{domain_url}/admin/v1/Apps", params={"filter": f'displayName eq "{display_name}"'})
-    resp.raise_for_status()
-    resources = resp.json().get("Resources", [])
+def _find_app_id(client, display_name: str) -> str:
+    resources = client.list_apps(filter=f'displayName eq "{display_name}"').data.resources
     if not resources:
         raise RuntimeError(
             f"no Confidential Application found with displayName={display_name!r} - register it in Console first, see docs/cloud-credential-creation.md"
         )
-    return resources[0]["id"]
+    return resources[0].id
 
 
 def _oci_ensure_scim_app_credentials() -> None:
@@ -146,10 +144,8 @@ def _oci_ensure_scim_app_credentials() -> None:
 
     domain_url, client_id, client_secret = _prompt_oci_scim_app_credentials()
     token = oci_scim_access_token(domain_url, client_id, client_secret)
-    session = requests.Session()
-    session.headers["Authorization"] = f"Bearer {token}"
-    session.headers["Content-Type"] = "application/scim+json"
-    app_id = _find_app_id(session, domain_url, OCI_SCIM_APP_DISPLAY_NAME)
+    client = identity_domains_client_for_token(domain_url, token)
+    app_id = _find_app_id(client, OCI_SCIM_APP_DISPLAY_NAME)
 
     write_cache("_rotation-key-oci-domain-url", domain_url)
     write_cache("_rotation-key-oci-client-id", client_id)

@@ -14,7 +14,7 @@ Replaces `ansible/cloud_credentials`'s raw `requests` calls with
 official SDKs where one exists and is a clear improvement, and closes
 the error-handling gap that review surfaced along the way. Scope and
 sequencing are decided in
-[`cloud-credentials-selective-sdk-adoption-not-blanket-swap.md`](../decisions/drafts/cloud-credentials-selective-sdk-adoption-not-blanket-swap.md);
+[ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md);
 this doc tracks build status only. `cache.py`'s OpenBao/SSH client is
 tracked separately in
 [`openbao-python-client-hardening.md`](openbao-python-client-hardening.md) —
@@ -27,11 +27,11 @@ that project's Stage 1 lands, but none of them are blocked on it (raw
 | # | Stage | Status |
 | :-: | :--- | :--- |
 | 1 | Fix uncaught `subprocess.TimeoutExpired` in `verify.py`'s rclone retry loop (bug fix, no SDK — `rclone` has no Python bindings) | Done |
-| 2 | OCI SCIM leaf/rotation → `oci.identity_domains.IdentityDomainsClient` | Not started |
-| 3 | B2 leaf/rotation → `b2sdk` | Not started |
+| 2 | OCI SCIM leaf/rotation → `oci.identity_domains.IdentityDomainsClient` | Done |
+| 3 | B2 leaf/rotation → `b2sdk` | Done |
 | 4 | `verify.py`'s `rclone` calls → `boto3` (leaning yes) / `restore_all.py`'s stay on `rclone` (leaning no) | Not started |
 | 5 | Re-baseline `ansible/tests/cloud_credentials/` mocks for stages 2-4 | Not started |
-| 6 | R2 / OCI classic-IAM bootstrap — only if a stage above changes the draft's call | Not started |
+| 6 | R2 / OCI classic-IAM bootstrap — only if a stage above changes ADR 0029's call | Not started |
 
 ## Stage detail
 
@@ -45,24 +45,75 @@ uncaught.
 
 ### Stage 2 — OCI SCIM → `IdentityDomainsClient`
 
-Covers `leaf_keys/oci.py`, `rotation_keys/oci_bootstrap.py`, and
-`rotation_keys/oci_scim.py`. Blocked on the decision draft's first
-Assumption — a spike confirming the SDK's model classes reproduce the
-exact field shape (`user.ocid`, `expiresOn` immutability, populated
-`accessKey`/`secretKey` on create)
+Done. Covers `leaf_keys/oci.py`, `rotation_keys/oci_bootstrap.py`, and
+`rotation_keys/oci_scim.py`. `rotation_keys/oci_iam.py`'s classic-IAM
+bootstrap is a separate, unrelated auth model and isn't part of this
+stage — see Stage 6.
+
+**Confirmed live** — [ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+claim that the SDK's model classes reproduce the exact field shape
 [0016](../decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)
-confirmed live against the raw API. `rotation_keys/oci_iam.py`'s
-classic-IAM bootstrap is a separate, unrelated auth model and isn't
-part of this stage — see Stage 6.
+confirmed live against the raw API held: a real create+delete
+round-trip through `oci_identity_domains_client()` against the actual
+tenancy succeeded, with populated `access_key`/`secret_key` and a
+plausible `expires_on` ~90 days out. The Apps-by-displayName lookup
+(`oci_bootstrap.py`'s `_find_app_id`) shares the same client/signer
+plumbing just proven live but wasn't separately spiked — low residual
+risk, since `list_apps(filter=...)` is a simpler read-only call on the
+same authenticated client.
+
+**Two findings not in the original draft, both surfaced before the
+live spike, by static SDK inspection:**
+
+- `IdentityDomainsClient` has no built-in bearer-token auth mode — its
+  `signer` only implements OCI's own API-key Signature V1. The
+  implementation adds a `requests.auth.AuthBase` subclass
+  (`oci_scim.py`'s `_BearerTokenSigner`) that injects the SCIM OAuth2
+  token instead, plus well-formed-but-inert placeholder config values
+  to satisfy `IdentityDomainsClient.__init__`'s config validation
+  (which runs regardless of which signer is used) — this is exactly
+  what the live spike exercised end to end.
+- There is no SDK method for `AppClientSecretRegenerator` at all — not
+  a subset of the operations, not modeled under a different name.
+  `rotation_keys/oci_bootstrap.py`'s `rotate_oci_rotation_key` stays on
+  raw `requests` for that one call regardless of how Stage 2 resolves;
+  everything else in that module (the Apps-by-displayName lookup) now
+  goes through the SDK.
 
 ### Stage 3 — B2 → `b2sdk`
 
-Covers `leaf_keys/b2.py`, `rotation_keys/b2.py`, and the B2 call sites
-in `check_freshness.py`/`create_snapshot_readonly_keys.py`/
-`create_snapshot_write_keys.py`. Blocked on the decision draft's second
-Assumption — confirming `b2sdk` exposes the precise capability list
-(bucket-restriction rejection, `listAllBucketNames`, `readFiles`) this
-repo's key-scoping depends on, rather than abstracting it away.
+Done. Covers `leaf_keys/b2.py`, `rotation_keys/b2.py`, and the B2 call
+sites in `check_freshness.py`/`create_snapshot_readonly_keys.py`/
+`create_snapshot_write_keys.py`. Implementation lands across all five
+files (they share `leaf_keys/b2.py`'s `b2_rotation_api`/
+`b2_lookup_bucket_id`/`b2_create_leaf_key`/`b2_delete_key`/`b2_list_keys`,
+so a partial swap would leave callers broken); tests updated to mock
+`b2sdk.v2.B2Api` instead of raw `requests` calls.
+
+**Confirmed live, after one real bug caught along the way.**
+[ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+claim that `b2sdk` exposes the precise capability list without
+abstracting it away held —
+`B2Api.create_key(capabilities: list[str], ...)` takes the raw
+capability strings directly and a live create returned them back
+unwrapped on `.capabilities`, exactly matching what was requested. But
+the first live spike attempt failed with `AttributeError:
+'FullApplicationKey' object has no attribute 'application_key_id'`:
+`FullApplicationKey.__init__` takes `application_key_id` as a
+constructor parameter but stores it as `self.id_`, not
+`self.application_key_id` — a mismatch static inspection (checking the
+constructor signature, not what it actually assigns) missed entirely.
+Fixed across every call site (`leaf_keys/b2.py`, `rotation_keys/b2.py`,
+`create_snapshot_readonly_keys.py`, `create_snapshot_write_keys.py`); a
+second live spike with the corrected attribute confirmed create,
+capability match, and delete all succeeding.
+
+The unit tests didn't catch the attribute bug either, for a related
+reason: they mocked the return value as a bare
+`MagicMock(application_key_id=...)`, which accepts any attribute name
+silently. Every such mock now uses `MagicMock(spec=FullApplicationKey,
+id_=..., ...)` instead — confirmed, by deliberately reintroducing the
+bug, that this now fails the unit tests too, not just a live run.
 
 ### Stage 4 — `verify.py` → boto3
 
@@ -84,9 +135,6 @@ the controller, so this would be the first stage to actually add it to
 
 ## Open items
 
-- Whether Option B (selective adoption) holds, or a stage's spike
-  pushes toward Option A/C instead — see the decision draft's
-  Assumptions; each one names its own check.
 - Whether a shared retry/exception-mapping helper (translating
   `b2sdk`/`oci` errors into this repo's existing
   `print`-then-`SystemExit(1)`-with-guidance convention) gets built

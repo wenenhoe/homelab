@@ -3,14 +3,14 @@ id: PROJ-cloud-credentials-hardening
 title: "Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening"
 type: project
 status: in-progress
-summary: "Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `ansible/cloud_credentials`."
+summary: "Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `tools/cloud_credentials`."
 ---
 
 # Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening
 
 **Status:** In progress
 
-Replaces `ansible/cloud_credentials`'s raw `requests` calls with
+Replaces `tools/cloud_credentials`'s raw `requests` calls with
 official SDKs where one exists and is a clear improvement, and closes
 the error-handling gap that review surfaced along the way. Scope and
 sequencing are decided in
@@ -28,7 +28,7 @@ benefits from that.
 | 2 | OCI SCIM leaf/rotation → `oci.identity_domains.IdentityDomainsClient` | Done |
 | 3 | B2 leaf/rotation → `b2sdk` | Done |
 | 4 | `verify.py`'s `rclone` calls → `boto3` (leaning yes) / `restore_all.py`'s stay on `rclone` (leaning no) | Not started |
-| 5 | Re-baseline `ansible/tests/cloud_credentials/` mocks for stages 2-4 | Not started |
+| 5 | Re-baseline `tools/tests/cloud_credentials/` mocks for stages 2-4 | Not started |
 | 6 | R2 / OCI classic-IAM bootstrap — only if a stage above changes ADR 0029's call | Not started |
 
 ## Stage detail

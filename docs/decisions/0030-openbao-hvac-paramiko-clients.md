@@ -11,7 +11,7 @@ status: accepted
 
 ## Context
 
-`cache.py` (`ansible/cloud_credentials`) and `bootstrap_secrets.py`
+`cache.py` (`tools/cloud_credentials`) and `bootstrap_secrets.py`
 each independently hand-rolled an OpenBao AppRole login + KV v2
 read/write over raw `requests`, and each independently fetched
 step-ca's root cert via `ssh ... docker exec step-ca cat
@@ -91,7 +91,7 @@ internal client uses, independent of how much code they share.
 ## Consequences
 
 - All four clients' missing-SSH-timeout bug is fixed, bounded to
-  `_TIMEOUT_SECONDS = 10` in each - `ansible/cloud_credentials/cache.py`
+  `_TIMEOUT_SECONDS = 10` in each - `tools/cloud_credentials/cache.py`
   and `ansible/bootstrap_secrets.py` are the reference
   implementations for the SSH-fetch + session pattern;
   `docker/openbao/watcher/r2_read_watcher.py` for the no-SSH,

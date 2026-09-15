@@ -32,7 +32,7 @@ since closed - its actual hvac/paramiko library decision is
 | # | Stage | Status |
 | :-: | :--- | :--- |
 | 1 | Resolve the draft's two remaining Assumptions | Done |
-| 2 | Move `ansible/cloud_credentials/` → `tools/cloud_credentials/` (mechanical) | Not started |
+| 2 | Move `ansible/cloud_credentials/` → `tools/cloud_credentials/` (mechanical) | Done |
 | 3 | Build `tools/secrets/`: extract the generic OpenBao/host-resolution helpers | Not started |
 | 4 | Re-point the misplaced-import consumers at `tools/secrets/` | Not started |
 | 5 | Re-baseline `cache.py`/`bootstrap_secrets.py`'s tests | Not started |
@@ -54,21 +54,36 @@ throughout, so a `tools/` root shares it with no changes needed.
 
 ### Stage 2 — Move `ansible/cloud_credentials/` → `tools/cloud_credentials/`
 
-Mechanical, but with a real checklist - every reference confirmed via
-direct inventory, not assumed:
+Done. The real scope was larger than the pre-move checklist below
+estimated, confirmed by actually running the affected scripts, not
+just grepping: four files import `cloud_credentials` with no explicit
+`sys.path` setup, relying entirely on cwd (`audit_secrets.py`,
+`bootstrap_secrets.py`, `restore_cloud_credentials_from_backup.py`,
+`restore_hosts_scope_from_backup.py`) - each now has an explicit
+`sys.path.insert(..., "tools")` rather than relying on cwd. The two
+`docker/openbao/scripts/bao-*.sh` scripts `cd`'d into `ansible/` to
+run their `python3 -c "from cloud_credentials.cache import ..."`
+one-liner - now `cd`s into `tools/` instead. CI needed its job
+structure changed, not just a path-filter glob: the `python-unit-tests`
+job's `working-directory: ansible` + `pytest tests/` became
+`pytest ansible/tests/ tools/tests/ -v` from the repo root, since
+`tools/tests/` is a sibling directory Molecule-style
+`working-directory` scoping can't reach. `pyproject.toml`'s
+`ansible/tests/**` per-file-ignore needed a `tools/tests/**`
+counterpart too - ruff caught this one itself.
+
+Pre-move checklist, confirmed accurate for what it covered:
 
 - `python3 -m cloud_credentials.X` invocation strings needing a
   rename: `docs/cloud-credential-creation.md` (8 occurrences),
   `docs/secrets-rotation.md`, `docs/openbao-reinit-runbook.md`
   (`dump_vault_to_file_cache`, `diff_vault_backups`).
 - One systemd unit:
-  `ansible/cloud_credentials/systemd/check-freshness.service`'s
+  `tools/cloud_credentials/systemd/check-freshness.service`'s
   `ExecStart=/usr/bin/python3 -m cloud_credentials.check_freshness`.
-- CI: `.github/workflows/pr-checks.yml` path-filters on
-  `ansible/cloud_credentials/**` - a one-line glob update.
 - The test tree mirrors the package structure
   (`ansible/tests/cloud_credentials/{leaf_keys,rotation_keys}/`) and
-  moves with it.
+  moved with it.
 - `PROJECT_ROOT`'s four independent redefinitions (`cache.py`,
   `bootstrap_secrets.py`, `audit_secrets.py`, `restore_all.py`) are a
   smaller instance of the same root cause, worth centralizing in the

@@ -11,7 +11,7 @@ status: accepted
 
 ## Context
 
-`ansible/cloud_credentials/` already encodes real, hard-won
+`tools/cloud_credentials/` already encodes real, hard-won
 per-provider logic that has nothing to do with where the result is
 stored: B2's `validDurationInSeconds` and `readFiles`-for-`HeadObject`
 requirement, OCI's Identity Domains SCIM/Confidential-Application model
@@ -27,7 +27,7 @@ storage. A native OpenBao secrets-engine plugin (Go) could add real
 lease-based rotation for these providers, but it would mean
 reimplementing every provider quirk above inside a compiled plugin
 instead of the Python this repo already tests
-(`ansible/tests/cloud_credentials/`), for a homelab with one operator
+(`tools/tests/cloud_credentials/`), for a homelab with one operator
 and a rotation cadence (see Decision, below) that a scheduled script
 already meets.
 
@@ -97,7 +97,7 @@ work.
 ## Consequences
 
 - Every provider-specific quirk currently hard-won in
-  `ansible/cloud_credentials/` carries forward unchanged; this
+  `tools/cloud_credentials/` carries forward unchanged; this
   migration is a storage-layer swap, not a rewrite.
 - No new compiled-plugin toolchain (Go, plugin registration, OpenBao's
   plugin catalog) enters this repo for this migration.

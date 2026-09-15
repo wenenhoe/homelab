@@ -67,14 +67,14 @@ restore playbook pulls everything else from Vault.
 ## Consequences
 
 - The scoped read-only snapshot credential is a *new* credential
-  category for `ansible/cloud_credentials/` — narrower than any
+  category for `tools/cloud_credentials/` — narrower than any
   existing leaf credential (bucket/prefix-limited, read-only,
   provisioned outside the rotation machinery those scripts drive today,
   since it can't depend on the thing it's bootstrapping). Built for
   R2 and B2, both using a bucket named
   `openbao-snapshots` — two providers rather than one, so recovery
   doesn't depend on a single cloud vendor being reachable — minted by
-  `ansible/cloud_credentials/create_snapshot_readonly_keys.py`, which
+  `tools/cloud_credentials/create_snapshot_readonly_keys.py`, which
   prints each credential once rather than caching it. See
   [`openbao.md`](../openbao.md).
 - This adds a second offline secret to the operator's break-glass

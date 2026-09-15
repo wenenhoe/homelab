@@ -65,7 +65,7 @@ local cache file today.
 - All 9 original credentials plus this one now live in Vault — no
   flat-file exception remains.
 - The per-read alert is new work: no existing consumer in
-  `ansible/cloud_credentials/` alerts on access rather than on expiry.
+  `tools/cloud_credentials/` alerts on access rather than on expiry.
   Vault's own audit log is the natural source for it (an
   audit-log-triggered alert, not a `check_freshness.py`-style poll,
   since a read-alert needs to fire per access) — see

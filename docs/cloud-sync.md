@@ -62,8 +62,8 @@ rest of that run.
 - Fill in the sixteen `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
   in `secrets_registry.yaml` — a write and a read credential per
   provider, plus the three shared endpoint values (account ID, B2
-  region, OCI namespace/region). For B2 and OCI, `ansible/cloud_credentials/create_rotation_keys.py`
-  followed by `ansible/cloud_credentials/create_leaf_keys.py` does this via each
+  region, OCI namespace/region). For B2 and OCI, `tools/cloud_credentials/create_rotation_keys.py`
+  followed by `tools/cloud_credentials/create_leaf_keys.py` does this via each
   provider's HTTP API rather than console click-through; R2 has no
   rotation-key step at all (Cloudflare structurally can't delegate
   that capability — see `cloud-credential-creation.md`'s R2 section),

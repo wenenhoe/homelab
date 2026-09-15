@@ -42,7 +42,7 @@ SSH call (`paramiko`) are **not** decided here — the same gap exists
 independently in `bootstrap_secrets.py`, `audit_secrets.py`, and
 `docker/openbao/watcher/r2_read_watcher.py`, so that question is scoped
 across all four in
-[`openbao-client-hvac-paramiko-adoption.md`](drafts/openbao-client-hvac-paramiko-adoption.md)
+[`0030-openbao-hvac-paramiko-clients.md`](0030-openbao-hvac-paramiko-clients.md)
 instead of just this package.
 
 ## Options
@@ -90,7 +90,7 @@ R2 and OCI's classic-IAM bootstrap (`rotation_keys/oci_iam.py`) stay on
 `requests`. `check_freshness.py`'s single Telegram `sendMessage` call
 has no SDK candidate worth adding for one endpoint and stays as-is.
 `cache.py`'s OpenBao/SSH client is a separate decision — see
-[`openbao-client-hvac-paramiko-adoption.md`](drafts/openbao-client-hvac-paramiko-adoption.md).
+[`0030-openbao-hvac-paramiko-clients.md`](0030-openbao-hvac-paramiko-clients.md).
 
 Both migrations are built and confirmed live:
 
@@ -151,6 +151,6 @@ Both migrations are built and confirmed live:
 - New dependency: `b2sdk`. `oci` needed no new dependency, just wider
   use of a package already pinned.
 - This decision is independent of
-  [`openbao-client-hvac-paramiko-adoption.md`](drafts/openbao-client-hvac-paramiko-adoption.md)'s
+  [`0030-openbao-hvac-paramiko-clients.md`](0030-openbao-hvac-paramiko-clients.md)'s
   — neither blocks the other, since one is provider control-plane
   clients and the other is the Vault storage layer underneath them.

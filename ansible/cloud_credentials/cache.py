@@ -16,6 +16,10 @@ than delegating to the secrets role. Duplicated rather than shared with
 bootstrap_secrets.py - the two are deliberately independent, see
 ansible/tests/test_bootstrap_secrets.py's own comment on why.
 
+Uses hvac for the OpenBao client and paramiko for the SSH root-cert
+fetch, replacing hand-rolled requests/subprocess calls - see
+docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+
 Two secrets live permanently in the file cache instead, read directly
 from SECRETS_DIR below, never through Vault: main-domain and
 openbao-controller-role-id/-secret-id - the credentials Vault access
@@ -27,12 +31,12 @@ the Ansible side).
 from __future__ import annotations
 
 import atexit
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-import requests
+import hvac
+import paramiko
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
@@ -42,6 +46,11 @@ INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/inventory.yaml"
 VAULT_KV_MOUNT = "secret"
 VAULT_STEP_CA_CONTAINER = "step-ca"
 _VALID_CATEGORIES = ("leaf", "rotation")
+# Bounds both the SSH root-cert fetch and every Vault HTTP call. The SSH
+# fetch previously had no timeout at all (the bug that started this
+# project) - matches the Vault calls' existing value rather than
+# introducing a second number to reason about.
+_TIMEOUT_SECONDS = 10
 
 
 def _read_bootstrap_file(name: str) -> str | None:
@@ -86,31 +95,33 @@ def _security_ssh_target() -> tuple[str, str, str]:
 
 def _fetch_root_cert() -> str:
     user, host, key_path = _security_ssh_target()
-    result = subprocess.run(
-        [
-            "ssh",
-            "-i",
-            key_path,
-            "-o",
-            "StrictHostKeyChecking=accept-new",
-            f"{user}@{host}",
-            "docker",
-            "exec",
-            VAULT_STEP_CA_CONTAINER,
-            "cat",
-            "/home/step/certs/root_ca.crt",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        print(f"Failed to fetch step-ca's root cert from {host}: {result.stderr}", file=sys.stderr)
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    # Trust-on-first-use, same as the previous StrictHostKeyChecking=
+    # accept-new: system known_hosts is checked first, and paramiko's
+    # transport still raises BadHostKeyException on a mismatch against
+    # an already-known host regardless of this policy - fail-closed on
+    # a changed key, not blanket trust. Confirmed live against a real
+    # host - see docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect(host, username=user, key_filename=key_path, timeout=_TIMEOUT_SECONDS)
+        _stdin, stdout, stderr = client.exec_command(
+            f"docker exec {VAULT_STEP_CA_CONTAINER} cat /home/step/certs/root_ca.crt",
+            timeout=_TIMEOUT_SECONDS,
+        )
+        cert = stdout.read().decode()
+        err = stderr.read().decode()
+        exit_status = stdout.channel.recv_exit_status()
+    finally:
+        client.close()
+    if exit_status != 0:
+        print(f"Failed to fetch step-ca's root cert from {host}: {err}", file=sys.stderr)
         raise SystemExit(1)
-    return result.stdout
+    return cert
 
 
-def _vault_login(ca_path: str) -> str:
+def _vault_login(client: hvac.Client) -> None:
     role_id = _read_bootstrap_file("openbao-controller-role-id")
     secret_id = _read_bootstrap_file("openbao-controller-secret-id")
     if not role_id or not secret_id:
@@ -121,35 +132,29 @@ def _vault_login(ca_path: str) -> str:
             file=sys.stderr,
         )
         raise SystemExit(1)
-    resp = requests.post(
-        f"{_openbao_base_url()}/v1/auth/approle/login",
-        json={"role_id": role_id, "secret_id": secret_id},
-        verify=ca_path,
-        timeout=10,
-    )
-    resp.raise_for_status()
-    return resp.json()["auth"]["client_token"]
+    client.auth.approle.login(role_id=role_id, secret_id=secret_id)  # sets client.token
 
 
-_session: dict[str, str] | None = None
+_session: dict[str, hvac.Client | str] | None = None
 
 
-def _get_session() -> dict[str, str]:
+def _get_session() -> dict[str, hvac.Client | str]:
     """Logs in once per process, on first use - every cached()/
     read_cache()/write_cache()/require_cache_file() call for the rest of
-    this run reuses the same token/ca_path. Cleaned up at process exit
-    (atexit), not after each call: unlike bootstrap_secrets.py's single
-    try/finally around one run, cloud_credentials scripts make many
-    sequential Vault calls across a whole invocation (e.g. every leaf
-    across all three providers in one create_leaf_keys.py run)."""
+    this run reuses the same hvac.Client/ca_path. Cleaned up at process
+    exit (atexit), not after each call: unlike bootstrap_secrets.py's
+    single try/finally around one run, cloud_credentials scripts make
+    many sequential Vault calls across a whole invocation (e.g. every
+    leaf across all three providers in one create_leaf_keys.py run)."""
     global _session
     if _session is None:
         fd, ca_path = tempfile.mkstemp(suffix="-openbao-root-ca")
         with open(fd, "w") as f:
             f.write(_fetch_root_cert())
         atexit.register(lambda: Path(ca_path).unlink(missing_ok=True))
-        token = _vault_login(ca_path)
-        _session = {"token": token, "ca_path": ca_path}
+        client = hvac.Client(url=_openbao_base_url(), verify=ca_path, timeout=_TIMEOUT_SECONDS)
+        _vault_login(client)
+        _session = {"client": client, "ca_path": ca_path}
     return _session
 
 
@@ -160,29 +165,27 @@ def _vault_path(category: str, name: str) -> str:
 
 
 def _vault_read_at(full_path: str) -> str | None:
-    session = _get_session()
-    resp = requests.get(
-        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{full_path}",
-        headers={"X-Vault-Token": session["token"]},
-        verify=session["ca_path"],
-        timeout=10,
-    )
-    if resp.status_code == 404:
+    client = _get_session()["client"]
+    try:
+        resp = client.secrets.kv.v2.read_secret_version(
+            path=full_path,
+            mount_point=VAULT_KV_MOUNT,
+            # A deleted version should read the same as one that never
+            # existed - matches this function's own InvalidPath handling
+            # below. hvac's default silently matches this already, but
+            # only with a DeprecationWarning ahead of hvac v3.0.0 flipping
+            # it to False, which would instead return metadata with no
+            # "value" key and crash the return statement below.
+            raise_on_deleted_version=True,
+        )
+    except hvac.exceptions.InvalidPath:
         return None
-    resp.raise_for_status()
-    return resp.json()["data"]["data"]["value"]
+    return resp["data"]["data"]["value"]
 
 
 def _vault_write_at(full_path: str, value: str) -> None:
-    session = _get_session()
-    resp = requests.post(
-        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{full_path}",
-        headers={"X-Vault-Token": session["token"]},
-        json={"data": {"value": value}},
-        verify=session["ca_path"],
-        timeout=10,
-    )
-    resp.raise_for_status()
+    client = _get_session()["client"]
+    client.secrets.kv.v2.create_or_update_secret(path=full_path, secret={"value": value}, mount_point=VAULT_KV_MOUNT)
 
 
 def read_vault_path(full_path: str) -> str | None:

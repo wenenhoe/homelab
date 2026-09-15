@@ -9,6 +9,8 @@ dependencies = [
     "requests>=2.32",
     "oci>=2.130",
     "b2sdk>=2.12",
+    "hvac>=2.3",
+    "paramiko>=3.5",
 ]
 
 [dependency-groups]
@@ -46,10 +48,18 @@ ignore = [
     # nothing to catch here that PLW1510 above doesn't already cover.
     "S603",
     "S607",
+    # Every paramiko SSHClient in this repo sets AutoAddPolicy() only as
+    # accept-new equivalence (system known_hosts checked first via
+    # load_system_host_keys(); paramiko's transport still raises
+    # BadHostKeyException on a mismatch against an already-known host
+    # regardless of this policy) - fail-closed on a changed key, not
+    # blanket trust. See docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+    "S507",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 # assert is pytest's own idiom, not an accidental production check;
 # /tmp paths in these tests are argument values under test, never touch a
-# real file.
-"ansible/tests/**" = ["S101", "S108"]
+# real file; S106 fires on fake literal role_id/secret_id/token values
+# passed as kwargs to mocked hvac calls, never a real credential.
+"ansible/tests/**" = ["S101", "S108", "S106"]

@@ -27,6 +27,10 @@ docs/cloud-credential-creation.md for how those are created instead.
 Safe to re-run: an entry that already has a value (on disk, or in Vault)
 is left untouched. To rotate a value, see docs/secrets-rotation.md.
 
+Uses hvac for the OpenBao client and paramiko for the SSH root-cert
+fetch, replacing hand-rolled requests/subprocess calls - see
+docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+
 Usage:
     python3 ansible/bootstrap_secrets.py
     # or, if you manage the project with uv:
@@ -36,12 +40,12 @@ Usage:
 from __future__ import annotations
 
 import getpass
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
-import requests
+import hvac
+import paramiko
 import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 
@@ -52,6 +56,10 @@ INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/inventory.yaml"
 
 VAULT_KV_MOUNT = "secret"
 VAULT_STEP_CA_CONTAINER = "step-ca"
+# Bounds both the SSH root-cert fetch and every Vault HTTP call - see
+# cloud_credentials/cache.py's identical constant/comment; this file's
+# own SSH fetch had the same missing-timeout bug independently.
+_TIMEOUT_SECONDS = 10
 
 
 def load_registry() -> dict[str, dict]:
@@ -145,31 +153,30 @@ def _security_ssh_target() -> tuple[str, str, str]:
 
 def fetch_root_cert() -> str:
     user, host, key_path = _security_ssh_target()
-    result = subprocess.run(
-        [
-            "ssh",
-            "-i",
-            key_path,
-            "-o",
-            "StrictHostKeyChecking=accept-new",
-            f"{user}@{host}",
-            "docker",
-            "exec",
-            VAULT_STEP_CA_CONTAINER,
-            "cat",
-            "/home/step/certs/root_ca.crt",
-        ],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        print(f"Failed to fetch step-ca's root cert from {host}: {result.stderr}", file=sys.stderr)
+    client = paramiko.SSHClient()
+    client.load_system_host_keys()
+    # Trust-on-first-use, same as the previous StrictHostKeyChecking=
+    # accept-new - see cloud_credentials/cache.py's identical comment
+    # and docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+    try:
+        client.connect(host, username=user, key_filename=key_path, timeout=_TIMEOUT_SECONDS)
+        _stdin, stdout, stderr = client.exec_command(
+            f"docker exec {VAULT_STEP_CA_CONTAINER} cat /home/step/certs/root_ca.crt",
+            timeout=_TIMEOUT_SECONDS,
+        )
+        cert = stdout.read().decode()
+        err = stderr.read().decode()
+        exit_status = stdout.channel.recv_exit_status()
+    finally:
+        client.close()
+    if exit_status != 0:
+        print(f"Failed to fetch step-ca's root cert from {host}: {err}", file=sys.stderr)
         raise SystemExit(1)
-    return result.stdout
+    return cert
 
 
-def vault_login(ca_path: str) -> str:
+def vault_login(client: hvac.Client) -> None:
     role_id = read_cache_file("openbao-controller-role-id")
     secret_id = read_cache_file("openbao-controller-secret-id")
     if not role_id or not role_id.strip() or not secret_id or not secret_id.strip():
@@ -180,38 +187,26 @@ def vault_login(ca_path: str) -> str:
             file=sys.stderr,
         )
         raise SystemExit(1)
-    resp = requests.post(
-        f"{_openbao_base_url()}/v1/auth/approle/login",
-        json={"role_id": role_id.strip(), "secret_id": secret_id.strip()},
-        verify=ca_path,
-        timeout=10,
-    )
-    resp.raise_for_status()
-    return resp.json()["auth"]["client_token"]
+    client.auth.approle.login(role_id=role_id.strip(), secret_id=secret_id.strip())
 
 
-def vault_read(token: str, ca_path: str, vault_path: str) -> str | None:
-    resp = requests.get(
-        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{vault_path}",
-        headers={"X-Vault-Token": token},
-        verify=ca_path,
-        timeout=10,
-    )
-    if resp.status_code == 404:
+def vault_read(client: hvac.Client, vault_path: str) -> str | None:
+    try:
+        resp = client.secrets.kv.v2.read_secret_version(
+            path=vault_path,
+            mount_point=VAULT_KV_MOUNT,
+            # See cloud_credentials/cache.py's identical call/comment -
+            # this preserves current behavior and silences hvac's
+            # v3.0.0 default-change warning without changing anything.
+            raise_on_deleted_version=True,
+        )
+    except hvac.exceptions.InvalidPath:
         return None
-    resp.raise_for_status()
-    return resp.json()["data"]["data"]["value"]
+    return resp["data"]["data"]["value"]
 
 
-def vault_write(token: str, ca_path: str, vault_path: str, value: str) -> None:
-    resp = requests.post(
-        f"{_openbao_base_url()}/v1/{VAULT_KV_MOUNT}/data/{vault_path}",
-        headers={"X-Vault-Token": token},
-        json={"data": {"value": value}},
-        verify=ca_path,
-        timeout=10,
-    )
-    resp.raise_for_status()
+def vault_write(client: hvac.Client, vault_path: str, value: str) -> None:
+    client.secrets.kv.v2.create_or_update_secret(path=vault_path, secret={"value": value}, mount_point=VAULT_KV_MOUNT)
 
 
 def main() -> int:
@@ -258,11 +253,12 @@ def main() -> int:
             with tempfile.NamedTemporaryFile("w", suffix="-openbao-root-ca", delete=False) as f:
                 f.write(fetch_root_cert())
                 ca_path = f.name
-            token = vault_login(ca_path)
+            client = hvac.Client(url=_openbao_base_url(), verify=ca_path, timeout=_TIMEOUT_SECONDS)
+            vault_login(client)
 
             for name, spec in vault_entries.items():
                 vault_path = f"{spec['vault_scope']}/{name}"
-                if vault_read(token, ca_path, vault_path) is not None:
+                if vault_read(client, vault_path) is not None:
                     skipped.append(name)
                     continue
                 try:
@@ -270,7 +266,7 @@ def main() -> int:
                 except KeyboardInterrupt, EOFError:
                     print("\nAborted — nothing further was written.", file=sys.stderr)
                     return 1
-                vault_write(token, ca_path, vault_path, value)
+                vault_write(client, vault_path, value)
                 created_vault.append(name)
                 if not value.strip():
                     left_blank.append(name)

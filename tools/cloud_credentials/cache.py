@@ -33,7 +33,7 @@ from pathlib import Path
 
 import hvac
 from openbao_client.client import (
-    PROJECT_ROOT,  # noqa: F401 - re-exported: dump_vault_to_file_cache.py/restore_hosts_scope_from_backup.py still import this from here
+    PROJECT_ROOT,  # noqa: F401 - re-exported: dump_vault_to_file_cache.py still imports this from here (internal, unlike restore_hosts_scope_from_backup.py's now-fixed external one)
     TIMEOUT_SECONDS,
     fetch_root_cert,
     openbao_base_url,

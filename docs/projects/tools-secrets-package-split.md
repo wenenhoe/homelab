@@ -34,7 +34,7 @@ since closed - its actual hvac/paramiko library decision is
 | 1 | Resolve the draft's two remaining Assumptions | Done |
 | 2 | Move `ansible/cloud_credentials/` → `tools/cloud_credentials/` (mechanical) | Done |
 | 3 | Build `tools/openbao_client/`: extract the generic OpenBao/host-resolution helpers | Done |
-| 4 | Re-point the misplaced-import consumers at `tools/openbao_client/` | Not started |
+| 4 | Re-point the misplaced-import consumers at `tools/openbao_client/` | Done |
 | 5 | Dedicated test coverage for `tools/openbao_client/` itself | Done |
 
 ## Stage detail
@@ -141,21 +141,28 @@ they should eventually import from instead.
 
 ### Stage 4 — Re-point misplaced-import consumers
 
-`docker/openbao/scripts/bao-login-from-controller.sh`/
-`bao-from-controller.sh`'s `python3 -c "from cloud_credentials.cache
-import _security_ssh_target, _main_domain"` and
-`restore_hosts_scope_from_backup.py`'s `from cloud_credentials.cache
-import PROJECT_ROOT, read_vault_path, write_vault_path` both move to
-importing from `openbao_client.client` instead (`security_ssh_target`/
-`main_domain`/`PROJECT_ROOT` directly; `read_vault_path`/
-`write_vault_path` stay `cache.py`'s own, genuinely cloud-credential-
-scoped API, calling the shared `vault_read`/`vault_write` internally) -
-the concrete evidence this split was needed, not just a naming
-preference. `tools/cloud_credentials/dump_vault_to_file_cache.py`
-also imports `PROJECT_ROOT` from `cache.py`, found during Stage 3 -
-left alone here, since it's an internal same-package import, not the
-cross-package case this stage targets; `cache.py`'s re-export covers
-it either way.
+Done. `docker/openbao/scripts/bao-login-from-controller.sh`/
+`bao-from-controller.sh` now import `security_ssh_target`/`main_domain`
+from `openbao_client.client` directly, and
+`restore_hosts_scope_from_backup.py` now imports `PROJECT_ROOT` from
+there too - `read_vault_path`/`write_vault_path` stay imported from
+`cloud_credentials.cache`, correctly: they're `cache.py`'s own
+genuinely cloud-credential-scoped API, calling the shared
+`vault_read`/`vault_write` internally, not something misplaced.
+`tools/cloud_credentials/dump_vault_to_file_cache.py`'s own
+`PROJECT_ROOT` import stays pointed at `cache.py`'s re-export -
+internal same-package import, not the cross-package case this stage
+targets.
+
+Found by actually running the two shell scripts' Python one-liners,
+not assumed: Stage 3 had already silently broken both of them.
+`cache.py` stopped defining `_security_ssh_target`/`_main_domain`
+entirely once Stage 3 extracted them (as `security_ssh_target`/
+`main_domain`, no underscore) - only `PROJECT_ROOT` was re-exported,
+so `from cloud_credentials.cache import _security_ssh_target,
+_main_domain` started raising `ImportError` the moment Stage 3 landed,
+confirmed live before this stage's fix. Anyone who merged Stage 3 on
+its own had two broken scripts until this stage closed the gap.
 
 ## Open items
 
@@ -175,6 +182,18 @@ it either way.
   and [`openbao-cli-standardization.md`](openbao-cli-standardization.md),
   not decided here; this project just needs to leave `tools/openbao_client/`
   in a shape that supports it either way.
+- Whether `bootstrap_secrets.py`/`restore_hosts_scope_from_backup.py`/
+  `restore_cloud_credentials_from_backup.py`/`restore_all.py` should
+  also physically move to `tools/`, given they now import from it -
+  considered and answered no: all four are explicitly gated to the
+  `ansible-playbook deploy.yaml` lifecycle (confirmed in each file's
+  own docstring; `restore_all.py` shells out to `ansible-playbook`
+  directly), which is genuinely `ansible/`'s domain, not generic
+  secrets tooling that happens to sit there. Importing from `tools/`
+  isn't wrong ownership here - it's the same relationship `cache.py`
+  itself has with `openbao_client`. `audit_secrets.py` is the weaker
+  case (no deploy-lifecycle coupling), left alone for now rather than
+  moved on its own; revisit if this comes up again.
 
 ## Closing checklist
 

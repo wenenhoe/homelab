@@ -30,10 +30,12 @@ from pathlib import Path
 
 import yaml
 
-# cloud_credentials now lives in tools/, not alongside this script -
-# see docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
+# cloud_credentials/openbao_client now live in tools/, not alongside
+# this script - see
+# docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
-from cloud_credentials.cache import PROJECT_ROOT, read_vault_path, write_vault_path
+from cloud_credentials.cache import read_vault_path, write_vault_path
+from openbao_client.client import PROJECT_ROOT
 
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
 

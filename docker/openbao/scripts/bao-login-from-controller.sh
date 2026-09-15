@@ -3,9 +3,9 @@
 # not `docker exec` into the container (see bao-login.sh for that
 # case, used on `security` itself). Verifies TLS properly against
 # step-ca's root cert, fetched fresh each run over SSH - the same
-# trust mechanism ADR 0022 already established for cloud_credentials'
-# own login flow (cache.py's _fetch_root_cert), reused here rather
-# than re-derived. Never skip-verify.
+# trust mechanism ADR 0022 already established, reused here via
+# openbao_client.client's shared security_ssh_target()/main_domain()
+# rather than re-derived. Never skip-verify.
 #
 # role_id isn't sensitive, passed as a normal argument. secret_id is
 # read via a hidden prompt, written to a 600-permission temp file,
@@ -27,12 +27,12 @@ role_id="${1:?usage: bao-login-from-controller.sh <role_id>}"
 repo_root=$(cd "$(dirname "$0")/../../.." && pwd)
 
 ssh_info=$(cd "$repo_root/tools" && python3 -c "
-from cloud_credentials.cache import _security_ssh_target, _main_domain
-user, host, key_path = _security_ssh_target()
+from openbao_client.client import security_ssh_target, main_domain
+user, host, key_path = security_ssh_target()
 print(user)
 print(host)
 print(key_path)
-print(_main_domain())
+print(main_domain())
 ")
 ssh_user=$(printf '%s' "$ssh_info" | sed -n '1p')
 ssh_host=$(printf '%s' "$ssh_info" | sed -n '2p')

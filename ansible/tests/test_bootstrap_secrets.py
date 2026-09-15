@@ -2,10 +2,12 @@
 
 Run via `uv run pytest ansible/tests/ -v`. Every SSH/Vault call is
 mocked; nothing here touches a real `security` host or a real OpenBao.
-bootstrap_secrets.py has its own independent SECRETS_DIR/REGISTRY_PATH/
-INVENTORY_PATH (it's a standalone top-level script, not part of the
-cloud_credentials package), so this patches those directly rather than
-cloud_credentials.cache.
+fetch_root_cert/vault_read/vault_write/the bare vault_login are
+openbao_client.client's own functions (imported directly, some
+re-exported under the same name) - tested once, directly, in
+tools/tests/openbao_client/test_client.py. This file only tests
+bootstrap_secrets.py's own remaining logic: the registry/prompt
+handling, its own vault_login wrapper, and main()'s wiring.
 """
 
 from __future__ import annotations
@@ -17,31 +19,22 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import hvac
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import bootstrap_secrets
-
-
-def _mock_ssh_client(exit_status: int = 0, stdout: bytes = b"", stderr: bytes = b""):
-    """A paramiko.SSHClient() stand-in - exec_command()'s 3-tuple, with
-    stdout.channel.recv_exit_status() driving fetch_root_cert()'s
-    success/failure branch."""
-    client = MagicMock()
-    stdout_stream = MagicMock()
-    stdout_stream.read.return_value = stdout
-    stdout_stream.channel.recv_exit_status.return_value = exit_status
-    stderr_stream = MagicMock()
-    stderr_stream.read.return_value = stderr
-    client.exec_command.return_value = (MagicMock(), stdout_stream, stderr_stream)
-    return client
+from openbao_client import client as openbao_client_module
 
 
 class SecretsDirTestCase(unittest.TestCase):
     """Base for anything touching SECRETS_DIR — every Vault/inventory test
     also needs this, since main_domain/role_id/secret_id are always read
-    from here regardless of which path is under test."""
+    from here regardless of which path is under test. Patches both
+    bootstrap_secrets' own imported SECRETS_DIR (used directly by
+    main()/read_cache_file) and openbao_client.client's own copy (used
+    internally by read_bootstrap_file(), which this file's vault_login
+    wrapper calls) - both need to agree, since they're two separate
+    names bound to what was originally the same object at import time.
+    """
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
@@ -49,6 +42,9 @@ class SecretsDirTestCase(unittest.TestCase):
         patcher = patch.object(bootstrap_secrets, "SECRETS_DIR", self.tmp)
         patcher.start()
         self.addCleanup(patcher.stop)
+        shared_patcher = patch.object(openbao_client_module, "SECRETS_DIR", self.tmp)
+        shared_patcher.start()
+        self.addCleanup(shared_patcher.stop)
 
     def seed(self, name: str, value: str) -> None:
         (self.tmp / name).write_text(value)
@@ -125,106 +121,12 @@ class PromptForValueTests(unittest.TestCase):
         self.assertEqual(mock_input.call_count, 3)
 
 
-class MainDomainTests(SecretsDirTestCase):
-    def test_raises_system_exit_when_missing(self):
-        with self.assertRaises(SystemExit):
-            bootstrap_secrets._main_domain()
-
-    def test_raises_system_exit_when_blank(self):
-        self.seed("main-domain", "   ")
-        with self.assertRaises(SystemExit):
-            bootstrap_secrets._main_domain()
-
-    def test_returns_stripped_value(self):
-        self.seed("main-domain", "  example.com  \n")
-        self.assertEqual(bootstrap_secrets._main_domain(), "example.com")
-
-
-class OpenbaoBaseUrlTests(SecretsDirTestCase):
-    def test_url_derives_from_main_domain(self):
-        self.seed("main-domain", "example.com")
-        # sec.lan.<main_domain> mirrors host_vars/security.yaml +
-        # group_vars/all/main.yaml's real naming convention — see this
-        # function's own comment for why it's duplicated here rather
-        # than templated through Ansible.
-        self.assertEqual(bootstrap_secrets._openbao_base_url(), "https://openbao.sec.lan.example.com:8200")
-
-
-class SecurityCredentialsSshTargetTests(SecretsDirTestCase):
-    def setUp(self):
-        super().setUp()
-        self.seed("main-domain", "example.com")
-        self.inventory_tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.inventory_tmp, ignore_errors=True))
-        self.inventory_path = self.inventory_tmp / "inventory.yaml"
-        patcher = patch.object(bootstrap_secrets, "INVENTORY_PATH", self.inventory_path)
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-    def test_reads_user_and_key_path_from_inventory_not_hardcoded(self):
-        self.inventory_path.write_text(
-            "all:\n"
-            "  vars:\n"
-            "    ansible_ssh_private_key_file: ~/.ssh/some_key\n"
-            "  children:\n"
-            "    managed_hosts:\n"
-            "      hosts:\n"
-            "        security:\n"
-            "          ansible_user: someadmin\n"
-        )
-        user, host, key_path = bootstrap_secrets._security_ssh_target()
-        self.assertEqual(user, "someadmin")
-        self.assertEqual(host, "security.internal.example.com")
-        self.assertEqual(key_path, str(Path("~/.ssh/some_key").expanduser()))
-
-
-class FetchRootCertTests(SecretsDirTestCase):
-    def setUp(self):
-        super().setUp()
-        self.seed("main-domain", "example.com")
-        patcher = patch.object(
-            bootstrap_secrets,
-            "_security_ssh_target",
-            return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key"),
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-    @patch("bootstrap_secrets.paramiko.SSHClient")
-    def test_returns_stdout_on_success(self, mock_ssh_client_cls):
-        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=0, stdout=b"-----BEGIN CERTIFICATE-----\n...")
-        cert = bootstrap_secrets.fetch_root_cert()
-        self.assertIn("BEGIN CERTIFICATE", cert)
-
-    @patch("bootstrap_secrets.paramiko.SSHClient")
-    def test_connects_to_the_correct_host_and_execs_the_correct_command(self, mock_ssh_client_cls):
-        mock_client = _mock_ssh_client(exit_status=0, stdout=b"cert")
-        mock_ssh_client_cls.return_value = mock_client
-        bootstrap_secrets.fetch_root_cert()
-        args, kwargs = mock_client.connect.call_args
-        self.assertEqual(args[0], "security.internal.example.com")
-        self.assertEqual(kwargs["username"], "secadmin")
-        self.assertEqual(kwargs["key_filename"], "/home/x/.ssh/key")
-        command = mock_client.exec_command.call_args.args[0]
-        self.assertIn(bootstrap_secrets.VAULT_STEP_CA_CONTAINER, command)
-        self.assertIn("/home/step/certs/root_ca.crt", command)
-
-    @patch("bootstrap_secrets.paramiko.SSHClient")
-    def test_raises_system_exit_on_nonzero_exit_status(self, mock_ssh_client_cls):
-        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=1, stderr=b"Permission denied")
-        with self.assertRaises(SystemExit):
-            bootstrap_secrets.fetch_root_cert()
-
-    @patch("bootstrap_secrets.paramiko.SSHClient")
-    def test_closes_the_client_even_on_failure(self, mock_ssh_client_cls):
-        mock_client = _mock_ssh_client(exit_status=1, stderr=b"boom")
-        mock_ssh_client_cls.return_value = mock_client
-        with self.assertRaises(SystemExit):
-            bootstrap_secrets.fetch_root_cert()
-        mock_client.close.assert_called_once()
-
-
 class VaultLoginTests(SecretsDirTestCase):
+    """bootstrap_secrets.vault_login is just the role_id/secret_id
+    file-reading and validation wrapper around openbao_client.client's
+    shared bare vault_login - see that module's own tests for the
+    login call itself."""
+
     def setUp(self):
         super().setUp()
         self.seed("main-domain", "example.com")
@@ -240,66 +142,15 @@ class VaultLoginTests(SecretsDirTestCase):
         with self.assertRaises(SystemExit):
             bootstrap_secrets.vault_login(MagicMock())
 
-    def test_logs_in_with_role_id_and_secret_id(self):
+    @patch("bootstrap_secrets._bare_vault_login")
+    def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login):
         self.seed("openbao-controller-role-id", "some-role-id")
         self.seed("openbao-controller-secret-id", "some-secret-id")
         mock_client = MagicMock()
 
         bootstrap_secrets.vault_login(mock_client)
 
-        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
-
-    def test_strips_whitespace_from_role_and_secret_id(self):
-        self.seed("openbao-controller-role-id", "  some-role-id  \n")
-        self.seed("openbao-controller-secret-id", "  some-secret-id  \n")
-        mock_client = MagicMock()
-
-        bootstrap_secrets.vault_login(mock_client)
-
-        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
-
-
-class VaultReadWriteTests(SecretsDirTestCase):
-    def setUp(self):
-        super().setUp()
-        self.seed("main-domain", "example.com")
-        self.mock_client = MagicMock()
-
-    def test_read_returns_none_on_invalid_path(self):
-        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
-        self.assertIsNone(bootstrap_secrets.vault_read(self.mock_client, "hosts/security/some-key"))
-
-    def test_read_returns_value_on_success(self):
-        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-value"}}}
-        value = bootstrap_secrets.vault_read(self.mock_client, "hosts/security/some-key")
-        self.assertEqual(value, "the-value")
-
-    def test_read_uses_the_correct_path_and_mount(self):
-        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
-        bootstrap_secrets.vault_read(self.mock_client, "hosts/all/telegram/telegram-token")
-        self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
-            path="hosts/all/telegram/telegram-token",
-            mount_point=bootstrap_secrets.VAULT_KV_MOUNT,
-            raise_on_deleted_version=True,
-        )
-
-    def test_read_propagates_non_invalid_path_errors(self):
-        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.Forbidden
-        with self.assertRaises(hvac.exceptions.Forbidden):
-            bootstrap_secrets.vault_read(self.mock_client, "hosts/security/some-key")
-
-    def test_write_writes_the_correct_payload(self):
-        bootstrap_secrets.vault_write(self.mock_client, "hosts/security/some-key", "the-value")
-        self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
-            path="hosts/security/some-key",
-            secret={"value": "the-value"},
-            mount_point=bootstrap_secrets.VAULT_KV_MOUNT,
-        )
-
-    def test_write_propagates_errors(self):
-        self.mock_client.secrets.kv.v2.create_or_update_secret.side_effect = hvac.exceptions.Forbidden
-        with self.assertRaises(hvac.exceptions.Forbidden):
-            bootstrap_secrets.vault_write(self.mock_client, "hosts/security/some-key", "value")
+        mock_bare_login.assert_called_once_with(mock_client, "some-role-id", "some-secret-id")
 
 
 class MainNoRegistryTests(unittest.TestCase):

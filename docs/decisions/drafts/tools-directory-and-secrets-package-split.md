@@ -35,7 +35,19 @@ for the same reason ADR 0030 already gives: sharing code across that
 deployment boundary means shipping a whole package alongside a script
 whose deployment model deliberately stays a single file. It's grouped
 here only as evidence of how scattered this domain already is, not as
-a future consumer of `tools/secrets/`.
+a future consumer of `tools/openbao_client/`.
+
+`tools/openbao_client/`, not `tools/secrets/` as originally named:
+confirmed live that a `tools/secrets/` package would shadow Python's
+own stdlib `secrets` module the moment `tools/` is added to
+`sys.path` (required either way, for `cloud_credentials` itself) —
+`tools/cloud_credentials/verify.py` already does `import secrets` for
+`secrets.token_hex(4)`, which would silently resolve to the wrong
+module and crash. Renamed before any code was written against the old
+name, matching this repo's existing `docker/openbao/` convention and
+avoiding further overloading "secrets" as a word (already
+`secrets_registry.yaml`, `docs/secrets.md`, the `secrets` Ansible
+role).
 
 No `tools/`-shaped root exists in this repo today. Standalone Python
 currently lives either inside `ansible/` (as a package or a top-level
@@ -63,7 +75,7 @@ reintroduce a fourth copy of the same client logic.
 ### B — New root-level `tools/` directory, split by domain
 
 `tools/cloud_credentials/` (B2/OCI/R2 minting, scope unchanged, just
-moved) and `tools/secrets/` (the OpenBao/Vault client - `cache.py`'s
+moved) and `tools/openbao_client/` (the OpenBao/Vault client - `cache.py`'s
 generic pieces, `bootstrap_secrets.py`, and the real home for the
 shared `hvac`/`paramiko` primitives
 [ADR 0030](../0030-openbao-hvac-paramiko-clients.md) left as this
@@ -73,7 +85,7 @@ and doesn't import from either new location - confirmed no Dockerfile
 anywhere references it (never containerized, hand-installed onto
 `security`'s system Python instead), so there's no container-build
 question to resolve, but its standalone single-file deployment model
-is exactly why it doesn't become a `tools/secrets/` consumer either.
+is exactly why it doesn't become a `tools/openbao_client/` consumer either.
 `docker/openbao/scripts/`'s shell scripts and
 `openbao_backup/snapshot-push.sh.j2` are also candidates for the same
 shared client
@@ -84,7 +96,7 @@ package directly. `ansible-collections-audit.md`'s Stage 3 already
 plans `community.hashi_vault` (a maintained collection) for that
 role's Vault tasks, not a custom import — same principle applied
 throughout this repo's tooling: prefer the vendor-maintained module
-over a hand-rolled one. Default: `tools/secrets/` is a plain importable
+over a hand-rolled one. Default: `tools/openbao_client/` is a plain importable
 package, no `module_utils`/`library`-shaped packaging needed. Only
 revisit that if `community.hashi_vault`'s own spike (already an open
 Assumption in the sibling draft) finds it can't reproduce something
@@ -102,7 +114,7 @@ exists to fix (none of this code is a role or a plugin).
 ## Decision
 
 Leaning **B** — new `tools/` root, split by domain, plain package for
-`tools/secrets/` (no Ansible-side packaging complexity, per the
+`tools/openbao_client/` (no Ansible-side packaging complexity, per the
 resolution above). Design settled: every Assumption below is resolved
 and folded into Context above. Not yet promotable per this repo's own
 rule (promotion happens once implemented, not at decide-time) - the

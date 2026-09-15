@@ -2,8 +2,11 @@
 
 Run via `uv run pytest tools/tests/ -v`. Every SSH/Vault call is
 mocked; nothing here touches a real `security` host or a real OpenBao.
-Mirrors ansible/tests/test_bootstrap_secrets.py's own mocking style for
-the equivalent (deliberately duplicated, not shared) plumbing.
+Only tests cache.py's own remaining logic (the leaf/rotation Vault-path
+taxonomy and scoped()'s session-caching convenience) - the generic
+primitives it calls into (fetch_root_cert, vault_login, vault_read,
+vault_write) are tested once, directly, in
+tools/tests/openbao_client/test_client.py.
 """
 
 from __future__ import annotations
@@ -20,33 +23,25 @@ import hvac
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from cloud_credentials import cache
-
-
-def _mock_ssh_client(exit_status: int = 0, stdout: bytes = b"", stderr: bytes = b""):
-    """A paramiko.SSHClient() stand-in - exec_command()'s 3-tuple, with
-    stdout.channel.recv_exit_status() driving _fetch_root_cert()'s
-    success/failure branch."""
-    client = MagicMock()
-    stdout_stream = MagicMock()
-    stdout_stream.read.return_value = stdout
-    stdout_stream.channel.recv_exit_status.return_value = exit_status
-    stderr_stream = MagicMock()
-    stderr_stream.read.return_value = stderr
-    client.exec_command.return_value = (MagicMock(), stdout_stream, stderr_stream)
-    return client
+from openbao_client import client as openbao_client_module
 
 
 class SecretsDirTestCase(unittest.TestCase):
     """Base for anything touching SECRETS_DIR - main-domain and the
     controller AppRole credential are always read from here, regardless
-    of which Vault path is under test. Also resets the process-lifetime
-    session singleton, since it would otherwise leak a mocked
-    client/ca_path across tests that don't expect one."""
+    of which Vault path is under test. Patches openbao_client.client's
+    own SECRETS_DIR, not cache's - cache.py has no local reference to
+    it; read_bootstrap_file() (which _vault_login below calls) uses
+    the shared module's own copy internally, regardless of who calls
+    it. Also resets the process-lifetime session singleton, since it
+    would otherwise leak a mocked client/ca_path across tests that
+    don't expect one.
+    """
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        dir_patcher = patch.object(cache, "SECRETS_DIR", self.tmp)
+        dir_patcher = patch.object(openbao_client_module, "SECRETS_DIR", self.tmp)
         dir_patcher.start()
         self.addCleanup(dir_patcher.stop)
         session_patcher = patch.object(cache, "_session", None)
@@ -57,94 +52,26 @@ class SecretsDirTestCase(unittest.TestCase):
         (self.tmp / name).write_text(value)
 
 
-class MainDomainTests(SecretsDirTestCase):
-    def test_raises_system_exit_when_missing(self):
-        with self.assertRaises(SystemExit):
-            cache._main_domain()
-
-    def test_returns_stripped_value(self):
-        self.seed("main-domain", "  example.com  \n")
-        self.assertEqual(cache._main_domain(), "example.com")
-
-
-class OpenbaoBaseUrlTests(SecretsDirTestCase):
-    def test_builds_expected_url(self):
-        self.seed("main-domain", "example.com")
-        self.assertEqual(cache._openbao_base_url(), "https://openbao.sec.lan.example.com:8200")
-
-
-class FetchRootCertTests(SecretsDirTestCase):
-    def setUp(self):
-        super().setUp()
-        self.seed("main-domain", "example.com")
-        patcher = patch.object(
-            cache,
-            "_security_ssh_target",
-            return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key"),
-        )
-        patcher.start()
-        self.addCleanup(patcher.stop)
-
-    @patch("cloud_credentials.cache.paramiko.SSHClient")
-    def test_returns_stdout_on_success(self, mock_ssh_client_cls):
-        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=0, stdout=b"-----BEGIN CERTIFICATE-----\n...")
-        cert = cache._fetch_root_cert()
-        self.assertIn("BEGIN CERTIFICATE", cert)
-
-    @patch("cloud_credentials.cache.paramiko.SSHClient")
-    def test_raises_system_exit_on_nonzero_exit_status(self, mock_ssh_client_cls):
-        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=1, stderr=b"Permission denied")
-        with self.assertRaises(SystemExit):
-            cache._fetch_root_cert()
-
-    @patch("cloud_credentials.cache.paramiko.SSHClient")
-    def test_connects_to_the_correct_host_and_execs_the_correct_command(self, mock_ssh_client_cls):
-        mock_client = _mock_ssh_client(exit_status=0, stdout=b"cert")
-        mock_ssh_client_cls.return_value = mock_client
-        cache._fetch_root_cert()
-        args, kwargs = mock_client.connect.call_args
-        self.assertEqual(args[0], "security.internal.example.com")
-        self.assertEqual(kwargs["username"], "secadmin")
-        self.assertEqual(kwargs["key_filename"], "/home/x/.ssh/key")
-        command = mock_client.exec_command.call_args.args[0]
-        self.assertIn(cache.VAULT_STEP_CA_CONTAINER, command)
-        self.assertIn("/home/step/certs/root_ca.crt", command)
-
-    @patch("cloud_credentials.cache.paramiko.SSHClient")
-    def test_connects_with_a_timeout(self, mock_ssh_client_cls):
-        mock_client = _mock_ssh_client(exit_status=0)
-        mock_ssh_client_cls.return_value = mock_client
-        cache._fetch_root_cert()
-        _, kwargs = mock_client.connect.call_args
-        self.assertEqual(kwargs["timeout"], cache._TIMEOUT_SECONDS)
-
-    @patch("cloud_credentials.cache.paramiko.SSHClient")
-    def test_closes_the_client_even_on_failure(self, mock_ssh_client_cls):
-        mock_client = _mock_ssh_client(exit_status=1, stderr=b"boom")
-        mock_ssh_client_cls.return_value = mock_client
-        with self.assertRaises(SystemExit):
-            cache._fetch_root_cert()
-        mock_client.close.assert_called_once()
-
-
 class VaultLoginTests(SecretsDirTestCase):
-    def setUp(self):
-        super().setUp()
-        self.seed("main-domain", "example.com")
+    """cache._vault_login is just the role_id/secret_id file-reading
+    and validation wrapper around the shared bare vault_login - see
+    tools/tests/openbao_client/test_client.py for the login call
+    itself."""
 
     def test_raises_system_exit_when_role_id_missing(self):
         self.seed("openbao-controller-secret-id", "some-secret-id")
         with self.assertRaises(SystemExit):
             cache._vault_login(MagicMock())
 
-    def test_logs_in_with_role_id_and_secret_id(self):
+    @patch("cloud_credentials.cache._bare_vault_login")
+    def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login):
         self.seed("openbao-controller-role-id", "some-role-id")
         self.seed("openbao-controller-secret-id", "some-secret-id")
         mock_client = MagicMock()
 
         cache._vault_login(mock_client)
 
-        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
+        mock_bare_login.assert_called_once_with(mock_client, "some-role-id", "some-secret-id")
 
 
 class GetSessionTests(SecretsDirTestCase):
@@ -153,7 +80,7 @@ class GetSessionTests(SecretsDirTestCase):
         self.seed("main-domain", "example.com")
         self.seed("openbao-controller-role-id", "some-role-id")
         self.seed("openbao-controller-secret-id", "some-secret-id")
-        patch.object(cache, "_fetch_root_cert", return_value="fake-cert").start()
+        patch.object(cache, "fetch_root_cert", return_value="fake-cert").start()
         self.addCleanup(patch.stopall)
 
     @patch("cloud_credentials.cache.hvac.Client")
@@ -173,7 +100,7 @@ class GetSessionTests(SecretsDirTestCase):
     def test_client_constructed_with_a_timeout(self, mock_client_cls):
         cache._get_session()
         _, kwargs = mock_client_cls.call_args
-        self.assertEqual(kwargs["timeout"], cache._TIMEOUT_SECONDS)
+        self.assertEqual(kwargs["timeout"], cache.TIMEOUT_SECONDS)
 
 
 class VaultPathTests(unittest.TestCase):
@@ -218,7 +145,7 @@ class ScopedReadWriteTests(_StubbedSessionTestCase):
         self.read_cache("backblaze-b2-write-access-key")
         self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="cloud_credentials/leaf/backblaze-b2-write-access-key",
-            mount_point=cache.VAULT_KV_MOUNT,
+            mount_point=openbao_client_module.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
         )
 
@@ -235,7 +162,7 @@ class ScopedReadWriteTests(_StubbedSessionTestCase):
         self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
             path="cloud_credentials/leaf/some-key",
             secret={"value": "the-value"},
-            mount_point=cache.VAULT_KV_MOUNT,
+            mount_point=openbao_client_module.VAULT_KV_MOUNT,
         )
 
     def test_require_cache_file_exits_with_message_when_missing(self):
@@ -257,7 +184,7 @@ class VaultPathHelperTests(_StubbedSessionTestCase):
         cache.read_vault_path("hosts/all/telegram/telegram-token")
         self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="hosts/all/telegram/telegram-token",
-            mount_point=cache.VAULT_KV_MOUNT,
+            mount_point=openbao_client_module.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
         )
 
@@ -266,7 +193,7 @@ class VaultPathHelperTests(_StubbedSessionTestCase):
         self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
             path="hosts/security/lldap-jwt-secret",
             secret={"value": "the-value"},
-            mount_point=cache.VAULT_KV_MOUNT,
+            mount_point=openbao_client_module.VAULT_KV_MOUNT,
         )
 
 

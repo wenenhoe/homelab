@@ -16,11 +16,9 @@ the error-handling gap that review surfaced along the way. Scope and
 sequencing are decided in
 [ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md);
 this doc tracks build status only. `cache.py`'s OpenBao/SSH client is
-tracked separately in
-[`openbao-python-client-hardening.md`](openbao-python-client-hardening.md) —
-every stage below that reads/writes through `scoped()` benefits once
-that project's Stage 1 lands, but none of them are blocked on it (raw
-`requests` still works meanwhile).
+[`hvac`/`paramiko`-based](../decisions/0030-openbao-hvac-paramiko-clients.md);
+every stage below that reads/writes through `scoped()` already
+benefits from that.
 
 ## Stages
 
@@ -139,9 +137,15 @@ the controller, so this would be the first stage to actually add it to
   `b2sdk`/`oci` errors into this repo's existing
   `print`-then-`SystemExit(1)`-with-guidance convention) gets built
   once alongside Stage 2, or left ad hoc per module — not decided yet.
-  A parallel question exists for `hvac`/`paramiko` errors in
-  [`openbao-python-client-hardening.md`](openbao-python-client-hardening.md);
-  the two aren't required to reach the same answer.
+  A parallel question existed for `hvac`/`paramiko` errors, settled by
+  [ADR 0030](../decisions/0030-openbao-hvac-paramiko-clients.md); the
+  two aren't required to reach the same answer.
+- `audit_secrets.py`'s `audit_b2()`/`audit_oci()` still call B2/OCI's
+  raw APIs directly (`requests`, not `b2sdk`/`oci.identity_domains`),
+  untouched by Stages 2-3 above — moved here from
+  `openbao-python-client-hardening.md`'s own open items before that
+  project closed. Whether this file adopts the same SDKs, and on what
+  schedule, is this project's call, not an independent one.
 - `check_freshness.py`'s single Telegram `sendMessage` call has no SDK
   candidate worth adding for one endpoint — out of scope, noted here so
   it isn't re-proposed later. `verify.py`'s `rclone` call itself may or

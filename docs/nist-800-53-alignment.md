@@ -64,16 +64,12 @@ there a copy of this data somewhere else."
 and
 [ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)
 are the two ADRs that actually decide how an automation identity gets
-created and scoped in OpenBao (an AppRole, not a shared token). Three
+created and scoped in OpenBao (an AppRole, not a shared token). Two
 drafts extend the same question to identities that don't exist yet:
-[`cd-agent-approle-policy`](decisions/drafts/cd-agent-approle-policy.md),
-[`openbao-client-hvac-paramiko-adoption`](decisions/drafts/openbao-client-hvac-paramiko-adoption.md),
+[`cd-agent-approle-policy`](decisions/drafts/cd-agent-approle-policy.md)
 and
 [`secret-zero-bootstrap-pattern`](decisions/drafts/secret-zero-bootstrap-pattern.md)
 (controller's own authentication, not just what it authenticates to).
-The
-[`openbao-python-client-hardening`](projects/openbao-python-client-hardening.md)
-project is the build-status view for the middle one.
 
 ## CM-8 — Component Inventory: evaluated, no genuine match
 

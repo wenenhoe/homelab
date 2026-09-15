@@ -18,7 +18,7 @@ ansible/tests/test_bootstrap_secrets.py's own comment on why.
 
 Uses hvac for the OpenBao client and paramiko for the SSH root-cert
 fetch, replacing hand-rolled requests/subprocess calls - see
-docs/projects/openbao-python-client-hardening.md, Stage 1.
+docs/decisions/0030-openbao-hvac-paramiko-clients.md.
 
 Two secrets live permanently in the file cache instead, read directly
 from SECRETS_DIR below, never through Vault: main-domain and
@@ -101,9 +101,8 @@ def _fetch_root_cert() -> str:
     # accept-new: system known_hosts is checked first, and paramiko's
     # transport still raises BadHostKeyException on a mismatch against
     # an already-known host regardless of this policy - fail-closed on
-    # a changed key, not blanket trust. See
-    # docs/decisions/drafts/openbao-client-hvac-paramiko-adoption.md's
-    # confirmed Assumption on this.
+    # a changed key, not blanket trust. Confirmed live against a real
+    # host - see docs/decisions/0030-openbao-hvac-paramiko-clients.md.
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         client.connect(host, username=user, key_filename=key_path, timeout=_TIMEOUT_SECONDS)

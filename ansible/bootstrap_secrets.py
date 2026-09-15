@@ -29,7 +29,7 @@ is left untouched. To rotate a value, see docs/secrets-rotation.md.
 
 Uses hvac for the OpenBao client and paramiko for the SSH root-cert
 fetch, replacing hand-rolled requests/subprocess calls - see
-docs/projects/openbao-python-client-hardening.md, Stage 2.
+docs/decisions/0030-openbao-hvac-paramiko-clients.md.
 
 Usage:
     python3 ansible/bootstrap_secrets.py
@@ -157,8 +157,7 @@ def fetch_root_cert() -> str:
     client.load_system_host_keys()
     # Trust-on-first-use, same as the previous StrictHostKeyChecking=
     # accept-new - see cloud_credentials/cache.py's identical comment
-    # and docs/decisions/drafts/openbao-client-hvac-paramiko-adoption.md's
-    # confirmed Assumption on this.
+    # and docs/decisions/0030-openbao-hvac-paramiko-clients.md.
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         client.connect(host, username=user, key_filename=key_path, timeout=_TIMEOUT_SECONDS)

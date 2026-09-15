@@ -44,8 +44,9 @@ session, just for alerting instead of secrets access.
 This isn't a library swap like most of the drafts in this repo — it's
 a new piece of infrastructure with its own resource footprint,
 operational surface, and maintenance burden. It doesn't belong under
-`openbao-python-client-hardening.md` (that's about which Python client
-talks to OpenBao, not what watches for suspicious access) or
+[ADR 0030](../0030-openbao-hvac-paramiko-clients.md) (that's about
+which Python client talks to OpenBao, not what watches for suspicious
+access) or
 `ansible-collections-audit.md` (that's about existing roles' task
 shape, not new infrastructure). Needs its own scoping pass before it's
 more than a name on a list.

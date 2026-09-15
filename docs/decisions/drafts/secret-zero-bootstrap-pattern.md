@@ -111,7 +111,6 @@ homelab hosts needs, not assumed as the target.
 
 Every other draft that touches a credential
 (`rclone-boto3-scope-not-blanket-swap.md`,
-`openbao-client-hvac-paramiko-adoption.md`,
 `tools-directory-and-secrets-package-split.md`) currently treats
 "where does the credential live" as a local, per-file Assumption.
 Resolving Secret Zero properly could change the answer for all of them

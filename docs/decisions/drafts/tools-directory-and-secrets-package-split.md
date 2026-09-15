@@ -22,7 +22,7 @@ it stores. The OpenBao/secrets domain is already scattered further:
 is a third, separate location for the same domain again. This scatter
 is what let the identical missing-SSH-timeout bug exist independently
 in two files without anyone noticing the duplication
-([`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md))
+([`0030-openbao-hvac-paramiko-clients.md`](../0030-openbao-hvac-paramiko-clients.md))
 — a structural symptom, not just a naming complaint.
 
 No `tools/`-shaped root exists in this repo today. Standalone Python
@@ -33,7 +33,8 @@ script) or under `docker/<app>/` (app-specific, e.g. the watcher).
 
 ### A — Leave the layout as-is
 
-`openbao-python-client-hardening.md`'s hvac/paramiko work is the only
+[ADR 0030](../0030-openbao-hvac-paramiko-clients.md)'s hvac/paramiko
+work is the only
 response. Cheapest, but the domain stays scattered — the next person
 adding OpenBao-adjacent tooling has no obvious home, and could
 reintroduce a fourth copy of the same client logic.
@@ -49,7 +50,7 @@ question — its container build context may need it to stay where it is
 or import from the new location; unchecked either way. `docker/openbao/scripts/`'s
 shell scripts and `openbao_backup/snapshot-push.sh.j2` are also
 candidates for the same shared client
-([`openbao-client-hvac-paramiko-adoption.md`](openbao-client-hvac-paramiko-adoption.md)).
+([`0030-openbao-hvac-paramiko-clients.md`](../0030-openbao-hvac-paramiko-clients.md)).
 
 **Resolved:** the `secrets` Ansible role does not need to import this
 package directly. `ansible-collections-audit.md`'s Stage 3 already

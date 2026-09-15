@@ -103,9 +103,10 @@ here.
   only how a `bao` binary gets obtained changes, not the trust model.
 - **The SSH hop** anywhere one is needed (root-cert fetch, or driving
   `docker exec` for init/unseal orchestration) uses `paramiko`
-  directly, matching `openbao-python-client-hardening.md`'s Stages
-  1/2/4 - not the Docker SDK's own SSH transport, for the reasons in
-  Context above.
+  directly, matching
+  [ADR 0030](../0030-openbao-hvac-paramiko-clients.md)'s clients -
+  not the Docker SDK's own SSH transport, for the reasons in Context
+  above.
 - **Init/unseal stays security-local and docker-exec-based**,
   permanently, by necessity rather than convention - documented
   explicitly as the one deliberate exception, citing the crash-loop-

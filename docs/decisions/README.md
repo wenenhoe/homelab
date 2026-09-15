@@ -99,6 +99,7 @@ whoever's deleting it.
 | [0027](0027-openbao-not-file-cache-or-committed-secrets.md) | Accepted | Adopt OpenBao as a standing secrets store, superseding 0013's file-cache-until-later approach — rejected Ansible Vault and SOPS/age too, since both are built around committing encrypted secrets to git, which the goal here was to avoid entirely. |
 | [0028](0028-doc-governance-frontmatter-and-nist-alignment.md) | Accepted | Adopt YAML frontmatter (`id`/`type`/`status`, plus a few narrow extras) on every project/decision doc, a generator that regenerates the two hand-maintained README index tables from it, and a single narrative NIST SP 800-53 alignment doc — not per-doc compliance tags — for portfolio purposes. |
 | [0029](0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md) | Accepted | Move `ansible/cloud_credentials`'s OCI SCIM and B2 flows onto their official SDKs (`oci.identity_domains.IdentityDomainsClient`, `b2sdk`), confirmed live for both; R2 and OCI's classic-IAM bootstrap stay on raw `requests`. |
+| [0030](0030-openbao-hvac-paramiko-clients.md) | Accepted | Every internal Python client that talks to OpenBao directly (`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`, `r2_read_watcher.py`) uses `hvac`, and `paramiko` where an SSH hop is needed, replacing hand-rolled `requests`/`subprocess`; whether they also share an implementation is a separate, later decision. |
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this

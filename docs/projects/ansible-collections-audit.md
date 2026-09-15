@@ -99,7 +99,7 @@ Every flagged role's actual tasks were read, not just counted:
   AppRole login + KV v2 read/write over raw `ansible.builtin.uri` — a
   *third* independent Vault client alongside the two already found in
   Python
-  ([`openbao-client-hvac-paramiko-adoption.md`](../decisions/drafts/openbao-client-hvac-paramiko-adoption.md)).
+  ([`0030-openbao-hvac-paramiko-clients.md`](../decisions/0030-openbao-hvac-paramiko-clients.md)).
   `community.hashi_vault` (built on `hvac`) has native
   `vault_login`/`vault_kv2_get`/`vault_kv2_write` modules that could
   replace all three. `molecule_helpers`' OpenBao test-target setup
@@ -127,7 +127,7 @@ Every flagged role's actual tasks were read, not just counted:
 New collection dependency. Covers `secrets` role's 3 production Vault
 tasks and `molecule_helpers`' test-side OpenBao setup. Worth building
 alongside — not instead of —
-[`openbao-client-hvac-paramiko-adoption.md`](../decisions/drafts/openbao-client-hvac-paramiko-adoption.md)'s
+[`0030-openbao-hvac-paramiko-clients.md`](../decisions/0030-openbao-hvac-paramiko-clients.md)'s
 Python-side `hvac` work, since both are the same underlying client
 library, just two different calling conventions (Ansible module vs.
 Python import). Needs a spike: does `community.hashi_vault`'s AppRole

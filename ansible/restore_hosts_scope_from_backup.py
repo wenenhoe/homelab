@@ -30,7 +30,7 @@ from pathlib import Path
 
 import yaml
 
-# cloud_credentials/openbao_client now live in tools/, not alongside
+# cloud_credentials/openbao_utils now live in tools/, not alongside
 # this script - see
 # docs/decisions/0031-tools-secrets-package-split.md.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))

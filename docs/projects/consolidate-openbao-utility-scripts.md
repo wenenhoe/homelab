@@ -2,13 +2,13 @@
 id: PROJ-consolidate-openbao-utility-scripts
 title: "Consolidate OpenBao utility scripts into tools/openbao_utils/"
 type: project
-status: not-started
+status: in-progress
 summary: "Rename tools/openbao_client/ to tools/openbao_utils/; move and rename bootstrap_secrets.py, audit_secrets.py, the two restore_*_from_backup.py scripts (merged), dump_vault_to_file_cache.py, and diff_vault_backups.py into it; move restore_all.py and molecule-test-all.sh into a new ansible/scripts/."
 ---
 
 # Consolidate OpenBao utility scripts into tools/openbao_utils/
 
-**Status:** Not started
+**Status:** In progress
 
 Renames `tools/openbao_client/` to `tools/openbao_utils/`, moves five
 scripts into it (merging two into one, shortening every name now that
@@ -25,7 +25,7 @@ code written against it.
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | Rename `tools/openbao_client/` → `tools/openbao_utils/` | Not started |
+| 1 | Rename `tools/openbao_client/` → `tools/openbao_utils/` | Done |
 | 2 | Move + rename `bootstrap_secrets.py` → `openbao_utils/bootstrap.py` | Not started |
 | 3 | Move + rename `audit_secrets.py` → `openbao_utils/audit.py` | Not started |
 | 4 | Merge both restore scripts → `openbao_utils/restore.py` | Not started |
@@ -37,13 +37,24 @@ code written against it.
 
 ### Stage 1 — Rename the package
 
-Every importer of `openbao_client.client` updates to `openbao_utils.client`:
-`tools/cloud_credentials/cache.py`, `ansible/bootstrap_secrets.py`
-(moving in Stage 2 anyway, but do this first so Stage 2 isn't also a
-rename-in-flight), both `docker/openbao/scripts/bao-*.sh`, and every
-test file. Do this stage alone first and re-verify green before
-touching file locations - isolates "did the rename work" from "did the
-move work" if something breaks.
+Done. Every importer of `openbao_utils.client` updated:
+`tools/cloud_credentials/cache.py`, `ansible/bootstrap_secrets.py`,
+`ansible/restore_hosts_scope_from_backup.py`'s stale comment,
+`docker/openbao/scripts/bao-login-from-controller.sh`'s stale comment
+(`bao-from-controller.sh` had none), and every test file - a single
+bulk substitution across all of them, since "openbao_client" never
+appears as a substring of anything else in this codebase (confirmed by
+grepping before touching anything). Verified live, not just under
+mocks: direct `openbao_utils.client` import, the full `cache.scoped()`
+chain, `bootstrap_secrets.py`, and `restore_hosts_scope_from_backup.py`
+all re-run end to end.
+
+Found and fixed a real, pre-existing gap while touching this file's CI
+trigger paths: `tools/openbao_utils/**` (then `openbao_client`) and
+`tools/utils/**` were never added as their own
+`python_unit_tests` trigger paths since Stages 3/6 created them -
+only incidentally covered if a paired test file also changed in the
+same PR. Added both, and updated `docs/ci.md`'s description to match.
 
 ### Stage 4 — Merge the restore scripts
 

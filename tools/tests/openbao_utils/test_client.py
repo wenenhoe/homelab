@@ -1,4 +1,4 @@
-"""Unit tests for openbao_client.client - the OpenBao/Vault-specific
+"""Unit tests for openbao_utils.client - the OpenBao/Vault-specific
 primitives (KV v2 read/write, AppRole login, the OpenBao URL itself).
 
 Run via `uv run pytest tools/tests/ -v`. Every Vault call is mocked;
@@ -20,7 +20,7 @@ import hvac
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from openbao_client import client
+from openbao_utils import client
 from utils import repo
 
 

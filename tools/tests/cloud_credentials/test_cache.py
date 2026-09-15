@@ -6,7 +6,7 @@ Only tests cache.py's own remaining logic (the leaf/rotation Vault-path
 taxonomy and scoped()'s session-caching convenience) - the generic
 primitives it calls into (fetch_root_cert, vault_login, vault_read,
 vault_write) are tested once, directly, in
-tools/tests/openbao_client/test_client.py.
+tools/tests/openbao_utils/test_client.py.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import hvac
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from cloud_credentials import cache
-from openbao_client import client as openbao_client_module
+from openbao_utils import client as openbao_utils_module
 from utils import repo as utils_repo_module
 
 
@@ -56,7 +56,7 @@ class SecretsDirTestCase(unittest.TestCase):
 class VaultLoginTests(SecretsDirTestCase):
     """cache._vault_login is just the role_id/secret_id file-reading
     and validation wrapper around the shared bare vault_login - see
-    tools/tests/openbao_client/test_client.py for the login call
+    tools/tests/openbao_utils/test_client.py for the login call
     itself."""
 
     def test_raises_system_exit_when_role_id_missing(self):
@@ -146,7 +146,7 @@ class ScopedReadWriteTests(_StubbedSessionTestCase):
         self.read_cache("backblaze-b2-write-access-key")
         self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="cloud_credentials/leaf/backblaze-b2-write-access-key",
-            mount_point=openbao_client_module.VAULT_KV_MOUNT,
+            mount_point=openbao_utils_module.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
         )
 
@@ -163,7 +163,7 @@ class ScopedReadWriteTests(_StubbedSessionTestCase):
         self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
             path="cloud_credentials/leaf/some-key",
             secret={"value": "the-value"},
-            mount_point=openbao_client_module.VAULT_KV_MOUNT,
+            mount_point=openbao_utils_module.VAULT_KV_MOUNT,
         )
 
     def test_require_cache_file_exits_with_message_when_missing(self):
@@ -185,7 +185,7 @@ class VaultPathHelperTests(_StubbedSessionTestCase):
         cache.read_vault_path("hosts/all/telegram/telegram-token")
         self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="hosts/all/telegram/telegram-token",
-            mount_point=openbao_client_module.VAULT_KV_MOUNT,
+            mount_point=openbao_utils_module.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
         )
 
@@ -194,7 +194,7 @@ class VaultPathHelperTests(_StubbedSessionTestCase):
         self.mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
             path="hosts/security/lldap-jwt-secret",
             secret={"value": "the-value"},
-            mount_point=openbao_client_module.VAULT_KV_MOUNT,
+            mount_point=openbao_utils_module.VAULT_KV_MOUNT,
         )
 
 

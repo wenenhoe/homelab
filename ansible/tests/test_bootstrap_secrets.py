@@ -3,9 +3,9 @@
 Run via `uv run pytest ansible/tests/ -v`. Every SSH/Vault call is
 mocked; nothing here touches a real `security` host or a real OpenBao.
 fetch_root_cert/vault_read/vault_write/the bare vault_login are
-openbao_client.client's own functions (imported directly, some
+openbao_utils.client's own functions (imported directly, some
 re-exported under the same name) - tested once, directly, in
-tools/tests/openbao_client/test_client.py. This file only tests
+tools/tests/openbao_utils/test_client.py. This file only tests
 bootstrap_secrets.py's own remaining logic: the registry/prompt
 handling, its own vault_login wrapper, and main()'s wiring.
 """
@@ -123,7 +123,7 @@ class PromptForValueTests(unittest.TestCase):
 
 class VaultLoginTests(SecretsDirTestCase):
     """bootstrap_secrets.vault_login is just the role_id/secret_id
-    file-reading and validation wrapper around openbao_client.client's
+    file-reading and validation wrapper around openbao_utils.client's
     shared bare vault_login - see that module's own tests for the
     login call itself."""
 

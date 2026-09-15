@@ -1,5 +1,5 @@
 """Generic repo-navigation and homelab-wide bootstrap helpers - none
-of this is OpenBao/Vault-specific, even though openbao_client.client
+of this is OpenBao/Vault-specific, even though openbao_utils.client
 is currently its only consumer. PROJECT_ROOT/SECRETS_DIR/main_domain()
 are used for main-domain and any other manual secret
 bootstrap_secrets.py prompts for, not just OpenBao's own
@@ -25,7 +25,7 @@ STEP_CA_CONTAINER = "step-ca"
 # Bounds both the SSH root-cert fetch and every Vault HTTP call built
 # on top of it - one number to reason about, not a fresh one per
 # caller. The SSH fetch previously had no timeout at all in either of
-# openbao_client.client's two original callers (the bug
+# openbao_utils.client's two original callers (the bug
 # docs/decisions/0030-openbao-hvac-paramiko-clients.md fixed).
 TIMEOUT_SECONDS = 10
 

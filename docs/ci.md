@@ -32,6 +32,7 @@ type in the repo:
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
 - `python_unit_tests` — `ansible/*.py`, `tools/cloud_credentials/**`,
+  `tools/openbao_utils/**`, `tools/utils/**`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
   `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
@@ -68,7 +69,7 @@ the SeaweedFS-specific case this generalizes from.
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |

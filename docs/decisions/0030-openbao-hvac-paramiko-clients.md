@@ -104,7 +104,7 @@ internal client uses, independent of how much code they share.
   implement the same login/read/write bodies - resolved by
   [ADR 0031](0031-tools-secrets-package-split.md), which extracted the
   shared implementation into `tools/utils/repo.py`/
-  `tools/openbao_client/client.py`. `r2_read_watcher.py` still keeps
+  `tools/openbao_utils/client.py`. `r2_read_watcher.py` still keeps
   its own independent copy, deliberately, per that decision's own
   reasoning (its hand-installed single-file deployment can't cleanly
   share a package).

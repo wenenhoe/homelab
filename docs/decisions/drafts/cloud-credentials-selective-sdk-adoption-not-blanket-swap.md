@@ -95,8 +95,8 @@ OpenBao/SSH client is a separate decision — see
 
 ## Assumptions
 
-- **Claim:** `IdentityDomainsClient`'s `create_my_customer_secret_key`/
-  `delete_my_customer_secret_key` reproduce the exact request/response
+- **Claim:** `IdentityDomainsClient`'s `create_customer_secret_key`/
+  `delete_customer_secret_key` reproduce the exact request/response
   shape [0016](../0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)
   confirmed live against the raw SCIM API (`user.ocid` not `value`,
   `expiresOn` immutability, a genuinely populated `accessKey`/
@@ -108,6 +108,26 @@ OpenBao/SSH client is a separate decision — see
   **Checked by:** a spike creating and deleting one real customer
   secret key through the SDK against the actual tenancy, diffed against
   `leaf_keys/oci.py`'s current behavior.
+  **Status:** confirmed live — a spike creating and deleting one real
+  customer secret key through `oci_identity_domains_client()` against
+  the actual tenancy succeeded: populated `access_key`/`secret_key`, a
+  plausible `expires_on` ~90 days out, and clean delete. The method
+  pair is `create_customer_secret_key`/`delete_customer_secret_key`,
+  not the `create_my_...`/`delete_my_...` self-service variants this
+  draft originally named (those operate on the caller's own resource;
+  this repo's Confidential Application targets an arbitrary leaf
+  user's key, so the non-`my` pair is the correct one regardless).
+  **New finding, not originally in this draft:** `IdentityDomainsClient`
+  has no built-in bearer-token auth mode — its `signer` only implements
+  OCI's API-key Signature V1 (`oci.signer.Signer`), with no equivalent
+  for this SCIM app's OAuth2 client-credentials token. Stage 2's
+  implementation adds a `requests.auth.AuthBase` subclass injecting the
+  bearer token instead, since `IdentityDomainsClient.__init__` accepts
+  a custom `signer=` — this is exactly what the live spike exercised.
+  **Second new finding:** there is no SDK method for
+  `AppClientSecretRegenerator` at all. `rotate_oci_rotation_key`'s
+  secret-regeneration call stays on raw `requests` under every option
+  (A/B/C) — this is a hard SDK-coverage gap, not a choice.
 - **Claim:** `b2sdk` exposes B2's exact capability set (bucket
   restriction rejection on rotation keys, `listAllBucketNames`,
   `readFiles` for `HeadObject`) without abstracting it behind an

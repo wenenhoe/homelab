@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import requests
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -45,6 +47,26 @@ class OciScimTests(FakeVaultTestCase):
         session, domain_url = oci_scim.oci_scim_session()
         self.assertEqual(domain_url, "https://idcs-example.identity.oraclecloud.com")
         self.assertEqual(session.headers["Authorization"], "Bearer tok")
+
+    @patch.object(oci_scim.requests, "post")
+    def test_identity_domains_client_targets_the_cached_domain_url(self, mock_post):
+        mock_post.return_value = MagicMock(raise_for_status=lambda: None, json=lambda: {"access_token": "tok"})
+        client = oci_scim.oci_identity_domains_client()
+        self.assertEqual(client.base_client.endpoint, "https://idcs-example.identity.oraclecloud.com")
+
+    def test_bearer_token_signer_sets_authorization_header_not_oci_signature(self):
+        """The one property that matters here: IdentityDomainsClient's
+        default Signer does OCI API-key request signing, which this
+        SCIM OAuth2 flow has no key for - the custom signer must
+        replace that entirely with a plain bearer header, not add to
+        whatever the default signer would have done."""
+        request = requests.Request(method="POST", url="https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys").prepare()
+
+        signed = oci_scim._BearerTokenSigner("tok")(request)
+
+        self.assertEqual(signed.headers["Authorization"], "Bearer tok")
+        self.assertEqual(signed.headers["Content-Type"], "application/scim+json")
+        self.assertNotIn("Signature", signed.headers.get("Authorization", ""))
 
 
 if __name__ == "__main__":

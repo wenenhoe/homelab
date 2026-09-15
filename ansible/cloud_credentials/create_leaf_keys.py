@@ -47,11 +47,27 @@ from __future__ import annotations
 import argparse
 import sys
 
+import oci.exceptions
 import requests
 
 from cloud_credentials.leaf_keys.b2 import create_b2, rotate_b2
 from cloud_credentials.leaf_keys.oci import create_oci, rotate_oci
 from cloud_credentials.leaf_keys.r2 import create_r2, rotate_r2
+
+# Each provider now raises its own client's error type instead of a
+# uniform requests.HTTPError (oci.identity_domains, b2sdk - Stages 2/3,
+# docs/projects/cloud-credentials-hardening.md). Only requests.HTTPError
+# carries a separate .response with a status code/body worth pulling
+# apart; str() on the SDK exceptions already includes the equivalent
+# detail (oci.exceptions.ServiceError's own __str__, b2sdk.B2Error
+# subclasses' message).
+_PROVIDER_ERRORS = (requests.HTTPError, oci.exceptions.ServiceError, B2Error)
+
+
+def _format_provider_error(exc: Exception) -> str:
+    if isinstance(exc, requests.HTTPError):
+        return f"{exc.response.status_code} {exc.response.text}"
+    return str(exc)
 
 
 def main() -> int:
@@ -76,8 +92,8 @@ def main() -> int:
         rotate_fn = {"r2": rotate_r2, "b2": rotate_b2, "oci": rotate_oci}[args.provider]
         try:
             ok = rotate_fn(leaves)
-        except requests.HTTPError as exc:
-            print(f"{args.provider}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
+        except _PROVIDER_ERRORS as exc:
+            print(f"{args.provider}: request failed: {_format_provider_error(exc)}", file=sys.stderr)
             return 1
         return 0 if ok else 1
 
@@ -86,8 +102,8 @@ def main() -> int:
     for name, fn in targets.items():
         try:
             fn()
-        except requests.HTTPError as exc:
-            print(f"{name}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
+        except _PROVIDER_ERRORS as exc:
+            print(f"{name}: request failed: {_format_provider_error(exc)}", file=sys.stderr)
             return 1
     return 0
 

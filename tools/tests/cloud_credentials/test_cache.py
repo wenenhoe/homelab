@@ -24,24 +24,25 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from cloud_credentials import cache
 from openbao_client import client as openbao_client_module
+from utils import repo as utils_repo_module
 
 
 class SecretsDirTestCase(unittest.TestCase):
     """Base for anything touching SECRETS_DIR - main-domain and the
     controller AppRole credential are always read from here, regardless
-    of which Vault path is under test. Patches openbao_client.client's
-    own SECRETS_DIR, not cache's - cache.py has no local reference to
-    it; read_bootstrap_file() (which _vault_login below calls) uses
-    the shared module's own copy internally, regardless of who calls
-    it. Also resets the process-lifetime session singleton, since it
-    would otherwise leak a mocked client/ca_path across tests that
-    don't expect one.
+    of which Vault path is under test. Patches utils.repo's own
+    SECRETS_DIR, not cache's - cache.py has no local reference to it;
+    read_bootstrap_file() (which _vault_login below calls) uses that
+    module's own copy internally, regardless of who calls it. Also
+    resets the process-lifetime session singleton, since it would
+    otherwise leak a mocked client/ca_path across tests that don't
+    expect one.
     """
 
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        dir_patcher = patch.object(openbao_client_module, "SECRETS_DIR", self.tmp)
+        dir_patcher = patch.object(utils_repo_module, "SECRETS_DIR", self.tmp)
         dir_patcher.start()
         self.addCleanup(dir_patcher.stop)
         session_patcher = patch.object(cache, "_session", None)

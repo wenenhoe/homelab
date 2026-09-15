@@ -27,7 +27,7 @@ set -eu
 repo_root=$(cd "$(dirname "$0")/../../.." && pwd)
 
 ssh_info=$(cd "$repo_root/tools" && python3 -c "
-from openbao_client.client import security_ssh_target, main_domain
+from utils.repo import security_ssh_target, main_domain
 user, host, key_path = security_ssh_target()
 print(user)
 print(host)

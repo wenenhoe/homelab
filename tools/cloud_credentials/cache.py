@@ -10,7 +10,7 @@ a direct read for the rare caller needing a Vault path outside that
 taxonomy (see its own docstring).
 
 Session/TLS-trust mechanics (fetch step-ca's root cert, log in via
-AppRole, read/write KV v2) come from tools.openbao_client.client -
+AppRole, read/write KV v2) come from tools.utils.repo/tools.openbao_client.client -
 shared with bootstrap_secrets.py, no longer duplicated between them.
 This module's own job is just the leaf/rotation Vault-path taxonomy
 and scoped()'s session-caching convenience on top of those primitives.
@@ -32,16 +32,14 @@ import tempfile
 from pathlib import Path
 
 import hvac
-from openbao_client.client import (
+from openbao_client.client import openbao_base_url, vault_read, vault_write
+from openbao_client.client import vault_login as _bare_vault_login
+from utils.repo import (
     PROJECT_ROOT,  # noqa: F401 - re-exported: dump_vault_to_file_cache.py still imports this from here (internal, unlike restore_hosts_scope_from_backup.py's now-fixed external one)
     TIMEOUT_SECONDS,
     fetch_root_cert,
-    openbao_base_url,
     read_bootstrap_file,
-    vault_read,
-    vault_write,
 )
-from openbao_client.client import vault_login as _bare_vault_login
 
 _VALID_CATEGORIES = ("leaf", "rotation")
 

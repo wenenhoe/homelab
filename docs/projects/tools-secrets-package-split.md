@@ -36,6 +36,7 @@ since closed - its actual hvac/paramiko library decision is
 | 3 | Build `tools/openbao_client/`: extract the generic OpenBao/host-resolution helpers | Done |
 | 4 | Re-point the misplaced-import consumers at `tools/openbao_client/` | Done |
 | 5 | Dedicated test coverage for `tools/openbao_client/` itself | Done |
+| 6 | Split `tools/utils/` out of `tools/openbao_client/` for the non-OpenBao-specific pieces | Done |
 
 ## Stage detail
 
@@ -143,7 +144,8 @@ they should eventually import from instead.
 
 Done. `docker/openbao/scripts/bao-login-from-controller.sh`/
 `bao-from-controller.sh` now import `security_ssh_target`/`main_domain`
-from `openbao_client.client` directly, and
+directly (from `utils.repo` as of Stage 6 below; originally
+`openbao_client.client`, before that split), and
 `restore_hosts_scope_from_backup.py` now imports `PROJECT_ROOT` from
 there too - `read_vault_path`/`write_vault_path` stay imported from
 `cloud_credentials.cache`, correctly: they're `cache.py`'s own
@@ -164,24 +166,50 @@ _main_domain` started raising `ImportError` the moment Stage 3 landed,
 confirmed live before this stage's fix. Anyone who merged Stage 3 on
 its own had two broken scripts until this stage closed the gap.
 
+### Stage 6 — Split `tools/utils/` out of `tools/openbao_client/`
+
+Done. Auditing `openbao_client.client`'s actual contents (not
+assumed) found most of it was never OpenBao-specific at all - only
+`VAULT_KV_MOUNT`, `openbao_base_url()`, `vault_login()`, `vault_read()`,
+`vault_write()` genuinely touch OpenBao's API or build its URL.
+Everything else - `PROJECT_ROOT`, `SECRETS_DIR`, `INVENTORY_PATH`,
+`read_bootstrap_file()`, `main_domain()`, `security_ssh_target()`,
+`fetch_root_cert()`, `TIMEOUT_SECONDS` - is generic repo-navigation
+and SSH/cert-fetching infrastructure that happened to accrete there
+because OpenBao was its first consumer, the same story that motivated
+this whole project in the first place. Moved to new
+`tools/utils/repo.py`; `openbao_client.client` now imports
+`main_domain` from it for `openbao_base_url()`'s own use.
+
+Checked for the same class of naming hazard that renamed
+`tools/secrets/` to `tools/openbao_client/` earlier in this project,
+before writing any code against the name: no installed dependency
+resolves a bare `import utils` today, and none of `ansible-core`/
+`docker`/`requests`/`oci`/`b2sdk`/`hvac`/`paramiko` would plausibly
+ship one - confirmed live, not assumed.
+
+Every caller re-pointed and re-verified live, not just under mocked
+tests: `cache.py`, `bootstrap_secrets.py`,
+`restore_hosts_scope_from_backup.py`, and both
+`docker/openbao/scripts/bao-*.sh` scripts. Test suites split the same
+way the code did - `tools/tests/openbao_client/test_client.py` slimmed
+to just the OpenBao-specific functions, new
+`tools/tests/utils/test_repo.py` covers the rest, net zero tests lost
+or duplicated (61 before the split, 61 after, just regrouped).
+
 ## Open items
 
-- Whether `PROJECT_ROOT`'s four independent redefinitions
-  (`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`,
-  `restore_all.py`) all centralize on `tools/openbao_client/`'s copy, or only
-  the ones that already import from it for other reasons - not
-  decided; a `tools/`-root-level location might fit better than
-  `tools/openbao_client/` specifically, since `restore_all.py`/
-  `audit_secrets.py` have nothing to do with secrets. Revisit once
-  Stage 2's move settles what else lives at the `tools/` root.
-- Whether `docker/openbao/scripts/`'s shell scripts and
-  `openbao_backup/snapshot-push.sh.j2` get rewritten in Python against
-  `tools/openbao_client/` directly, dropping their `python3 -c "from ..."`
-  one-liner pattern entirely - raised in
-  [`openbao-native-cli-not-docker-based-access.md`](../decisions/drafts/openbao-native-cli-not-docker-based-access.md)
-  and [`openbao-cli-standardization.md`](openbao-cli-standardization.md),
-  not decided here; this project just needs to leave `tools/openbao_client/`
-  in a shape that supports it either way.
+- `PROJECT_ROOT`'s four independent redefinitions are down to two:
+  `cache.py`/`bootstrap_secrets.py` both now import it from
+  `tools/utils/repo.py` (Stage 6). Whether `audit_secrets.py`/
+  `restore_all.py` also switch to importing it, instead of each
+  independently redefining `Path(__file__).resolve().parent.parent`,
+  is still open - genuinely tied to
+  [`ansible-root-scripts-into-scripts-dir.md`](../decisions/drafts/ansible-root-scripts-into-scripts-dir.md)'s
+  own decision, since both files' own `PROJECT_ROOT` line needs its
+  parent count bumped either way if that move happens; deciding
+  whether to import instead of redefine at the same time avoids
+  touching that line twice.
 - Whether `bootstrap_secrets.py`/`restore_hosts_scope_from_backup.py`/
   `restore_cloud_credentials_from_backup.py`/`restore_all.py` should
   also physically move to `tools/`, given they now import from it -
@@ -191,9 +219,11 @@ its own had two broken scripts until this stage closed the gap.
   directly), which is genuinely `ansible/`'s domain, not generic
   secrets tooling that happens to sit there. Importing from `tools/`
   isn't wrong ownership here - it's the same relationship `cache.py`
-  itself has with `openbao_client`. `audit_secrets.py` is the weaker
-  case (no deploy-lifecycle coupling), left alone for now rather than
-  moved on its own; revisit if this comes up again.
+  itself has with `openbao_client`. Whether they (plus `audit_secrets.py`)
+  should instead move into their own `ansible/scripts/` subdirectory -
+  a different question, staying inside `ansible/` either way - is
+  [`ansible-root-scripts-into-scripts-dir.md`](../decisions/drafts/ansible-root-scripts-into-scripts-dir.md)'s
+  decision, not this project's.
 
 ## Closing checklist
 

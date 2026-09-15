@@ -22,7 +22,7 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import bootstrap_secrets
-from openbao_client import client as openbao_client_module
+from utils import repo as utils_repo_module
 
 
 class SecretsDirTestCase(unittest.TestCase):
@@ -30,10 +30,10 @@ class SecretsDirTestCase(unittest.TestCase):
     also needs this, since main_domain/role_id/secret_id are always read
     from here regardless of which path is under test. Patches both
     bootstrap_secrets' own imported SECRETS_DIR (used directly by
-    main()/read_cache_file) and openbao_client.client's own copy (used
-    internally by read_bootstrap_file(), which this file's vault_login
-    wrapper calls) - both need to agree, since they're two separate
-    names bound to what was originally the same object at import time.
+    main()/read_cache_file) and utils.repo's own copy (used internally
+    by read_bootstrap_file(), which this file's vault_login wrapper
+    calls) - both need to agree, since they're two separate names
+    bound to what was originally the same object at import time.
     """
 
     def setUp(self):
@@ -42,7 +42,7 @@ class SecretsDirTestCase(unittest.TestCase):
         patcher = patch.object(bootstrap_secrets, "SECRETS_DIR", self.tmp)
         patcher.start()
         self.addCleanup(patcher.stop)
-        shared_patcher = patch.object(openbao_client_module, "SECRETS_DIR", self.tmp)
+        shared_patcher = patch.object(utils_repo_module, "SECRETS_DIR", self.tmp)
         shared_patcher.start()
         self.addCleanup(shared_patcher.stop)
 

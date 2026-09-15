@@ -49,22 +49,14 @@ from pathlib import Path
 import hvac
 import yaml
 
-# cloud_credentials/openbao_client now live in tools/, not alongside
-# this script - see
+# cloud_credentials/openbao_client/utils now live in tools/, not
+# alongside this script - see
 # docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from openbao_client.client import (
-    PROJECT_ROOT,
-    SECRETS_DIR,
-    TIMEOUT_SECONDS,
-    fetch_root_cert,
-    openbao_base_url,
-    read_bootstrap_file,
-    vault_read,
-    vault_write,
-)
+from openbao_client.client import openbao_base_url, vault_read, vault_write
 from openbao_client.client import vault_login as _bare_vault_login
+from utils.repo import PROJECT_ROOT, SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
 
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
 

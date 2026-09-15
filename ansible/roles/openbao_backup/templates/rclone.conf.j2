@@ -11,7 +11,7 @@
 # before every copy and falls back to a real CreateBucket call if that
 # check itself gets denied — which it does here, since this write leaf
 # has no bucket-admin capability on either provider (by design, see
-# cloud-credential-creation.md). ansible/cloud_credentials/verify.py's
+# cloud-credential-creation.md). tools/cloud_credentials/verify.py's
 # own verification rclone.conf sets this for exactly this reason; the
 # bucket itself must already exist by hand regardless — see
 # docs/openbao-backup-restore.md's "Before first use".

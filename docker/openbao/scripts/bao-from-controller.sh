@@ -26,7 +26,7 @@ set -eu
 
 repo_root=$(cd "$(dirname "$0")/../../.." && pwd)
 
-ssh_info=$(cd "$repo_root/ansible" && python3 -c "
+ssh_info=$(cd "$repo_root/tools" && python3 -c "
 from cloud_credentials.cache import _security_ssh_target, _main_domain
 user, host, key_path = _security_ssh_target()
 print(user)

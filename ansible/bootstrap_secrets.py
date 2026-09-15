@@ -47,6 +47,10 @@ from pathlib import Path
 import hvac
 import paramiko
 import yaml
+
+# cloud_credentials now lives in tools/, not alongside this script -
+# see docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent

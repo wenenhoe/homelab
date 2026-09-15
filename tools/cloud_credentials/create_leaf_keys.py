@@ -1,0 +1,113 @@
+#!/usr/bin/env python3
+"""Create the 6 cloud_sync credentials (write+read x R2/B2/OCI) via each
+provider's HTTP API instead of a console click-through, and cache them
+in OpenBao at the same `cloud_credentials/leaf/<registry-key>` Vault
+paths `cache.py`'s `scoped("leaf")` always writes to (Track A stage 5).
+Entries stay format: manual in secrets_registry.yaml — this script is
+just an automated way to fill them in; `bootstrap_secrets.py` itself
+deliberately excludes these names from its own prompting (see that
+script's docstring). See docs/cloud-credential-creation.md for the
+exact grant each leaf gets, provider-by-provider.
+
+B2 and OCI authenticate using a rotation-key credential — narrower
+than the account's master credential, created once by
+create_rotation_keys.py — never the raw master key itself. If a
+rotation-key cache file is missing for either, this script tells you
+which `create_rotation_keys --provider <x>` to run first.
+
+R2 caches its admin token too (r2_rotation_token), but it's a
+materially different credential than B2's/OCI's rotation keys: it can
+mint a token with ANY permission the account holder has, not just
+R2-scoped ones, because Cloudflare has no equivalent of "manage tokens
+but only for R2 permissions" (confirmed live: the tokens API rejects
+granting token-management permission to any API-created token, so this
+can only be a human-created Console token in the first place — caching
+it doesn't change what it can do, only how often you have to paste it
+in). This is a deliberate, accepted risk — see
+docs/cloud-credential-creation.md's R2 section for the trade-off and
+what's expected to narrow it later (a secrets-manager migration, not
+this script).
+
+Safe to re-run: a credential whose both cache files already exist is
+left untouched, same convention as bootstrap_secrets.py.
+
+To rotate a leaf key with verify-before-revoke of the old one (the new
+key must actually pass a live read/write check over the same rclone
+S3-compatible path production uses before the old key is touched), use
+--rotate instead of deleting cache files for all three providers now —
+see docs/cloud-credential-creation.md's Rotation section.
+
+Usage (run from tools/):
+    python3 -m cloud_credentials.create_leaf_keys [--provider {r2,b2,oci,all}]
+    python3 -m cloud_credentials.create_leaf_keys --provider {r2,b2,oci} --rotate {write,read,both}
+"""
+
+from __future__ import annotations
+
+import argparse
+import sys
+
+import oci.exceptions
+import requests
+from b2sdk.v2.exception import B2Error
+
+from cloud_credentials.leaf_keys.b2 import create_b2, rotate_b2
+from cloud_credentials.leaf_keys.oci import create_oci, rotate_oci
+from cloud_credentials.leaf_keys.r2 import create_r2, rotate_r2
+
+# Each provider now raises its own client's error type instead of a
+# uniform requests.HTTPError (oci.identity_domains, b2sdk - Stages 2/3,
+# docs/projects/cloud-credentials-hardening.md). Only requests.HTTPError
+# carries a separate .response with a status code/body worth pulling
+# apart; str() on the SDK exceptions already includes the equivalent
+# detail (oci.exceptions.ServiceError's own __str__, b2sdk.B2Error
+# subclasses' message).
+_PROVIDER_ERRORS = (requests.HTTPError, oci.exceptions.ServiceError, B2Error)
+
+
+def _format_provider_error(exc: Exception) -> str:
+    if isinstance(exc, requests.HTTPError):
+        return f"{exc.response.status_code} {exc.response.text}"
+    return str(exc)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--provider", choices=["r2", "b2", "oci", "all"], default="all")
+    parser.add_argument(
+        "--rotate",
+        choices=["write", "read", "both"],
+        help=(
+            "Rotate a leaf key: create a new one, verify it over the same rclone "
+            "S3-compatible path production uses, only then revoke the old one. "
+            "Requires --provider r2, b2, or oci (not all) — see this script's "
+            "module docstring."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.rotate:
+        if args.provider not in ("r2", "b2", "oci"):
+            parser.error("--rotate requires --provider r2, b2, or oci")
+        leaves = ["write", "read"] if args.rotate == "both" else [args.rotate]
+        rotate_fn = {"r2": rotate_r2, "b2": rotate_b2, "oci": rotate_oci}[args.provider]
+        try:
+            ok = rotate_fn(leaves)
+        except _PROVIDER_ERRORS as exc:
+            print(f"{args.provider}: request failed: {_format_provider_error(exc)}", file=sys.stderr)
+            return 1
+        return 0 if ok else 1
+
+    providers = {"r2": create_r2, "b2": create_b2, "oci": create_oci}
+    targets = providers if args.provider == "all" else {args.provider: providers[args.provider]}
+    for name, fn in targets.items():
+        try:
+            fn()
+        except _PROVIDER_ERRORS as exc:
+            print(f"{name}: request failed: {_format_provider_error(exc)}", file=sys.stderr)
+            return 1
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

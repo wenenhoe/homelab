@@ -31,6 +31,17 @@ same nanosecond" apart.
 Requires Python >=3.14 for the unparenthesized `except A, B:` below
 (PEP change: allowed without an `as` clause). Fails to import on
 earlier versions.
+
+Uses hvac for the OpenBao client - see
+docs/projects/openbao-python-client-hardening.md, Stage 4. No
+paramiko/SSH involved here, unlike cache.py/bootstrap_secrets.py:
+this runs directly on `security` itself (see OPENBAO_BASE_URL below),
+so there's no remote root-cert fetch to make - `verify=False` is the
+loopback TLS trust, not a paramiko host-key one. Also no reconnect/
+token-renewal concern: the Vault login happens once at startup to
+fetch Telegram's secrets, and `watch()` below never receives or reuses
+that token - a stale/expired token past that point is irrelevant since
+nothing ever presents it again.
 """
 
 from __future__ import annotations
@@ -41,17 +52,22 @@ import subprocess
 import sys
 from typing import Any
 
+import hvac
 import requests
 import urllib3
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # verify=False below is deliberate (loopback), silence its per-request warning
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # hvac.Client(verify=False) below is deliberate (loopback), silence its warning
 
 TARGET_PATH = "secret/data/cloud_credentials/rotation/_rotation-key-cloudflare-r2-token"
 OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/openbao-r2-read-watcher.md
 ROLE_ID_PATH = "/etc/r2-read-watcher/role_id"
 SECRET_ID_PATH = "/etc/r2-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
 TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021
+VAULT_KV_MOUNT = "secret"
 STATE_PATH = "/var/lib/r2-read-watcher/state.json"
+# Bounds the hvac.Client - see cloud_credentials/cache.py's identical
+# constant/comment.
+_TIMEOUT_SECONDS = 10
 
 
 def match_r2_read(raw_line: str) -> dict[str, Any] | None:
@@ -110,28 +126,23 @@ def _save_state(path: str, match: dict[str, Any]) -> None:
     os.replace(tmp_path, path)
 
 
-def _vault_login(role_id: str, secret_id: str) -> str:
-    resp = requests.post(
-        f"{OPENBAO_BASE_URL}/v1/auth/approle/login",
-        json={"role_id": role_id, "secret_id": secret_id},
-        verify=False,  # noqa: S501 - loopback, same host, see module docstring
-        timeout=10,
-    )
-    resp.raise_for_status()
-    return resp.json()["auth"]["client_token"]
+def _vault_login(client: hvac.Client, role_id: str, secret_id: str) -> None:
+    client.auth.approle.login(role_id=role_id, secret_id=secret_id)
 
 
-def _read_vault_secret(token: str, name: str) -> str | None:
-    resp = requests.get(
-        f"{OPENBAO_BASE_URL}/v1/secret/data/{TELEGRAM_VAULT_SCOPE}/{name}",
-        headers={"X-Vault-Token": token},
-        verify=False,  # noqa: S501 - loopback, same host, see module docstring
-        timeout=10,
-    )
-    if resp.status_code == 404:
+def _read_vault_secret(client: hvac.Client, name: str) -> str | None:
+    try:
+        resp = client.secrets.kv.v2.read_secret_version(
+            path=f"{TELEGRAM_VAULT_SCOPE}/{name}",
+            mount_point=VAULT_KV_MOUNT,
+            # See cloud_credentials/cache.py's identical call/comment -
+            # preserves current behavior, silences hvac's v3.0.0
+            # default-change warning.
+            raise_on_deleted_version=True,
+        )
+    except hvac.exceptions.InvalidPath:
         return None
-    resp.raise_for_status()
-    return resp.json()["data"]["data"]["value"]
+    return resp["data"]["data"]["value"]
 
 
 def _escape_telegram_html(text: str) -> str:
@@ -164,16 +175,16 @@ def send_alert(telegram: dict[str, str], match: dict[str, Any]) -> None:
         print(f"telegram: alert send failed: {exc}", file=sys.stderr)
 
 
-def _fetch_telegram_secrets(token: str) -> dict[str, str] | None:
-    tg_token = _read_vault_secret(token, "telegram-token")
-    chat_id = _read_vault_secret(token, "telegram-chat-id")
+def _fetch_telegram_secrets(client: hvac.Client) -> dict[str, str] | None:
+    tg_token = _read_vault_secret(client, "telegram-token")
+    chat_id = _read_vault_secret(client, "telegram-chat-id")
     if not tg_token or not chat_id:
         print("telegram-token/telegram-chat-id not cached - watcher will run but can't alert", file=sys.stderr)
         return None
     return {
         "token": tg_token,
         "chat_id": chat_id,
-        "topic_id": _read_vault_secret(token, "telegram-topic-id-backups") or "",
+        "topic_id": _read_vault_secret(client, "telegram-topic-id-backups") or "",
     }
 
 
@@ -211,8 +222,9 @@ def watch(telegram: dict[str, str] | None, prior_state: dict[str, str] | None) -
 def main() -> int:
     role_id = _read_file(ROLE_ID_PATH)
     secret_id = _read_file(SECRET_ID_PATH)
-    token = _vault_login(role_id, secret_id)
-    telegram = _fetch_telegram_secrets(token)
+    client = hvac.Client(url=OPENBAO_BASE_URL, verify=False, timeout=_TIMEOUT_SECONDS)
+    _vault_login(client, role_id, secret_id)
+    telegram = _fetch_telegram_secrets(client)
     prior_state = _load_state(STATE_PATH)
     return watch(telegram, prior_state)
 

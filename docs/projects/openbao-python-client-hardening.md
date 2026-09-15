@@ -27,7 +27,7 @@ this doc tracks build status only.
 | 1 | `cache.py` → `hvac` + `paramiko` | Done |
 | 2 | `bootstrap_secrets.py` → same swap | Done |
 | 3 | `audit_secrets.py`'s Vault calls → `hvac` | Done |
-| 4 | `r2_read_watcher.py` → `hvac`, plus its own reconnect/token-renewal spike | Not started |
+| 4 | `r2_read_watcher.py` → `hvac` | Done |
 | 5 | Extract a shared helper module (only if the draft's Option B wins) + re-baseline stage 1/2's tests against it | Not started |
 
 ## Stage detail
@@ -69,10 +69,27 @@ than the scripts it audits.
 
 ### Stage 4 — `r2_read_watcher.py`
 
-Standing process, not a one-shot script — needs its own spike
-(reconnect-with-backoff, token renewal before expiry) rather than
-inheriting Stage 1's one-shot-script spike. Independent of whichever
-option (A/B/C) the draft settles on for the other three files.
+Done. The project doc's original premise for this stage - needing its
+own reconnect-with-backoff/token-renewal spike, since it's a standing
+process - didn't hold once the actual code was read: Vault login
+happens once at startup to fetch Telegram's secrets, and `watch()`'s
+long-running `docker logs -f` loop never receives or reuses that
+token, so a token expiring hours or months later is irrelevant. No
+SSH/paramiko either - this runs on `security` itself over loopback,
+unlike `cache.py`/`bootstrap_secrets.py`.
+
+The real risk here was different: this script runs under
+`/usr/bin/python3` (system Python, hand-installed per
+[`openbao-r2-read-watcher.md`](../openbao-r2-read-watcher.md), not the
+`uv`-managed environment the rest of the repo uses), so `hvac` has to
+be installed there separately. Confirmed live which package version
+that actually gets: Ubuntu 26.04's (`security`'s release) `apt`
+`python3-hvac` is 2.3.0, satisfying `pyproject.toml`'s `hvac>=2.3`
+floor and already including `raise_on_deleted_version` - but the same
+package is a much older 0.11.2 on 22.04/24.04, which predates that
+parameter and would have failed at runtime. The install doc now
+documents the `apt install python3-hvac` step and this version
+constraint explicitly.
 
 ## Open items
 

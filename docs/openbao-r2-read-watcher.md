@@ -43,7 +43,21 @@ picks up from there.
    sudo chmod 700 /etc/r2-read-watcher
    ```
 
-3. Cache the AppRole credentials (role_id/secret_id from step 7 of the
+3. Install `hvac` for the system Python this runs under - apt, not
+   pip, matching `ansible-collections-audit.md`'s `boto3`-on-`storage`
+   convention rather than fighting PEP 668's externally-managed-
+   environment guard. Confirmed on 26.04 (`resolute`): `python3-hvac`
+   is 2.3.0, satisfying `pyproject.toml`'s `hvac>=2.3` floor and
+   already including `raise_on_deleted_version` (this script's own
+   `_read_vault_secret` uses it). Re-check the package version if
+   `security` ever moves to a different release - it's much older on
+   22.04/24.04 (0.11.2).
+
+   ```sh
+   ssh security 'sudo apt install python3-hvac'
+   ```
+
+4. Cache the AppRole credentials (role_id/secret_id from step 7 of the
    reinit runbook):
 
    ```sh
@@ -52,7 +66,7 @@ picks up from there.
    sudo chmod 600 /etc/r2-read-watcher/role_id /etc/r2-read-watcher/secret_id
    ```
 
-4. Create the heartbeat's push monitor in Kuma's own UI (same one-time
+5. Create the heartbeat's push monitor in Kuma's own UI (same one-time
    step every `uptime_kuma_push` consumer needs — see
    [`uptime-kuma.md`](uptime-kuma.md)'s "One-time setup"), then cache
    its URL:
@@ -63,7 +77,7 @@ picks up from there.
    sudo chmod 600 /etc/uptime-kuma-push/uptime-kuma-push-r2-read-watcher.env
    ```
 
-5. Enable and start everything:
+6. Enable and start everything:
 
    ```sh
    sudo systemctl daemon-reload
@@ -71,7 +85,7 @@ picks up from there.
    sudo systemctl enable --now r2-read-watcher-heartbeat.timer
    ```
 
-6. Confirm it's actually alerting, not just running — trigger a real
+7. Confirm it's actually alerting, not just running — trigger a real
    read and check both the journal and Telegram:
 
    ```sh

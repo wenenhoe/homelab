@@ -16,7 +16,9 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
+
+import hvac
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "docker" / "openbao" / "watcher"))
 
@@ -148,6 +150,103 @@ class WatchTests(unittest.TestCase):
             watcher.watch(None, None)
 
         mock_send.assert_not_called()
+
+
+class VaultLoginTests(unittest.TestCase):
+    def test_logs_in_with_the_given_role_and_secret_id(self):
+        mock_client = MagicMock()
+
+        watcher._vault_login(mock_client, "some-role-id", "some-secret-id")
+
+        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
+
+
+class ReadVaultSecretTests(unittest.TestCase):
+    def setUp(self):
+        self.mock_client = MagicMock()
+
+    def test_returns_none_on_invalid_path(self):
+        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
+        self.assertIsNone(watcher._read_vault_secret(self.mock_client, "telegram-token"))
+
+    def test_returns_value_on_success(self):
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-token"}}}
+        self.assertEqual(watcher._read_vault_secret(self.mock_client, "telegram-token"), "the-token")
+
+    def test_uses_the_telegram_scope_and_mount(self):
+        self.mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+        watcher._read_vault_secret(self.mock_client, "telegram-token")
+        self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            path="hosts/all/telegram/telegram-token",
+            mount_point=watcher.VAULT_KV_MOUNT,
+            raise_on_deleted_version=True,
+        )
+
+
+class FetchTelegramSecretsTests(unittest.TestCase):
+    def setUp(self):
+        self.mock_client = MagicMock()
+
+    def _stub_reads(self, values: dict[str, str | None]) -> None:
+        def fake_read_secret_version(path: str, **_: object) -> dict:
+            name = path.rsplit("/", 1)[-1]
+            if values.get(name) is None:
+                raise hvac.exceptions.InvalidPath
+            return {"data": {"data": {"value": values[name]}}}
+
+        self.mock_client.secrets.kv.v2.read_secret_version.side_effect = fake_read_secret_version
+
+    def test_returns_none_when_token_missing(self):
+        self._stub_reads({"telegram-token": None, "telegram-chat-id": "c"})
+        self.assertIsNone(watcher._fetch_telegram_secrets(self.mock_client))
+
+    def test_returns_none_when_chat_id_missing(self):
+        self._stub_reads({"telegram-token": "t", "telegram-chat-id": None})
+        self.assertIsNone(watcher._fetch_telegram_secrets(self.mock_client))
+
+    def test_returns_secrets_with_empty_topic_id_when_absent(self):
+        self._stub_reads({"telegram-token": "t", "telegram-chat-id": "c", "telegram-topic-id-backups": None})
+        secrets = watcher._fetch_telegram_secrets(self.mock_client)
+        self.assertEqual(secrets, {"token": "t", "chat_id": "c", "topic_id": ""})
+
+    def test_returns_secrets_with_topic_id_when_present(self):
+        self._stub_reads({"telegram-token": "t", "telegram-chat-id": "c", "telegram-topic-id-backups": "42"})
+        secrets = watcher._fetch_telegram_secrets(self.mock_client)
+        self.assertEqual(secrets, {"token": "t", "chat_id": "c", "topic_id": "42"})
+
+
+class MainTests(unittest.TestCase):
+    @patch("r2_read_watcher.watch", return_value=0)
+    @patch("r2_read_watcher._load_state", return_value=None)
+    @patch("r2_read_watcher._fetch_telegram_secrets")
+    @patch("r2_read_watcher._vault_login")
+    @patch("r2_read_watcher.hvac.Client")
+    @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"])
+    def test_builds_one_client_and_threads_it_through_login_and_fetch(
+        self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch
+    ):
+        watcher.main()
+
+        client_arg = mock_client_cls.return_value
+        mock_login.assert_called_once_with(client_arg, "some-role-id", "some-secret-id")
+        mock_fetch.assert_called_once_with(client_arg)
+        _, kwargs = mock_client_cls.call_args
+        self.assertEqual(kwargs["url"], watcher.OPENBAO_BASE_URL)
+        self.assertEqual(kwargs["verify"], False)
+        self.assertEqual(kwargs["timeout"], watcher._TIMEOUT_SECONDS)
+
+    @patch("r2_read_watcher.watch", return_value=0)
+    @patch("r2_read_watcher._load_state", return_value=None)
+    @patch("r2_read_watcher._fetch_telegram_secrets", return_value={"token": "t", "chat_id": "c", "topic_id": ""})
+    @patch("r2_read_watcher._vault_login")
+    @patch("r2_read_watcher.hvac.Client")
+    @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"])
+    def test_passes_fetched_telegram_secrets_and_prior_state_to_watch(
+        self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch
+    ):
+        watcher.main()
+
+        mock_watch.assert_called_once_with({"token": "t", "chat_id": "c", "topic_id": ""}, None)
 
 
 if __name__ == "__main__":

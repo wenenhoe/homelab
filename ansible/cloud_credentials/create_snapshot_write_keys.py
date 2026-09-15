@@ -37,11 +37,12 @@ import hashlib
 import sys
 
 import requests
+from b2sdk.v2.exception import B2Error
 
 from cloud_credentials.cache import scoped
 from cloud_credentials.create_snapshot_readonly_keys import SNAPSHOT_BUCKET_B2, SNAPSHOT_BUCKET_R2
 from cloud_credentials.expiry import QUARTERLY_SECONDS
-from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_session
+from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_api
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_delete_token, r2_permission_group_ids, r2_rotation_token
 from cloud_credentials.verify import verify_leaf_via_rclone
 
@@ -130,21 +131,10 @@ def mint_b2() -> bool:
         print("b2 openbao-snapshot-write: already cached, skipping")
         return True
 
-    session, account_id, api_url = b2_rotation_session()
-    bucket_id = b2_lookup_bucket_id(session, api_url, account_id, bucket_name=SNAPSHOT_BUCKET_B2)
-    resp = session.post(
-        f"{api_url}/b2api/v2/b2_create_key",
-        json={
-            "accountId": account_id,
-            "capabilities": B2_LEAF_CAPABILITIES["write"],
-            "keyName": KEY_NAME_B2,
-            "bucketId": bucket_id,
-            "validDurationInSeconds": QUARTERLY_SECONDS,
-        },
-    )
-    resp.raise_for_status()
-    body = resp.json()
-    access_key, secret_key = body["applicationKeyId"], body["applicationKey"]
+    api = b2_rotation_api()
+    bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
+    key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
+    access_key, secret_key = key.id_, key.application_key
 
     region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value cloud-sync.md's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "write")
@@ -158,23 +148,12 @@ def mint_b2() -> bool:
 
 
 def rotate_b2() -> bool:
-    session, account_id, api_url = b2_rotation_session()
-    bucket_id = b2_lookup_bucket_id(session, api_url, account_id, bucket_name=SNAPSHOT_BUCKET_B2)
+    api = b2_rotation_api()
+    bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
     old_key_id = read_cache(CACHE_B2_ACCESS)
 
-    resp = session.post(
-        f"{api_url}/b2api/v2/b2_create_key",
-        json={
-            "accountId": account_id,
-            "capabilities": B2_LEAF_CAPABILITIES["write"],
-            "keyName": KEY_NAME_B2,
-            "bucketId": bucket_id,
-            "validDurationInSeconds": QUARTERLY_SECONDS,
-        },
-    )
-    resp.raise_for_status()
-    body = resp.json()
-    new_key_id, new_app_key = body["applicationKeyId"], body["applicationKey"]
+    key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
+    new_key_id, new_app_key = key.id_, key.application_key
 
     region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value cloud-sync.md's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(new_key_id, new_app_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "write")
@@ -189,9 +168,9 @@ def rotate_b2() -> bool:
 
     if old_key_id:
         try:
-            session.post(f"{api_url}/b2api/v2/b2_delete_key", json={"applicationKeyId": old_key_id}).raise_for_status()
+            api.session.delete_key(old_key_id)
             print(f"b2 openbao-snapshot-write: old key {old_key_id} revoked")
-        except requests.HTTPError as exc:
+        except B2Error as exc:
             print(
                 f"b2 openbao-snapshot-write: new key verified and cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand.",
                 file=sys.stderr,
@@ -220,6 +199,9 @@ def main() -> int:
         except requests.HTTPError as exc:
             print(f"{args.provider}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
             return 1
+        except B2Error as exc:
+            print(f"{args.provider}: request failed: {exc}", file=sys.stderr)
+            return 1
         return 0 if ok else 1
 
     mint_fns = {"r2": mint_r2, "b2": mint_b2}
@@ -231,6 +213,9 @@ def main() -> int:
                 all_ok = False
         except requests.HTTPError as exc:
             print(f"{name}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
+            all_ok = False
+        except B2Error as exc:
+            print(f"{name}: request failed: {exc}", file=sys.stderr)
             all_ok = False
     return 0 if all_ok else 1
 

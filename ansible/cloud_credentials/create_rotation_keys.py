@@ -50,6 +50,7 @@ import sys
 
 import oci.exceptions
 import requests
+from b2sdk.v2.exception import B2Error
 
 from cloud_credentials.rotation_keys.b2 import create_b2_rotation_key, rotate_b2_rotation_key
 from cloud_credentials.rotation_keys.oci_bootstrap import create_oci_rotation_key, rotate_oci_rotation_key

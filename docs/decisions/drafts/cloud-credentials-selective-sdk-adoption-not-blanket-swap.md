@@ -140,6 +140,16 @@ OpenBao/SSH client is a separate decision — see
   **Checked by:** a spike creating one bucket-restricted key through
   `b2sdk`, confirming its returned capabilities match a key created the
   current way.
+  **Status:** confirmed live. The capability-list part of this claim
+  held on the first live spike attempt — `.capabilities` came back as
+  the raw, unwrapped list requested — but that same run hit an
+  unrelated live failure: `FullApplicationKey.__init__` takes
+  `application_key_id` as a constructor parameter but stores it as
+  `self.id_`, not `self.application_key_id`. Static inspection of the
+  constructor signature had missed this (it doesn't show what the
+  constructor actually assigns internally). Fixed across every call
+  site; a second live spike with the corrected attribute confirmed
+  create, an exact capability match, and delete all succeeding.
 - **Claim:** R2's official SDK doesn't meaningfully reduce risk given
   how small and stable the surface used here is.
   **Breaks if wrong:** if Cloudflare's account-token API has changed

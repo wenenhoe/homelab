@@ -97,17 +97,22 @@ python3 -m cloud_credentials.create_leaf_keys   # all three leaves; prompts for 
 ```
 
 Safe to re-run either script — a credential whose cache files already
-exist is left alone. Both use each provider's HTTP API directly, no
-`b2`/`oci` CLI binary required — just the `requests` and `oci` packages
-pinned in `pyproject.toml` (`oci` supplies `oci.signer.Signer`, used
-only for OCI's leaf-identity IAM bootstrap now — see the OCI section
-for why that's a separate, unrelated auth model from the SCIM
-credentials the rest of OCI's flow uses; nothing here calls the SDK's
-generated per-service clients). `cryptography` is still pinned in
-`pyproject.toml` but nothing in `cloud_credentials/` imports it
-anymore as of the OCI SCIM migration (it only ever existed here for
-OCI's now-removed RSA keypair generation) — worth removing as a
-separate cleanup, not done as part of this migration.
+exist is left alone. Both use each provider's official SDK where one
+covers the call and raw HTTP otherwise, no `b2`/`oci` CLI binary
+required — `requests`, `oci`, and `b2sdk` are all pinned in
+`pyproject.toml`. `oci` supplies both `oci.signer.Signer` (OCI's
+leaf-identity IAM bootstrap, `rotation_keys/oci_iam.py` — a separate,
+unrelated auth model from SCIM) and, as of
+[`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md)'s
+Stage 2, `oci.identity_domains.IdentityDomainsClient` for the SCIM
+customer-secret-key and Apps-lookup calls (`AppClientSecretRegenerator`
+has no SDK method and stays on raw `requests` regardless). `b2sdk`
+covers B2's leaf/rotation key create/delete/list calls as of that same
+project's Stage 3. `cryptography` is still pinned in `pyproject.toml`
+but nothing in `cloud_credentials/` imports it anymore as of the OCI
+SCIM migration (it only ever existed here for OCI's now-removed RSA
+keypair generation) — worth removing as a separate cleanup, not done
+as part of this migration.
 
 ## What "master credential" means per provider, and how scoped the resulting rotation key actually is
 

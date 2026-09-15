@@ -1,6 +1,8 @@
 """Unit tests for cloud_credentials.leaf_keys.b2.
 
-Run via `uv run pytest ansible/tests/ -v`.
+Run via `uv run pytest ansible/tests/ -v`. Every B2 call is mocked at
+the b2sdk B2Api boundary (Stage 3, docs/projects/cloud-credentials-hardening.md)
+- nothing here talks to a real account.
 """
 
 from __future__ import annotations
@@ -13,15 +15,20 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
 
 from _base import RotationTestBase
+from b2sdk.v2 import FullApplicationKey
+from b2sdk.v2.exception import Unauthorized
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.leaf_keys import b2
 
 
-def _b2_create_key_response(access_key: str, secret_key: str) -> MagicMock:
-    resp = MagicMock()
-    resp.raise_for_status.return_value = None
-    resp.json.return_value = {"applicationKeyId": access_key, "applicationKey": secret_key}
-    return resp
+def _full_application_key(access_key: str, secret_key: str) -> MagicMock:
+    # spec=FullApplicationKey, not a bare MagicMock: the real class
+    # stores the key id as .id_, not .application_key_id (the
+    # constructor's own parameter name) - a bare MagicMock would accept
+    # either name silently, and this exact mismatch shipped once
+    # already (caught only by a live spike, not by these tests). spec
+    # makes a typo here raise immediately instead of hiding it.
+    return MagicMock(spec=FullApplicationKey, id_=access_key, application_key=secret_key)
 
 
 class B2RotationTests(RotationTestBase):
@@ -34,21 +41,13 @@ class B2RotationTests(RotationTestBase):
         self.seed("backblaze-b2-write-secret-key", "OLD_SECRET")
 
     @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"))
-    @patch.object(b2.requests, "Session")
-    def test_successful_rotation_revokes_old_key_and_caches_new_one(self, mock_session_cls, mock_verify):
-        session = mock_session_cls.return_value
-        # b2_authorize uses requests.get directly, not session — patch separately below.
-        with patch.object(b2.requests, "get") as mock_get:
-            mock_get.return_value = MagicMock(
-                raise_for_status=lambda: None,
-                json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"},
-            )
-            session.post.side_effect = [
-                MagicMock(raise_for_status=lambda: None, json=lambda: {"buckets": [{"bucketId": "bkt"}]}),  # bucket lookup
-                _b2_create_key_response("NEW_ACCESS", "NEW_SECRET"),  # new key
-                MagicMock(raise_for_status=lambda: None),  # delete old key
-            ]
-            ok = b2.rotate_b2(["write"])
+    @patch.object(b2, "B2Api")
+    def test_successful_rotation_revokes_old_key_and_caches_new_one(self, mock_api_cls, mock_verify):
+        api = mock_api_cls.return_value
+        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
+        api.create_key.return_value = _full_application_key("NEW_ACCESS", "NEW_SECRET")
+
+        ok = b2.rotate_b2(["write"])
 
         self.assertTrue(ok)
         # Region matters, not just endpoint: a missing/wrong region is
@@ -57,37 +56,42 @@ class B2RotationTests(RotationTestBase):
         # arguments, not just that verify ran.
         mock_verify.assert_called_once_with("NEW_ACCESS", "NEW_SECRET", "https://s3.us-west-004.backblazeb2.com", "us-west-004", b2.B2_BUCKET, "write")
         # The old key's delete call must happen, and only after verify passed.
-        delete_call = session.post.call_args_list[2]
-        self.assertIn("b2_delete_key", delete_call.args[0])
-        self.assertEqual(delete_call.kwargs["json"]["applicationKeyId"], "OLD_ACCESS")
+        api.session.delete_key.assert_called_once_with("OLD_ACCESS")
         self.assertEqual(self.get("backblaze-b2-write-access-key"), "NEW_ACCESS")
         self.assertEqual(self.get("backblaze-b2-write-secret-key"), "NEW_SECRET")
         # The actual point of this test: every new leaf key must request
         # native expiry, not just get created.
-        new_key_call = session.post.call_args_list[1]
-        self.assertEqual(new_key_call.kwargs["json"]["validDurationInSeconds"], QUARTERLY_SECONDS)
+        self.assertEqual(api.create_key.call_args.kwargs["valid_duration_seconds"], QUARTERLY_SECONDS)
 
     @patch.object(b2, "verify_leaf_via_rclone", return_value=(False, "auth failed"))
-    @patch.object(b2.requests, "Session")
-    def test_failed_verification_leaves_old_key_untouched(self, mock_session_cls, mock_verify):
-        session = mock_session_cls.return_value
-        with patch.object(b2.requests, "get") as mock_get:
-            mock_get.return_value = MagicMock(
-                raise_for_status=lambda: None,
-                json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"},
-            )
-            session.post.side_effect = [
-                MagicMock(raise_for_status=lambda: None, json=lambda: {"buckets": [{"bucketId": "bkt"}]}),  # bucket lookup
-                _b2_create_key_response("NEW_ACCESS", "NEW_SECRET"),  # new key created
-            ]
-            ok = b2.rotate_b2(["write"])
+    @patch.object(b2, "B2Api")
+    def test_failed_verification_leaves_old_key_untouched(self, mock_api_cls, mock_verify):
+        api = mock_api_cls.return_value
+        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
+        api.create_key.return_value = _full_application_key("NEW_ACCESS", "NEW_SECRET")
+
+        ok = b2.rotate_b2(["write"])
 
         self.assertFalse(ok)
-        # No delete call: only 2 session.post calls happened (bucket lookup + create).
-        self.assertEqual(session.post.call_count, 2)
+        api.session.delete_key.assert_not_called()
         # Cache must be untouched — the old, still-valid key stays authoritative.
         self.assertEqual(self.get("backblaze-b2-write-access-key"), "OLD_ACCESS")
         self.assertEqual(self.get("backblaze-b2-write-secret-key"), "OLD_SECRET")
+
+    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"))
+    @patch.object(b2, "B2Api")
+    def test_revoke_failure_is_reported_not_raised(self, mock_api_cls, mock_verify):
+        api = mock_api_cls.return_value
+        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
+        api.create_key.return_value = _full_application_key("NEW_ACCESS", "NEW_SECRET")
+        api.session.delete_key.side_effect = Unauthorized("", "unauthorized")
+
+        ok = b2.rotate_b2(["write"])
+
+        # Same contract as OCI/R2's rotate_*: revoke failure is a
+        # warning, not a reason to discard an already-verified new key.
+        self.assertTrue(ok)
+        self.assertEqual(self.get("backblaze-b2-write-access-key"), "NEW_ACCESS")
 
 
 if __name__ == "__main__":

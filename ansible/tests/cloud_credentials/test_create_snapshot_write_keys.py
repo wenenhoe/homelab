@@ -13,6 +13,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent / "leaf_keys"))
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from _base import RotationTestBase
+from b2sdk.v2 import FullApplicationKey
 from cloud_credentials import create_snapshot_write_keys as snap
 
 
@@ -76,30 +77,23 @@ class MintB2Tests(RotationTestBase):
         self.seed("backblaze-b2-region", "us-west-004")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
-    @patch.object(snap.requests, "get")
-    def test_mints_write_key_scoped_to_the_snapshot_bucket_with_quarterly_expiry(self, mock_get, mock_verify):
-        mock_get.return_value = MagicMock(
-            raise_for_status=lambda: None,
-            json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"},
-        )
-        with patch("cloud_credentials.leaf_keys.b2.requests.Session") as mock_session_cls:
-            session = mock_session_cls.return_value
-            session.post.side_effect = [
-                MagicMock(raise_for_status=lambda: None, json=lambda: {"buckets": [{"bucketId": "bkt"}]}),
-                MagicMock(raise_for_status=lambda: None, json=lambda: {"applicationKeyId": "KEY_ID", "applicationKey": "APP_KEY"}),
-            ]
-            ok = snap.mint_b2()
+    @patch("cloud_credentials.leaf_keys.b2.B2Api")
+    def test_mints_write_key_scoped_to_the_snapshot_bucket_with_quarterly_expiry(self, mock_api_cls, mock_verify):
+        api = mock_api_cls.return_value
+        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
+        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="KEY_ID", application_key="APP_KEY")
+
+        ok = snap.mint_b2()
 
         self.assertTrue(ok)
-        bucket_lookup_call = session.post.call_args_list[0]
-        self.assertEqual(bucket_lookup_call.kwargs["json"]["bucketName"], snap.SNAPSHOT_BUCKET_B2)
+        bucket_lookup_call = api.get_bucket_by_name.call_args
+        self.assertEqual(bucket_lookup_call.args[0], snap.SNAPSHOT_BUCKET_B2)
 
-        create_call = session.post.call_args_list[1]
-        body = create_call.kwargs["json"]
-        self.assertEqual(body["capabilities"], snap.B2_LEAF_CAPABILITIES["write"])
-        self.assertNotIn("deleteFiles", body["capabilities"])
-        self.assertEqual(body["validDurationInSeconds"], snap.QUARTERLY_SECONDS)
-        self.assertEqual(body["keyName"], snap.KEY_NAME_B2)
+        create_call = api.create_key.call_args
+        self.assertEqual(create_call.kwargs["capabilities"], snap.B2_LEAF_CAPABILITIES["write"])
+        self.assertNotIn("deleteFiles", create_call.kwargs["capabilities"])
+        self.assertEqual(create_call.kwargs["valid_duration_seconds"], snap.QUARTERLY_SECONDS)
+        self.assertEqual(create_call.kwargs["key_name"], snap.KEY_NAME_B2)
         mock_verify.assert_called_once_with(
             "KEY_ID",
             "APP_KEY",
@@ -111,19 +105,13 @@ class MintB2Tests(RotationTestBase):
         self.assertEqual(snap.read_cache(snap.CACHE_B2_ACCESS), "KEY_ID")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"))
-    @patch.object(snap.requests, "get")
-    def test_does_not_cache_a_credential_that_fails_verification(self, mock_get, _mock_verify):
-        mock_get.return_value = MagicMock(
-            raise_for_status=lambda: None,
-            json=lambda: {"accountId": "acct", "apiUrl": "https://api", "authorizationToken": "tok"},
-        )
-        with patch("cloud_credentials.leaf_keys.b2.requests.Session") as mock_session_cls:
-            session = mock_session_cls.return_value
-            session.post.side_effect = [
-                MagicMock(raise_for_status=lambda: None, json=lambda: {"buckets": [{"bucketId": "bkt"}]}),
-                MagicMock(raise_for_status=lambda: None, json=lambda: {"applicationKeyId": "KEY_ID", "applicationKey": "APP_KEY"}),
-            ]
-            ok = snap.mint_b2()
+    @patch("cloud_credentials.leaf_keys.b2.B2Api")
+    def test_does_not_cache_a_credential_that_fails_verification(self, mock_api_cls, _mock_verify):
+        api = mock_api_cls.return_value
+        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
+        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="KEY_ID", application_key="APP_KEY")
+
+        ok = snap.mint_b2()
 
         self.assertFalse(ok)
         self.assertIsNone(snap.read_cache(snap.CACHE_B2_ACCESS))
@@ -135,6 +123,42 @@ class MintB2Tests(RotationTestBase):
         ok = snap.mint_b2()
 
         self.assertTrue(ok)
+
+
+class RotateB2Tests(RotationTestBase):
+    def setUp(self):
+        super().setUp()
+        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
+        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
+        self.seed("backblaze-b2-region", "us-west-004")
+        self.seed(snap.CACHE_B2_ACCESS, "OLD_KEY_ID")
+        self.seed(snap.CACHE_B2_SECRET, "old-secret")
+
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
+    @patch("cloud_credentials.leaf_keys.b2.B2Api")
+    def test_verifies_new_key_before_revoking_the_old_one(self, mock_api_cls, _mock_verify):
+        api = mock_api_cls.return_value
+        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
+        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="NEW_KEY_ID", application_key="NEW_APP_KEY")
+
+        ok = snap.rotate_b2()
+
+        self.assertTrue(ok)
+        api.session.delete_key.assert_called_once_with("OLD_KEY_ID")
+        self.assertEqual(snap.read_cache(snap.CACHE_B2_ACCESS), "NEW_KEY_ID")
+
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"))
+    @patch("cloud_credentials.leaf_keys.b2.B2Api")
+    def test_leaves_old_key_untouched_when_new_one_fails_verification(self, mock_api_cls, _mock_verify):
+        api = mock_api_cls.return_value
+        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
+        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="NEW_KEY_ID", application_key="NEW_APP_KEY")
+
+        ok = snap.rotate_b2()
+
+        self.assertFalse(ok)
+        api.session.delete_key.assert_not_called()
+        self.assertEqual(snap.read_cache(snap.CACHE_B2_ACCESS), "OLD_KEY_ID", "old credential must stay live and cached until a new one actually verifies")
 
 
 class RotateR2Tests(RotationTestBase):

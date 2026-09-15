@@ -1,6 +1,7 @@
 """Backblaze B2 rotation-key bootstrap and rotation: mint a narrower
 key, from the master credential, that can create/delete leaf keys but
-holds no file/bucket-data capabilities itself.
+holds no file/bucket-data capabilities itself. Via b2sdk (Stage 3,
+docs/projects/cloud-credentials-hardening.md).
 """
 
 from __future__ import annotations
@@ -8,14 +9,13 @@ from __future__ import annotations
 import getpass
 import sys
 
-import requests
+from b2sdk.v2 import B2Api, InMemoryAccountInfo
+from b2sdk.v2.exception import B2Error
 
 from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 
 cached, read_cache, write_cache, _ = scoped("rotation")
-
-B2_AUTHORIZE_URL = "https://api.backblazeb2.com/b2api/v2/b2_authorize_account"
 
 
 def _prompt_master_credentials() -> tuple[str, str]:
@@ -27,19 +27,15 @@ def _prompt_master_credentials() -> tuple[str, str]:
 
 
 def _mint_rotation_key(master_key_id: str, master_key: str) -> dict:
-    resp = requests.get(B2_AUTHORIZE_URL, auth=(master_key_id, master_key), timeout=45)
-    resp.raise_for_status()
-    auth = resp.json()
-    account_id, api_url = auth["accountId"], auth["apiUrl"]
-    session = requests.Session()
-    session.headers["Authorization"] = auth["authorizationToken"]
+    master_api = B2Api(InMemoryAccountInfo())
+    master_api.authorize_account("production", master_key_id, master_key)
 
     # listKeys/writeKeys/deleteKeys are B2's native "manage other keys"
     # capabilities, independent of writeFiles/readFiles — this key can
     # create and delete application keys but can't read or write file
     # contents itself.
     #
-    # No bucketId here — confirmed, not a guess: Backblaze's own docs
+    # No bucket_id here — confirmed, not a guess: Backblaze's own docs
     # enumerate every capability a bucket-restricted key is allowed to
     # carry, and listKeys/writeKeys/deleteKeys aren't on that list. Key
     # management is inherently account-wide on B2; a live 400 ("Invalid
@@ -48,18 +44,12 @@ def _mint_rotation_key(master_key_id: str, master_key: str) -> dict:
     # not just ones for homelab-backups-b2 — the actual scoping this key
     # gets is that it holds no file/bucket-data capabilities at all, not
     # that it's bucket-restricted.
-    key_resp = session.post(
-        f"{api_url}/b2api/v2/b2_create_key",
-        json={
-            "accountId": account_id,
-            "capabilities": ["listKeys", "writeKeys", "deleteKeys", "listBuckets"],
-            "keyName": "homelab-cloud-sync-rotation-key",
-            "validDurationInSeconds": QUARTERLY_SECONDS,
-        },
+    key = master_api.create_key(
+        capabilities=["listKeys", "writeKeys", "deleteKeys", "listBuckets"],
+        key_name="homelab-cloud-sync-rotation-key",
+        valid_duration_seconds=QUARTERLY_SECONDS,
     )
-    key_resp.raise_for_status()
-    body = key_resp.json()
-    return {"master_session": session, "api_url": api_url, "key_id": body["applicationKeyId"], "app_key": body["applicationKey"]}
+    return {"master_api": master_api, "key_id": key.id_, "app_key": key.application_key}
 
 
 def _verify_rotation_key(key_id: str, app_key: str) -> tuple[bool, str]:
@@ -67,14 +57,11 @@ def _verify_rotation_key(key_id: str, app_key: str) -> tuple[bool, str]:
     that minted it) and confirm it can list keys — the exact capability
     create_leaf_keys.py depends on, not just "did authorize succeed"."""
     try:
-        resp = requests.get(B2_AUTHORIZE_URL, auth=(key_id, app_key), timeout=45)
-        resp.raise_for_status()
-        auth = resp.json()
-        session = requests.Session()
-        session.headers["Authorization"] = auth["authorizationToken"]
-        session.post(f"{auth['apiUrl']}/b2api/v2/b2_list_keys", json={"accountId": auth["accountId"]}).raise_for_status()
+        api = B2Api(InMemoryAccountInfo())
+        api.authorize_account("production", key_id, app_key)
+        list(api.list_keys())
         return True, ""
-    except requests.HTTPError as exc:
+    except B2Error as exc:
         return False, str(exc)
 
 
@@ -117,9 +104,9 @@ def rotate_b2_rotation_key() -> bool:
 
     if old_key_id:
         try:
-            minted["master_session"].post(f"{minted['api_url']}/b2api/v2/b2_delete_key", json={"applicationKeyId": old_key_id}).raise_for_status()
+            minted["master_api"].session.delete_key(old_key_id)
             print(f"b2: old rotation key {old_key_id} revoked")
-        except requests.HTTPError as exc:
+        except B2Error as exc:
             print(
                 f"b2: new rotation key verified and will be cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
                 file=sys.stderr,

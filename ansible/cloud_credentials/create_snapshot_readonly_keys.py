@@ -58,9 +58,10 @@ import hashlib
 import sys
 
 import requests
+from b2sdk.v2.exception import B2Error
 
 from cloud_credentials.cache import scoped
-from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_session
+from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_api
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_permission_group_ids, r2_rotation_token
 from cloud_credentials.verify import verify_leaf_via_rclone
 
@@ -129,21 +130,11 @@ def mint_r2() -> bool:
 
 
 def mint_b2() -> bool:
-    session, account_id, api_url = b2_rotation_session()
-    bucket_id = b2_lookup_bucket_id(session, api_url, account_id, bucket_name=SNAPSHOT_BUCKET_B2)
-    body = session.post(
-        f"{api_url}/b2api/v2/b2_create_key",
-        json={
-            "accountId": account_id,
-            "capabilities": B2_LEAF_CAPABILITIES["read"],
-            "keyName": "openbao-snapshot-readonly",
-            "bucketId": bucket_id,
-            # No validDurationInSeconds — see module docstring.
-        },
-    )
-    body.raise_for_status()
-    key_body = body.json()
-    access_key, secret_key = key_body["applicationKeyId"], key_body["applicationKey"]
+    api = b2_rotation_api()
+    bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
+    # No valid_duration_seconds — see module docstring.
+    key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["read"], key_name="openbao-snapshot-readonly", bucket_id=bucket_id)
+    access_key, secret_key = key.id_, key.application_key
 
     # Same reasoning as mint_r2's own verification — region comes from
     # the same cache file cloud_sync's own rclone.conf uses (storage.yaml),
@@ -179,6 +170,9 @@ def main() -> int:
                 all_ok = False
         except requests.HTTPError as exc:
             print(f"{name}: request failed: {exc.response.status_code} {exc.response.text}", file=sys.stderr)
+            all_ok = False
+        except B2Error as exc:
+            print(f"{name}: request failed: {exc}", file=sys.stderr)
             all_ok = False
     return 0 if all_ok else 1
 

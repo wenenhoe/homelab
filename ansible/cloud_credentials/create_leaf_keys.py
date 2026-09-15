@@ -49,6 +49,7 @@ import sys
 
 import oci.exceptions
 import requests
+from b2sdk.v2.exception import B2Error
 
 from cloud_credentials.leaf_keys.b2 import create_b2, rotate_b2
 from cloud_credentials.leaf_keys.oci import create_oci, rotate_oci

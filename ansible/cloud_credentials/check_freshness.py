@@ -39,10 +39,11 @@ import sys
 from datetime import UTC, datetime, timedelta
 
 import requests
+from b2sdk.v2.exception import B2Error
 
 from cloud_credentials.cache import read_vault_path, scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
-from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_session
+from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_api
 from cloud_credentials.rotation_keys.oci_scim import oci_scim_session
 
 _leaf_cached, _leaf_read_cache, _, _ = scoped("leaf")
@@ -78,9 +79,9 @@ def check_b2() -> list[tuple[str, str, str]]:
     itself - all three names are known ahead of time, no per-key
     lookup needed."""
     try:
-        session, account_id, api_url = b2_rotation_session()
-        keys_by_name = {k["keyName"]: k for k in b2_list_keys(session, api_url, account_id)}
-    except (requests.HTTPError, SystemExit) as exc:
+        api = b2_rotation_api()
+        keys_by_name = {k.key_name: k for k in b2_list_keys(api)}
+    except (B2Error, SystemExit) as exc:
         detail = str(exc)
         return [(f"b2 {name}", CHECK_FAILED, detail) for name in (*B2_LEAF_CAPABILITIES, "rotation key")]
 
@@ -92,12 +93,12 @@ def check_b2() -> list[tuple[str, str, str]]:
     return results
 
 
-def _b2_key_result(label: str, key: dict | None) -> tuple[str, str, str]:
+def _b2_key_result(label: str, key) -> tuple[str, str, str]:
     if key is None:
         return (label, CHECK_FAILED, "no matching key found on the account")
-    expiration_ms = key.get("expirationTimestamp")
+    expiration_ms = key.expiration_timestamp_millis
     if expiration_ms is None:
-        return (label, CHECK_FAILED, "key has no expirationTimestamp - was it created before this rotated in?")
+        return (label, CHECK_FAILED, "key has no expiration_timestamp_millis - was it created before this rotated in?")
     status, detail = _classify(datetime.fromtimestamp(expiration_ms / 1000, tz=UTC))
     return (label, status, detail)
 

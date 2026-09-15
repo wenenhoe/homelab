@@ -8,6 +8,7 @@ dependencies = [
     "docker>=7.1",
     "requests>=2.32",
     "oci>=2.130",
+    "b2sdk>=2.12",
 ]
 
 [dependency-groups]

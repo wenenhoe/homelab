@@ -280,6 +280,7 @@ class VaultReadWriteTests(SecretsDirTestCase):
         self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="hosts/all/telegram/telegram-token",
             mount_point=bootstrap_secrets.VAULT_KV_MOUNT,
+            raise_on_deleted_version=True,
         )
 
     def test_read_propagates_non_invalid_path_errors(self):

@@ -193,7 +193,14 @@ def vault_login(client: hvac.Client) -> None:
 
 def vault_read(client: hvac.Client, vault_path: str) -> str | None:
     try:
-        resp = client.secrets.kv.v2.read_secret_version(path=vault_path, mount_point=VAULT_KV_MOUNT)
+        resp = client.secrets.kv.v2.read_secret_version(
+            path=vault_path,
+            mount_point=VAULT_KV_MOUNT,
+            # See cloud_credentials/cache.py's identical call/comment -
+            # this preserves current behavior and silences hvac's
+            # v3.0.0 default-change warning without changing anything.
+            raise_on_deleted_version=True,
+        )
     except hvac.exceptions.InvalidPath:
         return None
     return resp["data"]["data"]["value"]

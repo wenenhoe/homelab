@@ -168,7 +168,17 @@ def _vault_path(category: str, name: str) -> str:
 def _vault_read_at(full_path: str) -> str | None:
     client = _get_session()["client"]
     try:
-        resp = client.secrets.kv.v2.read_secret_version(path=full_path, mount_point=VAULT_KV_MOUNT)
+        resp = client.secrets.kv.v2.read_secret_version(
+            path=full_path,
+            mount_point=VAULT_KV_MOUNT,
+            # A deleted version should read the same as one that never
+            # existed - matches this function's own InvalidPath handling
+            # below. hvac's default silently matches this already, but
+            # only with a DeprecationWarning ahead of hvac v3.0.0 flipping
+            # it to False, which would instead return metadata with no
+            # "value" key and crash the return statement below.
+            raise_on_deleted_version=True,
+        )
     except hvac.exceptions.InvalidPath:
         return None
     return resp["data"]["data"]["value"]

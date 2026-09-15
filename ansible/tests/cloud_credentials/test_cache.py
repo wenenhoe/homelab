@@ -219,6 +219,7 @@ class ScopedReadWriteTests(_StubbedSessionTestCase):
         self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="cloud_credentials/leaf/backblaze-b2-write-access-key",
             mount_point=cache.VAULT_KV_MOUNT,
+            raise_on_deleted_version=True,
         )
 
     def test_cached_false_on_invalid_path(self):
@@ -257,6 +258,7 @@ class VaultPathHelperTests(_StubbedSessionTestCase):
         self.mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="hosts/all/telegram/telegram-token",
             mount_point=cache.VAULT_KV_MOUNT,
+            raise_on_deleted_version=True,
         )
 
     def test_write_vault_path_writes_to_the_exact_given_path(self):

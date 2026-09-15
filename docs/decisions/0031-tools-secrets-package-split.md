@@ -115,10 +115,13 @@ misplaced generic code.
   `cache.py` no longer defined) until the re-pointing stage caught
   and fixed it. A reminder that "shared module built" and "every
   caller re-pointed" are separate, both-required steps, not one.
-- `PROJECT_ROOT`'s four independent redefinitions are down to two
-  (`audit_secrets.py`, `restore_all.py`) - whether those import from
-  `tools/utils/repo.py` too, instead of each redefining it locally,
-  stays open, tied to the `ansible/scripts/` decision above.
+- `PROJECT_ROOT`'s four independent redefinitions are down to one:
+  `consolidate-openbao-utility-scripts.md`'s own Stage 3 resolved
+  `audit.py`'s copy by importing from `tools/utils/repo.py` instead of
+  redefining it, while moving the file into `tools/openbao_utils/`.
+  Only `restore_all.py` still redefines it locally - whether it
+  imports from `tools/utils/repo.py` too stays open, tied to the
+  `ansible/scripts/` decision above.
 - Every stage's build status lived in `tools-secrets-package-split.md`
   while in progress; that project has now closed per its own closing
   checklist, this ADR is the permanent record.

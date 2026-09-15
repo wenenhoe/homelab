@@ -32,8 +32,8 @@ deletes. Delete the flagged ones yourself once you've confirmed they're
 not what's live in rclone.conf.
 
 Usage:
-    python3 ansible/audit_secrets.py --local
-    python3 ansible/audit_secrets.py --provider all --admin-email you@example.com
+    cd tools && python3 -m openbao_utils.audit --local
+    cd tools && python3 -m openbao_utils.audit --provider all --admin-email you@example.com
 """
 
 from __future__ import annotations
@@ -41,18 +41,12 @@ from __future__ import annotations
 import argparse
 import getpass
 import sys
-from pathlib import Path
 
 import requests
 import yaml
-
-# cloud_credentials now lives in tools/, not alongside this script -
-# see docs/decisions/0031-tools-secrets-package-split.md.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
+from utils.repo import PROJECT_ROOT, SECRETS_DIR
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SECRETS_DIR = PROJECT_ROOT / "ansible/files/secrets"
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
 
 B2_BUCKET = "homelab-backups-b2"

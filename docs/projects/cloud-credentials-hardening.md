@@ -140,7 +140,7 @@ the controller, so this would be the first stage to actually add it to
   A parallel question existed for `hvac`/`paramiko` errors, settled by
   [ADR 0030](../decisions/0030-openbao-hvac-paramiko-clients.md); the
   two aren't required to reach the same answer.
-- `audit_secrets.py`'s `audit_b2()`/`audit_oci()` still call B2/OCI's
+- `openbao_utils/audit.py`'s `audit_b2()`/`audit_oci()` still call B2/OCI's
   raw APIs directly (`requests`, not `b2sdk`/`oci.identity_domains`),
   untouched by Stages 2-3 above — moved here from
   `openbao-python-client-hardening.md`'s own open items before that

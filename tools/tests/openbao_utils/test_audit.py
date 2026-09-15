@@ -1,10 +1,10 @@
-"""Unit tests for audit_secrets.audit_oci/audit_local.
+"""Unit tests for openbao_utils.audit's audit_oci/audit_local.
 
-Run via `uv run pytest ansible/tests/ -v`. Every SCIM/Vault call is
+Run via `uv run pytest tools/tests/ -v`. Every SCIM/Vault call is
 mocked; nothing here talks to a real tenancy or a real OpenBao.
-audit_secrets.py's cached() reads through cloud_credentials'
+audit.py's cached() reads through cloud_credentials'
 own LEGACY_CACHE_KEYS-mapped modules (Vault-backed, since Track A
-stage 5) - AuditOciTests patches audit_secrets.cached directly rather
+stage 5) - AuditOciTests patches audit.cached directly rather
 than seeding files, since there's no longer a local file it reads.
 audit_local() is a different concern (scanning SECRETS_DIR for orphan
 files left on disk), so AuditLocalTests still seeds real files there.
@@ -19,9 +19,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-import audit_secrets
+from openbao_utils import audit
 
 
 def _mock_response(status_code: int, json_body: dict | None = None):
@@ -34,7 +34,7 @@ def _mock_response(status_code: int, json_body: dict | None = None):
 class AuditOciTests(unittest.TestCase):
     def setUp(self):
         self._cached_values: dict[str, str] = {}
-        patcher = patch.object(audit_secrets, "cached", side_effect=lambda name: self._cached_values.get(name))
+        patcher = patch.object(audit, "cached", side_effect=lambda name: self._cached_values.get(name))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -43,7 +43,7 @@ class AuditOciTests(unittest.TestCase):
 
     @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", side_effect=SystemExit(1))
     def test_no_scim_credentials_returns_gracefully_without_crashing(self, mock_session):
-        audit_secrets.audit_oci()  # must not raise
+        audit.audit_oci()  # must not raise
 
     @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session")
     def test_leaf_without_cached_user_ocid_is_skipped(self, mock_session):
@@ -52,7 +52,7 @@ class AuditOciTests(unittest.TestCase):
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         with patch("sys.stdout") as mock_stdout:
-            audit_secrets.audit_oci()
+            audit.audit_oci()
 
         session.get.assert_not_called()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -81,7 +81,7 @@ class AuditOciTests(unittest.TestCase):
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         with patch("sys.stdout") as mock_stdout:
-            audit_secrets.audit_oci()
+            audit.audit_oci()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("scim_id=scim-active", printed)
@@ -97,7 +97,7 @@ class AuditOciTests(unittest.TestCase):
         session.get.return_value = _mock_response(200, {"Resources": []})
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
-        audit_secrets.audit_oci()
+        audit.audit_oci()
 
         sent_filter = session.get.call_args.kwargs["params"]["filter"]
         self.assertIn("ocid1.user.oc1..writeleaf", sent_filter)
@@ -108,20 +108,20 @@ class CachedDispatchTests(unittest.TestCase):
     LEGACY_CACHE_KEYS-mapped module rather than any local file."""
 
     def test_reads_via_the_names_own_module(self):
-        with patch.object(audit_secrets._CACHE_MODULE_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123") as mock_read:
-            self.assertEqual(audit_secrets.cached("cloudflare-r2-account-id"), "acct-123")
+        with patch.object(audit._CACHE_MODULE_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123") as mock_read:
+            self.assertEqual(audit.cached("cloudflare-r2-account-id"), "acct-123")
         mock_read.assert_called_once_with("cloudflare-r2-account-id")
 
     def test_unknown_name_raises_instead_of_silently_returning_none(self):
         with self.assertRaises(KeyError):
-            audit_secrets.cached("not-a-real-cloud-credentials-name")
+            audit.cached("not-a-real-cloud-credentials-name")
 
 
 class AuditLocalTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        patcher = patch.object(audit_secrets, "SECRETS_DIR", self.tmp)
+        patcher = patch.object(audit, "SECRETS_DIR", self.tmp)
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -132,7 +132,7 @@ class AuditLocalTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(registry_dir, ignore_errors=True))
         registry_path = registry_dir / "secrets_registry.yaml"
         registry_path.write_text("secrets_registry:\n  cloudflare-r2-write-access-key: {}\n  cloudflare-r2-write-secret-key: {}\n")
-        registry_patcher = patch.object(audit_secrets, "REGISTRY_PATH", registry_path)
+        registry_patcher = patch.object(audit, "REGISTRY_PATH", registry_path)
         registry_patcher.start()
         self.addCleanup(registry_patcher.stop)
 
@@ -150,7 +150,7 @@ class AuditLocalTests(unittest.TestCase):
         self.seed("cloudflare-r2-write-secret-key", "def")
 
         with patch("sys.stdout") as mock_stdout:
-            audit_secrets.audit_local()
+            audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertNotIn("not referenced by current config", printed)
@@ -162,7 +162,7 @@ class AuditLocalTests(unittest.TestCase):
         self.seed("some-leftover-from-a-naming-change", "stale")
 
         with patch("sys.stdout") as mock_stdout:
-            audit_secrets.audit_local()
+            audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("some-leftover-from-a-naming-change", printed)
@@ -180,14 +180,14 @@ class AuditLocalTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(registry_dir, ignore_errors=True))
         registry_path = registry_dir / "secrets_registry.yaml"
         registry_path.write_text("secrets_registry:\n  lldap-jwt-secret: { format: hex, length: 32, vault_scope: hosts/security }\n")
-        registry_patcher = patch.object(audit_secrets, "REGISTRY_PATH", registry_path)
+        registry_patcher = patch.object(audit, "REGISTRY_PATH", registry_path)
         registry_patcher.start()
         self.addCleanup(registry_patcher.stop)
 
         self.seed("lldap-jwt-secret", "stale-pre-vault-value")
 
         with patch("sys.stdout") as mock_stdout:
-            audit_secrets.audit_local()
+            audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("lldap-jwt-secret", printed)
@@ -213,7 +213,7 @@ class AuditLocalTests(unittest.TestCase):
         self.seed("cloudflare-r2-write-secret-key", "def")
 
         with patch("sys.stdout") as mock_stdout:
-            audit_secrets.audit_local()
+            audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("all belong to a permanent file-cache entry", printed)
@@ -221,7 +221,7 @@ class AuditLocalTests(unittest.TestCase):
 
 class AuditB2Tests(unittest.TestCase):
     """audit_b2()'s active-key classification. Regression coverage for
-    two real bugs found running audit_secrets.py --provider all against
+    two real bugs found running audit.py --provider all against
     a live account (Track A stage 6's cutover drill): the openbao
     snapshot write leaf was cached in Vault but never checked against,
     and the break-glass readonly key (ADR 0017) can never match a cache
@@ -235,7 +235,7 @@ class AuditB2Tests(unittest.TestCase):
             "backblaze-b2-read-access-key": "read-key-id",
             "backblaze-b2-openbao-snapshot-write-access-key": "snapshot-write-key-id",
         }
-        patcher = patch.object(audit_secrets, "cached", side_effect=lambda name: self._cached_values.get(name))
+        patcher = patch.object(audit, "cached", side_effect=lambda name: self._cached_values.get(name))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -249,11 +249,11 @@ class AuditB2Tests(unittest.TestCase):
     def test_openbao_snapshot_write_leaf_is_active_not_orphan(self):
         auth_resp, session = self._mock_b2_session([{"applicationKeyId": "snapshot-write-key-id", "keyName": "openbao-snapshot-write"}])
         with (
-            patch("audit_secrets.requests.get", return_value=auth_resp),
-            patch("audit_secrets.requests.Session", return_value=session),
+            patch("openbao_utils.audit.requests.get", return_value=auth_resp),
+            patch("openbao_utils.audit.requests.Session", return_value=session),
             patch("sys.stdout") as mock_stdout,
         ):
-            audit_secrets.audit_b2()
+            audit.audit_b2()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("ACTIVE (openbao snapshot write leaf)", printed)
         self.assertNotIn("ORPHAN", printed)
@@ -261,11 +261,11 @@ class AuditB2Tests(unittest.TestCase):
     def test_openbao_snapshot_readonly_is_active_matched_by_name(self):
         auth_resp, session = self._mock_b2_session([{"applicationKeyId": "some-other-id", "keyName": "openbao-snapshot-readonly"}])
         with (
-            patch("audit_secrets.requests.get", return_value=auth_resp),
-            patch("audit_secrets.requests.Session", return_value=session),
+            patch("openbao_utils.audit.requests.get", return_value=auth_resp),
+            patch("openbao_utils.audit.requests.Session", return_value=session),
             patch("sys.stdout") as mock_stdout,
         ):
-            audit_secrets.audit_b2()
+            audit.audit_b2()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("ACTIVE (break-glass restore key", printed)
         self.assertNotIn("ORPHAN", printed)
@@ -273,11 +273,11 @@ class AuditB2Tests(unittest.TestCase):
     def test_genuinely_unknown_key_is_still_flagged_orphan(self):
         auth_resp, session = self._mock_b2_session([{"applicationKeyId": "mystery-id", "keyName": "some-leftover-key"}])
         with (
-            patch("audit_secrets.requests.get", return_value=auth_resp),
-            patch("audit_secrets.requests.Session", return_value=session),
+            patch("openbao_utils.audit.requests.get", return_value=auth_resp),
+            patch("openbao_utils.audit.requests.Session", return_value=session),
             patch("sys.stdout") as mock_stdout,
         ):
-            audit_secrets.audit_b2()
+            audit.audit_b2()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("mystery-id", printed)
         self.assertIn("ORPHAN", printed)
@@ -297,7 +297,7 @@ class AuditR2Tests(unittest.TestCase):
             "cloudflare-r2-read-access-key": "read-token-id",
             "cloudflare-r2-openbao-snapshot-write-access-key": "snapshot-write-token-id",
         }
-        patcher = patch.object(audit_secrets, "cached", side_effect=lambda name: self._cached_values.get(name))
+        patcher = patch.object(audit, "cached", side_effect=lambda name: self._cached_values.get(name))
         patcher.start()
         self.addCleanup(patcher.stop)
 
@@ -306,11 +306,11 @@ class AuditR2Tests(unittest.TestCase):
         session = MagicMock()
         session.get.return_value = resp
         with (
-            patch("audit_secrets.requests.Session", return_value=session),
-            patch("audit_secrets.getpass.getpass", return_value="admin-token"),
+            patch("openbao_utils.audit.requests.Session", return_value=session),
+            patch("openbao_utils.audit.getpass.getpass", return_value="admin-token"),
             patch("sys.stdout") as mock_stdout,
         ):
-            audit_secrets.audit_r2()
+            audit.audit_r2()
         return "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
 
     def test_openbao_snapshot_write_token_is_included_and_active(self):

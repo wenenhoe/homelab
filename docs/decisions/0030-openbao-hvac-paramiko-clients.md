@@ -21,7 +21,7 @@ produced the same bug twice, independently: neither file's SSH-fetch
 or a network partition blocked either one forever - fixing one without
 the other left the second stale.
 
-Two more files shared this surface: `audit_secrets.py` read the same
+Two more files shared this surface: `openbao_utils/audit.py` read the same
 OpenBao KV v2 paths over its own `requests` calls (its B2/OCI
 provider-API calls are a separate concern, covered by
 [ADR 0029](0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)),
@@ -64,7 +64,7 @@ later is irrelevant, since nothing ever presents it again.
 ## Decision
 
 Every internal Python client that talks to OpenBao directly
-(`cache.py`, `openbao_utils/bootstrap.py`, `audit_secrets.py`,
+(`cache.py`, `openbao_utils/bootstrap.py`, `openbao_utils/audit.py`,
 `r2_read_watcher.py`) uses `hvac` for the Vault client and, where an
 SSH hop to fetch step-ca's root cert is needed (`cache.py`,
 `openbao_utils/bootstrap.py` - not `r2_read_watcher.py`, which runs on

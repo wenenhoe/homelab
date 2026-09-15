@@ -27,7 +27,7 @@ code written against it.
 | :-: | :--- | :--- |
 | 1 | Rename `tools/openbao_client/` → `tools/openbao_utils/` | Done |
 | 2 | Move + rename `bootstrap_secrets.py` → `openbao_utils/bootstrap.py` | Done |
-| 3 | Move + rename `audit_secrets.py` → `openbao_utils/audit.py` | Not started |
+| 3 | Move + rename `audit_secrets.py` → `openbao_utils/audit.py` | Done |
 | 4 | Merge both restore scripts → `openbao_utils/restore.py` | Not started |
 | 5 | Move + rename `dump_vault_to_file_cache.py`/`diff_vault_backups.py` | Not started |
 | 6 | Move `restore_all.py`/`molecule-test-all.sh` → `ansible/scripts/` | Not started |
@@ -98,6 +98,39 @@ Stage 1's rename), only genuine present-tense staleness fixed. Four
 lines exceeded the 160-char lint limit once the longer name pushed
 them over; shortened rather than wrapped, since they're short
 user-facing hints, not documentation.
+
+### Stage 3 — Move + rename `audit_secrets.py`
+
+Done. Moved to `tools/openbao_utils/audit.py`. Went further than a
+pure rename: `audit_secrets.py` was one of the two files (with
+`restore_all.py`) still independently redefining
+`PROJECT_ROOT = Path(__file__).resolve().parent.parent` rather than
+importing it - since it was moving into `tools/openbao_utils/` anyway
+(same package `client.py` and, now, `bootstrap.py` already live in),
+switched it to `from utils.repo import PROJECT_ROOT, SECRETS_DIR`
+instead of perpetuating a third local copy. Resolves half of ADR
+0031's still-open "`PROJECT_ROOT`'s four independent redefinitions"
+item down to one (`restore_all.py`, which stays in `ansible/scripts/`
+per this project's own Decision) - updated that ADR's Consequences
+directly, matching the "update stale status language in the same
+patch that resolves it" rule rather than leaving it to drift.
+
+Same string-based `@patch("audit_secrets.X")` bug as Stage 2's
+`bootstrap.py`, caught the same way (by actually running the tests,
+not assuming a mechanical rename was sufficient): fixed to
+`@patch("openbao_utils.audit.X")`. `SECRETS_DIR` only needed patching
+on the `audit` module itself, not also on `utils.repo` - unlike
+`bootstrap.py`, `audit.py` never calls into a `utils.repo` function
+that reads `SECRETS_DIR` internally, it only uses the constant
+directly in its own code.
+
+Repo-wide inventory much smaller this time (~16 files vs.
+`bootstrap.py`'s ~40) - `audit_secrets.py` is an ops tool, not part of
+the main deploy flow most docs walk through. Same file-by-file
+judgment call as Stage 2: fixed ADR 0030's mentions for consistency
+with how its `bootstrap_secrets.py` mentions were already handled
+(same document, same non-historical framing throughout), left ADR
+0016's/0029's genuinely historical mentions alone.
 
 ### Stage 4 — Merge the restore scripts
 

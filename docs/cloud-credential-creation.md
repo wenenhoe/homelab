@@ -31,7 +31,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   credential than the other two's). All six leaf credentials stay
   `format: manual` in the registry; this script is just an automated
   way to fill them in.
-- **`ansible/audit_secrets.py`** — run whenever, read-only. `--local`
+- **`openbao_utils/audit.py`** — run whenever, read-only. `--local`
   diffs `ansible/files/secrets/` against `secrets_registry.yaml` to
   flag cache files nothing currently references (e.g. leftover from a
   naming change). `--provider {oci,b2,r2,all}` lists each provider's
@@ -279,7 +279,7 @@ alone:**
 - The classic API's `GET /20160918/users/{id}/customerSecretKeys` still
   sees keys created via SCIM, and SCIM's own
   `GET /admin/v1/CustomerSecretKeys?filter=user.ocid eq "..."` works too
-  — both confirmed live. `audit_secrets.py --provider oci` uses the
+  — both confirmed live. `openbao_utils/audit.py --provider oci` uses the
   SCIM path, since it's the same credential everything else already
   authenticates with; nothing here depends on `~/.oci/config` for
   auditing.
@@ -338,14 +338,14 @@ strict enforcement.
 under `ansible/files/secrets/`. That file cache is gone entirely for
 cloud credentials now — there's nothing left there to rename or clean
 up by hand. If you're restoring a controller old enough to still have
-pre-Vault cache files lying around, `audit_secrets.py
+pre-Vault cache files lying around, `openbao_utils/audit.py
 --local` flags anything under `ansible/files/secrets/` that doesn't
 match current config, regardless of vintage; see [ADR
 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)'s
 own Context for why the OCI migration's Console-side cleanup (deleting
 the unused `homelab-key-rotation` identity — API signing key first,
 then the policy, then the group membership, then the user itself) is
-still relevant if you never did it: `audit_secrets.py` has no
+still relevant if you never did it: `openbao_utils/audit.py` has no
 visibility into Console-side IAM objects, so that half stays manual
 regardless of file-cache retirement.
 

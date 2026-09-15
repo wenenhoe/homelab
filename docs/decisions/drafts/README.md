@@ -22,4 +22,3 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`rclone-boto3-scope-not-blanket-swap.md`](rclone-boto3-scope-not-blanket-swap.md)
 - [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md)
 - [`tofu-secrets-and-state-backend-location.md`](tofu-secrets-and-state-backend-location.md)
-- [`tools-directory-and-secrets-package-split.md`](tools-directory-and-secrets-package-split.md)

@@ -31,7 +31,7 @@ Uses hvac for the OpenBao client and paramiko for the SSH root-cert
 fetch, via the shared primitives in tools/openbao_client/client.py -
 this script has no SSH/paramiko code of its own left. See
 docs/decisions/0030-openbao-hvac-paramiko-clients.md and
-docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
+docs/decisions/0031-tools-secrets-package-split.md.
 
 Usage:
     python3 ansible/bootstrap_secrets.py
@@ -51,7 +51,7 @@ import yaml
 
 # cloud_credentials/openbao_client/utils now live in tools/, not
 # alongside this script - see
-# docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
+# docs/decisions/0031-tools-secrets-package-split.md.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from openbao_client.client import openbao_base_url, vault_read, vault_write

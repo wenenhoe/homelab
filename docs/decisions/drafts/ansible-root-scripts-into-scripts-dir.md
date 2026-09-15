@@ -37,7 +37,7 @@ and ten docs (`secrets.md`, `restore.md`, `uptime-kuma.md`,
 `deployment-flow.md`, `openbao-reinit-runbook.md`, `beszel.md`,
 `telegram-notifications.md`, and this project's own
 `0030-openbao-hvac-paramiko-clients.md`/
-`tools-directory-and-secrets-package-split.md` references). Each has
+`0031-tools-secrets-package-split.md` references). Each has
 a matching test file already living in `ansible/tests/`
 (`test_bootstrap_secrets.py`, `test_audit_secrets.py`,
 `test_restore_all.py`,

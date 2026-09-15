@@ -10,7 +10,7 @@ SSH/root-cert-fetching helpers this module used to also include live
 in tools/utils/repo.py instead - they were never actually
 OpenBao-specific either, just OpenBao's first (and so far, only)
 consumer. See
-docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
+docs/decisions/0031-tools-secrets-package-split.md.
 
 r2_read_watcher.py deliberately does NOT import this: it's
 hand-installed via scp as a single file onto security's system

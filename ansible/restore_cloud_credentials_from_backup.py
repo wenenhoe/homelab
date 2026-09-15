@@ -38,7 +38,7 @@ import sys
 from pathlib import Path
 
 # cloud_credentials now lives in tools/, not alongside this script -
-# see docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
+# see docs/decisions/0031-tools-secrets-package-split.md.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 

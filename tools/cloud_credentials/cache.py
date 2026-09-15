@@ -14,7 +14,7 @@ AppRole, read/write KV v2) come from tools.utils.repo/tools.openbao_client.clien
 shared with bootstrap_secrets.py, no longer duplicated between them.
 This module's own job is just the leaf/rotation Vault-path taxonomy
 and scoped()'s session-caching convenience on top of those primitives.
-See docs/decisions/drafts/tools-directory-and-secrets-package-split.md.
+See docs/decisions/0031-tools-secrets-package-split.md.
 
 Two secrets live permanently in the file cache instead, read directly
 from SECRETS_DIR below, never through Vault: main-domain and

@@ -26,7 +26,7 @@ this doc tracks build status only.
 | :-: | :--- | :--- |
 | 1 | `cache.py` → `hvac` + `paramiko` | Done |
 | 2 | `bootstrap_secrets.py` → same swap | Done |
-| 3 | `audit_secrets.py`'s Vault calls → `hvac` | Not started |
+| 3 | `audit_secrets.py`'s Vault calls → `hvac` | Done |
 | 4 | `r2_read_watcher.py` → `hvac`, plus its own reconnect/token-renewal spike | Not started |
 | 5 | Extract a shared helper module (only if the draft's Option B wins) + re-baseline stage 1/2's tests against it | Not started |
 
@@ -58,9 +58,12 @@ projection anymore.
 
 ### Stage 3 — `audit_secrets.py`
 
-Its Vault-side calls follow Stage 1/2's pattern. Its B2/OCI provider
-calls are a different dependency: they should move in step with
-[`cloud-credentials-hardening.md`](cloud-credentials-hardening.md)'s
+Done, with no code change: `audit_secrets.py` never hand-rolled its
+own Vault HTTP calls - its only Vault touch is `cached()`, which
+delegates entirely to `LEGACY_CACHE_KEYS[name].read_cache(name)`
+(`cache.py`'s `scoped()`, already `hvac`-based since Stage 1). Its
+B2/OCI provider calls are a different dependency: they move in step
+with [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md)'s
 OCI/B2 stages instead, so this file doesn't end up on a different SDK
 than the scripts it audits.
 

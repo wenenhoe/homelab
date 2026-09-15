@@ -81,9 +81,18 @@ to `ansible-playbook` directly), which is genuinely `ansible/`'s
 domain. Importing from `tools/` isn't wrong ownership here; it's the
 same relationship `cache.py` itself has with `openbao_client`/`utils`.
 Whether these five scripts (loose at `ansible/`'s own root) should
-instead move into `ansible/scripts/` is a separate, later decision
-([`ansible-root-scripts-into-scripts-dir.md`](drafts/ansible-root-scripts-into-scripts-dir.md)),
+instead move into `ansible/scripts/` is a separate, later decision,
 not reopened here.
+
+> **Revised by**
+> [`consolidate-openbao-utility-scripts.md`](drafts/consolidate-openbao-utility-scripts.md):
+> the lifecycle-gating test above turned out too coarse
+> (`cloud_credentials` scripts are also lifecycle-sequenced and
+> correctly live in `tools/` anyway) - that draft moves three of these
+> four scripts into `tools/openbao_utils/` after all, on a different
+> test (does it drive a playbook, not just run near one). This
+> paragraph is left as written for the historical record; it's no
+> longer this repo's current design.
 
 `docker/openbao/scripts/bao-login-from-controller.sh`/
 `bao-from-controller.sh` and `restore_hosts_scope_from_backup.py` -

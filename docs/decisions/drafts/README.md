@@ -10,6 +10,7 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 
 ## Open
 
+- [`ansible-root-scripts-into-scripts-dir.md`](ansible-root-scripts-into-scripts-dir.md)
 - [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md)
 - [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md)
 - [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md)

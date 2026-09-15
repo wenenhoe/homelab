@@ -76,19 +76,53 @@ exists to fix (none of this code is a role or a plugin).
 
 Leaning **B** — new `tools/` root, split by domain, plain package for
 `tools/secrets/` (no Ansible-side packaging complexity, per the
-resolution above). Not yet promotable — the Assumptions below,
-especially the import-path inventory, need checking before an actual
-move is safe.
+resolution above). Not yet promotable — two Assumptions below (the
+container-build and `pyproject.toml` questions) are still unchecked;
+the import-path inventory is now complete and doesn't block Option B.
 
-## Assumptions (todo, unchecked)
+## Assumptions
 
-- Every reference to `cloud_credentials.` as an import path or
-  `python3 -m cloud_credentials....` as an invocation string needs
-  enumerating before a move is safe — `cloud-credential-creation.md`'s
-  own command examples, CI's `python-unit-tests` job, any systemd unit
-  `ExecStart` referencing a module path, and
-  `ansible/tests/cloud_credentials/`'s directory mirroring. Not
-  enumerated yet.
+- **Import-path inventory — confirmed complete:**
+  - **Genuinely on-topic** (leaf/rotation cloud-credential business,
+    unaffected by which domain owns the *client* underneath): every
+    import under `cloud_credentials.leaf_keys.*`/`.rotation_keys.*`,
+    `create_leaf_keys.py`/`create_rotation_keys.py`/
+    `create_snapshot_{readonly,write}_keys.py`/`check_freshness.py`/
+    `_legacy_cache_keys.py`, and their own test tree
+    (`ansible/tests/cloud_credentials/{leaf_keys,rotation_keys}/`).
+  - **Two consumers already reaching outside their own domain into
+    `cloud_credentials.cache` for generic infrastructure that isn't
+    cloud-credential business at all** - concrete evidence this split
+    is needed, not just a naming preference:
+    - `docker/openbao/scripts/bao-login-from-controller.sh` and
+      `bao-from-controller.sh`: `from cloud_credentials.cache import
+      _security_ssh_target, _main_domain`.
+    - `ansible/restore_hosts_scope_from_backup.py`: `from
+      cloud_credentials.cache import PROJECT_ROOT, read_vault_path,
+      write_vault_path` - restoring **host** secrets, not cloud
+      credentials, yet borrowing the generic Vault escape hatch from a
+      package named for a different domain.
+  - **`python3 -m cloud_credentials.X` invocation strings**, all
+    genuinely on-topic (leaf/rotation commands), needing a mechanical
+    rename if the package moves: `docs/cloud-credential-creation.md`
+    (8 occurrences), `docs/secrets-rotation.md`,
+    `docs/openbao-reinit-runbook.md` (`dump_vault_to_file_cache`,
+    `diff_vault_backups`).
+  - **One systemd unit**:
+    `ansible/cloud_credentials/systemd/check-freshness.service`'s
+    `ExecStart=/usr/bin/python3 -m cloud_credentials.check_freshness`.
+  - **CI**: `.github/workflows/pr-checks.yml` path-filters on
+    `ansible/cloud_credentials/**` - a one-line glob update on a move.
+  - Net effect: the inventory itself doesn't block Option B - every
+    reference is either staying together (leaf/rotation business,
+    moves as one unit) or is exactly the kind of misplaced-generic-
+    infrastructure import this split exists to fix.
+  - Related, smaller instance of the same root cause, worth folding
+    into the same move rather than a separate effort: `PROJECT_ROOT =
+    Path(__file__).resolve().parent.parent[.parent]` is independently
+    redefined in four places (`cache.py`, `bootstrap_secrets.py`,
+    `audit_secrets.py`, `restore_all.py`) rather than shared - no
+    wrong owner, just no shared home to import it from.
 - Whether `r2_read_watcher.py` can move out of `docker/openbao/watcher/`
   without complicating its container build (Dockerfile `COPY` paths,
   etc.) — unchecked.
@@ -100,6 +134,6 @@ move is safe.
 ## Consequences
 
 Once scoped, the actual move (broken imports, CI paths, systemd units)
-is real multi-file mechanical work with regression risk — that becomes
-its own project doc for tracking, separate from this decision of
-whether/how to do it at all.
+is real multi-file mechanical work with regression risk — tracked in
+[`tools-secrets-package-split.md`](../../projects/tools-secrets-package-split.md),
+separate from this decision of whether/how to do it at all.

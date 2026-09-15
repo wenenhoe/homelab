@@ -187,14 +187,13 @@ molecule test -s volumes   # named scenario (cd ansible/roles/compose first)
 See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full
 scenario matrix and how to add one.
 
-Plain controller-side Python (`ansible/cloud_credentials/`,
+Plain controller-side Python (`tools/cloud_credentials/`,
 `ansible/molecule-coverage/molecule_cov/`, `bootstrap_secrets.py`,
 `audit_secrets.py`, the R2 read-watcher) is tested separately with
-[pytest](https://docs.pytest.org/), from `ansible/`:
+[pytest](https://docs.pytest.org/), from the repo root:
 
 ```sh
-cd ansible
-pytest tests/ -v
+pytest ansible/tests/ tools/tests/ -v
 ```
 
 Every provider HTTP call and `rclone` invocation is mocked — no

@@ -182,6 +182,7 @@ can't fix.
 9. Confirm:
 
    ```sh
+   cd tools
    python3 -m cloud_credentials.dump_vault_to_file_cache
    python3 -m cloud_credentials.diff_vault_backups \
      ~/secrets-backup-pre-reinit-<original-timestamp> \

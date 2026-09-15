@@ -2,7 +2,7 @@
 
 Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
 
-- **`ansible/cloud_credentials/create_rotation_keys.py`** — run rarely.
+- **`tools/cloud_credentials/create_rotation_keys.py`** — run rarely.
   For B2, takes the master credential in memory only (never written to
   disk, never logged) and uses it to mint a narrower **rotation key**:
   scoped to creating/deleting keys, not to reading or writing backup
@@ -18,7 +18,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   caches (or re-caches, via `--rotate`) the Custom Token a human
   creates in the Console. Whatever gets cached either way is what
   `create_leaf_keys.py` actually reads.
-- **`ansible/cloud_credentials/create_leaf_keys.py`** — run routinely.
+- **`tools/cloud_credentials/create_leaf_keys.py`** — run routinely.
   This is what actually creates/rotates the 6 `cloud_sync`/
   restore-discovery credentials (`cloudflare-r2-write-*`/`-read-*`,
   `backblaze-b2-write-*`/`-read-*`, `oci-write-*`/`-read-*` in
@@ -44,7 +44,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   known provider-side name instead of a cache lookup — a weaker check,
   but this tool only ever flags, never deletes. Flags only; deleting
   anything it finds is a separate, deliberate step.
-- **`ansible/cloud_credentials/create_snapshot_readonly_keys.py`** —
+- **`tools/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
   credentials [ADR 0017](decisions/0017-openbao-bootstrap-secret-split.md)
   calls for — OpenBao's own break-glass snapshot-restore credential,
@@ -55,7 +55,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   until an actual disaster. Prints each credential once instead of
   caching it to OpenBao; see
   [`openbao.md`](openbao.md) for where it goes from there.
-- **`ansible/cloud_credentials/create_snapshot_write_keys.py`** — run
+- **`tools/cloud_credentials/create_snapshot_write_keys.py`** — run
   routinely, same cadence as `create_leaf_keys.py`. Mints the standing,
   quarterly-expiring write leaf the backup script in
   [`openbao-backup-restore.md`](openbao-backup-restore.md) pushes
@@ -90,7 +90,7 @@ for the earlier decision that started it in a file cache in the first
 place.
 
 ```sh
-cd ansible
+cd tools
 python3 -m cloud_credentials.create_rotation_keys --provider b2
 python3 -m cloud_credentials.create_rotation_keys --provider oci --admin-email you@example.com
 python3 -m cloud_credentials.create_leaf_keys   # all three leaves; prompts for R2's admin token once, if not yet cached
@@ -352,7 +352,7 @@ regardless of file-cache retirement.
 **`--rotate {write,read,both}`, all three providers now:**
 
 ```sh
-cd ansible
+cd tools
 python3 -m cloud_credentials.create_leaf_keys --provider b2 --rotate write
 python3 -m cloud_credentials.create_leaf_keys --provider oci --rotate both
 python3 -m cloud_credentials.create_leaf_keys --provider r2 --rotate read
@@ -431,7 +431,7 @@ works too if you'd rather just fall back to prompting on next use.
 human-attended, and none of the three auto-rotate on a schedule.
 
 ```sh
-cd ansible
+cd tools
 python3 -m cloud_credentials.create_rotation_keys --provider b2 --rotate
 python3 -m cloud_credentials.create_rotation_keys --provider oci --rotate --admin-email you@example.com
 ```
@@ -473,7 +473,7 @@ but it does have the same `--rotate` entry point now, closing a real
 gap: create a new Custom Token in the Console first, then
 
 ```sh
-cd ansible
+cd tools
 python3 -m cloud_credentials.create_rotation_keys --provider r2 --rotate
 ```
 
@@ -589,7 +589,7 @@ gets closer instead of one flat repeated ping — see ADR 0015 for why
 past-window alone wasn't enough.
 
 ```sh
-cd ansible
+cd tools
 python3 -m cloud_credentials.check_freshness
 ```
 
@@ -600,7 +600,7 @@ since `cloud_credentials` isn't one and doesn't deploy to any
 `managed_hosts` entry. Install once, by hand:
 
 ```sh
-cd ansible/cloud_credentials/systemd
+cd tools/cloud_credentials/systemd
 # Edit check-freshness.service's WorkingDirectory to this clone's actual path first.
 mkdir -p ~/.config/systemd/user
 cp check-freshness.service check-freshness.timer ~/.config/systemd/user/

@@ -29,7 +29,7 @@ supporting files; it doesn't install or enable any systemd unit.
 
 ## Push credential
 
-`ansible/cloud_credentials/create_snapshot_write_keys.py` mints a
+`tools/cloud_credentials/create_snapshot_write_keys.py` mints a
 standing, quarterly-rotating, no-delete write leaf on both R2 and B2,
 scoped to the `openbao-snapshots` bucket — a different credential from
 [0017](decisions/0017-openbao-bootstrap-secret-split.md)'s break-glass
@@ -151,7 +151,7 @@ On a throwaway host — burn it afterward, don't reuse it:
    then discarded.
 2. Fetch the latest snapshot from R2 or B2 using the break-glass
    **read-only** credential
-   ([`create_snapshot_readonly_keys.py`](../ansible/cloud_credentials/create_snapshot_readonly_keys.py)) —
+   ([`create_snapshot_readonly_keys.py`](../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
    not the write leaf above, which can't read.
 3. Decrypt it with the offline GPG private key
    ([`disaster-recovery.md`](disaster-recovery.md#encryption)).

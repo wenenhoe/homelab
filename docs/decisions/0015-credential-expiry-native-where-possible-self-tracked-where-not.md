@@ -95,7 +95,7 @@ material or self-tracked timestamps anywhere new.
   repeated every run for a month.
 - Installed as a systemd **user** timer on `controller`, not as an
   Ansible role or a unit deployed to any managed host — plain files
-  under `ansible/cloud_credentials/systemd/`, installed by hand once
+  under `tools/cloud_credentials/systemd/`, installed by hand once
   (same one-time, human-attended nature as bootstrapping a rotation
   key in the first place).
 

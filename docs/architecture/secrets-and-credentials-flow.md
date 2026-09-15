@@ -25,7 +25,7 @@ flowchart LR
 ```
 
 Every `ansible-playbook deploy.yaml` run and every
-`ansible/cloud_credentials/*.py` invocation authenticates this way.
+`tools/cloud_credentials/*.py` invocation authenticates this way.
 `controller`'s AppRole has no CIDR bind — a laptop has no stable
 address to bind to
 ([ADR 0020](../decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)).
@@ -34,7 +34,7 @@ address to bind to
 
 ```mermaid
 flowchart LR
-    controller(["controller<br/>ansible/cloud_credentials/*.py,<br/>run by hand"])
+    controller(["controller<br/>tools/cloud_credentials/*.py,<br/>run by hand"])
     r2[("Cloudflare R2")]
     b2[("Backblaze B2")]
     oci[("OCI Object Storage")]

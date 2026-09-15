@@ -28,8 +28,10 @@ Safe to re-run: an entry that already has a value (on disk, or in Vault)
 is left untouched. To rotate a value, see docs/secrets-rotation.md.
 
 Uses hvac for the OpenBao client and paramiko for the SSH root-cert
-fetch, replacing hand-rolled requests/subprocess calls - see
-docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+fetch, via the shared primitives in tools/openbao_client/client.py -
+this script has no SSH/paramiko code of its own left. See
+docs/decisions/0030-openbao-hvac-paramiko-clients.md and
+docs/decisions/0031-tools-secrets-package-split.md.
 
 Usage:
     python3 ansible/bootstrap_secrets.py
@@ -45,21 +47,18 @@ import tempfile
 from pathlib import Path
 
 import hvac
-import paramiko
 import yaml
+
+# cloud_credentials/openbao_client/utils now live in tools/, not
+# alongside this script - see
+# docs/decisions/0031-tools-secrets-package-split.md.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
+from openbao_client.client import openbao_base_url, vault_read, vault_write
+from openbao_client.client import vault_login as _bare_vault_login
+from utils.repo import PROJECT_ROOT, SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
-SECRETS_DIR = PROJECT_ROOT / "ansible/files/secrets"
-INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/inventory.yaml"
-
-VAULT_KV_MOUNT = "secret"
-VAULT_STEP_CA_CONTAINER = "step-ca"
-# Bounds both the SSH root-cert fetch and every Vault HTTP call - see
-# cloud_credentials/cache.py's identical constant/comment; this file's
-# own SSH fetch had the same missing-timeout bug independently.
-_TIMEOUT_SECONDS = 10
 
 
 def load_registry() -> dict[str, dict]:
@@ -109,77 +108,16 @@ def prompt_for_value(name: str, spec: dict) -> str:
 
 
 # --- Vault plumbing --------------------------------------------------------
-# Mirrors docs/decisions/0022-controller-vault-tls-trust-via-per-run-fetched-root-cert.md's
-# Ansible-side mechanism (fetch step-ca's root cert fresh every run, never
-# skip-verify, never committed) — this script runs standalone, outside any
-# Ansible play, so it has to do the SSH/docker-exec/tempfile steps itself
-# rather than delegating to that role.
-
-
-def _main_domain() -> str:
-    main_domain = read_cache_file("main-domain")
-    if not main_domain or not main_domain.strip():
-        print(
-            "main-domain isn't cached yet — it's needed to reach OpenBao at "
-            "all (secrets_registry.yaml's header comment explains why it "
-            "never moves into Vault). Set it first:\n"
-            f"  printf '%s' '<your-domain>' > {SECRETS_DIR / 'main-domain'}\n"
-            f"  chmod 600 {SECRETS_DIR / 'main-domain'}",
-            file=sys.stderr,
-        )
-        raise SystemExit(1)
-    return main_domain.strip()
-
-
-def _openbao_base_url() -> str:
-    # security's caddy_domain = "sec.{{ lab_domain }}", lab_domain =
-    # "lan.{{ main_domain }}" (host_vars/security.yaml,
-    # group_vars/all/main.yaml). Duplicated here rather than templated
-    # through Ansible, since this script runs before any Ansible play —
-    # update this if either file's naming convention ever changes.
-    return f"https://openbao.sec.lan.{_main_domain()}:8200"
-
-
-def _security_ssh_target() -> tuple[str, str, str]:
-    """(user, host, key_path) for SSH to `security`, read from
-    inventory.yaml rather than hardcoded twice."""
-    with INVENTORY_PATH.open() as f:
-        inv = yaml.safe_load(f)
-    user = inv["all"]["children"]["managed_hosts"]["hosts"]["security"]["ansible_user"]
-    key_path = Path(inv["all"]["vars"]["ansible_ssh_private_key_file"]).expanduser()
-    host = f"security.internal.{_main_domain()}"  # ddns_domain, see inventory.yaml
-    return user, host, str(key_path)
-
-
-def fetch_root_cert() -> str:
-    user, host, key_path = _security_ssh_target()
-    client = paramiko.SSHClient()
-    client.load_system_host_keys()
-    # Trust-on-first-use, same as the previous StrictHostKeyChecking=
-    # accept-new - see cloud_credentials/cache.py's identical comment
-    # and docs/decisions/0030-openbao-hvac-paramiko-clients.md.
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    try:
-        client.connect(host, username=user, key_filename=key_path, timeout=_TIMEOUT_SECONDS)
-        _stdin, stdout, stderr = client.exec_command(
-            f"docker exec {VAULT_STEP_CA_CONTAINER} cat /home/step/certs/root_ca.crt",
-            timeout=_TIMEOUT_SECONDS,
-        )
-        cert = stdout.read().decode()
-        err = stderr.read().decode()
-        exit_status = stdout.channel.recv_exit_status()
-    finally:
-        client.close()
-    if exit_status != 0:
-        print(f"Failed to fetch step-ca's root cert from {host}: {err}", file=sys.stderr)
-        raise SystemExit(1)
-    return cert
+# fetch_root_cert/vault_read/vault_write come from openbao_client.client -
+# shared with cloud_credentials/cache.py, no longer duplicated between
+# them. Only the login wrapper stays here: it reads this script's own
+# role_id/secret_id before calling the shared bare login.
 
 
 def vault_login(client: hvac.Client) -> None:
-    role_id = read_cache_file("openbao-controller-role-id")
-    secret_id = read_cache_file("openbao-controller-secret-id")
-    if not role_id or not role_id.strip() or not secret_id or not secret_id.strip():
+    role_id = read_bootstrap_file("openbao-controller-role-id")
+    secret_id = read_bootstrap_file("openbao-controller-secret-id")
+    if not role_id or not secret_id:
         print(
             "openbao-controller-role-id/-secret-id aren't set yet — run "
             "docs/openbao-auth.md's runbook (Track A stage 3) before "
@@ -187,26 +125,7 @@ def vault_login(client: hvac.Client) -> None:
             file=sys.stderr,
         )
         raise SystemExit(1)
-    client.auth.approle.login(role_id=role_id.strip(), secret_id=secret_id.strip())
-
-
-def vault_read(client: hvac.Client, vault_path: str) -> str | None:
-    try:
-        resp = client.secrets.kv.v2.read_secret_version(
-            path=vault_path,
-            mount_point=VAULT_KV_MOUNT,
-            # See cloud_credentials/cache.py's identical call/comment -
-            # this preserves current behavior and silences hvac's
-            # v3.0.0 default-change warning without changing anything.
-            raise_on_deleted_version=True,
-        )
-    except hvac.exceptions.InvalidPath:
-        return None
-    return resp["data"]["data"]["value"]
-
-
-def vault_write(client: hvac.Client, vault_path: str, value: str) -> None:
-    client.secrets.kv.v2.create_or_update_secret(path=vault_path, secret={"value": value}, mount_point=VAULT_KV_MOUNT)
+    _bare_vault_login(client, role_id, secret_id)
 
 
 def main() -> int:
@@ -253,7 +172,7 @@ def main() -> int:
             with tempfile.NamedTemporaryFile("w", suffix="-openbao-root-ca", delete=False) as f:
                 f.write(fetch_root_cert())
                 ca_path = f.name
-            client = hvac.Client(url=_openbao_base_url(), verify=ca_path, timeout=_TIMEOUT_SECONDS)
+            client = hvac.Client(url=openbao_base_url(), verify=ca_path, timeout=TIMEOUT_SECONDS)
             vault_login(client)
 
             for name, spec in vault_entries.items():

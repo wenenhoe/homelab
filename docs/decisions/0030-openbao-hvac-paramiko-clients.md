@@ -11,7 +11,7 @@ status: accepted
 
 ## Context
 
-`cache.py` (`ansible/cloud_credentials`) and `bootstrap_secrets.py`
+`cache.py` (`tools/cloud_credentials`) and `bootstrap_secrets.py`
 each independently hand-rolled an OpenBao AppRole login + KV v2
 read/write over raw `requests`, and each independently fetched
 step-ca's root cert via `ssh ... docker exec step-ca cat
@@ -47,10 +47,10 @@ byte-identical across `cache.py`, `bootstrap_secrets.py`, and
 `_security_ssh_target`, the Vault session logic) turned out to already
 be needed by consumers with nothing to do with cloud credentials
 (`docker/openbao/scripts/bao-*.sh`, `restore_hosts_scope_from_backup.py`).
-Both facts are folded into
-[`tools-directory-and-secrets-package-split.md`](drafts/tools-directory-and-secrets-package-split.md)'s
+Both facts fed into
+[ADR 0031](0031-tools-secrets-package-split.md)'s
 larger reorganization instead of being decided independently
-here - that draft's Option B already presupposes the shared client
+here - that decision's Option B already presupposed the shared client
 this decision's Context motivated.
 
 `r2_read_watcher.py`'s standing-process shape raised a real question -
@@ -83,15 +83,15 @@ regardless of policy - the same fail-closed shape, confirmed against
 the real host).
 
 Whether the four resulting clients also share an implementation with
-each other, and where that implementation lives, is
-`tools-directory-and-secrets-package-split.md`'s decision to make, not
+each other, and where that implementation lives, was
+[ADR 0031](0031-tools-secrets-package-split.md)'s decision to make, not
 this one's - this decision is limited to which libraries every
 internal client uses, independent of how much code they share.
 
 ## Consequences
 
 - All four clients' missing-SSH-timeout bug is fixed, bounded to
-  `_TIMEOUT_SECONDS = 10` in each - `ansible/cloud_credentials/cache.py`
+  `_TIMEOUT_SECONDS = 10` in each - `tools/cloud_credentials/cache.py`
   and `ansible/bootstrap_secrets.py` are the reference
   implementations for the SSH-fetch + session pattern;
   `docker/openbao/watcher/r2_read_watcher.py` for the no-SSH,
@@ -100,8 +100,11 @@ internal client uses, independent of how much code they share.
   (`raise_on_deleted_version`) is pinned explicitly to `True`
   (preserving current behavior) in every read call, rather than left
   to silently flip later.
-- Each of the four clients still independently implements the same
-  login/read/write bodies today - accepted as a known, temporary
-  consequence of this decision alone; whether that duplication gets
-  addressed is scoped entirely to
-  `tools-directory-and-secrets-package-split.md`, not reopened here.
+- `cache.py` and `bootstrap_secrets.py` no longer independently
+  implement the same login/read/write bodies - resolved by
+  [ADR 0031](0031-tools-secrets-package-split.md), which extracted the
+  shared implementation into `tools/utils/repo.py`/
+  `tools/openbao_client/client.py`. `r2_read_watcher.py` still keeps
+  its own independent copy, deliberately, per that decision's own
+  reasoning (its hand-installed single-file deployment can't cleanly
+  share a package).

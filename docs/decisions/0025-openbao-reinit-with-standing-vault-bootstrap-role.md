@@ -66,7 +66,7 @@ also when it's actually needed: the R2 watcher's AppRole
 ([0026](0026-openbao-audit-device-and-r2-per-read-watcher.md)) can't
 be provisioned without a way to create new AppRoles, and a live audit
 of Vault state
-([`dump_vault_to_file_cache.py`](../../ansible/cloud_credentials/dump_vault_to_file_cache.py))
+([`dump_vault_to_file_cache.py`](../../tools/cloud_credentials/dump_vault_to_file_cache.py))
 found `_oci-leaf-user-ocid-{read,write}` duplicated under
 `cloud_credentials/leaf/` as well as its correct `rotation/` home - a
 stale leftover from an earlier version of the migration mapping,

@@ -72,6 +72,14 @@ mechanics inline) and acts on it, not just a report.
 - Whether `controller`'s version-pinning needs more than documentation
   (a runtime version check) stays open per the draft's third
   Assumption, revisited only if drift actually causes a problem.
+- Whether `docker/openbao/scripts/`'s shell scripts and
+  `openbao_backup/snapshot-push.sh.j2` get rewritten in Python against
+  `tools/openbao_client/` directly, dropping their `python3 -c "from
+  ..."` one-liner pattern entirely once a native `bao` binary makes
+  the throwaway-container model this project replaces moot anyway -
+  moved here from `tools-secrets-package-split.md`'s own open items,
+  since it's this project's call (native CLI vs. Python client), not
+  that one's.
 
 ## Closing checklist
 

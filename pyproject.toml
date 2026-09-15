@@ -63,3 +63,4 @@ ignore = [
 # real file; S106 fires on fake literal role_id/secret_id/token values
 # passed as kwargs to mocked hvac calls, never a real credential.
 "ansible/tests/**" = ["S101", "S108", "S106"]
+"tools/tests/**" = ["S101", "S108", "S106"]

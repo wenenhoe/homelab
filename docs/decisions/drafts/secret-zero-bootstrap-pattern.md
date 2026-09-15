@@ -110,8 +110,7 @@ homelab hosts needs, not assumed as the target.
 ## Why this probably isn't a small addition to an existing draft
 
 Every other draft that touches a credential
-(`rclone-boto3-scope-not-blanket-swap.md`,
-`tools-directory-and-secrets-package-split.md`) currently treats
+(`rclone-boto3-scope-not-blanket-swap.md`) currently treats
 "where does the credential live" as a local, per-file Assumption.
 Resolving Secret Zero properly could change the answer for all of them
 at once — which argues for scoping this as its own project once

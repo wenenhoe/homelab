@@ -41,7 +41,7 @@ has zero role in OpenBao's backup pipeline: no data, no credential, no
 transient copy. Routing through `cloud_sync` would end that — `storage`
 would hold the encrypted blob at rest and need a credential capable of
 relaying it onward, meaning the write leaf minted in
-`ansible/cloud_credentials/create_snapshot_write_keys.py` would have to
+`tools/cloud_credentials/create_snapshot_write_keys.py` would have to
 live on `storage` instead of (or in addition to) `security`. That cuts
 against [0017](0017-openbao-bootstrap-secret-split.md)'s own reasoning
 for putting this in a dedicated bucket in the first place: keeping

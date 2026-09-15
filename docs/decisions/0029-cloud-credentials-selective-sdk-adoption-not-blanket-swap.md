@@ -11,7 +11,7 @@ status: accepted
 
 ## Context
 
-Every module under `ansible/cloud_credentials/` talked to B2/R2/OCI
+Every module under `tools/cloud_credentials/` talked to B2/R2/OCI
 entirely over hand-rolled `requests` calls. The `oci` package was
 already a pinned dependency (`oci.signer.Signer`,
 `oci.config.from_file` — `rotation_keys/oci_iam.py`'s classic-IAM
@@ -54,7 +54,7 @@ provider call in the package (OCI SCIM, B2, R2) in one pass; SDK
 maintainers absorb wire-format drift, and `oci` ships a typed exception
 hierarchy, closing the error-handling gap and the drift concern
 together. Highest total effort: rewrites up to three provider modules
-at once, and moves `ansible/tests/cloud_credentials/`'s mock boundary
+at once, and moves `tools/tests/cloud_credentials/`'s mock boundary
 for all of them at the same time.
 
 ### B — Adopt an SDK only where it's a clear improvement, leave the rest on `requests`
@@ -145,7 +145,7 @@ Both migrations are built and confirmed live:
 - Every provider-specific quirk in `cloud-credential-creation.md`
   needed re-verifying against whichever SDK replaced its raw calls —
   confirmed live for both OCI and B2, not just read from SDK docs.
-- `ansible/tests/cloud_credentials/`'s mock boundary moved per
+- `tools/tests/cloud_credentials/`'s mock boundary moved per
   provider (from `requests` call sites to SDK client calls), rewritten
   module-by-module rather than in one pass.
 - New dependency: `b2sdk`. `oci` needed no new dependency, just wider

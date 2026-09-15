@@ -266,7 +266,7 @@ The command prints 3 unseal key shares and an initial root token,
 1. Copy all 3 unseal key shares and the root token into the password
    manager entry this repo already uses for the backup GPG key and (once
    generated) the snapshot read-only credentials
-   ([`create_snapshot_readonly_keys.py`](../ansible/cloud_credentials/create_snapshot_readonly_keys.py)) —
+   ([`create_snapshot_readonly_keys.py`](../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
    same offline handling, one entry.
 2. Print or write down one of the three shares and store it physically
    offline, separate from the password manager — the same

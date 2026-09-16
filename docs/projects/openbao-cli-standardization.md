@@ -22,7 +22,7 @@ this doc tracks build status only.
 | # | Stage | Status |
 | :-: | :--- | :--- |
 | 1 | Spike: version-matched native `bao` on `security`, real TLS, real login/read/write | Done |
-| 2 | Native `bao` on `security` (Ansible-managed): install, mask shipped service, real TLS, replacing skip-verify/alias | Not started |
+| 2 | Native `bao` on `security` (Ansible-managed): install, mask shipped service, real TLS, replacing skip-verify/alias | Done |
 | 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Not started |
 | 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Not started |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Not started |
@@ -51,6 +51,35 @@ design questions (below) were resolved too, out of stage order - the
 drafts hard gate blocks all of Stage 2 onward equally regardless of
 which stage nominally owns a given `Assumptions` entry, so there was
 no reason to wait.
+
+### Stage 2 — Native `bao` on `security` (Done)
+
+New role, `ansible/roles/openbao_cli/`, run last in `deploy.yaml`'s
+Play 6 (after openbao's own `step_ca_cert` instance issues its leaf
+cert — the TLS check below needs it live). No new open questions: every
+mechanic here was already confirmed live by Stage 1's spike, so this
+stage is a mechanical translation of that spike into an idempotent
+Ansible role, not new de-risking.
+
+Version match is checked against the *running server*, not a hardcoded
+commit string: the role reads both `bao version` (native) and `docker
+exec openbao bao version` (server) and fails loudly on any mismatch,
+before and after installing — so a future bump to
+`ansible/roles/openbao`'s own `openbao_image` tag can't silently drift
+out of sync with this role's `openbao_cli_version` default. The `.deb`
+download is checksummed (`sha256`, from that release's own
+`checksums.txt`) rather than trusted on name/size alone.
+
+Masking the shipped `openbao.service` unit and deleting
+`/opt/openbao`/`/etc/openbao` both happen unconditionally on every run,
+not only right after a fresh install — confirmed directly against the
+package's own `postinst`/`preinst` that a stray reinstall regenerates
+that scaffolding, so removal has to be idempotent-safe to rerun, not a
+one-time cleanup step.
+
+Closing task doubles as this stage's own acceptance check: a real
+`bao status` call over real TLS (`-tls-server-name`, step-ca's cached
+root cert, no `BAO_SKIP_VERIFY`) against the already-running server.
 
 ### Stage 3 — Init/unseal orchestration
 

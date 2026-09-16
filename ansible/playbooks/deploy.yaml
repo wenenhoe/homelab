@@ -118,9 +118,11 @@
 # step_ca_cert's two instances each need their own app already running
 # to issue into, plus step_ca_client's cached root; tinyauth_ca_trust
 # needs a running tinyauth to seed into and the same cached root. No
-# ordering constraint between the latter three — sequenced arbitrarily,
-# all after the shared prerequisite. See docs/step-ca.md for why lldap
-# and openbao differ on cert dir, renew action, and chown.
+# ordering constraint between those three — sequenced arbitrarily, all
+# after the shared prerequisite. See docs/step-ca.md for why lldap and
+# openbao differ on cert dir, renew action, and chown. openbao_cli runs
+# last and isn't arbitrary: it needs openbao's own step_ca_cert instance
+# to have already issued and installed its leaf cert.
 - name: Wire lldap, tinyauth, and openbao into step-ca
   hosts: security
   gather_facts: false
@@ -160,6 +162,15 @@
         step_ca_cert_chown_image: "openbao/openbao:2.6.2"
         step_ca_cert_chown_user: openbao
         step_ca_cert_uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_openbao }}"
+      tags:
+        - images
+
+    # Runs last in this play — needs openbao's own leaf cert (just
+    # above) already issued and serving, since it proves real TLS
+    # end to end. See ansible/roles/openbao_cli.
+    - name: Include openbao_cli role
+      ansible.builtin.include_role:
+        name: openbao_cli
       tags:
         - images
 

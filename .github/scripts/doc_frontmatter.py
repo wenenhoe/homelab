@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 # fails loudly rather than rendering/matching a raw enum value.
 VALID_STATUS = {
     "adr": {"accepted", "superseded"},
-    "draft-adr": {"draft", "decided"},
+    "draft-adr": {"draft", "de-risking", "decided"},
     "project": {"not-started", "in-progress", "done", "blocked"},
 }
 

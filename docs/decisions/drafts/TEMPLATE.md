@@ -2,7 +2,7 @@
 id: DRAFT-short-decision-shaped-title
 title: "Short, decision-shaped title"
 type: draft-adr
-status: draft                # or: decided, once settled but not yet promoted
+status: draft                # draft | de-risking (an Assumption is actively being resolved) | decided (every Assumption resolved)
 ---
 
 # Short, decision-shaped title
@@ -26,9 +26,13 @@ Load-bearing claims this draft depends on that haven't been verified —
 about another stage's design, a tool's real behavior, or a component
 that doesn't exist yet. For each one: the claim, why the Decision
 breaks if it's wrong, and how/when it gets checked (a spike, or
-"confirmed once stage N starts building on this"). Promotable to a
-numbered ADR only once every entry here is resolved — folded into
-Context as settled fact, or the Decision revised to no longer need it.
+"confirmed once stage N starts building on this"). While any entry
+here is open, production implementation must not begin — set
+`status: de-risking` while at least one entry is actively being
+worked (a spike, research, or reading existing code), and move to
+`status: decided` only once every entry is resolved,
+folded into Context as settled fact or the Decision revised to no
+longer need it.
 
 ## Consequences
 

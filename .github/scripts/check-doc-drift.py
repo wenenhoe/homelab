@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 
 import yaml
-from doc_frontmatter import read_frontmatter
+from doc_frontmatter import docs_in, read_frontmatter
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -270,6 +270,30 @@ def check_no_stale_anchors() -> None:
                 fail(f"{rel_f}: links {rel}, which doesn't exist")
 
 
+def check_decided_drafts_have_no_open_assumptions() -> None:
+    """Enforces docs/decisions/README.md#drafts' hard gate: a draft at
+    status: decided must have no open `Assumptions` entry left, since
+    `decided` is defined as "every entry resolved". Presence-of-bullets
+    only, not semantic resolution — a draft that removes the heading
+    entirely once empty (this repo's convention) also passes.
+    """
+    section_re = re.compile(r"^## Assumptions\n\n(.*?)(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
+    bullet_re = re.compile(r"^- ", re.MULTILINE)
+
+    for path in docs_in(ROOT / "docs/decisions/drafts"):
+        fm = read_frontmatter(path)
+        if fm["status"] != "decided":
+            continue
+        m = section_re.search(read(path))
+        if m and bullet_re.search(m.group(1)):
+            fail(
+                f"{path.relative_to(ROOT)}: status: decided but still has an "
+                "open Assumptions entry — resolve every entry (fold into "
+                "Context or revise the Decision) before marking decided, "
+                "per docs/decisions/README.md#drafts"
+            )
+
+
 def check_nist_alignment_currency() -> None:
     """docs/nist-800-53-alignment.md links to specific ADRs/drafts as
     evidence for a control mapping; unlike a plain dead link, an ADR
@@ -312,6 +336,7 @@ def main() -> int:
     check_deploy_flow()
     check_ci_jobs_table()
     check_no_stale_anchors()
+    check_decided_drafts_have_no_open_assumptions()
     check_nist_alignment_currency()
 
     if errors:

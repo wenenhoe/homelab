@@ -85,14 +85,14 @@ instead move into `ansible/scripts/` is a separate, later decision,
 not reopened here.
 
 > **Revised by**
-> [`consolidate-openbao-utility-scripts.md`](drafts/consolidate-openbao-utility-scripts.md):
+> [ADR 0032](0032-consolidate-openbao-utility-scripts.md):
 > the lifecycle-gating test above turned out too coarse
 > (`cloud_credentials` scripts are also lifecycle-sequenced and
-> correctly live in `tools/` anyway) - that draft moves three of these
-> four scripts into `tools/openbao_utils/` after all, on a different
-> test (does it drive a playbook, not just run near one). This
-> paragraph is left as written for the historical record; it's no
-> longer this repo's current design.
+> correctly live in `tools/` anyway) - that decision moved three of
+> these four scripts into `tools/openbao_utils/` after all, on a
+> different test (does it drive a playbook, not just run near one).
+> This paragraph is left as written for the historical record; it's
+> no longer this repo's current design.
 
 `docker/openbao/scripts/bao-login-from-controller.sh`/
 `bao-from-controller.sh` and `restore_hosts_scope_from_backup.py` -
@@ -115,11 +115,13 @@ misplaced generic code.
   `cache.py` no longer defined) until the re-pointing stage caught
   and fixed it. A reminder that "shared module built" and "every
   caller re-pointed" are separate, both-required steps, not one.
-- `PROJECT_ROOT`'s four independent redefinitions are resolved. Two
-  moved into `tools/`, importing it from `tools/utils/repo.py`
-  instead of redefining it: `cache.py`/`bootstrap.py` directly, and
-  `audit.py`/`dump.py` when `consolidate-openbao-utility-scripts.md`
-  moved them there too. `restore_all.py` keeps its own local
+- `PROJECT_ROOT`'s four independent redefinitions are resolved:
+  `bootstrap.py` imports it from `tools/utils/repo.py` directly, and
+  `audit.py`/`dump.py` do too once
+  [ADR 0032](0032-consolidate-openbao-utility-scripts.md) moved them
+  there. `cache.py` turned out not to need it at all once `dump.py`
+  was its only reason to re-export it - removed entirely. `restore_all.py`
+  keeps its own local
   definition, decided deliberately when it moved to
   `ansible/scripts/`: it has zero other dependency on `tools/`, and
   importing one just for this single constant would work against the

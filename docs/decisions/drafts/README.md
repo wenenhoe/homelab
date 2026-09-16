@@ -12,7 +12,6 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 
 - [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md)
 - [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md)
-- [`consolidate-openbao-utility-scripts.md`](consolidate-openbao-utility-scripts.md)
 - [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md)
 - [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)
 - [`openbao-native-cli-not-docker-based-access.md`](openbao-native-cli-not-docker-based-access.md)

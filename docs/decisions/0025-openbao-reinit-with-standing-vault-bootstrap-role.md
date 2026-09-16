@@ -131,7 +131,7 @@ admin-capable credential again.
   > replacement, covering the same `LEGACY_CACHE_KEYS` convention)
   > didn't exist yet at this ADR's decision time. Both tools later
   > moved into one *file* -
-  > [`consolidate-openbao-utility-scripts.md`](drafts/consolidate-openbao-utility-scripts.md) -
+  > [ADR 0032](0032-consolidate-openbao-utility-scripts.md) -
   > but the two source-of-truth conventions this bullet actually
   > reasons about stay fully distinct internally, as two separate
   > phases with two separate access patterns. That's a narrower kind

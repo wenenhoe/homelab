@@ -16,7 +16,7 @@ narrower: genuine raft-data loss or corruption a snapshot restore
 can't fix.
 
 1. **Full backup first:**
-   `python3 -m cloud_credentials.dump_vault_to_file_cache` - never skip
+   `cd tools && python3 -m openbao_utils.dump` - never skip
    this; it's the only copy of everything once step 2 runs.
 2. On `security`: stop the `openbao` container, remove the
    `openbao_data` volume's contents, restart it, then init fresh
@@ -182,8 +182,8 @@ can't fix.
 
    ```sh
    cd tools
-   python3 -m cloud_credentials.dump_vault_to_file_cache
-   python3 -m cloud_credentials.diff_vault_backups \
+   python3 -m openbao_utils.dump
+   python3 -m openbao_utils.diff \
      ~/secrets-backup-pre-reinit-<original-timestamp> \
      ~/secrets-backup-pre-reinit-<this-run's-timestamp>
    ```

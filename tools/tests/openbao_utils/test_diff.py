@@ -1,4 +1,4 @@
-"""Unit tests for diff_vault_backups.
+"""Unit tests for openbao_utils.diff.
 
 Run via `uv run pytest tools/tests/ -v`. Real tmp directories with
 real files - this tool is pure filesystem comparison, no Vault
@@ -15,7 +15,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from cloud_credentials import diff_vault_backups as diff
+from openbao_utils import diff
 
 
 class DiffTests(unittest.TestCase):
@@ -89,7 +89,7 @@ class DiffTests(unittest.TestCase):
     def test_main_rejects_a_non_directory_argument(self):
         from unittest.mock import patch
 
-        with patch.object(sys, "argv", ["diff_vault_backups.py", str(self.dir_a), str(self.tmp / "nope")]):
+        with patch.object(sys, "argv", ["diff.py", str(self.dir_a), str(self.tmp / "nope")]):
             rc = diff.main()
         self.assertEqual(rc, 2)
 

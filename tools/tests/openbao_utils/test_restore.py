@@ -134,7 +134,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
     def test_restores_backup_content_byte_for_byte_not_stripped(self):
         # Regression test for the bug found on merge: the other phase
         # (LEGACY_CACHE_KEYS) used to strip() backup content before
-        # this merge - dump_vault_to_file_cache.py writes the raw
+        # this merge - openbao_utils/dump.py writes the raw
         # value with no added whitespace, so stripping on the way back
         # in would silently corrupt a value with meaningful
         # leading/trailing whitespace.

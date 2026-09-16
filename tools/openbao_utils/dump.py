@@ -28,9 +28,8 @@ ansible/files/secrets/ is already their only copy.
 Never overwrites an existing backup: every run gets its own
 UTC-timestamped directory under $HOME.
 
-Usage (run from tools/, needs the same Vault reachability as any
-other cloud_credentials script):
-    python3 -m cloud_credentials.dump_vault_to_file_cache
+Usage:
+    cd tools && python3 -m openbao_utils.dump
 """
 
 from __future__ import annotations
@@ -39,9 +38,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import yaml
-
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from cloud_credentials.cache import PROJECT_ROOT, read_vault_path
+from cloud_credentials.cache import read_vault_path
+from utils.repo import PROJECT_ROOT
 
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
 

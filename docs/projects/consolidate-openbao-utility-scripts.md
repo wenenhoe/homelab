@@ -29,7 +29,7 @@ code written against it.
 | 2 | Move + rename `bootstrap_secrets.py` → `openbao_utils/bootstrap.py` | Done |
 | 3 | Move + rename `audit_secrets.py` → `openbao_utils/audit.py` | Done |
 | 4 | Merge both restore scripts → `openbao_utils/restore.py` | Done |
-| 5 | Move + rename `dump_vault_to_file_cache.py`/`diff_vault_backups.py` | Not started |
+| 5 | Move + rename `dump_vault_to_file_cache.py`/`diff_vault_backups.py` | Done |
 | 6 | Move `restore_all.py`/`molecule-test-all.sh` → `ansible/scripts/` | Not started |
 | 7 | Add ADR 0031's pointer note; re-inventory and fix every reference | Not started |
 
@@ -173,6 +173,33 @@ actually collapse - both phases stay fully separate internally, only
 the file they live in changed. Added a note to that ADR distinguishing
 the two, rather than silently doing something that reads as
 contradicting it.
+
+### Stage 5 — Move + rename `dump_vault_to_file_cache.py`/`diff_vault_backups.py`
+
+Done. Moved to `tools/openbao_utils/{dump,diff}.py`. `dump.py`
+switched its `PROJECT_ROOT` import from `cloud_credentials.cache`'s
+re-export to `utils.repo` directly, same reasoning as `audit.py` in
+Stage 3 - it was moving into the same package `client.py` lives in
+anyway. That switch made `cache.py`'s own `PROJECT_ROOT` re-export
+genuinely dead: confirmed by grepping for every remaining importer
+before removing it - nothing outside `cache.py`'s own test files
+touches it anymore, so the re-export (and its explanatory `# noqa`
+comment) came out entirely rather than left as unused code. `diff.py`
+needed no import changes at all - confirmed (again) it has zero
+`cloud_credentials`/Vault-touching code, pure file comparison.
+
+Found a genuinely broken link while inventorying references, not
+assumed fixed by the move alone: ADR 0025 linked directly to
+`dump_vault_to_file_cache.py`'s old path
+(`../../tools/cloud_credentials/dump_vault_to_file_cache.py`) - fixed
+to point at the new location, keeping the old name in the link text
+with a "since renamed" note rather than silently swapping it, since
+the ADR's own prose is describing a specific historical event (a live
+audit run at decision time) using the tool's name as it was then.
+
+Neither test file needed a `sys.path` depth change - both moved from
+`tools/tests/cloud_credentials/` to `tools/tests/openbao_utils/`,
+the same nesting depth under `tools/`, confirmed before assuming so.
 
 ### Stage 7 — References and the ADR pointer
 

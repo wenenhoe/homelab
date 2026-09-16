@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """One-time: restore every secret/data/hosts/*-scoped value and every
 cloud_credentials leaf/rotation value from a
-cloud_credentials.dump_vault_to_file_cache backup directory into a
+openbao_utils.dump backup directory into a
 freshly re-initialized, otherwise-empty OpenBao.
 
 Necessary before the first `ansible-playbook deploy.yaml` against a
@@ -35,7 +35,7 @@ old steps 5/6, now one step).
 Pure copy, no regeneration, no prompting. Idempotent - skips any key
 already present in Vault, so it's safe to re-run if interrupted
 partway through. Every backup file is restored byte-for-byte, never
-stripped: dump_vault_to_file_cache.py writes the raw Vault value with
+stripped: openbao_utils/dump.py writes the raw Vault value with
 no added whitespace, so stripping on the way back in would silently
 rewrite any value that legitimately has meaningful leading/trailing
 whitespace - a real discrepancy between the two scripts this one

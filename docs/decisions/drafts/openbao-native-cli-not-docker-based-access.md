@@ -2,12 +2,12 @@
 id: DRAFT-openbao-native-cli-not-docker-based-access
 title: "Native bao CLI on security/controller, not docker exec or a throwaway docker run"
 type: draft-adr
-status: draft
+status: decided
 ---
 
 # Native bao CLI on security/controller, not docker exec or a throwaway docker run
 
-**Status:** Draft
+**Status:** Decided
 
 ## Context
 
@@ -85,14 +85,72 @@ strings with no dynamic input to sanitize, the SDK's structured
 `container.exec_run()` buys little over a plain `exec_command()` call
 here.
 
+Confirmed live (spike, `security`, this exact `2.6.2` pin), settling
+every open question below:
+
+- The CLI package was renamed upstream: the correct release asset is
+  `openbao_2.6.2_linux_amd64.deb`, not `bao_2.6.2_linux_amd64.deb`
+  (that naming 404s for this release). `dpkg -i` installs cleanly with
+  one dependency (`openssl`, already present per the README), and
+  `bao version` reports exactly `OpenBao v2.6.2 (dd9c19c...)` -
+  an exact match to the pinned Docker image tag.
+- The `.deb`'s `postinst` does **not** start anything - it only
+  generates its own self-signed TLS cert under `/opt/openbao/tls`,
+  creates a system user `openbao`, and runs `systemctl daemon-reload`.
+  It does, however, ship a full `openbao.service` unit plus that
+  self-signed cert and an empty data dir, built to run a *standalone*
+  server - none of which this project wants, and left alone it's a
+  live risk: a stray `systemctl start openbao` later would try to bind
+  `:8200` and fight the Docker container for it.
+- The leaf cert `step_ca_cert` issues for `openbao` carries exactly two
+  DNS SANs (`{{ step_ca_cert_common_name }}` and
+  `{{ step_ca_cert_common_name }}.{{ caddy_domain }}` -
+  `ansible/roles/step_ca_cert/tasks/main.yaml`) and never an IP SAN.
+  Dialing `127.0.0.1` (the obvious loopback address once
+  `BAO_SKIP_VERIFY` is gone) fails hostname verification outright:
+  `x509: cannot validate certificate for 127.0.0.1 because it doesn't
+  contain any IP SANs` - reproduced live, not hypothetical.
+  `-tls-server-name=<one of the cert's real SANs>` (equivalently
+  `BAO_TLS_SERVER_NAME`) fixes this while still dialing whatever
+  `-address` says - confirmed live - decoupling "what to connect to"
+  from "what hostname to verify against," with no dependency on that
+  FQDN actually resolving from wherever the CLI runs.
+- `bao operator unseal`'s masked interactive prompt refuses a bare,
+  non-PTY stdin pipe outright - confirmed live:
+  `file descriptor 0 is not a terminal`, not a race or a retriable
+  failure. Allocating a real PTY on the same channel
+  (`paramiko`'s `get_pty=True`) and feeding the share over it, driven
+  entirely programmatically, works cleanly and the share never
+  touches argv or `ps` - confirmed live by fully unsealing a real
+  3-share/2-threshold throwaway instance this way (one share via the
+  positional argument, one via a PTY-fed prompt).
+- Confirmed live on `security`: `controller`'s AppRole
+  (ADR 0020) can write and read a scratch KV entry but fails to delete
+  it - the intended least-privilege scope working as designed, not a
+  defect.
+
 ## Decision
 
 - **`security`**: install a native `bao` binary, version-pinned to
   match the Docker image's pinned server version exactly, via Ansible
-  (a real `managed_hosts` member). Point it at real TLS verification
-  using step-ca's already-local root cert, replacing
-  `BAO_SKIP_VERIFY=true` and the `alias bao=...` convention for every
-  security-local use except init/unseal itself.
+  (a real `managed_hosts` member). Immediately after install: mask the
+  shipped `openbao.service` unit and remove the auto-generated
+  `/opt/openbao`/`/etc/openbao` scaffolding, so nothing on the host can
+  ever start a second, standalone OpenBao server competing for `:8200`
+  - the `.deb`'s installer creates this by default and this project has
+  no use for it. Point the CLI at real TLS verification using
+  step-ca's already-local root cert, replacing `BAO_SKIP_VERIFY=true`
+  and the `alias bao=...` convention for every security-local use
+  except init/unseal itself.
+- **TLS hostname verification, everywhere a native `bao` call is
+  made**: pass `-tls-server-name=<app>.{{ caddy_domain }}` (or the
+  `BAO_TLS_SERVER_NAME` env var) explicitly, rather than relying on
+  whatever hostname `-address` happens to use. The leaf cert has no IP
+  SAN and never will (see Context), so any call that dials by IP -
+  `security`'s own loopback calls included - needs this regardless;
+  making it explicit everywhere means it doesn't matter whether a
+  given call dials an IP or a FQDN, or whether that FQDN happens to
+  resolve from wherever the call runs.
 - **`controller`**: a personally-installed native `bao` binary,
   documented as a one-time manual setup step, not Ansible-automated.
   `bao-login-from-controller.sh`/`bao-from-controller.sh` get rewritten
@@ -110,7 +168,17 @@ here.
 - **Init/unseal stays security-local and docker-exec-based**,
   permanently, by necessity rather than convention - documented
   explicitly as the one deliberate exception, citing the crash-loop-
-  before-cert-issuance constraint, rather than left implicit.
+  before-cert-issuance constraint, rather than left implicit. The
+  unseal step specifically drives `docker exec ... bao operator
+  unseal` over a paramiko channel with `get_pty=True` (see Context) -
+  each share entered through the real masked prompt, never as a
+  positional argument, so it never appears in argv or `ps`.
+- **Controller's native `bao` gets a lightweight version check, not
+  documentation alone**: the rewritten scripts compare local
+  `bao version` against the running server's own reported `Version`
+  (already exposed free by `bao status`/`sys/health`) and warn on
+  mismatch, rather than resting purely on the operator remembering to
+  keep the pin current.
 - **No custom interactive-CLI-session tooling.** OpenBao's CLI is
   designed around persistent-per-shell `BAO_ADDR`/`BAO_CACERT`/
   `BAO_TOKEN` env vars already; a native binary on both hosts gives
@@ -124,49 +192,28 @@ here.
   stay open. Applied consistently, closing the gap in
   `openbao-backup-restore.md`/`openbao-vault-bootstrap.md`.
 
-## Assumptions
-
-- **Claim:** a downloaded OpenBao `.deb` matching the Docker image's
-  exact pinned version installs cleanly on `security`'s current OS and
-  produces a CLI that authenticates and reads/writes against the
-  already-running Docker server over real TLS, pointed at step-ca's
-  locally-read root cert.
-  **Breaks if wrong:** the entire native-on-`security` half of this
-  decision doesn't work, and security-local access stays docker-exec-
-  based indefinitely, not just for init/unseal.
-  **Checked by:** a time-boxed spike, before any doc/script rewrite -
-  see the project doc's Stage 1.
-- **Claim:** `bao operator unseal`'s per-share input can be driven
-  through `paramiko.exec_command()` without a real PTY - either as one
-  non-interactive invocation per share, or another confirmed-safe
-  mechanism that keeps each share out of `ps`/shell history - the same
-  discipline `bao-login.sh` already applies to `secret_id`.
-  **Breaks if wrong:** the init/unseal orchestration needs a different
-  shape - e.g. paramiko only for the surrounding setup, with the
-  unseal step itself left as a real interactive `ssh` session, no
-  scripting attempted around the prompts themselves.
-  **Checked by:** a spike against `bao operator unseal`'s actual
-  documented input handling, before Stage 3 writes any orchestration
-  code.
-- **Claim:** `controller`'s native `bao` binary doesn't need version-
-  pinning enforcement beyond documentation, on the same footing as the
-  already-unenforced `uv`/`ansible-core` requirements.
-  **Breaks if wrong:** CLI/server version drift causes real
-  compatibility problems in practice, needing some lighter-weight
-  check (e.g. the rewritten scripts printing a warning on a version
-  mismatch) rather than pure documentation.
-  **Checked by:** Stage 4's own build-and-use; revisit if drift
-  actually bites.
-
 ## Consequences
 
 - One more package on `security` - accepted, same precedent as
-  `python3-hvac` on the r2-read-watcher host.
+  `python3-hvac` on the r2-read-watcher host. Installing it is no
+  longer a one-line `dpkg -i`: it also requires masking the shipped
+  `openbao.service` unit and removing its auto-generated
+  `/opt/openbao`/`/etc/openbao` scaffolding immediately after, every
+  time it's freshly installed - one more thing Stage 2's Ansible task
+  has to do, not just document.
 - `controller`'s setup docs grow by one manual step - a new but small
   burden on setting up a fresh controller machine.
+- Every native `bao` invocation carries an explicit
+  `-tls-server-name`/`BAO_TLS_SERVER_NAME` - one more flag than a bare
+  `-address` - in exchange for never depending on the leaf cert
+  gaining an IP SAN it structurally can't have, or on whichever host
+  is dialing being able to resolve the FQDN itself.
 - Every login gets slightly more ceremony (an explicit wrap-and-revoke
   instead of a bare `export`), in exchange for bounding token exposure
   to one operation's runtime instead of an open-ended shell session.
+- The rewritten scripts carry a small local version check (comparing
+  `bao version` against the server's reported `Version`) rather than
+  relying on documentation alone to keep `controller`'s pin current.
 - `openbao.md`/`openbao-reinit-runbook.md`'s init/unseal instructions
   stay docker-exec-based permanently - now documented as a deliberate,
   load-bearing exception instead of unexplained inconsistency.

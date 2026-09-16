@@ -84,7 +84,7 @@ title: <doc title>
 type: adr | draft-adr | project
 
 # type: adr        -> accepted | superseded
-# type: draft-adr  -> draft | decided
+# type: draft-adr  -> draft | de-risking | decided
 # type: project    -> not-started | in-progress | done | blocked
 status: accepted
 
@@ -115,6 +115,18 @@ migration's own output made two gaps visible:
   document `Blocked: <reason>` as a valid project status line: the
   enum and `blocked_reason` field just catch frontmatter up to
   process that already existed in prose.
+
+`status` gained `de-risking` for `type: draft-adr` after acceptance:
+the original two-value enum let a draft read `decided` while an
+`Assumptions` entry was still open, since "settled" and "nothing left
+to resolve" weren't distinguished. `de-risking` marks a draft while at
+least one entry is actively being worked — a spike, research, or
+reading existing code, not necessarily a spike specifically, which is
+why the value isn't named after that one technique — and matches the
+same word `docs/projects/README.md` already uses for a stage in the
+same state; `decided` now requires every entry resolved first — see
+[`docs/decisions/README.md#drafts`](README.md#drafts) for the current
+rule.
 
 `summary` was added during Stage 1, for `type: project` only:
 `docs/projects/README.md`'s Covers column carries real per-project

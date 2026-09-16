@@ -230,6 +230,11 @@ these narrow, structural things:
   break any link. Doesn't check whether an *accepted* ADR's reasoning
   drifted, or whether a new ADR should be added there — that's still
   on whoever's making the change, per that page's own notes.
+- No draft under `decisions/drafts/` is `status: decided` while it
+  still has an open `Assumptions` entry — the hard gate in
+  [`decisions/README.md#drafts`](decisions/README.md#drafts).
+  Presence-of-a-bullet only, not whether the claim is genuinely
+  resolved — that judgment call is still on whoever sets the status.
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a

@@ -17,13 +17,23 @@ actual future work, this isn't a project.
 ## What goes in one
 
 Same shape as [`TEMPLATE.md`](TEMPLATE.md): a status line, a stage
-table (`Not started` / `In progress` / `Done` / `Blocked: <reason>`,
-updated at the start and end of each PR that works a stage), and links
-from each stage to whatever backs it — an [ADR](../decisions/README.md)
-or [draft](../decisions/drafts/) for a decision that stage depended on,
-a topic doc once that stage's component is built and stable. An "open
-items" section holds things carried into later stages — not resolved
-questions dressed up as done.
+table (`Not started` / `De-risking` / `Building` / `Done` /
+`Blocked: <reason>`, updated at the start and end of each PR that
+works a stage), and links from each stage to whatever backs it — an
+[ADR](../decisions/README.md) or [draft](../decisions/drafts/) for a
+decision that stage depended on, a topic doc once that stage's
+component is built and stable. An "open items" section holds things
+carried into later stages — not resolved questions dressed up as done.
+
+`De-risking` and `Building` are a hard boundary, not two shades of "in
+progress": a stage stays `De-risking` for as long as its linked draft
+has an open `Assumptions` entry (only a time-boxed, throwaway spike is
+allowed against it, per the draft's own [hard
+gate](../decisions/README.md#drafts)), and only moves to `Building`
+once that draft reaches `status: decided` — every entry resolved. A
+stage with no draft dependency, or one whose draft was already
+`decided` before the stage started, can go straight from `Not started`
+to `Building` without ever passing through `De-risking`.
 
 A project doc never carries rationale or current-behavior detail
 itself — those get written once, in an ADR or a topic doc, and the
@@ -49,9 +59,13 @@ ADR, that's the signal to stop and write the ADR instead.
 A decision a project's stage depends on that isn't yet verified or
 built starts in [`decisions/drafts/`](../decisions/README.md#drafts),
 linked from the relevant stage row — unchanged from how decisions
-already work outside of projects. Promotion to a numbered ADR happens
-the same way it always does: once the assumptions are resolved and the
-thing is actually built, not at decide-time.
+already work outside of projects. The stage's own status follows the
+draft's: `De-risking` while the draft's own `status` is `draft` or
+`de-risking` — same word, same meaning, at both levels — `Building`
+only once the draft is `decided`.
+Promotion to a numbered ADR happens the same way it always does: once
+the draft is `decided` and the thing is actually built — not at
+decide-time.
 
 ## When a project finishes
 

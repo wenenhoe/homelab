@@ -36,18 +36,36 @@ behavior, a component that doesn't exist yet) starts as a draft in
 checked. Drafts are unnumbered, freely rewritten or deleted in place —
 nothing else in this repo should ever cite one as settled.
 
-A draft's own **Status:** line can read `Decided` once its design is
-settled and only implementation (or a still-unresolved Assumption)
-remains — a real, named state (`status: decided` in frontmatter), not
-a promise of promotion. It's still unnumbered and still lives in
-`drafts/` until promotion actually happens.
+**Hard gate:** production implementation must never begin on a draft
+that still has an open `Assumptions` entry. While any entry is open,
+the only engineering work allowed against that draft is a time-boxed,
+throwaway spike aimed at resolving one specific entry — same as this
+repo's general spike discipline, just scoped to a draft instead of a
+numbered decision. Not every entry needs a spike — reading existing
+code, or simply waiting on another stage to land, resolves plenty of
+them without writing anything throwaway; the gate is about production
+code specifically, not all de-risking activity.
 
-Promotion to a real ADR happens once the assumptions are resolved and
-the design is actually implemented — not at decide-time. At that
-point: assign the next sequential number, drop the `Assumptions`
-section entirely (everything in it is now either settled fact folded
-into Context, or moot), set `Status: Accepted` directly, move the file
-from `drafts/` into this directory, and add it to the index below.
+A draft's **Status:** line tracks this directly (`status:` in
+frontmatter), using the same vocabulary as a project stage
+([`docs/projects/README.md#what-goes-in-one`](../projects/README.md#what-goes-in-one)):
+`Draft` while the design itself is still being written, before its
+open questions have settled into concrete `Assumptions` entries;
+`De-risking` once at least one entry is open and is actively being
+worked, by whatever means actually resolves it; `Decided` only once
+every `Assumptions` entry is resolved — folded into Context as settled
+fact, or the Decision revised to no longer need it — so the design is
+genuinely settled and only implementation remains. None of these is a
+promise of promotion; the file stays unnumbered and in `drafts/` until
+promotion actually happens.
+
+Promotion to a real ADR happens once the design has been `Decided` and
+is actually implemented — not at decide-time, and never while an
+Assumption is still open. At that point: assign the next sequential
+number, drop the `Assumptions` section entirely (everything in it is
+now either settled fact folded into Context, or moot), set
+`Status: Accepted` directly, move the file from `drafts/` into this
+directory, and add it to the index below.
 Update every place elsewhere in the repo that links to the draft's old
 path to the new one in the same patch — a link that still resolves
 (the file exists, just moved) is easy to miss, since nothing fails

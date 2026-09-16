@@ -26,8 +26,9 @@ this doc tracks build status only.
 | 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Not started |
 | 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Not started |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Not started |
-| 6 | Update every doc's invocation examples to the consolidated model | Not started |
-| 7 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
+| 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Not started |
+| 7 | Update every doc's invocation examples to the consolidated model | Not started |
+| 8 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
 
 ## Stage detail
 
@@ -86,38 +87,64 @@ SSH-fetch-over-`paramiko` path otherwise; `--controller` stays as an
 override, not the primary interface. Also carries the local
 version-check against the server (see the draft's Decision).
 
-### Stage 7 — Audit for consolidation
+### Stage 5 — Session-scoped token handling everywhere
+
+Two wrapper shapes now cover the two needs found while resolving the
+open items below - `bao_session.py` (Stage 4) for interactive,
+multi-command, single-host access, and a plain shell login-run-revoke
+`trap` for fixed, unattended one-shot scripts.
+`openbao-vault-bootstrap.md`'s day-to-day flow needed no new decision:
+it already fits `bao_session.py`'s shape as-is (single host, several ad
+hoc commands) - just needs its example swapped over (Stage 7), and the
+forced revoke comes along for free.
+
+`openbao-backup-restore.md`'s flow needed a real decision, not just a
+wrapper choice: `snapshot-push.sh.j2` moves off `docker exec`/`docker
+cp` and off `security` entirely, since `bao operator raft snapshot
+save` was confirmed live as a client-side download (see the draft's
+Context) - nothing about it ever actually needed `security`-local
+execution, that was only ever a `docker exec` side effect. The
+rewritten script runs as one process on `controller`, rehoused at
+`tools/openbao_utils/scripts/snapshot-push.sh` (see the draft's
+Decision for why that subdirectory, not loose in `openbao_utils`'s own
+root), using its own shell-based login+revoke `trap`, replacing the
+current mint-on-`controller`/paste-on-`security` manual handoff
+entirely. `rclone.conf` is built as a temp file at run time from four
+values read directly out of Vault via `bao kv get` (`controller`'s
+existing policy already grants this - no new grant needed), and the
+GPG public key needs no new mechanism at all: it's a plain repo file
+`controller` already has checked out. This is also what empties out
+`ansible/roles/openbao_backup/` - see Stage 6.
+
+### Stage 6 — Delete the two now-unused artifacts
+
+Two directories end up with nothing left in them, for two different
+reasons, and both get removed here rather than left as dead weight:
+`ansible/roles/openbao_backup/` (tasks, templates, its Molecule
+scenario) once Stage 5's rewrite moves its script, config, and working
+directory to `controller` entirely - `ansible.md`'s role table and
+`deployment-flow.md`'s Play 10 get updated in the same pass, not left
+pointing at a role that no longer exists. `docker/openbao/scripts/`
+separately empties out once Stage 4 merges its three occupants into
+`bao_session.py` - `snapshot-push.sh.j2` never lived there, so this
+is unrelated to Stage 5's own cleanup, just discovered alongside it.
+Depends on Stages 4 and 5 both being Done.
+
+### Stage 8 — Audit for consolidation
 
 Deliberately last: evaluating whether
 `openbao.md`/`openbao-auth.md`/`openbao-reinit-runbook.md`/
 `openbao-vault-bootstrap.md`/`openbao-backup-restore.md`/
 `openbao-r2-read-watcher.md` can merge or shrink only makes sense once
-their actual content has settled post-Stage 6 - doing it earlier means
+their actual content has settled post-Stage 7 - doing it earlier means
 redoing it. Produces a recommendation (which docs merge, which just
 shrink because they no longer need to re-explain alias/docker-exec
 mechanics inline) and acts on it, not just a report.
 
 ## Open items
 
-- Applying the now-decided session-scoped wrap-and-revoke shape (see
-  the draft's Decision - `bao_session.py`'s login-and-forced-cleanup
-  pattern) to the other places `BAO_TOKEN` currently gets bare-`export`ed
-  with no forced revoke: `openbao-backup-restore.md`'s and
-  `openbao-vault-bootstrap.md`'s day-to-day sections. Stage 5's actual
-  remaining job - the shape itself isn't in question anymore, only
-  where else it needs applying.
-- `openbao_backup/snapshot-push.sh.j2` stays a shell script calling the
-  native `bao` CLI directly (same Stage 2/3 mechanism as everything
-  else), not rewritten in Python/`hvac`: unlike `bao_session.py`, it's
-  machine-run and does two fixed operations, but rewriting it against
-  `hvac` would mean adopting ADR 0030's programmatic-API-client pattern
-  for something that's currently CLI-driven - a bigger, different
-  decision (API client vs. CLI) than this project's own scope, and not
-  this project's call to make unilaterally.
-  [ADR 0031](../decisions/0031-tools-secrets-package-split.md)'s
-  original open item conflated this file with `docker/openbao/scripts/`'s
-  - they're resolved differently; see the draft's Decision for
-  `docker/openbao/scripts/`'s own resolution.
+None currently — the last one (`rclone.conf`/GPG-key delivery to
+`controller`) resolved into Stage 5's own description above.
 
 ## Closing checklist
 

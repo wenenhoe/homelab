@@ -129,6 +129,19 @@ every open question below:
   it - the intended least-privilege scope working as designed, not a
   defect.
 
+A later check of `openbao_backup/snapshot-push.sh.j2`'s own
+constraints found the same class of dependency `security` itself had:
+it only needs `docker exec`/`docker cp` today because `bao operator
+raft snapshot save <path>` runs *inside* the container. Confirmed
+live: this command is a plain client-side download over the HTTPS
+API - it writes the snapshot directly to wherever the *calling
+process* runs, never a server-side file, confirmed by running it from
+a directory with no relationship to the server's own storage path and
+finding nothing written server-side. Nothing about it actually
+requires `security`-local execution once a native `bao` with real
+network access exists - that constraint was only ever a side effect of
+routing it through `docker exec`.
+
 ## Decision
 
 - **`security`**: install a native `bao` binary, version-pinned to
@@ -212,15 +225,53 @@ every open question below:
   purely as an override for whenever auto-detection guesses wrong, not
   as the primary interface.
 - **Session-scoped token handling, not a persistent export - the
-  merged login script above is the concrete shape.** Login wraps a
-  bounded interactive session (the spawned child shell) with a forced
-  revoke+unset once it ends, rather than a bare `export` the operator
-  has to remember to undo. What's still open: `bao_session.py` covers
-  ad hoc interactive access, but `openbao-backup-restore.md`'s and
-  `openbao-vault-bootstrap.md`'s day-to-day sections still `export`
-  `BAO_TOKEN` directly with no forced revoke - applying this same
-  wrap-and-revoke shape there is Stage 5's actual remaining job, not
-  inventing a new shape from scratch.
+  merged login script above is the concrete shape for interactive
+  access.** Login wraps a bounded interactive session (the spawned
+  child shell) with a forced revoke+unset once it ends, rather than a
+  bare `export` the operator has to remember to undo.
+- **`snapshot-push.sh.j2` moves entirely to `controller`, native `bao`
+  over the network - no `security` hop, no manual token copy-paste.**
+  Since `bao operator raft snapshot save` is a client-side download
+  (see Context), the whole script - login, snapshot save, GPG-encrypt,
+  push to R2/B2 - now runs as one process on `controller`, replacing
+  the current mint-on-`controller`/paste-on-`security` manual handoff.
+  It stays a **shell script**, consistent with this file's own earlier
+  resolution (native CLI, not `hvac`/Python): it does its own login
+  using the native `bao` CLI directly - the same hidden-prompt,
+  `-field=token` pattern `bao-login.sh` already established, just run
+  locally on `controller` instead of via `docker exec` - and its own
+  forced revoke via a shell `trap`, not the Python `try/finally`
+  `bao_session.py` uses. Two wrapper shapes now exist in this project,
+  each fitted to what it wraps: `bao_session.py` (Python, `hvac` for
+  the login exchange only) for interactive multi-command access, and a
+  plain shell login-run-revoke `trap` for fixed, unattended one-shot
+  scripts like this one. It's rehoused at
+  `tools/openbao_utils/scripts/snapshot-push.sh` - not loose in
+  `tools/openbao_utils/`'s own root alongside its `.py` modules,
+  matching the precedent `tools/cloud_credentials/systemd/` already
+  sets for non-Python artifacts living inside a Python package
+  directory, in their own named subdirectory rather than mixed in.
+  **`rclone.conf`**: rendered as a `mktemp`-created, `chmod 600` temp
+  file at run time rather than an Ansible-deployed conffile - the
+  script reads each of the four R2/B2 credential values it needs via
+  `bao kv get -mount=secret -field=value cloud_credentials/leaf/<name>`
+  (using the same token it just minted), not `hvac`, keeping this file
+  entirely shell. `controller`'s own policy
+  (`docker/openbao/policies/controller.hcl`) already grants
+  `read` on `secret/data/cloud_credentials/leaf/*` - the exact path
+  these four values already live under (`secrets_registry.yaml`'s
+  `vault_scope: cloud_credentials/leaf` for all four) - and that file
+  already carries a comment anticipating exactly this ("So
+  snapshot-push.sh can eventually authenticate as this role instead of
+  the operator exporting the root token by hand"). No new Vault policy
+  grant needed. The temp file is deleted in the same `trap` that
+  revokes the token.
+  **The GPG public key**: no new mechanism needed at all -
+  `ansible/files/backup-gpg-public-key.asc` is a plain repo file (the
+  current `.j2` template's `lookup('file', ...)` just reads it off
+  disk, it isn't secret material), and `controller` already has the
+  full repo checked out - the rewritten script references it at its
+  already-known repo-relative path directly.
 
 ## Consequences
 
@@ -244,6 +295,34 @@ every open question below:
   now an in-memory `getpass` value, never written to disk at all) and
   collapsing the security/controller distinction into one code path
   instead of two diverging ones.
+- `snapshot-push.sh.j2` gains its own login/revoke/credential-read logic
+  instead of being handed an already-minted token and an
+  Ansible-deployed `rclone.conf` - more script, but it removes the
+  `docker exec`/`docker cp`/cleanup-`rm` sequence entirely (one `bao
+  operator raft snapshot save <path>` call replaces all three), the
+  manual SSH-and-paste step between `controller` and `security`
+  disappears completely, and `rclone.conf` stops being an
+  Ansible-rendered conffile at all - no new Vault policy grant needed,
+  `controller`'s existing one already covers it.
+- **`ansible/roles/openbao_backup/` becomes entirely unnecessary and
+  should be deleted, not left unused.** Every one of its tasks -
+  rendering `rclone.conf`, the GPG public key, `snapshot-push.sh`
+  itself, and the `staging`/deploy directories - existed only to get
+  those artifacts onto `security`. With the script, its config, and
+  its working directory all moving to `controller` (a `mktemp -d`
+  scratch dir, matching `bao-login-from-controller.sh`'s own pattern,
+  not a persistent Ansible-managed one), nothing in this role has a
+  job left. Whichever stage builds this needs to remove the role
+  (tasks, templates, its Molecule scenario) and update `ansible.md`'s
+  role table and `deploy.yaml`'s play list accordingly, not just stop
+  calling it.
+- **`docker/openbao/scripts/` also ends up empty and should go too.**
+  Its only three occupants (`bao-login.sh`, `bao-login-from-controller.sh`,
+  `bao-from-controller.sh`) all merge into `bao_session.py`;
+  `snapshot-push.sh.j2` never lived there. Nothing else in this
+  directory survives either change, so it's a second directory this
+  project empties out and should remove, not two separate surprises
+  found at different times.
 - Every login gets slightly more ceremony (an explicit wrap-and-revoke
   instead of a bare `export`), in exchange for bounding token exposure
   to one operation's runtime instead of an open-ended shell session.

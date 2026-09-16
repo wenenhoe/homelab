@@ -46,7 +46,7 @@ byte-identical across `cache.py`, `openbao_utils/bootstrap.py`, and
 `cache.py`'s generic OpenBao/host-resolution helpers (`_main_domain`,
 `_security_ssh_target`, the Vault session logic) turned out to already
 be needed by consumers with nothing to do with cloud credentials
-(`docker/openbao/scripts/bao-*.sh`, `restore_hosts_scope_from_backup.py`).
+(`docker/openbao/scripts/bao-*.sh`, `openbao_utils/restore.py`).
 Both facts fed into
 [ADR 0031](0031-tools-secrets-package-split.md)'s
 larger reorganization instead of being decided independently

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""One-time: restore every secret/data/hosts/*-scoped value from a
+"""One-time: restore every secret/data/hosts/*-scoped value and every
+cloud_credentials leaf/rotation value from a
 cloud_credentials.dump_vault_to_file_cache backup directory into a
 freshly re-initialized, otherwise-empty OpenBao.
 
@@ -12,15 +13,37 @@ invalidating already-deployed services that still expect the old value
 currently authenticate with, etc.). This restores the exact prior
 value instead of letting anything regenerate.
 
-Pure copy, no regeneration, no prompting - the restore-side mirror of
-dump_vault_to_file_cache.py's own backup pass, and of
-migrate_legacy_cache_to_vault.py's shape for the cloud_credentials
-half of this same problem. Idempotent - skips any key already present
-in Vault, so it's safe to re-run if interrupted partway through.
+Two phases, covering two Vault-path shapes that don't overlap:
+  1. Every secrets_registry.yaml entry with a vault_scope (every
+     `hosts/*` key, plus the 20 cloud_credentials/leaf ones a registry
+     entry exists for as of Track A stage 6) - via cache.py's
+     read_vault_path()/write_vault_path() escape hatch.
+  2. cloud_credentials' own internal bookkeeping keys with no
+     secrets_registry.yaml entry of their own (_rotation-key-*,
+     _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values) -
+     the ~10 LEGACY_CACHE_KEYS names phase 1 has no way to reach,
+     via each key's own registered module.
 
-Usage (run from ansible/, after controller's AppRole is recreated per
-docs/openbao-auth.md's runbook, BEFORE any deploy.yaml run):
-    python3 restore_hosts_scope_from_backup.py ~/secrets-backup-pre-reinit-<timestamp>/
+Replaces migrate_legacy_cache_to_vault.py (retired at Track A stage 6
+alongside the file cache it read from, ansible/files/secrets/) and the
+two separate scripts this file merges -
+restore_hosts_scope_from_backup.py and
+restore_cloud_credentials_from_backup.py - always run as one logical
+operation against the same backup directory (openbao-reinit-runbook.md's
+old steps 5/6, now one step).
+
+Pure copy, no regeneration, no prompting. Idempotent - skips any key
+already present in Vault, so it's safe to re-run if interrupted
+partway through. Every backup file is restored byte-for-byte, never
+stripped: dump_vault_to_file_cache.py writes the raw Vault value with
+no added whitespace, so stripping on the way back in would silently
+rewrite any value that legitimately has meaningful leading/trailing
+whitespace - a real discrepancy between the two scripts this one
+replaces, resolved in favor of the non-stripping, byte-for-byte
+behavior on merge.
+
+Usage:
+    cd tools && python3 -m openbao_utils.restore ~/secrets-backup-pre-reinit-<timestamp>/
 """
 
 from __future__ import annotations
@@ -29,11 +52,7 @@ import sys
 from pathlib import Path
 
 import yaml
-
-# cloud_credentials/openbao_utils now live in tools/, not alongside
-# this script - see
-# docs/decisions/0031-tools-secrets-package-split.md.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path, write_vault_path
 from utils.repo import PROJECT_ROOT
 
@@ -56,7 +75,9 @@ def main() -> int:
         print(f"Not a directory: {backup_dir}", file=sys.stderr)
         return 1
 
-    restored, already_in_vault, no_backup_file = [], [], []
+    restored: list[str] = []
+    already_in_vault: list[str] = []
+    no_backup_file: list[str] = []
 
     for name, scope in _scoped_registry_entries().items():
         backup_file = backup_dir / name
@@ -67,6 +88,17 @@ def main() -> int:
             already_in_vault.append(name)
             continue
         write_vault_path(f"{scope}/{name}", backup_file.read_text())
+        restored.append(name)
+
+    for name, module in LEGACY_CACHE_KEYS:
+        backup_file = backup_dir / name
+        if not backup_file.exists():
+            no_backup_file.append(name)
+            continue
+        if module.cached(name):
+            already_in_vault.append(name)
+            continue
+        module.write_cache(name, backup_file.read_text())
         restored.append(name)
 
     print(f"Restored to Vault ({len(restored)}):")

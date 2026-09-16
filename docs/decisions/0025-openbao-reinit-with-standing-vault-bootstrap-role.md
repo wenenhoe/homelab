@@ -124,6 +124,18 @@ admin-capable credential again.
   convention (`secrets_registry.yaml`'s `vault_scope` vs.
   `_legacy_cache_keys.py`'s `LEGACY_CACHE_KEYS`), not worth merging
   into one.
+
+  > **Note:** this reasoning compares against `migrate_legacy_cache_to_vault.py`,
+  > since retired - `restore_cloud_credentials_from_backup.py` (its
+  > replacement, covering the same `LEGACY_CACHE_KEYS` convention)
+  > didn't exist yet at this ADR's decision time. Both tools later
+  > moved into one *file* -
+  > [`consolidate-openbao-utility-scripts.md`](drafts/consolidate-openbao-utility-scripts.md) -
+  > but the two source-of-truth conventions this bullet actually
+  > reasons about stay fully distinct internally, as two separate
+  > phases with two separate access patterns. That's a narrower kind
+  > of merge than this bullet was written to rule out; it doesn't
+  > revise this ADR's point.
 - `vault-bootstrap`'s `secret_id` is now this repo's actual
   root-recovery mechanism, not a convenience credential - it needs the
   same offline discipline as the Shamir shares, spelled out in

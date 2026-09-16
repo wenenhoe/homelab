@@ -2,7 +2,7 @@
 
 Run via `uv run pytest tools/tests/ -v`. Exercises against fake
 Vault reads and a real tmp filesystem - no real Vault, same reasoning
-as test_restore_cloud_credentials_from_backup.py.
+as test_restore.py.
 """
 
 from __future__ import annotations

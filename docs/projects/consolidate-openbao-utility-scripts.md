@@ -28,7 +28,7 @@ code written against it.
 | 1 | Rename `tools/openbao_client/` → `tools/openbao_utils/` | Done |
 | 2 | Move + rename `bootstrap_secrets.py` → `openbao_utils/bootstrap.py` | Done |
 | 3 | Move + rename `audit_secrets.py` → `openbao_utils/audit.py` | Done |
-| 4 | Merge both restore scripts → `openbao_utils/restore.py` | Not started |
+| 4 | Merge both restore scripts → `openbao_utils/restore.py` | Done |
 | 5 | Move + rename `dump_vault_to_file_cache.py`/`diff_vault_backups.py` | Not started |
 | 6 | Move `restore_all.py`/`molecule-test-all.sh` → `ansible/scripts/` | Not started |
 | 7 | Add ADR 0031's pointer note; re-inventory and fix every reference | Not started |
@@ -134,13 +134,45 @@ with how its `bootstrap_secrets.py` mentions were already handled
 
 ### Stage 4 — Merge the restore scripts
 
-Two phases in one script: registry-scoped restore (via
+Done. Two phases in one script: registry-scoped restore (via
 `cloud_credentials.cache`'s `read_vault_path`/`write_vault_path`,
-today's `restore_hosts_scope_from_backup.py`) then `LEGACY_CACHE_KEYS`
-restore (via each key's own module, today's
+formerly `restore_hosts_scope_from_backup.py`) then `LEGACY_CACHE_KEYS`
+restore (via each key's own module, formerly
 `restore_cloud_credentials_from_backup.py`), one combined summary
-covering both. `openbao-reinit-runbook.md`'s steps 5 and 6 collapse
-into one. Test files merge the same way.
+covering both - shared accumulator lists across both `for` loops, not
+two separate summaries. `openbao-reinit-runbook.md`'s steps 5 and 6
+collapsed into one, and every downstream step renumbered (7→6, 8→7,
+9→8) - including two internal cross-references within that same file
+and one each in `openbao-r2-read-watcher.md` and
+`diff_vault_backups.py`'s own docstring, found by grepping for step
+numbers before assuming the renumbering was done.
+
+Found a real behavioral bug on merge, not assumed: the two original
+scripts disagreed on whether to `.strip()` backup file content before
+writing it back to Vault - `restore_hosts_scope_from_backup.py` didn't,
+`restore_cloud_credentials_from_backup.py` did. Checked
+`dump_vault_to_file_cache.py`'s own write side
+(`path.write_text(value)`, no added whitespace) to determine which was
+actually correct: the non-stripping behavior, since stripping on
+restore would silently corrupt any value with meaningful
+leading/trailing whitespace that genuinely existed in Vault. Fixed in
+the merge; added a regression test for it in both phases.
+
+Test files merged the same way as their sources, each phase's tests
+neutralizing the *other* phase (an empty `LEGACY_CACHE_KEYS` list, or
+an empty registry) rather than mocking it away, since `main()` runs
+both phases unconditionally and an unmocked real Vault session is the
+alternative.
+
+Checked ADR 0025's own "not worth merging into one" Consequences
+bullet before merging, since it sounded like it might rule this out -
+turned out to be comparing against a different, since-retired tool
+(`migrate_legacy_cache_to_vault.py`), reasoning about a *mechanism*
+distinction (two source-of-truth conventions) this merge doesn't
+actually collapse - both phases stay fully separate internally, only
+the file they live in changed. Added a note to that ADR distinguishing
+the two, rather than silently doing something that reads as
+contradicting it.
 
 ### Stage 7 — References and the ADR pointer
 

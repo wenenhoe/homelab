@@ -70,17 +70,14 @@ jobs:
             # — these are plain controller-side Python, covered by
             # ansible/tests/ and tools/tests/ instead.
             python_unit_tests:
-              # Top-level scripts still here
-              # (restore_hosts_scope_from_backup.py,
-              # restore_cloud_credentials_from_backup.py) - each has a
-              # same-named test in ansible/tests/ importing it directly.
-              # restore_all.py has no test yet, so this is a no-op for
-              # it. bootstrap_secrets.py/audit_secrets.py moved to
-              # tools/openbao_utils/{bootstrap,audit}.py
+              # Only restore_all.py is left as a top-level ansible/
+              # script - it has no test yet, so this glob is currently
+              # a no-op. bootstrap_secrets.py/audit_secrets.py/the two
+              # restore_*_from_backup.py scripts (merged into one)
+              # moved to tools/openbao_utils/{bootstrap,audit,restore}.py
               # (docs/decisions/drafts/
               # consolidate-openbao-utility-scripts.md) - covered by
-              # the tools/openbao_utils/** trigger below instead; the
-              # other two move there too, not yet done.
+              # the tools/openbao_utils/** trigger below instead.
               - 'ansible/*.py'
               - 'tools/cloud_credentials/**'
               - 'tools/openbao_utils/**'

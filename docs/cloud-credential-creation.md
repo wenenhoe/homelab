@@ -71,7 +71,7 @@ Two now-retired tools, `audit_vault_state.py` and
 transition from file cache to Vault, and were removed once that file
 cache was deleted. Restoring
 cloud_credentials' Vault state after a genuine OpenBao re-init is now
-`restore_cloud_credentials_from_backup.py`'s job — see
+`openbao_utils/restore.py`'s job — see
 [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md).
 
 **Testing:** none of these are an Ansible role, so Molecule's per-host

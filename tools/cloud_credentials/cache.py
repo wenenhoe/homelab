@@ -35,7 +35,7 @@ import hvac
 from openbao_utils.client import openbao_base_url, vault_read, vault_write
 from openbao_utils.client import vault_login as _bare_vault_login
 from utils.repo import (
-    PROJECT_ROOT,  # noqa: F401 - re-exported: dump_vault_to_file_cache.py still imports this from here (internal, unlike restore_hosts_scope_from_backup.py's now-fixed external one)
+    PROJECT_ROOT,  # noqa: F401 - re-exported: dump_vault_to_file_cache.py still imports this from here (internal use; every external consumer now imports it from utils.repo directly instead)
     TIMEOUT_SECONDS,
     fetch_root_cert,
     read_bootstrap_file,

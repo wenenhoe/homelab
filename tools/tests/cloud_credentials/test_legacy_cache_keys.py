@@ -1,7 +1,7 @@
 """Interface smoke test for cloud_credentials._legacy_cache_keys.
 
 Run via `uv run pytest tools/tests/ -v`. Every other test for
-restore_cloud_credentials_from_backup.py/openbao_utils/audit.py exercises
+openbao_utils/restore.py/openbao_utils/audit.py exercises
 their own logic against a fake module double (see those tests' own
 comments for why) - which means neither one ever actually calls
 cached()/read_cache()/write_cache() on the real leaf_keys/

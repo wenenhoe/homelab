@@ -25,7 +25,7 @@ live).
 ## Installing
 
 The watcher's own AppRole (`r2-read-watcher`) is already provisioned —
-[`openbao-reinit-runbook.md`](openbao-reinit-runbook.md)'s step 7. This
+[`openbao-reinit-runbook.md`](openbao-reinit-runbook.md)'s step 6. This
 picks up from there.
 
 1. Copy everything over, from `controller`:

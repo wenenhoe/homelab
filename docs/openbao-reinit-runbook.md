@@ -101,7 +101,7 @@ can't fix.
    reasoning as `openbao-auth.md`'s own step 6 - a policy file is a
    claim until proven. From `controller`, first:
    `scp docker/openbao/scripts/bao-login.sh security:/tmp/` (used here
-   and again in step 7 - copy it once):
+   and again in step 6 - copy it once):
 
    ```sh
    BAO_TOKEN=$(/tmp/bao-login.sh "<role_id from above>")
@@ -115,24 +115,23 @@ can't fix.
    policy but genuinely cannot read a secret through any path of its
    own. Clean up the test policy with the root token, back on
    `security`: `bao policy delete _stage-test-policy`.
-5. `python3 restore_hosts_scope_from_backup.py <backup-dir>` -
+5. `cd tools && python3 -m openbao_utils.restore <backup-dir>` -
    **before** any `ansible-playbook deploy.yaml` run against the fresh
    Vault. Skipping this means the next `deploy.yaml` silently mints new
    random values for every `hex`/`uuid4` secret in the registry
-   (ADR 0025's Context explains why). Since every
-   `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` registry entry now has its
-   own `vault_scope` (`cloud_credentials/leaf`), this one step now also
-   restores all 20 of those - not just the `hosts/*` ones.
-6. `python3 restore_cloud_credentials_from_backup.py <backup-dir>` -
-   restores what step 5 can't reach: cloud_credentials' internal
-   leaf/rotation bookkeeping keys with no `secrets_registry.yaml` entry
-   of their own (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two
+   (ADR 0025's Context explains why). Restores two things in one pass:
+   every `secrets_registry.yaml` entry with a `vault_scope` (including
+   all 20 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` leaf credentials,
+   each of which now has its own `vault_scope` of
+   `cloud_credentials/leaf`), and `cloud_credentials`' internal
+   leaf/rotation bookkeeping keys with no registry entry of their own
+   (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two
    `oci-{write,read}-scim-id` values). The `_oci-leaf-user-ocid-*`
-   duplicate under `cloud_credentials/leaf/` (see ADR 0025's Context) is
-   not recreated - this script, like the retired
+   duplicate under `cloud_credentials/leaf/` (see ADR 0025's Context)
+   is not recreated - this script, like the retired
    `migrate_legacy_cache_to_vault.py` before it, only ever writes to
    each key's own registered category.
-7. Provision the R2 watcher's AppRole (ADR 0026) using
+6. Provision the R2 watcher's AppRole (ADR 0026) using
    `vault-bootstrap`:
 
    ```sh
@@ -178,8 +177,8 @@ can't fix.
    `uptime_kuma_push`'s own env-file convention rather than
    `ansible/files/secrets/`.
 
-8. Revoke root, same as `openbao-auth.md`'s own last step.
-9. Confirm:
+7. Revoke root, same as `openbao-auth.md`'s own last step.
+8. Confirm:
 
    ```sh
    cd tools
@@ -190,7 +189,7 @@ can't fix.
    ```
 
    Expect `IDENTICAL`, no exceptions - the `leaf/`-side
-   `_oci-leaf-user-ocid-*` duplicate from step 6 was never a second
+   `_oci-leaf-user-ocid-*` duplicate from step 5 was never a second
    *file* in either dump (both always read from the correct
    `rotation/` path), so there's nothing that should legitimately
    differ here.

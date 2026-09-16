@@ -2,7 +2,7 @@
 """Compare two dump_vault_to_file_cache.py backup directories: same
 set of keys, same value for each.
 
-Built for openbao-reinit-runbook.md's step 9 - confirming a post-reinit
+Built for openbao-reinit-runbook.md's step 8 - confirming a post-reinit
 backup matches the pre-reinit one exactly - but takes two arbitrary
 directories, so it works for any two dumps.
 

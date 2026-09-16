@@ -1,6 +1,6 @@
 """Every cache key name cloud_credentials has ever written to Vault,
 paired with the module whose write_cache/cached/read_cache owns it.
-Shared by restore_cloud_credentials_from_backup.py, openbao_utils/audit.py,
+Shared by openbao_utils/restore.py, openbao_utils/audit.py,
 and openbao_utils/bootstrap.py's own exclusion list, so none of them can
 drift against each other or against what cache.py's scoped() actually
 writes - duplicating this list per-consumer is what let

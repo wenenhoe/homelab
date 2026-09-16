@@ -4,7 +4,7 @@ provider's HTTP API instead of a console click-through, and cache them
 in OpenBao at the same `cloud_credentials/leaf/<registry-key>` Vault
 paths `cache.py`'s `scoped("leaf")` always writes to (Track A stage 5).
 Entries stay format: manual in secrets_registry.yaml — this script is
-just an automated way to fill them in; `bootstrap_secrets.py` itself
+just an automated way to fill them in; `openbao_utils/bootstrap.py` itself
 deliberately excludes these names from its own prompting (see that
 script's docstring). See docs/cloud-credential-creation.md for the
 exact grant each leaf gets, provider-by-provider.
@@ -29,7 +29,7 @@ what's expected to narrow it later (a secrets-manager migration, not
 this script).
 
 Safe to re-run: a credential whose both cache files already exist is
-left untouched, same convention as bootstrap_secrets.py.
+left untouched, same convention as openbao_utils/bootstrap.py.
 
 To rotate a leaf key with verify-before-revoke of the old one (the new
 key must actually pass a live read/write check over the same rclone

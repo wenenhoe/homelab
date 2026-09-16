@@ -1,8 +1,8 @@
-"""Unit tests for cloud_credentials.dump_vault_to_file_cache.
+"""Unit tests for openbao_utils.dump.
 
 Run via `uv run pytest tools/tests/ -v`. Exercises against fake
 Vault reads and a real tmp filesystem - no real Vault, same reasoning
-as test_restore_cloud_credentials_from_backup.py.
+as test_restore.py.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from cloud_credentials import dump_vault_to_file_cache as dump
+from openbao_utils import dump
 
 
 class _FakeModule:

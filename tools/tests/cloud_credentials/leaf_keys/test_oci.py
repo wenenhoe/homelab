@@ -117,7 +117,7 @@ class OciRotationTests(RotationTestBase):
         predates this cache key, or an interrupted write), and the old
         two-field check treated that leaf as permanently 'done' -
         silently never backfilling the missing scim-id, which then made
-        audit_secrets.py misreport the actually-in-use key as an
+        openbao_utils/audit.py misreport the actually-in-use key as an
         ORPHAN, since it had nothing to compare it against."""
         self.seed("oci-write-access-key", "STALE_ACCESS_NO_SCIM_ID")
         self.seed("oci-write-secret-key", "STALE_SECRET_NO_SCIM_ID")

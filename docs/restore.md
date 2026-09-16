@@ -38,7 +38,7 @@ prompt's own `{{ restore_volumes | join(', ') }}` then silently joins
 that string's individual *characters* instead of the volume name(s) —
 visible directly in the confirmation text if this regresses, so it's
 hard to miss before typing `yes`, but easy to miss in a script that
-never shows a human that prompt (see `ansible/restore_all.py`'s own
+never shows a human that prompt (see `ansible/scripts/restore_all.py`'s own
 `run_app_restore()`, fixed for exactly this).
 
 Each archive holds exactly one app (one schedule = one app — see
@@ -83,7 +83,7 @@ JSON-object `-e`:
 ## Batch restore (all apps, disaster-recovery scenario)
 
 The above is the per-app runbook — the tested primitive underneath, and
-still exactly what a single-app restore should use. `ansible/restore_all.py`
+still exactly what a single-app restore should use. `ansible/scripts/restore_all.py`
 is a thin orchestrator on top of it, for the "lost `services`/`security`/`play`
 outright" scenario: it discovers each in-scope app's latest backup itself
 (SeaweedFS first, falling back to that app's own cloud target(s) if
@@ -104,8 +104,8 @@ default). step-ca is always ordered first when it's in scope — see
 step 4 below for why.
 
 ```sh
-python3 ansible/restore_all.py            # interactive: one batch summary, one 'yes'
-python3 ansible/restore_all.py --yes      # unattended (fire-drill automation, etc.)
+python3 ansible/scripts/restore_all.py            # interactive: one batch summary, one 'yes'
+python3 ansible/scripts/restore_all.py --yes      # unattended (fire-drill automation, etc.)
 ```
 
 Run this on the controller only — same machine/trust requirement as
@@ -182,7 +182,7 @@ rclone lsjson --config ansible/files/restore/rclone.conf \
 ```
 
 Also unverified: `rclone copyto`'s 20-second IO-idle timeout (not a
-total-transfer cap — set in `_run_rclone`, `ansible/restore_all.py`)
+total-transfer cap — set in `_run_rclone`, `ansible/scripts/restore_all.py`)
 could mistake a brief-but-legitimate stall on a slow or high-latency
 link for a stuck download, on a large archive over a weak connection.
 Worth watching for on the first real restore over anything other than

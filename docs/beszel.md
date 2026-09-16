@@ -23,9 +23,9 @@ value doesn't block the first deploy. `beszel-agent`'s `.env` uses
 
 Sequence:
 
-1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty Vault values `bootstrap_secrets.py` created for these two).
+1. `ansible-playbook deploy.yaml` — hub deploys and starts normally; agents deploy too, but sit in a harmless auth-retry loop (blank `KEY`/`TOKEN`, from the empty Vault values `openbao_utils/bootstrap.py` created for these two).
 2. Visit `https://beszel.sec.{{ lab_domain }}`, create the hub admin account.
-3. **Settings → Keys**: run `python3 ansible/bootstrap_secrets.py` and paste the hub's public key in when prompted for `beszel-hub-key` (already-set entries are skipped, so re-running is safe — see [`secrets.md`](secrets.md)).
+3. **Settings → Keys**: run `cd tools && python3 -m openbao_utils.bootstrap` and paste the hub's public key in when prompted for `beszel-hub-key` (already-set entries are skipped, so re-running is safe — see [`secrets.md`](secrets.md)).
 4. **Settings → Tokens**: create a universal token, set it as `beszel-agent-token` the same way.
 5. Re-run `ansible-playbook deploy.yaml` — every agent's `.env` re-renders with the real values and connects; each host self-registers as a system on first successful handshake.
 
@@ -48,14 +48,14 @@ Sequence:
 2. `ansible-playbook playbooks/deploy.yaml --limit security,localhost` — hub restarts empty; every agent fleet-wide drops back into the same harmless auth-retry loop as first-time setup.
 3. New admin account; get a new KEY from `Settings → Keys` and a new
    TOKEN from `Settings → Tokens` (same UI steps as the bootstrap
-   sequence's 2–4 above, but don't re-run `bootstrap_secrets.py` for
+   sequence's 2–4 above, but don't re-run `openbao_utils/bootstrap.py` for
    this part — it skips any already-set entry, blank or not, so it
    won't touch either value here; step 4 below overwrites them
    directly instead).
 4. Overwrite both Vault values directly — this is an update to an
    existing path, which `controller`'s AppRole can do (its policy grants
    `update` on `secret/data/hosts/*`, just not `delete` — see
-   `controller.hcl`), so `bootstrap_secrets.py`'s own skip-if-already-set
+   `controller.hcl`), so `openbao_utils/bootstrap.py`'s own skip-if-already-set
    behavior doesn't get in the way here:
    ```sh
    BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh "$(cat ansible/files/secrets/openbao-controller-role-id)")

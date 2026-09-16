@@ -11,7 +11,7 @@ status: accepted
 
 ## Context
 
-`cache.py` (`tools/cloud_credentials`) and `bootstrap_secrets.py`
+`cache.py` (`tools/cloud_credentials`) and `openbao_utils/bootstrap.py`
 each independently hand-rolled an OpenBao AppRole login + KV v2
 read/write over raw `requests`, and each independently fetched
 step-ca's root cert via `ssh ... docker exec step-ca cat
@@ -21,7 +21,7 @@ produced the same bug twice, independently: neither file's SSH-fetch
 or a network partition blocked either one forever - fixing one without
 the other left the second stale.
 
-Two more files shared this surface: `audit_secrets.py` read the same
+Two more files shared this surface: `openbao_utils/audit.py` read the same
 OpenBao KV v2 paths over its own `requests` calls (its B2/OCI
 provider-API calls are a separate concern, covered by
 [ADR 0029](0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)),
@@ -41,12 +41,12 @@ Whether the four Python clients above should also share code with
 each other (rather than each independently adopting `hvac`/`paramiko`)
 was originally an open question in this draft. It's answered
 elsewhere now: `hvac` login/read/write bodies turned out
-byte-identical across `cache.py`, `bootstrap_secrets.py`, and
+byte-identical across `cache.py`, `openbao_utils/bootstrap.py`, and
 `r2_read_watcher.py` once all three were built, and separately,
 `cache.py`'s generic OpenBao/host-resolution helpers (`_main_domain`,
 `_security_ssh_target`, the Vault session logic) turned out to already
 be needed by consumers with nothing to do with cloud credentials
-(`docker/openbao/scripts/bao-*.sh`, `restore_hosts_scope_from_backup.py`).
+(`docker/openbao/scripts/bao-*.sh`, `openbao_utils/restore.py`).
 Both facts fed into
 [ADR 0031](0031-tools-secrets-package-split.md)'s
 larger reorganization instead of being decided independently
@@ -64,10 +64,10 @@ later is irrelevant, since nothing ever presents it again.
 ## Decision
 
 Every internal Python client that talks to OpenBao directly
-(`cache.py`, `bootstrap_secrets.py`, `audit_secrets.py`,
+(`cache.py`, `openbao_utils/bootstrap.py`, `openbao_utils/audit.py`,
 `r2_read_watcher.py`) uses `hvac` for the Vault client and, where an
 SSH hop to fetch step-ca's root cert is needed (`cache.py`,
-`bootstrap_secrets.py` - not `r2_read_watcher.py`, which runs on
+`openbao_utils/bootstrap.py` - not `r2_read_watcher.py`, which runs on
 `security` itself over loopback), `paramiko` instead of `subprocess` +
 the `ssh` CLI. Confirmed live against a real OpenBao instance and a
 real `security` host: `hvac.Client(url=..., verify=ca_path)` +
@@ -92,7 +92,7 @@ internal client uses, independent of how much code they share.
 
 - All four clients' missing-SSH-timeout bug is fixed, bounded to
   `_TIMEOUT_SECONDS = 10` in each - `tools/cloud_credentials/cache.py`
-  and `ansible/bootstrap_secrets.py` are the reference
+  and `openbao_utils/bootstrap.py` are the reference
   implementations for the SSH-fetch + session pattern;
   `docker/openbao/watcher/r2_read_watcher.py` for the no-SSH,
   login-once-at-startup variant.
@@ -100,11 +100,11 @@ internal client uses, independent of how much code they share.
   (`raise_on_deleted_version`) is pinned explicitly to `True`
   (preserving current behavior) in every read call, rather than left
   to silently flip later.
-- `cache.py` and `bootstrap_secrets.py` no longer independently
+- `cache.py` and `openbao_utils/bootstrap.py` no longer independently
   implement the same login/read/write bodies - resolved by
   [ADR 0031](0031-tools-secrets-package-split.md), which extracted the
   shared implementation into `tools/utils/repo.py`/
-  `tools/openbao_client/client.py`. `r2_read_watcher.py` still keeps
+  `tools/openbao_utils/client.py`. `r2_read_watcher.py` still keeps
   its own independent copy, deliberately, per that decision's own
   reasoning (its hand-installed single-file deployment can't cleanly
   share a package).

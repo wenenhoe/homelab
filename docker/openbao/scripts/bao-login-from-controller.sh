@@ -4,7 +4,7 @@
 # case, used on `security` itself). Verifies TLS properly against
 # step-ca's root cert, fetched fresh each run over SSH - the same
 # trust mechanism ADR 0022 already established, reused here via
-# openbao_client.client's shared security_ssh_target()/main_domain()
+# openbao_utils.client's shared security_ssh_target()/main_domain()
 # rather than re-derived. Never skip-verify.
 #
 # role_id isn't sensitive, passed as a normal argument. secret_id is

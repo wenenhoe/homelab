@@ -2,7 +2,7 @@
 """Writes a throwaway dummy value to ansible/files/secrets/<key> for
 every manual-format secrets_registry entry, for deploy-ordering-check's
 own two ansible-playbook invocations — mirroring what
-bootstrap_secrets.py would produce on a real first-ever deploy.
+openbao_utils/bootstrap.py would produce on a real first-ever deploy.
 
 Driven off the real secrets_registry.yaml at CI-run time rather than a
 hand-maintained list of printf lines in the workflow file: the previous

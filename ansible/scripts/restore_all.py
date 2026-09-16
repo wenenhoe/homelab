@@ -32,11 +32,11 @@ machine):
     rotate any credential.
 
 Usage:
-    python3 ansible/restore_all.py            # interactive: prints a
-                                                # summary, asks for a
-                                                # single 'yes'
-    python3 ansible/restore_all.py --yes       # unattended: skips the
-                                                # confirmation prompt
+    python3 ansible/scripts/restore_all.py       # interactive: prints a
+                                                   # summary, asks for a
+                                                   # single 'yes'
+    python3 ansible/scripts/restore_all.py --yes  # unattended: skips the
+                                                   # confirmation prompt
 
 Exit status: 0 if every in-scope app restored successfully, 1 otherwise
 (including an aborted batch).
@@ -52,7 +52,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 ANSIBLE_DIR = PROJECT_ROOT / "ansible"
 RESTORE_DIR = ANSIBLE_DIR / "files/restore"
 MANIFEST_PATH = RESTORE_DIR / "manifest.json"

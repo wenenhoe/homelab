@@ -1,4 +1,4 @@
-"""Unit tests for openbao_client.client - the OpenBao/Vault-specific
+"""Unit tests for openbao_utils.client - the OpenBao/Vault-specific
 primitives (KV v2 read/write, AppRole login, the OpenBao URL itself).
 
 Run via `uv run pytest tools/tests/ -v`. Every Vault call is mocked;
@@ -20,7 +20,7 @@ import hvac
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from openbao_client import client
+from openbao_utils import client
 from utils import repo
 
 
@@ -48,7 +48,7 @@ class OpenbaoBaseUrlTests(SecretsDirTestCase):
 
 class VaultLoginTests(unittest.TestCase):
     """Bare login only - no file-reading/validation here, that's each
-    caller's own job (see cache.py's/bootstrap_secrets.py's own
+    caller's own job (see cache.py's/openbao_utils/bootstrap.py's own
     VaultLoginTests for the wrapper behavior)."""
 
     def test_logs_in_with_the_given_role_and_secret_id(self):

@@ -81,9 +81,18 @@ to `ansible-playbook` directly), which is genuinely `ansible/`'s
 domain. Importing from `tools/` isn't wrong ownership here; it's the
 same relationship `cache.py` itself has with `openbao_client`/`utils`.
 Whether these five scripts (loose at `ansible/`'s own root) should
-instead move into `ansible/scripts/` is a separate, later decision
-([`ansible-root-scripts-into-scripts-dir.md`](drafts/ansible-root-scripts-into-scripts-dir.md)),
+instead move into `ansible/scripts/` is a separate, later decision,
 not reopened here.
+
+> **Revised by**
+> [ADR 0032](0032-consolidate-openbao-utility-scripts.md):
+> the lifecycle-gating test above turned out too coarse
+> (`cloud_credentials` scripts are also lifecycle-sequenced and
+> correctly live in `tools/` anyway) - that decision moved three of
+> these four scripts into `tools/openbao_utils/` after all, on a
+> different test (does it drive a playbook, not just run near one).
+> This paragraph is left as written for the historical record; it's
+> no longer this repo's current design.
 
 `docker/openbao/scripts/bao-login-from-controller.sh`/
 `bao-from-controller.sh` and `restore_hosts_scope_from_backup.py` -
@@ -106,10 +115,18 @@ misplaced generic code.
   `cache.py` no longer defined) until the re-pointing stage caught
   and fixed it. A reminder that "shared module built" and "every
   caller re-pointed" are separate, both-required steps, not one.
-- `PROJECT_ROOT`'s four independent redefinitions are down to two
-  (`audit_secrets.py`, `restore_all.py`) - whether those import from
-  `tools/utils/repo.py` too, instead of each redefining it locally,
-  stays open, tied to the `ansible/scripts/` decision above.
+- `PROJECT_ROOT`'s four independent redefinitions are resolved:
+  `bootstrap.py` imports it from `tools/utils/repo.py` directly, and
+  `audit.py`/`dump.py` do too once
+  [ADR 0032](0032-consolidate-openbao-utility-scripts.md) moved them
+  there. `cache.py` turned out not to need it at all once `dump.py`
+  was its only reason to re-export it - removed entirely. `restore_all.py`
+  keeps its own local
+  definition, decided deliberately when it moved to
+  `ansible/scripts/`: it has zero other dependency on `tools/`, and
+  importing one just for this single constant would work against the
+  same reasoning that keeps the file itself out of `tools/` in the
+  first place.
 - Every stage's build status lived in `tools-secrets-package-split.md`
   while in progress; that project has now closed per its own closing
   checklist, this ADR is the permanent record.

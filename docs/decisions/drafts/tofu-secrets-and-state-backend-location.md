@@ -17,7 +17,7 @@ lands, and the S3 credential for its own state backend
 (`opentofu-state` on `storage` —
 [`vm-provisioning.md`](../../vm-provisioning.md#state-backend--secrets)).
 The doc's original text assumed these stay outside OpenBao entirely,
-mirroring `bootstrap_secrets.py`'s pre-OpenBao file-cache pattern —
+mirroring `openbao_utils/bootstrap.py`'s pre-OpenBao file-cache pattern —
 but that mechanism no longer exists in this repo. Track A
 ([0013](../0013-credential-caching-stage-1-before-secrets-manager.md)
 through

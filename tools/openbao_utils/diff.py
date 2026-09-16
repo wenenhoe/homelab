@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Compare two dump_vault_to_file_cache.py backup directories: same
+"""Compare two openbao_utils/dump.py backup directories: same
 set of keys, same value for each.
 
-Built for openbao-reinit-runbook.md's step 9 - confirming a post-reinit
+Built for openbao-reinit-runbook.md's step 8 - confirming a post-reinit
 backup matches the pre-reinit one exactly - but takes two arbitrary
 directories, so it works for any two dumps.
 
@@ -10,7 +10,7 @@ Never prints secret values - only filenames and match/differ/missing
 status.
 
 Usage:
-    python3 diff_vault_backups.py <dir-a> <dir-b> [--ignore KEY ...]
+    cd tools && python3 -m openbao_utils.diff <dir-a> <dir-b> [--ignore KEY ...]
 
 --ignore excludes named keys from the pass/fail verdict (still
 reported, under their own heading) - for a key you know is expected

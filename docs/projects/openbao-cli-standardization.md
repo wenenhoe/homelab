@@ -74,7 +74,7 @@ mechanics inline) and acts on it, not just a report.
   Assumption, revisited only if drift actually causes a problem.
 - Whether `docker/openbao/scripts/`'s shell scripts and
   `openbao_backup/snapshot-push.sh.j2` get rewritten in Python against
-  `tools/openbao_client/` directly, dropping their `python3 -c "from
+  `tools/openbao_utils/` directly, dropping their `python3 -c "from
   ..."` one-liner pattern entirely once a native `bao` binary makes
   the throwaway-container model this project replaces moot anyway -
   moved here from `tools-secrets-package-split.md`'s own open items,

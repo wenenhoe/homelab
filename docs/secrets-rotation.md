@@ -64,7 +64,7 @@ from (each entry's `description` in `secrets_registry.yaml` says where),
 then:
 
 ```
-python3 ansible/bootstrap_secrets.py
+cd tools && python3 -m openbao_utils.bootstrap
 ```
 
 The six R2/B2/OCI write/read credentials split into two different
@@ -102,7 +102,7 @@ B2's/OCI's — a deliberate, accepted trade-off, not parity.
   a restore. **No redeploy needed at all**: the next restore just picks
   up the new value automatically.
 
-`ansible/audit_secrets.py --provider <r2|b2|oci>` lists what's actually
+`openbao_utils/audit.py --provider <r2|b2|oci>` lists what's actually
 on each provider's console and flags anything not matching the current
 cache — useful after any `--rotate`, or after a failed one that left an
 unverified key orphaned, for all three providers.

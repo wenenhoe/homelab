@@ -56,7 +56,7 @@ def create_oci() -> None:
     # write that happened outside this function) would otherwise look
     # "done" forever and never get its scim-id backfilled - the exact
     # gap that made a genuinely-in-use key show up as an ORPHAN in
-    # audit_secrets.py, since that comparison has nothing to match
+    # openbao_utils/audit.py, since that comparison has nothing to match
     # against without it.
     write_done = cached("oci-write-access-key") and cached("oci-write-secret-key") and cached("oci-write-scim-id")
     read_done = cached("oci-read-access-key") and cached("oci-read-secret-key") and cached("oci-read-scim-id")
@@ -90,8 +90,8 @@ def create_oci() -> None:
 def rotate_oci(leaves: list[str]) -> bool:
     client = oci_identity_domains_client()
 
-    namespace = require_cache_file("oci-namespace", "Set via bootstrap_secrets.py / secrets_registry.yaml.")
-    region = require_cache_file("oci-region", "Set via bootstrap_secrets.py / secrets_registry.yaml.")
+    namespace = require_cache_file("oci-namespace", "Set via openbao_utils/bootstrap.py / secrets_registry.yaml.")
+    region = require_cache_file("oci-region", "Set via openbao_utils/bootstrap.py / secrets_registry.yaml.")
     api_endpoint = f"https://{namespace}.compat.objectstorage.{region}.oraclecloud.com"
 
     all_ok = True

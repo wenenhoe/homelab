@@ -83,7 +83,7 @@ note on that).
 | [`cloud-sync.md`](cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |
 | [`cloud-credential-creation.md`](cloud-credential-creation.md) | Creating the 6 R2/B2/OCI write+read credentials via each provider's HTTP API, what each is scoped to, rotation. |
 | [`volume-maintenance.md`](volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
-| [`secrets.md`](secrets.md) | The `secrets` role, `bootstrap_secrets.py`, rotation. |
+| [`secrets.md`](secrets.md) | The `secrets` role, `openbao_utils/bootstrap.py`, rotation. |
 | [`secrets-rotation.md`](secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
 | [`netplan-dhcp-identifier.md`](netplan-dhcp-identifier.md) | Current-fleet-only fix for a DHCP dual-lease bug on boot; not Ansible-managed, transitional until the Tofu migration decommissions these hosts. |
 

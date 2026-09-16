@@ -123,7 +123,7 @@ def create_b2() -> None:
 def rotate_b2(leaves: list[str]) -> bool:
     api = b2_rotation_api()
     bucket_id = b2_lookup_bucket_id(api)
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses.")
+    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses.")
     endpoint = f"https://s3.{region}.backblazeb2.com"
 
     all_ok = True

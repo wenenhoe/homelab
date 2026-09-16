@@ -141,7 +141,7 @@ def mint_b2() -> bool:
     # the same cache file cloud_sync's own rclone.conf uses (storage.yaml),
     # not guessed, since a wrong region is a silent SignatureDoesNotMatch
     # on B2/S3-compat, not an obviously-wrong-looking error.
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses.")
+    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secrets_registry.yaml — same value storage.yaml's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "read")
     print("\n--- B2: openbao-snapshot-readonly ---")
     print(f"  bucket:       {SNAPSHOT_BUCKET_B2}")

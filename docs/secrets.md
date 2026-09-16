@@ -63,14 +63,14 @@ any new secret or config value goes through the registry instead:
 | :--- | :--- | :--- |
 | `hex` | Most secrets | Vault-backed only: check-then-write against KV v2 with `cas=0`, value generated via `python3 -c "import secrets; ..."` — see `ensure_secret.yaml`/`generate_vault_value.yaml`. |
 | `uuid4` | `shlink-api-key` only | Vault-backed only, same reasoning as `hex` above — this format always generates via `python3 -c "import uuid; print(uuid.uuid4())"`, since `lookup('password')`'s `chars=` can't produce a structurally valid UUID4. |
-| `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, Beszel's post-boot key/token) | No generation step. Vault-backed entries (everything except the three permanent exceptions) are populated by `create_leaf_keys.py`/`create_rotation_keys.py` for cloud credentials, or `bootstrap_secrets.py` for everything else, before they're first read; missing → the play fails loudly naming the OpenBao path and pointing at the right script. File-cache-backed entries (`main-domain`, the controller AppRole pair) work the same as before: missing cache file → same loud failure, naming the file to create by hand. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank either way. |
+| `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, Beszel's post-boot key/token) | No generation step. Vault-backed entries (everything except the three permanent exceptions) are populated by `create_leaf_keys.py`/`create_rotation_keys.py` for cloud credentials, or `openbao_utils/bootstrap.py` for everything else, before they're first read; missing → the play fails loudly naming the OpenBao path and pointing at the right script. File-cache-backed entries (`main-domain`, the controller AppRole pair) work the same as before: missing cache file → same loud failure, naming the file to create by hand. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank either way. |
 
 ## Bootstrapping manual secrets
 
 Before your first `deploy.yaml` run:
 
 ```sh
-python3 ansible/bootstrap_secrets.py
+cd tools && python3 -m openbao_utils.bootstrap
 ```
 
 Prompts for every `manual` entry that isn't already set (masked input
@@ -93,9 +93,9 @@ redeploy sequence in [`beszel.md`](beszel.md).
 
 The R2/B2/OCI entries are `manual` too, but Vault-backed
 (`vault_scope: cloud_credentials/leaf`) and deliberately excluded from
-`bootstrap_secrets.py`'s own prompting — `create_rotation_keys.py`/
+`openbao_utils/bootstrap.py`'s own prompting — `create_rotation_keys.py`/
 `create_leaf_keys.py` own them, with real provider-side verification
-`bootstrap_secrets.py`'s generic prompt-and-write can't do. See
+`openbao_utils/bootstrap.py`'s generic prompt-and-write can't do. See
 [`cloud-credential-creation.md`](cloud-credential-creation.md) for how
 to create them instead.
 

@@ -68,7 +68,7 @@ rest of that run.
   rotation-key step at all (Cloudflare structurally can't delegate
   that capability — see `cloud-credential-creation.md`'s R2 section),
   so `create_leaf_keys.py` alone handles it, prompting for the
-  master token each time it actually needs one. `bootstrap_secrets.py`
+  master token each time it actually needs one. `openbao_utils/bootstrap.py`
   remains the manual fallback for any of the sixteen if you'd rather
   paste in console-created values — both paths write to the same
   cache files; see

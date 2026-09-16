@@ -1,9 +1,9 @@
 """Unit tests for utils.repo - the generic repo-navigation and
-homelab-wide bootstrap helpers extracted from openbao_client.client
+homelab-wide bootstrap helpers extracted from openbao_utils.client
 (they were never actually OpenBao-specific, just its first consumer).
 
 Run via `uv run pytest tools/tests/ -v`. Every SSH call is mocked;
-nothing here touches a real `security` host. openbao_client.client's
+nothing here touches a real `security` host. openbao_utils.client's
 own tests mock these functions rather than re-testing their behavior
 here - see that module's own comment on why.
 """

@@ -35,7 +35,7 @@ docstring for why this was ruled out rather than attempted).
 #    already wired into every scenario's molecule.yml/prepare step in
 #    this repo, so no extra flags are needed.
 cd ansible
-molecule test -s default   # or --all for one role, or ./molecule-test-all.sh for every role
+molecule test -s default   # or --all for one role, or ./scripts/molecule-test-all.sh for every role
 
 # 2. Generate (or refresh) the static task inventory for a role
 cd molecule-coverage

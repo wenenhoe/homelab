@@ -70,13 +70,20 @@ jobs:
             # — these are plain controller-side Python, covered by
             # ansible/tests/ and tools/tests/ instead.
             python_unit_tests:
-              # Top-level scripts (audit_secrets.py, bootstrap_secrets.py,
-              # restore_hosts_scope_from_backup.py,
-              # restore_cloud_credentials_from_backup.py) - each has a
-              # same-named test in ansible/tests/ importing it directly.
-              # restore_all.py has no test yet, so this is a no-op for it.
-              - 'ansible/*.py'
+              # restore_all.py is the only script left here, now at
+              # ansible/scripts/ - its test (test_restore_all.py)
+              # lives in ansible/tests/, already its own trigger path
+              # below; this one catches changes to the script itself.
+              # bootstrap_secrets.py/audit_secrets.py/the two
+              # restore_*_from_backup.py scripts (merged into one)/
+              # dump_vault_to_file_cache.py/diff_vault_backups.py all
+              # moved to tools/openbao_utils/ (docs/decisions/drafts/
+              # consolidate-openbao-utility-scripts.md) - covered by
+              # the tools/openbao_utils/** trigger below instead.
+              - 'ansible/scripts/*.py'
               - 'tools/cloud_credentials/**'
+              - 'tools/openbao_utils/**'
+              - 'tools/utils/**'
               - 'ansible/molecule-coverage/molecule_cov/**'
               # Sibling of molecule_cov/ above - test_callback_plugin.py
               # imports it directly via sys.path, same pattern.
@@ -236,14 +243,14 @@ jobs:
           locked: "true"
           install-galaxy-collections: "true"
 
-      # Mirrors bootstrap_secrets.py's output — throwaway CI values, see
+      # Mirrors openbao_utils/bootstrap.py's output — throwaway CI values, see
       # docs/ci.md#deploy-ordering-check. Driven off the real
       # secrets_registry.yaml at CI-run time (see the script's own
       # docstring for why) rather than a hand-maintained list of printf
       # lines here — the previous approach needed a new line added
       # every time a new manual secret was registered, with nothing
       # enforcing that it actually happened.
-      - name: Pre-seed manual secrets (mirrors bootstrap_secrets.py)
+      - name: Pre-seed manual secrets (mirrors openbao_utils/bootstrap.py)
         run: uv run python3 .github/scripts/preseed-manual-secrets-for-ci.py
 
       # Track A stage 4 gave most secrets_registry entries a
@@ -336,7 +343,7 @@ jobs:
           install-galaxy-collections: "true"
 
       - name: Run molecule test — ${{ matrix.role }}
-        run: uv run ./molecule-test-all.sh "${{ matrix.role }}"
+        run: uv run ./scripts/molecule-test-all.sh "${{ matrix.role }}"
         working-directory: ansible
 
       # if: always() - partial coverage from a mid-run failure is still

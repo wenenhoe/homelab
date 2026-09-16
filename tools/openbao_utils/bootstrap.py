@@ -28,15 +28,15 @@ Safe to re-run: an entry that already has a value (on disk, or in Vault)
 is left untouched. To rotate a value, see docs/secrets-rotation.md.
 
 Uses hvac for the OpenBao client and paramiko for the SSH root-cert
-fetch, via the shared primitives in tools/openbao_client/client.py -
+fetch, via the shared primitives in tools/openbao_utils/client.py -
 this script has no SSH/paramiko code of its own left. See
 docs/decisions/0030-openbao-hvac-paramiko-clients.md and
 docs/decisions/0031-tools-secrets-package-split.md.
 
 Usage:
-    python3 ansible/bootstrap_secrets.py
+    cd tools && python3 -m openbao_utils.bootstrap
     # or, if you manage the project with uv:
-    uv run python3 ansible/bootstrap_secrets.py
+    cd tools && uv run python3 -m openbao_utils.bootstrap
 """
 
 from __future__ import annotations
@@ -48,15 +48,11 @@ from pathlib import Path
 
 import hvac
 import yaml
-
-# cloud_credentials/openbao_client/utils now live in tools/, not
-# alongside this script - see
-# docs/decisions/0031-tools-secrets-package-split.md.
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from openbao_client.client import openbao_base_url, vault_read, vault_write
-from openbao_client.client import vault_login as _bare_vault_login
 from utils.repo import PROJECT_ROOT, SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
+
+from openbao_utils.client import openbao_base_url, vault_read, vault_write
+from openbao_utils.client import vault_login as _bare_vault_login
 
 REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
 
@@ -108,7 +104,7 @@ def prompt_for_value(name: str, spec: dict) -> str:
 
 
 # --- Vault plumbing --------------------------------------------------------
-# fetch_root_cert/vault_read/vault_write come from openbao_client.client -
+# fetch_root_cert/vault_read/vault_write come from openbao_utils.client -
 # shared with cloud_credentials/cache.py, no longer duplicated between
 # them. Only the login wrapper stays here: it reads this script's own
 # role_id/secret_id before calling the shared bare login.

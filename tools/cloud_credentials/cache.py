@@ -10,8 +10,8 @@ a direct read for the rare caller needing a Vault path outside that
 taxonomy (see its own docstring).
 
 Session/TLS-trust mechanics (fetch step-ca's root cert, log in via
-AppRole, read/write KV v2) come from tools.utils.repo/tools.openbao_client.client -
-shared with bootstrap_secrets.py, no longer duplicated between them.
+AppRole, read/write KV v2) come from tools.utils.repo/tools.openbao_utils.client -
+shared with openbao_utils/bootstrap.py, no longer duplicated between them.
 This module's own job is just the leaf/rotation Vault-path taxonomy
 and scoped()'s session-caching convenience on top of those primitives.
 See docs/decisions/0031-tools-secrets-package-split.md.
@@ -32,14 +32,9 @@ import tempfile
 from pathlib import Path
 
 import hvac
-from openbao_client.client import openbao_base_url, vault_read, vault_write
-from openbao_client.client import vault_login as _bare_vault_login
-from utils.repo import (
-    PROJECT_ROOT,  # noqa: F401 - re-exported: dump_vault_to_file_cache.py still imports this from here (internal, unlike restore_hosts_scope_from_backup.py's now-fixed external one)
-    TIMEOUT_SECONDS,
-    fetch_root_cert,
-    read_bootstrap_file,
-)
+from openbao_utils.client import openbao_base_url, vault_read, vault_write
+from openbao_utils.client import vault_login as _bare_vault_login
+from utils.repo import TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
 
 _VALID_CATEGORIES = ("leaf", "rotation")
 
@@ -65,7 +60,7 @@ def _get_session() -> dict[str, hvac.Client | str]:
     """Logs in once per process, on first use - every cached()/
     read_cache()/write_cache()/require_cache_file() call for the rest of
     this run reuses the same hvac.Client/ca_path. Cleaned up at process
-    exit (atexit), not after each call: unlike bootstrap_secrets.py's
+    exit (atexit), not after each call: unlike openbao_utils/bootstrap.py's
     single try/finally around one run, cloud_credentials scripts make
     many sequential Vault calls across a whole invocation (e.g. every
     leaf across all three providers in one create_leaf_keys.py run)."""

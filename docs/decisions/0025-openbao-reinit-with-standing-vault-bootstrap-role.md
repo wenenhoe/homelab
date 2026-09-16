@@ -66,7 +66,8 @@ also when it's actually needed: the R2 watcher's AppRole
 ([0026](0026-openbao-audit-device-and-r2-per-read-watcher.md)) can't
 be provisioned without a way to create new AppRoles, and a live audit
 of Vault state
-([`dump_vault_to_file_cache.py`](../../tools/cloud_credentials/dump_vault_to_file_cache.py))
+([`dump_vault_to_file_cache.py`](../../tools/openbao_utils/dump.py),
+since renamed)
 found `_oci-leaf-user-ocid-{read,write}` duplicated under
 `cloud_credentials/leaf/` as well as its correct `rotation/` home - a
 stale leftover from an earlier version of the migration mapping,
@@ -124,6 +125,18 @@ admin-capable credential again.
   convention (`secrets_registry.yaml`'s `vault_scope` vs.
   `_legacy_cache_keys.py`'s `LEGACY_CACHE_KEYS`), not worth merging
   into one.
+
+  > **Note:** this reasoning compares against `migrate_legacy_cache_to_vault.py`,
+  > since retired - `restore_cloud_credentials_from_backup.py` (its
+  > replacement, covering the same `LEGACY_CACHE_KEYS` convention)
+  > didn't exist yet at this ADR's decision time. Both tools later
+  > moved into one *file* -
+  > [ADR 0032](0032-consolidate-openbao-utility-scripts.md) -
+  > but the two source-of-truth conventions this bullet actually
+  > reasons about stay fully distinct internally, as two separate
+  > phases with two separate access patterns. That's a narrower kind
+  > of merge than this bullet was written to rule out; it doesn't
+  > revise this ADR's point.
 - `vault-bootstrap`'s `secret_id` is now this repo's actual
   root-recovery mechanism, not a convenience credential - it needs the
   same offline discipline as the Shamir shares, spelled out in

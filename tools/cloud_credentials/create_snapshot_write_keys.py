@@ -137,7 +137,7 @@ def mint_b2() -> bool:
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
     access_key, secret_key = key.id_, key.application_key
 
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value cloud-sync.md's rclone.conf uses.")
+    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secrets_registry.yaml — same value cloud-sync.md's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "write")
     if not ok:
         print(f"b2 openbao-snapshot-write: verification FAILED ({detail}) — not cached. Revoke {access_key} by hand in the B2 Console.", file=sys.stderr)
@@ -157,7 +157,7 @@ def rotate_b2() -> bool:
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
     new_key_id, new_app_key = key.id_, key.application_key
 
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap_secrets.py / secrets_registry.yaml — same value cloud-sync.md's rclone.conf uses.")
+    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secrets_registry.yaml — same value cloud-sync.md's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(new_key_id, new_app_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "write")
     if not ok:
         print(

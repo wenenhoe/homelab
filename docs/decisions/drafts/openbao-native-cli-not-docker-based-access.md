@@ -153,12 +153,6 @@ every open question below:
   resolve from wherever the call runs.
 - **`controller`**: a personally-installed native `bao` binary,
   documented as a one-time manual setup step, not Ansible-automated.
-  `bao-login-from-controller.sh`/`bao-from-controller.sh` get rewritten
-  to shell out to this real local binary instead of a throwaway
-  `docker run`, keeping the same external interface
-  (`BAO_TOKEN=$(bao-login-from-controller.sh <role_id>)`) and ADR
-  0022's already-accepted SSH-fetched-root-cert mechanism unchanged -
-  only how a `bao` binary gets obtained changes, not the trust model.
 - **The SSH hop** anywhere one is needed (root-cert fetch, or driving
   `docker exec` for init/unseal orchestration) uses `paramiko`
   directly, matching
@@ -174,23 +168,59 @@ every open question below:
   each share entered through the real masked prompt, never as a
   positional argument, so it never appears in argv or `ps`.
 - **Controller's native `bao` gets a lightweight version check, not
-  documentation alone**: the rewritten scripts compare local
+  documentation alone**: `bao_session.py` (below) compares local
   `bao version` against the running server's own reported `Version`
-  (already exposed free by `bao status`/`sys/health`) and warn on
-  mismatch, rather than resting purely on the operator remembering to
-  keep the pin current.
-- **No custom interactive-CLI-session tooling.** OpenBao's CLI is
-  designed around persistent-per-shell `BAO_ADDR`/`BAO_CACERT`/
-  `BAO_TOKEN` env vars already; a native binary on both hosts gives
-  "run several commands without re-invoking a wrapper" for free, for
-  the duration of one bounded operation.
-- **Session-scoped token handling, not a persistent export.** Every
-  login wraps a bounded batch of commands with a forced revoke+unset
-  once that batch finishes (a shell function/trap, not a "remember to"
-  convention in prose) - bounding exposure to the wrapped block's
-  runtime, not however long the surrounding shell session happens to
-  stay open. Applied consistently, closing the gap in
-  `openbao-backup-restore.md`/`openbao-vault-bootstrap.md`.
+  (already exposed free by `bao status`/`sys/health`) at login time
+  and warns on mismatch, rather than resting purely on the operator
+  remembering to keep the pin current.
+- **One merged login+session script, not three separate ones.**
+  `docker/openbao/scripts/bao-login.sh`, `bao-login-from-controller.sh`,
+  and `bao-from-controller.sh` are replaced entirely by a single script
+  (`tools/openbao_utils/bao_session.py`) usable from either `security`
+  or `controller`. It authenticates via this module's existing
+  `vault_login()` (`hvac`) rather than shelling out to `bao write
+  auth/approle/login`: `secret_id` is read with Python's `getpass`
+  straight into memory and passed as a function argument to `hvac` -
+  never a file on disk, never a subprocess argument - a strictly
+  stronger guarantee than the shell scripts' temp-file dance ever gave,
+  and it removes that dance entirely. ADR 0030's hvac/paramiko
+  boundary still holds: `hvac` is used for the one thing it's already
+  used for elsewhere (the AppRole exchange itself), not to reimplement
+  `bao`'s CLI surface - see the next bullet for why that surface still
+  needs a real `bao` binary.
+- **The login script hands off to a real interactive shell, not to
+  hvac calls.** Once authenticated, it spawns a genuine interactive
+  child shell (inheriting the terminal) with `BAO_ADDR`/`BAO_CACERT`/
+  `BAO_TLS_SERVER_NAME`/`BAO_TOKEN` exported for that child process
+  only - so any native `bao` subcommand (`kv get`, `operator raft
+  snapshot save`, anything) keeps working completely unmodified inside
+  it, rather than needing each one reimplemented against `hvac`. On
+  that child exiting - normally, or via Ctrl-C - the wrapper revokes
+  the token and exits. Confirmed live: a `try/finally` around the
+  child reliably still runs on `SIGINT` even though Ctrl-C delivers to
+  both processes at once (the child's own `sleep` was genuinely
+  killed, and the parent's `finally` still printed) - but the resulting
+  `KeyboardInterrupt` in the parent must also be caught explicitly, or
+  a traceback prints to the operator's terminal right after cleanup
+  completes.
+- **No `--controller` vs. `--security` split at the interface level.**
+  The script auto-detects which root-cert path to use: it tries a
+  local `docker exec step-ca ...` first (only ever succeeds where a
+  real `step-ca` container is directly reachable, i.e. on `security`
+  itself) and falls back to the SSH-fetch-over-`paramiko` path (ADR
+  0022's mechanism) otherwise. An explicit `--controller` flag exists
+  purely as an override for whenever auto-detection guesses wrong, not
+  as the primary interface.
+- **Session-scoped token handling, not a persistent export - the
+  merged login script above is the concrete shape.** Login wraps a
+  bounded interactive session (the spawned child shell) with a forced
+  revoke+unset once it ends, rather than a bare `export` the operator
+  has to remember to undo. What's still open: `bao_session.py` covers
+  ad hoc interactive access, but `openbao-backup-restore.md`'s and
+  `openbao-vault-bootstrap.md`'s day-to-day sections still `export`
+  `BAO_TOKEN` directly with no forced revoke - applying this same
+  wrap-and-revoke shape there is Stage 5's actual remaining job, not
+  inventing a new shape from scratch.
 
 ## Consequences
 
@@ -208,6 +238,12 @@ every open question below:
   `-address` - in exchange for never depending on the leaf cert
   gaining an IP SAN it structurally can't have, or on whichever host
   is dialing being able to resolve the FQDN itself.
+- Three separate shell scripts become one Python script in
+  `tools/openbao_utils/` - a real rewrite, not a mechanical swap, in
+  exchange for removing the `secret_id` temp-file dance entirely (it's
+  now an in-memory `getpass` value, never written to disk at all) and
+  collapsing the security/controller distinction into one code path
+  instead of two diverging ones.
 - Every login gets slightly more ceremony (an explicit wrap-and-revoke
   instead of a bare `export`), in exchange for bounding token exposure
   to one operation's runtime instead of an open-ended shell session.

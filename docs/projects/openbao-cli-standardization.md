@@ -22,9 +22,9 @@ this doc tracks build status only.
 | # | Stage | Status |
 | :-: | :--- | :--- |
 | 1 | Spike: version-matched native `bao` on `security`, real TLS, real login/read/write | Done |
-| 2 | Native `bao` on `security` (Ansible-managed) + real TLS, replacing skip-verify/alias | Not started |
+| 2 | Native `bao` on `security` (Ansible-managed): install, mask shipped service, real TLS, replacing skip-verify/alias | Not started |
 | 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Not started |
-| 4 | Native `bao` on `controller` (personal setup) + rewrite the two controller scripts, with a local version-check against the server | Not started |
+| 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Not started |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Not started |
 | 6 | Update every doc's invocation examples to the consolidated model | Not started |
 | 7 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
@@ -65,6 +65,27 @@ programmatically, without a share ever touching argv or `ps` - see the
 draft's Context. No fallback to a real interactive `ssh` session is
 needed.
 
+### Stage 4 — Merged `bao_session.py` + native `bao` on `controller`
+
+Settled by the same de-risking pass: `docker/openbao/scripts/bao-login.sh`
+(previously implied as Stage 2's own territory, being `security`-local)
+merges with `bao-login-from-controller.sh`/`bao-from-controller.sh`
+into one script, `tools/openbao_utils/bao_session.py`, usable from
+either host - no `security`-only script is built separately in
+Stage 2. It authenticates via this module's existing `vault_login()`
+(`hvac`, `secret_id` read with `getpass` straight into memory, never a
+file, never a subprocess argument), then hands off to a real
+interactive child shell with `BAO_ADDR`/`BAO_CACERT`/
+`BAO_TLS_SERVER_NAME`/`BAO_TOKEN` exported for that child only, so
+every native `bao` subcommand keeps working unmodified inside it.
+Revokes the token when that child exits, normally or via Ctrl-C - see
+the draft's Decision for the confirmed `try/finally`+`KeyboardInterrupt`
+mechanics that guarantee this. Auto-detects `security` vs. `controller`
+by trying a local `docker exec step-ca ...` first, falling back to the
+SSH-fetch-over-`paramiko` path otherwise; `--controller` stays as an
+override, not the primary interface. Also carries the local
+version-check against the server (see the draft's Decision).
+
 ### Stage 7 — Audit for consolidation
 
 Deliberately last: evaluating whether
@@ -78,17 +99,25 @@ mechanics inline) and acts on it, not just a report.
 
 ## Open items
 
-- Exact wrapper shape for session-scoped token handling (a shell
-  function, a `trap`, a small helper script) - not decided; Stage 5
-  picks one once Stages 2-4's actual scripts exist to wrap.
-- Whether `docker/openbao/scripts/`'s shell scripts and
-  `openbao_backup/snapshot-push.sh.j2` get rewritten in Python against
-  `tools/openbao_utils/` directly, dropping their `python3 -c "from
-  ..."` one-liner pattern entirely once a native `bao` binary makes
-  the throwaway-container model this project replaces moot anyway -
-  moved here from `tools-secrets-package-split.md`'s own open items,
-  since it's this project's call (native CLI vs. Python client), not
-  that one's.
+- Applying the now-decided session-scoped wrap-and-revoke shape (see
+  the draft's Decision - `bao_session.py`'s login-and-forced-cleanup
+  pattern) to the other places `BAO_TOKEN` currently gets bare-`export`ed
+  with no forced revoke: `openbao-backup-restore.md`'s and
+  `openbao-vault-bootstrap.md`'s day-to-day sections. Stage 5's actual
+  remaining job - the shape itself isn't in question anymore, only
+  where else it needs applying.
+- `openbao_backup/snapshot-push.sh.j2` stays a shell script calling the
+  native `bao` CLI directly (same Stage 2/3 mechanism as everything
+  else), not rewritten in Python/`hvac`: unlike `bao_session.py`, it's
+  machine-run and does two fixed operations, but rewriting it against
+  `hvac` would mean adopting ADR 0030's programmatic-API-client pattern
+  for something that's currently CLI-driven - a bigger, different
+  decision (API client vs. CLI) than this project's own scope, and not
+  this project's call to make unilaterally.
+  [ADR 0031](../decisions/0031-tools-secrets-package-split.md)'s
+  original open item conflated this file with `docker/openbao/scripts/`'s
+  - they're resolved differently; see the draft's Decision for
+  `docker/openbao/scripts/`'s own resolution.
 
 ## Closing checklist
 

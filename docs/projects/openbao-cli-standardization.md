@@ -23,7 +23,7 @@ this doc tracks build status only.
 | :-: | :--- | :--- |
 | 1 | Spike: version-matched native `bao` on `security`, real TLS, real login/read/write | Done |
 | 2 | Native `bao` on `security` (Ansible-managed): install, mask shipped service, real TLS, replacing skip-verify/alias | Done |
-| 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Not started |
+| 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Done |
 | 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Not started |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Not started |
 | 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Not started |
@@ -81,7 +81,7 @@ Closing task doubles as this stage's own acceptance check: a real
 `bao status` call over real TLS (`-tls-server-name`, step-ca's cached
 root cert, no `BAO_SKIP_VERIFY`) against the already-running server.
 
-### Stage 3 — Init/unseal orchestration
+### Stage 3 — Init/unseal orchestration (Done)
 
 Only the SSH transport changes (paramiko, not the `ssh` CLI via
 `subprocess`) - the remote command stays `docker exec openbao bao
@@ -94,6 +94,27 @@ PTY allocated on the same channel (`get_pty=True`) can, entirely
 programmatically, without a share ever touching argv or `ps` - see the
 draft's Context. No fallback to a real interactive `ssh` session is
 needed.
+
+Built as `tools/openbao_utils/init_unseal.py` (`init`/`unseal`
+subcommands, plain `sys.argv` dispatch matching this package's other
+scripts - see the module's own docstring for the full split between
+the two). `init`'s own command needs no PTY at all - confirmed against
+the real CLI's usage text that it takes no interactive input - so it
+reuses `client.exec_command()`'s existing non-PTY shape from
+`utils.repo.fetch_root_cert()` rather than a new pattern. Neither
+subcommand's output is captured, logged, or written anywhere by this
+script; both print directly to the operator's own terminal, for the
+same reason this has never been an Ansible task (`openbao.md`'s Init
+and unseal section).
+
+Confirmed live (a real 3-share/2-threshold instance) rather than left
+as an open question: submitting one share of two - still sealed
+afterward, `Unseal Progress 1/2` - exits 0, same as a share that
+completes the unseal. `bao operator unseal` evidently doesn't follow
+`bao status`'s own sealed=2 exit-code convention at all; its exit code
+tracks whether the command itself ran, not the resulting seal state.
+`init_unseal.py`'s `unseal` subcommand fails loudly on a nonzero exit
+accordingly - a real failure, not partial progress.
 
 ### Stage 4 — Merged `bao_session.py` + native `bao` on `controller`
 
@@ -172,8 +193,9 @@ mechanics inline) and acts on it, not just a report.
 
 ## Open items
 
-None currently — the last one (`rclone.conf`/GPG-key delivery to
-`controller`) resolved into Stage 5's own description above.
+None currently — the exit-code question Stage 3 carried forward has
+been confirmed live (see that stage's own detail above) and resolved
+into `init_unseal.py` itself.
 
 ## Closing checklist
 

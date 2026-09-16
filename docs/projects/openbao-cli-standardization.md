@@ -2,13 +2,13 @@
 id: PROJ-openbao-cli-standardization
 title: "OpenBao CLI Access: Native Client, Not docker exec/docker run"
 type: project
-status: not-started
+status: in-progress
 summary: "Replace the four overlapping bao CLI access patterns (alias, docker exec, docker run, per-host scripts) with a native binary on security and controller, then consolidate the docs describing it."
 ---
 
 # OpenBao CLI Access: Native Client, Not docker exec/docker run
 
-**Status:** Not started
+**Status:** In progress
 
 Builds a native `bao` CLI on `security` and `controller`, replacing
 `docker exec`-into-the-live-container and throwaway-`docker run`
@@ -21,24 +21,36 @@ this doc tracks build status only.
 
 | # | Stage | Status |
 | :-: | :--- | :--- |
-| 1 | Spike: version-matched native `bao` on `security`, real TLS, real login/read/write | Not started |
-| 2 | Native `bao` on `security` (Ansible-managed) + real TLS, replacing skip-verify/alias | Not started |
+| 1 | Spike: version-matched native `bao` on `security`, real TLS, real login/read/write | Done |
+| 2 | Native `bao` on `security` (Ansible-managed): install, mask shipped service, real TLS, replacing skip-verify/alias | Not started |
 | 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Not started |
-| 4 | Native `bao` on `controller` (personal setup) + rewrite the two controller scripts | Not started |
+| 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Not started |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Not started |
-| 6 | Update every doc's invocation examples to the consolidated model | Not started |
-| 7 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
+| 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Not started |
+| 7 | Update every doc's invocation examples to the consolidated model | Not started |
+| 8 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
 
 ## Stage detail
 
-### Stage 1 — Spike: version-matched native `bao` on `security`
+### Stage 1 — Spike: version-matched native `bao` on `security` (Done)
 
-Time-boxed, throwaway - answers one question: does a downloaded
-OpenBao `.deb` matching the Docker image's exact pinned version
-install cleanly and produce a CLI that authenticates and reads/writes
-against the already-running Docker server over real TLS, pointed at
-step-ca's locally-read root cert? Discarded once answered; Stage 2
-builds the real Ansible task clean, informed by whatever this finds.
+Time-boxed, throwaway - answered live on `security` with this exact
+`2.6.2` pin: the `.deb` installs cleanly, doesn't auto-start anything,
+and the native CLI authenticates and reads/writes against the
+already-running Docker server over real TLS, using step-ca's
+locally-read root cert. Findings (the package's real name, the
+shipped-scaffolding cleanup it needs, and the TLS SAN/`-tls-server-name`
+mechanics required once `BAO_SKIP_VERIFY` is gone) are folded into the
+now-`Decided` draft's Context/Decision - see
+[`openbao-native-cli-not-docker-based-access.md`](../decisions/drafts/openbao-native-cli-not-docker-based-access.md).
+The spike's own throwaway install on `security` gets torn down before
+Stage 2 installs it for real via Ansible.
+
+While in the same de-risking pass, Stage 3's and Stage 4's own open
+design questions (below) were resolved too, out of stage order - the
+drafts hard gate blocks all of Stage 2 onward equally regardless of
+which stage nominally owns a given `Assumptions` entry, so there was
+no reason to wait.
 
 ### Stage 3 — Init/unseal orchestration
 
@@ -46,40 +58,93 @@ Only the SSH transport changes (paramiko, not the `ssh` CLI via
 `subprocess`) - the remote command stays `docker exec openbao bao
 operator init/unseal ...`, kept security-local permanently per the
 draft's Decision (the crash-loop-before-cert-issuance constraint).
-Needs its own spike first: whether `bao operator unseal`'s per-share
-input can go through `paramiko.exec_command()` without a real PTY,
-without a share ever touching `ps`/shell history - see the draft's
-Assumptions. If that spike says no, this stage's shape changes to
-"paramiko for setup only, real interactive `ssh` for the unseal
-prompts themselves."
+Settled by the Stage 1 de-risking pass: a bare, non-PTY
+`paramiko.exec_command()` can't drive `bao operator unseal`'s masked
+prompt at all (confirmed live - it hard-fails outright), but a real
+PTY allocated on the same channel (`get_pty=True`) can, entirely
+programmatically, without a share ever touching argv or `ps` - see the
+draft's Context. No fallback to a real interactive `ssh` session is
+needed.
 
-### Stage 7 — Audit for consolidation
+### Stage 4 — Merged `bao_session.py` + native `bao` on `controller`
+
+Settled by the same de-risking pass: `docker/openbao/scripts/bao-login.sh`
+(previously implied as Stage 2's own territory, being `security`-local)
+merges with `bao-login-from-controller.sh`/`bao-from-controller.sh`
+into one script, `tools/openbao_utils/bao_session.py`, usable from
+either host - no `security`-only script is built separately in
+Stage 2. It authenticates via this module's existing `vault_login()`
+(`hvac`, `secret_id` read with `getpass` straight into memory, never a
+file, never a subprocess argument), then hands off to a real
+interactive child shell with `BAO_ADDR`/`BAO_CACERT`/
+`BAO_TLS_SERVER_NAME`/`BAO_TOKEN` exported for that child only, so
+every native `bao` subcommand keeps working unmodified inside it.
+Revokes the token when that child exits, normally or via Ctrl-C - see
+the draft's Decision for the confirmed `try/finally`+`KeyboardInterrupt`
+mechanics that guarantee this. Auto-detects `security` vs. `controller`
+by trying a local `docker exec step-ca ...` first, falling back to the
+SSH-fetch-over-`paramiko` path otherwise; `--controller` stays as an
+override, not the primary interface. Also carries the local
+version-check against the server (see the draft's Decision).
+
+### Stage 5 — Session-scoped token handling everywhere
+
+Two wrapper shapes now cover the two needs found while resolving the
+open items below - `bao_session.py` (Stage 4) for interactive,
+multi-command, single-host access, and a plain shell login-run-revoke
+`trap` for fixed, unattended one-shot scripts.
+`openbao-vault-bootstrap.md`'s day-to-day flow needed no new decision:
+it already fits `bao_session.py`'s shape as-is (single host, several ad
+hoc commands) - just needs its example swapped over (Stage 7), and the
+forced revoke comes along for free.
+
+`openbao-backup-restore.md`'s flow needed a real decision, not just a
+wrapper choice: `snapshot-push.sh.j2` moves off `docker exec`/`docker
+cp` and off `security` entirely, since `bao operator raft snapshot
+save` was confirmed live as a client-side download (see the draft's
+Context) - nothing about it ever actually needed `security`-local
+execution, that was only ever a `docker exec` side effect. The
+rewritten script runs as one process on `controller`, rehoused at
+`tools/openbao_utils/scripts/snapshot-push.sh` (see the draft's
+Decision for why that subdirectory, not loose in `openbao_utils`'s own
+root), using its own shell-based login+revoke `trap`, replacing the
+current mint-on-`controller`/paste-on-`security` manual handoff
+entirely. `rclone.conf` is built as a temp file at run time from four
+values read directly out of Vault via `bao kv get` (`controller`'s
+existing policy already grants this - no new grant needed), and the
+GPG public key needs no new mechanism at all: it's a plain repo file
+`controller` already has checked out. This is also what empties out
+`ansible/roles/openbao_backup/` - see Stage 6.
+
+### Stage 6 — Delete the two now-unused artifacts
+
+Two directories end up with nothing left in them, for two different
+reasons, and both get removed here rather than left as dead weight:
+`ansible/roles/openbao_backup/` (tasks, templates, its Molecule
+scenario) once Stage 5's rewrite moves its script, config, and working
+directory to `controller` entirely - `ansible.md`'s role table and
+`deployment-flow.md`'s Play 10 get updated in the same pass, not left
+pointing at a role that no longer exists. `docker/openbao/scripts/`
+separately empties out once Stage 4 merges its three occupants into
+`bao_session.py` - `snapshot-push.sh.j2` never lived there, so this
+is unrelated to Stage 5's own cleanup, just discovered alongside it.
+Depends on Stages 4 and 5 both being Done.
+
+### Stage 8 — Audit for consolidation
 
 Deliberately last: evaluating whether
 `openbao.md`/`openbao-auth.md`/`openbao-reinit-runbook.md`/
 `openbao-vault-bootstrap.md`/`openbao-backup-restore.md`/
 `openbao-r2-read-watcher.md` can merge or shrink only makes sense once
-their actual content has settled post-Stage 6 - doing it earlier means
+their actual content has settled post-Stage 7 - doing it earlier means
 redoing it. Produces a recommendation (which docs merge, which just
 shrink because they no longer need to re-explain alias/docker-exec
 mechanics inline) and acts on it, not just a report.
 
 ## Open items
 
-- Exact wrapper shape for session-scoped token handling (a shell
-  function, a `trap`, a small helper script) - not decided; Stage 5
-  picks one once Stages 2-4's actual scripts exist to wrap.
-- Whether `controller`'s version-pinning needs more than documentation
-  (a runtime version check) stays open per the draft's third
-  Assumption, revisited only if drift actually causes a problem.
-- Whether `docker/openbao/scripts/`'s shell scripts and
-  `openbao_backup/snapshot-push.sh.j2` get rewritten in Python against
-  `tools/openbao_utils/` directly, dropping their `python3 -c "from
-  ..."` one-liner pattern entirely once a native `bao` binary makes
-  the throwaway-container model this project replaces moot anyway -
-  moved here from `tools-secrets-package-split.md`'s own open items,
-  since it's this project's call (native CLI vs. Python client), not
-  that one's.
+None currently — the last one (`rclone.conf`/GPG-key delivery to
+`controller`) resolved into Stage 5's own description above.
 
 ## Closing checklist
 

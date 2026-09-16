@@ -101,14 +101,14 @@ molecule test -s volumes
 Every scenario of every role:
 
 ```sh
-./molecule-test-all.sh          # every role
-./molecule-test-all.sh compose  # just one
+./scripts/molecule-test-all.sh          # every role
+./scripts/molecule-test-all.sh compose  # just one
 ```
 
 One scenario of one role, without `cd`-ing into it:
 
 ```sh
-./molecule-test-all.sh compose -s volumes
+./scripts/molecule-test-all.sh compose -s volumes
 ```
 
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's

@@ -311,16 +311,16 @@
       loop_control:
         label: "{{ item.dir }}/{{ item.file }}"
 
-    - name: Ensure the test root's ansible/ directory exists (ansible.builtin.copy doesn't create parent dirs)
+    - name: Ensure the test root's ansible/scripts/ directory exists (ansible.builtin.copy doesn't create parent dirs)
       ansible.builtin.file:
-        path: "{{ restore_test_root }}/ansible"
+        path: "{{ restore_test_root }}/ansible/scripts"
         state: directory
         mode: "0755"
 
-    - name: "Copy restore_all.py into the test root at the path its own module docstring assumes: {{ restore_test_root ~ '/ansible/restore_all.py' }}"
+    - name: "Copy restore_all.py into the test root at the path its own module docstring assumes: {{ restore_test_root ~ '/ansible/scripts/restore_all.py' }}"
       ansible.builtin.copy:
-        src: "{{ playbook_dir }}/../../../../restore_all.py"
-        dest: "{{ restore_test_root }}/ansible/restore_all.py"
+        src: "{{ playbook_dir }}/../../../../scripts/restore_all.py"
+        dest: "{{ restore_test_root }}/ansible/scripts/restore_all.py"
         mode: "0755"
 
     # Drives restore_all.load_manifest() + discover_and_decrypt()
@@ -341,7 +341,7 @@
           import sys
           from pathlib import Path
 
-          sys.path.insert(0, "{{ restore_test_root }}/ansible")
+          sys.path.insert(0, "{{ restore_test_root }}/ansible/scripts")
           import restore_all
 
           def run(label, restore_dir, app_name, scratch_dir):

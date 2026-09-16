@@ -15,13 +15,16 @@
 # 'default' found. Exiting."). Running per-role avoids this, since each
 # invocation only sees one role's own already-unique scenario names.
 #
-# Usage:
-#   ./molecule-test-all.sh                     # every scenario, every role
-#   ./molecule-test-all.sh compose              # every scenario, one role
-#   ./molecule-test-all.sh compose caddy        # every scenario, several roles
-#   ./molecule-test-all.sh compose -s volumes   # one scenario, one role only
+# Usage (run from ansible/):
+#   ./scripts/molecule-test-all.sh                     # every scenario, every role
+#   ./scripts/molecule-test-all.sh compose              # every scenario, one role
+#   ./scripts/molecule-test-all.sh compose caddy        # every scenario, several roles
+#   ./scripts/molecule-test-all.sh compose -s volumes   # one scenario, one role only
 set -euo pipefail
-cd "$(dirname "${BASH_SOURCE[0]}")"
+# One level up from this script's own new location (ansible/scripts/)
+# to ansible/ itself - every roles/* path below is relative to that,
+# not to this file.
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 usage() {
     echo "Usage: $0 [role...] [-s scenario]" >&2

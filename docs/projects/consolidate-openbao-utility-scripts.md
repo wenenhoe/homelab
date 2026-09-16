@@ -30,7 +30,7 @@ code written against it.
 | 3 | Move + rename `audit_secrets.py` → `openbao_utils/audit.py` | Done |
 | 4 | Merge both restore scripts → `openbao_utils/restore.py` | Done |
 | 5 | Move + rename `dump_vault_to_file_cache.py`/`diff_vault_backups.py` | Done |
-| 6 | Move `restore_all.py`/`molecule-test-all.sh` → `ansible/scripts/` | Not started |
+| 6 | Move `restore_all.py`/`molecule-test-all.sh` → `ansible/scripts/` | Done |
 | 7 | Add ADR 0031's pointer note; re-inventory and fix every reference | Not started |
 
 ## Stage detail
@@ -200,6 +200,54 @@ audit run at decision time) using the tool's name as it was then.
 Neither test file needed a `sys.path` depth change - both moved from
 `tools/tests/cloud_credentials/` to `tools/tests/openbao_utils/`,
 the same nesting depth under `tools/`, confirmed before assuming so.
+
+### Stage 6 — Move `restore_all.py`/`molecule-test-all.sh` into `ansible/scripts/`
+
+Done. `restore_all.py` kept its own local `PROJECT_ROOT` rather than
+importing it from `tools/utils/repo.py` - decided deliberately, not
+by default: the file has zero other dependency on `tools/`, and
+importing one just for this single constant would work against the
+same reasoning that keeps the file itself out of `tools/`. Resolves
+ADR 0031's last open `PROJECT_ROOT` item. Parent count bumped from 2
+to 3 for the new depth; verified live, not just by inspection, that
+`PROJECT_ROOT`/`ANSIBLE_DIR` resolve correctly post-move.
+
+Two real bugs caught before they could bite, both found by actually
+reading what each script's own logic assumes about its location, not
+by treating the move as a mechanical `git mv`:
+
+- `molecule-test-all.sh` does `cd "$(dirname "${BASH_SOURCE[0]}")"`
+  then treats `roles/*/molecule` as a sibling path - moving it into
+  `scripts/` without fixing this would have silently pointed the glob
+  at `ansible/scripts/roles/`, finding nothing. Fixed the `cd` target
+  to go up one more level instead of touching every internal path;
+  verified the role-discovery glob resolves correctly post-move.
+- `pr-checks.yml`'s `molecule` job runs `./molecule-test-all.sh` with
+  `working-directory: ansible` - a literal, executable CI command,
+  not just a doc mention. Updated to `./scripts/molecule-test-all.sh`.
+
+A third, more involved one: `restore_discovery`'s own molecule
+scenario (`discovery_and_restore/converge.yml`) deliberately replicates
+`restore_all.py`'s expected directory depth in a sandbox, to exercise
+its real `PROJECT_ROOT`-relative logic. Three coordinated pieces
+needed fixing together - the directory-creation step, the file-copy
+source and destination paths, and a `sys.path.insert` in the test's
+own driver script - all assuming the old, shallower path. Verified by
+directly simulating the exact sandbox layout used in the real test
+(copying the moved file into a fake `ansible/scripts/` under a fake
+test root and importing it) that `PROJECT_ROOT` resolves to the fake
+root exactly as the test needs - confirming the parent-count fix and
+the fixture fix are mutually consistent, not just independently
+plausible.
+
+Also found and fixed, while inventorying references: `pr-checks.yml`'s
+own `python_unit_tests` trigger comment already claimed
+"`restore_all.py` has no test yet" - wrong even before this stage
+(`test_restore_all.py` exists, 18 passing tests). Its trigger path
+(`ansible/*.py`) now matched zero files once every other script left
+`ansible/`'s root - a real, live gap, since editing `restore_all.py`
+alone wouldn't have triggered CI. Fixed to `ansible/scripts/*.py` and
+corrected the stale comment.
 
 ### Stage 7 — References and the ADR pointer
 

@@ -25,7 +25,7 @@ this doc tracks build status only.
 | 2 | Native `bao` on `security` (Ansible-managed): install, mask shipped service, real TLS, replacing skip-verify/alias | Done |
 | 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Done |
 | 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Done |
-| 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Not started |
+| 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Done |
 | 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Not started |
 | 7 | Update every doc's invocation examples to the consolidated model | Not started |
 | 8 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
@@ -153,34 +153,41 @@ uses for `security`, since this controller also runs Ubuntu, followed
 by the same mask-and-scaffolding-removal steps that role performs, run
 by hand instead of by Ansible.
 
-### Stage 5 — Session-scoped token handling everywhere
+### Stage 5 — Session-scoped token handling everywhere (Done)
 
-Two wrapper shapes now cover the two needs found while resolving the
-open items below - `bao_session.py` (Stage 4) for interactive,
-multi-command, single-host access, and a plain shell login-run-revoke
-`trap` for fixed, unattended one-shot scripts.
-`openbao-vault-bootstrap.md`'s day-to-day flow needed no new decision:
-it already fits `bao_session.py`'s shape as-is (single host, several ad
-hoc commands) - just needs its example swapped over (Stage 7), and the
-forced revoke comes along for free.
+Two wrapper shapes now cover the two needs this stage found:
+`bao_session.py` (Stage 4) for interactive, multi-command, single-host
+access, and a plain shell login-run-revoke `trap` for fixed,
+unattended one-shot scripts. `openbao-vault-bootstrap.md`'s day-to-day
+flow already fits `bao_session.py`'s shape as-is - swapping its
+example over is Stage 7's job, not a new decision here.
 
-`openbao-backup-restore.md`'s flow needed a real decision, not just a
-wrapper choice: `snapshot-push.sh.j2` moves off `docker exec`/`docker
-cp` and off `security` entirely, since `bao operator raft snapshot
-save` was confirmed live as a client-side download (see the draft's
-Context) - nothing about it ever actually needed `security`-local
-execution, that was only ever a `docker exec` side effect. The
-rewritten script runs as one process on `controller`, rehoused at
-`tools/openbao_utils/scripts/snapshot-push.sh` (see the draft's
-Decision for why that subdirectory, not loose in `openbao_utils`'s own
-root), using its own shell-based login+revoke `trap`, replacing the
-current mint-on-`controller`/paste-on-`security` manual handoff
-entirely. `rclone.conf` is built as a temp file at run time from four
-values read directly out of Vault via `bao kv get` (`controller`'s
-existing policy already grants this - no new grant needed), and the
-GPG public key needs no new mechanism at all: it's a plain repo file
-`controller` already has checked out. This is also what empties out
-`ansible/roles/openbao_backup/` - see Stage 6.
+`snapshot-push.sh.j2` is replaced by
+`tools/openbao_utils/scripts/snapshot-push.sh`, run by hand from
+`controller`. It logs in with the native `bao` CLI - role_id as an
+argument, secret_id via hidden prompt, `bao-login.sh`'s shape rather
+than `docker exec` - after fetching step-ca's root cert fresh over SSH
+(ADR 0022's mechanism), then calls `bao operator raft snapshot save`
+directly: confirmed live as a plain client-side download over the
+HTTPS API, so the old script's `docker exec`/`docker cp`/
+`security`-local requirement was only ever a side effect of routing
+through `docker exec`, not a real constraint. `rclone.conf` is built
+as a `mktemp`, `chmod 600` temp file at run time, reading its four
+R2/B2 credential values plus the R2 account ID and B2 region via `bao
+kv get -mount=secret -field=value cloud_credentials/leaf/<name>` - no
+new Vault policy grant needed, `controller`'s existing policy already
+covers this path. The GPG public key is read straight from
+`ansible/files/backup-gpg-public-key.asc`'s repo-relative path, no new
+mechanism. Everything the run creates - root cert, secret_id,
+`rclone.conf`, the snapshot itself - lives under one `mktemp -d`
+scratch dir, removed in the same `trap` that revokes the token; unlike
+the old script, nothing is left behind on `controller` afterward.
+`rclone` itself stays a throwaway `docker run` container
+(`rclone/rclone:1.75`, the same pin every other rclone caller in this
+repo uses) - nothing here needed a native install added.
+
+This is also what empties out `ansible/roles/openbao_backup/` - see
+Stage 6.
 
 ### Stage 6 — Delete the two now-unused artifacts
 

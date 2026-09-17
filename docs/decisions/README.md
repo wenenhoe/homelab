@@ -25,6 +25,25 @@ patch — the file doesn't move on supersession, so nothing else makes
 that reference look broken; `check-doc-drift.py` fails the build until
 it's addressed precisely because of that.
 
+## Editing an accepted ADR
+
+Its Context and Decision — the actual reasoning and what was chosen —
+don't get rewritten after acceptance; a changed mind is a new ADR
+marking this one `Superseded by`, not an edit to this one. That's what
+"accepted" is for: a reader trusts that what an ADR says was decided
+is still what it says, unless the Status line tells them otherwise.
+
+A small in-place edit is fine when it doesn't touch that: closing a
+loop this ADR's own Consequences left open (a "worth revisiting" note
+becoming an actual link once something exists to link to, the same way
+[0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md)'s
+Status line already carries an in-place "OCI superseded by 0016"
+pointer), or correcting a plain factual detail that was wrong even at
+the time. If it's unclear which side of that line an edit falls on,
+treat it as a decision change and supersede instead — a wrong guess in
+that direction costs a new file number; a wrong guess the other way
+costs someone's trust in what "Accepted" means here.
+
 ## Drafts
 
 A numbered ADR here means "decided, and either built or being built" —
@@ -122,6 +141,7 @@ whoever's deleting it.
 | [0032](0032-consolidate-openbao-utility-scripts.md) | Accepted | `tools/openbao_client/` renamed to `tools/openbao_utils/`; `bootstrap_secrets.py`/`audit_secrets.py`/both restore scripts (merged) moved there from `ansible/`, `dump_vault_to_file_cache.py`/`diff_vault_backups.py` moved there from `cloud_credentials/`; `restore_all.py`/`molecule-test-all.sh` moved into a new `ansible/scripts/`. |
 | [0033](0033-bao-session-local-only-drops-broken-security-path.md) | Accepted | `bao_session.py` stays local to `controller` - the drafted `security`-relay never had a working "local" half to relay away from (the repo isn't checked out there), and `controller`'s native `bao` stays regardless for `snapshot-push.sh`'s sake. Adds an explicit `SIGHUP` handler for the unclean-disconnect gap the relay spike surfaced. |
 | [0034](0034-native-bao-cli-not-docker-exec-or-run.md) | Accepted | Native `bao` CLI on `security` (Ansible-managed) and `controller` (personal setup), real TLS via `-tls-server-name`, replacing the `docker exec`/alias/throwaway-`docker run` patterns everywhere except init/unseal (stays `docker exec`, permanently, by necessity). Merges the three retired `bao-*.sh` scripts into `bao_session.py`; moves `snapshot-push.sh` onto `controller` entirely - revises [0019](0019-openbao-snapshot-push-standalone.md)'s now-stale "from `security`" detail. |
+| [0035](0035-not-adopting-kubernetes-on-current-hardware.md) | Accepted | Stay on Docker Compose + Ansible on the single Proxmox host; Kubernetes doesn't pay for itself given per-node overhead on a 6-core/32GB box, and an OCI free-tier instance can't safely sit in a control-plane's consensus quorum regardless. Revisit only on a real trigger (workload variance, expanded hardware, a genuine rolling-deploy need), not on a schedule. |
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this

@@ -36,6 +36,20 @@ jobs (confirmed via Gitea's own runner docs) — no inbound port needed
 on the runner host, matching the zero-inbound-ports requirement the
 rejected draft already established for `cd_agent`.
 
+**Forgejo as an alternative forge.** Forgejo is a hard fork of Gitea;
+its Actions runner, `forgejo-runner`, is itself a hard fork of
+`act_runner` — same design (registers to the instance, polls
+outbound-only for queued jobs), but workflows live under
+`.forgejo/workflows` rather than `.gitea/workflows`, and the runner
+talks a Forgejo-specific ConnectRPC protocol rather than `act_runner`'s
+Gitea protocol, so the two aren't drop-in interchangeable at the
+instance/runner pairing even though the surrounding design is
+identical. Everything in this draft's Decision and Assumptions below
+applies equally to a private Forgejo instance in place of Gitea; which
+of the two to actually run is a separate, still-open question — see
+its own Assumptions entry below — not a reason to duplicate this
+draft.
+
 GitHub stays this repo's public canonical remote. Gitea would exist
 purely as an internal, LAN-only CD trigger surface, populated by a
 pull mirror of the public GitHub repo — read-only against a public
@@ -51,7 +65,8 @@ hitting the 10-minute floor, or triggering sync on demand via Gitea's
 
 Replace Stage 1 of `cd-agent.md` with:
 
-- A private, LAN-only Gitea instance: no public exposure, single
+- A private, LAN-only Gitea **or Forgejo** instance (see Assumptions
+  for how that choice gets made): no public exposure, single
   maintainer account, no outside collaborators.
 - A pull mirror of the public GitHub repo, synced at `MIN_INTERVAL`'s
   10-minute floor or triggered on demand via the mirror-sync API (see
@@ -59,8 +74,9 @@ Replace Stage 1 of `cd-agent.md` with:
 - Gitea Actions (GitHub-Actions-compatible workflow YAML) as the
   trigger and execution engine, replacing `preloop` CLI invocation
   entirely.
-- `act_runner` in Docker-in-Docker mode on the `cd_agent` host,
-  registered at repository level, outbound-only to the Gitea instance.
+- `act_runner` (Gitea path) or `forgejo-runner` (Forgejo path) in
+  Docker-in-Docker mode on the `cd_agent` host, registered at
+  repository level, outbound-only to the instance.
 
 Everything downstream of "a job is running" is unchanged: the same
 OpenBao AppRole design
@@ -105,6 +121,31 @@ self-run provisioning guard, the same not-yet-split SSH key.
   whether an on-demand `mirror-sync` call can be made by `cd_agent`'s
   own existing interval loop (staying outbound-only) instead of
   needing an inbound webhook.
+- **Claim:** Forgejo's pull-mirror config keys and defaults
+  (`[mirror]` `DEFAULT_INTERVAL`/`MIN_INTERVAL`) match Gitea's exactly,
+  since Forgejo forked at a point after Gitea introduced these
+  settings under those names. Confirmed against Gitea's own commit
+  history (`DEFAULT_INTERVAL = 8h`, `MIN_INTERVAL = 10m`, "must be
+  > 1m") — not yet confirmed against a running Forgejo instance's own
+  current docs, which could have diverged since the fork.
+  **Breaks if wrong:** the mirror-sync-latency assumption above would
+  need re-checking specifically for Forgejo rather than assumed
+  inherited from Gitea.
+  **Checked by:** the same spike as the mirror-sync-latency entry
+  above, run once against whichever of the two is chosen.
+- **Claim:** choosing Gitea vs. Forgejo for this design doesn't turn
+  on the mechanism this draft is about (private instance, pull mirror,
+  outbound-only runner) — both satisfy it identically — so the choice
+  should be made on other grounds: project governance and release
+  cadence, Actions/runner maturity, and which one this repo's
+  maintainer would rather operate long-term.
+  **Breaks if wrong:** if the two turn out not to be functionally
+  interchangeable for this specific design (e.g. a Forgejo-only or
+  Gitea-only limitation surfaces during the DinD-reachability spike
+  above), this becomes a real fork of the Decision, not a footnote.
+  **Checked by:** not spike-able — a judgment call to make once ready
+  to build Stage 1, informed by whichever spikes above have run by
+  then.
 
 ## Consequences
 
@@ -119,6 +160,12 @@ self-run provisioning guard, the same not-yet-split SSH key.
 - Does not change Stages 2–3 (`cd-agent-approle-policy.md`) or the
   SSH-key-separation open item; those proceed independently of trigger
   mechanism.
+- This draft's title still says "Gitea" because that's the
+  originally-evaluated case; treat it as shorthand for "a private,
+  self-hosted, GitHub-Actions-compatible forge" until the Gitea-vs-
+  Forgejo Assumption above resolves and this gets renamed or split
+  accordingly — don't read the title as having already ruled out
+  Forgejo.
 - If the mirror-sync latency assumption fails and a webhook becomes
   necessary, "zero inbound ports" is lost for the mirror-trigger path
   specifically (not for `cd_agent`'s other traffic) — worth weighing

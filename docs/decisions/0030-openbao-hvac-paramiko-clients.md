@@ -33,8 +33,8 @@ there; it runs on `security` itself).
 Considered and rejected up front: `docker/openbao/scripts/`'s three
 shell scripts and `openbao_backup/snapshot-push.sh.j2` wrap the
 official `bao` CLI directly, not a hand-rolled HTTP reimplementation -
-a different kind of problem, tracked separately in
-[`openbao-cli-standardization.md`](../projects/openbao-cli-standardization.md),
+a different kind of problem, decided separately in
+[ADR 0034](0034-native-bao-cli-not-docker-exec-or-run.md),
 not folded into this decision.
 
 Whether the four Python clients above should also share code with

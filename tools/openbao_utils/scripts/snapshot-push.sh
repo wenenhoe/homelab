@@ -1,11 +1,12 @@
 #!/bin/sh
 # Save an OpenBao raft snapshot, encrypt it, and push it to R2 and B2 -
 # one process on `controller`, over the network, using the native
-# `bao` CLI (Stage 4 of docs/projects/openbao-cli-standardization.md).
-# Replaces ansible/roles/openbao_backup's rendered snapshot-push.sh:
+# `bao` CLI (ADR 0034 - decisions/0034-native-bao-cli-not-docker-exec-or-run.md).
+# Replaces
+# ansible/roles/openbao_backup's rendered snapshot-push.sh:
 # `bao operator raft snapshot save` is a plain client-side download
 # (confirmed live - see
-# docs/decisions/drafts/openbao-native-cli-not-docker-based-access.md's
+# docs/decisions/0034-native-bao-cli-not-docker-exec-or-run.md's
 # Context), so the old docker-exec/docker-cp/`security`-local/manual
 # mint-on-controller-paste-on-security handoff is gone. rclone still
 # runs as a throwaway container (`rclone/rclone:1.75`, same pin as

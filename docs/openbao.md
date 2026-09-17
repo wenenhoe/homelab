@@ -252,13 +252,16 @@ them, not work around them:
 
 Both subcommands keep driving `docker exec` against the live
 container, permanently, by necessity — see
-[the design draft's Context](decisions/drafts/openbao-native-cli-not-docker-based-access.md)
-for why: `compose.yaml.j2` publishes OpenBao's port directly, but the
-container crash-loops until `step_ca_cert` issues its leaf cert, so
-there's no trustworthy network path to it during that window. This is
-the one place in the whole OpenBao CLI surface that stays
+[ADR 0034](decisions/0034-native-bao-cli-not-docker-exec-or-run.md)'s
+Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
+but the container crash-loops until `step_ca_cert` issues its leaf
+cert, so there's no trustworthy network path to it during that window.
+This is the one place in the whole OpenBao CLI surface that stays
 `docker exec`-based — everywhere else now uses the native `bao`
-binary (`security`) or `bao_session.py` (either host); see
+binary directly (`security` or `controller`, whichever you're on), or
+`bao_session.py` (`controller` only — see
+[ADR 0033](decisions/0033-bao-session-local-only-drops-broken-security-path.md))
+when starting from an AppRole login; see
 [`openbao-auth.md`](openbao-auth.md#runbook).
 
 ### First init (once, ever, per raft dataset)

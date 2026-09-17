@@ -4,9 +4,8 @@ native `bao` CLI already wired up, on `controller`. Replaces
 docker/openbao/scripts/bao-login.sh, bao-login-from-controller.sh, and
 bao-from-controller.sh (three scripts, two of them
 docker-exec/docker-run based) with one script that talks to the
-native `bao` binary `controller` has (Stage 4 of
-docs/projects/openbao-cli-standardization.md). See
-docs/decisions/drafts/openbao-native-cli-not-docker-based-access.md's
+native `bao` binary `controller` has. See
+docs/decisions/0034-native-bao-cli-not-docker-exec-or-run.md's
 Decision for the full reasoning this module implements, and
 docs/decisions/0033-bao-session-local-only-drops-broken-security-path.md
 for why this only ever runs on `controller` - a `security`-local mode
@@ -54,11 +53,11 @@ from utils.repo import TIMEOUT_SECONDS, fetch_root_cert
 
 from openbao_utils.client import openbao_base_url, openbao_hostname, vault_login
 
-# Matches `bao version`'s own reported shape, confirmed live in this
-# project's Stage 1 spike ("OpenBao v2.6.2 (dd9c19c...)") - pulls out
-# just the dotted version, the same form /sys/health's own "version"
-# field uses (openbao.org's API docs), so the two are comparable
-# directly.
+# Matches `bao version`'s own reported shape, confirmed live during
+# ADR 0034's own de-risking spike ("OpenBao v2.6.2 (dd9c19c...)") -
+# pulls out just the dotted version, the same form /sys/health's own
+# "version" field uses (openbao.org's API docs), so the two are
+# comparable directly.
 _LOCAL_VERSION_RE = re.compile(r"v(\d+\.\d+\.\d+)")
 
 
@@ -109,10 +108,9 @@ def spawn_session(env: dict[str, str]) -> int:
         return subprocess.call([shell], env=env)
     except KeyboardInterrupt:
         # Ctrl-C reaches this process and the child shell at once (same
-        # foreground process group) - confirmed live during this
-        # project's Stage 1 de-risking pass (see the draft's Decision).
-        # Caught here so main()'s own finally-block cleanup still runs
-        # without an uncaught traceback printing after it.
+        # foreground process group) - confirmed live, see ADR 0034's
+        # Decision. Caught here so main()'s own finally-block cleanup
+        # still runs without an uncaught traceback printing after it.
         return 130
 
 

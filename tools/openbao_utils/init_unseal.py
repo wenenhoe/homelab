@@ -3,15 +3,14 @@
 rather than a human SSHing in directly to run docker exec by hand.
 
 The remote command stays docker-exec-against-the-live-container for
-both subcommands, permanently - the one place this project keeps that
-pattern by necessity, not convention: compose.yaml.j2 publishes
-OpenBao's port directly, but the container crash-loops until
-step_ca_cert issues its leaf cert, so there's no trustworthy network
-path to it during that window - docker exec bypasses the network/TLS
-chain entirely, which is why it's the one thing that works here. See
-docs/decisions/drafts/openbao-native-cli-not-docker-based-access.md's
-Context/Decision for the full reasoning; this module builds Stage 3 of
-docs/projects/openbao-cli-standardization.md.
+both subcommands, permanently - the one place this repo's OpenBao CLI
+surface keeps that pattern by necessity, not convention:
+compose.yaml.j2 publishes OpenBao's port directly, but the container
+crash-loops until step_ca_cert issues its leaf cert, so there's no
+trustworthy network path to it during that window - docker exec
+bypasses the network/TLS chain entirely, which is why it's the one
+thing that works here. See ADR 0034's Context/Decision for the full
+reasoning.
 
 `init` needs no PTY: it takes no interactive input and prints its
 output (three unseal key shares, the initial root token) directly -
@@ -23,14 +22,15 @@ different docker exec call, not a new untested pattern.
 
 `unseal` does need one: bao operator unseal's own masked-input prompt
 refuses a bare, non-PTY pipe outright ("file descriptor 0 is not a
-terminal", confirmed live during this project's Stage 1 spike), so its
-channel is opened with get_pty=True and its remote command keeps the
+terminal", confirmed live during ADR 0034's own de-risking spike), so
+its channel is opened with get_pty=True and its remote command keeps
+the
 `-it` a human would type by hand (`docker exec -t` needs to allocate a
 pty *inside the container* for bao's own isatty() check to pass -
 independent of, but only reachable because of, the pty already present
 on the outer SSH channel). This exact shape - get_pty=True driving
-`docker exec -it ... bao operator unseal` - is what Stage 1's spike
-already confirmed live, unsealing a real 3-share/2-threshold throwaway
+`docker exec -it ... bao operator unseal` - is what that spike already
+confirmed live, unsealing a real 3-share/2-threshold throwaway
 instance this way; this module is a mechanical translation of that
 result into something reusable, not new de-risking. A share is only
 ever written to the channel's own stdin after being read locally via

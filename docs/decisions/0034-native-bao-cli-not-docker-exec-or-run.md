@@ -1,13 +1,27 @@
 ---
-id: DRAFT-openbao-native-cli-not-docker-based-access
+id: ADR-0034
 title: "Native bao CLI on security/controller, not docker exec or a throwaway docker run"
-type: draft-adr
-status: decided
+type: adr
+status: accepted
 ---
 
-# Native bao CLI on security/controller, not docker exec or a throwaway docker run
+# 0034. Native bao CLI on security/controller, not docker exec or a throwaway docker run
 
-**Status:** Decided
+**Status:** Accepted
+
+Revises one specific passage of already-accepted
+[ADR 0019](0019-openbao-snapshot-push-standalone.md) - not its
+structural decision (`snapshot-push.sh` pushing directly to R2/B2,
+never through `backup_agent`/`cloud_sync`, stands unchanged) - just
+its claim that the push happens "directly from `security`" and that
+the write leaf is "minted and cached only on `security`." Both were
+true when 0019 was written. The Decision below moves the whole
+script - login, snapshot save, encrypt, push - onto `controller`
+instead, reading the same dedicated snapshot-write-scoped leaf via
+`controller`'s own already-broad AppRole grant
+([ADR 0020](0020-controller-single-broad-approle-not-split-by-consumer.md))
+rather than a `security`-only path - confirmed to need no new Vault
+policy grant, since that grant already covered this exact path.
 
 ## Context
 
@@ -28,7 +42,7 @@ documented as more correct than the others:
   `docker run --rm --entrypoint bao openbao/openbao:2.6.2 ...`
   container just to borrow a `bao` binary, with real TLS verification
   via a root cert fetched fresh over SSH each run (the pattern
-  [ADR 0022](../0022-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
+  [ADR 0022](0022-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
   established, scoped specifically to `controller`).
 
 ADR 0022 documents every existing `BAO_SKIP_VERIFY=true` use as
@@ -169,7 +183,7 @@ routing it through `docker exec`.
 - **The SSH hop** anywhere one is needed (root-cert fetch, or driving
   `docker exec` for init/unseal orchestration) uses `paramiko`
   directly, matching
-  [ADR 0030](../0030-openbao-hvac-paramiko-clients.md)'s clients -
+  [ADR 0030](0030-openbao-hvac-paramiko-clients.md)'s clients -
   not the Docker SDK's own SSH transport, for the reasons in Context
   above.
 - **Init/unseal stays security-local and docker-exec-based**,

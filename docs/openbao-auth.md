@@ -59,7 +59,7 @@ replacement [`openbao.md`](openbao.md) uses for everything except
 init/unseal itself. `-tls-server-name` is required:
 the leaf cert has no IP SAN, so dialing `127.0.0.1` needs the real SAN
 supplied explicitly (see
-[the design draft](decisions/drafts/openbao-native-cli-not-docker-based-access.md#context)).
+[ADR 0034](decisions/0034-native-bao-cli-not-docker-exec-or-run.md#context)).
 
 1. **Enable the KV v2 engine**, if not already present (`bao secrets
    list` shows nothing at `secret/` on a fresh Vault):

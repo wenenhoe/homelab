@@ -97,14 +97,56 @@ picks up from there.
 
 ## Known gap
 
-`r2-read-watcher.service` has no `OnFailure=` wired to
-`telegram_notify` yet, unlike every other managed service on this
-host. Deliberately deferred, not forgotten: that notification path
-needs its own standalone Telegram credentials file (it must fire even
-if the crash that triggered it took Vault reachability down too — the
-watcher's own alerting can't be the thing that tells you the watcher
-died). Needs a `/etc/telegram-notify/r2-read-watcher.env`, populated by
-hand from the same `hosts/all/telegram/*` values, before wiring
-`OnFailure=telegram-notify-r2-read-watcher.service` into the unit
-above. Until then, Kuma's own missed-heartbeat timeout is the only
-backstop if the process dies outright.
+`r2-read-watcher.service` has no alert wired for a watcher that's
+stopped doing its job, unlike every other managed service on this
+host. The obvious fix doesn't actually work for this unit's shape:
+`OnFailure=` only fires once a unit reaches systemd's `failed` state,
+and per systemd's own docs a service using `Restart=` only enters
+`failed` once its start limits are exhausted (`systemd.unit(5)`,
+`OnFailure=`). This unit sets `Restart=on-failure`/`RestartSec=10`
+with no `StartLimitIntervalSec=`/`StartLimitBurst=` override, so at
+one failure per 10s it never crosses systemd's default burst
+threshold — it restarts forever instead. `OnFailure=` would never
+fire here, wired or not.
+
+Bounding the restarts to force a `failed` state isn't the fix either:
+it trades away the one thing `Restart=on-failure` is for. This unit's
+actual failure mode has been OpenBao being sealed (see
+[ADR 0018](decisions/0018-manual-shamir-unseal.md)) after a restart or
+a re-init, not a real crash — and that clears on its own once someone
+unseals it. A bounded restart count would leave the watcher sitting
+`failed` silently until a human notices, which is worse than today's
+gap.
+
+The replacement: a separate check, run off the same
+`r2-read-watcher-heartbeat.timer` tick, that counts consecutive ticks
+where `r2-read-watcher.service` isn't active and, past **3 in a row
+(~30 minutes)**, sends a Telegram alert carrying the tail of
+`journalctl -u r2-read-watcher` — the actual error, not just "it's
+down." Not yet built.
+
+30 minutes is derived from this monitor's real Kuma settings
+(Heartbeat Interval 900s, Retries 6, Heartbeat Retry Interval 360s),
+not guessed: the first missed check lands at Heartbeat Interval, each
+one after that at Heartbeat Retry Interval, and it takes `Retries`
+consecutive failures to flip to Down —
+`900 + (6 − 1) × 360 = 2700s` (45 minutes) is Kuma's own real
+time-to-alert (confirmed against upstream's retry-handling logic,
+[louislam/uptime-kuma#4476](https://github.com/louislam/uptime-kuma/pull/4476);
+not watched live against this repo's pinned `2.5.3` specifically).
+Half of that is 22.5 minutes; the first `r2-read-watcher-heartbeat.timer`
+tick past it is the 3rd consecutive miss (30 minutes) — the coarsest
+this check can be without changing that timer's own 10-minute
+interval, and still a solid ~15-minute head start on Kuma's alert.
+
+Needs its own standalone `/etc/telegram-notify/r2-read-watcher.env`,
+populated by hand from the same `hosts/all/telegram/*` values, for
+the same reason as the original plan: it must fire even if the
+Vault-reachability problem that took the watcher down also takes out
+any Vault-backed alerting path.
+
+Until this lands, Kuma's own missed-heartbeat timeout is the only
+backstop. Since this watcher's only job is alerting on reads of the
+R2 rotation token, any read that happens while it's down goes
+undetected until then — Kuma reports the watcher is unhealthy, not
+why, and not what happened while it was down.

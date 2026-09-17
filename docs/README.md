@@ -68,7 +68,7 @@ note on that).
 | [`openbao-auth.md`](openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
 | [`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
 | [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |
-| [`openbao-r2-read-watcher.md`](openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open `OnFailure=` gap. |
+| [`openbao-r2-read-watcher.md`](openbao-r2-read-watcher.md) | ADR 0026's per-read alert on the R2 rotation token: what it watches, installation, and the still-open gap in alerting when the watcher itself stops running. |
 | [`wastebin.md`](wastebin.md) | Custom wastebin image: adding a static `wget` to a `FROM scratch` base for healthchecks. |
 | [`qemu-guest-agent.md`](qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
 

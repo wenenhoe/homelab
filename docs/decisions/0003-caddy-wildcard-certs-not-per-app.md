@@ -54,5 +54,8 @@ the auth provider every other app's `handle` block calls out to via
 Its hostname is still individually logged to CT logs as a result.
 Fully closing the CT-log exposure this ADR's second consideration
 cares about would mean routing `tinyauth` through the wildcard vhost
-too; worth revisiting as a deliberate follow-up if that's a priority,
-not something to change as a side effect of an unrelated change.
+too; see
+[`tinyauth-lab-domain-wildcard-not-exact-host-cert.md`](drafts/tinyauth-lab-domain-wildcard-not-exact-host-cert.md)
+for why that's not actually "the same wildcard vhost" (tinyauth lives
+at a different domain level) and what closing this gap looks like
+instead.

@@ -46,10 +46,12 @@ this stage implements.
 **Read before building this stage:**
 [`private-gitea-actions-not-pull-based-preloop-poller.md`](../decisions/drafts/private-gitea-actions-not-pull-based-preloop-poller.md)
 is a still-open, unresolved alternative that proposes replacing this
-stage's mechanism entirely — a private, LAN-only Gitea instance with
-an `act_runner`, dispatch-triggered on push, instead of a `preloop`
-poller. It's a live draft, not a rejected idea; the wording above
-shouldn't be read as having already decided against it.
+stage's mechanism entirely — a private, LAN-only Gitea *or Forgejo*
+instance with an `act_runner`/`forgejo-runner`, dispatch-triggered on
+push, instead of a `preloop` poller; which of Gitea or Forgejo is its
+own open question inside that draft. It's a live draft, not a rejected
+idea; the wording above shouldn't be read as having already decided
+against it.
 
 ### Stage 2 — AppRoles
 

@@ -25,6 +25,25 @@ patch — the file doesn't move on supersession, so nothing else makes
 that reference look broken; `check-doc-drift.py` fails the build until
 it's addressed precisely because of that.
 
+## Editing an accepted ADR
+
+Its Context and Decision — the actual reasoning and what was chosen —
+don't get rewritten after acceptance; a changed mind is a new ADR
+marking this one `Superseded by`, not an edit to this one. That's what
+"accepted" is for: a reader trusts that what an ADR says was decided
+is still what it says, unless the Status line tells them otherwise.
+
+A small in-place edit is fine when it doesn't touch that: closing a
+loop this ADR's own Consequences left open (a "worth revisiting" note
+becoming an actual link once something exists to link to, the same way
+[0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md)'s
+Status line already carries an in-place "OCI superseded by 0016"
+pointer), or correcting a plain factual detail that was wrong even at
+the time. If it's unclear which side of that line an edit falls on,
+treat it as a decision change and supersede instead — a wrong guess in
+that direction costs a new file number; a wrong guess the other way
+costs someone's trust in what "Accepted" means here.
+
 ## Drafts
 
 A numbered ADR here means "decided, and either built or being built" —

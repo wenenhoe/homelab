@@ -4,8 +4,13 @@ This repo's docs stay flat under `docs/`, plus three subdirectories for
 artifact types that don't fit a per-topic page:
 
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
-  when the reasoning isn't obvious from the code. One file per decision,
-  numbered, never edited after acceptance (superseded instead).
+  when the reasoning isn't obvious from the code. One file per
+  decision, numbered; its reasoning stays fixed once accepted — a
+  changed decision gets superseded, not rewritten — but a small
+  in-place fix that doesn't touch the reasoning itself (closing a
+  stale forward-reference, say) is fine. See
+  [`decisions/README.md#editing-an-accepted-adr`](decisions/README.md#editing-an-accepted-adr)
+  for where that line sits.
 - **[`architecture/`](architecture/README.md)** — Mermaid diagrams for
   views that cut across multiple topic docs (a system-wide component
   map, an end-to-end data flow). A diagram that only illustrates one

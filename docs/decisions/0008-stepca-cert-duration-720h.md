@@ -7,8 +7,9 @@ status: accepted
 
 # 0008. step-ca cert duration set to 720h, not step-ca's own 24h default
 
-**Status:** Accepted, flagged for review — the premise below has since
-changed and this hasn't been revisited.
+**Status:** Accepted — see
+[`stepca-shorten-cert-duration-now-that-renewal-exists.md`](drafts/stepca-shorten-cert-duration-now-that-renewal-exists.md)
+for the follow-up this ADR's own Consequences called for.
 
 ## Context
 
@@ -30,9 +31,8 @@ rather than step-ca's own 24h default.
 `step_ca_cert`'s systemd `cert-renewer@` timer (see
 [`lldap.md`](../lldap.md)) is now exactly the renewal automation that
 720h was chosen to route around not having — and it's been live since
-before this ADR was written. **This value hasn't been reconsidered
-since that changed.** Moving back toward step-ca's own 24h philosophy
-(shorter-lived certs, smaller revocation-risk window) is worth doing
-as a deliberate follow-up now that the automation this decision was
-originally waiting on already exists — not as a side effect of an
-unrelated change.
+before this ADR was written. Moving back toward step-ca's own 24h
+philosophy (shorter-lived certs, smaller revocation-risk window) is
+scoped in
+[`stepca-shorten-cert-duration-now-that-renewal-exists.md`](drafts/stepca-shorten-cert-duration-now-that-renewal-exists.md)
+rather than left as an untracked note here.

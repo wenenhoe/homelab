@@ -20,5 +20,6 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md)
 - [`rclone-boto3-scope-not-blanket-swap.md`](rclone-boto3-scope-not-blanket-swap.md)
 - [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md)
+- [`stepca-shorten-cert-duration-now-that-renewal-exists.md`](stepca-shorten-cert-duration-now-that-renewal-exists.md)
 - [`tinyauth-lab-domain-wildcard-not-exact-host-cert.md`](tinyauth-lab-domain-wildcard-not-exact-host-cert.md)
 - [`tofu-secrets-and-state-backend-location.md`](tofu-secrets-and-state-backend-location.md)

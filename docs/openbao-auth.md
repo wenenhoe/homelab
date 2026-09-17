@@ -152,9 +152,10 @@ supplied explicitly (see
    cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
    ```
 
-   This logs in over real TLS (auto-detecting `controller`'s own
-   SSH-fetched root cert, since there's no local `step-ca` container
-   to borrow from directly) and drops into an interactive shell with
+   This logs in over real TLS (`controller` always fetches step-ca's
+   root cert fresh over SSH, since there's no local `step-ca`
+   container to borrow from directly) and drops into an interactive
+   shell with
    `BAO_ADDR`/`BAO_CACERT`/`BAO_TLS_SERVER_NAME`/`BAO_TOKEN` already
    exported — every native `bao` subcommand below runs unmodified
    inside it:

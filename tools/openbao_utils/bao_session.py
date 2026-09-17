@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
-"""Log in to OpenBao and hand off to a real interactive shell with a
-native `bao` CLI already wired up - usable from either `security` or
-`controller`. Replaces docker/openbao/scripts/bao-login.sh,
-bao-login-from-controller.sh, and bao-from-controller.sh (three
-scripts, two of them docker-exec/docker-run based) with one script
-that talks to the native `bao` binary both hosts now have (Stages 2
-and 4 of docs/projects/openbao-cli-standardization.md). See
+"""Log in to OpenBao and hand off to a real interactive shell with the
+native `bao` CLI already wired up, on `controller`. Replaces
+docker/openbao/scripts/bao-login.sh, bao-login-from-controller.sh, and
+bao-from-controller.sh (three scripts, two of them
+docker-exec/docker-run based) with one script that talks to the
+native `bao` binary `controller` has (Stage 4 of
+docs/projects/openbao-cli-standardization.md). See
 docs/decisions/drafts/openbao-native-cli-not-docker-based-access.md's
-Decision for the full reasoning this module implements.
+Decision for the full reasoning this module implements, and
+docs/decisions/0033-bao-session-local-only-drops-broken-security-path.md
+for why this only ever runs on `controller` - a `security`-local mode
+was drafted and never actually worked (the repo isn't checked out
+there).
 
 Authenticates via openbao_utils.client.vault_login() (hvac) rather
 than shelling out to `bao write auth/approle/login`: secret_id is read
@@ -20,21 +24,17 @@ Once logged in, this spawns a real interactive child shell (inheriting
 the terminal) with BAO_ADDR/BAO_CACERT/BAO_TLS_SERVER_NAME/BAO_TOKEN
 exported for that child process only, so any native `bao` subcommand
 (kv get, operator raft snapshot save, ...) keeps working completely
-unmodified inside it. The token is revoked when that child exits,
-normally or via Ctrl-C - a bounded session, not an open-ended
-`export` the operator has to remember to undo.
+unmodified inside it. The token is revoked when that child exits -
+normally, via Ctrl-C, or via SIGHUP on an unclean disconnect (see ADR
+0033 above) - a bounded session, not an open-ended `export` the
+operator has to remember to undo.
 
-Root-cert source auto-detects which host this is running on: a local
-`docker exec step-ca ...` only succeeds on `security` itself (step-ca
-is a sibling container there); anywhere else it fails immediately
-(command not found, or no such container) and this falls back to
-utils.repo.fetch_root_cert()'s SSH-fetch path (ADR 0022's mechanism).
---controller forces that SSH path, for whenever auto-detection guesses
-wrong.
+step-ca's root cert is always fetched fresh over SSH
+(utils.repo.fetch_root_cert(), ADR 0022's mechanism) - `controller`
+has no local step-ca container to borrow it from directly.
 
 Usage:
     cd tools && python3 -m openbao_utils.bao_session <role_id>
-    cd tools && python3 -m openbao_utils.bao_session <role_id> --controller
 """
 
 from __future__ import annotations
@@ -43,17 +43,16 @@ import argparse
 import getpass
 import os
 import re
+import signal
 import subprocess
 import sys
 import tempfile
 from pathlib import Path
 
 import hvac
-from utils.repo import STEP_CA_CONTAINER, TIMEOUT_SECONDS, fetch_root_cert
+from utils.repo import TIMEOUT_SECONDS, fetch_root_cert
 
 from openbao_utils.client import openbao_base_url, openbao_hostname, vault_login
-
-_LOCAL_ROOT_CERT_CMD = ["docker", "exec", STEP_CA_CONTAINER, "cat", "/home/step/certs/root_ca.crt"]
 
 # Matches `bao version`'s own reported shape, confirmed live in this
 # project's Stage 1 spike ("OpenBao v2.6.2 (dd9c19c...)") - pulls out
@@ -61,26 +60,6 @@ _LOCAL_ROOT_CERT_CMD = ["docker", "exec", STEP_CA_CONTAINER, "cat", "/home/step/
 # field uses (openbao.org's API docs), so the two are comparable
 # directly.
 _LOCAL_VERSION_RE = re.compile(r"v(\d+\.\d+\.\d+)")
-
-
-def _local_root_cert() -> str | None:
-    """Only succeeds on `security` itself. Anywhere else - `controller`
-    included - `docker exec step-ca` either isn't installed or has no
-    such container, and this returns None so the caller falls back to
-    the SSH path instead."""
-    try:
-        result = subprocess.run(_LOCAL_ROOT_CERT_CMD, capture_output=True, timeout=TIMEOUT_SECONDS, check=False)
-    except OSError, subprocess.TimeoutExpired:
-        return None
-    return result.stdout.decode() if result.returncode == 0 else None
-
-
-def get_root_cert(force_controller: bool) -> str:
-    if not force_controller:
-        cert = _local_root_cert()
-        if cert:
-            return cert
-    return fetch_root_cert()
 
 
 def local_bao_version() -> str | None:
@@ -137,14 +116,28 @@ def spawn_session(env: dict[str, str]) -> int:
         return 130
 
 
+def _revoke(client: hvac.Client | None) -> None:
+    """Idempotent - both the SIGHUP handler and main()'s own finally
+    block can reach this for the same session (ADR 0033); clearing
+    client.token after a first attempt makes a second call a no-op
+    instead of a duplicate revoke warning."""
+    if client is not None and client.token:
+        try:
+            client.auth.token.revoke_self()
+        except Exception as exc:
+            print(f"Warning: failed to revoke token: {exc}", file=sys.stderr)
+        client.token = None
+
+
+def _cleanup(client: hvac.Client | None, ca_path: str | None) -> None:
+    _revoke(client)
+    if ca_path:
+        Path(ca_path).unlink(missing_ok=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("role_id")
-    parser.add_argument(
-        "--controller",
-        action="store_true",
-        help="Force the SSH-fetch root-cert path, skipping local-docker-exec auto-detection.",
-    )
     args = parser.parse_args()
 
     secret_id = getpass.getpass("secret_id: ")
@@ -154,12 +147,22 @@ def main() -> int:
     exit_code = 1
     try:
         with tempfile.NamedTemporaryFile("w", suffix="-openbao-root-ca", delete=False) as f:
-            f.write(get_root_cert(args.controller))
+            f.write(fetch_root_cert())
             ca_path = f.name
 
         client = hvac.Client(url=openbao_base_url(), verify=ca_path, timeout=TIMEOUT_SECONDS)
         vault_login(client, args.role_id, secret_id)
         warn_on_version_mismatch(client)
+
+        def _on_sighup(signum, frame):
+            # sshd sends SIGHUP to this whole process group on an
+            # unclean disconnect; Python's default disposition for it
+            # is immediate termination, which bypasses the finally
+            # block below entirely - confirmed live, see ADR 0033.
+            _cleanup(client, ca_path)
+            raise SystemExit(1)
+
+        signal.signal(signal.SIGHUP, _on_sighup)
 
         env = os.environ.copy()
         env["BAO_ADDR"] = openbao_base_url()
@@ -169,13 +172,7 @@ def main() -> int:
 
         exit_code = spawn_session(env)
     finally:
-        if client is not None and client.token:
-            try:
-                client.auth.token.revoke_self()
-            except Exception as exc:
-                print(f"Warning: failed to revoke token: {exc}", file=sys.stderr)
-        if ca_path:
-            Path(ca_path).unlink(missing_ok=True)
+        _cleanup(client, ca_path)
 
     return exit_code
 

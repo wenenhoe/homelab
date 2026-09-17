@@ -33,9 +33,9 @@ cd tools && python3 -m openbao_utils.bao_session <vault-bootstrap role_id>
 
 Paste `secret_id` when prompted (from the password manager — see
 "What it can and can't do" above, never `ansible/files/secrets/`).
-Runs from either `controller` or `security`, auto-detecting how to
-reach step-ca's root cert (`bao_session.py`'s own docstring). Drops
-into an interactive shell with `BAO_ADDR`/`BAO_CACERT`/
+Runs from `controller`, fetching step-ca's root cert fresh over SSH
+each time (`bao_session.py`'s own docstring). Drops into an
+interactive shell with `BAO_ADDR`/`BAO_CACERT`/
 `BAO_TLS_SERVER_NAME`/`BAO_TOKEN` already exported — every command
 below is plain native `bao`:
 

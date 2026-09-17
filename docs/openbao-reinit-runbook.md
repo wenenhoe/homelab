@@ -102,8 +102,8 @@ can't fix.
 
    **Confirm the scope actually holds before trusting it**, same
    reasoning as `openbao-auth.md`'s own step 6 - a policy file is a
-   claim until proven. From `controller` or `security` (either works -
-   `bao_session.py` auto-detects), paste `secret_id` when prompted:
+   claim until proven. From `controller`, paste `secret_id` when
+   prompted:
 
    ```sh
    cd tools && python3 -m openbao_utils.bao_session "<role_id from above>"

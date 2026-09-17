@@ -29,6 +29,7 @@ this doc tracks build status only.
 | 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Done |
 | 7 | Update every doc's invocation examples to the consolidated model | Done |
 | 8 | Audit all OpenBao-topic docs for consolidation/shortening | Done |
+| 9 | Drop `bao_session.py`'s never-working `security`-local path, add `SIGHUP` handling, correct every doc's stale "runs from either host" claim | Done |
 
 ## Stage detail
 
@@ -279,25 +280,51 @@ by-hand-only framing argued for, and `openbao-vault-bootstrap.md` now
 documents `bao_session.py`'s revoke-on-exit behavior inline since its
 emergency-root procedure depends on knowing exactly when a login ends.
 
+### Stage 9 — Drop the never-working security-local path (Done)
+
+What was drafted as
+`controller-bao-via-security-ssh-relay-not-local-install.md` (relay
+`bao_session.py`'s session to `security` over `ssh -t`, dropping
+`controller`'s own native `bao`) didn't survive its own spike: the
+relay's interactive mechanics checked out live, but a second check -
+prompted by never having actually verified `bao_session.py`'s own
+"runs from either `controller` or `security`" docstring claim - found
+`security` has no checkout of this repo at all, so the
+"`security`-local" half of that claim, and of the relay this draft
+was meant to simplify away from, never functioned. Separately,
+`tools/openbao_utils/scripts/snapshot-push.sh` (Stage 5) calls a local
+`bao` binary directly and needs `controller`'s install regardless -
+the draft's stated benefit ("controller sheds an install step
+entirely") was never true. See
+[ADR 0033](../decisions/0033-bao-session-local-only-drops-broken-security-path.md)
+for the full reasoning; the draft is deleted, superseded by that ADR
+rather than promoted as originally planned.
+
+Built instead: `bao_session.py`'s dead auto-detection
+(`_local_root_cert`, `get_root_cert`, `--controller`) is removed -
+`fetch_root_cert()`'s SSH fetch is now unconditional, since there was
+never a working local alternative to detect into. An explicit
+`SIGHUP` handler is added alongside the existing
+`try`/`finally`/`KeyboardInterrupt` handling, closing the
+unclean-disconnect gap the relay spike surfaced (Python's default
+`SIGHUP` disposition bypasses `finally` entirely) - confirmed live via
+a real `os.kill(os.getpid(), SIGHUP)` mid-session in
+`test_bao_session.py`, not just a direct call to the handler function.
+`openbao-auth.md`, `openbao-reinit-runbook.md`, and
+`openbao-vault-bootstrap.md`'s stale "either works"/auto-detect claims
+are corrected to `controller` only.
+
 ## Open items
 
 The exit-code question Stage 3 carried forward has been confirmed live
 (see that stage's own detail above) and resolved into `init_unseal.py`
 itself.
 
-Whether `controller` needs its own native `bao` at all, given
-`security` already has one, is now `Decided` - see
-[`controller-bao-via-security-ssh-relay-not-local-install.md`](../decisions/drafts/controller-bao-via-security-ssh-relay-not-local-install.md):
-`bao_session.py` relays to `security` over `ssh -t` instead. Stage 4's
-current build (documented above) stands as-is until a stage is
-scheduled to implement it - decided, not yet built.
-
-That same spike surfaced a second, pre-existing gap not scoped to this
-draft: today's shipped security-local session (Stage 4) doesn't run
-its revoke-on-exit cleanup on an unclean disconnect either (`SIGHUP`'s
-default disposition bypasses `try`/`finally` entirely) - a token can
-outlive its session if the operator's own terminal to `security` drops
-uncleanly. Raised here, not yet scheduled as its own stage or draft.
+None open otherwise. The `controller`-vs-`security` question Stage 4
+carried forward is resolved by Stage 9/ADR 0033 above: `controller`
+keeps its native `bao` install indefinitely, for `snapshot-push.sh`'s
+sake - not because a relay was rejected on preference, but because the
+alternative it would have relayed to never actually worked.
 
 ## Closing checklist
 

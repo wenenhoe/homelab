@@ -5,12 +5,14 @@ call is mocked; nothing here spawns a real shell, touches a real
 `security` host, or a real OpenBao. fetch_root_cert/vault_login come
 from utils.repo/openbao_utils.client - tested once, directly, in their
 own test files. This file only tests bao_session.py's own remaining
-logic: root-cert source auto-detection, the version check, session
-spawning, and main()'s wiring.
+logic: the version check, session spawning, main()'s wiring, and
+SIGHUP-triggered cleanup (ADR 0033).
 """
 
 from __future__ import annotations
 
+import os
+import signal
 import subprocess
 import sys
 import unittest
@@ -20,48 +22,6 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from openbao_utils import bao_session
-
-
-class LocalRootCertTests(unittest.TestCase):
-    @patch("openbao_utils.bao_session.subprocess.run")
-    def test_returns_stdout_on_success(self, mock_run):
-        mock_run.return_value = subprocess.CompletedProcess(bao_session._LOCAL_ROOT_CERT_CMD, returncode=0, stdout=b"-----BEGIN CERTIFICATE-----\n...")
-        self.assertEqual(bao_session._local_root_cert(), "-----BEGIN CERTIFICATE-----\n...")
-
-    @patch("openbao_utils.bao_session.subprocess.run")
-    def test_returns_none_on_nonzero_exit(self, mock_run):
-        # The expected shape anywhere but `security` itself - no such
-        # container, or `docker` isn't installed at all.
-        mock_run.return_value = subprocess.CompletedProcess(bao_session._LOCAL_ROOT_CERT_CMD, returncode=1, stdout=b"")
-        self.assertIsNone(bao_session._local_root_cert())
-
-    @patch("openbao_utils.bao_session.subprocess.run", side_effect=FileNotFoundError)
-    def test_returns_none_when_docker_isnt_installed(self, mock_run):
-        self.assertIsNone(bao_session._local_root_cert())
-
-    @patch("openbao_utils.bao_session.subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="docker", timeout=10))
-    def test_returns_none_on_timeout(self, mock_run):
-        self.assertIsNone(bao_session._local_root_cert())
-
-
-class GetRootCertTests(unittest.TestCase):
-    @patch("openbao_utils.bao_session.fetch_root_cert")
-    @patch.object(bao_session, "_local_root_cert", return_value="local-cert")
-    def test_prefers_the_local_cert_when_available_and_not_forced(self, mock_local, mock_fetch):
-        self.assertEqual(bao_session.get_root_cert(force_controller=False), "local-cert")
-        mock_fetch.assert_not_called()
-
-    @patch("openbao_utils.bao_session.fetch_root_cert", return_value="ssh-fetched-cert")
-    @patch.object(bao_session, "_local_root_cert")
-    def test_skips_local_detection_entirely_when_forced(self, mock_local, mock_fetch):
-        self.assertEqual(bao_session.get_root_cert(force_controller=True), "ssh-fetched-cert")
-        mock_local.assert_not_called()
-
-    @patch("openbao_utils.bao_session.fetch_root_cert", return_value="ssh-fetched-cert")
-    @patch.object(bao_session, "_local_root_cert", return_value=None)
-    def test_falls_back_to_ssh_fetch_when_local_detection_fails(self, mock_local, mock_fetch):
-        self.assertEqual(bao_session.get_root_cert(force_controller=False), "ssh-fetched-cert")
-        mock_fetch.assert_called_once()
 
 
 class LocalBaoVersionTests(unittest.TestCase):
@@ -148,6 +108,28 @@ class SpawnSessionTests(unittest.TestCase):
         self.assertEqual(bao_session.spawn_session({"SHELL": "/bin/sh"}), 130)
 
 
+class RevokeTests(unittest.TestCase):
+    """_revoke's own idempotency guard, isolated from main()'s wiring -
+    both the finally block and the SIGHUP handler can reach it for the
+    same session (ADR 0033)."""
+
+    def test_clears_the_token_after_revoking(self):
+        mock_client = MagicMock()
+        mock_client.token = "fake-token"
+        bao_session._revoke(mock_client)
+        mock_client.auth.token.revoke_self.assert_called_once()
+        self.assertIsNone(mock_client.token)
+
+    def test_a_second_call_is_a_silent_no_op(self):
+        mock_client = MagicMock()
+        mock_client.token = None  # as if _revoke already ran once
+        bao_session._revoke(mock_client)
+        mock_client.auth.token.revoke_self.assert_not_called()
+
+    def test_tolerates_a_client_that_never_logged_in(self):
+        bao_session._revoke(None)  # must not raise
+
+
 class MainTests(unittest.TestCase):
     """hvac.Client, vault_login, and the root-cert fetch are all
     mocked - this only tests main()'s own wiring: argv parsing, env
@@ -161,7 +143,7 @@ class MainTests(unittest.TestCase):
         patchers = {
             "hvac_client_cls": patch("openbao_utils.bao_session.hvac.Client", return_value=self.mock_client),
             "vault_login": patch.object(bao_session, "vault_login"),
-            "get_root_cert": patch.object(bao_session, "get_root_cert", return_value="fake-root-ca-pem"),
+            "fetch_root_cert": patch.object(bao_session, "fetch_root_cert", return_value="fake-root-ca-pem"),
             "warn": patch.object(bao_session, "warn_on_version_mismatch"),
             "spawn": patch.object(bao_session, "spawn_session", return_value=0),
             "getpass": patch("openbao_utils.bao_session.getpass.getpass", return_value="fake-secret-id"),
@@ -180,13 +162,9 @@ class MainTests(unittest.TestCase):
         self.run_main(["bao_session.py", "some-role-id"])
         self.mocks["vault_login"].assert_called_once_with(self.mock_client, "some-role-id", "fake-secret-id")
 
-    def test_passes_controller_flag_through_to_get_root_cert(self):
-        self.run_main(["bao_session.py", "some-role-id", "--controller"])
-        self.mocks["get_root_cert"].assert_called_once_with(True)
-
-    def test_defaults_controller_flag_to_false(self):
+    def test_fetches_the_root_cert_fresh_over_ssh(self):
         self.run_main(["bao_session.py", "some-role-id"])
-        self.mocks["get_root_cert"].assert_called_once_with(False)
+        self.mocks["fetch_root_cert"].assert_called_once()
 
     def test_spawns_with_bao_env_vars_set_from_the_login(self):
         captured_env = {}
@@ -247,6 +225,26 @@ class MainTests(unittest.TestCase):
         with patch("sys.stderr"):
             result = self.run_main(["bao_session.py", "some-role-id"])
         self.assertEqual(result, 0)
+
+    def test_sighup_mid_session_still_revokes_and_removes_the_ca_file(self):
+        # Actually raises real SIGHUP against this test process while
+        # spawn_session is "running", rather than calling the internal
+        # handler directly - the whole point (ADR 0033) is that
+        # Python's own signal delivery interrupts a blocking call and
+        # still runs cleanup, which a direct call wouldn't exercise.
+        captured = {}
+
+        def spy(env):
+            captured["ca_path"] = env["BAO_CACERT"]
+            os.kill(os.getpid(), signal.SIGHUP)
+            return 0  # unreachable if the handler does its job
+
+        self.mocks["spawn"].side_effect = spy
+        with self.assertRaises(SystemExit) as ctx:
+            self.run_main(["bao_session.py", "some-role-id"])
+        self.assertEqual(ctx.exception.code, 1)
+        self.mock_client.auth.token.revoke_self.assert_called_once()
+        self.assertFalse(Path(captured["ca_path"]).exists())
 
 
 if __name__ == "__main__":

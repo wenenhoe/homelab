@@ -13,6 +13,7 @@ Use [`TEMPLATE.md`](TEMPLATE.md) for new drafts.
 - [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md)
 - [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md)
 - [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md)
+- [`floci-oci-for-oci-classic-iam-not-scim-leaf-tests.md`](floci-oci-for-oci-classic-iam-not-scim-leaf-tests.md)
 - [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)
 - [`private-gitea-actions-not-pull-based-preloop-poller.md`](private-gitea-actions-not-pull-based-preloop-poller.md)
 - [`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md)

@@ -2,12 +2,12 @@
 id: DRAFT-controller-bao-via-security-ssh-relay-not-local-install
 title: "bao_session.py relays to security over ssh -t, not a locally-installed bao on controller"
 type: draft-adr
-status: draft
+status: decided
 ---
 
 # bao_session.py relays to `security` over `ssh -t`, not a locally-installed `bao` on `controller`
 
-**Status:** Draft — leaning design reached, not yet spiked
+**Status:** Decided
 
 ## Context
 
@@ -62,6 +62,34 @@ non-interactive commands, so a true interactive shell arguably wasn't
 in its scope to begin with. Noted here explicitly so it isn't
 independently re-flagged as an inconsistency later.
 
+**Spike findings, confirmed live from a real `controller` machine:**
+a throwaway `ssh -t <security target> python3 <script>` relay, driving
+a real interactive `bash` child exactly as `bao_session.py` would,
+forwards a foreground Ctrl-C correctly (kills only the foreground job,
+same as a direct SSH session - it does not tear down the whole
+relayed session) and propagates `SIGWINCH` on terminal resize (`stty
+size` reflected a mid-session resize immediately). A clean `exit`
+passed the real exit code back to `controller` and ran the relayed
+process's `finally` block. All three confirm the relay is
+indistinguishable from a direct session for the cases Assumption 1 was
+about.
+
+The unclean-disconnect case (Assumption 2) does not hold as originally
+assumed, and this is the one substantive change from the leaning
+design above: killing the local `ssh -t` process (`kill -9`) tears
+down the remote process too, but writing proof of execution to a file
+on `security` (rather than the now-dead pty) showed only `SESSION
+START`, never the `finally` block's cleanup line. The reason is
+`SIGHUP`: `sshd` sends it to the whole remote process group once the
+connection drops, and Python's default disposition for `SIGHUP` is
+immediate termination - it does not unwind the stack, so a bare
+`try`/`finally` never runs. This reproduced on the *easy* case (a
+clean TCP FIN from a killed local client); an actual network
+partition, where `security` gets no signal from the far end at all
+until a keepalive/read times out, would leave the remote process alive
+even longer with the token still unrevoked. The Decision below adds an
+explicit `SIGHUP` handler to close this.
+
 **Raised, deliberately not resolved here:** whether the SSH key
 `bao_session.py` uses (today, the same key `security_ssh_target()`
 already reads out of Ansible inventory - the operator's own admin key,
@@ -98,34 +126,15 @@ take a position on.
 - The SSH-key-restriction question (Context, above) is out of scope
   for this decision either way; the key's access stays exactly as
   broad as it is today unless a later, separate decision changes it.
-
-## Assumptions
-
-- **Claim:** exec'ing the real `ssh` client with `-t` and inheriting
-  this process's stdio gives a fully working interactive session from
-  `controller` - arbitrary `bao` subcommands, Ctrl-C forwarded
-  correctly, terminal resize propagated, exit code passed through -
-  indistinguishable from the operator SSHing into `security` directly.
-  **Breaks if wrong:** the relayed session degrades below what
-  `bao_session.py` already provides running locally on `security`
-  today (per this draft's own already-built Decision), making the
-  relay a downgrade rather than a simplification.
-  **How checked:** a real spike from an actual `controller` machine -
-  drive a real session, resize the terminal mid-session, Ctrl-C
-  mid-command, confirm the exit code and revoke-on-exit both still
-  work over the SSH hop specifically (session-local behavior is
-  already proven; only the added hop is unverified).
-- **Claim:** revoke-on-exit (today's `try`/`finally` plus explicit
-  `KeyboardInterrupt` catch, confirmed live for the security-local
-  case) still fires correctly when the child process is `ssh -t`
-  itself rather than a local shell - including on an *unclean*
-  disconnect (network blip, `security` reboot mid-session), not just a
-  normal remote-shell exit.
-  **Breaks if wrong:** a token could outlive the session it was
-  supposed to be scoped to, quietly reintroducing the
-  open-ended-`export` risk this whole project exists to close.
-  **How checked:** same spike as above, plus a deliberate mid-session
-  network interruption.
+- The relayed process on `security` installs an explicit `SIGHUP`
+  handler before spawning the child shell, alongside the existing
+  `try`/`finally`/`KeyboardInterrupt` handling: on `SIGHUP` it runs the
+  same revoke-and-cleanup path, then exits, instead of relying on
+  Python's default disposition (immediate termination, bypassing
+  `finally`) - confirmed live (Context, above) to be the actual
+  behavior on an unclean disconnect. Without this, the relay would
+  ship strictly worse than today's security-local case for exactly the
+  failure mode this project exists to close.
 
 ## Consequences
 
@@ -150,3 +159,10 @@ take a position on.
   would need its example simplified once this ships (no more
   `--controller` flag) - folded into Stage 7's already-planned
   invocation-example pass, not a new doc effort.
+- This spike's `SIGHUP` finding (Context, above) isn't specific to the
+  relay: today's already-shipped security-local case (Stage 4) uses
+  the same bare `try`/`finally` and would lose a token the identical
+  way if the operator's own direct terminal session to `security`
+  drops uncleanly - a pre-existing gap this draft surfaced but doesn't
+  fix, since it's outside what this decision is about. Worth a
+  follow-up item once this ships (see the project doc's Open items).

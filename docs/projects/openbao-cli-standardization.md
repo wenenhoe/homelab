@@ -285,11 +285,19 @@ The exit-code question Stage 3 carried forward has been confirmed live
 (see that stage's own detail above) and resolved into `init_unseal.py`
 itself.
 
-Raised, not yet decided: whether `controller` needs its own native
-`bao` at all, given `security` already has one - see
-[`controller-bao-via-security-ssh-relay-not-local-install.md`](../decisions/drafts/controller-bao-via-security-ssh-relay-not-local-install.md).
-Stage 4's current build (documented above) stands as-is unless and
-until that draft is decided and a stage is scheduled to implement it.
+Whether `controller` needs its own native `bao` at all, given
+`security` already has one, is now `Decided` - see
+[`controller-bao-via-security-ssh-relay-not-local-install.md`](../decisions/drafts/controller-bao-via-security-ssh-relay-not-local-install.md):
+`bao_session.py` relays to `security` over `ssh -t` instead. Stage 4's
+current build (documented above) stands as-is until a stage is
+scheduled to implement it - decided, not yet built.
+
+That same spike surfaced a second, pre-existing gap not scoped to this
+draft: today's shipped security-local session (Stage 4) doesn't run
+its revoke-on-exit cleanup on an unclean disconnect either (`SIGHUP`'s
+default disposition bypasses `try`/`finally` entirely) - a token can
+outlive its session if the operator's own terminal to `security` drops
+uncleanly. Raised here, not yet scheduled as its own stage or draft.
 
 ## Closing checklist
 

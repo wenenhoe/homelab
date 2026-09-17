@@ -209,9 +209,15 @@ mechanics inline) and acts on it, not just a report.
 
 ## Open items
 
-None currently — the exit-code question Stage 3 carried forward has
-been confirmed live (see that stage's own detail above) and resolved
-into `init_unseal.py` itself.
+The exit-code question Stage 3 carried forward has been confirmed live
+(see that stage's own detail above) and resolved into `init_unseal.py`
+itself.
+
+Raised, not yet decided: whether `controller` needs its own native
+`bao` at all, given `security` already has one - see
+[`controller-bao-via-security-ssh-relay-not-local-install.md`](../decisions/drafts/controller-bao-via-security-ssh-relay-not-local-install.md).
+Stage 4's current build (documented above) stands as-is unless and
+until that draft is decided and a stage is scheduled to implement it.
 
 ## Closing checklist
 

@@ -26,7 +26,7 @@ this doc tracks build status only.
 | 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Done |
 | 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Done |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Done |
-| 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Not started |
+| 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Done |
 | 7 | Update every doc's invocation examples to the consolidated model | Not started |
 | 8 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
 
@@ -189,19 +189,32 @@ repo uses) - nothing here needed a native install added.
 This is also what empties out `ansible/roles/openbao_backup/` - see
 Stage 6.
 
-### Stage 6 — Delete the two now-unused artifacts
+### Stage 6 — Delete the two now-unused artifacts (Done)
 
-Two directories end up with nothing left in them, for two different
-reasons, and both get removed here rather than left as dead weight:
-`ansible/roles/openbao_backup/` (tasks, templates, its Molecule
-scenario) once Stage 5's rewrite moves its script, config, and working
-directory to `controller` entirely - `ansible.md`'s role table and
-`deployment-flow.md`'s Play 10 get updated in the same pass, not left
-pointing at a role that no longer exists. `docker/openbao/scripts/`
-separately empties out once Stage 4 merges its three occupants into
-`bao_session.py` - `snapshot-push.sh.j2` never lived there, so this
-is unrelated to Stage 5's own cleanup, just discovered alongside it.
-Depends on Stages 4 and 5 both being Done.
+Both directories emptied out for two different reasons and are gone
+now, not left as dead weight: `ansible/roles/openbao_backup/` (tasks,
+templates, its Molecule scenario, and its
+`ansible/molecule-coverage/thresholds.yaml` entry) once Stage 5's
+rewrite moved its script, config, and working directory to
+`controller` entirely; `docker/openbao/scripts/` separately emptied
+out once Stage 4 merged its three occupants into `bao_session.py`.
+
+Removing the role also removed its own Ansible play -
+`deploy.yaml`'s "Deploy OpenBao snapshot push tooling" was the last
+play in the file, so it's deleted outright rather than renumbered;
+`deployment-flow.md`'s Play 10 section goes with it, and no other
+`Play N` heading shifts. `host_vars/security.yaml`'s
+`openbao_snapshot_targets` var is also removed - it had no other
+consumer once the role's `rclone.conf.j2` was gone.
+`ansible.md`'s role table and `molecule-testing.md`'s Scenario matrix
+are updated in the same pass, not left pointing at a role that no
+longer exists.
+
+Doc invocation examples still naming the deleted
+`docker/openbao/scripts/*.sh` files (`openbao-auth.md`,
+`openbao-reinit-runbook.md`, `beszel.md`, `step-ca.md`,
+`openbao-backup-restore.md`) are deliberately untouched here - that's
+Stage 7's job, not a Stage 6 regression.
 
 ### Stage 8 — Audit for consolidation
 

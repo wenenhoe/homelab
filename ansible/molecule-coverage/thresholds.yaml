@@ -11,7 +11,6 @@ compose: 100.0
 compose_app: 100.0
 docker: 100.0
 lldap_bootstrap: 100.0
-openbao_backup: 100.0
 qemu_guest_agent: 100.0
 restore: 92.9
 restore_discovery: 100.0

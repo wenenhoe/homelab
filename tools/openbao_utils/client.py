@@ -31,11 +31,19 @@ from utils.repo import main_domain
 VAULT_KV_MOUNT = "secret"
 
 
-def openbao_base_url() -> str:
+def openbao_hostname() -> str:
     # security's caddy_domain = "sec.{{ lab_domain }}", lab_domain =
     # "lan.{{ main_domain }}" (host_vars/security.yaml, group_vars/all/
     # main.yaml) - update this if either naming convention ever changes.
-    return f"https://openbao.sec.lan.{main_domain()}:8200"
+    # Also the leaf cert's real SAN (ansible/roles/openbao_cli's own
+    # -tls-server-name check) - any caller dialing by IP rather than
+    # this FQDN needs it for that reason, not just to build the URL
+    # below.
+    return f"openbao.sec.lan.{main_domain()}"
+
+
+def openbao_base_url() -> str:
+    return f"https://{openbao_hostname()}:8200"
 
 
 def vault_login(client: hvac.Client, role_id: str, secret_id: str) -> None:

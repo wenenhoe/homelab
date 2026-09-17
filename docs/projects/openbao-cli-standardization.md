@@ -24,7 +24,7 @@ this doc tracks build status only.
 | 1 | Spike: version-matched native `bao` on `security`, real TLS, real login/read/write | Done |
 | 2 | Native `bao` on `security` (Ansible-managed): install, mask shipped service, real TLS, replacing skip-verify/alias | Done |
 | 3 | Init/unseal orchestration: paramiko for the SSH hop, `docker exec` kept for the command | Done |
-| 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Not started |
+| 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Done |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Not started |
 | 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Not started |
 | 7 | Update every doc's invocation examples to the consolidated model | Not started |
@@ -116,26 +116,42 @@ tracks whether the command itself ran, not the resulting seal state.
 `init_unseal.py`'s `unseal` subcommand fails loudly on a nonzero exit
 accordingly - a real failure, not partial progress.
 
-### Stage 4 — Merged `bao_session.py` + native `bao` on `controller`
+### Stage 4 — Merged `bao_session.py` + native `bao` on `controller` (Done)
 
-Settled by the same de-risking pass: `docker/openbao/scripts/bao-login.sh`
-(previously implied as Stage 2's own territory, being `security`-local)
-merges with `bao-login-from-controller.sh`/`bao-from-controller.sh`
-into one script, `tools/openbao_utils/bao_session.py`, usable from
-either host - no `security`-only script is built separately in
-Stage 2. It authenticates via this module's existing `vault_login()`
+`docker/openbao/scripts/bao-login.sh`/`bao-login-from-controller.sh`/
+`bao-from-controller.sh` all retired at once, replaced by one script,
+`tools/openbao_utils/bao_session.py`, usable from either host. It
+authenticates via the existing `openbao_utils.client.vault_login()`
 (`hvac`, `secret_id` read with `getpass` straight into memory, never a
 file, never a subprocess argument), then hands off to a real
 interactive child shell with `BAO_ADDR`/`BAO_CACERT`/
 `BAO_TLS_SERVER_NAME`/`BAO_TOKEN` exported for that child only, so
-every native `bao` subcommand keeps working unmodified inside it.
-Revokes the token when that child exits, normally or via Ctrl-C - see
-the draft's Decision for the confirmed `try/finally`+`KeyboardInterrupt`
-mechanics that guarantee this. Auto-detects `security` vs. `controller`
-by trying a local `docker exec step-ca ...` first, falling back to the
-SSH-fetch-over-`paramiko` path otherwise; `--controller` stays as an
-override, not the primary interface. Also carries the local
-version-check against the server (see the draft's Decision).
+every native `bao` subcommand keeps working unmodified inside it, and
+revokes the token when that child exits - normally or via Ctrl-C, per
+the draft's already-confirmed `try/finally`+`KeyboardInterrupt`
+mechanics. Auto-detects `security` vs. `controller` by trying a local
+`docker exec step-ca ...` first, falling back to the
+SSH-fetch-over-`paramiko` path (`utils.repo.fetch_root_cert`)
+otherwise; `--controller` stays as an override, not the primary
+interface.
+
+The version check compares local `bao version` against the server's
+own reported version, but not via `docker exec` the way
+`ansible/roles/openbao_cli` checks it: `bao_session.py` reads it from
+the already-authenticated `hvac.Client`'s `sys.read_health_status()`
+call instead (openbao.org's own `/sys/health` docs confirm a plain
+`"version"` field on a 200 response, e.g. `"2.6.2"` - no `v` prefix,
+no build hash), advisory-only, warning rather than failing on a
+mismatch since a successful login has already proven the server
+reachable.
+
+`controller`'s own native `bao` is a personal, non-Ansible-managed
+install step, added to `README.md`'s Setup section rather than a new
+topic doc (Stage 8 is where OpenBao's docs get consolidated) - same
+version-pinned `.deb` and checksum `ansible/roles/openbao_cli` already
+uses for `security`, since this controller also runs Ubuntu, followed
+by the same mask-and-scaffolding-removal steps that role performs, run
+by hand instead of by Ansible.
 
 ### Stage 5 — Session-scoped token handling everywhere
 

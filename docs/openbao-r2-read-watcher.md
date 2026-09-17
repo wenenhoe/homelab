@@ -118,19 +118,32 @@ unseals it. A bounded restart count would leave the watcher sitting
 `failed` silently until a human notices, which is worse than today's
 gap.
 
-The replacement: a separate check, run off the same heartbeat timer,
-that distinguishes "briefly bouncing" from "failing continuously for
-N minutes" (via `NRestarts`/`ActiveEnterTimestamp` —
-`systemctl show r2-read-watcher.service -p NRestarts,ActiveEnterTimestamp`
-— or consecutive missed heartbeat-check ticks), and only past that
-threshold sends a Telegram alert carrying the tail of
+The replacement: a separate check, run off the same
+`r2-read-watcher-heartbeat.timer` tick, that counts consecutive ticks
+where `r2-read-watcher.service` isn't active and, past **3 in a row
+(~30 minutes)**, sends a Telegram alert carrying the tail of
 `journalctl -u r2-read-watcher` — the actual error, not just "it's
-down." Not yet built. Needs its own standalone
-`/etc/telegram-notify/r2-read-watcher.env`, populated by hand from the
-same `hosts/all/telegram/*` values, for the same reason as the
-original plan: it must fire even if the Vault-reachability problem
-that took the watcher down also takes out any Vault-backed alerting
-path.
+down." Not yet built.
+
+30 minutes is derived from this monitor's real Kuma settings
+(Heartbeat Interval 900s, Retries 6, Heartbeat Retry Interval 360s),
+not guessed: the first missed check lands at Heartbeat Interval, each
+one after that at Heartbeat Retry Interval, and it takes `Retries`
+consecutive failures to flip to Down —
+`900 + (6 − 1) × 360 = 2700s` (45 minutes) is Kuma's own real
+time-to-alert (confirmed against upstream's retry-handling logic,
+[louislam/uptime-kuma#4476](https://github.com/louislam/uptime-kuma/pull/4476);
+not watched live against this repo's pinned `2.5.3` specifically).
+Half of that is 22.5 minutes; the first `r2-read-watcher-heartbeat.timer`
+tick past it is the 3rd consecutive miss (30 minutes) — the coarsest
+this check can be without changing that timer's own 10-minute
+interval, and still a solid ~15-minute head start on Kuma's alert.
+
+Needs its own standalone `/etc/telegram-notify/r2-read-watcher.env`,
+populated by hand from the same `hosts/all/telegram/*` values, for
+the same reason as the original plan: it must fire even if the
+Vault-reachability problem that took the watcher down also takes out
+any Vault-backed alerting path.
 
 Until this lands, Kuma's own missed-heartbeat timeout is the only
 backstop. Since this watcher's only job is alerting on reads of the

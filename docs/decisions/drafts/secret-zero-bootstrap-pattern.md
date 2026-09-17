@@ -25,12 +25,15 @@ it":
   "not built yet." Whatever replaces it needs its own answer to this
   same Secret Zero question, not a continuation of the human-typed
   pattern.
-- **AppRole `role_id`/`secret_id`:** `cache.py`, `openbao_utils/bootstrap.py`,
-  and `docker/openbao/scripts/bao-login.sh` all bootstrap OpenBao
-  access via AppRole, with `secret_id` handled carefully (hidden
-  prompt, temp file inside a container, deleted immediately) but
-  ultimately entered by a human or read from wherever it's stored
-  between logins — not fully traced yet.
+- **AppRole `role_id`/`secret_id`:** `cache.py` and
+  `openbao_utils/bootstrap.py` both bootstrap OpenBao access via
+  AppRole, reading `secret_id` from a file on disk
+  (`read_bootstrap_file`) whose own provenance isn't fully traced yet.
+  `tools/openbao_utils/bao_session.py` (which replaced the old
+  `docker/openbao/scripts/bao-login.sh`) already reads `secret_id` via
+  a hidden prompt straight into memory, never a file — so this
+  ambiguity is specific to `cache.py`/`bootstrap.py`, not a repo-wide
+  pattern.
 - **Plaintext config on disk:** `rclone.conf` holds real B2/R2/OCI
   access/secret keys in the clear, mounted into containers as needed
   (`cloud_sync`, `openbao_backup`, `restore_discovery`).

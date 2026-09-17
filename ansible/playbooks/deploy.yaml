@@ -118,9 +118,11 @@
 # step_ca_cert's two instances each need their own app already running
 # to issue into, plus step_ca_client's cached root; tinyauth_ca_trust
 # needs a running tinyauth to seed into and the same cached root. No
-# ordering constraint between the latter three — sequenced arbitrarily,
-# all after the shared prerequisite. See docs/step-ca.md for why lldap
-# and openbao differ on cert dir, renew action, and chown.
+# ordering constraint between those three — sequenced arbitrarily, all
+# after the shared prerequisite. See docs/step-ca.md for why lldap and
+# openbao differ on cert dir, renew action, and chown. openbao_cli runs
+# last and isn't arbitrary: it needs openbao's own step_ca_cert instance
+# to have already issued and installed its leaf cert.
 - name: Wire lldap, tinyauth, and openbao into step-ca
   hosts: security
   gather_facts: false
@@ -160,6 +162,15 @@
         step_ca_cert_chown_image: "openbao/openbao:2.6.2"
         step_ca_cert_chown_user: openbao
         step_ca_cert_uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_openbao }}"
+      tags:
+        - images
+
+    # Runs last in this play — needs openbao's own leaf cert (just
+    # above) already issued and serving, since it proves real TLS
+    # end to end. See ansible/roles/openbao_cli.
+    - name: Include openbao_cli role
+      ansible.builtin.include_role:
+        name: openbao_cli
       tags:
         - images
 
@@ -213,23 +224,5 @@
     - name: Include cloud_sync role
       ansible.builtin.include_role:
         name: cloud_sync
-      tags:
-        - images
-
-# Play 10 — OpenBao snapshot push tooling. security only. Renders the
-# rclone.conf and push script the operator runs by hand for
-# Track A stage 2's backup/restore drill — see
-# docs/openbao-backup-restore.md. No systemd unit here (deliberately
-# manual for now, see that doc's "Why manual" section); this play just
-# keeps the rendered files current so the script an operator runs is
-# never stale relative to the cached credentials.
-- name: Deploy OpenBao snapshot push tooling
-  hosts: security
-  gather_facts: false
-  become: true
-  tasks:
-    - name: Include openbao_backup role
-      ansible.builtin.include_role:
-        name: openbao_backup
       tags:
         - images

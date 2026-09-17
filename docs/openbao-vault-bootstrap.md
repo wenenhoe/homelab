@@ -28,10 +28,18 @@ functionally, this repo's root-recovery mechanism now.
 ## Day-to-day use: minting a new AppRole
 
 ```sh
-ssh security
-export BAO_TOKEN=<vault-bootstrap secret_id login token>
-alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
+cd tools && python3 -m openbao_utils.bao_session <vault-bootstrap role_id>
+```
 
+Paste `secret_id` when prompted (from the password manager — see
+"What it can and can't do" above, never `ansible/files/secrets/`).
+Runs from `controller`, fetching step-ca's root cert fresh over SSH
+each time (`bao_session.py`'s own docstring). Drops into an
+interactive shell with `BAO_ADDR`/`BAO_CACERT`/
+`BAO_TLS_SERVER_NAME`/`BAO_TOKEN` already exported — every command
+below is plain native `bao`:
+
+```sh
 bao policy write <new-role-name> - < /tmp/<new-role-name>.hcl
 bao write auth/approle/role/<new-role-name> \
   token_policies="<new-role-name>" \
@@ -39,6 +47,7 @@ bao write auth/approle/role/<new-role-name> \
   secret_id_ttl=<...> secret_id_num_uses=<...>
 bao read auth/approle/role/<new-role-name>/role-id
 bao write -f auth/approle/role/<new-role-name>/secret-id
+exit   # revokes the vault-bootstrap token
 ```
 
 Same parameter-choice discipline as `openbao-auth.md`'s `controller`
@@ -52,9 +61,11 @@ narrow AppRole), `vault-bootstrap` can produce one without a second
 re-init - the same self-escalation property above, deliberately used
 on purpose this one time:
 
-1. Log in with `vault-bootstrap`, using `-it` (not `-i`) on the
-   `docker exec` alias — step 4's unseal-key submission is an
-   interactive prompt and needs a TTY.
+1. Log in with `vault-bootstrap`
+   (`cd tools && python3 -m openbao_utils.bao_session <vault-bootstrap role_id>`) —
+   the spawned shell is already fully interactive, so step 4's
+   unseal-key submission below needs no special handling the way a
+   `docker exec -it` alias once did.
 2. `bao policy write vault-bootstrap-emergency -`: a copy of
    `vault-bootstrap.hcl` plus one added stanza:
    `path "sys/generate-root-token/*" { capabilities = ["sudo", "create", "read", "update", "delete"] }`.
@@ -62,7 +73,10 @@ on purpose this one time:
    `update` — `-generate-otp`'s status check and `-cancel` 403 without
    them, confirmed live.
 3. `bao write auth/approle/role/vault-bootstrap token_policies="vault-bootstrap-emergency"`,
-   log in again. AppRole role writes on this backend merge into the
+   then exit and log in again
+   (same `bao_session.py` command as step 1) — a token's policies are
+   fixed at login time, so the updated role only takes effect on the
+   next login. AppRole role writes on this backend merge into the
    stored role rather than replacing it — `pathRoleCreateUpdate` loads
    the existing role first and only overwrites fields present in the
    request (confirmed from `path_role.go`/`tokenutil.go`), so a field

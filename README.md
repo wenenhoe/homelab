@@ -111,6 +111,18 @@ reproducible dependency set.
    everything manually regardless of stage: `pre-commit run --all-files
    --hook-stage pre-commit` and `... --hook-stage pre-push`.
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
+- Install a native `bao` CLI (needed for `tools/openbao_utils/bao_session.py` and anything else that talks to OpenBao from here) - a personal, one-time step, not Ansible-managed, since this machine's own OS can't be assumed the way a `managed_hosts` member's can:
+   ```sh
+   version=$(python3 -c "import yaml; print(yaml.safe_load(open('ansible/roles/openbao_cli/defaults/main.yaml'))['openbao_cli_version'])")
+   sha256=$(python3 -c "import yaml; print(yaml.safe_load(open('ansible/roles/openbao_cli/defaults/main.yaml'))['openbao_cli_deb_sha256'])")
+   curl -LO "https://github.com/openbao/openbao/releases/download/v${version}/openbao_${version}_linux_amd64.deb"
+   echo "${sha256}  openbao_${version}_linux_amd64.deb" | sha256sum -c
+   sudo dpkg -i "openbao_${version}_linux_amd64.deb"
+   sudo systemctl disable --now openbao.service
+   sudo systemctl mask openbao.service
+   sudo rm -rf /opt/openbao /etc/openbao
+   ```
+  Reads the version and checksum straight out of `ansible/roles/openbao_cli`'s own defaults - the same values that role installs on `security` - so there's no second, hand-copied pin here to drift out of sync when that role's own gets bumped. The last four commands undo the standalone-server scaffolding the `.deb`'s installer sets up unconditionally, which this machine has no use for (see that role's `tasks/main.yaml`'s own comment on why the removal runs on every install, not just the first).
 - Before your first `deploy.yaml` run, fill in every value Ansible can't
   generate itself (DigitalOcean API key, Let's Encrypt email, Diun's
   Telegram token/chat ID, and a few others):

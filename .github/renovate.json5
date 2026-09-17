@@ -173,6 +173,32 @@
       matchStrings: ["step_ca_cert_chown_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
       datasourceTemplate: "docker",
     },
+    // openbao_cli's native-CLI version pin — a different flavor of the
+    // same blind spot as the three above, but a GitHub Releases tag
+    // (openbao/openbao's .deb asset), not a Docker Hub image, so it
+    // needs its own datasource/depName rather than reusing the "image:tag
+    // in one string" shape those share. Release tags are "v2.6.2"; this
+    // repo's own pin is bare "2.6.2" (matching how the URL template in
+    // that same file builds "v{{ openbao_cli_version }}") —
+    // extractVersionTemplate strips the "v" so the two compare equal.
+    // depNameTemplate deliberately matches the docker-datasourced
+    // "openbao/openbao" below so this joins the same group despite the
+    // different datasource (see that packageRule's own comment) — but
+    // openbao_cli_deb_sha256, right below the version in that same file,
+    // is NOT covered by this manager or by anything else here: Renovate's
+    // github-releases datasource resolves tags, not a per-asset checksum,
+    // so a version-bump PR still needs the new sha256 (from that
+    // release's own checksums.txt) added by hand before merging — see
+    // the prBodyNotes reminder on this dep below.
+    {
+      customType: "regex",
+      description: "openbao_cli's native-CLI version pin, a GitHub release tag rather than a recognized image: key under a docker module",
+      managerFilePatterns: ["/^ansible/roles/openbao_cli/defaults/main\\.ya?ml$/"],
+      matchStrings: ["openbao_cli_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "openbao/openbao",
+      extractVersionTemplate: "^v(?<version>.*)$",
+    },
   ],
 
   packageRules: [
@@ -314,15 +340,33 @@
     },
 
     // openbao/openbao is pinned in the production compose file, openbao's
-    // own ansible role defaults, and deploy.yaml's step_ca_cert
-    // include_role vars (the latter resolves the image only to read its
-    // non-root UID for a post-issuance/renewal chown, never to run the
-    // server itself; see docs/openbao.md). All three need to stay in
-    // lockstep.
+    // own ansible role defaults, deploy.yaml's step_ca_cert include_role
+    // vars (resolves the image only to read its non-root UID for a
+    // post-issuance/renewal chown, never to run the server itself; see
+    // docs/openbao.md), and — a different datasource, GitHub Releases
+    // rather than the Docker Hub image, but grouped here via the shared
+    // depName regardless (see that customManager's own comment) —
+    // openbao_cli's native-CLI version pin on `security`. All four need
+    // to stay in lockstep.
     {
       matchDepNames: ["openbao/openbao"],
-      groupName: "openbao (compose + ansible role defaults — must move together)",
+      groupName: "openbao (compose, ansible role defaults, native CLI — must move together)",
       groupSlug: "openbao",
+    },
+
+    // The one thing the group above doesn't cover: openbao_cli_deb_sha256
+    // (ansible/roles/openbao_cli/defaults/main.yaml, right below the
+    // version this rule matches) is a per-asset checksum, not a version —
+    // Renovate's github-releases datasource has no way to know or fetch
+    // it. Scoped to this datasource specifically so the reminder only
+    // fires on openbao_cli's own bump, not every compose/image-only
+    // change in the group above.
+    {
+      matchDatasources: ["github-releases"],
+      matchDepNames: ["openbao/openbao"],
+      prBodyNotes: [
+        "⚠️ openbao_cli_deb_sha256 (ansible/roles/openbao_cli/defaults/main.yaml) is NOT updated by this PR — copy the new sha256 for openbao_<version>_linux_amd64.deb from that release's own checksums.txt before merging, or the role's get_url task fails its checksum check on the next deploy.",
+      ],
     },
 
     // rclone/rclone is pinned independently in cloud_sync's ExecStart=

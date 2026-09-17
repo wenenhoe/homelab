@@ -54,9 +54,11 @@ which this deliberately isn't, so it needed the same manual treatment
 consumers are Ansible and, once the
 [CD agent project](projects/cd-agent.md) lands, the CD agent — not a
 human clicking through a browser. A human who needs to look inside
-Vault directly can still do it from the CLI (`docker exec -it openbao
-bao ...`, see below) or `ssh -L 8200:localhost:8200` for a one-off UI
-session; there's no standing need to expose it.
+Vault directly can still do it from the CLI (native `bao` on
+`security`, real TLS — see
+[`openbao-auth.md`](openbao-auth.md#runbook)) or `ssh -L
+8200:localhost:8200` for a one-off UI session; there's no standing
+need to expose it.
 
 ## TLS
 
@@ -219,46 +221,63 @@ container's uptime never reset — `dumb-init` forwarding the signal
 through to `bao`, and `bao` reloading without resealing, are no longer
 documentation-only claims.
 
-## Init and unseal — manual, not scripted
+## Init and unseal — manual, via `init_unseal.py`
 
 [0018](decisions/0018-manual-shamir-unseal.md) chose manual Shamir
 unseal over cloud auto-unseal specifically because a human is already
-at the keyboard for every reboot `security` has ever had. That's also
-the reason this is written up as a runbook below rather than as a
-Python wrapper script:
+at the keyboard for every reboot `security` has ever had. Run from
+`controller` via `tools/openbao_utils/init_unseal.py` (paramiko,
+driving `docker exec` on `security` remotely) rather than SSHing in
+and typing the command by hand - but the same constraints that kept
+this out of Ansible still hold, and the wrapper is built to respect
+them, not work around them:
 
 - `bao operator init`'s *output* — the unseal key shares and initial
   root token — is the sensitive part, and it only exists at the moment
-  the command runs. No amount of `getpass`-style input-hiding helps
-  here; the risk is capturing and storing that output correctly, which
-  a script would still leave entirely to the operator (or would have to
-  write to a file to avoid leaving to the operator — the opposite of
-  what this needs).
-- `bao operator unseal`'s prompt for each key share is already
-  masked-input by the `bao` CLI itself. A wrapper adds a second place
-  key material could end up in a stack trace or a log line, for no
-  capability the CLI doesn't already have.
+  the command runs. `init_unseal.py` doesn't capture, log, or write it
+  anywhere; both subcommands print the remote output straight to the
+  operator's own terminal as it arrives, the same as typing the
+  command by hand would.
+- `bao operator unseal`'s prompt for each key share is masked input:
+  read locally via `getpass` and written only to the SSH channel's own
+  stdin - never a positional argument, so it never touches this
+  process's argv or `ps` on either end.
 - Running either through Ansible (rather than an operator's own
-  interactive shell) means the output flows through Ansible's own
+  terminal) means the output flows through Ansible's own
   result-capture/`--diff` machinery — exactly what `no_log: true`
   exists to prevent elsewhere in this repo, and init/unseal output
   can't be `no_log`-suppressed and also be legible to the human who
-  needs to transcribe it.
+  needs to transcribe it. This is why it's a standalone script an
+  operator runs directly, never an `ansible-playbook` task.
 
-So: SSH to `security` directly and run these by hand, never via
-`ansible-playbook`.
+Both subcommands keep driving `docker exec` against the live
+container, permanently, by necessity — see
+[ADR 0034](decisions/0034-native-bao-cli-not-docker-exec-or-run.md)'s
+Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
+but the container crash-loops until `step_ca_cert` issues its leaf
+cert, so there's no trustworthy network path to it during that window.
+This is the one place in the whole OpenBao CLI surface that stays
+`docker exec`-based — everywhere else now uses the native `bao`
+binary directly (`security` or `controller`, whichever you're on), or
+`bao_session.py` (`controller` only — see
+[ADR 0033](decisions/0033-bao-session-local-only-drops-broken-security-path.md))
+when starting from an AppRole login; see
+[`openbao-auth.md`](openbao-auth.md#runbook).
 
 ### First init (once, ever, per raft dataset)
 
+From `controller`:
+
 ```sh
-docker exec -it openbao bao operator init -key-shares=3 -key-threshold=2
+cd tools && python3 -m openbao_utils.init_unseal init
 ```
 
-3 shares / 2 threshold, not the CLI's own 5/3 default: this is a
-solo-operator homelab, so more shares than storage locations doesn't
-add security, just more copies of the same material to account for.
-Threshold 2-of-3 means losing any *one* stored copy doesn't lock you
-out, while no single copy unseals it alone.
+3 shares / 2 threshold (baked into the script, not a flag) — not the
+CLI's own 5/3 default: this is a solo-operator homelab, so more shares
+than storage locations doesn't add security, just more copies of the
+same material to account for. Threshold 2-of-3 means losing any *one*
+stored copy doesn't lock you out, while no single copy unseals it
+alone.
 
 The command prints 3 unseal key shares and an initial root token,
 **once** — nothing re-displays them later. Before doing anything else:
@@ -288,13 +307,18 @@ it standing indefinitely after.
 
 ### Unsealing (every restart of the `openbao` container)
 
+From `controller`, once per share:
+
 ```sh
-docker exec -it openbao bao operator unseal
+cd tools && python3 -m openbao_utils.init_unseal unseal
 ```
 
 Run it 2 times (the threshold above), each time pasting one of the 3
-shares when prompted. `bao status` (same `docker exec` prefix) shows
-current seal state without needing a share.
+shares when prompted. To check seal state without spending a share, on
+`security` itself: `bao status -address=https://127.0.0.1:8200
+-tls-server-name=openbao.{{ caddy_domain }}
+-ca-cert=/etc/step-ca/root_ca.crt` - native CLI, real TLS, no login
+needed.
 
 ## Audit logging
 

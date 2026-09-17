@@ -135,15 +135,6 @@ place for "the next stage of the backup pipeline" to live. Installs the
 archives onward to R2/B2/OCI. See
 [`disaster-recovery.md`](disaster-recovery.md).
 
-## Play 10 — Deploy OpenBao snapshot push tooling (`hosts: security`)
-
-`security` only. Renders `openbao_backup`'s rclone config and push
-script — the tooling
-[`openbao-backup-restore.md`](openbao-backup-restore.md)'s backup
-drill runs by hand, not a systemd timer (no Vault credential exists
-yet that's safe to leave on disk for an unattended job). Depends only
-on Play 6's openbao deployment, not on Play 9.
-
 ## Roles
 
 Role-by-role reference lives in [`ansible.md`](ansible.md#roles).

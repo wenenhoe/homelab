@@ -48,17 +48,18 @@ since it never leaves the `openbao` container's own network namespace.
 ```sh
 ssh security
 export BAO_TOKEN=<current root token, from the break-glass password-manager entry>
-alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
+export BAO_ADDR=https://127.0.0.1:8200
+export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
+export BAO_CACERT=/etc/step-ca/root_ca.crt
 ```
 
-No `-address=` flag needed: `compose.yaml.j2` sets no `BAO_ADDR`/
-`VAULT_ADDR` in the container, and `bao`'s own default
-(`https://127.0.0.1:8200`) is already correct here — same reason
-`openbao.md`'s init/unseal commands never pass it either. If a command
-ever does need it, OpenBao's CLI parses per-command flags *after* the
-subcommand, not before (`bao <command> [options] [path] [args]`,
-confirmed against [openbao.org's own CLI docs](https://openbao.org/docs/commands)) —
-so it goes on the individual command, never baked into this alias.
+Native `bao` (`ansible/roles/openbao_cli`), real TLS against step-ca's
+root cert — not `BAO_SKIP_VERIFY`/the old `docker exec` alias, the same
+replacement [`openbao.md`](openbao.md) uses for everything except
+init/unseal itself. `-tls-server-name` is required:
+the leaf cert has no IP SAN, so dialing `127.0.0.1` needs the real SAN
+supplied explicitly (see
+[ADR 0034](decisions/0034-native-bao-cli-not-docker-exec-or-run.md#context)).
 
 1. **Enable the KV v2 engine**, if not already present (`bao secrets
    list` shows nothing at `secret/` on a fresh Vault):
@@ -78,8 +79,7 @@ so it goes on the individual command, never baked into this alias.
    security:/tmp/`):
 
    ```sh
-   docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao \
-     bao policy write controller - < /tmp/controller.hcl
+   bao policy write controller - < /tmp/controller.hcl
    ```
 
 4. **Create the `controller` role:**
@@ -139,36 +139,32 @@ so it goes on the individual command, never baked into this alias.
    committed (`ansible/files/secrets/` is gitignored).
 
 6. **Confirm the AppRole actually works — from `controller`, not just
-   from inside the `openbao` container.** A login from `security` via
-   `docker exec` only proves the policy/role config is right; it
-   doesn't prove `controller` can reach Vault's API at all, which the
-   secrets role migration (`ensure_secret.yaml` reading/writing Vault)
-   depends on. From `controller`, using the `role_id`/`secret_id`
-   files cached in step 5:
+   from `security`'s own root-token session.** A login against
+   `security`'s loopback address only proves the policy/role config is
+   right; it doesn't prove `controller` can reach Vault's API at all,
+   which the secrets role migration (`ensure_secret.yaml`
+   reading/writing Vault) depends on. From `controller`, using the
+   `role_id` cached in step 5 (paste `secret_id` from
+   `ansible/files/secrets/openbao-controller-secret-id` when prompted —
+   `bao_session.py` never takes it as an argument):
 
    ```sh
-   export BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh \
-     "$(cat ansible/files/secrets/openbao-controller-role-id)")
+   cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
    ```
 
-   That script prompts for `secret_id` (hidden input, read from
-   `ansible/files/secrets/openbao-controller-secret-id` yourself and
-   paste it when asked — the script never takes it as an argument).
-   See the script's own header for what it does and why: real network
-   address, real TLS verification against step-ca's root cert, no
-   skip-verify.
-
-   The subsequent `kv put`/`kv get`/`kv metadata delete` calls also run
-   from `controller`, via
-   [`bao-from-controller.sh`](../docker/openbao/scripts/bao-from-controller.sh) -
-   real network address, real TLS verification, same as the login
-   above:
+   This logs in over real TLS (`controller` always fetches step-ca's
+   root cert fresh over SSH, since there's no local `step-ca`
+   container to borrow from directly) and drops into an interactive
+   shell with
+   `BAO_ADDR`/`BAO_CACERT`/`BAO_TLS_SERVER_NAME`/`BAO_TOKEN` already
+   exported — every native `bao` subcommand below runs unmodified
+   inside it:
 
    ```sh
-   docker/openbao/scripts/bao-from-controller.sh kv put -mount=secret hosts/_stage3-test probe=stage3   # succeeds
-   docker/openbao/scripts/bao-from-controller.sh kv get -mount=secret hosts/_stage3-test                # succeeds
-   docker/openbao/scripts/bao-from-controller.sh kv metadata delete -mount=secret hosts/_stage3-test    # denied
-   unset BAO_TOKEN
+   bao kv put -mount=secret hosts/_stage3-test probe=stage3   # succeeds
+   bao kv get -mount=secret hosts/_stage3-test                # succeeds
+   bao kv metadata delete -mount=secret hosts/_stage3-test    # denied
+   exit                                                       # revokes the token
    ```
 
    The last command is *supposed* to fail: `kv metadata delete` targets
@@ -177,7 +173,9 @@ so it goes on the individual command, never baked into this alias.
    — no `delete`, on either path). A denied delete alongside a
    successful put/get is the actual proof this stage exists to
    produce, not a defect — `controller` can operate within its scope
-   and provably cannot do the one thing 0022 never gave it.
+   and provably cannot do the one thing 0022 never gave it. Exiting the
+   shell revokes the token automatically — no `unset BAO_TOKEN` to
+   remember.
 
    That does leave the leftover `_stage3-test` key behind, since
    `controller`'s token can't remove it. Clean it up with the

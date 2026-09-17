@@ -11,9 +11,9 @@ own docstring for the exact matching logic, confirmed against a real
 audit-log capture, not inferred from docs.
 
 Hand-installed, checked in but never Ansible-deployed — same
-convention as `controller.hcl`/`vault-bootstrap.hcl`/`r2-read-watcher.hcl`
-and the `bao-*.sh` scripts: this is bootstrap-tier OpenBao tooling, not
-`managed_hosts` application config.
+convention as `controller.hcl`/`vault-bootstrap.hcl`/`r2-read-watcher.hcl`:
+this is bootstrap-tier OpenBao tooling, not `managed_hosts` application
+config.
 
 On restart, the watcher resumes from `/var/lib/r2-read-watcher/state.json`
 (last-alerted read's time and request id) and passes that time as
@@ -90,8 +90,9 @@ picks up from there.
 
    ```sh
    sudo journalctl -u r2-read-watcher -f &
-   docker exec -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao \
-     bao kv get -mount=secret cloud_credentials/rotation/_rotation-key-cloudflare-r2-token
+   cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   bao kv get -mount=secret cloud_credentials/rotation/_rotation-key-cloudflare-r2-token
+   exit
    ```
 
 ## Known gap

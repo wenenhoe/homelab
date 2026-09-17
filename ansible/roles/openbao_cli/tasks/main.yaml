@@ -1,0 +1,129 @@
+---
+# Installs a native `bao` CLI on `security`, version-matched to the
+# already-running Docker server, replacing BAO_SKIP_VERIFY/the
+# docker-exec alias for every security-local use except init/unseal
+# itself (which stays docker-exec-based permanently — see
+# docs/openbao.md). Design/rationale:
+# docs/decisions/0034-native-bao-cli-not-docker-exec-or-run.md.
+# Run in deploy.yaml's Play 6, after step_ca_client (root cert) and
+# step_ca_cert's openbao instance (leaf cert) — the TLS check below
+# needs both.
+
+- name: Confirm openbao's own container is running before comparing/verifying against it
+  community.docker.docker_container_info:
+    name: openbao
+  register: openbao_cli_container_info
+
+- name: Fail loudly if openbao isn't running yet
+  ansible.builtin.fail:
+    msg: >-
+      No running "openbao" container found on this host — openbao_cli
+      must run after openbao's own compose deploy and after
+      step_ca_client/step_ca_cert have issued its leaf cert (see
+      deploy.yaml's Play 6 ordering).
+  when: not openbao_cli_container_info.exists
+
+- name: Read the running Docker server's own version string
+  community.docker.docker_container_exec:
+    container: openbao
+    command: bao version
+  register: openbao_cli_server_version
+  changed_when: false
+
+- name: Check the native CLI's own version string, if installed
+  ansible.builtin.command: bao version
+  register: openbao_cli_native_version_check
+  changed_when: false
+  failed_when: false
+
+- name: "Install/replace the native bao CLI to match the server's own version [block]"
+  when: >-
+    openbao_cli_native_version_check.rc != 0 or
+    openbao_cli_native_version_check.stdout | trim != openbao_cli_server_version.stdout | trim
+  block:
+    - name: Download the version-matched .deb release asset
+      ansible.builtin.get_url:
+        url: "{{ openbao_cli_deb_url }}"
+        dest: "/tmp/{{ openbao_cli_deb_name }}"
+        checksum: "sha256:{{ openbao_cli_deb_sha256 }}"
+        mode: "0644"
+      register: openbao_cli_deb_download
+      until: openbao_cli_deb_download is succeeded
+      retries: 3
+      delay: 5
+
+    - name: Install the native bao CLI package
+      ansible.builtin.apt:
+        deb: "/tmp/{{ openbao_cli_deb_name }}"
+        state: present
+  always:
+    - name: Remove the scratch .deb download
+      ansible.builtin.file:
+        path: "/tmp/{{ openbao_cli_deb_name }}"
+        state: absent
+
+# The .deb's own postinst always builds this scaffolding — a TLS
+# key/cert under /opt/openbao/tls and an empty /opt/openbao/data, for a
+# standalone server this project has no use for (confirmed live against
+# the package itself: postinst only skips this step if
+# /opt/openbao/tls/tls.crt already exists, so a stray reinstall
+# recreates it) — see ADR 0034's Context. Torn down every run, not
+# just right after a fresh install, so a stray manual
+# `apt install --reinstall` can't quietly bring it back and leave
+# something competing for :8200 if the mask below is ever lifted by
+# hand.
+- name: Remove the package's auto-generated standalone-server scaffolding
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: absent
+  loop:
+    - /opt/openbao
+    - /etc/openbao
+
+# Masking (not just leaving disabled) blocks even a manual
+# `systemctl start openbao` — belt-and-braces alongside the scaffolding
+# removal above, since either one alone already prevents a second
+# server from binding :8200 and fighting the Docker container for it.
+- name: Stop and mask the package's shipped systemd unit
+  ansible.builtin.systemd:
+    name: openbao.service
+    state: stopped
+    masked: true
+
+- name: Re-read the native CLI's own version string after install
+  ansible.builtin.command: bao version
+  register: openbao_cli_native_version
+  changed_when: false
+
+- name: Fail loudly if the native CLI still doesn't match the running server
+  ansible.builtin.fail:
+    msg: >-
+      Native bao ({{ openbao_cli_native_version.stdout }}) doesn't match
+      the running openbao server ({{ openbao_cli_server_version.stdout }})
+      — bump openbao_cli_version (this role's defaults, plus
+      openbao_cli_deb_sha256 from that release's own checksums.txt) and
+      rerun.
+  when: openbao_cli_native_version.stdout | trim != openbao_cli_server_version.stdout | trim
+
+# Proves real TLS verification against step-ca's root cert works end to
+# end, not BAO_SKIP_VERIFY — the same mechanics the Stage 1 spike
+# confirmed by hand (see ADR 0034's Context on -tls-server-name and
+# why the leaf cert has no IP SAN). -address dials loopback by IP;
+# -tls-server-name is one of the cert's real SANs, decoupling the two
+# per ADR 0034's Decision — step_ca_client_root_cert_path is the fact
+# that role's own tasks/main.yaml promotes past its role boundary
+# (already populated earlier in this same play). Same
+# sealed/uninitialized-is-still-"healthy" caveat as compose.yaml.j2's
+# own healthcheck (docs/openbao.md's Healthcheck section) — rc 2 here
+# is expected, not a failure.
+- name: Confirm the native CLI reaches OpenBao over real TLS
+  ansible.builtin.command:
+    argv:
+      - bao
+      - status
+      - -address=https://127.0.0.1:8200
+      - "-tls-server-name=openbao.{{ caddy_domain }}"
+      - "-ca-cert={{ step_ca_client_root_cert_path }}"
+  register: openbao_cli_status_check
+  changed_when: false
+  failed_when: openbao_cli_status_check.rc not in [0, 2]

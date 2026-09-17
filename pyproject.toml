@@ -60,7 +60,8 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 # assert is pytest's own idiom, not an accidental production check;
 # /tmp paths in these tests are argument values under test, never touch a
-# real file; S106 fires on fake literal role_id/secret_id/token values
-# passed as kwargs to mocked hvac calls, never a real credential.
-"ansible/tests/**" = ["S101", "S108", "S106"]
-"tools/tests/**" = ["S101", "S108", "S106"]
+# real file; S105/S106 fire on fake literal role_id/secret_id/token
+# values assigned to or passed as kwargs to mocked hvac clients, never
+# a real credential.
+"ansible/tests/**" = ["S101", "S108", "S105", "S106"]
+"tools/tests/**" = ["S101", "S108", "S105", "S106"]

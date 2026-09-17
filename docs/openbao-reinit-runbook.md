@@ -19,20 +19,21 @@ can't fix.
    `cd tools && python3 -m openbao_utils.dump` - never skip
    this; it's the only copy of everything once step 2 runs.
 2. On `security`: stop the `openbao` container, remove the
-   `openbao_data` volume's contents, restart it, then init fresh
-   (commands mirrored from [`openbao.md`](openbao.md)'s **First init**
-   section - that doc is canonical for the reasoning and for the exact
-   command if the two ever disagree):
+   `openbao_data` volume's contents, restart it, then init fresh from
+   `controller` (mirrored from [`openbao.md`](openbao.md)'s **First
+   init** section - that doc is canonical for the reasoning and for
+   the exact command if the two ever disagree):
 
    ```sh
-   docker exec -it openbao bao operator init -key-shares=3 -key-threshold=2
+   cd tools && python3 -m openbao_utils.init_unseal init
    ```
 
    Copy the 3 unseal shares and root token into the password manager
    entry plus one offline physical copy, same as the original bundle -
    this one fully supersedes it, replace rather than keep both.
    Unseal with 2 of the 3 shares
-   (`docker exec -it openbao bao operator unseal`, once per share).
+   (`cd tools && python3 -m openbao_utils.init_unseal unseal`, once
+   per share).
 
 3. Recreate `controller`'s AppRole (commands mirrored from
    [`openbao-auth.md`](openbao-auth.md)'s Runbook section - canonical
@@ -42,14 +43,15 @@ can't fix.
    ```sh
    ssh security
    export BAO_TOKEN=<fresh root token from step 2>
-   alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
+   export BAO_ADDR=https://127.0.0.1:8200
+   export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
+   export BAO_CACERT=/etc/step-ca/root_ca.crt
 
    bao secrets enable -path=secret kv-v2
    bao auth enable approle
 
    # from controller, first: scp docker/openbao/policies/controller.hcl security:/tmp/
-   docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao \
-     bao policy write controller - < /tmp/controller.hcl
+   bao policy write controller - < /tmp/controller.hcl
 
    bao write auth/approle/role/controller \
      token_policies="controller" \
@@ -74,11 +76,12 @@ can't fix.
    ```sh
    ssh security
    export BAO_TOKEN=<fresh root token from step 2>
-   alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
+   export BAO_ADDR=https://127.0.0.1:8200
+   export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
+   export BAO_CACERT=/etc/step-ca/root_ca.crt
 
    # from controller, first: scp docker/openbao/policies/vault-bootstrap.hcl security:/tmp/
-   docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao \
-     bao policy write vault-bootstrap - < /tmp/vault-bootstrap.hcl
+   bao policy write vault-bootstrap - < /tmp/vault-bootstrap.hcl
 
    bao write auth/approle/role/vault-bootstrap \
      token_policies="vault-bootstrap" \
@@ -99,16 +102,14 @@ can't fix.
 
    **Confirm the scope actually holds before trusting it**, same
    reasoning as `openbao-auth.md`'s own step 6 - a policy file is a
-   claim until proven. From `controller`, first:
-   `scp docker/openbao/scripts/bao-login.sh security:/tmp/` (used here
-   and again in step 6 - copy it once):
+   claim until proven. From `controller`, paste `secret_id` when
+   prompted:
 
    ```sh
-   BAO_TOKEN=$(/tmp/bao-login.sh "<role_id from above>")
-   export BAO_TOKEN
+   cd tools && python3 -m openbao_utils.bao_session "<role_id from above>"
    bao policy write _stage-test-policy - <<< 'path "sys/health" { capabilities = ["read"] }'   # succeeds
    bao kv get -mount=secret hosts/security/lldap-jwt-secret                                    # denied
-   unset BAO_TOKEN
+   exit
    ```
 
    The denied read is the actual proof: `vault-bootstrap` can write
@@ -135,15 +136,11 @@ can't fix.
    `vault-bootstrap`:
 
    ```sh
-   ssh security
-   BAO_TOKEN=$(/tmp/bao-login.sh "<vault-bootstrap role_id>")
-   export BAO_TOKEN
-   alias bao='docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao bao'
+   cd tools && python3 -m openbao_utils.bao_session "<vault-bootstrap role_id>"
 
    # from controller, copy the checked-in policy over first:
    #   scp docker/openbao/policies/r2-read-watcher.hcl security:/tmp/
-   docker exec -i -e BAO_TOKEN -e BAO_SKIP_VERIFY=true openbao \
-     bao policy write r2-read-watcher - < /tmp/r2-read-watcher.hcl
+   bao policy write r2-read-watcher - < /tmp/r2-read-watcher.hcl
 
    bao write auth/approle/role/r2-read-watcher \
      token_policies="r2-read-watcher" \
@@ -154,6 +151,7 @@ can't fix.
 
    bao read auth/approle/role/r2-read-watcher/role-id
    bao write -f auth/approle/role/r2-read-watcher/secret-id
+   exit
    ```
 
    `secret_id_ttl=0` (never expires), unlike `controller`'s 90-day

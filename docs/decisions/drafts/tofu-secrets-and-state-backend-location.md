@@ -2,12 +2,12 @@
 id: DRAFT-tofu-secrets-and-state-backend-location
 title: "Where Tofu's own secrets and state-backend credential live"
 type: draft-adr
-status: draft
+status: de-risking
 ---
 
 # Where Tofu's own secrets and state-backend credential live
 
-**Status:** Draft
+**Status:** De-risking
 
 ## Context
 
@@ -33,6 +33,28 @@ OpenBao instance that exists today — before that instance is
 reachable. No other secret consumer in this repo has that problem,
 since Ansible only ever runs against hosts that already exist.
 
+**Settled, not just assumed:** whether this is a one-time migration-day
+concern or a standing constraint doesn't need to wait on Migration
+Stage 2 actually happening — the project's own design already answers
+it. `vm-provisioning.md`'s VMID scheme lists the 2XX range's purpose as
+"Primary target — current managed hosts + OPNsense", and
+`tofu-vm-provisioning.md`'s environment table lists `security` (VMID
+205) as one of exactly those current managed hosts. Migration Stage 2
+("rebuild on the real VMID ranges, cut over, decommission the old
+VMs") names no carve-out for `security` — it gets rebuilt via Tofu
+like `services`/`storage`/`play`. Once cutover happens, `security` is
+an ordinary Tofu-managed host going forward, the same as every other
+2XX host, with nothing in this project's design suggesting future
+resizes or rebuilds would route around Tofu for `security` specifically.
+This was resolvable by reading the existing design, not something
+that requires the migration to actually happen first — an earlier
+version of this draft's first Assumption incorrectly gated it on
+Stage 6 landing, which would have made this draft unable to reach
+`Decided` before the very project it blocks was most of the way built.
+The bootstrapping-order problem is therefore a **standing constraint**,
+not a one-time migration-day concern — every future routine `security`
+rebuild hits it again, not just the first one.
+
 ## Options
 
 ### A — Route through the existing OpenBao instance on `security`
@@ -45,7 +67,10 @@ extending that to Tofu's credentials needs no new mechanism.
 
 Breaks whenever `security` itself is what's being (re)provisioned —
 Tofu can't reach a secrets store that lives on the host it's trying to
-build.
+build. Per the Context above, this isn't a one-time migration-day
+edge case: it recurs every time `security` is rebuilt via Tofu going
+forward, which weakens Option A more than the original framing
+suggested.
 
 ### B — Keep genuinely separate (file-based, `.tfvars`)
 
@@ -76,15 +101,6 @@ instance.
 
 ## Assumptions
 
-- **Claim:** Tofu will need to provision/reprovision `security` itself
-  as routine operation, not just during the one-time migration.
-  **Breaks if wrong:** if `security` is only ever provisioned once
-  (during the migration) and never rebuilt via Tofu afterward, Option
-  A's bootstrapping problem is a one-time concern at migration time,
-  not a standing constraint — weakening the case for B or C.
-  **Checked by:** settled once the project's Migration Stage 2
-  (cutover) happens and it's clear whether `security` becomes
-  routinely Tofu-managed afterward.
 - **Claim:** a second OpenBao instance (Option C) reduces risk rather
   than just relocating it.
   **Breaks if wrong:** if it ends up unsealed/backed up through the

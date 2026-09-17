@@ -80,8 +80,8 @@ step ca bootstrap --ca-url https://step-ca:9000 --fingerprint <fingerprint>
 
 # Issue a cert — prompts for STEP_CA_PROVISIONER_PASSWORD (auto-generated,
 # Vault-backed at secret/data/hosts/all/step-ca/step-ca-provisioner-password
-# — docs/openbao-auth.md shows the bao-from-controller.sh kv get pattern
-# for reading a value like this back out).
+# — docs/openbao-auth.md shows the bao_session.py kv get pattern for
+# reading a value like this back out).
 step ca certificate test-client.{{ lab_domain }} test.crt test.key \
   --provisioner internal-services
 ```

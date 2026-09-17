@@ -24,8 +24,8 @@ member, and isn't meant to run scheduled jobs at all. That's the
 not built yet — for now, this proves the mechanism with a
 human running it interactively, authenticating as `controller`'s
 AppRole rather than the root token (see "Running a backup" below).
-`ansible/roles/openbao_backup` only renders the push script and its
-supporting files; it doesn't install or enable any systemd unit.
+`tools/openbao_utils/scripts/snapshot-push.sh` is a plain script, not
+installed or enabled as a systemd unit anywhere.
 
 ## Push credential
 
@@ -51,7 +51,8 @@ yours — `cloud-sync.md`'s own bucket hit exactly this and needed a
 `-b2` suffix. If `openbao-snapshots` is taken on B2, pick a different
 name, update `SNAPSHOT_BUCKET_B2` in
 `create_snapshot_readonly_keys.py` (both scripts import it from there)
-and `openbao_snapshot_targets.b2.bucket` in `host_vars/security.yaml`,
+and the hardcoded `openbao-snapshots` bucket name in
+`tools/openbao_utils/scripts/snapshot-push.sh`'s `rclone copy` calls,
 then (re-)mint both credentials against the new name.
 
 The write leaf has no bucket-admin capability on either provider (see
@@ -62,37 +63,35 @@ found," since rclone's own pre-flight check is what's being denied.
 ## Running a backup
 
 ```sh
-# From controller, using the role_id/secret_id files cached per
-# openbao-auth.md's runbook - the same AppRole login docs/openbao-auth.md's
-# own step 6 uses, not the root token. Prompts for secret_id (hidden
-# input, read ansible/files/secrets/openbao-controller-secret-id
-# yourself and paste it when asked - the script never takes it as an
-# argument).
-export BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh \
-  "$(cat ansible/files/secrets/openbao-controller-role-id)")
-echo "$BAO_TOKEN"   # copy this, then:
-
-ssh security
-export BAO_TOKEN=<paste the token from the previous step>
-/opt/stacks/openbao-backup/snapshot-push.sh
+tools/openbao_utils/scripts/snapshot-push.sh "$(cat ansible/files/secrets/openbao-controller-role-id)"
 ```
 
-Confirmed live against a real OpenBao 2.6.2 instance:
-`bao write -f auth/approle/login role_id=<role_id> secret_id=@<file>`
-returns a 200 with the client token under the `token` field
-(`-field=token` extracts it cleanly, no trailing newline) — the same
-shape `bao-login-from-controller.sh` already builds on, just confirmed
-against the real pinned version rather than assumed. The token this
-mints is short-lived (`controller`'s role config: `token_ttl=1h`), so
-export it fresh each backup run rather than trying to reuse one across
-sessions.
-
-The script saves a snapshot, GPG-encrypts it (same public key as
+From `controller`, using the same `controller` AppRole `role_id`
+cached per [`openbao-auth.md`](openbao-auth.md)'s runbook. Prompts for
+`secret_id` (hidden input, read
+`ansible/files/secrets/openbao-controller-secret-id` yourself and
+paste it when asked — the script never takes it as an argument). One
+process end to end: logs in over real TLS, saves the snapshot,
+GPG-encrypts it (same public key as
 [`disaster-recovery.md`](disaster-recovery.md)'s
 `backup-gpg-public-key.asc`, independently of Vault's own encryption),
-and pushes it to both providers. `BAO_TOKEN` only ever passes through
-`docker exec -e` from your shell's environment — never written to a
-file or passed as an argument.
+pushes it to both R2 and B2, and revokes the token — all from one
+`mktemp -d` scratch directory removed when the script exits, nothing
+left behind on `controller` either way.
+
+Confirmed live against a real OpenBao 2.6.2 instance:
+`bao write -field=token auth/approle/login role_id=<role_id>
+secret_id=@<file>` returns a 200 with the client token under the
+`token` field (no trailing newline) — the shape
+`snapshot-push.sh` builds on directly. The token this mints is
+short-lived (`controller`'s role config: `token_ttl=1h`), which is why
+the script logs in fresh on every run rather than trying to reuse one
+across invocations.
+
+`BAO_TOKEN` only ever lives in this one script's own process
+environment — never written to a file, never passed as a command-line
+argument to anything it calls. `bao operator raft snapshot save`
+inherits it the same way any other native `bao` invocation does.
 
 **Version note — needs a pass:** `bao operator raft snapshot save`'s
 behavior (described below) was confirmed live against a real backup
@@ -171,21 +170,3 @@ On a throwaway host — burn it afterward, don't reuse it:
    exited 0. No root token or `vault-bootstrap` needed for this: a
    plain read is exactly what `controller`'s own policy already
    grants.
-
-## Open follow-ups
-
-- No local retention on the `security`-side staging directory
-  (`{{ compose_deploy_dir }}/openbao-backup/staging`) — encrypted
-  snapshots accumulate there until deleted by hand. Low priority: the
-  cloud copies, not this host's own, are the actual recovery path.
-- [`openbao-auth.md`](openbao-auth.md) grants the
-  `controller` policy read access to `sys/storage/raft/snapshot`, but
-  `snapshot-push.sh` itself hasn't been changed to use it yet — it
-  still needs a human to export `BAO_TOKEN`. The login mechanics are
-  now confirmed live (see
-  [`docker/openbao/scripts/bao-login.sh`](../docker/openbao/scripts/bao-login.sh):
-  `-field=token` prints the raw `client_token` and nothing else, and
-  `@-` is *not* stdin shorthand for this `bao` build — a real temp
-  file is required). Writing that into `snapshot-push.sh` itself, and
-  adding the systemd timer, is still open — not a large change now
-  that the shape is known, just not done.

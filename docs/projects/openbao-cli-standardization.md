@@ -27,8 +27,8 @@ this doc tracks build status only.
 | 4 | Merged `bao_session.py` (`tools/openbao_utils/`, replaces all 3 of `bao-login.sh`/`bao-login-from-controller.sh`/`bao-from-controller.sh`) + native `bao` on `controller` (personal setup) | Done |
 | 5 | Session-scoped token handling everywhere, closing the revoke/unset gaps | Done |
 | 6 | Delete the two now-unused artifacts: `ansible/roles/openbao_backup/` and `docker/openbao/scripts/` | Done |
-| 7 | Update every doc's invocation examples to the consolidated model | Not started |
-| 8 | Audit all OpenBao-topic docs for consolidation/shortening | Not started |
+| 7 | Update every doc's invocation examples to the consolidated model | Done |
+| 8 | Audit all OpenBao-topic docs for consolidation/shortening | Done |
 
 ## Stage detail
 
@@ -189,6 +189,33 @@ repo uses) - nothing here needed a native install added.
 This is also what empties out `ansible/roles/openbao_backup/` - see
 Stage 6.
 
+### Stage 7 — Update every doc's invocation examples (Done)
+
+Every doc that showed the `alias bao='docker exec -i -e BAO_TOKEN -e
+BAO_SKIP_VERIFY=true openbao bao'` convention, a raw `docker exec -it
+openbao bao operator init/unseal`, or a call to one of the three
+deleted `bao-*.sh` scripts now shows the Stage 2-6 replacement
+instead: native `bao` with real TLS flags for anything run directly on
+`security` (`openbao-auth.md`'s runbook, `openbao-reinit-runbook.md`'s
+mirrored bootstrap steps), `bao_session.py` for anything that needs an
+AppRole login from either host (`openbao-auth.md` step 6,
+`openbao-vault-bootstrap.md`'s day-to-day/emergency-root sections,
+`openbao-reinit-runbook.md`'s scope-proof steps, `beszel.md`'s
+credential-rotation step, `openbao-r2-read-watcher.md`'s install-time
+confirmation), `init_unseal.py` for init/unseal itself
+(`openbao.md`), and `snapshot-push.sh` for the backup drill
+(`openbao-backup-restore.md`, whose now-stale "Open follow-ups"
+section - the login mechanics it was waiting on - is removed
+outright rather than left stale). `step-ca.md` and ADR 0031's own
+historical mentions of the deleted scripts are corrected or left
+alone respectively - the ADR's is accurate history of what justified
+that refactor at the time, not a live example, so it stays.
+
+Every doc still names `docker exec` in exactly the one place it's
+still true: `openbao.md`'s Init/unseal section, which explains why
+that's permanent (see Stage 3's Context link) rather than an
+oversight.
+
 ### Stage 6 — Delete the two now-unused artifacts (Done)
 
 Both directories emptied out for two different reasons and are gone
@@ -216,16 +243,41 @@ Doc invocation examples still naming the deleted
 `openbao-backup-restore.md`) are deliberately untouched here - that's
 Stage 7's job, not a Stage 6 regression.
 
-### Stage 8 — Audit for consolidation
+### Stage 8 — Audit for consolidation (Done)
 
 Deliberately last: evaluating whether
 `openbao.md`/`openbao-auth.md`/`openbao-reinit-runbook.md`/
 `openbao-vault-bootstrap.md`/`openbao-backup-restore.md`/
-`openbao-r2-read-watcher.md` can merge or shrink only makes sense once
-their actual content has settled post-Stage 7 - doing it earlier means
-redoing it. Produces a recommendation (which docs merge, which just
-shrink because they no longer need to re-explain alias/docker-exec
-mechanics inline) and acts on it, not just a report.
+`openbao-r2-read-watcher.md` can merge or shrink only made sense once
+their actual content had settled post-Stage 7.
+
+Recommendation: no merges. Each of the six covers a distinct concern
+(deployment, initial auth bootstrap, the rare reinit procedure, the
+standing `vault-bootstrap` mechanism, backup/restore, one watcher's
+install) and each was already cross-linked to the others rather than
+duplicating them - `openbao-vault-bootstrap.md`'s own closing section,
+for one, already explains why its re-init procedure is a separate doc
+and not a section here. Nothing Stage 7 changed weakens that
+separation; merging any pair now would just make one doc do two jobs.
+
+Shrinkage happened where Stage 7 predicted it would, and only there:
+`openbao-auth.md` (213 → 210 lines) and `openbao-backup-restore.md`
+(191 → 172) both lost real bulk - a multi-line `alias`/`docker exec`
+preamble collapsed into a handful of `export`s in the first, and a
+two-hop mint-on-controller/paste-on-security dance plus a fully
+resolved "Open follow-ups" section disappeared entirely in the second.
+`openbao-reinit-runbook.md` is flat (199 → 197): it mirrors both of
+those docs' commands rather than re-explaining them, so it had little
+inline mechanics bulk to lose in the first place.
+`openbao-r2-read-watcher.md` is flat (109 → 110): only one command
+block in it ever touched `bao` directly. `openbao.md` (330 → 351) and
+`openbao-vault-bootstrap.md` (109 → 123) both grew instead - not
+bloat, but real new content neither doc needed before: `openbao.md`'s
+Init/unseal section now has to explain why `init_unseal.py` still
+respects the same never-capture/never-log constraints its old
+by-hand-only framing argued for, and `openbao-vault-bootstrap.md` now
+documents `bao_session.py`'s revoke-on-exit behavior inline since its
+emergency-root procedure depends on knowing exactly when a login ends.
 
 ## Open items
 

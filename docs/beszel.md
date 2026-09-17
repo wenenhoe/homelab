@@ -58,11 +58,10 @@ Sequence:
    `controller.hcl`), so `openbao_utils/bootstrap.py`'s own skip-if-already-set
    behavior doesn't get in the way here:
    ```sh
-   BAO_TOKEN=$(docker/openbao/scripts/bao-login-from-controller.sh "$(cat ansible/files/secrets/openbao-controller-role-id)")
-   export BAO_TOKEN
-   docker/openbao/scripts/bao-from-controller.sh kv put -mount=secret hosts/all/beszel/beszel-hub-key value='<new key>'
-   docker/openbao/scripts/bao-from-controller.sh kv put -mount=secret hosts/all/beszel/beszel-agent-token value='<new token>'
-   unset BAO_TOKEN
+   cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   bao kv put -mount=secret hosts/all/beszel/beszel-hub-key value='<new key>'
+   bao kv put -mount=secret hosts/all/beszel/beszel-agent-token value='<new token>'
+   exit
    ```
 5. `ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost` — **not** `security` alone. Every host in `app_hosts` (`services`, `security`, `play`, `storage`) runs an agent that needs the new KEY to verify the hub again.
 6. Confirm every host reappears as a connected system on the hub's dashboard, then re-add the Telegram notification channel from "Alert notifications" below — it lived in the wiped DB too and won't come back on its own.

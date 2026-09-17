@@ -39,10 +39,11 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 
 ## Project Management
 
-- **Decisions** — non-obvious design choices become numbered [ADRs](docs/decisions/README.md).
+- **Decisions** — non-obvious design choices become numbered [ADRs](docs/decisions/README.md); one still depending on something unverified starts as an unnumbered [draft](docs/decisions/drafts/README.md) instead, and is promoted once decided and built.
 - **Multi-stage work** — tracked in a [project doc](docs/projects/README.md) until every stage is done, at which point its rationale and behavior get promoted into an ADR or topic doc and the project doc is deleted.
+- **Doc metadata** — every project/decision/draft doc carries YAML frontmatter (`id`/`type`/`status`); `docs/projects/README.md`'s and `docs/decisions/drafts/README.md`'s index tables are generated from it rather than hand-maintained — see [ADR 0028](docs/decisions/0028-doc-governance-frontmatter-and-nist-alignment.md).
 - **Drift enforcement** — CI checks that docs stay in sync with the code, the playbook/role reference tables match what's on disk, and every cross-file link resolves.
-- **Testing** — Molecule role tests, boot-testing, and scheduled Trivy scans.
+- **Testing** — Molecule role tests, controller-side Python unit tests (pytest), boot-testing, deploy-ordering regression checks, and scheduled Trivy scans.
 
 ## Repository Layout
 
@@ -53,6 +54,7 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 ├── ansible/                 # All automation: playbooks, inventory, roles — see docs/ansible.md
 ├── docker/                  # One directory per application
 ├── docs/                    # Deep dives — see docs/README.md
+├── tools/                   # Controller-side Python: cloud-credential minting, OpenBao/Vault utilities — see docs/secrets.md, docs/cloud-credential-creation.md
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
 
@@ -170,7 +172,9 @@ infra-only) are in [`docs/ansible.md`](docs/ansible.md#tag-based-commands).
 
 Everything routed through Caddy sits behind **Tinyauth** forward-auth by
 default (per-route `auth: false` opts out, e.g. Cobalt, Dashy,
-Beszel's hub, and Uptime Kuma), backed by **LLDAP** as the directory. **DIUN** watches
+Beszel's hub, and Uptime Kuma — plus **LLDAP**'s own web UI, which
+can't sit behind the auth check it backs), backed by **LLDAP** as the
+directory. **DIUN** watches
 deployed images and notifies over Telegram on updates. **Beszel**
 monitors host/container health lab-wide — see
 [`docs/beszel.md`](docs/beszel.md). Every host runs a **`backup_agent`**
@@ -179,8 +183,9 @@ see [`docs/disaster-recovery.md`](docs/disaster-recovery.md), relayed
 further offsite by **`cloud_sync`** to R2/B2/OCI. Every secret in this
 repo is generated, cached, and rotated through **OpenBao** on
 `security` — see [`docs/openbao.md`](docs/openbao.md). The rest of
-`docker/` is independently deployable Compose stacks (dashboards, media
-tools, Minecraft, link shortener, pastebin, web terminal, etc.), each
+`docker/` is independently deployable Compose stacks (dashboards,
+media-download tools, Minecraft, a link shortener, a pastebin, PDF
+tools, a speed test, license/activation tooling, etc.), each
 just an `app_registry` entry plus a `docker/<app>/` directory — see
 [`adding-an-app.md`](docs/adding-an-app.md) to add one.
 
@@ -221,7 +226,9 @@ network access or real cloud credentials needed. See
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 - [`hadolint`](https://github.com/hadolint/hadolint) — lints every `Dockerfile`, via its Docker-image variant
+- `generate-doc-indexes` (local) — regenerates `docs/projects/README.md`'s Index table and `docs/decisions/drafts/README.md`'s Open list from each doc's YAML frontmatter; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`.github/scripts/generate-doc-indexes.py`](.github/scripts/generate-doc-indexes.py)
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
+- `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter — see [`.github/scripts/check-doc-drift.py`](.github/scripts/check-doc-drift.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
 All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)

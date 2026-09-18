@@ -40,6 +40,12 @@ it":
 - **SSH private keys:** `cache.py`/`openbao_utils/bootstrap.py` both
   rely (via `utils.repo`'s shared `fetch_root_cert()`) on an SSH key
   to reach `security` in the first place.
+- **Hand-typed into a web UI, DB-resident:** Beszel's KEY/TOKEN
+  (`beszel.md`) and, confirmed directly from its source,
+  [ADR 0036](../0036-beszel-notification-url-no-env-var-support.md)'s
+  Telegram webhook URL — no Ansible/Vault hook exists for either, both
+  live only in Beszel's own PocketBase `data` volume, and both require
+  a full volume wipe to rotate.
 
 None of these is wrong in isolation — each was a reasoned choice for
 its own script. But
@@ -120,6 +126,28 @@ at once — which argues for scoping this as its own project once
 someone's ready to spend real time on it, rather than deciding it as a
 side effect of whichever draft gets picked up first.
 
+That scope just grew concretely, not hypothetically: both
+[`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)'s
+Stage 3 (Beszel/Kuma → GCP e2-micro) and
+[`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md)'s
+Wazuh-on-OCI plan need this draft's answer before either can build,
+not just cite it as background. Both hand credentials to a host
+outside physical/network control for the first time in this repo —
+every current consumer of a secret (`controller`, `security`,
+`storage`, the CD agent once it exists) is a VM on hardware this lab
+owns; a GCP or OCI instance is a provider's hardware, reachable back
+into the 4 managed hosts over the same Tailscale route that makes it
+useful in the first place. That's a strictly higher blast radius than
+the on-prem `cd_agent` case this draft was scoped around: compromise
+of an on-prem VM stays inside a network already assumed hostile-capable
+at that trust tier (see ADR 0026's own threat model); compromise of an
+off-site VM hands whoever's inside it a live route back in, on
+infrastructure that can't be physically secured the way a box in this
+lab can. Both offsite drafts are gated on this one reaching
+`status: decided` — not just on their own RAM/CPU spikes — until then,
+neither should provision a real credential onto GCP or OCI, per this
+repo's own hard gate on building against an open Assumption.
+
 ## Not yet done
 
 - Confirm OpenBao supports Vault's `cert` auth method the same way —
@@ -136,3 +164,10 @@ side effect of whichever draft gets picked up first.
   Stage 3 directly (it currently just says "mints a fresh... token on
   demand" with no mechanism) once the `cert`-auth-method check above
   confirms it's viable.
+- A hardening pass for whatever host actually receives a
+  Secret-Zero-minted credential first — not scoped here, and not
+  something this draft's design substitutes for. Response-wrapped
+  handoff protects the credential in transit; it says nothing about
+  the receiving host's own attack surface once it holds one, which
+  matters most exactly where this draft's scope just grew: an
+  offsite, low-spec cloud VM.

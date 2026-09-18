@@ -3,7 +3,7 @@ id: PROJ-off-site-monitoring
 title: "Off-Site Monitoring Independence"
 type: project
 status: in-progress
-summary: "Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then OCI."
+summary: "Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then GCP e2-micro."
 ---
 
 # Off-Site Monitoring Independence
@@ -12,7 +12,10 @@ summary: "Stop Beszel/Kuma from being a monitoring single point of failure — b
 
 Three-stage plan to stop Beszel/Kuma monitoring from being a single
 point of failure that lives entirely on the host (and site) it's
-meant to be watching. Decision and full context are in
+meant to be watching. Stage 3's target changed from OCI to GCP's
+e2-micro Always Free instance once OCI was earmarked for a dedicated
+Wazuh instance instead — see
+[`r2-read-watcher-siem-replacement.md`](../decisions/drafts/r2-read-watcher-siem-replacement.md). Decision and full context are in
 [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](../decisions/drafts/off-site-monitoring-independence-not-oci-tailscale-tunnel.md);
 this doc tracks build status only.
 
@@ -22,7 +25,7 @@ this doc tracks build status only.
 | :-: | :--- | :--- |
 | 1 | Bring VM 202 (existing Tailscale subnet router) under repo management | Done |
 | 2 | New Proxmox VM for Beszel/Kuma, on-prem, separate from `security` | Not started |
-| 3 | Relocate to OCI, reached over VM 202's existing subnet route | Not started |
+| 3 | Relocate to GCP e2-micro, reached by extending VM 202's subnet route | Not started |
 
 ## Stage detail
 
@@ -45,18 +48,34 @@ a host/process, but doesn't address a whole-site outage. Worth doing
 as its own step regardless, since it's lower-risk than jumping straight
 to Stage 3 and validates the separation works before adding a WAN hop.
 
-### Stage 3 — OCI relocation
+### Stage 3 — GCP e2-micro relocation
 
-The actual site-independence win. Reachable via VM 202's existing
-subnet route — no new tunnel technology needed. Still open: whether
-this relocates the full stack or a minimal heartbeat-only monitor (see
-the decision draft's "Not yet done").
+The actual site-independence win. Reachable by extending VM 202's
+existing subnet route to the new node — no new tunnel technology,
+just a new route destination. OCI was the original target; it's now
+reserved for a dedicated Wazuh instance instead (separate draft), so
+this stage moved to GCP's Always Free e2-micro tier. Still open:
+whether Beszel Hub + Uptime Kuma actually fit e2-micro's 1 GB RAM
+together, and whether this relocates the full stack or a minimal
+heartbeat-only monitor (see the decision draft's "Not yet done").
 
 ## Open items
 
 - Full-stack-vs-minimal-heartbeat choice for Stage 3 — Stage 1's
-  inventory pass (above) is done, but the choice itself is still open.
-- OCI compute availability/budget for Stage 3 — not confirmed.
+  inventory pass (above) is done, but the choice itself is still open,
+  and matters more now that the target is e2-micro's 1 GB RAM rather
+  than OCI's 12 GB.
+- Whether Beszel Hub + Uptime Kuma together actually fit e2-micro's
+  1 GB RAM at this lab's scale — unverified, needs a time-boxed spike
+  before any Ansible role targets it.
+- Tailscale route extension from VM 202 to the GCP node — not yet
+  built.
+- Stage 3 is additionally gated on
+  [`secret-zero-bootstrap-pattern.md`](../decisions/drafts/secret-zero-bootstrap-pattern.md)
+  reaching `decided` and on a not-yet-scoped hardening pass for the
+  GCP host — both independent of the RAM spike above, and both block
+  this stage moving to `Building` even if the RAM spike resolves
+  favorably.
 
 ## Closing checklist
 

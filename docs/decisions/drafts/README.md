@@ -26,14 +26,16 @@ they're in.
 | :--- | :--- | :--- |
 | [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
 | [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md) | Draft | [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md) |
+| [`crowdsec-scope-perimeter-vs-per-vm-agents.md`](crowdsec-scope-perimeter-vs-per-vm-agents.md) | Draft | — |
 | [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md) | Draft | [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md) |
 | [`floci-oci-for-oci-classic-iam-not-scim-leaf-tests.md`](floci-oci-for-oci-classic-iam-not-scim-leaf-tests.md) | Draft | — |
 | [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md) | Decided | [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) |
+| [`os-hardening-baseline-not-yet-chosen.md`](os-hardening-baseline-not-yet-chosen.md) | Draft | — |
 | [`private-gitea-actions-not-pull-based-preloop-poller.md`](private-gitea-actions-not-pull-based-preloop-poller.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
 | [`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
-| [`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md) | Draft | — |
+| [`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md) | Draft | [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) |
 | [`rclone-boto3-scope-not-blanket-swap.md`](rclone-boto3-scope-not-blanket-swap.md) | Draft | [`ansible-collections-audit.md`](../../projects/ansible-collections-audit.md), [`cloud-credentials-hardening.md`](../../projects/cloud-credentials-hardening.md) |
-| [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
+| [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md), [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) |
 | [`stepca-shorten-cert-duration-now-that-renewal-exists.md`](stepca-shorten-cert-duration-now-that-renewal-exists.md) | Draft | — |
 | [`tinyauth-lab-domain-wildcard-not-exact-host-cert.md`](tinyauth-lab-domain-wildcard-not-exact-host-cert.md) | Draft | — |
 | [`tofu-secrets-and-state-backend-location.md`](tofu-secrets-and-state-backend-location.md) | De-risking | [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md) |

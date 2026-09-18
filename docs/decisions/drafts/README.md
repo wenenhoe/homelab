@@ -24,11 +24,14 @@ they're in.
 
 | Draft | Status | Project |
 | :--- | :--- | :--- |
+| [`beszel-notification-env-var-not-plaintext-webui.md`](beszel-notification-env-var-not-plaintext-webui.md) | Draft | — |
 | [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
 | [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md) | Draft | [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md) |
+| [`crowdsec-scope-perimeter-vs-per-vm-agents.md`](crowdsec-scope-perimeter-vs-per-vm-agents.md) | Draft | — |
 | [`dedicated-security-bind9-for-tofu-vm-dns.md`](dedicated-security-bind9-for-tofu-vm-dns.md) | Draft | [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md) |
 | [`floci-oci-for-oci-classic-iam-not-scim-leaf-tests.md`](floci-oci-for-oci-classic-iam-not-scim-leaf-tests.md) | Draft | — |
 | [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md) | Decided | [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) |
+| [`os-hardening-baseline-not-yet-chosen.md`](os-hardening-baseline-not-yet-chosen.md) | Draft | — |
 | [`private-gitea-actions-not-pull-based-preloop-poller.md`](private-gitea-actions-not-pull-based-preloop-poller.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
 | [`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
 | [`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md) | Draft | [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) |

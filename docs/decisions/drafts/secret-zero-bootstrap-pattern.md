@@ -40,6 +40,12 @@ it":
 - **SSH private keys:** `cache.py`/`openbao_utils/bootstrap.py` both
   rely (via `utils.repo`'s shared `fetch_root_cert()`) on an SSH key
   to reach `security` in the first place.
+- **Hand-typed into a web UI, DB-resident:** Beszel's KEY/TOKEN
+  (`beszel.md`) and, confirmed directly from its source,
+  [ADR 0036](../0036-beszel-notification-url-no-env-var-support.md)'s
+  Telegram webhook URL — no Ansible/Vault hook exists for either, both
+  live only in Beszel's own PocketBase `data` volume, and both require
+  a full volume wipe to rotate.
 
 None of these is wrong in isolation — each was a reasoned choice for
 its own script. But

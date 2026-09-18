@@ -24,7 +24,6 @@ they're in.
 
 | Draft | Status | Project |
 | :--- | :--- | :--- |
-| [`beszel-notification-env-var-not-plaintext-webui.md`](beszel-notification-env-var-not-plaintext-webui.md) | Draft | — |
 | [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md) | Draft | [`cd-agent.md`](../../projects/cd-agent.md) |
 | [`checkov-for-opentofu-not-yet-for-ansible-misconfig.md`](checkov-for-opentofu-not-yet-for-ansible-misconfig.md) | Draft | [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md) |
 | [`crowdsec-scope-perimeter-vs-per-vm-agents.md`](crowdsec-scope-perimeter-vs-per-vm-agents.md) | Draft | — |

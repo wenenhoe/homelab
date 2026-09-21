@@ -159,10 +159,15 @@ class RevisionValidationTest(_TmpRoot):
 
 
 class ProjectValidationTest(_TmpRoot):
-    def test_lifecycle_and_legacy_statuses(self):
-        for status in sorted(fm_mod.PROJECT_LIFECYCLE_STATUS | {"in-progress"}):
+    def test_every_lifecycle_status_is_accepted(self):
+        for status in sorted(fm_mod.PROJECT_LIFECYCLE_STATUS):
             with self.subTest(status=status):
                 self.assertEqual(fm_mod.read_frontmatter(project(self.root, f"p-{status}", status=status))["status"], status)
+
+    def test_the_pre_lifecycle_statuses_are_rejected(self):
+        for status in ("in-progress", "blocked"):
+            with self.subTest(status=status), self.assertRaisesRegex(SystemExit, "isn't valid"):
+                fm_mod.read_frontmatter(project(self.root, "p", status=status, blocked_reason="x"))
 
     def test_summary_is_required(self):
         path = write_doc(self.root, "docs/projects/p.md", {"id": "PROJ-p", "title": "p", "type": "project", "status": "done"})
@@ -173,12 +178,10 @@ class ProjectValidationTest(_TmpRoot):
         self.assertEqual(
             fm_mod.read_frontmatter(project(self.root, "a", status="building", blocked=True, blocked_reason="waiting on hardware"))["blocked"], True
         )
-        self.assertEqual(fm_mod.read_frontmatter(project(self.root, "legacy", status="blocked", blocked_reason="x"))["status"], "blocked")
+        self.assertEqual(fm_mod.read_frontmatter(project(self.root, "ok", status="building", blocked=False))["blocked"], False)
         bad = {
             "blocked true without reason": {"status": "building", "blocked": True},
             "blocked isn't a bool": {"status": "building", "blocked": "yes"},
-            "legacy blocked without reason": {"status": "blocked"},
-            "legacy blocked mixed with the flag": {"status": "blocked", "blocked": True, "blocked_reason": "x"},
         }
         for label, overrides in bad.items():
             with self.subTest(label), self.assertRaises(SystemExit):

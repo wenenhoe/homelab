@@ -55,8 +55,7 @@ dangling one.
 
 `check-doc-drift.py` enforces the last column, so a revision that drops
 back to `working` stops any project `building` on it. A project without
-`decision:` isn't gated. `in-progress` and `blocked` are the older
-statuses, still valid on projects not yet migrated.
+`decision:` isn't gated.
 
 `blocked: true` with a `blocked_reason` is a flag, not a status: a
 current impediment that isn't another project (hardware, an external

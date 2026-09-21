@@ -189,10 +189,6 @@ def project_errors(root: Path = ROOT) -> list[str]:
         rev = revisions.get((m.group(1), m.group(2)))
         if rev is None:
             errors.append(f"{rel}: decision {fm['decision']} doesn't resolve to a lineage revision")
-        elif fm["status"] not in PROJECT_DECISION_GATE:
-            errors.append(
-                f"{rel}: status: {fm['status']} is the legacy vocabulary and can't carry a 'decision'; use not-started, de-risking, building, or done"
-            )
         elif rev.status not in PROJECT_DECISION_GATE[fm["status"]]:
             needed = " or ".join(sorted(PROJECT_DECISION_GATE[fm["status"]]))
             errors.append(f"{rel}: status: {fm['status']} needs decision {fm['decision']} to be {needed}, but it is {rev.status}")

@@ -33,14 +33,11 @@ TOPICS = {
 
 ADR_REVISION_STATUS = {"working", "approved", "accepted", "superseded", "abandoned", "retired"}
 PROJECT_LIFECYCLE_STATUS = {"not-started", "de-risking", "building", "done"}
-PROJECT_LEGACY_STATUS = {"in-progress", "blocked"}
 
 # Kinds are decided by path: a lineage revision or a project.
-# `in-progress`/`blocked` (project) are the pre-lifecycle vocabulary,
-# valid until each project doc is migrated.
 VALID_STATUS = {
     "adr-revision": ADR_REVISION_STATUS,
-    "project": PROJECT_LIFECYCLE_STATUS | PROJECT_LEGACY_STATUS,
+    "project": PROJECT_LIFECYCLE_STATUS,
 }
 KIND_TYPE = {"adr-revision": "adr", "project": "project"}
 
@@ -131,12 +128,7 @@ def _validate_project(path: Path, data: dict) -> None:
     _require_text(path, data, "summary")
     if "blocked" in data and not isinstance(data["blocked"], bool):
         _fail(path, "'blocked' must be true or false")
-    if data["status"] == "blocked":
-        if "blocked" in data:
-            _fail(path, "status: blocked is the legacy form; use a lifecycle status plus 'blocked: true'")
-        if not data.get("blocked_reason"):
-            _fail(path, "status: blocked needs a 'blocked_reason' field")
-    elif data.get("blocked") is True and not data.get("blocked_reason"):
+    if data.get("blocked") is True and not data.get("blocked_reason"):
         _fail(path, "blocked: true needs a 'blocked_reason' field")
     for field, parent in (("super_project", None), ("track", "super_project"), ("phase", "track")):
         if field in data and not (isinstance(data[field], str) and SLUG_RE.match(data[field])):

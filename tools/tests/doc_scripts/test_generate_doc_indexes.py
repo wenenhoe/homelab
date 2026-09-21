@@ -29,18 +29,10 @@ class ProjectsTableTest(_TmpRoot):
     def rows(self) -> list[str]:
         return gen.render_projects_table(self.root).splitlines()[2:]
 
-    def test_legacy_statuses_render_as_before(self):
-        project(self.root, "a", status="in-progress")
-        project(self.root, "b", status="blocked", blocked_reason="waiting on a draft")
-        project(self.root, "c", status="not-started")
-        self.assertEqual(
-            self.rows(),
-            [
-                "| [`a.md`](a.md) | In progress | a summary |",
-                "| [`b.md`](b.md) | Blocked: waiting on a draft | b summary |",
-                "| [`c.md`](c.md) | Not started | c summary |",
-            ],
-        )
+    def test_not_started_and_sort_order(self):
+        project(self.root, "a", status="not-started")
+        project(self.root, "b", status="not-started")
+        self.assertEqual(self.rows(), ["| [`a.md`](a.md) | Not started | a summary |", "| [`b.md`](b.md) | Not started | b summary |"])
 
     def test_lifecycle_statuses_and_the_blocked_flag(self):
         project(self.root, "a", status="de-risking")

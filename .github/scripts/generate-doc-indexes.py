@@ -24,21 +24,16 @@ from pathlib import Path
 
 from doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 
-# Project status -> display text for the regenerated table. The legacy
-# `blocked` status is built separately below since its display text
-# embeds blocked_reason.
+# Project status -> display text for the regenerated table.
 STATUS_DISPLAY = {
     "not-started": "Not started",
     "de-risking": "De-risking",
     "building": "Building",
-    "in-progress": "In progress",
     "done": "Done",
 }
 
 
 def project_status_text(fm: dict, waiting_on: list[str]) -> str:
-    if fm["status"] == "blocked":
-        return f"Blocked: {fm['blocked_reason']}"
     text = STATUS_DISPLAY[fm["status"]]
     if fm.get("blocked"):
         text += f" — blocked: {fm['blocked_reason']}"

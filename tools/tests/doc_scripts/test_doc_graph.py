@@ -292,12 +292,7 @@ class ProjectErrorsTest(_TmpRoot):
         project(self.root, "p", status="building", decision="ADR-0099/0")
         self.assertOneError(graph.project_errors(self.root), "doesn't resolve")
 
-    def test_legacy_status_cannot_carry_a_decision(self):
-        revision(self.root, "0001-x", 0, status="approved")
-        project(self.root, "p", status="in-progress", decision="ADR-0001/0")
-        self.assertOneError(graph.project_errors(self.root), "legacy vocabulary")
-
     def test_projects_without_a_decision_are_never_gated(self):
-        for i, status in enumerate(("not-started", "de-risking", "building", "done", "in-progress")):
+        for i, status in enumerate(("not-started", "de-risking", "building", "done")):
             project(self.root, f"p{i}", status=status)
         self.assertEqual(graph.project_errors(self.root), [])

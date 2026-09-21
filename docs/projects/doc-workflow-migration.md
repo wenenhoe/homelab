@@ -34,7 +34,7 @@ project docs, and build path-scope enforcement. Doesn't rewrite any
 | 3 | Re-file the 36 flat ADRs into 35 lineages | Done | No flat ADR file remains; every link resolves; the lineage index is generated |
 | 4 | Drop flat-layout support from the tooling | Done | The doc scripts recognise only the lineage layout |
 | 5 | Convert the 15 drafts into `working` revisions | Done | `decisions/drafts/` is gone and nothing links to it |
-| 6 | Migrate the five existing projects (split, group, relabel) | Not started | Every project doc uses the new statuses; none uses `in-progress` or `blocked` |
+| 6 | Migrate the five existing projects (split, group, relabel) | Done | Every project doc uses the new statuses; none uses `in-progress` or `blocked` |
 | 7 | Path-scope enforcement: `allowed_paths` checked against the PR diff | Not started | A PR touching files outside a `building` project's allowed paths fails CI |
 
 ## Acceptance criteria

@@ -116,7 +116,7 @@ bug, that this now fails the unit tests too, not just a live run.
 ### Stage 4 — `verify.py` → boto3
 
 Scoped in
-[`rclone-boto3-scope-not-blanket-swap.md`](../decisions/drafts/rclone-boto3-scope-not-blanket-swap.md) —
+[`0046-python-client-for-s3-compatible-storage/revision-000.md`](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md) —
 explicitly does not extend to `cloud_sync`, `snapshot-push.sh.j2`, or
 `check-freshness.sh.j2` (bash/containerized, and `cloud_sync`'s
 `rclone copy` is load-bearing for
@@ -155,7 +155,7 @@ the controller, so this would be the first stage to actually add it to
   `check-freshness.sh.j2` are explicitly out of scope for any boto3
   swap — bash/containerized, and `cloud_sync`'s `rclone copy` is
   load-bearing for ADR 0010. See
-  [`rclone-boto3-scope-not-blanket-swap.md`](../decisions/drafts/rclone-boto3-scope-not-blanket-swap.md)
+  [`0046-python-client-for-s3-compatible-storage/revision-000.md`](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md)
   so this isn't re-raised without context.
 - Whether those same three bash scripts get rewritten as Python
   wrappers around the same `rclone` binary (better error handling and

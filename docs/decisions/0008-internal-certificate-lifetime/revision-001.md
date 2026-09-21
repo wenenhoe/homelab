@@ -1,17 +1,21 @@
 ---
-id: DRAFT-stepca-shorten-cert-duration-now-that-renewal-exists
-title: "Shorten step-ca's default claim duration now that cert-renewer@ exists"
-type: draft-adr
-status: draft
+id: ADR-0008
+revision: 1
+type: adr
+title: Internal certificate lifetime
+solution: Shorten the default claim duration toward step-ca's own 24h now that renewal is automated
+summary: How long certificates from the internal CA live, given the renewal automation that now exists.
+topic: ingress-tls-pki
+status: working
+supersedes: 0
+related: [ADR-0007]
 ---
 
 # Shorten step-ca's default claim duration now that cert-renewer@ exists
 
-**Status:** Draft
-
 ## Context
 
-[ADR 0008](../0008-internal-certificate-lifetime/revision-000.md) set step-ca's default
+[ADR 0008](revision-000.md) set step-ca's default
 provisioner claim duration to 720h instead of step-ca's own 24h
 default, because at the time nothing in this repo renewed certs
 automatically — a 24h cert would have expired unattended. That ADR
@@ -78,7 +82,7 @@ established, with no change to `cert-renewer@`'s timer schedule —
 
 ## Consequences
 
-- Once decided, [ADR 0008](../0008-internal-certificate-lifetime/revision-000.md)'s
+- Once decided, [ADR 0008](revision-000.md)'s
   "flagged for review" status line should be updated to point here
   rather than staying an open-ended flag with no tracked resolution.
 - No compose/role changes beyond the one `x509-default-dur` value and

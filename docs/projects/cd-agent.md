@@ -40,11 +40,11 @@ Actions-format workflow files for deploy/maintenance/rotation/
 freshness/security-reporting jobs. `preloop`'s CLI event-flag behavior beyond bare
 `pull_request` is unverified — needs a spike before this stage's
 deploy/rotation jobs are built on it. See the
-[draft](../decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)
+[working decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000.md)
 this stage implements.
 
 **Read before building this stage:**
-[`private-gitea-actions-not-pull-based-preloop-poller.md`](../decisions/drafts/private-gitea-actions-not-pull-based-preloop-poller.md)
+[`0044-prod-automation-trigger-and-execution/revision-001.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-001.md)
 is a still-open, unresolved alternative that proposes replacing this
 stage's mechanism entirely — a private, LAN-only Gitea *or Forgejo*
 instance with an `act_runner`/`forgejo-runner`, dispatch-triggered on
@@ -56,7 +56,7 @@ against it.
 ### Stage 2 — AppRoles
 
 Two CIDR-bound AppRoles, per the
-[draft](../decisions/drafts/cd-agent-approle-policy.md):
+[working decision](../decisions/0020-automation-identity-and-access-scope/revision-001.md):
 `cd-agent-deploy` (read-only on `hosts/*` and
 `cloud_credentials/leaf/*`) and `cd-agent-rotation` (create/update on
 both `cloud_credentials/leaf/*` and `cloud_credentials/rotation/*`) —
@@ -73,13 +73,13 @@ narrow, short-lived token on demand instead.
 ## Open items
 
 - Whether Stage 1 stays a `preloop` poller or gets replaced by
-  [`private-gitea-actions-not-pull-based-preloop-poller.md`](../decisions/drafts/private-gitea-actions-not-pull-based-preloop-poller.md)'s
+  [`0044-prod-automation-trigger-and-execution/revision-001.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-001.md)'s
   Gitea Actions approach — a live, unresolved fork. Resolve this
   before Stage 1 is actually built, not after.
 - Stage 3's "mints a fresh, narrow, short-lived token on demand
   instead" doesn't specify how `controller` authenticates to do that
   minting once its standing AppRole is retired — see
-  [`secret-zero-bootstrap-pattern.md`](../decisions/drafts/secret-zero-bootstrap-pattern.md)'s
+  [`0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)'s
   leaning answer (mTLS via step-ca, same pattern `step_ca_cert` already
   proves) and its response-wrapping answer for handing Stage 2's
   `cd_agent` AppRole `secret_id` over at provisioning time.

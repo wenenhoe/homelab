@@ -33,7 +33,7 @@ project docs, and build path-scope enforcement. Doesn't rewrite any
 | 2 | ADR 0037, both READMEs, the revision and project templates | Done | READMEs describe the model; ADR 0037 is `approved` |
 | 3 | Re-file the 36 flat ADRs into 35 lineages | Done | No flat ADR file remains; every link resolves; the lineage index is generated |
 | 4 | Drop flat-layout support from the tooling | Done | The doc scripts recognise only the lineage layout |
-| 5 | Convert the 15 drafts into `working` revisions | Not started | `decisions/drafts/` is gone and nothing links to it |
+| 5 | Convert the 15 drafts into `working` revisions | Done | `decisions/drafts/` is gone and nothing links to it |
 | 6 | Migrate the five existing projects (split, group, relabel) | Not started | Every project doc uses the new statuses; none uses `in-progress` or `blocked` |
 | 7 | Path-scope enforcement: `allowed_paths` checked against the PR diff | Not started | A PR touching files outside a `building` project's allowed paths fails CI |
 
@@ -60,8 +60,3 @@ project docs, and build path-scope enforcement. Doesn't rewrite any
 
 - A re-filing script that rewrites a link wrongly still passes if the
   wrong target exists; review the path map, not just the check result.
-
-## Open items
-
-- Whether each draft that names a numbered ADR becomes a revision of it or
-  a lineage of its own is decided when that draft is converted (stage 5).

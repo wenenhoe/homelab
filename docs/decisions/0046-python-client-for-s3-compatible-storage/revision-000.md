@@ -1,13 +1,16 @@
 ---
-id: DRAFT-rclone-boto3-scope-not-blanket-swap
-title: "Scope boto3 to single-object Python calls, never the bulk-copy path"
-type: draft-adr
-status: draft
+id: ADR-0046
+revision: 0
+type: adr
+title: Python client for S3-compatible object storage
+solution: 'Leaning: boto3 for the single-object verify call; rclone stays for bulk copy and restore'
+summary: Which client Python code uses to talk to S3-compatible storage, and where rclone stays.
+topic: cloud-credentials
+status: working
+related: [ADR-0010, ADR-0029]
 ---
 
 # Scope boto3 to single-object Python calls, never the bulk-copy path
-
-**Status:** Draft
 
 ## Context
 

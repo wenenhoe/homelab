@@ -1,13 +1,16 @@
 ---
-id: DRAFT-floci-oci-for-oci-classic-iam-not-scim-leaf-tests
-title: "floci-oci for OCI classic-IAM bootstrap tests; SCIM leaf tests stay hand-mocked"
-type: draft-adr
-status: draft
+id: ADR-0041
+revision: 0
+type: adr
+title: Testing the OCI classic-IAM bootstrap
+solution: floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked
+summary: How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks.
+topic: repository-tooling
+status: working
+related: [ADR-0016]
 ---
 
 # floci-oci for OCI classic-IAM bootstrap tests; SCIM leaf tests stay hand-mocked
-
-**Status:** Draft
 
 ## Context
 

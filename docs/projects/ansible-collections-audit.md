@@ -150,7 +150,7 @@ self-signed cert). Lowest priority of the five.
 ## Open items
 
 - If `amazon.aws.s3_bucket` (Stage 1) and `boto3` (via
-  [`rclone-boto3-scope-not-blanket-swap.md`](../decisions/drafts/rclone-boto3-scope-not-blanket-swap.md))
+  [`0046-python-client-for-s3-compatible-storage/revision-000.md`](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md))
   both land, `boto3` becomes a real `pyproject.toml` dependency for the
   first time via that other stage, not this one — Stage 1 confirmed
   live that it doesn't need `boto3` controller-side at all (see Stage 1

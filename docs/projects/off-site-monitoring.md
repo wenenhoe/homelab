@@ -15,8 +15,8 @@ point of failure that lives entirely on the host (and site) it's
 meant to be watching. Stage 3's target changed from OCI to GCP's
 e2-micro Always Free instance once OCI was earmarked for a dedicated
 Wazuh instance instead — see
-[`r2-read-watcher-siem-replacement.md`](../decisions/drafts/r2-read-watcher-siem-replacement.md). Decision and full context are in
-[`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](../decisions/drafts/off-site-monitoring-independence-not-oci-tailscale-tunnel.md);
+[`0045-security-event-collection-and-alerting/revision-000.md`](../decisions/0045-security-event-collection-and-alerting/revision-000.md). Decision and full context are in
+[`0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md);
 this doc tracks build status only.
 
 ## Stages
@@ -71,7 +71,7 @@ heartbeat-only monitor (see the decision draft's "Not yet done").
 - Tailscale route extension from VM 202 to the GCP node — not yet
   built.
 - Stage 3 is additionally gated on
-  [`secret-zero-bootstrap-pattern.md`](../decisions/drafts/secret-zero-bootstrap-pattern.md)
+  [`0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
   reaching `decided` and on a not-yet-scoped hardening pass for the
   GCP host — both independent of the RAM spike above, and both block
   this stage moving to `Building` even if the RAM spike resolves

@@ -23,16 +23,16 @@ class DocKindTest(unittest.TestCase):
     def test_kind_is_decided_by_location(self):
         cases = {
             "docs/decisions/0013-secret-storage/revision-002.md": "adr-revision",
-            "docs/decisions/drafts/some-draft.md": "draft-adr",
             "docs/projects/cd-agent.md": "project",
         }
         for rel, kind in cases.items():
             with self.subTest(rel=rel):
                 self.assertEqual(fm_mod.doc_kind(Path("/repo") / rel), kind)
 
-    def test_a_flat_adr_file_is_rejected(self):
-        with self.assertRaisesRegex(SystemExit, "lineage directories"):
-            fm_mod.doc_kind(Path("/repo/docs/decisions/0013-secret-storage.md"))
+    def test_flat_files_and_drafts_are_rejected(self):
+        for rel in ("docs/decisions/0013-secret-storage.md", "docs/decisions/drafts/some-draft.md"):
+            with self.subTest(rel=rel), self.assertRaisesRegex(SystemExit, "lineage directories"):
+                fm_mod.doc_kind(Path("/repo") / rel)
 
     def test_outside_decisions_and_projects_is_rejected(self):
         with self.assertRaises(SystemExit):
@@ -46,7 +46,7 @@ class ReadFrontmatterTest(_TmpRoot):
             fm_mod.read_frontmatter(path)
 
     def test_type_must_match_location(self):
-        path = write_doc(self.root, "docs/decisions/drafts/d.md", {"id": "DRAFT-d", "title": "t", "type": "adr", "status": "draft"})
+        path = write_doc(self.root, "docs/projects/p.md", {"id": "PROJ-p", "title": "t", "type": "adr", "status": "done", "summary": "s"})
         with self.assertRaisesRegex(SystemExit, "doesn't match its location"):
             fm_mod.read_frontmatter(path)
 
@@ -89,6 +89,13 @@ class RevisionValidationTest(_TmpRoot):
                 path = revision(self.root, "0013-secret-storage", 0, **overrides)
                 with self.assertRaises(SystemExit):
                     fm_mod.read_frontmatter(path)
+
+    def test_every_topic_is_accepted_including_security_hardening(self):
+        for n, topic in enumerate(fm_mod.TOPICS, start=1):
+            with self.subTest(topic=topic):
+                path = revision(self.root, f"{n:04d}-x", 0, topic=topic)
+                self.assertEqual(fm_mod.read_frontmatter(path)["topic"], topic)
+        self.assertEqual(fm_mod.TOPICS["security-hardening"], "Security & hardening")
 
     def test_the_original_is_revision_zero(self):
         path = revision(self.root, "0013-secret-storage", 0)
@@ -195,8 +202,7 @@ class LineageLoadingTest(_TmpRoot):
         with self.assertRaisesRegex(SystemExit, "no revision files"):
             fm_mod.load_lineages(self.root)
 
-    def test_drafts_directory_and_flat_files_are_not_lineages(self):
-        write_doc(self.root, "docs/decisions/drafts/d.md", {"id": "DRAFT-d", "title": "t", "type": "draft-adr", "status": "draft"})
+    def test_flat_files_are_not_lineages(self):
         write_doc(self.root, "docs/decisions/0001-flat.md", {"id": "ADR-0001", "title": "t", "type": "adr", "status": "accepted"})
         self.assertEqual(fm_mod.load_lineages(self.root), [])
         self.assertEqual(fm_mod.load_lineages(self.root / "nowhere"), [])

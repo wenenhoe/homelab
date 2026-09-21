@@ -15,8 +15,8 @@ import sys
 from pathlib import Path
 
 import yaml
-from doc_frontmatter import LINEAGE_DIR_RE, doc_kind, docs_in, read_frontmatter
-from doc_graph import has_open_assumptions, lineage_errors, open_assumption_errors, project_errors
+from doc_frontmatter import LINEAGE_DIR_RE, doc_kind, read_frontmatter
+from doc_graph import lineage_errors, open_assumption_errors, project_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -45,16 +45,14 @@ def read(path: Path) -> str:
 
 def check_doc_indexes() -> None:
     """Every doc directly under docs/, and every doc one level down under
-    docs/decisions/, docs/decisions/drafts/, docs/architecture/, and
-    docs/projects/, is linked in that directory's own README.md — both
-    directions, a link to a missing file fails too. Substring matching
-    for the forward direction, markdown-link-syntax matching for the
-    reverse — cheap, and a false positive (a name coincidentally
-    appearing elsewhere) is the safe failure mode here, not a false
-    negative. decisions/drafts gets its own pass distinct from decisions
-    itself since it's a second level down with its own README.md.
+    docs/decisions/, docs/architecture/, and docs/projects/, is linked in
+    that directory's own README.md — both directions, a link to a missing
+    file fails too. Substring matching for the forward direction,
+    markdown-link-syntax matching for the reverse — cheap, and a false
+    positive (a name coincidentally appearing elsewhere) is the safe
+    failure mode here, not a false negative.
     """
-    for subdir in ("", "decisions", "decisions/drafts", "architecture", "projects"):
+    for subdir in ("", "decisions", "architecture", "projects"):
         label = f"docs/{subdir}" if subdir else "docs"
         index_path = ROOT / "docs" / subdir / "README.md"
         index = read(index_path)
@@ -308,26 +306,8 @@ def check_decision_path_mentions() -> None:
                 fail(f"{f.relative_to(ROOT)}: mentions {path}, which doesn't exist")
 
 
-def check_decided_drafts_have_no_open_assumptions() -> None:
-    """Enforces the drafts' hard gate: a draft at status: decided must
-    have no open `Assumptions` entry left, since `decided` is defined
-    as "every entry resolved". Presence-of-bullets only, not semantic
-    resolution — a draft that removes the heading entirely once empty
-    (this repo's convention) also passes.
-    """
-    for path in docs_in(ROOT / "docs/decisions/drafts"):
-        fm = read_frontmatter(path)
-        if fm["status"] == "decided" and has_open_assumptions(read(path)):
-            fail(
-                f"{path.relative_to(ROOT)}: status: decided but still has an "
-                "open Assumptions entry — resolve every entry (fold into "
-                "Context or revise the Decision) before marking decided, "
-                "per docs/decisions/README.md#drafts"
-            )
-
-
 def check_nist_alignment_currency() -> None:
-    """docs/nist-800-53-alignment.md links to specific ADRs/drafts as
+    """docs/nist-800-53-alignment.md links to specific ADRs as
     evidence for a control mapping; unlike a plain dead link, an ADR
     being marked superseded doesn't move or delete the file, so
     check_no_stale_anchors's link-resolution check passes right through
@@ -348,11 +328,11 @@ def check_nist_alignment_currency() -> None:
         if target is None:
             continue  # already reported by check_no_stale_anchors
         if target.name in ("README.md", "TEMPLATE.md"):
-            continue  # index/template links, not an ADR/draft doc itself
+            continue  # index/template links, not an ADR doc itself
         try:
             kind = doc_kind(target)
         except SystemExit:
-            continue  # not an ADR/draft link (e.g. deployment-flow.md, host-vars.md)
+            continue  # not an ADR link (e.g. deployment-flow.md, host-vars.md)
         if kind == "project":
             continue
         fm = read_frontmatter(target)
@@ -373,7 +353,6 @@ def main() -> int:
     check_ci_jobs_table()
     check_no_stale_anchors()
     check_decision_path_mentions()
-    check_decided_drafts_have_no_open_assumptions()
     check_nist_alignment_currency()
     errors.extend(lineage_errors(ROOT))
     errors.extend(open_assumption_errors(ROOT))

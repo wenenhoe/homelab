@@ -1,17 +1,20 @@
 ---
-id: DRAFT-private-gitea-actions-not-pull-based-preloop-poller
-title: "Self-hosted, LAN-only Gitea Actions, not a `preloop`-poller, as the CD trigger"
-type: draft-adr
-status: draft
+id: ADR-0044
+revision: 1
+type: adr
+title: Trigger and execution of prod-touching automation
+solution: A private, LAN-only Gitea or Forgejo instance with Actions and a runner on the agent host
+summary: How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host.
+topic: deployment-platform
+status: working
+related: [ADR-0020, ADR-0023]
 ---
 
 # Self-hosted, LAN-only Gitea Actions, not a `preloop`-poller, as the CD trigger
 
-**Status:** Draft
-
 ## Context
 
-[`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md)
+[`revision-000.md`](revision-000.md)
 rejects any GitHub-dispatched execution model for prod-touching work,
 because a public repo's dispatch model auto-runs workflows for any
 contributor whose past PR was ever approved once, regardless of
@@ -80,7 +83,7 @@ Replace Stage 1 of `cd-agent.md` with:
 
 Everything downstream of "a job is running" is unchanged: the same
 OpenBao AppRole design
-([`cd-agent-approle-policy.md`](cd-agent-approle-policy.md)), the same
+([`../0020-automation-identity-and-access-scope/revision-001.md`](../0020-automation-identity-and-access-scope/revision-001.md)), the same
 self-run provisioning guard, the same not-yet-split SSH key.
 
 ## Assumptions
@@ -157,7 +160,7 @@ self-run provisioning guard, the same not-yet-split SSH key.
 - Removes `cd-agent.md`'s open item on `preloop`'s CLI event-flag
   behavior — Gitea Actions' native event handling replaces it, so that
   spike is no longer needed.
-- Does not change Stages 2–3 (`cd-agent-approle-policy.md`) or the
+- Does not change Stages 2–3 (`0020-automation-identity-and-access-scope/revision-001.md`) or the
   SSH-key-separation open item; those proceed independently of trigger
   mechanism.
 - This draft's title still says "Gitea" because that's the

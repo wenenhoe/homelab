@@ -69,11 +69,11 @@ to build toward.
 
 - Beszel's Telegram wiring joins its KEY/TOKEN as a second confirmed
   instance of "hand-typed into a web UI, DB-resident" in
-  [`secret-zero-bootstrap-pattern.md`](../drafts/secret-zero-bootstrap-pattern.md)'s
+  [`0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)'s
   list of this repo's ad hoc Secret Zero answers.
 - Rotation is unchanged: `beszel.md`'s existing full-DB-wipe runbook
   is still the only way this value ever changes.
 - No new gap from relocating Beszel to GCP
-  ([`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](../drafts/off-site-monitoring-independence-not-oci-tailscale-tunnel.md))
+  ([`0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md))
   — the value gets typed in by hand there too, same manual step as
   today.

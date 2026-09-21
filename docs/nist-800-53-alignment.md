@@ -17,15 +17,14 @@ and says so below, rather than being quietly dropped.
 
 ## RA-3 — Risk Assessment
 
-Every draft in [`decisions/drafts/`](decisions/drafts/README.md) that
-depends on something unverified carries an `## Assumptions` section:
-the claim, why the decision breaks if it's wrong, and how/when it gets
-checked. That's RA-3's core intent — identify and evaluate risk before
-committing — running as a documentation habit instead of a formal risk
-register. Not every draft has one: a draft that's already settled
-folds it into Context instead, and a couple of exploratory drafts use
-a differently-named section — see that directory's own README for
-which is which.
+Every `working` decision revision that depends on something unverified
+carries an `## Assumptions` section: the claim, why the decision
+breaks if it's wrong, and how/when it gets checked. That's RA-3's core
+intent — identify and evaluate risk before committing — running as a
+documentation habit instead of a formal risk register. A revision
+can't be `approved` while any entry remains; a resolved one folds into
+Context and is deleted (see
+[`decisions/README.md#assumptions`](decisions/README.md#assumptions)).
 
 ## CM-2 — Baseline Configuration
 
@@ -45,7 +44,7 @@ ongoing monitoring of a specific failure mode rather than a
 point-in-time check. The
 [`off-site-monitoring`](projects/off-site-monitoring.md) project — and
 its
-[decision draft](decisions/drafts/off-site-monitoring-independence-not-oci-tailscale-tunnel.md) —
+[approved decision](decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md) —
 extends this further, removing Beszel/Kuma's own single point of
 failure.
 
@@ -65,10 +64,11 @@ and
 [ADR 0025](decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
 are the two ADRs that actually decide how an automation identity gets
 created and scoped in OpenBao (an AppRole, not a shared token). Two
-drafts extend the same question to identities that don't exist yet:
-[`cd-agent-approle-policy`](decisions/drafts/cd-agent-approle-policy.md)
+working revisions extend the same question to identities that don't
+exist yet:
+[ADR 0020, revision 001](decisions/0020-automation-identity-and-access-scope/revision-001.md)
 and
-[`secret-zero-bootstrap-pattern`](decisions/drafts/secret-zero-bootstrap-pattern.md)
+[ADR 0047](decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
 (controller's own authentication, not just what it authenticates to).
 
 ## CM-8 — Component Inventory: evaluated, no genuine match
@@ -84,9 +84,9 @@ unmapped rather than stretched.
 
 ## What this page is not
 
-Not maintained as compliance evidence, and not linked from the ADRs/
-drafts/projects it references — they stay untouched, deliberately (see
-the decision draft linked above for why). `check-doc-drift.py` catches
+Not maintained as compliance evidence, and not linked from the ADRs
+and projects it references — they stay untouched, deliberately (see
+ADR 0028 linked above for why). `check-doc-drift.py` catches
 one specific staleness case mechanically: a linked ADR going
 `status: superseded` fails the build until this page is reviewed (see
 [`docs/ci.md#docs-drift-check`](ci.md#docs-drift-check)). It does

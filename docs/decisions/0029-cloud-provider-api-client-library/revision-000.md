@@ -30,7 +30,7 @@ call over raw `requests` instead of the same package's
 
 No retry/backoff existed for any of these calls (`verify.py`'s
 `rclone` retry logic is a separate matter — see
-[`rclone-boto3-scope-not-blanket-swap.md`](../drafts/rclone-boto3-scope-not-blanket-swap.md)).
+[`0046-python-client-for-s3-compatible-storage/revision-000.md`](../0046-python-client-for-s3-compatible-storage/revision-000.md)).
 Exception handling was also inconsistent: most `create_*`/`rotate_*`
 call sites caught `requests.HTTPError` (raised only by
 `.raise_for_status()`); `check_freshness.py` caught the broader

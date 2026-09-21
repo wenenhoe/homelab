@@ -125,7 +125,7 @@ that pool is for devices Tofu doesn't know about.
 Whether Phase 2 stays OPNsense-API-driven, or Tofu-sourced A records
 move to a dedicated internal nameserver instead, is an open decision —
 see the
-[decision draft](decisions/drafts/dedicated-security-bind9-for-tofu-vm-dns.md).
+[working decision](decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
 
 **Boot order.** `order=1` for OPNsense with `up=60` (60s) before any
 dependent VM is considered clear to start — gives DHCP/DNS time to come
@@ -149,6 +149,6 @@ tooling itself, not just of the apps it hosts.
 
 Where Tofu's own secrets (Proxmox API token, OPNsense API key, the
 state-backend S3 credential) live is not yet decided — see the
-[decision draft](decisions/drafts/tofu-secrets-and-state-backend-location.md)
+[working decision](decisions/0048-where-tofu-credentials-live/revision-000.md)
 for the three options under consideration, and the project doc's
 Stage 1 for status.

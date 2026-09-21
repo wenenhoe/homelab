@@ -1,13 +1,16 @@
 ---
-id: DRAFT-off-site-monitoring-independence-not-oci-tailscale-tunnel
-title: "Off-site monitoring independence — staged, reusing the existing Tailscale subnet router"
-type: draft-adr
-status: decided
+id: ADR-0042
+revision: 0
+type: adr
+title: Monitoring that survives loss of the homelab
+solution: 'Staged: bring the Tailscale subnet router under management, then a dedicated on-prem host, then a GCP e2-micro'
+summary: Something outside the homelab notices when the homelab or its connectivity goes down.
+topic: monitoring-alerting
+status: working
+related: [ADR-0010]
 ---
 
 # Off-site monitoring independence — staged, reusing the existing Tailscale subnet router
-
-**Status:** Decided (staged) — see [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) for build tracking
 
 ## Context
 
@@ -56,7 +59,7 @@ Staged, in this order:
    exists elsewhere). OCI was the original target for this stage;
    it's now earmarked instead for a dedicated, on-prem-adjacent Wazuh
    instance — see
-   [`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md)
+   [`../0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md)
    — which is why this stage moved to a different provider rather than
    sharing OCI with it.
 
@@ -78,12 +81,11 @@ Staged, in this order:
   1 GB RAM** at this lab's scale (4 managed hosts). Unverified —
   Beszel's hub is a lightweight Go binary, Kuma is Node+SQLite and the
   heavier of the two; combined footprint on 1 GB hasn't been measured.
-  This is the load-bearing Assumption for this stage now, in the sense
-  [`../README.md#drafts`](../README.md#drafts) means it:
-  resolve via a time-boxed spike (deploy both, watch actual RSS) before
-  building any Ansible role targeting e2-micro.
-- **Gated on [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md)
-  reaching `decided`, separately from the RAM spike above.** This
+  This is the load-bearing assumption for this stage: resolve it via a
+  time-boxed spike (deploy both, watch actual RSS) before building any
+  Ansible role targeting e2-micro.
+- **Gated on [`../0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
+  reaching `approved`, separately from the RAM spike above.** This
   stage is the first time this repo would hand a real credential
   (Beszel's KEY/TOKEN, Kuma's admin state, whatever the Telegram
   wiring below needs) to a host outside physical/network control — see

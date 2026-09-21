@@ -1,13 +1,16 @@
 ---
-id: DRAFT-tofu-secrets-and-state-backend-location
-title: "Where Tofu's own secrets and state-backend credential live"
-type: draft-adr
-status: de-risking
+id: ADR-0048
+revision: 0
+type: adr
+title: Where Tofu's own credentials live
+solution: 'Undecided: the existing OpenBao, file-based separate secrets, or a dedicated OpenBao instance'
+summary: Where the Proxmox and OPNsense API credentials and Tofu's state-backend credential live, given the store may be what is being provisioned.
+topic: secrets-store
+status: working
+related: [ADR-0013, ADR-0018, ADR-0020, ADR-0026]
 ---
 
 # Where Tofu's own secrets and state-backend credential live
-
-**Status:** De-risking
 
 ## Context
 
@@ -50,7 +53,7 @@ This was resolvable by reading the existing design, not something
 that requires the migration to actually happen first — an earlier
 version of this draft's first Assumption incorrectly gated it on
 Stage 6 landing, which would have made this draft unable to reach
-`Decided` before the very project it blocks was most of the way built.
+`approved` before the very project it blocks was most of the way built.
 The bootstrapping-order problem is therefore a **standing constraint**,
 not a one-time migration-day concern — every future routine `security`
 rebuild hits it again, not just the first one.

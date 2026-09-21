@@ -84,7 +84,7 @@ independent sequences that happen to share a word; see
 - Tofu's own secrets (Proxmox API token, OPNsense API key,
   state-backend S3 credential):
   a real open decision between three options — see the
-  [decision draft](../decisions/drafts/tofu-secrets-and-state-backend-location.md).
+  [working decision](../decisions/0048-where-tofu-credentials-live/revision-000.md).
   This stage is blocked on it.
 - Install: OpenTofu's official apt-repo installer, on VM 401
   ("Development") once it exists, otherwise wherever the repo's
@@ -135,15 +135,15 @@ raw zone-file editing, which the plugin doesn't support (verified
 against the plugin's own issue tracker, not assumed). Whether this
 stays the design, or Tofu-sourced A records move to a dedicated
 internal nameserver instead, is a real open decision — see the
-[decision draft](../decisions/drafts/dedicated-security-bind9-for-tofu-vm-dns.md).
+[working decision](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
 This stage is blocked on it too.
 
 ## Open items
 
 - Tofu-only secrets and state-backend credential location (Stage 1) —
-  [decision draft](../decisions/drafts/tofu-secrets-and-state-backend-location.md).
+  [working decision](../decisions/0048-where-tofu-credentials-live/revision-000.md).
 - Internal DNS for Tofu-provisioned VMs (Stage 7) —
-  [decision draft](../decisions/drafts/dedicated-security-bind9-for-tofu-vm-dns.md).
+  [working decision](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
 - Migration Stage 2's exact rebuild sequence isn't scoped beyond
   "rebuild on real VMID ranges, cut over, decommission" — needs its
   own detail once Stage 5 is proven.
@@ -151,7 +151,7 @@ This stage is blocked on it too.
   whether to also move Ansible misconfig scanning onto it at the same
   time instead of keeping Trivy — not scoped yet, not actionable
   before Stage 1 lands — see the
-  [decision draft](../decisions/drafts/checkov-for-opentofu-not-yet-for-ansible-misconfig.md).
+  [working decision](../decisions/0038-iac-misconfiguration-scanning/revision-000.md).
 - VM 202 ("Tailscale") is Tofu-unmanaged but no longer wholly
   untracked — Stage 1 of
   [`off-site-monitoring.md`](off-site-monitoring.md) brought it under

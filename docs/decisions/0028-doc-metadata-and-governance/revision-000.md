@@ -76,7 +76,7 @@ evaluated and rejected (see its own notes on `CM-8`).
 
 For visibility: **don't build a new root `INDEX.md`.** Auto-generate
 the tables that already exist — `docs/projects/README.md` and
-`docs/decisions/drafts/README.md` require a hand-edit every time a
+the drafts README require a hand-edit every time a
 project or draft is added or changes status; that repeated, ongoing
 toil is the actual thing worth automating, not a hypothetical one.
 
@@ -129,8 +129,8 @@ reading existing code, not necessarily a spike specifically, which is
 why the value isn't named after that one technique — and matches the
 same word `docs/projects/README.md` already uses for a stage in the
 same state; `decided` now requires every entry resolved first — see
-[`docs/decisions/README.md#drafts`](../README.md#drafts) for the current
-rule.
+[ADR 0037](../0037-decision-and-project-documentation-workflow/revision-000.md)
+for the model that replaced drafts.
 
 `summary` was added during Stage 1, for `type: project` only:
 `docs/projects/README.md`'s Covers column carries real per-project
@@ -164,7 +164,7 @@ edges — a generated graph would have flattened exactly the distinction
 that matters, and no doc ever populated the field in practice. A live
 fork found during that check
 (`cd-agent.md` Stage 1 vs.
-[`private-gitea-actions-not-pull-based-preloop-poller.md`](../drafts/private-gitea-actions-not-pull-based-preloop-poller.md))
+[`0044-prod-automation-trigger-and-execution/revision-001.md`](../0044-prod-automation-trigger-and-execution/revision-001.md))
 got a direct cross-reference instead, which is the cheaper fix for the
 one case that actually carried real risk. `depends_on` was dropped
 from the schema entirely rather than kept as an unused field — the

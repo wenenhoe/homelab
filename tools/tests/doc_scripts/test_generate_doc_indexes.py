@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from _doc_fixtures import SCRIPTS, project, revision, write_doc
+from _doc_fixtures import SCRIPTS, project, revision
 
 _spec = importlib.util.spec_from_file_location("generate_doc_indexes", SCRIPTS / "generate-doc-indexes.py")
 gen = importlib.util.module_from_spec(_spec)
@@ -143,6 +143,34 @@ class LineagesIndexTest(_TmpRoot):
         self.assertIn("| File cache | Accepted (original) | Revision 1 working |", out)
         self.assertNotIn("revision 0", out)
 
+    def test_competing_working_revisions_are_shown_as_undecided(self):
+        revision(self.root, "0044-trigger", 0, status="working", solution="Pull-based agent")
+        revision(self.root, "0044-trigger", 1, status="working", solution="Private Gitea")
+        out = gen.render_lineages_index(self.root)
+        self.assertIn("[0044](0044-trigger/revision-000.md)", out)
+        self.assertIn("Undecided between: (original) Pull-based agent; or (revision 1) Private Gitea", out)
+        self.assertIn("Working (original), Working (revision 1)", out)
+        self.assertNotIn("| Private Gitea |", out)  # the newest revision must not be presented as the current solution
+
+    def test_competing_mix_of_working_and_approved(self):
+        revision(self.root, "0044-trigger", 0, status="approved", solution="A")
+        revision(self.root, "0044-trigger", 1, status="working", solution="B")
+        self.assertIn("Approved (original), Working (revision 1)", gen.render_lineages_index(self.root))
+
+    def test_an_accepted_revision_means_not_undecided(self):
+        revision(self.root, "0044-trigger", 0, status="accepted", solution="A")
+        revision(self.root, "0044-trigger", 1, status="working", supersedes=0, solution="B")
+        out = gen.render_lineages_index(self.root)
+        self.assertNotIn("Undecided", out)
+        self.assertIn("| A | Accepted (original) | Revision 1 working |", out)
+
+    def test_abandoned_alternatives_do_not_make_it_undecided(self):
+        revision(self.root, "0044-trigger", 0, status="abandoned", solution="A")
+        revision(self.root, "0044-trigger", 1, status="working", solution="B")
+        out = gen.render_lineages_index(self.root)
+        self.assertNotIn("Undecided", out)
+        self.assertIn("| B | Working (revision 1) |", out)
+
     def test_narrowed_by_and_related_back_pointers(self):
         revision(self.root, "0015-expiry", 0, status="accepted", topic="cloud-credentials", title="Credential expiry")
         revision(self.root, "0016-oci", 0, status="accepted", topic="cloud-credentials", title="OCI credentials", narrows="ADR-0015", related=["ADR-0014"])
@@ -186,15 +214,3 @@ class SectionReplacementTest(_TmpRoot):
         path.write_text("# T\n\n## Lineages\n\nold\n", encoding="utf-8")
         self.assertTrue(gen.regenerate(path, "Lineages", "new", optional=True))
         self.assertEqual(path.read_text(encoding="utf-8"), "# T\n\n## Lineages\n\nnew\n")
-
-
-class DraftsTableTest(_TmpRoot):
-    def test_draft_with_and_without_a_linking_project(self):
-        write_doc(self.root, "docs/decisions/drafts/linked.md", {"id": "DRAFT-linked", "title": "t", "type": "draft-adr", "status": "de-risking"})
-        write_doc(self.root, "docs/decisions/drafts/loose.md", {"id": "DRAFT-loose", "title": "t", "type": "draft-adr", "status": "decided"})
-        write_doc(
-            self.root, "docs/projects/p.md", {"id": "PROJ-p", "title": "p", "type": "project", "status": "done", "summary": "s"}, body="See drafts/linked.md\n"
-        )
-        rows = gen.render_drafts_table(self.root).splitlines()[2:]
-        self.assertEqual(rows[0], "| [`linked.md`](linked.md) | De-risking | [`p.md`](../../projects/p.md) |")
-        self.assertEqual(rows[1], "| [`loose.md`](loose.md) | Decided | — |")

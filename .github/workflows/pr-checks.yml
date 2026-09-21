@@ -77,8 +77,8 @@ jobs:
               # bootstrap_secrets.py/audit_secrets.py/the two
               # restore_*_from_backup.py scripts (merged into one)/
               # dump_vault_to_file_cache.py/diff_vault_backups.py all
-              # moved to tools/openbao_utils/ (docs/decisions/drafts/
-              # consolidate-openbao-utility-scripts.md) - covered by
+              # moved to tools/openbao_utils/ (ADR 0032, docs/decisions/
+              # 0032-where-openbao-utility-scripts-live/revision-000.md) - covered by
               # the tools/openbao_utils/** trigger below instead.
               - 'ansible/scripts/*.py'
               - 'tools/cloud_credentials/**'

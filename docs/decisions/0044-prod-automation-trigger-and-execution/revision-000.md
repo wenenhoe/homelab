@@ -1,13 +1,16 @@
 ---
-id: DRAFT-pull-based-cd-agent-not-self-hosted-github-runner
-title: "Pull-based CD agent, not a self-hosted GitHub Actions runner"
-type: draft-adr
-status: draft
+id: ADR-0044
+revision: 0
+type: adr
+title: Trigger and execution of prod-touching automation
+solution: A pull-based CD agent polling origin/main, not a GitHub-dispatched runner
+summary: How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host.
+topic: deployment-platform
+status: working
+related: [ADR-0020, ADR-0023]
 ---
 
 # Pull-based CD agent, not a self-hosted GitHub Actions runner
-
-**Status:** Draft
 
 ## Context
 
@@ -139,7 +142,7 @@ CD agent instead of a CD *runner*:
   rules out the whole category regardless of which one. A private,
   LAN-only instance with no outside contributors doesn't carry the
   risk this draft is about; see
-  [`private-gitea-actions-not-pull-based-preloop-poller.md`](private-gitea-actions-not-pull-based-preloop-poller.md)
+  [`revision-001.md`](revision-001.md)
   for that case. No GitHub OIDC/JWT auth binding either way — AppRole
   is the auth binding outright, not a fallback.
 - The CD agent will be a new identity in OpenBao's auth model,
@@ -147,7 +150,7 @@ CD agent instead of a CD *runner*:
   `managed_hosts` themselves eventually need. How that identity is
   scoped — one AppRole or several, and what each can reach — is its
   own draft; see
-  [`cd-agent-approle-policy.md`](cd-agent-approle-policy.md).
+  [`../0020-automation-identity-and-access-scope/revision-001.md`](../0020-automation-identity-and-access-scope/revision-001.md).
 - The CD agent's inventory entry, and its real network address, are
   still placeholders pending the box's actual build. Placing the
   deploy SSH key, accepting managed-host SSH host keys, and running

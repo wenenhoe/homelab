@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
 """Regenerates the doc-index sections that would otherwise be hand-edited
-every time a project, draft, or decision lineage is added or changes
-status:
+every time a project or decision lineage is added or changes status:
 
 - docs/projects/README.md: `## Index` (always) and `## By initiative`
   (only if that heading exists).
-- docs/decisions/drafts/README.md: `## Open` (status, and which project
-  doc — if any — actually links to the draft).
 - docs/decisions/README.md: `## Lineages`, grouped by topic (only if
   that heading exists).
 
 Reads only YAML frontmatter, via doc_frontmatter.py (shared with
 check-doc-drift.py), which is also the schema of record. Validating
-every decision/draft/project doc's type and status along the way is a
+every decision and project doc's type and status along the way is a
 side effect: a bad combination fails here before it ships.
 
 Run standalone, or via the pre-commit hook. Overwrites the sections in
@@ -93,38 +90,6 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     return "\n".join(["| Initiative | Track | Phase | Project | Status |\n| :--- | :--- | :--- | :--- | :--- |", *rows])
 
 
-DRAFT_STATUS_DISPLAY = {
-    "draft": "Draft",
-    "de-risking": "De-risking",
-    "decided": "Decided",
-}
-
-
-def find_linking_projects(draft_name: str, root: Path = ROOT) -> list:
-    """Which project doc(s), if any, actually link to this draft — found
-    by scanning docs/projects/*.md content for the filename, the same
-    substring-matching check_doc_indexes() already uses elsewhere,
-    rather than a second hand-maintained field that could drift from
-    what's actually linked. A draft with no hit isn't necessarily
-    incomplete: some are genuinely single-PR-scoped and never will have
-    a project (see docs/projects/README.md's own bar for what needs
-    one) - the empty case is rendered as "-", not an error.
-    """
-    return [path for path in docs_in(root / "docs/projects") if draft_name in path.read_text(encoding="utf-8")]
-
-
-def render_drafts_table(root: Path = ROOT) -> str:
-    rows = []
-    for path in docs_in(root / "docs/decisions/drafts"):
-        fm = read_frontmatter(path)
-        status = DRAFT_STATUS_DISPLAY[fm["status"]]
-        projects = find_linking_projects(path.name, root)
-        project_cell = ", ".join(f"[`{p.name}`](../../projects/{p.name})" for p in projects) if projects else "—"
-        rows.append(f"| [`{path.name}`]({path.name}) | {status} | {project_cell} |")
-    header = "| Draft | Status | Project |\n| :--- | :--- | :--- |"
-    return "\n".join([header, *rows])
-
-
 ADR_STATUS_DISPLAY = {
     "working": "Working",
     "approved": "Approved",
@@ -169,8 +134,20 @@ def render_lineages_index(root: Path = ROOT) -> str:
             current = lineage.current()
             if current.fm["topic"] != topic:
                 continue
-            status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current.number)})" if len(lineage.revisions) > 1 else "")
-            notes = [f"Revision {r.number} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
+            open_revisions = [r for r in lineage.revisions if r.status in ("working", "approved")]
+            decided = any(r.status in ("accepted", "retired") for r in lineage.revisions)
+            if not decided and len(open_revisions) > 1:
+                # Nothing accepted and several solutions alive: say so instead of showing the newest as if it had won.
+                first = open_revisions[0]
+                solution = "Undecided between: " + "; or ".join(f"({_revision_label(r.number)}) {r.fm['solution']}" for r in open_revisions)
+                status = ", ".join(f"{ADR_STATUS_DISPLAY[r.status]} ({_revision_label(r.number)})" for r in open_revisions)
+                adr_cell = f"[{lineage.number}]({lineage.dir.name}/{first.path.name})"
+                notes = []
+            else:
+                solution = current.fm["solution"]
+                status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current.number)})" if len(lineage.revisions) > 1 else "")
+                adr_cell = _lineage_link(lineage)
+                notes = [f"Revision {r.number} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
             if lineage.id in narrowed_by:
                 notes.append("Narrowed by " + ", ".join(_lineage_link(by_id[i]) for i in sorted(narrowed_by[lineage.id])))
             if lineage.id in related:
@@ -178,13 +155,7 @@ def render_lineages_index(root: Path = ROOT) -> str:
             former = sorted({f for rev in lineage.revisions for f in rev.fm.get("former_ids", [])})
             if former:
                 notes.append("Formerly " + ", ".join(former))
-            cells = [
-                _lineage_link(lineage),
-                f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}",
-                _cell(current.fm["solution"]),
-                status,
-                _cell("; ".join(notes)) or "—",
-            ]
+            cells = [adr_cell, f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}", _cell(solution), status, _cell("; ".join(notes)) or "—"]
             rows.append("| " + " | ".join(cells) + " |")
         if rows:
             header = "| ADR | Problem | Current solution | Status | Notes |\n| :--- | :--- | :--- | :--- | :--- |"
@@ -195,7 +166,7 @@ def render_lineages_index(root: Path = ROOT) -> str:
 def validate_adrs(root: Path = ROOT) -> None:
     """Lineage revisions are validated by load_lineages(). Reading any
     file sitting directly under docs/decisions/ fails: only lineage
-    directories and drafts belong there.
+    directories belong there.
     """
     for path in docs_in(root / "docs/decisions"):
         read_frontmatter(path)
@@ -233,8 +204,7 @@ def main() -> int:
     validate_adrs()
     regenerate(ROOT / "docs/projects/README.md", "Index", render_projects_table())
     regenerate(ROOT / "docs/projects/README.md", "By initiative", render_initiatives_table(), optional=True)
-    regenerate(ROOT / "docs/decisions/drafts/README.md", "Open", render_drafts_table())
-    touched = ["docs/projects/README.md", "docs/decisions/drafts/README.md"]
+    touched = ["docs/projects/README.md"]
     if regenerate(ROOT / "docs/decisions/README.md", "Lineages", render_lineages_index(), optional=True):
         touched.append("docs/decisions/README.md")
     print(f"Regenerated {', '.join(touched)}.")

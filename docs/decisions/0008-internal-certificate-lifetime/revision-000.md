@@ -13,7 +13,7 @@ related: [ADR-0007]
 # 0008. step-ca cert duration set to 720h, not step-ca's own 24h default
 
 **Status:** Accepted — see
-[`stepca-shorten-cert-duration-now-that-renewal-exists.md`](../drafts/stepca-shorten-cert-duration-now-that-renewal-exists.md)
+[`0008-internal-certificate-lifetime/revision-001.md`](revision-001.md)
 for the follow-up this ADR's own Consequences called for.
 
 ## Context
@@ -39,5 +39,5 @@ rather than step-ca's own 24h default.
 before this ADR was written. Moving back toward step-ca's own 24h
 philosophy (shorter-lived certs, smaller revocation-risk window) is
 scoped in
-[`stepca-shorten-cert-duration-now-that-renewal-exists.md`](../drafts/stepca-shorten-cert-duration-now-that-renewal-exists.md)
+[`0008-internal-certificate-lifetime/revision-001.md`](revision-001.md)
 rather than left as an untracked note here.

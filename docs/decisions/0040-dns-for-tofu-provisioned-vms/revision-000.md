@@ -1,13 +1,15 @@
 ---
-id: DRAFT-dedicated-security-bind9-for-tofu-vm-dns
-title: "A dedicated BIND9 on `security` for Tofu-provisioned VM DNS"
-type: draft-adr
-status: draft
+id: ADR-0040
+revision: 0
+type: adr
+title: DNS for Tofu-provisioned VMs
+solution: A second, dedicated BIND9 on security, fed by the Tofu-to-Ansible inventory generator
+summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
+topic: deployment-platform
+status: working
 ---
 
 # A dedicated BIND9 on `security` for Tofu-provisioned VM DNS
-
-**Status:** Draft
 
 ## Context
 

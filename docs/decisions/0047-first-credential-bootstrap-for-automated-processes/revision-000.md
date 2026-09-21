@@ -1,13 +1,16 @@
 ---
-id: DRAFT-secret-zero-bootstrap-pattern
-title: "Secret Zero: mTLS for controller's own auth, response wrapping for one-time handoff"
-type: draft-adr
-status: draft
+id: ADR-0047
+revision: 0
+type: adr
+title: First-credential bootstrap for automated processes
+solution: 'Leaning: mTLS for the controller''s own auth, response wrapping for one-time handoff'
+summary: How the first credential reaches a process that needs it, without a human typing it or a permanent orchestrator relaying secrets.
+topic: secrets-store
+status: working
+related: [ADR-0026, ADR-0036]
 ---
 
 # Secret Zero: mTLS for controller's own auth, response wrapping for one-time handoff
-
-**Status:** Draft — leaning design reached, not yet spiked
 
 ## Context
 
@@ -49,7 +52,7 @@ it":
 
 None of these is wrong in isolation — each was a reasoned choice for
 its own script. But
-[`rclone-boto3-scope-not-blanket-swap.md`](rclone-boto3-scope-not-blanket-swap.md)'s
+[`../0046-python-client-for-s3-compatible-storage/revision-000.md`](../0046-python-client-for-s3-compatible-storage/revision-000.md)'s
 Consequences already ran into this from a different angle: swapping
 `rclone` for `boto3`+`hvac` doesn't remove a secret sitting on disk, it
 relocates which one. That's the actual Secret Zero problem surfacing
@@ -119,7 +122,7 @@ homelab hosts needs, not assumed as the target.
 ## Why this probably isn't a small addition to an existing draft
 
 Every other draft that touches a credential
-(`rclone-boto3-scope-not-blanket-swap.md`) currently treats
+(`0046-python-client-for-s3-compatible-storage/revision-000.md`) currently treats
 "where does the credential live" as a local, per-file Assumption.
 Resolving Secret Zero properly could change the answer for all of them
 at once — which argues for scoping this as its own project once
@@ -127,9 +130,9 @@ someone's ready to spend real time on it, rather than deciding it as a
 side effect of whichever draft gets picked up first.
 
 That scope just grew concretely, not hypothetically: both
-[`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)'s
+[`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)'s
 Stage 3 (Beszel/Kuma → GCP e2-micro) and
-[`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md)'s
+[`../0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md)'s
 Wazuh-on-OCI plan need this draft's answer before either can build,
 not just cite it as background. Both hand credentials to a host
 outside physical/network control for the first time in this repo —
@@ -144,7 +147,7 @@ at that trust tier (see ADR 0026's own threat model); compromise of an
 off-site VM hands whoever's inside it a live route back in, on
 infrastructure that can't be physically secured the way a box in this
 lab can. Both offsite drafts are gated on this one reaching
-`status: decided` — not just on their own RAM/CPU spikes — until then,
+`status: approved` — not just on their own RAM/CPU spikes — until then,
 neither should provision a real credential onto GCP or OCI, per this
 repo's own hard gate on building against an open Assumption.
 

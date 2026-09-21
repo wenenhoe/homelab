@@ -1,17 +1,20 @@
 ---
-id: DRAFT-tinyauth-lab-domain-wildcard-not-exact-host-cert
-title: "A second wildcard cert for tinyauth's own domain, closing its CT-log exposure"
-type: draft-adr
-status: draft
+id: ADR-0003
+revision: 1
+type: adr
+title: Certificate issuance for proxied apps
+solution: One wildcard certificate per host with no exception, including tinyauth's own lab domain
+summary: How Caddy-proxied apps get TLS certificates, and whether each app hostname is exposed in public Certificate Transparency logs.
+topic: ingress-tls-pki
+status: working
+supersedes: 0
 ---
 
 # A second wildcard cert for tinyauth's own domain, closing its CT-log exposure
 
-**Status:** Draft
-
 ## Context
 
-[ADR 0003](../0003-certificate-issuance-for-proxied-apps/revision-000.md) flags its own
+[ADR 0003](revision-000.md) flags its own
 `tinyauth` exception as "worth revisiting as a deliberate follow-up" —
 folding `tinyauth` into the same per-host wildcard vhost everything
 else uses, to close the one remaining CT-log exposure that ADR's

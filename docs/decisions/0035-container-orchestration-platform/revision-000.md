@@ -32,9 +32,9 @@ instance for a second node, and whether that changes VM sizing or
 security posture. (Separately, whether OCI's compute budget can carry
 an expanded monitoring stack — Prometheus+Grafana, Wazuh — is its own,
 already-tracked question; see
-[`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](../drafts/off-site-monitoring-independence-not-oci-tailscale-tunnel.md)
+[`0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)
 and
-[`r2-read-watcher-siem-replacement.md`](../drafts/r2-read-watcher-siem-replacement.md).
+[`0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md).
 It's unaffected by this decision either way.)
 
 Three facts make the trade-off concrete rather than generic:

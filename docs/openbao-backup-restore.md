@@ -20,7 +20,7 @@ for this. What's still missing is somewhere unattended to run it from:
 `controller` is the operator's own machine, never a `managed_hosts`
 member, and isn't meant to run scheduled jobs at all. That's the
 [CD agent project](projects/cd-agent.md)'s `cd_agent` host's job
-([draft](decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)),
+([working decision](decisions/0044-prod-automation-trigger-and-execution/revision-000.md)),
 not built yet — for now, this proves the mechanism with a
 human running it interactively, authenticating as `controller`'s
 AppRole rather than the root token (see "Running a backup" below).

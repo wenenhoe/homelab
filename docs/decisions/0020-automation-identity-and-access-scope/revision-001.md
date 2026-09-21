@@ -1,20 +1,24 @@
 ---
-id: DRAFT-cd-agent-approle-policy
-title: "Two CIDR-bound AppRoles for the CD agent, replacing controller's broad grant"
-type: draft-adr
-status: draft
+id: ADR-0020
+revision: 1
+type: adr
+title: Automation identity and access scope
+solution: Two CIDR-bound AppRoles for the CD agent (deploy and rotation), retiring controller's broad grant
+summary: Which identities may read and write which secret paths, once unattended prod-touching work has more than one category.
+topic: secrets-store
+status: working
+supersedes: 0
+related: [ADR-0017, ADR-0023]
 ---
 
 # Two CIDR-bound AppRoles for the CD agent, replacing controller's broad grant
 
-**Status:** Draft
-
 ## Context
 
-[0020](../0020-automation-identity-and-access-scope/revision-000.md) gives `controller`
+[0020](revision-000.md) gives `controller`
 one broad AppRole because it's the only automation identity that
 exists today. A separate, not-yet-built proposal (see
-[`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md))
+[`../0044-prod-automation-trigger-and-execution/revision-000.md`](../0044-prod-automation-trigger-and-execution/revision-000.md))
 would add a dedicated automation host (`cd_agent`) that becomes the
 sole path to prod deploys and takes over the rotation/freshness jobs
 [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) schedules. Once

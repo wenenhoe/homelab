@@ -182,14 +182,10 @@ Manual secrets are pre-seeded as plain files under
 `.config/.pre-commit-config.yaml` as a local hook, positioned before
 markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
-hand-edit already is. Reads every `docs/projects/*.md` and
-`docs/decisions/drafts/*.md`'s frontmatter and regenerates
-`docs/projects/README.md`'s Index table and
-`docs/decisions/drafts/README.md`'s Open list in place; validates
-every ADR's frontmatter too, even though `docs/decisions/README.md`'s
-own numbered index isn't touched (see
-[`docs/decisions/README.md#drafts`](decisions/README.md#drafts) for
-why promotion into that index stays a manual, deliberate step). Same
+hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
+frontmatter and regenerates `docs/projects/README.md`'s Index and By
+initiative tables and `docs/decisions/README.md`'s Lineages index in
+place, validating each doc's frontmatter as it goes. Same
 auto-fix pattern as `ruff --fix`/`dclint-docker` above: a stale table
 fails the commit and shows the regenerated diff, rather than silently
 passing.
@@ -204,8 +200,8 @@ these narrow, structural things:
 - Every doc directly under `docs/` is linked somewhere in
   `docs/README.md` (both directions — a link to a deleted file fails
   too). The same check applies one level down for `docs/decisions/`,
-  `docs/decisions/drafts/`, `docs/architecture/`, and `docs/projects/`,
-  each against its own `README.md` index.
+  `docs/architecture/`, and `docs/projects/`, each against its own
+  `README.md` index.
 - `docs/ansible.md`'s Playbooks and Roles tables list exactly the files
   under `ansible/playbooks/*.yaml` and directories under
   `ansible/roles/*/`.
@@ -229,18 +225,13 @@ these narrow, structural things:
   renamed ADR mentioned in a comment, which the anchor check can't see
   because such a path carries no `#anchor`. A path containing `NNN` is a
   placeholder; a deleted file is referred to by name, not by path.
-- Every ADR/draft linked from
+- Every ADR linked from
   [`nist-800-53-alignment.md`](nist-800-53-alignment.md) isn't
   `status: superseded` — the one state transition the anchor check
   above can't catch, since a superseded ADR's file doesn't move or
   break any link. Doesn't check whether an *accepted* ADR's reasoning
   drifted, or whether a new ADR should be added there — that's still
   on whoever's making the change, per that page's own notes.
-- No draft under `decisions/drafts/` is `status: decided` while it
-  still has an open `Assumptions` entry — the hard gate in
-  [`decisions/README.md#drafts`](decisions/README.md#drafts).
-  Presence-of-a-bullet only, not whether the claim is genuinely
-  resolved — that judgment call is still on whoever sets the status.
 - Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`):
   revision numbers run 000..NNN with no gaps; at most one revision is
   `accepted`; a `superseded` revision names a later `accepted` (or
@@ -249,8 +240,10 @@ these narrow, structural things:
   `narrows`, `related`, and `former_ids` reference real lineages, and a
   `former_ids` entry is never a live lineage. Each lineage directory is
   linked from `decisions/README.md`. An `approved` or `accepted`
-  revision has no open `Assumptions` entry (same presence-of-a-bullet
-  test as drafts).
+  revision has no open `Assumptions` entry — the hard gate in
+  [`decisions/README.md#assumptions`](decisions/README.md#assumptions).
+  Presence-of-a-bullet only, not whether the claim is genuinely
+  resolved; that judgment call is still on whoever sets the status.
 - A project's `decision:` revision must be in the state its status
   requires: `not-started` → `working` or `approved`, `de-risking` →
   `working`, `building` → `approved`, `done` → `accepted`. A revision

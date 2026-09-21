@@ -1,14 +1,16 @@
 ---
-id: DRAFT-r2-read-watcher-siem-replacement
-title: "Replace r2_read_watcher.py with a proper audit pipeline (e.g. Wazuh)?"
-type: draft-adr
-status: draft
+id: ADR-0045
+revision: 0
+type: adr
+title: Security event collection and alerting
+solution: 'Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts'
+summary: Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs.
+topic: security-hardening
+status: working
+narrows: ADR-0026
 ---
 
 # Replace r2_read_watcher.py with a proper audit pipeline (e.g. Wazuh)?
-
-**Status:** Draft — leaning toward a placement (see Decision below);
-CPU fit and ARM64 support still unverified, no spike run yet
 
 ## Context
 
@@ -38,7 +40,7 @@ folded in here rather than left open:
   Wazuh's own docs list 4 cores/8 GB RAM/50 GB disk as the *minimum*
   for a single-node stack (manager+indexer+dashboard) — before adding
   the Beszel/Kuma processes
-  [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)
+  [`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)
   already plans for that box. Wazuh alone is double the free OCPU
   budget. Single-node Wazuh's Docker docs also only listed AMD64 until
   recently — ARM64 (what Ampere A1 actually is) only appears as
@@ -61,7 +63,7 @@ folded in here rather than left open:
   same consumer hardware as everything else in this lab.
 - **Conclusion, revised now that Beszel/Kuma are moving to GCP e2-micro
   instead of OCI** (see
-  [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md)):
+  [`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)):
   OCI's Ampere A1 free tier, if handed to Wazuh alone rather than
   shared with Beszel/Kuma, clears the *RAM* minimum (12 GB vs. the
   documented 8 GB floor) but still falls short on *CPU* (2 OCPU vs. the
@@ -105,8 +107,8 @@ already depends on — not about site independence.
   to resolve, not this one's — but this draft's OCI-dedicated plan
   depends on it: if e2-micro can't carry both, OCI doesn't get freed
   up for Wazuh alone and this Decision needs revisiting.
-- **Gated on [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md)
-  reaching `decided`**, same as the off-site-monitoring draft above and
+- **Gated on [`../0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
+  reaching `approved`**, same as the off-site-monitoring draft above and
   for the same reason: OCI is a host outside physical/network control,
   and this is the first time this repo would hand it a real credential.
   No production credential goes onto the OCI box until that's decided

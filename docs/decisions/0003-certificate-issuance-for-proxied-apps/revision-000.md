@@ -59,7 +59,7 @@ Its hostname is still individually logged to CT logs as a result.
 Fully closing the CT-log exposure this ADR's second consideration
 cares about would mean routing `tinyauth` through the wildcard vhost
 too; see
-[`tinyauth-lab-domain-wildcard-not-exact-host-cert.md`](../drafts/tinyauth-lab-domain-wildcard-not-exact-host-cert.md)
+[`0003-certificate-issuance-for-proxied-apps/revision-001.md`](revision-001.md)
 for why that's not actually "the same wildcard vhost" (tinyauth lives
 at a different domain level) and what closing this gap looks like
 instead.

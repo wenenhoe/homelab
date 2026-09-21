@@ -17,7 +17,7 @@ _spec = importlib.util.spec_from_file_location("check_doc_drift", SCRIPTS / "che
 drift = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(drift)
 
-INDEX_DIRS = ("docs", "docs/decisions", "docs/decisions/drafts", "docs/architecture", "docs/projects")
+INDEX_DIRS = ("docs", "docs/decisions", "docs/architecture", "docs/projects")
 
 
 class _TmpRepo(unittest.TestCase):
@@ -95,7 +95,7 @@ class NistAlignmentTest(_TmpRepo):
         drift.check_nist_alignment_currency()
         self.assertEqual(drift.errors, [])
 
-    def test_links_outside_lineages_and_drafts_are_ignored(self):
+    def test_links_outside_lineages_are_ignored(self):
         self.write("docs/decisions/0001-flat.md", "# not a lineage\n")
         self.write("docs/host-vars.md", "# Host vars\n")
         self.write("docs/nist-800-53-alignment.md", "[flat](decisions/0001-flat.md) and [other](host-vars.md)\n")
@@ -121,11 +121,11 @@ class DecisionPathMentionTest(_TmpRepo):
 
     def test_a_missing_path_fails_in_comments_and_docs(self):
         self.write("tools/tool.py", "# see docs/decisions/0009-gone/revision-000.md.\n")
-        self.write("docs/topic.md", "See docs/decisions/drafts/deleted.md for more.\n")
+        self.write("docs/topic.md", "See docs/decisions/0008-gone/revision-001.md for more.\n")
         drift.check_decision_path_mentions()
         self.assertEqual(len(drift.errors), 2, drift.errors)
         self.assertTrue(any("tool.py" in e and "0009-gone/revision-000.md" in e for e in drift.errors))
-        self.assertTrue(any("topic.md" in e and "drafts/deleted.md" in e for e in drift.errors))
+        self.assertTrue(any("topic.md" in e and "0008-gone/revision-001.md" in e for e in drift.errors))
 
     def test_a_missing_path_is_caught_in_every_scanned_extension(self):
         missing = "docs/decisions/0009-gone/revision-000.md"

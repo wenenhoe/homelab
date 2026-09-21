@@ -1,13 +1,15 @@
 ---
-id: DRAFT-crowdsec-scope-perimeter-vs-per-vm-agents
-title: "CrowdSec: perimeter-only on OPNsense, or perimeter plus per-VM agents?"
-type: draft-adr
-status: draft
+id: ADR-0039
+revision: 0
+type: adr
+title: Intrusion detection scope
+solution: 'Undecided: CrowdSec at the perimeter only, or with per-VM agents'
+summary: Whether detection lives only on the OPNsense perimeter or also on each VM, without inspecting the lab's own TLS.
+topic: security-hardening
+status: working
 ---
 
 # CrowdSec: perimeter-only on OPNsense, or perimeter plus per-VM agents?
-
-**Status:** Draft — exploratory, no scope chosen yet
 
 ## Context
 
@@ -35,7 +37,7 @@ different footprints:
   LAPI. Much richer coverage, real per-host resource cost, and a new
   fleet-wide credential (each agent's LAPI key) — another instance of
   the Secret Zero question
-  ([`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md)),
+  ([`../0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)),
   not a separate problem.
 
 A blocker worth naming plainly rather than discovering mid-build:
@@ -67,7 +69,7 @@ Phase 2 dependency, not to answer them.
   off-site-monitoring). Not confirmed either way.
 - **Per-VM agent scope, if chosen, needs its own Secret Zero answer**
   for each agent's LAPI key — genuinely the same open question as
-  [`secret-zero-bootstrap-pattern.md`](secret-zero-bootstrap-pattern.md),
+  [`../0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md),
   not a new one to solve independently.
 
 ## Consequences

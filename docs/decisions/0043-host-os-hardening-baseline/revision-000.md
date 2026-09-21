@@ -1,13 +1,16 @@
 ---
-id: DRAFT-os-hardening-baseline-not-yet-chosen
-title: "OS hardening: adopt a third-party baseline, or a hand-picked subset via this repo's own roles?"
-type: draft-adr
-status: draft
+id: ADR-0043
+revision: 0
+type: adr
+title: Host OS hardening baseline
+solution: 'Undecided: a third-party baseline, or a hand-picked subset in this repo''s own roles'
+summary: A deliberate host-level hardening pass (SSH, sysctl, auditd, mandatory access control), not only per-component least privilege.
+topic: security-hardening
+status: working
+related: [ADR-0004, ADR-0020, ADR-0026]
 ---
 
 # OS hardening: adopt a third-party baseline, or a hand-picked subset via this repo's own roles?
-
-**Status:** Draft — exploratory, no comparison run yet
 
 ## Context
 
@@ -26,8 +29,8 @@ Baseline role, or hand-picking a narrow subset directly into this
 repo's own roles instead of adopting someone else's role wholesale.
 
 This has become more load-bearing than a nice-to-have: both offsite
-drafts ([`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md),
-[`r2-read-watcher-siem-replacement.md`](r2-read-watcher-siem-replacement.md))
+drafts ([`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md),
+[`../0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md))
 now name a hardening pass as a companion gate to Secret Zero, precisely
 because a GCP/OCI free-tier instance starts from a cloud provider's
 default image, not a baseline this repo has ever defined.
@@ -74,7 +77,7 @@ question and the real alternatives, not to pick one.
 - **Resource cost on e2-micro specifically** — some baselines add
   auditd/aide-style continuous scanning that costs real CPU/RAM on a
   1 GB box already tight per
-  [`off-site-monitoring-independence-not-oci-tailscale-tunnel.md`](off-site-monitoring-independence-not-oci-tailscale-tunnel.md).
+  [`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md).
   Not checked.
 
 ## Consequences

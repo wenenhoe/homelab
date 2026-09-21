@@ -164,7 +164,7 @@ skipping it is how a real fact gets lost instead of promoted.
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
-| [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Split maintainer client identities and the fetch-review-push workflow, so the coding-agent host never holds or reaches a push credential. |
+| [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md), [`workstation-management.md`](workstation-management.md) | Split maintainer client identities and the fetch-review-push workflow, so the coding-agent host never holds or reaches a push credential. |
 | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
 | [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition, with a dedicated key and a CD-agent job that holds nothing else. |
 | [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
@@ -176,6 +176,8 @@ skipping it is how a real fact gets lost instead of promoted.
 | [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | Build the isolated 5XX block and run the first restore.yaml against it. |
 | [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Kea, VLAN, and static DNS configured through OPNsense's API. |
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
+| [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | Not started — waiting on [`workstation-management.md`](workstation-management.md) | Split the workstation into driving, maintainer, and operator tiers and retire each infrastructure credential from the tiers that no longer need it. |
+| [`workstation-management.md`](workstation-management.md) | De-risking | Bring VM 401 under Ansible management: inventory group, role, per-user remote sessions, and a tested account and SSH configuration. |
 
 ## By initiative
 
@@ -185,8 +187,10 @@ skipping it is how a real fact gets lost instead of promoted.
 | `coding-agent-host` | `boundary` | `2-host` | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) |
 | `coding-agent-host` | `boundary` | `3-network-as-code` | [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md), [`coding-agent-network.md`](coding-agent-network.md) |
 | `coding-agent-host` | `lifecycle` | — | [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) |
-| `coding-agent-host` | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) |
+| `coding-agent-host` | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md), [`workstation-management.md`](workstation-management.md) |
 | `coding-agent-host` | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) |
+| `maintainer-workstation` | `management` | `1-management` | [`workstation-management.md`](workstation-management.md) | De-risking |
+| `maintainer-workstation` | `capabilities` | — | [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | Not started — waiting on [`workstation-management.md`](workstation-management.md) |
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building |
 | `off-site-monitoring` | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped |
 | `pull-based-cd` | `agent` | — | [`cd-agent.md`](cd-agent.md) | De-risking |

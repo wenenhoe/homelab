@@ -12,11 +12,6 @@ phase: 2-molecule-runtime
 depends_on:
   - project: PROJ-coding-agent-host
     reason: The runtime must be validated on the isolated host it will run on, not a stand-in
-allowed_paths:
-  - ansible/roles/coding_agent/**
-  - docs/coding-agent.md
-  - docs/molecule-testing.md
-  - docs/molecule-fixtures.md
 ---
 
 # Coding-Agent Molecule Runtime
@@ -52,7 +47,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Agent handoff
 
-- **Allowed to change:** `allowed_paths` in the frontmatter.
+- **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
 - **Must not change:** scenario fixtures or the `molecule-dind` image to make a candidate pass; a needed fixture change is a stop condition.
 - **Relevant files and interfaces:** `ansible/roles/compose/molecule/default/molecule.yml`, `ansible/roles/molecule_helpers/tasks/start_openbao_test_target.yaml`, `docker/molecule-dind/`.
 - **Required checks:** `pre-commit run --all-files`; the adopted scenarios.

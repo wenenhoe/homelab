@@ -12,6 +12,8 @@ phase: 1-access-path
 depends_on:
   - project: PROJ-coding-agent-host
     reason: The forced-command fetch key and the driving key are installed on the host, which must exist first
+  - project: PROJ-workstation-management
+    reason: The driving identity and its SSH and editor configuration are defined by the workstation role
 ---
 
 # Coding-Agent Access and Review Path
@@ -33,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: a forced-command key serves `git fetch` for a repository owned by the agent account | Not started | The assumption in ADR 0055 is resolved |
-| 2 | Driving identity on the workstation and the host-side keys | Not started | The driving identity connects with its dedicated key only, with agent, X11, and port forwarding off; the fetch key cannot open a shell |
+| 2 | Driving identity (defined in the workstation role) and the host-side keys | Not started | The driving identity connects with its dedicated key only, with agent, X11, and port forwarding off; the fetch key cannot open a shell |
 | 3 | Fetch-review-push workflow documented | Not started | The remote setup, review-before-execute rule, and push step are in a topic doc; ADR 0050 is `accepted` |
 | 4 | Credential checks | Not started | The host holds no git credential of any kind, and the driving identity cannot read infrastructure keys or the push credential |
 
@@ -53,7 +55,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Open items
 
-- How the workstation's desktop session is used, which decides whether OS-account separation is enough.
+- Whether OS-account separation with a desktop session per identity is enough; the same question sits in [ADR 0056](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md).
 
 ## Closing checklist
 

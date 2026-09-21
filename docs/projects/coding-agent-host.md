@@ -12,14 +12,6 @@ phase: 2-host
 depends_on:
   - project: PROJ-coding-agent-network
     reason: The host's NIC must land in a VLAN whose default-deny policy already exists, so the agent is never run on an open segment
-allowed_paths:
-  - ansible/roles/coding_agent/**
-  - ansible/playbooks/coding-agent.yaml
-  - ansible/inventory/**
-  - docs/coding-agent.md
-  - docs/ansible.md
-  - docs/molecule-testing.md
-  - docs/README.md
 ---
 
 # Coding-Agent Host
@@ -57,7 +49,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Agent handoff
 
-- **Allowed to change:** `allowed_paths` in the frontmatter.
+- **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
 - **Must not change:** other hosts' inventory entries, the `all.vars` key, any existing role's behavior.
 - **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (`all.vars` key inheritance), `docs/network-infra.md` (the pattern for a host outside `managed_hosts`).
 - **Required checks:** `pre-commit run --all-files`; the role's Molecule scenario.

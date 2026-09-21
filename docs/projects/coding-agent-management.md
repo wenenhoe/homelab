@@ -51,7 +51,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- Until the CD agent exists, rebuilds are run from the workstation, which places the host's key there.
+- Until the CD agent exists, rebuilds are run from the operator host, which holds the host's key ([ADR 0058](../decisions/0058-where-operator-work-runs/revision-000.md)).
 - Each rebuild needs an interactive Claude login and loses unfetched work.
 
 ## Open items

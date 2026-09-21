@@ -7,14 +7,14 @@ solution: Its own VLAN, default-deny both ways at OPNsense, egress through a dom
 summary: What the coding-agent host can reach and be reached from, enforced at the firewall rather than on the host.
 topic: security-hardening
 status: working
-related: [ADR-0020, ADR-0039, ADR-0040]
+related: [ADR-0020, ADR-0039, ADR-0040, ADR-0058]
 ---
 
 # 0053. Network reach of the coding-agent host
 
 ## Problem
 
-A compromised agent session on the coding-agent host has no network path to the secrets store, the CD agent, the managed hosts, the Proxmox node, or the maintainer's workstation. The boundary is enforced outside the host, so it holds whatever runs on it.
+A compromised agent session on the coding-agent host has no network path to the secrets store, the CD agent, the operator host, the managed hosts, the Proxmox node, or the maintainer's workstation. The boundary is enforced outside the host, so it holds whatever runs on it.
 
 ## Context
 
@@ -29,7 +29,7 @@ Claude Code needs `api.anthropic.com`, `claude.ai` and `platform.claude.com` for
 ## Decision
 
 - **Zone.** A dedicated VLAN in the 6XX range (VMID 601 gives VLAN 60, `192.168.60.0/24`), default-deny in both directions at OPNsense.
-- **Inbound.** SSH only, from two sources: the maintainer client ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)) and the CD agent for provisioning ([ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md)). Each is source-restricted, with sshd enforcing the pairing per account.
+- **Inbound.** SSH only, from two sources: the maintainer client ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)) and, for provisioning, the CD agent or, until it exists, the operator host ([ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), [ADR 0058](../0058-where-operator-work-runs/revision-000.md)). Each is source-restricted, with sshd enforcing the pairing per account.
 - **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied.
 - **DNS.** The host resolves through a resolver that serves no internal zones.
 - **Tailnet.** The host does not join Tailscale, and the subnet router's advertised routes never include its VLAN.
@@ -61,7 +61,7 @@ Claude Code needs `api.anthropic.com`, `claude.ai` and `platform.claude.com` for
 
 ## Invariants
 
-- No flow from the VLAN to any other internal VLAN, OpenBao, the CD agent, the workstation, or the Proxmox management address.
+- No flow from the VLAN to any other internal VLAN, OpenBao, the CD agent, the operator host, the workstation, or the Proxmox management address.
 - Inbound sessions are stateful and source-restricted; nothing is initiated from the VLAN into another zone.
 - The VLAN's subnet is inside no AppRole CIDR binding.
 

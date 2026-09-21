@@ -1,151 +1,233 @@
 # Architecture Decision Records
 
-A short record of *why* a specific design was chosen when the reasoning
-is non-obvious, contested, or has a real alternative someone could
-reasonably ask "why not X instead?" about. Not a changelog and not a
-bug log — a fixed bug belongs in the doc it affects (stated as current
-behavior) or in the PR/commit that fixed it, not here.
+A decision record explains *why* the system is built the way it is, when
+the reasoning isn't obvious from the code. It is not a changelog, a bug
+log, a plan, or a description of current behavior — those live in git
+history, [`projects/`](../projects/README.md), and topic docs
+([`docs/README.md`](../README.md)).
 
 Write one when a decision:
 
-- trades off two real options and the choice isn't obvious from the
-  code alone (e.g. accepting a security gap because the alternative
-  isn't available on a given platform)
-- would be expensive to reverse, or someone new to the repo would
-  otherwise have to reconstruct by reading old commits/PRs
-- is still open (a known gap, tracked but not yet resolved)
+- trades off two real options and the choice isn't obvious from the code
+  alone (e.g. accepting a security gap because the alternative isn't
+  available on a given platform)
+- would be expensive to reverse, or someone new would otherwise have to
+  reconstruct it from old commits
+- is still open — a known gap, tracked but not yet resolved
 
-Use [`TEMPLATE.md`](TEMPLATE.md) for new entries once a decision is
-ready to record. Number sequentially; never renumber or delete a
-superseded one — mark it `Superseded by 000N` instead, so old links
-keep resolving. If the superseded ADR is referenced from
-[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md), review
-whether the control mapping still holds and update it in the same
-patch — the file doesn't move on supersession, so nothing else makes
-that reference look broken; `check-doc-drift.py` fails the build until
-it's addressed precisely because of that.
+Skip it for a trivial or cheaply reversible choice, an implementation
+detail inside an established pattern, or a temporary experiment.
 
-## Editing an accepted ADR
+## Lineages and revisions
 
-Its Context and Decision — the actual reasoning and what was chosen —
-don't get rewritten after acceptance; a changed mind is a new ADR
-marking this one `Superseded by`, not an edit to this one. That's what
-"accepted" is for: a reader trusts that what an ADR says was decided
-is still what it says, unless the Status line tells them otherwise.
+One **lineage** per problem: a directory `NNNN-problem-slug/` holding one
+file per solution tried for it. The lineage's number identifies the
+problem and is never reused. The title names the problem, never the
+solution ("Secret storage", not "OpenBao, not a file cache"); each
+revision's `solution:` field carries the answer. Use
+[`TEMPLATE.md`](TEMPLATE.md).
 
-A small in-place edit is fine when it doesn't touch that: closing a
-loop this ADR's own Consequences left open (a "worth revisiting" note
-becoming an actual link once something exists to link to, the same way
-[0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md)'s
-Status line already carries an in-place "OCI superseded by 0016"
-pointer), or correcting a plain factual detail that was wrong even at
-the time. If it's unclear which side of that line an edit falls on,
-treat it as a decision change and supersede instead — a wrong guess in
-that direction costs a new file number; a wrong guess the other way
-costs someone's trust in what "Accepted" means here.
+Files are `revision-NNN.md`, numbered by **generation**: `revision-000.md`
+is the original solution and `revision-001.md` is what replaces it.
+Solutions that compete to fill the same generation are lettered
+**candidates** — `revision-000-a.md`, `revision-000-b.md` — because
+neither revises the other. Letters run a, b, c… with none missing and are
+required only once a generation has more than one candidate (a lone one is
+unlettered or `a`). A revision is named in `supersedes`, `superseded_by`,
+and a project's `decision:` by its label: `0`, or `0-b` for a lettered
+candidate.
 
-## Drafts
+Before creating a lineage, check that:
 
-A numbered ADR here means "decided, and either built or being built" —
-not "under consideration." A decision that depends on something
-unverified (another stage's not-yet-built design, a tool's real
-behavior, a component that doesn't exist yet) starts as a draft in
-[`drafts/`](drafts/) instead: same shape as `TEMPLATE.md`, plus an
-`Assumptions` section naming exactly what's unverified and how it gets
-checked. Drafts are unnumbered, freely rewritten or deleted in place —
-nothing else in this repo should ever cite one as settled.
+1. the problem can be stated without naming a solution;
+2. a different solution could later answer the same problem;
+3. replacing the solution would replace the whole record. If part of it
+   would still stand, that part is a second problem — make two lineages.
 
-**Hard gate:** production implementation must never begin on a draft
-that still has an open `Assumptions` entry. While any entry is open,
-the only engineering work allowed against that draft is a time-boxed,
-throwaway spike aimed at resolving one specific entry — same as this
-repo's general spike discipline, just scoped to a draft instead of a
-numbered decision. Not every entry needs a spike — reading existing
-code, or simply waiting on another stage to land, resolves plenty of
-them without writing anything throwaway; the gate is about production
-code specifically, not all de-risking activity.
+A lineage is not a topic grouping. Several decisions that make up one
+initiative are separate lineages sharing a `topic:`; the generated index
+below groups by it.
 
-A draft's **Status:** line tracks this directly (`status:` in
-frontmatter), using the same vocabulary as a project stage
-([`docs/projects/README.md#what-goes-in-one`](../projects/README.md#what-goes-in-one)):
-`Draft` while the design itself is still being written, before its
-open questions have settled into concrete `Assumptions` entries;
-`De-risking` once at least one entry is open and is actively being
-worked, by whatever means actually resolves it; `Decided` only once
-every `Assumptions` entry is resolved — folded into Context as settled
-fact, or the Decision revised to no longer need it — so the design is
-genuinely settled and only implementation remains. None of these is a
-promise of promotion; the file stays unnumbered and in `drafts/` until
-promotion actually happens.
+## Revision states
 
-Promotion to a real ADR happens once the design has been `Decided` and
-is actually implemented — not at decide-time, and never while an
-Assumption is still open. At that point: assign the next sequential
-number, drop the `Assumptions` section entirely (everything in it is
-now either settled fact folded into Context, or moot), set
-`Status: Accepted` directly, move the file from `drafts/` into this
-directory, and add it to the index below.
-Update every place elsewhere in the repo that links to the draft's old
-path to the new one in the same patch — a link that still resolves
-(the file exists, just moved) is easy to miss, since nothing fails
-loudly the way a genuinely broken link does. If the draft is
-referenced from
-[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md),
-repointing the link isn't enough on its own — re-check the mapping
-still holds now that the design is final, in the same patch.
-
-A draft can also just be deleted — abandoned, or superseded by a
-different approach before ever being built. When that happens, every
-inward link to it needs resolving in the same patch: repoint it if
-the topic has a new home (the decision that replaced it, a topic doc,
-a project doc), or remove the reference outright if it doesn't.
-`check-doc-drift.py` catches a dangling link to a deleted file, but
-not a link quietly left pointing at the wrong thing — that part is on
-whoever's deleting it.
-
-## Index
-
-| ADR | Status | Decision |
+| State | Meaning | Reasoning may change? |
 | :--- | :--- | :--- |
-| [0001](0001-adopt-ansible-not-manual-deployment.md) | Accepted | Adopt Ansible as the only way any host is configured, replacing manual per-host `docker compose` over SSH. |
-| [0002](0002-caddy-not-nginx-proxy-manager.md) | Accepted | Use Caddy, configured entirely via a checked-in `Caddyfile`, instead of Nginx Proxy Manager's UI/database-backed config. |
-| [0003](0003-caddy-wildcard-certs-not-per-app.md) | Accepted, partially applied | Route most apps through one wildcard cert per host instead of one cert per app — flatter config, and avoids exposing individual app hostnames in public Certificate Transparency logs. `tinyauth` is still a deliberate exception. |
-| [0004](0004-docker-socket-proxy-not-raw-socket.md) | Accepted | Any container needing Docker API access gets a `docker-socket-proxy` sidecar scoped to exactly the capabilities it needs, never the raw socket — replacing `diun`'s original unrestricted socket mount. |
-| [0005](0005-named-volumes-not-bind-mounts.md) | Accepted | Use Docker-managed named volumes instead of bind mounts, to eliminate host/container UID permission friction and enable a generic backup agent; a Kubernetes migration was considered and rejected around the same time for lack of a real multi-machine cluster. |
-| [0006](0006-backup-credential-blast-radius-threat-model.md) | Accepted | Threat model for the offsite backup: a compromised app host must never reach a cloud credential or another host's archives. Cloud credentials live only on `storage`; each app host's SeaweedFS identity is scoped to its own prefix. |
-| [0007](0007-stepca-custom-entrypoint-not-docker-init-vars.md) | Accepted | Run `step ca init` by hand in a custom entrypoint instead of the official image's `DOCKER_STEPCA_INIT_*` auto-init, so the CA and provisioner passwords stay independent and claim duration is settable. |
-| [0008](0008-stepca-cert-duration-720h.md) | Accepted, flagged for review | step-ca's default cert lifetime is 720h, not step-ca's own 24h — chosen before renewal automation existed; that automation now exists and the value hasn't been revisited. |
-| [0009](0009-lldap-ldaps-cert-via-stepca-not-certbot.md) | Accepted | Issue lldap's LDAPS cert from the internal step-ca via host-level systemd timers, replacing the original certbot + DNS-01 + docker-socket-proxy sidecar pair. |
-| [0010](0010-cloud-sync-copy-not-sync.md) | Accepted | `cloud_sync` relays to R2/B2/OCI via rclone `copy`, never `sync`, and cloud-side retention stays a provider-native, out-of-band lifecycle rule — the actual mechanism (not IAM scoping) that keeps a compromised on-prem host from touching the offsite copy. |
-| [0011](0011-telegram-topics-not-direct-chat.md) | Accepted | Move alerting from a direct one-on-one bot chat to a group chat with Topics, one topic per concern, so a real failure doesn't get lost in routine notification noise. |
-| [0012](0012-backup-freshness-check-per-host.md) | Accepted | Run backup-freshness checks per host instead of one centralized checker on `storage`, because a centralized checker needs cross-host `hostvars` facts that aren't populated under a partial `--limit` deploy. |
-| [0013](0013-credential-caching-stage-1-before-secrets-manager.md) | Superseded by [0027](0027-openbao-not-file-cache-or-committed-secrets.md) | Cache rotation/leaf credentials to `ansible/files/secrets/` now; defer a real secrets manager to a later, separately-scoped project. |
-| [0014](0014-r2-rotation-token-accepted-as-master-equivalent.md) | Accepted | Cache Cloudflare R2's admin token as the de facto rotation credential, accepting it's master-equivalent (unlike B2's/OCI's narrower rotation keys), because Cloudflare's API structurally can't mint a scoped delegate for it. |
-| [0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md) | Accepted (OCI superseded by 0016) | All 6 leaf credentials and 3 rotation keys/tokens now expire after 90 days — B2/R2 natively, OCI via a self-tracked cache-file timestamp — checked by a systemd user timer on `controller`, not an Ansible role. |
-| [0016](0016-oci-expiry-via-scim-not-self-tracked-cache-files.md) | Accepted | OCI leaf-key creation and expiry both move to Identity Domains SCIM, replacing the classic API entirely; the rotation credential (now a Confidential Application's OAuth2 client credentials) keeps self-tracked expiry, since it has no native expiry of its own. |
-| [0017](0017-openbao-bootstrap-secret-split.md) | Accepted | Split secrets into recovery-critical (Shamir shares, one scoped read-only snapshot credential — live outside OpenBao permanently) and operational (everything else, Vault-only once it's up), so OpenBao can be bootstrapped from nothing. |
-| [0018](0018-manual-shamir-unseal.md) | Accepted | Manual Shamir unseal, not cloud auto-unseal — `security`'s confirmed reboot history shows no unattended-reboot pattern, so the scenario auto-unseal defends against doesn't occur on this host. |
-| [0019](0019-openbao-snapshot-push-standalone.md) | Accepted | `snapshot-push.sh` pushes directly from `security` to R2/B2, never routed through `backup_agent`/`cloud_sync` — keeps `storage` (and the write leaf it would otherwise need) entirely out of OpenBao's recovery path. |
-| [0020](0020-controller-single-broad-approle-not-split-by-consumer.md) | Accepted | `controller` holds one broad AppRole covering hosts, leaf, and rotation secrets plus a read-only snapshot path, not split per secret family, since it's the only automation identity that exists today. |
-| [0021](0021-vault-path-convention-hosts-all-for-global-secrets.md) | Accepted | Secrets with no single host owner (referenced from `group_vars/all/main.yaml`) live under `secret/data/hosts/all/<concern>/*`, inside 0020's already-Accepted `hosts/*` grant, instead of a new top-level Vault path. |
-| [0022](0022-controller-vault-tls-trust-via-per-run-fetched-root-cert.md) | Accepted | The controller trusts OpenBao's TLS cert by fetching step-ca's root cert fresh from `security` into a `tempfile`-backed path every run, mirroring `step_ca_client`'s pattern — never skip-verify, never a committed copy. |
-| [0023](0023-openbao-repoint-not-native-plugin.md) | Accepted | Repoint `tools/cloud_credentials`'s existing per-provider Python at OpenBao's KV v2 API instead of building a native lease-based secrets-engine plugin. Leaf credentials rotate every 30 days, rotation/master credentials every 90, as scheduled jobs on the CD agent — not `controller`. |
-| [0024](0024-r2-admin-token-into-openbao.md) | Accepted | Move R2's admin token into OpenBao after all, scoped to one path/one AppRole with a per-read alert, now that scheduled rotation gives it a real automated consumer. Its 90-day cycle can only be auto-cached, never auto-minted — Cloudflare's API can't mint a replacement token itself. |
-| [0025](0025-openbao-reinit-with-standing-vault-bootstrap-role.md) | Accepted | Re-init OpenBao now (not deferred to the eventual full cutover) with a standing narrow `vault-bootstrap` AppRole, so this repo can create new Vault policies/AppRoles - including ADR 0026's watcher - without a permanent root token. |
-| [0026](0026-openbao-audit-device-and-r2-per-read-watcher.md) | Accepted | Enable a permanent, declarative (not API-driven) stdout audit device on OpenBao, and build a dedicated, least-privilege watcher for ADR 0024's R2 admin-token per-read alert, rather than the API/CLI audit-enable route or reusing controller's own AppRole. |
-| [0027](0027-openbao-not-file-cache-or-committed-secrets.md) | Accepted | Adopt OpenBao as a standing secrets store, superseding 0013's file-cache-until-later approach — rejected Ansible Vault and SOPS/age too, since both are built around committing encrypted secrets to git, which the goal here was to avoid entirely. |
-| [0028](0028-doc-governance-frontmatter-and-nist-alignment.md) | Accepted | Adopt YAML frontmatter (`id`/`type`/`status`, plus a few narrow extras) on every project/decision doc, a generator that regenerates the two hand-maintained README index tables from it, and a single narrative NIST SP 800-53 alignment doc — not per-doc compliance tags — for portfolio purposes. |
-| [0029](0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md) | Accepted | Move `tools/cloud_credentials`'s OCI SCIM and B2 flows onto their official SDKs (`oci.identity_domains.IdentityDomainsClient`, `b2sdk`), confirmed live for both; R2 and OCI's classic-IAM bootstrap stay on raw `requests`. |
-| [0030](0030-openbao-hvac-paramiko-clients.md) | Accepted | Every internal Python client that talks to OpenBao directly (`cache.py`, `openbao_utils/bootstrap.py`, `openbao_utils/audit.py`, `r2_read_watcher.py`) uses `hvac`, and `paramiko` where an SSH hop is needed, replacing hand-rolled `requests`/`subprocess`; whether they also share an implementation is a separate, later decision. |
-| [0031](0031-tools-secrets-package-split.md) | Accepted | New root-level `tools/` directory: `tools/cloud_credentials/` (B2/OCI/R2 minting, moved unchanged) and a shared OpenBao/Vault client split into `tools/openbao_utils/` (genuinely OpenBao-specific) and `tools/utils/` (generic repo-navigation/SSH helpers that had accreted there). |
-| [0032](0032-consolidate-openbao-utility-scripts.md) | Accepted | `tools/openbao_client/` renamed to `tools/openbao_utils/`; `bootstrap_secrets.py`/`audit_secrets.py`/both restore scripts (merged) moved there from `ansible/`, `dump_vault_to_file_cache.py`/`diff_vault_backups.py` moved there from `cloud_credentials/`; `restore_all.py`/`molecule-test-all.sh` moved into a new `ansible/scripts/`. |
-| [0033](0033-bao-session-local-only-drops-broken-security-path.md) | Accepted | `bao_session.py` stays local to `controller` - the drafted `security`-relay never had a working "local" half to relay away from (the repo isn't checked out there), and `controller`'s native `bao` stays regardless for `snapshot-push.sh`'s sake. Adds an explicit `SIGHUP` handler for the unclean-disconnect gap the relay spike surfaced. |
-| [0034](0034-native-bao-cli-not-docker-exec-or-run.md) | Accepted | Native `bao` CLI on `security` (Ansible-managed) and `controller` (personal setup), real TLS via `-tls-server-name`, replacing the `docker exec`/alias/throwaway-`docker run` patterns everywhere except init/unseal (stays `docker exec`, permanently, by necessity). Merges the three retired `bao-*.sh` scripts into `bao_session.py`; moves `snapshot-push.sh` onto `controller` entirely - revises [0019](0019-openbao-snapshot-push-standalone.md)'s now-stale "from `security`" detail. |
-| [0035](0035-not-adopting-kubernetes-on-current-hardware.md) | Accepted | Stay on Docker Compose + Ansible on the single Proxmox host; Kubernetes doesn't pay for itself given per-node overhead on a 6-core/32GB box, and an OCI free-tier instance can't safely sit in a control-plane's consensus quorum regardless. Revisit only on a real trigger (workload variance, expanded hardware, a genuine rolling-deploy need), not on a schedule. |
-| [0036](0036-beszel-notification-url-no-env-var-support.md) | Accepted | Beszel's notification URL (shoutrrr) has no environment-variable expansion anywhere in its source or the vendored shoutrrr fork — confirmed by reading `henrygd/beszel` directly. The Telegram token stays hand-typed into the web UI, DB-resident, same category as Beszel's KEY/TOKEN bootstrap. |
+| `working` | A solution under consideration; open assumptions allowed. | Yes |
+| `approved` | No open assumptions; production implementation may begin. | Yes, but a new material assumption returns it to `working`. |
+| `accepted` | Implemented and on `main`. | No — editorial fixes only. |
+| `superseded` | Replaced by a later revision that is itself `accepted`. | No |
+| `abandoned` | A `working` revision no longer pursued. Keep it if the rejected reasoning is useful; delete it if it was only exploration. | No |
+| `retired` | The problem no longer exists and nothing replaces the solution. | No |
+
+```text
+working ─────► approved ─────► accepted ─────► superseded
+   │  ▲            │                │       (a successor is accepted)
+   │  └────────────┘                └─────► retired
+   │   new material assumption
+   └─────► abandoned
+```
+
+`accepted` means what most ADR practice means by it — binding and
+immutable. `approved` is the state before that: authorized to build, not
+yet built.
+
+- Only one revision per lineage is `accepted`. A successor can be
+  `working` or `approved` at the same time; the older revision becomes
+  `superseded` only once the successor is `accepted`, and the successor
+  declares `supersedes:` back.
+- A material change to an `accepted` or `superseded` revision is a new
+  revision in the same lineage, never an edit. When a superseded ADR is
+  referenced from [`nist-800-53-alignment.md`](../nist-800-53-alignment.md),
+  re-check the mapping in the same patch; `check-doc-drift.py` fails
+  until it is addressed.
+- Competing candidates in one generation stay `working` until one is
+  `approved`; the others are then `abandoned`, because approval
+  authorizes one design and never two. Letters record the order the
+  candidates were written in, not which is preferred.
+
+## Assumptions
+
+An **assumption** is an explicitly identified condition that must be true
+for the solution to be valid. Only open ones are recorded, under
+`## Assumptions`; resolving one folds the fact into Context (or changes
+the Decision) and deletes the entry. A revision with any entry can't be
+`approved` — `check-doc-drift.py` enforces it — and only a time-boxed,
+throwaway spike, or reading code, may work on one meanwhile.
+
+Unknown unknowns are not predicted. When implementation finds a
+condition that invalidates the solution, record it as an assumption and
+return the revision to `working`; the project stops (see
+[`docs/projects/README.md#stop-conditions`](../projects/README.md#stop-conditions)).
+An agent may do exactly that — append an open assumption and set
+`approved` → `working` — and nothing else to an `approved` or `accepted`
+revision.
+
+## Editing a revision
+
+- **Editorial** (typos, a wrong fact that was wrong at the time, a link)
+  — any state.
+- **Metadata** (`status`, `supersedes`, `superseded_by`, `narrows`,
+  `related`, `former_ids`) — any state; it records lifecycle, not
+  reasoning.
+- **Material** (the solution, its rationale, its validity conditions) —
+  in place while `working` or `approved`; a new revision once `accepted`.
+
+If it is unclear which side a change falls on, treat it as material.
+
+## Partial supersession
+
+When a later solution replaces only part of an earlier revision's scope,
+don't edit the old record. The new lineage covers just that slice and
+declares `narrows: ADR-NNNN`; the index shows "Narrowed by" on the old
+one. The sizing check above is what prevents this — it only happens when
+an earlier record bundled two problems.
+
+## Projects
+
+An `approved` revision is what a [project](../projects/README.md)
+implements, linked by the project's `decision:` field. The revision
+becomes `accepted` in the pull request that completes the work, and the
+resulting behavior is described in topic docs.
+
+## Lineages
+
+### Deployment & platform
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0001](0001-host-configuration-reproducible-from-repo/revision-000.md) | **Host configuration reproducible from the repo** — Every host converges from what's checked into the repo, so a fresh host needs no manual setup. | Ansible playbooks and roles as the only way any host is configured | Accepted | Related: [0002](0002-reverse-proxy-configuration-reproducible-from-repo/revision-000.md) |
+| [0004](0004-container-access-to-the-docker-api/revision-000.md) | **Container access to the Docker API** — Containers that need the Docker API get only the capabilities they use, never control of every container on the host. | A per-consumer docker-socket-proxy sidecar, never the raw socket | Accepted | Related: [0009](0009-internal-service-certificate-issuance-and-renewal/revision-000.md), [0043](0043-host-os-hardening-baseline/revision-000.md) |
+| [0005](0005-persistent-container-state-and-host-permissions/revision-000.md) | **Persistent container state and host permissions** — App state survives container replacement without UID/permission friction and can be backed up generically. | Docker-managed named volumes, populated by Ansible | Accepted | Related: [0035](0035-container-orchestration-platform/revision-000.md) |
+| [0035](0035-container-orchestration-platform/revision-000.md) | **Container orchestration platform** — Whether a single-host homelab runs an orchestrator, given the resource cost on 6 cores and 32 GB. | Docker Compose with Ansible; no Kubernetes for now | Accepted | Related: [0005](0005-persistent-container-state-and-host-permissions/revision-000.md) |
+| [0040](0040-dns-for-tofu-provisioned-vms/revision-000.md) | **DNS for Tofu-provisioned VMs** — How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time. | A second, dedicated BIND9 on security, fed by the Tofu-to-Ansible inventory generator | Working | — |
+| [0044](0044-prod-automation-trigger-and-execution/revision-000-a.md) | **Trigger and execution of prod-touching automation** — How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host. | Undecided between: (000-a) A pull-based CD agent polling origin/main, not a GitHub-dispatched runner; or (000-b) A private, LAN-only Gitea or Forgejo instance with Actions and a runner on the agent host | Working (000-a), Working (000-b) | Related: [0020](0020-automation-identity-and-access-scope/revision-000.md), [0023](0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) |
+
+### Ingress, TLS & PKI
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0002](0002-reverse-proxy-configuration-reproducible-from-repo/revision-000.md) | **Reverse-proxy configuration reproducible from the repo** — Proxy routes, TLS, and access rules live in a checked-in file, not a UI-backed database, so a rebuilt proxy needs no manual setup. | Caddy, configured by a checked-in Caddyfile | Accepted | Related: [0001](0001-host-configuration-reproducible-from-repo/revision-000.md) |
+| [0003](0003-certificate-issuance-for-proxied-apps/revision-000.md) | **Certificate issuance for proxied apps** — How Caddy-proxied apps get TLS certificates, and whether each app hostname is exposed in public Certificate Transparency logs. | One wildcard certificate per host (tinyauth a deliberate exception) | Accepted (original) | Revision 1 working |
+| [0007](0007-internal-ca-initialization-and-identity-persistence/revision-000.md) | **Internal CA initialization and identity persistence** — How step-ca is initialized idempotently, with independent CA and provisioner passwords, a settable claim duration, and its identity kept outside the image. | A custom entrypoint running step ca init, gated on the config existing | Accepted | Related: [0008](0008-internal-certificate-lifetime/revision-000.md), [0009](0009-internal-service-certificate-issuance-and-renewal/revision-000.md) |
+| [0008](0008-internal-certificate-lifetime/revision-000.md) | **Internal certificate lifetime** — How long certificates from the internal CA live, given the renewal automation that exists. | 720h default provisioner claim duration | Accepted (original) | Revision 1 working; Related: [0007](0007-internal-ca-initialization-and-identity-persistence/revision-000.md) |
+| [0009](0009-internal-service-certificate-issuance-and-renewal/revision-000.md) | **Internal service certificate issuance and renewal** — How a service that terminates its own TLS (lldap's LDAPS, decided here) gets and renews a certificate from the internal CA, without an external ACME provider. | step-ca client roles with systemd renewal timers | Accepted | Related: [0004](0004-container-access-to-the-docker-api/revision-000.md), [0007](0007-internal-ca-initialization-and-identity-persistence/revision-000.md) |
+
+### Secrets store
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0013](0013-secret-storage/revision-001.md) | **Secret storage** — Where the repo's secrets and credentials live, and who and what can read them. | OpenBao as a standing secrets store | Accepted (revision 1) | Related: [0017](0017-recovering-the-secrets-store-from-total-loss/revision-000.md), [0048](0048-where-tofu-credentials-live/revision-000.md); Formerly ADR-0027 |
+| [0017](0017-recovering-the-secrets-store-from-total-loss/revision-000.md) | **Recovering the secrets store from total loss** — OpenBao can be rebuilt from nothing, so nothing needed to fetch its own backup lives only inside it. | Recovery-critical secrets stay outside the store permanently | Accepted | Related: [0006](0006-offsite-backup-credential-blast-radius/revision-000.md), [0013](0013-secret-storage/revision-001.md), [0018](0018-unsealing-the-secrets-store-after-restart/revision-000.md), [0019](0019-openbao-offsite-snapshot-path/revision-000.md), [0020](0020-automation-identity-and-access-scope/revision-000.md) |
+| [0018](0018-unsealing-the-secrets-store-after-restart/revision-000.md) | **Unsealing the secrets store after restart** — How OpenBao is unsealed after a restart without adding a second offline recovery credential. | Manual Shamir key shares | Accepted | Related: [0017](0017-recovering-the-secrets-store-from-total-loss/revision-000.md), [0048](0048-where-tofu-credentials-live/revision-000.md) |
+| [0020](0020-automation-identity-and-access-scope/revision-000.md) | **Automation identity and access scope** — Which identities may read and write which secret paths, given one automation consumer today. | One broad AppRole for controller | Accepted (original) | Revision 1 working; Related: [0017](0017-recovering-the-secrets-store-from-total-loss/revision-000.md), [0021](0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md), [0023](0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md), [0024](0024-r2-admin-token-custody/revision-000.md), [0026](0026-detecting-reads-of-high-value-secrets/revision-000.md), [0043](0043-host-os-hardening-baseline/revision-000.md), [0044](0044-prod-automation-trigger-and-execution/revision-000-b.md), [0048](0048-where-tofu-credentials-live/revision-000.md) |
+| [0021](0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md) | **Secret path layout for secrets with no host owner** — Where secrets that no single host owns are stored, inside the existing access grant. | `hosts/all/<concern>/*` under the existing `hosts/` prefix | Accepted | Related: [0020](0020-automation-identity-and-access-scope/revision-000.md) |
+| [0022](0022-controller-trust-in-the-secrets-store-tls/revision-000.md) | **Controller trust in the secrets store's TLS certificate** — How the controller verifies OpenBao's TLS certificate without skip-verify or a committed copy of the CA. | The step-ca root certificate fetched fresh on every run | Accepted | Related: [0034](0034-operator-access-to-the-openbao-cli/revision-000.md) |
+| [0025](0025-admin-capability-without-a-standing-root-token/revision-000.md) | **Admin capability without a standing root token** — New Vault policies and AppRoles can be created without keeping a permanent root token. | Re-init with a standing narrow vault-bootstrap AppRole | Accepted | Related: [0026](0026-detecting-reads-of-high-value-secrets/revision-000.md) |
+| [0026](0026-detecting-reads-of-high-value-secrets/revision-000.md) | **Detecting reads of high-value secrets** — Every read of the R2 admin token's path is visible and raises an alert. | A declarative stdout audit device plus a least-privilege watcher | Accepted | Narrowed by [0045](0045-security-event-collection-and-alerting/revision-000.md); Related: [0020](0020-automation-identity-and-access-scope/revision-000.md), [0024](0024-r2-admin-token-custody/revision-000.md), [0025](0025-admin-capability-without-a-standing-root-token/revision-000.md), [0043](0043-host-os-hardening-baseline/revision-000.md), [0047](0047-first-credential-bootstrap-for-automated-processes/revision-000.md), [0048](0048-where-tofu-credentials-live/revision-000.md) |
+| [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md) | **OpenBao client implementation in repo Python** — Internal Python that talks to OpenBao or over SSH shares one client approach instead of hand-rolled duplicates. | hvac for Vault and paramiko for SSH | Accepted | Related: [0029](0029-cloud-provider-api-client-library/revision-000.md), [0031](0031-where-repo-tooling-lives/revision-000.md), [0034](0034-operator-access-to-the-openbao-cli/revision-000.md) |
+| [0047](0047-first-credential-bootstrap-for-automated-processes/revision-000.md) | **First-credential bootstrap for automated processes** — How the first credential reaches a process that needs it, without a human typing it or a permanent orchestrator relaying secrets. | Leaning: mTLS for the controller's own auth, response wrapping for one-time handoff | Working | Related: [0026](0026-detecting-reads-of-high-value-secrets/revision-000.md), [0036](0036-beszel-notification-configuration/revision-000.md), [0049](0049-monitoring-that-survives-loss-of-the-site/revision-000.md) |
+| [0048](0048-where-tofu-credentials-live/revision-000.md) | **Where Tofu's own credentials live** — Where the Proxmox and OPNsense API credentials and Tofu's state-backend credential live, given the store may be what is being provisioned. | Undecided: the existing OpenBao, file-based separate secrets, or a dedicated OpenBao instance | Working | Related: [0013](0013-secret-storage/revision-001.md), [0018](0018-unsealing-the-secrets-store-after-restart/revision-000.md), [0020](0020-automation-identity-and-access-scope/revision-000.md), [0026](0026-detecting-reads-of-high-value-secrets/revision-000.md) |
+
+### Cloud credentials
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0014](0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md) | **R2 rotation credential that can't be narrowed** — Cloudflare can't mint a narrower delegate for R2's rotation credential, so its blast radius is accepted and contained. | Cache the R2 admin token as the rotation credential, accepted as master-equivalent | Accepted | Related: [0010](0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md), [0015](0015-cloud-credential-expiry/revision-000.md), [0023](0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md), [0024](0024-r2-admin-token-custody/revision-000.md) |
+| [0015](0015-cloud-credential-expiry/revision-000.md) | **Cloud credential expiry** — Every cloud leaf credential and rotation key expires, and something notices before it does. | Native expiry where a provider has it, self-tracked timestamps where not | Accepted | Narrowed by [0016](0016-oci-credential-creation-and-expiry/revision-000.md); Related: [0014](0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md) |
+| [0016](0016-oci-credential-creation-and-expiry/revision-000.md) | **OCI credential creation and expiry** — How OCI keys are minted and how their expiry is set and tracked, since the classic API has no expiry field. | Identity Domains SCIM with a Confidential Application's OAuth2 client credentials | Accepted | Related: [0023](0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md), [0029](0029-cloud-provider-api-client-library/revision-000.md), [0041](0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) |
+| [0023](0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) | **Reusing cloud-credential logic with the secrets store** — How the existing per-provider credential logic persists its output in OpenBao without being rebuilt. | Repoint the existing scripts at OpenBao KV v2; no native plugin | Accepted | Related: [0014](0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md), [0016](0016-oci-credential-creation-and-expiry/revision-000.md), [0020](0020-automation-identity-and-access-scope/revision-000.md), [0024](0024-r2-admin-token-custody/revision-000.md), [0044](0044-prod-automation-trigger-and-execution/revision-000-b.md) |
+| [0024](0024-r2-admin-token-custody/revision-000.md) | **R2 admin token custody** — Where the R2 admin token lives and who hears about a read, given it can be cached but never minted automatically. | In OpenBao under one path, with a per-read alert | Accepted | Related: [0014](0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md), [0020](0020-automation-identity-and-access-scope/revision-000.md), [0023](0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md), [0026](0026-detecting-reads-of-high-value-secrets/revision-000.md) |
+| [0029](0029-cloud-provider-api-client-library/revision-000.md) | **Cloud-provider API client library** — How tools/cloud_credentials calls B2, R2, and OCI, weighing hand-rolled requests against official SDKs. | Official SDKs for OCI SCIM and B2; raw requests for R2 and OCI classic IAM | Accepted | Related: [0016](0016-oci-credential-creation-and-expiry/revision-000.md), [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md), [0046](0046-python-client-for-s3-compatible-storage/revision-000.md) |
+| [0046](0046-python-client-for-s3-compatible-storage/revision-000.md) | **Python client for S3-compatible object storage** — Which client Python code uses to talk to S3-compatible storage, and where rclone stays. | Leaning: boto3 for the single-object verify call; rclone stays for bulk copy and restore | Working | Related: [0010](0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md), [0029](0029-cloud-provider-api-client-library/revision-000.md) |
+
+### Backup & recovery
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0006](0006-offsite-backup-credential-blast-radius/revision-000.md) | **Offsite backup credential blast radius** — A compromised app host must never reach a cloud credential or another host's backup archives. | Cloud credentials only on storage; per-host, prefix-scoped SeaweedFS identities | Accepted | Related: [0010](0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md), [0017](0017-recovering-the-secrets-store-from-total-loss/revision-000.md) |
+| [0010](0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) | **Preventing homelab-side deletion of offsite copies** — A compromised or misbehaving on-prem host must not be able to delete or overwrite the offsite backup copy. | rclone copy, never sync, plus provider-native retention | Accepted | Related: [0006](0006-offsite-backup-credential-blast-radius/revision-000.md), [0014](0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md), [0042](0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), [0046](0046-python-client-for-s3-compatible-storage/revision-000.md), [0049](0049-monitoring-that-survives-loss-of-the-site/revision-000.md) |
+| [0012](0012-verifying-backups-actually-land/revision-000.md) | **Verifying backups actually land** — Something verifies every app's backups actually reach SeaweedFS, not just that the schedule ran. | An hourly freshness check on every backup_agent host | Accepted | — |
+| [0019](0019-openbao-offsite-snapshot-path/revision-000.md) | **OpenBao offsite snapshot path** — How OpenBao's encrypted raft snapshot reaches the offsite copy without depending on the app-backup pipeline. | A direct rclone push, outside backup_agent and cloud_sync | Accepted | Narrowed by [0034](0034-operator-access-to-the-openbao-cli/revision-000.md); Related: [0017](0017-recovering-the-secrets-store-from-total-loss/revision-000.md) |
+
+### Monitoring & alerting
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0011](0011-alert-routing-and-noise/revision-000.md) | **Alert routing and noise** — Alerts for different concerns stay distinguishable, so a real failure isn't lost in routine notifications. | A Telegram group chat with a topic per concern | Accepted | — |
+| [0036](0036-beszel-notification-configuration/revision-000.md) | **Beszel notification configuration** — How Beszel's Telegram channel is configured, given its notification URL supports no environment variables. | The token hand-typed into the web UI, DB-resident | Accepted | Related: [0047](0047-first-credential-bootstrap-for-automated-processes/revision-000.md) |
+| [0042](0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md) | **Monitoring that survives loss of the monitoring host** — Beszel and Kuma keep running, and alerting, when the host they run on fails. | Bring the Tailscale subnet router under management, then run monitoring on a dedicated on-prem host | Approved | Related: [0010](0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md), [0049](0049-monitoring-that-survives-loss-of-the-site/revision-000.md) |
+| [0049](0049-monitoring-that-survives-loss-of-the-site/revision-000.md) | **Monitoring that survives loss of the site** — Something outside the site notices when the whole homelab or its connectivity goes down. | Relocate monitoring to a GCP e2-micro, reached by extending VM 202's Tailscale subnet route | Working | Related: [0010](0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md), [0042](0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), [0047](0047-first-credential-bootstrap-for-automated-processes/revision-000.md) |
+
+### Repository & tooling
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0031](0031-where-repo-tooling-lives/revision-000.md) | **Where repo tooling lives** — Controller-side utilities live where their domain says, not where they happened to be written. | A root tools/ directory split by domain | Accepted | Narrowed by [0032](0032-where-openbao-utility-scripts-live/revision-000.md); Related: [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md) |
+| [0032](0032-where-openbao-utility-scripts-live/revision-000.md) | **Where OpenBao utility scripts live** — Whether OpenBao utility scripts belong with the deploy playbooks or with the standalone tools. | Consolidated in tools/openbao_utils/ | Accepted | — |
+| [0033](0033-where-the-interactive-bao-session-runs/revision-000.md) | **Where the interactive bao session runs** — Where bao_session.py runs, given a relay to security never had a working local half. | controller only; the SSH relay to security dropped | Accepted | Related: [0034](0034-operator-access-to-the-openbao-cli/revision-000.md) |
+| [0034](0034-operator-access-to-the-openbao-cli/revision-000.md) | **Operator access to the OpenBao CLI** — How operators reach the bao CLI, replacing four overlapping docker-exec and alias patterns. | A native bao binary on security and controller | Accepted | Related: [0022](0022-controller-trust-in-the-secrets-store-tls/revision-000.md), [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md), [0033](0033-where-the-interactive-bao-session-runs/revision-000.md) |
+| [0041](0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working | Related: [0016](0016-oci-credential-creation-and-expiry/revision-000.md) |
+
+### Security & hardening
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0038](0038-iac-misconfiguration-scanning/revision-000.md) | **IaC misconfiguration scanning** — Which scanner checks Ansible and OpenTofu for misconfiguration, without a separate migration for each. | Trivy for Ansible now; Checkov once OpenTofu code lands, then covering both | Working | — |
+| [0039](0039-intrusion-detection-scope/revision-000.md) | **Intrusion detection scope** — Whether detection lives only on the OPNsense perimeter or also on each VM, without inspecting the lab's own TLS. | Undecided: CrowdSec at the perimeter only, or with per-VM agents | Working | — |
+| [0043](0043-host-os-hardening-baseline/revision-000.md) | **Host OS hardening baseline** — A deliberate host-level hardening pass (SSH, sysctl, auditd, mandatory access control), not only per-component least privilege. | Undecided: a third-party baseline, or a hand-picked subset in this repo's own roles | Working | Related: [0004](0004-container-access-to-the-docker-api/revision-000.md), [0020](0020-automation-identity-and-access-scope/revision-000.md), [0026](0026-detecting-reads-of-high-value-secrets/revision-000.md) |
+| [0045](0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working | — |
+
+### Documentation & process
+
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0028](0028-doc-metadata-and-governance/revision-000.md) | **Doc metadata and governance** — How docs carry machine-readable metadata, how index tables stay current, and how NIST alignment is shown without stamping ADRs. | YAML frontmatter, generated indexes, one narrative NIST alignment doc | Accepted | Narrowed by [0037](0037-decision-and-project-documentation-workflow/revision-000.md) |
+| [0037](0037-decision-and-project-documentation-workflow/revision-000.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, and how an implementer knows what is authorized and when to stop. | Problem-oriented ADR lineages with gated revisions, projects as execution records, topic docs describing main | Accepted | — |
+
+## Other design records
 
 `docs/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this
 directory and already documents itself as a design record, so it's
 left where it is rather than moved. Once OpenTofu work actually lands,
-new decisions from that effort belong here as regular numbered ADRs.
+new decisions from that effort belong here as regular lineages.

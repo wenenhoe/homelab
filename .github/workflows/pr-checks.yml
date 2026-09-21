@@ -77,8 +77,8 @@ jobs:
               # bootstrap_secrets.py/audit_secrets.py/the two
               # restore_*_from_backup.py scripts (merged into one)/
               # dump_vault_to_file_cache.py/diff_vault_backups.py all
-              # moved to tools/openbao_utils/ (docs/decisions/drafts/
-              # consolidate-openbao-utility-scripts.md) - covered by
+              # moved to tools/openbao_utils/ (ADR 0032, docs/decisions/
+              # 0032-where-openbao-utility-scripts-live/revision-000.md) - covered by
               # the tools/openbao_utils/** trigger below instead.
               - 'ansible/scripts/*.py'
               - 'tools/cloud_credentials/**'
@@ -90,6 +90,9 @@ jobs:
               - 'ansible/molecule-coverage/callback_plugins/**'
               - 'ansible/tests/**'
               - 'tools/tests/**'
+              # tools/tests/doc_scripts/ imports these directly via
+              # sys.path.
+              - '.github/scripts/*.py'
               # Not under ansible/ — imported via sys.path in
               # ansible/tests/test_r2_read_watcher.py (see that file's
               # own docstring for why).
@@ -167,6 +170,27 @@ jobs:
 
       - name: Run commit-stage hooks against all files
         run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit --show-diff-on-failure
+
+  # A PR that touches a project doc must stay inside that project's
+  # allowed_paths - see docs/ci.md#project-scope-check. Diffs from the
+  # merge-base of the PR's base and head (not the base tip itself), so a
+  # branch that is behind doesn't see main's newer commits as its own.
+  project-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the merge-base needs both histories
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      - name: Check the PR stays inside its project's allowed_paths
+        run: >-
+          uv run python .github/scripts/check-project-scope.py
+          --base "${{ github.event.pull_request.base.sha }}"
+          --head "${{ github.event.pull_request.head.sha }}"
 
   # Split from pre-commit-checks: ansible-lint is pinned to stages:
   # [pre-push], which --hook-stage pre-commit above doesn't run.

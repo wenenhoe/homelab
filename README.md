@@ -39,10 +39,10 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 
 ## Project Management
 
-- **Decisions** — non-obvious design choices become numbered [ADRs](docs/decisions/README.md); one still depending on something unverified starts as an unnumbered [draft](docs/decisions/drafts/README.md) instead, and is promoted once decided and built.
-- **Multi-stage work** — tracked in a [project doc](docs/projects/README.md) until every stage is done, at which point its rationale and behavior get promoted into an ADR or topic doc and the project doc is deleted.
-- **Doc metadata** — every project/decision/draft doc carries YAML frontmatter (`id`/`type`/`status`); `docs/projects/README.md`'s and `docs/decisions/drafts/README.md`'s index tables are generated from it rather than hand-maintained — see [ADR 0028](docs/decisions/0028-doc-governance-frontmatter-and-nist-alignment.md).
-- **Drift enforcement** — CI checks that docs stay in sync with the code, the playbook/role reference tables match what's on disk, and every cross-file link resolves.
+- **Decisions** — non-obvious design choices are [ADRs](docs/decisions/README.md): one lineage per problem, one revision per solution tried, indexed by topic. A revision is `approved` (authorized to build) before it is `accepted` (built and on `main`).
+- **Multi-stage work** — tracked in a [project doc](docs/projects/README.md) that says what remains and what it waits on, grouped into initiatives and ordered by dependency; its status follows the state of the decision it implements, and it can bound what its work may change. It is deleted once the work is done and its rationale and behavior have been promoted into an ADR or topic doc.
+- **Doc metadata** — every project/decision doc carries YAML frontmatter (`id`/`type`/`status`, plus topic and relations on ADRs); the index tables in `docs/decisions/README.md` and `docs/projects/README.md` are generated from it rather than hand-maintained — see [ADR 0037](docs/decisions/0037-decision-and-project-documentation-workflow/revision-000.md). Agents start from [`AGENTS.md`](AGENTS.md).
+- **Drift enforcement** — CI checks that docs stay in sync with the code, the playbook/role reference tables match what's on disk, every cross-file link and `docs/decisions/`/`docs/projects/` path resolves (comments included), decisions and projects follow their lifecycle rules, and a change that touches a project doc stays inside that project's `allowed_paths`.
 - **Testing** — Molecule role tests, controller-side Python unit tests (pytest), boot-testing, deploy-ordering regression checks, and scheduled Trivy scans.
 
 ## Repository Layout
@@ -55,6 +55,7 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 ├── docker/                  # One directory per application
 ├── docs/                    # Deep dives — see docs/README.md
 ├── tools/                   # Controller-side Python: cloud-credential minting, OpenBao/Vault utilities — see docs/secrets.md, docs/cloud-credential-creation.md
+├── AGENTS.md                # Where an agent starts: the doc workflow's rules and stop conditions
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
 
@@ -226,9 +227,10 @@ network access or real cloud credentials needed. See
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 - [`hadolint`](https://github.com/hadolint/hadolint) — lints every `Dockerfile`, via its Docker-image variant
-- `generate-doc-indexes` (local) — regenerates `docs/projects/README.md`'s Index table and `docs/decisions/drafts/README.md`'s Open list from each doc's YAML frontmatter; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`.github/scripts/generate-doc-indexes.py`](.github/scripts/generate-doc-indexes.py)
+- `generate-doc-indexes` (local) — regenerates the index tables in `docs/projects/README.md` and `docs/decisions/README.md` from each doc's YAML frontmatter; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`.github/scripts/generate-doc-indexes.py`](.github/scripts/generate-doc-indexes.py)
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
-- `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter — see [`.github/scripts/check-doc-drift.py`](.github/scripts/check-doc-drift.py)
+- `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`.github/scripts/check-doc-drift.py`](.github/scripts/check-doc-drift.py)
+- `check-project-scope` (local) — a commit that touches a project doc stays inside that project's `allowed_paths`, read from `HEAD`; CI runs the same check over the whole PR — see [`.github/scripts/check-project-scope.py`](.github/scripts/check-project-scope.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
 All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)

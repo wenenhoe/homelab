@@ -1,36 +1,43 @@
 ---
 id: PROJ-cd-agent
-title: "CD Agent"
+title: CD Agent Host
 type: project
-status: not-started
-summary: "Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole."
+status: de-risking
+blocked: false
+summary: A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs.
+super_project: pull-based-cd
+track: agent
 ---
 
-# CD Agent
-
-**Status:** `Not started`
+# CD Agent Host
 
 Replaces manual `ansible-playbook` deploys and rotation runs with a
 dedicated, pull-based automation host. The second half of the
 OpenBao+CD-agent migration this repo originally scoped together —
 OpenBao itself is done; see ADRs
-[0017](../decisions/0017-openbao-bootstrap-secret-split.md) through
-[0026](../decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md)
-and the `openbao-*.md` docs for that half. This project starts now
-because it depends on that foundation: the CD agent's own AppRoles
-([0020](../decisions/0020-controller-single-broad-approle-not-split-by-consumer.md))
-can't be scoped until OpenBao holds real credentials to build policies
-against — which it now does.
+[0017](../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md) through
+[0026](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+and the `openbao-*.md` docs for that half.
 
-## Stages
+This is the first of three projects in the `pull-based-cd` initiative; [`cd-agent-approles.md`](cd-agent-approles.md) and [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) cover its AppRoles and retiring `controller`'s standing AppRole.
 
-| # | Stage | Status |
-| :-: | :--- | :--- |
-| 1 | `cd_agent` host — dedicated LAN box, fixed IP, `preloop` pollers for deploy/maintenance/rotation/freshness/security-reporting | Not started |
-| 2 | `cd-agent-deploy` / `cd-agent-rotation` AppRoles, CIDR-bound | Not started |
-| 3 | Retire `controller`'s standing AppRole | Not started |
+## Scope
 
-## Stage detail
+The `cd_agent` host: a dedicated LAN box with a fixed IP and zero inbound ports, running the jobs that replace manual `ansible-playbook` deploys and rotation runs. Not in scope: its AppRoles ([`cd-agent-approles.md`](cd-agent-approles.md)) and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+
+## Decision
+
+No `decision:` is linked yet. This project implements [ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md), which has two competing candidates: [000-a](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md) (a pull-based agent) and [000-b](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md) (a private Gitea or Forgejo). Neither is approved. Set `decision:` to the approved candidate before any production work; until then only throwaway spikes.
+
+## Execution plan
+
+Update at the start and end of each PR that works a stage.
+
+| # | Stage | Status | Exit condition |
+| :-: | :--- | :--- | :--- |
+| 1 | `cd_agent` host — dedicated LAN box, fixed IP, pollers for deploy/maintenance/rotation/freshness/security-reporting (mechanism per ADR 0044) | Not started | ADR 0044 is settled (one candidate approved) and `decision:` is set; the host runs the deploy, maintenance, rotation, and freshness jobs with zero inbound ports |
+
+Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 1 — `cd_agent` host
 
@@ -40,11 +47,11 @@ Actions-format workflow files for deploy/maintenance/rotation/
 freshness/security-reporting jobs. `preloop`'s CLI event-flag behavior beyond bare
 `pull_request` is unverified — needs a spike before this stage's
 deploy/rotation jobs are built on it. See the
-[draft](../decisions/drafts/pull-based-cd-agent-not-self-hosted-github-runner.md)
+[working decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md)
 this stage implements.
 
 **Read before building this stage:**
-[`private-gitea-actions-not-pull-based-preloop-poller.md`](../decisions/drafts/private-gitea-actions-not-pull-based-preloop-poller.md)
+[`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md)
 is a still-open, unresolved alternative that proposes replacing this
 stage's mechanism entirely — a private, LAN-only Gitea *or Forgejo*
 instance with an `act_runner`/`forgejo-runner`, dispatch-triggered on
@@ -53,36 +60,18 @@ own open question inside that draft. It's a live draft, not a rejected
 idea; the wording above shouldn't be read as having already decided
 against it.
 
-### Stage 2 — AppRoles
+## Acceptance criteria
 
-Two CIDR-bound AppRoles, per the
-[draft](../decisions/drafts/cd-agent-approle-policy.md):
-`cd-agent-deploy` (read-only on `hosts/*` and
-`cloud_credentials/leaf/*`) and `cd-agent-rotation` (create/update on
-both `cloud_credentials/leaf/*` and `cloud_credentials/rotation/*`) —
-no shared access between the two jobs, since a compromised deploy run
-shouldn't be able to reach rotation-tier credentials or vice versa.
-
-### Stage 3 — Retire `controller`'s AppRole
-
-Once Stages 1–2 are live and proven, delete `controller`'s Era A
-AppRole outright, not narrow it. From that point `controller` holds no
-standing Vault credential — any admin/debug access mints a fresh,
-narrow, short-lived token on demand instead.
+- [ ] ADR 0044 is settled and the host runs from the approved mechanism.
+- [ ] The host exposes zero inbound ports.
+- [ ] Deploy, maintenance, rotation, and freshness jobs run from it.
 
 ## Open items
 
 - Whether Stage 1 stays a `preloop` poller or gets replaced by
-  [`private-gitea-actions-not-pull-based-preloop-poller.md`](../decisions/drafts/private-gitea-actions-not-pull-based-preloop-poller.md)'s
+  [`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md)'s
   Gitea Actions approach — a live, unresolved fork. Resolve this
   before Stage 1 is actually built, not after.
-- Stage 3's "mints a fresh, narrow, short-lived token on demand
-  instead" doesn't specify how `controller` authenticates to do that
-  minting once its standing AppRole is retired — see
-  [`secret-zero-bootstrap-pattern.md`](../decisions/drafts/secret-zero-bootstrap-pattern.md)'s
-  leaning answer (mTLS via step-ca, same pattern `step_ca_cert` already
-  proves) and its response-wrapping answer for handing Stage 2's
-  `cd_agent` AppRole `secret_id` over at provisioning time.
 - `preloop`'s CLI event-flag behavior (Stage 1) — spike needed before
   building on it.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,
@@ -104,15 +93,12 @@ narrow, short-lived token on demand instead.
 
 ## Closing checklist
 
-Copied from
-[`docs/projects/README.md`](README.md#when-a-project-finishes) — run
-before deleting this doc once every stage above is Done.
+Copied from [`README.md`](README.md#when-a-project-finishes); run before
+deleting this doc.
 
-- [ ] Every `Done` stage's rationale exists as a real ADR, or plainly
-      didn't need one.
-- [ ] Every `Done` stage's current behavior is described in a topic
-      doc, not only here.
-- [ ] Every open item above is resolved-and-promoted or moved to
-      where it belongs next.
-- [ ] Every cross-reference into this doc elsewhere in the repo is
-      updated or removed.
+- [ ] Every acceptance criterion is met, and its required check passed.
+- [ ] The linked revision is `accepted`, or there is no decision to settle.
+- [ ] Every resulting behavior is described in a topic doc.
+- [ ] Every open item is resolved and promoted, or moved where it belongs.
+- [ ] Other projects' `depends_on` entries naming this one are removed,
+      and every cross-reference into this doc is updated or deleted.

@@ -27,14 +27,14 @@ and hasn't been renamed to match the rest of `playbooks/`.
 `secret/data/hosts/<hostname>/<concern>/<name>` mirrors
 `host_vars/<hostname>.yaml`; `secret/data/hosts/all/<concern>/<name>`
 mirrors `group_vars/all/*.yaml` — see
-[ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)
+[ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
 for why the split follows the inventory structure. Cloud provider
 credentials are the one exception, on their own top-level
 `secret/data/cloud_credentials/{leaf,rotation}/*` family instead of
 under any host, since they anticipate a consumer split
 (deploy-only vs. rotation-only identity) that `hosts/*` has no reason
-to model — see [ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)
-and [ADR 0023](decisions/0023-openbao-repoint-not-native-plugin.md).
+to model — see [ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
+and [ADR 0023](decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md).
 
 ## systemd units
 
@@ -52,7 +52,7 @@ way for a deploy to silently not take effect.
 One Telegram topic per concern, shared across whichever apps alert
 into it (`diun`, Beszel, backups, cert-renewal all route through the
 same scheme) rather than one topic per app — see
-[ADR 0011](decisions/0011-telegram-topics-not-direct-chat.md) and
+[ADR 0011](decisions/0011-alert-routing-and-noise/revision-000.md) and
 [`telegram-notifications.md`](telegram-notifications.md) for the
 concern → topic mapping itself.
 

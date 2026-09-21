@@ -6,7 +6,7 @@ openbao_utils/bootstrap.py prompts for, not just OpenBao's own
 role-id/secret-id; security_ssh_target()/fetch_root_cert() are plain
 "SSH to security, read step-ca's shared root cert" - nothing in either
 one touches OpenBao's API. See
-docs/decisions/0031-tools-secrets-package-split.md.
+docs/decisions/0031-where-repo-tooling-lives/revision-000.md.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ STEP_CA_CONTAINER = "step-ca"
 # on top of it - one number to reason about, not a fresh one per
 # caller. The SSH fetch previously had no timeout at all in either of
 # openbao_utils.client's two original callers (the bug
-# docs/decisions/0030-openbao-hvac-paramiko-clients.md fixed).
+# docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md fixed).
 TIMEOUT_SECONDS = 10
 
 
@@ -75,7 +75,7 @@ def fetch_root_cert() -> str:
     # transport still raises BadHostKeyException on a mismatch against
     # an already-known host regardless of this policy - fail-closed on
     # a changed key, not blanket trust. Confirmed live against a real
-    # host - see docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+    # host - see docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md.
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         client.connect(host, username=user, key_filename=key_path, timeout=TIMEOUT_SECONDS)

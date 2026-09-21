@@ -4,37 +4,56 @@ This repo's docs stay flat under `docs/`, plus three subdirectories for
 artifact types that don't fit a per-topic page:
 
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
-  when the reasoning isn't obvious from the code. One file per
-  decision, numbered; its reasoning stays fixed once accepted — a
-  changed decision gets superseded, not rewritten — but a small
-  in-place fix that doesn't touch the reasoning itself (closing a
-  stale forward-reference, say) is fine. See
-  [`decisions/README.md#editing-an-accepted-adr`](decisions/README.md#editing-an-accepted-adr)
+  when the reasoning isn't obvious from the code. One lineage per
+  problem, one revision per solution tried for it; an `accepted`
+  revision's reasoning stays fixed — a changed decision is a new
+  revision — while editorial fixes are fine. See
+  [`decisions/README.md#editing-a-revision`](decisions/README.md#editing-a-revision)
   for where that line sits.
 - **[`architecture/`](architecture/README.md)** — Mermaid diagrams for
   views that cut across multiple topic docs (a system-wide component
   map, an end-to-end data flow). A diagram that only illustrates one
   existing page lives embedded in that page instead.
-- **[`projects/`](projects/README.md)** — build status and sequencing
-  for multi-stage initiatives spanning several PRs. Never carries
-  rationale (that's `decisions/`) or current-behavior detail (that's a
-  topic doc) — it links to both instead, and gets deleted once the
-  project's done and everything durable has been promoted out of it.
+- **[`projects/`](projects/README.md)** — execution records for
+  multi-stage work spanning several PRs: what remains, in what order,
+  waiting on what, grouped into initiatives and ordered by dependency.
+  Never carries rationale (that's `decisions/`) or current-behavior detail
+  (that's a topic doc) — it links to both, and is deleted once the work is
+  done and everything durable has been promoted out of it. It can also
+  bound what its work may change (`allowed_paths`); see
+  [`projects/README.md#scope`](projects/README.md#scope).
 
 Everything else is one topic, one doc, cross-referenced rather than
 duplicated — if you're about to explain the same gotcha in a second
 place, link to the first instead.
 
+Topic docs describe what is true on `main` at every commit, not what a
+project is still building.
+
 **Every doc's source of truth is the code/config it describes, checked
 by [`check-doc-drift.py`](../.github/scripts/check-doc-drift.py)** for
 the handful of places that check mechanically (this index and each
 subdirectory's own, `ansible.md`'s playbook table, the molecule
-scenario matrix, the deploy play numbering, `ci.md`'s job table, and
-every cross-file `#anchor` reference repo-wide). Nothing here enforces
-the rest by tooling — that's still on whoever's making the change to
-keep current in the same PR, the same way a diagram's topology should
-change alongside the topology it shows (see `architecture/README.md`'s
-note on that).
+scenario matrix, the deploy play numbering, `ci.md`'s job table, every
+cross-file `#anchor` reference repo-wide, every `docs/decisions/` or
+`docs/projects/` path written anywhere — comments included — and the
+decision-lineage and project rules in
+[`decisions/README.md`](decisions/README.md) and
+[`projects/README.md`](projects/README.md)). What a change is allowed to
+touch is checked separately, by
+[`check-project-scope.py`](../.github/scripts/check-project-scope.py).
+Nothing here enforces the rest by tooling — that's still on whoever's
+making the change to keep current in the same PR, the same way a
+diagram's topology should change alongside the topology it shows (see
+`architecture/README.md`'s note on that).
+
+## Public repo
+
+This repository is public and git history is permanent. No doc, comment,
+or commit message records a security incident, a live or recent
+vulnerability, or an exposure window — including in ADRs, project risks,
+and blockers. If a doc would need those specifics to be useful, leave it
+unwritten and raise it privately.
 
 ## Index
 
@@ -55,7 +74,7 @@ note on that).
 
 | Doc | Covers |
 | :--- | :--- |
-| [`vm-provisioning.md`](vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: [`projects/tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md). |
+| [`vm-provisioning.md`](vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: the `tofu-vm-provisioning` initiative in [`projects/README.md`](projects/README.md#by-initiative). |
 
 ### Per-app infra
 
@@ -98,5 +117,5 @@ note on that).
 | :--- | :--- |
 | [`molecule-testing.md`](molecule-testing.md) | Molecule scenario matrix and how to add one. |
 | [`molecule-fixtures.md`](molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
-| [`ci.md`](ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check. |
+| [`ci.md`](ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check, and the project-scope check. |
 | [`security-scanning.md`](security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |

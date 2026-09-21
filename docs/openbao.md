@@ -2,7 +2,7 @@
 
 `openbao` is this migration's replacement for the file-based secrets
 cache
-([ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)).
+([ADR 0013](decisions/0013-secret-storage/revision-000.md)).
 This doc covers deploying it, its TLS cert, and getting it initialized
 and unsealed. Auth and policies are covered in
 [`openbao-auth.md`](openbao-auth.md); the secrets role migration is
@@ -13,7 +13,7 @@ its own doc too: [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 Single-node, integrated raft storage, on `security` — same trust tier
 as `step-ca`/`tinyauth`/`lldap`
-([0017](decisions/0017-openbao-bootstrap-secret-split.md)'s Context).
+([0017](decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
 `docker/openbao/configs/openbao.hcl.j2` renders the raft/listener
 config; `app_registry.yaml`'s `openbao` entry seeds it into a `config`
 named volume the same way `dashy` seeds its `conf.yml`
@@ -28,7 +28,7 @@ No `backup:` entry in `app_registry.yaml` — the generic `backup_agent`
 path stops the container and tars its volumes
 ([`disaster-recovery.md`](disaster-recovery.md)), which for OpenBao
 would mean sealing it (and a manual unseal per
-[0018](decisions/0018-manual-shamir-unseal.md)) on every backup cycle.
+[0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup cycle.
 OpenBao's own `bao operator raft snapshot save` is the backup mechanism
 here instead — see
 [`openbao-backup-restore.md`](openbao-backup-restore.md).
@@ -161,7 +161,7 @@ same category of "server up, not yet able to serve" response, and
 way it reports `Sealed: true` — treating both as the same class of
 "unhealthy" here, not confirmed byte-for-byte against a live exit
 code). Since
-[0018](decisions/0018-manual-shamir-unseal.md) means every restart
+[0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) means every restart
 leaves OpenBao sealed until a human runs the unseal command above
 (and a genuinely fresh deploy starts out uninitialized on top of
 that), this container will show unhealthy in Beszel/Uptime-Kuma for
@@ -178,7 +178,7 @@ carries for every other app here.
 seal state to lose). Restarting OpenBao on every renewal would reseal
 the vault at whatever cadence cert renewal fires, not just on reboot —
 undermining
-[0018](decisions/0018-manual-shamir-unseal.md)'s cost-benefit premise
+[0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)'s cost-benefit premise
 that unseal only costs a human at the moments they're already at the
 keyboard.
 
@@ -223,7 +223,7 @@ documentation-only claims.
 
 ## Init and unseal — manual, via `init_unseal.py`
 
-[0018](decisions/0018-manual-shamir-unseal.md) chose manual Shamir
+[0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) chose manual Shamir
 unseal over cloud auto-unseal specifically because a human is already
 at the keyboard for every reboot `security` has ever had. Run from
 `controller` via `tools/openbao_utils/init_unseal.py` (paramiko,
@@ -252,7 +252,7 @@ them, not work around them:
 
 Both subcommands keep driving `docker exec` against the live
 container, permanently, by necessity — see
-[ADR 0034](decisions/0034-native-bao-cli-not-docker-exec-or-run.md)'s
+[ADR 0034](decisions/0034-operator-access-to-the-openbao-cli/revision-000.md)'s
 Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
 but the container crash-loops until `step_ca_cert` issues its leaf
 cert, so there's no trustworthy network path to it during that window.
@@ -260,7 +260,7 @@ This is the one place in the whole OpenBao CLI surface that stays
 `docker exec`-based — everywhere else now uses the native `bao`
 binary directly (`security` or `controller`, whichever you're on), or
 `bao_session.py` (`controller` only — see
-[ADR 0033](decisions/0033-bao-session-local-only-drops-broken-security-path.md))
+[ADR 0033](decisions/0033-where-the-interactive-bao-session-runs/revision-000.md))
 when starting from an AppRole login; see
 [`openbao-auth.md`](openbao-auth.md#runbook).
 
@@ -328,7 +328,7 @@ by Docker's own log driver — not the API/CLI route, which needs
 `unsafe_allow_api_audit_creation` and a privileged token neither of
 which this deployment has. `logging:` on the `openbao` compose service
 caps growth (`max-size`/`max-file`). See
-[ADR 0026](decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md)
+[ADR 0026](decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 for why, and its threat model for what this does and doesn't expose.
 
 ## Secrets

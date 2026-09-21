@@ -15,7 +15,8 @@ import sys
 from pathlib import Path
 
 import yaml
-from doc_frontmatter import docs_in, read_frontmatter
+from doc_frontmatter import LINEAGE_DIR_RE, doc_kind, read_frontmatter
+from doc_graph import lineage_errors, open_assumption_errors, project_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -23,10 +24,15 @@ errors: list[str] = []
 ANCHOR_SCAN_EXTS = {".md", ".yml", ".yaml", ".py"}
 ANCHOR_SCAN_EXTRA_NAMES = {".trivyignore"}
 ANCHOR_SCAN_EXCLUDE_DIRS = {".git", "node_modules", ".venv"}
+# Expected-output strings in these tests are literal markdown links to files that only exist inside their temp trees.
+ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/",)
 
 CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
 SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")
 PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
+DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
+PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
+REPO_FILE_LINK_RE = re.compile(r"\]\((\.{1,2}/[\w./-]+\.(?:yaml|yml|hcl|sh|py|j2|json|toml))(?:#[^)]*)?\)")
 
 
 def fail(msg: str) -> None:
@@ -39,16 +45,14 @@ def read(path: Path) -> str:
 
 def check_doc_indexes() -> None:
     """Every doc directly under docs/, and every doc one level down under
-    docs/decisions/, docs/decisions/drafts/, docs/architecture/, and
-    docs/projects/, is linked in that directory's own README.md — both
-    directions, a link to a missing file fails too. Substring matching
-    for the forward direction, markdown-link-syntax matching for the
-    reverse — cheap, and a false positive (a name coincidentally
-    appearing elsewhere) is the safe failure mode here, not a false
-    negative. decisions/drafts gets its own pass distinct from decisions
-    itself since it's a second level down with its own README.md.
+    docs/decisions/, docs/architecture/, and docs/projects/, is linked in
+    that directory's own README.md — both directions, a link to a missing
+    file fails too. Substring matching for the forward direction,
+    markdown-link-syntax matching for the reverse — cheap, and a false
+    positive (a name coincidentally appearing elsewhere) is the safe
+    failure mode here, not a false negative.
     """
-    for subdir in ("", "decisions", "decisions/drafts", "architecture", "projects"):
+    for subdir in ("", "decisions", "architecture", "projects"):
         label = f"docs/{subdir}" if subdir else "docs"
         index_path = ROOT / "docs" / subdir / "README.md"
         index = read(index_path)
@@ -58,6 +62,11 @@ def check_doc_indexes() -> None:
                 continue
             if doc.name not in index:
                 fail(f"{label}/README.md: {doc.name} exists but isn't linked in its index")
+
+        if subdir == "decisions":
+            for lineage_dir in sorted(p for p in (ROOT / "docs" / subdir).iterdir() if p.is_dir() and LINEAGE_DIR_RE.match(p.name)):
+                if f"{lineage_dir.name}/" not in index:
+                    fail(f"{label}/README.md: lineage {lineage_dir.name}/ exists but isn't linked in its index")
 
         for link in re.findall(r"\]\(([\w-]+\.md)\)", index):
             if link == "TEMPLATE.md":
@@ -232,6 +241,8 @@ def check_no_stale_anchors() -> None:
     anchor also has to resolve to a real file — catches a link left
     dangling by a file move/rename/delete that happens to not carry
     an anchor, which the anchor checks above wouldn't otherwise see.
+    Relative links (`./`, `../`) from a .md file to a config, script, or
+    data file (.yaml/.hcl/.py/...) resolve too.
     """
     heading_cache: dict[Path, set[str]] = {}
 
@@ -248,8 +259,11 @@ def check_no_stale_anchors() -> None:
         if f.suffix not in ANCHOR_SCAN_EXTS and f.name not in ANCHOR_SCAN_EXTRA_NAMES:
             continue
 
-        text = re.sub(r"https?://\S+", "", read(f))  # don't chase external URLs
         rel_f = f.relative_to(ROOT)
+        if rel_f.as_posix().startswith(ANCHOR_SCAN_EXCLUDE_PREFIXES):
+            continue
+
+        text = re.sub(r"https?://\S+", "", read(f))  # don't chase external URLs
 
         for rel, anchor in CROSS_FILE_ANCHOR_RE.findall(text):
             target = _resolve_anchor_target(f, rel)
@@ -269,33 +283,33 @@ def check_no_stale_anchors() -> None:
             if _resolve_anchor_target(f, rel) is None:
                 fail(f"{rel_f}: links {rel}, which doesn't exist")
 
+        if f.suffix == ".md" and f.name != "TEMPLATE.md":
+            for rel in REPO_FILE_LINK_RE.findall(text):
+                if not (f.parent / rel).is_file():
+                    fail(f"{rel_f}: links {rel}, which doesn't exist")
 
-def check_decided_drafts_have_no_open_assumptions() -> None:
-    """Enforces docs/decisions/README.md#drafts' hard gate: a draft at
-    status: decided must have no open `Assumptions` entry left, since
-    `decided` is defined as "every entry resolved". Presence-of-bullets
-    only, not semantic resolution — a draft that removes the heading
-    entirely once empty (this repo's convention) also passes.
+
+def check_doc_path_mentions() -> None:
+    """Every path under docs/decisions/ or docs/projects/ that ends in .md
+    and is written in any docs, code, or config file exists — including
+    inside comments, which the anchor check above never sees unless the
+    path carries a `#anchor`. A path with `NNN` in it is a placeholder,
+    not a reference; a deleted file is referred to by name, not by path.
+    A project doc is deleted when its work is done, so a comment that
+    points at one fails the build the day it goes.
     """
-    section_re = re.compile(r"^## Assumptions\n\n(.*?)(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
-    bullet_re = re.compile(r"^- ", re.MULTILINE)
-
-    for path in docs_in(ROOT / "docs/decisions/drafts"):
-        fm = read_frontmatter(path)
-        if fm["status"] != "decided":
+    for f in sorted(ROOT.rglob("*")):
+        if not f.is_file() or any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts):
             continue
-        m = section_re.search(read(path))
-        if m and bullet_re.search(m.group(1)):
-            fail(
-                f"{path.relative_to(ROOT)}: status: decided but still has an "
-                "open Assumptions entry — resolve every entry (fold into "
-                "Context or revise the Decision) before marking decided, "
-                "per docs/decisions/README.md#drafts"
-            )
+        if f.suffix not in PATH_MENTION_EXTS or f.relative_to(ROOT).as_posix().startswith(ANCHOR_SCAN_EXCLUDE_PREFIXES):
+            continue
+        for path in sorted(set(DOC_PATH_RE.findall(read(f)))):
+            if "NNN" not in path and not (ROOT / path).is_file():
+                fail(f"{f.relative_to(ROOT)}: mentions {path}, which doesn't exist")
 
 
 def check_nist_alignment_currency() -> None:
-    """docs/nist-800-53-alignment.md links to specific ADRs/drafts as
+    """docs/nist-800-53-alignment.md links to specific ADRs as
     evidence for a control mapping; unlike a plain dead link, an ADR
     being marked superseded doesn't move or delete the file, so
     check_no_stale_anchors's link-resolution check passes right through
@@ -316,9 +330,13 @@ def check_nist_alignment_currency() -> None:
         if target is None:
             continue  # already reported by check_no_stale_anchors
         if target.name in ("README.md", "TEMPLATE.md"):
-            continue  # index/template links, not an ADR/draft doc itself
-        if target.parent.name not in ("decisions", "drafts"):
-            continue  # not an ADR/draft link (e.g. deployment-flow.md, host-vars.md)
+            continue  # index/template links, not an ADR doc itself
+        try:
+            kind = doc_kind(target)
+        except SystemExit:
+            continue  # not an ADR link (e.g. deployment-flow.md, host-vars.md)
+        if kind == "project":
+            continue
         fm = read_frontmatter(target)
         if fm["status"] == "superseded":
             fail(
@@ -336,8 +354,11 @@ def main() -> int:
     check_deploy_flow()
     check_ci_jobs_table()
     check_no_stale_anchors()
-    check_decided_drafts_have_no_open_assumptions()
+    check_doc_path_mentions()
     check_nist_alignment_currency()
+    errors.extend(lineage_errors(ROOT))
+    errors.extend(open_assumption_errors(ROOT))
+    errors.extend(project_errors(ROOT))
 
     if errors:
         for e in errors:

@@ -28,7 +28,7 @@ Every `ansible-playbook deploy.yaml` run and every
 `tools/cloud_credentials/*.py` invocation authenticates this way.
 `controller`'s AppRole has no CIDR bind — a laptop has no stable
 address to bind to
-([ADR 0020](../decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)).
+([ADR 0020](../decisions/0020-automation-identity-and-access-scope/revision-000.md)).
 
 ## Cloud credential rotation & the R2 read-watcher
 
@@ -57,9 +57,9 @@ flowchart LR
 The R2 admin token is the one rotation credential accepted as
 master-equivalent rather than narrowly scoped — Cloudflare's API can't
 mint a scoped delegate for it
-([ADR 0014](../decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)).
+([ADR 0014](../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)).
 The read-watcher's per-read alert on that one path is the compensating
 control, running its own least-privilege AppRole
-([ADR 0026](../decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md))
+([ADR 0026](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md))
 rather than reusing `controller`'s broader one — a compromised
 `controller` AppRole still can't read that path silently.

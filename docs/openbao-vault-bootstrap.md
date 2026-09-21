@@ -2,7 +2,7 @@
 
 The standing answer to "how does this repo create a new Vault
 policy/AppRole, now that the initial root token is revoked." See
-[ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)
+[ADR 0025](decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
 for why this exists instead of a permanent root token or a repeat
 re-init every time a new identity is needed.
 
@@ -19,7 +19,7 @@ That said, policy-write is inherently self-escalating in Vault/OpenBao
 ACLs - a token that can write policy can always author itself a wider
 one. `vault-bootstrap` doesn't eliminate that; it turns "instant
 god-mode" into a two-step, audit-logged action (the audit device from
-[ADR 0026](decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md)
+[ADR 0026](decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 is live, so a policy edit followed by a login is visible, not silent).
 Treat its `secret_id` with the same offline discipline as the Shamir
 shares - never a casual `ansible/files/secrets/` entry - since it is,

@@ -67,9 +67,10 @@ the SeaweedFS-specific case this generalizes from.
 | Job | Runs when | What it does |
 | :--- | :--- | :--- |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
+| `project-scope` | always | A PR that touches a project doc stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](#project-scope-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
@@ -80,6 +81,7 @@ the SeaweedFS-specific case this generalizes from.
 flowchart TD
     detect["detect-changes<br/>(always runs first)"]
     precommit["pre-commit-checks<br/>(always)"]
+    scope["project-scope<br/>(always)"]
     trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
     lint["ansible-lint<br/>(ansible/** or lint config changed)"]
     uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
@@ -96,10 +98,11 @@ flowchart TD
     boottest --> gate
 
     style precommit stroke-dasharray: 5 5
+    style scope stroke-dasharray: 5 5
     style trivy stroke-dasharray: 5 5
 ```
 
-`pre-commit-checks` runs unconditionally and independently of
+`pre-commit-checks` and `project-scope` run unconditionally and independently of
 `detect-changes` (dashed above) — its hooks span nearly every file
 type in the repo, so scoping it would defeat the point. `trivy-scan`
 also always runs as a job, but reads `detect-changes`' output to decide
@@ -113,7 +116,7 @@ protection rules or repository rulesets (Settings > Branches), which
 reference jobs by their check-run name (`<workflow name> / <job name>`,
 e.g. `PR checks / pre-commit-checks`).
 
-`pre-commit-checks`, `ansible-lint`, `uv-lock`, `python-unit-tests`,
+`pre-commit-checks`, `project-scope`, `ansible-lint`, `uv-lock`, `python-unit-tests`,
 `deploy-ordering-check`, and `compose-syntax-check` are all safe to
 mark required directly: each
 is gated by a job-level `if:` inside a workflow that always triggers on
@@ -182,14 +185,10 @@ Manual secrets are pre-seeded as plain files under
 `.config/.pre-commit-config.yaml` as a local hook, positioned before
 markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
-hand-edit already is. Reads every `docs/projects/*.md` and
-`docs/decisions/drafts/*.md`'s frontmatter and regenerates
-`docs/projects/README.md`'s Index table and
-`docs/decisions/drafts/README.md`'s Open list in place; validates
-every ADR's frontmatter too, even though `docs/decisions/README.md`'s
-own numbered index isn't touched (see
-[`docs/decisions/README.md#drafts`](decisions/README.md#drafts) for
-why promotion into that index stays a manual, deliberate step). Same
+hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
+frontmatter and regenerates `docs/projects/README.md`'s Index and By
+initiative tables and `docs/decisions/README.md`'s Lineages index in
+place, validating each doc's frontmatter as it goes. Same
 auto-fix pattern as `ruff --fix`/`dclint-docker` above: a stale table
 fails the commit and shows the regenerated diff, rather than silently
 passing.
@@ -204,8 +203,8 @@ these narrow, structural things:
 - Every doc directly under `docs/` is linked somewhere in
   `docs/README.md` (both directions — a link to a deleted file fails
   too). The same check applies one level down for `docs/decisions/`,
-  `docs/decisions/drafts/`, `docs/architecture/`, and `docs/projects/`,
-  each against its own `README.md` index.
+  `docs/architecture/`, and `docs/projects/`, each against its own
+  `README.md` index.
 - `docs/ansible.md`'s Playbooks and Roles tables list exactly the files
   under `ansible/playbooks/*.yaml` and directories under
   `ansible/roles/*/`.
@@ -223,22 +222,74 @@ these narrow, structural things:
   a heading that actually slugs to that anchor; same for same-file
   `#anchor` links. Catches the class of bug a file move/rename/split
   leaves behind.
-- Every ADR/draft linked from
+- Every path under `docs/decisions/` or `docs/projects/` ending in `.md`
+  that is written in any docs, code, or config file (`.md`, `.py`,
+  `.yaml`, `.sh`, `.toml`, …) exists — comments included. This is what
+  catches a renamed ADR mentioned in a comment, which the anchor check
+  can't see because such a path carries no `#anchor`, and it fails a
+  comment that points at a project doc the day that project is deleted.
+  A path containing `NNN` is a placeholder; a deleted file is referred to
+  by name, not by path.
+- Every ADR linked from
   [`nist-800-53-alignment.md`](nist-800-53-alignment.md) isn't
   `status: superseded` — the one state transition the anchor check
   above can't catch, since a superseded ADR's file doesn't move or
   break any link. Doesn't check whether an *accepted* ADR's reasoning
   drifted, or whether a new ADR should be added there — that's still
   on whoever's making the change, per that page's own notes.
-- No draft under `decisions/drafts/` is `status: decided` while it
-  still has an open `Assumptions` entry — the hard gate in
-  [`decisions/README.md#drafts`](decisions/README.md#drafts).
+- Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`):
+  generations (`revision-NNN`) run 000..NNN with no gaps; competing
+  candidates in one generation are lettered a, b, c… with none missing,
+  and once one is `approved` or beyond the rest are `abandoned`; at most one revision is
+  `accepted`; a `superseded` revision names a later `accepted` (or
+  itself superseded) successor that declares `supersedes` back;
+  `title` and `topic` are identical across a lineage's revisions;
+  `narrows`, `related`, and `former_ids` reference real lineages, and a
+  `former_ids` entry is never a live lineage. Each lineage directory is
+  linked from `decisions/README.md`. An `approved` or `accepted`
+  revision has no open `Assumptions` entry — the hard gate in
+  [`decisions/README.md#assumptions`](decisions/README.md#assumptions).
   Presence-of-a-bullet only, not whether the claim is genuinely
-  resolved — that judgment call is still on whoever sets the status.
+  resolved; that judgment call is still on whoever sets the status.
+- A project's `decision:` revision must be in the state its status
+  requires: `not-started` → `working` or `approved`, `de-risking` →
+  `working`, `building` → `approved`, `done` → `accepted`. A revision
+  dropping back to `working` therefore fails the check for any project
+  that is `building` on it. Projects without a `decision:` are never
+  gated. `depends_on` entries name existing project docs, never
+  themselves, and form no cycle.
+- Relative links (`./`, `../`) from a `.md` file to a config, script, or
+  data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
+  way `.md` links do.
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a
 documented thing no longer exists.
+
+## Project scope check
+
+`.github/scripts/check-project-scope.py` enforces the optional
+`allowed_paths` field on project docs (see
+[`projects/README.md#scope`](projects/README.md#scope) for what it means
+and why). It runs in two places:
+
+- **CI** — the `project-scope` job, on every pull request: the diff from
+  the merge-base of the PR's base and head to its head. The merge-base,
+  not the base tip, so a branch that is behind doesn't see main's newer
+  commits as its own changes. The repo's other diff-based jobs diff
+  `$BASE $HEAD` directly; this one deliberately doesn't.
+- **pre-commit** — the `check-project-scope` hook, on what is staged,
+  against `HEAD`. It sees only the current commit, so it is early
+  feedback; CI is the authority, since it sees the whole PR. Under
+  `pre-commit-checks`' `--all-files` run nothing is staged and it passes
+  trivially.
+
+In both, a project's scope is read from the doc **as it stands on the
+base**, so a change can't widen its own scope and then use it. A project
+doc that is new in the change has no scope yet. Renames and deletions
+count as touching both paths. Path-level only: it can't tell whether an
+edit inside an allowed file is the permitted one, and a change that never
+touches its project doc isn't bounded.
 
 ## Molecule coverage gate
 

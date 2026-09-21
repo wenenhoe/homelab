@@ -75,8 +75,9 @@ repos:
       - id: generate-doc-indexes
         name: generate-doc-indexes
         description: >-
-          Regenerates docs/projects/README.md's Index table and
-          docs/decisions/drafts/README.md's Open list from frontmatter
+          Regenerates docs/projects/README.md's Index and By initiative
+          tables and docs/decisions/README.md's Lineages index from
+          frontmatter
           — see .github/scripts/generate-doc-indexes.py. Runs before
           markdownlint/check-doc-drift below, so a bad generation is
           caught the same way a bad hand-edit already is.
@@ -99,6 +100,19 @@ repos:
           with the roles, playbooks, scenarios, and CI jobs they
           describe — see .github/scripts/check-doc-drift.py.
         entry: python3 .github/scripts/check-doc-drift.py
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        always_run: true
+      - id: check-project-scope
+        name: check-project-scope
+        description: >-
+          A commit that touches a project doc stays inside that project's
+          allowed_paths, read from HEAD - see
+          .github/scripts/check-project-scope.py. Looks only at what is
+          staged, so it passes trivially under `--all-files` in CI, where
+          the project-scope job checks the whole PR instead.
+        entry: python3 .github/scripts/check-project-scope.py --staged
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: false

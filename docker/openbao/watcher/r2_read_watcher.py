@@ -33,7 +33,7 @@ Requires Python >=3.14 for the unparenthesized `except A, B:` below
 earlier versions.
 
 Uses hvac for the OpenBao client - see
-docs/decisions/0030-openbao-hvac-paramiko-clients.md. No
+docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md. No
 paramiko/SSH involved here, unlike cache.py/openbao_utils/bootstrap.py:
 this runs directly on `security` itself (see OPENBAO_BASE_URL below),
 so there's no remote root-cert fetch to make - `verify=False` is the

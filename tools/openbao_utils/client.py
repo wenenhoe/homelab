@@ -10,7 +10,7 @@ SSH/root-cert-fetching helpers this module used to also include live
 in tools/utils/repo.py instead - they were never actually
 OpenBao-specific either, just OpenBao's first (and so far, only)
 consumer. See
-docs/decisions/0031-tools-secrets-package-split.md.
+docs/decisions/0031-where-repo-tooling-lives/revision-000.md.
 
 r2_read_watcher.py deliberately does NOT import this: it's
 hand-installed via scp as a single file onto security's system
@@ -20,7 +20,7 @@ alongside a script whose whole point is staying one file. It keeps
 its own independent copy of the same login/read logic instead.
 
 Uses hvac for the OpenBao client - see
-docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md.
 """
 
 from __future__ import annotations

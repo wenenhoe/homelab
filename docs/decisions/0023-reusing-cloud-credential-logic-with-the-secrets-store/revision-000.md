@@ -1,0 +1,133 @@
+---
+id: ADR-0023
+revision: 0
+type: adr
+title: Reusing cloud-credential logic with the secrets store
+solution: Repoint the existing scripts at OpenBao KV v2; no native plugin
+summary: How the existing per-provider credential logic persists its output in OpenBao without being rebuilt.
+topic: cloud-credentials
+status: accepted
+related: [ADR-0016, ADR-0014]
+---
+
+# 0023. Repoint existing credential scripts at OpenBao KV v2, defer a native plugin
+
+**Status:** Accepted
+
+## Context
+
+`tools/cloud_credentials/` already encodes real, hard-won
+per-provider logic that has nothing to do with where the result is
+stored: B2's `validDurationInSeconds` and `readFiles`-for-`HeadObject`
+requirement, OCI's Identity Domains SCIM/Confidential-Application model
+([0016](../0016-oci-credential-creation-and-expiry/revision-000.md)), and
+R2's hard no-sub-token-delegation ceiling
+([0014](../0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)).
+Moving to OpenBao means deciding what changes: only the storage target,
+or the mechanism doing the minting/rotating too.
+
+OpenBao ships native automated rotation only for specific first-party
+engines (databases, AWS IAM, etc.) — nothing for R2/B2/OCI object
+storage. A native OpenBao secrets-engine plugin (Go) could add real
+lease-based rotation for these providers, but it would mean
+reimplementing every provider quirk above inside a compiled plugin
+instead of the Python this repo already tests
+(`tools/tests/cloud_credentials/`), for a homelab with one operator
+and a rotation cadence (see Decision, below) that a scheduled script
+already meets.
+
+A second open question sits underneath this one: OpenBao's KV v2 engine
+stores arbitrary data, not leased dynamic secrets — its own docs are
+explicit that the KV backend does not issue leases for what it stores,
+though a read may still echo back a lease duration. So even a native
+plugin wouldn't get free expiry tracking for KV-stored values; only a
+genuine dynamic-secrets engine would, and building one is exactly the
+Path B work this ADR is deferring.
+
+## Decision
+
+**Path A:** keep every existing Python provider module as-is —
+`leaf_keys/{b2,oci,r2}.py`, `rotation_keys/{b2,oci_bootstrap,oci_iam}.py`,
+and the shared `cache.py`/`verify.py`/`expiry.py`/`check_freshness.py` —
+and repoint only their storage target from
+`ansible/files/secrets/`/local cache files to OpenBao's KV v2 API.
+Rotation and expiry logic don't get rebuilt, only where they persist
+state.
+
+**Path B** (a real OpenBao secrets-engine plugin for native
+lease-based rotation) is deferred, not rejected. Revisit only if Path
+A's script-based approach becomes a maintenance burden — e.g. if
+`check_freshness.py`'s external-timer pattern proves unreliable in
+practice, or a provider adds a native dynamic-secrets-compatible API.
+
+Because KV v2 confirmed above has no lease/expiry mechanism to lean on,
+`check_freshness.py` keeps its current shape post-migration: still an
+external check reading expiry data and alerting via Telegram, just
+reading from Vault's KV v2 (native fields where B2/R2/OCI SCIM already
+provide them, `custom_metadata` for OCI's self-tracked rotation-secret
+timestamp) instead of `ansible/files/secrets/`.
+
+Vault as the store makes rotation schedulable even before any host
+exists to run it unattended — the cadence itself is a policy decision,
+independent of what triggers it. Rotation moves to a schedule: **leaf
+credentials** (all 6, across B2/R2/OCI) rotate every 30 days — a third
+of their 90-day expiry window
+([0015](../0015-cloud-credential-expiry/revision-000.md)),
+so a leaf credential is never within `check_freshness.py`'s own
+WARNING threshold under normal operation; its alerting becomes a
+safety net for a missed run, not the primary trigger. **Rotation/master
+credentials** rotate every 90 days, matching the existing expiry
+window rather than tightening it further — kept at parity because
+master-tier rotation already carries more risk per credential than a
+leaf rotation (OCI's Confidential Application secret has no
+verify-before-revoke at all, per
+[0016](../0016-oci-credential-creation-and-expiry/revision-000.md)), and
+a shorter cycle would multiply that risk without a clear benefit. For
+B2 and OCI, `create_rotation_keys.py --rotate {write,read,both}`'s
+existing mint-verify-revoke flow implements each rotation; R2 is a
+structural exception — see
+[0024](../0024-r2-admin-token-custody/revision-000.md) for why its master token
+can't be minted the same way.
+
+Today, both the freshness check and rotation itself are
+human-attended: `check_freshness.py` runs via a systemd **user** timer
+installed by hand on `controller` — the operator's own machine, not
+through any Ansible role (see `docs/cloud-credential-creation.md`'s
+Freshness check section) — and `create_rotation_keys.py --rotate` is
+run by hand against the schedule above rather than on it
+automatically. Moving both onto a dedicated always-on host, so they
+run truly unattended on this schedule, is separate, not-yet-built
+work.
+
+## Consequences
+
+- Every provider-specific quirk currently hard-won in
+  `tools/cloud_credentials/` carries forward unchanged; this
+  migration is a storage-layer swap, not a rewrite.
+- No new compiled-plugin toolchain (Go, plugin registration, OpenBao's
+  plugin catalog) enters this repo for this migration.
+- Rotation and expiry remain script-driven and schedule-based, not
+  lease-driven — the same operational model as today, just with Vault
+  as the store instead of flat files. A credential past its window
+  still keeps working provider-side until a human or automation
+  re-runs rotation, exactly as `check_freshness.py`'s advisory-only
+  status already describes.
+- If Path B is ever picked up, it starts from the same per-provider
+  logic this ADR preserves rather than from scratch.
+- Today, `controller` remains the only automation identity touching
+  credential rotation/freshness, run by hand as described above. If a
+  dedicated automation host is ever built to run this unattended,
+  whether it needs separate identities for deploy/maintenance versus
+  rotation/freshness — rather than one shared identity — is a design
+  question for that work, not decided here.
+- OCI's Confidential Application secret regenerating automatically
+  every 90 days with no rollback (per
+  [0016](../0016-oci-credential-creation-and-expiry/revision-000.md))
+  needs a tested failure path before this goes live — verified in a
+  restore drill (during the backup/restore proving stage, or again at
+  the later cutover stage), not assumed safe by analogy to B2/R2.
+- A 30-day leaf cadence triples the previous check-in frequency against
+  each provider's API. Whether any provider rate-limits credential
+  creation at that frequency isn't confirmed either way — a build
+  question for the secrets-role or cloud-credential migration stages,
+  not guessed here.

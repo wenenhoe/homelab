@@ -19,7 +19,7 @@ in Vault it lives, including every `cloudflare-r2-*`/`backblaze-b2-*`/
 `oci-*` entry (`vault_scope: cloud_credentials/leaf`, the same top-level
 path `tools/cloud_credentials/*.py` itself writes to — see
 `cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secrets_registry.yaml`'s own header comment and
-[ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)
+[ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
 for the full picture.
 
 No template should call `lookup('password', ...)` / `lookup('pipe', ...)`
@@ -29,7 +29,7 @@ any new secret or config value goes through the registry instead:
 1. Add an entry to `secrets_registry.yaml`, with a `vault_scope`
    (`hosts/<host>` if it's referenced from that host's own
    `host_vars/<host>.yaml`, `hosts/all/<concern>` if it's referenced
-   from `group_vars/all/main.yaml` — see [ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)):
+   from `group_vars/all/main.yaml` — see [ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)):
    ```yaml
    secrets_registry:
      my-new-thing: { format: hex, length: 32, vault_scope: hosts/security }
@@ -80,7 +80,7 @@ reachable and the controller AppRole already provisioned
 ([`openbao-auth.md`](openbao-auth.md)'s runbook) before this script can
 do anything with them; it fetches step-ca's root cert fresh each run to
 validate OpenBao's TLS cert, the same mechanism
-[ADR 0022](decisions/0022-controller-vault-tls-trust-via-per-run-fetched-root-cert.md)
+[ADR 0022](decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
 uses from Ansible. To set a file-cache-backed value without the script:
 
 ```sh

@@ -5,9 +5,9 @@ docker/openbao/scripts/bao-login.sh, bao-login-from-controller.sh, and
 bao-from-controller.sh (three scripts, two of them
 docker-exec/docker-run based) with one script that talks to the
 native `bao` binary `controller` has. See
-docs/decisions/0034-native-bao-cli-not-docker-exec-or-run.md's
+docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md's
 Decision for the full reasoning this module implements, and
-docs/decisions/0033-bao-session-local-only-drops-broken-security-path.md
+docs/decisions/0033-where-the-interactive-bao-session-runs/revision-000.md
 for why this only ever runs on `controller` - a `security`-local mode
 was drafted and never actually worked (the repo isn't checked out
 there).

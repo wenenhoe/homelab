@@ -88,7 +88,7 @@ def _connect() -> paramiko.SSHClient:
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     # Same accept-new-equivalent policy as utils.repo.fetch_root_cert -
-    # see docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+    # see docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md.
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(host, username=user, key_filename=key_path, timeout=TIMEOUT_SECONDS)
     return client

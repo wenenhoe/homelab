@@ -23,7 +23,7 @@ services:
 {% endif %}
 
   backup-agent:
-    image: ghcr.io/offen/docker-volume-backup:v2.49.0
+    image: ghcr.io/offen/docker-volume-backup:v2.49.1
     container_name: backup-agent
     volumes:
 {% for app in backup_agent_normalized %}

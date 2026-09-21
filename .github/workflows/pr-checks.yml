@@ -90,6 +90,9 @@ jobs:
               - 'ansible/molecule-coverage/callback_plugins/**'
               - 'ansible/tests/**'
               - 'tools/tests/**'
+              # tools/tests/doc_scripts/ imports these directly via
+              # sys.path.
+              - '.github/scripts/*.py'
               # Not under ansible/ — imported via sys.path in
               # ansible/tests/test_r2_read_watcher.py (see that file's
               # own docstring for why).

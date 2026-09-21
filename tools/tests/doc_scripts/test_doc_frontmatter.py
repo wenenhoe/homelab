@@ -1,0 +1,181 @@
+"""Unit tests for doc_frontmatter.py - the schema of record for decision
+and project docs. Run via `uv run pytest tools/tests/ -v`.
+"""
+
+from __future__ import annotations
+
+import tempfile
+import unittest
+from pathlib import Path
+
+import doc_frontmatter as fm_mod
+from _doc_fixtures import project, revision, write_doc
+
+
+class _TmpRoot(unittest.TestCase):
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+
+
+class DocKindTest(unittest.TestCase):
+    def test_kind_is_decided_by_location(self):
+        cases = {
+            "docs/decisions/0013-secret-storage/revision-002.md": "adr-revision",
+            "docs/decisions/0013-secret-storage.md": "adr-legacy",
+            "docs/decisions/drafts/some-draft.md": "draft-adr",
+            "docs/projects/cd-agent.md": "project",
+        }
+        for rel, kind in cases.items():
+            with self.subTest(rel=rel):
+                self.assertEqual(fm_mod.doc_kind(Path("/repo") / rel), kind)
+
+    def test_outside_decisions_and_projects_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            fm_mod.doc_kind(Path("/repo/docs/ansible.md"))
+
+
+class ReadFrontmatterTest(_TmpRoot):
+    def test_legacy_flat_adr_only_accepts_accepted_or_superseded(self):
+        ok = write_doc(self.root, "docs/decisions/0001-x.md", {"id": "ADR-0001", "title": "t", "type": "adr", "status": "accepted"})
+        self.assertEqual(fm_mod.read_frontmatter(ok)["status"], "accepted")
+        bad = write_doc(self.root, "docs/decisions/0002-x.md", {"id": "ADR-0002", "title": "t", "type": "adr", "status": "working"})
+        with self.assertRaisesRegex(SystemExit, "isn't valid"):
+            fm_mod.read_frontmatter(bad)
+
+    def test_type_must_match_location(self):
+        path = write_doc(self.root, "docs/decisions/drafts/d.md", {"id": "DRAFT-d", "title": "t", "type": "adr", "status": "draft"})
+        with self.assertRaisesRegex(SystemExit, "doesn't match its location"):
+            fm_mod.read_frontmatter(path)
+
+    def test_missing_frontmatter_and_required_fields(self):
+        path = self.root / "docs/projects/p.md"
+        path.parent.mkdir(parents=True)
+        path.write_text("# no frontmatter\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "missing frontmatter"):
+            fm_mod.read_frontmatter(path)
+        no_title = write_doc(self.root, "docs/projects/q.md", {"id": "PROJ-q", "type": "project", "status": "done"})
+        with self.assertRaisesRegex(SystemExit, "missing required field 'title'"):
+            fm_mod.read_frontmatter(no_title)
+
+
+class RevisionValidationTest(_TmpRoot):
+    def test_every_revision_status_is_accepted(self):
+        for n, status in enumerate(sorted(fm_mod.ADR_REVISION_STATUS), start=1):
+            extra = {"superseded_by": n + 1} if status == "superseded" else {}
+            with self.subTest(status=status):
+                path = revision(self.root, "0013-secret-storage", n, status=status, **extra)
+                self.assertEqual(fm_mod.read_frontmatter(path)["status"], status)
+
+    def test_rejected_frontmatter(self):
+        cases = {
+            "id doesn't match directory": {"id": "ADR-0099"},
+            "revision doesn't match filename": {"revision": 7},
+            "revision is a string": {"revision": "1"},
+            "unknown topic": {"topic": "misc"},
+            "empty solution": {"solution": "  "},
+            "superseded without superseded_by": {"status": "superseded"},
+            "superseded_by on a non-superseded revision": {"status": "accepted", "superseded_by": 2},
+            "supersedes itself": {"supersedes": 1},
+            "supersedes is a bool": {"supersedes": True},
+            "narrows is a list": {"narrows": ["ADR-0015"]},
+            "related isn't ADR ids": {"related": ["0014"]},
+            "former_ids isn't a list": {"former_ids": "ADR-0027"},
+        }
+        for label, overrides in cases.items():
+            with self.subTest(label):
+                path = revision(self.root, "0013-secret-storage", 1, **overrides)
+                with self.assertRaises(SystemExit):
+                    fm_mod.read_frontmatter(path)
+
+    def test_relations_accepted(self):
+        path = revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1, narrows="ADR-0015", related=["ADR-0014"], former_ids=["ADR-0027"])
+        self.assertEqual(fm_mod.read_frontmatter(path)["narrows"], "ADR-0015")
+
+
+class ProjectValidationTest(_TmpRoot):
+    def test_lifecycle_and_legacy_statuses(self):
+        for status in sorted(fm_mod.PROJECT_LIFECYCLE_STATUS | {"in-progress"}):
+            with self.subTest(status=status):
+                self.assertEqual(fm_mod.read_frontmatter(project(self.root, f"p-{status}", status=status))["status"], status)
+
+    def test_summary_is_required(self):
+        path = write_doc(self.root, "docs/projects/p.md", {"id": "PROJ-p", "title": "p", "type": "project", "status": "done"})
+        with self.assertRaisesRegex(SystemExit, "summary"):
+            fm_mod.read_frontmatter(path)
+
+    def test_blocked_rules(self):
+        self.assertEqual(
+            fm_mod.read_frontmatter(project(self.root, "a", status="building", blocked=True, blocked_reason="waiting on hardware"))["blocked"], True
+        )
+        self.assertEqual(fm_mod.read_frontmatter(project(self.root, "legacy", status="blocked", blocked_reason="x"))["status"], "blocked")
+        bad = {
+            "blocked true without reason": {"status": "building", "blocked": True},
+            "blocked isn't a bool": {"status": "building", "blocked": "yes"},
+            "legacy blocked without reason": {"status": "blocked"},
+            "legacy blocked mixed with the flag": {"status": "blocked", "blocked": True, "blocked_reason": "x"},
+        }
+        for label, overrides in bad.items():
+            with self.subTest(label), self.assertRaises(SystemExit):
+                fm_mod.read_frontmatter(project(self.root, "b", **overrides))
+
+    def test_depends_on_shape(self):
+        ok = project(self.root, "ok", depends_on=[{"project": "PROJ-other", "reason": "consumes its bootstrap"}])
+        self.assertEqual(len(fm_mod.read_frontmatter(ok)["depends_on"]), 1)
+        bad = {
+            "no reason": [{"project": "PROJ-other"}],
+            "blank reason": [{"project": "PROJ-other", "reason": " "}],
+            "bad id": [{"project": "other", "reason": "x"}],
+            "not a list": {"project": "PROJ-other", "reason": "x"},
+        }
+        for label, value in bad.items():
+            with self.subTest(label), self.assertRaises(SystemExit):
+                fm_mod.read_frontmatter(project(self.root, "b", depends_on=value))
+
+    def test_decision_and_super_project_shape(self):
+        self.assertEqual(fm_mod.read_frontmatter(project(self.root, "a", decision="ADR-0013/2", super_project="pull-based-cd"))["decision"], "ADR-0013/2")
+        for overrides in ({"decision": "ADR-0013"}, {"decision": ["ADR-0013/2"]}, {"super_project": "Pull Based"}):
+            with self.subTest(overrides), self.assertRaises(SystemExit):
+                fm_mod.read_frontmatter(project(self.root, "b", **overrides))
+
+
+class LineageLoadingTest(_TmpRoot):
+    def test_load_and_current_revision(self):
+        revision(self.root, "0013-secret-storage", 1, status="superseded", superseded_by=2)
+        revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1)
+        revision(self.root, "0013-secret-storage", 3, status="working")
+        (lineage,) = fm_mod.load_lineages(self.root)
+        self.assertEqual(lineage.id, "ADR-0013")
+        self.assertEqual(lineage.current().number, 2)
+        self.assertEqual([r.number for r in lineage.pending_successors()], [3])
+
+    def test_current_falls_back_to_newest_pending_then_newest(self):
+        revision(self.root, "0001-a", 1, status="working")
+        revision(self.root, "0001-a", 2, status="approved")
+        revision(self.root, "0002-b", 1, status="abandoned")
+        by_id = {lineage.id: lineage for lineage in fm_mod.load_lineages(self.root)}
+        self.assertEqual(by_id["ADR-0001"].current().number, 2)
+        self.assertEqual(by_id["ADR-0001"].pending_successors(), [])
+        self.assertEqual(by_id["ADR-0002"].current().number, 1)
+
+    def test_retired_counts_as_the_live_revision(self):
+        revision(self.root, "0001-a", 1, status="retired")
+        (lineage,) = fm_mod.load_lineages(self.root)
+        self.assertEqual(lineage.current().status, "retired")
+
+    def test_stray_files_and_empty_directories_are_rejected(self):
+        revision(self.root, "0001-a", 1)
+        (self.root / "docs/decisions/0001-a/README.md").write_text("# manifest\n", encoding="utf-8")
+        with self.assertRaisesRegex(SystemExit, "only revision-NNN.md"):
+            fm_mod.load_lineages(self.root)
+        (self.root / "docs/decisions/0001-a/README.md").unlink()
+        (self.root / "docs/decisions/0002-empty").mkdir()
+        with self.assertRaisesRegex(SystemExit, "no revision files"):
+            fm_mod.load_lineages(self.root)
+
+    def test_drafts_directory_and_flat_files_are_not_lineages(self):
+        write_doc(self.root, "docs/decisions/drafts/d.md", {"id": "DRAFT-d", "title": "t", "type": "draft-adr", "status": "draft"})
+        write_doc(self.root, "docs/decisions/0001-flat.md", {"id": "ADR-0001", "title": "t", "type": "adr", "status": "accepted"})
+        self.assertEqual(fm_mod.load_lineages(self.root), [])
+        self.assertEqual(fm_mod.load_lineages(self.root / "nowhere"), [])

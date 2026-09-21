@@ -69,7 +69,7 @@ the SeaweedFS-specific case this generalizes from.
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
@@ -235,6 +235,26 @@ these narrow, structural things:
   [`decisions/README.md#drafts`](decisions/README.md#drafts).
   Presence-of-a-bullet only, not whether the claim is genuinely
   resolved — that judgment call is still on whoever sets the status.
+- Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`):
+  revision numbers run 001..NNN with no gaps; at most one revision is
+  `accepted`; a `superseded` revision names a later `accepted` (or
+  itself superseded) successor that declares `supersedes` back;
+  `title` and `topic` are identical across a lineage's revisions;
+  `narrows`, `related`, and `former_ids` reference real lineages, and a
+  `former_ids` entry is never a live lineage. Each lineage directory is
+  linked from `decisions/README.md`. An `approved` or `accepted`
+  revision has no open `Assumptions` entry (same presence-of-a-bullet
+  test as drafts).
+- A project's `decision:` revision must be in the state its status
+  requires: `not-started` → `working` or `approved`, `de-risking` →
+  `working`, `building` → `approved`, `done` → `accepted`. A revision
+  dropping back to `working` therefore fails the check for any project
+  that is `building` on it. Projects without a `decision:` are never
+  gated. `depends_on` entries name existing project docs, never
+  themselves, and form no cycle.
+- Relative links (`./`, `../`) from a `.md` file to a config, script, or
+  data file (`.yaml`, `.hcl`, `.py`, …) resolve to a real file, the same
+  way `.md` links do.
 
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a

@@ -222,7 +222,7 @@ resulting behavior is described in topic docs.
 | ADR | Problem | Current solution | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | [0028](0028-doc-metadata-and-governance/revision-000.md) | **Doc metadata and governance** — How docs carry machine-readable metadata, how index tables stay current, and how NIST alignment is shown without stamping ADRs. | YAML frontmatter, generated indexes, one narrative NIST alignment doc | Accepted | Narrowed by [0037](0037-decision-and-project-documentation-workflow/revision-000.md) |
-| [0037](0037-decision-and-project-documentation-workflow/revision-000.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, and how an implementer knows what is authorized and when to stop. | Problem-oriented ADR lineages with gated revisions, projects as execution records, topic docs describing main | Approved | — |
+| [0037](0037-decision-and-project-documentation-workflow/revision-000.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, and how an implementer knows what is authorized and when to stop. | Problem-oriented ADR lineages with gated revisions, projects as execution records, topic docs describing main | Accepted | — |
 
 ## Other design records
 

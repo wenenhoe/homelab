@@ -193,10 +193,9 @@ def render_lineages_index(root: Path = ROOT) -> str:
 
 
 def validate_adrs(root: Path = ROOT) -> None:
-    """Flat ADRs don't feed a generated table, but validating them here
-    still catches a mismatched type/status before it ships — e.g. an ADR
-    accidentally left at status: draft. Lineage revisions are validated
-    by load_lineages().
+    """Lineage revisions are validated by load_lineages(). Reading any
+    file sitting directly under docs/decisions/ fails: only lineage
+    directories and drafts belong there.
     """
     for path in docs_in(root / "docs/decisions"):
         read_frontmatter(path)

@@ -23,7 +23,6 @@ class DocKindTest(unittest.TestCase):
     def test_kind_is_decided_by_location(self):
         cases = {
             "docs/decisions/0013-secret-storage/revision-002.md": "adr-revision",
-            "docs/decisions/0013-secret-storage.md": "adr-legacy",
             "docs/decisions/drafts/some-draft.md": "draft-adr",
             "docs/projects/cd-agent.md": "project",
         }
@@ -31,18 +30,20 @@ class DocKindTest(unittest.TestCase):
             with self.subTest(rel=rel):
                 self.assertEqual(fm_mod.doc_kind(Path("/repo") / rel), kind)
 
+    def test_a_flat_adr_file_is_rejected(self):
+        with self.assertRaisesRegex(SystemExit, "lineage directories"):
+            fm_mod.doc_kind(Path("/repo/docs/decisions/0013-secret-storage.md"))
+
     def test_outside_decisions_and_projects_is_rejected(self):
         with self.assertRaises(SystemExit):
             fm_mod.doc_kind(Path("/repo/docs/ansible.md"))
 
 
 class ReadFrontmatterTest(_TmpRoot):
-    def test_legacy_flat_adr_only_accepts_accepted_or_superseded(self):
-        ok = write_doc(self.root, "docs/decisions/0001-x.md", {"id": "ADR-0001", "title": "t", "type": "adr", "status": "accepted"})
-        self.assertEqual(fm_mod.read_frontmatter(ok)["status"], "accepted")
-        bad = write_doc(self.root, "docs/decisions/0002-x.md", {"id": "ADR-0002", "title": "t", "type": "adr", "status": "working"})
-        with self.assertRaisesRegex(SystemExit, "isn't valid"):
-            fm_mod.read_frontmatter(bad)
+    def test_flat_adr_files_no_longer_validate(self):
+        path = write_doc(self.root, "docs/decisions/0001-x.md", {"id": "ADR-0001", "title": "t", "type": "adr", "status": "accepted"})
+        with self.assertRaisesRegex(SystemExit, "lineage directories"):
+            fm_mod.read_frontmatter(path)
 
     def test_type_must_match_location(self):
         path = write_doc(self.root, "docs/decisions/drafts/d.md", {"id": "DRAFT-d", "title": "t", "type": "adr", "status": "draft"})

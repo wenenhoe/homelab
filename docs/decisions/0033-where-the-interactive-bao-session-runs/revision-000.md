@@ -103,7 +103,7 @@ stays exactly as it is today - it's load-bearing for
 - `controller` keeps carrying a version-pinned `bao` install
   indefinitely, for `snapshot-push.sh`'s sake - the friction that
   motivated the original relay proposal is accepted, not resolved.
-- `docs/decisions/drafts/controller-bao-via-security-ssh-relay-not-local-install.md`
+- The draft `controller-bao-via-security-ssh-relay-not-local-install`
   is deleted rather than promoted as originally planned - its
   Decision doesn't hold once `security` having a repo checkout turned
   out to be false. This record replaces it.

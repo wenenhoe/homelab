@@ -30,6 +30,8 @@ ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/",)
 CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
 SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")
 PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
+DECISION_PATH_RE = re.compile(r"docs/decisions/[\w./-]*\.md")
+PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
 REPO_FILE_LINK_RE = re.compile(r"\]\((\.{1,2}/[\w./-]+\.(?:yaml|yml|hcl|sh|py|j2|json|toml))(?:#[^)]*)?\)")
 
 
@@ -289,6 +291,23 @@ def check_no_stale_anchors() -> None:
                     fail(f"{rel_f}: links {rel}, which doesn't exist")
 
 
+def check_decision_path_mentions() -> None:
+    """Every path under docs/decisions/ that ends in .md and is written in
+    any docs, code, or config file exists — including inside comments,
+    which the anchor check above never sees unless the path carries a
+    `#anchor`. A path with `NNN` in it is a placeholder, not a reference;
+    a deleted file is referred to by name, not by path.
+    """
+    for f in sorted(ROOT.rglob("*")):
+        if not f.is_file() or any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts):
+            continue
+        if f.suffix not in PATH_MENTION_EXTS or f.relative_to(ROOT).as_posix().startswith(ANCHOR_SCAN_EXCLUDE_PREFIXES):
+            continue
+        for path in sorted(set(DECISION_PATH_RE.findall(read(f)))):
+            if "NNN" not in path and not (ROOT / path).is_file():
+                fail(f"{f.relative_to(ROOT)}: mentions {path}, which doesn't exist")
+
+
 def check_decided_drafts_have_no_open_assumptions() -> None:
     """Enforces the drafts' hard gate: a draft at status: decided must
     have no open `Assumptions` entry left, since `decided` is defined
@@ -353,6 +372,7 @@ def main() -> int:
     check_deploy_flow()
     check_ci_jobs_table()
     check_no_stale_anchors()
+    check_decision_path_mentions()
     check_decided_drafts_have_no_open_assumptions()
     check_nist_alignment_currency()
     errors.extend(lineage_errors(ROOT))

@@ -11,7 +11,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from _doc_fixtures import SCRIPTS, revision, write_doc
+from _doc_fixtures import SCRIPTS, revision
 
 _spec = importlib.util.spec_from_file_location("check_doc_drift", SCRIPTS / "check-doc-drift.py")
 drift = importlib.util.module_from_spec(_spec)
@@ -95,12 +95,64 @@ class NistAlignmentTest(_TmpRepo):
         drift.check_nist_alignment_currency()
         self.assertEqual(drift.errors, [])
 
-    def test_flat_legacy_adrs_and_other_docs_still_behave(self):
-        write_doc(
-            self.root, "docs/decisions/0001-flat.md", {"id": "ADR-0001", "title": "t", "type": "adr", "status": "superseded", "superseded_by": "ADR-0002"}
-        )
+    def test_links_outside_lineages_and_drafts_are_ignored(self):
+        self.write("docs/decisions/0001-flat.md", "# not a lineage\n")
         self.write("docs/host-vars.md", "# Host vars\n")
         self.write("docs/nist-800-53-alignment.md", "[flat](decisions/0001-flat.md) and [other](host-vars.md)\n")
         drift.check_nist_alignment_currency()
+        self.assertEqual(drift.errors, [])
+
+
+class DecisionPathMentionTest(_TmpRepo):
+    def setUp(self) -> None:
+        super().setUp()
+        self.write("docs/decisions/0001-x/revision-000.md", "# real\n")
+        self.write("docs/decisions/README.md", "# Index\n")
+
+    def test_existing_paths_pass_in_every_scanned_file_type(self):
+        real = "docs/decisions/0001-x/revision-000.md"
+        self.write("tools/tool.py", f"# see {real}\n")
+        self.write("ansible/roles/r/tasks/main.yaml", f"# see {real}\n")
+        self.write("tools/run.sh", f"# see {real}\n")
+        self.write("pyproject.toml", f"# see {real}\n")
+        self.write("docs/topic.md", f"See `{real}` and docs/decisions/README.md#anything.\n")
+        drift.check_decision_path_mentions()
+        self.assertEqual(drift.errors, [])
+
+    def test_a_missing_path_fails_in_comments_and_docs(self):
+        self.write("tools/tool.py", "# see docs/decisions/0009-gone/revision-000.md.\n")
+        self.write("docs/topic.md", "See docs/decisions/drafts/deleted.md for more.\n")
+        drift.check_decision_path_mentions()
+        self.assertEqual(len(drift.errors), 2, drift.errors)
+        self.assertTrue(any("tool.py" in e and "0009-gone/revision-000.md" in e for e in drift.errors))
+        self.assertTrue(any("topic.md" in e and "drafts/deleted.md" in e for e in drift.errors))
+
+    def test_a_missing_path_is_caught_in_every_scanned_extension(self):
+        missing = "docs/decisions/0009-gone/revision-000.md"
+        for name in ("a.py", "a.yaml", "a.yml", "a.sh", "a.toml", "a.hcl", "a.j2", "a.md"):
+            with self.subTest(name=name):
+                drift.errors.clear()
+                self.write(f"scan/{name}", f"# see {missing}\n")
+                drift.check_decision_path_mentions()
+                self.assertEqual(len(drift.errors), 1, drift.errors)
+                (self.root / "scan" / name).unlink()
+
+    def test_unscanned_extensions_are_ignored(self):
+        self.write("notes.txt", "docs/decisions/0009-gone/revision-000.md\n")
+        drift.check_decision_path_mentions()
+        self.assertEqual(drift.errors, [])
+
+    def test_old_flat_style_path_fails_after_a_refile(self):
+        self.write("tools/tool.py", "# docs/decisions/0001-old-flat-name.md\n")
+        drift.check_decision_path_mentions()
         self.assertEqual(len(drift.errors), 1, drift.errors)
-        self.assertIn("0001-flat.md", drift.errors[0])
+
+    def test_placeholders_and_names_without_a_path_are_ignored(self):
+        self.write("docs/topic.md", "Pattern docs/decisions/NNNN-slug/revision-NNN.md; the draft `deleted-draft` was removed.\n")
+        drift.check_decision_path_mentions()
+        self.assertEqual(drift.errors, [])
+
+    def test_test_fixtures_are_exempt(self):
+        self.write("tools/tests/doc_scripts/fixture.py", 'x = "docs/decisions/0099-fake/revision-000.md"\n')
+        drift.check_decision_path_mentions()
+        self.assertEqual(drift.errors, [])

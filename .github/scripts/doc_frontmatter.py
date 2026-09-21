@@ -34,17 +34,16 @@ ADR_REVISION_STATUS = {"working", "approved", "accepted", "superseded", "abandon
 PROJECT_LIFECYCLE_STATUS = {"not-started", "de-risking", "building", "done"}
 PROJECT_LEGACY_STATUS = {"in-progress", "blocked"}
 
-# Kinds are decided by path: a lineage revision, a flat pre-lineage ADR,
-# a draft, or a project. `in-progress`/`blocked` (project) and the flat
-# ADR layout are the pre-lineage vocabulary, valid until each doc is
-# migrated.
+# Kinds are decided by path: a lineage revision, a draft, or a project.
+# `in-progress`/`blocked` (project) are the pre-lifecycle vocabulary,
+# valid until each project doc is migrated; drafts are valid until they
+# are converted to lineages.
 VALID_STATUS = {
     "adr-revision": ADR_REVISION_STATUS,
-    "adr-legacy": {"accepted", "superseded"},
     "draft-adr": {"draft", "de-risking", "decided"},
     "project": PROJECT_LIFECYCLE_STATUS | PROJECT_LEGACY_STATUS,
 }
-KIND_TYPE = {"adr-revision": "adr", "adr-legacy": "adr", "draft-adr": "draft-adr", "project": "project"}
+KIND_TYPE = {"adr-revision": "adr", "draft-adr": "draft-adr", "project": "project"}
 
 REVISION_PATH_RE = re.compile(r"docs/decisions/(\d{4})-[a-z0-9-]+/revision-(\d{3})\.md$")
 LINEAGE_DIR_RE = re.compile(r"^\d{4}-[a-z0-9-]+$")
@@ -62,7 +61,7 @@ def doc_kind(path: Path) -> str:
     if "docs/decisions/drafts/" in posix:
         return "draft-adr"
     if "docs/decisions/" in posix:
-        return "adr-legacy"
+        raise SystemExit(f"{path}: docs/decisions/ holds lineage directories (NNNN-slug/revision-NNN.md) and drafts only")
     if "docs/projects/" in posix:
         return "project"
     raise SystemExit(f"{path}: not under docs/decisions/ or docs/projects/")

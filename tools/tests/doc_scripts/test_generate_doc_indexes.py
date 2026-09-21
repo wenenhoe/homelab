@@ -124,7 +124,7 @@ class LineagesIndexTest(_TmpRoot):
         self.assertNotIn("### Backup", out)
         self.assertLess(out.index("0001-host-config"), out.index("0004-docker-api-access"))
         self.assertIn(
-            "| [0004](0004-docker-api-access/revision-001.md) | **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted |  |",
+            "| [0004](0004-docker-api-access/revision-001.md) | **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |",
             out,
         )
 

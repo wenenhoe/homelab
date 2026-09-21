@@ -179,7 +179,7 @@ def render_lineages_index(root: Path = ROOT) -> str:
                 f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}",
                 _cell(current.fm["solution"]),
                 status,
-                _cell("; ".join(notes)),
+                _cell("; ".join(notes)) or "—",
             ]
             rows.append("| " + " | ".join(cells) + " |")
         if rows:

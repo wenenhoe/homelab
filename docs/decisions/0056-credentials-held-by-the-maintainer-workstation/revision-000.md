@@ -6,7 +6,7 @@ title: Credentials held by the maintainer workstation
 solution: The workstation holds the push credential and the coding-agent host key only; every infrastructure credential moves to the operator host
 summary: Which credentials the maintainer workstation holds, so a compromised routine session finds no infrastructure credential to read.
 topic: security-hardening
-status: working
+status: approved
 related: [ADR-0013, ADR-0020, ADR-0044, ADR-0047, ADR-0048, ADR-0050, ADR-0055, ADR-0058]
 ---
 
@@ -23,6 +23,8 @@ The workstation (VM 401 today, per [`tofu-vm-provisioning.md`](../../projects/to
 `main-domain` is not sensitive. It is cached rather than stored in Vault because host names, including OpenBao's own, must resolve before Vault is reachable, and `tools/openbao_utils/client.py` builds OpenBao's URL from it.
 
 The AppRole pair retires once the CD agent and its AppRoles run the jobs ([`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md), [ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)). One SSH key is shared across every managed host and possibly this machine ([`cd-agent.md`](../../projects/cd-agent.md)). Tofu's Proxmox, OPNsense, and state-backend credentials have no decided home ([ADR 0048](../0048-where-tofu-credentials-live/revision-000.md)), and the CD agent's job list does not include Tofu. Under [ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md) the workstation also holds the only push credential.
+
+CI runs `pre-commit` at both hook stages (which includes ansible-lint) and `pytest ansible/tests/ tools/tests/` on GitHub-hosted runners with no secrets and no file cache; the tests seed their own placeholder values. The checks for reviewing and pushing a change therefore need no credential. Only the deploy-ordering check seeds placeholder secrets, and it runs in CI only.
 
 The CD agent's own provisioning is deliberately outside its deploy loop ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md)), so a human path to the infrastructure must persist. [ADR 0058](../0058-where-operator-work-runs/revision-000.md) gives it a home.
 
@@ -41,12 +43,6 @@ The credentials move to the operator host, not into thin air, and retire there a
 - **Identity tiers on the workstation** (driving, maintainer, operator accounts). Two extra identities to maintain, and an account boundary on a shared kernel is weaker than a machine boundary. Rejected.
 - **Wait for the CD agent to absorb the controller.** It absorbs deploys, maintenance, rotation, and freshness, not Tofu or break-glass access, and it is blocked on [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md). Rejected.
 - **Move operator work onto the CD agent.** Its provisioning is deliberately decoupled from the deploy loop, and running Tofu there would give it authority over the VMs that include itself. Rejected.
-
-## Assumptions
-
-- **Claim:** the review-and-push workflow needs no credential beyond the push credential: `pre-commit run --all-files`, the `tools/` unit tests, and ansible-lint all run without secrets or the file cache.
-  **Breaks if wrong:** routine changes send the maintainer to the operator host, or credentials drift back onto the workstation.
-  **Checked by:** running those checks on a clone with no credentials and no file cache.
 
 ## Consequences
 

@@ -26,7 +26,7 @@ Retiring VM 401's copies of the controller credentials and tooling, the credenti
 
 ## Decision
 
-Implements [ADR 0056](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md), `working`, whose one assumption is checked before Stage 1 runs.
+Implements [ADR 0056](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md), `approved`.
 
 ## Execution plan
 
@@ -34,10 +34,9 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Check that review and push need no credential: `pre-commit`, the `tools/` tests, and ansible-lint on a clone with no secrets | Not started | The assumption in ADR 0056 is resolved and the revision can be `approved` |
-| 2 | Retire VM 401's copies: revoke its AppRole secret, delete the file cache, shared SSH key, Tofu and Proxmox credentials, any OpenBao token, and the Ansible, Tofu, and `bao` tooling | Not started | The audit finds only the push credential and the coding-agent host key |
-| 3 | Audit as a repeatable check in the workstation role | Not started | A script lists credential-shaped paths and fails on any beyond those two |
-| 4 | Move desktop assistants with local tool access off the workstation | Not started | None is installed on it |
+| 1 | Retire VM 401's copies: revoke its AppRole secret, delete the file cache, shared SSH key, Tofu and Proxmox credentials, any OpenBao token, and the Ansible, Tofu, and `bao` tooling | Not started | The audit finds only the push credential and the coding-agent host key |
+| 2 | Audit as a repeatable check in the workstation role | Not started | A script lists credential-shaped paths and fails on any beyond those two |
+| 3 | Move desktop assistants with local tool access off the workstation | Not started | None is installed on it |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -50,7 +49,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- If routine work keeps needing the operator host, the assumption in ADR 0056 was wrong and the reduction has to be revisited, not worked around.
+- If routine work keeps needing the operator host, ADR 0056's reconsideration trigger applies and the reduction is revisited, not worked around.
 
 ## Open items
 

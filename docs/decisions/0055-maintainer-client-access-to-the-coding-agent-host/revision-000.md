@@ -6,7 +6,7 @@ title: Maintainer client access to the coding-agent host
 solution: One workstation identity, terminal-only SSH to the host on a dedicated key, and review by git fetch and a local diff
 summary: How the maintainer drives the agent and reviews its work without the host gaining a path to the workstation's push credential.
 topic: security-hardening
-status: working
+status: approved
 related: [ADR-0050, ADR-0053, ADR-0056, ADR-0057]
 ---
 

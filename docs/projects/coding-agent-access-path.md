@@ -26,7 +26,7 @@ The workstation's SSH client entry for the host, the maintainer's key on the hos
 
 ## Decision
 
-Implements [ADR 0055](../decisions/0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), `working` with no open assumptions. It also carries out the workflow in [ADR 0050](../decisions/0050-agent-authored-changes-reaching-production/revision-000.md), which has no project of its own: that revision is set to `accepted` in the PR that completes Stage 2.
+Implements [ADR 0055](../decisions/0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), `approved`. It also carries out the workflow in [ADR 0050](../decisions/0050-agent-authored-changes-reaching-production/revision-000.md), also `approved`, which has no project of its own: that revision is set to `accepted` in the PR that completes Stage 2.
 
 ## Execution plan
 

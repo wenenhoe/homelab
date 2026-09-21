@@ -73,8 +73,23 @@ class InitiativesTableTest(_TmpRoot):
         project(self.root, "c")
         with contextlib.redirect_stderr(io.StringIO()) as err:
             table = gen.render_initiatives_table(self.root)
-        self.assertEqual(table.splitlines()[2:], ["| `pull-based-cd` | [`a.md`](a.md) | Building |", "| `pull-based-cd` | [`b.md`](b.md) | Not started |"])
+        self.assertEqual(
+            table.splitlines()[2:],
+            ["| `pull-based-cd` | — | — | [`a.md`](a.md) | Building |", "| `pull-based-cd` | — | — | [`b.md`](b.md) | Not started |"],
+        )
         self.assertEqual(err.getvalue(), "")
+
+    def test_track_and_phase_columns_and_ordering(self):
+        project(self.root, "late", super_project="cd", track="security", phase="hardening")
+        project(self.root, "early", super_project="cd", track="security", phase="bootstrap")
+        project(self.root, "infra", super_project="cd", track="agent")
+        project(self.root, "loose", super_project="cd")
+        table = gen.render_initiatives_table(self.root)
+        self.assertEqual(
+            [line.split("|")[4].strip() for line in table.splitlines()[2:]],
+            ["[`loose.md`](loose.md)", "[`infra.md`](infra.md)", "[`early.md`](early.md)", "[`late.md`](late.md)"],
+        )
+        self.assertIn("| `cd` | `security` | `bootstrap` | [`early.md`](early.md) |", table)
 
     def test_single_use_label_warns_but_still_renders(self):
         project(self.root, "a", super_project="typo-label")

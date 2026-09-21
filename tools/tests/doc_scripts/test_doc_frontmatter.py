@@ -133,6 +133,19 @@ class ProjectValidationTest(_TmpRoot):
             with self.subTest(label), self.assertRaises(SystemExit):
                 fm_mod.read_frontmatter(project(self.root, "b", depends_on=value))
 
+    def test_track_and_phase_need_their_parent_label(self):
+        ok = project(self.root, "ok", super_project="cd", track="security", phase="bootstrap")
+        self.assertEqual(fm_mod.read_frontmatter(ok)["phase"], "bootstrap")
+        bad = {
+            "track without super_project": {"track": "security"},
+            "phase without track": {"super_project": "cd", "phase": "bootstrap"},
+            "track isn't a slug": {"super_project": "cd", "track": "Security Track"},
+            "phase isn't a slug": {"super_project": "cd", "track": "t", "phase": 1},
+        }
+        for label, overrides in bad.items():
+            with self.subTest(label), self.assertRaises(SystemExit):
+                fm_mod.read_frontmatter(project(self.root, "b", **overrides))
+
     def test_decision_and_super_project_shape(self):
         self.assertEqual(fm_mod.read_frontmatter(project(self.root, "a", decision="ADR-0013/2", super_project="pull-based-cd"))["decision"], "ADR-0013/2")
         for overrides in ({"decision": "ADR-0013"}, {"decision": ["ADR-0013/2"]}, {"super_project": "Pull Based"}):

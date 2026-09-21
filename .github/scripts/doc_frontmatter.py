@@ -122,8 +122,11 @@ def _validate_project(path: Path, data: dict) -> None:
             _fail(path, "status: blocked needs a 'blocked_reason' field")
     elif data.get("blocked") is True and not data.get("blocked_reason"):
         _fail(path, "blocked: true needs a 'blocked_reason' field")
-    if "super_project" in data and not (isinstance(data["super_project"], str) and SLUG_RE.match(data["super_project"])):
-        _fail(path, "'super_project' must be a lowercase-hyphen slug")
+    for field, parent in (("super_project", None), ("track", "super_project"), ("phase", "track")):
+        if field in data and not (isinstance(data[field], str) and SLUG_RE.match(data[field])):
+            _fail(path, f"'{field}' must be a lowercase-hyphen slug")
+        if field in data and parent and parent not in data:
+            _fail(path, f"'{field}' needs '{parent}': a {field} belongs to one")
     if "decision" in data and not (isinstance(data["decision"], str) and REVISION_REF_RE.match(data["decision"])):
         _fail(path, "'decision' must be a single revision reference like ADR-0013/2")
     depends_on = data.get("depends_on", [])

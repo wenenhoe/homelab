@@ -76,17 +76,21 @@ def render_projects_table(root: Path = ROOT) -> str:
 
 def render_initiatives_table(root: Path = ROOT) -> str:
     projects = _load_projects(root)
-    labelled = sorted((fm["super_project"], path.name, fm) for path, fm in projects.values() if "super_project" in fm)
+    labelled = sorted((fm["super_project"], fm.get("track", ""), fm.get("phase", ""), path.name, fm) for path, fm in projects.values() if "super_project" in fm)
     if not labelled:
         return "No project is grouped into an initiative."
     counts: dict[str, int] = {}
-    for initiative, _, _ in labelled:
+    for initiative, *_ in labelled:
         counts[initiative] = counts.get(initiative, 0) + 1
     for initiative, n in counts.items():
         if n == 1:
             print(f"warning: super_project '{initiative}' is used by one project only — a typo, or not yet an initiative", file=sys.stderr)
-    rows = [f"| `{initiative}` | [`{name}`]({name}) | {project_status_text(fm, _waiting_on(fm, projects))} |" for initiative, name, fm in labelled]
-    return "\n".join(["| Initiative | Project | Status |\n| :--- | :--- | :--- |", *rows])
+    rows = [
+        f"| `{initiative}` | {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`]({name}) "
+        f"| {project_status_text(fm, _waiting_on(fm, projects))} |"
+        for initiative, track, phase, name, fm in labelled
+    ]
+    return "\n".join(["| Initiative | Track | Phase | Project | Status |\n| :--- | :--- | :--- | :--- | :--- |", *rows])
 
 
 DRAFT_STATUS_DISPLAY = {

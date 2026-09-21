@@ -95,7 +95,7 @@ and never invokes this role at all.
 Every flagged role's actual tasks were read, not just counted:
 
 - **Real finds:** `secrets` role's `read_vault_kv.yaml`/
-  `resolve_vault_generated_secret.yaml`/`vault_login.yaml` hand-roll
+  `process_vault_secrets.yaml`/`vault_login.yaml` hand-roll
   AppRole login + KV v2 read/write over raw `ansible.builtin.uri` — a
   *third* independent Vault client alongside the two already found in
   Python

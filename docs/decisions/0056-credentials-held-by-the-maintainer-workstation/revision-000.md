@@ -32,7 +32,7 @@ The CD agent's own provisioning is deliberately outside its deploy loop ([ADR 00
 
 ## Decision
 
-The workstation holds the GitHub push credential and the SSH key for the coding-agent host ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)), and no infrastructure credential: no shared SSH key, no OpenBao credential, no Tofu credential, no cached `main-domain`. Anything that needs one runs on the operator host ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)).
+The workstation holds the GitHub push credential and the SSH key for the coding-agent host ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)), and no infrastructure credential: no shared SSH key, no OpenBao credential, no Tofu credential, no backup GPG key, no cached `main-domain`. Anything that needs one runs on the operator host ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)).
 
 Software that handles untrusted content with local tool access, such as a desktop assistant with file or tool access, does not run on the workstation.
 
@@ -62,7 +62,7 @@ The credentials move to the operator host, not into thin air, and retire there a
 
 ## Validation
 
-A scripted audit on the workstation lists credential-shaped paths (SSH keys, the file cache, Tofu and Proxmox tokens, OpenBao tokens) and fails on any beyond the push credential and the coding-agent host key.
+A scripted audit on the workstation lists credential-shaped paths (SSH keys, the file cache, Tofu and Proxmox tokens, OpenBao tokens, the backup GPG private key) and fails on any beyond the push credential and the coding-agent host key.
 
 ## Reconsideration triggers
 

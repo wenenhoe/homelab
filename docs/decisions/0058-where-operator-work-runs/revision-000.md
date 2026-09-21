@@ -20,9 +20,9 @@ Ansible, Tofu, the `tools/` utilities, and break-glass access to infrastructure 
 
 The controller is VM 401 today, a desktop ([`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)). [ADR 0056](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md) moves every infrastructure credential off it.
 
-The credentials to place: the file cache (`main-domain` and the AppRole pair), the shared SSH key, Tofu's Proxmox, OPNsense, and state credentials, and on-demand OpenBao admin access through the native `bao` binary ([ADR 0034](../0034-operator-access-to-the-openbao-cli/revision-000.md)).
+The credentials to place: the file cache (`main-domain` and the AppRole pair), the shared SSH key, Tofu's Proxmox, OPNsense, and state credentials, on-demand OpenBao admin access through the native `bao` binary ([ADR 0034](../0034-operator-access-to-the-openbao-cli/revision-000.md)), and the backup GPG private key. That key is offline and is imported on the controller only for a restore ([`disaster-recovery.md`](../../disaster-recovery.md)).
 
-The controller reaches managed hosts over SSH, OpenBao's API, Proxmox and OPNsense APIs, and the Tofu state bucket on `storage`. The repo is public, so it pulls `main` without a credential.
+The controller reaches managed hosts over SSH, OpenBao's API, Proxmox and OPNsense APIs, and the Tofu state bucket on `storage`. Its Internet destinations are package and release hosts, the cloud providers' APIs, and Telegram. Every one of these flows is outbound: Ansible pushes over SSH, and no host or service filters by the controller's address or calls back to it. The repo is public, so it pulls `main` without a credential. [`operator-host.md`](../../projects/operator-host.md) lists the flows.
 
 The CD agent absorbs deploy, maintenance, rotation, and freshness ([`cd-agent.md`](../../projects/cd-agent.md)) but not Tofu or break-glass access, and it has zero inbound ports ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md)).
 
@@ -49,9 +49,6 @@ A small dedicated headless VM in VLAN 30 (VMID 301, sized like the default Ubunt
 
 ## Assumptions
 
-- **Claim:** every flow the controller needs today is outbound from VLAN 30 to the existing VLANs and services, so rules allow those and nothing inbound from them.
-  **Breaks if wrong:** a needed flow is inbound to VLAN 30, or the host belongs in VLAN 20 next to the hosts it manages.
-  **Checked by:** listing the controller's flows from the playbooks, `tools/`, and Tofu configuration, then testing them from a scratch VM in VLAN 30.
 - **Claim:** the tailnet ACL can limit the VLAN 30 route to the laptop.
   **Breaks if wrong:** the host is reachable from every tailnet node, and access falls back to Tailscale on the host itself.
   **Checked by:** reading the tailnet policy, which [`network-infra.md`](../../network-infra.md) records as not yet reviewed.

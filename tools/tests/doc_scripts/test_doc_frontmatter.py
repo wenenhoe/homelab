@@ -97,6 +97,55 @@ class RevisionValidationTest(_TmpRoot):
                 self.assertEqual(fm_mod.read_frontmatter(path)["topic"], topic)
         self.assertEqual(fm_mod.TOPICS["security-hardening"], "Security & hardening")
 
+    def test_a_competing_candidate_file_and_its_frontmatter_must_agree(self):
+        ok = revision(self.root, "0044-x", 0, letter="a")
+        self.assertEqual(fm_mod.read_frontmatter(ok)["candidate"], "a")
+        self.assertTrue(ok.name == "revision-000-a.md")
+        bad = {
+            "lettered file, wrong candidate": revision(self.root, "0045-x", 0, letter="a", candidate="b"),
+            "lettered file, no candidate field": None,
+            "unlettered file with a candidate field": revision(self.root, "0046-x", 0, candidate="a"),
+        }
+        no_field = revision(self.root, "0047-x", 0, letter="a")
+        text = no_field.read_text(encoding="utf-8").replace("candidate: a\n", "")
+        no_field.write_text(text, encoding="utf-8")
+        bad["lettered file, no candidate field"] = no_field
+        for label, path in bad.items():
+            with self.subTest(label), self.assertRaises(SystemExit):
+                fm_mod.read_frontmatter(path)
+
+    def test_references_may_name_a_lettered_candidate(self):
+        path = revision(self.root, "0044-x", 1, status="accepted", supersedes="0-b")
+        self.assertEqual(fm_mod.read_frontmatter(path)["supersedes"], "0-b")
+        for label, overrides in {
+            "same generation": {"supersedes": "1-a"},
+            "malformed": {"supersedes": "b"},
+            "uppercase letter": {"supersedes": "0-B"},
+            "a quoted bare number": {"supersedes": "0"},
+            "negative": {"supersedes": -1},
+        }.items():
+            with self.subTest(label), self.assertRaises(SystemExit):
+                fm_mod.read_frontmatter(revision(self.root, f"01{len(label):02d}-y", 1, **overrides))
+
+    def test_ref_label(self):
+        cases = {0: "0", 3: "3", "0-b": "0-b", "12-z": "12-z", "0": None, "b": None, "0-B": None, "01-a": None, -1: None, True: None, None: None, 1.5: None}
+        for value, expected in cases.items():
+            with self.subTest(value=value):
+                self.assertEqual(fm_mod.ref_label(value), expected)
+
+    def test_lineage_loads_candidates_in_generation_then_letter_order(self):
+        revision(self.root, "0044-x", 1, status="working")
+        revision(self.root, "0044-x", 0, letter="b", status="abandoned")
+        revision(self.root, "0044-x", 0, letter="a", status="accepted")
+        (lineage,) = fm_mod.load_lineages(self.root)
+        self.assertEqual([r.label for r in lineage.revisions], ["0-a", "0-b", "1"])
+        self.assertEqual([r.number for r in lineage.revisions], [0, 0, 1])
+        self.assertEqual(lineage.get("0-b").status, "abandoned")
+        self.assertIsNone(lineage.get(0), "a generation with lettered candidates is not addressable by its bare number")
+        self.assertEqual(lineage.get(1).label, "1")
+        self.assertEqual(lineage.current().label, "0-a")
+        self.assertEqual([r.label for r in lineage.pending_successors()], ["1"])
+
     def test_the_original_is_revision_zero(self):
         path = revision(self.root, "0013-secret-storage", 0)
         self.assertEqual(fm_mod.read_frontmatter(path)["revision"], 0)

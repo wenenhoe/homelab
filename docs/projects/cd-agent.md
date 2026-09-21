@@ -40,11 +40,11 @@ Actions-format workflow files for deploy/maintenance/rotation/
 freshness/security-reporting jobs. `preloop`'s CLI event-flag behavior beyond bare
 `pull_request` is unverified — needs a spike before this stage's
 deploy/rotation jobs are built on it. See the
-[working decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000.md)
+[working decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md)
 this stage implements.
 
 **Read before building this stage:**
-[`0044-prod-automation-trigger-and-execution/revision-001.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-001.md)
+[`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md)
 is a still-open, unresolved alternative that proposes replacing this
 stage's mechanism entirely — a private, LAN-only Gitea *or Forgejo*
 instance with an `act_runner`/`forgejo-runner`, dispatch-triggered on
@@ -73,7 +73,7 @@ narrow, short-lived token on demand instead.
 ## Open items
 
 - Whether Stage 1 stays a `preloop` poller or gets replaced by
-  [`0044-prod-automation-trigger-and-execution/revision-001.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-001.md)'s
+  [`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md)'s
   Gitea Actions approach — a live, unresolved fork. Resolve this
   before Stage 1 is actually built, not after.
 - Stage 3's "mints a fresh, narrow, short-lived token on demand

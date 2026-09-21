@@ -100,8 +100,13 @@ ADR_STATUS_DISPLAY = {
 }
 
 
-def _revision_label(number: int) -> str:
-    return "original" if number == 0 else f"revision {number}"
+def _revision_label(rev) -> str:
+    base = "original" if rev.number == 0 else f"revision {rev.number}"
+    return f"{base} ({rev.candidate})" if rev.candidate else base
+
+
+def _short_label(rev) -> str:
+    return f"{rev.number:03d}" + (f"-{rev.candidate}" if rev.candidate else "")
 
 
 def _cell(text: str) -> str:
@@ -139,15 +144,15 @@ def render_lineages_index(root: Path = ROOT) -> str:
             if not decided and len(open_revisions) > 1:
                 # Nothing accepted and several solutions alive: say so instead of showing the newest as if it had won.
                 first = open_revisions[0]
-                solution = "Undecided between: " + "; or ".join(f"({_revision_label(r.number)}) {r.fm['solution']}" for r in open_revisions)
-                status = ", ".join(f"{ADR_STATUS_DISPLAY[r.status]} ({_revision_label(r.number)})" for r in open_revisions)
+                solution = "Undecided between: " + "; or ".join(f"({_short_label(r)}) {r.fm['solution']}" for r in open_revisions)
+                status = ", ".join(f"{ADR_STATUS_DISPLAY[r.status]} ({_short_label(r)})" for r in open_revisions)
                 adr_cell = f"[{lineage.number}]({lineage.dir.name}/{first.path.name})"
                 notes = []
             else:
                 solution = current.fm["solution"]
-                status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current.number)})" if len(lineage.revisions) > 1 else "")
+                status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current)})" if len(lineage.revisions) > 1 else "")
                 adr_cell = _lineage_link(lineage)
-                notes = [f"Revision {r.number} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
+                notes = [f"Revision {r.label} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
             if lineage.id in narrowed_by:
                 notes.append("Narrowed by " + ", ".join(_lineage_link(by_id[i]) for i in sorted(narrowed_by[lineage.id])))
             if lineage.id in related:

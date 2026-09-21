@@ -21,8 +21,9 @@ def write_doc(root: Path, rel: str, fm: dict, body: str = "# Title\n") -> Path:
     return path
 
 
-def revision(root: Path, lineage: str, number: int, body: str = "# Title\n", **overrides) -> Path:
-    """`lineage` is the directory name, e.g. '0013-secret-storage'."""
+def revision(root: Path, lineage: str, number: int, body: str = "# Title\n", letter: str | None = None, **overrides) -> Path:
+    """`lineage` is the directory name, e.g. '0013-secret-storage'. `letter` makes it a
+    competing candidate (revision-NNN-x.md, with a matching `candidate:` unless overridden)."""
     fm = {
         "id": f"ADR-{lineage[:4]}",
         "revision": number,
@@ -33,8 +34,11 @@ def revision(root: Path, lineage: str, number: int, body: str = "# Title\n", **o
         "topic": "secrets-store",
         "status": "working",
     }
+    if letter:
+        fm["candidate"] = letter
     fm.update(overrides)
-    return write_doc(root, f"docs/decisions/{lineage}/revision-{number:03d}.md", fm, body)
+    suffix = f"-{letter}" if letter else ""
+    return write_doc(root, f"docs/decisions/{lineage}/revision-{number:03d}{suffix}.md", fm, body)
 
 
 def project(root: Path, name: str, **overrides) -> Path:

@@ -164,7 +164,7 @@ edges — a generated graph would have flattened exactly the distinction
 that matters, and no doc ever populated the field in practice. A live
 fork found during that check
 (`cd-agent.md` Stage 1 vs.
-[`0044-prod-automation-trigger-and-execution/revision-001.md`](../0044-prod-automation-trigger-and-execution/revision-001.md))
+[`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../0044-prod-automation-trigger-and-execution/revision-000-b.md))
 got a direct cross-reference instead, which is the cheaper fix for the
 one case that actually carried real risk. `depends_on` was dropped
 from the schema entirely rather than kept as an unused field — the

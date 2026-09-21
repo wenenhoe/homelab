@@ -1,6 +1,7 @@
 ---
 id: ADR-0044
-revision: 1
+revision: 0
+candidate: b
 type: adr
 title: Trigger and execution of prod-touching automation
 solution: A private, LAN-only Gitea or Forgejo instance with Actions and a runner on the agent host
@@ -14,7 +15,7 @@ related: [ADR-0020, ADR-0023]
 
 ## Context
 
-[`revision-000.md`](revision-000.md)
+[`revision-000-a.md`](revision-000-a.md)
 rejects any GitHub-dispatched execution model for prod-touching work,
 because a public repo's dispatch model auto-runs workflows for any
 contributor whose past PR was ever approved once, regardless of

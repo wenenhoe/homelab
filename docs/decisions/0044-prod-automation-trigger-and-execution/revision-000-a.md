@@ -1,6 +1,7 @@
 ---
 id: ADR-0044
 revision: 0
+candidate: a
 type: adr
 title: Trigger and execution of prod-touching automation
 solution: A pull-based CD agent polling origin/main, not a GitHub-dispatched runner
@@ -142,7 +143,7 @@ CD agent instead of a CD *runner*:
   rules out the whole category regardless of which one. A private,
   LAN-only instance with no outside contributors doesn't carry the
   risk this draft is about; see
-  [`revision-001.md`](revision-001.md)
+  [`revision-000-b.md`](revision-000-b.md)
   for that case. No GitHub OIDC/JWT auth binding either way — AppRole
   is the auth binding outright, not a fallback.
 - The CD agent will be a new identity in OpenBao's auth model,

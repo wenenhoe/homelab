@@ -18,7 +18,7 @@ related: [ADR-0017, ADR-0023]
 [0020](revision-000.md) gives `controller`
 one broad AppRole because it's the only automation identity that
 exists today. A separate, not-yet-built proposal (see
-[`../0044-prod-automation-trigger-and-execution/revision-000.md`](../0044-prod-automation-trigger-and-execution/revision-000.md))
+[`../0044-prod-automation-trigger-and-execution/revision-000-a.md`](../0044-prod-automation-trigger-and-execution/revision-000-a.md))
 would add a dedicated automation host (`cd_agent`) that becomes the
 sole path to prod deploys and takes over the rotation/freshness jobs
 [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) schedules. Once

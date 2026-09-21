@@ -52,6 +52,73 @@ class LineageErrorsTest(_TmpRoot):
         revision(self.root, "0002-b", 2)
         self.assertTrue(any("0002-b" in e and "no gaps" in e for e in graph.lineage_errors(self.root)))
 
+    def test_competing_candidates_are_lettered_from_a_with_none_missing(self):
+        revision(self.root, "0001-a", 0, letter="a")
+        revision(self.root, "0001-a", 0, letter="b")
+        self.assertEqual(graph.lineage_errors(self.root), [])
+        revision(self.root, "0002-b", 0, letter="a")
+        revision(self.root, "0002-b", 0, letter="c")
+        self.assertOneError(graph.lineage_errors(self.root), "none missing")
+
+    def test_a_competing_generation_cannot_mix_lettered_and_unlettered(self):
+        revision(self.root, "0001-a", 0)
+        revision(self.root, "0001-a", 0, letter="b")
+        self.assertOneError(graph.lineage_errors(self.root), "competing candidates")
+
+    def test_a_lone_candidate_may_be_unlettered_or_a_but_not_b(self):
+        revision(self.root, "0001-a", 0, letter="a")
+        revision(self.root, "0002-b", 0)
+        self.assertEqual(graph.lineage_errors(self.root), [])
+        revision(self.root, "0003-c", 0, letter="b")
+        self.assertOneError(graph.lineage_errors(self.root), "only candidate")
+
+    def test_generations_not_files_must_be_contiguous(self):
+        revision(self.root, "0001-a", 0, letter="a", status="abandoned")
+        revision(self.root, "0001-a", 0, letter="b", status="working")
+        revision(self.root, "0001-a", 1, status="working")
+        self.assertEqual(graph.lineage_errors(self.root), [])
+        revision(self.root, "0002-b", 0, letter="a", status="abandoned")
+        revision(self.root, "0002-b", 0, letter="b", status="working")
+        revision(self.root, "0002-b", 2, status="working")
+        self.assertTrue(any("0002-b" in e and "no gaps" in e for e in graph.lineage_errors(self.root)))
+
+    def test_choosing_one_candidate_requires_abandoning_the_others(self):
+        for chosen in ("approved", "accepted"):
+            with self.subTest(chosen=chosen):
+                revision(self.root, "0001-a", 0, letter="a", status=chosen)
+                revision(self.root, "0001-a", 0, letter="b", status="working")
+                self.assertOneError(graph.lineage_errors(self.root), "competes with 0-a, which is decided")
+                revision(self.root, "0001-a", 0, letter="b", status="abandoned")  # overwrites the same file
+                self.assertEqual(graph.lineage_errors(self.root), [])
+
+    def test_two_approved_candidates_are_never_valid(self):
+        revision(self.root, "0001-a", 0, letter="a", status="approved")
+        revision(self.root, "0001-a", 0, letter="b", status="approved")
+        self.assertTrue(any("more than one decided" in e for e in graph.lineage_errors(self.root)))
+
+    def test_working_candidates_may_all_stay_open(self):
+        revision(self.root, "0001-a", 0, letter="a", status="working")
+        revision(self.root, "0001-a", 0, letter="b", status="working")
+        revision(self.root, "0001-a", 0, letter="c", status="abandoned")
+        self.assertEqual(graph.lineage_errors(self.root), [])
+
+    def test_only_one_candidate_per_generation_may_be_decided(self):
+        revision(self.root, "0001-a", 0, letter="a", status="retired")
+        revision(self.root, "0001-a", 0, letter="b", status="retired")
+        self.assertTrue(any("more than one decided" in e for e in graph.lineage_errors(self.root)))
+
+    def test_supersession_names_the_winning_candidate(self):
+        revision(self.root, "0001-a", 0, letter="a", status="superseded", superseded_by=1)
+        revision(self.root, "0001-a", 0, letter="b", status="abandoned")
+        revision(self.root, "0001-a", 1, status="accepted", supersedes="0-a")
+        self.assertEqual(graph.lineage_errors(self.root), [])
+
+    def test_successor_must_name_the_candidate_that_was_superseded(self):
+        revision(self.root, "0001-a", 0, letter="a", status="superseded", superseded_by=1)
+        revision(self.root, "0001-a", 0, letter="b", status="abandoned")
+        revision(self.root, "0001-a", 1, status="accepted", supersedes="0-b")
+        self.assertTrue(any("must declare 'supersedes: 0-a'" in e for e in graph.lineage_errors(self.root)))
+
     def test_revision_zero_is_a_valid_original_and_first_supersession_target(self):
         revision(self.root, "0001-a", 0, status="superseded", superseded_by=1)
         revision(self.root, "0001-a", 1, status="accepted", supersedes=0)
@@ -205,6 +272,21 @@ class ProjectErrorsTest(_TmpRoot):
         revision_path = self.root / "docs/decisions/0001-x/revision-000.md"
         revision_path.write_text(revision_path.read_text(encoding="utf-8").replace("status: approved", "status: working"), encoding="utf-8")
         self.assertOneError(graph.project_errors(self.root), "needs decision ADR-0001/0 to be approved")
+
+    def test_a_project_can_target_one_candidate_by_label(self):
+        revision(self.root, "0001-x", 0, letter="a", status="approved")
+        revision(self.root, "0001-x", 0, letter="b", status="abandoned")
+        project(self.root, "p", status="building", decision="ADR-0001/0-a")
+        self.assertEqual(graph.project_errors(self.root), [])
+        (self.root / "docs/projects/p.md").unlink()
+        project(self.root, "p", status="building", decision="ADR-0001/0-b")
+        self.assertOneError(graph.project_errors(self.root), "but it is abandoned")
+
+    def test_a_bare_generation_does_not_resolve_when_it_has_lettered_candidates(self):
+        revision(self.root, "0001-x", 0, letter="a", status="approved")
+        revision(self.root, "0001-x", 0, letter="b", status="abandoned")
+        project(self.root, "p", status="building", decision="ADR-0001/0")
+        self.assertOneError(graph.project_errors(self.root), "doesn't resolve")
 
     def test_unresolvable_decision(self):
         project(self.root, "p", status="building", decision="ADR-0099/0")

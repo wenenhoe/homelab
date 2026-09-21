@@ -233,7 +233,9 @@ these narrow, structural things:
   drifted, or whether a new ADR should be added there — that's still
   on whoever's making the change, per that page's own notes.
 - Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`):
-  revision numbers run 000..NNN with no gaps; at most one revision is
+  generations (`revision-NNN`) run 000..NNN with no gaps; competing
+  candidates in one generation are lettered a, b, c… with none missing,
+  and once one is `approved` or beyond the rest are `abandoned`; at most one revision is
   `accepted`; a `superseded` revision names a later `accepted` (or
   itself superseded) successor that declares `supersedes` back;
   `title` and `topic` are identical across a lineage's revisions;

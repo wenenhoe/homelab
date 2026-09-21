@@ -1,13 +1,14 @@
 ---
 id: ADR-NNNN                 # the lineage: one per problem, identical in every revision
-revision: 0                  # 0 for the original solution; matches revision-NNN.md
+revision: 0                  # the generation: 0 is the original solution; matches revision-NNN.md
+# candidate: a               # only when competing solutions share this generation (revision-NNN-a.md)
 type: adr
 title: "The problem, stated without naming a solution"   # identical in every revision
 solution: "This revision's answer, in one line"
 summary: "One line on what the problem covers; feeds the generated index"
 topic: secrets-store         # one of TOPICS in .github/scripts/doc_frontmatter.py
 status: working              # working | approved | accepted | superseded | abandoned | retired
-# supersedes: 0              # a later revision: the revision it replaces
+# supersedes: 0              # a later generation: the revision it replaces (a label: 0, or 0-b)
 # superseded_by: 1           # required once status: superseded
 # narrows: ADR-NNNN          # this lineage replaced part of another lineage's scope
 # related: [ADR-NNNN]

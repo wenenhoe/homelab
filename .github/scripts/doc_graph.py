@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter
+from doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter, ref_label
 
 # A project's status fixes which state its linked decision revision must
 # be in. The gate is what stops production work when a revision drops
@@ -44,19 +44,48 @@ def _supersession_errors(lineage: Lineage, rev: Revision, root: Path) -> list[st
             errors.append(f"{rel}: superseded_by {fm['superseded_by']} isn't a later revision in this lineage")
         elif successor.status not in ("accepted", "superseded"):
             errors.append(
-                f"{rel}: superseded by revision {successor.number}, which is {successor.status} — a revision is only superseded once its successor is accepted"
+                f"{rel}: superseded by revision {successor.label}, which is {successor.status} — a revision is only superseded once its successor is accepted"
             )
-        elif successor.fm.get("supersedes") != rev.number:
-            errors.append(f"{rel}: revision {successor.number} must declare 'supersedes: {rev.number}'")
+        elif ref_label(successor.fm.get("supersedes")) != rev.label:
+            errors.append(f"{rel}: revision {successor.label} must declare 'supersedes: {rev.label}'")
     if "supersedes" in fm:
         target = lineage.get(fm["supersedes"])
         if target is None or target.number >= rev.number:
             errors.append(f"{rel}: supersedes {fm['supersedes']}, which isn't an earlier revision in this lineage")
-        elif rev.status in ("accepted", "superseded") and (target.status != "superseded" or target.fm.get("superseded_by") != rev.number):
+        elif rev.status in ("accepted", "superseded") and (target.status != "superseded" or ref_label(target.fm.get("superseded_by")) != rev.label):
             errors.append(
-                f"{rel}: is {rev.status} and supersedes revision {target.number}, "
-                f"so that revision must be status: superseded with 'superseded_by: {rev.number}'"
+                f"{rel}: is {rev.status} and supersedes revision {target.label}, so that revision must be status: superseded with 'superseded_by: {rev.label}'"
             )
+    return errors
+
+
+def _generation_errors(lineage: Lineage, root: Path) -> list[str]:
+    """Generations run 000..NNN with no gaps. Within one, competing candidates
+    are lettered a, b, c… with none missing (a lone one may be unlettered or
+    `a`), and once one is chosen — approved, or beyond — every other candidate
+    is abandoned: approval authorizes one design, never two."""
+    rel = lineage.dir.relative_to(root)
+    errors = []
+    generations = sorted({r.number for r in lineage.revisions})
+    if generations != list(range(len(generations))):
+        errors.append(f"{rel}: revision numbers must run 000..NNN with no gaps, found {generations}")
+    for generation in generations:
+        candidates = [r for r in lineage.revisions if r.number == generation]
+        letters = [r.candidate for r in candidates]
+        if len(candidates) == 1:
+            if letters[0] not in (None, "a"):
+                errors.append(f"{rel}: revision {generation:03d} is the only candidate, so it is unlettered or 'a', not '{letters[0]}'")
+        elif None in letters or sorted(letters) != [chr(97 + i) for i in range(len(letters))]:
+            errors.append(
+                f"{rel}: revision {generation:03d} has {len(candidates)} competing candidates; "
+                f"each needs a letter, a, b, c… with none missing (found {letters})"
+            )
+        decided = [r for r in candidates if r.status in ("approved", "accepted", "superseded", "retired")]
+        if len(decided) > 1:
+            errors.append(f"{rel}: revision {generation:03d} has more than one decided candidate ({', '.join(r.label for r in decided)})")
+        for r in candidates:
+            if decided and r not in decided and r.status != "abandoned":
+                errors.append(f"{r.path.relative_to(root)}: competes with {decided[0].label}, which is decided — mark this candidate abandoned")
     return errors
 
 
@@ -72,10 +101,8 @@ def lineage_errors(root: Path = ROOT) -> list[str]:
     former_owner: dict[str, str] = {}
     for lineage in lineages:
         rel = lineage.dir.relative_to(root)
-        numbers = [r.number for r in lineage.revisions]
-        if numbers != list(range(len(numbers))):
-            errors.append(f"{rel}: revision numbers must run 000..NNN with no gaps, found {numbers}")
-        accepted = [r.number for r in lineage.revisions if r.status == "accepted"]
+        errors.extend(_generation_errors(lineage, root))
+        accepted = [r.label for r in lineage.revisions if r.status == "accepted"]
         if len(accepted) > 1:
             errors.append(f"{rel}: revisions {accepted} are all accepted — only one may be; supersede the older one")
         for field in ("title", "topic"):
@@ -141,7 +168,7 @@ def project_errors(root: Path = ROOT) -> list[str]:
             errors.append(f"{path.relative_to(root)}: id {fm['id']} is also used by {projects[fm['id']][0].name}")
         projects[fm["id"]] = (path, fm)
 
-    revisions = {(lineage.id, rev.number): rev for lineage in load_lineages(root) for rev in lineage.revisions}
+    revisions = {(lineage.id, rev.label): rev for lineage in load_lineages(root) for rev in lineage.revisions}
     graph: dict[str, list[str]] = {}
     for pid, (path, fm) in projects.items():
         rel = path.relative_to(root)
@@ -159,7 +186,7 @@ def project_errors(root: Path = ROOT) -> list[str]:
         if "decision" not in fm:
             continue
         m = REVISION_REF_RE.match(fm["decision"])
-        rev = revisions.get((m.group(1), int(m.group(2))))
+        rev = revisions.get((m.group(1), m.group(2)))
         if rev is None:
             errors.append(f"{rel}: decision {fm['decision']} doesn't resolve to a lineage revision")
         elif fm["status"] not in PROJECT_DECISION_GATE:

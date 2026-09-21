@@ -6,7 +6,7 @@ status: not-started         # not-started | de-risking | building | done
 blocked: false              # true only for an impediment that isn't another project
 # blocked_reason: "<the current impediment>"
 summary: "<one line; feeds the generated index>"
-# decision: ADR-NNNN/N      # the one revision this implements; omit if no ADR is needed
+# decision: ADR-NNNN/N      # the one revision this implements (its label: 0, or 0-b); omit if no ADR is needed
 # super_project: <slug>     # optional grouping; a track needs it, a phase needs a track
 # track: <slug>
 # phase: <slug>

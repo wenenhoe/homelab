@@ -143,19 +143,33 @@ class LineagesIndexTest(_TmpRoot):
         self.assertIn("| File cache | Accepted (original) | Revision 1 working |", out)
         self.assertNotIn("revision 0", out)
 
-    def test_competing_working_revisions_are_shown_as_undecided(self):
-        revision(self.root, "0044-trigger", 0, status="working", solution="Pull-based agent")
-        revision(self.root, "0044-trigger", 1, status="working", solution="Private Gitea")
+    def test_competing_candidates_are_shown_as_undecided(self):
+        revision(self.root, "0044-trigger", 0, letter="a", status="working", solution="Pull-based agent")
+        revision(self.root, "0044-trigger", 0, letter="b", status="working", solution="Private Gitea")
         out = gen.render_lineages_index(self.root)
-        self.assertIn("[0044](0044-trigger/revision-000.md)", out)
-        self.assertIn("Undecided between: (original) Pull-based agent; or (revision 1) Private Gitea", out)
-        self.assertIn("Working (original), Working (revision 1)", out)
-        self.assertNotIn("| Private Gitea |", out)  # the newest revision must not be presented as the current solution
+        self.assertIn("[0044](0044-trigger/revision-000-a.md)", out)
+        self.assertIn("Undecided between: (000-a) Pull-based agent; or (000-b) Private Gitea", out)
+        self.assertIn("Working (000-a), Working (000-b)", out)
+        self.assertNotIn("| Private Gitea |", out)  # the newest candidate must not be presented as the current solution
 
-    def test_competing_mix_of_working_and_approved(self):
-        revision(self.root, "0044-trigger", 0, status="approved", solution="A")
+    def test_open_revisions_in_different_generations_are_also_undecided(self):
+        revision(self.root, "0044-trigger", 0, status="working", solution="A")
         revision(self.root, "0044-trigger", 1, status="working", solution="B")
-        self.assertIn("Approved (original), Working (revision 1)", gen.render_lineages_index(self.root))
+        self.assertIn("Undecided between: (000) A; or (001) B", gen.render_lineages_index(self.root))
+
+    def test_an_approved_revision_with_a_successor_in_flight_is_also_undecided(self):
+        revision(self.root, "0044-trigger", 0, status="approved", solution="A")
+        revision(self.root, "0044-trigger", 1, status="working", supersedes=0, solution="B")
+        self.assertIn("Approved (000), Working (001)", gen.render_lineages_index(self.root))
+
+    def test_the_winning_candidate_is_labelled_and_pending_replacements_are_listed(self):
+        revision(self.root, "0044-trigger", 0, letter="a", status="accepted", solution="A")
+        revision(self.root, "0044-trigger", 0, letter="b", status="abandoned", solution="B")
+        revision(self.root, "0044-trigger", 1, letter="a", status="working", supersedes="0-a", solution="C")
+        revision(self.root, "0044-trigger", 1, letter="b", status="working", supersedes="0-a", solution="D")
+        out = gen.render_lineages_index(self.root)
+        self.assertNotIn("Undecided", out)
+        self.assertIn("| A | Accepted (original (a)) | Revision 1-a working; Revision 1-b working |", out)
 
     def test_an_accepted_revision_means_not_undecided(self):
         revision(self.root, "0044-trigger", 0, status="accepted", solution="A")

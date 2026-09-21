@@ -2,15 +2,15 @@
 id: ADR-0042
 revision: 0
 type: adr
-title: Monitoring that survives loss of the homelab
-solution: 'Staged: bring the Tailscale subnet router under management, then a dedicated on-prem host, then a GCP e2-micro'
-summary: Something outside the homelab notices when the homelab or its connectivity goes down.
+title: Monitoring that survives loss of the monitoring host
+solution: Bring the Tailscale subnet router under management, then run monitoring on a dedicated on-prem host
+summary: Beszel and Kuma keep running, and alerting, when the host they run on fails.
 topic: monitoring-alerting
-status: working
-related: [ADR-0010]
+status: approved
+related: [ADR-0010, ADR-0049]
 ---
 
-# Off-site monitoring independence — staged, reusing the existing Tailscale subnet router
+# Monitoring host isolation — bring VM 202 under management, then a dedicated on-prem monitoring host
 
 ## Context
 
@@ -30,15 +30,13 @@ runs as a subnet router**, routing Tailscale clients to the 4 managed
 hosts — it's just not under Ansible/repo management yet. That's a
 real gap in its own right, the same category as the scattered OpenBao
 clients this repo has elsewhere: unmanaged-but-load-bearing
-infrastructure that breaks silently because nothing tracks it. It also
-means the actual mechanism needed for an eventual cloud-hosted monitor
-to reach the 4 managed hosts already exists — no new tunnel technology,
-just extending an existing Tailscale subnet route to a new node and
-bringing the router itself under management.
+infrastructure that breaks silently because nothing tracks it.
+
+This record covers a failure of `security` as a host or process. The case it can't solve, the whole site going dark, is [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md).
 
 ## Decision
 
-Staged, in this order:
+Two stages, in this order:
 
 1. **Bring VM 202 under repo management** — inventory it, document its
    role, apply whatever this repo's baseline-configuration standards
@@ -50,54 +48,10 @@ Staged, in this order:
    Honest limitation, stated plainly: this is still the same site,
    same power, same internet connection as everything else — it does
    **not** solve the "whole homelab goes dark" case. Partial win only.
-3. **Relocate to GCP's e2-micro Always Free instance**, reached by
-   extending the same Tailscale subnet route VM 202 already provides
-   from Stage 1 to the new GCP node — this is the actual
-   site-independence win, and it costs no new tunnel technology, only
-   the actual work of adding GCP as a route destination (VM 202
-   doesn't reach it for free just because the mechanism already
-   exists elsewhere). OCI was the original target for this stage;
-   it's now earmarked instead for a dedicated, on-prem-adjacent Wazuh
-   instance — see
-   [`../0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md)
-   — which is why this stage moved to a different provider rather than
-   sharing OCI with it.
 
 ## Not yet done
 
-- Whether Stage 3 relocates the *entire* Beszel+Kuma stack, or only a
-  minimal independent heartbeat (one Kuma monitor watching "is the
-  homelab reachable from outside at all") — the fuller stack gives
-  richer visibility but means bootstrapping Beszel's KEY/TOKEN and
-  Kuma's admin account a second time, both documented as manual,
-  DB-resident, and not template-able ahead of first boot. This
-  question matters more now than it did against OCI: e2-micro's 1 GB
-  RAM is the tighter of the two boxes this stage ever considered.
 - VM 202's current configuration is now read and recorded in
   [`network-infra.md`](../../network-infra.md) (Stage 1, done) — the
   tailnet-wide ACL policy itself is the one piece of that still
   unreviewed.
-- **Whether Beszel Hub + Uptime Kuma together actually fit e2-micro's
-  1 GB RAM** at this lab's scale (4 managed hosts). Unverified —
-  Beszel's hub is a lightweight Go binary, Kuma is Node+SQLite and the
-  heavier of the two; combined footprint on 1 GB hasn't been measured.
-  This is the load-bearing assumption for this stage: resolve it via a
-  time-boxed spike (deploy both, watch actual RSS) before building any
-  Ansible role targeting e2-micro.
-- **Gated on [`../0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
-  reaching `approved`, separately from the RAM spike above.** This
-  stage is the first time this repo would hand a real credential
-  (Beszel's KEY/TOKEN, Kuma's admin state, whatever the Telegram
-  wiring below needs) to a host outside physical/network control — see
-  that draft's own updated scope section for why that's a materially
-  higher blast radius than any on-prem case. No production credential
-  goes onto the GCP box until Secret Zero is decided, independent of
-  whether the RAM question above resolves favorably. A hardening pass
-  for the e2-micro host itself is a separate, not-yet-scoped
-  companion gate — low-spec cloud image defaults are not this
-  stage's starting assumption.
-- e2-micro's Always Free allowance is one instance, restricted to
-  `us-west1`/`us-central1`/`us-east1`, with a 1 GB/month egress cap to
-  most destinations — worth confirming this lab's expected monitoring
-  traffic (push checks, Beszel agent reports) stays under that before
-  building against it.

@@ -74,6 +74,6 @@ to build toward.
 - Rotation is unchanged: `beszel.md`'s existing full-DB-wipe runbook
   is still the only way this value ever changes.
 - No new gap from relocating Beszel to GCP
-  ([`0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md))
+  ([`0049-monitoring-that-survives-loss-of-the-site/revision-000.md`](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md))
   — the value gets typed in by hand there too, same manual step as
   today.

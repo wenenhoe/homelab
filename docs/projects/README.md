@@ -123,13 +123,16 @@ skipping it is how a real fact gets lost instead of promoted.
 | [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 | [`doc-workflow-migration.md`](doc-workflow-migration.md) | Building | Move decisions to problem-oriented lineages and projects to the new lifecycle; convert drafts; add agent path-scope enforcement. |
-| [`off-site-monitoring.md`](off-site-monitoring.md) | In progress | Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then GCP e2-micro. |
+| [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
+| [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | In progress | OpenTofu-driven Proxmox VM provisioning. |
 
 ## By initiative
 
 | Initiative | Track | Phase | Project | Status |
 | :--- | :--- | :--- | :--- | :--- |
+| `off-site-monitoring` | `off-site` | — | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped |
+| `off-site-monitoring` | `on-prem` | — | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building |
 | `pull-based-cd` | `agent` | — | [`cd-agent.md`](cd-agent.md) | De-risking |
 | `pull-based-cd` | `credentials` | — | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking |
 | `pull-based-cd` | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) |

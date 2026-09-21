@@ -29,7 +29,7 @@ Baseline role, or hand-picking a narrow subset directly into this
 repo's own roles instead of adopting someone else's role wholesale.
 
 This has become more load-bearing than a nice-to-have: both offsite
-drafts ([`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md),
+drafts ([`../0049-monitoring-that-survives-loss-of-the-site/revision-000.md`](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md),
 [`../0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md))
 now name a hardening pass as a companion gate to Secret Zero, precisely
 because a GCP/OCI free-tier instance starts from a cloud provider's
@@ -77,7 +77,7 @@ question and the real alternatives, not to pick one.
 - **Resource cost on e2-micro specifically** — some baselines add
   auditd/aide-style continuous scanning that costs real CPU/RAM on a
   1 GB box already tight per
-  [`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md).
+  [`../0049-monitoring-that-survives-loss-of-the-site/revision-000.md`](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md).
   Not checked.
 
 ## Consequences

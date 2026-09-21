@@ -40,7 +40,7 @@ folded in here rather than left open:
   Wazuh's own docs list 4 cores/8 GB RAM/50 GB disk as the *minimum*
   for a single-node stack (manager+indexer+dashboard) — before adding
   the Beszel/Kuma processes
-  [`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)
+  [`../0049-monitoring-that-survives-loss-of-the-site/revision-000.md`](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)
   already plans for that box. Wazuh alone is double the free OCPU
   budget. Single-node Wazuh's Docker docs also only listed AMD64 until
   recently — ARM64 (what Ampere A1 actually is) only appears as
@@ -63,7 +63,7 @@ folded in here rather than left open:
   same consumer hardware as everything else in this lab.
 - **Conclusion, revised now that Beszel/Kuma are moving to GCP e2-micro
   instead of OCI** (see
-  [`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)):
+  [`../0049-monitoring-that-survives-loss-of-the-site/revision-000.md`](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)):
   OCI's Ampere A1 free tier, if handed to Wazuh alone rather than
   shared with Beszel/Kuma, clears the *RAM* minimum (12 GB vs. the
   documented 8 GB floor) but still falls short on *CPU* (2 OCPU vs. the

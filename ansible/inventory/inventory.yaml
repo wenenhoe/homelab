@@ -54,7 +54,7 @@ all:
     network_infra:
       hosts:
         tailscale:
-          # management as Stage 1 of docs/projects/off-site-monitoring.md.
+          # management as Stage 1 of docs/projects/monitoring-host-isolation.md.
           # See docs/network-infra.md for why this entry is interim
           # (see that doc's "Future: superseded by Tofu" note) rather
           # than permanent.

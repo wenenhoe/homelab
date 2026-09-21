@@ -154,7 +154,7 @@ This stage is blocked on it too.
   [working decision](../decisions/0038-iac-misconfiguration-scanning/revision-000.md).
 - VM 202 ("Tailscale") is Tofu-unmanaged but no longer wholly
   untracked — Stage 1 of
-  [`off-site-monitoring.md`](off-site-monitoring.md) brought it under
+  [`monitoring-host-isolation.md`](monitoring-host-isolation.md) brought it under
   interim Ansible management as the `network_infra` group (see
   [`network-infra.md`](../network-infra.md)) ahead of and independent
   of this project. It becomes Tofu-managed once this project reaches

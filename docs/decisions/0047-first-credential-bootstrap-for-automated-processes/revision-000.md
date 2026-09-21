@@ -133,7 +133,7 @@ someone's ready to spend real time on it, rather than deciding it as a
 side effect of whichever draft gets picked up first.
 
 That scope just grew concretely, not hypothetically: both
-[`../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)'s
+[`../0049-monitoring-that-survives-loss-of-the-site/revision-000.md`](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s
 Stage 3 (Beszel/Kuma → GCP e2-micro) and
 [`../0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md)'s
 Wazuh-on-OCI plan need this draft's answer before either can build,

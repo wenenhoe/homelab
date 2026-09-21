@@ -1,91 +1,69 @@
 ---
 id: PROJ-off-site-monitoring
-title: "Off-Site Monitoring Independence"
+title: Off-Site Monitoring Relocation
 type: project
-status: in-progress
-summary: "Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then GCP e2-micro."
+status: de-risking
+blocked: true
+blocked_reason: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped
+summary: Relocate monitoring to a GCP e2-micro so it survives loss of the whole site.
+decision: ADR-0049/0
+super_project: off-site-monitoring
+track: off-site
 ---
 
-# Off-Site Monitoring Independence
+# Off-Site Monitoring Relocation
 
-**Status:** In progress
+Third stage of the plan to stop Beszel/Kuma monitoring from being a single point of failure that lives entirely on the host (and site) it's meant to be watching; the first two are [`monitoring-host-isolation.md`](monitoring-host-isolation.md). The target changed from OCI to GCP's e2-micro Always Free instance once OCI was earmarked for a dedicated Wazuh instance instead — see [`0045-security-event-collection-and-alerting/revision-000.md`](../decisions/0045-security-event-collection-and-alerting/revision-000.md).
 
-Three-stage plan to stop Beszel/Kuma monitoring from being a single
-point of failure that lives entirely on the host (and site) it's
-meant to be watching. Stage 3's target changed from OCI to GCP's
-e2-micro Always Free instance once OCI was earmarked for a dedicated
-Wazuh instance instead — see
-[`0045-security-event-collection-and-alerting/revision-000.md`](../decisions/0045-security-event-collection-and-alerting/revision-000.md). Decision and full context are in
-[`0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md`](../decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md);
-this doc tracks build status only.
+## Scope
 
-## Stages
+Relocating monitoring to a GCP e2-micro, and extending VM 202's Tailscale subnet route to it. Not in scope: the on-prem host ([`monitoring-host-isolation.md`](monitoring-host-isolation.md)).
 
-| # | Stage | Status |
-| :-: | :--- | :--- |
-| 1 | Bring VM 202 (existing Tailscale subnet router) under repo management | Done |
-| 2 | New Proxmox VM for Beszel/Kuma, on-prem, separate from `security` | Not started |
-| 3 | Relocate to GCP e2-micro, reached by extending VM 202's subnet route | Not started |
+## Decision
 
-## Stage detail
+Implements [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md), still `working`, so this project is `de-risking` until its open assumptions are resolved. It is also `blocked`: it waits on decisions ([ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)), not on another project.
 
-### Stage 1 — inventory VM 202
+## Execution plan
 
-Done. Current state read directly off the host and recorded in
-[`network-infra.md`](../network-infra.md) — Ubuntu 26.04, Tailscale
-1.102.3, no per-node ACL tags (tailnet-wide policy itself not yet
-reviewed). Brought under management as its own `network_infra`
-inventory group rather than `managed_hosts` (it runs no Docker/compose
-apps); `maintenance.yaml` now patches it via the new `patched_hosts`
-alias and installs `qemu_guest_agent` directly. See that doc for the
-three manual prerequisites (SSH key, passwordless sudo, Python
-interpreter) any new `network_infra` host needs first.
+Update at the start and end of each PR that works a stage.
 
-### Stage 2 — dedicated on-prem monitoring host
+| # | Stage | Status | Exit condition |
+| :-: | :--- | :--- | :--- |
+| 1 | Relocate to GCP e2-micro, reached by extending VM 202's subnet route | Not started | monitoring runs on the e2-micro, and a heartbeat reaches Telegram when the homelab is unreachable |
 
-Partial win, stated honestly: isolates Beszel/Kuma from `security` as
-a host/process, but doesn't address a whole-site outage. Worth doing
-as its own step regardless, since it's lower-risk than jumping straight
-to Stage 3 and validates the separation works before adding a WAN hop.
+Stage status is `Not started`, `In progress`, or `Done`.
 
-### Stage 3 — GCP e2-micro relocation
+### Stage 1 — GCP e2-micro relocation
 
 The actual site-independence win. Reachable by extending VM 202's
 existing subnet route to the new node — no new tunnel technology,
 just a new route destination. OCI was the original target; it's now
-reserved for a dedicated Wazuh instance instead (separate draft), so
+reserved for a dedicated Wazuh instance instead ([ADR 0045](../decisions/0045-security-event-collection-and-alerting/revision-000.md)), so
 this stage moved to GCP's Always Free e2-micro tier. Still open:
 whether Beszel Hub + Uptime Kuma actually fit e2-micro's 1 GB RAM
 together, and whether this relocates the full stack or a minimal
-heartbeat-only monitor (see the decision draft's "Not yet done").
+heartbeat-only monitor (see [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s alternatives and open assumptions).
+
+## Acceptance criteria
+
+- [ ] Monitoring runs on the e2-micro with the route from VM 202 in place.
+- [ ] A heartbeat reaches Telegram when the homelab is unreachable.
+- [ ] ADR 0049 is settled, including the credential and hardening gates.
 
 ## Open items
 
-- Full-stack-vs-minimal-heartbeat choice for Stage 3 — Stage 1's
-  inventory pass (above) is done, but the choice itself is still open,
-  and matters more now that the target is e2-micro's 1 GB RAM rather
-  than OCI's 12 GB.
-- Whether Beszel Hub + Uptime Kuma together actually fit e2-micro's
-  1 GB RAM at this lab's scale — unverified, needs a time-boxed spike
-  before any Ansible role targets it.
 - Tailscale route extension from VM 202 to the GCP node — not yet
   built.
-- Stage 3 is additionally gated on
-  [`0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
-  reaching `decided` and on a not-yet-scoped hardening pass for the
-  GCP host — both independent of the RAM spike above, and both block
-  this stage moving to `Building` even if the RAM spike resolves
-  favorably.
+- The RAM fit, the full-stack-vs-minimal-heartbeat choice, the egress cap, and the credential and hardening gates are recorded as open assumptions in [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md); building starts once they are resolved.
 
 ## Closing checklist
 
-Copied from [`README.md`](README.md#when-a-project-finishes) — run
-before deleting this doc once every stage is Done.
+Copied from [`README.md`](README.md#when-a-project-finishes); run before
+deleting this doc.
 
-- [ ] Every `Done` stage's rationale exists as a real ADR, or plainly
-      didn't need one.
-- [ ] Every `Done` stage's current behavior is in a topic doc.
-- [ ] Every open item is resolved-and-promoted or moved to where it
-      belongs next.
-- [ ] Every cross-reference into this doc elsewhere in the repo is
-      updated or removed.
+- [ ] Every acceptance criterion is met, and its required check passed.
+- [ ] The linked revision is `accepted`, or there is no decision to settle.
+- [ ] Every resulting behavior is described in a topic doc.
+- [ ] Every open item is resolved and promoted, or moved where it belongs.
+- [ ] Other projects' `depends_on` entries naming this one are removed,
+      and every cross-reference into this doc is updated or deleted.

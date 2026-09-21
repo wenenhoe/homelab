@@ -44,7 +44,7 @@ ongoing monitoring of a specific failure mode rather than a
 point-in-time check. The
 [`off-site-monitoring`](projects/off-site-monitoring.md) project — and
 its
-[approved decision](decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md) —
+[working decision](decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md) —
 extends this further, removing Beszel/Kuma's own single point of
 failure.
 

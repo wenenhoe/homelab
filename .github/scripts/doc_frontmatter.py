@@ -99,7 +99,7 @@ def _validate_revision(path: Path, data: dict) -> None:
     _require_text(path, data, "solution")
     _require_text(path, data, "summary")
     for field in ("supersedes", "superseded_by"):
-        if field in data and (not _is_int(data[field]) or data[field] < 1 or data[field] == revision_no):
+        if field in data and (not _is_int(data[field]) or data[field] < 0 or data[field] == revision_no):
             _fail(path, f"'{field}' must be another revision number in this lineage")
     if data["status"] == "superseded" and "superseded_by" not in data:
         _fail(path, "status: superseded needs a 'superseded_by' revision number")

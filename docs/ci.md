@@ -236,7 +236,7 @@ these narrow, structural things:
   Presence-of-a-bullet only, not whether the claim is genuinely
   resolved — that judgment call is still on whoever sets the status.
 - Decision lineages (`docs/decisions/NNNN-slug/revision-NNN.md`):
-  revision numbers run 001..NNN with no gaps; at most one revision is
+  revision numbers run 000..NNN with no gaps; at most one revision is
   `accepted`; a `superseded` revision names a later `accepted` (or
   itself superseded) successor that declares `supersedes` back;
   `title` and `topic` are identical across a lineage's revisions;

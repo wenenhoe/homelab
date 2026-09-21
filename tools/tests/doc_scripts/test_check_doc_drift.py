@@ -48,14 +48,14 @@ class LineageIndexTest(_TmpRepo):
             self.write(f"{d}/README.md", "# Index\n")
 
     def test_lineage_directory_must_appear_in_the_decisions_index(self):
-        revision(self.root, "0013-secret-storage", 1)
+        revision(self.root, "0013-secret-storage", 0)
         drift.check_doc_indexes()
         self.assertEqual(len(drift.errors), 1, drift.errors)
         self.assertIn("lineage 0013-secret-storage/ exists but isn't linked", drift.errors[0])
 
     def test_linked_lineage_directory_passes(self):
-        revision(self.root, "0013-secret-storage", 1)
-        self.write("docs/decisions/README.md", "# Index\n\n[0013](0013-secret-storage/revision-001.md)\n")
+        revision(self.root, "0013-secret-storage", 0)
+        self.write("docs/decisions/README.md", "# Index\n\n[0013](0013-secret-storage/revision-000.md)\n")
         drift.check_doc_indexes()
         self.assertEqual(drift.errors, [])
 
@@ -63,12 +63,12 @@ class LineageIndexTest(_TmpRepo):
 class RepoFileLinkTest(_TmpRepo):
     def test_relative_link_to_an_existing_config_file_passes(self):
         self.write("docker/openbao/policy.hcl", "path {}\n")
-        self.write("docs/decisions/0001-x/revision-001.md", "See [policy](../../../docker/openbao/policy.hcl).\n")
+        self.write("docs/decisions/0001-x/revision-000.md", "See [policy](../../../docker/openbao/policy.hcl).\n")
         drift.check_no_stale_anchors()
         self.assertEqual(drift.errors, [])
 
     def test_relative_link_to_a_missing_file_fails(self):
-        self.write("docs/decisions/0001-x/revision-001.md", "See [policy](../../docker/openbao/policy.hcl).\n")
+        self.write("docs/decisions/0001-x/revision-000.md", "See [policy](../../docker/openbao/policy.hcl).\n")
         drift.check_no_stale_anchors()
         self.assertEqual(len(drift.errors), 1, drift.errors)
         self.assertIn("../../docker/openbao/policy.hcl", drift.errors[0])
@@ -81,17 +81,17 @@ class RepoFileLinkTest(_TmpRepo):
 
 class NistAlignmentTest(_TmpRepo):
     def test_link_to_a_superseded_lineage_revision_fails(self):
-        revision(self.root, "0013-secret-storage", 1, status="superseded", superseded_by=2)
-        revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1)
-        self.write("docs/nist-800-53-alignment.md", "[old](decisions/0013-secret-storage/revision-001.md)\n")
+        revision(self.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(self.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        self.write("docs/nist-800-53-alignment.md", "[old](decisions/0013-secret-storage/revision-000.md)\n")
         drift.check_nist_alignment_currency()
         self.assertEqual(len(drift.errors), 1, drift.errors)
         self.assertIn("now status: superseded", drift.errors[0])
 
     def test_link_to_the_accepted_revision_passes(self):
-        revision(self.root, "0013-secret-storage", 1, status="superseded", superseded_by=2)
-        revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1)
-        self.write("docs/nist-800-53-alignment.md", "[now](decisions/0013-secret-storage/revision-002.md)\n")
+        revision(self.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(self.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        self.write("docs/nist-800-53-alignment.md", "[now](decisions/0013-secret-storage/revision-001.md)\n")
         drift.check_nist_alignment_currency()
         self.assertEqual(drift.errors, [])
 

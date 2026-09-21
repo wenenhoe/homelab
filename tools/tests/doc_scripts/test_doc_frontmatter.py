@@ -76,8 +76,8 @@ class RevisionValidationTest(_TmpRoot):
             "unknown topic": {"topic": "misc"},
             "empty solution": {"solution": "  "},
             "superseded without superseded_by": {"status": "superseded"},
-            "superseded_by on a non-superseded revision": {"status": "accepted", "superseded_by": 2},
-            "supersedes itself": {"supersedes": 1},
+            "superseded_by on a non-superseded revision": {"status": "accepted", "superseded_by": 1},
+            "supersedes itself": {"supersedes": 0},
             "supersedes is a bool": {"supersedes": True},
             "narrows is a list": {"narrows": ["ADR-0015"]},
             "related isn't ADR ids": {"related": ["0014"]},
@@ -85,12 +85,19 @@ class RevisionValidationTest(_TmpRoot):
         }
         for label, overrides in cases.items():
             with self.subTest(label):
-                path = revision(self.root, "0013-secret-storage", 1, **overrides)
+                path = revision(self.root, "0013-secret-storage", 0, **overrides)
                 with self.assertRaises(SystemExit):
                     fm_mod.read_frontmatter(path)
 
+    def test_the_original_is_revision_zero(self):
+        path = revision(self.root, "0013-secret-storage", 0)
+        self.assertEqual(fm_mod.read_frontmatter(path)["revision"], 0)
+        self.assertTrue(path.name == "revision-000.md")
+        with self.assertRaises(SystemExit):
+            fm_mod.read_frontmatter(revision(self.root, "0014-x", 0, revision=1))
+
     def test_relations_accepted(self):
-        path = revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1, narrows="ADR-0015", related=["ADR-0014"], former_ids=["ADR-0027"])
+        path = revision(self.root, "0013-secret-storage", 1, status="accepted", supersedes=0, narrows="ADR-0015", related=["ADR-0014"], former_ids=["ADR-0027"])
         self.assertEqual(fm_mod.read_frontmatter(path)["narrows"], "ADR-0015")
 
 
@@ -147,38 +154,38 @@ class ProjectValidationTest(_TmpRoot):
                 fm_mod.read_frontmatter(project(self.root, "b", **overrides))
 
     def test_decision_and_super_project_shape(self):
-        self.assertEqual(fm_mod.read_frontmatter(project(self.root, "a", decision="ADR-0013/2", super_project="pull-based-cd"))["decision"], "ADR-0013/2")
-        for overrides in ({"decision": "ADR-0013"}, {"decision": ["ADR-0013/2"]}, {"super_project": "Pull Based"}):
+        self.assertEqual(fm_mod.read_frontmatter(project(self.root, "a", decision="ADR-0013/1", super_project="pull-based-cd"))["decision"], "ADR-0013/1")
+        for overrides in ({"decision": "ADR-0013"}, {"decision": ["ADR-0013/1"]}, {"super_project": "Pull Based"}):
             with self.subTest(overrides), self.assertRaises(SystemExit):
                 fm_mod.read_frontmatter(project(self.root, "b", **overrides))
 
 
 class LineageLoadingTest(_TmpRoot):
     def test_load_and_current_revision(self):
-        revision(self.root, "0013-secret-storage", 1, status="superseded", superseded_by=2)
-        revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1)
-        revision(self.root, "0013-secret-storage", 3, status="working")
+        revision(self.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(self.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        revision(self.root, "0013-secret-storage", 2, status="working")
         (lineage,) = fm_mod.load_lineages(self.root)
         self.assertEqual(lineage.id, "ADR-0013")
-        self.assertEqual(lineage.current().number, 2)
-        self.assertEqual([r.number for r in lineage.pending_successors()], [3])
+        self.assertEqual(lineage.current().number, 1)
+        self.assertEqual([r.number for r in lineage.pending_successors()], [2])
 
     def test_current_falls_back_to_newest_pending_then_newest(self):
-        revision(self.root, "0001-a", 1, status="working")
-        revision(self.root, "0001-a", 2, status="approved")
-        revision(self.root, "0002-b", 1, status="abandoned")
+        revision(self.root, "0001-a", 0, status="working")
+        revision(self.root, "0001-a", 1, status="approved")
+        revision(self.root, "0002-b", 0, status="abandoned")
         by_id = {lineage.id: lineage for lineage in fm_mod.load_lineages(self.root)}
-        self.assertEqual(by_id["ADR-0001"].current().number, 2)
+        self.assertEqual(by_id["ADR-0001"].current().number, 1)
         self.assertEqual(by_id["ADR-0001"].pending_successors(), [])
-        self.assertEqual(by_id["ADR-0002"].current().number, 1)
+        self.assertEqual(by_id["ADR-0002"].current().number, 0)
 
     def test_retired_counts_as_the_live_revision(self):
-        revision(self.root, "0001-a", 1, status="retired")
+        revision(self.root, "0001-a", 0, status="retired")
         (lineage,) = fm_mod.load_lineages(self.root)
         self.assertEqual(lineage.current().status, "retired")
 
     def test_stray_files_and_empty_directories_are_rejected(self):
-        revision(self.root, "0001-a", 1)
+        revision(self.root, "0001-a", 0)
         (self.root / "docs/decisions/0001-a/README.md").write_text("# manifest\n", encoding="utf-8")
         with self.assertRaisesRegex(SystemExit, "only revision-NNN.md"):
             fm_mod.load_lineages(self.root)

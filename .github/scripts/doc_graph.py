@@ -73,8 +73,8 @@ def lineage_errors(root: Path = ROOT) -> list[str]:
     for lineage in lineages:
         rel = lineage.dir.relative_to(root)
         numbers = [r.number for r in lineage.revisions]
-        if numbers != list(range(1, len(numbers) + 1)):
-            errors.append(f"{rel}: revision numbers must run 001..NNN with no gaps, found {numbers}")
+        if numbers != list(range(len(numbers))):
+            errors.append(f"{rel}: revision numbers must run 000..NNN with no gaps, found {numbers}")
         accepted = [r.number for r in lineage.revisions if r.status == "accepted"]
         if len(accepted) > 1:
             errors.append(f"{rel}: revisions {accepted} are all accepted — only one may be; supersede the older one")

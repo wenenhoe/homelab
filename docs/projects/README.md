@@ -1,96 +1,117 @@
 # Projects
 
-Status and build sequencing for multi-stage initiatives — not a topic
-doc (how something works today) and not an ADR (why a design was
-chosen). A project doc owns *where the build stands*, and links out to
-the ADRs/drafts and topic docs that carry the rest.
+A project is a temporary execution record for multi-stage work: where
+the build stands, what remains, and what it waits on. It never owns
+rationale (that's an [ADR](../decisions/README.md)) or current behavior
+(that's a topic doc), and it is deleted once everything durable has a
+home.
+
+Topic docs describe `main` at every commit. A stage that has merged is
+current behavior even while its project is unfinished — update the topic
+doc in the same PR. The project only tracks what is left.
 
 ## When this is the right artifact
 
-A project doc is for a genuinely multi-stage, multi-PR initiative with
-a real stage table — more than one row that isn't just "done in this
-PR." A single-PR feature, however substantial, doesn't qualify: it gets
-a topic doc once built, or an ADR if it involved a real contested
-choice. If you can't fill in a second stage-table row that represents
-actual future work, this isn't a project.
+A genuinely multi-stage, multi-PR piece of work with a real stage table —
+more than one row that isn't "done in this PR." A single-PR feature,
+however large, doesn't qualify: it gets a topic doc, or an ADR if it
+involved a contested choice. A project needs an ADR only when it
+implements a real decision; otherwise it has no `decision:` and nothing
+gates it.
+
+## Hierarchy
+
+- **Super-project** — a large initiative that needs several projects. A
+  label (`super_project:`), not a document; see [By initiative](#by-initiative).
+- **Track** — an independent stream of work within a super-project
+  (`track:`).
+- **Phase** — an ordered grouping within a track (`phase:`).
+- **Project** — the smallest independently manageable and closable unit;
+  one doc.
+- **Stage** — a sequential build step inside one project. Numbering is
+  local to that doc.
+
+A `track` needs a `super_project`, and a `phase` needs a `track`. No
+level is required; don't add one for naming's sake. Decompose a broad
+initiative top-down, or add a `super_project` label once existing
+projects turn out to be coupled — both are fine.
+
+Hierarchy says where work belongs; dependency says what must finish
+first. Declare `depends_on` (`project:` and `reason:`) only when work
+here cannot proceed until that project is done — not for relatedness, a
+shared ADR, similar subject, or preferred order. The index shows
+"waiting on" while the predecessor still exists; remove the entry in the
+change that deletes the finished predecessor, or the checker fails on a
+dangling one.
+
+## Lifecycle
+
+| Status | Meaning | Linked `decision:` revision must be |
+| :--- | :--- | :--- |
+| `not-started` | Nothing underway. | `working` or `approved` |
+| `de-risking` | Resolving an open assumption — only throwaway spikes or reading code. | `working` |
+| `building` | Production implementation is authorized. | `approved` |
+| `done` | Everything implemented and merged. | `accepted` |
+
+`check-doc-drift.py` enforces the last column, so a revision that drops
+back to `working` stops any project `building` on it. A project without
+`decision:` isn't gated. `in-progress` and `blocked` are the older
+statuses, still valid on projects not yet migrated.
+
+`blocked: true` with a `blocked_reason` is a flag, not a status: a
+current impediment that isn't another project (hardware, an external
+service). Waiting on a project is derived from `depends_on`. A risk —
+something that could cause rework but blocks nothing now — goes in the
+doc's Risks list instead.
 
 ## What goes in one
 
-Same shape as [`TEMPLATE.md`](TEMPLATE.md): a status line, a stage
-table (`Not started` / `De-risking` / `Building` / `Done` /
-`Blocked: <reason>`, updated at the start and end of each PR that
-works a stage), and links from each stage to whatever backs it — an
-[ADR](../decisions/README.md) or [draft](../decisions/drafts/) for a
-decision that stage depended on, a topic doc once that stage's
-component is built and stable. An "open items" section holds things
-carried into later stages — not resolved questions dressed up as done.
+The shape of [`TEMPLATE.md`](TEMPLATE.md): scope, the decision it
+implements, a stage table (`Not started` / `In progress` / `Done`, each
+with an exit condition), acceptance criteria, agent handoff, risks, and
+open items. Update the stage table at the start and end of each PR that
+works a stage. If a stage's prose starts explaining why X over Y, stop
+and write or extend the ADR instead.
 
-`De-risking` and `Building` are a hard boundary, not two shades of "in
-progress": a stage stays `De-risking` for as long as its linked draft
-has an open `Assumptions` entry (only a time-boxed, throwaway spike is
-allowed against it, per the draft's own [hard
-gate](../decisions/README.md#drafts)), and only moves to `Building`
-once that draft reaches `status: decided` — every entry resolved. A
-stage with no draft dependency, or one whose draft was already
-`decided` before the stage started, can go straight from `Not started`
-to `Building` without ever passing through `De-risking`.
+## Stop conditions
 
-A project doc never carries rationale or current-behavior detail
-itself — those get written once, in an ADR or a topic doc, and the
-project doc links to them. If you're about to explain a decision's
-trade-offs in a stage's own prose instead of drafting or writing an
-ADR, that's the signal to stop and write the ADR instead.
+Whoever is implementing — human or agent — stops and hands the decision
+to a human when:
 
-## Stage, Track, Phase — scoped per doc
+- implementing needs a change to the linked revision's Decision;
+- a new material assumption turns up;
+- an acceptance criterion can't be satisfied;
+- a new dependency or security boundary appears;
+- the scope needs to grow.
 
-- **Stage** — a sequential build step within one project. Numbering is
-  local to that project doc; it doesn't continue across projects and
-  doesn't need to.
-- **Track** — an independent, separately-sequenceable workstream within
-  one project (used when two pieces of work genuinely don't depend on
-  each other until some later joining point). Most projects only need
-  one implicit track and can skip the word entirely.
-- **Phase** — a capability-maturity split *within* one component (e.g.
-  "manual today, API-automated later" for one piece of infrastructure),
-  not a top-level sequencing axis. Don't conflate this with Stage.
+For the first two, record it (an agent's only permitted ADR edits are in
+[`docs/decisions/README.md#assumptions`](../decisions/README.md#assumptions))
+and stop; don't improvise around it.
 
-## Drafts stay drafts
+## Public repo
 
-A decision a project's stage depends on that isn't yet verified or
-built starts in [`decisions/drafts/`](../decisions/README.md#drafts),
-linked from the relevant stage row — unchanged from how decisions
-already work outside of projects. The stage's own status follows the
-draft's: `De-risking` while the draft's own `status` is `draft` or
-`de-risking` — same word, same meaning, at both levels — `Building`
-only once the draft is `decided`.
-Promotion to a numbered ADR happens the same way it always does: once
-the draft is `decided` and the thing is actually built — not at
-decide-time.
+Risks, blockers, and any evidence recorded here follow the rule in
+[`docs/README.md#public-repo`](../README.md#public-repo): no live
+vulnerability, incident, or exposure window.
 
 ## When a project finishes
 
-Once every stage is Done and everything durable has a home — an ADR
-for each real decision, a topic doc for each built component — the
-project doc has nothing left to say that isn't already said better
-elsewhere. Delete it rather than trimming it to a pointer or archiving
-it as a historical record: a finished project doc's remaining content
-is either current-state fact (which belongs in the topic doc it
-describes) or build narrative (which this repo's own comment/doc
-discipline already treats as not belonging in committed docs once
-resolved). Before deleting, run the checklist below — skipping it is
-how a real fact quietly gets lost instead of promoted.
+Once every stage is done and everything durable has a home, delete the
+doc rather than trimming it to a pointer or archiving it — what's left is
+either current-state fact (which belongs in a topic doc) or build
+narrative (which git and the PRs already hold). Run the checklist first;
+skipping it is how a real fact gets lost instead of promoted.
 
 ### Closing checklist
 
-- [ ] Every `Done` stage's rationale exists as a real ADR (not a
-      draft) or is plainly not decision-shaped enough to need one.
-- [ ] Every `Done` stage's current behavior is described in a topic
-      doc, not only in this project doc.
-- [ ] Every "open item" is either resolved and promoted, or explicitly
-      still open and moved into whichever topic doc or ADR it belongs
-      to next.
-- [ ] Every cross-reference into this project doc from elsewhere in
-      the repo (README, other docs) is updated or removed.
+- [ ] Every acceptance criterion is met, and its required check passed.
+- [ ] The linked revision is `accepted` (set in the PR that completes the
+      work), or there is no decision to settle.
+- [ ] Every resulting behavior is described in a topic doc, not only here.
+- [ ] Every open item is resolved and promoted, or moved to the ADR or
+      project it belongs to next.
+- [ ] Other projects' `depends_on` entries naming this one are removed,
+      and every cross-reference into this doc is updated or deleted.
 
 ## Index
 
@@ -99,5 +120,10 @@ how a real fact quietly gets lost instead of promoted.
 | [`ansible-collections-audit.md`](ansible-collections-audit.md) | In progress | Audit `ansible/roles/*` for hand-rolled command/shell/uri tasks a native collection module could replace — `seaweedfs_bucket` → `amazon.aws.s3_bucket` confirmed as the first candidate. |
 | [`cd-agent.md`](cd-agent.md) | Not started | Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | In progress | Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `tools/cloud_credentials`. |
+| [`doc-workflow-migration.md`](doc-workflow-migration.md) | Building | Move decisions to problem-oriented lineages and projects to the new lifecycle; convert drafts; add agent path-scope enforcement. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | In progress | Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then GCP e2-micro. |
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | In progress | OpenTofu-driven Proxmox VM provisioning. |
+
+## By initiative
+
+No project is grouped into an initiative.

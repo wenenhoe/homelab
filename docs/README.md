@@ -4,26 +4,37 @@ This repo's docs stay flat under `docs/`, plus three subdirectories for
 artifact types that don't fit a per-topic page:
 
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
-  when the reasoning isn't obvious from the code. One file per
-  decision, numbered; its reasoning stays fixed once accepted — a
-  changed decision gets superseded, not rewritten — but a small
-  in-place fix that doesn't touch the reasoning itself (closing a
-  stale forward-reference, say) is fine. See
-  [`decisions/README.md#editing-an-accepted-adr`](decisions/README.md#editing-an-accepted-adr)
+  when the reasoning isn't obvious from the code. One lineage per
+  problem, one revision per solution tried for it; an `accepted`
+  revision's reasoning stays fixed — a changed decision is a new
+  revision — while editorial fixes are fine. See
+  [`decisions/README.md#editing-a-revision`](decisions/README.md#editing-a-revision)
   for where that line sits.
 - **[`architecture/`](architecture/README.md)** — Mermaid diagrams for
   views that cut across multiple topic docs (a system-wide component
   map, an end-to-end data flow). A diagram that only illustrates one
   existing page lives embedded in that page instead.
-- **[`projects/`](projects/README.md)** — build status and sequencing
-  for multi-stage initiatives spanning several PRs. Never carries
-  rationale (that's `decisions/`) or current-behavior detail (that's a
-  topic doc) — it links to both instead, and gets deleted once the
-  project's done and everything durable has been promoted out of it.
+- **[`projects/`](projects/README.md)** — execution records for
+  multi-stage work spanning several PRs: what remains, in what order,
+  waiting on what. Never carries rationale (that's `decisions/`) or
+  current-behavior detail (that's a topic doc) — it links to both, and is
+  deleted once the work is done and everything durable has been promoted
+  out of it.
 
 Everything else is one topic, one doc, cross-referenced rather than
 duplicated — if you're about to explain the same gotcha in a second
 place, link to the first instead.
+
+Topic docs describe what is true on `main` at every commit, not what a
+project is still building.
+
+## Public repo
+
+This repository is public and git history is permanent. No doc, comment,
+or commit message records a security incident, a live or recent
+vulnerability, or an exposure window — including in ADRs, project risks,
+and blockers. If a doc would need those specifics to be useful, leave it
+unwritten and raise it privately.
 
 **Every doc's source of truth is the code/config it describes, checked
 by [`check-doc-drift.py`](../.github/scripts/check-doc-drift.py)** for

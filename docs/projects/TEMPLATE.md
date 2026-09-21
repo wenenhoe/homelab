@@ -2,49 +2,81 @@
 id: PROJ-project-name
 title: "Project Name"
 type: project
-status: not-started           # not-started | in-progress | done | blocked
-# blocked_reason: <reason>    # required when status: blocked
-summary: "<one-line, feeds the regenerated Covers column in README.md>"
+status: not-started         # not-started | de-risking | building | done
+blocked: false              # true only for an impediment that isn't another project
+# blocked_reason: "<the current impediment>"
+summary: "<one line; feeds the generated index>"
+# decision: ADR-NNNN/N      # the one revision this implements; omit if no ADR is needed
+# super_project: <slug>     # optional grouping; a track needs it, a phase needs a track
+# track: <slug>
+# phase: <slug>
+# depends_on:
+#   - project: PROJ-other-project
+#     reason: "Concrete prerequisite: work here cannot proceed until it is done"
 ---
 
 # Project Name
 
-**Status:** `Not started` | `In progress` | `Done` | `Blocked: <reason>`
+What this project delivers and why it's staged rather than one PR.
 
-One or two sentences on what this project delivers and why it's staged
-rather than a single PR. Link the doc(s) this project's design already
-lives in, if any (an existing topic doc's design-record section, or a
-dedicated design doc this project doc is the status view for).
+## Scope
 
-## Stages
+What changes, and — in one line each — what deliberately doesn't.
 
-Update this table at the start and end of each PR that works a stage.
+## Decision
 
-| # | Stage | Status |
-| :-: | :--- | :--- |
-| 1 | ... | Not started |
+Link the revision this implements, or say why none is needed. Rationale
+lives there, never here.
 
-## Stage detail
+## Execution plan
 
-Only for stages that need more than the table row to orient someone —
-what it depends on, and which [ADR](../decisions/README.md)/
-[draft](../decisions/drafts/) or topic doc it's tied to. Skip this
-section entirely for stages that are self-explanatory from the table.
+Update at the start and end of each PR that works a stage.
+
+| # | Stage | Status | Exit condition |
+| :-: | :--- | :--- | :--- |
+| 1 | ... | Not started | ... |
+
+Stage status is `Not started`, `In progress`, or `Done`. Add detail
+below only for a stage that needs more than its row to orient someone.
+
+## Acceptance criteria
+
+Observable conditions that mean this project is done.
+
+- [ ] ...
+
+## Agent handoff
+
+Omit for work no agent will touch. Stop conditions are in
+[`README.md#stop-conditions`](README.md#stop-conditions); they apply
+without being restated here.
+
+- **Allowed to change:** ...
+- **Must not change:** ...
+- **Relevant files and interfaces:** ...
+- **Required checks:** ...
+
+## Risks
+
+Could cause rework or delay but blocks nothing now — no live
+vulnerability, incident, or exposure window
+([`docs/README.md#public-repo`](../README.md#public-repo)).
+
+- ...
 
 ## Open items
 
-Things carried forward into a later stage — genuinely unresolved, not
-a place to restate what a stage's own row already says.
+Genuinely unresolved and carried forward — not a place to restate what a
+stage row already says.
 
 ## Closing checklist
 
-Copied from [`README.md`](README.md#when-a-project-finishes) — run
-before deleting this doc once every stage is Done.
+Copied from [`README.md`](README.md#when-a-project-finishes); run before
+deleting this doc.
 
-- [ ] Every `Done` stage's rationale exists as a real ADR, or plainly
-      didn't need one.
-- [ ] Every `Done` stage's current behavior is in a topic doc.
-- [ ] Every open item is resolved-and-promoted or moved to where it
-      belongs next.
-- [ ] Every cross-reference into this doc elsewhere in the repo is
-      updated or removed.
+- [ ] Every acceptance criterion is met, and its required check passed.
+- [ ] The linked revision is `accepted`, or there is no decision to settle.
+- [ ] Every resulting behavior is described in a topic doc.
+- [ ] Every open item is resolved and promoted, or moved where it belongs.
+- [ ] Other projects' `depends_on` entries naming this one are removed,
+      and every cross-reference into this doc is updated or deleted.

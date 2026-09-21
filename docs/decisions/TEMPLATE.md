@@ -1,36 +1,75 @@
 ---
-id: ADR-NNNN
-title: "Short, decision-shaped title"
+id: ADR-NNNN                 # the lineage: one per problem, identical in every revision
+revision: 0                  # 0 for the original solution; matches revision-NNN.md
 type: adr
-status: accepted            # or: superseded (add superseded_by: ADR-NNNN)
+title: "The problem, stated without naming a solution"   # identical in every revision
+solution: "This revision's answer, in one line"
+summary: "One line on what the problem covers; feeds the generated index"
+topic: secrets-store         # one of TOPICS in .github/scripts/doc_frontmatter.py
+status: working              # working | approved | accepted | superseded | abandoned | retired
+# supersedes: 0              # a later revision: the revision it replaces
+# superseded_by: 1           # required once status: superseded
+# narrows: ADR-NNNN          # this lineage replaced part of another lineage's scope
+# related: [ADR-NNNN]
+# former_ids: [ADR-NNNN]     # numbers retired into this lineage
 ---
 
-# NNNN. Short, decision-shaped title
+# NNNN. Problem title
 
-**Status:** Accepted | Superseded by [NNNN](NNNN-slug.md)
+## Problem
 
-_Still depends on something unverified? Start in
-[`drafts/`](drafts/TEMPLATE.md) instead — see
-[`README.md#drafts`](README.md#drafts)._
+What has to be true, independent of any solution. If the problem itself
+changes, that is a different lineage, not a new revision.
 
 ## Context
 
-The situation forcing a choice — constraints, the real alternatives
-considered, and why the obvious option doesn't work. Facts only; no
-narration of how the problem was discovered.
-
-If the decision follows from a threat model (adversary, asset, attack
-path), name it as its own bold-labeled paragraph here — see
-[0006](0006-backup-credential-blast-radius-threat-model.md) — rather
-than folding it into generic Context prose.
+Constraints, requirements, and facts a reader needs — no narration of
+how they were found. If the decision follows from a threat model
+(adversary, asset, attack path), give it its own bold-labeled paragraph.
 
 ## Decision
 
-What was chosen, stated plainly.
+The solution, stated plainly. This is the design implementation follows.
+
+## Alternatives considered
+
+Viable options and the decisive reason each lost.
+
+## Assumptions
+
+Open entries only: conditions that must hold for this decision to be
+valid. Delete this heading once none remain — a resolved entry becomes a
+fact in Context or changes the Decision. A revision can't be `approved`
+while any entry is here.
+
+- **Claim:** …
+  **Breaks if wrong:** …
+  **Checked by:** a spike, reading code, or a named event.
 
 ## Consequences
 
-What this costs or leaves unresolved, including any accepted risk.
-Link to the reference doc(s) that describe the resulting current
-behavior in detail — this record should stay short even as those docs
-grow.
+What this costs or leaves unresolved, including accepted risk. Link the
+topic doc(s) that describe the resulting behavior — this record stays
+short as they grow.
+
+## Invariants
+
+Properties that stay true regardless of how this is implemented.
+
+## Non-goals
+
+What this revision deliberately doesn't solve.
+
+## Validation
+
+What keeps the invariants true after acceptance — a test, a CI check, an
+operational signal. Omit if nothing does.
+
+## Reconsideration triggers
+
+Evidence that should prompt a new revision, not a schedule. Omit if none.
+
+## Revision notes
+
+Revision 001 and later only: what changed from the previous revision and
+why, as facts. Not an implementation diary.

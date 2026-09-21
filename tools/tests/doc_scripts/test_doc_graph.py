@@ -37,85 +37,93 @@ class HasOpenAssumptionsTest(unittest.TestCase):
 
 class LineageErrorsTest(_TmpRoot):
     def test_clean_multi_revision_lineage(self):
-        revision(self.root, "0013-secret-storage", 1, status="superseded", superseded_by=2)
-        revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1)
-        revision(self.root, "0013-secret-storage", 3, status="working")
+        revision(self.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
+        revision(self.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
+        revision(self.root, "0013-secret-storage", 2, status="working")
         self.assertEqual(graph.lineage_errors(self.root), [])
 
     def test_no_lineages_is_clean(self):
         self.assertEqual(graph.lineage_errors(self.root), [])
 
-    def test_revision_numbers_must_be_contiguous_from_one(self):
-        revision(self.root, "0001-a", 2)
-        self.assertOneError(graph.lineage_errors(self.root), "no gaps")
+    def test_revision_numbers_start_at_zero_and_have_no_gaps(self):
+        revision(self.root, "0001-a", 1)  # a lineage that starts at 001 has no original
+        self.assertOneError(graph.lineage_errors(self.root), "000..NNN")
+        revision(self.root, "0002-b", 0)
+        revision(self.root, "0002-b", 2)
+        self.assertTrue(any("0002-b" in e and "no gaps" in e for e in graph.lineage_errors(self.root)))
+
+    def test_revision_zero_is_a_valid_original_and_first_supersession_target(self):
+        revision(self.root, "0001-a", 0, status="superseded", superseded_by=1)
+        revision(self.root, "0001-a", 1, status="accepted", supersedes=0)
+        self.assertEqual(graph.lineage_errors(self.root), [])
 
     def test_only_one_accepted_revision(self):
+        revision(self.root, "0001-a", 0, status="accepted")
         revision(self.root, "0001-a", 1, status="accepted")
-        revision(self.root, "0001-a", 2, status="accepted")
         self.assertOneError(graph.lineage_errors(self.root), "only one may be")
 
     def test_duplicate_lineage_number(self):
-        revision(self.root, "0001-a", 1)
-        revision(self.root, "0001-b", 1)
+        revision(self.root, "0001-a", 0)
+        revision(self.root, "0001-b", 0)
         self.assertTrue(any("also used by" in e for e in graph.lineage_errors(self.root)))
 
     def test_title_and_topic_are_stable_across_revisions(self):
-        revision(self.root, "0001-a", 1, status="abandoned")
-        revision(self.root, "0001-a", 2, title="A different problem", topic="backup-recovery")
+        revision(self.root, "0001-a", 0, status="abandoned")
+        revision(self.root, "0001-a", 1, title="A different problem", topic="backup-recovery")
         errors = graph.lineage_errors(self.root)
         self.assertEqual(len(errors), 2, errors)
 
     def test_superseded_needs_an_accepted_successor(self):
-        revision(self.root, "0001-a", 1, status="superseded", superseded_by=2)
-        revision(self.root, "0001-a", 2, status="working", supersedes=1)
+        revision(self.root, "0001-a", 0, status="superseded", superseded_by=1)
+        revision(self.root, "0001-a", 1, status="working", supersedes=0)
         self.assertOneError(graph.lineage_errors(self.root), "only superseded once its successor is accepted")
 
     def test_superseded_by_must_point_forward_and_exist(self):
-        revision(self.root, "0001-a", 1, status="superseded", superseded_by=5)
+        revision(self.root, "0001-a", 0, status="superseded", superseded_by=4)
         self.assertOneError(graph.lineage_errors(self.root), "isn't a later revision")
 
     def test_successor_must_declare_supersedes(self):
-        revision(self.root, "0001-a", 1, status="superseded", superseded_by=2)
-        revision(self.root, "0001-a", 2, status="accepted")
-        self.assertOneError(graph.lineage_errors(self.root), "must declare 'supersedes: 1'")
+        revision(self.root, "0001-a", 0, status="superseded", superseded_by=1)
+        revision(self.root, "0001-a", 1, status="accepted")
+        self.assertOneError(graph.lineage_errors(self.root), "must declare 'supersedes: 0'")
 
     def test_accepted_successor_requires_the_target_to_be_superseded(self):
-        revision(self.root, "0001-a", 1, status="accepted")
-        revision(self.root, "0001-a", 2, status="accepted", supersedes=1)
+        revision(self.root, "0001-a", 0, status="accepted")
+        revision(self.root, "0001-a", 1, status="accepted", supersedes=0)
         errors = graph.lineage_errors(self.root)
         self.assertTrue(any("must be status: superseded" in e for e in errors), errors)
 
     def test_working_successor_leaves_the_accepted_revision_alone(self):
-        revision(self.root, "0001-a", 1, status="accepted")
-        revision(self.root, "0001-a", 2, status="working", supersedes=1)
+        revision(self.root, "0001-a", 0, status="accepted")
+        revision(self.root, "0001-a", 1, status="working", supersedes=0)
         self.assertEqual(graph.lineage_errors(self.root), [])
 
     def test_supersedes_must_point_backward(self):
-        revision(self.root, "0001-a", 1, status="working", supersedes=2)
-        revision(self.root, "0001-a", 2, status="working")
+        revision(self.root, "0001-a", 0, status="working", supersedes=1)
+        revision(self.root, "0001-a", 1, status="working")
         self.assertOneError(graph.lineage_errors(self.root), "isn't an earlier revision")
 
     def test_cross_lineage_references_must_resolve(self):
-        revision(self.root, "0001-a", 1, narrows="ADR-0009", related=["ADR-0008"])
+        revision(self.root, "0001-a", 0, narrows="ADR-0009", related=["ADR-0008"])
         errors = graph.lineage_errors(self.root)
         self.assertEqual(len(errors), 2, errors)
-        revision(self.root, "0002-b", 1, narrows="ADR-0002")
+        revision(self.root, "0002-b", 0, narrows="ADR-0002")
         self.assertTrue(any("narrows its own lineage" in e for e in graph.lineage_errors(self.root)))
 
     def test_narrows_and_related_between_real_lineages_are_clean(self):
-        revision(self.root, "0015-expiry", 1, status="accepted")
-        revision(self.root, "0016-oci", 1, status="accepted", narrows="ADR-0015", related=["ADR-0015"])
+        revision(self.root, "0015-expiry", 0, status="accepted")
+        revision(self.root, "0016-oci", 0, status="accepted", narrows="ADR-0015", related=["ADR-0015"])
         self.assertEqual(graph.lineage_errors(self.root), [])
 
     def test_former_id_must_not_be_a_live_lineage(self):
-        revision(self.root, "0013-a", 1, status="accepted", former_ids=["ADR-0027"])
+        revision(self.root, "0013-a", 0, status="accepted", former_ids=["ADR-0027"])
         self.assertEqual(graph.lineage_errors(self.root), [])
-        revision(self.root, "0027-b", 1)
+        revision(self.root, "0027-b", 0)
         self.assertOneError(graph.lineage_errors(self.root), "still a live lineage")
 
     def test_former_id_claimed_twice(self):
-        revision(self.root, "0001-a", 1, former_ids=["ADR-0050"])
-        revision(self.root, "0002-b", 1, former_ids=["ADR-0050"])
+        revision(self.root, "0001-a", 0, former_ids=["ADR-0050"])
+        revision(self.root, "0002-b", 0, former_ids=["ADR-0050"])
         self.assertOneError(graph.lineage_errors(self.root), "already claimed")
 
 
@@ -125,13 +133,13 @@ class OpenAssumptionErrorsTest(_TmpRoot):
     def test_approved_and_accepted_cannot_carry_open_assumptions(self):
         for status in ("approved", "accepted"):
             with self.subTest(status=status):
-                revision(self.root, f"000{1 if status == 'approved' else 2}-x", 1, status=status, body=self.OPEN)
+                revision(self.root, f"000{1 if status == 'approved' else 2}-x", 0, status=status, body=self.OPEN)
         errors = graph.open_assumption_errors(self.root)
         self.assertEqual(len(errors), 2, errors)
 
     def test_working_may_carry_them_and_resolved_docs_pass(self):
-        revision(self.root, "0001-x", 1, status="working", body=self.OPEN)
-        revision(self.root, "0002-y", 1, status="accepted", body="## Context\n\nfacts\n")
+        revision(self.root, "0001-x", 0, status="working", body=self.OPEN)
+        revision(self.root, "0002-y", 0, status="accepted", body="## Context\n\nfacts\n")
         self.assertEqual(graph.open_assumption_errors(self.root), [])
 
 
@@ -176,14 +184,14 @@ class ProjectErrorsTest(_TmpRoot):
         }
         statuses = ["working", "approved", "accepted", "abandoned", "retired"]
         for n, rev_status in enumerate(statuses, start=1):
-            extra = {"superseded_by": 9} if rev_status == "superseded" else {}
-            revision(self.root, f"{n:04d}-x", 1, status=rev_status, **extra)
+            extra = {"superseded_by": 8} if rev_status == "superseded" else {}
+            revision(self.root, f"{n:04d}-x", 0, status=rev_status, **extra)
         for project_status, ok_revisions in allowed.items():
             for n, rev_status in enumerate(statuses, start=1):
                 with self.subTest(project=project_status, revision=rev_status):
                     for old in (self.root / "docs/projects").glob("*.md"):
                         old.unlink()
-                    project(self.root, "p", status=project_status, decision=f"ADR-{n:04d}/1")
+                    project(self.root, "p", status=project_status, decision=f"ADR-{n:04d}/0")
                     errors = graph.project_errors(self.root)
                     if rev_status in ok_revisions:
                         self.assertEqual(errors, [])
@@ -191,20 +199,20 @@ class ProjectErrorsTest(_TmpRoot):
                         self.assertOneError(errors, f"but it is {rev_status}")
 
     def test_a_revision_dropping_back_to_working_stops_a_building_project(self):
-        revision(self.root, "0001-x", 1, status="approved")
-        project(self.root, "p", status="building", decision="ADR-0001/1")
+        revision(self.root, "0001-x", 0, status="approved")
+        project(self.root, "p", status="building", decision="ADR-0001/0")
         self.assertEqual(graph.project_errors(self.root), [])
-        revision_path = self.root / "docs/decisions/0001-x/revision-001.md"
+        revision_path = self.root / "docs/decisions/0001-x/revision-000.md"
         revision_path.write_text(revision_path.read_text(encoding="utf-8").replace("status: approved", "status: working"), encoding="utf-8")
-        self.assertOneError(graph.project_errors(self.root), "needs decision ADR-0001/1 to be approved")
+        self.assertOneError(graph.project_errors(self.root), "needs decision ADR-0001/0 to be approved")
 
     def test_unresolvable_decision(self):
-        project(self.root, "p", status="building", decision="ADR-0099/1")
+        project(self.root, "p", status="building", decision="ADR-0099/0")
         self.assertOneError(graph.project_errors(self.root), "doesn't resolve")
 
     def test_legacy_status_cannot_carry_a_decision(self):
-        revision(self.root, "0001-x", 1, status="approved")
-        project(self.root, "p", status="in-progress", decision="ADR-0001/1")
+        revision(self.root, "0001-x", 0, status="approved")
+        project(self.root, "p", status="in-progress", decision="ADR-0001/0")
         self.assertOneError(graph.project_errors(self.root), "legacy vocabulary")
 
     def test_projects_without_a_decision_are_never_gated(self):

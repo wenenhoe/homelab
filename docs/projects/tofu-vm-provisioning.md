@@ -65,7 +65,7 @@ Stage 5 starts moving real VMs; don't treat it as current after that.
 "Migration Stage" in rows 5–6 is `vm-provisioning.md`'s own numbering
 for its cutover plan, not this table's row numbers — the two are
 independent sequences that happen to share a word; see
-[`docs/projects/README.md`](README.md#stage-track-phase--scoped-per-doc).
+[`docs/projects/README.md`](README.md#hierarchy).
 
 ## Stage detail
 

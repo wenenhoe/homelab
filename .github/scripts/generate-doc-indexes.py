@@ -135,6 +135,10 @@ ADR_STATUS_DISPLAY = {
 }
 
 
+def _revision_label(number: int) -> str:
+    return "original" if number == 0 else f"revision {number}"
+
+
 def _cell(text: str) -> str:
     return text.replace("|", r"\|")
 
@@ -165,7 +169,7 @@ def render_lineages_index(root: Path = ROOT) -> str:
             current = lineage.current()
             if current.fm["topic"] != topic:
                 continue
-            status = ADR_STATUS_DISPLAY[current.status] + (f" (revision {current.number})" if len(lineage.revisions) > 1 else "")
+            status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current.number)})" if len(lineage.revisions) > 1 else "")
             notes = [f"Revision {r.number} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
             if lineage.id in narrowed_by:
                 notes.append("Narrowed by " + ", ".join(_lineage_link(by_id[i]) for i in sorted(narrowed_by[lineage.id])))

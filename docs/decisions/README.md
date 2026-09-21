@@ -1,109 +1,150 @@
 # Architecture Decision Records
 
-A short record of *why* a specific design was chosen when the reasoning
-is non-obvious, contested, or has a real alternative someone could
-reasonably ask "why not X instead?" about. Not a changelog and not a
-bug log — a fixed bug belongs in the doc it affects (stated as current
-behavior) or in the PR/commit that fixed it, not here.
+A decision record explains *why* the system is built the way it is, when
+the reasoning isn't obvious from the code. It is not a changelog, a bug
+log, a plan, or a description of current behavior — those live in git
+history, [`projects/`](../projects/README.md), and topic docs
+([`docs/README.md`](../README.md)).
 
 Write one when a decision:
 
-- trades off two real options and the choice isn't obvious from the
-  code alone (e.g. accepting a security gap because the alternative
-  isn't available on a given platform)
-- would be expensive to reverse, or someone new to the repo would
-  otherwise have to reconstruct by reading old commits/PRs
-- is still open (a known gap, tracked but not yet resolved)
+- trades off two real options and the choice isn't obvious from the code
+  alone (e.g. accepting a security gap because the alternative isn't
+  available on a given platform)
+- would be expensive to reverse, or someone new would otherwise have to
+  reconstruct it from old commits
+- is still open — a known gap, tracked but not yet resolved
 
-Use [`TEMPLATE.md`](TEMPLATE.md) for new entries once a decision is
-ready to record. Number sequentially; never renumber or delete a
-superseded one — mark it `Superseded by 000N` instead, so old links
-keep resolving. If the superseded ADR is referenced from
-[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md), review
-whether the control mapping still holds and update it in the same
-patch — the file doesn't move on supersession, so nothing else makes
-that reference look broken; `check-doc-drift.py` fails the build until
-it's addressed precisely because of that.
+Skip it for a trivial or cheaply reversible choice, an implementation
+detail inside an established pattern, or a temporary experiment.
 
-## Editing an accepted ADR
+## Lineages and revisions
 
-Its Context and Decision — the actual reasoning and what was chosen —
-don't get rewritten after acceptance; a changed mind is a new ADR
-marking this one `Superseded by`, not an edit to this one. That's what
-"accepted" is for: a reader trusts that what an ADR says was decided
-is still what it says, unless the Status line tells them otherwise.
+One **lineage** per problem: a directory `NNNN-problem-slug/` holding one
+`revision-NNN.md` per solution tried for it: `revision-000.md` is the
+original, and each later solution takes the next number. The lineage's
+number identifies the problem and is never reused. The title names the problem, never the
+solution ("Secret storage", not "OpenBao, not a file cache"); each
+revision's `solution:` field carries the answer. Use
+[`TEMPLATE.md`](TEMPLATE.md).
 
-A small in-place edit is fine when it doesn't touch that: closing a
-loop this ADR's own Consequences left open (a "worth revisiting" note
-becoming an actual link once something exists to link to, the same way
-[0015](0015-credential-expiry-native-where-possible-self-tracked-where-not.md)'s
-Status line already carries an in-place "OCI superseded by 0016"
-pointer), or correcting a plain factual detail that was wrong even at
-the time. If it's unclear which side of that line an edit falls on,
-treat it as a decision change and supersede instead — a wrong guess in
-that direction costs a new file number; a wrong guess the other way
-costs someone's trust in what "Accepted" means here.
+Before creating a lineage, check that:
+
+1. the problem can be stated without naming a solution;
+2. a different solution could later answer the same problem;
+3. replacing the solution would replace the whole record. If part of it
+   would still stand, that part is a second problem — make two lineages.
+
+A lineage is not a topic grouping. Several decisions that make up one
+initiative are separate lineages sharing a `topic:`; the generated index
+below groups by it.
+
+## Revision states
+
+| State | Meaning | Reasoning may change? |
+| :--- | :--- | :--- |
+| `working` | A solution under consideration; open assumptions allowed. | Yes |
+| `approved` | No open assumptions; production implementation may begin. | Yes, but a new material assumption returns it to `working`. |
+| `accepted` | Implemented and on `main`. | No — editorial fixes only. |
+| `superseded` | Replaced by a later revision that is itself `accepted`. | No |
+| `abandoned` | A `working` revision no longer pursued. Keep it if the rejected reasoning is useful; delete it if it was only exploration. | No |
+| `retired` | The problem no longer exists and nothing replaces the solution. | No |
+
+```text
+working ─────► approved ─────► accepted ─────► superseded
+   │  ▲            │                │       (a successor is accepted)
+   │  └────────────┘                └─────► retired
+   │   new material assumption
+   └─────► abandoned
+```
+
+`accepted` means what most ADR practice means by it — binding and
+immutable. `approved` is the state before that: authorized to build, not
+yet built.
+
+- Only one revision per lineage is `accepted`. A successor can be
+  `working` or `approved` at the same time; the older revision becomes
+  `superseded` only once the successor is `accepted`, and the successor
+  declares `supersedes:` back.
+- A material change to an `accepted` or `superseded` revision is a new
+  revision in the same lineage, never an edit. When a superseded ADR is
+  referenced from [`nist-800-53-alignment.md`](../nist-800-53-alignment.md),
+  re-check the mapping in the same patch; `check-doc-drift.py` fails
+  until it is addressed.
+- Two solutions worked at once for the same problem are two `working`
+  revisions; one is abandoned or superseded when the other is accepted.
+  Numbers record the order they were created in, not which is preferred.
+
+## Assumptions
+
+An **assumption** is an explicitly identified condition that must be true
+for the solution to be valid. Only open ones are recorded, under
+`## Assumptions`; resolving one folds the fact into Context (or changes
+the Decision) and deletes the entry. A revision with any entry can't be
+`approved` — `check-doc-drift.py` enforces it — and only a time-boxed,
+throwaway spike, or reading code, may work on one meanwhile.
+
+Unknown unknowns are not predicted. When implementation finds a
+condition that invalidates the solution, record it as an assumption and
+return the revision to `working`; the project stops (see
+[`docs/projects/README.md#stop-conditions`](../projects/README.md#stop-conditions)).
+An agent may do exactly that — append an open assumption and set
+`approved` → `working` — and nothing else to an `approved` or `accepted`
+revision.
+
+## Editing a revision
+
+- **Editorial** (typos, a wrong fact that was wrong at the time, a link)
+  — any state.
+- **Metadata** (`status`, `supersedes`, `superseded_by`, `narrows`,
+  `related`, `former_ids`) — any state; it records lifecycle, not
+  reasoning.
+- **Material** (the solution, its rationale, its validity conditions) —
+  in place while `working` or `approved`; a new revision once `accepted`.
+
+If it is unclear which side a change falls on, treat it as material.
+
+## Partial supersession
+
+When a later solution replaces only part of an earlier revision's scope,
+don't edit the old record. The new lineage covers just that slice and
+declares `narrows: ADR-NNNN`; the index shows "Narrowed by" on the old
+one. The sizing check above is what prevents this — it only happens when
+an earlier record bundled two problems.
+
+## Projects
+
+An `approved` revision is what a [project](../projects/README.md)
+implements, linked by the project's `decision:` field. The revision
+becomes `accepted` in the pull request that completes the work, and the
+resulting behavior is described in topic docs.
 
 ## Drafts
 
-A numbered ADR here means "decided, and either built or being built" —
-not "under consideration." A decision that depends on something
-unverified (another stage's not-yet-built design, a tool's real
-behavior, a component that doesn't exist yet) starts as a draft in
-[`drafts/`](drafts/) instead: same shape as `TEMPLATE.md`, plus an
-`Assumptions` section naming exactly what's unverified and how it gets
-checked. Drafts are unnumbered, freely rewritten or deleted in place —
-nothing else in this repo should ever cite one as settled.
+Unnumbered drafts under [`drafts/`](drafts/) are being converted into
+`working` revisions — `revision-000` of a new lineage, or a later
+revision of an existing one. Nothing new starts there. Until converted,
+a draft's hard gate holds: no production work while an `Assumptions`
+entry is open, and `status: decided` means every entry is resolved.
+Converting or deleting a draft repoints or removes every link to it in
+the same patch.
 
-**Hard gate:** production implementation must never begin on a draft
-that still has an open `Assumptions` entry. While any entry is open,
-the only engineering work allowed against that draft is a time-boxed,
-throwaway spike aimed at resolving one specific entry — same as this
-repo's general spike discipline, just scoped to a draft instead of a
-numbered decision. Not every entry needs a spike — reading existing
-code, or simply waiting on another stage to land, resolves plenty of
-them without writing anything throwaway; the gate is about production
-code specifically, not all de-risking activity.
+## Flat ADRs
 
-A draft's **Status:** line tracks this directly (`status:` in
-frontmatter), using the same vocabulary as a project stage
-([`docs/projects/README.md#what-goes-in-one`](../projects/README.md#what-goes-in-one)):
-`Draft` while the design itself is still being written, before its
-open questions have settled into concrete `Assumptions` entries;
-`De-risking` once at least one entry is open and is actively being
-worked, by whatever means actually resolves it; `Decided` only once
-every `Assumptions` entry is resolved — folded into Context as settled
-fact, or the Decision revised to no longer need it — so the design is
-genuinely settled and only implementation remains. None of these is a
-promise of promotion; the file stays unnumbered and in `drafts/` until
-promotion actually happens.
+Files `NNNN-slug.md` directly in this directory predate lineages. Each is
+the original (`revision-000`) of its own lineage, `accepted` (or `superseded`), and is
+re-filed into a lineage directory by a mechanical patch that changes only
+frontmatter and link targets. Both layouts validate until then.
 
-Promotion to a real ADR happens once the design has been `Decided` and
-is actually implemented — not at decide-time, and never while an
-Assumption is still open. At that point: assign the next sequential
-number, drop the `Assumptions` section entirely (everything in it is
-now either settled fact folded into Context, or moot), set
-`Status: Accepted` directly, move the file from `drafts/` into this
-directory, and add it to the index below.
-Update every place elsewhere in the repo that links to the draft's old
-path to the new one in the same patch — a link that still resolves
-(the file exists, just moved) is easy to miss, since nothing fails
-loudly the way a genuinely broken link does. If the draft is
-referenced from
-[`docs/nist-800-53-alignment.md`](../nist-800-53-alignment.md),
-repointing the link isn't enough on its own — re-check the mapping
-still holds now that the design is final, in the same patch.
+## Lineages
 
-A draft can also just be deleted — abandoned, or superseded by a
-different approach before ever being built. When that happens, every
-inward link to it needs resolving in the same patch: repoint it if
-the topic has a new home (the decision that replaced it, a topic doc,
-a project doc), or remove the reference outright if it doesn't.
-`check-doc-drift.py` catches a dangling link to a deleted file, but
-not a link quietly left pointing at the wrong thing — that part is on
-whoever's deleting it.
+### Documentation & process
 
-## Index
+| ADR | Problem | Current solution | Status | Notes |
+| :--- | :--- | :--- | :--- | :--- |
+| [0037](0037-decision-and-project-documentation-workflow/revision-000.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, and how an implementer knows what is authorized and when to stop. | Problem-oriented ADR lineages with gated revisions, projects as execution records, topic docs describing main | Approved | — |
+
+## Legacy index
 
 | ADR | Status | Decision |
 | :--- | :--- | :--- |

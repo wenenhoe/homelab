@@ -111,44 +111,51 @@ class LineagesIndexTest(_TmpRoot):
         revision(
             self.root,
             "0004-docker-api-access",
-            1,
+            0,
             title="Container access to the Docker API",
             topic="deployment-platform",
             status="accepted",
             solution="Socket proxy",
         )
-        revision(self.root, "0017-store-recovery", 1, title="Recovering the store", topic="secrets-store", status="accepted", solution="Split secrets")
-        revision(self.root, "0001-host-config", 1, title="Host configuration", topic="deployment-platform", status="accepted", solution="Ansible")
+        revision(self.root, "0017-store-recovery", 0, title="Recovering the store", topic="secrets-store", status="accepted", solution="Split secrets")
+        revision(self.root, "0001-host-config", 0, title="Host configuration", topic="deployment-platform", status="accepted", solution="Ansible")
         out = gen.render_lineages_index(self.root)
         self.assertLess(out.index("### Deployment & platform"), out.index("### Secrets store"))
         self.assertNotIn("### Backup", out)
         self.assertLess(out.index("0001-host-config"), out.index("0004-docker-api-access"))
         self.assertIn(
-            "| [0004](0004-docker-api-access/revision-001.md) | **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |",
+            "| [0004](0004-docker-api-access/revision-000.md) | **Container access to the Docker API** — Where secrets live. | Socket proxy | Accepted | — |",
             out,
         )
 
     def test_multi_revision_lineage_shows_current_and_pending(self):
-        revision(self.root, "0013-secret-storage", 1, status="superseded", superseded_by=2, solution="File cache")
-        revision(self.root, "0013-secret-storage", 2, status="accepted", supersedes=1, solution="OpenBao", former_ids=["ADR-0027"])
-        revision(self.root, "0013-secret-storage", 3, status="working", solution="Something newer")
+        revision(self.root, "0013-secret-storage", 0, status="superseded", superseded_by=1, solution="File cache")
+        revision(self.root, "0013-secret-storage", 1, status="accepted", supersedes=0, solution="OpenBao", former_ids=["ADR-0027"])
+        revision(self.root, "0013-secret-storage", 2, status="working", solution="Something newer")
         out = gen.render_lineages_index(self.root)
-        self.assertIn("[0013](0013-secret-storage/revision-002.md)", out)
-        self.assertIn("| OpenBao | Accepted (revision 2) | Revision 3 working; Formerly ADR-0027 |", out)
+        self.assertIn("[0013](0013-secret-storage/revision-001.md)", out)
+        self.assertIn("| OpenBao | Accepted (revision 1) | Revision 2 working; Formerly ADR-0027 |", out)
+
+    def test_the_original_is_labelled_when_a_successor_exists(self):
+        revision(self.root, "0013-secret-storage", 0, status="accepted", solution="File cache")
+        revision(self.root, "0013-secret-storage", 1, status="working", supersedes=0, solution="OpenBao")
+        out = gen.render_lineages_index(self.root)
+        self.assertIn("| File cache | Accepted (original) | Revision 1 working |", out)
+        self.assertNotIn("revision 0", out)
 
     def test_narrowed_by_and_related_back_pointers(self):
-        revision(self.root, "0015-expiry", 1, status="accepted", topic="cloud-credentials", title="Credential expiry")
-        revision(self.root, "0016-oci", 1, status="accepted", topic="cloud-credentials", title="OCI credentials", narrows="ADR-0015", related=["ADR-0014"])
-        revision(self.root, "0014-r2", 1, status="accepted", topic="cloud-credentials", title="R2 rotation credential")
+        revision(self.root, "0015-expiry", 0, status="accepted", topic="cloud-credentials", title="Credential expiry")
+        revision(self.root, "0016-oci", 0, status="accepted", topic="cloud-credentials", title="OCI credentials", narrows="ADR-0015", related=["ADR-0014"])
+        revision(self.root, "0014-r2", 0, status="accepted", topic="cloud-credentials", title="R2 rotation credential")
         out = gen.render_lineages_index(self.root)
         rows = {line.split("|")[1].strip()[1:5]: line for line in out.splitlines() if line.startswith("| [")}
-        self.assertIn("Narrowed by [0016](0016-oci/revision-001.md)", rows["0015"])
+        self.assertIn("Narrowed by [0016](0016-oci/revision-000.md)", rows["0015"])
         self.assertNotIn("Narrowed by", rows["0016"])
-        self.assertIn("Related: [0014](0014-r2/revision-001.md)", rows["0016"])
-        self.assertIn("Related: [0016](0016-oci/revision-001.md)", rows["0014"])
+        self.assertIn("Related: [0014](0014-r2/revision-000.md)", rows["0016"])
+        self.assertIn("Related: [0016](0016-oci/revision-000.md)", rows["0014"])
 
     def test_pipes_in_text_are_escaped(self):
-        revision(self.root, "0001-x", 1, status="accepted", solution="a | b")
+        revision(self.root, "0001-x", 0, status="accepted", solution="a | b")
         self.assertIn(r"a \| b", gen.render_lineages_index(self.root))
 
 

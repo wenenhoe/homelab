@@ -119,7 +119,7 @@ skipping it is how a real fact gets lost instead of promoted.
 | :--- | :--- | :--- |
 | [`ansible-collections-audit.md`](ansible-collections-audit.md) | Building | Replace hand-rolled command/shell/uri tasks in ansible/roles/* with maintained collection modules where one fits. |
 | [`cd-agent.md`](cd-agent.md) | Not started | Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole. |
-| [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | In progress | Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `tools/cloud_credentials`. |
+| [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 | [`doc-workflow-migration.md`](doc-workflow-migration.md) | Building | Move decisions to problem-oriented lineages and projects to the new lifecycle; convert drafts; add agent path-scope enforcement. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | In progress | Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then GCP e2-micro. |
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | In progress | OpenTofu-driven Proxmox VM provisioning. |

@@ -1,37 +1,43 @@
 ---
 id: PROJ-cloud-credentials-hardening
-title: "Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening"
+title: 'Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening'
 type: project
-status: in-progress
-summary: "Selective official-SDK adoption (OCI's `identity_domains` client, `b2sdk`) plus error-handling hardening for `tools/cloud_credentials`."
+status: de-risking
+blocked: false
+summary: Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3.
+decision: ADR-0046/0
 ---
 
 # Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening
 
-**Status:** In progress
-
 Replaces `tools/cloud_credentials`'s raw `requests` calls with
 official SDKs where one exists and is a clear improvement, and closes
-the error-handling gap that review surfaced along the way. Scope and
-sequencing are decided in
-[ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md);
-this doc tracks build status only. `cache.py`'s OpenBao/SSH client is
+the error-handling gap that review surfaced along the way. `cache.py`'s OpenBao/SSH client is
 [`hvac`/`paramiko`-based](../decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md);
 every stage below that reads/writes through `scoped()` already
 benefits from that.
 
-## Stages
+## Scope
 
-| # | Stage | Status |
-| :-: | :--- | :--- |
-| 1 | Fix uncaught `subprocess.TimeoutExpired` in `verify.py`'s rclone retry loop (bug fix, no SDK — `rclone` has no Python bindings) | Done |
-| 2 | OCI SCIM leaf/rotation → `oci.identity_domains.IdentityDomainsClient` | Done |
-| 3 | B2 leaf/rotation → `b2sdk` | Done |
-| 4 | `verify.py`'s `rclone` calls → `boto3` (leaning yes) / `restore_all.py`'s stay on `rclone` (leaning no) | Not started |
-| 5 | Re-baseline `tools/tests/cloud_credentials/` mocks for stages 2-4 | Not started |
-| 6 | R2 / OCI classic-IAM bootstrap — only if a stage above changes ADR 0029's call | Not started |
+`tools/cloud_credentials`'s calls to B2, OCI, and R2, and `verify.py`'s `rclone` calls. Not in scope: `cloud_sync`'s bulk copy, `snapshot-push.sh.j2`, and `check-freshness.sh.j2` (bash/containerized, and `cloud_sync`'s `rclone copy` is load-bearing for [ADR 0010](../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)); R2's and OCI's classic-IAM bootstrap stay on `requests` unless a stage changes [ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md)'s call.
 
-## Stage detail
+## Decision
+
+Stages 1–3 implemented [ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md), which is `accepted`. The remaining stages implement [ADR 0046](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved.
+
+## Execution plan
+
+Update at the start and end of each PR that works a stage.
+
+| # | Stage | Status | Exit condition |
+| :-: | :--- | :--- | :--- |
+| 1 | Fix uncaught `subprocess.TimeoutExpired` in `verify.py`'s rclone retry loop (bug fix, no SDK — `rclone` has no Python bindings) | Done | a hang fails like any other non-retryable error instead of raising out of the retry loop |
+| 2 | OCI SCIM leaf/rotation → `oci.identity_domains.IdentityDomainsClient` | Done | the OCI SCIM modules use the SDK client |
+| 3 | B2 leaf/rotation → `b2sdk` | Done | every B2 call site uses `b2sdk` |
+| 4 | `verify.py`'s `rclone` calls → `boto3` (leaning yes) / `restore_all.py`'s stay on `rclone` (leaning no) | Not started | ADR 0046 is approved; `verify.py` uses boto3; `restore_all.py` is unchanged |
+| 5 | Re-baseline `tools/tests/cloud_credentials/` mocks for stages 2-4 | Not started | mocks are spec'd against the SDK types and the suite passes |
+
+Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 1 — `verify.py` timeout fix
 
@@ -54,11 +60,7 @@ claim that the SDK's model classes reproduce the exact field shape
 confirmed live against the raw API held: a real create+delete
 round-trip through `oci_identity_domains_client()` against the actual
 tenancy succeeded, with populated `access_key`/`secret_key` and a
-plausible `expires_on` ~90 days out. The Apps-by-displayName lookup
-(`oci_bootstrap.py`'s `_find_app_id`) shares the same client/signer
-plumbing just proven live but wasn't separately spiked — low residual
-risk, since `list_apps(filter=...)` is a simpler read-only call on the
-same authenticated client.
+plausible `expires_on` ~90 days out.
 
 **Two findings not in the original draft, both surfaced before the
 live spike, by static SDK inspection:**
@@ -120,8 +122,8 @@ Scoped in
 explicitly does not extend to `cloud_sync`, `snapshot-push.sh.j2`, or
 `check-freshness.sh.j2` (bash/containerized, and `cloud_sync`'s
 `rclone copy` is load-bearing for
-[ADR 0010](../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)). Blocked on
-that draft's Assumptions, in particular confirming `verify.py`'s
+[ADR 0010](../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)). Waits on
+that revision's open Assumptions, in particular confirming `verify.py`'s
 credential already lives as a Python value before this swap, so the
 credentials-in-process trade `restore_all.py` avoids doesn't newly
 apply here. `boto3` is not already a `pyproject.toml` dependency from
@@ -130,6 +132,16 @@ Stage 1 (`amazon.aws.s3_bucket`) — that stage confirmed live it only
 needs `boto3` on the Ansible target host (`storage`, via `apt`), not
 the controller, so this would be the first stage to actually add it to
 `pyproject.toml`, not a second entry to reconcile with an existing one.
+
+## Acceptance criteria
+
+- [ ] No raw `requests` call remains in `tools/cloud_credentials` where an official SDK was judged a clear improvement; the exceptions are the ones ADR 0029 records.
+- [ ] ADR 0046 is settled: `verify.py` uses boto3, or stays on `rclone` with that recorded there.
+- [ ] Mocks in `tools/tests/cloud_credentials/` are spec'd against the SDK types, and the suite passes.
+
+## Risks
+
+- The Apps-by-displayName lookup (`oci_bootstrap.py`'s `_find_app_id`) shares the same client/signer plumbing just proven live but wasn't separately spiked — low residual risk, since `list_apps(filter=...)` is a simpler read-only call on the same authenticated client.
 
 ## Open items
 
@@ -149,7 +161,7 @@ the controller, so this would be the first stage to actually add it to
 - `check_freshness.py`'s single Telegram `sendMessage` call has no SDK
   candidate worth adding for one endpoint — out of scope, noted here so
   it isn't re-proposed later. `verify.py`'s `rclone` call itself may or
-  may not survive Stage 4 (see that stage's linked draft); its
+  may not survive Stage 4 (see that stage's linked decision); its
   uncaught-timeout bug is fixed regardless, as Stage 1.
 - `cloud_sync`'s bulk-copy job, `snapshot-push.sh.j2`, and
   `check-freshness.sh.j2` are explicitly out of scope for any boto3
@@ -161,19 +173,20 @@ the controller, so this would be the first stage to actually add it to
   wrappers around the same `rclone` binary (better error handling and
   library support, zero change to ADR 0010's security semantics since
   the binary invoked doesn't change) is a live, separate question —
-  see that draft's "wrapper language" section. Not yet its own stage;
+  see that revision's "wrapper language" section. Not yet its own stage;
   needs a deployment-shape spike first (adding a Python interpreter to
   the pinned `rclone/rclone` image or building a new one).
+- Former Stage 6, R2 / OCI classic-IAM bootstrap onto an SDK: only if a stage above changes
+  [ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md)'s call. Conditional, so it is not a stage until then.
 
 ## Closing checklist
 
-Copied from [`README.md`](README.md#when-a-project-finishes) — run
-before deleting this doc once every stage is Done.
+Copied from [`README.md`](README.md#when-a-project-finishes); run before
+deleting this doc.
 
-- [ ] Every `Done` stage's rationale exists as a real ADR, or plainly
-      didn't need one.
-- [ ] Every `Done` stage's current behavior is in a topic doc.
-- [ ] Every open item is resolved-and-promoted or moved to where it
-      belongs next.
-- [ ] Every cross-reference into this doc elsewhere in the repo is
-      updated or removed.
+- [ ] Every acceptance criterion is met, and its required check passed.
+- [ ] The linked revision is `accepted`, or there is no decision to settle.
+- [ ] Every resulting behavior is described in a topic doc.
+- [ ] Every open item is resolved and promoted, or moved where it belongs.
+- [ ] Other projects' `depends_on` entries naming this one are removed,
+      and every cross-reference into this doc is updated or deleted.

@@ -213,6 +213,22 @@ class ProjectValidationTest(_TmpRoot):
             with self.subTest(label), self.assertRaises(SystemExit):
                 fm_mod.read_frontmatter(project(self.root, "b", **overrides))
 
+    def test_allowed_paths_shape(self):
+        ok = project(self.root, "ok", allowed_paths=["src/**", ".github/scripts/doc_*.py", "README.md"])
+        self.assertEqual(len(fm_mod.read_frontmatter(ok)["allowed_paths"]), 3)
+        bad = {
+            "not a list": "src/**",
+            "empty list": [],
+            "non-string entry": ["src/**", 3],
+            "blank entry": ["src/**", " "],
+            "absolute": ["/etc/passwd"],
+            "parent traversal": ["src/../secrets/**"],
+            **{f"blanket {p!r}": [p] for p in sorted(fm_mod.BLANKET_PATHS)},
+        }
+        for label, value in bad.items():
+            with self.subTest(label), self.assertRaises(SystemExit):
+                fm_mod.read_frontmatter(project(self.root, "b", allowed_paths=value))
+
     def test_decision_and_super_project_shape(self):
         self.assertEqual(fm_mod.read_frontmatter(project(self.root, "a", decision="ADR-0013/1", super_project="pull-based-cd"))["decision"], "ADR-0013/1")
         for overrides in ({"decision": "ADR-0013"}, {"decision": ["ADR-0013/1"]}, {"super_project": "Pull Based"}):

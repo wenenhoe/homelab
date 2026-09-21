@@ -109,8 +109,11 @@ frontmatter adoption and its NIST alignment decision stand.
   0013, as revision 001 of "secret storage" (0013 itself is its original).
 - A new ADR costs a directory and frontmatter. The checks and generators
   become the enforcement, so their tests carry real weight.
-- Path-scope enforcement for agents is not built yet; until it is, the
-  handoff's allowed and forbidden files are advisory.
+- Path-scope enforcement bounds a change that touches a project doc to that
+  project's `allowed_paths`, at path level
+  ([`docs/projects/README.md#scope`](../../projects/README.md#scope)). The
+  handoff's forbidden files, the content of an edit inside an allowed
+  file, and a change that never touches its project doc stay advisory.
 - Topic docs describing the workflow: [`docs/README.md`](../../README.md),
   [`decisions/README.md`](../README.md),
   [`projects/README.md`](../../projects/README.md).

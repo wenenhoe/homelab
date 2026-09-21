@@ -14,6 +14,11 @@ project. They hold the rules; this file only says where.
 Before implementing a project, open its `decision:` revision.
 `approved` means proceed; anything else means stop and ask.
 
+A change that touches a project doc may only change that project's
+`allowed_paths` (plus the project docs, the generated decisions index,
+and its own decision revision). Work that needs a file outside them
+stops there; see [`docs/projects/README.md#scope`](docs/projects/README.md#scope).
+
 Verify a docs change with `pre-commit run --all-files`; it regenerates
 the indexes, lints the markdown, and runs
 [`check-doc-drift.py`](.github/scripts/check-doc-drift.py).

@@ -10,6 +10,8 @@ summary: "<one line; feeds the generated index>"
 # super_project: <slug>     # optional grouping; a track needs it, a phase needs a track
 # track: <slug>
 # phase: <slug>
+# allowed_paths:          # optional; the globs this work may change (see README.md#scope)
+#   - path/to/thing/**
 # depends_on:
 #   - project: PROJ-other-project
 #     reason: "Concrete prerequisite: work here cannot proceed until it is done"
@@ -51,7 +53,7 @@ Omit for work no agent will touch. Stop conditions are in
 [`README.md#stop-conditions`](README.md#stop-conditions); they apply
 without being restated here.
 
-- **Allowed to change:** ...
+- **Allowed to change:** `allowed_paths` in the frontmatter, enforced; anything that can't be a glob goes here.
 - **Must not change:** ...
 - **Relevant files and interfaces:** ...
 - **Required checks:** ...

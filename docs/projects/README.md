@@ -88,11 +88,47 @@ to a human when:
 - a new material assumption turns up;
 - an acceptance criterion can't be satisfied;
 - a new dependency or security boundary appears;
-- the scope needs to grow.
+- the scope needs to grow, which includes a file outside `allowed_paths`
+  (see [Scope](#scope)).
 
 For the first two, record it (an agent's only permitted ADR edits are in
 [`docs/decisions/README.md#assumptions`](../decisions/README.md#assumptions))
 and stop; don't improvise around it.
+
+## Scope
+
+A project doc may declare `allowed_paths`: the file globs its work may
+change.
+
+```yaml
+allowed_paths:
+  - .github/scripts/doc_*.py
+  - tools/tests/doc_scripts/**
+```
+
+`*` and `?` stay inside one directory; `**` crosses directories. A
+pattern that matches every file (`**`, `*`) is rejected, since it would
+bound nothing.
+
+A change is tied to a project by touching its doc, which any change that
+works a stage already does. Every other file that change touches must
+match `allowed_paths`, apart from what the workflow itself produces:
+project docs, the generated decisions index, and the revision the
+project's `decision:` names, so the permitted ADR edits stay possible. A
+change that touches no project doc isn't project work and isn't checked.
+One that touches several scoped projects gets the union of their scopes.
+
+The scope in force is the one on the base branch, not the one in the
+change, so widening `allowed_paths` is its own change, reviewed before it
+is used. A project doc that is new in a change has no scope yet.
+
+This is the mechanical half of the "scope needs to grow" stop condition:
+work that needs a file outside `allowed_paths` fails the check and stops.
+Omit the field for work no agent will touch. It is path-level only: it
+can't tell whether an edit inside an allowed file is the permitted one,
+and a change that never touches its project doc isn't bounded. How and
+where it runs is in
+[`docs/ci.md#project-scope-check`](../ci.md#project-scope-check).
 
 ## Public repo
 

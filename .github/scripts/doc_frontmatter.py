@@ -51,6 +51,8 @@ REVISION_LABEL = r"(?:0|[1-9]\d*)(?:-[a-z])?"
 REVISION_REF_RE = re.compile(rf"^(ADR-\d{{4}})/({REVISION_LABEL})$")
 PROJECT_ID_RE = re.compile(r"^PROJ-[a-z0-9-]+$")
 SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
+# Patterns that match every file: an allowed_paths made of them bounds nothing.
+BLANKET_PATHS = {"*", "**", "**/*", "*/**", "./**", "./*"}
 
 
 def doc_kind(path: Path) -> str:
@@ -137,6 +139,15 @@ def _validate_project(path: Path, data: dict) -> None:
             _fail(path, f"'{field}' needs '{parent}': a {field} belongs to one")
     if "decision" in data and not (isinstance(data["decision"], str) and REVISION_REF_RE.match(data["decision"])):
         _fail(path, "'decision' must be a single revision reference like ADR-0013/2")
+    if "allowed_paths" in data:
+        paths = data["allowed_paths"]
+        if not isinstance(paths, list) or not paths or not all(isinstance(p, str) and p.strip() for p in paths):
+            _fail(path, "'allowed_paths' must be a non-empty list of path globs")
+        for pattern in paths:
+            if pattern.startswith("/") or ".." in pattern.split("/"):
+                _fail(path, f"allowed_paths entry '{pattern}' must be a repo-relative path without '..'")
+            if pattern in BLANKET_PATHS:
+                _fail(path, f"allowed_paths entry '{pattern}' matches every file, which bounds nothing; name the directories or files the work touches")
     depends_on = data.get("depends_on", [])
     if not isinstance(depends_on, list):
         _fail(path, "'depends_on' must be a list")

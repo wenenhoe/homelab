@@ -104,3 +104,16 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         always_run: true
+      - id: check-project-scope
+        name: check-project-scope
+        description: >-
+          A commit that touches a project doc stays inside that project's
+          allowed_paths, read from HEAD - see
+          .github/scripts/check-project-scope.py. Looks only at what is
+          staged, so it passes trivially under `--all-files` in CI, where
+          the project-scope job checks the whole PR instead.
+        entry: python3 .github/scripts/check-project-scope.py --staged
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        always_run: true

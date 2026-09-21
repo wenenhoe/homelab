@@ -67,6 +67,7 @@ the SeaweedFS-specific case this generalizes from.
 | Job | Runs when | What it does |
 | :--- | :--- | :--- |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
+| `project-scope` | always | A PR that touches a project doc stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](#project-scope-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
@@ -80,6 +81,7 @@ the SeaweedFS-specific case this generalizes from.
 flowchart TD
     detect["detect-changes<br/>(always runs first)"]
     precommit["pre-commit-checks<br/>(always)"]
+    scope["project-scope<br/>(always)"]
     trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
     lint["ansible-lint<br/>(ansible/** or lint config changed)"]
     uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
@@ -96,10 +98,11 @@ flowchart TD
     boottest --> gate
 
     style precommit stroke-dasharray: 5 5
+    style scope stroke-dasharray: 5 5
     style trivy stroke-dasharray: 5 5
 ```
 
-`pre-commit-checks` runs unconditionally and independently of
+`pre-commit-checks` and `project-scope` run unconditionally and independently of
 `detect-changes` (dashed above) — its hooks span nearly every file
 type in the repo, so scoping it would defeat the point. `trivy-scan`
 also always runs as a job, but reads `detect-changes`' output to decide
@@ -113,7 +116,7 @@ protection rules or repository rulesets (Settings > Branches), which
 reference jobs by their check-run name (`<workflow name> / <job name>`,
 e.g. `PR checks / pre-commit-checks`).
 
-`pre-commit-checks`, `ansible-lint`, `uv-lock`, `python-unit-tests`,
+`pre-commit-checks`, `project-scope`, `ansible-lint`, `uv-lock`, `python-unit-tests`,
 `deploy-ordering-check`, and `compose-syntax-check` are all safe to
 mark required directly: each
 is gated by a job-level `if:` inside a workflow that always triggers on
@@ -262,6 +265,31 @@ these narrow, structural things:
 Deliberately presence/shape checks, not content review — it can't tell
 you a description is *wrong*, only that something's missing or a
 documented thing no longer exists.
+
+## Project scope check
+
+`.github/scripts/check-project-scope.py` enforces the optional
+`allowed_paths` field on project docs (see
+[`projects/README.md#scope`](projects/README.md#scope) for what it means
+and why). It runs in two places:
+
+- **CI** — the `project-scope` job, on every pull request: the diff from
+  the merge-base of the PR's base and head to its head. The merge-base,
+  not the base tip, so a branch that is behind doesn't see main's newer
+  commits as its own changes. The repo's other diff-based jobs diff
+  `$BASE $HEAD` directly; this one deliberately doesn't.
+- **pre-commit** — the `check-project-scope` hook, on what is staged,
+  against `HEAD`. It sees only the current commit, so it is early
+  feedback; CI is the authority, since it sees the whole PR. Under
+  `pre-commit-checks`' `--all-files` run nothing is staged and it passes
+  trivially.
+
+In both, a project's scope is read from the doc **as it stands on the
+base**, so a change can't widen its own scope and then use it. A project
+doc that is new in the change has no scope yet. Renames and deletions
+count as touching both paths. Path-level only: it can't tell whether an
+edit inside an allowed file is the permitted one, and a change that never
+touches its project doc isn't bounded.
 
 ## Molecule coverage gate
 

@@ -19,7 +19,7 @@ The host itself is [`coding-agent-host.md`](coding-agent-host.md); putting these
 
 ## Scope
 
-The VLAN and subnet, OPNsense interface and rules, the egress proxy and its allowlist, the resolver for the zone, the Tailscale route exclusion, and canary probes. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`coding-agent-network-as-code.md`](coding-agent-network-as-code.md)).
+The VLAN and subnet, OPNsense interface and rules, the egress proxy and its allowlist (one proxy, separate allowlists for this VLAN and VLAN 30, [`operator-host.md`](operator-host.md)), the resolver for the zone, the Tailscale route exclusion, and canary probes. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`coding-agent-network-as-code.md`](coding-agent-network-as-code.md)).
 
 ## Decision
 
@@ -33,7 +33,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spikes: filtering proxy feasibility, bridge isolation, resolver design | Not started | The three assumptions in ADR 0053 are resolved and folded into its Context, and the revision can be `approved` |
 | 2 | VLAN 60 and OPNsense default-deny rules, built by hand and documented in a topic doc | Not started | The interface, rules, and Tailscale exclusion exist and match the topic doc |
-| 3 | Egress proxy with an allowlist derived from what Claude Code and the repo's tooling fetch | Not started | A canary VM in the VLAN reaches every allowlisted destination and no other |
+| 3 | Egress proxy with an allowlist derived from what Claude Code and the repo's tooling fetch, ready to take VLAN 30's allowlist | Not started | A canary VM in the VLAN reaches every allowlisted destination and no other |
 | 4 | Canary probes from outside the future host | Not started | Probes to the secrets store, CD agent, operator host, managed hosts, workstation, and Proxmox management address all fail |
 
 Stage status is `Not started`, `In progress`, or `Done`.

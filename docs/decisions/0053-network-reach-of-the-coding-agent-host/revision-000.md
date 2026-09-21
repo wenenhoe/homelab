@@ -30,7 +30,7 @@ Claude Code needs `api.anthropic.com`, `claude.ai` and `platform.claude.com` for
 
 - **Zone.** A dedicated VLAN in the 6XX range (VMID 601 gives VLAN 60, `192.168.60.0/24`), default-deny in both directions at OPNsense.
 - **Inbound.** SSH only, from two sources: the maintainer client ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)) and, for provisioning, the CD agent or, until it exists, the operator host ([ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), [ADR 0058](../0058-where-operator-work-runs/revision-000.md)). Each is source-restricted, with sshd enforcing the pairing per account.
-- **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied.
+- **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied. The same proxy serves VLAN 30 under its own allowlist ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)).
 - **DNS.** The host resolves through a resolver that serves no internal zones.
 - **Tailnet.** The host does not join Tailscale, and the subnet router's advertised routes never include its VLAN.
 - **Rules.** Hand-built and documented in a topic doc first; moved into Tofu when the OPNsense day-2 project lands.

@@ -28,12 +28,17 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Review the tailnet ACL (the flow listing is done, below) | In progress | The assumption in ADR 0058 is resolved and the revision can be `approved` |
-| 2 | VLAN 30 with default-deny rules built by hand, and the Tailscale route restricted to the laptop | Not started | The laptop reaches SSH on a scratch VM in the VLAN; the workstation and the coding-agent VLAN do not |
+| 1 | Verify the controller's flows and the tailnet policy | Done | The findings are in ADR 0058; the proxy assumption remains open |
+| 2 | VLAN 30 with default-deny rules built by hand, and the tailnet policy change | Not started | The laptop reaches SSH on a scratch VM in the VLAN; the workstation, the coding-agent VLAN, and every other tailnet node do not |
 | 3 | VM 301 and the `operator_host` role, applied locally | Not started | The role converges idempotently and SSH accepts only the dedicated key |
-| 4 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, Tofu credentials, the shared SSH key | Not started | A deploy in check mode, a `tofu plan`, and a `bao_session` login all succeed from the operator host |
+| 4 | Egress allowlist through the proxy: starts once [`coding-agent-network.md`](coding-agent-network.md) has built it | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
+| 5 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, Tofu credentials, the shared SSH key. No credential moves before Stage 4 | Not started | A deploy in check mode, a `tofu plan`, and a `bao_session` login all succeed from the operator host |
 
 Stage status is `Not started`, `In progress`, or `Done`.
+
+### Stage 2 — tailnet policy
+
+The tailnet's policy is the default allow-all grant. Replace it with explicit grants: the laptop reaches VLAN 30 on `tcp:22`, no other source has a grant for that route, and everything the maintainer uses today is re-granted. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is tailnet-wide, so an edit that tightens access can lock out existing access; "Reset to default" restores the allow-all grant. The policy stays in the Tailscale admin console, not this repo.
 
 ### Stage 2 — required flows
 
@@ -54,7 +59,8 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 ## Acceptance criteria
 
 - [ ] Every operation the controller performs today succeeds from the operator host.
-- [ ] SSH to the operator host fails from the workstation and from a VM in the coding-agent VLAN.
+- [ ] SSH to the operator host fails from the workstation, from a VM in the coding-agent VLAN, and from any tailnet node other than the laptop.
+- [ ] Outbound from VLAN 30 reaches only the allowlisted destinations.
 - [ ] The operator host runs no desktop, browser, or software that handles untrusted content, and holds no push credential.
 - [ ] The resulting behavior is described in `docs/operator-host.md`.
 
@@ -70,6 +76,8 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 - OPNsense rules for VLAN 30 are hand-maintained until [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) lands.
 - The laptop's key to this host is a single point of access; a hardware-backed key would harden it.
 - The node has limited headroom for another VM.
+- Stages 4 and 5 wait on the proxy from [`coding-agent-network.md`](coding-agent-network.md), which is itself still de-risking. The operator host is on the critical path for stripping the workstation.
+- A tailnet policy edit is tailnet-wide and can lock out access.
 
 ## Open items
 

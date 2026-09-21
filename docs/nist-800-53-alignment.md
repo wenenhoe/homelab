@@ -8,7 +8,7 @@ control's intent. This page names those, honestly, in one place — it
 doesn't score coverage, chase a full control baseline, or tag
 individual docs with a label that then has to be kept in sync forever
 (see
-[ADR 0028](decisions/0028-doc-governance-frontmatter-and-nist-alignment.md)
+[ADR 0028](decisions/0028-doc-metadata-and-governance/revision-000.md)
 for why per-doc tagging was tried and rejected).
 
 Six controls were checked against actual repo content, not assumed
@@ -29,7 +29,7 @@ which is which.
 
 ## CM-2 — Baseline Configuration
 
-[ADR 0001](decisions/0001-adopt-ansible-not-manual-deployment.md) is
+[ADR 0001](decisions/0001-host-configuration-reproducible-from-repo/revision-000.md) is
 this, directly: every host's configuration is defined by Ansible roles
 and applied idempotently, replacing manual per-host `docker compose`
 over SSH. The roles themselves ([`ansible/roles/`](../ansible/roles/))
@@ -37,9 +37,9 @@ are the baseline.
 
 ## CA-7 — Continuous Monitoring
 
-[ADR 0012](decisions/0012-backup-freshness-check-per-host.md) (per-host
+[ADR 0012](decisions/0012-verifying-backups-actually-land/revision-000.md) (per-host
 backup freshness checks) and
-[ADR 0026](decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md)
+[ADR 0026](decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 (a per-read watcher pushing into Uptime Kuma) are both, concretely,
 ongoing monitoring of a specific failure mode rather than a
 point-in-time check. The
@@ -51,18 +51,18 @@ failure.
 
 ## CP-9 — System Backup
 
-[ADR 0010](decisions/0010-cloud-sync-copy-not-sync.md) (`cloud_sync`
+[ADR 0010](decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) (`cloud_sync`
 relays encrypted backups offsite) and
-[ADR 0019](decisions/0019-openbao-snapshot-push-standalone.md)
+[ADR 0019](decisions/0019-openbao-offsite-snapshot-path/revision-000.md)
 (OpenBao's own raft-snapshot push, kept standalone from the app-backup
 path) are the two mechanisms that exist specifically to answer "is
 there a copy of this data somewhere else."
 
 ## AC-2 / IA-2 — Account Management / Identification & Authentication
 
-[ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)
+[ADR 0020](decisions/0020-automation-identity-and-access-scope/revision-000.md)
 and
-[ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)
+[ADR 0025](decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
 are the two ADRs that actually decide how an automation identity gets
 created and scoped in OpenBao (an AppRole, not a shared token). Two
 drafts extend the same question to identities that don't exist yet:

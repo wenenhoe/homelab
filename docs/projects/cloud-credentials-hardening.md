@@ -14,9 +14,9 @@ Replaces `tools/cloud_credentials`'s raw `requests` calls with
 official SDKs where one exists and is a clear improvement, and closes
 the error-handling gap that review surfaced along the way. Scope and
 sequencing are decided in
-[ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md);
+[ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md);
 this doc tracks build status only. `cache.py`'s OpenBao/SSH client is
-[`hvac`/`paramiko`-based](../decisions/0030-openbao-hvac-paramiko-clients.md);
+[`hvac`/`paramiko`-based](../decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md);
 every stage below that reads/writes through `scoped()` already
 benefits from that.
 
@@ -48,9 +48,9 @@ Done. Covers `leaf_keys/oci.py`, `rotation_keys/oci_bootstrap.py`, and
 bootstrap is a separate, unrelated auth model and isn't part of this
 stage — see Stage 6.
 
-**Confirmed live** — [ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+**Confirmed live** — [ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md)'s
 claim that the SDK's model classes reproduce the exact field shape
-[0016](../decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)
+[0016](../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)
 confirmed live against the raw API held: a real create+delete
 round-trip through `oci_identity_domains_client()` against the actual
 tenancy succeeded, with populated `access_key`/`secret_key` and a
@@ -89,7 +89,7 @@ so a partial swap would leave callers broken); tests updated to mock
 `b2sdk.v2.B2Api` instead of raw `requests` calls.
 
 **Confirmed live, after one real bug caught along the way.**
-[ADR 0029](../decisions/0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)'s
+[ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md)'s
 claim that `b2sdk` exposes the precise capability list without
 abstracting it away held —
 `B2Api.create_key(capabilities: list[str], ...)` takes the raw
@@ -120,7 +120,7 @@ Scoped in
 explicitly does not extend to `cloud_sync`, `snapshot-push.sh.j2`, or
 `check-freshness.sh.j2` (bash/containerized, and `cloud_sync`'s
 `rclone copy` is load-bearing for
-[ADR 0010](../decisions/0010-cloud-sync-copy-not-sync.md)). Blocked on
+[ADR 0010](../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)). Blocked on
 that draft's Assumptions, in particular confirming `verify.py`'s
 credential already lives as a Python value before this swap, so the
 credentials-in-process trade `restore_all.py` avoids doesn't newly
@@ -138,7 +138,7 @@ the controller, so this would be the first stage to actually add it to
   `print`-then-`SystemExit(1)`-with-guidance convention) gets built
   once alongside Stage 2, or left ad hoc per module — not decided yet.
   A parallel question existed for `hvac`/`paramiko` errors, settled by
-  [ADR 0030](../decisions/0030-openbao-hvac-paramiko-clients.md); the
+  [ADR 0030](../decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md); the
   two aren't required to reach the same answer.
 - `openbao_utils/audit.py`'s `audit_b2()`/`audit_oci()` still call B2/OCI's
   raw APIs directly (`requests`, not `b2sdk`/`oci.identity_domains`),

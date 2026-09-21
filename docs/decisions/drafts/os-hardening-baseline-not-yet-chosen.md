@@ -12,9 +12,9 @@ status: draft
 ## Context
 
 This repo has plenty of individually-reasoned hardening choices —
-non-root containers, `docker-socket-proxy` scoping ([ADR 0004](../0004-docker-socket-proxy-not-raw-socket.md)),
-least-privilege AppRoles ([ADR 0020](../0020-controller-single-broad-approle-not-split-by-consumer.md),
-[0026](../0026-openbao-audit-device-and-r2-per-read-watcher.md)) — but
+non-root containers, `docker-socket-proxy` scoping ([ADR 0004](../0004-container-access-to-the-docker-api/revision-000.md)),
+least-privilege AppRoles ([ADR 0020](../0020-automation-identity-and-access-scope/revision-000.md),
+[0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md)) — but
 no single, deliberate **host-level OS hardening pass** (SSH config,
 sysctl, kernel/auditd, mandatory access control, CIS/STIG-shaped
 baseline). Two candidates raised:

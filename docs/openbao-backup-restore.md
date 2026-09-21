@@ -4,10 +4,10 @@ A different mechanism from [`disaster-recovery.md`](disaster-recovery.md)'s
 generic volume-backup pipeline — `docker/openbao/compose.yaml.j2` has no
 `backup:` entry, and [`openbao.md`](openbao.md) explains why: stopping
 OpenBao to tar its data volume means sealing it, which needs a manual
-unseal ([0018](decisions/0018-manual-shamir-unseal.md)) on every backup
+unseal ([0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup
 cycle. `bao operator raft snapshot save` is the backup mechanism here
 instead, pushed independently to R2/B2 — see
-[0019](decisions/0019-openbao-snapshot-push-standalone.md) for why the
+[0019](decisions/0019-openbao-offsite-snapshot-path/revision-000.md) for why the
 push itself also stays out of `backup_agent`/`cloud_sync` rather than
 reusing that pipeline.
 
@@ -32,7 +32,7 @@ installed or enabled as a systemd unit anywhere.
 `tools/cloud_credentials/create_snapshot_write_keys.py` mints a
 standing, quarterly-rotating, no-delete write leaf on both R2 and B2,
 scoped to the `openbao-snapshots` bucket — a different credential from
-[0017](decisions/0017-openbao-bootstrap-secret-split.md)'s break-glass
+[0017](decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)'s break-glass
 **read-only** restore key, which stays reserved for actual disaster
 recovery and is never cached to disk. See
 [`cloud-credential-creation.md`](cloud-credential-creation.md) for how
@@ -105,7 +105,7 @@ against outside `security` itself, and the same is true of `2.6.2`
 without repeating the exercise on a real host. This matters more than a
 version-number footnote: `2.6.2` is also where `generate-root`'s
 authenticated-endpoint behavior changed (see
-[ADR 0025](decisions/0025-openbao-reinit-with-standing-vault-bootstrap-role.md)'s
+[ADR 0025](decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
 Context), so a version this far off isn't guaranteed to behave like
 `2.5.4` did here either. Confirm both the snapshot-save and restore-side
 behavior against the real `2.6.2` image during the next restore drill,

@@ -19,9 +19,9 @@ lands, and the S3 credential for its own state backend
 The doc's original text assumed these stay outside OpenBao entirely,
 mirroring `openbao_utils/bootstrap.py`'s pre-OpenBao file-cache pattern —
 but that mechanism no longer exists in this repo. Track A
-([0013](../0013-credential-caching-stage-1-before-secrets-manager.md)
+([0013](../0013-secret-storage/revision-000.md)
 through
-[0026](../0026-openbao-audit-device-and-r2-per-read-watcher.md))
+[0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md))
 retired it, and every other secret in this repo now lives in OpenBao
 on `security`. The original reasoning for keeping Tofu's secrets
 separate doesn't hold as stated anymore, but where they should live
@@ -62,7 +62,7 @@ rebuild hits it again, not just the first one.
 Consistent with every other secret in this repo: one Vault, one
 AppRole model, no new infrastructure. `controller` already holds an
 AppRole and fetches secrets per run
-([0020](../0020-controller-single-broad-approle-not-split-by-consumer.md));
+([0020](../0020-automation-identity-and-access-scope/revision-000.md));
 extending that to Tofu's credentials needs no new mechanism.
 
 Breaks whenever `security` itself is what's being (re)provisioned —
@@ -93,7 +93,7 @@ every VM) than anything the main OpenBao currently holds.
 
 Real cost: a second piece of standing infrastructure with its own
 deploy, backup, and manual Shamir unseal
-([0018](../0018-manual-shamir-unseal.md)) tied to whichever host runs
+([0018](../0018-unsealing-the-secrets-store-after-restart/revision-000.md)) tied to whichever host runs
 it. If that's `controller` (the operator's own machine, not
 always-on), unseal availability follows the operator's laptop rather
 than a dedicated server — a different story than `security`'s current

@@ -7,6 +7,7 @@ solution: "Problem-oriented ADR lineages with gated revisions, projects as execu
 summary: "How why, what-remains, and what-is-true-now are kept apart, and how an implementer knows what is authorized and when to stop."
 topic: documentation-process
 status: approved
+narrows: ADR-0028
 ---
 
 # 0037. Recording decisions, tracking execution, and keeping docs true

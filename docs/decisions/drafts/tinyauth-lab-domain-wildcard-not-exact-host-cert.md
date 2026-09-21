@@ -11,7 +11,7 @@ status: draft
 
 ## Context
 
-[ADR 0003](../0003-caddy-wildcard-certs-not-per-app.md) flags its own
+[ADR 0003](../0003-certificate-issuance-for-proxied-apps/revision-000.md) flags its own
 `tinyauth` exception as "worth revisiting as a deliberate follow-up" —
 folding `tinyauth` into the same per-host wildcard vhost everything
 else uses, to close the one remaining CT-log exposure that ADR's

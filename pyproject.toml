@@ -53,7 +53,7 @@ ignore = [
     # load_system_host_keys(); paramiko's transport still raises
     # BadHostKeyException on a mismatch against an already-known host
     # regardless of this policy) - fail-closed on a changed key, not
-    # blanket trust. See docs/decisions/0030-openbao-hvac-paramiko-clients.md.
+    # blanket trust. See docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md.
     "S507",
 ]
 

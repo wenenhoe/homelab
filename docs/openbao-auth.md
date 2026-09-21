@@ -2,7 +2,7 @@
 
 Gives `controller` its own AppRole so day-to-day operation stops
 depending on the initial root token. See
-[ADR 0020](decisions/0020-controller-single-broad-approle-not-split-by-consumer.md)
+[ADR 0020](decisions/0020-automation-identity-and-access-scope/revision-000.md)
 for the design this implements.
 
 ## Why a runbook, not an Ansible role
@@ -59,7 +59,7 @@ replacement [`openbao.md`](openbao.md) uses for everything except
 init/unseal itself. `-tls-server-name` is required:
 the leaf cert has no IP SAN, so dialing `127.0.0.1` needs the real SAN
 supplied explicitly (see
-[ADR 0034](decisions/0034-native-bao-cli-not-docker-exec-or-run.md#context)).
+[ADR 0034](decisions/0034-operator-access-to-the-openbao-cli/revision-000.md#context)).
 
 1. **Enable the KV v2 engine**, if not already present (`bao secrets
    list` shows nothing at `secret/` on a fresh Vault):
@@ -106,7 +106,7 @@ supplied explicitly (see
    - `secret_id_ttl` **2160h (90 days), `secret_id_num_uses=0`
      (unlimited within that window).** Matches this repo's existing
      90-day rotation cadence for every other leaf/rotation credential
-     ([ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)),
+     ([ADR 0015](decisions/0015-cloud-credential-expiry/revision-000.md)),
      rather than cd_agent's never-expire shape — that shape is
      justified for an always-on box logging in every 2 minutes
      (0022); `controller` is a laptop with no fixed cadence, and

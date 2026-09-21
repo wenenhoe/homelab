@@ -18,7 +18,7 @@ port needed" for the agent/push fleet. The real gap: both live
 entirely on `security` — if `security`, or the whole homelab's
 connectivity, goes down, nothing is left standing to notice or alert.
 That's structurally the same threat model
-[ADR 0010](../0010-cloud-sync-copy-not-sync.md) already solved for
+[ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) already solved for
 backups, just never applied to monitoring.
 
 Tailscale isn't absent from the

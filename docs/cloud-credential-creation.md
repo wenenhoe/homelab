@@ -46,7 +46,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   anything it finds is a separate, deliberate step.
 - **`tools/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
-  credentials [ADR 0017](decisions/0017-openbao-bootstrap-secret-split.md)
+  credentials [ADR 0017](decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)
   calls for — OpenBao's own break-glass snapshot-restore credential,
   not a `cloud_sync` leaf. Verifies each one via a real `rclone lsjson`
   against its actual bucket before printing it — same discipline
@@ -83,9 +83,9 @@ HTTP call and `rclone` invocation mocked — via
 
 Rotation keys/tokens (all three providers) are cached to OpenBao KV v2,
 at `secret/data/cloud_credentials/rotation/*` — see
-[ADR 0023](decisions/0023-openbao-repoint-not-native-plugin.md) for why
+[ADR 0023](decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) for why
 this repointed the existing per-provider Python rather than replacing
-it, and [ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)
+it, and [ADR 0013](decisions/0013-secret-storage/revision-000.md)
 for the earlier decision that started it in a file cache in the first
 place.
 
@@ -214,7 +214,7 @@ address per user off it — one real mailbox you control, nothing fake.
 
 **Rotation credential (Identity Domains SCIM — replaces the old
 OCID+PEM keypair entirely; see
-[ADR 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)):**
+[ADR 0016](decisions/0016-oci-credential-creation-and-expiry/revision-000.md)):**
 register a Confidential Application by hand in Console (Identity &
 Security > Domains > your domain > Integrated Applications > Add >
 Confidential Application), named exactly `homelab-oci-scim-rotation`
@@ -298,7 +298,7 @@ caches to `_rotation-key-cloudflare-r2-token`, and every later call
 (including `--rotate`) reads the cache instead of re-prompting. This
 cached token is master-equivalent, not a narrower delegate like B2's/
 OCI's rotation keys — see
-[ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)
+[ADR 0014](decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
 for why that's accepted rather than worked around.
 
 **Create the master token as a Custom Token, not the "Create
@@ -321,7 +321,7 @@ The leaf tokens themselves stay properly bucket-scoped (`Workers R2
 Storage Bucket Item Write`/`Read`, restricted to `homelab-backups`) and
 only ever hold R2-specific permissions, never `API Tokens Write` — so
 none of the above applies to them, only to the rotation token. See
-[ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)
+[ADR 0014](decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
 for what actually carries R2's defense-in-depth instead (the leaf
 tokens' `copy`-vs-`sync` boundary, not IAM narrowing at the
 rotation-token level).
@@ -341,7 +341,7 @@ up by hand. If you're restoring a controller old enough to still have
 pre-Vault cache files lying around, `openbao_utils/audit.py
 --local` flags anything under `ansible/files/secrets/` that doesn't
 match current config, regardless of vintage; see [ADR
-0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)'s
+0016](decisions/0016-oci-credential-creation-and-expiry/revision-000.md)'s
 own Context for why the OCI migration's Console-side cleanup (deleting
 the unused `homelab-key-rotation` identity — API signing key first,
 then the policy, then the group membership, then the user itself) is
@@ -468,7 +468,7 @@ operation.
 
 **R2** has no verify-then-revoke equivalent — Cloudflare's API
 structurally can't mint a delegate credential for this at all (see
-[ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)) —
+[ADR 0014](decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)) —
 but it does have the same `--rotate` entry point now, closing a real
 gap: create a new Custom Token in the Console first, then
 
@@ -490,18 +490,18 @@ since it blocks on that Console step existing first.
 
 ## Future: secrets manager
 
-See [ADR 0013](decisions/0013-credential-caching-stage-1-before-secrets-manager.md)
+See [ADR 0013](decisions/0013-secret-storage/revision-000.md)
 for why the current disk-cache design was chosen over a secrets
-manager, and [ADR 0014](decisions/0014-r2-rotation-token-accepted-as-master-equivalent.md)
+manager, and [ADR 0014](decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
 for the one gap (R2's cached admin token) worth carrying into that
 design specifically when it's eventually scoped.
 
 ## Credential expiry
 
 All 9 credentials (6 leaf, 3 rotation) expire after 90 days now — see
-[ADR 0015](decisions/0015-credential-expiry-native-where-possible-self-tracked-where-not.md)
+[ADR 0015](decisions/0015-cloud-credential-expiry/revision-000.md)
 for B2/R2's native provider-side expiry, and
-[ADR 0016](decisions/0016-oci-expiry-via-scim-not-self-tracked-cache-files.md)
+[ADR 0016](decisions/0016-oci-credential-creation-and-expiry/revision-000.md)
 for OCI's leaf keys, which are native too now (via SCIM `expiresOn`) —
 only OCI's rotation credential (the Confidential Application's client
 secret) stays self-tracked, since that specific resource has no native
@@ -556,7 +556,7 @@ Any non-fresh result posts a Telegram alert to the `Backups` topic
 [`telegram-notifications.md`](telegram-notifications.md)), using the
 same `telegram-token`/`telegram-chat-id` every other consumer in this
 repo reads from Vault (`secret/data/hosts/all/telegram/*`, per
-[ADR 0021](decisions/0021-vault-path-convention-hosts-all-for-global-secrets.md)).
+[ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)).
 Not routed through the
 `telegram_notify` Ansible role — that's templated and deployed to
 `managed_hosts`, and `controller` deliberately isn't one — so this

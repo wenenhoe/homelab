@@ -42,7 +42,7 @@ it":
   to reach `security` in the first place.
 - **Hand-typed into a web UI, DB-resident:** Beszel's KEY/TOKEN
   (`beszel.md`) and, confirmed directly from its source,
-  [ADR 0036](../0036-beszel-notification-url-no-env-var-support.md)'s
+  [ADR 0036](../0036-beszel-notification-configuration/revision-000.md)'s
   Telegram webhook URL — no Ansible/Vault hook exists for either, both
   live only in Beszel's own PocketBase `data` volume, and both require
   a full volume wipe to rotate.

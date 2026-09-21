@@ -1,0 +1,115 @@
+---
+id: ADR-0030
+revision: 0
+type: adr
+title: OpenBao client implementation in repo Python
+solution: hvac for Vault and paramiko for SSH
+summary: Internal Python that talks to OpenBao or over SSH shares one client approach instead of hand-rolled duplicates.
+topic: secrets-store
+status: accepted
+related: [ADR-0029]
+---
+
+# 0030. Adopt hvac + paramiko for every internal OpenBao/SSH client, not just cloud_credentials
+
+**Status:** Accepted
+
+## Context
+
+`cache.py` (`tools/cloud_credentials`) and `openbao_utils/bootstrap.py`
+each independently hand-rolled an OpenBao AppRole login + KV v2
+read/write over raw `requests`, and each independently fetched
+step-ca's root cert via `ssh ... docker exec step-ca cat
+root_ca.crt` as a raw `subprocess` call. The duplication had already
+produced the same bug twice, independently: neither file's SSH-fetch
+`subprocess.run` call set a timeout, so an unreachable `security` host
+or a network partition blocked either one forever - fixing one without
+the other left the second stale.
+
+Two more files shared this surface: `openbao_utils/audit.py` read the same
+OpenBao KV v2 paths over its own `requests` calls (its B2/OCI
+provider-API calls are a separate concern, covered by
+[ADR 0029](../0029-cloud-provider-api-client-library/revision-000.md)),
+and `docker/openbao/watcher/r2_read_watcher.py` - a standing,
+continuously-running watcher rather than a one-shot script - did the
+same over its own loopback `requests` calls (no SSH/root-cert fetch
+there; it runs on `security` itself).
+
+Considered and rejected up front: `docker/openbao/scripts/`'s three
+shell scripts and `openbao_backup/snapshot-push.sh.j2` wrap the
+official `bao` CLI directly, not a hand-rolled HTTP reimplementation -
+a different kind of problem, decided separately in
+[ADR 0034](../0034-operator-access-to-the-openbao-cli/revision-000.md),
+not folded into this decision.
+
+Whether the four Python clients above should also share code with
+each other (rather than each independently adopting `hvac`/`paramiko`)
+was originally an open question in this draft. It's answered
+elsewhere now: `hvac` login/read/write bodies turned out
+byte-identical across `cache.py`, `openbao_utils/bootstrap.py`, and
+`r2_read_watcher.py` once all three were built, and separately,
+`cache.py`'s generic OpenBao/host-resolution helpers (`_main_domain`,
+`_security_ssh_target`, the Vault session logic) turned out to already
+be needed by consumers with nothing to do with cloud credentials
+(`docker/openbao/scripts/bao-*.sh`, `openbao_utils/restore.py`).
+Both facts fed into
+[ADR 0031](../0031-where-repo-tooling-lives/revision-000.md)'s
+larger reorganization instead of being decided independently
+here - that decision's Option B already presupposed the shared client
+this decision's Context motivated.
+
+`r2_read_watcher.py`'s standing-process shape raised a real question -
+whether a long-lived watcher needs token renewal or reconnect-with-
+backoff that a one-shot script wouldn't exercise. It doesn't: its
+Vault login happens once at startup to fetch Telegram's alerting
+secrets, and the long-running `docker logs -f` watch loop that follows
+never receives or reuses that token - a token expiring hours or months
+later is irrelevant, since nothing ever presents it again.
+
+## Decision
+
+Every internal Python client that talks to OpenBao directly
+(`cache.py`, `openbao_utils/bootstrap.py`, `openbao_utils/audit.py`,
+`r2_read_watcher.py`) uses `hvac` for the Vault client and, where an
+SSH hop to fetch step-ca's root cert is needed (`cache.py`,
+`openbao_utils/bootstrap.py` - not `r2_read_watcher.py`, which runs on
+`security` itself over loopback), `paramiko` instead of `subprocess` +
+the `ssh` CLI. Confirmed live against a real OpenBao instance and a
+real `security` host: `hvac.Client(url=..., verify=ca_path)` +
+`auth.approle.login()` composes cleanly with each file's existing
+per-process temporary-CA-file session pattern, `client.token` matches
+the raw auth response, `read_secret_version()`'s
+`["data"]["data"]["value"]` shape matches what each file's own
+hand-rolled read already walked, and `paramiko`'s
+`load_system_host_keys()` + `AutoAddPolicy()` reproduces
+`StrictHostKeyChecking=accept-new`'s trust-on-first-use exactly
+(`BadHostKeyException` on a mismatch against an already-known host,
+regardless of policy - the same fail-closed shape, confirmed against
+the real host).
+
+Whether the four resulting clients also share an implementation with
+each other, and where that implementation lives, was
+[ADR 0031](../0031-where-repo-tooling-lives/revision-000.md)'s decision to make, not
+this one's - this decision is limited to which libraries every
+internal client uses, independent of how much code they share.
+
+## Consequences
+
+- All four clients' missing-SSH-timeout bug is fixed, bounded to
+  `_TIMEOUT_SECONDS = 10` in each - `tools/cloud_credentials/cache.py`
+  and `openbao_utils/bootstrap.py` are the reference
+  implementations for the SSH-fetch + session pattern;
+  `docker/openbao/watcher/r2_read_watcher.py` for the no-SSH,
+  login-once-at-startup variant.
+- `hvac`'s own upcoming v3.0.0 default change
+  (`raise_on_deleted_version`) is pinned explicitly to `True`
+  (preserving current behavior) in every read call, rather than left
+  to silently flip later.
+- `cache.py` and `openbao_utils/bootstrap.py` no longer independently
+  implement the same login/read/write bodies - resolved by
+  [ADR 0031](../0031-where-repo-tooling-lives/revision-000.md), which extracted the
+  shared implementation into `tools/utils/repo.py`/
+  `tools/openbao_utils/client.py`. `r2_read_watcher.py` still keeps
+  its own independent copy, deliberately, per that decision's own
+  reasoning (its hand-installed single-file deployment can't cleanly
+  share a package).

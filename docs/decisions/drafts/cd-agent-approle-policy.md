@@ -11,13 +11,13 @@ status: draft
 
 ## Context
 
-[0020](../0020-controller-single-broad-approle-not-split-by-consumer.md) gives `controller`
+[0020](../0020-automation-identity-and-access-scope/revision-000.md) gives `controller`
 one broad AppRole because it's the only automation identity that
 exists today. A separate, not-yet-built proposal (see
 [`pull-based-cd-agent-not-self-hosted-github-runner.md`](pull-based-cd-agent-not-self-hosted-github-runner.md))
 would add a dedicated automation host (`cd_agent`) that becomes the
 sole path to prod deploys and takes over the rotation/freshness jobs
-[0023](../0023-openbao-repoint-not-native-plugin.md) schedules. Once
+[0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) schedules. Once
 that host exists, one broad identity stops being the right shape:
 `cd_agent` would run two categories of unattended, prod-touching work
 (deploy/maintenance, and credential rotation/freshness) that don't

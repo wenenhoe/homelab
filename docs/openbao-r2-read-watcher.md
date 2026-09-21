@@ -1,7 +1,7 @@
 # OpenBao's R2 Read-Watcher
 
 ADR 0024's per-read alert requirement, and the last piece of
-[ADR 0026](decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md)
+[ADR 0026](decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 that wasn't already live (the audit device and its logging cap were —
 see [`openbao.md`](openbao.md)). Tails `docker logs -f openbao` on
 `security`, alerts on any read of the R2 rotation token's Vault path,
@@ -112,7 +112,7 @@ fire here, wired or not.
 Bounding the restarts to force a `failed` state isn't the fix either:
 it trades away the one thing `Restart=on-failure` is for. This unit's
 actual failure mode has been OpenBao being sealed (see
-[ADR 0018](decisions/0018-manual-shamir-unseal.md)) after a restart or
+[ADR 0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) after a restart or
 a re-init, not a real crash — and that clears on its own once someone
 unseals it. A bounded restart count would leave the watcher sitting
 `failed` silently until a human notices, which is worse than today's

@@ -18,14 +18,14 @@ duration explicitly. Both only run once, gated on the same
 `config/ca.json`-doesn't-exist check the stock entrypoint uses — a
 restart with an already-initialized `data` volume skips straight to
 `exec step-ca`. See
-[ADR 0007](decisions/0007-stepca-custom-entrypoint-not-docker-init-vars.md)
+[ADR 0007](decisions/0007-internal-ca-initialization-and-identity-persistence/revision-000.md)
 for why: the stock auto-init can't keep the CA's own password and the
 provisioner's password independent, and has no flag for claim
 durations.
 
 The claim duration itself is set to 720h, not step-ca's own 24h
 default — see
-[ADR 0008](decisions/0008-stepca-cert-duration-720h.md), which flags
+[ADR 0008](decisions/0008-internal-certificate-lifetime/revision-000.md), which flags
 that decision's original premise as stale now that `step_ca_cert`'s
 renewal timer exists.
 

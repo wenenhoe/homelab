@@ -4,7 +4,7 @@
 # docker-exec alias for every security-local use except init/unseal
 # itself (which stays docker-exec-based permanently — see
 # docs/openbao.md). Design/rationale:
-# docs/decisions/0034-native-bao-cli-not-docker-exec-or-run.md.
+# docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md.
 # Run in deploy.yaml's Play 6, after step_ca_client (root cert) and
 # step_ca_cert's openbao instance (leaf cert) — the TLS check below
 # needs both.

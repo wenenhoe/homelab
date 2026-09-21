@@ -31,7 +31,7 @@ project docs, and build path-scope enforcement. Doesn't rewrite any
 | :-: | :--- | :--- | :--- |
 | 1 | Lineage-aware doc tooling: schema, gates, generated indexes, tests | Done | `check-doc-drift.py` enforces every rule in the decisions and projects READMEs |
 | 2 | ADR 0037, both READMEs, the revision and project templates | Done | READMEs describe the model; ADR 0037 is `approved` |
-| 3 | Re-file the 36 flat ADRs into 35 lineages | Not started | No flat ADR file remains; every link resolves; the lineage index is generated |
+| 3 | Re-file the 36 flat ADRs into 35 lineages | Done | No flat ADR file remains; every link resolves; the lineage index is generated |
 | 4 | Drop flat-layout support from the tooling | Not started | The doc scripts recognise only the lineage layout |
 | 5 | Convert the 15 drafts into `working` revisions | Not started | `decisions/drafts/` is gone and nothing links to it |
 | 6 | Migrate the five existing projects (split, group, relabel) | Not started | Every project doc uses the new statuses; none uses `in-progress` or `blocked` |

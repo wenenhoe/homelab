@@ -32,7 +32,7 @@ shapes:
 The bulk-copy sites aren't a boto3 candidate, for one decisive
 reason: `cloud_sync`'s `rclone copy` specifically
 *is* the security control
-[ADR 0010](../0010-cloud-sync-copy-not-sync.md) documents — the
+[ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) documents — the
 guarantee that a compromised on-prem host can't touch the offsite copy
 comes from `copy`'s own never-overwrite/never-delete semantics, not
 from IAM scoping alone. Reimplementing that in hand-rolled boto3 calls
@@ -79,7 +79,7 @@ secure, for scripts that run a handful of times per quarter — not
 worth it at this scale.
 
 The two Python sites are genuine candidates on the "does an official
-SDK reduce risk" question [ADR 0029](../0029-cloud-credentials-selective-sdk-adoption-not-blanket-swap.md)
+SDK reduce risk" question [ADR 0029](../0029-cloud-provider-api-client-library/revision-000.md)
 already applies elsewhere — but they carry the credentials-in-process
 trade the docstring above calls out, which needs its own decision, not
 an assumption inherited from the other drafts. Both already handle
@@ -177,7 +177,7 @@ read of `verify.py`'s existing credential handling.
   on `rclone` regardless of this decision's outcome — not because they
   weren't considered, but because they're bash/containerized and
   `cloud_sync`'s in particular is load-bearing for
-  [ADR 0010](../0010-cloud-sync-copy-not-sync.md). Re-raising a boto3
+  [ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md). Re-raising a boto3
   swap for these specifically should point back here rather than being
   re-litigated from scratch.
 - If `verify.py` moves to boto3 and `restore_all.py` doesn't, this repo

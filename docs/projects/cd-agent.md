@@ -14,11 +14,11 @@ Replaces manual `ansible-playbook` deploys and rotation runs with a
 dedicated, pull-based automation host. The second half of the
 OpenBao+CD-agent migration this repo originally scoped together —
 OpenBao itself is done; see ADRs
-[0017](../decisions/0017-openbao-bootstrap-secret-split.md) through
-[0026](../decisions/0026-openbao-audit-device-and-r2-per-read-watcher.md)
+[0017](../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md) through
+[0026](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 and the `openbao-*.md` docs for that half. This project starts now
 because it depends on that foundation: the CD agent's own AppRoles
-([0020](../decisions/0020-controller-single-broad-approle-not-split-by-consumer.md))
+([0020](../decisions/0020-automation-identity-and-access-scope/revision-000.md))
 can't be scoped until OpenBao holds real credentials to build policies
 against — which it now does.
 

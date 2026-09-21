@@ -101,8 +101,8 @@ supplied explicitly (see
      a full `deploy.yaml` run; short enough that a token leaked from
      one run doesn't outlive it by much. If a run genuinely needs
      longer, re-authenticate rather than renew — simpler than adding
-     a renewal path to a role deleted outright once the
-     [CD agent project](projects/cd-agent.md) lands.
+     a renewal path to a role deleted outright once
+     [its retirement](projects/cd-agent-controller-approle-retirement.md) lands.
    - `secret_id_ttl` **2160h (90 days), `secret_id_num_uses=0`
      (unlimited within that window).** Matches this repo's existing
      90-day rotation cadence for every other leaf/rotation credential

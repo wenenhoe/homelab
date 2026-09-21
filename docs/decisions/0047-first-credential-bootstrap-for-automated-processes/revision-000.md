@@ -61,12 +61,15 @@ and no single deliberate one.
 
 ## Directions raised, now converged into a leaning design
 
-Checked directly against `cd-agent.md`, not assumed: the actual planned
-design is **not** an ongoing Trusted-Orchestrator-relays-everything
-model. `cd_agent` gets its **own** CIDR-bound AppRole (Stage 2:
+Checked directly against the CD agent project docs, not assumed: the
+actual planned design is **not** an ongoing
+Trusted-Orchestrator-relays-everything model. `cd_agent` gets its **own**
+CIDR-bound AppRole
+([`cd-agent-approles.md`](../../projects/cd-agent-approles.md):
 `cd-agent-deploy`/`cd-agent-rotation`, no shared access between them) —
 `controller` doesn't hand it credentials on a recurring basis.
-Stage 3 goes further: it retires `controller`'s own standing AppRole
+[`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md)
+goes further: it retires `controller`'s own standing AppRole
 outright, so that "any admin/debug access mints a fresh, narrow,
 short-lived token on demand instead." That's already a better shape
 than a perpetual orchestrator — but the project doc doesn't say *how*
@@ -163,8 +166,9 @@ repo's own hard gate on building against an open Assumption.
   — what unwraps the wrapped `secret_id`, and over what channel (SSH,
   a provisioning script, something else) — not designed yet, just
   identified as the one remaining real gap.
-- Whether this design should be written back into `cd-agent.md`
-  Stage 3 directly (it currently just says "mints a fresh... token on
+- Whether this design should be written back into
+  [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md)
+  directly (it currently just says "mints a fresh... token on
   demand" with no mechanism) once the `cert`-auth-method check above
   confirms it's viable.
 - A hardening pass for whatever host actually receives a

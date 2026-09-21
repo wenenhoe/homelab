@@ -118,7 +118,9 @@ skipping it is how a real fact gets lost instead of promoted.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`ansible-collections-audit.md`](ansible-collections-audit.md) | Building | Replace hand-rolled command/shell/uri tasks in ansible/roles/* with maintained collection modules where one fits. |
-| [`cd-agent.md`](cd-agent.md) | Not started | Pull-based CD agent, replacing manual deploys and `controller`'s standing AppRole. |
+| [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
+| [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
+| [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 | [`doc-workflow-migration.md`](doc-workflow-migration.md) | Building | Move decisions to problem-oriented lineages and projects to the new lifecycle; convert drafts; add agent path-scope enforcement. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | In progress | Stop Beszel/Kuma from being a monitoring single point of failure — bring the existing Tailscale subnet router under management, then a dedicated on-prem host, then GCP e2-micro. |
@@ -126,4 +128,8 @@ skipping it is how a real fact gets lost instead of promoted.
 
 ## By initiative
 
-No project is grouped into an initiative.
+| Initiative | Track | Phase | Project | Status |
+| :--- | :--- | :--- | :--- | :--- |
+| `pull-based-cd` | `agent` | — | [`cd-agent.md`](cd-agent.md) | De-risking |
+| `pull-based-cd` | `credentials` | — | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking |
+| `pull-based-cd` | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) |

@@ -103,11 +103,12 @@ class NistAlignmentTest(_TmpRepo):
         self.assertEqual(drift.errors, [])
 
 
-class DecisionPathMentionTest(_TmpRepo):
+class DocPathMentionTest(_TmpRepo):
     def setUp(self) -> None:
         super().setUp()
         self.write("docs/decisions/0001-x/revision-000.md", "# real\n")
         self.write("docs/decisions/README.md", "# Index\n")
+        self.write("docs/projects/real-project.md", "# real\n")
 
     def test_existing_paths_pass_in_every_scanned_file_type(self):
         real = "docs/decisions/0001-x/revision-000.md"
@@ -116,13 +117,13 @@ class DecisionPathMentionTest(_TmpRepo):
         self.write("tools/run.sh", f"# see {real}\n")
         self.write("pyproject.toml", f"# see {real}\n")
         self.write("docs/topic.md", f"See `{real}` and docs/decisions/README.md#anything.\n")
-        drift.check_decision_path_mentions()
+        drift.check_doc_path_mentions()
         self.assertEqual(drift.errors, [])
 
     def test_a_missing_path_fails_in_comments_and_docs(self):
         self.write("tools/tool.py", "# see docs/decisions/0009-gone/revision-000.md.\n")
         self.write("docs/topic.md", "See docs/decisions/0008-gone/revision-001.md for more.\n")
-        drift.check_decision_path_mentions()
+        drift.check_doc_path_mentions()
         self.assertEqual(len(drift.errors), 2, drift.errors)
         self.assertTrue(any("tool.py" in e and "0009-gone/revision-000.md" in e for e in drift.errors))
         self.assertTrue(any("topic.md" in e and "0008-gone/revision-001.md" in e for e in drift.errors))
@@ -133,26 +134,41 @@ class DecisionPathMentionTest(_TmpRepo):
             with self.subTest(name=name):
                 drift.errors.clear()
                 self.write(f"scan/{name}", f"# see {missing}\n")
-                drift.check_decision_path_mentions()
+                drift.check_doc_path_mentions()
                 self.assertEqual(len(drift.errors), 1, drift.errors)
                 (self.root / "scan" / name).unlink()
 
     def test_unscanned_extensions_are_ignored(self):
         self.write("notes.txt", "docs/decisions/0009-gone/revision-000.md\n")
-        drift.check_decision_path_mentions()
+        drift.check_doc_path_mentions()
+        self.assertEqual(drift.errors, [])
+
+    def test_project_doc_paths_are_checked_too(self):
+        self.write("tools/tool.py", "# see docs/projects/real-project.md\n")
+        self.write("ansible/inventory.yaml", "# see docs/projects/real-project.md#stages\n")
+        drift.check_doc_path_mentions()
+        self.assertEqual(drift.errors, [])
+        self.write("tools/other.py", "# see docs/projects/finished-and-deleted.md\n")
+        drift.check_doc_path_mentions()
+        self.assertEqual(len(drift.errors), 1, drift.errors)
+        self.assertIn("finished-and-deleted.md", drift.errors[0])
+
+    def test_a_deleted_project_is_referred_to_by_name_not_path(self):
+        self.write("tools/tool.py", "# moved from the finished openbao-python-client-hardening project\n")
+        drift.check_doc_path_mentions()
         self.assertEqual(drift.errors, [])
 
     def test_old_flat_style_path_fails_after_a_refile(self):
         self.write("tools/tool.py", "# docs/decisions/0001-old-flat-name.md\n")
-        drift.check_decision_path_mentions()
+        drift.check_doc_path_mentions()
         self.assertEqual(len(drift.errors), 1, drift.errors)
 
     def test_placeholders_and_names_without_a_path_are_ignored(self):
         self.write("docs/topic.md", "Pattern docs/decisions/NNNN-slug/revision-NNN.md; the draft `deleted-draft` was removed.\n")
-        drift.check_decision_path_mentions()
+        drift.check_doc_path_mentions()
         self.assertEqual(drift.errors, [])
 
     def test_test_fixtures_are_exempt(self):
         self.write("tools/tests/doc_scripts/fixture.py", 'x = "docs/decisions/0099-fake/revision-000.md"\n')
-        drift.check_decision_path_mentions()
+        drift.check_doc_path_mentions()
         self.assertEqual(drift.errors, [])

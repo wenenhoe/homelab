@@ -219,12 +219,14 @@ these narrow, structural things:
   a heading that actually slugs to that anchor; same for same-file
   `#anchor` links. Catches the class of bug a file move/rename/split
   leaves behind.
-- Every path under `docs/decisions/` ending in `.md` that is written in
-  any docs, code, or config file (`.md`, `.py`, `.yaml`, `.sh`,
-  `.toml`, …) exists — comments included. This is what catches a
-  renamed ADR mentioned in a comment, which the anchor check can't see
-  because such a path carries no `#anchor`. A path containing `NNN` is a
-  placeholder; a deleted file is referred to by name, not by path.
+- Every path under `docs/decisions/` or `docs/projects/` ending in `.md`
+  that is written in any docs, code, or config file (`.md`, `.py`,
+  `.yaml`, `.sh`, `.toml`, …) exists — comments included. This is what
+  catches a renamed ADR mentioned in a comment, which the anchor check
+  can't see because such a path carries no `#anchor`, and it fails a
+  comment that points at a project doc the day that project is deleted.
+  A path containing `NNN` is a placeholder; a deleted file is referred to
+  by name, not by path.
 - Every ADR linked from
   [`nist-800-53-alignment.md`](nist-800-53-alignment.md) isn't
   `status: superseded` — the one state transition the anchor check

@@ -66,9 +66,42 @@ def render_projects_table(root: Path = ROOT) -> str:
     return "\n".join([header, *rows])
 
 
+def _dependency_depths(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
+    """How far down its dependency chain each project sits: 0 with no existing
+    predecessor, else one more than its deepest. Reading order for the initiative
+    view. A cycle is check-doc-drift.py's to report; here it only stops recursing."""
+    memo: dict[str, int] = {}
+    visiting: set[str] = set()
+
+    def depth(pid: str) -> int:
+        if pid in memo:
+            return memo[pid]
+        if pid in visiting:
+            return 0
+        visiting.add(pid)
+        predecessors = [d["project"] for d in projects[pid][1].get("depends_on", []) if d["project"] in projects]
+        memo[pid] = 1 + max(depth(p) for p in predecessors) if predecessors else 0
+        visiting.discard(pid)
+        return memo[pid]
+
+    return {pid: depth(pid) for pid in projects}
+
+
 def render_initiatives_table(root: Path = ROOT) -> str:
+    """Rows are grouped by initiative, then by track in build order (a track sorts by
+    its earliest project in the dependency chain, then by name), then by phase slug,
+    then by dependency depth, then by filename."""
     projects = _load_projects(root)
-    labelled = sorted((fm["super_project"], fm.get("track", ""), fm.get("phase", ""), path.name, fm) for path, fm in projects.values() if "super_project" in fm)
+    depths = _dependency_depths(projects)
+    entries = [
+        (fm["super_project"], fm.get("track", ""), fm.get("phase", ""), depths[pid], path.name, fm)
+        for pid, (path, fm) in projects.items()
+        if "super_project" in fm
+    ]
+    earliest: dict[tuple[str, str], int] = {}
+    for initiative, track, _, depth, _, _ in entries:
+        earliest[(initiative, track)] = min(earliest.get((initiative, track), depth), depth)
+    labelled = sorted(entries, key=lambda e: (e[0], earliest[(e[0], e[1])], e[1], e[2], e[3], e[4]))
     if not labelled:
         return "No project is grouped into an initiative."
     counts: dict[str, int] = {}
@@ -80,7 +113,7 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     rows = [
         f"| `{initiative}` | {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`]({name}) "
         f"| {project_status_text(fm, _waiting_on(fm, projects))} |"
-        for initiative, track, phase, name, fm in labelled
+        for initiative, track, phase, _, name, fm in labelled
     ]
     return "\n".join(["| Initiative | Track | Phase | Project | Status |\n| :--- | :--- | :--- | :--- | :--- |", *rows])
 

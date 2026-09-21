@@ -8,7 +8,8 @@ blocked_reason: no production credential goes to the GCP host until ADR 0047 is 
 summary: Relocate monitoring to a GCP e2-micro so it survives loss of the whole site.
 decision: ADR-0049/0
 super_project: off-site-monitoring
-track: off-site
+track: monitoring
+phase: 2-off-site
 ---
 
 # Off-Site Monitoring Relocation

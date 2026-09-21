@@ -83,6 +83,63 @@ class InitiativesTableTest(_TmpRoot):
         )
         self.assertIn("| `cd` | `security` | `bootstrap` | [`early.md`](early.md) |", table)
 
+    def _order(self) -> list[str]:
+        with contextlib.redirect_stderr(io.StringIO()):
+            table = gen.render_initiatives_table(self.root)
+        return [line.split("|")[4].strip().split("`")[1] for line in table.splitlines()[2:]]
+
+    def test_tracks_read_in_build_order_not_alphabetical(self):
+        project(self.root, "core", super_project="t", track="provisioning")
+        project(self.root, "rehearse", super_project="t", track="migration", depends_on=[{"project": "PROJ-core", "reason": "x"}])
+        project(self.root, "day2", super_project="t", track="opnsense", depends_on=[{"project": "PROJ-rehearse", "reason": "x"}])
+        self.assertEqual(self._order(), ["core.md", "rehearse.md", "day2.md"])
+
+    def test_numbered_phases_order_a_track_even_when_names_sort_the_other_way(self):
+        project(self.root, "cutover", super_project="t", track="migration", phase="2-cutover")
+        project(self.root, "rehearsal", super_project="t", track="migration", phase="1-rehearsal")
+        self.assertEqual(self._order(), ["rehearsal.md", "cutover.md"])
+
+    def test_an_explicit_phase_order_beats_inferred_depth(self):
+        project(self.root, "outside", super_project="t", track="y")
+        project(self.root, "first", super_project="t", track="x", phase="1-first", depends_on=[{"project": "PROJ-outside", "reason": "x"}])
+        project(self.root, "second", super_project="t", track="x", phase="2-second")
+        # `first` is deeper than `second`, but its phase says it reads first
+        self.assertEqual(self._order(), ["first.md", "second.md", "outside.md"])
+
+    def test_within_a_track_dependency_depth_orders_projects(self):
+        project(self.root, "a-last", super_project="t", track="x", depends_on=[{"project": "PROJ-z-first", "reason": "x"}])
+        project(self.root, "z-first", super_project="t", track="x")
+        self.assertEqual(self._order(), ["z-first.md", "a-last.md"])
+
+    def test_independent_tracks_fall_back_to_name(self):
+        project(self.root, "b", super_project="t", track="beta")
+        project(self.root, "a", super_project="t", track="alpha")
+        self.assertEqual(self._order(), ["a.md", "b.md"])
+
+    def test_a_tracks_rows_stay_together_when_the_chain_weaves_between_tracks(self):
+        project(self.root, "early", super_project="t", track="alpha")
+        project(self.root, "mid", super_project="t", track="beta", depends_on=[{"project": "PROJ-early", "reason": "x"}])
+        project(self.root, "late", super_project="t", track="alpha", depends_on=[{"project": "PROJ-mid", "reason": "x"}])
+        # by depth alone this would interleave alpha, beta, alpha
+        self.assertEqual(self._order(), ["early.md", "late.md", "mid.md"])
+
+    def test_initiatives_stay_grouped(self):
+        project(self.root, "y1", super_project="y")
+        project(self.root, "x2", super_project="x", depends_on=[{"project": "PROJ-x1", "reason": "x"}])
+        project(self.root, "x1", super_project="x")
+        project(self.root, "y2", super_project="y", depends_on=[{"project": "PROJ-y1", "reason": "x"}])
+        self.assertEqual(self._order(), ["x1.md", "x2.md", "y1.md", "y2.md"])
+
+    def test_a_dependency_cycle_does_not_hang_the_generator(self):
+        project(self.root, "a", super_project="t", depends_on=[{"project": "PROJ-b", "reason": "x"}])
+        project(self.root, "b", super_project="t", depends_on=[{"project": "PROJ-a", "reason": "x"}])
+        self.assertEqual(sorted(self._order()), ["a.md", "b.md"])
+
+    def test_a_dependency_on_a_missing_project_is_ignored(self):
+        project(self.root, "a", super_project="t", depends_on=[{"project": "PROJ-ghost", "reason": "x"}])
+        project(self.root, "b", super_project="t")
+        self.assertEqual(self._order(), ["a.md", "b.md"])
+
     def test_single_use_label_warns_but_still_renders(self):
         project(self.root, "a", super_project="typo-label")
         with contextlib.redirect_stderr(io.StringIO()) as err:

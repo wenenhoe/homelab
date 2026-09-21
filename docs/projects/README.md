@@ -36,6 +36,13 @@ level is required; don't add one for naming's sake. Decompose a broad
 initiative top-down, or add a `super_project` label once existing
 projects turn out to be coupled — both are fine.
 
+The generated [By initiative](#by-initiative) view reads in build order:
+tracks by their earliest project in the dependency chain, then phases by
+slug, then projects by dependency depth. Where an order isn't a
+dependency (two stages that merely go one after the other), make them
+phases of one track and number the slugs (`1-…`, `2-…`); the view can't
+infer it.
+
 Hierarchy says where work belongs; dependency says what must finish
 first. Declare `depends_on` (`project:` and `reason:`) only when work
 here cannot proceed until that project is done — not for relatedness, a
@@ -133,12 +140,12 @@ skipping it is how a real fact gets lost instead of promoted.
 
 | Initiative | Track | Phase | Project | Status |
 | :--- | :--- | :--- | :--- | :--- |
-| `off-site-monitoring` | `off-site` | — | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped |
-| `off-site-monitoring` | `on-prem` | — | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building |
+| `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building |
+| `off-site-monitoring` | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped |
 | `pull-based-cd` | `agent` | — | [`cd-agent.md`](cd-agent.md) | De-risking |
 | `pull-based-cd` | `credentials` | — | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking |
 | `pull-based-cd` | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) |
+| `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking |
 | `tofu-vm-provisioning` | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) |
 | `tofu-vm-provisioning` | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) |
 | `tofu-vm-provisioning` | `opnsense` | — | [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](tofu-migration-cutover.md) |
-| `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking |

@@ -7,7 +7,8 @@ blocked: false
 summary: Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host.
 decision: ADR-0042/0
 super_project: off-site-monitoring
-track: on-prem
+track: monitoring
+phase: 1-on-prem
 ---
 
 # Monitoring Host Isolation

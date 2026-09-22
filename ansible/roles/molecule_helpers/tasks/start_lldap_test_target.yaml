@@ -35,31 +35,63 @@
     state: directory
     mode: "0700"
 
+# community.crypto's modules run on the molecule instance's own Python
+# interpreter (this role runs with become: true against the instance
+# itself, not localhost — see the callers' converge.yml plays), and
+# need the cryptography library importable there. Same shape of
+# per-target dependency Stage 1 of the collections-module audit
+# confirmed for amazon.aws.s3_bucket and boto3/botocore — see
+# ansible/roles/seaweedfs_bucket/tasks/main.yaml's own version of this
+# task and comment.
+- name: Ensure the cryptography library is available for community.crypto
+  ansible.builtin.apt:
+    name: python3-cryptography
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
 # Self-signed, 1-day validity, matching seed-lldap-ci-cert.sh's own
 # reasoning: this only needs to satisfy lldap's own "some cert must be
 # present to enable LDAPS at all" and tinyauth's real hostname-verified
 # TLS client — not a real trust chain. subjectAltName is the field
 # actually checked; CN alone isn't sufficient for a modern TLS client.
+#
+# Three file-backed community.crypto tasks (key, CSR, cert) rather than
+# openssl_csr_pipe's in-memory form: x509_certificate's own
+# needs_regeneration check only compares against an *existing* file at
+# csr_path/privatekey_path, so file-backed modules are what makes this
+# genuinely idempotent across the second, idempotence-checking converge
+# every caller's molecule.yml test_sequence runs — the same real
+# create-if-missing idempotence Stage 1 got from amazon.aws.s3_bucket,
+# not another creates:-style workaround.
+- name: Generate a throwaway RSA private key for this scenario's lldap
+  community.crypto.openssl_privatekey:
+    path: /tmp/lldap-test-certs/privkey.pem
+    type: RSA
+    size: 2048
+
+- name: Generate a throwaway CSR for this scenario's lldap
+  community.crypto.openssl_csr:
+    path: /tmp/lldap-test-certs/request.csr
+    privatekey_path: /tmp/lldap-test-certs/privkey.pem
+    common_name: "{{ molecule_helpers_lldap_domain }}"
+    subject_alt_name: "DNS:{{ molecule_helpers_lldap_domain }}"
+
+# selfsigned_not_after: "+1d" is recomputed relative to "now" on every
+# run, but x509_certificate's own ignore_timestamps default (true)
+# means its idempotence check doesn't compare the recomputed instant
+# against the existing cert's exact notAfter — confirmed in
+# module_utils/_crypto/module_backends/certificate.py's
+# needs_regeneration(), not assumed from the option's own doc string.
+# No changed_when override needed, unlike Stage 3's vault_login (that
+# module hardcodes changed=True unconditionally instead).
 - name: Generate a throwaway self-signed cert for this scenario's lldap
-  ansible.builtin.command:
-    argv:
-      - openssl
-      - req
-      - -x509
-      - -newkey
-      - rsa:2048
-      - -nodes
-      - -days
-      - "1"
-      - -keyout
-      - /tmp/lldap-test-certs/privkey.pem
-      - -out
-      - /tmp/lldap-test-certs/fullchain.pem
-      - -subj
-      - "/CN={{ molecule_helpers_lldap_domain }}"
-      - -addext
-      - "subjectAltName=DNS:{{ molecule_helpers_lldap_domain }}"
-    creates: /tmp/lldap-test-certs/fullchain.pem
+  community.crypto.x509_certificate:
+    path: /tmp/lldap-test-certs/fullchain.pem
+    csr_path: /tmp/lldap-test-certs/request.csr
+    privatekey_path: /tmp/lldap-test-certs/privkey.pem
+    provider: selfsigned
+    selfsigned_not_after: +1d
 
 # docker-entrypoint.sh runs `find /data \! -user "$UID" -exec chown
 # "$UID:$GID" ...` under `set -e` before starting lldap, to make sure

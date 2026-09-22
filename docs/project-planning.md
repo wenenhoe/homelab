@@ -55,7 +55,6 @@ set. It narrows where to look; it doesn't replace looking.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`ansible-collections-audit.md`](projects/ansible-collections-audit.md) | Building | Replace hand-rolled command/shell/uri tasks in ansible/roles/* with maintained collection modules where one fits. |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 
 ## Decisions awaiting a project

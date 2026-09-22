@@ -29,8 +29,7 @@
 # amazon.aws.s3_bucket gives real create-if-missing idempotence
 # natively — confirmed live against a real SeaweedFS target running
 # production's exact identity-scoping model (bucket-scoped `Admin:`,
-# not an account-wide grant); see
-# docs/projects/ansible-collections-audit.md's Stage 1 detail.
+# not an account-wide grant).
 # No standing container needed the way the previous aws-cli-exec
 # implementation required just to get idempotence.
 #
@@ -56,6 +55,16 @@
 # has no response_metadata at all (never got an HTTP response to have
 # a status code from) — that, and any real 5xx, is what actually
 # retries here.
+#
+# Not yet confirmed, and can't be from a dev sandbox: whether a real
+# HTTP 502 arriving through Caddy specifically (rather than a direct
+# connection failure or a genuine SeaweedFS 5xx) produces a botocore
+# response this condition still correctly retries — every test above
+# talked to SeaweedFS directly, never through the real reverse proxy
+# `offsite_backup_s3_proto`/`offsite_backup_s3_endpoint` route through
+# in production. Worth a deliberate watch on `storage`'s first real
+# cold-start deploy, not assumed safe just because the logic above
+# reads as though it should cover it.
 #
 # No `failed_when`/"tolerate already-exists" carve-out needed here
 # unlike the previous implementation: an already-existing bucket is

@@ -4,7 +4,10 @@
 # converge/verify/cleanup, ansible.posix for systemd/mount helpers),
 # plus community.hashi_vault for the secrets role's own
 # vault_login.yaml (delegate_to: localhost, so it runs on whatever host
-# molecule itself runs on, same as amazon.aws below).
+# molecule itself runs on, same as amazon.aws below), and
+# community.crypto for molecule_helpers' own throwaway self-signed
+# lldap cert (start_lldap_test_target.yaml), which runs against the
+# molecule instance itself, not localhost.
 # Referenced from scenario molecule.yml files via:
 #   dependency:
 #     name: galaxy
@@ -20,3 +23,5 @@ collections:
     version: "11.4.0"
   - name: community.hashi_vault
     version: "7.1.0"
+  - name: community.crypto
+    version: "3.4.0"

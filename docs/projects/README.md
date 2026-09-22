@@ -22,7 +22,8 @@ gates it.
 ## Hierarchy
 
 - **Super-project** — a large initiative that needs several projects. A
-  label (`super_project:`), not a document; see [By initiative](#by-initiative).
+  label (`super_project:`), not a document; see
+  [By initiative](../project-planning.md#by-initiative).
 - **Track** — an independent stream of work within a super-project
   (`track:`).
 - **Phase** — an ordered grouping within a track (`phase:`).
@@ -36,7 +37,7 @@ level is required; don't add one for naming's sake. Decompose a broad
 initiative top-down, or add a `super_project` label once existing
 projects turn out to be coupled — both are fine.
 
-The generated [By initiative](#by-initiative) view reads in build order:
+The generated [By initiative](../project-planning.md#by-initiative) view reads in build order:
 tracks by their earliest project in the dependency chain, then phases by
 slug, then projects by dependency depth. Where an order isn't a
 dependency (two stages that merely go one after the other), make them
@@ -78,6 +79,25 @@ with an exit condition), acceptance criteria, agent handoff, risks, and
 open items. Update the stage table at the start and end of each PR that
 works a stage. If a stage's prose starts explaining why X over Y, stop
 and write or extend the ADR instead.
+
+A project's `decision:` is singular and gating — it's the one
+`check-doc-drift.py` checks against the Lifecycle table above. A
+stage's exit condition can still set a *different* lineage's revision
+to `accepted` as a side effect; when it does, add that revision to
+`also_implements:` (same format as `decision:`, e.g.
+`ADR-0050/0`) and say so in prose where the stage is described —
+[`coding-agent-access-path.md`](coding-agent-access-path.md)
+(`decision: ADR-0055/0`, `also_implements: [ADR-0050/0]`, whose
+Stage 2 sets ADR 0050 to `accepted`) is the existing example.
+`also_implements:` doesn't gate anything — `check-doc-drift.py` only
+confirms each entry resolves to a real revision — it exists so
+[`project-planning.md`'s "Needs a project"](../project-planning.md#needs-a-project)
+view can tell this ADR is covered without scanning every project's
+prose for a mention. Don't confuse this with a project that simply has
+no `decision:` yet because nothing is `approved` —
+[`cd-agent.md`](cd-agent.md) (ADR 0044, still two competing candidates)
+is that separate case: no ADR is being carried out there, one just
+isn't chosen yet, and it has neither field set.
 
 ## Stop conditions
 
@@ -179,26 +199,3 @@ skipping it is how a real fact gets lost instead of promoted.
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
 | [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](operator-host.md), [`workstation-management.md`](workstation-management.md) | Remove every infrastructure credential and the controller tooling from VM 401 once the operator host runs the controller. |
 | [`workstation-management.md`](workstation-management.md) | Not started — waiting on [`operator-host.md`](operator-host.md) | Bring VM 401 under Ansible management from the operator host, with SSH client configuration and a TLS remote desktop. |
-
-## By initiative
-
-| Initiative | Track | Phase | Project | Status |
-| :--- | :--- | :--- | :--- | :--- |
-| `coding-agent-host` | `boundary` | `1-network` | [`coding-agent-network.md`](coding-agent-network.md) | De-risking |
-| `coding-agent-host` | `boundary` | `2-host` | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) |
-| `coding-agent-host` | `boundary` | `3-network-as-code` | [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md), [`coding-agent-network.md`](coding-agent-network.md) |
-| `coding-agent-host` | `lifecycle` | — | [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) |
-| `coding-agent-host` | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md), [`workstation-management.md`](workstation-management.md) |
-| `coding-agent-host` | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) |
-| `controller-separation` | `operator` | — | [`operator-host.md`](operator-host.md) | De-risking |
-| `controller-separation` | `workstation` | `1-management` | [`workstation-management.md`](workstation-management.md) | Not started — waiting on [`operator-host.md`](operator-host.md) |
-| `controller-separation` | `workstation` | `2-reduction` | [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](operator-host.md), [`workstation-management.md`](workstation-management.md) |
-| `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building |
-| `off-site-monitoring` | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped |
-| `pull-based-cd` | `agent` | — | [`cd-agent.md`](cd-agent.md) | De-risking |
-| `pull-based-cd` | `credentials` | — | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking |
-| `pull-based-cd` | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking |
-| `tofu-vm-provisioning` | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) |
-| `tofu-vm-provisioning` | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) |
-| `tofu-vm-provisioning` | `opnsense` | — | [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](tofu-migration-cutover.md) |

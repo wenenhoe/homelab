@@ -67,7 +67,7 @@ class InitiativesTableTest(_TmpRoot):
             table = gen.render_initiatives_table(self.root)
         self.assertEqual(
             table.splitlines()[2:],
-            ["| `pull-based-cd` | — | — | [`a.md`](a.md) | Building |", "| `pull-based-cd` | — | — | [`b.md`](b.md) | Not started |"],
+            ["| `pull-based-cd` | — | — | [`a.md`](projects/a.md) | Building |", "| `pull-based-cd` | — | — | [`b.md`](projects/b.md) | Not started |"],
         )
         self.assertEqual(err.getvalue(), "")
 
@@ -79,9 +79,9 @@ class InitiativesTableTest(_TmpRoot):
         table = gen.render_initiatives_table(self.root)
         self.assertEqual(
             [line.split("|")[4].strip() for line in table.splitlines()[2:]],
-            ["[`loose.md`](loose.md)", "[`infra.md`](infra.md)", "[`early.md`](early.md)", "[`late.md`](late.md)"],
+            ["[`loose.md`](projects/loose.md)", "[`infra.md`](projects/infra.md)", "[`early.md`](projects/early.md)", "[`late.md`](projects/late.md)"],
         )
-        self.assertIn("| `cd` | `security` | `bootstrap` | [`early.md`](early.md) |", table)
+        self.assertIn("| `cd` | `security` | `bootstrap` | [`early.md`](projects/early.md) |", table)
 
     def _order(self) -> list[str]:
         with contextlib.redirect_stderr(io.StringIO()):

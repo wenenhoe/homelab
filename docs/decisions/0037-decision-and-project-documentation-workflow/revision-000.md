@@ -6,7 +6,8 @@ title: "Recording decisions, tracking execution, and keeping docs true"
 solution: "Problem-oriented ADR lineages with gated revisions, projects as execution records, topic docs describing main"
 summary: "How why, what-remains, and what-is-true-now are kept apart, and how an implementer knows what is authorized and when to stop."
 topic: documentation-process
-status: accepted
+status: superseded
+superseded_by: 1
 narrows: ADR-0028
 ---
 

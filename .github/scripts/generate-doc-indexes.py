@@ -2,8 +2,9 @@
 """Regenerates the doc-index sections that would otherwise be hand-edited
 every time a project or decision lineage is added or changes status:
 
-- docs/projects/README.md: `## Index` (always) and `## By initiative`
-  (only if that heading exists).
+- docs/projects/README.md: `## Index` (always).
+- docs/project-planning.md: `## By initiative` and `## Needs a
+  project` (always).
 - docs/decisions/README.md: `## Lineages`, grouped by topic (only if
   that heading exists).
 
@@ -50,11 +51,13 @@ def _load_projects(root: Path) -> dict[str, tuple[Path, dict]]:
     return projects
 
 
-def _waiting_on(fm: dict, projects: dict[str, tuple[Path, dict]]) -> list[str]:
+def _waiting_on(fm: dict, projects: dict[str, tuple[Path, dict]], prefix: str = "") -> list[str]:
     """Predecessors that still exist as project docs. A finished project
-    is deleted, so an existing one is by definition not finished.
+    is deleted, so an existing one is by definition not finished. prefix
+    is a path prefix for a caller rendering into a file outside
+    docs/projects/ (docs/project-planning.md, not docs/projects/README.md).
     """
-    return [f"[`{projects[d['project']][0].name}`]({projects[d['project']][0].name})" for d in fm.get("depends_on", []) if d["project"] in projects]
+    return [f"[`{projects[d['project']][0].name}`]({prefix}{projects[d['project']][0].name})" for d in fm.get("depends_on", []) if d["project"] in projects]
 
 
 def render_projects_table(root: Path = ROOT) -> str:
@@ -110,9 +113,10 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     for initiative, n in counts.items():
         if n == 1:
             print(f"warning: super_project '{initiative}' is used by one project only — a typo, or not yet an initiative", file=sys.stderr)
+    # Renders into docs/project-planning.md, one level above docs/projects/ — every link needs that prefix.
     rows = [
-        f"| `{initiative}` | {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`]({name}) "
-        f"| {project_status_text(fm, _waiting_on(fm, projects))} |"
+        f"| `{initiative}` | {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`](projects/{name}) "
+        f"| {project_status_text(fm, _waiting_on(fm, projects, prefix='projects/'))} |"
         for initiative, track, phase, _, name, fm in labelled
     ]
     return "\n".join(["| Initiative | Track | Phase | Project | Status |\n| :--- | :--- | :--- | :--- | :--- |", *rows])
@@ -141,8 +145,31 @@ def _cell(text: str) -> str:
     return text.replace("|", r"\|")
 
 
-def _lineage_link(lineage: Lineage) -> str:
-    return f"[{lineage.number}]({lineage.dir.name}/{lineage.current().path.name})"
+def _lineage_link(lineage: Lineage, prefix: str = "") -> str:
+    return f"[{lineage.number}]({prefix}{lineage.dir.name}/{lineage.current().path.name})"
+
+
+def _adr_solution_cells(lineage: Lineage, prefix: str = "") -> tuple[str, str, str]:
+    """(adr_cell, solution, status) for one lineage's row, shared by every
+    generated ADR table. Several open candidates with nothing accepted yet
+    say so explicitly, rather than showing the alphabetically-last one as
+    if it had won (Lineage.current() would otherwise pick it by construction).
+    prefix is a path prefix for a caller rendering outside docs/decisions/
+    (docs/project-planning.md, not docs/decisions/README.md).
+    """
+    current = lineage.current()
+    open_revisions = [r for r in lineage.revisions if r.status in ("working", "approved")]
+    decided = any(r.status in ("accepted", "retired") for r in lineage.revisions)
+    if not decided and len(open_revisions) > 1:
+        first = open_revisions[0]
+        solution = "Undecided between: " + "; or ".join(f"({_short_label(r)}) {r.fm['solution']}" for r in open_revisions)
+        status = ", ".join(f"{ADR_STATUS_DISPLAY[r.status]} ({_short_label(r)})" for r in open_revisions)
+        adr_cell = f"[{lineage.number}]({prefix}{lineage.dir.name}/{first.path.name})"
+    else:
+        solution = current.fm["solution"]
+        status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current)})" if len(lineage.revisions) > 1 else "")
+        adr_cell = _lineage_link(lineage, prefix)
+    return adr_cell, solution, status
 
 
 def render_lineages_index(root: Path = ROOT) -> str:
@@ -167,20 +194,14 @@ def render_lineages_index(root: Path = ROOT) -> str:
             current = lineage.current()
             if current.fm["topic"] != topic:
                 continue
+            adr_cell, solution, status = _adr_solution_cells(lineage)
             open_revisions = [r for r in lineage.revisions if r.status in ("working", "approved")]
             decided = any(r.status in ("accepted", "retired") for r in lineage.revisions)
-            if not decided and len(open_revisions) > 1:
-                # Nothing accepted and several solutions alive: say so instead of showing the newest as if it had won.
-                first = open_revisions[0]
-                solution = "Undecided between: " + "; or ".join(f"({_short_label(r)}) {r.fm['solution']}" for r in open_revisions)
-                status = ", ".join(f"{ADR_STATUS_DISPLAY[r.status]} ({_short_label(r)})" for r in open_revisions)
-                adr_cell = f"[{lineage.number}]({lineage.dir.name}/{first.path.name})"
-                notes = []
-            else:
-                solution = current.fm["solution"]
-                status = ADR_STATUS_DISPLAY[current.status] + (f" ({_revision_label(current)})" if len(lineage.revisions) > 1 else "")
-                adr_cell = _lineage_link(lineage)
-                notes = [f"Revision {r.label} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
+            notes = (
+                []
+                if not decided and len(open_revisions) > 1
+                else [f"Revision {r.label} {ADR_STATUS_DISPLAY[r.status].lower()}" for r in lineage.pending_successors()]
+            )
             if lineage.id in narrowed_by:
                 notes.append("Narrowed by " + ", ".join(_lineage_link(by_id[i]) for i in sorted(narrowed_by[lineage.id])))
             if lineage.id in related:
@@ -194,6 +215,50 @@ def render_lineages_index(root: Path = ROOT) -> str:
             header = "| ADR | Problem | Current solution | Status | Notes |\n| :--- | :--- | :--- | :--- | :--- |"
             sections.append("\n".join([f"### {topic_title}", "", header, *rows]))
     return "\n\n".join(sections)
+
+
+def render_needs_project_table(root: Path = ROOT) -> str:
+    """Every ADR lineage with at least one open (working/approved)
+    revision that appears in no project's decision: or also_implements:.
+    Includes a pending successor to an already-accepted revision (shown
+    as the successor's own proposal, not the shipped parent's), since
+    that successor is itself uncovered even though the lineage overall
+    looks 'done' by its current() answer. Doesn't know about a project
+    that only mentions the lineage in free prose with neither field
+    set — see ADR 0037 revision 1's Consequences.
+    """
+    lineages = load_lineages(root)
+    covered: set[str] = set()
+    for path in docs_in(root / "docs/projects"):
+        fm = read_frontmatter(path)
+        if "decision" in fm:
+            covered.add(fm["decision"])
+        covered.update(fm.get("also_implements", []))
+
+    rows = []
+    for lineage in lineages:
+        open_revisions = [r for r in lineage.revisions if r.status in ("working", "approved")]
+        uncovered = [r for r in open_revisions if f"{lineage.id}/{r.label}" not in covered]
+        if not uncovered:
+            continue
+        current = lineage.current()
+        problem = f"**{_cell(current.fm['title'])}** — {_cell(current.fm['summary'])}"
+        if current.status in ("accepted", "retired"):
+            # current() is the shipped answer; what's actually uncovered is a
+            # pending successor proposing to replace it — show that, not the
+            # already-implemented parent.
+            for r in uncovered:
+                adr_cell = f"[{lineage.number}](decisions/{lineage.dir.name}/{r.path.name})"
+                solution = f"Proposed revision {r.label}: {r.fm['solution']}"
+                status = f"{ADR_STATUS_DISPLAY[r.status]} (proposed revision {r.label})"
+                rows.append("| " + " | ".join([adr_cell, problem, _cell(solution), status]) + " |")
+        else:
+            adr_cell, solution, status = _adr_solution_cells(lineage, prefix="decisions/")
+            rows.append("| " + " | ".join([adr_cell, problem, _cell(solution), status]) + " |")
+    if not rows:
+        return "Every open ADR is named in some project's `decision:` or `also_implements:`."
+    header = "| ADR | Problem | Current solution | Status |\n| :--- | :--- | :--- | :--- |"
+    return "\n".join([header, *rows])
 
 
 def validate_adrs(root: Path = ROOT) -> None:
@@ -236,8 +301,10 @@ def regenerate(path: Path, heading: str, body: str, *, optional: bool = False) -
 def main() -> int:
     validate_adrs()
     regenerate(ROOT / "docs/projects/README.md", "Index", render_projects_table())
-    regenerate(ROOT / "docs/projects/README.md", "By initiative", render_initiatives_table(), optional=True)
     touched = ["docs/projects/README.md"]
+    regenerate(ROOT / "docs/project-planning.md", "By initiative", render_initiatives_table())
+    regenerate(ROOT / "docs/project-planning.md", "Needs a project", render_needs_project_table())
+    touched.append("docs/project-planning.md")
     if regenerate(ROOT / "docs/decisions/README.md", "Lineages", render_lineages_index(), optional=True):
         touched.append("docs/decisions/README.md")
     print(f"Regenerated {', '.join(touched)}.")

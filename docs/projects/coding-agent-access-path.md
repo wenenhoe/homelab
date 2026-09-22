@@ -6,6 +6,7 @@ status: not-started
 blocked: false
 summary: Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential.
 decision: ADR-0055/0
+also_implements: [ADR-0050/0]
 super_project: coding-agent-host
 track: workflow
 phase: 1-access-path

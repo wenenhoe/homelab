@@ -155,8 +155,56 @@ jobs:
           echo "apps=$json" >> "$GITHUB_OUTPUT"
           echo "Boot-testing: $json"
 
-  # Unconditional — see docs/ci.md#change-scoped-not-a-full-sweep.
+  # Single-writer cache population — see docs/ci.md#cache-warming for why
+  # this exists as its own job rather than letting every uv-consuming job
+  # below populate the cache itself. Unconditional (no needs:, no if:) so
+  # it self-heals a cold/evicted cache on any PR, not just ones
+  # detect-changes flags as touching uv.lock/pyproject.toml.
+  #
+  # locked is deliberately left at its "false" default here, not "true":
+  # this job only exists to warm the shared uv package cache, not to
+  # enforce lockfile strictness — that's uv-lock's own job, below, which
+  # must keep failing on its own merits. If this job used --locked, a
+  # genuinely stale lockfile would fail *this* job, and every job below
+  # that needs it would report skipped instead of run — burying uv-lock's
+  # specific diagnostic under a wall of unrelated skips.
+  warm-uv-cache:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup uv (writes the shared cache)
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          save-uv-cache: "true"
+
+  # Same one-writer reasoning as warm-uv-cache above, for the Ansible
+  # Galaxy collections cache. A separate job, not folded into
+  # warm-uv-cache: unrelated command (ansible-galaxy, not uv sync),
+  # unrelated cache, no reason to couple their failure/timing. This job's
+  # own uv sync doesn't wait on warm-uv-cache (no needs: between them) —
+  # on a cold cache it just resolves uv's packages a second time in
+  # parallel rather than saving them again itself (save-uv-cache stays at
+  # its "false" default here), which is cheaper than serializing the two.
+  warm-galaxy-cache:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup uv + Ansible Galaxy collections (writes the shared Galaxy cache)
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          install-galaxy-collections: "true"
+          save-galaxy-cache: "true"
+
+  # Unconditional — see docs/ci.md#change-scoped-not-a-full-sweep. needs
+  # warm-uv-cache (not detect-changes, which this job deliberately
+  # bypasses) purely so it restores a warm cache rather than racing to
+  # populate one itself — see docs/ci.md#cache-warming.
   pre-commit-checks:
+    needs: warm-uv-cache
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
@@ -176,6 +224,7 @@ jobs:
   # merge-base of the PR's base and head (not the base tip itself), so a
   # branch that is behind doesn't see main's newer commits as its own.
   project-scope:
+    needs: warm-uv-cache
     runs-on: ubuntu-26.04
     steps:
       - name: Checkout
@@ -195,7 +244,7 @@ jobs:
   # Split from pre-commit-checks: ansible-lint is pinned to stages:
   # [pre-push], which --hook-stage pre-commit above doesn't run.
   ansible-lint:
-    needs: detect-changes
+    needs: [detect-changes, warm-uv-cache]
     if: needs.detect-changes.outputs.ansible_lint == 'true'
     runs-on: ubuntu-26.04
     steps:
@@ -212,7 +261,7 @@ jobs:
         run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-push --show-diff-on-failure
 
   uv-lock:
-    needs: detect-changes
+    needs: [detect-changes, warm-uv-cache]
     if: needs.detect-changes.outputs.uv_lock == 'true'
     runs-on: ubuntu-26.04
     steps:
@@ -233,7 +282,7 @@ jobs:
   # call and rclone invocation is mocked; nothing here needs network
   # access or Galaxy collections.
   python-unit-tests:
-    needs: detect-changes
+    needs: [detect-changes, warm-uv-cache]
     if: needs.detect-changes.outputs.python_unit_tests == 'true'
     runs-on: ubuntu-26.04
     steps:
@@ -251,7 +300,7 @@ jobs:
   # Regression coverage for the ansible_host resolution ordering incident —
   # see docs/ci.md#deploy-ordering-check for what it catches and why.
   deploy-ordering-check:
-    needs: detect-changes
+    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.deploy_ordering == 'true'
     runs-on: ubuntu-26.04
     steps:
@@ -348,7 +397,7 @@ jobs:
         working-directory: ansible
 
   molecule:
-    needs: detect-changes
+    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.roles != '[]'
     runs-on: ubuntu-26.04
     strategy:
@@ -388,7 +437,7 @@ jobs:
 
   # Shared logic — see docs/ci.md#compose-boot-test.
   compose-boot-test:
-    needs: detect-changes
+    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.compose_apps != '[]'
     uses: ./.github/workflows/_compose-boot-test.yml
     with:

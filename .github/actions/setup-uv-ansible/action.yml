@@ -32,6 +32,27 @@ inputs:
       jobs that never touch Ansible (pre-commit, uv-lock).
     required: false
     default: "false"
+  save-uv-cache:
+    description: >-
+      Persist this job's uv cache back to the GitHub Actions cache
+      (passed straight through to astral-sh/setup-uv's own save-cache
+      input). Every job still restores an existing cache regardless of
+      this flag — only saving is gated. Leave "false" (the default) for
+      ordinary jobs; only pr-checks.yml's dedicated warm-uv-cache job
+      sets "true", so a PR that changes uv.lock/pyproject.toml gets
+      exactly one job writing the new cache entry instead of every
+      uv-consuming job racing to write it — see
+      docs/ci.md#cache-warming.
+    required: false
+    default: "false"
+  save-galaxy-cache:
+    description: >-
+      Same one-writer reasoning as save-uv-cache above, for the Ansible
+      Galaxy collections cache specifically. Only pr-checks.yml's
+      warm-galaxy-cache job sets "true". Has no effect unless
+      install-galaxy-collections is also "true".
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -40,6 +61,7 @@ runs:
       uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
       with:
         enable-cache: true
+        save-cache: ${{ inputs.save-uv-cache }}
 
     # Fails if pyproject.toml and uv.lock have drifted apart — catches a
     # lockfile-maintenance PR that didn't actually regenerate the lock,
@@ -53,9 +75,16 @@ runs:
       shell: bash
       run: uv sync --group dev${{ inputs.locked == 'true' && ' --locked' || '' }}
 
-    - name: Cache Ansible Galaxy collections
+    # Restore-only: every caller does this, matrix entries included, so
+    # it must never attempt to write — concurrent restores of the same
+    # key are fine, concurrent *saves* of the same key are the race
+    # save-galaxy-cache below exists to avoid. cache-primary-key (not a
+    # second hashFiles(...) call) is what the save step below reuses, so
+    # the key expression has exactly one copy.
+    - name: Restore Ansible Galaxy collections cache
+      id: galaxy-cache-restore
       if: inputs.install-galaxy-collections == 'true'
-      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ~/.ansible/collections
         key: >-
@@ -68,3 +97,17 @@ runs:
       shell: bash
       run: uv run ansible-galaxy collection install -r requirements.yml
       working-directory: ansible
+
+    # cache-hit != 'true' skips a pointless re-upload when the restore
+    # above already found this exact key — only a genuinely new key
+    # (i.e. a real requirements.yml/role-requirements.yml change) needs
+    # saving at all.
+    - name: Save Ansible Galaxy collections cache
+      if: >-
+        inputs.install-galaxy-collections == 'true' &&
+        inputs.save-galaxy-cache == 'true' &&
+        steps.galaxy-cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.ansible/collections
+        key: ${{ steps.galaxy-cache-restore.outputs.cache-primary-key }}

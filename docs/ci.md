@@ -66,6 +66,8 @@ the SeaweedFS-specific case this generalizes from.
 
 | Job | Runs when | What it does |
 | :--- | :--- | :--- |
+| `warm-uv-cache` | always | Populates the shared uv package cache. See [Cache warming](#cache-warming). |
+| `warm-galaxy-cache` | always | Populates the shared Ansible Galaxy collections cache. See [Cache warming](#cache-warming). |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
 | `project-scope` | always | A PR that touches a project doc stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](#project-scope-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
@@ -80,6 +82,8 @@ the SeaweedFS-specific case this generalizes from.
 ```mermaid
 flowchart TD
     detect["detect-changes<br/>(always runs first)"]
+    warmuv["warm-uv-cache<br/>(always)"]
+    warmgalaxy["warm-galaxy-cache<br/>(always)"]
     precommit["pre-commit-checks<br/>(always)"]
     scope["project-scope<br/>(always)"]
     trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
@@ -94,12 +98,16 @@ flowchart TD
 
     detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk
     detect --> trivy
+    warmuv --> precommit & scope & lint & uvlock & pytest & deployorder & molecule & boottest
+    warmgalaxy --> deployorder & molecule & boottest
     molecule --> gate
     boottest --> gate
 
     style precommit stroke-dasharray: 5 5
     style scope stroke-dasharray: 5 5
     style trivy stroke-dasharray: 5 5
+    style warmuv stroke-dasharray: 5 5
+    style warmgalaxy stroke-dasharray: 5 5
 ```
 
 `pre-commit-checks` and `project-scope` run unconditionally and independently of
@@ -107,7 +115,62 @@ flowchart TD
 type in the repo, so scoping it would defeat the point. `trivy-scan`
 also always runs as a job, but reads `detect-changes`' output to decide
 internally whether to run its Ansible-misconfig sub-check — see
-[security-scanning.md](security-scanning.md).
+[security-scanning.md](security-scanning.md). `warm-uv-cache` and
+`warm-galaxy-cache` are dashed for the same reason: unconditional,
+independent of `detect-changes`, so a cold or evicted cache self-heals
+on any PR rather than only ones the diff happens to flag. See
+[Cache warming](#cache-warming).
+
+## Cache warming
+
+`warm-uv-cache` and `warm-galaxy-cache` exist to give each of the two
+shared caches below exactly one job that's allowed to write to it, no
+matter how many other jobs in the run need what it holds.
+
+Both caches are keyed on a hash of their dependency file(s)
+(`uv.lock`/`pyproject.toml` for uv's own cache, inside
+`astral-sh/setup-uv`; `ansible/requirements.yml` +
+`ansible/roles/molecule_helpers/role-requirements.yml` for the Ansible
+Galaxy collections cache, inside `setup-uv-ansible`) — so the key
+already changes correctly whenever a dependency changes, Renovate bump
+or not. That was never the gap. The gap is that on a run where the key
+*is* new — most often a Renovate PR, since bumping a dependency is the
+whole point of one — every job that consumes that cache misses at the
+same time and, before this, every one of them then tried to save the
+same new entry. `actions/cache` treats a losing save as a soft warning
+(cache key already exists), not a job failure, so this was never a
+correctness bug; it was a burst of simultaneous writers against
+GitHub's cache API, worst on exactly the PRs Renovate opens several of
+at once, and occasionally surfaced as connection resets rather than the
+expected warning.
+
+`setup-uv-ansible`'s `save-uv-cache`/`save-galaxy-cache` inputs (both
+default `"false"`) gate saving only — every job still restores a cache
+that exists, regardless of these flags, so nothing here weakens the
+cache for jobs that don't populate it. Only `warm-uv-cache` sets
+`save-uv-cache: "true"`, and only `warm-galaxy-cache` sets
+`save-galaxy-cache: "true"`; every other cache-consuming job below
+depends on the relevant warm job (`needs:`) and leaves both at their
+default, so it only ever restores.
+
+Both warm jobs run unconditionally — no `if:`, no dependency on
+`detect-changes` — so a cold or evicted cache self-heals on any PR,
+not only ones a diff happens to flag as touching the dependency files.
+They run independently of each other, too: `warm-galaxy-cache`'s own
+`uv sync` doesn't wait on `warm-uv-cache` finishing, so on a fully cold
+run both may resolve uv's packages in parallel rather than one
+serializing behind the other — a little redundant work, once, is
+cheaper than adding a hop to the critical path every PR pays.
+
+`warm-uv-cache` deliberately runs an unlocked `uv sync` (`locked` left
+at its default `"false"`), not `--locked`. This job exists only to
+populate the shared package cache — lockfile strictness is `uv-lock`'s
+job, separately, and needs to keep failing (or not) on its own merits.
+If `warm-uv-cache` used `--locked`, a genuinely stale lockfile would
+fail *this* job instead, and every job below it (`needs:
+warm-uv-cache`) would report `skipped` rather than run — burying
+`uv-lock`'s specific diagnostic under a wall of unrelated skips on the
+exact PRs (lockfile changes) where it matters most.
 
 ## Requiring checks before merge
 
@@ -116,7 +179,8 @@ protection rules or repository rulesets (Settings > Branches), which
 reference jobs by their check-run name (`<workflow name> / <job name>`,
 e.g. `PR checks / pre-commit-checks`).
 
-`pre-commit-checks`, `project-scope`, `ansible-lint`, `uv-lock`, `python-unit-tests`,
+`warm-uv-cache`, `warm-galaxy-cache`, `pre-commit-checks`, `project-scope`,
+`ansible-lint`, `uv-lock`, `python-unit-tests`,
 `deploy-ordering-check`, and `compose-syntax-check` are all safe to
 mark required directly: each
 is gated by a job-level `if:` inside a workflow that always triggers on

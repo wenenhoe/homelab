@@ -37,16 +37,19 @@
   when: openbao_has_compose_app
   block:
     - name: Read the openbao image's own non-root UID
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - "{{ openbao_image }}"
-          - id
-          - -u
-          - openbao
-      register: openbao_expected_uid
+      community.docker.docker_container:
+        name: openbao-read-uid
+        image: "{{ openbao_image }}"
+        command: [id, -u, openbao]
+        detach: false
+        cleanup: true
+        # Docker's own default driver is json-file (confirmed in
+        # community.docker.docker_container's own log_driver doc) —
+        # pinned explicitly rather than relied on implicitly, since
+        # `container.Output` below silently returns a placeholder
+        # string instead of real command output on any other driver.
+        log_driver: json-file
+      register: openbao_read_uid
       changed_when: false
 
     - name: Discover the data volume's real host path
@@ -60,21 +63,16 @@
       register: openbao_data_owner
 
     - name: Chown the data volume to the openbao user
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - --user
-          - root
-          - -v
+      community.docker.docker_container:
+        name: openbao-chown-data
+        image: "{{ openbao_image }}"
+        user: root
+        volumes:
           - "{{ openbao_data_volume_name }}:/openbao/data"
-          - "{{ openbao_image }}"
-          - chown
-          - -R
-          - openbao:openbao
-          - /openbao/data
-      when: openbao_data_owner.stat.uid | string != openbao_expected_uid.stdout | trim
+        command: [chown, -R, "openbao:openbao", /openbao/data]
+        detach: false
+        cleanup: true
+      when: openbao_data_owner.stat.uid | string != openbao_read_uid.container.Output | trim
       changed_when: true
 
 - name: Deploy openbao with Docker Compose

@@ -150,26 +150,24 @@
     path: "{{ molecule_helpers_openbao_cert_dir }}/fullchain.pem"
   register: molecule_helpers_openbao_existing_cert
 
-# ansible.builtin.command + argv, not community.docker.docker_container:
-# matches production's own step_ca_cert role's exact approach for this
-# same operation (step ca certificate via a throwaway step-cli
-# container) — precise flag control, no reliance on a module parameter
-# this repo has never actually exercised. Same dual-SAN shape that role
-# uses too (a plain container-local name, plus the full hostname
-# whatever's actually connecting will request) — here that's the
-# control node, via molecule_helpers_openbao_extra_san, not a real LAN
-# hostname.
+# community.docker.docker_container, not raw command: converted once
+# the collection's own source was actually read (module_utils/
+# _module_container/module.py, docker_container.py's log_driver doc)
+# rather than assumed unverified — see the project doc's Stage 4 for
+# what that reading found. Same dual-SAN shape production's
+# step_ca_cert role uses too (a plain container-local name, plus the
+# full hostname whatever's actually connecting will request) — here
+# that's the control node, via molecule_helpers_openbao_extra_san, not
+# a real LAN hostname.
 - name: Issue OpenBao's leaf cert from step-ca-test
-  ansible.builtin.command:
-    argv:
-      - docker
-      - run
-      - --rm
-      - --network
-      - "{{ molecule_helpers_openbao_network_name }}"
-      - -v
+  community.docker.docker_container:
+    name: openbao-test-cert-issue
+    image: smallstep/step-cli:0.30.6
+    networks:
+      - name: "{{ molecule_helpers_openbao_network_name }}"
+    volumes:
       - "{{ molecule_helpers_openbao_cert_dir }}:/certs"
-      - smallstep/step-cli:0.30.6
+    command:
       - step
       - ca
       - certificate
@@ -187,8 +185,15 @@
       - --san
       - "{{ molecule_helpers_openbao_extra_san }}"
       - --force
+    detach: false
+    cleanup: true
+    # Docker's own default driver is json-file (confirmed in
+    # community.docker.docker_container's own log_driver doc) —
+    # pinned explicitly so a real failure's `.msg` carries step-cli's
+    # actual error instead of a driver placeholder.
+    log_driver: json-file
   register: molecule_helpers_openbao_cert_issue
-  until: molecule_helpers_openbao_cert_issue.rc == 0
+  until: molecule_helpers_openbao_cert_issue.status == 0
   retries: 5
   delay: 10
   changed_when: true
@@ -202,22 +207,24 @@
 # parent directory's own permissions, so the host user running Ansible
 # can't chmod files it doesn't own. Same mechanism already established
 # for cleanup (../vault_backed/cleanup.yml's own force-rm task), but
-# unlike cleanup this isn't best-effort: no failed_when: false here,
-# since a silent failure here means OpenBao can't read its own cert
-# later, a confusing failure far from its real cause.
+# unlike cleanup this isn't best-effort: docker_container already fails
+# the task itself on a non-zero exit (confirmed in the module's own
+# container_start()), the same as this replaced command task did, so a
+# silent failure here still isn't possible — a confusing failure far
+# from its real cause would still surface as a task failure.
 - name: Make the leaf cert/key world-readable, as root inside a throwaway container (throwaway test key — no real security value)
-  ansible.builtin.command:
-    argv:
-      - docker
-      - run
-      - --rm
-      - -v
+  community.docker.docker_container:
+    name: openbao-test-chmod-certs
+    image: alpine
+    volumes:
       - /tmp:/tmp
-      - alpine
+    command:
       - chmod
       - "0644"
       - "{{ molecule_helpers_openbao_cert_dir }}/fullchain.pem"
       - "{{ molecule_helpers_openbao_cert_dir }}/privkey.pem"
+    detach: false
+    cleanup: true
   changed_when: true
   when: not molecule_helpers_openbao_existing_cert.stat.exists
 
@@ -244,79 +251,47 @@
       cluster_addr = "https://openbao-test:8201"
       ui = false
 
-- name: Check whether openbao-test already exists
-  ansible.builtin.command:
-    argv:
-      - docker
-      - inspect
-      - openbao-test
-  register: molecule_helpers_openbao_inspect
-  changed_when: false
-  failed_when: false
-
-# rc/stdout parsed directly rather than via community.docker.docker_container_info's
-# own `.exists`/`.container.State.*` fields: `.exists` alone doesn't
-# distinguish a genuinely running container from a stale, exited one
-# left over from a previous failed run (e.g. one that crash-looped on
-# the permission issue this file's data-dir fix addresses) — and this
-# repo hasn't otherwise exercised docker_container_info's own State
-# field shape, so raw `docker inspect` + `from_json` (already used
-# elsewhere in this file) avoids resting on an unverified field path.
-- name: Determine whether openbao-test is currently running
-  ansible.builtin.set_fact:
-    molecule_helpers_openbao_already_running: >-
-      {{
-        molecule_helpers_openbao_inspect.rc == 0
-        and (molecule_helpers_openbao_inspect.stdout | from_json)[0].State.Running
-      }}
-
-- name: Remove a stale, non-running openbao-test container, if one exists
-  ansible.builtin.command:
-    argv:
-      - docker
-      - rm
-      - -f
-      - openbao-test
-  when:
-    - molecule_helpers_openbao_inspect.rc == 0
-    - not molecule_helpers_openbao_already_running
-  changed_when: true
-
-# 127.0.0.1 only, not 0.0.0.0 — see this file's header comment.
+# community.docker.docker_container's own `state: started` already
+# covers "running, leave it" vs "exists but stopped/stale, start it in
+# place" vs "doesn't exist, create it" — confirmed against the
+# module's own source (module_utils/_module_container/module.py's
+# `present()`: an existing container is only stopped-and-recreated
+# when its config differs from these parameters, otherwise a stopped
+# one is just (re)started), so the previous three-step
+# inspect/decide/remove-stale dance this replaced is redundant with
+# what the module already does; the old inline comment's premise
+# (docker_container_info's `State` shape being unverified in this
+# repo) doesn't apply here since this task uses docker_container
+# directly, not docker_container_info. Same single-task shape
+# start_seaweedfs_test_target.yaml's own throwaway target already
+# uses. 127.0.0.1 only, not 0.0.0.0 — see this file's header comment.
 - name: Run the real OpenBao image as a throwaway test target
-  ansible.builtin.command:
-    argv:
-      - docker
-      - run
-      - -d
-      - --name
-      - openbao-test
-      - --network
-      - "{{ molecule_helpers_openbao_network_name }}"
-      - -v
+  community.docker.docker_container:
+    name: openbao-test
+    image: openbao/openbao:2.5.4
+    command: server
+    networks:
+      - name: "{{ molecule_helpers_openbao_network_name }}"
+    volumes:
       - "{{ molecule_helpers_openbao_cert_dir }}:/openbao/certs:ro"
-      - -v
       - "{{ molecule_helpers_openbao_cert_dir }}/openbao.hcl:/openbao/config/openbao.hcl:ro"
-      - -v
       - "{{ molecule_helpers_openbao_data_dir }}:/openbao/data"
-      - -p
+    published_ports:
       - "127.0.0.1:{{ molecule_helpers_openbao_host_port }}:8200"
-      - --cap-add
+    capabilities:
       - IPC_LOCK
-      - -e
-      - BAO_SKIP_VERIFY=true
-      - openbao/openbao:2.5.4
-      - server
-  when: not molecule_helpers_openbao_already_running
-  changed_when: true
+    env:
+      BAO_SKIP_VERIFY: "true"
+    state: started
+    detach: true
 
 # Same exit-code-aware wait as spike-openbao-runtime-assumptions.sh's
 # own fix: `bao status` exits non-zero for both sealed (2) and
 # uninitialized (3), not just down — treating those as "responding" is
 # the whole point of this check, since we haven't initialized it yet.
-# rc defaulted to -1: right after `docker run -d`, an early exec
-# attempt can fail at the docker-API level itself (container not yet
-# queryable) rather than the command inside it actually running and
+# rc defaulted to -1: right after the container above starts, an early
+# exec attempt can fail at the docker-API level itself (container not
+# yet queryable) rather than the command inside it actually running and
 # exiting non-zero — that failure shape doesn't populate rc at all, and
 # with failed_when: false suppressing the task-level failure, the very
 # first `until` check would otherwise crash on a missing key instead of
@@ -384,42 +359,47 @@
       changed_when: true
       no_log: true
 
-    # ansible.builtin.command + argv with -e BAO_TOKEN=..., not
-    # docker_container_exec's env: parameter — same reasoning as the
-    # cert issuance above: precise, confirmed CLI behavior (this is
-    # exactly what spike-openbao-runtime-assumptions.sh already does)
-    # rather than a module parameter this repo has never exercised.
+    # community.docker.docker_container_exec's env: parameter, not raw
+    # `docker exec -e` — confirmed against the module's own source
+    # (docker_container_exec.py): env is passed straight through as
+    # the `Env` field of the same Docker Exec-create API call the
+    # `-e` CLI flag itself populates, so this is the identical
+    # mechanism, not an approximation. The module never fails the
+    # task on its own on a non-zero rc (confirmed the same way: it
+    # always exit_json()s), unlike ansible.builtin.command's default
+    # — every task below sets failed_when explicitly to keep that
+    # behavior.
     - name: Enable the kv-v2 secrets engine at secret/
-      ansible.builtin.command:
+      community.docker.docker_container_exec:
+        container: openbao-test
         argv:
-          - docker
-          - exec
-          - -e
-          - "BAO_TOKEN={{ molecule_helpers_openbao_root_token }}"
-          - openbao-test
           - bao
           - secrets
           - enable
           - -address=https://127.0.0.1:8200
           - -path=secret
           - kv-v2
+        env:
+          BAO_TOKEN: "{{ molecule_helpers_openbao_root_token }}"
+      register: molecule_helpers_openbao_kv_enable
       changed_when: true
+      failed_when: molecule_helpers_openbao_kv_enable.rc != 0
       no_log: true
 
     - name: Enable the approle auth method
-      ansible.builtin.command:
+      community.docker.docker_container_exec:
+        container: openbao-test
         argv:
-          - docker
-          - exec
-          - -e
-          - "BAO_TOKEN={{ molecule_helpers_openbao_root_token }}"
-          - openbao-test
           - bao
           - auth
           - enable
           - -address=https://127.0.0.1:8200
           - approle
+        env:
+          BAO_TOKEN: "{{ molecule_helpers_openbao_root_token }}"
+      register: molecule_helpers_openbao_approle_enable
       changed_when: true
+      failed_when: molecule_helpers_openbao_approle_enable.rc != 0
       no_log: true
 
     - name: Write the caller-supplied policy file (readable inside the container via the already-mounted certs dir)
@@ -429,30 +409,26 @@
         mode: "0644"
 
     - name: Upload the policy
-      ansible.builtin.command:
+      community.docker.docker_container_exec:
+        container: openbao-test
         argv:
-          - docker
-          - exec
-          - -e
-          - "BAO_TOKEN={{ molecule_helpers_openbao_root_token }}"
-          - openbao-test
           - bao
           - policy
           - write
           - -address=https://127.0.0.1:8200
           - "{{ molecule_helpers_openbao_approle_name }}"
           - /openbao/certs/policy.hcl
+        env:
+          BAO_TOKEN: "{{ molecule_helpers_openbao_root_token }}"
+      register: molecule_helpers_openbao_policy_write
       changed_when: true
+      failed_when: molecule_helpers_openbao_policy_write.rc != 0
       no_log: true
 
     - name: Create the AppRole role
-      ansible.builtin.command:
+      community.docker.docker_container_exec:
+        container: openbao-test
         argv:
-          - docker
-          - exec
-          - -e
-          - "BAO_TOKEN={{ molecule_helpers_openbao_root_token }}"
-          - openbao-test
           - bao
           - write
           - -address=https://127.0.0.1:8200
@@ -460,42 +436,53 @@
           - "token_policies={{ molecule_helpers_openbao_approle_name }}"
           - token_ttl=1h
           - secret_id_num_uses=0
+        env:
+          BAO_TOKEN: "{{ molecule_helpers_openbao_root_token }}"
+      register: molecule_helpers_openbao_role_create
       changed_when: true
+      failed_when: molecule_helpers_openbao_role_create.rc != 0
       no_log: true
 
+    # docker_container_exec's own strip_empty_ends default (true) trims
+    # the trailing newline `bao read`'s plain-text output otherwise has
+    # — the raw `docker exec` version this replaced didn't do this, so
+    # role_id's on-disk content loses a trailing "\n" it used to carry.
+    # ensure_secret.yaml reads this file as a plain string value, where
+    # a trailing newline was never meaningful, so this is confirmed
+    # against the module's own default, not assumed harmless — worth a
+    # live check anyway since this stage's own conversions haven't run
+    # against a real Molecule scenario yet (see the project doc).
     - name: Read the AppRole's role_id
-      ansible.builtin.command:
+      community.docker.docker_container_exec:
+        container: openbao-test
         argv:
-          - docker
-          - exec
-          - -e
-          - "BAO_TOKEN={{ molecule_helpers_openbao_root_token }}"
-          - openbao-test
           - bao
           - read
           - -address=https://127.0.0.1:8200
           - -field=role_id
           - "auth/approle/role/{{ molecule_helpers_openbao_approle_name }}/role-id"
+        env:
+          BAO_TOKEN: "{{ molecule_helpers_openbao_root_token }}"
       register: molecule_helpers_openbao_role_id_read
       changed_when: false
+      failed_when: molecule_helpers_openbao_role_id_read.rc != 0
       no_log: true
 
     - name: Mint a secret_id for the AppRole
-      ansible.builtin.command:
+      community.docker.docker_container_exec:
+        container: openbao-test
         argv:
-          - docker
-          - exec
-          - -e
-          - "BAO_TOKEN={{ molecule_helpers_openbao_root_token }}"
-          - openbao-test
           - bao
           - write
           - -address=https://127.0.0.1:8200
           - -field=secret_id
           - -f
           - "auth/approle/role/{{ molecule_helpers_openbao_approle_name }}/secret-id"
+        env:
+          BAO_TOKEN: "{{ molecule_helpers_openbao_root_token }}"
       register: molecule_helpers_openbao_secret_id_read
       changed_when: true
+      failed_when: molecule_helpers_openbao_secret_id_read.rc != 0
       no_log: true
 
     - name: Write role_id/secret_id to the caller's file cache (same paths ensure_secret.yaml reads)

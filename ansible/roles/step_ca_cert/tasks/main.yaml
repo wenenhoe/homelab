@@ -56,22 +56,17 @@
     # Simpler and more certain than trying to pre-chown a volume to
     # match the image's exact uid.
     - name: Request the initial cert from step-ca
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - --user
-          - root
-          - --network
-          - "{{ step_ca_cert_network_name }}"
-          - -v
+      community.docker.docker_container:
+        name: "step-ca-cert-issue-{{ step_ca_cert_app_name }}"
+        image: "{{ step_ca_cert_step_cli_image }}"
+        user: root
+        networks:
+          - name: "{{ step_ca_cert_network_name }}"
+        volumes:
           - "{{ step_ca_cert_certs_volume_name }}:/certs"
-          - -v
           - "/tmp/{{ step_ca_cert_app_name }}-cert-provisioner-password:/tmp/provisioner_password:ro"
-          - -v
           - "{{ step_ca_client_root_cert_path }}:/root_ca.crt:ro"
-          - "{{ step_ca_cert_step_cli_image }}"
+        command:
           - step
           - ca
           - certificate
@@ -91,13 +86,22 @@
           - --root
           - /root_ca.crt
           - --force
+        detach: false
+        cleanup: true
+        # Docker's own default driver is json-file (confirmed in
+        # community.docker.docker_container's own log_driver doc) —
+        # pinned explicitly so a real failure's `.msg` (below) carries
+        # step-cli's actual error instead of a driver placeholder.
+        log_driver: json-file
       register: step_ca_cert_issue_result
-      until: step_ca_cert_issue_result.rc == 0
+      until: step_ca_cert_issue_result.status == 0
       # step-ca may not have finished its own first-boot init yet (no
       # health-wait exists between Play 4's `docker compose up -d` and
-      # this play — see compose/tasks/deploy.yaml). `docker run --rm`
-      # guarantees the container is cleaned up after each attempt
-      # regardless of exit code, so retrying is safe.
+      # this play — see compose/tasks/deploy.yaml). `cleanup: true`
+      # with `detach: false` removes the container after each attempt
+      # regardless of exit code (confirmed in the module's own
+      # `container_start()`: cleanup runs before the exit-code check),
+      # the same guarantee `docker run --rm` gave, so retrying is safe.
       retries: 5
       delay: 10
       changed_when: true
@@ -110,20 +114,19 @@
     # username via that image's own /etc/passwd, not to run the app
     # itself.
     - name: Hand the issued cert back to its owning user so the app can read it
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - --user
-          - root
-          - -v
+      community.docker.docker_container:
+        name: "step-ca-cert-chown-{{ step_ca_cert_app_name }}"
+        image: "{{ step_ca_cert_chown_image }}"
+        user: root
+        volumes:
           - "{{ step_ca_cert_certs_volume_name }}:/certs"
-          - "{{ step_ca_cert_chown_image }}"
+        command:
           - chown
           - -R
           - "{{ step_ca_cert_chown_user }}:{{ step_ca_cert_chown_user }}"
           - /certs
+        detach: false
+        cleanup: true
       when: step_ca_cert_chown_image | length > 0
       changed_when: true
 

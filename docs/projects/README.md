@@ -179,7 +179,6 @@ skipping it is how a real fact gets lost instead of promoted.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`ansible-collections-audit.md`](ansible-collections-audit.md) | Building | Replace hand-rolled command/shell/uri tasks in ansible/roles/* with maintained collection modules where one fits. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |

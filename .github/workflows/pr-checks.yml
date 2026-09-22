@@ -15,7 +15,7 @@ jobs:
   # Scopes the expensive jobs below to what this PR actually touched —
   # see docs/ci.md#change-scoped-not-a-full-sweep.
   detect-changes:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       uv_lock: ${{ steps.filter.outputs.uv_lock }}
       any_compose: ${{ steps.filter.outputs.any_compose }}
@@ -157,7 +157,7 @@ jobs:
 
   # Unconditional — see docs/ci.md#change-scoped-not-a-full-sweep.
   pre-commit-checks:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -176,7 +176,7 @@ jobs:
   # merge-base of the PR's base and head (not the base tip itself), so a
   # branch that is behind doesn't see main's newer commits as its own.
   project-scope:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -197,7 +197,7 @@ jobs:
   ansible-lint:
     needs: detect-changes
     if: needs.detect-changes.outputs.ansible_lint == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -214,7 +214,7 @@ jobs:
   uv-lock:
     needs: detect-changes
     if: needs.detect-changes.outputs.uv_lock == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -235,7 +235,7 @@ jobs:
   python-unit-tests:
     needs: detect-changes
     if: needs.detect-changes.outputs.python_unit_tests == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -253,7 +253,7 @@ jobs:
   deploy-ordering-check:
     needs: detect-changes
     if: needs.detect-changes.outputs.deploy_ordering == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -350,7 +350,7 @@ jobs:
   molecule:
     needs: detect-changes
     if: needs.detect-changes.outputs.roles != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -398,7 +398,7 @@ jobs:
   compose-syntax-check:
     needs: detect-changes
     if: needs.detect-changes.outputs.any_compose == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -457,7 +457,7 @@ jobs:
   matrix-jobs-gate:
     needs: [molecule, compose-boot-test]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
       - name: Fail if molecule or compose-boot-test actually failed
         run: |

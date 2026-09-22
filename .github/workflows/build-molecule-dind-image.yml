@@ -27,7 +27,7 @@ jobs:
   # re-checks the two stayed in sync.
   detect-changes:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
@@ -52,7 +52,7 @@ jobs:
       needs.detect-changes.result != 'failure' &&
       needs.detect-changes.result != 'cancelled' &&
       (github.event_name != 'push' || needs.detect-changes.outputs.relevant == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write

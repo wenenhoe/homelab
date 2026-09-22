@@ -26,7 +26,7 @@ jobs:
   # same branch before the push, which is what we want here.
   detect-changes:
     if: github.event_name == 'push'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       dockerfile: ${{ steps.filter.outputs.dockerfile }}
     steps:
@@ -50,7 +50,7 @@ jobs:
       needs.detect-changes.result != 'failure' &&
       needs.detect-changes.result != 'cancelled' &&
       (github.event_name != 'push' || needs.detect-changes.outputs.dockerfile == 'true')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       packages: write

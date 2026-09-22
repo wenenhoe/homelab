@@ -3,8 +3,8 @@
 every time a project or decision lineage is added or changes status:
 
 - docs/projects/README.md: `## Index` (always).
-- docs/project-planning.md: `## By initiative` and `## Needs a
-  project` (always).
+- docs/project-planning.md: `## Super Projects`, `## Projects`, and
+  `## Decisions awaiting a project` (always).
 - docs/decisions/README.md: `## Lineages`, grouped by topic (only if
   that heading exists).
 
@@ -69,6 +69,25 @@ def render_projects_table(root: Path = ROOT) -> str:
     return "\n".join([header, *rows])
 
 
+def render_standalone_projects_table(root: Path = ROOT) -> str:
+    """Projects with no `super_project`: the complement of the Super
+    Projects view below. Same three columns as projects/README.md's own
+    Index (this function's rows are a filtered copy of that table, not
+    a different shape), rendered with the `projects/` prefix since this
+    lives one level above docs/projects/.
+    """
+    projects = _load_projects(root)
+    rows = [
+        f"| [`{path.name}`](projects/{path.name}) | {project_status_text(fm, _waiting_on(fm, projects, prefix='projects/'))} | {fm['summary']} |"
+        for path, fm in projects.values()
+        if "super_project" not in fm
+    ]
+    if not rows:
+        return "Every project belongs to a super-project."
+    header = "| Project | Status | Covers |\n| :--- | :--- | :--- |"
+    return "\n".join([header, *rows])
+
+
 def _dependency_depths(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
     """How far down its dependency chain each project sits: 0 with no existing
     predecessor, else one more than its deepest. Reading order for the initiative
@@ -114,11 +133,23 @@ def render_initiatives_table(root: Path = ROOT) -> str:
         if n == 1:
             print(f"warning: super_project '{initiative}' is used by one project only — a typo, or not yet an initiative", file=sys.stderr)
     # Renders into docs/project-planning.md, one level above docs/projects/ — every link needs that prefix.
-    rows = [
-        f"| `{initiative}` | {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`](projects/{name}) "
-        f"| {project_status_text(fm, _waiting_on(fm, projects, prefix='projects/'))} |"
-        for initiative, track, phase, _, name, fm in labelled
-    ]
+    # Initiative repeats down a run of rows since the sort above already
+    # groups them contiguously; blank it on every row after the first of
+    # a run so the table reads as one block per initiative instead of
+    # repeating the label. Track is left printed every row — see the
+    # Track/Phase columns' own grouping instead. A blank cell renders as
+    # a single space between its pipes ("| |"), not the two spaces a
+    # populated cell's padding would otherwise leave — MD060's compact
+    # table style (.config/.markdownlint.yaml) flags the latter.
+    rows = []
+    prev_initiative: str | None = None
+    for initiative, track, phase, _, name, fm in labelled:
+        initiative_cell = f" `{initiative}` " if initiative != prev_initiative else " "
+        prev_initiative = initiative
+        rows.append(
+            f"|{initiative_cell}| {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`](projects/{name}) "
+            f"| {project_status_text(fm, _waiting_on(fm, projects, prefix='projects/'))} |"
+        )
     return "\n".join(["| Initiative | Track | Phase | Project | Status |\n| :--- | :--- | :--- | :--- | :--- |", *rows])
 
 
@@ -302,8 +333,9 @@ def main() -> int:
     validate_adrs()
     regenerate(ROOT / "docs/projects/README.md", "Index", render_projects_table())
     touched = ["docs/projects/README.md"]
-    regenerate(ROOT / "docs/project-planning.md", "By initiative", render_initiatives_table())
-    regenerate(ROOT / "docs/project-planning.md", "Needs a project", render_needs_project_table())
+    regenerate(ROOT / "docs/project-planning.md", "Super Projects", render_initiatives_table())
+    regenerate(ROOT / "docs/project-planning.md", "Projects", render_standalone_projects_table())
+    regenerate(ROOT / "docs/project-planning.md", "Decisions awaiting a project", render_needs_project_table())
     touched.append("docs/project-planning.md")
     if regenerate(ROOT / "docs/decisions/README.md", "Lineages", render_lineages_index(), optional=True):
         touched.append("docs/decisions/README.md")

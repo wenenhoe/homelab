@@ -1,16 +1,24 @@
 # Project Planning
 
-Two generated, cross-cutting views; neither is a rules doc. For what a
+Three generated, cross-cutting views; none is a rules doc. For what a
 project is and its lifecycle, see [`projects/README.md`](projects/README.md);
 for what an ADR is and its revision states, see
 [`decisions/README.md`](decisions/README.md).
 
-**By initiative** groups projects by build order — tracks by their
-earliest project in the dependency chain, then phases by slug, then
-projects by dependency depth, per
+**Super Projects** groups every project that belongs to one
+(`super_project:` is set) by build order — tracks by their earliest
+project in the dependency chain, then phases by slug, then projects by
+dependency depth, per
 [`projects/README.md`'s Hierarchy section](projects/README.md#hierarchy).
+A repeated initiative name is blanked after its first row so the table
+reads as one block per initiative.
 
-**Needs a project** lists every ADR lineage with an open
+**Projects** is every project with no `super_project` — the complement
+of the view above, in the same shape as
+[`projects/README.md`'s own Index](projects/README.md#index), filtered
+down to the ones not part of any initiative.
+
+**Decisions awaiting a project** lists every ADR lineage with an open
 (`working`/`approved`) revision that appears in no project's
 `decision:` or `also_implements:` — see
 [ADR 0037 revision 1](decisions/0037-decision-and-project-documentation-workflow/revision-001.md)
@@ -20,30 +28,37 @@ are single-PR-sized and don't need one, and this table can't see a
 project that references the lineage only in prose without either field
 set. It narrows where to look; it doesn't replace looking.
 
-## By initiative
+## Super Projects
 
 | Initiative | Track | Phase | Project | Status |
 | :--- | :--- | :--- | :--- | :--- |
 | `coding-agent-host` | `boundary` | `1-network` | [`coding-agent-network.md`](projects/coding-agent-network.md) | De-risking |
-| `coding-agent-host` | `boundary` | `2-host` | [`coding-agent-host.md`](projects/coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| `coding-agent-host` | `boundary` | `3-network-as-code` | [`coding-agent-network-as-code.md`](projects/coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md), [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| `coding-agent-host` | `lifecycle` | — | [`coding-agent-management.md`](projects/coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| `coding-agent-host` | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md), [`workstation-management.md`](projects/workstation-management.md) |
-| `coding-agent-host` | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
+| | `boundary` | `2-host` | [`coding-agent-host.md`](projects/coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
+| | `boundary` | `3-network-as-code` | [`coding-agent-network-as-code.md`](projects/coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md), [`coding-agent-network.md`](projects/coding-agent-network.md) |
+| | `lifecycle` | — | [`coding-agent-management.md`](projects/coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
+| | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md), [`workstation-management.md`](projects/workstation-management.md) |
+| | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | `controller-separation` | `operator` | — | [`operator-host.md`](projects/operator-host.md) | De-risking |
-| `controller-separation` | `workstation` | `1-management` | [`workstation-management.md`](projects/workstation-management.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
-| `controller-separation` | `workstation` | `2-reduction` | [`workstation-capability-reduction.md`](projects/workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`workstation-management.md`](projects/workstation-management.md) |
+| | `workstation` | `1-management` | [`workstation-management.md`](projects/workstation-management.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
+| | `workstation` | `2-reduction` | [`workstation-capability-reduction.md`](projects/workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`workstation-management.md`](projects/workstation-management.md) |
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | Building |
-| `off-site-monitoring` | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped |
+| | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped |
 | `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | De-risking |
-| `pull-based-cd` | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | De-risking |
-| `pull-based-cd` | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
+| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | De-risking |
+| | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | De-risking |
-| `tofu-vm-provisioning` | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
-| `tofu-vm-provisioning` | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) |
-| `tofu-vm-provisioning` | `opnsense` | — | [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) |
+| | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
+| | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) |
+| | `opnsense` | — | [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) |
 
-## Needs a project
+## Projects
+
+| Project | Status | Covers |
+| :--- | :--- | :--- |
+| [`ansible-collections-audit.md`](projects/ansible-collections-audit.md) | Building | Replace hand-rolled command/shell/uri tasks in ansible/roles/* with maintained collection modules where one fits. |
+| [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
+
+## Decisions awaiting a project
 
 | ADR | Problem | Current solution | Status |
 | :--- | :--- | :--- | :--- |

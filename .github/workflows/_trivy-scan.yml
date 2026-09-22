@@ -33,7 +33,7 @@ permissions:
 jobs:
   ansible-misconfig-scan:
     if: inputs.run-ansible
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     # Trivy's ansible scanner never reads ansible.cfg's `roles_path` —
     # confirmed against pkg/iac/scanners/ansible/parser/parser.go
     # (resolveRolePath): it only checks a `roles/` dir sitting next to
@@ -108,7 +108,7 @@ jobs:
 
   secret-scan:
     if: inputs.run-secrets
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     permissions:
       contents: read
       security-events: write

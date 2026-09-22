@@ -35,125 +35,15 @@ jobs:
         id: filter
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
-          filters: |
-            uv_lock:
-              - 'pyproject.toml'
-              - 'uv.lock'
-            any_compose:
-              - 'docker/**/compose*.yaml'
-            # Gates deploy-ordering-check — see docs/ci.md#deploy-ordering-check
-            # for what it catches and why each path below is in scope.
-            deploy_ordering:
-              - 'ansible/inventory/**'
-              - 'ansible/playbooks/**'
-              - 'ansible/roles/secrets/**'
-              - 'ansible/roles/restore/**'
-              - 'pyproject.toml'
-              - 'uv.lock'
-            # Gates whether the job runs at all — the hook itself always
-            # scans the full ansible/ tree regardless of which files in
-            # it changed. Not pyproject.toml/uv.lock: the hook's own
-            # additional_dependencies: [ansible] runs in an isolated
-            # venv, unrelated to this repo's uv-managed ansible-core pin.
-            ansible_lint:
-              - 'ansible/**'
-              - '.config/.ansible-lint'
-              - '.config/.pre-commit-config.yaml'
-            # Gates trivy-scan's Ansible misconfig job below — narrower
-            # than ansible_lint on purpose (ansible/** only, no lint
-            # config), since a change to .ansible-lint or pre-commit's
-            # own config doesn't change what Trivy would find.
-            trivy_ansible:
-              - 'ansible/**'
-            # ansible/tests/ and tools/tests/ have no molecule/ scenario
-            # of their own (see docs/ci.md#change-scoped-not-a-full-sweep)
-            # — these are plain controller-side Python, covered by
-            # ansible/tests/ and tools/tests/ instead.
-            python_unit_tests:
-              # restore_all.py is the only script left here, now at
-              # ansible/scripts/ - its test (test_restore_all.py)
-              # lives in ansible/tests/, already its own trigger path
-              # below; this one catches changes to the script itself.
-              # bootstrap_secrets.py/audit_secrets.py/the two
-              # restore_*_from_backup.py scripts (merged into one)/
-              # dump_vault_to_file_cache.py/diff_vault_backups.py all
-              # moved to tools/openbao_utils/ (ADR 0032, docs/decisions/
-              # 0032-where-openbao-utility-scripts-live/revision-000.md) - covered by
-              # the tools/openbao_utils/** trigger below instead.
-              - 'ansible/scripts/*.py'
-              - 'tools/cloud_credentials/**'
-              - 'tools/openbao_utils/**'
-              - 'tools/utils/**'
-              - 'ansible/molecule-coverage/molecule_cov/**'
-              # Sibling of molecule_cov/ above - test_callback_plugin.py
-              # imports it directly via sys.path, same pattern.
-              - 'ansible/molecule-coverage/callback_plugins/**'
-              - 'ansible/tests/**'
-              - 'tools/tests/**'
-              # tools/tests/doc_scripts/ imports these directly via
-              # sys.path.
-              - '.github/scripts/*.py'
-              # Not under ansible/ — imported via sys.path in
-              # ansible/tests/test_r2_read_watcher.py (see that file's
-              # own docstring for why).
-              - 'docker/openbao/watcher/r2_read_watcher.py'
-              - 'pyproject.toml'
-              - 'uv.lock'
+          filters: .github/detect-changes-filters.yml
 
       - name: Determine which ansible roles to test
         id: roles
-        run: |
-          # Any file under ansible/roles/<role>/ maps to that role, except
-          # three repo-wide cases below that queue every role instead —
-          # see docs/ci.md#change-scoped-not-a-full-sweep for why.
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          changed=$(git diff --name-only "$BASE" "$HEAD")
-
-          roles=()
-          if echo "$changed" | grep -qE '^ansible/requirements\.yml$|^ansible/roles/molecule_helpers/|^pyproject\.toml$|^uv\.lock$'; then
-            for d in ansible/roles/*/molecule; do
-              [ -d "$d" ] || continue
-              roles+=("$(basename "$(dirname "$d")")")
-            done
-          else
-            while IFS= read -r role; do
-              [ -d "ansible/roles/$role/molecule" ] || continue
-              roles+=("$role")
-            done < <(echo "$changed" | grep -oE '^ansible/roles/[^/]+' | sed 's#ansible/roles/##' | sort -u)
-          fi
-
-          json=$(printf '%s\n' "${roles[@]:-}" | jq -R . | jq -sc 'map(select(length > 0))')
-          echo "roles=$json" >> "$GITHUB_OUTPUT"
-          echo "Testing roles: $json"
+        run: .github/scripts/detect-changed-roles.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
       - name: Determine which compose stacks to boot-test
         id: compose
-        run: |
-          # Exclusion list + per-app reasoning lives in
-          # .github/compose-boot-test-exclusions.txt — the single source
-          # of truth shared with compose-syntax-check below and
-          # boot-test-all.yml's list-apps.
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          changed=$(git diff --name-only "$BASE" "$HEAD")
-          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
-
-          # -f drops deleted compose files (git diff lists them too) —
-          # same guard the 'roles' step above applies via -d.
-          apps=()
-          while IFS= read -r app; do
-            [ -f "docker/$app/compose.yaml" ] || continue
-            apps+=("$app")
-          done < <(echo "$changed" \
-            | grep -oE '^docker/[^/]+/compose\.yaml$' \
-            | sed -E 's#docker/([^/]+)/compose\.yaml#\1#' \
-            | grep -vE "^($excluded)\$" \
-            | sort -u)
-
-          json=$(printf '%s\n' "${apps[@]:-}" | jq -R . | jq -sc 'map(select(length > 0))')
-          echo "apps=$json" >> "$GITHUB_OUTPUT"
-          echo "Boot-testing: $json"
+        run: .github/scripts/detect-changed-compose-apps.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
   # Single-writer cache population — see docs/ci.md#cache-warming for why
   # this exists as its own job rather than letting every uv-consuming job

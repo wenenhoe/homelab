@@ -43,7 +43,7 @@ Update at the start and end of each PR that works a stage.
 | 2 | Task-shape sweep of the remaining command/shell/uri-heavy roles | Done | every flagged role's tasks reviewed; finds and no-fits recorded below |
 | 3 | `secrets` role's AppRole login → `community.hashi_vault.vault_login`; its KV read/write and `molecule_helpers`' OpenBao CLI setup found no fit (see below) | Done | `vault_login.yaml` uses the module; the two no-fits are recorded below |
 | 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Done | the three roles use module equivalents where one exists |
-| 5 | `molecule_helpers`'s throwaway cert generation → `community.crypto` | Not started | `molecule_helpers` uses the module |
+| 5 | `molecule_helpers`'s throwaway cert generation → `community.crypto` | Done | `molecule_helpers` uses the module |
 | 6 | `secrets` role's molecule coverage: close the uuid4-generation gap (PR #232's own coverage regression, 97.1 → 93.0) | Done | `rotate_secret` also rotates a uuid4-format secret; `thresholds.yaml`'s `secrets` entry raised to reflect it |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -342,6 +342,64 @@ conversions.
 
 New dependency, test-only blast radius (`molecule_helpers`'s throwaway
 self-signed cert). Lowest priority of the five.
+
+`start_lldap_test_target.yaml`'s single `openssl req -x509 ...`
+`command` task is now three `community.crypto` tasks — key, CSR, cert —
+rather than a single `openssl_csr_pipe` + in-memory `csr_content` call,
+because `x509_certificate`'s own idempotence check only compares
+against an *existing file* at `csr_path`; the pipe form has no existing
+state to compare against and reports changed on every run, which would
+have broken the `idempotence` step both real callers' `molecule.yml`
+`test_sequence` already run — `lldap_bootstrap` and `tinyauth`, which
+both actually `include_role`/`tasks_from: start_lldap_test_target.yaml`.
+Not `tinyauth_ca_trust` or `step_ca_cert`: both were miscounted as
+callers in an earlier revision of this note, caught on reread — they
+only *mention* this file in a comment. `tinyauth_ca_trust`'s own
+converge.yml says so explicitly ("Deliberately NOT
+start_lldap_test_target.yaml's openssl self-signed fixture"), and
+`step_ca_cert`'s host_vars deploys the real `docker/lldap/compose.yaml`
+instead. Confirmed the target genuinely needs
+`python3-cryptography` first, the same shape of per-target dependency
+Stage 1 found for `boto3`/`botocore` — this role runs with
+`become: true` against the molecule instance itself (not `localhost`),
+so `community.crypto` needs the library on that Python interpreter, not
+the controller's. `selfsigned_not_after: +1d` recomputes relative to
+"now" on every run, but `x509_certificate`'s `ignore_timestamps`
+defaults to `true` — confirmed against
+`module_utils/_crypto/module_backends/certificate.py`'s
+`needs_regeneration()` at the pinned 3.4.0 tag, not assumed from the
+option's doc string — so that recomputation doesn't force a
+regeneration on the idempotence run, unlike Stage 3's `vault_login`
+(which hardcodes `changed=True` and needed `changed_when: false`
+instead).
+
+Version pinned against `community.crypto`'s own `CHANGELOG.rst` release
+headers (latest entry: `v3.4.0`), not `galaxy.yml` on its `main`
+branch — same caution Stage 3 already applied to
+`community.hashi_vault`: `main`'s `galaxy.yml` is at `3.5.0`, but no
+`3.5.0` tag exists yet (confirmed against the tag itself, not just the
+changelog), which looks identical to a real pin until `ansible-galaxy`
+can't find it.
+
+**Confirmed live, not just from source.** This sandbox has no Docker,
+so the three new tasks themselves were first proven with
+`ansible-playbook` against real `localhost` instead, run verbatim
+(copied out of the real task file, not reimplemented) twice in a row:
+the first run produced a real 2048-bit RSA key, a CSR with `subject:
+[["CN", "lldap.molecule.test"]]` and `subjectAltName:
+["DNS:lldap.molecule.test"]` exactly matching what the old
+`-subj`/`-addext` flags asked for, and a cert with
+`notBefore`/`notAfter` one calendar day apart; the second run against
+the same files reported `changed=0` across all three tasks — the
+`ignore_timestamps` reasoning above confirmed as real behavior, not
+just read from source.
+
+Since then, `lldap_bootstrap`'s actual `molecule test` — real Docker,
+real `idempotence` step, the full scenario this stage's task shape is
+built around — has been run for real and reported no issues. `tinyauth`
+(the only other real caller, same task file, same vars shape) hasn't
+been independently re-run; low risk given it exercises the identical
+code path, but still open, not assumed.
 
 ### Stage 6 — `secrets` role molecule coverage (PR #232 regression)
 

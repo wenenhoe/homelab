@@ -70,9 +70,19 @@ open question, not a settled "no."
 
 Per-node Tailscale ACL tags: none found (`tailscale status --self
 --json`'s `Self` has no `Tags` key). The tailnet-wide ACL policy itself
-— what any node, tagged or not, is actually allowed to reach — hasn't
-been reviewed; that lives in the Tailscale admin console, not on the
-host.
+— what any node, tagged or not, is actually allowed to reach — is the
+default allow-all grant (ADR 0058's Context), held only in the
+Tailscale admin console; see
+[ADR 0059](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)
+for where it goes from here.
+
+Re-authenticating this node after a rebuild ([`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md))
+needs an auth key created out of band. An auth key that tags the node on
+creation puts it under a `tagOwners` entry in the policy, and a tag is
+also what route auto-approval keys off — so the Ansible role's auth-key
+handling and ADR 0059's policy-as-code work may not be as separable as
+"role first, policy later" suggests. Not resolved yet; check before the
+role's auth-key design is written.
 
 ## Bringing a new `network_infra` host under management
 

@@ -45,7 +45,7 @@ against:
 | 104 | Win11Pro | stopped | Template; uses KMS on `services` |
 | 105 | Win11ProGPU | stopped | Template |
 | 201 | OPNsense | running | Gateway |
-| 202 | Tailscale | stopped | Subnet router, `192.168.20.0/24` |
+| 202 | Tailscale | running | Subnet router, `192.168.20.0/24` |
 | 203 | Services | running | Ansible-managed |
 | 204 | Play | running | Ansible-managed (Minecraft) |
 | 205 | Security | running | Ansible-managed |

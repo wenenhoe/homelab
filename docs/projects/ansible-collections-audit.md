@@ -41,7 +41,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | `seaweedfs_bucket` → `amazon.aws.s3_bucket` | Done | the role uses the module; the molecule scenarios pass |
 | 2 | Task-shape sweep of the remaining command/shell/uri-heavy roles | Done | every flagged role's tasks reviewed; finds and no-fits recorded below |
-| 3 | `secrets` role's AppRole login → `community.hashi_vault.vault_login`; its KV read/write and `molecule_helpers`' OpenBao CLI setup found no fit (see below) | In progress | `vault_login.yaml` uses the module; the two no-fits are recorded below |
+| 3 | `secrets` role's AppRole login → `community.hashi_vault.vault_login`; its KV read/write and `molecule_helpers`' OpenBao CLI setup found no fit (see below) | Done | `vault_login.yaml` uses the module; the two no-fits are recorded below |
 | 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Not started | the three roles use module equivalents where one exists |
 | 5 | `molecule_helpers`'s throwaway cert generation → `community.crypto` | Not started | `molecule_helpers` uses the module |
 | 6 | `secrets` role's molecule coverage: close the uuid4-generation gap (PR #232's own coverage regression, 97.1 → 93.0) | Done | `rotate_secret` also rotates a uuid4-format secret; `thresholds.yaml`'s `secrets` entry raised to reflect it |
@@ -199,7 +199,9 @@ response to a `dest` file, which this task never did — confirmed in
 both modules' own source, not assumed, once this surfaced for real.
 `changed_when: false` restores the original behavior, same reasoning
 the tempfile create/write pair below already documents for the
-identical situation.
+identical situation. Confirmed on a real re-run of all six of this
+role's scenarios afterward: no errors, `vault_backed`'s idempotence
+included.
 
 **No fit: `read_vault_kv.yaml` / `process_vault_secrets.yaml`'s KV
 read/write.** This role's whole generate-if-missing design leans on

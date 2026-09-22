@@ -67,7 +67,15 @@ class InitiativesTableTest(_TmpRoot):
             table = gen.render_initiatives_table(self.root)
         self.assertEqual(
             table.splitlines()[2:],
-            ["| `pull-based-cd` | — | — | [`a.md`](projects/a.md) | Building |", "| `pull-based-cd` | — | — | [`b.md`](projects/b.md) | Not started |"],
+            # Second row's initiative cell is blank: it's the same
+            # initiative as the row above, and rows in one initiative
+            # always sort contiguously.
+            [
+                "| `pull-based-cd` | — | — | [`a.md`](projects/a.md) | Building |",
+                # Blank cell renders as one space between its pipes, not
+                # two — MD060's compact table style flags "|  |".
+                "| | — | — | [`b.md`](projects/b.md) | Not started |",
+            ],
         )
         self.assertEqual(err.getvalue(), "")
 
@@ -81,7 +89,21 @@ class InitiativesTableTest(_TmpRoot):
             [line.split("|")[4].strip() for line in table.splitlines()[2:]],
             ["[`loose.md`](projects/loose.md)", "[`infra.md`](projects/infra.md)", "[`early.md`](projects/early.md)", "[`late.md`](projects/late.md)"],
         )
-        self.assertIn("| `cd` | `security` | `bootstrap` | [`early.md`](projects/early.md) |", table)
+        # `early` isn't the first row of the `cd` initiative, so its
+        # initiative cell is blank even though Track/Phase print every row.
+        self.assertIn("| | `security` | `bootstrap` | [`early.md`](projects/early.md) |", table)
+
+    def test_initiative_cell_is_only_blanked_within_a_contiguous_run(self):
+        project(self.root, "a1", super_project="a")
+        project(self.root, "b1", super_project="b")
+        project(self.root, "a2", super_project="a", depends_on=[{"project": "PROJ-a1", "reason": "x"}])
+        table = gen.render_initiatives_table(self.root)
+        # Sort groups by initiative first, so the two `a` rows land
+        # together even though `a2` was declared before `b1`'s row here.
+        self.assertEqual(
+            [line.split("|")[1].strip() for line in table.splitlines()[2:]],
+            ["`a`", "", "`b`"],
+        )
 
     def _order(self) -> list[str]:
         with contextlib.redirect_stderr(io.StringIO()):
@@ -150,6 +172,31 @@ class InitiativesTableTest(_TmpRoot):
     def test_no_labels(self):
         project(self.root, "a")
         self.assertEqual(gen.render_initiatives_table(self.root), "No project is grouped into an initiative.")
+
+
+class StandaloneProjectsTableTest(_TmpRoot):
+    def rows(self) -> list[str]:
+        return gen.render_standalone_projects_table(self.root).splitlines()[2:]
+
+    def test_only_projects_without_a_super_project_are_listed(self):
+        project(self.root, "a", super_project="pull-based-cd")
+        project(self.root, "b")
+        self.assertEqual(self.rows(), ["| [`b.md`](projects/b.md) | Not started | b summary |"])
+
+    def test_links_and_waiting_on_use_the_projects_prefix(self):
+        project(self.root, "base")
+        project(self.root, "next", depends_on=[{"project": "PROJ-base", "reason": "needs its output"}])
+        self.assertEqual(
+            self.rows(),
+            [
+                "| [`base.md`](projects/base.md) | Not started | base summary |",
+                "| [`next.md`](projects/next.md) | Not started — waiting on [`base.md`](projects/base.md) | next summary |",
+            ],
+        )
+
+    def test_no_standalone_projects(self):
+        project(self.root, "a", super_project="pull-based-cd")
+        self.assertEqual(gen.render_standalone_projects_table(self.root), "Every project belongs to a super-project.")
 
 
 class LineagesIndexTest(_TmpRoot):

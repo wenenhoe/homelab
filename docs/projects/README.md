@@ -23,7 +23,7 @@ gates it.
 
 - **Super-project** — a large initiative that needs several projects. A
   label (`super_project:`), not a document; see
-  [By initiative](../project-planning.md#by-initiative).
+  [Super Projects](../project-planning.md#super-projects).
 - **Track** — an independent stream of work within a super-project
   (`track:`).
 - **Phase** — an ordered grouping within a track (`phase:`).
@@ -37,7 +37,7 @@ level is required; don't add one for naming's sake. Decompose a broad
 initiative top-down, or add a `super_project` label once existing
 projects turn out to be coupled — both are fine.
 
-The generated [By initiative](../project-planning.md#by-initiative) view reads in build order:
+The generated [Super Projects](../project-planning.md#super-projects) view reads in build order:
 tracks by their earliest project in the dependency chain, then phases by
 slug, then projects by dependency depth. Where an order isn't a
 dependency (two stages that merely go one after the other), make them
@@ -91,7 +91,7 @@ to `accepted` as a side effect; when it does, add that revision to
 Stage 2 sets ADR 0050 to `accepted`) is the existing example.
 `also_implements:` doesn't gate anything — `check-doc-drift.py` only
 confirms each entry resolves to a real revision — it exists so
-[`project-planning.md`'s "Needs a project"](../project-planning.md#needs-a-project)
+[`project-planning.md`'s "Decisions awaiting a project"](../project-planning.md#decisions-awaiting-a-project)
 view can tell this ADR is covered without scanning every project's
 prose for a mention. Don't confuse this with a project that simply has
 no `decision:` yet because nothing is `approved` —

@@ -42,7 +42,7 @@ Update at the start and end of each PR that works a stage.
 | 1 | `seaweedfs_bucket` → `amazon.aws.s3_bucket` | Done | the role uses the module; the molecule scenarios pass |
 | 2 | Task-shape sweep of the remaining command/shell/uri-heavy roles | Done | every flagged role's tasks reviewed; finds and no-fits recorded below |
 | 3 | `secrets` role's AppRole login → `community.hashi_vault.vault_login`; its KV read/write and `molecule_helpers`' OpenBao CLI setup found no fit (see below) | Done | `vault_login.yaml` uses the module; the two no-fits are recorded below |
-| 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Not started | the three roles use module equivalents where one exists |
+| 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Done | the three roles use module equivalents where one exists |
 | 5 | `molecule_helpers`'s throwaway cert generation → `community.crypto` | Not started | `molecule_helpers` uses the module |
 | 6 | `secrets` role's molecule coverage: close the uuid4-generation gap (PR #232's own coverage regression, 97.1 → 93.0) | Done | `rotate_secret` also rotates a uuid4-format secret; `thresholds.yaml`'s `secrets` entry raised to reflect it |
 
@@ -250,11 +250,93 @@ this collection covers, so nothing here will ever fit it.
 
 ### Stage 4 — `community.docker` consistency pass
 
-No new dependency — already pinned. Mechanical: replace raw
-`command: [docker, ...]` with `community.docker.docker_container`/
-`docker_container_exec`/`docker_image_info` where a direct module
-equivalent exists, in `molecule_helpers`, `openbao`, and
-`step_ca_cert`.
+No new dependency — already pinned. Turned out less mechanical than
+Stage 2's shape-level sweep suggested: read against the collection's
+own source at the pinned 5.3.0 tag (`module_utils/_module_container/`
+and each module's own `RETURN` docs), not assumed from familiarity
+with the general modules, since this sandbox has no Docker to check
+any of it live.
+
+**Shipped: `molecule_helpers`' `openbao-test` container lifecycle.**
+The old three-task dance (`docker inspect` → decide "already running"
+vs "stale" → `docker rm -f` if stale → `docker run -d`) is replaced by
+a single `community.docker.docker_container` task with
+`state: started`. Confirmed against `present()` in
+`module_utils/_module_container/module.py`, not assumed from the
+module's docs alone: an existing container is only stopped-and-
+recreated when its resolved configuration actually differs from the
+task's parameters; otherwise a stopped one is simply started in place
+and a running one is left alone — the exact "already running vs stale"
+distinction the manual `docker inspect` step existed to make. This also
+corrects that step's own comment, which the reading disproves: it
+justified the raw `docker inspect` + `from_json` approach on
+`docker_container_info`'s `.container.State.*` shape being "unverified
+in this repo," but `docker_container_info`'s own `RETURN` doc states
+its `container` field "matches the docker inspection output" — the
+same JSON `docker inspect` already returns, `State.Running` included.
+
+**Shipped, on reread: every remaining `docker run --rm`/`docker exec`
+call that reads command output or passes `BAO_TOKEN` via `-e`.** The
+first pass through this stage recorded these as a no-fit (see git
+history for that revision); asked to look again, both objections
+turned out to have a concrete fix once actually pinned down against
+the module source, rather than being genuine dead ends:
+
+- `community.docker.docker_container`'s output capture
+  (`container.Output`, with `detach: false` + `cleanup: true` standing
+  in for `docker run --rm`) only returns the real command output when
+  the container's logging driver is `json-file`, `journald`, or
+  `local` — confirmed in `get_container_output()`
+  (`module_utils/_module_container/docker_api.py`): any other driver
+  returns a placeholder string naming the driver instead of the actual
+  output. The fix is to stop depending on the daemon's own default and
+  set `log_driver: json-file` explicitly on the task — confirmed as a
+  real, ordinary module parameter (`docker_container.py`'s own doc:
+  "Docker uses json-file by default"), not a workaround. Applied to
+  `openbao/tasks/main.yaml`'s UID read, and to the cert-issuance tasks
+  in both `step_ca_cert/tasks/main.yaml` and
+  `molecule_helpers/start_openbao_test_target.yaml` (for a clean
+  `.msg` on a real failure, even though those two don't consume
+  `Output` directly). The plain chown/chmod tasks that never read
+  output didn't need it.
+  `community.docker.docker_container`'s own `status != 0` handling
+  (confirmed in `container_start()`: cleanup runs and the task is
+  failed *after*, in that order) already fails the task automatically
+  on a non-zero exit, the same as `ansible.builtin.command`'s default —
+  no explicit `failed_when` needed on any of these.
+- `community.docker.docker_container_exec`'s `env:` parameter is passed
+  straight through as the `Env` field of the same Docker Exec-create
+  API call the `-e` CLI flag itself populates (confirmed in
+  `docker_container_exec.py`) — the identical mechanism, not an
+  approximation, so the "unexercised module parameter" objection
+  doesn't hold once actually read. The real gap this reading found
+  instead: unlike `ansible.builtin.command`, this module never fails
+  the task itself on a non-zero `rc` — confirmed in its own source, it
+  always calls `exit_json()`, success or not (the same hardcoded-result
+  pattern Stage 3 already found in `vault_login`). Every converted task
+  now sets `failed_when: <result>.rc != 0` explicitly to keep the
+  original fail-on-error behavior. One more difference worth flagging:
+  `docker_container_exec`'s `strip_empty_ends` default (`true`) trims
+  the trailing newline `bao read`'s output otherwise has, which the raw
+  `docker exec` version didn't do — noted inline on "Read the AppRole's
+  role_id", since it changes the exact bytes written to
+  `molecule_helpers_openbao_role_id_dest`.
+
+Neither of these needed a live daemon to resolve — both were resolved
+by reading the collection's own source at the pinned tag, the same
+evidence standard Stage 3 already used for its own no-fits.
+
+Confirmed live: every `secrets` and `step_ca_cert` Molecule scenario
+run for real, coverage thresholds held at 95.3 and 100.0 respectively
+— unchanged from `ansible/molecule-coverage/thresholds.yaml`'s own
+pinned values, so this stage's conversions caused no regression.
+`step_ca_cert`'s `signal_chown` scenario is the one that actually
+exercises `openbao/tasks/main.yaml`'s two converted tasks (it's the
+only scenario anywhere that runs that role at all — see the role's own
+molecule-testing.md entry) as well as this role's own cert-issuance/
+chown-back conversion; `secrets`' `vault_backed`/`rotate_secret`
+scenarios cover `molecule_helpers/start_openbao_test_target.yaml`'s
+conversions.
 
 ### Stage 5 — `community.crypto` for test certs
 

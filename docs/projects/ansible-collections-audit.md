@@ -44,6 +44,7 @@ Update at the start and end of each PR that works a stage.
 | 3 | `secrets` role's AppRole login → `community.hashi_vault.vault_login`; its KV read/write and `molecule_helpers`' OpenBao CLI setup found no fit (see below) | In progress | `vault_login.yaml` uses the module; the two no-fits are recorded below |
 | 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Not started | the three roles use module equivalents where one exists |
 | 5 | `molecule_helpers`'s throwaway cert generation → `community.crypto` | Not started | `molecule_helpers` uses the module |
+| 6 | `secrets` role's molecule coverage: close the uuid4-generation gap (PR #232's own coverage regression, 97.1 → 93.0) | Done | `rotate_secret` also rotates a uuid4-format secret; `thresholds.yaml`'s `secrets` entry raised to reflect it |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -257,6 +258,52 @@ equivalent exists, in `molecule_helpers`, `openbao`, and
 
 New dependency, test-only blast radius (`molecule_helpers`'s throwaway
 self-signed cert). Lowest priority of the five.
+
+### Stage 6 — `secrets` role molecule coverage (PR #232 regression)
+
+PR #232 (flattening `resolve_vault_generated_secret.yaml` into the
+batched `process_vault_secrets.yaml`) dropped `secrets`' own
+coverage threshold from 97.1 to 93.0. Read against the real coverage
+report (not guessed from the diff): three tasks account for the whole
+gap, out of 43 total —
+
+- `Re-read after losing a create race` and `Index Vault re-read
+  results by secret name` (`process_vault_secrets.yaml:258`/`274`) —
+  only exercised by two genuinely concurrent writers racing the same
+  `cas=0` create. **Deliberately not pursued**: the only non-flaky way
+  to trigger a real Vault CAS conflict here is two Molecule platform
+  hosts both running the role against the same shared `vault_scope`
+  secret — reproducing the exact mechanism `main.yaml`'s own header
+  comment already documents ("runs once per host, each delegating to
+  localhost") — and that was weighed and set aside as not worth
+  building for this project. Accepted, permanent gap, not a no-fit
+  awaiting a future fix like Stage 3's two below it.
+- `Generate a fresh uuid4 value in memory` (`generate_vault_value.yaml:29`)
+  — its `when:` (`format == 'uuid4'`) was never satisfied by any
+  scenario. `rotate_secret` is the only caller of this file at all
+  (confirmed by the coverage report itself — every other scenario
+  shows `never_observed` on both of its generate tasks), and its own
+  fixture only ever rotated a hex-format secret.
+
+Fixed: `rotate_secret`'s `secrets_registry` gained a second,
+uuid4-format entry (`secrets-molecule-rotate-uuid4-example`), and its
+converge now runs the real `rotate-secret.yaml` playbook a second time
+(Play 2c) against it — same real playbook, not a reimplementation,
+just a different `secret_name`. `verify.yml` asserts the same four
+things the existing hex checks do: the value actually changed, the new
+value is a real UUID4, Vault's own KV version incremented by exactly
+one, and that version is genuinely `> 1` (an update, not a create).
+
+Verified the specific new code path live, not just read — this
+sandbox has no Docker, so the full scenario's own DinD platform and
+step-ca sibling couldn't run here, but the two tasks that actually
+changed (`generate_vault_value.yaml`'s uuid4 branch, and the
+`cas=<version>` write) were run verbatim against a real OpenBao target
+seeded with a real uuid4 secret: the hex task correctly skipped, the
+uuid4 task fired and produced a real UUID4, the write succeeded, and
+Vault's own KV version went 1 → 2. `thresholds.yaml`'s `secrets` entry
+raised to 95.3 (41/43) accordingly — worth confirming against a real
+`molecule test` run, which needs Docker this sandbox doesn't have.
 
 ## Acceptance criteria
 

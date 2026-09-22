@@ -73,6 +73,21 @@
 # live on this same pinned image that PutPublicAccessBlock and
 # PutBucketLogging aren't implemented (see .config/.trivyignore's
 # AWS-0086/0087/0091/0093/0089 entries for how this was confirmed).
+#
+# This task also always warns "Failed to get bucket ownership settings
+# (permission denied)" — confirmed live with a raw `aws s3api
+# get-bucket-ownership-controls` call, which comes back a clean
+# AccessDenied, not a connection or parsing failure. Harmless: that
+# call's access check (weed/s3api/s3api_acp.go's
+# checkAccessByOwnership) doesn't consult the `actions` list in
+# s3-identity.json.j2 at all — it only passes SeaweedFS's built-in
+# AccountAdmin or the bucket's own Owner account, both of which come
+# from SeaweedFS's separate account/IAM-role model. Our
+# identities.json.j2 uses the flat actions-list model instead, so
+# every identity here — including seaweedfs-bucket-admin's
+# bucket-scoped `Admin:` grant — resolves to the anonymous account for
+# this one call and gets denied regardless of scope. Widening that
+# grant would not fix it; nothing to change here if it reappears.
 - name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
   amazon.aws.s3_bucket:
     name: "{{ offsite_backup_s3_bucket }}"

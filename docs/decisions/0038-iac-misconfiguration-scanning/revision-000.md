@@ -7,6 +7,7 @@ solution: Trivy for Ansible now; Checkov once OpenTofu code lands, then covering
 summary: Which scanner checks Ansible and OpenTofu for misconfiguration, without a separate migration for each.
 topic: security-hardening
 status: working
+related: [ADR-0048]
 ---
 
 # Checkov for OpenTofu when it lands; Trivy stays for Ansible misconfig scanning until then

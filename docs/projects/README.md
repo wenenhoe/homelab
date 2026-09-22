@@ -79,6 +79,21 @@ open items. Update the stage table at the start and end of each PR that
 works a stage. If a stage's prose starts explaining why X over Y, stop
 and write or extend the ADR instead.
 
+A project's `decision:` is singular, but its stages can carry out more
+than one ADR. When a stage's exit condition sets a *different*
+lineage's revision to `accepted`, say so in prose where that stage is
+described, name the revision, and state plainly that it has no project
+of its own — [`coding-agent-access-path.md`](coding-agent-access-path.md)
+(`decision: ADR-0055/0`, and its Stage 2 also sets ADR 0050 to
+`accepted`) is the existing example. Don't confuse this with a project
+that simply has no `decision:` yet because nothing is `approved` —
+[`cd-agent.md`](cd-agent.md) (ADR 0044, still two competing candidates)
+is that separate, already-covered case: no ADR is being carried out
+there, one just isn't chosen yet. This isn't a second `decision:`
+field — `check-doc-drift.py`'s gating still reads only the one — it's
+how a reader finds the ADR without a project without having to search
+every project's prose for a mention.
+
 ## Stop conditions
 
 Whoever is implementing — human or agent — stops and hands the decision

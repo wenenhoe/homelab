@@ -406,14 +406,14 @@
       groupSlug: "ansible-galaxy-minor-patch",
     },
 
-    // community.docker/ansible.posix/amazon.aws are pinned identically
-    // in ansible/requirements.yml (real playbook runs) and
+    // community.docker/ansible.posix/amazon.aws/community.hashi_vault are
+    // pinned identically in ansible/requirements.yml (real playbook runs) and
     // ansible/roles/molecule_helpers/requirements.yml (what molecule tests
     // against) — same reasoning as the docker-image pairs above: group them
     // so the test fixture can't silently drift from what's actually run.
     {
       matchManagers: ["ansible-galaxy"],
-      matchDepNames: ["community.docker", "ansible.posix", "amazon.aws"],
+      matchDepNames: ["community.docker", "ansible.posix", "amazon.aws", "community.hashi_vault"],
       groupName: "ansible galaxy collections (playbook + molecule — must move together)",
       groupSlug: "ansible-galaxy-core",
     },

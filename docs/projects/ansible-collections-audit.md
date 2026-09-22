@@ -186,6 +186,20 @@ token also carrying Vault's built-in `default` policy for
 left off to keep this a like-for-like swap rather than a new implicit
 dependency.
 
+The first real `molecule test` run against `vault_backed` (this
+sandbox can't run Molecule itself — no Docker egress — so this needed
+someone actually running it) caught something the standalone spike
+didn't: idempotence failed on this exact task. The module's own
+source hardcodes `changed = True` for every non-`token` auth method
+("a login is technically a write operation"), on every run,
+unconditionally; `ansible.builtin.uri` (the raw call this replaced)
+defaults `changed=False` and only sets `True` when writing the
+response to a `dest` file, which this task never did — confirmed in
+both modules' own source, not assumed, once this surfaced for real.
+`changed_when: false` restores the original behavior, same reasoning
+the tempfile create/write pair below already documents for the
+identical situation.
+
 **No fit: `read_vault_kv.yaml` / `process_vault_secrets.yaml`'s KV
 read/write.** This role's whole generate-if-missing design leans on
 plain HTTP status codes as data (`status_code: [200, 404]` on read,

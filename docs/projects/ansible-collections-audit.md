@@ -14,14 +14,17 @@ a maintained collection module could replace outright — real
 idempotence and error handling in place of a workaround, at the cost
 of a new collection dependency per role that adopts one. Currently
 pinned: `community.docker` (5.3.0), `ansible.posix` (2.2.2),
-`amazon.aws` (9.4.0) — per `ansible/requirements.yml`.
+`amazon.aws` (11.4.0), `community.hashi_vault` (7.1.0) — per
+`ansible/requirements.yml`.
 
 ## Scope
 
 Roles under `ansible/roles/*` whose `command`/`shell`/`uri` tasks a pinned or new
 collection module can replace. Not in scope: the tasks Stage 2 reviewed and
 found no fit for (`compose`'s volume-filtered `docker ps`, `fwupd`, `telegram_topic_pins`,
-the `secrets` role's hex/uuid generation).
+the `secrets` role's hex/uuid generation), and the two Stage 3 found no fit for
+(`secrets`' own KV read/write status-code branching, `molecule_helpers`'
+OpenBao init/unseal/policy/AppRole bootstrap — see Stage 3 below for both).
 
 ## Decision
 
@@ -38,7 +41,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | `seaweedfs_bucket` → `amazon.aws.s3_bucket` | Done | the role uses the module; the molecule scenarios pass |
 | 2 | Task-shape sweep of the remaining command/shell/uri-heavy roles | Done | every flagged role's tasks reviewed; finds and no-fits recorded below |
-| 3 | `secrets` role's 3 Vault `uri` tasks + `molecule_helpers`' OpenBao CLI setup → `community.hashi_vault` | Not started | a spike shows AppRole login works with the custom-CA pattern (`secrets_vault_ca_tempfile`); the tasks use the module |
+| 3 | `secrets` role's AppRole login → `community.hashi_vault.vault_login`; its KV read/write and `molecule_helpers`' OpenBao CLI setup found no fit (see below) | In progress | `vault_login.yaml` uses the module; the two no-fits are recorded below |
 | 4 | `molecule_helpers`/`openbao`/`step_ca_cert`'s raw `docker run`/`exec` → `community.docker` (already pinned) | Not started | the three roles use module equivalents where one exists |
 | 5 | `molecule_helpers`'s throwaway cert generation → `community.crypto` | Not started | `molecule_helpers` uses the module |
 
@@ -127,15 +130,106 @@ Every flagged role's actual tasks were read, not just counted:
 
 ### Stage 3 — `community.hashi_vault`
 
-New collection dependency. Covers `secrets` role's 3 production Vault
-tasks and `molecule_helpers`' test-side OpenBao setup. Worth building
-alongside — not instead of —
+New collection dependency (7.1.0). The install path that actually
+matters is `ansible/requirements.yml` — `ansible-lint`'s pre-push hook,
+the CI molecule job's own setup step, and README.md's documented dev
+setup (`ansible-galaxy collection install -r ansible/requirements.yml`)
+all read it directly. `ansible/roles/molecule_helpers/requirements.yml`
+is also kept in sync (same `renovate.json5` `ansible-galaxy-core` group
+as `community.docker`/`ansible.posix`/`amazon.aws`) since it's what
+`.config/molecule/config.yml`'s `dependency: galaxy` block names — but
+checked, not assumed: no scenario's own `test_sequence` (this role's
+six included) actually lists a `dependency` step, so that block never
+fires during `molecule test` today. Keeping the file in sync is still
+correct — matches the existing three collections' own precedent, and
+costs nothing if `dependency` is ever wired back in — but installing
+the collection is really just the one `ansible-galaxy` command above;
+running it again after this stage lands is a normal step, not a sign
+either requirements file is wrong.
+The version itself is confirmed against the
+collection's own `CHANGELOG.rst` release headers, not `galaxy.yml` on
+its `main` branch — `main`'s `galaxy.yml` had already been bumped to
+`7.2.0` as the in-progress next version before that version was
+actually released, which looks identical to a real pin until
+`ansible-galaxy` can't find it.
+Worth building alongside — not instead of —
 [`0030-openbao-client-implementation-in-repo-python/revision-000.md`](../decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md)'s
 Python-side `hvac` work, since both are the same underlying client
-library, just two different calling conventions (Ansible module vs.
-Python import). Needs a spike: does `community.hashi_vault`'s AppRole
-login handle the same custom-CA-verify pattern
-(`secrets_vault_ca_tempfile`) the raw `uri` tasks do today.
+library (already a `pyproject.toml`/`uv.lock` controller dependency,
+`hvac>=2.3`, so this stage needed no new Python package), just two
+different calling conventions.
+
+By the time this stage ran, PR #232 had already reshaped the "3 Vault
+`uri` tasks" this stage's title used to name: they're now 6, spread
+across `vault_login.yaml` (1, the AppRole login), `process_vault_secrets.yaml`
+(3, added by that PR's batching), and `read_vault_kv.yaml`/
+`rotate-secret.yaml` (1 each, unchanged). The spike answered the
+AppRole/custom-CA question for the first of those, and surfaced two
+real no-fits for the rest.
+
+**Shipped: `vault_login.yaml`'s AppRole login.** Confirmed live, not
+just against the docs — a real OpenBao 2.6.2 binary (built from
+GitHub's own release, not Docker, since this spike ran in a sandbox
+with no Docker egress) with the actual production `controller.hcl`
+policy applied: `community.hashi_vault.vault_login`'s `ca_cert` takes
+the exact same plain CA-file path `secrets_vault_ca_tempfile.path`
+already is, and returns the token at `login.auth.client_token`. Ran
+the two production tasks verbatim (copy-pasted, not reimplemented)
+against that real target, then made an independent, separate call with
+the resulting token to confirm it actually carries the `controller`
+policy — not just that the login call itself returned 200.
+`token_validate: false` is deliberate: the module's own default
+(`true`) adds a self-lookup call after every login that the raw `uri`
+version never made, and that call's own success depends on every
+token also carrying Vault's built-in `default` policy for
+`lookup-self` — not something `controller.hcl` grants explicitly, so
+left off to keep this a like-for-like swap rather than a new implicit
+dependency.
+
+**No fit: `read_vault_kv.yaml` / `process_vault_secrets.yaml`'s KV
+read/write.** This role's whole generate-if-missing design leans on
+plain HTTP status codes as data (`status_code: [200, 404]` on read,
+`[200, 400]` on the racing `cas=0` write) — `vault_kv2_get`/
+`vault_kv2_write` don't expose one; they're `hvac` wrappers that raise
+and get turned into a `fail_json`. Confirmed live, down to the exact
+returned dict, not inferred from source alone:
+
+- A missing secret's `vault_kv2_get` failure `.msg` is a stable,
+  distinguishable string (`"Invalid or missing path ['%s'] with secret
+  version '%s'. Check the path or secret version."`) — this half is a
+  workable swap, checking `'Invalid or missing path' in
+  result.msg` rather than a bare `.failed` (which would also swallow a
+  real `Forbidden`/permission error into "must not exist yet, generate
+  a new one" — a correctness regression today's status-code check
+  doesn't have).
+- The write side isn't workable the same way. Losing the `cas=0` race
+  raises `hvac.exceptions.InvalidRequest: check-and-set parameter did
+  not match the current version` — confirmed against the real server —
+  but `vault_kv2_write`'s own source discards that text:
+  `module.fail_json(msg="InvalidRequest writing to '%s'" % path, ...)`.
+  Ran it for real with `failed_when: false`: `.msg` is exactly that
+  generic string, no "check-and-set", no `.status`/`412` anywhere. Ran
+  it again inside `block`/`rescue` in case `ansible_failed_result`
+  preserved more: `.exception` comes back as the literal string
+  `"(traceback unavailable)"` on this Ansible version (2.21.4), not the
+  traceback it names. There's no way through the module's current
+  public interface to tell "lost the create race" apart from any other
+  `InvalidRequest`. Left on the raw `uri` tasks, unless a future
+  release of the collection exposes this more cleanly — nothing in its
+  current changelog suggests one is planned.
+
+**No fit at all: `molecule_helpers`' OpenBao test-target bootstrap**
+(`start_openbao_test_target.yaml`'s `docker exec ... bao ...` calls —
+init, unseal, enable `kv-v2`/`approle`, write the policy, create the
+role, mint `role_id`/`secret_id`). Not a status-code/exception mismatch
+this time — confirmed by listing every module the collection ships
+(`plugins/modules/` on its `main` branch): it's purely a secrets-access
+client (`vault_read`/`vault_write`/`vault_kv1_*`/`vault_kv2_*`/
+`vault_database_*`/`vault_pki_generate_certificate`/`vault_login`/
+`vault_token_create`). No `operator_init`, `operator_unseal`, or any
+`sys/mounts`/`sys/auth` module exists to replace what this bootstrap
+does — that's Vault administration, not the secret-consumption surface
+this collection covers, so nothing here will ever fit it.
 
 ### Stage 4 — `community.docker` consistency pass
 
@@ -152,7 +246,7 @@ self-signed cert). Lowest priority of the five.
 
 ## Acceptance criteria
 
-- [ ] No hand-rolled `command`/`shell`/`uri` task remains in `ansible/roles/*` where a maintained module fits; the rest are recorded under Stage 2 as reviewed no-fits.
+- [ ] No hand-rolled `command`/`shell`/`uri` task remains in `ansible/roles/*` where a maintained module fits; the rest are recorded under Stage 2 or Stage 3 as reviewed no-fits.
 - [ ] Every new collection is pinned in `ansible/requirements.yml`.
 - [ ] The molecule scenarios pass for every role touched.
 
@@ -180,9 +274,12 @@ deploys — worth a deliberate first-deploy watch, not assumed safe.
   live that it doesn't need `boto3` controller-side at all (see Stage 1
   detail above), so there's no existing entry for that stage to reuse
   or collide with.
-- `docker`/`compose_app` aren't flagged here since `community.docker`
-  is already pinned and likely already covers them — confirm during
-  Stage 2 rather than assume.
+- ~~`docker`/`compose_app` aren't flagged here...~~ Resolved: checked
+  both roles' `tasks/` directly — neither has any `command`/`shell`/
+  `uri` task at all. `docker` is `apt`/`file`/`get_url`/
+  `deb822_repository`/`systemd`/`user` only; `compose_app` only
+  dispatches into `compose` (already Stage 2's own finding) via
+  `include_role`. Nothing here for this project to do.
 
 ## Closing checklist
 

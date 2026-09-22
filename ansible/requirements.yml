@@ -6,3 +6,5 @@ collections:
     version: "2.2.2"
   - name: amazon.aws
     version: "11.4.0"
+  - name: community.hashi_vault
+    version: "7.1.0"

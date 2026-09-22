@@ -4,7 +4,12 @@ all:
     ansible_python_interpreter: /usr/bin/python3.14
     ansible_ssh_private_key_file: ~/.ssh/proxmox_vm_servers
     ansible_become_exe: /usr/bin/sudo.ws
-    # For Ubuntu 26.04, use non-rs sudo. Source: https://askubuntu.com/a/1566915
+    # sudo-rs (Ubuntu's default sudo since 25.10) does not fully replace
+    # the prompt Ansible matches on for become, so a bare sudo password
+    # request can hang until timeout. Upstream fix ansible/ansible#86175
+    # shipped in ansible-core 2.19.10 and was reverted in that same
+    # release; not confirmed fixed as of ansible-core 2.21. Tracking:
+    # https://bugs.launchpad.net/bugs/2122414
 
   children:
     # Every real, managed server (everything except the controller itself,

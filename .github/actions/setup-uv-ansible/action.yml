@@ -2,10 +2,11 @@ name: Setup uv + Ansible Galaxy collections
 description: >-
   Installs uv, optionally checks uv.lock is current, syncs the dev
   environment, and optionally caches + installs Ansible Galaxy
-  collections. Every CI job needing this toolchain used to hand-roll its
-  own copy of this sequence with small variations (--locked or not, a
-  lock-check step or not, Galaxy collections or not) — this action covers
-  all of those via inputs so the step sequence itself has one copy.
+  collections and/or pre-commit's own hook environments. Every CI job
+  needing this toolchain used to hand-roll its own copy of this
+  sequence with small variations (--locked or not, a lock-check step or
+  not, Galaxy collections or not) — this action covers all of those via
+  inputs so the step sequence itself has one copy.
   Caller is still responsible for checkout beforehand.
 
 inputs:
@@ -53,6 +54,23 @@ inputs:
       install-galaxy-collections is also "true".
     required: false
     default: "false"
+  install-precommit-hooks:
+    description: >-
+      Restore pre-commit's own hook-environment cache (~/.cache/pre-commit)
+      and run `pre-commit install-hooks -c .config/.pre-commit-config.yaml`,
+      leaving it built for a later `pre-commit run` step in the same job.
+      Skip for jobs that never invoke pre-commit (uv-lock,
+      deploy-ordering-check, molecule, compose-boot-test).
+    required: false
+    default: "false"
+  save-precommit-cache:
+    description: >-
+      Same one-writer reasoning as save-uv-cache/save-galaxy-cache above,
+      for pre-commit's own hook-environment cache specifically. Only
+      pr-checks.yml's warm-pre-commit-cache job sets "true". Has no
+      effect unless install-precommit-hooks is also "true".
+    required: false
+    default: "false"
 
 runs:
   using: composite
@@ -74,6 +92,44 @@ runs:
     - name: Sync dev environment
       shell: bash
       run: uv sync --group dev${{ inputs.locked == 'true' && ' --locked' || '' }}
+
+    # Restore-only: same reasoning as the Galaxy collections block
+    # below. cache-primary-key (not a second hashFiles(...) call) is
+    # what the save step below reuses, so the key expression has
+    # exactly one copy.
+    - name: Restore pre-commit hook environments cache
+      id: pre-commit-cache-restore
+      if: inputs.install-precommit-hooks == 'true'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/pre-commit
+        key: pre-commit-${{ runner.os }}-${{ hashFiles('.config/.pre-commit-config.yaml') }}
+
+    # Builds/completes whatever the restore above didn't already
+    # provide — a no-op per hook already present, so this is cheap on a
+    # cache hit and does real work only against a genuinely new
+    # .pre-commit-config.yaml. Docker-image-language hooks
+    # (hadolint-docker, dclint-docker) have no persistent environment
+    # for this to build in the first place (confirmed against a real
+    # ~/.cache/pre-commit: their repo dirs stay under 2MB regardless,
+    # unlike ansible-lint's isolated `ansible` venv at ~500MB) — the
+    # image itself is Docker's own layer cache, untouched by this one.
+    - name: Install pre-commit hook environments
+      if: inputs.install-precommit-hooks == 'true'
+      shell: bash
+      run: uv run pre-commit install-hooks -c .config/.pre-commit-config.yaml
+
+    # cache-hit != 'true' skips a pointless re-upload when the restore
+    # above already found this exact key.
+    - name: Save pre-commit hook environments cache
+      if: >-
+        inputs.install-precommit-hooks == 'true' &&
+        inputs.save-precommit-cache == 'true' &&
+        steps.pre-commit-cache-restore.outputs.cache-hit != 'true'
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ~/.cache/pre-commit
+        key: ${{ steps.pre-commit-cache-restore.outputs.cache-primary-key }}
 
     # Restore-only: every caller does this, matrix entries included, so
     # it must never attempt to write — concurrent restores of the same

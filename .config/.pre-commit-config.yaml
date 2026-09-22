@@ -70,6 +70,16 @@ repos:
         # justified inline (`# hadolint ignore=DLxxxx # reason`) next to
         # the line they apply to, not a repo-wide ignore list — see
         # docker/caddy/Dockerfile and docker/molecule-dind/Dockerfile.
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1-1
+    hooks:
+      # No files: override (unlike dclint-docker/hadolint-docker above):
+      # every script here is a real .sh with a #!/usr/bin/env bash
+      # shebang, which the default `types: [shell]` already detects.
+      # No args either — confirmed clean (default severity, no
+      # --external-sources needed: nothing here sources another file)
+      # against every .sh in the repo before adding this hook.
+      - id: shellcheck
   - repo: local
     hooks:
       - id: generate-doc-indexes

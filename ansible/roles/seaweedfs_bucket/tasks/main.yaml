@@ -61,6 +61,18 @@
 # unlike the previous implementation: an already-existing bucket is
 # just `changed: false` from this module, not an error to special-case
 # around.
+#
+# versioning: true — confirmed live against the pinned SeaweedFS image
+# (ghcr.io/chrislusf/seaweedfs:4.47, see docker/seaweedfs/compose.yaml.j2):
+# PutBucketVersioning succeeds on this version. Trivy's AWS-0090 flags a
+# versionless bucket; the module docs note versioning "can only be
+# suspended" once enabled, not turned back off, so this is a one-way
+# change to this bucket's behavior, not just a lint fix.
+#
+# public_access and logging are deliberately not set here — confirmed
+# live on this same pinned image that PutPublicAccessBlock and
+# PutBucketLogging aren't implemented (see .config/.trivyignore's
+# AWS-0086/0087/0091/0093/0089 entries for how this was confirmed).
 - name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
   amazon.aws.s3_bucket:
     name: "{{ offsite_backup_s3_bucket }}"
@@ -69,6 +81,7 @@
     access_key: "{{ seaweedfs_admin_access_key }}"
     secret_key: "{{ seaweedfs_admin_secret_key }}"
     region: us-east-1
+    versioning: true
   register: seaweedfs_bucket_create
   until: >-
     seaweedfs_bucket_create is succeeded

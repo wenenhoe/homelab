@@ -11,4 +11,35 @@
 # each entry directly above it, matching that file's style, rather than
 # tracking justifications elsewhere.
 #
-# Empty for now — nothing has been triaged as accepted risk yet.
+# ansible/roles/seaweedfs_bucket/tasks/main.yaml's amazon.aws.s3_bucket
+# task sets public_access to satisfy these, targeting SeaweedFS (pinned
+# ghcr.io/chrislusf/seaweedfs:4.47, see docker/seaweedfs/compose.yaml.j2)
+# via endpoint_url. Confirmed live against that exact pinned image: a
+# PutPublicAccessBlock call returns "NotImplemented: A header you
+# provided implies functionality that is not implemented" — there's no
+# working API on this version to set these against, so adding the
+# parameter would only add a task that fails at apply time. SeaweedFS's
+# own S3 API compatibility docs list this operation as supported in
+# their current release, so this is a version gap, not a permanent one
+# — revisit if the pinned image is ever upgraded. `exp:` set to three
+# months out rather than left open-ended, so this comes back for a
+# fresh re-check on a homelab-appropriate cadence instead of silently
+# riding along forever. `<ID> exp:YYYY-MM-DD` confirmed live against
+# this exact Trivy version (0.74.0): a past date lets the finding fire
+# again, a future date suppresses it — this isn't documented in
+# Trivy's own --help output, so confirmed against actual behavior
+# rather than assumed from the flag name.
+AWS-0086 exp:2026-12-22
+AWS-0087 exp:2026-12-22
+AWS-0091 exp:2026-12-22
+AWS-0093 exp:2026-12-22
+
+# Same task and same pinned SeaweedFS image as above. Confirmed live: a
+# PutBucketLogging call doesn't return a clean "unsupported" error — it
+# falls through to the bucket-creation path and returns
+# "BucketAlreadyOwnedByYou", so there's no working write side to
+# configure. Matches SeaweedFS's own compatibility docs, which list
+# GetBucketLogging as supported (always returns an empty status) but
+# PutBucketLogging as not implemented at all. Same three-month `exp:`
+# as the entries above, for the same reason.
+AWS-0089 exp:2026-12-22

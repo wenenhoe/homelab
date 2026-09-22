@@ -62,6 +62,7 @@ unwritten and raise it privately.
 | Doc | Covers |
 | :--- | :--- |
 | [`conventions.md`](conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics. |
+| [`project-planning.md`](project-planning.md) | Generated cross-cutting views: projects by build order, and open ADRs no project covers yet. |
 | [`nist-800-53-alignment.md`](nist-800-53-alignment.md) | Selective, narrative NIST SP 800-53 alignment — which existing decisions resemble which control's intent, and one control evaluated and left unmapped. Not a compliance artifact. |
 | [`ansible.md`](ansible.md) | Playbook, role, and inventory reference tables. |
 | [`deployment-flow.md`](deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
@@ -74,7 +75,7 @@ unwritten and raise it privately.
 
 | Doc | Covers |
 | :--- | :--- |
-| [`vm-provisioning.md`](vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: the `tofu-vm-provisioning` initiative in [`projects/README.md`](projects/README.md#by-initiative). |
+| [`vm-provisioning.md`](vm-provisioning.md) | Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](project-planning.md#by-initiative). |
 
 ### Per-app infra
 

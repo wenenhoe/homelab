@@ -183,6 +183,11 @@ def project_errors(root: Path = ROOT) -> list[str]:
                 )
             else:
                 graph[pid].append(target)
+        for ref in fm.get("also_implements", []):
+            m = REVISION_REF_RE.match(ref)
+            rev = revisions.get((m.group(1), m.group(2)))
+            if rev is None:
+                errors.append(f"{rel}: also_implements {ref} doesn't resolve to a lineage revision")
         if "decision" not in fm:
             continue
         m = REVISION_REF_RE.match(fm["decision"])

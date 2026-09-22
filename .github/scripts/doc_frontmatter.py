@@ -139,6 +139,10 @@ def _validate_project(path: Path, data: dict) -> None:
             _fail(path, f"'{field}' needs '{parent}': a {field} belongs to one")
     if "decision" in data and not (isinstance(data["decision"], str) and REVISION_REF_RE.match(data["decision"])):
         _fail(path, "'decision' must be a single revision reference like ADR-0013/2")
+    if "also_implements" in data:
+        refs = data["also_implements"]
+        if not isinstance(refs, list) or not refs or not all(isinstance(r, str) and REVISION_REF_RE.match(r) for r in refs):
+            _fail(path, "'also_implements' must be a non-empty list of revision references like ADR-0013/2")
     if "allowed_paths" in data:
         paths = data["allowed_paths"]
         if not isinstance(paths, list) or not paths or not all(isinstance(p, str) and p.strip() for p in paths):

@@ -227,6 +227,7 @@ network access or real cloud credentials needed. See
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 - [`hadolint`](https://github.com/hadolint/hadolint) — lints every `Dockerfile`, via its Docker-image variant
+- [`shellcheck`](https://github.com/shellcheck-py/shellcheck-py) — lints every `*.sh`
 - `generate-doc-indexes` (local) — regenerates the index tables in `docs/projects/README.md`, `docs/project-planning.md`, and `docs/decisions/README.md` from each doc's YAML frontmatter; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`.github/scripts/generate-doc-indexes.py`](.github/scripts/generate-doc-indexes.py)
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
 - `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`.github/scripts/check-doc-drift.py`](.github/scripts/check-doc-drift.py)
@@ -244,11 +245,15 @@ default). `ansible-lint` also gets `--project-dir ansible`, since it
 resolves `roles_path` relative to cwd rather than the config file.
 `ruff` is one exception — its config lives in `pyproject.toml` at
 the repo root, which it finds on its own, so no `-c` flag or
-`.config/` entry exists for it. `hadolint` is the other: its accepted-risk
+`.config/` entry exists for it. `hadolint` is another: its accepted-risk
 findings are per-file, so they're justified inline with
 `# hadolint ignore=DLxxxx # reason` comments next to the line they apply
 to (`docker/caddy/Dockerfile`, `docker/molecule-dind/Dockerfile`) rather
-than a repo-wide `.config/` ignore list.
+than a repo-wide `.config/` ignore list. `shellcheck` is the third: no
+args and no `.config/` entry either, since the repo's `.sh` scripts are
+already clean at its default severity — a future finding worth
+suppressing would get the same per-line treatment as `hadolint`'s
+(`# shellcheck disable=SCxxxx # reason`), not a repo-wide config.
 
 Run `pre-commit install` once after
 cloning. CI enforces the same checks on every PR regardless of whether

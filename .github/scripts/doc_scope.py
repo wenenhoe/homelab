@@ -17,8 +17,9 @@ from doc_frontmatter import REVISION_REF_RE, ROOT
 
 PROJECT_DOC_RE = re.compile(r"docs/projects/(?!(?:README|TEMPLATE)\.md$)[^/]+\.md")
 # Bookkeeping the workflow itself produces for any project change: every project doc,
-# and the generated decisions index (the generated projects index is a project doc's sibling).
-IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/decisions/README.md")
+# and the generated views a status change regenerates (the projects index is a project
+# doc's sibling; the decisions index and project-planning.md live elsewhere).
+IMPLICIT_PATTERNS = ("docs/projects/*.md", "docs/decisions/README.md", "docs/project-planning.md")
 
 
 def glob_to_regex(pattern: str) -> re.Pattern[str]:

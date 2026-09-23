@@ -133,8 +133,9 @@ bound nothing.
 A change is tied to a project by touching its doc, which any change that
 works a stage already does. Every other file that change touches must
 match `allowed_paths`, apart from what the workflow itself produces:
-project docs, the generated decisions index, and the revision the
-project's `decision:` names, so the permitted ADR edits stay possible. A
+project docs, the generated decisions index and project-planning view
+(a status change regenerates both), and the revision the project's
+`decision:` names, so the permitted ADR edits stay possible. A
 change that touches no project doc isn't project work and isn't checked.
 One that touches several scoped projects gets the union of their scopes.
 

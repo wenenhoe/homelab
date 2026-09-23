@@ -145,11 +145,40 @@ review_leaf() {
     exit 0
   fi
 
-  local outfile
+  local outfile ok=0 attempt=1 max_attempts=2
   outfile="$(output_dir)/$(echo "$path" | tr '/' '_').jsonl"
-  echo "--- reviewing $path -> $outfile ---"
-  run_review_docker "$ROOT_COMMIT" --dir "$path" --agent | tee "$outfile"
+
+  while [ "$attempt" -le "$max_attempts" ]; do
+    echo "--- reviewing $path (attempt $attempt/$max_attempts) -> $outfile ---"
+    # Wrapped in `if`, not a bare statement — under set -e/pipefail a bare
+    # pipeline failure here would kill the *entire* full-review run on one
+    # flaky directory, not just fail this one. CLI 0.7.7+ exits nonzero on
+    # a failed/incomplete review (WebSocket closed, etc.), so this was a
+    # real gap, not a hypothetical one.
+    if run_review_docker "$ROOT_COMMIT" --dir "$path" --agent | tee "$outfile"; then
+      ok=1
+      break
+    fi
+    # The CLI marks some errors "recoverable":true (e.g. a closed
+    # WebSocket) — worth one automatic retry rather than giving up on the
+    # first transient disconnect. Anything else stops retrying here; the
+    # reviewedFiles check below already fails safe either way.
+    if grep -q '"errorType":"connection"' "$outfile" 2>/dev/null && grep -q '"recoverable":true' "$outfile" 2>/dev/null; then
+      echo "WARNING: recoverable connection error on $path — retrying." >&2
+      attempt=$((attempt + 1))
+      sleep 5
+      continue
+    fi
+    break
+  done
+
   REVIEWS_DONE=$((REVIEWS_DONE + 1))
+
+  if [ "$ok" -ne 1 ]; then
+    echo "WARNING: $path did not complete — NOT marking done. Check $outfile." >&2
+    FAILED_LEAVES+=("$path")
+    return 0
+  fi
 
   # Mark done only if the CLI's own reviewedFiles actually names something
   # under this path — trusting the request rather than the result is
@@ -262,6 +291,7 @@ cmd_full_review() {
   [ -n "${1:-}" ] && MAX_PER_RUN="$1"
   mkdir -p "$(output_dir)"
   REVIEWS_DONE=0
+  FAILED_LEAVES=()
   ROOT_COMMIT="$(resolve_root_commit)"
 
   local leaves=() p
@@ -277,6 +307,10 @@ cmd_full_review() {
   done
 
   echo "Full review complete — $REVIEWS_DONE review(s) run this pass."
+  if [ "${#FAILED_LEAVES[@]}" -gt 0 ]; then
+    echo "Did not complete (still pending, re-run to retry):"
+    printf '  - %s\n' "${FAILED_LEAVES[@]}"
+  fi
 }
 
 cmd_status() {

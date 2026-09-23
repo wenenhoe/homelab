@@ -145,17 +145,25 @@ review_leaf() {
     exit 0
   fi
 
-  local outfile ok=0 attempt=1 max_attempts=2
+  local outfile ok=0 attempt=1 max_attempts=2 attempt_file
   outfile="$(output_dir)/$(echo "$path" | tr '/' '_').jsonl"
 
   while [ "$attempt" -le "$max_attempts" ]; do
-    echo "--- reviewing $path (attempt $attempt/$max_attempts) -> $outfile ---"
+    # Each attempt gets its own file (.attempt-N.log, not .jsonl — kept
+    # out of report's *.jsonl glob by extension) rather than teeing
+    # straight to $outfile: tee truncates on every call, so a retry would
+    # silently wipe out whatever a failed attempt had already streamed
+    # before the connection dropped. $outfile is only ever written once
+    # an attempt is confirmed successful, below — never by a failed one.
+    attempt_file="${outfile%.jsonl}.attempt-${attempt}.log"
+    echo "--- reviewing $path (attempt $attempt/$max_attempts) -> $attempt_file ---"
     # Wrapped in `if`, not a bare statement — under set -e/pipefail a bare
     # pipeline failure here would kill the *entire* full-review run on one
     # flaky directory, not just fail this one. CLI 0.7.7+ exits nonzero on
     # a failed/incomplete review (WebSocket closed, etc.), so this was a
     # real gap, not a hypothetical one.
-    if run_review_docker "$ROOT_COMMIT" --dir "$path" --agent | tee "$outfile"; then
+    if run_review_docker "$ROOT_COMMIT" --dir "$path" --agent | tee "$attempt_file"; then
+      cp "$attempt_file" "$outfile"
       ok=1
       break
     fi
@@ -163,8 +171,10 @@ review_leaf() {
     # WebSocket) — worth one automatic retry rather than giving up on the
     # first transient disconnect. Anything else stops retrying here; the
     # reviewedFiles check below already fails safe either way.
-    if grep -q '"errorType":"connection"' "$outfile" 2>/dev/null && grep -q '"recoverable":true' "$outfile" 2>/dev/null; then
+    if grep -q '"errorType":"connection"' "$attempt_file" 2>/dev/null && grep -q '"recoverable":true' "$attempt_file" 2>/dev/null; then
       echo "WARNING: recoverable connection error on $path — retrying." >&2
+      echo "  (partial output from the failed attempt, if any, is preserved in $attempt_file;" >&2
+      echo "   cr also keeps its own local record — 'cr review findings --dir $path' may show more.)" >&2
       attempt=$((attempt + 1))
       sleep 5
       continue
@@ -175,7 +185,8 @@ review_leaf() {
   REVIEWS_DONE=$((REVIEWS_DONE + 1))
 
   if [ "$ok" -ne 1 ]; then
-    echo "WARNING: $path did not complete — NOT marking done. Check $outfile." >&2
+    echo "WARNING: $path did not complete after $max_attempts attempt(s) — NOT marking done." >&2
+    echo "  Check $attempt_file for what each attempt captured before failing." >&2
     FAILED_LEAVES+=("$path")
     return 0
   fi

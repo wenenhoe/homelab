@@ -424,6 +424,26 @@ for path in sorted(glob.glob(os.path.join(out_dir, "*.jsonl"))):
         rows.append({"dir": reviewed_dir, **fnd})
 
 sev_order = {"critical": 0, "major": 1, "minor": 2, "trivial": 3, "info": 4, "none": 5}
+
+# Exact-match dedup on (file, severity, issue) — catches the case where a
+# stale, differently-granular directory file (e.g. a whole "ansible/roles"
+# review from before it exceeded the 300-file cap and got split into
+# per-role files) sits alongside a newer file covering the same code, and
+# both surface the identical finding. Doesn't catch near-duplicates with
+# different wording from separate scans of the same code; only an exact
+# match is safe to drop automatically here.
+seen_findings = set()
+deduped = []
+duplicate_count = 0
+for r in rows:
+    key = (r.get("file"), r.get("severity"), r.get("issue"))
+    if key in seen_findings:
+        duplicate_count += 1
+        continue
+    seen_findings.add(key)
+    deduped.append(r)
+rows = deduped
+
 rows.sort(key=lambda r: (sev_order.get(r.get("severity"), 9), r.get("dir") or ""))
 
 counts = {}
@@ -442,6 +462,8 @@ with open(outfile, "w") as f:
     }) + "\n")
 
 print(f"Wrote {len(rows)} finding(s) across {len(seen_dirs)} reviewed director(y/ies).")
+if duplicate_count:
+    print(f"Dropped {duplicate_count} exact duplicate(s) — check for stale files from before a directory's split granularity changed.")
 print(f"By severity: {counts}")
 print(f"Clean (0 findings): {len(clean_dirs)} director(y/ies).")
 print(f"-> {outfile}")

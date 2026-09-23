@@ -65,7 +65,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Remove `full-review`/`status`/`report`/`reset` and their now-unused support functions | Not started | `shellcheck` clean; `auth`/`review`/`build` still work unchanged |
+| 1 | Remove `full-review`/`status`/`report`/`reset` and their now-unused support functions | Done | `shellcheck` clean; `auth`/`review`/`build` still work unchanged |
 | 2 | Add `--api-key` headless auth alongside interactive `auth login` | Not started | A `review` call authenticates non-interactively given an API key |
 | 3 | Add `build-coderabbit-review-image.yml`; drop `cmd_build`; point `auth`/`review` at the pulled image | Not started | Workflow builds and pushes on a path-filtered change or the weekly schedule; the script runs against the pulled image with no local `docker build` |
 | 4 | Rewrite `docs/coderabbit-review.md` for the new scope | Not started | `pre-commit run --all-files` and `check-doc-drift.py` pass |

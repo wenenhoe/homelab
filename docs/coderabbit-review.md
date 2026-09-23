@@ -20,11 +20,7 @@ cd tools/coderabbit-review
 | Command | Does |
 | :--- | :--- |
 | `review [base-branch]` | One ad hoc review against the given base (default `main`). |
-| `full-review [max-reviews]` | Walks the whole repo, one directory per call, security-sensitive paths first. Capped per invocation (default 3) to fit the plan's hourly rolling allowance; resumable. |
-| `status` | Progress: how many directories are reviewed, how many remain. |
-| `report` | Compiles every saved review into one findings file, sorted by severity. |
 | `usage` | `cr usage` — billing-period review count/spend/reset date, not an hourly-remaining counter. |
-| `reset` | Clears `full-review` progress. |
 
 ## Why local-only
 
@@ -38,19 +34,6 @@ while still letting the App comment elsewhere haven't been configured
 yet, so the App stays off entirely for now and review happens locally
 instead, where a finding is seen and can be fixed before anything about
 it is public.
-
-## One directory per review call
-
-`full-review` issues one `cr review --dir <path>` call per directory,
-never several `--dir` flags in one call. Multiple `--dir` flags were
-tried first, on the reading that CodeRabbit's own over-limit error offers
-up to five as a single narrowed retry — but they don't accumulate in
-practice: the last one silently wins, so a batched call reviews only its
-final directory while looking like it covered all of them. A path is
-only recorded as reviewed after its files are confirmed present in that
-call's own `reviewedFiles` result, rather than trusted from the request —
-trusting the request is what let batched, unreviewed directories get
-marked complete with a misleadingly reassuring zero-findings result.
 
 ## Credit
 

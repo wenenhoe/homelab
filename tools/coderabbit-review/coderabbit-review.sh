@@ -34,6 +34,41 @@ require_git_repo() {
   }
 }
 
+# Refuses a CODERABBIT_OUTPUT_DIR that resolves inside this repo's working
+# tree. Findings (severity/file/issue — exactly the vulnerability text
+# docs/coderabbit-review.md's Why local-only section keeps off public PR
+# comments) would otherwise sit one `git add` away from this repo's public
+# history. The default ($HOME/.coderabbit/review-output) is outside the repo
+# by construction and isn't checked here.
+#
+# Goes through Python's os.path.realpath rather than a string-prefix check
+# so a `..`-laden override can't evade it (e.g. "$REPO/../x" string-prefixes
+# as inside but resolves outside, and the reverse also holds). python3 is
+# already an optional, gracefully-degrading dependency elsewhere in this
+# script (review_leaf's reviewedFiles check); here there's no safe
+# degraded path, so its absence fails closed instead of trusting an
+# unnormalized path.
+require_safe_output_dir() {
+  [ -z "${CODERABBIT_OUTPUT_DIR:-}" ] && return 0
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: CODERABBIT_OUTPUT_DIR is set but python3 is unavailable to verify it resolves outside the repo — refusing to guess." >&2
+    exit 1
+  fi
+
+  if python3 - "$CODERABBIT_OUTPUT_DIR" "$(git rev-parse --show-toplevel)" <<'PYEOF'
+import os, sys
+candidate, repo_root = sys.argv[1], sys.argv[2]
+c = os.path.realpath(os.path.expanduser(candidate))
+r = os.path.realpath(repo_root)
+sys.exit(0 if c == r or c.startswith(r + os.sep) else 1)
+PYEOF
+  then
+    echo "ERROR: CODERABBIT_OUTPUT_DIR ($CODERABBIT_OUTPUT_DIR) resolves inside this repo — findings would land one 'git add' away from its public history. Point it somewhere outside the repo." >&2
+    exit 1
+  fi
+}
+
 repo_name() { basename "$(git rev-parse --show-toplevel)"; }
 output_dir() { echo "${CODERABBIT_OUTPUT_DIR:-$HOME/.coderabbit/review-output}/$(repo_name)"; }
 state_file() { echo "$(output_dir)/.completed"; }
@@ -304,6 +339,7 @@ all_leaf_paths() {
 
 cmd_full_review() {
   require_git_repo
+  require_safe_output_dir
   [ -n "${1:-}" ] && MAX_PER_RUN="$1"
   mkdir -p "$(output_dir)"
   REVIEWS_DONE=0
@@ -331,6 +367,7 @@ cmd_full_review() {
 
 cmd_status() {
   require_git_repo
+  require_safe_output_dir
   echo "Output dir: $(output_dir)"
   ROOT_COMMIT="$(resolve_root_commit)"
 
@@ -369,6 +406,7 @@ cmd_status() {
 # which directories came back clean, plus a final summary line.
 cmd_report() {
   require_git_repo
+  require_safe_output_dir
   local dir outfile
   dir="$(output_dir)"
   outfile="$dir/report.jsonl"
@@ -477,6 +515,7 @@ PYEOF
 
 cmd_reset() {
   require_git_repo
+  require_safe_output_dir
   rm -f "$(state_file)"
   echo "Cleared progress for $(repo_name). Next full-review starts from scratch."
 }

@@ -3,6 +3,7 @@
 # Usage:
 #   ./coderabbit-review.sh build                  # build the image (once, or after an update)
 #   ./coderabbit-review.sh auth                    # authenticate (once; persists in ~/.coderabbit)
+#   CODERABBIT_API_KEY=... ./coderabbit-review.sh auth --api-key   # headless: no browser step
 #   ./coderabbit-review.sh usage                    # cr usage — billing-period review count/spend/reset
 #   ./coderabbit-review.sh review [base-branch] [-- <extra cr flags>]
 
@@ -25,7 +26,31 @@ cmd_build() {
 
 cmd_auth() {
   mkdir -p "$AUTH_DIR"
-  docker run -it -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" "$IMAGE" auth login
+  case "${1:-}" in
+    "") docker run -it -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" "$IMAGE" auth login ;;
+    --api-key) cmd_auth_api_key ;;
+    *)
+      echo "Usage: $0 auth [--api-key]" >&2
+      exit 1
+      ;;
+  esac
+}
+
+# The CLI's only documented headless form is `auth login --api-key "<key>"`.
+# The key comes from the environment and is forwarded with a bare
+# `-e NAME`, so its value never appears in this script's arguments or the
+# host's `docker run` argv; the container's shell expands it into the CLI's
+# own argv instead. It needs an Agentic API key, not a user one.
+cmd_auth_api_key() {
+  if [ -z "${CODERABBIT_API_KEY:-}" ]; then
+    echo "CODERABBIT_API_KEY is not set (an Agentic API key from the CodeRabbit dashboard)." >&2
+    exit 1
+  fi
+  # shellcheck disable=SC2016 # $CODERABBIT_API_KEY must expand inside the container, not here.
+  docker run -e CODERABBIT_API_KEY \
+    -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" \
+    --entrypoint /bin/sh "$IMAGE" \
+    -c 'exec /bin/coderabbit auth login --api-key "$CODERABBIT_API_KEY"'
 }
 
 # Confirmed via docs.coderabbit.ai/cli/reference: `usage` (not `stats`,
@@ -66,11 +91,11 @@ cmd_review() {
 
 case "${1:-}" in
   build) cmd_build ;;
-  auth) cmd_auth ;;
+  auth) shift; cmd_auth "$@" ;;
   usage) cmd_usage ;;
   review) shift; cmd_review "$@" ;;
   *)
-    echo "Usage: $0 {build|auth|usage|review [base-branch]}" >&2
+    echo "Usage: $0 {build|auth [--api-key]|usage|review [base-branch]}" >&2
     exit 1
     ;;
 esac

@@ -20,6 +20,7 @@ cd tools/coderabbit-review
 | Command | Does |
 | :--- | :--- |
 | `review [base-branch]` | One ad hoc review against the given base (default `main`). |
+| `auth --api-key` | Headless login for CI: reads an [Agentic API key](https://docs.coderabbit.ai/cli/headless-cli-integration) from `CODERABBIT_API_KEY`, no browser step. The key is forwarded by name (`docker run -e CODERABBIT_API_KEY`), never as an argument. |
 | `usage` | `cr usage` — billing-period review count/spend/reset date, not an hourly-remaining counter. |
 
 ## Why local-only

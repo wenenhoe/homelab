@@ -2,7 +2,7 @@
 id: PROJ-coderabbit-pr-scope-trim
 title: "CodeRabbit: Trim to PR-Diff Review"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Rescope tools/coderabbit-review/ to per-PR diff review only; move image building into CI."
 decision: ADR-0061/0
@@ -66,14 +66,14 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Remove `full-review`/`status`/`report`/`reset` and their now-unused support functions | Done | `shellcheck` clean; `auth`/`review`/`build` still work unchanged |
-| 2 | Add `--api-key` headless auth alongside interactive `auth login` | Not started | A `review` call authenticates non-interactively given an API key |
+| 2 | Add `--api-key` headless auth alongside interactive `auth login` | Done | A `review` call authenticates non-interactively given an API key |
 | 3 | Add `build-coderabbit-review-image.yml`; drop `cmd_build`; point `auth`/`review` at the pulled image | Not started | Workflow builds and pushes on a path-filtered change or the weekly schedule; the script runs against the pulled image with no local `docker build` |
 | 4 | Rewrite `docs/coderabbit-review.md` for the new scope | Not started | `pre-commit run --all-files` and `check-doc-drift.py` pass |
 
 ## Acceptance criteria
 
-- [ ] `full-review`, `status`, `report`, `reset` are removed.
-- [ ] The `--api-key` path authenticates a review with no browser step.
+- [x] `full-review`, `status`, `report`, `reset` are removed.
+- [x] The `--api-key` path authenticates a review with no browser step.
 - [ ] The image builds and publishes via CI only; nothing in the script invokes `docker build`.
 - [ ] `docs/coderabbit-review.md` describes only the PR-diff scope and cites ADR 0061.
 

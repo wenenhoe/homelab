@@ -69,6 +69,10 @@ cmd_usage() {
 # diff; the CLI's own local state (auth, review history) lives under
 # $AUTH_DIR instead, which stays writable. Least-privilege by default, same
 # standing pattern as AGENTS.md's non-root containers.
+#
+# The mount is the repo root, not $(pwd): from a subdirectory (the setup
+# instructions run this from tools/coderabbit-review) a $(pwd) mount has no
+# .git, and the CLI exits with "No Git repository found".
 run_review_docker() {
   local base="$1"
   shift
@@ -78,7 +82,7 @@ run_review_docker() {
   fi
   docker run $tty_flags \
     -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" \
-    -v "$(pwd):/workdir:ro" \
+    -v "$(git rev-parse --show-toplevel):/workdir:ro" \
     "$IMAGE" review --base "$base" "$@"
 }
 

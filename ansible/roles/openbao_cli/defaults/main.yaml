@@ -3,7 +3,7 @@
 # own pin — kept in sync by hand, same as those two already are with
 # each other. Bumping this also means bumping openbao_cli_deb_sha256
 # below, from that release's own checksums.txt.
-openbao_cli_version: "2.6.2"
+openbao_cli_version: "2.7.0"
 
 # Renamed upstream from the "bao_*" naming its predecessor project
 # used — confirmed live against the real v2.6.2 release assets (this

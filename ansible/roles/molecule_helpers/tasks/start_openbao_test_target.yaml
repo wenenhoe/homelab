@@ -268,7 +268,7 @@
 - name: Run the real OpenBao image as a throwaway test target
   community.docker.docker_container:
     name: openbao-test
-    image: openbao/openbao:2.5.4
+    image: openbao/openbao:2.7.0
     command: server
     networks:
       - name: "{{ molecule_helpers_openbao_network_name }}"

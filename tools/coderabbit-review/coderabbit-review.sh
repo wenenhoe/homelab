@@ -59,6 +59,11 @@ cmd_usage() {
 # Only allocates a pty when stdout/stdin actually are one — piping through
 # tee later (as full-review does) drops -t automatically, keeping saved
 # output free of ANSI control codes.
+#
+# /workdir is mounted :ro — a review only ever reads the tree to compute a
+# diff; the CLI's own local state (auth, review history) lives under
+# $AUTH_DIR instead, which stays writable. Least-privilege by default, same
+# standing pattern as AGENTS.md's non-root containers.
 run_review_docker() {
   local base="$1"
   shift
@@ -68,7 +73,7 @@ run_review_docker() {
   fi
   docker run $tty_flags \
     -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" \
-    -v "$(pwd):/workdir" \
+    -v "$(pwd):/workdir:ro" \
     "$IMAGE" review --base "$base" "$@"
 }
 

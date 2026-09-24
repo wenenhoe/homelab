@@ -25,9 +25,9 @@ is exactly that shape of content.
 
 A manual review of a produced CodeRabbit report confirmed this isn't
 hypothetical: the findings were real and actionable, and exactly what
-[`docs/coderabbit-review.md`'s "Why local-only"](../../coderabbit-review.md#why-local-only)
-section already keeps off this repo's own PR comments. Their severity,
-file, and description stay out of this repository.
+[ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+keeps off this repo's own PR comments. Their severity, file, and
+description stay out of this repository.
 
 That reasoning extends past PR comments: GitHub Actions run logs on a
 public repository are public by default too, so any review computation

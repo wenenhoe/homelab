@@ -13,6 +13,8 @@ allowed_paths:
   - .config/.pre-commit-config.yaml
   - docs/projects/README.md
   - docs/ci.md
+  - README.md
+  - docs/README.md
   - docs/decisions/0037-decision-and-project-documentation-workflow/revision-001.md
 ---
 
@@ -35,6 +37,8 @@ the docs describe the new behavior.
 - `docs/projects/README.md`'s lifecycle table, closing checklist, and
   "When a project finishes" describe the rule; `docs/ci.md` describes the
   job.
+- The root `README.md`'s list of pre-commit hooks and `docs/README.md`'s
+  note on what checks a change name the new check.
 - Not changed: the gates for the other statuses, what `also_implements:`
   records, and any ADR other than this one's own revision and revision
   1's supersession metadata.
@@ -53,7 +57,8 @@ Update at the start and end of each PR that works a stage.
 | 1 | Make `done`'s gate in `doc_graph.py` sibling-aware, with tests | Done | `done` naming an `approved` revision passes only while another non-`done` project names it; `pytest tools/tests/doc_scripts` and `check-doc-drift.py` pass |
 | 2 | The close check script, with tests | Done | Deleting the last project naming an unaccepted revision fails; accepting it, leaving a sibling, or adding a successor passes |
 | 3 | Wire the check into `pr-checks.yml` and pre-commit; describe it in `docs/ci.md` | Done | The job runs on a PR and a hook run locally agrees with it |
-| 4 | Update `docs/projects/README.md`; accept ADR 0037/2 and mark revision 1 `superseded` | Not started | `pre-commit run --all-files` passes with revision 2 `accepted` and revision 1 `superseded` |
+| 4 | Name the close check in the root `README.md`'s hook list and in `docs/README.md` | Not started | Both name `check-project-close` beside `check-project-scope`; `check-project-scope.py` passes with the widened scope on the base |
+| 5 | Update `docs/projects/README.md`; accept ADR 0037/2 and mark revision 1 `superseded` | Not started | `pre-commit run --all-files` passes with revision 2 `accepted` and revision 1 `superseded` |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

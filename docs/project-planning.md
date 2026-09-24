@@ -60,6 +60,7 @@ set. It narrows where to look; it doesn't replace looking.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
+| [`doc-workflow-shared-decisions.md`](projects/doc-workflow-shared-decisions.md) | Not started | Let several projects implement one ADR revision: a sibling-aware done gate, a deletion-time close check, and the lifecycle docs. |
 
 ## Decisions awaiting a project
 
@@ -67,7 +68,6 @@ set. It narrows where to look; it doesn't replace looking.
 | :--- | :--- | :--- | :--- |
 | [0003](decisions/0003-certificate-issuance-for-proxied-apps/revision-001.md) | **Certificate issuance for proxied apps** — How Caddy-proxied apps get TLS certificates, and whether each app hostname is exposed in public Certificate Transparency logs. | Proposed revision 1: One wildcard certificate per host with no exception, including tinyauth's own lab domain | Working (proposed revision 1) |
 | [0008](decisions/0008-internal-certificate-lifetime/revision-001.md) | **Internal certificate lifetime** — How long certificates from the internal CA live, given the renewal automation that exists. | Proposed revision 1: Shorten the default claim duration toward step-ca's own 24h now that renewal is automated | Working (proposed revision 1) |
-| [0037](decisions/0037-decision-and-project-documentation-workflow/revision-002.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, extended to close a visibility gap the original method left open. | Proposed revision 2: Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted | Approved (proposed revision 2) |
 | [0038](decisions/0038-iac-misconfiguration-scanning/revision-000.md) | **IaC misconfiguration scanning** — Which scanner checks Ansible and OpenTofu for misconfiguration, without a separate migration for each. | Trivy for Ansible now; Checkov once OpenTofu code lands, then covering both | Working |
 | [0039](decisions/0039-intrusion-detection-scope/revision-000.md) | **Intrusion detection scope** — Whether detection lives only on the OPNsense perimeter or also on each VM, without inspecting the lab's own TLS. | Undecided: CrowdSec at the perimeter only, or with per-VM agents | Working |
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |

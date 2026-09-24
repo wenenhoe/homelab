@@ -159,10 +159,13 @@ connection resets rather than the expected warning.
 `save-precommit-cache` inputs (all default `"false"`) gate saving
 only — every job still restores a cache that exists, regardless of
 these flags, so nothing here weakens the cache for jobs that don't
-populate it. Only `warm-uv-cache` sets `save-uv-cache: "true"`, only
-`warm-galaxy-cache` sets `save-galaxy-cache: "true"`, and only
-`warm-pre-commit-cache` sets `save-precommit-cache: "true"`; every
-other cache-consuming job below depends on the relevant warm job(s)
+populate it. Within `pr-checks.yml`, only `warm-uv-cache` sets
+`save-uv-cache: "true"`, only `warm-galaxy-cache` sets
+`save-galaxy-cache: "true"`, and only `warm-pre-commit-cache` sets
+`save-precommit-cache: "true"` ([Base-branch
+warming](#base-branch-warming) covers the one other writer, on
+`main`); every other cache-consuming job below depends on the
+relevant warm job(s)
 (`needs:`) and leaves all three at their default, so it only ever
 restores.
 
@@ -188,6 +191,36 @@ fail *this* job instead, and every job below it (`needs:
 warm-uv-cache`) would report `skipped` rather than run — burying
 `uv-lock`'s specific diagnostic under a wall of unrelated skips on the
 exact PRs (lockfile changes) where it matters most.
+
+### Base-branch warming
+
+The three warm jobs above run on `pull_request`, and GitHub scopes a
+cache saved by a pull-request run to that PR's merge ref
+(`refs/pull/<n>/merge`): only re-runs of the same PR can restore it.
+A second PR — even with byte-identical dependency files — never sees
+it, misses, and rebuilds all three caches from scratch. A run can
+restore entries saved on the PR's base branch, so `main` has to hold
+them ([GitHub's cache access
+rules](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache)).
+
+`.github/workflows/warm-caches.yml` runs `setup-uv-ansible` with all
+three save flags on `main`, in one job (the three keys are distinct,
+so there is no same-key race to split writers over). Its triggers:
+
+- `push` to `main` — a merge that changes a cache key (a Renovate
+  bump) writes the new entry immediately. No `paths:` filter: the key
+  inputs already live in `setup-uv-ansible`'s `hashFiles(...)` calls,
+  and a second copy of that list here could drift from it. On a hit
+  the run restores and does no-op installs.
+- `schedule` (Sunday and Wednesday, 20:00 UTC) — GitHub evicts entries
+  not accessed in 7 days, and the longest gap between runs is 4 days.
+  A restore hit counts as access, so the run keeps entries alive
+  without re-saving them.
+- `workflow_dispatch` — rebuild by hand after an eviction.
+
+The PR-side warm jobs stay: a PR that changes a key is still the first
+writer of that entry and its own jobs need it before merge. The entry
+is visible to that PR alone until the merge re-warms it on `main`.
 
 ## Requiring checks before merge
 

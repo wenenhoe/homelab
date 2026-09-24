@@ -39,19 +39,19 @@ inputs:
       (passed straight through to astral-sh/setup-uv's own save-cache
       input). Every job still restores an existing cache regardless of
       this flag — only saving is gated. Leave "false" (the default) for
-      ordinary jobs; only pr-checks.yml's dedicated warm-uv-cache job
-      sets "true", so a PR that changes uv.lock/pyproject.toml gets
-      exactly one job writing the new cache entry instead of every
-      uv-consuming job racing to write it — see
-      docs/ci.md#cache-warming.
+      ordinary jobs; only the dedicated warm jobs set "true" —
+      pr-checks.yml's warm-uv-cache and warm-caches.yml on main — so a
+      PR that changes uv.lock/pyproject.toml gets exactly one job
+      writing the new cache entry instead of every uv-consuming job
+      racing to write it — see docs/ci.md#cache-warming.
     required: false
     default: "false"
   save-galaxy-cache:
     description: >-
       Same one-writer reasoning as save-uv-cache above, for the Ansible
       Galaxy collections cache specifically. Only pr-checks.yml's
-      warm-galaxy-cache job sets "true". Has no effect unless
-      install-galaxy-collections is also "true".
+      warm-galaxy-cache job and warm-caches.yml set "true". Has no
+      effect unless install-galaxy-collections is also "true".
     required: false
     default: "false"
   install-precommit-hooks:
@@ -67,8 +67,9 @@ inputs:
     description: >-
       Same one-writer reasoning as save-uv-cache/save-galaxy-cache above,
       for pre-commit's own hook-environment cache specifically. Only
-      pr-checks.yml's warm-pre-commit-cache job sets "true". Has no
-      effect unless install-precommit-hooks is also "true".
+      pr-checks.yml's warm-pre-commit-cache job and warm-caches.yml
+      set "true". Has no effect unless install-precommit-hooks is also
+      "true".
     required: false
     default: "false"
 

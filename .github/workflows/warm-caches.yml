@@ -1,0 +1,40 @@
+name: Warm base-branch caches
+
+# A cache saved by a pull_request run is scoped to that PR's merge ref
+# and no other PR can restore it; only entries saved on main are visible
+# to every PR — see docs/ci.md#base-branch-warming.
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches: [main]
+  schedule:
+    # Sunday and Wednesday, same time-of-day as renovate.yml's cron.
+    # GitHub evicts entries not accessed in 7 days; the longest gap
+    # between these runs is 4 days, and a restore hit counts as access.
+    - cron: "0 20 * * 0,3"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: warm-caches
+  cancel-in-progress: false
+
+jobs:
+  # One job, one writer per cache: the three keys are distinct, so
+  # there is nothing to race — unlike pr-checks.yml, where many jobs
+  # would otherwise try to save the same key.
+  warm-caches:
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup uv, Galaxy collections and pre-commit hooks (writes all three caches on main)
+        uses: ./.github/actions/setup-uv-ansible
+        with:
+          save-uv-cache: "true"
+          install-galaxy-collections: "true"
+          save-galaxy-cache: "true"
+          install-precommit-hooks: "true"
+          save-precommit-cache: "true"

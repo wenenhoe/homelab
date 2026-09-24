@@ -45,7 +45,11 @@ version inside it so a bad release can be backed out.
 - **Consumers.** `coderabbit-review.sh` and, later, `homelab-security`'s
   CI run the image ([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
   The molecule image and the CI runners are Ubuntu 26.04 LTS, and the
-  official `ubuntu:26.04` image exists.
+  official `ubuntu:26.04` image exists. On it, with uutils `sha256sum -c`
+  verifying the 0.8.0 zip before it is unpacked, the CLI starts
+  (`coderabbit doctor` reports no failures), `auth login --api-key`
+  succeeds, and a review of a real diff completes. A wrong hash fails the
+  build.
 
 **Threat model.** The adversary is a tampered CLI artifact at the
 vendor's release bucket. The asset is the API key the container is handed
@@ -62,8 +66,8 @@ bump records its hash, since the new hash comes from the same bucket.
   `linux-x64` zip's entry in that release's `SHA256SUMS`. The build
   downloads the zip from the release directory the installer uses, fails
   unless it matches the hash, and only then unpacks it. It doesn't run
-  `install.sh`. The final image needs only `git` and the binary, not the
-  download tooling. No build installs an unversioned or unverified CLI.
+  `install.sh`. The final image needs only `git`, `ca-certificates` and the
+  binary, not the download tooling. No build installs an unversioned or unverified CLI.
 - **Bump the version with Renovate.** A custom datasource reads
   `releases/latest/VERSION` as one release, and a regex manager updates
   the version `ARG`. Renovate can't compute the hash, so its PR body
@@ -101,11 +105,15 @@ bump records its hash, since the new hash comes from the same bucket.
 
 ## Assumptions
 
-- **Claim:** The CLI runs on `ubuntu:26.04`, whose default coreutils are
-  uutils rather than GNU's.
-  **Breaks if wrong:** The base choice, and with it the image.
-  **Checked by:** building the image and running `auth --api-key` and a
-  real review in it.
+- **Claim:** A pinned CLI does not replace itself at runtime in the
+  container, or upstream documents a switch that stops it.
+  **Breaks if wrong:** The binary that reviews a diff is not the one
+  whose hash was checked, and it runs in the container that holds the
+  API key; the pin and the version tags stop meaning anything.
+  **Checked by:** `coderabbit doctor` reports `Auto-update is eligible`
+  on 0.8.0, so the mechanism exists. Run a pinned older image through a
+  review and confirm the version it reports is unchanged and that no
+  second binary appears under the mounted state directory.
 - **Claim:** A CLI pinned a few days behind `latest` still works against
   the service.
   **Breaks if wrong:** Reviews fail between a release and its bump

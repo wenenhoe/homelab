@@ -133,8 +133,9 @@ bound nothing.
 A change is tied to a project by touching its doc, which any change that
 works a stage already does. Every other file that change touches must
 match `allowed_paths`, apart from what the workflow itself produces:
-project docs, the generated decisions index, and the revision the
-project's `decision:` names, so the permitted ADR edits stay possible. A
+project docs, the generated decisions index and project-planning view
+(a status change regenerates both), and the revision the project's
+`decision:` names, so the permitted ADR edits stay possible. A
 change that touches no project doc isn't project work and isn't checked.
 One that touches several scoped projects gets the union of their scopes.
 
@@ -179,10 +180,13 @@ skipping it is how a real fact gets lost instead of promoted.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
+| [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started — waiting on [`security-findings-repo.md`](security-findings-repo.md) | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
 | [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
+| [`coderabbit-pr-review-pipeline.md`](coderabbit-pr-review-pipeline.md) | Not started — waiting on [`security-findings-repo.md`](security-findings-repo.md), [`coderabbit-pr-scope-trim.md`](coderabbit-pr-scope-trim.md) | homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and files findings as issues. |
+| [`coderabbit-pr-scope-trim.md`](coderabbit-pr-scope-trim.md) | Building | Rescope tools/coderabbit-review/ to per-PR diff review only; move image building into CI. |
 | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md), [`workstation-management.md`](workstation-management.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
 | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
 | [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition, with a dedicated key and a CD-agent job that holds nothing else. |
@@ -192,6 +196,7 @@ skipping it is how a real fact gets lost instead of promoted.
 | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
 | [`operator-host.md`](operator-host.md) | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials. |
+| [`security-findings-repo.md`](security-findings-repo.md) | Not started | Create homelab-security, the private repo that tracks code-review findings for this public repo. |
 | [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Rebuild on the real VMID ranges, cut over, and decommission the old VMs. |
 | [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | Build the isolated 5XX block and run the first restore.yaml against it. |
 | [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Kea, VLAN, and static DNS configured through OPNsense's API. |

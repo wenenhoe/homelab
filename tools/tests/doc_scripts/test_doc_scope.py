@@ -97,7 +97,7 @@ class ScopeErrorsTest(unittest.TestCase):
 
     def test_the_workflows_own_bookkeeping_is_implicitly_allowed(self):
         doc = self.scoped()
-        self.assertEqual(self.errors([doc, "docs/projects/README.md", "docs/projects/sibling.md", "docs/decisions/README.md"]), [])
+        self.assertEqual(self.errors([doc, "docs/projects/README.md", "docs/projects/sibling.md", "docs/decisions/README.md", "docs/project-planning.md"]), [])
 
     def test_the_linked_decision_revision_is_implicitly_allowed_but_not_its_neighbours(self):
         revision(self.root, "0001-x", 0)

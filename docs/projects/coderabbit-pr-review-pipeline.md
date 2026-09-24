@@ -7,9 +7,6 @@ blocked: false
 summary: "homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files."
 decision: ADR-0061/0
 super_project: security-review-pipeline
-depends_on:
-  - project: PROJ-security-findings-repo
-    reason: "Findings need somewhere to be written before this pipeline can run."
 ---
 
 # CodeRabbit PR Review Pipeline
@@ -25,8 +22,8 @@ list by an unauthenticated call to the GitHub API; for anything new or
 updated since the last check, pulls
 `ghcr.io/wenenhoe/coderabbit-review:latest` and runs a `review` against
 that PR's diff, authenticated headlessly; parses the `--agent` output
-into finding files in `homelab-security`, per
-[`security-findings-repo`](security-findings-repo.md)'s schema, one
+into finding files in `homelab-security`, per the tracker's contract in
+[`security-findings.md`](../security-findings.md), one
 file per finding ([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md)):
 a finding whose file already exists is left as it is, whatever its
 status, and two distinct findings on one PR stay two files. Each run
@@ -49,7 +46,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 | :-: | :--- | :--- | :--- |
 | 1 | Poll step: list this repo's open PRs, diff against last-checked state | Not started | A new PR opened on this repo is detected by the next scheduled run |
 | 2 | Review step: pull the image, authenticate via `--api-key`, run `review` against the detected diff | Not started | A real PR's diff produces `--agent` JSON output, end to end |
-| 3 | Finding-writing step: parse findings into `homelab-security` finding files, deduped by identifier, validated, then opened and merged as a pull request | Not started | A finding (or a clean-review confirmation) appears as a merged pull request adding a file that passes `security-findings-repo`'s validator |
+| 3 | Finding-writing step: parse findings into `homelab-security` finding files, deduped by identifier, validated, then opened and merged as a pull request | Not started | A finding (or a clean-review confirmation) appears as a merged pull request adding a file that passes the tracker's validator |
 | 4 | Cadence and budget spike: confirm the poll interval and per-run review count stay inside CodeRabbit's 3/hour CLI limit (Free plan) and GitHub Actions' minute allowance, against this repo's real merge cadence (~4.2/day average, bursts to ~19/day) | Not started | A measured, not estimated, per-review wall-clock time; a chosen poll interval and schedule that fits both budgets with headroom |
 
 ## Acceptance criteria
@@ -62,7 +59,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 
 - **Allowed to change:** the `homelab-security` repo only — nothing in this repo changes as part of this project.
 - **Must not change:** this repo's own workflows or secrets; no credential capable of writing to this repo is introduced anywhere.
-- **Relevant files and interfaces:** `tools/coderabbit-review/coderabbit-review.sh` (post-trim), `ghcr.io/wenenhoe/coderabbit-review`, the finding schema from [`security-findings-repo`](security-findings-repo.md).
+- **Relevant files and interfaces:** `tools/coderabbit-review/coderabbit-review.sh` (post-trim), `ghcr.io/wenenhoe/coderabbit-review`, the tracker's finding contract in [`security-findings.md`](../security-findings.md).
 - **Required checks:** none in this repo's CI, since this project's changes live in `homelab-security`.
 
 ## Risks
@@ -73,7 +70,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 
 - What makes two findings "the same" when a PR is re-reviewed after an
   update. The dedup step derives each finding's identifier from that
-  identity; [`security-findings-repo`](security-findings-repo.md)'s
+  identity; the tracker's
   schema treats the identifier as opaque, so settle the derivation here
   against real `--agent` output before stage 3.
 - Exact poll interval (stage 4).

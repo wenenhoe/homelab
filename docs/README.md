@@ -122,4 +122,5 @@ unwritten and raise it privately.
 | [`molecule-fixtures.md`](molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
 | [`ci.md`](ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check, and the project-scope check. |
 | [`security-scanning.md`](security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
+| [`security-findings.md`](security-findings.md) | The private `homelab-security` tracker for code-review findings: what it holds, the contract a writer follows, how findings are triaged, and how this repo may refer to them. |
 | [`coderabbit-review.md`](coderabbit-review.md) | Containerized CodeRabbit CLI review of a PR's diff, run from `homelab-security`'s CI or by hand: auth, the CI-built image, why output stays off this repo's own surfaces. |

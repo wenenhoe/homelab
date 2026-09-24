@@ -6,7 +6,7 @@ title: "Tracking and managing code-review findings for a public repository"
 solution: "A private tracker repo (homelab-security) holding one structured file per finding, not a mirror of the public repo's code"
 summary: "Where automated code-review findings live, given the repo they describe is public."
 topic: security-hardening
-status: approved
+status: accepted
 related: [ADR-0061]
 ---
 

@@ -35,8 +35,10 @@ version inside it so a bad release can be backed out.
 - **Renovate.** No built-in datasource covers this CLI. Renovate can read
   a plain-text endpoint through `customDatasources` with
   `format: plain`, and `latest/VERSION` is the only version endpoint
-  found. The repo already pins native CLIs through a custom regex
-  manager (`openbao_cli` in `renovate.json5`).
+  found. A `--platform=local` dry run of the repo's pinned Renovate
+  (44.106.0) against that endpoint reads it as one release and proposes
+  it for a stale pin. The repo already pins native CLIs through a custom
+  regex manager (`openbao_cli` in `renovate.json5`).
 - **Today.** The image installs whatever "latest" is at build time and is
   rebuilt weekly. Neither the Dockerfile nor the image records a
   version, so a build can't be reviewed, compared, or rolled back. Its
@@ -49,7 +51,10 @@ version inside it so a bad release can be backed out.
   verifying the 0.8.0 zip before it is unpacked, the CLI starts
   (`coderabbit doctor` reports no failures), `auth login --api-key`
   succeeds, and a review of a real diff completes. A wrong hash fails the
-  build.
+  build. The 0.7.8 CLI, one release behind 0.8.0, does the same: it
+  prints a notice that 0.8.0 exists and carries on, and the review left
+  no second binary under the mounted state directory. `doctor` still
+  reports `Auto-update is eligible` on both.
 
 **Threat model.** The adversary is a tampered CLI artifact at the
 vendor's release bucket. The asset is the API key the container is handed
@@ -105,25 +110,17 @@ bump records its hash, since the new hash comes from the same bucket.
 
 ## Assumptions
 
-- **Claim:** A pinned CLI does not replace itself at runtime in the
-  container, or upstream documents a switch that stops it.
+- **Claim:** A pinned CLI that is behind `latest` doesn't replace itself
+  while it runs in the container, and 0.8.0 behaves like 0.7.8 in that
+  respect.
   **Breaks if wrong:** The binary that reviews a diff is not the one
   whose hash was checked, and it runs in the container that holds the
   API key; the pin and the version tags stop meaning anything.
-  **Checked by:** `coderabbit doctor` reports `Auto-update is eligible`
-  on 0.8.0, so the mechanism exists. Run a pinned older image through a
-  review and confirm the version it reports is unchanged and that no
-  second binary appears under the mounted state directory.
-- **Claim:** A CLI pinned a few days behind `latest` still works against
-  the service.
-  **Breaks if wrong:** Reviews fail between a release and its bump
-  merging.
-  **Checked by:** CodeRabbit's documentation on version support, or a
-  review run with an older pinned version.
-- **Claim:** Renovate's `format: plain` custom datasource turns the
-  `VERSION` body into a single release.
-  **Breaks if wrong:** No bump PRs are ever opened.
-  **Checked by:** a Renovate dry run against the real endpoint.
+  **Checked by:** 0.7.8 only prints a notice (see Context). 0.8.0's
+  release notes describe changed automatic-update behavior, and it can
+  only be observed once a newer release exists, so instead find
+  upstream's documented switch that turns updates off (start with
+  `coderabbit update --help`) and set it in the image.
 
 ## Consequences
 

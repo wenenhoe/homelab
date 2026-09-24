@@ -232,6 +232,7 @@ network access or real cloud credentials needed. See
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
 - `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`.github/scripts/check-doc-drift.py`](.github/scripts/check-doc-drift.py)
 - `check-project-scope` (local) — a commit that touches a project doc stays inside that project's `allowed_paths`, read from `HEAD`; CI runs the same check over the whole PR — see [`.github/scripts/check-project-scope.py`](.github/scripts/check-project-scope.py)
+- `check-project-close` (local) — a commit that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project, judged on what is staged; CI runs the same check over the whole PR — see [`.github/scripts/check-project-close.py`](.github/scripts/check-project-close.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
 
 All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)

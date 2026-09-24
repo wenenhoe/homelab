@@ -46,8 +46,7 @@ set. It narrows where to look; it doesn't replace looking.
 | `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | De-risking |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | De-risking |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `security-review-pipeline` | — | — | [`coderabbit-image-pinning.md`](projects/coderabbit-image-pinning.md) | Building |
-| | — | — | [`security-findings-repo.md`](projects/security-findings-repo.md) | Not started |
+| `security-review-pipeline` | — | — | [`security-findings-repo.md`](projects/security-findings-repo.md) | Not started |
 | | — | — | [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Not started — waiting on [`security-findings-repo.md`](projects/security-findings-repo.md) |
 | | — | — | [`coderabbit-pr-review-pipeline.md`](projects/coderabbit-pr-review-pipeline.md) | Not started — waiting on [`security-findings-repo.md`](projects/security-findings-repo.md) |
 | `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | De-risking |

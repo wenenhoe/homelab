@@ -13,36 +13,12 @@ Two modes, both read the scope from the project docs as they stood on the base:
 from __future__ import annotations
 
 import argparse
-import re
-import subprocess
 import sys
 from pathlib import Path
 
-import yaml
 from doc_frontmatter import ROOT
+from doc_git import base_project_loader, git
 from doc_scope import PROJECT_DOC_RE, scope_errors
-
-
-def git(root: Path, *args: str) -> str:
-    return subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, text=True).stdout
-
-
-def base_project_loader(root: Path, ref: str):
-    def load(path: str) -> dict | None:
-        try:
-            text = git(root, "show", f"{ref}:{path}")
-        except subprocess.CalledProcessError:
-            return None  # the doc didn't exist on the base: a new project has no scope yet
-        m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
-        if not m:
-            return None
-        try:
-            data = yaml.safe_load(m.group(1))
-        except yaml.YAMLError:
-            return None
-        return data if isinstance(data, dict) else None
-
-    return load
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -16,4 +16,4 @@ openbao_cli_deb_url: "https://github.com/openbao/openbao/releases/download/v{{ o
 # checksums.txt.gpgsig, not independently verified here — this repo's
 # threat model already trusts GitHub-hosted release assets elsewhere,
 # e.g. docker/openbao's own pinned image digest-free tag).
-openbao_cli_deb_sha256: "f22b703e626d03d1595c21cf1c57c8737675b721daa3b8e3972531ceafcc3993"
+openbao_cli_deb_sha256: "7412233fef6bbe0e5093aa5461f493dd3a0f6193c8d5a5ba3a7ff475f96f34a2"

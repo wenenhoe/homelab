@@ -46,21 +46,21 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: resolve the ADR's four assumptions with throwaway work only | Done | Each assumption is resolved into the ADR's Context, or the Decision changes; ADR 0063 is `approved` |
-| 2 | Dockerfile on `ubuntu:26.04` with the pinned, hash-verified CLI; workflow tags by version and builds a version or hash change before it merges | In progress | `hadolint` clean; a wrong hash fails the PR build; the published image runs `auth --api-key` and a review of a real diff |
+| 2 | Dockerfile on `ubuntu:26.04` with the pinned, hash-verified CLI; workflow tags by version and builds a version or hash change before it merges | Done | `hadolint` clean; a wrong hash fails the PR build; the published image runs `auth --api-key` and a review of a real diff |
 | 3 | Renovate custom datasource and manager, with the hash reminder; update `docs/coderabbit-review.md` | Not started | A Renovate dry run proposes a bump from the real endpoint; the doc describes the tags, the hash step, and rollback |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
-- [ ] The Dockerfile names the CLI version it installs, verifies the zip
+- [x] The Dockerfile names the CLI version it installs, verifies the zip
       against a pinned sha256 before unpacking it, and builds `FROM`
       `ubuntu:26.04`.
-- [ ] Every published image carries a `:<cli-version>` tag as well as
+- [x] Every published image carries a `:<cli-version>` tag as well as
       `:latest`.
 - [ ] Renovate opens a bump PR when upstream's `VERSION` changes, and the
       PR body reminds the reviewer to update the hash.
-- [ ] `docs/coderabbit-review.md` describes the tags, the hash step on a
+- [x] `docs/coderabbit-review.md` describes the tags, the hash step on a
       bump, and how to back out.
 - [ ] ADR 0063 is `accepted`.
 

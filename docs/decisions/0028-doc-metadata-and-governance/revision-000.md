@@ -129,7 +129,7 @@ reading existing code, not necessarily a spike specifically, which is
 why the value isn't named after that one technique — and matches the
 same word `docs/projects/README.md` already uses for a stage in the
 same state; `decided` now requires every entry resolved first — see
-[ADR 0037](../0037-decision-and-project-documentation-workflow/revision-001.md)
+[ADR 0037 revision 0](../0037-decision-and-project-documentation-workflow/revision-000.md)
 for the model that replaced drafts.
 
 `summary` was added during Stage 1, for `type: project` only:

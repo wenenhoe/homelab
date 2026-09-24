@@ -25,7 +25,10 @@ version inside it so a bad release can be backed out.
   `releases/<version>/coderabbit-<os>-<arch>.zip` and checks it against a
   `SHA256SUMS` manifest from the same directory, where `<version>` is
   either `CODERABBIT_VERSION` or the contents of `releases/latest/VERSION`
-  used verbatim. That file currently reads `0.8.0`, with no leading `v`.
+  used verbatim. That file currently reads `0.8.0`, with no leading `v`,
+  and `releases/0.8.0/SHA256SUMS` lists `coderabbit-linux-x64.zip`
+  exactly once, as `<sha256>  ./coderabbit-linux-x64.zip`. The installer
+  strips the `./` before matching, so a Dockerfile check has to as well.
   The manifest check detects corruption and warns rather than fails when
   the manifest is missing; it is not a signature, and the installer gives
   a caller no way to supply its own expected hash.
@@ -98,11 +101,6 @@ bump records its hash, since the new hash comes from the same bucket.
 
 ## Assumptions
 
-- **Claim:** The release we pin publishes a `SHA256SUMS` entry for
-  `coderabbit-linux-x64.zip` at `releases/<version>/SHA256SUMS`.
-  **Breaks if wrong:** There is no hash to record, and the pin has no
-  source.
-  **Checked by:** fetching the manifest for the version being pinned.
 - **Claim:** The CLI runs on `ubuntu:26.04`, whose default coreutils are
   uutils rather than GNU's.
   **Breaks if wrong:** The base choice, and with it the image.

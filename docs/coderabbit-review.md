@@ -49,7 +49,9 @@ unpacks it; a wrong hash fails the build. The version
 declared there ([ADR 0063](decisions/0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md)).
 
 Each build pushes two tags: `:<cli-version>` (for example `:0.8.0`) and
-`:latest`. The weekly rebuild refreshes the base OS under the current
+`:latest`. A pull request that changes the `Dockerfile` builds the image
+without pushing it, so a wrong hash fails the PR and not `main`. The weekly
+rebuild refreshes the base OS under the current
 version's tag; the CLI itself changes only when the `Dockerfile` does. A
 pinned CLI prints a notice when a newer release exists. That is expected,
 and nothing applies it (see the

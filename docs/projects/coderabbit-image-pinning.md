@@ -75,6 +75,7 @@ they apply without being restated here.
   `workflow_dispatch` triggers. Stage 2 may add one `pull_request` trigger
   that only builds: no registry login, no push, and no write permission.
 - **Relevant files and interfaces:** `tools/coderabbit-review/Dockerfile`,
+  `tools/coderabbit-review/resolve-version.sh`,
   `build-coderabbit-review-image.yml`, `renovate.json5`'s custom
   managers (`openbao_cli` is the closest existing example).
 - **Required checks:** `hadolint`, `yamllint`, `pre-commit run

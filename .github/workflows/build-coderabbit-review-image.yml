@@ -3,6 +3,14 @@ name: Build & push CodeRabbit review image
 on:  # yamllint disable-line rule:truthy
   push:
     branches: [main]
+  # pull_request, not pull_request_target: this builds the PR's own Dockerfile,
+  # so it must get neither secrets nor a write token. The workflow file is in
+  # the filter so an edit to it is exercised too.
+  pull_request:
+    paths:
+      - tools/coderabbit-review/Dockerfile
+      - tools/coderabbit-review/resolve-version.sh
+      - .github/workflows/build-coderabbit-review-image.yml
   schedule:
     # Weekly, same slot as build-caddy-image.yml's schedule trigger — see
     # that workflow for why a schedule is needed alongside the push
@@ -14,9 +22,11 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 
+# A PR run must neither queue behind nor cancel a publish, so each PR gets
+# its own group and only PR runs are cancelled when superseded.
 concurrency:
-  group: build-coderabbit-review-image
-  cancel-in-progress: false
+  group: build-coderabbit-review-image-${{ github.event.pull_request.number || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Same reasoning and pattern as build-caddy-image.yml's detect-changes.
@@ -39,9 +49,35 @@ jobs:
             dockerfile:
               - 'tools/coderabbit-review/Dockerfile'
 
+  # Builds a version or hash change before it merges, so a wrong hash fails
+  # the PR and not main. Read-only: no registry login, nothing pushed.
+  build-check:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Validate CLI version
+        run: tools/coderabbit-review/resolve-version.sh
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: tools/coderabbit-review
+          file: tools/coderabbit-review/Dockerfile
+          platforms: linux/amd64
+          push: false
+
   build-and-push:
     needs: detect-changes
     if: >-
+      github.event_name != 'pull_request' &&
       always() &&
       needs.detect-changes.result != 'failure' &&
       needs.detect-changes.result != 'cancelled' &&
@@ -64,19 +100,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # The Dockerfile is the one place the CLI version is declared. It is
-      # validated before it reaches `tags:` so a malformed or duplicated ARG
-      # fails the run instead of publishing a mistagged image.
+      # The Dockerfile is the one place the CLI version is declared; the
+      # script rejects a malformed or duplicated ARG before it can reach
+      # `tags:`.
       - name: Resolve CLI version
         id: cli
         run: |
-          line="$(grep -E '^ARG CODERABBIT_VERSION=' tools/coderabbit-review/Dockerfile || true)"
-          if [ "$(printf '%s\n' "$line" | wc -l)" -ne 1 ] \
-              || ! printf '%s' "$line" | grep -Eq '^ARG CODERABBIT_VERSION=[0-9]+\.[0-9]+\.[0-9]+$'; then
-            echo "Expected exactly one 'ARG CODERABBIT_VERSION=X.Y.Z' in the Dockerfile, got: '$line'" >&2
-            exit 1
-          fi
-          echo "version=${line#ARG CODERABBIT_VERSION=}" >> "$GITHUB_OUTPUT"
+          version="$(tools/coderabbit-review/resolve-version.sh)"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       # :<cli-version> is what a consumer points at to back out a bad
       # release; :latest is what coderabbit-review.sh runs. The weekly

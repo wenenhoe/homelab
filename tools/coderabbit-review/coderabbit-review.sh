@@ -4,7 +4,7 @@
 #   ./coderabbit-review.sh auth                    # authenticate (once; persists in ~/.coderabbit)
 #   CODERABBIT_API_KEY=... ./coderabbit-review.sh auth --api-key   # headless: no browser step
 #   ./coderabbit-review.sh usage                    # cr usage — billing-period review count/spend/reset
-#   ./coderabbit-review.sh review [base-branch] [-- <extra cr flags>]
+#   ./coderabbit-review.sh review [base-branch] [<extra cr flags>]
 
 set -euo pipefail
 

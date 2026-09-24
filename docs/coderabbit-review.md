@@ -57,9 +57,14 @@ pinned CLI prints a notice when a newer release exists. That is expected,
 and nothing applies it (see the
 [non-goals](decisions/0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md#non-goals)).
 
-**Bumping the CLI.** Set `CODERABBIT_VERSION`, and replace
-`CODERABBIT_SHA256` with the `coderabbit-linux-x64.zip` entry from that
-release's manifest:
+**Bumping the CLI.** Renovate opens a PR when
+`https://cli.coderabbit.ai/releases/latest/VERSION` changes, on the repo's
+usual schedule ([`renovate.json5`](../.github/renovate.json5)). It changes
+`CODERABBIT_VERSION` only, so the PR's build check fails at the checksum
+step until `CODERABBIT_SHA256` is replaced with the `coderabbit-linux-x64.zip`
+entry from that release's manifest; the PR body says so. Push that change to
+the PR's branch. To bump by hand, set both. The manifest and the current
+version:
 
 ```bash
 curl -fsSL https://cli.coderabbit.ai/releases/latest/VERSION

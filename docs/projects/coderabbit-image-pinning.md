@@ -71,7 +71,9 @@ they apply without being restated here.
 
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced.
 - **Must not change:** how `coderabbit-review.sh` authenticates or runs
-  the container, and the workflow's triggers.
+  the container, and the publish workflow's `push`, `schedule` and
+  `workflow_dispatch` triggers. Stage 2 may add one `pull_request` trigger
+  that only builds: no registry login, no push, and no write permission.
 - **Relevant files and interfaces:** `tools/coderabbit-review/Dockerfile`,
   `build-coderabbit-review-image.yml`, `renovate.json5`'s custom
   managers (`openbao_cli` is the closest existing example).
@@ -84,12 +86,7 @@ None open.
 
 ## Open items
 
-- Stage 2's exit condition has the workflow build a version or hash
-  change before it merges, but no image in this repo has a PR-time build,
-  and neither place it could live is open to this project:
-  `.github/workflows/pr-checks.yml` is outside `allowed_paths`, and the
-  handoff forbids changing the publish workflow's triggers. A human
-  decides which to widen; see [Stop conditions](README.md#stop-conditions).
+None.
 
 ## Closing checklist
 

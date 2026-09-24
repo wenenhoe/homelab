@@ -6,7 +6,8 @@ title: "Recording decisions, tracking execution, and keeping docs true"
 solution: "also_implements: as a validated, non-gating frontmatter field, plus a generated view of open ADRs no project covers"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended to close a visibility gap the original method left open."
 topic: documentation-process
-status: accepted
+status: superseded
+superseded_by: 2
 supersedes: 0
 related: [ADR-0050, ADR-0055]
 ---

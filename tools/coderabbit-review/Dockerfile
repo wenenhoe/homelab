@@ -1,30 +1,44 @@
 # Based on rikatz's coderabbit-cli-docker gist:
 # https://gist.github.com/rikatz/1135c311d86306a5bff3e39276968b17
-FROM fedora:43
+FROM ubuntu:26.04 AS fetch
 
-# CI=true (below) skips the installer's interactive "sign in now?" prompt,
-# per install.sh's own documented CI variable. A `docker build` RUN step has
-# no controlling terminal, so leaving this unset risks the installer's
-# /dev/tty check aborting the script instead of falling through cleanly.
-# hadolint ignore=DL3041 # operator tooling, not a deployed app — unpinned by design, mirrors docker/molecule-dind/Dockerfile's own DL3008 ignore for the same reason.
-RUN dnf -y install unzip git \
-    && curl -fsSL https://cli.coderabbit.ai/install.sh > /tmp/coderabbit.sh \
-    && CI=true /bin/sh /tmp/coderabbit.sh \
-    && mv "$HOME/.local/bin/coderabbit" /bin/coderabbit \
+# The CLI is pinned by version and by the sha256 of its linux-x64 zip, taken
+# from that release's SHA256SUMS; docs/coderabbit-review.md has the bump steps.
+ARG CODERABBIT_VERSION=0.8.0
+ARG CODERABBIT_SHA256=e60aa408266c3e2350aae890b239ab8d1c12b3f607f4475e1c2ddd4529af1d71
+
+# hadolint ignore=DL3008 # operator tooling, not a deployed app — unpinned by design.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates curl unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /dl
+# unzip runs only once the hash matches.
+RUN curl -fsSLo coderabbit-linux-x64.zip \
+      "https://cli.coderabbit.ai/releases/${CODERABBIT_VERSION}/coderabbit-linux-x64.zip" \
+    && printf '%s  coderabbit-linux-x64.zip\n' "${CODERABBIT_SHA256}" > SHA256SUMS \
+    && sha256sum -c SHA256SUMS \
+    && unzip -q coderabbit-linux-x64.zip coderabbit
+
+FROM ubuntu:26.04
+
+# hadolint ignore=DL3008 # same reasoning as the fetch stage above.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates git \
+    && rm -rf /var/lib/apt/lists/* \
     && git config --system --add safe.directory /workdir \
     && useradd -l -u 1001 -m coderabbit \
     && chmod 1777 /home/coderabbit \
-    && mkdir /workdir \
-    && dnf clean all
+    && mkdir /workdir
+
+COPY --from=fetch --chmod=0755 /dl/coderabbit /bin/coderabbit
 
 # No build-time UID: coderabbit-review.sh runs the container with
 # `docker run -u <invoking uid>:<gid>`, so the CLI's home must be writable
 # by a UID this image has no passwd entry for (hence the sticky, world-
 # writable home) and HOME is pinned to it, since the $AUTH_DIR mount lives
 # there. `USER` is only the non-root default when the script isn't used.
-# Set after the RUN above, whose installer step needs root's own HOME.
 ENV HOME=/home/coderabbit
 USER 1001
-
 WORKDIR /workdir
 ENTRYPOINT ["/bin/coderabbit"]

@@ -6,9 +6,8 @@ on:  # yamllint disable-line rule:truthy
   schedule:
     # Weekly, same slot as build-caddy-image.yml's schedule trigger — see
     # that workflow for why a schedule is needed alongside the push
-    # trigger. Here it is the only thing that picks up a newer CodeRabbit
-    # CLI: the Dockerfile's installer always fetches "latest", so a release
-    # never changes the Dockerfile's own text.
+    # trigger. Here it picks up base-OS security fixes only: the CLI
+    # version and its hash change only when the Dockerfile's text does.
     - cron: "0 20 * * 0"
   workflow_dispatch: {}
 
@@ -65,9 +64,23 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # No upstream version to tag by (the CLI is fetched as "latest" by
-      # design), so a single mutable :latest tag, same as
-      # build-molecule-dind-image.yml.
+      # The Dockerfile is the one place the CLI version is declared. It is
+      # validated before it reaches `tags:` so a malformed or duplicated ARG
+      # fails the run instead of publishing a mistagged image.
+      - name: Resolve CLI version
+        id: cli
+        run: |
+          line="$(grep -E '^ARG CODERABBIT_VERSION=' tools/coderabbit-review/Dockerfile || true)"
+          if [ "$(printf '%s\n' "$line" | wc -l)" -ne 1 ] \
+              || ! printf '%s' "$line" | grep -Eq '^ARG CODERABBIT_VERSION=[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Expected exactly one 'ARG CODERABBIT_VERSION=X.Y.Z' in the Dockerfile, got: '$line'" >&2
+            exit 1
+          fi
+          echo "version=${line#ARG CODERABBIT_VERSION=}" >> "$GITHUB_OUTPUT"
+
+      # :<cli-version> is what a consumer points at to back out a bad
+      # release; :latest is what coderabbit-review.sh runs. The weekly
+      # rebuild refreshes the OS layer under the current version's tag.
       #
       # pull/no-cache only on the weekly schedule — same reasoning as
       # build-caddy-image.yml.
@@ -80,4 +93,6 @@ jobs:
           push: true
           pull: ${{ github.event_name == 'schedule' }}
           no-cache: ${{ github.event_name == 'schedule' }}
-          tags: ghcr.io/wenenhoe/coderabbit-review:latest
+          tags: |
+            ghcr.io/wenenhoe/coderabbit-review:latest
+            ghcr.io/wenenhoe/coderabbit-review:${{ steps.cli.outputs.version }}

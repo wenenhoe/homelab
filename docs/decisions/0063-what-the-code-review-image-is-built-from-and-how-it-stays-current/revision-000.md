@@ -6,7 +6,7 @@ title: "What the code-review image is built from, and how it stays current"
 solution: "Pin the CLI's version and the release zip's sha256, verify the zip before unpacking it, bump the version with Renovate from the release's VERSION file, use an Ubuntu LTS base, and tag every image with its CLI version"
 summary: "How the image that runs the CodeRabbit CLI is versioned, based, and kept up to date when upstream publishes no machine-readable release list."
 topic: repository-tooling
-status: working
+status: approved
 related: [ADR-0061]
 ---
 
@@ -25,15 +25,20 @@ version inside it so a bad release can be backed out.
   `releases/<version>/coderabbit-<os>-<arch>.zip` and checks it against a
   `SHA256SUMS` manifest from the same directory, where `<version>` is
   either `CODERABBIT_VERSION` or the contents of `releases/latest/VERSION`
-  used verbatim. That file currently reads `0.8.0`, with no leading `v`.
+  used verbatim. That file currently reads `0.8.0`, with no leading `v`,
+  and `releases/0.8.0/SHA256SUMS` lists `coderabbit-linux-x64.zip`
+  exactly once, as `<sha256>  ./coderabbit-linux-x64.zip`. The installer
+  strips the `./` before matching, so a Dockerfile check has to as well.
   The manifest check detects corruption and warns rather than fails when
   the manifest is missing; it is not a signature, and the installer gives
   a caller no way to supply its own expected hash.
 - **Renovate.** No built-in datasource covers this CLI. Renovate can read
   a plain-text endpoint through `customDatasources` with
   `format: plain`, and `latest/VERSION` is the only version endpoint
-  found. The repo already pins native CLIs through a custom regex
-  manager (`openbao_cli` in `renovate.json5`).
+  found. A `--platform=local` dry run of the repo's pinned Renovate
+  (44.106.0) against that endpoint reads it as one release and proposes
+  it for a stale pin. The repo already pins native CLIs through a custom
+  regex manager (`openbao_cli` in `renovate.json5`).
 - **Today.** The image installs whatever "latest" is at build time and is
   rebuilt weekly. Neither the Dockerfile nor the image records a
   version, so a build can't be reviewed, compared, or rolled back. Its
@@ -42,7 +47,16 @@ version inside it so a bad release can be backed out.
 - **Consumers.** `coderabbit-review.sh` and, later, `homelab-security`'s
   CI run the image ([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
   The molecule image and the CI runners are Ubuntu 26.04 LTS, and the
-  official `ubuntu:26.04` image exists.
+  official `ubuntu:26.04` image exists. On it, with uutils `sha256sum -c`
+  verifying the 0.8.0 zip before it is unpacked, the CLI starts
+  (`coderabbit doctor` reports no failures), `auth login --api-key`
+  succeeds, and a review of a real diff completes. A wrong hash fails the
+  build. The 0.7.8 CLI, one release behind 0.8.0, does the same: it
+  prints a notice that 0.8.0 exists and carries on, and the review left
+  no second binary under the mounted state directory. `doctor` still
+  reports `Auto-update is eligible` on both, `coderabbit update --help`
+  lists no options, and the CLI reference documents no setting that turns
+  updates off.
 
 **Threat model.** The adversary is a tampered CLI artifact at the
 vendor's release bucket. The asset is the API key the container is handed
@@ -51,6 +65,8 @@ that day. A recorded hash closes it for any version whose artifact is
 replaced after the hash was recorded, and makes every artifact change a
 diff to review. It does not help if the artifact is already bad when a
 bump records its hash, since the new hash comes from the same bucket.
+A CLI that replaced itself while a container runs would be a second
+path from that bucket, which the hash does not cover; see Non-goals.
 
 ## Decision
 
@@ -59,8 +75,8 @@ bump records its hash, since the new hash comes from the same bucket.
   `linux-x64` zip's entry in that release's `SHA256SUMS`. The build
   downloads the zip from the release directory the installer uses, fails
   unless it matches the hash, and only then unpacks it. It doesn't run
-  `install.sh`. The final image needs only `git` and the binary, not the
-  download tooling. No build installs an unversioned or unverified CLI.
+  `install.sh`. The final image needs only `git`, `ca-certificates` and the
+  binary, not the download tooling. No build installs an unversioned or unverified CLI.
 - **Bump the version with Renovate.** A custom datasource reads
   `releases/latest/VERSION` as one release, and a regex manager updates
   the version `ARG`. Renovate can't compute the hash, so its PR body
@@ -96,29 +112,6 @@ bump records its hash, since the new hash comes from the same bucket.
   the molecule image and CI runners. Rejected.
 - **Alpine.** No evidence the binary runs on musl. Not pursued.
 
-## Assumptions
-
-- **Claim:** The release we pin publishes a `SHA256SUMS` entry for
-  `coderabbit-linux-x64.zip` at `releases/<version>/SHA256SUMS`.
-  **Breaks if wrong:** There is no hash to record, and the pin has no
-  source.
-  **Checked by:** fetching the manifest for the version being pinned.
-- **Claim:** The CLI runs on `ubuntu:26.04`, whose default coreutils are
-  uutils rather than GNU's.
-  **Breaks if wrong:** The base choice, and with it the image.
-  **Checked by:** building the image and running `auth --api-key` and a
-  real review in it.
-- **Claim:** A CLI pinned a few days behind `latest` still works against
-  the service.
-  **Breaks if wrong:** Reviews fail between a release and its bump
-  merging.
-  **Checked by:** CodeRabbit's documentation on version support, or a
-  review run with an older pinned version.
-- **Claim:** Renovate's `format: plain` custom datasource turns the
-  `VERSION` body into a single release.
-  **Breaks if wrong:** No bump PRs are ever opened.
-  **Checked by:** a Renovate dry run against the real endpoint.
-
 ## Consequences
 
 - The Dockerfile is rewritten on the new base, `renovate.json5` gains a
@@ -147,6 +140,12 @@ bump records its hash, since the new hash comes from the same bucket.
   would need upstream signatures.
 - Multi-arch images; `linux/amd64` only, as today.
 - Pinning individual `apt` packages.
+- Stopping the CLI from updating itself while a container runs. Upstream
+  documents no switch, so the pin covers the binary a container starts
+  with, not what might replace it during that run. What bounds it: every
+  container starts from the image's root-owned `/bin/coderabbit`, runs
+  unprivileged, and is discarded afterwards, so nothing an update wrote
+  survives it.
 
 ## Validation
 
@@ -162,5 +161,7 @@ CLI change, `auth --api-key` and a review against the published image.
 - The hand step per bump becomes a burden: automate it or reconsider.
 - Upstream publishes GitHub releases or another machine-readable release
   list: replace the custom datasource.
+- Upstream documents a switch that disables updates: set it in the
+  image and drop the non-goal above.
 - Ubuntu LTS 26.04 nears the end of its support: Renovate's PR for the
   next LTS is the prompt; nothing to decide here.

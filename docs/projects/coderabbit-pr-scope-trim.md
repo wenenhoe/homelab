@@ -90,7 +90,7 @@ None open.
 
 ## Open items
 
-- Whether the published image needs any tag beyond `:latest` for rollback purposes, or floating is acceptable given the CLI itself is unpinned by design regardless.
+None. The rollback-tag question moved to ADR 0063, which tags each image by CLI version.
 
 ## Closing checklist
 

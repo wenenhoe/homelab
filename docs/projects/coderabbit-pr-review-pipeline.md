@@ -10,8 +10,6 @@ super_project: security-review-pipeline
 depends_on:
   - project: PROJ-security-findings-repo
     reason: "Findings need somewhere to be written before this pipeline can run."
-  - project: PROJ-coderabbit-pr-scope-trim
-    reason: "Needs the PR-scoped script and the pre-built, pullable image, not the full-sweep tool as it stands today."
 ---
 
 # CodeRabbit PR Review Pipeline
@@ -34,8 +32,9 @@ a finding that already has an open issue updates it, and two distinct
 findings on one PR stay two issues.
 
 Not in scope: the full-repository audit
-([`agent-full-repo-audit`](agent-full-repo-audit.md)); the tool itself
-([`coderabbit-pr-scope-trim`](coderabbit-pr-scope-trim.md)).
+([`agent-full-repo-audit`](agent-full-repo-audit.md)); the review tool and
+its CI-built image, described in
+[`coderabbit-review.md`](../coderabbit-review.md).
 
 ## Decision
 

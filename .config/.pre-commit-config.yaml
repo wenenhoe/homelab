@@ -127,3 +127,16 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         always_run: true
+      - id: check-project-close
+        name: check-project-close
+        description: >-
+          A commit that deletes a project doc leaves the revision its
+          decision: names accepted or still named by another project - see
+          .github/scripts/check-project-close.py. Looks only at what is
+          staged, so it passes trivially under `--all-files` in CI, where
+          the project-close job checks the whole PR instead.
+        entry: python3 .github/scripts/check-project-close.py --staged
+        language: python
+        additional_dependencies: [pyyaml]
+        pass_filenames: false
+        always_run: true

@@ -3,7 +3,7 @@
 # own pin — kept in sync by hand, same as those two already are with
 # each other. Bumping this also means bumping openbao_cli_deb_sha256
 # below, from that release's own checksums.txt.
-openbao_cli_version: "2.6.2"
+openbao_cli_version: "2.7.0"
 
 # Renamed upstream from the "bao_*" naming its predecessor project
 # used — confirmed live against the real v2.6.2 release assets (this
@@ -16,4 +16,4 @@ openbao_cli_deb_url: "https://github.com/openbao/openbao/releases/download/v{{ o
 # checksums.txt.gpgsig, not independently verified here — this repo's
 # threat model already trusts GitHub-hosted release assets elsewhere,
 # e.g. docker/openbao's own pinned image digest-free tag).
-openbao_cli_deb_sha256: "f22b703e626d03d1595c21cf1c57c8737675b721daa3b8e3972531ceafcc3993"
+openbao_cli_deb_sha256: "7412233fef6bbe0e5093aa5461f493dd3a0f6193c8d5a5ba3a7ff475f96f34a2"

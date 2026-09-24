@@ -159,7 +159,7 @@
         step_ca_cert_common_name: openbao
         step_ca_cert_container_cert_dir: /openbao/certs
         step_ca_cert_renew_action: signal
-        step_ca_cert_chown_image: "openbao/openbao:2.6.2"
+        step_ca_cert_chown_image: "openbao/openbao:2.7.0"
         step_ca_cert_chown_user: openbao
         step_ca_cert_uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_openbao }}"
       tags:

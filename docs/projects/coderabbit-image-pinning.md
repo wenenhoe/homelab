@@ -4,7 +4,7 @@ title: "CodeRabbit Image: Pinned CLI, Ubuntu Base"
 type: project
 status: de-risking
 blocked: false
-summary: "Pin the CodeRabbit CLI in the review image, bump it with Renovate, move the base to Ubuntu LTS, and tag images by CLI version."
+summary: "Pin and hash-verify the CodeRabbit CLI in the review image, bump it with Renovate, move the base to Ubuntu LTS, and tag images by CLI version."
 decision: ADR-0063/0
 super_project: security-review-pipeline
 allowed_paths:
@@ -27,9 +27,9 @@ and the new base.
 ## Scope
 
 - A throwaway spike that resolves the ADR's assumptions.
-- The Dockerfile on `ubuntu:26.04` with a pinned `CODERABBIT_VERSION`.
+- The Dockerfile on `ubuntu:26.04`, downloading the pinned CLI zip and verifying its pinned sha256 before unpacking it (no `install.sh`).
 - The publish workflow pushes `:<cli-version>` and `:latest`.
-- A Renovate custom datasource and manager for the pinned version.
+- A Renovate custom datasource and manager for the pinned version, with a PR-body reminder to update the hash.
 - `docs/coderabbit-review.md` describes the tags and how to back out.
 - Not changed: the script's commands, the auth flow, or which workflow
   triggers the build.
@@ -46,19 +46,22 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: resolve the ADR's four assumptions with throwaway work only | Not started | Each assumption is resolved into the ADR's Context, or the Decision changes; ADR 0063 is `approved` |
-| 2 | Dockerfile on `ubuntu:26.04` with the pinned CLI; workflow tags by version | Not started | `hadolint` clean; the published image runs `auth --api-key` and a review of a real diff |
-| 3 | Renovate custom datasource and manager; update `docs/coderabbit-review.md` | Not started | A Renovate dry run proposes a bump from the real endpoint; the doc describes the tags and rollback |
+| 2 | Dockerfile on `ubuntu:26.04` with the pinned, hash-verified CLI; workflow tags by version and builds a version or hash change before it merges | Not started | `hadolint` clean; a wrong hash fails the PR build; the published image runs `auth --api-key` and a review of a real diff |
+| 3 | Renovate custom datasource and manager, with the hash reminder; update `docs/coderabbit-review.md` | Not started | A Renovate dry run proposes a bump from the real endpoint; the doc describes the tags, the hash step, and rollback |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
-- [ ] The Dockerfile names the CLI version it installs and builds `FROM`
+- [ ] The Dockerfile names the CLI version it installs, verifies the zip
+      against a pinned sha256 before unpacking it, and builds `FROM`
       `ubuntu:26.04`.
 - [ ] Every published image carries a `:<cli-version>` tag as well as
       `:latest`.
-- [ ] Renovate opens a bump PR when upstream's `VERSION` changes.
-- [ ] `docs/coderabbit-review.md` describes the tags and how to back out.
+- [ ] Renovate opens a bump PR when upstream's `VERSION` changes, and the
+      PR body reminds the reviewer to update the hash.
+- [ ] `docs/coderabbit-review.md` describes the tags, the hash step on a
+      bump, and how to back out.
 - [ ] ADR 0063 is `accepted`.
 
 ## Agent handoff

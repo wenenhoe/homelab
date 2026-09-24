@@ -46,7 +46,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: resolve the ADR's four assumptions with throwaway work only | Done | Each assumption is resolved into the ADR's Context, or the Decision changes; ADR 0063 is `approved` |
-| 2 | Dockerfile on `ubuntu:26.04` with the pinned, hash-verified CLI; workflow tags by version and builds a version or hash change before it merges | Not started | `hadolint` clean; a wrong hash fails the PR build; the published image runs `auth --api-key` and a review of a real diff |
+| 2 | Dockerfile on `ubuntu:26.04` with the pinned, hash-verified CLI; workflow tags by version and builds a version or hash change before it merges | In progress | `hadolint` clean; a wrong hash fails the PR build; the published image runs `auth --api-key` and a review of a real diff |
 | 3 | Renovate custom datasource and manager, with the hash reminder; update `docs/coderabbit-review.md` | Not started | A Renovate dry run proposes a bump from the real endpoint; the doc describes the tags, the hash step, and rollback |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -84,7 +84,12 @@ None open.
 
 ## Open items
 
-None.
+- Stage 2's exit condition has the workflow build a version or hash
+  change before it merges, but no image in this repo has a PR-time build,
+  and neither place it could live is open to this project:
+  `.github/workflows/pr-checks.yml` is outside `allowed_paths`, and the
+  handoff forbids changing the publish workflow's triggers. A human
+  decides which to widen; see [Stop conditions](README.md#stop-conditions).
 
 ## Closing checklist
 

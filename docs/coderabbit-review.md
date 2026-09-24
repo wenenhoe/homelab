@@ -34,11 +34,49 @@ the host's `docker` command line. The login lands in the same
 There is no build step. Every command runs
 `ghcr.io/wenenhoe/coderabbit-review:latest`, which
 [`build-coderabbit-review-image.yml`](../.github/workflows/build-coderabbit-review-image.yml)
-rebuilds on a `Dockerfile` change and weekly, since the CLI installer
-always fetches the latest release. Docker pulls the image on first use;
+rebuilds on a `Dockerfile` change and weekly, for base-OS patches. Docker pulls the image on first use;
 `docker pull ghcr.io/wenenhoe/coderabbit-review:latest` refreshes a local
 copy. The container runs as the invoking user (`docker run -u`), and the
 script refuses to run as root.
+
+## Image tags and the pinned CLI
+
+The CLI is not installed with upstream's `install.sh`. The
+[`Dockerfile`](../tools/coderabbit-review/Dockerfile) downloads one
+release's `linux-x64` zip, checks it against a pinned sha256, and only then
+unpacks it; a wrong hash fails the build. The version
+(`CODERABBIT_VERSION`) and the hash (`CODERABBIT_SHA256`) are both
+declared there ([ADR 0063](decisions/0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md)).
+
+Each build pushes two tags: `:<cli-version>` (for example `:0.8.0`) and
+`:latest`. The weekly rebuild refreshes the base OS under the current
+version's tag; the CLI itself changes only when the `Dockerfile` does. A
+pinned CLI prints a notice when a newer release exists. That is expected,
+and nothing applies it (see the
+[non-goals](decisions/0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md#non-goals)).
+
+**Bumping the CLI.** Set `CODERABBIT_VERSION`, and replace
+`CODERABBIT_SHA256` with the `coderabbit-linux-x64.zip` entry from that
+release's manifest:
+
+```bash
+curl -fsSL https://cli.coderabbit.ai/releases/latest/VERSION
+curl -fsSL https://cli.coderabbit.ai/releases/<version>/SHA256SUMS | grep -F ' ./coderabbit-linux-x64.zip'
+```
+
+The manifest comes from the same bucket as the zip, so the hash catches a
+swapped artifact but does not prove a new release was good.
+
+**Backing out.** Revert the bump; the rebuild republishes the previous CLI
+as `:latest`. To back out on one machine at once, retag an older version
+locally, since `docker run` uses a local image without pulling:
+
+```bash
+docker pull ghcr.io/wenenhoe/coderabbit-review:<older-version>
+docker tag ghcr.io/wenenhoe/coderabbit-review:<older-version> ghcr.io/wenenhoe/coderabbit-review:latest
+```
+
+That holds until the next `docker pull` of `:latest`.
 
 ## Commands
 

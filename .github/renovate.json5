@@ -109,6 +109,16 @@
   // engine, the one component with a real write credential — give every
   // bump at least a glance rather than rubber-stamping it alongside
   // routine lint-hook version bumps.
+  // The CodeRabbit CLI publishes no release list; releases/latest/VERSION is
+  // its only version endpoint, a plain-text body holding the current release
+  // (ADR 0063). format: plain reads that body as one release.
+  customDatasources: {
+    "coderabbit-cli": {
+      defaultRegistryUrlTemplate: "https://cli.coderabbit.ai/releases/latest/VERSION",
+      format: "plain",
+    },
+  },
+
   customManagers: [
     {
       customType: "regex",
@@ -198,6 +208,14 @@
       datasourceTemplate: "github-releases",
       depNameTemplate: "openbao/openbao",
       extractVersionTemplate: "^v(?<version>.*)$",
+    },
+    {
+      customType: "regex",
+      description: "The CodeRabbit CLI version pinned in the review image's Dockerfile; only the version, not its hash",
+      managerFilePatterns: ["/^tools/coderabbit-review/Dockerfile$/"],
+      matchStrings: ["ARG CODERABBIT_VERSION=(?<currentValue>\\S+)"],
+      datasourceTemplate: "custom.coderabbit-cli",
+      depNameTemplate: "coderabbit-cli",
     },
   ],
 
@@ -366,6 +384,18 @@
       matchDepNames: ["openbao/openbao"],
       prBodyNotes: [
         "⚠️ openbao_cli_deb_sha256 (ansible/roles/openbao_cli/defaults/main.yaml) is NOT updated by this PR — copy the new sha256 for openbao_<version>_linux_amd64.deb from that release's own checksums.txt before merging, or the role's get_url task fails its checksum check on the next deploy.",
+      ],
+    },
+
+    // Same gap as openbao_cli_deb_sha256 above: the custom datasource
+    // resolves a version, not the zip's hash, so CODERABBIT_SHA256 is left
+    // stale and the PR's build check fails at the checksum until it is
+    // replaced by hand.
+    {
+      matchDatasources: ["custom.coderabbit-cli"],
+      matchDepNames: ["coderabbit-cli"],
+      prBodyNotes: [
+        "⚠️ CODERABBIT_SHA256 (tools/coderabbit-review/Dockerfile) is NOT updated by this PR — replace it with the coderabbit-linux-x64.zip entry from https://cli.coderabbit.ai/releases/<new version>/SHA256SUMS before merging; until then this PR's build check fails at the checksum step. See docs/coderabbit-review.md.",
       ],
     },
 

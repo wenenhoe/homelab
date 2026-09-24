@@ -3,7 +3,7 @@ id: ADR-0060
 revision: 0
 type: adr
 title: "Tracking and managing code-review findings for a public repository"
-solution: "A private tracker repo (homelab-security), issues-based, not a mirror of the public repo's code"
+solution: "A private tracker repo (homelab-security) holding one structured file per finding, not a mirror of the public repo's code"
 summary: "Where automated code-review findings live, given the repo they describe is public."
 topic: security-hardening
 status: approved
@@ -38,10 +38,11 @@ comment.
 ## Decision
 
 A private GitHub repository, `homelab-security`, tracks findings as
-Issues — one per open finding, each recording the finding's severity,
-file, description, and this repo's commit SHA at review time. It is a
-tracker, not a mirror: no copy of this repo's code lives there, and
-nothing about its own existence needs to stay secret.
+files — one structured file per finding, named by a stable identifier,
+each recording the finding's severity, file, description, triage status,
+and this repo's commit SHA at review time. It is a tracker, not a
+mirror: no copy of this repo's code lives there, and nothing about its
+own existence needs to stay secret.
 
 ## Alternatives considered
 
@@ -51,6 +52,15 @@ nothing about its own existence needs to stay secret.
   works. Doubles the CI surface for one operator. Solves a
   findings-tracking problem with a version-control-architecture-sized
   change. Rejected.
+- **GitHub Issues in the private repo, one per finding.** Built-in
+  triage, comments and notifications, and no storage design to own.
+  Rejected because a finding's state lives in labels and free-text
+  bodies: deduplicating across two producers means searching bodies for
+  a marker, and dashboards over findings — the kind
+  [`project-planning.md`](../../project-planning.md) is for projects —
+  would have to go through the API rather than read files in a
+  checkout. Files trade Issues' built-in triage and notifications for
+  structured, greppable, versioned state.
 - **GitHub repository security advisories on this repo directly.** A
   real, native fit for anything that reaches genuine vulnerability
   severity — a temporary private fork to build the fix, CI explicitly
@@ -62,9 +72,13 @@ nothing about its own existence needs to stay secret.
 
 ## Consequences
 
-A second repository to maintain — issue labels, a finding template — but
+A second repository to maintain — a finding schema and template — but
 no sync tooling and no second copy of this repo's code to keep
-consistent with the first.
+consistent with the first. Deduplication is a file-exists check on the
+finding's identifier. Triage is an edit to the file's status, and
+nothing notifies the maintainer of a new finding by itself. Both
+producers write to the same branch, so each retries on a moved ref;
+a new finding is a new file, so writers never conflict on content.
 
 ## Invariants
 
@@ -76,11 +90,12 @@ or Actions run logs.
 
 Where the review computation itself runs, and what credential drives it
 ([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
-`homelab-security`'s internal label scheme and issue template (a project
-concern, not an architectural one).
+`homelab-security`'s finding schema, file layout and status vocabulary
+(a project concern, not an architectural one).
 
 ## Reconsideration triggers
 
 `homelab-security` needs to hold real code, not just tracking data — at
 that point, re-evaluate a mirror on its actual, demonstrated merits
-rather than pre-emptively.
+rather than pre-emptively. Per-finding discussion outweighs scripted
+views of findings — at that point, re-evaluate Issues.

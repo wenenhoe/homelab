@@ -4,7 +4,7 @@ title: "CodeRabbit PR Review Pipeline"
 type: project
 status: not-started
 blocked: false
-summary: "homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and files findings as issues."
+summary: "homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files."
 decision: ADR-0061/0
 super_project: security-review-pipeline
 depends_on:
@@ -25,11 +25,11 @@ list by an unauthenticated call to the GitHub API; for anything new or
 updated since the last check, pulls
 `ghcr.io/wenenhoe/coderabbit-review:latest` and runs a `review` against
 that PR's diff, authenticated headlessly; parses the `--agent` output
-into issues in `homelab-security`, per
+into finding files in `homelab-security`, per
 [`security-findings-repo`](security-findings-repo.md)'s schema, one
-issue per open finding ([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md)):
-a finding that already has an open issue updates it, and two distinct
-findings on one PR stay two issues.
+file per finding ([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md)):
+a finding whose file already exists is left as it is, whatever its
+status, and two distinct findings on one PR stay two files.
 
 Not in scope: the full-repository audit
 ([`agent-full-repo-audit`](agent-full-repo-audit.md)); the review tool and
@@ -47,7 +47,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 | :-: | :--- | :--- | :--- |
 | 1 | Poll step: list this repo's open PRs, diff against last-checked state | Not started | A new PR opened on this repo is detected by the next scheduled run |
 | 2 | Review step: pull the image, authenticate via `--api-key`, run `review` against the detected diff | Not started | A real PR's diff produces `--agent` JSON output, end to end |
-| 3 | Issue-filing step: parse findings into `homelab-security` issues, deduped per finding | Not started | A finding (or a clean-review confirmation) appears as an issue, matching the schema from `security-findings-repo` |
+| 3 | Finding-writing step: parse findings into `homelab-security` finding files, deduped by identifier, pushed with a retry on a moved ref | Not started | A finding (or a clean-review confirmation) appears as a committed file, matching the schema from `security-findings-repo` |
 | 4 | Cadence and budget spike: confirm the poll interval and per-run review count stay inside CodeRabbit's 3/hour CLI limit (Free plan) and GitHub Actions' minute allowance, against this repo's real merge cadence (~4.2/day average, bursts to ~19/day) | Not started | A measured, not estimated, per-review wall-clock time; a chosen poll interval and schedule that fits both budgets with headroom |
 
 ## Acceptance criteria
@@ -70,9 +70,10 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 ## Open items
 
 - What makes two findings "the same" when a PR is re-reviewed after an
-  update. The dedup step needs this identity, and it belongs in
-  [`security-findings-repo`](security-findings-repo.md)'s schema; settle it
-  there before stage 3.
+  update. The dedup step derives each finding's identifier from that
+  identity; [`security-findings-repo`](security-findings-repo.md)'s
+  schema treats the identifier as opaque, so settle the derivation here
+  against real `--agent` output before stage 3.
 - Exact poll interval (stage 4).
 - Whether GitHub-hosted runner minutes suffice, or a self-hosted runner is worth the small per-minute platform fee GitHub now charges for self-hosted use on private repos — back-of-envelope math suggests GitHub-hosted is likely sufficient; confirm with the stage-4 spike before deciding either way.
 

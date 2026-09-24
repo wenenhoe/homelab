@@ -19,11 +19,11 @@ it exists.
 
 ## Scope
 
-Creating the private repository, its label scheme, and an issue template
-for a finding (severity, file, description, source commit SHA, which
-reviewer produced it). Deciding whether raw `report.jsonl`-style
-artifacts get committed into the repo or kept as workflow artifacts
-only. Not in scope: any code from this repo (ADR 0060 rules out a
+Creating the private repository, its finding schema and file layout, and
+a template for a finding file (severity, file, description, triage
+status, source commit SHA, which reviewer produced it). Deciding
+whether raw `report.jsonl`-style artifacts get committed into the repo
+or kept as workflow artifacts only. Not in scope: any code from this repo (ADR 0060 rules out a
 mirror), and the CI workflows that populate it — those belong to
 [`coderabbit-pr-review-pipeline`](coderabbit-pr-review-pipeline.md) and
 [`agent-full-repo-audit`](agent-full-repo-audit.md).
@@ -38,14 +38,14 @@ Implements [ADR 0060](../decisions/0060-tracking-and-managing-code-review-findin
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Create the private repository, with a README that states its purpose and links back to ADR 0060 | Not started | Repo exists, private, visible only to its owner |
-| 2 | Label scheme and issue template for a finding | Not started | A finding can be filed by hand, matching the template, as a smoke test |
+| 2 | Finding schema, file layout and template | Not started | A finding file written by hand from the template matches the schema (fields and allowed values), as a smoke test |
 | 3 | Decide the archival convention for raw report artifacts (committed vs. workflow-artifact-only) | Not started | Documented in the repo's own README; referenced by the two CI projects below |
 
 ## Acceptance criteria
 
 - [ ] `homelab-security` exists and is private.
-- [ ] The label scheme and issue template are documented in its README.
-- [ ] A hand-filed test issue matches the template.
+- [ ] The finding schema and template are documented in its README and `findings/SCHEMA.md`.
+- [ ] A hand-written test finding file matches the template.
 
 ## Agent handoff
 
@@ -60,7 +60,6 @@ Implements [ADR 0060](../decisions/0060-tracking-and-managing-code-review-findin
 
 ## Open items
 
-- Exact label taxonomy (severity tiers, reviewer provenance).
 - Raw artifact archival convention (stage 3, above).
 
 ## Closing checklist

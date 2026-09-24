@@ -8,9 +8,6 @@ summary: "A periodic coding-agent audit of the whole repo, ADR-aware, run from h
 decision: ADR-0061/0
 also_implements: [ADR-0062/0]
 super_project: security-review-pipeline
-depends_on:
-  - project: PROJ-security-findings-repo
-    reason: "The audit's output needs somewhere to be written before this can run."
 ---
 
 # Agent-Based Full-Repo Audit
@@ -73,7 +70,7 @@ grow past reading-and-reporting into anything that writes to this repo.
 
 - **Allowed to change:** the `homelab-security` repo, plus this project's own doc in this repo while it's active (whoever implements a stage records its progress there).
 - **Must not change:** anything else in this repo. The audit job itself never writes here, per ADR 0061's invariants.
-- **Relevant files and interfaces:** `docs/decisions/`, `docs/projects/` (what the agent reads); the finding schema from [`security-findings-repo`](security-findings-repo.md).
+- **Relevant files and interfaces:** `docs/decisions/`, `docs/projects/` (what the agent reads); the tracker's finding contract in [`security-findings.md`](../security-findings.md).
 - **Required checks:** none in this repo's CI, since this project's changes live in `homelab-security`.
 
 ## Risks

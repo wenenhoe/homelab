@@ -29,7 +29,9 @@ into finding files in `homelab-security`, per
 [`security-findings-repo`](security-findings-repo.md)'s schema, one
 file per finding ([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md)):
 a finding whose file already exists is left as it is, whatever its
-status, and two distinct findings on one PR stay two files.
+status, and two distinct findings on one PR stay two files. Each run
+commits its new files on a branch, validates them, opens a pull request
+in `homelab-security` and merges it at once.
 
 Not in scope: the full-repository audit
 ([`agent-full-repo-audit`](agent-full-repo-audit.md)); the review tool and
@@ -47,7 +49,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 | :-: | :--- | :--- | :--- |
 | 1 | Poll step: list this repo's open PRs, diff against last-checked state | Not started | A new PR opened on this repo is detected by the next scheduled run |
 | 2 | Review step: pull the image, authenticate via `--api-key`, run `review` against the detected diff | Not started | A real PR's diff produces `--agent` JSON output, end to end |
-| 3 | Finding-writing step: parse findings into `homelab-security` finding files, deduped by identifier, pushed with a retry on a moved ref | Not started | A finding (or a clean-review confirmation) appears as a committed file, matching the schema from `security-findings-repo` |
+| 3 | Finding-writing step: parse findings into `homelab-security` finding files, deduped by identifier, validated, then opened and merged as a pull request | Not started | A finding (or a clean-review confirmation) appears as a merged pull request adding a file that passes `security-findings-repo`'s validator |
 | 4 | Cadence and budget spike: confirm the poll interval and per-run review count stay inside CodeRabbit's 3/hour CLI limit (Free plan) and GitHub Actions' minute allowance, against this repo's real merge cadence (~4.2/day average, bursts to ~19/day) | Not started | A measured, not estimated, per-review wall-clock time; a chosen poll interval and schedule that fits both budgets with headroom |
 
 ## Acceptance criteria

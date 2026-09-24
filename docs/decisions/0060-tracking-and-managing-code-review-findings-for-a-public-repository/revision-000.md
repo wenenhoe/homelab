@@ -75,10 +75,12 @@ own existence needs to stay secret.
 A second repository to maintain — a finding schema and template — but
 no sync tooling and no second copy of this repo's code to keep
 consistent with the first. Deduplication is a file-exists check on the
-finding's identifier. Triage is an edit to the file's status, and
-nothing notifies the maintainer of a new finding by itself. Both
-producers write to the same branch, so each retries on a moved ref;
-a new finding is a new file, so writers never conflict on content.
+finding's identifier, and triage is an edit to the file's status. Each
+producer run commits its new findings on a branch, validates them, opens
+a pull request, and merges it at once: the pull request is what notifies
+the maintainer, and merging keeps `main` current for the next run's
+deduplication. A new finding is a new file, so writers never conflict on
+content.
 
 ## Invariants
 

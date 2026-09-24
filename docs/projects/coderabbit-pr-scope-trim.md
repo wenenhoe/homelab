@@ -98,7 +98,8 @@ Copied from [`README.md`](README.md#when-a-project-finishes); run before
 deleting this doc.
 
 - [x] Every acceptance criterion is met, and its required check passed.
-- [ ] The linked revision is `accepted`, or there is no decision to settle.
+- [ ] Every bullet of the linked revision's Decision is implemented, or named by a successor project.
+- [ ] The linked revision is `accepted`, another project still names it, or there is no decision to settle.
 - [x] Every resulting behavior is described in a topic doc.
 - [ ] Every open item is resolved and promoted, or moved where it belongs.
 - [ ] Other projects' `depends_on` entries naming this one are removed,

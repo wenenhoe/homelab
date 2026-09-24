@@ -59,11 +59,13 @@ dangling one.
 | `not-started` | Nothing underway. | `working` or `approved` |
 | `de-risking` | Resolving an open assumption — only throwaway spikes or reading code. | `working` |
 | `building` | Production implementation is authorized. | `approved` |
-| `done` | Everything implemented and merged. | `accepted` |
+| `done` | Everything implemented and merged. | `accepted`, or `approved` while another project still names it |
 
 `check-doc-drift.py` enforces the last column, so a revision that drops
 back to `working` stops any project `building` on it. A project without
-`decision:` isn't gated.
+`decision:` isn't gated. Several projects may name one revision; it stays
+`approved` until the last of them closes (see
+[When a project finishes](#when-a-project-finishes)).
 
 `blocked: true` with a `blocked_reason` is a flag, not a status: a
 current impediment that isn't another project (hardware, an external
@@ -165,11 +167,27 @@ either current-state fact (which belongs in a topic doc) or build
 narrative (which git and the PRs already hold). Run the checklist first;
 skipping it is how a real fact gets lost instead of promoted.
 
+A revision that other projects still name in `decision:` stays
+`approved`: this project isn't the last, so it closes without touching
+the revision. The last project to name a revision sets it `accepted` in
+the PR that deletes its doc, which asserts that the whole Decision is
+implemented. If part of it isn't, that PR adds a `not-started` successor
+project for the remainder, which also means this one isn't the last.
+`also_implements:` doesn't count as naming.
+[`check-project-close.py`](../../.github/scripts/check-project-close.py)
+fails a PR that deletes a project doc and does neither; see
+[`docs/ci.md#project-close-check`](../ci.md#project-close-check), and
+[ADR 0037 revision 2](../decisions/0037-decision-and-project-documentation-workflow/revision-002.md)
+for the reasoning.
+
 ### Closing checklist
 
 - [ ] Every acceptance criterion is met, and its required check passed.
-- [ ] The linked revision is `accepted` (set in the PR that completes the
-      work), or there is no decision to settle.
+- [ ] Every bullet of the linked revision's Decision is implemented, or
+      named by a successor project.
+- [ ] The linked revision is `accepted` (set in the PR that closes the
+      last project naming it), another project still names it, or there
+      is no decision to settle.
 - [ ] Every resulting behavior is described in a topic doc, not only here.
 - [ ] Every open item is resolved and promoted, or moved to the ADR or
       project it belongs to next.
@@ -194,7 +212,6 @@ skipping it is how a real fact gets lost instead of promoted.
 | [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
 | [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md), [`coding-agent-network.md`](coding-agent-network.md) | Move the coding-agent VLAN, firewall rules, and proxy configuration from hand-maintained OPNsense state into Tofu. |
 | [`coding-agent-network.md`](coding-agent-network.md) | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
-| [`doc-workflow-shared-decisions.md`](doc-workflow-shared-decisions.md) | Building | Let several projects implement one ADR revision: a sibling-aware done gate, a deletion-time close check, and the lifecycle docs. |
 | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
 | [`operator-host.md`](operator-host.md) | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials. |

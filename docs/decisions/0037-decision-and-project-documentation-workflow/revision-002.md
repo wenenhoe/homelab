@@ -6,7 +6,7 @@ title: "Recording decisions, tracking execution, and keeping docs true"
 solution: "Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended so one decision can be implemented by more than one project."
 topic: documentation-process
-status: approved
+status: accepted
 supersedes: 1
 related: [ADR-0061]
 ---

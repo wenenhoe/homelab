@@ -61,7 +61,6 @@ set. It narrows where to look; it doesn't replace looking.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
-| [`doc-workflow-shared-decisions.md`](projects/doc-workflow-shared-decisions.md) | Building | Let several projects implement one ADR revision: a sibling-aware done gate, a deletion-time close check, and the lifecycle docs. |
 
 ## Decisions awaiting a project
 

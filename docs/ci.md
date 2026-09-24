@@ -71,6 +71,7 @@ the SeaweedFS-specific case this generalizes from.
 | `warm-pre-commit-cache` | always | Populates the shared pre-commit hook-environment cache. See [Cache warming](#cache-warming). |
 | `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
 | `project-scope` | always | A PR that touches a project doc stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](#project-scope-check). |
+| `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
@@ -88,6 +89,7 @@ flowchart TD
     warmprecommit["warm-pre-commit-cache<br/>(always)"]
     precommit["pre-commit-checks<br/>(always)"]
     scope["project-scope<br/>(always)"]
+    close["project-close<br/>(always)"]
     trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
     lint["ansible-lint<br/>(ansible/** or lint config changed)"]
     uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
@@ -100,7 +102,7 @@ flowchart TD
 
     detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk
     detect --> trivy
-    warmuv --> precommit & scope & lint & uvlock & pytest & deployorder & molecule & boottest
+    warmuv --> precommit & scope & close & lint & uvlock & pytest & deployorder & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
     warmprecommit --> precommit & lint
     molecule --> gate
@@ -108,13 +110,14 @@ flowchart TD
 
     style precommit stroke-dasharray: 5 5
     style scope stroke-dasharray: 5 5
+    style close stroke-dasharray: 5 5
     style trivy stroke-dasharray: 5 5
     style warmuv stroke-dasharray: 5 5
     style warmgalaxy stroke-dasharray: 5 5
     style warmprecommit stroke-dasharray: 5 5
 ```
 
-`pre-commit-checks` and `project-scope` run unconditionally and independently of
+`pre-commit-checks`, `project-scope`, and `project-close` run unconditionally and independently of
 `detect-changes` (dashed above) — its hooks span nearly every file
 type in the repo, so scoping it would defeat the point. `trivy-scan`
 also always runs as a job, but reads `detect-changes`' output to decide
@@ -194,7 +197,7 @@ reference jobs by their check-run name (`<workflow name> / <job name>`,
 e.g. `PR checks / pre-commit-checks`).
 
 `warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
-`pre-commit-checks`, `project-scope`,
+`pre-commit-checks`, `project-scope`, `project-close`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
 `deploy-ordering-check`, and `compose-syntax-check` are all safe to
 mark required directly: each
@@ -369,6 +372,41 @@ doc that is new in the change has no scope yet. Renames and deletions
 count as touching both paths. Path-level only: it can't tell whether an
 edit inside an allowed file is the permitted one, and a change that never
 touches its project doc isn't bounded.
+
+## Project close check
+
+`.github/scripts/check-project-close.py` enforces the closing rule in
+[ADR 0037 revision 2](decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
+deleting a finished project's doc must not leave the revision its
+`decision:` names `approved` with no project naming it. A deleted doc
+passes when that revision is `accepted` afterwards, or another project doc
+that remains still names it in `decision:` (`also_implements:` doesn't
+count, since it gates nothing). So the last project to close either
+accepts the revision or leaves a `not-started` successor naming it for
+whatever is unfinished. A change that deletes no project doc isn't
+checked.
+
+It runs in the same two places as the scope check, with the same
+merge-base diff and the same staged-changes behavior:
+
+- **CI** — the `project-close` job, on every pull request, judging the
+  PR's head.
+- **pre-commit** — the `check-project-close` hook, judging the index
+  against `HEAD`. It is early feedback; CI is the authority. Under
+  `pre-commit-checks`' `--all-files` run nothing is staged and it passes
+  trivially.
+
+Unlike the scope check, it reads the docs as they stand **after** the
+change, since it has to see what the change leaves behind; the base
+supplies only the deleted doc's own `decision:`. A doc that doesn't parse
+after the change fails the check rather than being skipped, and
+`check-doc-drift.py` names it. A rename counts as a deletion plus an
+addition, so a renamed project doc keeps its revision named.
+
+Two PRs that each leave the other's project in place can both pass and
+together leave a revision `approved` with no project. The generated
+[Decisions awaiting a project](project-planning.md#decisions-awaiting-a-project)
+view lists it, so the gap is visible but not blocked.
 
 ## Molecule coverage gate
 

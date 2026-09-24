@@ -149,6 +149,28 @@ jobs:
           --base "${{ github.event.pull_request.base.sha }}"
           --head "${{ github.event.pull_request.head.sha }}"
 
+  # A PR that deletes a project doc must leave the revision its decision:
+  # names accepted or still named by another project - see
+  # docs/ci.md#project-close-check. Diffs from the merge-base, like
+  # project-scope, so main's newer commits aren't read as this PR's own.
+  project-close:
+    needs: warm-uv-cache
+    runs-on: ubuntu-26.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # the merge-base needs both histories
+
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      - name: Check the PR doesn't orphan a deleted project's decision
+        run: >-
+          uv run python .github/scripts/check-project-close.py
+          --base "${{ github.event.pull_request.base.sha }}"
+          --head "${{ github.event.pull_request.head.sha }}"
+
   # Split from pre-commit-checks: ansible-lint is pinned to stages:
   # [pre-push], which --hook-stage pre-commit above doesn't run.
   ansible-lint:

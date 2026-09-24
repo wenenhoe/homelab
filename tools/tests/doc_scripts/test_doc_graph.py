@@ -292,6 +292,61 @@ class ProjectErrorsTest(_TmpRoot):
         project(self.root, "p", status="building", decision="ADR-0099/0")
         self.assertOneError(graph.project_errors(self.root), "doesn't resolve")
 
+    def test_done_may_name_an_approved_revision_while_a_sibling_is_unfinished(self):
+        revision(self.root, "0001-x", 0, status="approved")
+        for sibling_status in ("not-started", "building"):
+            with self.subTest(sibling=sibling_status):
+                for old in (self.root / "docs/projects").glob("*.md"):
+                    old.unlink()
+                project(self.root, "closing", status="done", decision="ADR-0001/0")
+                project(self.root, "sibling", status=sibling_status, decision="ADR-0001/0")
+                self.assertEqual(graph.project_errors(self.root), [])
+
+    def test_done_naming_an_approved_revision_needs_an_unfinished_sibling(self):
+        revision(self.root, "0001-x", 0, status="approved")
+        project(self.root, "alone", status="done", decision="ADR-0001/0")
+        self.assertOneError(graph.project_errors(self.root), "another project not at done names it")
+
+    def test_only_done_siblings_do_not_count(self):
+        revision(self.root, "0001-x", 0, status="approved")
+        project(self.root, "a", status="done", decision="ADR-0001/0")
+        project(self.root, "b", status="done", decision="ADR-0001/0")
+        errors = graph.project_errors(self.root)
+        self.assertEqual(len(errors), 2, errors)
+
+    def test_also_implements_is_not_naming(self):
+        revision(self.root, "0001-x", 0, status="approved")
+        project(self.root, "closing", status="done", decision="ADR-0001/0")
+        project(self.root, "other", status="not-started", also_implements=["ADR-0001/0"])
+        self.assertOneError(graph.project_errors(self.root), "another project not at done names it")
+
+    def test_a_sibling_on_a_different_revision_is_not_a_sibling(self):
+        revision(self.root, "0001-x", 0, status="approved")
+        revision(self.root, "0001-x", 1, status="working", supersedes=0)
+        project(self.root, "closing", status="done", decision="ADR-0001/0")
+        project(self.root, "other", status="not-started", decision="ADR-0001/1")
+        self.assertOneError(graph.project_errors(self.root), "another project not at done names it")
+
+    def test_a_sibling_on_a_different_candidate_is_not_a_sibling(self):
+        revision(self.root, "0001-x", 0, letter="a", status="approved")
+        revision(self.root, "0001-x", 0, letter="b", status="abandoned")
+        project(self.root, "closing", status="done", decision="ADR-0001/0-a")
+        project(self.root, "other", status="not-started", decision="ADR-0001/0-b")
+        errors = graph.project_errors(self.root)
+        self.assertTrue(any("closing.md" in e and "another project not at done names it" in e for e in errors), errors)
+
+    def test_a_sibling_does_not_let_done_name_a_working_revision(self):
+        revision(self.root, "0001-x", 0, status="working")
+        project(self.root, "closing", status="done", decision="ADR-0001/0")
+        project(self.root, "sibling", status="not-started", decision="ADR-0001/0")
+        self.assertOneError(graph.project_errors(self.root), "closing.md: status: done needs decision ADR-0001/0")
+
+    def test_an_accepted_revision_with_an_unfinished_sibling_is_still_refused(self):
+        revision(self.root, "0001-x", 0, status="accepted")
+        project(self.root, "closing", status="done", decision="ADR-0001/0")
+        project(self.root, "sibling", status="building", decision="ADR-0001/0")
+        self.assertOneError(graph.project_errors(self.root), "sibling.md: status: building needs decision ADR-0001/0 to be approved, but it is accepted")
+
     def test_projects_without_a_decision_are_never_gated(self):
         for i, status in enumerate(("not-started", "de-risking", "building", "done")):
             project(self.root, f"p{i}", status=status)

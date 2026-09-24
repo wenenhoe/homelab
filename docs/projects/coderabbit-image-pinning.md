@@ -2,7 +2,7 @@
 id: PROJ-coderabbit-image-pinning
 title: "CodeRabbit Image: Pinned CLI, Ubuntu Base"
 type: project
-status: de-risking
+status: building
 blocked: false
 summary: "Pin and hash-verify the CodeRabbit CLI in the review image, bump it with Renovate, move the base to Ubuntu LTS, and tag images by CLI version."
 decision: ADR-0063/0
@@ -45,7 +45,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike: resolve the ADR's four assumptions with throwaway work only | In progress | Each assumption is resolved into the ADR's Context, or the Decision changes; ADR 0063 is `approved` |
+| 1 | Spike: resolve the ADR's four assumptions with throwaway work only | Done | Each assumption is resolved into the ADR's Context, or the Decision changes; ADR 0063 is `approved` |
 | 2 | Dockerfile on `ubuntu:26.04` with the pinned, hash-verified CLI; workflow tags by version and builds a version or hash change before it merges | Not started | `hadolint` clean; a wrong hash fails the PR build; the published image runs `auth --api-key` and a review of a real diff |
 | 3 | Renovate custom datasource and manager, with the hash reminder; update `docs/coderabbit-review.md` | Not started | A Renovate dry run proposes a bump from the real endpoint; the doc describes the tags, the hash step, and rollback |
 

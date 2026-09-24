@@ -6,7 +6,7 @@ title: "What the code-review image is built from, and how it stays current"
 solution: "Pin the CLI's version and the release zip's sha256, verify the zip before unpacking it, bump the version with Renovate from the release's VERSION file, use an Ubuntu LTS base, and tag every image with its CLI version"
 summary: "How the image that runs the CodeRabbit CLI is versioned, based, and kept up to date when upstream publishes no machine-readable release list."
 topic: repository-tooling
-status: working
+status: approved
 related: [ADR-0061]
 ---
 
@@ -54,7 +54,9 @@ version inside it so a bad release can be backed out.
   build. The 0.7.8 CLI, one release behind 0.8.0, does the same: it
   prints a notice that 0.8.0 exists and carries on, and the review left
   no second binary under the mounted state directory. `doctor` still
-  reports `Auto-update is eligible` on both.
+  reports `Auto-update is eligible` on both, `coderabbit update --help`
+  lists no options, and the CLI reference documents no setting that turns
+  updates off.
 
 **Threat model.** The adversary is a tampered CLI artifact at the
 vendor's release bucket. The asset is the API key the container is handed
@@ -63,6 +65,8 @@ that day. A recorded hash closes it for any version whose artifact is
 replaced after the hash was recorded, and makes every artifact change a
 diff to review. It does not help if the artifact is already bad when a
 bump records its hash, since the new hash comes from the same bucket.
+A CLI that replaced itself while a container runs would be a second
+path from that bucket, which the hash does not cover; see Non-goals.
 
 ## Decision
 
@@ -108,20 +112,6 @@ bump records its hash, since the new hash comes from the same bucket.
   the molecule image and CI runners. Rejected.
 - **Alpine.** No evidence the binary runs on musl. Not pursued.
 
-## Assumptions
-
-- **Claim:** A pinned CLI that is behind `latest` doesn't replace itself
-  while it runs in the container, and 0.8.0 behaves like 0.7.8 in that
-  respect.
-  **Breaks if wrong:** The binary that reviews a diff is not the one
-  whose hash was checked, and it runs in the container that holds the
-  API key; the pin and the version tags stop meaning anything.
-  **Checked by:** 0.7.8 only prints a notice (see Context). 0.8.0's
-  release notes describe changed automatic-update behavior, and it can
-  only be observed once a newer release exists, so instead find
-  upstream's documented switch that turns updates off (start with
-  `coderabbit update --help`) and set it in the image.
-
 ## Consequences
 
 - The Dockerfile is rewritten on the new base, `renovate.json5` gains a
@@ -150,6 +140,12 @@ bump records its hash, since the new hash comes from the same bucket.
   would need upstream signatures.
 - Multi-arch images; `linux/amd64` only, as today.
 - Pinning individual `apt` packages.
+- Stopping the CLI from updating itself while a container runs. Upstream
+  documents no switch, so the pin covers the binary a container starts
+  with, not what might replace it during that run. What bounds it: every
+  container starts from the image's root-owned `/bin/coderabbit`, runs
+  unprivileged, and is discarded afterwards, so nothing an update wrote
+  survives it.
 
 ## Validation
 
@@ -165,5 +161,7 @@ CLI change, `auth --api-key` and a review against the published image.
 - The hand step per bump becomes a burden: automate it or reconsider.
 - Upstream publishes GitHub releases or another machine-readable release
   list: replace the custom datasource.
+- Upstream documents a switch that disables updates: set it in the
+  image and drop the non-goal above.
 - Ubuntu LTS 26.04 nears the end of its support: Renovate's PR for the
   next LTS is the prompt; nothing to decide here.

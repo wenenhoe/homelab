@@ -13,13 +13,20 @@ from doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, l
 
 # A project's status fixes which state its linked decision revision must
 # be in. The gate is what stops production work when a revision drops
-# back to working.
+# back to working. `done` is the one row that also depends on other
+# projects: see SHARED_DONE_STATUS.
 PROJECT_DECISION_GATE = {
     "not-started": {"working", "approved"},
     "de-risking": {"working"},
     "building": {"approved"},
     "done": {"accepted"},
 }
+
+# A revision several projects name stays approved until the last one
+# closes, so a `done` project may name an approved revision while
+# another project not at `done` still names it (ADR 0037 revision 2).
+SHARED_DONE_STATUS = "approved"
+_DONE_NEEDED = f"accepted, or {SHARED_DONE_STATUS} while another project not at done names it"
 
 _ASSUMPTIONS_RE = re.compile(r"^## Assumptions\n\n(.*?)(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
 _BULLET_RE = re.compile(r"^- ", re.MULTILINE)
@@ -169,6 +176,12 @@ def project_errors(root: Path = ROOT) -> list[str]:
         projects[fm["id"]] = (path, fm)
 
     revisions = {(lineage.id, rev.label): rev for lineage in load_lineages(root) for rev in lineage.revisions}
+    # `decision:` only; `also_implements:` gates nothing, so it never counts as naming.
+    unfinished_namers: dict[tuple[str, str], set[str]] = {}
+    for pid, (_, fm) in projects.items():
+        if "decision" in fm and fm["status"] != "done":
+            m = REVISION_REF_RE.match(fm["decision"])
+            unfinished_namers.setdefault((m.group(1), m.group(2)), set()).add(pid)
     graph: dict[str, list[str]] = {}
     for pid, (path, fm) in projects.items():
         rel = path.relative_to(root)
@@ -191,11 +204,16 @@ def project_errors(root: Path = ROOT) -> list[str]:
         if "decision" not in fm:
             continue
         m = REVISION_REF_RE.match(fm["decision"])
-        rev = revisions.get((m.group(1), m.group(2)))
+        key = (m.group(1), m.group(2))
+        rev = revisions.get(key)
+        allowed = PROJECT_DECISION_GATE[fm["status"]]
+        shared = fm["status"] == "done" and bool(unfinished_namers.get(key))
+        if shared:
+            allowed = allowed | {SHARED_DONE_STATUS}
         if rev is None:
             errors.append(f"{rel}: decision {fm['decision']} doesn't resolve to a lineage revision")
-        elif rev.status not in PROJECT_DECISION_GATE[fm["status"]]:
-            needed = " or ".join(sorted(PROJECT_DECISION_GATE[fm["status"]]))
+        elif rev.status not in allowed:
+            needed = _DONE_NEEDED if fm["status"] == "done" else " or ".join(sorted(allowed))
             errors.append(f"{rel}: status: {fm['status']} needs decision {fm['decision']} to be {needed}, but it is {rev.status}")
     errors.extend(_cycle_errors(graph))
     return errors

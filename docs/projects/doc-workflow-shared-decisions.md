@@ -2,7 +2,7 @@
 id: PROJ-doc-workflow-shared-decisions
 title: "Docs Workflow: Shared Decisions"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Let several projects implement one ADR revision: a sibling-aware done gate, a deletion-time close check, and the lifecycle docs."
 decision: ADR-0037/2
@@ -50,7 +50,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Make `done`'s gate in `doc_graph.py` sibling-aware, with tests | Not started | `done` naming an `approved` revision passes only while another non-`done` project names it; `pytest tools/tests/doc_scripts` and `check-doc-drift.py` pass |
+| 1 | Make `done`'s gate in `doc_graph.py` sibling-aware, with tests | Done | `done` naming an `approved` revision passes only while another non-`done` project names it; `pytest tools/tests/doc_scripts` and `check-doc-drift.py` pass |
 | 2 | The close check script, with tests | Not started | Deleting the last project naming an unaccepted revision fails; accepting it, leaving a sibling, or adding a successor passes |
 | 3 | Wire the check into `pr-checks.yml` and pre-commit; describe it in `docs/ci.md` | Not started | The job runs on a PR and a hook run locally agrees with it |
 | 4 | Update `docs/projects/README.md`; accept ADR 0037/2 and mark revision 1 `superseded` | Not started | `pre-commit run --all-files` passes with revision 2 `accepted` and revision 1 `superseded` |

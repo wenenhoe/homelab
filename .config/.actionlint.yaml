@@ -1,0 +1,9 @@
+# ubuntu-26.04 is used across .github/workflows/ but absent from
+# actionlint 1.7.12's built-in runner labels; upstream support is the open
+# PR 683. Until a release with it
+# is pinned in .pre-commit-config.yaml, registering it here is the only way
+# to accept the label, and it exempts only the names listed — drop this
+# file and the hook's -config-file arg once that release lands.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

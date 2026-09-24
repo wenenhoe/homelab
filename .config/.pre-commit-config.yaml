@@ -80,6 +80,16 @@ repos:
       # --external-sources needed: nothing here sources another file)
       # against every .sh in the repo before adding this hook.
       - id: shellcheck
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.12
+    hooks:
+      # Docker variant so shellcheck/pyflakes are present: without them on
+      # PATH actionlint silently skips its `run:` block checks (no error,
+      # just fewer findings), and the image bundles both (Dockerfile at
+      # this tag). Its entry pins the image tag to this rev, so one
+      # Renovate bump moves both.
+      - id: actionlint-docker
+        args: [-config-file, .config/.actionlint.yaml]
   - repo: local
     hooks:
       - id: generate-doc-indexes

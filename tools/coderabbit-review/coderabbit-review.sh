@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Run CodeRabbit CLI in a container (no host install) against this repo.
 # Usage:
-#   ./coderabbit-review.sh build                  # build the image (once, or after an update)
 #   ./coderabbit-review.sh auth                    # authenticate (once; persists in ~/.coderabbit)
 #   CODERABBIT_API_KEY=... ./coderabbit-review.sh auth --api-key   # headless: no browser step
 #   ./coderabbit-review.sh usage                    # cr usage — billing-period review count/spend/reset
@@ -9,8 +8,7 @@
 
 set -euo pipefail
 
-IMAGE=coderabbit-cli
-DOCKERFILE="$(dirname "$0")/Dockerfile"
+IMAGE=ghcr.io/wenenhoe/coderabbit-review:latest
 AUTH_DIR="$HOME/.coderabbit"
 
 require_git_repo() {
@@ -20,14 +18,22 @@ require_git_repo() {
   }
 }
 
-cmd_build() {
-  docker build --build-arg USER_UID="$(id -u)" -t "$IMAGE" -f "$DOCKERFILE" "$(dirname "$DOCKERFILE")"
+# The image has no build-time UID: every container runs as the invoking
+# user, so files the CLI writes to the $AUTH_DIR mount stay that user's.
+# Root is refused to keep the container non-root, AGENTS.md's standing
+# pattern.
+docker_run() {
+  if [ "$(id -u)" -eq 0 ]; then
+    echo "Refusing to run the CodeRabbit container as root." >&2
+    exit 1
+  fi
+  docker run -u "$(id -u):$(id -g)" "$@"
 }
 
 cmd_auth() {
   mkdir -p "$AUTH_DIR"
   case "${1:-}" in
-    "") docker run -it -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" "$IMAGE" auth login ;;
+    "") docker_run -it -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" "$IMAGE" auth login ;;
     --api-key) cmd_auth_api_key ;;
     *)
       echo "Usage: $0 auth [--api-key]" >&2
@@ -47,7 +53,7 @@ cmd_auth_api_key() {
     exit 1
   fi
   # shellcheck disable=SC2016 # $CODERABBIT_API_KEY must expand inside the container, not here.
-  docker run -e CODERABBIT_API_KEY \
+  docker_run -e CODERABBIT_API_KEY \
     -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" \
     --entrypoint /bin/sh "$IMAGE" \
     -c 'exec /bin/coderabbit auth login --api-key "$CODERABBIT_API_KEY"'
@@ -59,7 +65,7 @@ cmd_auth_api_key() {
 # billing period. That's billing-period usage, not confirmed to be an
 # hourly-rate-limit counter specifically; run it and see what it shows.
 cmd_usage() {
-  docker run -it -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" "$IMAGE" usage
+  docker_run -it -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" "$IMAGE" usage
 }
 
 # Only allocates a pty when stdin and stdout both are one, so a piped or
@@ -80,7 +86,7 @@ run_review_docker() {
   if [ -t 0 ] && [ -t 1 ]; then
     tty_flags="-it"
   fi
-  docker run $tty_flags \
+  docker_run $tty_flags \
     -v "$AUTH_DIR:/home/coderabbit/.coderabbit/" \
     -v "$(git rev-parse --show-toplevel):/workdir:ro" \
     "$IMAGE" review --base "$base" "$@"
@@ -94,12 +100,11 @@ cmd_review() {
 }
 
 case "${1:-}" in
-  build) cmd_build ;;
   auth) shift; cmd_auth "$@" ;;
   usage) cmd_usage ;;
   review) shift; cmd_review "$@" ;;
   *)
-    echo "Usage: $0 {build|auth [--api-key]|usage|review [base-branch]}" >&2
+    echo "Usage: $0 {auth [--api-key]|usage|review [base-branch]}" >&2
     exit 1
     ;;
 esac

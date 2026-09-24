@@ -67,7 +67,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 | :-: | :--- | :--- | :--- |
 | 1 | Remove `full-review`/`status`/`report`/`reset` and their now-unused support functions | Done | `shellcheck` clean; `auth`/`review`/`build` still work unchanged |
 | 2 | Add `--api-key` headless auth alongside interactive `auth login` | Done | A `review` call authenticates non-interactively given an API key |
-| 3 | Add `build-coderabbit-review-image.yml`; drop `cmd_build`; point `auth`/`review` at the pulled image | Not started | Workflow builds and pushes on a path-filtered change or the weekly schedule; the script runs against the pulled image with no local `docker build` |
+| 3 | Add `build-coderabbit-review-image.yml`; drop `cmd_build`; point `auth`/`review` at the pulled image | In progress | Workflow builds and pushes on a path-filtered change or the weekly schedule; the script runs against the pulled image with no local `docker build` |
 | 4 | Rewrite `docs/coderabbit-review.md` for the new scope | Not started | `pre-commit run --all-files` and `check-doc-drift.py` pass |
 
 ## Acceptance criteria
@@ -86,11 +86,16 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 
 ## Risks
 
-- The image's baked-in `USER_UID` was previously set at build time to match whichever host ran `docker build --build-arg USER_UID="$(id -u)"`. Once the image is built centrally once and pulled everywhere, that per-invoker matching disappears. `/workdir` is already mounted `:ro` (an earlier patch to this branch), so a UID mismatch doesn't affect it — but the writable `$AUTH_DIR` mount could hit permission errors if the pulled image's fixed UID doesn't match the invoking CI runner's. Needs a decision during stage 3: a fixed baked-in UID with a corresponding `chown` step on `$AUTH_DIR`, or a `docker run -u "$(id -u):$(id -g)"` runtime override instead of a build-time `ARG`. Not a live vulnerability — an execution-environment detail to resolve before stage 3 is done, not before it starts.
+- The pulled image runs under `docker run -u <invoking uid>:<gid>`, a UID
+  it has no passwd entry for. `HOME` is pinned to the world-writable
+  (sticky) `/home/coderabbit` so the `$AUTH_DIR` mount and the CLI's other
+  writes have somewhere to land. Whether the CLI and `git` both behave
+  under an unmapped UID hasn't been run yet; stage 3 stays In progress
+  until a live `auth` and `review` against the published image confirm it.
 
 ## Open items
 
-- Fixed-UID vs. runtime `-u` override for the pulled image (see Risks).
+- Whether the published GHCR package is readable by `homelab-security`'s CI, or needs a public package or a read token; check after the first push.
 - Whether the published image needs any tag beyond `:latest` for rollback purposes, or floating is acceptable given the CLI itself is unpinned by design regardless.
 
 ## Closing checklist

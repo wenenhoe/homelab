@@ -11,9 +11,16 @@ so nothing needs installing on the host. Not wired into
 
 ```bash
 cd tools/coderabbit-review
-./coderabbit-review.sh build   # once, or after an install.sh update upstream
 ./coderabbit-review.sh auth    # once; persists under ~/.coderabbit
 ```
+
+There is no build step. Every command runs `ghcr.io/wenenhoe/coderabbit-review:latest`,
+which [`build-coderabbit-review-image.yml`](../.github/workflows/build-coderabbit-review-image.yml)
+rebuilds on a `Dockerfile` change and weekly (the CLI installer always
+fetches the latest release). Docker pulls it on first use; run
+`docker pull ghcr.io/wenenhoe/coderabbit-review:latest` to refresh a local
+copy. The container runs as the invoking user (`docker run -u`) and the
+script refuses to run as root.
 
 ## Commands
 

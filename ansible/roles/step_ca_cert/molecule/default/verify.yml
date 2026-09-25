@@ -168,7 +168,7 @@
       ansible.builtin.assert:
         that:
           - "'RENEW_ACTION=restart' in (step_ca_cert_verify_env_raw.content | b64decode)"
-          - "(step_ca_cert_verify_env_raw.content | b64decode) is search('(?m)^CHOWN_IMAGE=$')"
+          - "(step_ca_cert_verify_env_raw.content | b64decode) is search('^CHOWN_IMAGE=$', multiline=True)"
         fail_msg: "Rendered env: {{ step_ca_cert_verify_env_raw.content | b64decode }}"
 
     - name: Read back telegram-notify's rendered env file

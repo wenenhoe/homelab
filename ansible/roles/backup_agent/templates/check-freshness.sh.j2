@@ -42,20 +42,29 @@ check_app() {
   # it's actually attached to. backup_agent_network_name is discovered
   # in tasks/main.yaml, not hardcoded - the network's actual runtime
   # name isn't simply "backup-agent-net" (see that task's own comment).
-  output=$(docker run --rm --network {{ backup_agent_network_name }} rclone/rclone:1.75 lsf \
+  # Credentials go in an env file, not docker run's own arguments — those
+  # are visible to any local user via ps/proc, unlike an env file rclone
+  # itself reads. rclone honors RCLONE_S3_* for the on-the-fly ":s3:" remote
+  # the same as the equivalent --s3-* flags (confirmed live, not assumed).
+  s3_env_file=$(mktemp)
+  chmod 600 "${s3_env_file}"
+  cat > "${s3_env_file}" <<S3ENV
+RCLONE_S3_ENDPOINT={{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}
+RCLONE_S3_ACCESS_KEY_ID={{ seaweedfs_s3_access_key }}
+RCLONE_S3_SECRET_ACCESS_KEY={{ seaweedfs_s3_secret_key }}
+RCLONE_S3_PROVIDER=Other
+RCLONE_S3_REGION=global
+RCLONE_S3_FORCE_PATH_STYLE=true
+S3ENV
+
+  output=$(docker run --rm --network {{ backup_agent_network_name }} --env-file "${s3_env_file}" rclone/rclone:1.75 lsf \
     ":s3:{{ offsite_backup_s3_bucket }}/${s3_path}/" \
-    --s3-endpoint "{{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}" \
-    --s3-access-key-id "{{ seaweedfs_s3_access_key }}" \
-    --s3-secret-access-key "{{ seaweedfs_s3_secret_key }}" \
-    --s3-provider Other \
-    --s3-region global \
-    --s3-force-path-style \
     --max-age "${max_age}" \
     --files-only 2>"${rclone_stderr}")
   rc=$?
   set -e
   stderr_content=$(cat "${rclone_stderr}")
-  rm -f "${rclone_stderr}"
+  rm -f "${rclone_stderr}" "${s3_env_file}"
 
   if [ "${rc}" -ne 0 ]; then
     echo "${app_name}: rclone failed (exit ${rc}): ${stderr_content}" >&2

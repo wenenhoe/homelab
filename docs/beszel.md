@@ -57,10 +57,12 @@ Sequence:
    `update` on `secret/data/hosts/*`, just not `delete` — see
    `controller.hcl`), so `openbao_utils/bootstrap.py`'s own skip-if-already-set
    behavior doesn't get in the way here:
+   `value=-` reads from stdin instead of the command line, which a
+   shell's own history file and process listing (`ps`) can both expose:
    ```sh
    cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
-   bao kv put -mount=secret hosts/all/beszel/beszel-hub-key value='<new key>'
-   bao kv put -mount=secret hosts/all/beszel/beszel-agent-token value='<new token>'
+   read -rs KEY; bao kv put -mount=secret hosts/all/beszel/beszel-hub-key value=- <<< "$KEY"; unset KEY
+   read -rs TOKEN; bao kv put -mount=secret hosts/all/beszel/beszel-agent-token value=- <<< "$TOKEN"; unset TOKEN
    exit
    ```
 5. `ansible-playbook playbooks/deploy.yaml --limit app_hosts,localhost` — **not** `security` alone. Every host in `app_hosts` (`services`, `security`, `play`, `storage`) runs an agent that needs the new KEY to verify the hub again.

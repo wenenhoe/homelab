@@ -68,7 +68,8 @@ alongside `telegram_chatid_*`.
   `molecule_helpers`).
 - Never reloads systemd or notifies a handler itself — the including
   role does that off the `telegram_notify_env_result`/
-  `telegram_notify_service_result` it registers, so the shared role
+  `telegram_notify_curlrc_result`/`telegram_notify_service_result` it
+  registers, so the shared role
   never depends on a same-named handler existing in whatever play
   includes it.
 

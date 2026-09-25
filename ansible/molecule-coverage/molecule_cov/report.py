@@ -64,6 +64,19 @@ def discover_roles(coverage_dir: Path) -> list[Path]:
     return sorted(p.parent for p in coverage_dir.glob("*/_inventory.json") if p.is_file())
 
 
+def roles_missing_inventory(coverage_dir: Path) -> list[Path]:
+    """Role directories with real execution data (at least one *.jsonl
+    file) but no _inventory.json - a write failure or a partial run, not
+    a role that was simply never exercised. discover_roles() above
+    silently excludes these from the summary/threshold report the same
+    way it excludes a role with no data at all; without a separate check
+    the two cases are indistinguishable and a genuinely broken role's
+    coverage just goes unreported instead of failing the run."""
+    if not coverage_dir.is_dir():
+        return []
+    return sorted(d for d in coverage_dir.iterdir() if d.is_dir() and any(d.glob("*.jsonl")) and not (d / "_inventory.json").is_file())
+
+
 def _fmt_pct(pct: float | None) -> str:
     return "n/a" if pct is None else f"{pct:5.1f}%"
 

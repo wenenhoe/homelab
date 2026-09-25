@@ -20,14 +20,15 @@ changed=$(git diff --name-only "$base" "$head")
 excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
 
 # -f drops deleted compose files (git diff lists them too) — same guard
-# detect-changed-roles.sh applies via -d.
+# detect-changed-roles.sh applies via -d. Templated stacks ship
+# compose.yaml.j2 instead of compose.yaml.
 apps=()
 while IFS= read -r app; do
-  [ -f "docker/$app/compose.yaml" ] || continue
+  [ -f "docker/$app/compose.yaml" ] || [ -f "docker/$app/compose.yaml.j2" ] || continue
   apps+=("$app")
 done < <(echo "$changed" \
-  | grep -oE '^docker/[^/]+/compose\.yaml$' \
-  | sed -E 's#docker/([^/]+)/compose\.yaml#\1#' \
+  | grep -oE '^docker/[^/]+/compose\.yaml(\.j2)?$' \
+  | sed -E 's#docker/([^/]+)/compose\.yaml(\.j2)?#\1#' \
   | grep -vE "^($excluded)\$" \
   | sort -u)
 

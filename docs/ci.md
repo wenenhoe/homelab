@@ -26,12 +26,14 @@ type in the repo:
   [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)),
   and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
   role's Molecule run actually executes under).
-- `compose_apps` — any `docker/<app>/compose.yaml` touched, minus the
-  exclusion list (below).
+- `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`
+  touched, minus the exclusion list (below).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
-  `ansible/roles/secrets/**`, `ansible/roles/restore/**`.
+  `ansible/roles/secrets/**`, `ansible/roles/restore/**`,
+  `pyproject.toml`/`uv.lock`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
-- `python_unit_tests` — `ansible/scripts/*.py`, `tools/cloud_credentials/**`,
+- `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
+  `tools/cloud_credentials/**`,
   `tools/openbao_utils/**`, `tools/utils/**`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
@@ -79,7 +81,7 @@ the SeaweedFS-specific case this generalizes from.
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
-| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results into one fixed check name — see below. |
+| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
 
 ```mermaid
 flowchart TD
@@ -250,8 +252,11 @@ guaranteed to post for every PR: the base job name (`molecule`) only
 appears when the job is skipped entirely, never when it actually ran.
 Require `matrix-jobs-gate` instead — it depends on both, runs
 regardless of whether they were skipped (`if: always()`), and fails
-only if either genuinely failed (not skipped). One fixed name, correct
-for every PR shape.
+if either genuinely failed (not skipped). It also depends on
+`detect-changes`, `warm-uv-cache` and `warm-galaxy-cache` and requires
+each to succeed: a failure there makes both matrix jobs report
+`skipped`, which would otherwise pass. One fixed name, correct for every
+PR shape.
 
 ## Deploy-ordering-check
 

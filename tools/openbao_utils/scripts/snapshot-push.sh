@@ -133,13 +133,22 @@ no_check_bucket = true
 region = ${b2_region}
 EOF
 
+push_failed=""
 for remote in r2 b2; do
   echo "Pushing to ${remote}:openbao-snapshots/..."
-  docker run --rm \
+  if ! docker run --rm \
     -v "${RCLONE_CONF}:/config/rclone/rclone.conf:ro" \
     -v "${STAGING}:/data:ro" \
     rclone/rclone:1.75 \
-    copy "/data/$(basename "$ENC")" "${remote}:openbao-snapshots/"
+    copy "/data/$(basename "$ENC")" "${remote}:openbao-snapshots/"; then
+    echo "Push to ${remote} FAILED" >&2
+    push_failed="${push_failed} ${remote}"
+  fi
 done
+
+if [ -n "$push_failed" ]; then
+  echo "One or more pushes failed:${push_failed}" >&2
+  exit 1
+fi
 
 echo "Done: $(basename "$ENC") pushed to R2 and B2."

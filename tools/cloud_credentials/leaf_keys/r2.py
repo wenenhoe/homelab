@@ -212,19 +212,19 @@ def rotate_r2(leaves: list[str]) -> bool:
             all_ok = False
             continue
 
+        write_cache(f"cloudflare-r2-{leaf}-access-key", new_token_id)
+        write_cache(f"cloudflare-r2-{leaf}-secret-key", new_secret_key)
+
         if old_token_id:
             try:
                 r2_delete_token(session, account_id, old_token_id)
                 print(f"r2 {leaf}: old token {old_token_id} revoked")
             except RuntimeError as exc:
                 print(
-                    f"r2 {leaf}: new token verified and will be cached, but revoking old token "
-                    f"{old_token_id} failed ({exc}) — revoke it by hand in the Cloudflare dashboard.",
+                    f"r2 {leaf}: new token cached, but revoking old token {old_token_id} failed ({exc}) — revoke it by hand in the Cloudflare dashboard.",
                     file=sys.stderr,
                 )
 
-        write_cache(f"cloudflare-r2-{leaf}-access-key", new_token_id)
-        write_cache(f"cloudflare-r2-{leaf}-secret-key", new_secret_key)
         print(f"r2 {leaf}: rotated and verified")
 
     return all_ok

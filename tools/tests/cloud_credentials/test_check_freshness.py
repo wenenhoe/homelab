@@ -36,17 +36,21 @@ class FreshnessTestBase(FakeVaultTestCase):
 
 
 class CheckB2Tests(FreshnessTestBase):
-    def _key(self, key_name: str, expiration_ms: float | None):
-        return MagicMock(key_name=key_name, expiration_timestamp_millis=expiration_ms)
+    def _key(self, key_id: str, expiration_ms: float | None):
+        return MagicMock(id_=key_id, expiration_timestamp_millis=expiration_ms)
 
     @patch.object(check_freshness, "b2_list_keys")
     @patch.object(check_freshness, "b2_rotation_api", return_value=MagicMock())
     def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_api, mock_list_keys):
         future_ms = (datetime.now(UTC) + timedelta(days=45)).timestamp() * 1000
         past_ms = (datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000
+        self.seed("backblaze-b2-write-access-key", "key-write-1")
+        self.seed("backblaze-b2-read-access-key", "key-read-1")
+        # rotation key id deliberately not seeded, mirroring the key
+        # itself being "absent from the response" below
         mock_list_keys.return_value = [
-            self._key("homelab-cloud-sync-write", future_ms),
-            self._key("homelab-cloud-sync-read", past_ms),
+            self._key("key-write-1", future_ms),
+            self._key("key-read-1", past_ms),
             # rotation key deliberately absent from the response
         ]
 
@@ -71,7 +75,8 @@ class CheckB2Tests(FreshnessTestBase):
         # but a plain fresh/stale split would say nothing until it's
         # already broken cloud_sync's next run.
         soon_ms = (datetime.now(UTC) + timedelta(days=WARNING_DAYS - 1)).timestamp() * 1000
-        mock_list_keys.return_value = [self._key("homelab-cloud-sync-write", soon_ms)]
+        self.seed("backblaze-b2-write-access-key", "key-write-1")
+        mock_list_keys.return_value = [self._key("key-write-1", soon_ms)]
         results = check_freshness.check_b2()
         statuses = {name: status for name, status, _ in results}
         self.assertEqual(statuses["b2 write"], check_freshness.WARNING)
@@ -83,7 +88,8 @@ class CheckB2Tests(FreshnessTestBase):
         # conversation than 25 days out, even though both are technically
         # "not fresh". A single WARNING would flatten that distinction.
         soon_ms = (datetime.now(UTC) + timedelta(days=URGENT_DAYS - 1)).timestamp() * 1000
-        mock_list_keys.return_value = [self._key("homelab-cloud-sync-write", soon_ms)]
+        self.seed("backblaze-b2-write-access-key", "key-write-1")
+        mock_list_keys.return_value = [self._key("key-write-1", soon_ms)]
         results = check_freshness.check_b2()
         statuses = {name: status for name, status, _ in results}
         self.assertEqual(statuses["b2 write"], check_freshness.URGENT)
@@ -159,7 +165,7 @@ class CheckR2Tests(FreshnessTestBase):
         future = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
         past = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        def get(url):
+        def get(url, timeout=None):
             if url.endswith("/user/tokens/verify"):
                 return MagicMock(json=lambda: {"success": True, "result": {"id": "x", "status": "active", "expires_on": future}})
             if "TOKEN_ID_WRITE" in url:
@@ -189,7 +195,7 @@ class CheckR2Tests(FreshnessTestBase):
         account_id to do so."""
         session = mock_session_cls.return_value
 
-        def get(url):
+        def get(url, timeout=None):
             if url == "https://api.cloudflare.com/client/v4/user/tokens/verify":
                 return MagicMock(json=lambda: {"success": True, "result": {"id": "x", "status": "active", "expires_on": "2099-01-01T00:00:00Z"}})
             raise AssertionError(f"check_r2 must not call the account-scoped tokens endpoints for the rotation token: {url}")

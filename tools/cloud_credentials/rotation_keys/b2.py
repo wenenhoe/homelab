@@ -103,17 +103,18 @@ def rotate_b2_rotation_key() -> bool:
         )
         return False
 
+    write_cache("_rotation-key-backblaze-b2-key-id", new_key_id)
+    write_cache("_rotation-key-backblaze-b2-application-key", new_app_key)
+
     if old_key_id:
         try:
             minted["master_api"].session.delete_key(old_key_id)
             print(f"b2: old rotation key {old_key_id} revoked")
         except B2Error as exc:
             print(
-                f"b2: new rotation key verified and will be cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
+                f"b2: new rotation key cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
                 file=sys.stderr,
             )
 
-    write_cache("_rotation-key-backblaze-b2-key-id", new_key_id)
-    write_cache("_rotation-key-backblaze-b2-application-key", new_app_key)
     print("b2: rotation key rotated and verified")
     return True

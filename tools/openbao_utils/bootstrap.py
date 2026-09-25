@@ -67,7 +67,21 @@ def load_registry() -> dict[str, dict]:
 # list rather than a second, hand-maintained one here, so the two can't
 # drift the way secrets_registry.yaml's header comment and this script's
 # actual behavior once did.
-_CLOUD_CREDENTIAL_OWNED_NAMES = frozenset(name for name, _module in LEGACY_CACHE_KEYS)
+#
+# LEGACY_CACHE_KEYS also tracks operator-provided values (region/
+# namespace/account-id) that live in the same Vault-backed cache but
+# have no automated writer at all - create_leaf_keys.py never mints
+# them, it only reads them. Excluding those too would mean nothing in
+# this project ever prompts for them.
+_OPERATOR_PROVIDED_NAMES = frozenset(
+    {
+        "backblaze-b2-region",
+        "oci-namespace",
+        "oci-region",
+        "cloudflare-r2-account-id",
+    }
+)
+_CLOUD_CREDENTIAL_OWNED_NAMES = frozenset(name for name, _module in LEGACY_CACHE_KEYS) - _OPERATOR_PROVIDED_NAMES
 
 
 def load_manual_entries(registry: dict) -> dict[str, dict]:

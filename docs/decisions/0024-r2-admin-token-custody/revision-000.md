@@ -67,8 +67,8 @@ local cache file today.
   original finding — full Cloudflare account access if it leaks,
   regardless of where it's stored. This decision changes who/what can
   reach the token, not what it can do once reached.
-- All 9 original credentials plus this one now live in Vault — no
-  flat-file exception remains.
+- All originally-flat-file credentials, including the R2 admin token,
+  now live in Vault — no flat-file exception remains.
 - The per-read alert is new work: no existing consumer in
   `tools/cloud_credentials/` alerts on access rather than on expiry.
   Vault's own audit log is the natural source for it (an

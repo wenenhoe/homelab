@@ -44,6 +44,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Record the workflow start time
+        id: started
+        run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
+
       - name: Self-hosted Renovate
         uses: renovatebot/github-action@9fea9f0fbf80401026d11d03911d62b1f70fef1f # v46.3.3
         env:
@@ -67,10 +71,12 @@ jobs:
       # and surfaces it via GitHub's default failed-workflow notification.
       - name: Check schedule-window compliance
         if: always() && github.event_name == 'schedule'
+        env:
+          STARTED_EPOCH: ${{ steps.started.outputs.epoch }}
         run: |
-          dow=$(TZ=Asia/Singapore date +%u)  # 1=Mon .. 7=Sun
-          hour=$(TZ=Asia/Singapore date +%-H)
-          now=$(TZ=Asia/Singapore date)
+          dow=$(TZ=Asia/Singapore date -d "@$STARTED_EPOCH" +%u)  # 1=Mon .. 7=Sun
+          hour=$(TZ=Asia/Singapore date -d "@$STARTED_EPOCH" +%-H)
+          now=$(TZ=Asia/Singapore date -d "@$STARTED_EPOCH")
           if { [ "$dow" = "1" ] || [ "$dow" = "4" ]; } && [ "$hour" -ge 6 ]; then
             echo "::error::Run started $now SGT, past the 05:59 PR-creation window — no new PRs opened this cycle."
             exit 1

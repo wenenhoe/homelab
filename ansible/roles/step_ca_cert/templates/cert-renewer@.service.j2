@@ -42,7 +42,14 @@ EnvironmentFile=/etc/cert-renewer/%i.env
 ; skip (visible as such in `journalctl`) rather than a run that quietly
 ; does nothing. Purely a local file check (the cert's own expiry against
 ; step's default threshold) - no network access needed.
-ExecCondition=/usr/bin/docker run --rm --user root -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem
+;
+; systemd skips the unit on any ExecCondition exit code 1-254 and fails it
+; only on 255. needs-renewal's own codes are 0 (due), 1 (not due), 2 (file
+; missing) and 255 (other error), and docker itself exits 125-127 when it
+; can't run the container. Only 0 and 1 may keep their meaning; anything
+; else becomes 255 so a missing cert or a broken docker is a failure, not a
+; quiet skip. $$ is systemd's escape for a literal $.
+ExecCondition=/bin/sh -c '/usr/bin/docker run --rm --user root -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem; rc=$$?; [ "$$rc" -le 1 ] && exit "$$rc"; exit 255'
 
 ; Renews via mTLS against the existing cert/key by default (step ca
 ; renew's own documented behavior) - no provisioner password needed

@@ -6,7 +6,10 @@ Requires=docker.service
 [Service]
 Type=simple
 ExecStart=/usr/bin/python3 /opt/r2-read-watcher/r2_read_watcher.py
-Restart=on-failure
+# always, not on-failure: the watcher follows `docker logs -f`, which ends
+# without an error when the openbao container stops, and the watcher then
+# exits 0. on-failure would leave it stopped.
+Restart=always
 RestartSec=10
 # Root, not a docker-group user: docker-group membership is already
 # root-equivalent (well-known Docker caveat), so there's no real

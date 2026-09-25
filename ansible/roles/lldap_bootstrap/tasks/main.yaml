@@ -59,17 +59,21 @@
   tags:
     - molecule-idempotence-notest
   block:
+    # Built as a mapping and serialized with to_json, not a string template
+    # with the password interpolated directly - a password containing a
+    # double quote or backslash would otherwise land in the file unescaped
+    # and produce invalid JSON (confirmed live).
     - name: Render the observer user's bootstrap.sh config
       ansible.builtin.copy:
         dest: /tmp/lldap-bootstrap-observer.json
         mode: "0600"
-        content: |
-          {
+        content: >-
+          {{ {
             "id": "observer",
-            "email": "observer@{{ lab_domain }}",
-            "password": "{{ tinyauth_ldap_observer_password }}",
+            "email": "observer@" ~ lab_domain,
+            "password": tinyauth_ldap_observer_password,
             "groups": ["lldap_strict_readonly"]
-          }
+          } | to_json }}
       no_log: true
     - name: Run lldap's own bootstrap.sh against the observer config
       community.docker.docker_container:

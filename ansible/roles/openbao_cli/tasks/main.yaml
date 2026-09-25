@@ -56,6 +56,11 @@
       ansible.builtin.apt:
         deb: "/tmp/{{ openbao_cli_deb_name }}"
         state: present
+        # Without this, rolling the pinned openbao_cli_server_version back
+        # to an earlier release fails apt's own downgrade guard, since the
+        # already-installed CLI is a newer version than the .deb being
+        # installed.
+        allow_downgrade: true
   always:
     - name: Remove the scratch .deb download
       ansible.builtin.file:

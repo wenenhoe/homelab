@@ -50,6 +50,19 @@
           Refusing to run without -e volume_rm_confirm=true — this
           irreversibly deletes files from inside a volume.
 
+    # A string (e.g. -e volume_rm_paths=app.db) would be iterated
+    # character by character by the map filter below.
+    - name: Require volume_rm_paths to be a non-empty list
+      ansible.builtin.assert:
+        that:
+          - volume_rm_paths is defined
+          - volume_rm_paths is not string
+          - volume_rm_paths is sequence
+          - volume_rm_paths | length > 0
+        fail_msg: >-
+          volume_rm_paths must be a non-empty list, passed as JSON:
+          -e '{"volume_rm_paths": ["app.db"]}'
+
     - name: Set full volume name
       ansible.builtin.set_fact:
         volume_rm_full_name: "{{ volume_rm_app }}_{{ volume_rm_volume }}"

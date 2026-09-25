@@ -113,19 +113,20 @@ def rotate_oci(leaves: list[str]) -> bool:
             all_ok = False
             continue
 
+        write_cache(f"oci-{leaf}-access-key", new_access_key)
+        write_cache(f"oci-{leaf}-secret-key", new_secret_key)
+        write_cache(f"oci-{leaf}-scim-id", new_key.id)
+
         if old_scim_id:
             try:
                 _delete_customer_secret_key(client, old_scim_id)
                 print(f"oci {leaf}: old key {old_scim_id} revoked")
             except oci.exceptions.ServiceError as exc:
                 print(
-                    f"oci {leaf}: new key verified and will be cached, but revoking old key {old_scim_id} failed ({exc}) — revoke it by hand.",
+                    f"oci {leaf}: new key cached, but revoking old key {old_scim_id} failed ({exc}) — revoke it by hand.",
                     file=sys.stderr,
                 )
 
-        write_cache(f"oci-{leaf}-access-key", new_access_key)
-        write_cache(f"oci-{leaf}-secret-key", new_secret_key)
-        write_cache(f"oci-{leaf}-scim-id", new_key.id)
         print(f"oci {leaf}: rotated and verified")
 
     return all_ok

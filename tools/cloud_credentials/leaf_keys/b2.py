@@ -145,18 +145,19 @@ def rotate_b2(leaves: list[str]) -> bool:
             all_ok = False
             continue
 
+        write_cache(f"backblaze-b2-{leaf}-access-key", new_access_key)
+        write_cache(f"backblaze-b2-{leaf}-secret-key", new_secret_key)
+
         if old_key_id:
             try:
                 b2_delete_key(api, old_key_id)
                 print(f"b2 {leaf}: old key {old_key_id} revoked")
             except B2Error as exc:
                 print(
-                    f"b2 {leaf}: new key verified and will be cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
+                    f"b2 {leaf}: new key cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand in the B2 Console.",
                     file=sys.stderr,
                 )
 
-        write_cache(f"backblaze-b2-{leaf}-access-key", new_access_key)
-        write_cache(f"backblaze-b2-{leaf}-secret-key", new_secret_key)
         print(f"b2 {leaf}: rotated and verified")
 
     return all_ok

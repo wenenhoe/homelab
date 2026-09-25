@@ -110,18 +110,19 @@ def rotate_r2() -> bool:
         )
         return False
 
+    write_cache(CACHE_R2_ACCESS, new_token_id)
+    write_cache(CACHE_R2_SECRET, new_secret_key)
+
     if old_token_id:
         try:
             r2_delete_token(session, account_id, old_token_id)
             print(f"r2 openbao-snapshot-write: old token {old_token_id} revoked")
         except RuntimeError as exc:
             print(
-                f"r2 openbao-snapshot-write: new token verified and cached, but revoking old token {old_token_id} failed ({exc}) — revoke it by hand.",
+                f"r2 openbao-snapshot-write: new token cached, but revoking old token {old_token_id} failed ({exc}) — revoke it by hand.",
                 file=sys.stderr,
             )
 
-    write_cache(CACHE_R2_ACCESS, new_token_id)
-    write_cache(CACHE_R2_SECRET, new_secret_key)
     print(f"r2 openbao-snapshot-write: rotated, verified ({detail})")
     return True
 
@@ -168,18 +169,19 @@ def rotate_b2() -> bool:
         )
         return False
 
+    write_cache(CACHE_B2_ACCESS, new_key_id)
+    write_cache(CACHE_B2_SECRET, new_app_key)
+
     if old_key_id:
         try:
             api.session.delete_key(old_key_id)
             print(f"b2 openbao-snapshot-write: old key {old_key_id} revoked")
         except B2Error as exc:
             print(
-                f"b2 openbao-snapshot-write: new key verified and cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand.",
+                f"b2 openbao-snapshot-write: new key cached, but revoking old key {old_key_id} failed ({exc}) — revoke it by hand.",
                 file=sys.stderr,
             )
 
-    write_cache(CACHE_B2_ACCESS, new_key_id)
-    write_cache(CACHE_B2_SECRET, new_app_key)
     print(f"b2 openbao-snapshot-write: rotated, verified ({detail})")
     return True
 

@@ -433,13 +433,30 @@ jobs:
   # can't be marked required directly. if: always() so a skipped
   # upstream job doesn't skip this one too.
   matrix-jobs-gate:
-    needs: [molecule, compose-boot-test]
+    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, compose-boot-test]
     if: always()
     runs-on: ubuntu-26.04
     steps:
-      - name: Fail if molecule or compose-boot-test actually failed
+      # molecule and compose-boot-test report skipped both when nothing
+      # changed and when an upstream job failed, so the upstream jobs must
+      # be checked on their own: only they distinguish the two.
+      - name: Fail unless upstream jobs passed and matrix jobs did not fail
+        env:
+          UPSTREAM: >-
+            ${{ needs.detect-changes.result }}
+            ${{ needs.warm-uv-cache.result }}
+            ${{ needs.warm-galaxy-cache.result }}
+          MATRIX: >-
+            ${{ needs.molecule.result }}
+            ${{ needs.compose-boot-test.result }}
         run: |
-          for r in "${{ needs.molecule.result }}" "${{ needs.compose-boot-test.result }}"; do
+          for r in $UPSTREAM; do
+            if [[ "$r" != "success" ]]; then
+              echo "::error::An upstream job did not succeed (result: $r)."
+              exit 1
+            fi
+          done
+          for r in $MATRIX; do
             if [[ "$r" != "success" && "$r" != "skipped" ]]; then
               echo "::error::A required job did not pass (result: $r)."
               exit 1

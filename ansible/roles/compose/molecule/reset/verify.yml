@@ -40,6 +40,16 @@
           ansible.builtin.fail:
             msg: reset_volume.yaml did not refuse an unconfirmed run
       rescue:
+        # Any failure lands here, including the sentinel above and an
+        # unrelated error inside the role; only the confirmation gate's own
+        # failure proves the refusal.
+        - name: Confirm the failure was the confirmation gate refusing
+          ansible.builtin.assert:
+            that: ansible_failed_task.name is match('Require explicit confirmation')
+            fail_msg: >-
+              The unconfirmed attempt failed at "{{ ansible_failed_task.name }}",
+              not at the confirmation gate.
+
         - name: Confirmed - the unconfirmed attempt was refused as expected
           ansible.builtin.debug:
             msg: reset_volume.yaml correctly refused to run without confirmation

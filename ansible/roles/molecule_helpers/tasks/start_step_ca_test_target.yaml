@@ -14,11 +14,13 @@
 #   molecule_helpers_step_ca_network_name — a user-defined Docker
 #     network (not the default bridge): embedded DNS-by-name is what
 #     lets consumers reach this container as `step-ca-test`.
+#   molecule_helpers_step_ca_password — the CA's init password
+#     (DOCKER_STEPCA_INIT_PASSWORD); callers set it and reuse it to
+#     issue certs against this instance.
 #
-# Exposes molecule_helpers_step_ca_password and
-# molecule_helpers_step_ca_root_cert for callers that need to issue a
-# cert against this instance or fetch its root directly, without a
-# second docker_container_exec round-trip.
+# Exposes molecule_helpers_step_ca_root_cert for callers that need to
+# fetch the root directly, without a second docker_container_exec
+# round-trip.
 
 - name: Run a throwaway step-ca instance for this scenario
   community.docker.docker_container:

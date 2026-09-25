@@ -43,9 +43,11 @@
     - name: Confirm the script actually landed inside the volume
       # Reads content stored inside a Docker named volume - a throwaway
       # container is the only way to read that back.
-      ansible.builtin.command: >-
+      ansible.builtin.command: >-  # noqa: command-instead-of-module
         docker run --rm -v scriptapp_seeded_scripts:/scripts alpine:3.20
-        cat /scripts/run.sh  # noqa: command-instead-of-module
+        cat /scripts/run.sh
       register: compose_seeded_volume_content
       changed_when: false
-      failed_when: "'hello from run.sh' not in compose_seeded_volume_content.stdout"
+      failed_when: >-
+        compose_seeded_volume_content.rc != 0
+        or 'hello from run.sh' not in compose_seeded_volume_content.stdout

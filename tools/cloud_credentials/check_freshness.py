@@ -76,20 +76,23 @@ def _classify(expires_at: datetime) -> tuple[str, str]:
 
 def check_b2() -> list[tuple[str, str, str]]:
     """One b2_list_keys call covers both leaves and the rotation key
-    itself - all three names are known ahead of time, no per-key
-    lookup needed."""
+    itself - matched by cached key id, not key_name: B2 doesn't enforce
+    name uniqueness, so a stale or unrelated key sharing this project's
+    naming convention would silently be reported on instead of the
+    credential actually in use."""
     try:
         api = b2_rotation_api()
-        keys_by_name = {k.key_name: k for k in b2_list_keys(api)}
+        keys_by_id = {k.id_: k for k in b2_list_keys(api)}
     except (B2Error, SystemExit) as exc:
         detail = str(exc)
         return [(f"b2 {name}", CHECK_FAILED, detail) for name in (*B2_LEAF_CAPABILITIES, "rotation key")]
 
     results = []
     for leaf in B2_LEAF_CAPABILITIES:
-        key = keys_by_name.get(f"homelab-cloud-sync-{leaf}")
-        results.append(_b2_key_result(f"b2 {leaf}", key))
-    results.append(_b2_key_result("b2 rotation key", keys_by_name.get("homelab-cloud-sync-rotation-key")))
+        key_id = _leaf_read_cache(f"backblaze-b2-{leaf}-access-key")
+        results.append(_b2_key_result(f"b2 {leaf}", keys_by_id.get(key_id)))
+    rotation_key_id = _rotation_read_cache("_rotation-key-backblaze-b2-key-id")
+    results.append(_b2_key_result("b2 rotation key", keys_by_id.get(rotation_key_id)))
     return results
 
 
@@ -125,10 +128,16 @@ def _oci_scim_key_result(label: str, session: requests.Session, domain_url: str,
     scim_id = _leaf_read_cache(scim_id_cache_name)
     if scim_id is None:
         return (label, CHECK_FAILED, f"no {scim_id_cache_name} cache file - created before the SCIM migration (ADR 0016)?")
-    resp = session.get(f"{domain_url}/admin/v1/CustomerSecretKeys/{scim_id}")
+    try:
+        resp = session.get(f"{domain_url}/admin/v1/CustomerSecretKeys/{scim_id}", timeout=45)
+    except requests.RequestException as exc:
+        return (label, CHECK_FAILED, f"request failed: {exc}")
     if resp.status_code != 200:
         return (label, CHECK_FAILED, f"{resp.status_code} {resp.text}")
-    expires_on = resp.json().get("expiresOn")
+    try:
+        expires_on = resp.json().get("expiresOn")
+    except ValueError as exc:
+        return (label, CHECK_FAILED, f"couldn't parse response JSON: {exc}")
     if expires_on is None:
         return (label, CHECK_FAILED, "key has no expiresOn - created before the SCIM migration (ADR 0016)?")
     status, detail = _classify(datetime.fromisoformat(expires_on.replace("Z", "+00:00")))
@@ -181,7 +190,10 @@ def _r2_rotation_token_result(session: requests.Session) -> tuple[str, str, str]
     endpoint verifies whichever token authenticated the request,
     scoped to the calling user, not a specific account.
     """
-    resp = session.get("https://api.cloudflare.com/client/v4/user/tokens/verify").json()
+    try:
+        resp = session.get("https://api.cloudflare.com/client/v4/user/tokens/verify", timeout=45).json()
+    except (requests.RequestException, ValueError) as exc:
+        return ("r2 rotation token", CHECK_FAILED, f"request failed: {exc}")
     if not resp.get("success"):
         return ("r2 rotation token", CHECK_FAILED, str(resp.get("errors")))
     return _r2_expires_on_result("r2 rotation token", resp["result"].get("expires_on"))
@@ -190,7 +202,10 @@ def _r2_rotation_token_result(session: requests.Session) -> tuple[str, str, str]
 def _r2_get_token_result(label: str, session: requests.Session, account_id: str, token_id: str | None) -> tuple[str, str, str]:
     if token_id is None:
         return (label, CHECK_FAILED, "no cached token id")
-    resp = session.get(f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/{token_id}").json()
+    try:
+        resp = session.get(f"https://api.cloudflare.com/client/v4/accounts/{account_id}/tokens/{token_id}", timeout=45).json()
+    except (requests.RequestException, ValueError) as exc:
+        return (label, CHECK_FAILED, f"request failed: {exc}")
     if not resp.get("success"):
         return (label, CHECK_FAILED, str(resp.get("errors")))
     return _r2_expires_on_result(label, resp["result"].get("expires_on"))

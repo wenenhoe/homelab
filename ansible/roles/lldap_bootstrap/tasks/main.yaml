@@ -152,3 +152,23 @@
       # Molecule run, so not assumed.
       tags:
         - molecule-idempotence-notest
+
+    # cleanup: true on the two docker_container tasks above only removes
+    # each container once that task's own run completes successfully —
+    # an async timeout or a mid-run connection error leaves it behind,
+    # the same failure mode the file removal above exists to guard
+    # against. state: absent is idempotent: already-removed (the normal
+    # case) is a no-op, not an error, so this is safe to run every time.
+    - name: Remove the bootstrap.sh container if it's still around
+      community.docker.docker_container:
+        name: lldap-bootstrap-observer
+        state: absent
+      tags:
+        - molecule-idempotence-notest
+
+    - name: Remove the bind-check container if it's still around
+      community.docker.docker_container:
+        name: lldap-bootstrap-verify-bind
+        state: absent
+      tags:
+        - molecule-idempotence-notest

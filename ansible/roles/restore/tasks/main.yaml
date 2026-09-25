@@ -95,48 +95,61 @@
     project_src: "{{ restore_deploy_dir }}"
     state: stopped
 
-- name: Extract the full archive into a scratch volume once
-  community.docker.docker_container:
-    name: "{{ restore_app }}-restore-extract"
-    image: alpine:3.24
-    volumes:
-      - "{{ restore_remote_archive }}:/restore-archive.tar.gz:ro"
-      - "{{ restore_app }}_restore_scratch:/scratch"
-    command: >-
-      sh -c "mkdir -p /scratch && tar -xzf /restore-archive.tar.gz -C /scratch"
-    detach: false
-    cleanup: true
-
-- name: Locate and restore each targeted volume's contents
-  community.docker.docker_container:
-    name: "{{ restore_app }}-restore-{{ item }}"
-    image: alpine:3.24
-    volumes:
-      - "{{ restore_app }}_restore_scratch:/scratch:ro"
-      - "{{ item }}:/target"
-    command: >-
-      sh -c "
-      srcdir=$(find /scratch -type d -name '{{ item }}' | head -1);
-      if [ -z \"$srcdir\" ]; then
-        echo 'ERROR: no directory named {{ item }} found in the archive' >&2;
-        exit 1;
-      fi;
-      find /target -mindepth 1 -delete;
-      cp -a \"$srcdir\"/. /target/
-      "
-    detach: false
-    cleanup: true
-  loop: "{{ restore_volumes }}"
-
-- name: Remove the scratch extraction volume
+# Reset before use, not just after: a retry following a failed or killed
+# attempt would otherwise extract into a volume still holding the
+# previous attempt's files, which tar -x never removes on its own.
+- name: Reset the scratch volume before extracting
   community.docker.docker_volume:
     name: "{{ restore_app }}_restore_scratch"
     state: absent
 
-- name: Remove the temporary archive copy from the target host
-  ansible.builtin.file:
-    path: "{{ restore_remote_archive }}"
-    state: absent
+- name: "Extract and restore from the archive [block / always]"
+  block:
+    - name: Extract the full archive into a scratch volume once
+      community.docker.docker_container:
+        name: "{{ restore_app }}-restore-extract"
+        image: alpine:3.24
+        volumes:
+          - "{{ restore_remote_archive }}:/restore-archive.tar.gz:ro"
+          - "{{ restore_app }}_restore_scratch:/scratch"
+        command: >-
+          sh -c "mkdir -p /scratch && tar -xzf /restore-archive.tar.gz -C /scratch"
+        detach: false
+        cleanup: true
+
+    - name: Locate and restore each targeted volume's contents
+      community.docker.docker_container:
+        name: "{{ restore_app }}-restore-{{ item }}"
+        image: alpine:3.24
+        volumes:
+          - "{{ restore_app }}_restore_scratch:/scratch:ro"
+          - "{{ item }}:/target"
+        command: >-
+          sh -c "
+          srcdir=$(find /scratch -type d -name '{{ item }}' | head -1);
+          if [ -z \"$srcdir\" ]; then
+            echo 'ERROR: no directory named {{ item }} found in the archive' >&2;
+            exit 1;
+          fi;
+          find /target -mindepth 1 -delete;
+          cp -a \"$srcdir\"/. /target/
+          "
+        detach: false
+        cleanup: true
+      loop: "{{ restore_volumes }}"
+  always:
+    # Runs whether extraction/restore succeeded or failed, so a failed
+    # attempt leaves neither the scratch volume nor the plaintext archive
+    # copy behind on the target host.
+    - name: Remove the scratch extraction volume
+      community.docker.docker_volume:
+        name: "{{ restore_app }}_restore_scratch"
+        state: absent
+
+    - name: Remove the temporary archive copy from the target host
+      ansible.builtin.file:
+        path: "{{ restore_remote_archive }}"
+        state: absent
 
 - name: Redeploy the app's compose stack
   community.docker.docker_compose_v2:

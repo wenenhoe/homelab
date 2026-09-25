@@ -34,7 +34,7 @@
 - name: "DRY RUN - report stale volume decision ({{ compose_stale_volume_app.name }})"
   ansible.builtin.debug:
     msg: >-
-      Would {{ compose_cleanup_stale_volume_remove | ternary('DELETE', 'KEEP') }}
+      Would {{ compose_cleanup_stale_volume_remove | bool | ternary('DELETE', 'KEEP') }}
       stale volumes for '{{ compose_stale_volume_app.name }}': {{ compose_stale_volume_orphaned }}
   when:
     - compose_stale_volume_orphaned | length > 0

@@ -71,6 +71,7 @@
       ansible.builtin.command: docker compose ls --format json
       changed_when: false
       failed_when: false
+      check_mode: false
       register: compose_cleanup_compose_ls
 
     - name: Work out which stacks are orphaned (on disk or running, not in compose_apps, not exempt)
@@ -80,7 +81,7 @@
             (
               (compose_cleanup_found_dirs.files | map(attribute='path') | map('basename') | list)
               + (
-                  (compose_cleanup_compose_ls.stdout | default('[]') | from_json | default([]))
+                  (compose_cleanup_compose_ls.stdout | default('[]', true) | from_json | default([]))
                   | map(attribute='Name') | list
                 )
             ) | unique | difference(compose_cleanup_wanted_apps) | difference(compose_cleanup_exclude) | sort

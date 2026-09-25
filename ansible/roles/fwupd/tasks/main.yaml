@@ -4,36 +4,67 @@
 # run after the apt role.
 #
 # Refreshes metadata, applies any available firmware updates
-# (`fwupdmgr update --assume-yes` — skipped if get-upgrades found none,
-# rc != 0), then reboots only if `fwupdmgr get-devices` reports a device
-# needs a restart to finish applying its capsule update.
+# (`fwupdmgr update --assume-yes --no-reboot-check`), then reboots only if
+# `fwupdmgr check-reboot-needed` reports one is pending.
 # ---------------------------------------------------------------------------
 
 - name: Refresh fwupd metadata cache
   ansible.builtin.command: fwupdmgr refresh
   register: fwupd_refresh
   changed_when: '"Updates were found" in fwupd_refresh.stdout'
-  failed_when:
-    - fwupd_refresh.rc != 0
-    - '"no internet" in fwupd_refresh.stderr' # Ignore if offline but cache exists
+  # rc 2 is fwupdmgr's own EXIT_NOTHING_TO_DO ("Metadata is up to date"),
+  # not a failure (confirmed against fu_cli_download_metadata in fwupd's
+  # own src/fu-cli.c). The previous condition here ("no internet" in
+  # stderr) matched no string fwupd actually emits anywhere in that source
+  # - the closest real message is "network is unreachable: %s" - so it
+  # never once caught the case it was named for, and every other nonzero
+  # rc (a real network or auth failure) was silently treated as success.
+  failed_when: fwupd_refresh.rc not in [0, 2]
 
 - name: Check for available firmware upgrades
   ansible.builtin.command: fwupdmgr get-upgrades --json
   register: fwupd_updates
   changed_when: false
-  failed_when: false # rc=2 is normal when no updates are available
+  # --json mode returns 0 once it can enumerate devices, whether or not any
+  # of them have an upgrade available - confirmed against
+  # fu_cli_get_updates in src/fu-cli.c: the --json branch returns success
+  # unconditionally right after printing, before the "nothing found" path
+  # that sets rc 2 in the plain-text mode this task used to assume it was
+  # in. rc 2 is still accepted here in case that ever changes; anything
+  # else is a real failure (daemon down, network error) that
+  # failed_when: false previously swallowed unconditionally.
+  failed_when: fwupd_updates.rc not in [0, 2]
 
 - name: Apply firmware updates if available
-  ansible.builtin.command: fwupdmgr update --assume-yes
+  ansible.builtin.command: fwupdmgr update --assume-yes --no-reboot-check
   register: fwupd_upgrade
   when: fwupd_updates.rc == 0
   changed_when: "'Successfully installed' in fwupd_upgrade.stdout"
+  # --no-reboot-check: this role decides whether and when to reboot itself
+  # (the task below), not fwupdmgr's own interactive prompt-then-reboot
+  # completion logic that every fwupdmgr subcommand shares (fu-cli.c's
+  # fu_cli_prompt_complete) and would otherwise still run here too.
 
-- name: Check if system requires a reboot to apply firmware
-  ansible.builtin.command: fwupdmgr get-devices
-  register: fwupd_devices
+- name: Check if a reboot is required to apply firmware
+  # A device that supports reboot-triggered updates carries "Needs a
+  # reboot after installation" in fwupdmgr get-devices permanently, as a
+  # capability flag, not as a live pending-reboot signal - so the previous
+  # match against fwupd_devices.stdout for "Requires restart" (a phrase
+  # this fwupd version doesn't emit at all) could never have fired either
+  # way. check-reboot-needed is the command fwupd itself provides for
+  # this: rc 2 (EXIT_NOTHING_TO_DO) means no reboot is pending, rc 0 means
+  # one is (confirmed against fu_cli_check_reboot_needed in src/fu-cli.c).
+  # It still shares the same interactive completion path as `update` -
+  # every one of these commands calls fu_cli_prompt_complete with
+  # prompting hardcoded on, with no flag to disable it - but readline's
+  # own behavior against the closed stdin an unattended command task
+  # always runs with is to decline that prompt without acting on it (see
+  # fu_console_input_bool), so this can never trigger a reboot by itself.
+  # Ansible's own reboot task below is what actually reboots.
+  ansible.builtin.command: fwupdmgr check-reboot-needed
+  register: fwupd_reboot_check
   changed_when: false
-  failed_when: false
+  failed_when: fwupd_reboot_check.rc not in [0, 2]
 
 - name: Reboot the machine to apply offline firmware capsules
   ansible.builtin.reboot:
@@ -41,4 +72,4 @@
     connect_timeout: 5
     reboot_timeout: 600
     pre_reboot_delay: 5
-  when: "'Requires restart' in fwupd_devices.stdout"
+  when: fwupd_reboot_check.rc == 0

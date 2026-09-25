@@ -13,6 +13,10 @@ OnSuccess=uptime-kuma-push-cert-expiry.service
 [Service]
 Type=oneshot
 User=root
+# A oneshot unit has no start timeout by default; without one, a Caddy that
+# accepts the connection but never completes the handshake would leave this
+# unit activating forever and the timer would never run it again.
+TimeoutStartSec=60
 ExecStart=/bin/sh {{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh
 
 [Install]

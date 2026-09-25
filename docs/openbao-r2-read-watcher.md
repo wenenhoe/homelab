@@ -103,14 +103,14 @@ host. The obvious fix doesn't actually work for this unit's shape:
 `OnFailure=` only fires once a unit reaches systemd's `failed` state,
 and per systemd's own docs a service using `Restart=` only enters
 `failed` once its start limits are exhausted (`systemd.unit(5)`,
-`OnFailure=`). This unit sets `Restart=on-failure`/`RestartSec=10`
+`OnFailure=`). This unit sets `Restart=always`/`RestartSec=10`
 with no `StartLimitIntervalSec=`/`StartLimitBurst=` override, so at
 one failure per 10s it never crosses systemd's default burst
 threshold — it restarts forever instead. `OnFailure=` would never
 fire here, wired or not.
 
 Bounding the restarts to force a `failed` state isn't the fix either:
-it trades away the one thing `Restart=on-failure` is for. This unit's
+it trades away the one thing this restart policy is for. This unit's
 actual failure mode has been OpenBao being sealed (see
 [ADR 0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) after a restart or
 a re-init, not a real crash — and that clears on its own once someone

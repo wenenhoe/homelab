@@ -1,6 +1,7 @@
 [Unit]
 Description=Copy SeaweedFS backup archives onward to R2/B2/OCI
 After=network-online.target docker.service
+Wants=network-online.target
 Requires=docker.service
 StartLimitIntervalSec=0
 # Fires whenever run.sh's own overall_status reflects at least one

@@ -7,6 +7,7 @@ solution: controller only; the SSH relay to security dropped
 summary: Where bao_session.py runs, given a relay to security never had a working local half.
 topic: repository-tooling
 status: accepted
+narrows: ADR-0034
 ---
 
 # 0033. bao_session.py stays local to controller, drops the never-working security path

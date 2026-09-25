@@ -271,6 +271,11 @@
       register: step_ca_cert_verify_served_serial
       changed_when: false
       failed_when: false
+      # The SIGHUP reload is asynchronous; poll until the listener serves the
+      # renewed cert. Still non-fatal on exhaustion: the assert below reports.
+      until: step_ca_cert_verify_served_serial.stdout | trim == step_ca_cert_verify_serial_after.stdout | trim
+      retries: 10
+      delay: 1
 
     - name: Confirm the serving listener actually picked up the renewed cert
       ansible.builtin.assert:

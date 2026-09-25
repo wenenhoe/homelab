@@ -13,7 +13,6 @@ track: credentials
 # CD Agent AppRoles
 
 Second of three projects in the `pull-based-cd` initiative, after [`cd-agent.md`](cd-agent.md). The CD agent's own AppRoles
-([0020](../decisions/0020-automation-identity-and-access-scope/revision-000.md)) the CD agent's own AppRoles
 ([0020](../decisions/0020-automation-identity-and-access-scope/revision-000.md))
 couldn't be scoped until OpenBao holds real credentials to build policies
 against — which it now does.

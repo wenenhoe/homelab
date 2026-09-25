@@ -41,6 +41,12 @@
 # docker/tinyauth/configs/config.yaml.j2 already stages into as part of
 # its normal Play 4 init (see docs/volumes.md) - so this reuses an
 # already-existing directory rather than needing its own file: task.
+- name: Work out the CA bundle's expected content
+  ansible.builtin.set_fact:
+    tinyauth_ca_trust_combined_bundle: |
+      {{ tinyauth_ca_trust_system_bundle.content | b64decode }}
+      {{ tinyauth_ca_trust_root_cert.content | b64decode }}
+
 - name: Stage the combined CA bundle
   ansible.builtin.copy:
     dest: "{{ compose_deploy_dir }}/tinyauth/_staging/data/ca-bundle.pem"
@@ -52,11 +58,40 @@
     # real line break). Bytes-correct but not parseable PEM: Go's
     # decoder splits blocks on real newlines, so it silently never found
     # the second (step-ca's) certificate at all.
-    content: |
-      {{ tinyauth_ca_trust_system_bundle.content | b64decode }}
-      {{ tinyauth_ca_trust_root_cert.content | b64decode }}
+    content: "{{ tinyauth_ca_trust_combined_bundle }}"
     mode: "0644"
   register: tinyauth_ca_trust_staged
+
+# `.changed` above only reflects whether the *staged copy on disk*
+# changed, not whether the running container's own volume actually has
+# it — a previously-failed seed, or the volume being recreated (state:
+# absent/up again) since the last successful seed, leaves the staged
+# file looking unchanged while the volume itself is still missing or
+# stale. Comparing hashes of the running container's own copy against
+# what we just staged catches both cases; `.changed` alone catches
+# neither.
+- name: Check whether the running container's own copy already matches
+  community.docker.docker_container_exec:
+    container: "{{ tinyauth_ca_trust_container_name }}"
+    command: sha256sum /data/ca-bundle.pem
+  register: tinyauth_ca_trust_current_bundle_hash
+  # Nonzero (or absent, see molecule_helpers' own docker_container_exec
+  # rc comments) means the file's missing entirely - a fresh/recreated
+  # volume or tinyauth's own first-boot race (see compose.yaml's
+  # SSL_CERT_FILE comment) - not a real error; treated as "needs
+  # seeding" below, the same as a genuine content mismatch.
+  failed_when: false
+  changed_when: false
+
+- name: Work out whether the volume needs (re)seeding
+  ansible.builtin.set_fact:
+    tinyauth_ca_trust_needs_seed: >-
+      {{
+        tinyauth_ca_trust_staged.changed
+        or (tinyauth_ca_trust_current_bundle_hash.rc | default(1)) != 0
+        or (tinyauth_ca_trust_current_bundle_hash.stdout | default('') | trim | split(' ') | first)
+           != (tinyauth_ca_trust_combined_bundle | hash('sha256'))
+      }}
 
 # Mirrors caddy/bind9's own self-managed pattern for content that needs
 # to land in an already-declared volume outside the generic per-config
@@ -81,10 +116,10 @@
       name: tinyauth
     compose_volume_item:
       name: data
-  when: tinyauth_ca_trust_staged.changed
+  when: tinyauth_ca_trust_needs_seed
 
 - name: Restart tinyauth so it picks up the new bundle  # noqa: no-handler
   community.docker.docker_compose_v2:
     project_src: "{{ compose_deploy_dir }}/tinyauth"
     state: restarted
-  when: tinyauth_ca_trust_staged.changed
+  when: tinyauth_ca_trust_needs_seed

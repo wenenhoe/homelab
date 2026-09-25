@@ -6,14 +6,8 @@
 #
 # Usage: ansible-playbook ansible/playbooks/pin-telegram-topics.yaml
 
-- name: Secrets
-  hosts: localhost
-  connection: local
-  gather_facts: false
-  tasks:
-    - name: Include secrets role
-      ansible.builtin.include_role:
-        name: secrets
+- name: Play 0 - Secrets
+  ansible.builtin.import_playbook: bootstrap-secrets.yaml
 
 - name: Pin Telegram topic headers
   hosts: localhost

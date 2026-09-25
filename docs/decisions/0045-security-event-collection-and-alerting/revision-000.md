@@ -162,6 +162,16 @@ wired up turn out to be narrower than that.
   high-signal credential-read alert) would need to look like once
   reimplemented as a generic SIEM rule, and whether that's actually as
   reliable as the current purpose-built check.
+- A requirement worth carrying into whatever replaces the current
+  watcher, not fixed ad hoc here: its crash/restart heartbeat flags that
+  the watcher went down, but doesn't by itself guarantee everything
+  that happened during that window is still recoverable once it's back.
+  Whatever collects these events next should either guarantee
+  retention/replay across an outage of realistic duration, independent
+  of the collector's own uptime, or surface an explicit alert when a
+  resume gap exceeds what's actually recoverable — so a loss is visible
+  instead of silent, which is weaker than recovering it but strictly
+  better than not knowing.
 - Which of `check_freshness.py`, `telegram_notify`, `telegram_topic_pins`,
   and `uptime_kuma_push` would actually feed into it, versus staying
   separate because they're already fine — "what should hook up to

@@ -29,6 +29,7 @@ from molecule_cov.report import (
     missing_and_failing_against_thresholds,
     print_role_detail,
     print_summary,
+    roles_missing_inventory,
 )
 
 
@@ -68,6 +69,16 @@ def _report(args: argparse.Namespace) -> int:
         print_role_detail(report)
         reports = [report]
     else:
+        broken = roles_missing_inventory(coverage_dir)
+        if broken:
+            names = ", ".join(sorted(p.name for p in broken))
+            print(
+                f"error: execution data with no _inventory.json for: {names} - a failed or partial "
+                "`inventory` run, not a role with no coverage data. Run inventory.py for these before reporting.",
+                file=sys.stderr,
+            )
+            return 1
+
         role_dirs = discover_roles(coverage_dir)
         if not role_dirs:
             print(f"no roles with coverage data found under {coverage_dir}", file=sys.stderr)

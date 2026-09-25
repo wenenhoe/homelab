@@ -299,11 +299,24 @@
         path: /etc/telegram-notify/telegram-notify@.env
       register: step_ca_cert_verify_notify_env_raw
 
-    - name: Confirm it carries the scenario's dummy bot credentials, not empty/template-literal values
+    - name: Confirm the env file carries the scenario's dummy chat ID, not an empty/template-literal value
       ansible.builtin.assert:
         that:
-          - "'TELEGRAM_TOKEN=molecule-dummy-telegram-token' in (step_ca_cert_verify_notify_env_raw.content | b64decode)"
           - "'TELEGRAM_CHAT_ID=molecule-dummy-chat-id' in (step_ca_cert_verify_notify_env_raw.content | b64decode)"
+
+    # The bot token lives in a separate, root-only curl config file, not
+    # the env file above - see telegram_notify/tasks/install.yaml.
+    - name: Read back telegram-notify@'s rendered curl config
+      ansible.builtin.slurp:
+        path: /etc/telegram-notify/telegram-notify@.curlrc
+      register: step_ca_cert_verify_notify_curlrc_raw
+
+    - name: Confirm it carries the scenario's dummy bot token, not an empty/template-literal value
+      ansible.builtin.assert:
+        that:
+          - >-
+            'url = "https://api.telegram.org/botmolecule-dummy-telegram-token/sendMessage"'
+            in (step_ca_cert_verify_notify_curlrc_raw.content | b64decode)
 
     - name: Confirm cert-renewer@ actually declares both links  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl cat cert-renewer@openbao.service

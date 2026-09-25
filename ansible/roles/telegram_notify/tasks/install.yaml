@@ -60,6 +60,14 @@
   register: telegram_notify_env_result
   no_log: true
 
+- name: "Render the notifier's curl config (bot token): {{ telegram_notify_unit_name }}"
+  ansible.builtin.template:
+    src: notify.curlrc.j2
+    dest: "/etc/telegram-notify/{{ telegram_notify_unit_name }}.curlrc"
+    mode: "0600"
+  register: telegram_notify_curlrc_result
+  no_log: true
+
 - name: "Install the notifier's systemd unit: {{ telegram_notify_unit_name }}"
   ansible.builtin.template:
     src: notify.service.j2

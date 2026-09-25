@@ -106,7 +106,8 @@
   ansible.builtin.systemd:
     daemon_reload: true
   when: >-
-    telegram_notify_env_result.changed or telegram_notify_service_result.changed or
+    telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
+    telegram_notify_service_result.changed or
     uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
 
 - name: Install the cloud-sync systemd service

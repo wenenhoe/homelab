@@ -258,7 +258,9 @@
 - name: Reload systemd if the Telegram notifier unit changed
   ansible.builtin.systemd:
     daemon_reload: true
-  when: telegram_notify_env_result.changed or telegram_notify_service_result.changed
+  when: >-
+    telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
+    telegram_notify_service_result.changed
 
 # "Enable and start" below needs systemd to have already picked
 # up the current unit content, which only happens once handlers flush.

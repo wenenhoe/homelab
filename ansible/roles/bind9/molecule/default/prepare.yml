@@ -1,11 +1,11 @@
 ---
 # Storage driver goes through a systemd drop-in flag here, not
 # /etc/docker/daemon.json like the other DinD scenarios. bind9's own
-# "Configure Docker daemon" task unconditionally overwrites daemon.json
-# with just its DNS settings every run — writing storage-driver into that
-# same file would make the two tasks fight forever, breaking idempotence
-# for a reason unrelated to bind9 itself. A CLI flag and daemon.json
-# don't conflict as long as they don't set the same key.
+# "Configure Docker daemon" task merges its "dns" key into daemon.json
+# every run — writing storage-driver into that same file's own key would
+# still leave two tasks racing to own the same file's write, so the CLI
+# flag keeps them independent. A CLI flag and daemon.json don't conflict
+# as long as they don't set the same key.
 #
 # fuse-overlayfs itself is baked into ghcr.io/wenenhoe/molecule-dind
 # already (docker/molecule-dind/Dockerfile) — this only wires it up via

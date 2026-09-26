@@ -14,12 +14,32 @@
     force: true
   when: bind9_manage_resolv_conf | default(true)
 
+- name: Check whether /etc/docker/daemon.json already exists
+  ansible.builtin.stat:
+    path: /etc/docker/daemon.json
+  register: bind9_docker_daemon_json_stat
+
+- name: Read the existing /etc/docker/daemon.json, if present
+  ansible.builtin.slurp:
+    path: /etc/docker/daemon.json
+  register: bind9_docker_daemon_json_read
+  when: bind9_docker_daemon_json_stat.stat.exists
+
+# Merges the "dns" key into whatever daemon.json already has, rather
+# than overwriting the whole file - any other daemon-level Docker
+# config on this host (set outside this role) survives a run instead
+# of being silently wiped.
 - name: Configure Docker daemon to use reliable upstream DNS
   ansible.builtin.copy:
     dest: /etc/docker/daemon.json
-    content: |
-      {
-        "dns": ["192.168.20.1", "10.0.0.1"]
-      }
+    content: >-
+      {{
+        (
+          (bind9_docker_daemon_json_read.content | b64decode | from_json)
+          if bind9_docker_daemon_json_stat.stat.exists
+          else {}
+        ) | combine({'dns': bind9_docker_dns_servers})
+        | to_nice_json
+      }}
     mode: '0644'
   notify: Restart docker

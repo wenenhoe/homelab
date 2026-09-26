@@ -108,7 +108,15 @@
     container: seaweedfs-test
     command: "wget -q --spider http://{{ molecule_helpers_seaweedfs_ip }}:8888/"
   register: molecule_helpers_seaweedfs_ready
-  until: molecule_helpers_seaweedfs_ready.rc == 0
+  # docker_container_exec has no `rc` key at all on some failure paths
+  # (NotFound/APIError/DockerException all go through client.fail(),
+  # which only sets msg/failed) - a real race right after `state:
+  # started` returns, before the container's exec target is registered.
+  # `| default(1)` keeps the condition itself evaluable on those
+  # attempts instead of crashing `until` outright; plain `rc != 0` (a
+  # genuine wget connection-refused) already retries fine on its own.
+  # Same reasoning as start_lldap_test_target.yaml's identical guard.
+  until: molecule_helpers_seaweedfs_ready.rc | default(1) == 0
   retries: 15
   delay: 2
   changed_when: false

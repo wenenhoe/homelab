@@ -22,3 +22,21 @@
         that:
           - not apt_upgrade_check.changed
         fail_msg: "A dry-run upgrade still reports changes after the apt role ran: {{ apt_upgrade_check.stdout | default('') }}"
+
+    # Explicit rather than incidental: this container has no kernel of
+    # its own to need rebooting for, so /var/run/reboot-required never
+    # gets created here regardless of what the role's own upgrade did -
+    # confirming that is confirming this scenario genuinely never
+    # exercises the role's reboot branch, not just that it happened not
+    # to this run. See docs/ci.md#molecule-coverage-gate for why a real
+    # reboot isn't tested in a separate scenario either: a privileged
+    # container's `reboot` syscall isn't scoped to the container - it
+    # reboots the underlying Docker host's own kernel (confirmed
+    # against a real, reported case: moby/moby issue #21929),
+    # which is a genuine hazard to whoever runs `molecule test` for it,
+    # not just an inconvenience to work around.
+    - name: Confirm this fixture never produced a reboot-required condition
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: apt_verify_reboot_required
+      failed_when: apt_verify_reboot_required.stat.exists

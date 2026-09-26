@@ -106,20 +106,33 @@
 # mechanism needs meaningfully more remote scratch space than a
 # plain command, and this scenario is already heavy (SeaweedFS, two
 # aws-cli containers, alpine, docker-socket-proxy, backup-agent,
-# rclone). Forces the freshness window down to 1ms for every app at
-# once - they all share one offsite_backup_freshness_hours value in
-# the rendered script, so this one substitution affects all 4,
-# which also means this exercises real multi-app aggregation, not
-# just a single app, at no extra image-pull cost (rclone/rclone:1.72
-# is already cached from the run above). Not 0h: rclone's --max-age
-# treats a literal 0 duration as "unset" rather than "age <= 0"
-# (its own displayed default is an enormous sentinel, ~2562047h, not
-# 0), so 0h would match everything instead of nothing. 1ms is small
-# enough that no real object can satisfy it without hitting that
-# special case.
+# rclone). Every app here shares the same cron (offsite_backup_cron,
+# no per-app override in this fixture), so they all render the same
+# threshold — read it back from the deployed script itself rather
+# than re-declaring it here, which would just be the same
+# hand-duplicated-value drift risk this whole feature exists to
+# avoid. Not 0h: rclone's --max-age treats a literal 0 duration as
+# "unset" rather than "age <= 0" (its own displayed default is an
+# enormous sentinel, ~2562047h, not 0), so 0h would match everything
+# instead of nothing. 1ms is small enough that no real object can
+# satisfy it without hitting that special case.
+- name: Discover the freshness threshold actually rendered into check-freshness.sh
+  ansible.builtin.shell: |
+    set -o pipefail
+    grep -oE '"[0-9]+h"' {{ compose_deploy_dir }}/backup-agent/check-freshness.sh | tr -d '"' | sort -u
+  register: backup_agent_verify_rendered_thresholds
+  changed_when: false
+
+- name: Confirm every app in this scenario rendered the same threshold (none override cron here)
+  ansible.builtin.assert:
+    that: backup_agent_verify_rendered_thresholds.stdout_lines | length == 1
+    fail_msg: >-
+      Expected one shared threshold across every app (none override cron
+      in this fixture); got: {{ backup_agent_verify_rendered_thresholds.stdout_lines }}
+
 - name: Force every app's threshold down to 1ms via in-place sed  # noqa: command-instead-of-module
   ansible.builtin.command: >-
-    sed -i 's/{{ offsite_backup_freshness_hours }}h/1ms/'
+    sed -i 's/{{ backup_agent_verify_rendered_thresholds.stdout_lines[0] }}/1ms/'
     {{ compose_deploy_dir }}/backup-agent/check-freshness.sh
   changed_when: true
 

@@ -98,11 +98,19 @@ rather than 4 separate `host_vars` entries.
 `backup_agent` pushes **once per host, not once per app** — a new
 `check-freshness.timer`/`.service` (hourly, host-side, entirely outside
 the backup container) checks whether *every* app's newest SeaweedFS
-object is within `offsite_backup_freshness_hours` (26h default, via
-`rclone lsf --max-age`; `rclone` not `mc` — MinIO archived `mc`'s Docker
-Hub image), and pushes only if all of them are. One stale app suppresses
-the whole host's push; which specific app is stale is only visible in
-that unit's own journal, not from Kuma. See
+object is within that app's own freshness threshold (via `rclone lsf
+--max-age`; `rclone` not `mc` — MinIO archived `mc`'s Docker Hub image),
+and pushes only if all of them are. Each app's threshold is derived
+from that app's own resolved cron (`backup_agent`'s `cron_period_hours`
+filter: the longest gap between two consecutive firings, plus
+`offsite_backup_freshness_buffer_hours` for backup duration and
+scheduling slack) rather than a value set independently — every app on
+today's shared daily `offsite_backup_cron` computes to the same 26h
+either way, and an app on a different cadence gets a threshold that
+actually matches it, automatically, with nothing to fall out of sync if
+that cron ever changes. One stale app suppresses the whole host's push;
+which specific app is stale is only visible in that unit's own journal,
+not from Kuma. See
 [ADR 0012](decisions/0012-verifying-backups-actually-land/revision-000.md) for why
 this runs per host instead of as one centralized checker on `storage`.
 

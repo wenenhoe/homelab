@@ -8,14 +8,8 @@
 # SeaweedFS write credential (docker/seaweedfs/configs/s3-identity.json.j2),
 # never anything cloud-capable.
 #
-# Any app_registry entry may declare:
-#   backup:
-#     volumes: [data, certs, ...]      # which volumes to back up
-#     stop_during_backup: true|false   # default false
-#     retention_days: N                # override of offsite_backup_retention_days
-#     cron: "..."                      # override of offsite_backup_cron
-#     compression: gz|zst|none         # default "gz"; use "none" when the
-#                                       # source volume is already compressed
+# See build_schedules.yaml for the app_registry.backup fields this
+# reads, and how each app's freshness threshold is derived.
 #
 # One docker-volume-backup schedule per app, all sharing one container
 # per host. BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule
@@ -31,59 +25,8 @@
   ansible.builtin.set_fact:
     backup_agent_deploy_dir: "{{ compose_deploy_dir }}/backup-agent"
 
-- name: Reset normalized backup candidate list
-  ansible.builtin.set_fact:
-    backup_agent_normalized: []
-
-- name: Normalize each app's backup settings (fill in global defaults)
-  ansible.builtin.set_fact:
-    backup_agent_normalized: >-
-      {{
-        backup_agent_normalized + [{
-          'name': item.name,
-          'volumes': item.backup.volumes,
-          'stop_during_backup': item.backup.stop_during_backup | default(false),
-          'retention_days': item.backup.retention_days | default(offsite_backup_retention_days),
-          'cron': item.backup.cron | default(offsite_backup_cron),
-          'compression': item.backup.compression | default('gz'),
-        }]
-      }}
-  loop: "{{ compose_apps }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: (item.backup.volumes | default([])) | length > 0
-
-- name: Skip this host entirely — no app here declares any backup volumes
-  ansible.builtin.meta: end_host
-  when: backup_agent_normalized | length == 0
-
-- name: Note whether any app on this host needs stopping during its own backup
-  ansible.builtin.set_fact:
-    backup_agent_any_stop_apps: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list | length > 0 }}"
-
-# One dict per app: {app, source, retention, cron, compression,
-# stop_label, filename}. stop_label is '' (template omits the line)
-# unless that app opted into stop_during_backup. `source` is singular
-# and always one path: BACKUP_SOURCES takes exactly one directory,
-# never a list, so every app's volumes are mounted under one shared
-# parent dir (compose.yaml.j2) instead of being passed as separate
-# sources.
-- name: Build the flat list of per-app schedules
-  ansible.builtin.set_fact:
-    backup_agent_schedules: >-
-      {%- set ns = namespace(out=[]) -%}
-      {%- for app in backup_agent_normalized -%}
-        {%- set _ = ns.out.append({
-              'app': app.name,
-              'source': '/backup/' ~ app.name,
-              'retention': app.retention_days,
-              'cron': app.cron,
-              'compression': app.compression,
-              'stop_label': app.name if app.stop_during_backup else '',
-              'filename': app.name ~ '.env',
-            }) -%}
-      {%- endfor -%}
-      {{ ns.out }}
+- name: Build backup_agent_schedules from app_registry
+  ansible.builtin.include_tasks: build_schedules.yaml
 
 - name: Ensure backup-agent deploy directory exists
   ansible.builtin.file:

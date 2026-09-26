@@ -50,7 +50,7 @@
 # mkdir is atomic (EEXIST on a second caller), so it doubles as a simple
 # mutex without needing a separate flock binary. Released in `always:`
 # below no matter how the block exits.
-- name: "Serialize concurrent runs against the same cache file for {{ telegram_topic_pins_key }} [block / always]"
+- name: "[block / always] Serialize concurrent runs against the same cache file for {{ telegram_topic_pins_key }}"
   when: telegram_topic_pins_topic_id | length > 0
   block:
     - name: "Acquire the pin-state lock for {{ telegram_topic_pins_key }}"

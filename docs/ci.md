@@ -465,8 +465,18 @@ the below-100% floors are legitimate, understood gaps rather than
 untested code (see [`thresholds.yaml`](../ansible/molecule-coverage/thresholds.yaml)
 for the current values):
 
-- `apt` - the reboot-if-required task needs rebooting the test
-  container itself to exercise.
+- `apt` - the reboot-if-required task is untested by design, not just by
+  omission: `/var/run/reboot-required` never appears in the container
+  fixture used here (confirmed explicitly in that scenario's own
+  verify.yml, not left incidental), and a separate scenario that
+  actually triggers `ansible.builtin.reboot` isn't a safe way to close
+  that gap - a privileged container's `reboot` syscall isn't scoped to
+  the container, it reboots the underlying Docker host's own kernel
+  (confirmed against a real, reported case:
+  moby/moby issue #21929), a hazard to whoever runs
+  `molecule test` for it. Closing this properly needs isolation this
+  project's Docker-based Molecule tooling doesn't provide (a real VM,
+  say), which is out of scope here.
 - `bind9` - the resolv.conf-upstream task needs a pre-existing
   non-upstream resolv.conf to be worth simulating.
 - `restore` - the interactive confirmation prompt is bypassed on

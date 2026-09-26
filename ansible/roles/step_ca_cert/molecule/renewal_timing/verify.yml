@@ -122,18 +122,25 @@
       changed_when: false
       failed_when: step_ca_cert_renewal_timing_serial_too_early.stdout != step_ca_cert_renewal_timing_serial_baseline.stdout
 
-    - name: Wait until comfortably past the 66% renewal threshold
+    - name: Wait comfortably past the 66% renewal threshold
       ansible.builtin.pause:
         seconds: 40
 
-    # Same reasoning as the too-early attempt above.
-    - name: "Attempt renewal once comfortably due (expect: renewed)"  # noqa: command-instead-of-module
-      ansible.builtin.command: systemctl start cert-renewer@lldap.service
-      failed_when: false
-      changed_when: false
-
-    - name: Confirm the due attempt actually renewed the cert
-      ansible.builtin.command: openssl x509 -in {{ step_ca_cert_renewal_timing_mountpoint }}/fullchain.pem -noout -serial
+    # A fixed single attempt right at the 40s mark is inherently flaky
+    # on a slower runner - the threshold being crossed by wall-clock
+    # time doesn't guarantee this specific attempt lands after systemd
+    # has actually re-evaluated ExecCondition. Poll instead: re-attempt
+    # renewal and re-check the serial until it changes or the retry
+    # budget (10 x 3s = 30s on top of the 40s wait) is exhausted. Same
+    # `systemctl start` exit-0-on-skip behavior as the too-early attempt
+    # above, so the real assertion is still the serial number, not this
+    # command's own exit code.
+    - name: "Poll until the renewal is due and actually renews the cert (expect: renewed within budget)"  # noqa: command-instead-of-module
+      ansible.builtin.shell: |
+        systemctl start cert-renewer@lldap.service
+        openssl x509 -in {{ step_ca_cert_renewal_timing_mountpoint }}/fullchain.pem -noout -serial
       register: step_ca_cert_renewal_timing_serial_due
       changed_when: false
-      failed_when: step_ca_cert_renewal_timing_serial_due.stdout == step_ca_cert_renewal_timing_serial_baseline.stdout
+      until: step_ca_cert_renewal_timing_serial_due.stdout != step_ca_cert_renewal_timing_serial_baseline.stdout
+      retries: 10
+      delay: 3

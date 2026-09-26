@@ -1,11 +1,11 @@
 ---
 # Storage driver goes through a systemd drop-in flag here, not
 # /etc/docker/daemon.json like the other DinD scenarios. bind9's own
-# "Configure Docker daemon" task unconditionally overwrites daemon.json
-# with just its DNS settings every run — writing storage-driver into that
-# same file would make the two tasks fight forever, breaking idempotence
-# for a reason unrelated to bind9 itself. A CLI flag and daemon.json
-# don't conflict as long as they don't set the same key.
+# "Configure Docker daemon" task merges its "dns" key into daemon.json
+# every run — writing storage-driver into that same file's own key would
+# still leave two tasks racing to own the same file's write, so the CLI
+# flag keeps them independent. A CLI flag and daemon.json don't conflict
+# as long as they don't set the same key.
 #
 # fuse-overlayfs itself is baked into ghcr.io/wenenhoe/molecule-dind
 # already (docker/molecule-dind/Dockerfile) — this only wires it up via
@@ -24,6 +24,25 @@
         path: /etc/systemd/system/docker.service.d
         state: directory
         mode: "0755"
+
+    # The image bakes {"storage-driver": "fuse-overlayfs"} into
+    # daemon.json by default (docker/molecule-dind/Dockerfile) on the
+    # assumption that bind9's own task overwrites the whole file -
+    # true before that task changed to merge into whatever daemon.json
+    # already has (see network_conf.yaml's own comment). A merge now
+    # preserves that baked-in key, which collides with this same
+    # setting delivered via the CLI flag below: dockerd refuses to
+    # start when one directive is set both ways, even when the values
+    # agree (confirmed against Docker's own docs, not assumed).
+    # Removed outright rather than left for bind9's own role to
+    # overwrite - that assumption is exactly what broke here once the
+    # image's baked-in default and bind9's actual behavior drifted
+    # apart; deleting it here doesn't depend on the other staying in
+    # sync with it.
+    - name: Remove the image's baked-in default daemon.json before the storage driver moves to a CLI flag
+      ansible.builtin.file:
+        path: /etc/docker/daemon.json
+        state: absent
 
     - name: Force the nested Docker daemon onto the fuse-overlayfs storage driver via a CLI flag
       ansible.builtin.copy:

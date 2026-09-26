@@ -6,3 +6,10 @@
 # something a real VM/bare-metal host (what this role actually targets)
 # ever hits. See network_conf.yaml.
 bind9_manage_resolv_conf: true
+
+# Upstream DNS Docker's own daemon should use for container name
+# resolution, merged into /etc/docker/daemon.json's "dns" key by
+# network_conf.yaml rather than overwriting the whole file.
+bind9_docker_dns_servers:
+  - "192.168.20.1"
+  - "10.0.0.1"

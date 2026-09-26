@@ -43,7 +43,10 @@ RUN apt-get update \
 
 # Baked as the default so scenarios that don't manage their own
 # daemon.json (everything except bind9) get it for free. bind9's own
-# prepare.yml overwrites this file for its DNS settings and sets the
-# storage driver via a systemd drop-in instead — see that file's comment.
+# prepare.yml removes this file outright before setting the storage
+# driver via a systemd drop-in instead — see that file's comment for
+# why (its own role merges into daemon.json rather than overwriting
+# it, which would otherwise preserve this key and collide with the
+# CLI flag).
 RUN mkdir -p /etc/docker \
     && printf '{\n  "storage-driver": "fuse-overlayfs"\n}\n' > /etc/docker/daemon.json

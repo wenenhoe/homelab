@@ -23,17 +23,44 @@
 # never want auto-restored in a batch run.
 - name: Determine which host runs each backed-up, non-excluded app
   ansible.builtin.set_fact:
-    restore_discovery_app_hosts: >-
-      {%- set ns = namespace(out={}) -%}
+    restore_discovery_app_discovery: >-
+      {%- set ns = namespace(hosts={}, collisions=[]) -%}
       {%- for host in groups['managed_hosts'] -%}
         {%- for app in hostvars[host].compose_apps -%}
           {%- set backed_up = (app_registry[app.name].backup.volumes | default([])) | length > 0 -%}
           {%- if backed_up and app.name not in restore_discovery_excluded_apps -%}
-            {%- set _ = ns.out.update({app.name: host}) -%}
+            {%- if app.name in ns.hosts and ns.hosts[app.name] != host -%}
+              {%- set _ = ns.collisions.append(app.name ~ ' (' ~ ns.hosts[app.name] ~ ', ' ~ host ~ ')') -%}
+            {%- else -%}
+              {%- set _ = ns.hosts.update({app.name: host}) -%}
+            {%- endif -%}
           {%- endif -%}
         {%- endfor -%}
       {%- endfor -%}
-      {{ ns.out }}
+      {{ {'hosts': ns.hosts, 'collisions': ns.collisions} }}
+  delegate_to: localhost
+  become: false
+
+# restore_all.py's manifest is keyed by app name alone (see the header
+# comment) - two managed hosts backing up an app of the same name can't
+# both be represented in it. Silently keeping whichever host's loop
+# iteration ran last would just drop the other host's backup from every
+# batch restore with no warning, so this must fail loudly instead.
+- name: Fail loudly if the same app name is backed up on more than one host
+  ansible.builtin.assert:
+    that: restore_discovery_app_discovery.collisions | length == 0
+    fail_msg: >-
+      The same app name is backed up on more than one managed host -
+      restore_all.py's manifest is keyed by app name alone and can't
+      tell them apart: {{ restore_discovery_app_discovery.collisions | join('; ') }}.
+      Rename one of the apps in app_registry.yaml, or add it to
+      restore_discovery_excluded_apps and restore it manually.
+  delegate_to: localhost
+  become: false
+
+- name: Extract the discovered app-to-host mapping
+  ansible.builtin.set_fact:
+    restore_discovery_app_hosts: "{{ restore_discovery_app_discovery.hosts }}"
   delegate_to: localhost
   become: false
 

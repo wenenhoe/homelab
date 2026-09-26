@@ -142,6 +142,47 @@
       failed_when: >-
         lldap_bootstrap_bind_check is failed
         or '"token"' not in (lldap_bootstrap_bind_check.container.Output | default(''))
+
+    # A successful bind only proves the password is right - it doesn't
+    # prove bootstrap.sh's group assignment actually landed (bootstrap.sh
+    # exits 0 even when its own GraphQL calls errored, see this file's
+    # header comment). Queried as admin (a GraphQL user lookup), not
+    # observer - Permission::Regular (what observer has without the
+    # group) can't run a real GraphQL query, only the REST login above -
+    # same approach and same query this role's own Molecule verify.yml
+    # already uses to check this independently.
+    - name: Confirm the observer account actually landed in lldap_strict_readonly
+      community.docker.docker_container:
+        name: lldap-bootstrap-verify-group
+        image: curlimages/curl:8.22.0
+        entrypoint:
+          - /bin/sh
+          - -c
+        command:
+          - >-
+            set -e;
+            TOKEN=$(curl -sf --request POST
+            --url http://{{ lldap_bootstrap_container_name }}:17170/auth/simple/login
+            --header 'Content-Type: application/json'
+            --data "{\"username\":\"admin\",\"password\":\"$ADMIN_PW\"}"
+            | sed -n 's/.*"token":"\([^"]*\)".*/\1/p');
+            curl -sf --request POST
+            --url http://{{ lldap_bootstrap_container_name }}:17170/api/graphql
+            --header "Authorization: Bearer $TOKEN"
+            --header 'Content-Type: application/json'
+            --data '{"query":"query{user(userId:\"observer\"){groups{displayName}}}"}'
+        env:
+          ADMIN_PW: "{{ lldap_ldap_user_pass }}"
+        networks:
+          - name: "{{ lldap_bootstrap_network_name }}"
+        detach: false
+        cleanup: true
+      register: lldap_bootstrap_group_check
+      no_log: true
+      changed_when: false
+      failed_when: >-
+        lldap_bootstrap_group_check is failed
+        or 'lldap_strict_readonly' not in (lldap_bootstrap_group_check.container.Output | default(''))
   always:
     - name: Remove the rendered observer config from disk
       ansible.builtin.file:
@@ -169,6 +210,13 @@
     - name: Remove the bind-check container if it's still around
       community.docker.docker_container:
         name: lldap-bootstrap-verify-bind
+        state: absent
+      tags:
+        - molecule-idempotence-notest
+
+    - name: Remove the group-check container if it's still around
+      community.docker.docker_container:
+        name: lldap-bootstrap-verify-group
         state: absent
       tags:
         - molecule-idempotence-notest

@@ -99,7 +99,7 @@ def _iter_task_files(role_dir: Path) -> list[Path]:
     return sorted(files)
 
 
-def _task_position(task_ds) -> tuple[str | None, int | None]:
+def _task_position(task_ds) -> tuple[str, int]:
     # Modern ansible-core (>=2.19) tags parsed mappings with an Origin tag
     # carrying path/line_num/col_num - the replacement for the older
     # ansible_pos attribute, and what Task.get_path() now derives from,
@@ -114,7 +114,14 @@ def _task_position(task_ds) -> tuple[str | None, int | None]:
     if pos:
         file_, line, _col = pos
         return file_, line
-    return None, None
+    # Neither lookup found a position - returning (None, None) here would
+    # silently produce an invalid coverage join key downstream instead of
+    # surfacing the problem, so this must raise instead.
+    raise RuntimeError(
+        f"Could not determine task file/line for task: {task_ds.get('name', '<unnamed>')!r} "
+        "(neither ansible-core's Origin tag nor the legacy ansible_pos "
+        "attribute is present)"
+    )
 
 
 def _resolve_action(task_ds) -> str | None:

@@ -1,13 +1,15 @@
 #!/bin/sh
 # Checks whether every app's newest backup object in SeaweedFS is
-# within offsite_backup_freshness_hours, and pushes ONCE to this host's
-# single Uptime Kuma monitor only if every app currently checked is
-# fresh — see docs/uptime-kuma.md for why this exists instead of
-# docker-volume-backup's own exec-hook labels (would need Docker `exec`
-# access this host's socket-proxy deliberately doesn't grant), and why
-# it's one push per HOST rather than one per app: every app's
-# credential is already scoped to this host's own {host}-* prefix, so a
-# future app added to this host needs no new config here at all.
+# within that app's own freshness threshold - derived from that app's
+# own cron (see build_schedules.yaml), not a single shared value - and
+# pushes ONCE to this host's single Uptime Kuma monitor only if every
+# app currently checked is fresh — see docs/uptime-kuma.md for why this
+# exists instead of docker-volume-backup's own exec-hook labels (would
+# need Docker `exec` access this host's socket-proxy deliberately
+# doesn't grant), and why it's one push per HOST rather than one per
+# app: every app's credential is already scoped to this host's own
+# {host}-* prefix, so a future app added to this host needs no new
+# config here at all.
 #
 # One stale app suppresses the whole host's push - Kuma shows "this
 # host's backups" as one monitor, not one per app. Which specific app
@@ -84,7 +86,7 @@ overall_fresh=true
 had_infra_error=false
 
 {% for app in backup_agent_schedules %}
-if check_app "{{ app.app }}" "{{ inventory_hostname }}-{{ app.app }}" "{{ offsite_backup_freshness_hours }}h"; then
+if check_app "{{ app.app }}" "{{ inventory_hostname }}-{{ app.app }}" "{{ app.freshness_hours }}h"; then
   app_rc=0
 else
   app_rc=$?

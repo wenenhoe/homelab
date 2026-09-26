@@ -117,7 +117,8 @@
 # instead of nothing. 1ms is small enough that no real object can
 # satisfy it without hitting that special case.
 - name: Discover the freshness threshold actually rendered into check-freshness.sh
-  ansible.builtin.shell: >-
+  ansible.builtin.shell: |
+    set -o pipefail
     grep -oE '"[0-9]+h"' {{ compose_deploy_dir }}/backup-agent/check-freshness.sh | tr -d '"' | sort -u
   register: backup_agent_verify_rendered_thresholds
   changed_when: false

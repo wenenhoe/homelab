@@ -1,0 +1,48 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    compose_deploy_dir: /opt/stacks
+    offsite_backup_cron: "30 4 * * *"
+    offsite_backup_retention_days: 7
+    offsite_backup_freshness_buffer_hours: 2
+    # daily_app uses the shared default cron implicitly. frequent_app
+    # overrides to every-6-hours. weekdays_app overrides to weekdays
+    # only, whose real worst-case gap (Friday to Monday) is 72h, not
+    # the naive 24h a same-day-every-week average would suggest — the
+    # whole point of cron_period_hours taking the max gap, not the
+    # average.
+    compose_apps:
+      - name: daily_app
+      - name: frequent_app
+      - name: weekdays_app
+    app_registry:
+      daily_app:
+        backup:
+          volumes: [data]
+      frequent_app:
+        backup:
+          volumes: [data]
+          cron: "0 */6 * * *"
+      weekdays_app:
+        backup:
+          volumes: [data]
+          cron: "30 4 * * 1-5"
+  tasks:
+    - name: Resolve compose_apps against the app registry
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_compose_apps.yaml
+
+    - name: Build backup_agent_schedules directly - no Docker infra needed for this pure computation
+      ansible.builtin.include_role:
+        name: backup_agent
+        tasks_from: build_schedules.yaml
+
+    - name: Persist the computed schedules for verify.yml to read back
+      ansible.builtin.copy:
+        dest: /tmp/backup_agent_varying_cron_schedules.json
+        content: "{{ backup_agent_schedules | to_json }}"
+        mode: "0644"

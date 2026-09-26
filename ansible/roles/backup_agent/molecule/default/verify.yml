@@ -7,11 +7,6 @@
     molecule_test_bucket: molecule-test-backups
     seaweedfs_access_key: molecule-test-access-key
     seaweedfs_secret_key: molecule-test-secret-key
-    # Must match converge.yml's own offsite_backup_freshness_hours —
-    # this is a separate play, so that value isn't visible here
-    # otherwise. Needed to know the exact rendered threshold to match
-    # when forcing it down to 1ms later in verify_freshness_check.yml.
-    offsite_backup_freshness_hours: 1
   # Split across files rather than one task list — this scenario's own
   # fixture setup (real cron-triggered backups, real S3 uploads) is too
   # expensive to duplicate across separate Molecule scenarios just for

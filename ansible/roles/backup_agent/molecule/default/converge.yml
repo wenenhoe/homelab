@@ -67,12 +67,16 @@
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
     # check-freshness.sh.j2 (included from backup_agent's own
-    # tasks/main.yaml) needs these — see docs/uptime-kuma.md. A short
-    # threshold so verify.yml doesn't need to wait. One push URL for
-    # the whole host now (not per-app) — every app in this scenario
+    # tasks/main.yaml) needs this — see docs/uptime-kuma.md. Each app's
+    # actual threshold is derived from its own cron (offsite_backup_cron
+    # above, every minute in this scenario) plus this buffer - a small
+    # value here keeps the total short, though the exact number doesn't
+    # matter for what this scenario checks: every uploaded object below
+    # is seconds old, trivially within any sane threshold. One push URL
+    # for the whole host now (not per-app) — every app in this scenario
     # gets a real backup uploaded below, so this exercises the "every
     # app fresh, one push fires" path.
-    offsite_backup_freshness_hours: 1
+    offsite_backup_freshness_buffer_hours: 1
     backup_agent_freshness_push_url: "http://uptime-kuma-test.invalid/api/push/molecule-fake-token"
 
     # happy_app_stop carries docker-volume-backup.stop-during-backup=

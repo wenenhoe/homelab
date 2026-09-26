@@ -1,0 +1,44 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Read back the computed schedules from converge.yml
+      ansible.builtin.slurp:
+        path: /tmp/backup_agent_varying_cron_schedules.json
+      register: backup_agent_verify_schedules_raw
+
+    - name: Parse the schedules computed by converge.yml
+      ansible.builtin.set_fact:
+        backup_agent_verify_schedules_list: "{{ backup_agent_verify_schedules_raw.content | b64decode | from_json }}"
+
+    - name: Index the schedules by app name
+      ansible.builtin.set_fact:
+        backup_agent_verify_schedules: >-
+          {{ dict(backup_agent_verify_schedules_list | map(attribute='app') | zip(backup_agent_verify_schedules_list)) }}
+
+    # Pinned to exact values, not just "differ from each other" — the
+    # underlying algorithm (max gap within a rolling window, see
+    # filter_plugins/cron_period_hours.py) is itself worth catching a
+    # regression in, not only its "produces different numbers per app"
+    # property.
+    - name: Confirm each app's freshness threshold matches its own cron cadence, not a shared value
+      ansible.builtin.assert:
+        that:
+          # Daily (the shared fleet default): 24h period + 2h buffer.
+          - backup_agent_verify_schedules.daily_app.freshness_hours == 26
+          # Every 6 hours: 6h period + 2h buffer.
+          - backup_agent_verify_schedules.frequent_app.freshness_hours == 8
+          # Weekdays only: the real worst-case gap is Friday to Monday
+          # (72h), not a naive 24h average — 72h + 2h buffer.
+          - backup_agent_verify_schedules.weekdays_app.freshness_hours == 74
+        fail_msg: >-
+          Expected daily_app=26, frequent_app=8, weekdays_app=74; got
+          {{ backup_agent_verify_schedules_list }}
+
+    - name: Confirm each app also kept its own distinct cron string (nothing got cross-applied)
+      ansible.builtin.assert:
+        that:
+          - backup_agent_verify_schedules.daily_app.cron == "30 4 * * *"
+          - backup_agent_verify_schedules.frequent_app.cron == "0 */6 * * *"
+          - backup_agent_verify_schedules.weekdays_app.cron == "30 4 * * 1-5"

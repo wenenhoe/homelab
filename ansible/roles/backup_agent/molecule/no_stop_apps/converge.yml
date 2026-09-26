@@ -40,11 +40,13 @@
     seaweedfs_s3_access_key: molecule-test-access-key
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
-    # check-freshness.sh.j2 needs these too — rendered unconditionally,
+    # check-freshness.sh.j2 needs this too — rendered unconditionally,
     # regardless of the stop-apps branch this scenario exists to test.
-    # Left blank: this scenario doesn't trigger a check run either, same
-    # as it doesn't trigger a backup (see the comment below).
-    offsite_backup_freshness_hours: 26
+    # This scenario doesn't trigger a check run either, same as it
+    # doesn't trigger a backup (see the comment below), so the exact
+    # value doesn't matter — just needs to be set for the template to
+    # render at all.
+    offsite_backup_freshness_buffer_hours: 2
     backup_agent_freshness_push_url: ""
 
     # The one app on this host declares no stop_during_backup at all —

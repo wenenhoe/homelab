@@ -54,6 +54,27 @@
             seaweedfs_admin_access_key: molecule-test-WRONG-access-key
             seaweedfs_admin_secret_key: molecule-test-WRONG-secret-key
       rescue:
+        # Same bare-rescue trap as compose_app's own `continue_on_error`
+        # scenario (see that converge.yml's identical comment): any
+        # failure inside the block - not just the deliberate wrong-
+        # credentials one - would leave the same marker behind and read
+        # as a pass. ansible_failed_result is only populated inside
+        # rescue - assert it's specifically amazon.aws.s3_bucket's own
+        # single-attempt 4xx (the exact condition seaweedfs_bucket's
+        # own until: stops retrying on, see that role's tasks/main.yaml)
+        # before trusting the "expected" label at all.
+        - name: Confirm the failure was seaweedfs_bucket's own single-attempt 4xx, not something else entirely
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_result.attempts | default(0) == 1
+              - (ansible_failed_result.response_metadata.http_status_code | default(0) | int) >= 400
+              - (ansible_failed_result.response_metadata.http_status_code | default(0) | int) < 500
+            fail_msg: >-
+              seaweedfs_bucket failed, but not for the reason this scenario exists
+              to test. Expected a single-attempt 4xx from amazon.aws.s3_bucket;
+              got attempts={{ ansible_failed_result.attempts | default('unknown') }},
+              http_status_code={{ ansible_failed_result.response_metadata.http_status_code | default('unknown') }}.
+
         - name: Leave a marker proving the auth failure actually surfaced
           ansible.builtin.copy:
             dest: /tmp/seaweedfs_bucket_wrong_creds_halt_marker

@@ -33,6 +33,18 @@
     owner: root
     group: root
 
+# ansible_facts['architecture'] is uname's own naming (x86_64, aarch64,
+# ppc64le, ...), not Debian's apt architecture naming (amd64, arm64,
+# ppc64el, ...) - a hand-listed replace() covering only the x86_64 case
+# left every other architecture (ARM64 included - ADR 0045 discusses a
+# real ARM64 host, an OCI Ampere A1) passed through unmapped and
+# invalid. dpkg already knows this mapping for whatever machine it's
+# actually running on, so ask it instead of hand-maintaining the list.
+- name: Determine this host's Debian apt architecture name
+  ansible.builtin.command: dpkg --print-architecture
+  register: docker_apt_architecture
+  changed_when: false
+
 - name: Add Docker official apt repository using DEB822 format
   ansible.builtin.deb822_repository:
     name: docker
@@ -40,7 +52,7 @@
     uris: ["https://download.docker.com/linux/ubuntu"]
     suites: ["{{ ansible_facts['distribution_release'] }}"]
     components: [stable]
-    architectures: ["{{ ansible_facts['architecture'] | replace('x86_64', 'amd64') }}"]
+    architectures: ["{{ docker_apt_architecture.stdout | trim }}"]
     signed_by: /etc/apt/keyrings/docker.asc
     state: present
     enabled: true

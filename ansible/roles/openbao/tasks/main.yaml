@@ -51,6 +51,7 @@
         log_driver: json-file
       register: openbao_read_uid
       changed_when: false
+      check_mode: false
 
     - name: Discover the data volume's real host path
       community.docker.docker_volume_info:

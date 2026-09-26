@@ -35,6 +35,11 @@
   community.docker.docker_container_exec:
     container: "{{ step_ca_client_container_name }}"
     command: cat /home/step/certs/root_ca.crt
+    # docker_container_exec's default (true) strips leading/trailing
+    # whitespace, including the cert's own trailing newline - a real
+    # PEM-concatenation gotcha this repo already hit once
+    # (tinyauth_ca_trust's bundle staging).
+    strip_empty_ends: false
   register: step_ca_client_root_cert_read
   changed_when: false
 

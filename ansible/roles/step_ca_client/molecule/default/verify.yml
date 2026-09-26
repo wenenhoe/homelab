@@ -16,6 +16,7 @@
       community.docker.docker_container_exec:
         container: step-ca-test
         command: cat /home/step/certs/root_ca.crt
+        strip_empty_ends: false
       register: step_ca_client_verify_real_root
       changed_when: false
 

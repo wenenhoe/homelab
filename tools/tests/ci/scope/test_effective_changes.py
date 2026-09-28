@@ -1,4 +1,4 @@
-"""Tests for ci_scope.effective_changes against a real git history.
+"""Tests for ci.scope.effective_changes against a real git history.
 
 Run via `uv run pytest tools/tests/ -v`.
 """
@@ -14,9 +14,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from ci_scope import effective_changes as ec
+from ci.scope import effective_changes as ec
 
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
 PY = "ansible/tests/test_x.py"

@@ -14,7 +14,7 @@ Filters whose consumer reads the comments themselves are refused:
 ansible-lint honours `# noqa`, Trivy honours `#trivy:ignore`, and
 compose files aren't eligible for the comparison at all.
 
-Usage (from tools/): python -m ci_scope.effective_changes <base-sha> <head-sha> <filter>...
+Usage (from tools/): python -m ci.scope.effective_changes <base-sha> <head-sha> <filter>...
 Each filter's file list is read as JSON from the environment variable
 <FILTER>_FILES (upper-cased). Writes <filter>=true|false to
 $GITHUB_OUTPUT (stdout if unset).
@@ -28,9 +28,9 @@ import os
 import sys
 from pathlib import Path
 
-from ci_scope import semantic_diff
+from ci.scope import semantic_diff
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Filters that must never be gated: see the module docstring.
 NEVER_GATED = {"ansible_lint": "ansible-lint honours # noqa", "trivy_ansible": "Trivy honours #trivy:ignore", "any_compose": "compose files are never a no-op"}

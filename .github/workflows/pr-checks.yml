@@ -55,7 +55,7 @@ jobs:
       - name: Drop no-op changes from the gated filters
         id: effective
         run: >-
-          uv run python -m ci_scope.effective_changes
+          uv run python -m ci.scope.effective_changes
           "${{ github.event.pull_request.base.sha }}"
           "${{ github.event.pull_request.head.sha }}"
           uv_lock deploy_ordering python_unit_tests
@@ -67,7 +67,7 @@ jobs:
 
       - name: Determine which ansible roles to test
         id: roles
-        run: uv run python -m ci_scope.molecule_scope "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        run: uv run python -m ci.scope.molecule_scope "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
         working-directory: tools
 
       - name: Determine which compose stacks to boot-test

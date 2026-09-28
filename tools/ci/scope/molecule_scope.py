@@ -46,7 +46,7 @@ runtime contents. Computed paths that don't exist, that resolve outside
 the repo, or that are the role's own directory or an ancestor of it are
 ignored.
 
-Usage (from tools/): python -m ci_scope.molecule_scope <base-sha> <head-sha>
+Usage (from tools/): python -m ci.scope.molecule_scope <base-sha> <head-sha>
 Writes roles=<json array> to $GITHUB_OUTPUT (stdout if unset).
 """
 
@@ -63,9 +63,9 @@ from pathlib import Path
 
 import yaml
 
-from ci_scope import semantic_diff
+from ci.scope import semantic_diff
 
-REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+REPO_ROOT = Path(__file__).resolve().parents[3]
 ROLES_DIR = "ansible/roles"
 HELPERS_ROLE = "molecule_helpers"
 HELPERS_DIR = f"{ROLES_DIR}/{HELPERS_ROLE}"
@@ -74,7 +74,7 @@ YAML_SUFFIXES = (".yml", ".yaml")
 
 # Paths every scenario inherits regardless of what it references: the
 # base config's Galaxy inputs (.config/molecule/config.yml deep-merges
-# it into every scenario) and the toolchain pins. tools/tests/ci_scope
+# it into every scenario) and the toolchain pins. tools/tests/ci/scope
 # asserts the base config still points at the files listed here.
 GLOBAL_PATHS = (
     ".config/molecule/",

@@ -5,7 +5,7 @@
 # comment). See docs/ci.md#change-scoped-not-a-full-sweep for what each
 # output actually gates.
 # uv_lock, deploy_ordering and python_unit_tests are further narrowed by
-# ci_scope.effective_changes: a match only counts if some matched file
+# ci.scope.effective_changes: a match only counts if some matched file
 # changed for real, not just in a comment or formatting.
 uv_lock:
   - 'pyproject.toml'
@@ -57,8 +57,8 @@ python_unit_tests:
   - 'tools/utils/**'
   # Decides the molecule matrix in detect-changes itself (see
   # docs/ci.md#molecule-watch-sets), so a change to it is tested here.
-  - 'tools/ci_scope/**'
-  # Bash, but tested here: tools/tests/ci_scope/test_ci_scripts.py runs
+  - 'tools/ci/**'
+  # Bash, but tested here: tools/tests/ci/scope/test_ci_scripts.py runs
   # each against a fixture repo.
   - '.github/scripts/detect-changed-*.sh'
   - '.github/scripts/shadow-tag-local-image.sh'

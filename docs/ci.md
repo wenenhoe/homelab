@@ -43,7 +43,7 @@ type in the repo:
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
 - `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
   `tools/cloud_credentials/**`,
-  `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci_scope/**`,
+  `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci/**`,
   `.github/scripts/detect-changed-*.sh`,
   `.github/scripts/shadow-tag-local-image.sh`,
   `ansible/molecule-coverage/molecule_cov/**`,
@@ -57,8 +57,8 @@ type in the repo:
 
 ### Molecule watch sets
 
-`tools/ci_scope/molecule_scope.py` (run by `detect-changes`, tested in
-`tools/tests/ci_scope/`) builds each role's watch set from what its
+`tools/ci/scope/molecule_scope.py` (run by `detect-changes`, tested in
+`tools/tests/ci/scope/`) builds each role's watch set from what its
 scenarios actually reference, then queues a role when a changed file
 falls inside it:
 
@@ -97,13 +97,13 @@ falls inside it:
 
 Before any of that matching, `detect-changes` drops a changed file whose
 *parsed* content is identical in base and head
-(`tools/ci_scope/semantic_diff.py`). A comment added, edited or
+(`tools/ci/scope/semantic_diff.py`). A comment added, edited or
 removed, or a reformat (indentation, quoting, blank lines), queues no
 role, and doesn't trip the repo-wide or `molecule_helpers` fail-safes
 either. The log line says `comments/formatting only -> ignored`.
 
 The same rule gates three of the path-filter outputs
-(`tools/ci_scope/effective_changes.py`): `uv_lock`, `deploy_ordering`
+(`tools/ci/scope/effective_changes.py`): `uv_lock`, `deploy_ordering`
 and `python_unit_tests` are true only if at least one file the filter
 matched changed for real. The filter step lists its matched files
 (`list-files: json`), and the `effective` step checks each one. So a
@@ -163,7 +163,7 @@ Because a scenario that links `docker/seaweedfs/` files is queued when
 they change, the `seaweedfs` `compose-boot-test-exclusions.txt` entry
 below stays correct — see there for the SeaweedFS-specific case.
 
-`detect-changes` runs the scanner with `uv run python -m ci_scope.molecule_scope` from `tools/`, so it sets up uv
+`detect-changes` runs the scanner with `uv run python -m ci.scope.molecule_scope` from `tools/`, so it sets up uv
 (no `needs:` on `warm-uv-cache`, and unlocked, for the reasons under
 [Cache warming](#cache-warming)).
 
@@ -179,7 +179,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci_scope/**`/`.github/scripts/detect-changed-*.sh`/`.github/scripts/shadow-tag-local-image.sh`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`.github/scripts/detect-changed-*.sh`/`.github/scripts/shadow-tag-local-image.sh`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
@@ -664,7 +664,7 @@ Two pieces close that gap, both keyed off which `Dockerfile` changed
   (`.github/scripts/build-and-smoke-test-image.sh`), then runs
   `.github/image-smoke-tests/<app>.sh <image>`. Every Dockerfile needs
   a smoke test there — a new one without it fails the job — and
-  `tools/tests/ci_scope/` asserts the two sets match. The smoke test
+  `tools/tests/ci/scope/` asserts the two sets match. The smoke test
   checks what the image exists to add: `caddy` the DigitalOcean DNS
   module and `curl`; `molecule-dind` Docker Engine,
   `python3-requests`, `fuse-overlayfs` and its `daemon.json` default;

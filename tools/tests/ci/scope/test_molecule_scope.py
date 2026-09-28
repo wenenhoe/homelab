@@ -1,4 +1,4 @@
-"""Unit tests for ci_scope.molecule_scope.
+"""Unit tests for ci.scope.molecule_scope.
 
 Run via `uv run pytest tools/tests/ -v`. Most cases build a small fake
 repo in a temp directory; the last class checks invariants of the real
@@ -17,9 +17,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from ci_scope import molecule_scope as ms
+from ci.scope import molecule_scope as ms
 
 CONVERGE_WITH_HELPER = """\
 - hosts: all

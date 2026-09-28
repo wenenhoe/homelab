@@ -1,4 +1,4 @@
-"""Tests for ci_scope.semantic_diff and its use by molecule_scope.
+"""Tests for ci.scope.semantic_diff and its use by molecule_scope.
 
 Run via `uv run pytest tools/tests/ -v`.
 """
@@ -13,10 +13,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from ci_scope import molecule_scope as ms
-from ci_scope import semantic_diff as sd
+from ci.scope import molecule_scope as ms
+from ci.scope import semantic_diff as sd
 
 TASKS = "ansible/roles/alpha/tasks/main.yaml"
 GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}

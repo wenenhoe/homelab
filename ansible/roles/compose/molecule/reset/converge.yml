@@ -49,12 +49,12 @@
     # (a second converge run) to react to.
     - name: Write simulated runtime state into reset_app_a's volume
       ansible.builtin.command: >-
-        docker run --rm -v reset_app_a_data:/vol alpine:3.20
+        docker run --rm -v reset_app_a_data:/vol alpine:3.24
         sh -c "echo runtime-state-a > /vol/runtime.db"  # noqa: command-instead-of-module
       changed_when: false
 
     - name: Write simulated runtime state into reset_app_b's volume
       ansible.builtin.command: >-
-        docker run --rm -v reset_app_b_cache:/vol alpine:3.20
+        docker run --rm -v reset_app_b_cache:/vol alpine:3.24
         sh -c "echo runtime-state-b > /vol/runtime.db"  # noqa: command-instead-of-module
       changed_when: false

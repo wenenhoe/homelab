@@ -82,7 +82,7 @@
     - name: "Remove file(s) from the volume ({{ volume_rm_full_name }})"
       community.docker.docker_container:
         name: "{{ volume_rm_app }}-{{ volume_rm_volume }}-filerm"
-        image: alpine:latest
+        image: alpine:3.24
         command:
           - sh
           - -c

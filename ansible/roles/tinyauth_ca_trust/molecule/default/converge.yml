@@ -75,7 +75,7 @@
     - name: Issue a real cert for lldap-test from step-ca-test
       community.docker.docker_container:
         name: tinyauth-ca-trust-issue-cert
-        image: smallstep/step-cli:0.30.2
+        image: smallstep/step-cli:0.31.0
         command:
           - step
           - ca

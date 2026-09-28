@@ -52,7 +52,7 @@
   // delay for updates that are already batched and already infrequent.
   prHourlyLimit: 0,
 
-  // Most molecule fixtures pin specific images (mostly alpine:3.20) on
+  // Most molecule fixtures pin specific images (mostly alpine:3.24) on
   // purpose for reproducibility, or reference a locally-built, non-registry
   // image (buildapp:local) Renovate can't resolve anyway — keep those out
   // of scope entirely.

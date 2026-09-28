@@ -8,7 +8,7 @@
     # --- Caddyfile rendered and seeded correctly into its volume ------------
     - name: Read back the seeded Caddyfile from its volume
       ansible.builtin.command: >-
-        docker run --rm -v caddy_caddyfile:/mnt alpine:3.20 cat /mnt/Caddyfile
+        docker run --rm -v caddy_caddyfile:/mnt alpine:3.24 cat /mnt/Caddyfile
       register: caddy_seeded_caddyfile
       changed_when: false
 

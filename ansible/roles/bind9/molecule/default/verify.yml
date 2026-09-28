@@ -94,7 +94,7 @@
       # inside a Docker named volume, not on the host filesystem directly -
       # a throwaway container is the only way to read it back.
       ansible.builtin.command: >-
-        docker run --rm -v bind9_config:/mnt alpine:3.20 cat /mnt/named.conf.local  # noqa: command-instead-of-module
+        docker run --rm -v bind9_config:/mnt alpine:3.24 cat /mnt/named.conf.local  # noqa: command-instead-of-module
       register: bind9_seeded_config
       changed_when: false
       failed_when: "'zone \"svc.lan.example.test\"' not in bind9_seeded_config.stdout"

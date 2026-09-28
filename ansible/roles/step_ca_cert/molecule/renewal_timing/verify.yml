@@ -63,7 +63,7 @@
           - "/tmp/step-ca-cert-renewal-timing-provisioner-password:/tmp/provisioner_password:ro"
           - -v
           - "/etc/step-ca/root_ca.crt:/root_ca.crt:ro"
-          - "smallstep/step-cli:0.30.2"
+          - "smallstep/step-cli:0.31.0"
           - step
           - ca
           - certificate

@@ -44,7 +44,7 @@
       # Reads content stored inside a Docker named volume - a throwaway
       # container is the only way to read that back.
       ansible.builtin.command: >-  # noqa: command-instead-of-module
-        docker run --rm -v scriptapp_seeded_scripts:/scripts alpine:3.20
+        docker run --rm -v scriptapp_seeded_scripts:/scripts alpine:3.24
         cat /scripts/run.sh
       register: compose_seeded_volume_content
       changed_when: false

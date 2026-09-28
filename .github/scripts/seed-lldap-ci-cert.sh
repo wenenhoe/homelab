@@ -83,5 +83,5 @@ docker run --rm --network "$network" -v "$workdir:/work" "$step_cli_image" \
     --root /work/root_ca.crt \
     --force
 
-docker run --rm -v lldap_certs:/out -v "$workdir:/in:ro" alpine \
+docker run --rm -v lldap_certs:/out -v "$workdir:/in:ro" alpine:3.24 \
   cp /in/fullchain.pem /in/privkey.pem /out/

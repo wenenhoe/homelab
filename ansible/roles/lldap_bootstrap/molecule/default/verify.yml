@@ -15,7 +15,7 @@
     - name: Query the observer account's groups as admin
       community.docker.docker_container:
         name: lldap-bootstrap-verify-groups
-        image: curlimages/curl:8.11.1
+        image: curlimages/curl:8.22.0
         entrypoint:
           - /bin/sh
           - -c

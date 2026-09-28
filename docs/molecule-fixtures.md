@@ -71,7 +71,7 @@ matrix entirely, so nothing role-local has to carry it.
 
 ## Synthetic placeholder apps
 
-The `alpine:3.20` / `sleep infinity` fixtures used to test
+The `alpine:3.24` / `sleep infinity` fixtures used to test
 `compose`/`compose_app`'s batch logic mostly aren't identical to each
 other — the volume count, `container_name`, `labels`, and `env_file`
 presence *are* what each test is exercising, so keeping those as

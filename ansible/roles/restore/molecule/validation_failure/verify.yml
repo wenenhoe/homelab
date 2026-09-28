@@ -44,7 +44,7 @@
     - name: Read back the volume's content
       community.docker.docker_container:
         name: restore-validation-failure-content-check
-        image: alpine:3.20
+        image: alpine:3.24
         volumes:
           - restore_val_target_data:/data:ro
         command: "cat /data/canary.txt"

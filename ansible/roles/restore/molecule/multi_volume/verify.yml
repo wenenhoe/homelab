@@ -39,7 +39,7 @@
     - name: Read back the certs volume's content post-restore
       community.docker.docker_container:
         name: restore-multi-certs-check
-        image: alpine:3.20
+        image: alpine:3.24
         volumes:
           - restore_multi_certs:/data:ro
         command: "cat /data/marker.txt"
@@ -52,7 +52,7 @@
     - name: Read back the creds volume's content post-restore
       community.docker.docker_container:
         name: restore-multi-creds-check
-        image: alpine:3.20
+        image: alpine:3.24
         volumes:
           - restore_multi_creds:/data:ro
         command: "cat /data/marker.txt"
@@ -96,7 +96,7 @@
     - name: Read back each restored marker's owner inside its volume
       community.docker.docker_container:
         name: "restore-multi-{{ item.volume }}-owner-check"
-        image: alpine:3.20
+        image: alpine:3.24
         volumes:
           - "{{ item.volume }}:/data:ro"
         command: "stat -c %u:%g /data/marker.txt"

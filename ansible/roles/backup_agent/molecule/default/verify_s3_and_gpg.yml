@@ -146,7 +146,7 @@
 - name: Start a persistent utility container to inspect the downloaded archive in
   community.docker.docker_container:
     name: backup-agent-gpg-check
-    image: alpine:3.20
+    image: alpine:3.24
     volumes:
       - backup-agent-gpg-check-scratch:/scratch:ro
     entrypoint: ["sleep"]

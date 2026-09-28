@@ -44,7 +44,7 @@ What stays in workflow YAML or `.github/scripts/` is what needs Actions
 tests, `pre-commit`, `pytest`, `molecule test`). `.github/scripts/` holds
 no Python, and `tools/tests/ci/test_layout.py` enforces that.
 
-The modules jobs run on the runner's own `python3` (`ci.images.*`,
+The modules jobs run on the runner's own `python3` (`ci.images.*`, `ci.json5`,
 `ci.gates.compose_health`, `ci.gates.renovate_window`,
 `ci.gates.matrix_gate`, `ci.scan.*`, `ci.output`, `ci.proc`) are
 standard-library only, so those jobs install nothing;
@@ -826,8 +826,71 @@ Dockerfile change reaches them only after merge and the next build.
 `check-pins` reads the Dockerfile and compose text; it doesn't check the
 registry itself, so a pin that agrees with a tag that was never pushed
 passes it, and a PR can't tell either, since its boot test builds the
-Dockerfile locally. The only check that fails on an unpublished tag is the
-manual `boot-test-all.yml` sweep, which boots the published images.
+Dockerfile locally. Two checks do fail on a tag that isn't in the registry:
+the manual `boot-test-all.yml` sweep, which boots the published images, and
+the weekly [image tag existence check](#image-tag-existence-check), which
+asks every registry about every pinned image.
+
+## Image tag existence check
+
+`check-image-tags.yml` runs once a week (Sunday, 02:23 UTC) and on demand.
+Renovate only ever proposes tags that exist, so a tag an upstream later
+removes or renames goes unnoticed until a deploy fails to pull it;
+[`tools/ci/images/remote.py`](../tools/ci/images/remote.py) asks each
+registry whether every image this repo pins is still there. Unlike
+`check-pins`, it covers **every** image, not only the ones built here.
+
+Nothing is listed by hand. It collects references from:
+
+- `image:` lines in compose files and in Ansible YAML and templates: the
+  `docker/` stacks, Molecule scenarios and fixtures, and task arguments;
+- `FROM` and `COPY --from=<image>` in Dockerfiles, skipping build stages;
+- every `customManagers` entry in `.github/renovate.json5` whose datasource is
+  `docker`, applied to the files it names. These are the pins Renovate
+  tracks outside compose: an rclone image in a systemd unit and a shell
+  script, step-cli and step-ca in variable defaults and a CI script, the
+  OpenBao image, and the Renovate execution image. A manager that no longer
+  matches any file, or a file that no longer matches its manager, fails the
+  run: the pin moved, and this check would otherwise stop seeing it silently.
+
+Skipped, and listed in the output: a reference containing a template or
+variable, `scratch`, and a `:local` tag (built on the host, never pushed;
+today that is `buildapp:local`). A test fails if the skip list changes, so a
+new one is a deliberate decision.
+
+It uses the standard registry API with the standard library, so Docker
+Hub, `ghcr.io` and any other v2 registry share one path: a HEAD request per
+distinct image, and the anonymous token endpoint taken from the registry's
+own 401 challenge. A HEAD request doesn't download the image.
+
+**Rate limiting** is the risk this is built around:
+
+- one request at a time, with a half-second pause between requests. Each
+  image costs at most two HEADs plus, once per repository, a token request:
+  43 images in 37 repositories on two registries (`ghcr.io` and Docker Hub) is
+  at most about 120 requests, a minute or so, once a week;
+- a token cached per repository, and reused across its tags;
+- a 429 or 5xx is retried up to five times, waiting as long as `Retry-After`
+  says (capped at a minute) or backing off 2, 4, 8, 16 seconds;
+- whatever is still unanswered gets one more pass after a minute's cooldown;
+- an image whose registry never answered is a **warning**, not a failure: it
+  shows in the log and the run summary as not checked this run. Only a tag
+  the registry says isn't there (a 404, or a 401/403 even with a token: gone,
+  renamed or private) fails the run. A registry outage doesn't turn a weekly
+  run red, and it can't hide a removed tag from the next week's.
+
+Docker Hub's anonymous pull limit counts manifest GETs, and to my knowledge a
+HEAD isn't one; I couldn't check that from here. If it ever were, the retry
+and warning paths above are what a limit would meet, and a weekly run this
+small is unlikely to reach one either way. The run needs no
+credentials and runs with read-only permissions. GitHub emails the
+workflow's failure to the person who last changed the schedule.
+
+The tests speak real HTTP to a local server that implements the token flow
+and can answer 429 and 5xx; **they don't reach a real registry**, so the
+first `workflow_dispatch` run against `ghcr.io` and Docker Hub is the live
+check. `python -m ci.images.remote list` (from `tools/`) prints every
+reference and the files naming it without making a request.
 
 ## Renovate schedule window
 

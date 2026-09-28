@@ -20,11 +20,13 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CI = REPO_ROOT / "tools/ci"
 BARE_PYTHON = (
     "__init__.py",
+    "json5.py",
     "output.py",
     "proc.py",
     "images/__init__.py",
     "images/registry.py",
     "images/build.py",
+    "images/remote.py",
     "gates/__init__.py",
     "gates/compose_health.py",
     "gates/renovate_window.py",
@@ -63,6 +65,7 @@ class StdlibOnlyTests(unittest.TestCase):
             ("_compose-boot-test.yml", "ci.gates.compose_health"),
             ("renovate.yml", "ci.gates.renovate_window"),
             ("build-caddy-image.yml", "ci.images.registry"),
+            ("check-image-tags.yml", "ci.images.remote"),
             ("pr-checks.yml", "ci.gates.matrix_gate"),
             ("_trivy-scan.yml", "ci.scan.trivy_config"),
         ):

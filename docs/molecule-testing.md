@@ -136,7 +136,7 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    baked `daemon.json`, see [Pre-baked DinD image in
    `molecule-fixtures.md`](molecule-fixtures.md#pre-baked-dind-image)). Docker
    is already running once the container boots, so `converge.yml` doesn't
-   need a `bootstrap_docker.yaml` include.
+   install it.
 3. If the role uses `app_registry`/`compose_apps`, point `converge.yml`
    at `molecule_helpers`'s `resolve_compose_apps.yaml`.
 4. Don't add `dependency.options` or a `provisioner.env` block — the base

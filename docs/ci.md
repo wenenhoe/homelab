@@ -10,6 +10,30 @@ isolation, this pipeline tests the parts Molecule can't (linting the
 whole tree, a real compose stack booting, and the actual
 `deploy.yaml`/`restore.yaml` ordering).
 
+## Where the CI logic lives
+
+Anything with a pass/fail rule or a decision in it is Python under
+`tools/ci/`, unit-tested in `tools/tests/ci/`, and the workflows only call
+it as `python -m ci.<domain>.<module>` from `tools/`:
+
+- `ci.scope` — what a PR's diff needs run: the Molecule watch sets,
+  no-op filtering, the compose-app and Dockerfile lists.
+- `ci.gates` — checks with their own verdicts: the deploy-ordering
+  regression check, the compose health wait, the Renovate window.
+- `ci.images` — the image registry and the CI image builds.
+
+What stays in workflow YAML or `.github/scripts/` is what needs Actions
+(`uses:` steps, caches, registry login) or is a plain command sequence
+(`docker` orchestration such as `seed-lldap-ci-cert.sh`, image smoke
+tests, `pre-commit`, `pytest`, `molecule test`).
+
+The modules jobs run on the runner's own `python3` (`ci.images.*`,
+`ci.gates.compose_health`, `ci.gates.renovate_window`, `ci.output`,
+`ci.proc`) are standard-library only, so those jobs install nothing;
+`tools/tests/ci/test_stdlib_only.py` enforces it, including that they still
+parse on an older Python than the repo's own. The rest run through
+`uv run`.
+
 ## Change-scoped, not a full sweep
 
 `detect-changes` diffs the PR's base/head and feeds most other jobs a
@@ -613,7 +637,13 @@ real remote host), builds the app's `Dockerfile` if it has one (see
 [Dockerfile changes](#dockerfile-changes)), brings the stack up with
 `docker compose`, waits for
 a healthy state (or that it stayed running, if no healthcheck is
-defined), dumps logs on failure, then tears down.
+defined), dumps logs on failure, then tears down. The wait is
+[`tools/ci/gates/compose_health.py`](../tools/ci/gates/compose_health.py):
+per service, in order, it polls a defined healthcheck (30 checks, 2s
+apart; `unhealthy` fails at once) or, with none, waits a 10s grace period
+and requires the container still be running. Every failure prints that
+container's logs, and each container of a scaled service is checked.
+`tools/tests/ci/gates/` drives it against a fake `docker`.
 
 **Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
 workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):

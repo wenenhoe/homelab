@@ -1,8 +1,8 @@
 # dorny/paths-filter's filter rules for pr-checks.yml's detect-changes
 # job — pulled out of that job's `filters: |` block so it's diffable and
 # reviewable on its own instead of living only inside workflow YAML (same
-# reasoning as .github/scripts/wait-for-compose-health.sh's own header
-# comment). See docs/ci.md#change-scoped-not-a-full-sweep for what each
+# reasoning as the other CI logic that lives in files of its own, not in
+# a `run:` block). See docs/ci.md#change-scoped-not-a-full-sweep for what each
 # output actually gates.
 # uv_lock, deploy_ordering and python_unit_tests are further narrowed by
 # ci.scope.effective_changes: a match only counts if some matched file

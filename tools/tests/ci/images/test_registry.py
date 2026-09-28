@@ -9,7 +9,6 @@ Run via `uv run pytest tools/tests/ -v`.
 
 from __future__ import annotations
 
-import ast
 import os
 import sys
 import tempfile
@@ -248,34 +247,6 @@ class RealTreeTests(unittest.TestCase):
     def test_the_coderabbit_arg_is_read_from_the_dockerfile(self):
         text = reg.IMAGES["coderabbit-review"].dockerfile(reg.REPO_ROOT).read_text()
         self.assertIn(f"ARG CODERABBIT_VERSION={reg.resolve_version(reg.REPO_ROOT, reg.IMAGES['coderabbit-review'])}\n", text)
-
-
-class StdlibOnlyTests(unittest.TestCase):
-    """The image modules run on the runner's own python3, with no dependencies installed.
-
-    The build workflows resolve tags in jobs holding a package-write token,
-    and a pre-commit hook runs check-pins with no extra dependencies, so
-    these files may import only the standard library and each other, and
-    must parse on an older Python than the repo's own.
-    """
-
-    FILES = ("__init__.py", "output.py", "proc.py", "images/__init__.py", "images/registry.py", "images/build.py")
-
-    def test_imports_are_standard_library_or_ci_only(self):
-        for name in self.FILES:
-            tree = ast.parse((reg.REPO_ROOT / "tools/ci" / name).read_text(), feature_version=(3, 10))
-            for node in ast.walk(tree):
-                modules = (
-                    [a.name for a in node.names]
-                    if isinstance(node, ast.Import)
-                    else [node.module or ""]
-                    if isinstance(node, ast.ImportFrom) and node.level == 0
-                    else []
-                )
-                for module in modules:
-                    top = module.split(".")[0]
-                    with self.subTest(file=name, module=module):
-                        self.assertTrue(top in sys.stdlib_module_names or top == "ci", f"{name} imports {module}")
 
 
 if __name__ == "__main__":

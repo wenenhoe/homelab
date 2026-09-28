@@ -104,7 +104,8 @@ jobs:
         run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" logs
 
       - name: Wait for healthy state (or, if none defined, that it stayed running)
-        run: .github/scripts/wait-for-compose-health.sh "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        run: python3 -m ci.gates.compose_health "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        working-directory: tools
 
       - name: Tear down
         if: always()

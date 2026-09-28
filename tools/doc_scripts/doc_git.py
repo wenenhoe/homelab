@@ -1,5 +1,5 @@
-"""Reading a change's base out of git, shared by check-project-scope.py and
-check-project-close.py so both read the base the same way. Not a standalone
+"""Reading a change's base out of git, shared by check_project_scope.py and
+check_project_close.py so both read the base the same way. Not a standalone
 script.
 """
 

@@ -86,7 +86,7 @@ unmapped rather than stretched.
 
 Not maintained as compliance evidence, and not linked from the ADRs
 and projects it references — they stay untouched, deliberately (see
-ADR 0028 linked above for why). `check-doc-drift.py` catches
+ADR 0028 linked above for why). `check_doc_drift.py` catches
 one specific staleness case mechanically: a linked ADR going
 `status: superseded` fails the build until this page is reviewed (see
 [`docs/ci.md#docs-drift-check`](ci.md#docs-drift-check)). It does

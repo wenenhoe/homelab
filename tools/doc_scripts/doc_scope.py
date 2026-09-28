@@ -1,6 +1,6 @@
 """Path scope for project work: a change that touches a project doc must stay
 inside the `allowed_paths` that doc declares. Pure functions, shared by
-check-project-scope.py. Field validation lives in doc_frontmatter.py.
+check_project_scope.py. Field validation lives in doc_frontmatter.py.
 
 A change is tied to a project by touching its doc, which the projects README
 already requires of any PR that works a stage. A change that touches no
@@ -13,7 +13,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-from doc_frontmatter import REVISION_REF_RE, ROOT
+from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT
 
 PROJECT_DOC_RE = re.compile(r"docs/projects/(?!(?:README|TEMPLATE)\.md$)[^/]+\.md")
 # Bookkeeping the workflow itself produces for any project change: every project doc,

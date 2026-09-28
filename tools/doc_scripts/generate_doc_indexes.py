@@ -9,7 +9,7 @@ every time a project or decision lineage is added or changes status:
   that heading exists).
 
 Reads only YAML frontmatter, via doc_frontmatter.py (shared with
-check-doc-drift.py), which is also the schema of record. Validating
+check_doc_drift.py), which is also the schema of record. Validating
 every decision and project doc's type and status along the way is a
 side effect: a bad combination fails here before it ships.
 
@@ -23,7 +23,7 @@ import re
 import sys
 from pathlib import Path
 
-from doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
+from doc_scripts.doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
 
 # Project status -> display text for the regenerated table.
 STATUS_DISPLAY = {
@@ -91,7 +91,7 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
 def _dependency_depths(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
     """How far down its dependency chain each project sits: 0 with no existing
     predecessor, else one more than its deepest. Reading order for the initiative
-    view. A cycle is check-doc-drift.py's to report; here it only stops recursing."""
+    view. A cycle is check_doc_drift.py's to report; here it only stops recursing."""
     memo: dict[str, int] = {}
     visiting: set[str] = set()
 

@@ -15,8 +15,9 @@ import sys
 from pathlib import Path
 
 import yaml
-from doc_frontmatter import LINEAGE_DIR_RE, doc_kind, read_frontmatter
-from doc_graph import lineage_errors, open_assumption_errors, project_errors
+
+from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, read_frontmatter
+from doc_scripts.doc_graph import lineage_errors, open_assumption_errors, project_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []

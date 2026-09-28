@@ -1,21 +1,17 @@
-"""Unit tests for generate-doc-indexes.py - table rendering and
+"""Unit tests for generate_doc_indexes.py - table rendering and
 section replacement. Run via `uv run pytest tools/tests/ -v`.
 """
 
 from __future__ import annotations
 
 import contextlib
-import importlib.util
 import io
 import tempfile
 import unittest
 from pathlib import Path
 
-from _doc_fixtures import SCRIPTS, project, revision
-
-_spec = importlib.util.spec_from_file_location("generate_doc_indexes", SCRIPTS / "generate-doc-indexes.py")
-gen = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(gen)
+from _doc_fixtures import project, revision
+from doc_scripts import generate_doc_indexes as gen
 
 
 class _TmpRoot(unittest.TestCase):

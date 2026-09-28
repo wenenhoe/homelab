@@ -16,9 +16,9 @@ import argparse
 import sys
 from pathlib import Path
 
-from doc_frontmatter import ROOT
-from doc_git import base_project_loader, git
-from doc_scope import PROJECT_DOC_RE, scope_errors
+from doc_scripts.doc_frontmatter import ROOT
+from doc_scripts.doc_git import base_project_loader, git
+from doc_scripts.doc_scope import PROJECT_DOC_RE, scope_errors
 
 
 def main(argv: list[str] | None = None) -> int:

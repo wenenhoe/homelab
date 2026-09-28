@@ -66,7 +66,7 @@ These live once under `ansible/roles/molecule_helpers/fixtures/`
 (`generic_env.j2`, `generic_seeded.txt.j2`, `generic_run.sh`) and get
 symlinked in. `molecule_helpers` is the right home for anything shared
 across more than one role — `check_molecule_matrix`
-(`.github/scripts/check-doc-drift.py`) excludes it from the scenario
+(`tools/doc_scripts/check_doc_drift.py`) excludes it from the scenario
 matrix entirely, so nothing role-local has to carry it.
 
 ## Synthetic placeholder apps

@@ -39,7 +39,7 @@ app_registry: >-
   }}
 # The real app_registry.yaml's own bind9 entry, extracted rather than
 # hand-copied — can't go stale the way a copy can (see
-# check_app_registry_configs_exist in check-doc-drift.py for what
+# check_app_registry_configs_exist in check_doc_drift.py for what
 # happens when a copy does). combine() adds testapp, the synthetic
 # fixture app with no real registry entry to extract. playbook_dir here
 # is converge.yml's directory (ansible/roles/bind9/molecule/default/),

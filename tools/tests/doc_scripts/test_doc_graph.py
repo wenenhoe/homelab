@@ -8,8 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import doc_graph as graph
 from _doc_fixtures import project, revision
+from doc_scripts import doc_graph as graph
 
 
 class _TmpRoot(unittest.TestCase):

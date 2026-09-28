@@ -13,8 +13,10 @@ whole tree, a real compose stack booting, and the actual
 ## Where the CI logic lives
 
 Anything with a pass/fail rule or a decision in it is Python under
-`tools/ci/`, unit-tested in `tools/tests/ci/`, and the workflows only call
-it as `python -m ci.<domain>.<module>` from `tools/`:
+`tools/`, unit-tested in `tools/tests/`, and workflows and pre-commit only
+call it as `python -m <package>.<module>` from `tools/`
+([ADR 0064](decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)).
+`tools/ci/` is what the workflows run:
 
 - `ci.scope` — what a PR's diff needs run: the Molecule watch sets,
   no-op filtering, the compose-app and Dockerfile lists.
@@ -26,10 +28,21 @@ it as `python -m ci.<domain>.<module>` from `tools/`:
 - `ci.fixtures` — data a job seeds before a real run, derived from the repo
   (the deploy-ordering check's secrets).
 
+`tools/doc_scripts/` is the documentation-workflow checks and generators
+of [ADR 0037](decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
+`generate_doc_indexes`, `check_doc_drift`, `check_project_scope` and
+`check_project_close`, with the helpers they share (`doc_frontmatter`,
+`doc_graph`, `doc_scope`, `doc_close`, `doc_git`). The pre-commit hooks run
+them as `bash -c 'cd tools && python3 -m doc_scripts.<module>'`, in the
+hook's own environment with PyYAML, and the `project-scope` and
+`project-close` jobs run them through `uv run`. They read `docs/` from the
+repository root, not the working directory.
+
 What stays in workflow YAML or `.github/scripts/` is what needs Actions
 (`uses:` steps, caches, registry login) or is a plain command sequence
 (`docker` orchestration such as `seed-lldap-ci-cert.sh`, image smoke
-tests, `pre-commit`, `pytest`, `molecule test`).
+tests, `pre-commit`, `pytest`, `molecule test`). `.github/scripts/` holds
+no Python, and `tools/tests/ci/test_layout.py` enforces that.
 
 The modules jobs run on the runner's own `python3` (`ci.images.*`,
 `ci.gates.compose_health`, `ci.gates.renovate_window`,
@@ -74,9 +87,10 @@ type in the repo:
   `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`,
   `pyproject.toml`/`uv.lock`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
-- `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
+- `python_unit_tests` — `ansible/scripts/*.py`,
   `tools/cloud_credentials/**`,
   `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci/**`,
+  `tools/doc_scripts/**`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
   `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
@@ -210,7 +224,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`tools/doc_scripts/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
@@ -480,8 +494,8 @@ registry, and checks the job's steps run them before the playbooks.
 
 ## Doc index generation
 
-`.github/scripts/generate-doc-indexes.py`, wired into
-`.config/.pre-commit-config.yaml` as a local hook, positioned before
+[`tools/doc_scripts/generate_doc_indexes.py`](../tools/doc_scripts/generate_doc_indexes.py),
+wired into `.config/.pre-commit-config.yaml` as a local hook, positioned before
 markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
 hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
@@ -494,8 +508,8 @@ passing.
 
 ## Docs drift check
 
-`.github/scripts/check-doc-drift.py`, wired into `.config/.pre-commit-config.yaml`
-as a local hook — no separate job of its own, it rides along inside
+[`tools/doc_scripts/check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py), wired into
+`.config/.pre-commit-config.yaml` as a local hook — no separate job of its own, it rides along inside
 `pre-commit-checks` above like every other commit-stage hook. Checks
 these narrow, structural things:
 
@@ -567,7 +581,7 @@ documented thing no longer exists.
 
 ## Project scope check
 
-`.github/scripts/check-project-scope.py` enforces the optional
+[`tools/doc_scripts/check_project_scope.py`](../tools/doc_scripts/check_project_scope.py) enforces the optional
 `allowed_paths` field on project docs (see
 [`projects/README.md#scope`](projects/README.md#scope) for what it means
 and why). It runs in two places:
@@ -592,7 +606,7 @@ touches its project doc isn't bounded.
 
 ## Project close check
 
-`.github/scripts/check-project-close.py` enforces the closing rule in
+[`tools/doc_scripts/check_project_close.py`](../tools/doc_scripts/check_project_close.py) enforces the closing rule in
 [ADR 0037 revision 2](decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
 deleting a finished project's doc must not leave the revision its
 `decision:` names `approved` with no project naming it. A deleted doc
@@ -617,7 +631,7 @@ Unlike the scope check, it reads the docs as they stand **after** the
 change, since it has to see what the change leaves behind; the base
 supplies only the deleted doc's own `decision:`. A doc that doesn't parse
 after the change fails the check rather than being skipped, and
-`check-doc-drift.py` names it. A rename counts as a deletion plus an
+`check_doc_drift.py` names it. A rename counts as a deletion plus an
 addition, so a renamed project doc keeps its revision named.
 
 Two PRs that each leave the other's project in place can both pass and

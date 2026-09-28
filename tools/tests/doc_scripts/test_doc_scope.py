@@ -8,8 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import doc_scope as scope
 from _doc_fixtures import revision
+from doc_scripts import doc_scope as scope
 
 
 class GlobTest(unittest.TestCase):
@@ -27,9 +27,9 @@ class GlobTest(unittest.TestCase):
             ("**/test_*.py", "test_a.py", True),
             ("**/test_*.py", "a/b/test_a.py", True),
             ("**/test_*.py", "a/b/atest_a.py", False),
-            (".github/scripts/doc_*.py", ".github/scripts/doc_graph.py", True),
-            (".github/scripts/doc_*.py", "xgithub/scripts/doc_graph.py", False),
-            (".github/scripts/doc_*.py", ".github/scripts/sub/doc_a.py", False),
+            ("tools/doc_scripts/doc_*.py", "tools/doc_scripts/doc_graph.py", True),
+            ("tools/doc_scripts/doc_*.py", "xtools/doc_scripts/doc_graph.py", False),
+            ("tools/doc_scripts/doc_*.py", "tools/doc_scripts/sub/doc_a.py", False),
             ("a?c", "abc", True),
             ("a?c", "a/c", False),
             ("a+b(c).py", "a+b(c).py", True),

@@ -61,7 +61,7 @@ dangling one.
 | `building` | Production implementation is authorized. | `approved` |
 | `done` | Everything implemented and merged. | `accepted`, or `approved` while another project still names it |
 
-`check-doc-drift.py` enforces the last column, so a revision that drops
+`check_doc_drift.py` enforces the last column, so a revision that drops
 back to `working` stops any project `building` on it. A project without
 `decision:` isn't gated. Several projects may name one revision; it stays
 `approved` until the last of them closes (see
@@ -83,7 +83,7 @@ works a stage. If a stage's prose starts explaining why X over Y, stop
 and write or extend the ADR instead.
 
 A project's `decision:` is singular and gating — it's the one
-`check-doc-drift.py` checks against the Lifecycle table above. A
+`check_doc_drift.py` checks against the Lifecycle table above. A
 stage's exit condition can still set a *different* lineage's revision
 to `accepted` as a side effect; when it does, add that revision to
 `also_implements:` (same format as `decision:`, e.g.
@@ -91,7 +91,7 @@ to `accepted` as a side effect; when it does, add that revision to
 [`coding-agent-access-path.md`](coding-agent-access-path.md)
 (`decision: ADR-0055/0`, `also_implements: [ADR-0050/0]`, whose
 Stage 2 sets ADR 0050 to `accepted`) is the existing example.
-`also_implements:` doesn't gate anything — `check-doc-drift.py` only
+`also_implements:` doesn't gate anything — `check_doc_drift.py` only
 confirms each entry resolves to a real revision — it exists so
 [`project-planning.md`'s "Decisions awaiting a project"](../project-planning.md#decisions-awaiting-a-project)
 view can tell this ADR is covered without scanning every project's
@@ -124,7 +124,7 @@ change.
 
 ```yaml
 allowed_paths:
-  - .github/scripts/doc_*.py
+  - tools/doc_scripts/doc_*.py
   - tools/tests/doc_scripts/**
 ```
 
@@ -174,7 +174,7 @@ the PR that deletes its doc, which asserts that the whole Decision is
 implemented. If part of it isn't, that PR adds a `not-started` successor
 project for the remainder, which also means this one isn't the last.
 `also_implements:` doesn't count as naming.
-[`check-project-close.py`](../../.github/scripts/check-project-close.py)
+[`check_project_close.py`](../../tools/doc_scripts/check_project_close.py)
 fails a PR that deletes a project doc and does neither; see
 [`docs/ci.md#project-close-check`](../ci.md#project-close-check), and
 [ADR 0037 revision 2](../decisions/0037-decision-and-project-documentation-workflow/revision-002.md)

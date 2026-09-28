@@ -22,10 +22,10 @@ import tarfile
 import tempfile
 from pathlib import Path
 
-from doc_close import close_errors
-from doc_frontmatter import ROOT
-from doc_git import base_project_loader, git
-from doc_scope import PROJECT_DOC_RE
+from doc_scripts.doc_close import close_errors
+from doc_scripts.doc_frontmatter import ROOT
+from doc_scripts.doc_git import base_project_loader, git
+from doc_scripts.doc_scope import PROJECT_DOC_RE
 
 DOC_DIRS = ("docs/projects", "docs/decisions")
 

@@ -181,9 +181,10 @@ jobs:
 
       - name: Check the PR stays inside its project's allowed_paths
         run: >-
-          uv run python .github/scripts/check-project-scope.py
+          uv run python -m doc_scripts.check_project_scope
           --base "${{ github.event.pull_request.base.sha }}"
           --head "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # A PR that deletes a project doc must leave the revision its decision:
   # names accepted or still named by another project - see
@@ -203,9 +204,10 @@ jobs:
 
       - name: Check the PR doesn't orphan a deleted project's decision
         run: >-
-          uv run python .github/scripts/check-project-close.py
+          uv run python -m doc_scripts.check_project_close
           --base "${{ github.event.pull_request.base.sha }}"
           --head "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # Split from pre-commit-checks: ansible-lint is pinned to stages:
   # [pre-push], which --hook-stage pre-commit above doesn't run.

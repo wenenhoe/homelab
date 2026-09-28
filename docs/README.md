@@ -31,7 +31,7 @@ Topic docs describe what is true on `main` at every commit, not what a
 project is still building.
 
 **Every doc's source of truth is the code/config it describes, checked
-by [`check-doc-drift.py`](../.github/scripts/check-doc-drift.py)** for
+by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
 the handful of places that check mechanically (this index and each
 subdirectory's own, `ansible.md`'s playbook table, the molecule
 scenario matrix, the deploy play numbering, `ci.md`'s job table, every
@@ -41,9 +41,9 @@ decision-lineage and project rules in
 [`decisions/README.md`](decisions/README.md) and
 [`projects/README.md`](projects/README.md)). What a change is allowed to
 touch is checked separately, by
-[`check-project-scope.py`](../.github/scripts/check-project-scope.py);
+[`check_project_scope.py`](../tools/doc_scripts/check_project_scope.py);
 deleting a project doc without settling its decision is checked by
-[`check-project-close.py`](../.github/scripts/check-project-close.py).
+[`check_project_close.py`](../tools/doc_scripts/check_project_close.py).
 Nothing here enforces the rest by tooling — that's still on whoever's
 making the change to keep current in the same PR, the same way a
 diagram's topology should change alongside the topology it shows (see

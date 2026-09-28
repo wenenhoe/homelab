@@ -1,6 +1,6 @@
 """Cross-document rules for decision lineages and project docs: the
 invariants that hold between files rather than inside one. Pure
-functions returning error strings, shared by check-doc-drift.py.
+functions returning error strings, shared by check_doc_drift.py.
 Field-level validation lives in doc_frontmatter.py.
 """
 
@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter, ref_label
+from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, Lineage, Revision, docs_in, load_lineages, read_frontmatter, ref_label
 
 # A project's status fixes which state its linked decision revision must
 # be in. The gate is what stops production work when a revision drops

@@ -1,6 +1,6 @@
 """The close rule for project docs: deleting one must not leave the
 revision its `decision:` names `approved` and named by no project (ADR 0037
-revision 2). Pure functions, shared by check-project-close.py. Field
+revision 2). Pure functions, shared by check_project_close.py. Field
 validation lives in doc_frontmatter.py.
 
 A finished project's doc is deleted, so the rule can't read a `done` status
@@ -14,8 +14,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
-from doc_frontmatter import REVISION_REF_RE, ROOT, docs_in, load_lineages, read_frontmatter
-from doc_scope import PROJECT_DOC_RE
+from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, docs_in, load_lineages, read_frontmatter
+from doc_scripts.doc_scope import PROJECT_DOC_RE
 
 
 def _revision_key(ref: object) -> tuple[str, str] | None:

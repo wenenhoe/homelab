@@ -6,7 +6,7 @@ title: "Where the code behind CI and documentation checks lives"
 solution: "Code that decides a check's outcome is unit-tested Python under tools/, one package per domain; .github/ keeps only what Actions reads and plain command sequences"
 summary: "Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows."
 topic: repository-tooling
-status: approved
+status: accepted
 related: [ADR-0031, ADR-0037]
 ---
 
@@ -150,10 +150,11 @@ change that makes it.
 ## Validation
 
 `tools/tests/ci/test_stdlib_only.py` enforces the standard-library-only rule
-and that the workflows call those modules with plain `python3`. Once the
-move lands, a test asserts `.github/scripts/` holds no Python, and the
-`python_unit_tests` trigger covers every package by directory rather than by
-file.
+and that the workflows call those modules with plain `python3`.
+`tools/tests/ci/test_layout.py` asserts `.github/scripts/` holds no Python,
+that no test or caller runs code from it, that every module a workflow or hook
+runs exists, and that every package under `tools/` triggers the Python unit
+tests by directory.
 
 ## Reconsideration triggers
 

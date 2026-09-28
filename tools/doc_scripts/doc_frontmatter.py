@@ -1,5 +1,5 @@
 """Shared YAML-frontmatter reading, validation, and decision-lineage
-loading for generate-doc-indexes.py, check-doc-drift.py, and
+loading for generate_doc_indexes.py, check_doc_drift.py, and
 doc_graph.py. Not a standalone script.
 
 This module is the schema of record for every `type`, `status`,

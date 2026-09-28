@@ -52,6 +52,9 @@ python_unit_tests:
   - 'tools/cloud_credentials/**'
   - 'tools/openbao_utils/**'
   - 'tools/utils/**'
+  # Decides the molecule matrix in detect-changes itself (see
+  # docs/ci.md#molecule-watch-sets), so a change to it is tested here.
+  - 'tools/ci_scope/**'
   - 'ansible/molecule-coverage/molecule_cov/**'
   # Sibling of molecule_cov/ above - test_callback_plugin.py
   # imports it directly via sys.path, same pattern.

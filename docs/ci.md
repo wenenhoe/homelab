@@ -18,12 +18,14 @@ scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests.
 PR regardless of what changed, since its hooks span nearly every file
 type in the repo:
 
-- `roles` — any `ansible/roles/<role>/` touched maps to that role, except
-  three repo-wide cases that map to *every* role instead, because
-  nothing in them maps cleanly to a single consumer:
-  `ansible/requirements.yml` (a Galaxy collection bump), any file under
-  `ansible/roles/molecule_helpers/` (see
-  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)),
+- `roles` — each role with a `molecule/` scenario is queued when a
+  changed file sits in that role's *watch set*: its own directory, plus
+  everything its scenarios read from outside it. Derived from the tree
+  on every run, so it can't drift — see
+  [`#molecule-watch-sets`](#molecule-watch-sets). A few paths still map
+  to *every* role: `ansible/requirements.yml` (a Galaxy collection
+  bump), `.config/molecule/` and `molecule_helpers/`'s two requirements
+  files (the base config's Galaxy inputs, merged into every scenario),
   and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
   role's Molecule run actually executes under).
 - `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`,
@@ -37,7 +39,7 @@ type in the repo:
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
 - `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
   `tools/cloud_credentials/**`,
-  `tools/openbao_utils/**`, `tools/utils/**`,
+  `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci_scope/**`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
   `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
@@ -47,25 +49,45 @@ type in the repo:
   `r2_read_watcher.py`, the one file outside either tree that
   `ansible/tests/` still imports directly via `sys.path`.
 
-### `molecule_helpers` is repo-wide
+### Molecule watch sets
+
+`tools/ci_scope/molecule_scope.py` (run by `detect-changes`, tested in
+`tools/tests/ci_scope/`) builds each role's watch set from what its
+scenarios actually reference, then queues a role when a changed file
+falls inside it:
+
+- the role's own directory;
+- each `molecule_helpers` task file a scenario pulls in with
+  `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
+  through the helper playbooks and task files that include further
+  helper task files;
+- each `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
+  `molecule.yml` (the shared `prepare` playbooks);
+- the target of every symlink under `molecule/`. Scenarios link the
+  real `docker/<app>/` files and `molecule_helpers/fixtures/` into
+  their own `files/`, and git reports the target path, not the link.
 
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
-`molecule/` scenario of its own, so nothing under it is ever "the role
-that changed." Every scenario's base config
-(`.config/molecule/config.yml`, deep-merged into every DinD scenario)
-resolves its Galaxy dependencies from `molecule_helpers/`'s
-`role-requirements.yml`/`requirements.yml` unconditionally, and several
-scenarios' `converge.yml` additionally `include_role` specific task
-files from it directly (`bootstrap_docker.yaml`,
-`start_seaweedfs_test_target.yaml`, etc.) — see each role's own
-`converge.yml` for which. No single file in `molecule_helpers/` maps
-cleanly to one consumer, so the `roles` filter treats any change under
-it the same as a top-level `ansible/requirements.yml` bump: every role
-with a `molecule/` scenario gets queued.
+`molecule/` scenario of its own — so a change there queues only the
+roles whose watch set contains that file. Two fail-safes always queue
+*more*: a changed file under `molecule_helpers/` that no scenario
+references queues every role, as does any path in `GLOBAL_PATHS`. A
+reference the scanner can't resolve (a templated `include_role` name, a
+dangling symlink, a `tasks_from` naming no file) fails `detect-changes`
+rather than being skipped. Each queued role's log line in `detect-changes`
+names the changed file and why it matched.
 
-Concretely, this is what makes the `seaweedfs`
-`compose-boot-test-exclusions.txt` entry below correct — see there for
-the SeaweedFS-specific case this generalizes from.
+Not modelled: files a scenario reads by computed path, and role-to-role
+`include_role` edges (a change to an included role queues only that
+role). The known case of the first is
+`seaweedfs_bucket/molecule/identity_scoping`, which renders
+`docker/seaweedfs/configs/s3-identity.json.j2` through
+`lookup('ansible.builtin.template', repo_root ~ ...)`, so a change to
+that file queues no Molecule scenario.
+
+`detect-changes` runs the scanner through `uv run`, so it sets up uv
+(no `needs:` on `warm-uv-cache`, and unlocked, for the reasons under
+[Cache warming](#cache-warming)).
 
 ## Jobs
 
@@ -79,7 +101,7 @@ the SeaweedFS-specific case this generalizes from.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci_scope/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
@@ -285,7 +307,7 @@ broad, since either is the shape of change that caused the original
 regression. `pyproject.toml`/`uv.lock` are in the trigger list too: this
 job runs the real playbooks through the uv-managed `ansible-core`, so an
 `ansible-core` bump is exercised here as well as by
-[Molecule](#molecule_helpers-is-repo-wide).
+[Molecule](#molecule-watch-sets).
 
 `restore.yaml` gets a second, separate step: it can't import
 `bootstrap-secrets.yaml` as a leading play the way `deploy.yaml` does
@@ -509,7 +531,7 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   real-protocol assertions than a healthcheck poll would add:
   `bind9`/`caddy` by their own role's scenario, `seaweedfs` by
   `seaweedfs_bucket`'s and `backup_agent`'s (see
-  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)).
+  [`#molecule-watch-sets`](#molecule-watch-sets)).
 - `tinyauth` — same category: `tinyauth/molecule/default` stands up a
   real, throwaway lldap target, runs `lldap_bootstrap` against it (see
   [`lldap.md`](lldap.md#bootstrapping-the-observer-account)), then

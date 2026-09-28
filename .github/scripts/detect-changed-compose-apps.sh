@@ -24,11 +24,10 @@ head="$2"
 changed=$(git diff --name-only "$base" "$head")
 excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
 
-# -f drops deleted compose files (git diff lists them too) — same guard
-# detect-changed-roles.sh applies via -d (a change that only deletes
-# configs/ or scripts/ files leaves the app's compose file in place, so
-# it is still queued). Templated stacks ship compose.yaml.j2 instead of
-# compose.yaml.
+# -f drops deleted compose files (git diff lists them too). A change
+# that only deletes configs/ or scripts/ files leaves the app's compose
+# file in place, so it is still queued. Templated stacks ship
+# compose.yaml.j2 instead of compose.yaml.
 apps=()
 while IFS= read -r app; do
   [ -f "docker/$app/compose.yaml" ] || [ -f "docker/$app/compose.yaml.j2" ] || continue

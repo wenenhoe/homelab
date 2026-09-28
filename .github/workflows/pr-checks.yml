@@ -37,9 +37,15 @@ jobs:
         with:
           filters: .github/detect-changes-filters.yml
 
+      # Unlocked and not `needs: warm-uv-cache`, for the same reasons as
+      # warm-uv-cache above: a stale lockfile must surface as uv-lock's own
+      # failure, not fail this job and skip everything behind it.
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
       - name: Determine which ansible roles to test
         id: roles
-        run: .github/scripts/detect-changed-roles.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        run: uv run python tools/ci_scope/molecule_scope.py "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
       - name: Determine which compose stacks to boot-test
         id: compose

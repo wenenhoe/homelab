@@ -23,6 +23,8 @@ it as `python -m ci.<domain>.<module>` from `tools/`:
   `matrix-jobs-gate`.
 - `ci.images` — the image registry and the CI image builds.
 - `ci.scan` — setup for the security scans (the Trivy config).
+- `ci.fixtures` — data a job seeds before a real run, derived from the repo
+  (the deploy-ordering check's secrets).
 
 What stays in workflow YAML or `.github/scripts/` is what needs Actions
 (`uses:` steps, caches, registry login) or is a plain command sequence
@@ -69,7 +71,8 @@ type in the repo:
   included. See [Dockerfile changes](#dockerfile-changes).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`,
-  `tools/ci/gates/deploy_ordering.py`, `pyproject.toml`/`uv.lock`.
+  `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`,
+  `pyproject.toml`/`uv.lock`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
 - `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
   `tools/cloud_credentials/**`,
@@ -208,7 +211,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
-| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`pyproject.toml`/`uv.lock` changed | See below. |
+| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](#dockerfile-changes). |
@@ -454,10 +457,26 @@ at a nonexistent archive and asserts the failure is the expected
 archive-not-found message, not an `ansible_host`/`secrets_generated`
 resolution failure (that signature means the regression is back).
 
-Manual secrets are pre-seeded as plain files under
-`ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py` produces
-— throwaway CI values, same non-secret status as
-`ci-inventory/group_vars/all/ci_dummy_vars.yaml`.
+Two fixtures run first, both in
+[`tools/ci/fixtures/`](../tools/ci/fixtures/) and both read from the real
+`secrets_registry.yaml` at run time, so neither can drift from it:
+
+- `preseed_manual_secrets` writes every manual-format secret as a plain file
+  under `ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py`
+  produces — an empty file for an `allow_blank` entry, `ci-dummy-<key>`
+  otherwise. Throwaway CI values, same non-secret status as
+  `ci-inventory/group_vars/all/ci_dummy_vars.yaml`. A registry key that isn't
+  a plain file name is refused, since it becomes a path.
+- `strip_vault_scope` writes a copy of the registry without `vault_scope`
+  to `/tmp/ci-secrets-registry-no-vault.json`, which both playbook runs load
+  with `-e @`. This job has no OpenBao or step-ca target, so a scoped entry
+  would make `vault_login.yaml` run and fail; Vault reachability is
+  Molecule's job (`vault_backed`, `rotate_secret`). The output path is fixed
+  in the workflow step and in `deploy_ordering.py`, and a test holds the two
+  equal.
+
+`tools/tests/ci/fixtures/` covers both, including a run over the real
+registry, and checks the job's steps run them before the playbooks.
 
 ## Doc index generation
 

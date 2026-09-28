@@ -283,13 +283,15 @@ jobs:
 
       # Mirrors openbao_utils/bootstrap.py's output — throwaway CI values, see
       # docs/ci.md#deploy-ordering-check. Driven off the real
-      # secrets_registry.yaml at CI-run time (see the script's own
-      # docstring for why) rather than a hand-maintained list of printf
-      # lines here — the previous approach needed a new line added
-      # every time a new manual secret was registered, with nothing
-      # enforcing that it actually happened.
+      # secrets_registry.yaml at CI-run time (see
+      # tools/ci/fixtures/preseed_manual_secrets.py's docstring for why)
+      # rather than a hand-maintained list of printf lines here — the
+      # previous approach needed a new line added every time a new manual
+      # secret was registered, with nothing enforcing that it actually
+      # happened.
       - name: Pre-seed manual secrets (mirrors openbao_utils/bootstrap.py)
-        run: uv run python3 .github/scripts/preseed-manual-secrets-for-ci.py
+        run: uv run python -m ci.fixtures.preseed_manual_secrets
+        working-directory: tools
 
       # Track A stage 4 gave most secrets_registry entries a
       # vault_scope, but this job has no real OpenBao/step-ca target —
@@ -297,14 +299,15 @@ jobs:
       # isn't stubbed here on purpose, see ci-deploy-ordering-inventory.yaml's
       # own header) and fails loudly, since no AppRole is provisioned in
       # this job and even a dummy one would still try to reach a
-      # nonexistent `security` host. See the script's own docstring for
-      # why this strips vault_scope from the real registry at CI-run
-      # time rather than hand-maintaining a separate stub that could
-      # drift from it. Vault reachability itself is already covered for
+      # nonexistent `security` host. See
+      # tools/ci/fixtures/strip_vault_scope.py's docstring for why this
+      # strips vault_scope from the real registry at CI-run time rather
+      # than hand-maintaining a separate stub that could drift from it. Vault reachability itself is already covered for
       # real by the `secrets` role's own vault_backed/rotate_secret
       # Molecule scenarios — this job only ever tested ordering.
       - name: Strip vault_scope from secrets_registry for this job's own two invocations
-        run: uv run python3 .github/scripts/strip-vault-scope-for-ci.py /tmp/ci-secrets-registry-no-vault.json
+        run: uv run python -m ci.fixtures.strip_vault_scope /tmp/ci-secrets-registry-no-vault.json
+        working-directory: tools
 
       # Both playbook runs, and the verdict on the second, live in
       # tools/ci/gates/deploy_ordering.py (its docstring says why each

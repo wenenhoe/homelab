@@ -6,7 +6,7 @@ title: "Where the code behind CI and documentation checks lives"
 solution: "Code that decides a check's outcome is unit-tested Python under tools/, one package per domain; .github/ keeps only what Actions reads and plain command sequences"
 summary: "Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows."
 topic: repository-tooling
-status: working
+status: approved
 related: [ADR-0031, ADR-0037]
 ---
 
@@ -72,7 +72,10 @@ a package named for its domain, and nothing else in the repo decides it.
   helpers they import as top-level modules become package imports.
 - `tools/ci/fixtures/` holds the two deploy-ordering fixture helpers,
   `preseed-manual-secrets-for-ci.py` and `strip-vault-scope-for-ci.py`,
-  which have no tests today. They gain tests when they move.
+  which have no tests today. They move as `preseed_manual_secrets.py` and
+  `strip_vault_scope.py`: the package name already says they are for CI, so
+  the `-for-ci` suffix goes, and underscores make them importable. They gain
+  tests when they move.
 - Tests live in `tools/tests/`, mirroring the package layout. A change under
   a package triggers the Python unit tests, and no test imports code from
   `.github/`.

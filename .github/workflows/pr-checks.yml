@@ -384,8 +384,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # tools/ci/images/build.py is stdlib-only, so plain python3 runs it
+      # and this job needs no uv.
       - name: Build and smoke-test ${{ matrix.app }}'s image
-        run: .github/scripts/build-and-smoke-test-image.sh "${{ matrix.app }}"
+        run: python3 -m ci.images.build build-check "${{ matrix.app }}"
+        working-directory: tools
 
   # Fallback for stacks the boot-test job deliberately excludes: only the
   # excluded apps are checked, since anything compose-boot-test covers gets

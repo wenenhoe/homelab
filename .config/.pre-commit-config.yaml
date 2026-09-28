@@ -124,6 +124,18 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         always_run: true
+      - id: check-image-pins
+        name: check-image-pins
+        description: >-
+          Every compose file's and Molecule scenario's ghcr.io/wenenhoe
+          image reference matches the tag its Dockerfile makes the build
+          workflow publish, and every Dockerfile has an entry in
+          tools/ci/images/registry.py. Stdlib-only, so it needs no extra
+          dependencies.
+        entry: bash -c 'cd tools && python3 -m ci.images.registry check-pins' --
+        language: python
+        pass_filenames: false
+        always_run: true
       - id: check-project-scope
         name: check-project-scope
         description: >-

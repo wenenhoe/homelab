@@ -77,10 +77,13 @@ jobs:
 
       # Runs this checkout's docker/<app>/Dockerfile instead of the
       # published image, for apps that have one — see
-      # .github/scripts/shadow-tag-local-image.sh and
-      # docs/ci.md#dockerfile-changes.
+      # tools/ci/images/build.py and docs/ci.md#dockerfile-changes.
       - name: Build ${{ matrix.app }}'s Dockerfile as the image its compose file pins
-        run: .github/scripts/shadow-tag-local-image.sh "${{ matrix.app }}" "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        run: >-
+          python3 -m ci.images.build shadow-tag
+          "${{ matrix.app }}"
+          "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        working-directory: tools
 
       # lldap-only: see .github/scripts/seed-lldap-ci-cert.sh for why this
       # exercises the real step-ca issuance path instead of a self-signed

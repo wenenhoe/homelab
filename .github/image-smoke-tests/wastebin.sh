@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # docker/wastebin's image is booted and health-checked for real by
 # compose-boot-test, against this same Dockerfile (shadow-tagged — see
-# .github/scripts/shadow-tag-local-image.sh), so this only confirms the
+# tools/ci/images/build.py), so this only confirms the
 # build produced an image. Usage: wastebin.sh <image>
 set -euo pipefail
 

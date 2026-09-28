@@ -47,8 +47,6 @@ type in the repo:
 - `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
   `tools/cloud_credentials/**`,
   `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci/**`,
-  `.github/scripts/shadow-tag-local-image.sh`,
-  `.github/scripts/build-and-smoke-test-image.sh`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
   `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
@@ -182,7 +180,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`.github/scripts/shadow-tag-local-image.sh`/`.github/scripts/build-and-smoke-test-image.sh`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
@@ -675,16 +673,34 @@ tag. Before this, a PR that changed a Dockerfile was never built, and
 edit that kept the same tag tested the old image, and a version bump
 pinned a tag that doesn't exist in `ghcr.io` until after merge.
 
-Two pieces close that gap, both keyed off which `Dockerfile` changed
-(`ci.scope.compose_apps`'s `dockerfiles` output, and `Dockerfile` among an
-app's boot-test inputs):
+Three pieces close that gap. All of them are stdlib-only Python that
+runs on the runner's own `python3` (a test enforces that), so the jobs
+that use them install nothing — notably the `build-*-image.yml` jobs,
+which hold a package-write token.
 
-- **`dockerfile-build-check`** builds each changed Dockerfile with
-  `docker build`, without pushing, tagged `local/<app>:pr-check`
-  (`.github/scripts/build-and-smoke-test-image.sh`), then runs
+- **The image registry**, `tools/ci/images/registry.py`, is the one place
+  each image's published name and tag rule are written down: `caddy` is
+  published as `caddy-digitalocean` and tagged with the final stage's
+  Caddy version, `wastebin` with the upstream wastebin version,
+  `molecule-dind` as `latest`, `coderabbit-review` with its
+  `CODERABBIT_VERSION` plus `latest`. The four `build-*-image.yml`
+  workflows ask it for their `tags:` (`python3 -m ci.images.registry tags
+  <image>`) instead of grepping the Dockerfile themselves. Unlike the
+  greps it replaced, it fails unless the Dockerfile has exactly one
+  match and the tag looks like a version. `check-pins` (the
+  `check-image-pins` pre-commit hook, so it runs in `pre-commit-checks`
+  on every PR) fails when a compose file pins a `ghcr.io/wenenhoe` tag
+  other than the one the Dockerfile will publish, a Molecule scenario
+  names an unpublished tag, an image has no entry, or a
+  `docker/<app>/Dockerfile` has none. A Renovate bump to a Dockerfile's
+  version therefore has to move the compose pin in the same change.
+- **`dockerfile-build-check`** (`ci.images.build build-check`, keyed off
+  `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
+  Dockerfile with `docker build`, without pushing, tagged
+  `local/<app>:pr-check`, then runs
   `.github/image-smoke-tests/<app>.sh <image>`. Every Dockerfile needs
   a smoke test there — a new one without it fails the job — and
-  `tools/tests/ci/scope/` asserts the two sets match. The smoke test
+  `tools/tests/ci/images/` asserts the two sets match. The smoke test
   checks what the image exists to add: `caddy` the DigitalOcean DNS
   module and `curl`; `molecule-dind` Docker Engine,
   `python3-requests`, `fuse-overlayfs` and its `daemon.json` default;
@@ -692,26 +708,26 @@ app's boot-test inputs):
   `compose-boot-test` boots it for real. This covers the Dockerfiles
   `compose-boot-test` excludes (`caddy`, `molecule-dind`).
 - **Shadow-tagging** in `_compose-boot-test.yml`
-  (`.github/scripts/shadow-tag-local-image.sh`): for an app with a
-  `Dockerfile`, it reads the `ghcr.io/wenenhoe/...` image the deployed
+  (`ci.images.build shadow-tag`, and a `Dockerfile` change queues the
+  app): for an app with a `Dockerfile`, it reads the images the deployed
   compose file pins (`docker compose config --images`), builds the
-  Dockerfile and tags the result as exactly that reference. Compose's
-  default `pull_policy` (`missing`) uses a local image when the tag
-  exists, so the boot test runs this checkout's Dockerfile with no
-  change to the compose file. The reference is derived, not listed per
-  app; an app with no Dockerfile, or a compose file pinning no such
-  image, is left alone, and more than one such image fails as
-  ambiguous. `boot-test-all.yml` goes through the same workflow, so it
-  now also tests each Dockerfile at `HEAD` instead of the published
-  image.
+  Dockerfile and tags the result as the `ghcr.io/wenenhoe/<image>`
+  references among them, where the image name comes from the registry.
+  Compose's default `pull_policy` (`missing`) uses a local image when the
+  tag exists, so the boot test runs this checkout's Dockerfile with no
+  change to the compose file. An app with no Dockerfile, or a compose
+  file pinning none of its image, is left alone; a Dockerfile with no
+  registry entry fails. `boot-test-all.yml` goes through the same
+  workflow, so it now also tests each Dockerfile at `HEAD` instead of the
+  published image.
 
 Not covered: Molecule scenarios that pull a published image
 (`caddy`'s scenarios pull `caddy-digitalocean`, and every DinD scenario
 pulls `molecule-dind:latest`) still run the published one, so a
 Dockerfile change reaches them only after merge and the next build.
-Nothing checks that a compose file's pinned tag matches the tag the
-`build-*-image.yml` workflow will publish; shadow-tagging makes the boot
-test independent of that, but a mismatch would still break deploys.
+`check-pins` reads the Dockerfile and compose text; it doesn't check the
+registry itself, so a pin that agrees with a tag that was never pushed
+would pass.
 
 ## Trivy security scans
 

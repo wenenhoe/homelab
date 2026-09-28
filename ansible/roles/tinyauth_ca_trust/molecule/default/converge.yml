@@ -2,6 +2,9 @@
 - name: Converge
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/lldap.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/step_cli.yml"
   vars:
     ansible_user: root
     compose_deploy_dir: /opt/stacks
@@ -75,7 +78,7 @@
     - name: Issue a real cert for lldap-test from step-ca-test
       community.docker.docker_container:
         name: tinyauth-ca-trust-issue-cert
-        image: smallstep/step-cli:0.30.2
+        image: "{{ molecule_helpers_step_cli_image }}"
         command:
           - step
           - ca
@@ -121,7 +124,7 @@
     - name: Run a real lldap-test target using the step-ca-issued cert
       community.docker.docker_container:
         name: lldap-test
-        image: ghcr.io/lldap/lldap:2026-08-08-alpine
+        image: "{{ molecule_helpers_lldap_image }}"
         env:
           LLDAP_LDAP_BASE_DN: "dc={{ lab_domain | replace('.', ',dc=') }}"
           LLDAP_LDAP_USER_PASS: "{{ lldap_ldap_user_pass }}"

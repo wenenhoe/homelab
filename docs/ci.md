@@ -796,6 +796,16 @@ which hold a package-write token.
   names an unpublished tag, an image has no entry, or a
   `docker/<app>/Dockerfile` has none. A Renovate bump to a Dockerfile's
   version therefore has to move the compose pin in the same change.
+- **`check-molecule-image-vars`** (`ci.images.molecule_vars check`, also a
+  pre-commit hook, so it runs in `pre-commit-checks` on every PR) keeps
+  Molecule playbooks on the shared image files under
+  `ansible/roles/molecule_helpers/vars/images/`. It fails on an image
+  literal in a scenario's playbooks (Renovate's ansible manager only reads
+  `tasks/`, so that pin would never be bumped), on a play that uses an
+  image variable without loading its file or loads one it doesn't use (an
+  unused load reruns that role whenever the image is bumped), and on an
+  image file no play loads. See
+  [`molecule-fixtures.md`](molecule-fixtures.md#shared-image-pins).
 - **`dockerfile-build-check`** (`ci.images.build build-check`, keyed off
   `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
   Dockerfile with `docker build`, without pushing, tagged
@@ -855,7 +865,8 @@ Nothing is listed by hand. It collects references from:
   `docker`, applied to the files it names. These are the pins Renovate
   tracks outside compose: an rclone image in a systemd unit and a shell
   script, step-cli and step-ca in variable defaults and a CI script, the
-  OpenBao image, and the Renovate execution image. A manager that no longer
+  OpenBao image, the Renovate execution image, and the images the Molecule
+  playbooks run directly (`molecule_helpers/vars/images/*.yml`). A manager that no longer
   matches any file, or a file that no longer matches its manager, fails the
   run: the pin moved, and this check would otherwise stop seeing it silently.
 

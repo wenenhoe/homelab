@@ -2,6 +2,8 @@
 - name: Converge
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/aws_cli.yml"
   vars:
     seaweedfs_admin_access_key: molecule-test-admin-ak
     seaweedfs_admin_secret_key: molecule-test-admin-sk
@@ -92,7 +94,7 @@
     - name: Start one persistent aws-cli container per identity
       community.docker.docker_container:
         name: "identity-scoping-{{ item.name }}-cli"
-        image: amazon/aws-cli:2.15.0
+        image: "{{ molecule_helpers_aws_cli_image }}"
         entrypoint: ["sleep"]
         command: ["infinity"]
         env:

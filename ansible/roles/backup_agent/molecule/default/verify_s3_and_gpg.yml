@@ -15,7 +15,7 @@
 - name: List objects uploaded to the test SeaweedFS bucket, waiting for both schedules
   community.docker.docker_container:
     name: backup-agent-s3-listing
-    image: amazon/aws-cli:2.15.0
+    image: "{{ molecule_helpers_aws_cli_image }}"
     networks:
       - name: "{{ backup_agent_network_name }}"
     env:
@@ -89,7 +89,7 @@
 - name: Start a persistent aws-cli utility container to list+download the archive in
   community.docker.docker_container:
     name: backup-agent-gpg-aws
-    image: amazon/aws-cli:2.15.0
+    image: "{{ molecule_helpers_aws_cli_image }}"
     networks:
       - name: "{{ backup_agent_network_name }}"
     volumes:
@@ -146,7 +146,7 @@
 - name: Start a persistent utility container to inspect the downloaded archive in
   community.docker.docker_container:
     name: backup-agent-gpg-check
-    image: alpine:3.20
+    image: "{{ molecule_helpers_alpine_image }}"
     volumes:
       - backup-agent-gpg-check-scratch:/scratch:ro
     entrypoint: ["sleep"]

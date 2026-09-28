@@ -33,7 +33,7 @@
 - name: "Migrate legacy bind-mount data into volume, once ({{ compose_volume_full_name }})"
   community.docker.docker_container:
     name: "{{ compose_app_item.name }}-{{ compose_volume_item.name }}-migrate"
-    image: alpine:latest
+    image: alpine:3.24
     command: ["sh", "-c", "cp -a /old/. /new/"]
     volumes:
       - "{{ compose_volume_legacy_path }}:/old:ro"

@@ -24,6 +24,8 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/step_cli.yml"
   vars:
     step_ca_cert_step_ca_url: https://step-ca-test:9000
   tasks:
@@ -63,7 +65,7 @@
           - "/tmp/step-ca-cert-renewal-timing-provisioner-password:/tmp/provisioner_password:ro"
           - -v
           - "/etc/step-ca/root_ca.crt:/root_ca.crt:ro"
-          - "smallstep/step-cli:0.30.2"
+          - "{{ molecule_helpers_step_cli_image }}"
           - step
           - ca
           - certificate

@@ -1,7 +1,7 @@
 name: scriptapp_seeded
 services:
   scriptapp_seeded:
-    image: alpine:3.20
+    image: alpine:3.24
     volumes:
       - scriptapp_seeded_scripts:/scripts
     command: [ "sh", "-c", "sleep infinity" ]

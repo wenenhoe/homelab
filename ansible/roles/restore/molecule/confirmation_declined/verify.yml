@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
   vars:
     restore_before_marker: /tmp/restore-molecule-confirmation-declined-before-started-at
   tasks:
@@ -40,7 +42,7 @@
     - name: Read back the volume's content
       community.docker.docker_container:
         name: restore-confirmation-declined-content-check
-        image: alpine:3.20
+        image: "{{ molecule_helpers_alpine_image }}"
         volumes:
           - restore_confirm_target_data:/data:ro
         command: "cat /data/canary.txt"

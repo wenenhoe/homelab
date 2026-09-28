@@ -52,25 +52,6 @@
   // delay for updates that are already batched and already infrequent.
   prHourlyLimit: 0,
 
-  // Most molecule fixtures pin specific images (mostly alpine:3.20) on
-  // purpose for reproducibility, or reference a locally-built, non-registry
-  // image (buildapp:local) Renovate can't resolve anyway — keep those out
-  // of scope entirely.
-  //
-  // This is an explicit per-role list, not a blanket "**/molecule/**".
-  // bind9/caddy/step_ca_cert aren't on it, but need no entry either: their
-  // molecule fixtures are symlinks to the real production compose.yaml/
-  // configs (see docs/molecule-testing.md's "Fixtures for apps with a
-  // real prod counterpart" section), and Renovate ignores symlinks
-  // outright, so there's nothing for it to see there regardless of this
-  // list.
-  ignorePaths: [
-    "ansible/roles/backup_agent/molecule/**",
-    "ansible/roles/compose/molecule/**",
-    "ansible/roles/compose_app/molecule/**",
-    "ansible/roles/restore/molecule/**",
-  ],
-
   // The pre-commit manager is disabled by default upstream — must opt in
   // explicitly. Its default file pattern (^|/)\.pre-commit-config\.ya?ml$
   // already matches .config/.pre-commit-config.yaml (anchored on
@@ -161,12 +142,27 @@
     },
     {
       customType: "regex",
-      description: "seed-lldap-ci-cert.sh's step-ca/step-cli images, shell variables rather than a recognized image: key",
+      description: "seed-lldap-ci-cert.sh's step-ca/step-cli/alpine images, shell variables rather than a recognized image: key",
       managerFilePatterns: ["/^\\.github/scripts/seed-lldap-ci-cert\\.sh$/"],
       matchStrings: [
         "step_ca_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
         "step_cli_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
+        "alpine_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
       ],
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "Images the Molecule playbooks run directly (molecule_helpers/vars/images/, one file per image), variable defaults rather than image: keys under tasks/",
+      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/[a-z_]+\\.ya?ml$/"],
+      matchStrings: ["molecule_helpers_[a-z_]+_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "volume-file-rm.yaml's throwaway alpine image, a play variable rather than a tasks/ file the ansible manager reads",
+      managerFilePatterns: ["/^ansible/playbooks/volume-file-rm\\.ya?ml$/"],
+      matchStrings: ["volume_rm_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
       datasourceTemplate: "docker",
     },
     {
@@ -411,13 +407,34 @@
       groupSlug: "rclone",
     },
 
+    // Same image pinned in prod tasks, Molecule fixtures and the Molecule
+    // playbooks' vars/images/ files, which different managers read — without a
+    // group each manager opens its own PR and the copies drift between
+    // merges.
+    {
+      matchDepNames: ["alpine"],
+      groupName: "alpine (prod roles, Molecule fixtures and playbooks — must move together)",
+      groupSlug: "alpine",
+    },
+    {
+      matchDepNames: ["curlimages/curl"],
+      groupName: "curl image (lldap_bootstrap + its Molecule verify — must move together)",
+      groupSlug: "curl-image",
+    },
+    {
+      matchDepNames: ["ghcr.io/lldap/lldap"],
+      groupName: "lldap (compose, Molecule targets — must move together)",
+      groupSlug: "lldap",
+    },
+
     // smallstep/step-ca and smallstep/step-cli are pinned independently
-    // in three places with no shared source of truth: step_ca_cert's own
+    // in four places with no shared source of truth: step_ca_cert's own
     // step-cli default, the CI script that seeds step-ca for the
-    // compose-boot-test workflow, and molecule_helpers' step-ca test
-    // target. The first two need the custom regex managers above (the
-    // last one's a real image: key, already covered) — group them so a
-    // version bump can't land in one place and leave the others stale.
+    // compose-boot-test workflow, molecule_helpers' step-ca test target,
+    // and the Molecule playbooks' vars/images/ files. All but the test
+    // target (a real image: key) need the custom regex managers above —
+    // group them so a version bump can't land in one place and leave the
+    // others stale.
     {
       matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
       groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",

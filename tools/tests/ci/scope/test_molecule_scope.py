@@ -83,20 +83,102 @@ class OwnDirectoryTests(FakeRepo):
         self.assertEqual(self.roles_for("docs/ci.md"), [])
 
 
+BASE_CONFIG = """\
+dependency:
+  name: galaxy
+  options:
+    role-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/role-requirements.yml
+    requirements-file: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/requirements.yml
+provisioner:
+  env:
+    ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
+    ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
+    ANSIBLE_CALLBACKS_ENABLED: molecule_coverage
+    ANSIBLE_CALLBACK_PLUGINS: ${MOLECULE_PROJECT_DIRECTORY}/../../molecule-coverage/callback_plugins
+    MOLECULE_COVERAGE_DIR: ${MOLECULE_PROJECT_DIRECTORY}/../../molecule-coverage/.data
+"""
+
+
 class GlobalPathTests(FakeRepo):
-    def test_every_global_path_queues_every_role(self):
+    def with_base_config(self) -> None:
+        self.write(".config/molecule/config.yml", BASE_CONFIG)
+        self.write("ansible/ansible.cfg", "[defaults]\n")
+        self.write("ansible/molecule-coverage/callback_plugins/molecule_coverage.py", "x = 1\n")
+        self.write("ansible/roles/molecule_helpers/requirements.yml")
+        self.write("ansible/roles/molecule_helpers/role-requirements.yml")
+        self.write("ansible/molecule-coverage/thresholds.yaml")
+
+    def test_every_static_global_path_queues_every_role(self):
         self.scenario("alpha")
         self.scenario("beta")
+        for path in (*(p for p in ms.GLOBAL_PATHS if not p.endswith("/")), ".config/molecule/config.yml"):
+            with self.subTest(path=path):
+                self.assertEqual(self.roles_for(path), ["alpha", "beta"])
+
+    def test_every_path_the_base_config_points_scenarios_at_queues_every_role(self):
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.with_base_config()
         for path in (
-            "ansible/requirements.yml",
             "ansible/roles/molecule_helpers/requirements.yml",
             "ansible/roles/molecule_helpers/role-requirements.yml",
-            ".config/molecule/config.yml",
-            "pyproject.toml",
-            "uv.lock",
+            "ansible/ansible.cfg",
+            "ansible/molecule-coverage/callback_plugins/molecule_coverage.py",
         ):
             with self.subTest(path=path):
                 self.assertEqual(self.roles_for(path), ["alpha", "beta"])
+
+    def test_base_config_paths_are_resolved_not_listed(self):
+        self.scenario("alpha")
+        self.with_base_config()
+        self.assertEqual(
+            ms.base_config_paths(self.root),
+            [
+                "ansible/ansible.cfg",
+                "ansible/molecule-coverage/callback_plugins/",
+                "ansible/roles/molecule_helpers/requirements.yml",
+                "ansible/roles/molecule_helpers/role-requirements.yml",
+            ],
+        )
+
+    def test_a_path_the_config_names_moves_with_the_config(self):
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.with_base_config()
+        self.write(".config/molecule/config.yml", BASE_CONFIG.replace("../../ansible.cfg", "../../other.cfg"))
+        self.write("ansible/other.cfg", "[defaults]\n")
+        self.assertEqual(self.roles_for("ansible/other.cfg"), ["alpha", "beta"])
+        self.assertEqual(self.roles_for("ansible/ansible.cfg"), [])
+
+    def test_the_roles_directory_and_the_absent_output_directory_are_not_repo_wide(self):
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.with_base_config()
+        paths = ms.base_config_paths(self.root)
+        self.assertNotIn("ansible/roles/", paths)
+        self.assertFalse(any(".data" in p for p in paths))
+        self.assertEqual(self.roles_for("ansible/molecule-coverage/.data/run.json"), [])
+
+    def test_the_coverage_thresholds_file_is_read_by_the_gate_not_the_scenario(self):
+        self.scenario("alpha")
+        self.with_base_config()
+        self.assertEqual(self.roles_for("ansible/molecule-coverage/thresholds.yaml"), [])
+
+    def test_no_base_config_means_nothing_extra_is_shared(self):
+        self.scenario("alpha")
+        self.assertEqual(ms.base_config_paths(self.root), [])
+
+    def test_a_token_in_the_middle_of_a_value_is_an_error(self):
+        self.scenario("alpha")
+        self.write(".config/molecule/config.yml", "provisioner:\n  env:\n    X: a:${MOLECULE_PROJECT_DIRECTORY}/y\n")
+        with self.assertRaisesRegex(ms.ScopeError, "mid-string"):
+            ms.base_config_paths(self.root)
+
+    def test_a_comment_only_change_to_ansible_cfg_is_still_a_real_change(self):
+        # .cfg is an INI file the interpreter reads for its own values: never a no-op.
+        self.scenario("alpha")
+        self.with_base_config()
+        self.assertEqual(self.roles_for("ansible/ansible.cfg"), ["alpha"])
 
 
 class HelperTaskTests(FakeRepo):
@@ -371,17 +453,40 @@ class RealTreeTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertTrue((ms.REPO_ROOT / path).exists())
 
-    def test_base_config_dependency_paths_are_global(self):
-        """The base config's Galaxy inputs must all be listed in GLOBAL_PATHS."""
+    def test_the_real_base_config_resolves_to_what_every_scenario_is_pointed_at(self):
+        self.assertEqual(
+            ms.base_config_paths(ms.REPO_ROOT),
+            [
+                "ansible/ansible.cfg",
+                "ansible/molecule-coverage/callback_plugins/",
+                "ansible/roles/molecule_helpers/requirements.yml",
+                "ansible/roles/molecule_helpers/role-requirements.yml",
+            ],
+        )
+
+    def test_every_project_directory_path_in_the_base_config_is_accounted_for(self):
+        """Each is repo-wide, or one of the two deliberate exclusions; none is silently dropped."""
         import yaml
 
-        options = yaml.safe_load((ms.REPO_ROOT / ".config/molecule/config.yml").read_text())["dependency"]["options"]
-        role = ms.role_names(ms.REPO_ROOT)[0]
-        for value in options.values():
-            resolved = Path(os.path.normpath(str(ms.REPO_ROOT / ms.ROLES_DIR / role) + value[len(ms.PROJECT_DIR_TOKEN) :]))
-            rel = resolved.relative_to(ms.REPO_ROOT).as_posix()
-            with self.subTest(path=rel):
-                self.assertTrue(any(rel == g or (g.endswith("/") and rel.startswith(g)) for g in ms.GLOBAL_PATHS))
+        role_dir = ms.REPO_ROOT / ms.ROLES_DIR / ms.role_names(ms.REPO_ROOT)[0]
+        repo_wide = ms.base_config_paths(ms.REPO_ROOT)
+        deliberately_not = {"ansible/roles", "ansible/molecule-coverage/.data"}
+        for node in ms._walk(yaml.safe_load((ms.REPO_ROOT / ms.BASE_CONFIG).read_text())):
+            if isinstance(node, str) and node.startswith(ms.PROJECT_DIR_TOKEN):
+                rel = Path(os.path.normpath(str(role_dir) + node[len(ms.PROJECT_DIR_TOKEN) :])).relative_to(ms.REPO_ROOT).as_posix()
+                with self.subTest(path=rel):
+                    self.assertTrue(rel in deliberately_not or any(g.rstrip("/") == rel for g in repo_wide), rel)
+
+    def test_a_change_to_ansible_cfg_or_the_coverage_callback_queues_every_role(self):
+        roles = ms.role_names(ms.REPO_ROOT)
+        for path in ("ansible/ansible.cfg", "ansible/molecule-coverage/callback_plugins/molecule_coverage.py"):
+            with self.subTest(path=path):
+                self.assertEqual(ms.roles_to_test(ms.REPO_ROOT, [path])[0], roles)
+
+    def test_the_thresholds_file_and_the_gate_package_do_not_queue_scenarios(self):
+        for path in ("ansible/molecule-coverage/thresholds.yaml", "ansible/molecule-coverage/molecule_cov/cli.py"):
+            with self.subTest(path=path):
+                self.assertEqual(ms.roles_to_test(ms.REPO_ROOT, [path])[0], [])
 
     def test_a_helper_task_change_no_longer_queues_every_role(self):
         roles = ms.role_names(ms.REPO_ROOT)

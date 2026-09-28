@@ -66,10 +66,13 @@ type in the repo:
   on every run, so it can't drift — see
   [`#molecule-watch-sets`](#molecule-watch-sets). A few paths still map
   to *every* role: `ansible/requirements.yml` (a Galaxy collection
-  bump), `.config/molecule/` and `molecule_helpers/`'s two requirements
-  files (the base config's Galaxy inputs, merged into every scenario),
-  and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
-  role's Molecule run actually executes under).
+  bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
+  role's Molecule run actually executes under), `.config/molecule/`, and
+  everything that base config points every scenario at: `molecule_helpers/`'s
+  two requirements files, `ansible/ansible.cfg` and the coverage callback
+  plugin under `ansible/molecule-coverage/callback_plugins/`. The last
+  group is read from the config, not listed (see
+  [Molecule watch sets](#molecule-watch-sets)).
 - `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`,
   its `Dockerfile`, or any file under `docker/<app>/configs/` or
   `docker/<app>/scripts/`, touched, minus the exclusion list (below).
@@ -190,8 +193,16 @@ or `#trivy:ignore`).
 `molecule/` scenario of its own — so a change there queues only the
 roles whose watch set contains that file. Two fail-safes always queue
 *more*: a changed file under `molecule_helpers/` that no scenario
-references queues every role, as does any path in `GLOBAL_PATHS`. A
-reference the scanner can't resolve (a templated `include_role` name, a
+references queues every role, as does any repo-wide path: `GLOBAL_PATHS`
+plus every path in `.config/molecule/config.yml`, the base config deep-merged
+into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those
+are resolved from the config on each run (`base_config_paths`), so pointing
+`ANSIBLE_CONFIG` or `ANSIBLE_CALLBACK_PLUGINS` somewhere else moves the
+trigger with it. Left out: the roles directory (the per-role watch sets
+already cover it) and the gitignored coverage output directory. The
+coverage thresholds file and the `molecule_cov` gate package are read after
+the scenarios run, by the gate, so they don't queue any role; `pytest` covers
+`molecule_cov`. A reference the scanner can't resolve (a templated `include_role` name, a
 role that isn't a directory under `ansible/roles/`, a dangling symlink,
 a `tasks_from` naming no file) fails `detect-changes` rather than being
 skipped. Each queued role's log line in `detect-changes` names the

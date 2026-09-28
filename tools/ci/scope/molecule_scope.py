@@ -30,7 +30,11 @@ scenarios actually reference:
 
 Two fail-safes always err toward testing more, never less: a changed
 file under `molecule_helpers/` that no scenario references queues every
-role, and so does a path in GLOBAL_PATHS. A reference the scanner can't
+role, and so does a repo-wide path: one in GLOBAL_PATHS, or one the base
+config (.config/molecule/config.yml, deep-merged into every scenario)
+points every scenario at through `${MOLECULE_PROJECT_DIRECTORY}` (the
+Galaxy requirements files, ansible.cfg, the coverage callback plugin), which
+base_config_paths() resolves from the config itself. A reference the scanner can't
 resolve (a templated `include_role` name, a role that doesn't exist, a
 dangling symlink, a missing `tasks_from` file) raises ScopeError and
 fails the job instead of being skipped.
@@ -80,15 +84,48 @@ YAML_SUFFIXES = (".yml", ".yaml")
 GLOBAL_PATHS = (
     ".config/molecule/",
     "ansible/requirements.yml",
-    f"{HELPERS_DIR}/requirements.yml",
-    f"{HELPERS_DIR}/role-requirements.yml",
     "pyproject.toml",
     "uv.lock",
 )
+BASE_CONFIG = ".config/molecule/config.yml"
 
 
 class ScopeError(Exception):
     """A reference the scanner can't resolve safely."""
+
+
+def base_config_paths(root: Path) -> list[str]:
+    """Repo paths the base config points every scenario at, resolved from the config itself.
+
+    Every `${MOLECULE_PROJECT_DIRECTORY}/...` string in it (Galaxy inputs,
+    `ANSIBLE_CONFIG`, `ANSIBLE_CALLBACK_PLUGINS`, ...) resolves the same way
+    for every role, so any role's directory resolves them. Left out: a path
+    that is the role's directory or an ancestor of it (`ANSIBLE_ROLES_PATH`
+    is `ansible/roles/`, which the per-role watch sets already cover), one
+    outside the repo, and one that doesn't exist (`MOLECULE_COVERAGE_DIR` is
+    a gitignored output directory, absent until a run; if a local run has
+    created it, it is listed but can never appear in a diff). No base config,
+    or no role to resolve against, means nothing is shared.
+    """
+    path = root / BASE_CONFIG
+    roles = role_names(root)
+    if not path.is_file() or not roles:
+        return []
+    role_dir = (root / ROLES_DIR / roles[0]).resolve()
+    resolved_root = root.resolve()
+    found: list[str] = []
+    for doc in _load_yaml(path):
+        for node in _walk(doc):
+            if not isinstance(node, str) or PROJECT_DIR_TOKEN not in node:
+                continue
+            if not node.startswith(PROJECT_DIR_TOKEN):
+                raise ScopeError(f"{BASE_CONFIG}: {PROJECT_DIR_TOKEN} used mid-string, can't resolve: {node}")
+            candidate = Path(os.path.normpath(str(role_dir) + node[len(PROJECT_DIR_TOKEN) :]))
+            if not candidate.exists() or candidate in (role_dir, *role_dir.parents) or not candidate.is_relative_to(resolved_root):
+                continue
+            rel = candidate.relative_to(resolved_root).as_posix()
+            found.append(rel + "/" if candidate.is_dir() else rel)
+    return sorted(dict.fromkeys(found))
 
 
 def role_names(root: Path) -> list[str]:
@@ -358,8 +395,9 @@ def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool]
         else:
             effective.append(path)
 
+    repo_wide = [*GLOBAL_PATHS, *base_config_paths(root)]
     for path in effective:
-        for global_path in GLOBAL_PATHS:
+        for global_path in repo_wide:
             if _matches(path, global_path):
                 log.append(f"{path}: repo-wide ({global_path}) -> every role")
                 return roles, log

@@ -19,6 +19,8 @@ deploy_ordering:
   - 'ansible/playbooks/**'
   - 'ansible/roles/secrets/**'
   - 'ansible/roles/restore/**'
+  # The job's two playbook runs and the verdict on the second.
+  - 'tools/ci/gates/deploy_ordering.py'
   - 'pyproject.toml'
   - 'uv.lock'
 # Gates whether the job runs at all — the hook itself always

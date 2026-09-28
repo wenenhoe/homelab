@@ -39,7 +39,7 @@ type in the repo:
   included. See [Dockerfile changes](#dockerfile-changes).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`,
-  `pyproject.toml`/`uv.lock`.
+  `tools/ci/gates/deploy_ordering.py`, `pyproject.toml`/`uv.lock`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
 - `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
   `tools/cloud_credentials/**`,
@@ -180,7 +180,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`.github/scripts/detect-changed-*.sh`/`.github/scripts/shadow-tag-local-image.sh`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
-| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
+| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](#dockerfile-changes). |
@@ -390,6 +390,12 @@ regression. `pyproject.toml`/`uv.lock` are in the trigger list too: this
 job runs the real playbooks through the uv-managed `ansible-core`, so an
 `ansible-core` bump is exercised here as well as by
 [Molecule](#molecule-watch-sets).
+
+Both runs and the verdict on the second are
+[`tools/ci/gates/deploy_ordering.py`](../tools/ci/gates/deploy_ordering.py),
+run as `python -m ci.gates.deploy_ordering deploy|restore` from `tools/`;
+`tools/tests/ci/gates/` tests the verdict against sample logs and checks
+that the expected failure message is still the `restore` role's own.
 
 `restore.yaml` gets a second, separate step: it can't import
 `bootstrap-secrets.yaml` as a leading play the way `deploy.yaml` does

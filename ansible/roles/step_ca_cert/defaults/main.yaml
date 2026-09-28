@@ -7,7 +7,7 @@ step_ca_cert_container_name: "{{ step_ca_cert_app_name }}"
 step_ca_cert_certs_volume_name: "{{ step_ca_cert_app_name }}_certs"
 step_ca_cert_network_name: caddy-proxy
 # Same version as docker/step-ca's own pin — see docs/step-ca.md.
-step_ca_cert_step_cli_image: "smallstep/step-cli:0.30.6"
+step_ca_cert_step_cli_image: "smallstep/step-cli:0.31.0"
 # step-ca's own container name, not localhost: `step` always runs inside
 # a container on caddy-proxy (both this role's one-time issuance and the
 # systemd renewal unit's ExecStart/ExecCondition), which resolves

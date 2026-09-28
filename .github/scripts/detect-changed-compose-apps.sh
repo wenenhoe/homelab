@@ -8,7 +8,9 @@
 # An app is queued when its compose.yaml(.j2) changes, or any file under
 # its configs/ or scripts/ directory — the real `compose` role renders
 # and stages both into the deploy dir (ansible/roles/compose/tasks/
-# init.yaml) before the stack boots, so they change what gets tested.
+# init.yaml) before the stack boots, so they change what gets tested —
+# or its Dockerfile, which _compose-boot-test.yml builds and boots in
+# place of the published image (see docs/ci.md#dockerfile-changes).
 #
 # Exclusion list + per-app reasoning lives in
 # .github/compose-boot-test-exclusions.txt — the single source of truth
@@ -33,7 +35,7 @@ while IFS= read -r app; do
   [ -f "docker/$app/compose.yaml" ] || [ -f "docker/$app/compose.yaml.j2" ] || continue
   apps+=("$app")
 done < <(echo "$changed" \
-  | grep -E '^docker/[^/]+/(compose\.yaml(\.j2)?|(configs|scripts)/.+)$' \
+  | grep -E '^docker/[^/]+/(compose\.yaml(\.j2)?|Dockerfile|(configs|scripts)/.+)$' \
   | cut -d/ -f2 \
   | grep -vE "^($excluded)\$" \
   | sort -u)

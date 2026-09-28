@@ -25,6 +25,7 @@ jobs:
       python_unit_tests: ${{ steps.filter.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
+      dockerfiles: ${{ steps.dockerfiles.outputs.dockerfiles }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -50,6 +51,10 @@ jobs:
       - name: Determine which compose stacks to boot-test
         id: compose
         run: .github/scripts/detect-changed-compose-apps.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+
+      - name: Determine which Dockerfiles to build
+        id: dockerfiles
+        run: .github/scripts/detect-changed-dockerfiles.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
 
   # Single-writer cache population — see docs/ci.md#cache-warming for why
   # this exists as its own job rather than letting every uv-consuming job
@@ -378,6 +383,25 @@ jobs:
     with:
       apps: ${{ needs.detect-changes.outputs.compose_apps }}
 
+  # Builds each changed Dockerfile without pushing it and smoke-tests the
+  # image — the published image is only built after merge. See
+  # docs/ci.md#dockerfile-changes. A matrix job, so it's aggregated by
+  # matrix-jobs-gate below rather than required directly.
+  dockerfile-build-check:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dockerfiles != '[]'
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.detect-changes.outputs.dockerfiles) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and smoke-test ${{ matrix.app }}'s image
+        run: .github/scripts/build-and-smoke-test-image.sh "${{ matrix.app }}"
+
   # Fallback for stacks the boot-test job deliberately excludes
   compose-syntax-check:
     needs: detect-changes
@@ -434,16 +458,16 @@ jobs:
       run-ansible: ${{ needs.detect-changes.outputs.trivy_ansible == 'true' }}
       run-secrets: true
 
-  # Fixed-name required-check aggregator for the two matrix jobs above —
+  # Fixed-name required-check aggregator for the three matrix jobs above —
   # see docs/ci.md#requiring-checks-before-merge for why a matrix job
   # can't be marked required directly. if: always() so a skipped
   # upstream job doesn't skip this one too.
   matrix-jobs-gate:
-    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, compose-boot-test]
+    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, compose-boot-test, dockerfile-build-check]
     if: always()
     runs-on: ubuntu-26.04
     steps:
-      # molecule and compose-boot-test report skipped both when nothing
+      # The matrix jobs report skipped both when nothing
       # changed and when an upstream job failed, so the upstream jobs must
       # be checked on their own: only they distinguish the two.
       - name: Fail unless upstream jobs passed and matrix jobs did not fail
@@ -455,6 +479,7 @@ jobs:
           MATRIX: >-
             ${{ needs.molecule.result }}
             ${{ needs.compose-boot-test.result }}
+            ${{ needs.dockerfile-build-check.result }}
         run: |
           for r in $UPSTREAM; do
             if [[ "$r" != "success" ]]; then

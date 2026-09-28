@@ -29,10 +29,14 @@ type in the repo:
   and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
   role's Molecule run actually executes under).
 - `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`,
-  or any file under `docker/<app>/configs/` or `docker/<app>/scripts/`,
-  touched, minus the exclusion list (below). The `compose` role renders
-  and stages `configs/` and `scripts/` before the stack boots, so a
-  change there alters what `compose-boot-test` actually exercises.
+  its `Dockerfile`, or any file under `docker/<app>/configs/` or
+  `docker/<app>/scripts/`, touched, minus the exclusion list (below).
+  The `compose` role renders and stages `configs/` and `scripts/` before
+  the stack boots, and `compose-boot-test` builds the `Dockerfile` in
+  place of the published image, so a change to any of them alters what
+  it actually exercises.
+- `dockerfiles` — any `docker/<app>/Dockerfile` touched, excluded apps
+  included. See [Dockerfile changes](#dockerfile-changes).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`,
   `pyproject.toml`/`uv.lock`.
@@ -40,6 +44,8 @@ type in the repo:
 - `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
   `tools/cloud_credentials/**`,
   `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci_scope/**`,
+  `.github/scripts/detect-changed-*.sh`,
+  `.github/scripts/shadow-tag-local-image.sh`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
   `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
@@ -125,12 +131,13 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci_scope/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci_scope/**`/`.github/scripts/detect-changed-*.sh`/`.github/scripts/shadow-tag-local-image.sh`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
-| `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
+| `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
+| `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](#dockerfile-changes). |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
-| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
+| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
 
 ```mermaid
 flowchart TD
@@ -149,15 +156,17 @@ flowchart TD
     molecule["molecule<br/>(any role touched — matrix)"]
     boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
     synchk["compose-syntax-check<br/>(any compose file touched, fallback)"]
+    dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 
-    detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk
+    detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk & dockerbuild
     detect --> trivy
     warmuv --> precommit & scope & close & lint & uvlock & pytest & deployorder & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
     warmprecommit --> precommit & lint
     molecule --> gate
     boottest --> gate
+    dockerbuild --> gate
 
     style precommit stroke-dasharray: 5 5
     style scope stroke-dasharray: 5 5
@@ -293,17 +302,18 @@ never needed to happen. The unsafe pattern (never used here) would be
 `paths-ignore`/`paths:` on the workflow's own `on:` trigger, which
 leaves the check permanently "Pending" instead of reporting `skipped`.
 
-**`molecule` and `compose-boot-test` are the exception** — don't require
-them directly. Both use a matrix (one entry per changed role/app), and
+**`molecule`, `compose-boot-test` and `dockerfile-build-check` are the
+exception** — don't require them directly. All three use a matrix (one
+entry per changed role/app/Dockerfile), and
 when the matrix actually runs, each entry posts its own check name (e.g.
 `molecule (apt)`), which varies by PR. There's no single name that's
 guaranteed to post for every PR: the base job name (`molecule`) only
 appears when the job is skipped entirely, never when it actually ran.
-Require `matrix-jobs-gate` instead — it depends on both, runs
+Require `matrix-jobs-gate` instead — it depends on all three, runs
 regardless of whether they were skipped (`if: always()`), and fails
-if either genuinely failed (not skipped). It also depends on
+if any genuinely failed (not skipped). It also depends on
 `detect-changes`, `warm-uv-cache` and `warm-galaxy-cache` and requires
-each to succeed: a failure there makes both matrix jobs report
+each to succeed: a failure there makes the matrix jobs report
 `skipped`, which would otherwise pass. One fixed name, correct for every
 PR shape.
 
@@ -544,7 +554,9 @@ by both `pr-checks.yml` (changed apps only) and `boot-test-all.yml`
 Per app: seeds it via the real `compose` role
 (`ansible/playbooks/ci_boot_test.yaml`, against `ci-inventory/` rather
 than the real `inventory.yaml`, since the latter's `all:vars` assumes a
-real remote host), brings the stack up with `docker compose`, waits for
+real remote host), builds the app's `Dockerfile` if it has one (see
+[Dockerfile changes](#dockerfile-changes)), brings the stack up with
+`docker compose`, waits for
 a healthy state (or that it stayed running, if no healthcheck is
 defined), dumps logs on failure, then tears down.
 
@@ -584,6 +596,54 @@ only for this job's lifetime.
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
 unchecked.
+
+## Dockerfile changes
+
+The images built from `docker/<app>/Dockerfile` are published only after
+merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
+`build-molecule-dind-image.yml`), and compose files pin the published
+tag. Before this, a PR that changed a Dockerfile was never built, and
+`compose-boot-test` booted the published image regardless: a Dockerfile
+edit that kept the same tag tested the old image, and a version bump
+pinned a tag that doesn't exist in `ghcr.io` until after merge.
+
+Two pieces close that gap, both keyed off which `Dockerfile` changed
+(`.github/scripts/detect-changed-dockerfiles.sh`, and `Dockerfile` in
+`detect-changed-compose-apps.sh`):
+
+- **`dockerfile-build-check`** builds each changed Dockerfile with
+  `docker build`, without pushing, tagged `local/<app>:pr-check`
+  (`.github/scripts/build-and-smoke-test-image.sh`), then runs
+  `.github/image-smoke-tests/<app>.sh <image>`. Every Dockerfile needs
+  a smoke test there — a new one without it fails the job — and
+  `tools/tests/ci_scope/` asserts the two sets match. The smoke test
+  checks what the image exists to add: `caddy` the DigitalOcean DNS
+  module and `curl`; `molecule-dind` Docker Engine,
+  `python3-requests`, `fuse-overlayfs` and its `daemon.json` default;
+  `wastebin` only that the build produced an image, since
+  `compose-boot-test` boots it for real. This covers the Dockerfiles
+  `compose-boot-test` excludes (`caddy`, `molecule-dind`).
+- **Shadow-tagging** in `_compose-boot-test.yml`
+  (`.github/scripts/shadow-tag-local-image.sh`): for an app with a
+  `Dockerfile`, it reads the `ghcr.io/wenenhoe/...` image the deployed
+  compose file pins (`docker compose config --images`), builds the
+  Dockerfile and tags the result as exactly that reference. Compose's
+  default `pull_policy` (`missing`) uses a local image when the tag
+  exists, so the boot test runs this checkout's Dockerfile with no
+  change to the compose file. The reference is derived, not listed per
+  app; an app with no Dockerfile, or a compose file pinning no such
+  image, is left alone, and more than one such image fails as
+  ambiguous. `boot-test-all.yml` goes through the same workflow, so it
+  now also tests each Dockerfile at `HEAD` instead of the published
+  image.
+
+Not covered: Molecule scenarios that pull a published image
+(`caddy`'s scenarios pull `caddy-digitalocean`, and every DinD scenario
+pulls `molecule-dind:latest`) still run the published one, so a
+Dockerfile change reaches them only after merge and the next build.
+Nothing checks that a compose file's pinned tag matches the tag the
+`build-*-image.yml` workflow will publish; shadow-tagging makes the boot
+test independent of that, but a mismatch would still break deploys.
 
 ## Trivy security scans
 

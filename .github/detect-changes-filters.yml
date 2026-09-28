@@ -55,6 +55,10 @@ python_unit_tests:
   # Decides the molecule matrix in detect-changes itself (see
   # docs/ci.md#molecule-watch-sets), so a change to it is tested here.
   - 'tools/ci_scope/**'
+  # Bash, but tested here: tools/tests/ci_scope/test_ci_scripts.py runs
+  # each against a fixture repo.
+  - '.github/scripts/detect-changed-*.sh'
+  - '.github/scripts/shadow-tag-local-image.sh'
   - 'ansible/molecule-coverage/molecule_cov/**'
   # Sibling of molecule_cov/ above - test_callback_plugin.py
   # imports it directly via sys.path, same pattern.

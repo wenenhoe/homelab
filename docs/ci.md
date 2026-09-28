@@ -813,9 +813,11 @@ which hold a package-write token.
   tag exists, so the boot test runs this checkout's Dockerfile with no
   change to the compose file. An app with no Dockerfile, or a compose
   file pinning none of its image, is left alone; a Dockerfile with no
-  registry entry fails. `boot-test-all.yml` goes through the same
-  workflow, so it now also tests each Dockerfile at `HEAD` instead of the
-  published image.
+  registry entry fails. The reusable workflow's `build-dockerfiles` input
+  (default on) gates this step, so it's on for a PR. `boot-test-all.yml`
+  passes `false`: a full sweep boots the **published** images, which is
+  what a deploy pulls, so it also fails when a compose pin's tag was never
+  published. That run is manual (`workflow_dispatch`); nothing schedules it.
 
 Not covered: Molecule scenarios that pull a published image
 (`caddy`'s scenarios pull `caddy-digitalocean`, and every DinD scenario
@@ -823,7 +825,9 @@ pulls `molecule-dind:latest`) still run the published one, so a
 Dockerfile change reaches them only after merge and the next build.
 `check-pins` reads the Dockerfile and compose text; it doesn't check the
 registry itself, so a pin that agrees with a tag that was never pushed
-would pass.
+passes it, and a PR can't tell either, since its boot test builds the
+Dockerfile locally. The only check that fails on an unpublished tag is the
+manual `boot-test-all.yml` sweep, which boots the published images.
 
 ## Renovate schedule window
 

@@ -8,7 +8,9 @@ name: Boot-test every compose app
 # The actual seed/boot/wait/teardown steps live in the shared
 # _compose-boot-test.yml reusable workflow — same one pr-checks.yml's
 # compose-boot-test calls — so there's nothing left here to drift out of
-# sync by hand.
+# sync by hand. Unlike a PR it boots the *published* images
+# (build-dockerfiles: false): this is the check that what a deploy pulls
+# exists and works, including a compose pin whose tag was never pushed.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}
 
@@ -38,3 +40,4 @@ jobs:
     uses: ./.github/workflows/_compose-boot-test.yml
     with:
       apps: ${{ needs.list-apps.outputs.apps }}
+      build-dockerfiles: false

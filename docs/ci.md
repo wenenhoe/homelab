@@ -26,8 +26,11 @@ type in the repo:
   [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)),
   and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
   role's Molecule run actually executes under).
-- `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`
-  touched, minus the exclusion list (below).
+- `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`,
+  or any file under `docker/<app>/configs/` or `docker/<app>/scripts/`,
+  touched, minus the exclusion list (below). The `compose` role renders
+  and stages `configs/` and `scripts/` before the stack boots, so a
+  change there alters what `compose-boot-test` actually exercises.
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`,
   `pyproject.toml`/`uv.lock`.

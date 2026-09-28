@@ -5,6 +5,11 @@
 # its own instead of living only inside workflow YAML (same reasoning as
 # wait-for-compose-health.sh's own header comment).
 #
+# An app is queued when its compose.yaml(.j2) changes, or any file under
+# its configs/ or scripts/ directory — the real `compose` role renders
+# and stages both into the deploy dir (ansible/roles/compose/tasks/
+# init.yaml) before the stack boots, so they change what gets tested.
+#
 # Exclusion list + per-app reasoning lives in
 # .github/compose-boot-test-exclusions.txt — the single source of truth
 # shared with pr-checks.yml's compose-syntax-check and
@@ -20,15 +25,17 @@ changed=$(git diff --name-only "$base" "$head")
 excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
 
 # -f drops deleted compose files (git diff lists them too) — same guard
-# detect-changed-roles.sh applies via -d. Templated stacks ship
-# compose.yaml.j2 instead of compose.yaml.
+# detect-changed-roles.sh applies via -d (a change that only deletes
+# configs/ or scripts/ files leaves the app's compose file in place, so
+# it is still queued). Templated stacks ship compose.yaml.j2 instead of
+# compose.yaml.
 apps=()
 while IFS= read -r app; do
   [ -f "docker/$app/compose.yaml" ] || [ -f "docker/$app/compose.yaml.j2" ] || continue
   apps+=("$app")
 done < <(echo "$changed" \
-  | grep -oE '^docker/[^/]+/compose\.yaml(\.j2)?$' \
-  | sed -E 's#docker/([^/]+)/compose\.yaml(\.j2)?#\1#' \
+  | grep -E '^docker/[^/]+/(compose\.yaml(\.j2)?|(configs|scripts)/.+)$' \
+  | cut -d/ -f2 \
   | grep -vE "^($excluded)\$" \
   | sort -u)
 

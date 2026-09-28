@@ -759,6 +759,26 @@ Dockerfile change reaches them only after merge and the next build.
 registry itself, so a pin that agrees with a tag that was never pushed
 would pass.
 
+## Renovate schedule window
+
+`renovate.json5`'s `schedule` only lets Renovate open new branches and PRs
+inside a window, in its `timezone`. GitHub starts a scheduled run some
+unpredictable time after its cron tick (1h44m to 2h20m observed here), so a
+run can land after the window closed and open nothing while still
+succeeding. `renovate.yml`'s last step,
+[`tools/ci/gates/renovate_window.py`](../tools/ci/gates/renovate_window.py),
+turns that into a failure, which GitHub's failed-workflow notification then
+surfaces.
+
+The timezone and every `schedule:` array are read from `renovate.json5`, so
+editing the window there changes what the check enforces. A run fails when
+it started on a day the schedule has a window but outside that window's
+hours; on any other day nothing is expected of it. It runs only for
+`schedule` events (a manual `workflow_dispatch` isn't waiting on a cron
+tick) and under `if: always()`, so it stays distinct from a Renovate
+failure. Cron fields support `*`, ranges, lists and steps; minutes must be
+`*`, as Renovate requires, and day names aren't supported.
+
 ## Trivy security scans
 
 Report-only Ansible-misconfig and secret scanning, separate from the

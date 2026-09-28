@@ -73,11 +73,8 @@ jobs:
         if: always() && github.event_name == 'schedule'
         env:
           STARTED_EPOCH: ${{ steps.started.outputs.epoch }}
-        run: |
-          dow=$(TZ=Asia/Singapore date -d "@$STARTED_EPOCH" +%u)  # 1=Mon .. 7=Sun
-          hour=$(TZ=Asia/Singapore date -d "@$STARTED_EPOCH" +%-H)
-          now=$(TZ=Asia/Singapore date -d "@$STARTED_EPOCH")
-          if { [ "$dow" = "1" ] || [ "$dow" = "4" ]; } && [ "$hour" -ge 6 ]; then
-            echo "::error::Run started $now SGT, past the 05:59 PR-creation window — no new PRs opened this cycle."
-            exit 1
-          fi
+        # The window and timezone are read from renovate.json5 by
+        # tools/ci/gates/renovate_window.py, so editing the schedule there
+        # changes what this checks; stdlib-only, so plain python3 runs it.
+        run: python3 -m ci.gates.renovate_window "$STARTED_EPOCH"
+        working-directory: tools

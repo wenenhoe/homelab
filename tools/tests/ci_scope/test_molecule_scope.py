@@ -136,11 +136,125 @@ class HelperTaskTests(FakeRepo):
         with self.assertRaisesRegex(ms.ScopeError, "templated"):
             self.roles_for("docs/ci.md")
 
-    def test_include_of_a_non_helper_role_adds_nothing(self):
-        other = "- hosts: all\n  tasks:\n    - ansible.builtin.include_role:\n        name: alpha\n"
-        self.scenario("alpha", converge=other)
-        self.scenario("beta", converge=other)
-        self.assertEqual(self.roles_for("ansible/roles/alpha/tasks/main.yaml"), ["alpha"])
+
+class RoleIncludeTests(FakeRepo):
+    INCLUDE = "- hosts: all\n  tasks:\n    - ansible.builtin.include_role:\n        name: {name}\n"
+
+    def include(self, name: str) -> str:
+        return self.INCLUDE.format(name=name)
+
+    def test_scenario_including_a_role_is_queued_when_that_role_changes(self):
+        self.scenario("alpha")
+        self.scenario("beta", converge=self.include("alpha"))
+        self.assertEqual(self.roles_for("ansible/roles/alpha/tasks/main.yaml"), ["alpha", "beta"])
+        self.assertEqual(self.roles_for("ansible/roles/beta/tasks/main.yaml"), ["beta"])
+
+    def test_role_including_a_role_in_its_own_tasks_is_queued(self):
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.write("ansible/roles/beta/tasks/main.yaml", self.include("alpha"))
+        self.assertEqual(self.roles_for("ansible/roles/alpha/templates/x.j2"), ["alpha", "beta"])
+
+    def test_includes_are_followed_transitively(self):
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.scenario("gamma", converge=self.include("beta"))
+        self.write("ansible/roles/beta/tasks/main.yaml", self.include("alpha"))
+        self.assertEqual(self.roles_for("ansible/roles/alpha/tasks/main.yaml"), ["alpha", "beta", "gamma"])
+
+    def test_role_without_a_scenario_is_watched_but_never_queued(self):
+        self.write("ansible/roles/shared/tasks/main.yaml")
+        self.scenario("alpha", converge=self.include("shared"))
+        self.assertEqual(self.roles_for("ansible/roles/shared/tasks/main.yaml"), ["alpha"])
+
+    def test_helper_task_that_includes_a_role_watches_that_role(self):
+        self.write("ansible/roles/shared/tasks/main.yaml")
+        self.helper_task("uses_shared.yaml", self.include("shared"))
+        self.scenario("alpha", converge=CONVERGE_WITH_HELPER.format(tasks_from="uses_shared.yaml"))
+        self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/roles/shared/tasks/main.yaml"), ["alpha"])
+
+    def test_cycles_terminate(self):
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.write("ansible/roles/alpha/tasks/main.yaml", self.include("beta"))
+        self.write("ansible/roles/beta/tasks/main.yaml", self.include("alpha"))
+        self.assertEqual(self.roles_for("ansible/roles/alpha/tasks/main.yaml"), ["alpha", "beta"])
+
+    def test_play_roles_list_and_meta_dependencies_are_edges(self):
+        self.write("ansible/roles/shared/tasks/main.yaml")
+        self.write("ansible/roles/dep/tasks/main.yaml")
+        self.scenario("alpha", converge="- hosts: all\n  roles:\n    - role: shared\n")
+        self.write("ansible/roles/alpha/meta/main.yml", "dependencies:\n  - dep\n")
+        self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/roles/shared/tasks/main.yaml"), ["alpha"])
+        self.assertEqual(self.roles_for("ansible/roles/dep/tasks/main.yaml"), ["alpha"])
+
+    def test_collection_role_names_are_ignored(self):
+        self.scenario("alpha", converge=self.include("community.general.thing"))
+        self.assertEqual(self.roles_for("docs/ci.md"), [])
+
+    def test_including_a_role_that_does_not_exist_is_an_error(self):
+        self.scenario("alpha", converge=self.include("ghost"))
+        with self.assertRaisesRegex(ms.ScopeError, "not a directory"):
+            self.roles_for("docs/ci.md")
+
+
+class ComputedPathTests(FakeRepo):
+    def test_playbook_dir_concatenation_resolves_from_the_scenario_dir(self):
+        self.write("ansible/inventory/vars.yaml")
+        self.scenario("alpha", converge="- vars:\n    x: \"{{ lookup('file', playbook_dir ~ '/../../../../inventory/vars.yaml') }}\"\n")
+        self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/inventory/vars.yaml"), ["alpha"])
+
+    def test_playbook_dir_interpolation_resolves(self):
+        self.write("ansible/scripts/tool.py")
+        self.scenario("alpha", converge='- src: "{{ playbook_dir }}/../../../../scripts/tool.py"\n')
+        self.assertEqual(self.roles_for("ansible/scripts/tool.py"), ["alpha"])
+
+    def test_path_variable_used_in_a_role_template_resolves(self):
+        self.write("ansible/roles/molecule_helpers/ansible/files/key.asc")
+        self.scenario("alpha", converge="- vars:\n    project_root: \"{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}\"\n")
+        self.write("ansible/roles/alpha/templates/key.asc.j2", "{{ lookup('file', project_root ~ '/ansible/files/key.asc') }}\n")
+        self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/ansible/files/key.asc"), ["alpha"])
+
+    def test_path_variable_defined_and_used_in_a_scenario_resolves(self):
+        self.write("docker/app/configs/x.j2")
+        converge = (
+            "- vars:\n"
+            "    repo_root: \"{{ (playbook_dir ~ '/../../../../../') | realpath }}\"\n"
+            "  x: |\n"
+            "    {{ lookup('template', repo_root ~ '/docker/app/configs/x.j2') }}\n"
+        )
+        self.scenario("alpha", converge=converge)
+        self.assertEqual(self.roles_for("docker/app/configs/x.j2"), ["alpha"])
+
+    def test_path_variable_undefined_in_the_scenario_is_ignored(self):
+        self.write("ansible/files/key.asc")
+        self.scenario("alpha")
+        self.write("ansible/roles/alpha/templates/key.asc.j2", "{{ lookup('file', project_root ~ '/ansible/files/key.asc') }}\n")
+        self.assertEqual(self.roles_for("ansible/files/key.asc"), [])
+
+    def test_nonexistent_computed_path_is_ignored(self):
+        self.scenario("alpha", converge="- x: \"{{ playbook_dir ~ '/../../../../nope.yaml' }}\"\n")
+        self.assertEqual(self.roles_for("docs/ci.md"), [])
+
+    def test_literal_continued_with_a_tilde_is_a_partial_path_and_ignored(self):
+        self.write("ansible/files/telegram-pins/.lock-")
+        self.scenario("alpha", converge="- x: \"{{ playbook_dir ~ '/../../../../files/telegram-pins/.lock-' ~ key }}\"\n")
+        self.assertEqual(self.roles_for("ansible/files/telegram-pins/.lock-"), [])
+
+    def test_path_that_is_the_repo_root_or_an_ancestor_of_the_role_is_ignored(self):
+        self.write("README.md")
+        converge = "- vars:\n    repo_root: \"{{ (playbook_dir ~ '/../../../../../') | realpath }}\"\n  x: \"{{ repo_root ~ '/' }}\"\n"
+        self.scenario("alpha", converge=converge)
+        self.assertEqual(self.roles_for("README.md"), [])
+
+    def test_computed_path_inside_the_role_adds_nothing_extra(self):
+        self.scenario("alpha", converge='- src: "{{ playbook_dir }}/files/docker"\n')
+        watched = ms.watch_set(self.root, "alpha")
+        self.assertEqual(list(watched), ["ansible/roles/alpha/"])
 
 
 class MoleculeYmlPathTests(FakeRepo):
@@ -274,6 +388,30 @@ class RealTreeTests(unittest.TestCase):
         queued = ms.roles_to_test(ms.REPO_ROOT, [f"{ms.HELPERS_DIR}/tasks/start_openbao_test_target.yaml"])[0]
         self.assertTrue(queued)
         self.assertLess(len(queued), len(roles))
+
+    def test_compose_change_queues_the_roles_that_run_it(self):
+        queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/roles/compose/tasks/init.yaml"])[0]
+        for role in ("compose", "compose_app", "caddy", "tinyauth", "bind9"):
+            self.assertIn(role, queued)
+
+    def test_shared_notification_roles_queue_their_callers(self):
+        for shared in ("telegram_notify", "uptime_kuma_push"):
+            queued = ms.roles_to_test(ms.REPO_ROOT, [f"ansible/roles/{shared}/tasks/install.yaml"])[0]
+            for caller in ("step_ca_cert", "cloud_sync", "caddy_cert_expiry"):
+                with self.subTest(shared=shared, caller=caller):
+                    self.assertIn(caller, queued)
+
+    def test_app_registry_change_queues_the_scenarios_that_read_it(self):
+        queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/inventory/group_vars/all/app_registry.yaml"])[0]
+        for role in ("bind9", "caddy", "tinyauth", "step_ca_cert"):
+            self.assertIn(role, queued)
+
+    def test_restore_script_change_queues_restore_discovery(self):
+        self.assertEqual(ms.roles_to_test(ms.REPO_ROOT, ["ansible/scripts/restore_all.py"])[0], ["restore_discovery"])
+
+    def test_the_role_whose_scenario_reads_its_own_helper_key_is_watched(self):
+        watched = ms.watch_set(ms.REPO_ROOT, "backup_agent")
+        self.assertIn("ansible/roles/molecule_helpers/ansible/files/backup-gpg-public-key.asc", watched)
 
     def test_helper_change_json_is_compact_and_sorted(self):
         queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/roles/apt/tasks/main.yaml"])[0]

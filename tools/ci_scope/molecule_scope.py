@@ -7,26 +7,39 @@ checked-out tree on every run, so it cannot drift from what the
 scenarios actually reference:
 
 - the role's own directory;
+- every role it runs: `include_role`/`import_role` names, play `roles:`
+  entries and `meta` dependencies found in the scenario's playbooks, in
+  the role's own tasks/handlers/meta, and in each included role's, so
+  a change to a shared role queues every role whose Molecule run
+  exercises it (the whole included role's directory is watched);
 - every `molecule_helpers` task file a scenario pulls in through
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   transitively through the helper playbooks/task files that themselves
-  include other helper task files;
+  include further helper task files or roles;
 - every `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
   molecule.yml (the shared `prepare` playbooks);
 - the resolved target of every symlink under `molecule/` (scenarios
   link the real `docker/<app>/` files and `molecule_helpers/fixtures/`
-  into their own `files/`; git reports the target path, never the link).
+  into their own `files/`; git reports the target path, never the link);
+- files read by a path built from `playbook_dir` (the scenario
+  directory under Molecule): `playbook_dir ~ '/../x'`,
+  `{{ playbook_dir }}/../x`, and the same through any variable a
+  scenario defines as `{{ playbook_dir }}` or
+  `{{ (playbook_dir ~ '...') | realpath }}` (`project_root`,
+  `repo_root`, ...), in the scenario's files and in the role's own.
 
 Two fail-safes always err toward testing more, never less: a changed
 file under `molecule_helpers/` that no scenario references queues every
 role, and so does a path in GLOBAL_PATHS. A reference the scanner can't
-resolve (a templated `include_role` name, a dangling symlink, a missing
-`tasks_from` file) raises ScopeError and fails the job instead of being
-skipped.
+resolve (a templated `include_role` name, a role that doesn't exist, a
+dangling symlink, a missing `tasks_from` file) raises ScopeError and
+fails the job instead of being skipped.
 
-Not modelled: files a role reads by computed path (for example
-`lookup('file', project_root ~ ...)`), and role-to-role `include_role`
-edges (a change to an included role queues only that role).
+Not modelled: paths built any other way (a variable not defined as
+above, a literal continued with `~`), and reads through a file's
+runtime contents. Computed paths that don't exist, that resolve outside
+the repo, or that are the role's own directory or an ancestor of it are
+ignored.
 
 Usage: molecule_scope.py <base-sha> <head-sha>
 Writes roles=<json array> to $GITHUB_OUTPUT (stdout if unset).
@@ -37,6 +50,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -99,25 +113,50 @@ def _walk(node):
             yield from _walk(item)
 
 
-def _helper_task_refs(root: Path, yaml_path: Path) -> set[str]:
-    """Repo-relative molecule_helpers task files that `yaml_path` includes."""
-    refs: set[str] = set()
+_INCLUDE_KEYS = ("include_role", "import_role")
+
+
+def _role_entry_name(yaml_path: Path, entry) -> str:
+    """The role name in a `roles:`/`dependencies:` entry (a string or a mapping)."""
+    name = entry if isinstance(entry, str) else (entry.get("role") or entry.get("name")) if isinstance(entry, dict) else None
+    if not isinstance(name, str):
+        raise ScopeError(f"{yaml_path}: unsupported role entry {entry!r} (expected a name or a mapping with role/name)")
+    return name
+
+
+def _yaml_refs(root: Path, yaml_path: Path) -> tuple[set[str], set[str]]:
+    """(molecule_helpers task files, other local role names) that `yaml_path` runs."""
+    helper_tasks: set[str] = set()
+    role_refs: set[str] = set()
+
+    def add_role(name: str, tasks_from: object = "main") -> None:
+        if "{{" in name or "{{" in str(tasks_from):
+            raise ScopeError(f"{yaml_path}: templated role name/tasks_from can't be scanned: {name} / {tasks_from}")
+        if name == HELPERS_ROLE:
+            helper_tasks.add(_resolve_helper_task(root, yaml_path, str(tasks_from)))
+        elif "." in name:
+            return  # a collection role (namespace.collection.role), not part of this repo
+        elif "/" in name or not (root / ROLES_DIR / name).is_dir():
+            raise ScopeError(f"{yaml_path}: role {name!r} is not a directory under {ROLES_DIR}/")
+        else:
+            role_refs.add(name)
+
     for doc in _load_yaml(yaml_path):
         for node in _walk(doc):
             if not isinstance(node, dict):
                 continue
             for key, value in node.items():
-                if not isinstance(key, str) or key.rsplit(".", 1)[-1] not in ("include_role", "import_role"):
-                    continue
-                if not isinstance(value, dict) or not isinstance(value.get("name"), str):
-                    raise ScopeError(f"{yaml_path}: unsupported {key} shape (expected a mapping with a literal name)")
-                name = value["name"]
-                tasks_from = value.get("tasks_from", "main")
-                if "{{" in name or "{{" in str(tasks_from):
-                    raise ScopeError(f"{yaml_path}: templated {key} name/tasks_from can't be scanned: {value}")
-                if name == HELPERS_ROLE:
-                    refs.add(_resolve_helper_task(root, yaml_path, str(tasks_from)))
-    return refs
+                if isinstance(key, str) and key.rsplit(".", 1)[-1] in _INCLUDE_KEYS:
+                    if not isinstance(value, dict) or not isinstance(value.get("name"), str):
+                        raise ScopeError(f"{yaml_path}: unsupported {key} shape (expected a mapping with a literal name)")
+                    add_role(value["name"], value.get("tasks_from", "main"))
+            if "hosts" in node and isinstance(node.get("roles"), list):
+                for entry in node["roles"]:
+                    add_role(_role_entry_name(yaml_path, entry))
+        if yaml_path.parent.name == "meta" and isinstance(doc, dict):
+            for entry in doc.get("dependencies") or []:
+                add_role(_role_entry_name(yaml_path, entry))
+    return helper_tasks, role_refs
 
 
 def _resolve_helper_task(root: Path, referrer: Path, tasks_from: str) -> str:
@@ -173,6 +212,69 @@ def _symlink_targets(root: Path, molecule_dir: Path) -> set[str]:
     return found
 
 
+def _role_production_yaml(role_dir: Path):
+    """The YAML Ansible runs when a role is included (not its Molecule scenarios)."""
+    for sub in ("tasks", "handlers", "meta"):
+        base = role_dir / sub
+        if base.is_dir():
+            yield from sorted(p for p in base.rglob("*") if p.is_file() and p.suffix in YAML_SUFFIXES)
+
+
+def _role_text_files(role_dir: Path):
+    """Every YAML/Jinja file in a role outside molecule/, where a path may be built."""
+    for path in sorted(role_dir.rglob("*")):
+        if path.is_file() and path.suffix in (*YAML_SUFFIXES, ".j2") and "molecule" not in path.relative_to(role_dir).parts[:1]:
+            yield path
+
+
+_PATH_VAR_PLAIN = re.compile(r"^\{\{\s*playbook_dir\s*\}\}$")
+_PATH_VAR_REALPATH = re.compile(r"^\{\{\s*\(?\s*playbook_dir\s*~\s*'([^'{}]*)'\s*\)?\s*\|\s*realpath\s*\}\}$")
+
+
+def _path_vars(scenario_dir: Path, scenario_yaml: list[Path]) -> dict[str, set[Path]]:
+    """Variables a scenario defines as a directory derived from playbook_dir."""
+    found: dict[str, set[Path]] = {"playbook_dir": {scenario_dir}}
+    for yml in scenario_yaml:
+        for doc in _load_yaml(yml):
+            for node in _walk(doc):
+                if not isinstance(node, dict):
+                    continue
+                for key, value in node.items():
+                    if not isinstance(key, str) or not isinstance(value, str):
+                        continue
+                    if _PATH_VAR_PLAIN.match(value):
+                        found.setdefault(key, set()).add(scenario_dir)
+                    elif match := _PATH_VAR_REALPATH.match(value):
+                        found.setdefault(key, set()).add(Path(os.path.normpath(f"{scenario_dir}{match.group(1)}")))
+    return found
+
+
+def _computed_paths(root: Path, role_dir: Path, scenario_dir: Path, scenario_yaml: list[Path], texts: list[Path]) -> dict[str, str]:
+    """Existing repo paths built from a scenario's path variables -> where they were built."""
+    resolved_root = root.resolve()
+    role_resolved = role_dir.resolve()
+    found: dict[str, str] = {}
+    path_vars = _path_vars(scenario_dir, scenario_yaml)
+    for text_path in texts:
+        text = text_path.read_text()
+        for var, anchors in path_vars.items():
+            literals = re.findall(rf"(?<![\w.]){re.escape(var)}\s*~\s*'(/[^'{{}}\n]*)'(?!\s*~)", text)
+            literals += re.findall(rf"\{{\{{\s*{re.escape(var)}\s*\}}\}}(/[^\s\"'{{}}]*)", text)
+            for literal in literals:
+                for anchor in anchors:
+                    candidate = Path(os.path.normpath(f"{anchor}{literal}"))
+                    try:
+                        rel = candidate.relative_to(resolved_root).as_posix()
+                    except ValueError:
+                        continue
+                    if not candidate.exists() or candidate == resolved_root or candidate in (role_resolved, *role_resolved.parents):
+                        continue
+                    if candidate.is_relative_to(role_resolved):
+                        continue
+                    found.setdefault(rel + "/" if candidate.is_dir() else rel, _relative(resolved_root, text_path.resolve()))
+    return found
+
+
 def watch_set(root: Path, role: str) -> dict[str, list[str]]:
     """Watched path -> why it's watched. Paths ending `/` are directory prefixes."""
     role_dir = root / ROLES_DIR / role
@@ -180,30 +282,51 @@ def watch_set(root: Path, role: str) -> dict[str, list[str]]:
     watched: dict[str, list[str]] = {f"{ROLES_DIR}/{role}/": ["role directory"]}
     scannable = (f"{HELPERS_DIR}/playbooks/", f"{HELPERS_DIR}/tasks/")
 
-    # (file to scan for helper includes, label used in the reason text)
+    def watch(path: str, reason: str) -> None:
+        watched.setdefault(path, []).append(reason)
+
+    # (file to scan for includes, label used in the reason text)
     pending: list[tuple[Path, str]] = []
+    visited_roles = {role}
+    for yml in _role_production_yaml(role_dir):
+        pending.append((yml, _relative(root, yml)))
+
+    scenario_yaml: dict[Path, list[Path]] = {}
     for yml in _scenario_yaml_files(molecule_dir):
         label = _relative(root, yml)
         pending.append((yml, label))
+        scenario_yaml.setdefault(yml.parent if yml.parent.parent == molecule_dir else molecule_dir / yml.relative_to(molecule_dir).parts[0], []).append(yml)
         if yml.name == "molecule.yml":
             for path in sorted(_token_paths(root, role_dir, yml)):
-                watched.setdefault(path, []).append(f"referenced by {label}")
+                watch(path, f"referenced by {label}")
                 if path.startswith(scannable) and path.endswith(YAML_SUFFIXES):
                     pending.append((root / path, path))
     for path in sorted(_symlink_targets(root, molecule_dir)):
-        watched.setdefault(path, []).append("symlink target under molecule/")
+        watch(path, "symlink target under molecule/")
 
-    # A helper playbook or task file can itself include further helper
-    # task files, so follow the references to a fixed point.
+    # Paths built from playbook_dir, in the scenario's files and the role's own.
+    role_texts = list(_role_text_files(role_dir))
+    for scenario_dir, ymls in sorted(scenario_yaml.items()):
+        for path, source in sorted(_computed_paths(root, role_dir, scenario_dir, ymls, [*ymls, *role_texts]).items()):
+            watch(path, f"computed path in {source}")
+
+    # A helper playbook, helper task file or included role can itself
+    # include further helper task files or roles, so follow the
+    # references to a fixed point.
     seen: set[Path] = set()
     while pending:
         yml, label = pending.pop()
         if yml in seen:
             continue
         seen.add(yml)
-        for ref in sorted(_helper_task_refs(root, yml)):
-            watched.setdefault(ref, []).append(f"tasks_from in {label}")
+        helper_tasks, role_refs = _yaml_refs(root, yml)
+        for ref in sorted(helper_tasks):
+            watch(ref, f"tasks_from in {label}")
             pending.append((root / ref, ref))
+        for included in sorted(role_refs - visited_roles):
+            visited_roles.add(included)
+            watch(f"{ROLES_DIR}/{included}/", f"runs role {included} ({label})")
+            pending.extend((prod, _relative(root, prod)) for prod in _role_production_yaml(root / ROLES_DIR / included))
     return watched
 
 

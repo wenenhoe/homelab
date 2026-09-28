@@ -57,15 +57,35 @@ scenarios actually reference, then queues a role when a changed file
 falls inside it:
 
 - the role's own directory;
+- every role it runs: `include_role`/`import_role` names, play `roles:`
+  entries and `meta` dependencies in the scenario's playbooks, the
+  role's own tasks/handlers/meta, and each included role's in turn. The
+  whole included role's directory is watched, so a change to `compose`
+  queues every role whose Molecule run exercises it, not just
+  `compose`'s own scenarios. A role with no scenario of its own (like
+  `molecule_helpers`, or a shared role nothing tests directly) is
+  watched but never queued;
 - each `molecule_helpers` task file a scenario pulls in with
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   through the helper playbooks and task files that include further
-  helper task files;
+  helper task files or roles (`resolve_compose_apps.yaml` runs
+  `compose`'s `preinit.yaml`, so its consumers watch `compose` too);
 - each `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
   `molecule.yml` (the shared `prepare` playbooks);
 - the target of every symlink under `molecule/`. Scenarios link the
   real `docker/<app>/` files and `molecule_helpers/fixtures/` into
-  their own `files/`, and git reports the target path, not the link.
+  their own `files/`, and git reports the target path, not the link;
+- files read by a path built from `playbook_dir`, which is the
+  scenario directory under Molecule: `playbook_dir ~ '/../x'`,
+  `{{ playbook_dir }}/../x`, and the same through any variable a
+  scenario defines as `{{ playbook_dir }}` or
+  `{{ (playbook_dir ~ '...') | realpath }}` (`project_root`,
+  `repo_root`), whether the path is written in the scenario or in the
+  role's own tasks and templates. This is how
+  `inventory/group_vars/all/app_registry.yaml`, `ansible/scripts/restore_all.py`,
+  `docker/openbao/policies/controller.hcl` and
+  `docker/seaweedfs/configs/s3-identity.json.j2` reach the scenarios
+  that read them.
 
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own — so a change there queues only the
@@ -73,17 +93,21 @@ roles whose watch set contains that file. Two fail-safes always queue
 *more*: a changed file under `molecule_helpers/` that no scenario
 references queues every role, as does any path in `GLOBAL_PATHS`. A
 reference the scanner can't resolve (a templated `include_role` name, a
-dangling symlink, a `tasks_from` naming no file) fails `detect-changes`
-rather than being skipped. Each queued role's log line in `detect-changes`
-names the changed file and why it matched.
+role that isn't a directory under `ansible/roles/`, a dangling symlink,
+a `tasks_from` naming no file) fails `detect-changes` rather than being
+skipped. Each queued role's log line in `detect-changes` names the
+changed file and why it matched.
 
-Not modelled: files a scenario reads by computed path, and role-to-role
-`include_role` edges (a change to an included role queues only that
-role). The known case of the first is
-`seaweedfs_bucket/molecule/identity_scoping`, which renders
-`docker/seaweedfs/configs/s3-identity.json.j2` through
-`lookup('ansible.builtin.template', repo_root ~ ...)`, so a change to
-that file queues no Molecule scenario.
+Not modelled: paths built any other way (a variable not defined as
+above, or a literal continued with `~`), which are ignored, as are
+computed paths that don't exist, leave the repo, or are the role's own
+directory or an ancestor of it. Roles are watched whole-directory
+rather than by `tasks_from`, so a change to any file in an included
+role queues its consumers.
+
+Because a scenario that links `docker/seaweedfs/` files is queued when
+they change, the `seaweedfs` `compose-boot-test-exclusions.txt` entry
+below stays correct — see there for the SeaweedFS-specific case.
 
 `detect-changes` runs the scanner through `uv run`, so it sets up uv
 (no `needs:` on `warm-uv-cache`, and unlocked, for the reasons under

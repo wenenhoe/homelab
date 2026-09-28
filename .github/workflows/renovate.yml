@@ -49,12 +49,12 @@ jobs:
         run: echo "epoch=$(date +%s)" >> "$GITHUB_OUTPUT"
 
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@9fea9f0fbf80401026d11d03911d62b1f70fef1f # v46.3.3
+        uses: renovatebot/github-action@1cd96b855fee0da6f230617e89dbff0e06ea393a # v46.3.5
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_GIT_AUTHOR: "${{ github.repository_owner }} <${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com>"
         with:
-          renovate-version: "44.111.3"
+          renovate-version: "44.115.13"
           token: ${{ secrets.RENOVATE_TOKEN }}
 
       # renovate.json5's schedule only allows new branch/PR creation Mon/Thu

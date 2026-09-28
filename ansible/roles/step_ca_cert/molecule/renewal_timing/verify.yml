@@ -25,7 +25,7 @@
   hosts: all
   become: true
   vars_files:
-    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/step_cli.yml"
   vars:
     step_ca_cert_step_ca_url: https://step-ca-test:9000
   tasks:

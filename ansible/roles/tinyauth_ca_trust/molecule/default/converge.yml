@@ -3,7 +3,8 @@
   hosts: all
   become: true
   vars_files:
-    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/lldap.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/step_cli.yml"
   vars:
     ansible_user: root
     compose_deploy_dir: /opt/stacks

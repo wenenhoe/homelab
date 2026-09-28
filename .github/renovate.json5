@@ -153,8 +153,8 @@
     },
     {
       customType: "regex",
-      description: "Images the Molecule playbooks run directly (molecule_helpers/vars/images.yml), variable defaults rather than image: keys under tasks/",
-      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images\\.ya?ml$/"],
+      description: "Images the Molecule playbooks run directly (molecule_helpers/vars/images/, one file per image), variable defaults rather than image: keys under tasks/",
+      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/[a-z_]+\\.ya?ml$/"],
       matchStrings: ["molecule_helpers_[a-z_]+_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
       datasourceTemplate: "docker",
     },
@@ -408,7 +408,7 @@
     },
 
     // Same image pinned in prod tasks, Molecule fixtures and the Molecule
-    // playbooks' vars/images.yml, which different managers read — without a
+    // playbooks' vars/images/ files, which different managers read — without a
     // group each manager opens its own PR and the copies drift between
     // merges.
     {
@@ -431,7 +431,7 @@
     // in four places with no shared source of truth: step_ca_cert's own
     // step-cli default, the CI script that seeds step-ca for the
     // compose-boot-test workflow, molecule_helpers' step-ca test target,
-    // and the Molecule playbooks' vars/images.yml. All but the test
+    // and the Molecule playbooks' vars/images/ files. All but the test
     // target (a real image: key) need the custom regex managers above —
     // group them so a version bump can't land in one place and leave the
     // others stale.

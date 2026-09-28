@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars_files:
-    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
   vars:
     compose_deploy_dir: /opt/stacks
     bind9_config_dir: "{{ compose_deploy_dir }}/bind9/_staging/config"

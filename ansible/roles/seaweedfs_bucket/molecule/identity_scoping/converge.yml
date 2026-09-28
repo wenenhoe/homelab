@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars_files:
-    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/aws_cli.yml"
   vars:
     seaweedfs_admin_access_key: molecule-test-admin-ak
     seaweedfs_admin_secret_key: molecule-test-admin-sk

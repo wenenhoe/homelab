@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars_files:
-    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
   vars:
     restore_before_marker: /tmp/restore-molecule-default-before-started-at
     restore_default_owner_marker: /tmp/restore-molecule-default-canary-owner

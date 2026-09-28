@@ -3,7 +3,7 @@
   hosts: all
   become: true
   vars_files:
-    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/curl.yml"
   tasks:
     # The role's own internal check (tasks/main.yaml) already proves the
     # observer account binds with the right password — asserting that

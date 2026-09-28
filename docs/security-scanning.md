@@ -44,9 +44,12 @@ version bump ever changes this):
 - Playbook auto-discovery (`resolvePlaybooksPaths`) is a non-recursive
   `ReadDir()` on the project root, so it never finds anything under
   `playbooks/`. Worked around with an explicit `ansible.playbooks` list
-  in the generated `trivy.yaml`, built from the live
+  in the generated Trivy config, built from the live
   `ansible/playbooks/*.y{a,}ml` listing so new playbooks are covered
-  automatically.
+  automatically. That is
+  [`tools/ci/scan/trivy_config.py`](../tools/ci/scan/trivy_config.py),
+  which fails the job if the directory has no playbooks rather than
+  scanning nothing.
 
 With both fixed, this repo currently scans clean — expected: Trivy's
 Ansible module analysis only checks cloud-resource modules, and this

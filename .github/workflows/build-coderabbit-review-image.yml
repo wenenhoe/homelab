@@ -9,7 +9,7 @@ on:  # yamllint disable-line rule:truthy
   pull_request:
     paths:
       - tools/coderabbit-review/Dockerfile
-      - tools/coderabbit-review/resolve-version.sh
+      - tools/ci/images/registry.py
       - .github/workflows/build-coderabbit-review-image.yml
   schedule:
     # Weekly, same slot as build-caddy-image.yml's schedule trigger — see
@@ -60,8 +60,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Rejects a malformed or duplicated ARG CODERABBIT_VERSION the same
+      # way in a PR as on main, before it can reach an image tag.
       - name: Validate CLI version
-        run: tools/coderabbit-review/resolve-version.sh
+        run: python3 -m ci.images.registry tags coderabbit-review
+        working-directory: tools
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -101,13 +104,12 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # The Dockerfile is the one place the CLI version is declared; the
-      # script rejects a malformed or duplicated ARG before it can reach
-      # `tags:`.
-      - name: Resolve CLI version
-        id: cli
-        run: |
-          version="$(tools/coderabbit-review/resolve-version.sh)"
-          echo "version=$version" >> "$GITHUB_OUTPUT"
+      # resolver rejects a malformed or duplicated ARG before it can reach
+      # `tags:`. It emits :<cli-version> and :latest.
+      - name: Resolve image tags
+        id: image
+        run: python3 -m ci.images.registry tags coderabbit-review
+        working-directory: tools
 
       # :<cli-version> is what a consumer points at to back out a bad
       # release; :latest is what coderabbit-review.sh runs. The weekly
@@ -124,6 +126,4 @@ jobs:
           push: true
           pull: ${{ github.event_name == 'schedule' }}
           no-cache: ${{ github.event_name == 'schedule' }}
-          tags: |
-            ghcr.io/wenenhoe/coderabbit-review:latest
-            ghcr.io/wenenhoe/coderabbit-review:${{ steps.cli.outputs.version }}
+          tags: ${{ steps.image.outputs.tags }}

@@ -14,6 +14,17 @@ on:  # yamllint disable-line rule:truthy
           or boot-test-all.yml's list-apps).
         required: true
         type: string
+      build-dockerfiles:
+        description: >-
+          Build each app's own Dockerfile and boot that instead of the
+          published image (see tools/ci/images/build.py and
+          docs/ci.md#dockerfile-changes). On for a PR, whose Dockerfile
+          isn't published until after merge; off for a full sweep, which
+          should boot what a deploy actually pulls, so a tag that was
+          never published fails it.
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   compose-boot-test:
@@ -75,6 +86,17 @@ jobs:
             -e compose_deploy_dir=/tmp/compose-deploy
         working-directory: ansible
 
+      # Runs this checkout's docker/<app>/Dockerfile instead of the
+      # published image, for apps that have one — see
+      # tools/ci/images/build.py and docs/ci.md#dockerfile-changes.
+      - name: Build ${{ matrix.app }}'s Dockerfile as the image its compose file pins
+        if: inputs.build-dockerfiles
+        run: >-
+          python3 -m ci.images.build shadow-tag
+          "${{ matrix.app }}"
+          "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        working-directory: tools
+
       # lldap-only: see .github/scripts/seed-lldap-ci-cert.sh for why this
       # exercises the real step-ca issuance path instead of a self-signed
       # cert, without needing a real production step-ca or Ansible role run.
@@ -94,7 +116,8 @@ jobs:
         run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" logs
 
       - name: Wait for healthy state (or, if none defined, that it stayed running)
-        run: .github/scripts/wait-for-compose-health.sh "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        run: python3 -m ci.gates.compose_health "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        working-directory: tools
 
       - name: Tear down
         if: always()

@@ -10,6 +10,48 @@ isolation, this pipeline tests the parts Molecule can't (linting the
 whole tree, a real compose stack booting, and the actual
 `deploy.yaml`/`restore.yaml` ordering).
 
+## Where the CI logic lives
+
+Anything with a pass/fail rule or a decision in it is Python under
+`tools/`, unit-tested in `tools/tests/`, and workflows and pre-commit only
+call it as `python -m <package>.<module>` from `tools/`
+([ADR 0064](decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)).
+`tools/ci/` is what the workflows run:
+
+- `ci.scope` — what a PR's diff needs run: the Molecule watch sets,
+  no-op filtering, the compose-app and Dockerfile lists.
+- `ci.gates` — checks with their own verdicts: the deploy-ordering
+  regression check, the compose health wait, the Renovate window, and
+  `matrix-jobs-gate`.
+- `ci.images` — the image registry and the CI image builds.
+- `ci.scan` — setup for the security scans (the Trivy config).
+- `ci.fixtures` — data a job seeds before a real run, derived from the repo
+  (the deploy-ordering check's secrets).
+
+`tools/doc_scripts/` is the documentation-workflow checks and generators
+of [ADR 0037](decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
+`generate_doc_indexes`, `check_doc_drift`, `check_project_scope` and
+`check_project_close`, with the helpers they share (`doc_frontmatter`,
+`doc_graph`, `doc_scope`, `doc_close`, `doc_git`). The pre-commit hooks run
+them as `bash -c 'cd tools && python3 -m doc_scripts.<module>'`, in the
+hook's own environment with PyYAML, and the `project-scope` and
+`project-close` jobs run them through `uv run`. They read `docs/` from the
+repository root, not the working directory.
+
+What stays in workflow YAML or `.github/scripts/` is what needs Actions
+(`uses:` steps, caches, registry login) or is a plain command sequence
+(`docker` orchestration such as `seed-lldap-ci-cert.sh`, image smoke
+tests, `pre-commit`, `pytest`, `molecule test`). `.github/scripts/` holds
+no Python, and `tools/tests/ci/test_layout.py` enforces that.
+
+The modules jobs run on the runner's own `python3` (`ci.images.*`, `ci.json5`,
+`ci.gates.compose_health`, `ci.gates.renovate_window`,
+`ci.gates.matrix_gate`, `ci.scan.*`, `ci.output`, `ci.proc`) are
+standard-library only, so those jobs install nothing;
+`tools/tests/ci/test_stdlib_only.py` enforces it, including that they still
+parse on an older Python than the repo's own. The rest run through
+`uv run`.
+
 ## Change-scoped, not a full sweep
 
 `detect-changes` diffs the PR's base/head and feeds most other jobs a
@@ -18,23 +60,40 @@ scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests.
 PR regardless of what changed, since its hooks span nearly every file
 type in the repo:
 
-- `roles` — any `ansible/roles/<role>/` touched maps to that role, except
-  three repo-wide cases that map to *every* role instead, because
-  nothing in them maps cleanly to a single consumer:
-  `ansible/requirements.yml` (a Galaxy collection bump), any file under
-  `ansible/roles/molecule_helpers/` (see
-  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)),
-  and `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
-  role's Molecule run actually executes under).
-- `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`
-  touched, minus the exclusion list (below).
+- `roles` — each role with a `molecule/` scenario is queued when a
+  changed file sits in that role's *watch set*: its own directory, plus
+  everything its scenarios read from outside it. Derived from the tree
+  on every run, so it can't drift — see
+  [`#molecule-watch-sets`](#molecule-watch-sets). A few paths still map
+  to *every* role: `ansible/requirements.yml` (a Galaxy collection
+  bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
+  role's Molecule run actually executes under), `.config/molecule/`, and
+  everything that base config points every scenario at: `molecule_helpers/`'s
+  two requirements files, `ansible/ansible.cfg` and the coverage callback
+  plugin under `ansible/molecule-coverage/callback_plugins/`. The last
+  group is read from the config, not listed (see
+  [Molecule watch sets](#molecule-watch-sets)).
+- `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`,
+  its `Dockerfile`, or any file under `docker/<app>/configs/` or
+  `docker/<app>/scripts/`, touched, minus the exclusion list (below).
+  A directory with no compose file isn't an app. All of it is
+  [`tools/ci/scope/compose_apps.py`](../tools/ci/scope/compose_apps.py),
+  the one reader of the exclusion list (see
+  [Compose boot-test](#compose-boot-test)). The `compose` role renders and stages `configs/` and `scripts/` before
+  the stack boots, and `compose-boot-test` builds the `Dockerfile` in
+  place of the published image, so a change to any of them alters what
+  it actually exercises.
+- `dockerfiles` — any `docker/<app>/Dockerfile` touched, excluded apps
+  included. See [Dockerfile changes](#dockerfile-changes).
 - `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
   `ansible/roles/secrets/**`, `ansible/roles/restore/**`,
+  `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`,
   `pyproject.toml`/`uv.lock`.
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
-- `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
+- `python_unit_tests` — `ansible/scripts/*.py`,
   `tools/cloud_credentials/**`,
-  `tools/openbao_utils/**`, `tools/utils/**`,
+  `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci/**`,
+  `tools/doc_scripts/**`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
   `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
@@ -44,25 +103,131 @@ type in the repo:
   `r2_read_watcher.py`, the one file outside either tree that
   `ansible/tests/` still imports directly via `sys.path`.
 
-### `molecule_helpers` is repo-wide
+### Molecule watch sets
+
+`tools/ci/scope/molecule_scope.py` (run by `detect-changes`, tested in
+`tools/tests/ci/scope/`) builds each role's watch set from what its
+scenarios actually reference, then queues a role when a changed file
+falls inside it:
+
+- the role's own directory;
+- every role it runs: `include_role`/`import_role` names, play `roles:`
+  entries and `meta` dependencies in the scenario's playbooks, the
+  role's own tasks/handlers/meta, and each included role's in turn. The
+  whole included role's directory is watched, so a change to `compose`
+  queues every role whose Molecule run exercises it, not just
+  `compose`'s own scenarios. A role with no scenario of its own (like
+  `molecule_helpers`, or a shared role nothing tests directly) is
+  watched but never queued;
+- each `molecule_helpers` task file a scenario pulls in with
+  `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
+  through the helper playbooks and task files that include further
+  helper task files or roles (`resolve_compose_apps.yaml` runs
+  `compose`'s `preinit.yaml`, so its consumers watch `compose` too);
+- each `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
+  `molecule.yml` (the shared `prepare` playbooks);
+- the target of every symlink under `molecule/`. Scenarios link the
+  real `docker/<app>/` files and `molecule_helpers/fixtures/` into
+  their own `files/`, and git reports the target path, not the link;
+- files read by a path built from `playbook_dir`, which is the
+  scenario directory under Molecule: `playbook_dir ~ '/../x'`,
+  `{{ playbook_dir }}/../x`, and the same through any variable a
+  scenario defines as `{{ playbook_dir }}` or
+  `{{ (playbook_dir ~ '...') | realpath }}` (`project_root`,
+  `repo_root`), whether the path is written in the scenario or in the
+  role's own tasks and templates. The target need not exist: deleting a file
+  a scenario reads still queues that scenario. A variable used only as a base
+  directory (`project_root ~ '/ansible/files/key.asc'`) contributes the files
+  it is joined to, not the directory its definition names, so a role that
+  defines one doesn't end up watching everything under it. This is how
+  `inventory/group_vars/all/app_registry.yaml`, `ansible/scripts/restore_all.py`,
+  `docker/openbao/policies/controller.hcl` and
+  `docker/seaweedfs/configs/s3-identity.json.j2` reach the scenarios
+  that read them.
+
+### Comments and formatting don't queue Molecule
+
+Before any of that matching, `detect-changes` drops a changed file whose
+*parsed* content is identical in base and head
+(`tools/ci/scope/semantic_diff.py`). A comment added, edited or
+removed, or a reformat (indentation, quoting, blank lines), queues no
+role, and doesn't trip the repo-wide or `molecule_helpers` fail-safes
+either. The log line says `comments/formatting only -> ignored`.
+
+The same rule gates three of the path-filter outputs
+(`tools/ci/scope/effective_changes.py`): `uv_lock`, `deploy_ordering`
+and `python_unit_tests` are true only if at least one file the filter
+matched changed for real. The filter step lists its matched files
+(`list-files: json`), and the `effective` step checks each one. So a
+comment in a test, or an edit to `[tool.ruff]`, no longer starts
+`python-unit-tests`, `uv-lock` or `deploy-ordering-check`. `ansible_lint`,
+`trivy_ansible` and `any_compose` are never gated, and the script
+refuses to: ansible-lint honours `# noqa`, Trivy honours
+`#trivy:ignore`, and compose files are never a no-op.
+
+It compares what the parser produces, not the text, so a `#` line
+inside a YAML block scalar (a script or config written into a file) is
+data and counts as a real change. Only files whose parser is the
+consumer are eligible:
+
+- YAML that Ansible, `ansible-galaxy` or Molecule loads: a role's
+  `tasks/`, `handlers/`, `defaults/`, `vars/`, `meta/`; a scenario's
+  own playbooks, `molecule.yml` and `host_vars/`/`group_vars/`;
+  `molecule_helpers`' playbooks and requirements files;
+  `ansible/requirements.yml`; `ansible/playbooks/`, `inventory/` and
+  `ci-inventory/`; `.config/molecule/`. YAML shipped as content (a
+  compose fixture, a file copied to a host) is not, since a comment
+  there can mean something to whatever reads it (`#cloud-config`).
+- Python, compared as its AST plus the shebang and any `coding:` line,
+  which the interpreter reads. A docstring is code.
+- `pyproject.toml` and `uv.lock`, compared as parsed TOML.
+  `pyproject.toml` is compared without `[tool.ruff]`, which only
+  configures a linter `pre-commit-checks` runs over every file anyway.
+  Every other table counts, including one added later, so an unknown
+  table errs toward running the checks.
+
+Anything else (`.j2` templates, shell, compose files), a file added or
+deleted, a file that doesn't parse on either side, and a mode-only
+change are real changes. Everything not named above keeps its path-based trigger, so
+`ansible-lint`, `trivy-scan` and `pre-commit-checks` still see a
+comment-only change (a comment can be a `# noqa`, `# yamllint disable`
+or `#trivy:ignore`).
 
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
-`molecule/` scenario of its own, so nothing under it is ever "the role
-that changed." Every scenario's base config
-(`.config/molecule/config.yml`, deep-merged into every DinD scenario)
-resolves its Galaxy dependencies from `molecule_helpers/`'s
-`role-requirements.yml`/`requirements.yml` unconditionally, and several
-scenarios' `converge.yml` additionally `include_role` specific task
-files from it directly (`bootstrap_docker.yaml`,
-`start_seaweedfs_test_target.yaml`, etc.) — see each role's own
-`converge.yml` for which. No single file in `molecule_helpers/` maps
-cleanly to one consumer, so the `roles` filter treats any change under
-it the same as a top-level `ansible/requirements.yml` bump: every role
-with a `molecule/` scenario gets queued.
+`molecule/` scenario of its own — so a change there queues only the
+roles whose watch set contains that file. Two fail-safes always queue
+*more*: a changed file under `molecule_helpers/` that no scenario
+references queues every role (a *deleted* one queues nothing: no scenario
+names it, or the scan would have failed, and a reference removed in the same
+change is in a scenario file that changed with it), as does any repo-wide path: `GLOBAL_PATHS`
+plus every path in `.config/molecule/config.yml`, the base config deep-merged
+into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those
+are resolved from the config on each run (`base_config_paths`), so pointing
+`ANSIBLE_CONFIG` or `ANSIBLE_CALLBACK_PLUGINS` somewhere else moves the
+trigger with it. Left out: the roles directory (the per-role watch sets
+already cover it) and the gitignored coverage output directory. The
+coverage thresholds file and the `molecule_cov` gate package are read after
+the scenarios run, by the gate, so they don't queue any role; `pytest` covers
+`molecule_cov`. A reference the scanner can't resolve (a templated `include_role` name, a
+role that isn't a directory under `ansible/roles/`, a dangling symlink,
+a `tasks_from` naming no file) fails `detect-changes` rather than being
+skipped. Each queued role's log line in `detect-changes` names the
+changed file and why it matched.
 
-Concretely, this is what makes the `seaweedfs`
-`compose-boot-test-exclusions.txt` entry below correct — see there for
-the SeaweedFS-specific case this generalizes from.
+Not modelled: paths built any other way (a variable not defined as
+above, or a literal continued with `~`), which are ignored, as are
+computed paths that leave the repo or are the role's own directory or an
+ancestor of it. Roles are watched whole-directory
+rather than by `tasks_from`, so a change to any file in an included
+role queues its consumers.
+
+Because a scenario that links `docker/seaweedfs/` files is queued when
+they change, the `seaweedfs` `compose-boot-test-exclusions.txt` entry
+below stays correct — see there for the SeaweedFS-specific case.
+
+`detect-changes` runs the scanner with `uv run python -m ci.scope.molecule_scope` from `tools/`, so it sets up uv
+(no `needs:` on `warm-uv-cache`, and unlocked, for the reasons under
+[Cache warming](#cache-warming)).
 
 ## Jobs
 
@@ -76,12 +241,13 @@ the SeaweedFS-specific case this generalizes from.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
-| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`pyproject.toml`/`uv.lock` changed | See below. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`tools/doc_scripts/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
-| `compose-boot-test` | any non-excluded compose file touched | Seeds and boots each changed app for real. See below. |
+| `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
+| `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](#dockerfile-changes). |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
-| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
+| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
 
 ```mermaid
 flowchart TD
@@ -100,15 +266,17 @@ flowchart TD
     molecule["molecule<br/>(any role touched — matrix)"]
     boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
     synchk["compose-syntax-check<br/>(any compose file touched, fallback)"]
+    dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 
-    detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk
+    detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk & dockerbuild
     detect --> trivy
     warmuv --> precommit & scope & close & lint & uvlock & pytest & deployorder & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
     warmprecommit --> precommit & lint
     molecule --> gate
     boottest --> gate
+    dockerbuild --> gate
 
     style precommit stroke-dasharray: 5 5
     style scope stroke-dasharray: 5 5
@@ -244,19 +412,39 @@ never needed to happen. The unsafe pattern (never used here) would be
 `paths-ignore`/`paths:` on the workflow's own `on:` trigger, which
 leaves the check permanently "Pending" instead of reporting `skipped`.
 
-**`molecule` and `compose-boot-test` are the exception** — don't require
-them directly. Both use a matrix (one entry per changed role/app), and
+**`molecule`, `compose-boot-test` and `dockerfile-build-check` are the
+exception** — don't require them directly. All three use a matrix (one
+entry per changed role/app/Dockerfile), and
 when the matrix actually runs, each entry posts its own check name (e.g.
 `molecule (apt)`), which varies by PR. There's no single name that's
 guaranteed to post for every PR: the base job name (`molecule`) only
 appears when the job is skipped entirely, never when it actually ran.
-Require `matrix-jobs-gate` instead — it depends on both, runs
+Require `matrix-jobs-gate` instead — it depends on all three, runs
 regardless of whether they were skipped (`if: always()`), and fails
-if either genuinely failed (not skipped). It also depends on
+if any genuinely failed (not skipped). It also depends on
 `detect-changes`, `warm-uv-cache` and `warm-galaxy-cache` and requires
-each to succeed: a failure there makes both matrix jobs report
+each to succeed: a failure there makes the matrix jobs report
 `skipped`, which would otherwise pass. One fixed name, correct for every
 PR shape.
+
+The verdict is [`tools/ci/gates/matrix_gate.py`](../tools/ci/gates/matrix_gate.py),
+given the whole `needs` context (`toJSON(needs)`) and the matrix jobs'
+names (`MATRIX_JOBS`). Matrix jobs pass on `success` or `skipped`; every
+other job in `needs` must be exactly `success`; any other value, including
+one the check has never seen, fails. It lists every failing job by name
+rather than stopping at the first, and a matrix job named but missing from
+`needs` is an error. `tools/tests/ci/gates/` parses the real workflow to
+keep the two lists honest: every job that uses a matrix (directly, or
+through a reusable workflow that does) must be in the gate's `needs` and in
+`MATRIX_JOBS`, and nothing else may be in `MATRIX_JOBS`. So adding a matrix
+job means adding it to both, and forgetting fails a test rather than
+weakening the gate.
+
+The gate job checks out only `tools/ci` (`sparse-checkout`) and runs the
+module on the runner's `python3`, so it needs no uv and no dependencies. A
+checkout that fails fails the gate, and the merge stays blocked. Like every
+job in this workflow it runs the PR's own code; a PR that edits the gate
+also edits what checks it.
 
 ## Deploy-ordering-check
 
@@ -282,7 +470,13 @@ broad, since either is the shape of change that caused the original
 regression. `pyproject.toml`/`uv.lock` are in the trigger list too: this
 job runs the real playbooks through the uv-managed `ansible-core`, so an
 `ansible-core` bump is exercised here as well as by
-[Molecule](#molecule_helpers-is-repo-wide).
+[Molecule](#molecule-watch-sets).
+
+Both runs and the verdict on the second are
+[`tools/ci/gates/deploy_ordering.py`](../tools/ci/gates/deploy_ordering.py),
+run as `python -m ci.gates.deploy_ordering deploy|restore` from `tools/`;
+`tools/tests/ci/gates/` tests the verdict against sample logs and checks
+that the expected failure message is still the `restore` role's own.
 
 `restore.yaml` gets a second, separate step: it can't import
 `bootstrap-secrets.yaml` as a leading play the way `deploy.yaml` does
@@ -294,15 +488,31 @@ at a nonexistent archive and asserts the failure is the expected
 archive-not-found message, not an `ansible_host`/`secrets_generated`
 resolution failure (that signature means the regression is back).
 
-Manual secrets are pre-seeded as plain files under
-`ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py` produces
-— throwaway CI values, same non-secret status as
-`ci-inventory/group_vars/all/ci_dummy_vars.yaml`.
+Two fixtures run first, both in
+[`tools/ci/fixtures/`](../tools/ci/fixtures/) and both read from the real
+`secrets_registry.yaml` at run time, so neither can drift from it:
+
+- `preseed_manual_secrets` writes every manual-format secret as a plain file
+  under `ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py`
+  produces — an empty file for an `allow_blank` entry, `ci-dummy-<key>`
+  otherwise. Throwaway CI values, same non-secret status as
+  `ci-inventory/group_vars/all/ci_dummy_vars.yaml`. A registry key that isn't
+  a plain file name is refused, since it becomes a path.
+- `strip_vault_scope` writes a copy of the registry without `vault_scope`
+  to `/tmp/ci-secrets-registry-no-vault.json`, which both playbook runs load
+  with `-e @`. This job has no OpenBao or step-ca target, so a scoped entry
+  would make `vault_login.yaml` run and fail; Vault reachability is
+  Molecule's job (`vault_backed`, `rotate_secret`). The output path is fixed
+  in the workflow step and in `deploy_ordering.py`, and a test holds the two
+  equal.
+
+`tools/tests/ci/fixtures/` covers both, including a run over the real
+registry, and checks the job's steps run them before the playbooks.
 
 ## Doc index generation
 
-`.github/scripts/generate-doc-indexes.py`, wired into
-`.config/.pre-commit-config.yaml` as a local hook, positioned before
+[`tools/doc_scripts/generate_doc_indexes.py`](../tools/doc_scripts/generate_doc_indexes.py),
+wired into `.config/.pre-commit-config.yaml` as a local hook, positioned before
 markdownlint/`check-doc-drift` below — it needs to run first so a bad
 generation gets caught by the checks that follow, the same way a bad
 hand-edit already is. Reads every `docs/projects/*.md` and every decision revision's
@@ -315,8 +525,8 @@ passing.
 
 ## Docs drift check
 
-`.github/scripts/check-doc-drift.py`, wired into `.config/.pre-commit-config.yaml`
-as a local hook — no separate job of its own, it rides along inside
+[`tools/doc_scripts/check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py), wired into
+`.config/.pre-commit-config.yaml` as a local hook — no separate job of its own, it rides along inside
 `pre-commit-checks` above like every other commit-stage hook. Checks
 these narrow, structural things:
 
@@ -388,7 +598,7 @@ documented thing no longer exists.
 
 ## Project scope check
 
-`.github/scripts/check-project-scope.py` enforces the optional
+[`tools/doc_scripts/check_project_scope.py`](../tools/doc_scripts/check_project_scope.py) enforces the optional
 `allowed_paths` field on project docs (see
 [`projects/README.md#scope`](projects/README.md#scope) for what it means
 and why). It runs in two places:
@@ -413,7 +623,7 @@ touches its project doc isn't bounded.
 
 ## Project close check
 
-`.github/scripts/check-project-close.py` enforces the closing rule in
+[`tools/doc_scripts/check_project_close.py`](../tools/doc_scripts/check_project_close.py) enforces the closing rule in
 [ADR 0037 revision 2](decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
 deleting a finished project's doc must not leave the revision its
 `decision:` names `approved` with no project naming it. A deleted doc
@@ -438,7 +648,7 @@ Unlike the scope check, it reads the docs as they stand **after** the
 change, since it has to see what the change leaves behind; the base
 supplies only the deleted doc's own `decision:`. A doc that doesn't parse
 after the change fails the check rather than being skipped, and
-`check-doc-drift.py` names it. A rename counts as a deletion plus an
+`check_doc_drift.py` names it. A rename counts as a deletion plus an
 addition, so a renamed project doc keeps its revision named.
 
 Two PRs that each leave the other's project in place can both pass and
@@ -495,9 +705,17 @@ by both `pr-checks.yml` (changed apps only) and `boot-test-all.yml`
 Per app: seeds it via the real `compose` role
 (`ansible/playbooks/ci_boot_test.yaml`, against `ci-inventory/` rather
 than the real `inventory.yaml`, since the latter's `all:vars` assumes a
-real remote host), brings the stack up with `docker compose`, waits for
+real remote host), builds the app's `Dockerfile` if it has one (see
+[Dockerfile changes](#dockerfile-changes)), brings the stack up with
+`docker compose`, waits for
 a healthy state (or that it stayed running, if no healthcheck is
-defined), dumps logs on failure, then tears down.
+defined), dumps logs on failure, then tears down. The wait is
+[`tools/ci/gates/compose_health.py`](../tools/ci/gates/compose_health.py):
+per service, in order, it polls a defined healthcheck (30 checks, 2s
+apart; `unhealthy` fails at once) or, with none, waits a 10s grace period
+and requires the container still be running. Every failure prints that
+container's logs, and each container of a scaled service is checked.
+`tools/tests/ci/gates/` drives it against a fake `docker`.
 
 **Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
 workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
@@ -506,7 +724,7 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   real-protocol assertions than a healthcheck poll would add:
   `bind9`/`caddy` by their own role's scenario, `seaweedfs` by
   `seaweedfs_bucket`'s and `backup_agent`'s (see
-  [`#molecule_helpers-is-repo-wide`](#molecule_helpers-is-repo-wide)).
+  [`#molecule-watch-sets`](#molecule-watch-sets)).
 - `tinyauth` — same category: `tinyauth/molecule/default` stands up a
   real, throwaway lldap target, runs `lldap_bootstrap` against it (see
   [`lldap.md`](lldap.md#bootstrapping-the-observer-account)), then
@@ -534,7 +752,171 @@ only for this job's lifetime.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
-unchecked.
+unchecked. That job checks each changed `compose*.yaml` under an excluded
+app (not the `.j2` templates, which aren't valid compose until rendered),
+runs every file even after one fails, and stubs an empty `.env` where an
+explicit `env_file:` needs one.
+
+`tools/ci/scope/compose_apps.py` is the only code that reads the exclusion
+list, for three callers: `detect-changes` (`changed`, which also produces
+the Dockerfile list), `boot-test-all.yml` (`all`) and `compose-syntax-check`
+(`syntax-check`). Names are matched exactly, and
+`tools/tests/ci/scope/` asserts that every exclusion names a real
+`docker/` directory and that every directory is either a compose app or
+excluded.
+
+## Dockerfile changes
+
+The images built from `docker/<app>/Dockerfile` are published only after
+merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
+`build-molecule-dind-image.yml`), and compose files pin the published
+tag. Before this, a PR that changed a Dockerfile was never built, and
+`compose-boot-test` booted the published image regardless: a Dockerfile
+edit that kept the same tag tested the old image, and a version bump
+pinned a tag that doesn't exist in `ghcr.io` until after merge.
+
+Three pieces close that gap. All of them are stdlib-only Python that
+runs on the runner's own `python3` (a test enforces that), so the jobs
+that use them install nothing — notably the `build-*-image.yml` jobs,
+which hold a package-write token.
+
+- **The image registry**, `tools/ci/images/registry.py`, is the one place
+  each image's published name and tag rule are written down: `caddy` is
+  published as `caddy-digitalocean` and tagged with the final stage's
+  Caddy version, `wastebin` with the upstream wastebin version,
+  `molecule-dind` as `latest`, `coderabbit-review` with its
+  `CODERABBIT_VERSION` plus `latest`. The four `build-*-image.yml`
+  workflows ask it for their `tags:` (`python3 -m ci.images.registry tags
+  <image>`) instead of grepping the Dockerfile themselves. Unlike the
+  greps it replaced, it fails unless the Dockerfile has exactly one
+  match and the tag looks like a version. `check-pins` (the
+  `check-image-pins` pre-commit hook, so it runs in `pre-commit-checks`
+  on every PR) fails when a compose file pins a `ghcr.io/wenenhoe` tag
+  other than the one the Dockerfile will publish, a Molecule scenario
+  names an unpublished tag, an image has no entry, or a
+  `docker/<app>/Dockerfile` has none. A Renovate bump to a Dockerfile's
+  version therefore has to move the compose pin in the same change.
+- **`dockerfile-build-check`** (`ci.images.build build-check`, keyed off
+  `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
+  Dockerfile with `docker build`, without pushing, tagged
+  `local/<app>:pr-check`, then runs
+  `.github/image-smoke-tests/<app>.sh <image>`. Every Dockerfile needs
+  a smoke test there — a new one without it fails the job — and
+  `tools/tests/ci/images/` asserts the two sets match. The smoke test
+  checks what the image exists to add: `caddy` the DigitalOcean DNS
+  module and `curl`; `molecule-dind` Docker Engine,
+  `python3-requests`, `fuse-overlayfs` and its `daemon.json` default;
+  `wastebin` only that the build produced an image, since
+  `compose-boot-test` boots it for real. This covers the Dockerfiles
+  `compose-boot-test` excludes (`caddy`, `molecule-dind`).
+- **Shadow-tagging** in `_compose-boot-test.yml`
+  (`ci.images.build shadow-tag`, and a `Dockerfile` change queues the
+  app): for an app with a `Dockerfile`, it reads the images the deployed
+  compose file pins (`docker compose config --images`), builds the
+  Dockerfile and tags the result as the `ghcr.io/wenenhoe/<image>`
+  references among them, where the image name comes from the registry.
+  Compose's default `pull_policy` (`missing`) uses a local image when the
+  tag exists, so the boot test runs this checkout's Dockerfile with no
+  change to the compose file. An app with no Dockerfile, or a compose
+  file pinning none of its image, is left alone; a Dockerfile with no
+  registry entry fails. The reusable workflow's `build-dockerfiles` input
+  (default on) gates this step, so it's on for a PR. `boot-test-all.yml`
+  passes `false`: a full sweep boots the **published** images, which is
+  what a deploy pulls, so it also fails when a compose pin's tag was never
+  published. That run is manual (`workflow_dispatch`); nothing schedules it.
+
+Not covered: Molecule scenarios that pull a published image
+(`caddy`'s scenarios pull `caddy-digitalocean`, and every DinD scenario
+pulls `molecule-dind:latest`) still run the published one, so a
+Dockerfile change reaches them only after merge and the next build.
+`check-pins` reads the Dockerfile and compose text; it doesn't check the
+registry itself, so a pin that agrees with a tag that was never pushed
+passes it, and a PR can't tell either, since its boot test builds the
+Dockerfile locally. Two checks do fail on a tag that isn't in the registry:
+the manual `boot-test-all.yml` sweep, which boots the published images, and
+the weekly [image tag existence check](#image-tag-existence-check), which
+asks every registry about every pinned image.
+
+## Image tag existence check
+
+`check-image-tags.yml` runs once a week (Sunday, 02:23 UTC) and on demand.
+Renovate only ever proposes tags that exist, so a tag an upstream later
+removes or renames goes unnoticed until a deploy fails to pull it;
+[`tools/ci/images/remote.py`](../tools/ci/images/remote.py) asks each
+registry whether every image this repo pins is still there. Unlike
+`check-pins`, it covers **every** image, not only the ones built here.
+
+Nothing is listed by hand. It collects references from:
+
+- `image:` lines in compose files and in Ansible YAML and templates: the
+  `docker/` stacks, Molecule scenarios and fixtures, and task arguments;
+- `FROM` and `COPY --from=<image>` in Dockerfiles, skipping build stages;
+- every `customManagers` entry in `.github/renovate.json5` whose datasource is
+  `docker`, applied to the files it names. These are the pins Renovate
+  tracks outside compose: an rclone image in a systemd unit and a shell
+  script, step-cli and step-ca in variable defaults and a CI script, the
+  OpenBao image, and the Renovate execution image. A manager that no longer
+  matches any file, or a file that no longer matches its manager, fails the
+  run: the pin moved, and this check would otherwise stop seeing it silently.
+
+Skipped, and listed in the output: a reference containing a template or
+variable, `scratch`, and a `:local` tag (built on the host, never pushed;
+today that is `buildapp:local`). A test fails if the skip list changes, so a
+new one is a deliberate decision.
+
+It uses the standard registry API with the standard library, so Docker
+Hub, `ghcr.io` and any other v2 registry share one path: a HEAD request per
+distinct image, and the anonymous token endpoint taken from the registry's
+own 401 challenge. A HEAD request doesn't download the image.
+
+**Rate limiting** is the risk this is built around:
+
+- one request at a time, with a half-second pause between requests. Each
+  image costs at most two HEADs plus, once per repository, a token request:
+  43 images in 37 repositories on two registries (`ghcr.io` and Docker Hub) is
+  at most about 120 requests, a minute or so, once a week;
+- a token cached per repository, and reused across its tags;
+- a 429 or 5xx is retried up to five times, waiting as long as `Retry-After`
+  says (capped at a minute) or backing off 2, 4, 8, 16 seconds;
+- whatever is still unanswered gets one more pass after a minute's cooldown;
+- an image whose registry never answered is a **warning**, not a failure: it
+  shows in the log and the run summary as not checked this run. Only a tag
+  the registry says isn't there (a 404, or a 401/403 even with a token: gone,
+  renamed or private) fails the run. A registry outage doesn't turn a weekly
+  run red, and it can't hide a removed tag from the next week's.
+
+Docker Hub's anonymous pull limit counts manifest GETs, and to my knowledge a
+HEAD isn't one; I couldn't check that from here. If it ever were, the retry
+and warning paths above are what a limit would meet, and a weekly run this
+small is unlikely to reach one either way. The run needs no
+credentials and runs with read-only permissions. GitHub emails the
+workflow's failure to the person who last changed the schedule.
+
+The tests speak real HTTP to a local server that implements the token flow
+and can answer 429 and 5xx; **they don't reach a real registry**, so the
+first `workflow_dispatch` run against `ghcr.io` and Docker Hub is the live
+check. `python -m ci.images.remote list` (from `tools/`) prints every
+reference and the files naming it without making a request.
+
+## Renovate schedule window
+
+`renovate.json5`'s `schedule` only lets Renovate open new branches and PRs
+inside a window, in its `timezone`. GitHub starts a scheduled run some
+unpredictable time after its cron tick (1h44m to 2h20m observed here), so a
+run can land after the window closed and open nothing while still
+succeeding. `renovate.yml`'s last step,
+[`tools/ci/gates/renovate_window.py`](../tools/ci/gates/renovate_window.py),
+turns that into a failure, which GitHub's failed-workflow notification then
+surfaces.
+
+The timezone and every `schedule:` array are read from `renovate.json5`, so
+editing the window there changes what the check enforces. A run fails when
+it started on a day the schedule has a window but outside that window's
+hours; on any other day nothing is expected of it. It runs only for
+`schedule` events (a manual `workflow_dispatch` isn't waiting on a cron
+tick) and under `if: always()`, so it stays distinct from a Renovate
+failure. Cron fields support `*`, ranges, lists and steps; minutes must be
+`*`, as Renovate requires, and day names aren't supported.
 
 ## Trivy security scans
 

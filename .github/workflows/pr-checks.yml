@@ -17,14 +17,15 @@ jobs:
   detect-changes:
     runs-on: ubuntu-26.04
     outputs:
-      uv_lock: ${{ steps.filter.outputs.uv_lock }}
+      uv_lock: ${{ steps.effective.outputs.uv_lock }}
       any_compose: ${{ steps.filter.outputs.any_compose }}
-      deploy_ordering: ${{ steps.filter.outputs.deploy_ordering }}
+      deploy_ordering: ${{ steps.effective.outputs.deploy_ordering }}
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
-      python_unit_tests: ${{ steps.filter.outputs.python_unit_tests }}
+      python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
+      dockerfiles: ${{ steps.compose.outputs.dockerfiles }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -36,14 +37,49 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: .github/detect-changes-filters.yml
+          # The matched files feed the `effective` step below.
+          list-files: json
+
+      # Unlocked and not `needs: warm-uv-cache`, for the same reasons as
+      # warm-uv-cache above: a stale lockfile must surface as uv-lock's own
+      # failure, not fail this job and skip everything behind it.
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      # uv_lock, deploy_ordering and python_unit_tests stay false when
+      # every file that matched only changed a comment or formatting (or
+      # `[tool.ruff]`) — see docs/ci.md#comments-and-formatting-dont-queue-molecule.
+      # The job outputs above read this step, not `filter`. ansible_lint,
+      # trivy_ansible and any_compose are deliberately not gated: they
+      # read comments (`# noqa`, `#trivy:ignore`).
+      - name: Drop no-op changes from the gated filters
+        id: effective
+        run: >-
+          uv run python -m ci.scope.effective_changes
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"
+          uv_lock deploy_ordering python_unit_tests
+        working-directory: tools
+        env:
+          UV_LOCK_FILES: ${{ steps.filter.outputs.uv_lock_files }}
+          DEPLOY_ORDERING_FILES: ${{ steps.filter.outputs.deploy_ordering_files }}
+          PYTHON_UNIT_TESTS_FILES: ${{ steps.filter.outputs.python_unit_tests_files }}
 
       - name: Determine which ansible roles to test
         id: roles
-        run: .github/scripts/detect-changed-roles.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        run: uv run python -m ci.scope.molecule_scope "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
-      - name: Determine which compose stacks to boot-test
+      # One step for both: compose apps to boot-test and Dockerfiles to
+      # build (tools/ci/scope/compose_apps.py; the exclusion list it reads
+      # is .github/compose-boot-test-exclusions.txt).
+      - name: Determine which compose stacks to boot-test and Dockerfiles to build
         id: compose
-        run: .github/scripts/detect-changed-compose-apps.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        run: >-
+          uv run python -m ci.scope.compose_apps changed
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # Single-writer cache population — see docs/ci.md#cache-warming for why
   # this exists as its own job rather than letting every uv-consuming job
@@ -145,9 +181,10 @@ jobs:
 
       - name: Check the PR stays inside its project's allowed_paths
         run: >-
-          uv run python .github/scripts/check-project-scope.py
+          uv run python -m doc_scripts.check_project_scope
           --base "${{ github.event.pull_request.base.sha }}"
           --head "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # A PR that deletes a project doc must leave the revision its decision:
   # names accepted or still named by another project - see
@@ -167,9 +204,10 @@ jobs:
 
       - name: Check the PR doesn't orphan a deleted project's decision
         run: >-
-          uv run python .github/scripts/check-project-close.py
+          uv run python -m doc_scripts.check_project_close
           --base "${{ github.event.pull_request.base.sha }}"
           --head "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # Split from pre-commit-checks: ansible-lint is pinned to stages:
   # [pre-push], which --hook-stage pre-commit above doesn't run.
@@ -247,13 +285,15 @@ jobs:
 
       # Mirrors openbao_utils/bootstrap.py's output — throwaway CI values, see
       # docs/ci.md#deploy-ordering-check. Driven off the real
-      # secrets_registry.yaml at CI-run time (see the script's own
-      # docstring for why) rather than a hand-maintained list of printf
-      # lines here — the previous approach needed a new line added
-      # every time a new manual secret was registered, with nothing
-      # enforcing that it actually happened.
+      # secrets_registry.yaml at CI-run time (see
+      # tools/ci/fixtures/preseed_manual_secrets.py's docstring for why)
+      # rather than a hand-maintained list of printf lines here — the
+      # previous approach needed a new line added every time a new manual
+      # secret was registered, with nothing enforcing that it actually
+      # happened.
       - name: Pre-seed manual secrets (mirrors openbao_utils/bootstrap.py)
-        run: uv run python3 .github/scripts/preseed-manual-secrets-for-ci.py
+        run: uv run python -m ci.fixtures.preseed_manual_secrets
+        working-directory: tools
 
       # Track A stage 4 gave most secrets_registry entries a
       # vault_scope, but this job has no real OpenBao/step-ca target —
@@ -261,69 +301,30 @@ jobs:
       # isn't stubbed here on purpose, see ci-deploy-ordering-inventory.yaml's
       # own header) and fails loudly, since no AppRole is provisioned in
       # this job and even a dummy one would still try to reach a
-      # nonexistent `security` host. See the script's own docstring for
-      # why this strips vault_scope from the real registry at CI-run
-      # time rather than hand-maintaining a separate stub that could
-      # drift from it. Vault reachability itself is already covered for
+      # nonexistent `security` host. See
+      # tools/ci/fixtures/strip_vault_scope.py's docstring for why this
+      # strips vault_scope from the real registry at CI-run time rather
+      # than hand-maintaining a separate stub that could drift from it. Vault reachability itself is already covered for
       # real by the `secrets` role's own vault_backed/rotate_secret
       # Molecule scenarios — this job only ever tested ordering.
       - name: Strip vault_scope from secrets_registry for this job's own two invocations
-        run: uv run python3 .github/scripts/strip-vault-scope-for-ci.py /tmp/ci-secrets-registry-no-vault.json
+        run: uv run python -m ci.fixtures.strip_vault_scope /tmp/ci-secrets-registry-no-vault.json
+        working-directory: tools
 
-      # --tags matches nothing real, so provisioning is filtered out while
-      # Gathering Facts and secrets tasks (tags: [always]) still run.
-      # --limit includes localhost: Play 0 targets hosts: localhost
-      # specifically, which --limit prod alone would skip entirely.
+      # Both playbook runs, and the verdict on the second, live in
+      # tools/ci/gates/deploy_ordering.py (its docstring says why each
+      # flag is there); the verdict logic is unit-tested. It runs
+      # ansible-playbook from ansible/ itself.
       - name: Run deploy.yaml against the CI ordering-check inventory
-        run: |
-          uv run ansible-playbook \
-            -i inventory/ci-deploy-ordering-inventory.yaml \
-            playbooks/deploy.yaml \
-            --tags ci-deploy-ordering-check-tag-matches-nothing \
-            --limit ci-managed-host,localhost \
-            -e compose_deploy_dir=/tmp/compose-deploy-ordering-check \
-            -e @/tmp/ci-secrets-registry-no-vault.json
-        working-directory: ansible
+        run: uv run python -m ci.gates.deploy_ordering deploy
+        working-directory: tools
 
       # Regression check for restore.yaml's two-file invocation pattern
       # specifically (see docs/ci.md#deploy-ordering-check) — not for
-      # restore's own logic, which Molecule already covers. Points at a
-      # nonexistent archive on purpose: reaching that failure proves
-      # ansible_host resolved without needing a real restore. The log
-      # grep below distinguishes that expected failure from the
-      # ansible_host/secrets_generated regression this step exists to catch.
+      # restore's own logic, which Molecule already covers.
       - name: Run restore.yaml's two-file invocation against the CI ordering-check inventory
-        run: |
-          set +e
-          uv run ansible-playbook \
-            -i inventory/ci-deploy-ordering-inventory.yaml \
-            playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
-            --limit ci-managed-host,localhost \
-            -e restore_app=ci-ordering-check-app \
-            -e restore_archive_local_path=/nonexistent/ci-ordering-check-archive.tar.gz \
-            -e 'restore_volumes=["ci_ordering_check_data"]' \
-            -e @/tmp/ci-secrets-registry-no-vault.json \
-            > /tmp/restore-ordering-check.log 2>&1
-          rc=$?
-          cat /tmp/restore-ordering-check.log
-
-          if grep -qE "remote_addr|secrets_generated.*undefined" /tmp/restore-ordering-check.log; then
-            echo "::error::ansible_host never resolved for restore.yaml's two-file invocation — the ordering regression this check exists to catch."
-            exit 1
-          fi
-
-          if [ "$rc" -eq 0 ]; then
-            echo "::error::Expected a failure at the archive-existence check (nonexistent path) — succeeded instead, meaning something unrelated changed."
-            exit 1
-          fi
-
-          if ! grep -q "not found on the controller" /tmp/restore-ordering-check.log; then
-            echo "::error::Failed, but not with the expected archive-not-found message — see log above."
-            exit 1
-          fi
-
-          echo "OK: reached the expected, safe archive-not-found failure — ansible_host resolved correctly."
-        working-directory: ansible
+        run: uv run python -m ci.gates.deploy_ordering restore
+        working-directory: tools
 
   molecule:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
@@ -372,7 +373,31 @@ jobs:
     with:
       apps: ${{ needs.detect-changes.outputs.compose_apps }}
 
-  # Fallback for stacks the boot-test job deliberately excludes
+  # Builds each changed Dockerfile without pushing it and smoke-tests the
+  # image — the published image is only built after merge. See
+  # docs/ci.md#dockerfile-changes. A matrix job, so it's aggregated by
+  # matrix-jobs-gate below rather than required directly.
+  dockerfile-build-check:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.dockerfiles != '[]'
+    runs-on: ubuntu-26.04
+    strategy:
+      fail-fast: false
+      matrix:
+        app: ${{ fromJson(needs.detect-changes.outputs.dockerfiles) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # tools/ci/images/build.py is stdlib-only, so plain python3 runs it
+      # and this job needs no uv.
+      - name: Build and smoke-test ${{ matrix.app }}'s image
+        run: python3 -m ci.images.build build-check "${{ matrix.app }}"
+        working-directory: tools
+
+  # Fallback for stacks the boot-test job deliberately excludes: only the
+  # excluded apps are checked, since anything compose-boot-test covers gets
+  # a stronger check there. See docs/ci.md#compose-boot-test.
   compose-syntax-check:
     needs: detect-changes
     if: needs.detect-changes.outputs.any_compose == 'true'
@@ -381,41 +406,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # needed for the raw `git diff $BASE $HEAD` below
+          fetch-depth: 0 # the diff needs both the base and head commits
 
-      - name: Validate every changed compose file parses
-        run: |
-          # Only the apps compose-boot-test skips — anything it already
-          # covers gets a stronger check there, no need to duplicate it
-          # here. Same source file as detect-changes' compose step above,
-          # so there's nothing to keep "in sync" by hand anymore.
-          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          changed=$(git diff --name-only "$BASE" "$HEAD" \
-            | grep -E '^docker/.*/compose.*\.yaml$' \
-            | grep -E "^docker/($excluded)/" || true)
-          [ -z "$changed" ] && { echo "No excluded-app compose files changed."; exit 0; }
-          for f in $changed; do
-            [ -f "$f" ] || continue # deleted, not modified — nothing to validate
-            echo "=== $f ==="
-            dir=$(dirname "$f")
-            # An explicit env_file: entry must exist for `config --quiet`
-            # to pass, unlike the implicit top-level .env — an empty stub
-            # is enough since only syntax is being validated here.
-            stub_created=0
-            if [ ! -e "$dir/.env" ]; then
-              touch "$dir/.env"
-              stub_created=1
-            fi
-            if docker compose -f "$f" config --quiet; then
-              rc=0
-            else
-              rc=$?
-            fi
-            [ "$stub_created" -eq 1 ] && rm -f "$dir/.env"
-            [ "$rc" -eq 0 ] || exit "$rc"
-          done
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      - name: Validate every changed excluded-app compose file parses
+        run: >-
+          uv run python -m ci.scope.compose_apps syntax-check
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # See docs/security-scanning.md#trivy-security-scans.
   trivy-scan:
@@ -428,37 +429,30 @@ jobs:
       run-ansible: ${{ needs.detect-changes.outputs.trivy_ansible == 'true' }}
       run-secrets: true
 
-  # Fixed-name required-check aggregator for the two matrix jobs above —
+  # Fixed-name required-check aggregator for the three matrix jobs above —
   # see docs/ci.md#requiring-checks-before-merge for why a matrix job
   # can't be marked required directly. if: always() so a skipped
   # upstream job doesn't skip this one too.
   matrix-jobs-gate:
-    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, compose-boot-test]
+    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, compose-boot-test, dockerfile-build-check]
     if: always()
     runs-on: ubuntu-26.04
     steps:
-      # molecule and compose-boot-test report skipped both when nothing
-      # changed and when an upstream job failed, so the upstream jobs must
-      # be checked on their own: only they distinguish the two.
+      # Only tools/ci is needed, and only its stdlib — plain python3, no
+      # uv. A checkout that fails fails the gate, which blocks the merge.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: tools/ci
+
+      # The verdict is tools/ci/gates/matrix_gate.py: the matrix jobs (named
+      # in MATRIX_JOBS, kept equal to the jobs that use a matrix by a test)
+      # report skipped both when nothing changed and when an upstream job
+      # failed, so every other job in `needs` must be exactly `success` and
+      # only the matrix jobs may be skipped.
       - name: Fail unless upstream jobs passed and matrix jobs did not fail
         env:
-          UPSTREAM: >-
-            ${{ needs.detect-changes.result }}
-            ${{ needs.warm-uv-cache.result }}
-            ${{ needs.warm-galaxy-cache.result }}
-          MATRIX: >-
-            ${{ needs.molecule.result }}
-            ${{ needs.compose-boot-test.result }}
-        run: |
-          for r in $UPSTREAM; do
-            if [[ "$r" != "success" ]]; then
-              echo "::error::An upstream job did not succeed (result: $r)."
-              exit 1
-            fi
-          done
-          for r in $MATRIX; do
-            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
-              echo "::error::A required job did not pass (result: $r)."
-              exit 1
-            fi
-          done
+          NEEDS: ${{ toJSON(needs) }}
+          MATRIX_JOBS: molecule compose-boot-test dockerfile-build-check
+        run: python3 -m ci.gates.matrix_gate
+        working-directory: tools

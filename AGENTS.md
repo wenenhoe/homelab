@@ -22,7 +22,7 @@ stops there; see [`docs/projects/README.md#scope`](docs/projects/README.md#scope
 
 Verify a docs change with `pre-commit run --all-files`; it regenerates
 the indexes, lints the markdown, and runs
-[`check-doc-drift.py`](.github/scripts/check-doc-drift.py).
+[`check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py).
 
 ## Security and reliability defaults
 

@@ -5,13 +5,9 @@ so nothing here is mocked.
 
 from __future__ import annotations
 
-import sys
 from pathlib import Path
 
 import yaml
-
-SCRIPTS = Path(__file__).resolve().parents[3] / ".github" / "scripts"
-sys.path.insert(0, str(SCRIPTS))
 
 
 def write_doc(root: Path, rel: str, fm: dict, body: str = "# Title\n") -> Path:

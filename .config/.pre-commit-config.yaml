@@ -98,10 +98,10 @@ repos:
           Regenerates docs/projects/README.md's Index and By initiative
           tables and docs/decisions/README.md's Lineages index from
           frontmatter
-          — see .github/scripts/generate-doc-indexes.py. Runs before
+          — see tools/doc_scripts/generate_doc_indexes.py. Runs before
           markdownlint/check-doc-drift below, so a bad generation is
           caught the same way a bad hand-edit already is.
-        entry: python3 .github/scripts/generate-doc-indexes.py
+        entry: bash -c 'cd tools && python3 -m doc_scripts.generate_doc_indexes' --
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: false
@@ -118,10 +118,22 @@ repos:
         description: >-
           README/molecule-testing/deployment-flow/ci.md stay in sync
           with the roles, playbooks, scenarios, and CI jobs they
-          describe — see .github/scripts/check-doc-drift.py.
-        entry: python3 .github/scripts/check-doc-drift.py
+          describe — see tools/doc_scripts/check_doc_drift.py.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_doc_drift' --
         language: python
         additional_dependencies: [pyyaml]
+        pass_filenames: false
+        always_run: true
+      - id: check-image-pins
+        name: check-image-pins
+        description: >-
+          Every compose file's and Molecule scenario's ghcr.io/wenenhoe
+          image reference matches the tag its Dockerfile makes the build
+          workflow publish, and every Dockerfile has an entry in
+          tools/ci/images/registry.py. Stdlib-only, so it needs no extra
+          dependencies.
+        entry: bash -c 'cd tools && python3 -m ci.images.registry check-pins' --
+        language: python
         pass_filenames: false
         always_run: true
       - id: check-project-scope
@@ -129,10 +141,10 @@ repos:
         description: >-
           A commit that touches a project doc stays inside that project's
           allowed_paths, read from HEAD - see
-          .github/scripts/check-project-scope.py. Looks only at what is
+          tools/doc_scripts/check_project_scope.py. Looks only at what is
           staged, so it passes trivially under `--all-files` in CI, where
           the project-scope job checks the whole PR instead.
-        entry: python3 .github/scripts/check-project-scope.py --staged
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_project_scope --staged' --
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: false
@@ -142,10 +154,10 @@ repos:
         description: >-
           A commit that deletes a project doc leaves the revision its
           decision: names accepted or still named by another project - see
-          .github/scripts/check-project-close.py. Looks only at what is
+          tools/doc_scripts/check_project_close.py. Looks only at what is
           staged, so it passes trivially under `--all-files` in CI, where
           the project-close job checks the whole PR instead.
-        entry: python3 .github/scripts/check-project-close.py --staged
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_project_close --staged' --
         language: python
         additional_dependencies: [pyyaml]
         pass_filenames: false

@@ -1,4 +1,4 @@
-"""Tests for check-project-close.py against a real temporary git repository -
+"""Tests for check_project_close.py against a real temporary git repository -
 the merge-base, index, and rename behavior is exactly what mocks would get
 wrong. Run via `uv run pytest tools/tests/ -v`.
 """
@@ -6,18 +6,14 @@ wrong. Run via `uv run pytest tools/tests/ -v`.
 from __future__ import annotations
 
 import contextlib
-import importlib.util
 import io
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from _doc_fixtures import SCRIPTS, project, revision
-
-_spec = importlib.util.spec_from_file_location("check_project_close", SCRIPTS / "check-project-close.py")
-cli = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(cli)
+from _doc_fixtures import project, revision
+from doc_scripts import check_project_close as cli
 
 LINEAGE = "0001-x"
 REVISION = f"docs/decisions/{LINEAGE}/revision-000.md"

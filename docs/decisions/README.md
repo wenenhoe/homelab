@@ -78,7 +78,7 @@ yet built.
 - A material change to an `accepted` or `superseded` revision is a new
   revision in the same lineage, never an edit. When a superseded ADR is
   referenced from [`nist-800-53-alignment.md`](../nist-800-53-alignment.md),
-  re-check the mapping in the same patch; `check-doc-drift.py` fails
+  re-check the mapping in the same patch; `check_doc_drift.py` fails
   until it is addressed.
 - Competing candidates in one generation stay `working` until one is
   `approved`; the others are then `abandoned`, because approval
@@ -91,7 +91,7 @@ An **assumption** is an explicitly identified condition that must be true
 for the solution to be valid. Only open ones are recorded, under
 `## Assumptions`; resolving one folds the fact into Context (or changes
 the Decision) and deletes the entry. A revision with any entry can't be
-`approved` — `check-doc-drift.py` enforces it — and only a time-boxed,
+`approved` — `check_doc_drift.py` enforces it — and only a time-boxed,
 throwaway spike, or reading code, may work on one meanwhile.
 
 Unknown unknowns are not predicted. When implementation finds a
@@ -207,12 +207,13 @@ docs. See
 
 | ADR | Problem | Current solution | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| [0031](0031-where-repo-tooling-lives/revision-000.md) | **Where repo tooling lives** — Controller-side utilities live where their domain says, not where they happened to be written. | A root tools/ directory split by domain | Accepted | Narrowed by [0032](0032-where-openbao-utility-scripts-live/revision-000.md); Related: [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md) |
+| [0031](0031-where-repo-tooling-lives/revision-000.md) | **Where repo tooling lives** — Controller-side utilities live where their domain says, not where they happened to be written. | A root tools/ directory split by domain | Accepted | Narrowed by [0032](0032-where-openbao-utility-scripts-live/revision-000.md); Related: [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) |
 | [0032](0032-where-openbao-utility-scripts-live/revision-000.md) | **Where OpenBao utility scripts live** — Whether OpenBao utility scripts belong with the deploy playbooks or with the standalone tools. | Consolidated in tools/openbao_utils/ | Accepted | — |
 | [0033](0033-where-the-interactive-bao-session-runs/revision-000.md) | **Where the interactive bao session runs** — Where bao_session.py runs, given a relay to security never had a working local half. | controller only; the SSH relay to security dropped | Accepted | Related: [0034](0034-operator-access-to-the-openbao-cli/revision-000.md) |
 | [0034](0034-operator-access-to-the-openbao-cli/revision-000.md) | **Operator access to the OpenBao CLI** — How operators reach the bao CLI, replacing four overlapping docker-exec and alias patterns. | A native bao binary on security and controller | Accepted | Narrowed by [0033](0033-where-the-interactive-bao-session-runs/revision-000.md); Related: [0022](0022-controller-trust-in-the-secrets-store-tls/revision-000.md), [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md), [0033](0033-where-the-interactive-bao-session-runs/revision-000.md) |
 | [0041](0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working | Related: [0016](0016-oci-credential-creation-and-expiry/revision-000.md) |
 | [0063](0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md) | **What the code-review image is built from, and how it stays current** — How the image that runs the CodeRabbit CLI is versioned, based, and kept up to date when upstream publishes no machine-readable release list. | Pin the CLI's version and the release zip's sha256, verify the zip before unpacking it, bump the version with Renovate from the release's VERSION file, use an Ubuntu LTS base, and tag every image with its CLI version | Accepted | Related: [0061](0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md) |
+| [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) | **Where the code behind CI and documentation checks lives** — Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows. | Code that decides a check's outcome is unit-tested Python under tools/, one package per domain; .github/ keeps only what Actions reads and plain command sequences | Accepted | Related: [0031](0031-where-repo-tooling-lives/revision-000.md), [0037](0037-decision-and-project-documentation-workflow/revision-002.md) |
 
 ### Security & hardening
 
@@ -238,7 +239,7 @@ docs. See
 | ADR | Problem | Current solution | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
 | [0028](0028-doc-metadata-and-governance/revision-000.md) | **Doc metadata and governance** — How docs carry machine-readable metadata, how index tables stay current, and how NIST alignment is shown without stamping ADRs. | YAML frontmatter, generated indexes, one narrative NIST alignment doc | Accepted | Narrowed by [0037](0037-decision-and-project-documentation-workflow/revision-002.md) |
-| [0037](0037-decision-and-project-documentation-workflow/revision-002.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, extended so one decision can be implemented by more than one project. | Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted | Accepted (revision 2) | Related: [0050](0050-agent-authored-changes-reaching-production/revision-000.md), [0055](0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), [0061](0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md) |
+| [0037](0037-decision-and-project-documentation-workflow/revision-002.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, extended so one decision can be implemented by more than one project. | Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted | Accepted (revision 2) | Related: [0050](0050-agent-authored-changes-reaching-production/revision-000.md), [0055](0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), [0061](0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) |
 
 ## Other design records
 

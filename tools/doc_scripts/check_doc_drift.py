@@ -1,0 +1,374 @@
+#!/usr/bin/env python3
+"""Checks a handful of docs/README sections against the files they
+describe, so an added/removed role, playbook, scenario, CI job, or
+cross-doc link can't silently drift out of sync with what documents it.
+
+Narrow presence/shape checks only, deliberately not content-equality —
+see each check's docstring for what it does and doesn't catch, and
+docs/ci.md#docs-drift-check for the summary.
+"""
+
+from __future__ import annotations
+
+import re
+import sys
+from pathlib import Path
+
+import yaml
+
+from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, read_frontmatter
+from doc_scripts.doc_graph import lineage_errors, open_assumption_errors, project_errors
+
+ROOT = Path(__file__).resolve().parents[2]
+errors: list[str] = []
+
+ANCHOR_SCAN_EXTS = {".md", ".yml", ".yaml", ".py"}
+ANCHOR_SCAN_EXTRA_NAMES = {".trivyignore"}
+ANCHOR_SCAN_EXCLUDE_DIRS = {".git", "node_modules", ".venv"}
+# Expected-output strings in these tests are literal markdown links to files that only exist inside their temp trees.
+ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/",)
+
+CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
+SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")
+PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
+DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
+PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
+REPO_FILE_LINK_RE = re.compile(r"\]\((\.{1,2}/[\w./-]+\.(?:yaml|yml|hcl|sh|py|j2|json|toml))(?:#[^)]*)?\)")
+
+
+def fail(msg: str) -> None:
+    errors.append(msg)
+
+
+def read(path: Path) -> str:
+    return path.read_text(encoding="utf-8")
+
+
+def check_doc_indexes() -> None:
+    """Every doc directly under docs/, and every doc one level down under
+    docs/decisions/, docs/architecture/, and docs/projects/, is linked in
+    that directory's own README.md — both directions, a link to a missing
+    file fails too. Substring matching for the forward direction,
+    markdown-link-syntax matching for the reverse — cheap, and a false
+    positive (a name coincidentally appearing elsewhere) is the safe
+    failure mode here, not a false negative.
+    """
+    for subdir in ("", "decisions", "architecture", "projects"):
+        label = f"docs/{subdir}" if subdir else "docs"
+        index_path = ROOT / "docs" / subdir / "README.md"
+        index = read(index_path)
+
+        for doc in sorted((ROOT / "docs" / subdir).glob("*.md")):
+            if doc.name in ("README.md", "TEMPLATE.md"):
+                continue
+            if doc.name not in index:
+                fail(f"{label}/README.md: {doc.name} exists but isn't linked in its index")
+
+        if subdir == "decisions":
+            for lineage_dir in sorted(p for p in (ROOT / "docs" / subdir).iterdir() if p.is_dir() and LINEAGE_DIR_RE.match(p.name)):
+                if f"{lineage_dir.name}/" not in index:
+                    fail(f"{label}/README.md: lineage {lineage_dir.name}/ exists but isn't linked in its index")
+
+        for link in re.findall(r"\]\(([\w-]+\.md)\)", index):
+            if link == "TEMPLATE.md":
+                continue
+            if not (index_path.parent / link).is_file():
+                fail(f"{label}/README.md: links {link}, which doesn't exist")
+
+
+def check_ansible_reference() -> None:
+    """docs/ansible.md's Playbooks table lists every ansible/playbooks/*.yaml
+    file; its Roles table lists every ansible/roles/*/ directory.
+    Presence-only matching, not full link validation.
+    """
+    doc = read(ROOT / "docs/ansible.md")
+
+    pb_section = re.search(r"## Playbooks\n\n(.*?)\n\n", doc, re.DOTALL)
+    if not pb_section:
+        fail("ansible.md: couldn't find the ## Playbooks table")
+    else:
+        documented = set(re.findall(r"^\| `playbooks/([\w.-]+)`", pb_section.group(1), re.MULTILINE))
+        actual = {pb.name for pb in (ROOT / "ansible/playbooks").glob("*.yaml")}
+        for pb in sorted(actual - documented):
+            fail(f"ansible.md Playbooks table: missing a row for ansible/playbooks/{pb}")
+        for pb in sorted(documented - actual):
+            fail(f"ansible.md Playbooks table: documents playbooks/{pb}, which doesn't exist")
+
+    roles_section = re.search(r"## Roles\n\n(.*?)\n\n", doc, re.DOTALL)
+    if not roles_section:
+        fail("ansible.md: couldn't find the ## Roles table")
+    else:
+        documented = set(re.findall(r"^\| `([\w]+)`", roles_section.group(1), re.MULTILINE))
+        actual = {d.name for d in (ROOT / "ansible/roles").iterdir() if d.is_dir()}
+        for role in sorted(actual - documented):
+            fail(f"ansible.md Roles table: missing a row for ansible/roles/{role}/")
+        for role in sorted(documented - actual):
+            fail(f"ansible.md Roles table: documents role '{role}', which doesn't exist")
+
+
+def check_molecule_matrix() -> None:
+    """docs/molecule-testing.md's Scenario matrix table, role-for-role
+    and scenario-for-scenario, against the real
+    ansible/roles/*/molecule/*/ directories.
+    """
+    lines = read(ROOT / "docs/molecule-testing.md").splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip() == "## Scenario matrix")
+    table_lines: list[str] = []
+    for line in lines[start:]:
+        if line.startswith("|"):
+            table_lines.append(line)
+        elif table_lines:
+            break
+    rows = table_lines[2:]  # drop header + separator row
+
+    documented: dict[str, set[str]] = {}
+    current_role: str | None = None
+    for row in rows:
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        role_cell, scenario_cell = cells[0].strip("`"), cells[1].strip("`")
+        current_role = role_cell or current_role
+        if current_role is None:
+            continue
+        bucket = documented.setdefault(current_role, set())
+        if scenario_cell == "*(none)*":
+            bucket.add("__none__")
+        elif scenario_cell:
+            bucket.add(scenario_cell)
+
+    # Shared test scaffolding, not a role under test — documented in its
+    # own "## `molecule_helpers`" section instead of the matrix.
+    excluded_roles = {"molecule_helpers"}
+
+    for role_dir in sorted((ROOT / "ansible/roles").iterdir()):
+        if not role_dir.is_dir() or role_dir.name in excluded_roles:
+            continue
+        role = role_dir.name
+        molecule_dir = role_dir / "molecule"
+        actual = {p.name for p in molecule_dir.iterdir() if p.is_dir()} if molecule_dir.is_dir() else {"__none__"}
+
+        if role not in documented:
+            fail(f"molecule-testing.md: role '{role}' has no Scenario matrix row at all")
+            continue
+
+        for scenario in sorted(actual - documented[role]):
+            label = "(no molecule dir)" if scenario == "__none__" else scenario
+            fail(f"molecule-testing.md: {role}'s scenario '{label}' isn't in the Scenario matrix table")
+        for scenario in sorted(documented[role] - actual):
+            label = "*(none)*" if scenario == "__none__" else scenario
+            fail(f"molecule-testing.md: Scenario matrix lists {role}/{label}, which doesn't exist")
+
+
+def check_deploy_flow() -> None:
+    """Count + sequence only, not title text: deploy.yaml's play names
+    and deployment-flow.md's headings are allowed to word the same play
+    differently (e.g. a shortened heading), that's not drift worth
+    flagging. What matters is a play being added, removed, or reordered
+    without the docs' numbering following it.
+    """
+    play_names = re.findall(r"^- name:\s*(.+)$", read(ROOT / "ansible/playbooks/deploy.yaml"), re.MULTILINE)
+    heading_nums = [int(n) for n in re.findall(r"^## Play (\d+)", read(ROOT / "docs/deployment-flow.md"), re.MULTILINE)]
+
+    if len(heading_nums) != len(play_names):
+        fail(f"deployment-flow.md: {len(heading_nums)} 'Play N' headings vs {len(play_names)} plays in deploy.yaml — one was added/removed without the other")
+    elif heading_nums != list(range(len(heading_nums))):
+        fail(f"deployment-flow.md: 'Play N' headings aren't sequential from 0: {heading_nums}")
+
+
+def check_ci_jobs_table() -> None:
+    """docs/ci.md's Jobs table against pr-checks.yml's actual job ids."""
+    workflow = yaml.safe_load(read(ROOT / ".github/workflows/pr-checks.yml"))
+    job_ids = set(workflow["jobs"].keys())
+
+    section = re.search(r"## Jobs\n\n(.*?)\n\n", read(ROOT / "docs/ci.md"), re.DOTALL)
+    if not section:
+        fail("ci.md: couldn't find the ## Jobs table")
+        return
+    documented = set(re.findall(r"^\| `([\w-]+)`", section.group(1), re.MULTILINE))
+
+    # detect-changes is internal plumbing (feeds other jobs' outputs, not
+    # itself a check); trivy-scan is documented in security-scanning.md
+    # instead of a Jobs table row.
+    allowed_undocumented = {"detect-changes", "trivy-scan"}
+
+    for job in sorted(job_ids - documented - allowed_undocumented):
+        fail(f"ci.md Jobs table: missing a row for pr-checks.yml's '{job}' job")
+    for job in sorted(documented - job_ids):
+        fail(f"ci.md Jobs table: documents '{job}', which isn't a job in pr-checks.yml")
+
+
+def _slugify(heading: str) -> str:
+    """Approximates GitHub's heading-to-anchor algorithm: lowercase,
+    drop anything that isn't a word char/space/hyphen, then turn every
+    individual whitespace char into its own hyphen (consecutive spaces
+    stay separate hyphens, they don't collapse into one).
+    """
+    text = heading.strip().lower()
+    text = re.sub(r"[^\w\s-]", "", text, flags=re.UNICODE)
+    return re.sub(r"\s", "-", text)
+
+
+def _heading_slugs(path: Path) -> set[str]:
+    slugs: set[str] = set()
+    seen: dict[str, int] = {}
+    for line in read(path).splitlines():
+        m = re.match(r"^#{1,6}\s+(.+)$", line)
+        if not m:
+            continue
+        base = _slugify(m.group(1))
+        n = seen.get(base, 0)
+        seen[base] = n + 1
+        slugs.add(base if n == 0 else f"{base}-{n}")
+    return slugs
+
+
+def _resolve_anchor_target(referencing: Path, rel: str) -> Path | None:
+    """docs/*.md files reference each other by bare filename (relative
+    to docs/); everything else references docs by their docs/-prefixed
+    path (relative to repo root). Try both.
+    """
+    for base in (referencing.parent, ROOT):
+        candidate = (base / rel).resolve()
+        if candidate.is_file():
+            return candidate
+    return None
+
+
+def check_no_stale_anchors() -> None:
+    """Every cross-file `#anchor` reference anywhere in the repo
+    (markdown links or plain-text mentions in YAML/Python comments)
+    resolves to a real file with a heading that slugs to that anchor;
+    every same-file link (just `#anchor`, no filename) in a .md file
+    does too. Every plain markdown link to a `.md` file with no
+    anchor also has to resolve to a real file — catches a link left
+    dangling by a file move/rename/delete that happens to not carry
+    an anchor, which the anchor checks above wouldn't otherwise see.
+    Relative links (`./`, `../`) from a .md file to a config, script, or
+    data file (.yaml/.hcl/.py/...) resolve too.
+    """
+    heading_cache: dict[Path, set[str]] = {}
+
+    def slugs_for(path: Path) -> set[str]:
+        if path not in heading_cache:
+            heading_cache[path] = _heading_slugs(path)
+        return heading_cache[path]
+
+    for f in sorted(ROOT.rglob("*")):
+        if not f.is_file():
+            continue
+        if any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts):
+            continue
+        if f.suffix not in ANCHOR_SCAN_EXTS and f.name not in ANCHOR_SCAN_EXTRA_NAMES:
+            continue
+
+        rel_f = f.relative_to(ROOT)
+        if rel_f.as_posix().startswith(ANCHOR_SCAN_EXCLUDE_PREFIXES):
+            continue
+
+        text = re.sub(r"https?://\S+", "", read(f))  # don't chase external URLs
+
+        for rel, anchor in CROSS_FILE_ANCHOR_RE.findall(text):
+            target = _resolve_anchor_target(f, rel)
+            if target is None:
+                fail(f"{rel_f}: references {rel}#{anchor}, which doesn't resolve to a real file")
+            elif anchor not in slugs_for(target):
+                fail(f"{rel_f}: references {rel}#{anchor}, but {rel} has no heading that slugs to '{anchor}'")
+
+        if f.suffix == ".md":
+            for anchor in SAME_FILE_ANCHOR_RE.findall(text):
+                if anchor not in slugs_for(f):
+                    fail(f"{rel_f}: references #{anchor} (same-file), but has no heading that slugs to '{anchor}'")
+
+        for rel in PLAIN_MD_LINK_RE.findall(text):
+            if f.name == "TEMPLATE.md":
+                continue  # placeholder syntax (e.g. NNNN-slug.md), not a real link
+            if _resolve_anchor_target(f, rel) is None:
+                fail(f"{rel_f}: links {rel}, which doesn't exist")
+
+        if f.suffix == ".md" and f.name != "TEMPLATE.md":
+            for rel in REPO_FILE_LINK_RE.findall(text):
+                if not (f.parent / rel).is_file():
+                    fail(f"{rel_f}: links {rel}, which doesn't exist")
+
+
+def check_doc_path_mentions() -> None:
+    """Every path under docs/decisions/ or docs/projects/ that ends in .md
+    and is written in any docs, code, or config file exists — including
+    inside comments, which the anchor check above never sees unless the
+    path carries a `#anchor`. A path with `NNN` in it is a placeholder,
+    not a reference; a deleted file is referred to by name, not by path.
+    A project doc is deleted when its work is done, so a comment that
+    points at one fails the build the day it goes.
+    """
+    for f in sorted(ROOT.rglob("*")):
+        if not f.is_file() or any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts):
+            continue
+        if f.suffix not in PATH_MENTION_EXTS or f.relative_to(ROOT).as_posix().startswith(ANCHOR_SCAN_EXCLUDE_PREFIXES):
+            continue
+        for path in sorted(set(DOC_PATH_RE.findall(read(f)))):
+            if "NNN" not in path and not (ROOT / path).is_file():
+                fail(f"{f.relative_to(ROOT)}: mentions {path}, which doesn't exist")
+
+
+def check_nist_alignment_currency() -> None:
+    """docs/nist-800-53-alignment.md links to specific ADRs as
+    evidence for a control mapping; unlike a plain dead link, an ADR
+    being marked superseded doesn't move or delete the file, so
+    check_no_stale_anchors's link-resolution check passes right through
+    it while the claim itself may no longer hold. This catches that one
+    state transition — status: superseded on any doc this page links
+    to — and fails loudly so the mapping gets a human look in the same
+    patch that supersedes it, instead of silently going stale. Doesn't
+    (and can't) catch a still-accepted ADR's reasoning changing enough
+    to break the mapping, or a new ADR that should be added here —
+    those stay on whoever's making that change, same as the page's own
+    "What this page is not" section says.
+    """
+    doc = ROOT / "docs/nist-800-53-alignment.md"
+    text = read(doc)
+
+    for rel in PLAIN_MD_LINK_RE.findall(text):
+        target = _resolve_anchor_target(doc, rel)
+        if target is None:
+            continue  # already reported by check_no_stale_anchors
+        if target.name in ("README.md", "TEMPLATE.md"):
+            continue  # index/template links, not an ADR doc itself
+        try:
+            kind = doc_kind(target)
+        except SystemExit:
+            continue  # not an ADR link (e.g. deployment-flow.md, host-vars.md)
+        if kind == "project":
+            continue
+        fm = read_frontmatter(target)
+        if fm["status"] == "superseded":
+            fail(
+                f"nist-800-53-alignment.md links to {rel}, which is now "
+                f"status: superseded (by {fm.get('superseded_by', '?')}) — "
+                "review whether the control mapping still holds and update "
+                "or repoint the reference"
+            )
+
+
+def main() -> int:
+    check_doc_indexes()
+    check_ansible_reference()
+    check_molecule_matrix()
+    check_deploy_flow()
+    check_ci_jobs_table()
+    check_no_stale_anchors()
+    check_doc_path_mentions()
+    check_nist_alignment_currency()
+    errors.extend(lineage_errors(ROOT))
+    errors.extend(open_assumption_errors(ROOT))
+    errors.extend(project_errors(ROOT))
+
+    if errors:
+        for e in errors:
+            print(f"::error::{e}")
+        print(f"\n{len(errors)} doc-drift issue(s) found.", file=sys.stderr)
+        return 1
+    print("Docs match the files/config they describe.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

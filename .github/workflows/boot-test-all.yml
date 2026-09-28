@@ -8,7 +8,9 @@ name: Boot-test every compose app
 # The actual seed/boot/wait/teardown steps live in the shared
 # _compose-boot-test.yml reusable workflow — same one pr-checks.yml's
 # compose-boot-test calls — so there's nothing left here to drift out of
-# sync by hand.
+# sync by hand. Unlike a PR it boots the *published* images
+# (build-dockerfiles: false): this is the check that what a deploy pulls
+# exists and works, including a compose pin whose tag was never pushed.
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}
 
@@ -21,23 +23,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      # Exclusion list + per-app reasoning lives in
+      # .github/compose-boot-test-exclusions.txt, read by
+      # tools/ci/scope/compose_apps.py — the one place every compose-app
+      # list is built.
       - name: List every compose app except the excluded ones
         id: list
-        run: |
-          # Exclusion list + per-app reasoning lives in
-          # .github/compose-boot-test-exclusions.txt — the single source
-          # of truth shared with pr-checks.yml's detect-changes and
-          # compose-syntax-check.
-          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
-          apps=$(find docker -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
-            | grep -vE "^($excluded)\$" \
-            | sort \
-            | jq -R . | jq -sc .)
-          echo "apps=$apps" >> "$GITHUB_OUTPUT"
-          echo "Testing apps: $apps"
+        run: uv run python -m ci.scope.compose_apps all
+        working-directory: tools
 
   compose-boot-test-all:
     needs: list-apps
     uses: ./.github/workflows/_compose-boot-test.yml
     with:
       apps: ${{ needs.list-apps.outputs.apps }}
+      build-dockerfiles: false

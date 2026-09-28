@@ -8,8 +8,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import doc_frontmatter as fm_mod
 from _doc_fixtures import project, revision, write_doc
+from doc_scripts import doc_frontmatter as fm_mod
 
 
 class _TmpRoot(unittest.TestCase):
@@ -214,7 +214,7 @@ class ProjectValidationTest(_TmpRoot):
                 fm_mod.read_frontmatter(project(self.root, "b", **overrides))
 
     def test_allowed_paths_shape(self):
-        ok = project(self.root, "ok", allowed_paths=["src/**", ".github/scripts/doc_*.py", "README.md"])
+        ok = project(self.root, "ok", allowed_paths=["src/**", "tools/doc_scripts/doc_*.py", "README.md"])
         self.assertEqual(len(fm_mod.read_frontmatter(ok)["allowed_paths"]), 3)
         bad = {
             "not a list": "src/**",

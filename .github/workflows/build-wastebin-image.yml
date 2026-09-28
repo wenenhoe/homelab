@@ -54,15 +54,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # Tags by the upstream wastebin version, matching
-      # docker/wastebin/compose.yaml's image: line — Renovate's dockerfile
-      # manager bumps this FROM line, so the tag always reflects what's
-      # actually in the Dockerfile.
-      - name: Resolve image tag from the Dockerfile's first FROM line
-        id: version
-        run: |
-          version=$(grep -E '^FROM quxfoo/wastebin:[^ ]+$' docker/wastebin/Dockerfile | cut -d: -f2)
-          echo "tag=$version" >> "$GITHUB_OUTPUT"
+      # The image's name and its tag (the upstream wastebin version) come
+      # from ci.images.registry; see build-caddy-image.yml for why this is
+      # plain python3 and what holds compose.yaml's pin equal to it.
+      - name: Resolve image tags
+        id: image
+        run: python3 -m ci.images.registry tags wastebin
+        working-directory: tools
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -85,4 +83,4 @@ jobs:
           push: true
           pull: ${{ github.event_name == 'schedule' }}
           no-cache: ${{ github.event_name == 'schedule' }}
-          tags: ghcr.io/wenenhoe/wastebin:${{ steps.version.outputs.tag }}
+          tags: ${{ steps.image.outputs.tags }}

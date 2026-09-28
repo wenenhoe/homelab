@@ -1,4 +1,4 @@
-"""Tests for check-project-scope.py against a real temporary git repository -
+"""Tests for check_project_scope.py against a real temporary git repository -
 the merge-base, staged-file, and path-quoting behavior is exactly what mocks
 would get wrong. Run via `uv run pytest tools/tests/ -v`.
 """
@@ -6,18 +6,13 @@ would get wrong. Run via `uv run pytest tools/tests/ -v`.
 from __future__ import annotations
 
 import contextlib
-import importlib.util
 import io
 import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 
-from _doc_fixtures import SCRIPTS
-
-_spec = importlib.util.spec_from_file_location("check_project_scope", SCRIPTS / "check-project-scope.py")
-cli = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(cli)
+from doc_scripts import check_project_scope as cli
 
 PROJECT = "docs/projects/p.md"
 

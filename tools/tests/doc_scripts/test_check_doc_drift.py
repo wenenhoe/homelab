@@ -1,21 +1,17 @@
 """Unit tests for the decision-lineage-aware parts of
-check-doc-drift.py: index coverage of lineage directories, relative
+check_doc_drift.py: index coverage of lineage directories, relative
 links to non-markdown files, and the NIST-link supersession check.
 Run via `uv run pytest tools/tests/ -v`.
 """
 
 from __future__ import annotations
 
-import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
 
-from _doc_fixtures import SCRIPTS, revision
-
-_spec = importlib.util.spec_from_file_location("check_doc_drift", SCRIPTS / "check-doc-drift.py")
-drift = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(drift)
+from _doc_fixtures import revision
+from doc_scripts import check_doc_drift as drift
 
 INDEX_DIRS = ("docs", "docs/decisions", "docs/architecture", "docs/projects")
 

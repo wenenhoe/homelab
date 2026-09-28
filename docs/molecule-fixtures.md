@@ -66,7 +66,7 @@ These live once under `ansible/roles/molecule_helpers/fixtures/`
 (`generic_env.j2`, `generic_seeded.txt.j2`, `generic_run.sh`) and get
 symlinked in. `molecule_helpers` is the right home for anything shared
 across more than one role — `check_molecule_matrix`
-(`.github/scripts/check-doc-drift.py`) excludes it from the scenario
+(`tools/doc_scripts/check_doc_drift.py`) excludes it from the scenario
 matrix entirely, so nothing role-local has to carry it.
 
 ## Synthetic placeholder apps
@@ -127,7 +127,6 @@ Scaffolding for scenarios, not a role under test:
 | `playbooks/prepare_dind_prebuilt.yml` | Shared `prepare` playbook for scenarios on the pre-baked DinD image (below) — coverage reset only. |
 | `tasks/dind_storage_driver.yaml` | Forces the nested Docker daemon onto `fuse-overlayfs` via `/etc/docker/daemon.json`. |
 | `tasks/install_docker_api_requests.yaml` | Installs `python3-requests`, needed by `community.docker` modules that talk to the Docker API directly. |
-| `tasks/bootstrap_docker.yaml` | `include_role: docker` for scenarios that assume Docker is already installed, mirroring `deploy.yaml`'s Play 1. |
 | `tasks/resolve_compose_apps.yaml` | Resolves a scenario's `compose_apps` against `app_registry`, same merge as `deploy.yaml`. |
 | `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
 | `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
@@ -177,8 +176,8 @@ the `geerlingguy/docker-ubuntu2604-ansible` base with Docker Engine,
 `fuse-overlayfs`, and `python3-requests` already installed, so scenarios
 on it skip all three `apt` installs `prepare_dind.yml` otherwise does on
 every run. They use `prepare_dind_prebuilt.yml` (coverage reset only)
-and drop the `bootstrap_docker.yaml` include from `converge.yml`, relying
-on the daemon systemd starts at container boot.
+and `converge.yml` installs nothing Docker-related, relying on the daemon
+systemd starts at container boot.
 
 `docker`'s own scenario is never migrated to this image — it tests that
 installation from a clean base, and baking Docker in would make that
@@ -188,9 +187,9 @@ doesn't touch the baked `daemon.json`, so only its now-redundant
 dropped from its own `prepare.yml`, the systemd drop-in stays.
 
 Every other DinD scenario is on this image. Migrating one: swap the
-`image:` and `prepare:` playbook in `molecule.yml`, then delete the
-`bootstrap_docker.yaml` include task (and the `install_docker_api_requests.yaml`
-one right after it, where present) from `converge.yml`.
+`image:` and `prepare:` playbook in `molecule.yml`, then delete any
+Docker-install tasks (including `install_docker_api_requests.yaml`
+where present) from `converge.yml`.
 
 ### Base config
 

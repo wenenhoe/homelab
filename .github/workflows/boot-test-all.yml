@@ -21,20 +21,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      # Exclusion list + per-app reasoning lives in
+      # .github/compose-boot-test-exclusions.txt, read by
+      # tools/ci/scope/compose_apps.py — the one place every compose-app
+      # list is built.
       - name: List every compose app except the excluded ones
         id: list
-        run: |
-          # Exclusion list + per-app reasoning lives in
-          # .github/compose-boot-test-exclusions.txt — the single source
-          # of truth shared with pr-checks.yml's detect-changes and
-          # compose-syntax-check.
-          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
-          apps=$(find docker -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
-            | grep -vE "^($excluded)\$" \
-            | sort \
-            | jq -R . | jq -sc .)
-          echo "apps=$apps" >> "$GITHUB_OUTPUT"
-          echo "Testing apps: $apps"
+        run: uv run python -m ci.scope.compose_apps all
+        working-directory: tools
 
   compose-boot-test-all:
     needs: list-apps

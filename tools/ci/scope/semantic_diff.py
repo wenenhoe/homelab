@@ -26,11 +26,12 @@ from __future__ import annotations
 
 import ast
 import re
-import subprocess
 import tomllib
 from pathlib import Path
 
 import yaml
+
+from ci.scope.diff import read_at
 
 # YAML that Ansible, ansible-galaxy or Molecule loads itself.
 ELIGIBLE_YAML = tuple(
@@ -106,12 +107,6 @@ def _python_signature(raw: bytes) -> tuple:
     shebang = lines[0] if lines and lines[0].startswith("#!") else None
     coding = tuple(line for line in lines[:2] if _CODING.match(line))
     return shebang, coding, ast.dump(ast.parse(text))
-
-
-def read_at(root: Path, rev: str, path: str) -> bytes | None:
-    """`path` as of `rev`, or None if it doesn't exist there."""
-    result = subprocess.run(["git", "show", f"{rev}:{path}"], cwd=root, capture_output=True, check=False)
-    return result.stdout if result.returncode == 0 else None
 
 
 def is_noop_between(root: Path, base: str, head: str, path: str) -> bool:

@@ -28,6 +28,7 @@ import os
 import sys
 from pathlib import Path
 
+from ci.output import write_output
 from ci.scope import semantic_diff
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -79,12 +80,8 @@ def main(argv: list[str] | None = None) -> int:
     except FilterError as exc:
         print(f"::error::{exc}", file=sys.stderr)
         return 1
-    lines = [f"{name}={str(value).lower()}" for name, value in results.items()]
-    print("\n".join(lines))
-    output = os.environ.get("GITHUB_OUTPUT")
-    if output:
-        with open(output, "a") as fh:
-            fh.write("\n".join(lines) + "\n")
+    for name, value in results.items():
+        write_output(name, str(value).lower())
     return 0
 
 

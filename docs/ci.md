@@ -31,7 +31,10 @@ type in the repo:
 - `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`,
   its `Dockerfile`, or any file under `docker/<app>/configs/` or
   `docker/<app>/scripts/`, touched, minus the exclusion list (below).
-  The `compose` role renders and stages `configs/` and `scripts/` before
+  A directory with no compose file isn't an app. All of it is
+  [`tools/ci/scope/compose_apps.py`](../tools/ci/scope/compose_apps.py),
+  the one reader of the exclusion list (see
+  [Compose boot-test](#compose-boot-test)). The `compose` role renders and stages `configs/` and `scripts/` before
   the stack boots, and `compose-boot-test` builds the `Dockerfile` in
   place of the published image, so a change to any of them alters what
   it actually exercises.
@@ -44,8 +47,8 @@ type in the repo:
 - `python_unit_tests` — `ansible/scripts/*.py`, `.github/scripts/*.py`,
   `tools/cloud_credentials/**`,
   `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci/**`,
-  `.github/scripts/detect-changed-*.sh`,
   `.github/scripts/shadow-tag-local-image.sh`,
+  `.github/scripts/build-and-smoke-test-image.sh`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
   `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
@@ -179,7 +182,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`.github/scripts/detect-changed-*.sh`/`.github/scripts/shadow-tag-local-image.sh`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`.github/scripts/shadow-tag-local-image.sh`/`.github/scripts/build-and-smoke-test-image.sh`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`.github/scripts/*.py`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
@@ -649,7 +652,18 @@ only for this job's lifetime.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
-unchecked.
+unchecked. That job checks each changed `compose*.yaml` under an excluded
+app (not the `.j2` templates, which aren't valid compose until rendered),
+runs every file even after one fails, and stubs an empty `.env` where an
+explicit `env_file:` needs one.
+
+`tools/ci/scope/compose_apps.py` is the only code that reads the exclusion
+list, for three callers: `detect-changes` (`changed`, which also produces
+the Dockerfile list), `boot-test-all.yml` (`all`) and `compose-syntax-check`
+(`syntax-check`). Names are matched exactly, and
+`tools/tests/ci/scope/` asserts that every exclusion names a real
+`docker/` directory and that every directory is either a compose app or
+excluded.
 
 ## Dockerfile changes
 
@@ -662,8 +676,8 @@ edit that kept the same tag tested the old image, and a version bump
 pinned a tag that doesn't exist in `ghcr.io` until after merge.
 
 Two pieces close that gap, both keyed off which `Dockerfile` changed
-(`.github/scripts/detect-changed-dockerfiles.sh`, and `Dockerfile` in
-`detect-changed-compose-apps.sh`):
+(`ci.scope.compose_apps`'s `dockerfiles` output, and `Dockerfile` among an
+app's boot-test inputs):
 
 - **`dockerfile-build-check`** builds each changed Dockerfile with
   `docker build`, without pushing, tagged `local/<app>:pr-check`

@@ -57,13 +57,13 @@ python_unit_tests:
   - 'tools/cloud_credentials/**'
   - 'tools/openbao_utils/**'
   - 'tools/utils/**'
-  # Decides the molecule matrix in detect-changes itself (see
+  # CI logic that detect-changes and the other workflows run (see
   # docs/ci.md#molecule-watch-sets), so a change to it is tested here.
   - 'tools/ci/**'
   # Bash, but tested here: tools/tests/ci/scope/test_ci_scripts.py runs
-  # each against a fixture repo.
-  - '.github/scripts/detect-changed-*.sh'
+  # each against a stub docker.
   - '.github/scripts/shadow-tag-local-image.sh'
+  - '.github/scripts/build-and-smoke-test-image.sh'
   - 'ansible/molecule-coverage/molecule_cov/**'
   # Sibling of molecule_cov/ above - test_callback_plugin.py
   # imports it directly via sys.path, same pattern.

@@ -25,7 +25,7 @@ jobs:
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
-      dockerfiles: ${{ steps.dockerfiles.outputs.dockerfiles }}
+      dockerfiles: ${{ steps.compose.outputs.dockerfiles }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -70,13 +70,16 @@ jobs:
         run: uv run python -m ci.scope.molecule_scope "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
         working-directory: tools
 
-      - name: Determine which compose stacks to boot-test
+      # One step for both: compose apps to boot-test and Dockerfiles to
+      # build (tools/ci/scope/compose_apps.py; the exclusion list it reads
+      # is .github/compose-boot-test-exclusions.txt).
+      - name: Determine which compose stacks to boot-test and Dockerfiles to build
         id: compose
-        run: .github/scripts/detect-changed-compose-apps.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
-
-      - name: Determine which Dockerfiles to build
-        id: dockerfiles
-        run: .github/scripts/detect-changed-dockerfiles.sh "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        run: >-
+          uv run python -m ci.scope.compose_apps changed
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # Single-writer cache population — see docs/ci.md#cache-warming for why
   # this exists as its own job rather than letting every uv-consuming job
@@ -384,7 +387,9 @@ jobs:
       - name: Build and smoke-test ${{ matrix.app }}'s image
         run: .github/scripts/build-and-smoke-test-image.sh "${{ matrix.app }}"
 
-  # Fallback for stacks the boot-test job deliberately excludes
+  # Fallback for stacks the boot-test job deliberately excludes: only the
+  # excluded apps are checked, since anything compose-boot-test covers gets
+  # a stronger check there. See docs/ci.md#compose-boot-test.
   compose-syntax-check:
     needs: detect-changes
     if: needs.detect-changes.outputs.any_compose == 'true'
@@ -393,41 +398,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 0 # needed for the raw `git diff $BASE $HEAD` below
+          fetch-depth: 0 # the diff needs both the base and head commits
 
-      - name: Validate every changed compose file parses
-        run: |
-          # Only the apps compose-boot-test skips — anything it already
-          # covers gets a stronger check there, no need to duplicate it
-          # here. Same source file as detect-changes' compose step above,
-          # so there's nothing to keep "in sync" by hand anymore.
-          excluded=$(grep -vE '^\s*#|^\s*$' .github/compose-boot-test-exclusions.txt | paste -sd'|' -)
-          BASE="${{ github.event.pull_request.base.sha }}"
-          HEAD="${{ github.event.pull_request.head.sha }}"
-          changed=$(git diff --name-only "$BASE" "$HEAD" \
-            | grep -E '^docker/.*/compose.*\.yaml$' \
-            | grep -E "^docker/($excluded)/" || true)
-          [ -z "$changed" ] && { echo "No excluded-app compose files changed."; exit 0; }
-          for f in $changed; do
-            [ -f "$f" ] || continue # deleted, not modified — nothing to validate
-            echo "=== $f ==="
-            dir=$(dirname "$f")
-            # An explicit env_file: entry must exist for `config --quiet`
-            # to pass, unlike the implicit top-level .env — an empty stub
-            # is enough since only syntax is being validated here.
-            stub_created=0
-            if [ ! -e "$dir/.env" ]; then
-              touch "$dir/.env"
-              stub_created=1
-            fi
-            if docker compose -f "$f" config --quiet; then
-              rc=0
-            else
-              rc=$?
-            fi
-            [ "$stub_created" -eq 1 ] && rm -f "$dir/.env"
-            [ "$rc" -eq 0 ] || exit "$rc"
-          done
+      - name: Setup uv
+        uses: ./.github/actions/setup-uv-ansible
+
+      - name: Validate every changed excluded-app compose file parses
+        run: >-
+          uv run python -m ci.scope.compose_apps syntax-check
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # See docs/security-scanning.md#trivy-security-scans.
   trivy-scan:

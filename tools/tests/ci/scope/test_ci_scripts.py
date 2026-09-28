@@ -1,19 +1,15 @@
-"""Tests for the bash scripts detect-changes and the boot-test workflow run.
+"""Tests for the bash scripts the boot-test and Dockerfile jobs run.
 
-Each script runs for real against a throwaway git repo (the detect
-scripts) or with a stub `docker` on PATH (shadow-tag-local-image.sh), so
-what's asserted is the script's actual output and the docker commands it
-issues, not a re-implementation of its logic. Needs `jq`, which the
-detect scripts call and CI's runners ship.
+Each runs for real with a stub `docker` on PATH, so what's asserted is
+the docker commands the script issues, not a re-implementation of its
+logic.
 
 Run via `uv run pytest tools/tests/ -v`.
 """
 
 from __future__ import annotations
 
-import json
 import os
-import shutil
 import subprocess
 import tempfile
 import unittest
@@ -21,8 +17,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 SCRIPTS = REPO_ROOT / ".github/scripts"
-
-GIT_ENV = {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
 
 
 class ScratchRepo(unittest.TestCase):
@@ -35,111 +29,6 @@ class ScratchRepo(unittest.TestCase):
         path = self.root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text)
-
-    def git(self, *args: str) -> str:
-        env = {**os.environ, **GIT_ENV}
-        return subprocess.run(["git", *args], cwd=self.root, env=env, capture_output=True, text=True, check=True).stdout.strip()
-
-    def commit(self, message: str) -> str:
-        self.git("add", "-A")
-        self.git("commit", "-q", "--allow-empty", "-m", message)
-        return self.git("rev-parse", "HEAD")
-
-
-@unittest.skipUnless(shutil.which("jq"), "the detect scripts need jq")
-class DetectScriptTests(ScratchRepo):
-    """detect-changed-compose-apps.sh and detect-changed-dockerfiles.sh."""
-
-    def setUp(self):
-        super().setUp()
-        self.git("init", "-q")
-        self.write(".github/compose-boot-test-exclusions.txt", "# excluded\ncaddy\n")
-        for app in ("lldap", "wastebin", "caddy", "dashy", "plain"):
-            self.write(f"docker/{app}/compose.yaml{'.j2' if app == 'lldap' else ''}")
-        self.write("docker/lldap/configs/env.j2")
-        self.write("docker/lldap/scripts/run.sh")
-        self.write("docker/wastebin/Dockerfile")
-        self.write("docker/caddy/Dockerfile")
-        self.write("docker/caddy/configs/env.j2")
-        self.write("docker/dashy/configs/conf.yaml.j2")
-        self.write("docker/openbao/policies/controller.hcl")
-        self.write("docker/molecule-dind/Dockerfile")
-        self.write("docs/ci.md")
-        self.base = self.commit("base")
-
-    def run_script(self, script: str, key: str) -> list[str]:
-        head = self.commit("change")
-        out = self.root / "out.txt"
-        env = {**os.environ, "GITHUB_OUTPUT": str(out)}
-        result = subprocess.run(["bash", str(SCRIPTS / script), self.base, head], cwd=self.root, env=env, capture_output=True, text=True, check=False)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        line = out.read_text().strip()
-        self.assertTrue(line.startswith(f"{key}="), line)
-        return json.loads(line.removeprefix(f"{key}="))
-
-    def apps(self) -> list[str]:
-        return self.run_script("detect-changed-compose-apps.sh", "apps")
-
-    def dockerfiles(self) -> list[str]:
-        return self.run_script("detect-changed-dockerfiles.sh", "dockerfiles")
-
-    def test_compose_apps_configs_change(self):
-        self.write("docker/lldap/configs/env.j2", "changed\n")
-        self.assertEqual(self.apps(), ["lldap"])
-
-    def test_compose_apps_scripts_change(self):
-        self.write("docker/lldap/scripts/run.sh", "changed\n")
-        self.assertEqual(self.apps(), ["lldap"])
-
-    def test_compose_apps_templated_compose_change(self):
-        self.write("docker/lldap/compose.yaml.j2", "changed\n")
-        self.assertEqual(self.apps(), ["lldap"])
-
-    def test_compose_apps_dockerfile_change_queues_the_app(self):
-        self.write("docker/wastebin/Dockerfile", "changed\n")
-        self.assertEqual(self.apps(), ["wastebin"])
-
-    def test_compose_apps_excluded_app_is_never_queued(self):
-        self.write("docker/caddy/configs/env.j2", "changed\n")
-        self.write("docker/caddy/Dockerfile", "changed\n")
-        self.assertEqual(self.apps(), [])
-
-    def test_compose_apps_directory_without_a_compose_file_is_never_queued(self):
-        self.write("docker/molecule-dind/Dockerfile", "changed\n")
-        self.write("docker/openbao/configs/x.j2", "new\n")
-        self.assertEqual(self.apps(), [])
-
-    def test_compose_apps_files_outside_configs_and_scripts_are_ignored(self):
-        self.write("docker/openbao/policies/controller.hcl", "changed\n")
-        self.write("docs/ci.md", "changed\n")
-        self.assertEqual(self.apps(), [])
-
-    def test_compose_apps_deleting_only_a_config_still_queues_the_app(self):
-        (self.root / "docker/lldap/configs/env.j2").unlink()
-        self.assertEqual(self.apps(), ["lldap"])
-
-    def test_compose_apps_deleting_the_whole_app_queues_nothing(self):
-        shutil.rmtree(self.root / "docker/dashy")
-        self.assertEqual(self.apps(), [])
-
-    def test_compose_apps_two_apps_are_sorted(self):
-        self.write("docker/lldap/configs/env.j2", "changed\n")
-        self.write("docker/dashy/configs/conf.yaml.j2", "changed\n")
-        self.assertEqual(self.apps(), ["dashy", "lldap"])
-
-    def test_dockerfiles_change_is_queued_even_for_an_excluded_app(self):
-        self.write("docker/caddy/Dockerfile", "changed\n")
-        self.write("docker/molecule-dind/Dockerfile", "changed\n")
-        self.assertEqual(self.dockerfiles(), ["caddy", "molecule-dind"])
-
-    def test_dockerfiles_ignores_everything_but_the_dockerfile(self):
-        self.write("docker/caddy/compose.yaml", "changed\n")
-        self.write("docker/lldap/configs/env.j2", "changed\n")
-        self.assertEqual(self.dockerfiles(), [])
-
-    def test_dockerfiles_deleted_dockerfile_is_not_queued(self):
-        (self.root / "docker/wastebin/Dockerfile").unlink()
-        self.assertEqual(self.dockerfiles(), [])
 
 
 class ShadowTagTests(ScratchRepo):

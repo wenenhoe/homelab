@@ -56,14 +56,15 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
 import yaml
 
+from ci.output import write_output
 from ci.scope import semantic_diff
+from ci.scope.diff import DiffError, changed_files
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ROLES_DIR = "ansible/roles"
@@ -380,21 +381,6 @@ def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool]
     return sorted(queued), log
 
 
-def changed_files(root: Path, base: str, head: str) -> list[str]:
-    # --no-renames lists both sides of a rename, so a file moved out of a
-    # watched path still counts as touching it.
-    result = subprocess.run(
-        ["git", "diff", "--name-only", "--no-renames", base, head],
-        cwd=root,
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise ScopeError(f"git diff failed: {result.stderr.strip()}")
-    return [line for line in result.stdout.splitlines() if line]
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("base")
@@ -406,18 +392,12 @@ def main(argv: list[str] | None = None) -> int:
             changed_files(REPO_ROOT, args.base, args.head),
             lambda path: semantic_diff.is_noop_between(REPO_ROOT, args.base, args.head, path),
         )
-    except ScopeError as exc:
+    except (ScopeError, DiffError) as exc:
         print(f"::error::{exc}", file=sys.stderr)
         return 1
     print("\n".join(log))
-    line = f"roles={json.dumps(roles, separators=(',', ':'))}"
     print(f"Testing roles: {roles}")
-    output = os.environ.get("GITHUB_OUTPUT")
-    if output:
-        with open(output, "a") as fh:
-            fh.write(line + "\n")
-    else:
-        print(line)
+    write_output("roles", json.dumps(roles, separators=(",", ":")))
     return 0
 
 

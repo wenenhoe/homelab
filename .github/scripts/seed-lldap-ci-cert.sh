@@ -23,6 +23,7 @@ lldap_fqdn="$2"
 ca_password="ci-dummy-step-ca-password"
 step_ca_image="smallstep/step-ca:0.30.2"
 step_cli_image="smallstep/step-cli:0.31.0"
+alpine_image="alpine:3.24"
 
 workdir=$(mktemp -d)
 # mktemp -d defaults to 0700 — smallstep/step-cli runs as a non-root uid
@@ -83,5 +84,5 @@ docker run --rm --network "$network" -v "$workdir:/work" "$step_cli_image" \
     --root /work/root_ca.crt \
     --force
 
-docker run --rm -v lldap_certs:/out -v "$workdir:/in:ro" alpine:3.24 \
+docker run --rm -v lldap_certs:/out -v "$workdir:/in:ro" "$alpine_image" \
   cp /in/fullchain.pem /in/privkey.pem /out/

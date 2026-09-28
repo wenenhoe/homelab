@@ -2,13 +2,15 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
   vars:
     compose_deploy_dir: /opt/stacks
   tasks:
     # --- Sanity: both volumes carry the fixture content before any reset ---
     - name: Confirm reset_app_a's volume has both seeded config and runtime state
       ansible.builtin.command: >-
-        docker run --rm -v reset_app_a_data:/vol alpine:3.24
+        docker run --rm -v reset_app_a_data:/vol {{ molecule_helpers_alpine_image }}
         sh -c "cat /vol/seeded.txt && cat /vol/runtime.db"  # noqa: command-instead-of-module
       register: compose_reset_a_before
       changed_when: false
@@ -18,7 +20,7 @@
 
     - name: Confirm reset_app_b's volume has runtime state (no seeded content declared)
       ansible.builtin.command: >-
-        docker run --rm -v reset_app_b_cache:/vol alpine:3.24
+        docker run --rm -v reset_app_b_cache:/vol {{ molecule_helpers_alpine_image }}
         sh -c "cat /vol/runtime.db"  # noqa: command-instead-of-module
       register: compose_reset_b_before
       changed_when: false
@@ -64,7 +66,7 @@
 
     - name: Confirm the volume's content is untouched by the refused attempt
       ansible.builtin.command: >-
-        docker run --rm -v reset_app_a_data:/vol alpine:3.24
+        docker run --rm -v reset_app_a_data:/vol {{ molecule_helpers_alpine_image }}
         sh -c "cat /vol/seeded.txt && cat /vol/runtime.db"  # noqa: command-instead-of-module
       register: compose_reset_a_untouched
       changed_when: false
@@ -92,7 +94,7 @@
 
     - name: Confirm the seeded config was restored but runtime state was not
       ansible.builtin.command: >-
-        docker run --rm -v reset_app_a_data:/vol alpine:3.24
+        docker run --rm -v reset_app_a_data:/vol {{ molecule_helpers_alpine_image }}
         sh -c "test -f /vol/runtime.db && echo RUNTIME_SURVIVED || cat /vol/seeded.txt"  # noqa: command-instead-of-module
       register: compose_reset_a_after
       changed_when: false
@@ -134,7 +136,7 @@
 
     - name: Confirm reset_app_b's volume came back genuinely empty
       ansible.builtin.command: >-
-        docker run --rm -v reset_app_b_cache:/vol alpine:3.24
+        docker run --rm -v reset_app_b_cache:/vol {{ molecule_helpers_alpine_image }}
         sh -c "ls -A /vol"  # noqa: command-instead-of-module
       register: compose_reset_b_after
       changed_when: false

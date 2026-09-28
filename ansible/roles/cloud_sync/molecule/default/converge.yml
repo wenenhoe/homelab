@@ -2,6 +2,8 @@
 - name: Converge
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
   vars:
     ansible_user: root
     compose_deploy_dir: /opt/stacks
@@ -195,7 +197,7 @@
     - name: Start a persistent aws-cli utility container for test-fixture setup
       community.docker.docker_container:
         name: cloud-sync-test-admin-cli
-        image: amazon/aws-cli:2.15.0
+        image: "{{ molecule_helpers_aws_cli_image }}"
         entrypoint: ["sleep"]
         command: ["infinity"]
         env:

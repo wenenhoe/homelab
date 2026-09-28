@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
   vars:
     compose_deploy_dir: /opt/stacks
   tasks:
@@ -44,7 +46,7 @@
       # Reads content stored inside a Docker named volume - a throwaway
       # container is the only way to read that back.
       ansible.builtin.command: >-  # noqa: command-instead-of-module
-        docker run --rm -v scriptapp_seeded_scripts:/scripts alpine:3.24
+        docker run --rm -v scriptapp_seeded_scripts:/scripts {{ molecule_helpers_alpine_image }}
         cat /scripts/run.sh
       register: compose_seeded_volume_content
       changed_when: false

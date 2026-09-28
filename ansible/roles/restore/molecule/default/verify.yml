@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
   vars:
     restore_before_marker: /tmp/restore-molecule-default-before-started-at
     restore_default_owner_marker: /tmp/restore-molecule-default-canary-owner
@@ -48,7 +50,7 @@
     - name: Read back the volume's content post-restore
       community.docker.docker_container:
         name: restore-default-content-check
-        image: alpine:3.24
+        image: "{{ molecule_helpers_alpine_image }}"
         volumes:
           - restore_target_data:/data:ro
         command: "cat /data/canary.txt"
@@ -82,7 +84,7 @@
     - name: Read back the restored canary's owner inside the volume
       community.docker.docker_container:
         name: restore-default-owner-check
-        image: alpine:3.24
+        image: "{{ molecule_helpers_alpine_image }}"
         volumes:
           - restore_target_data:/data:ro
         command: "stat -c %u:%g /data/canary.txt"

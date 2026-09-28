@@ -42,6 +42,8 @@
   hosts: app_hosts
   gather_facts: false
   become: true
+  vars:
+    volume_rm_image: "alpine:3.24"
   tasks:
     - name: Require explicit confirmation
       ansible.builtin.assert:
@@ -82,7 +84,7 @@
     - name: "Remove file(s) from the volume ({{ volume_rm_full_name }})"
       community.docker.docker_container:
         name: "{{ volume_rm_app }}-{{ volume_rm_volume }}-filerm"
-        image: alpine:3.24
+        image: "{{ volume_rm_image }}"
         command:
           - sh
           - -c

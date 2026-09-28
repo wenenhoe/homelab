@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
   vars:
     offsite_backup_s3_bucket: molecule-test-ensure-bucket
     seaweedfs_admin_access_key: molecule-test-access-key
@@ -32,7 +34,7 @@
     - name: Confirm the bucket actually exists (list objects within it)
       community.docker.docker_container:
         name: seaweedfs-bucket-verify-listing
-        image: amazon/aws-cli:2.15.0
+        image: "{{ molecule_helpers_aws_cli_image }}"
         env:
           AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
           AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"

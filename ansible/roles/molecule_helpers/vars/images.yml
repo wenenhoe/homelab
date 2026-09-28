@@ -1,0 +1,14 @@
+---
+# Images that Molecule playbooks (converge/verify/cleanup) run directly.
+# Each play loads this file with `vars_files`, not through the Molecule
+# base config: a base-config change reruns every scenario
+# (tools/ci/scope/molecule_scope.py), while a file a scenario references
+# by path only reruns that scenario.
+#
+# Renovate reads this file through a regex manager in
+# .github/renovate.json5; its ansible manager only looks in tasks/.
+molecule_helpers_alpine_image: "alpine:3.24"
+molecule_helpers_aws_cli_image: "amazon/aws-cli:2.15.0"
+molecule_helpers_curl_image: "curlimages/curl:8.22.0"
+molecule_helpers_lldap_image: "ghcr.io/lldap/lldap:2026-08-08-alpine"
+molecule_helpers_step_cli_image: "smallstep/step-cli:0.31.0"

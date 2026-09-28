@@ -855,7 +855,8 @@ Nothing is listed by hand. It collects references from:
   `docker`, applied to the files it names. These are the pins Renovate
   tracks outside compose: an rclone image in a systemd unit and a shell
   script, step-cli and step-ca in variable defaults and a CI script, the
-  OpenBao image, and the Renovate execution image. A manager that no longer
+  OpenBao image, the Renovate execution image, and the images the Molecule
+  playbooks run directly (`molecule_helpers/vars/images.yml`). A manager that no longer
   matches any file, or a file that no longer matches its manager, fails the
   run: the pin moved, and this check would otherwise stop seeing it silently.
 

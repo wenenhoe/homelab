@@ -131,8 +131,34 @@ Scaffolding for scenarios, not a role under test:
 | `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
 | `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
 | `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |
+| `vars/images.yml` | The images Molecule playbooks run directly (`alpine`, `aws-cli`, `curl`, `lldap`, `step-cli`), as `molecule_helpers_*_image` variables. See [Shared image pins](#shared-image-pins). |
 | `fixtures/` | Shared compose fixtures symlinked into multiple scenarios/roles — see the rest of this doc for what's in here and why. |
 | `requirements.yml` / `role-requirements.yml` | Shared Galaxy collection/role deps (`community.docker`, `ansible.posix`). |
+
+### Shared image pins
+
+A converge, verify or cleanup playbook never writes an image literal; it
+loads `vars/images.yml` and references the variable:
+
+```yaml
+vars_files:
+  - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
+```
+
+then `image: "{{ molecule_helpers_alpine_image }}"`, or the same
+expression inside a `docker run` string. A task file a play imports uses
+the variables its including play loaded.
+
+The file is loaded per play rather than through the base config below
+because CI reruns every scenario when the base config changes, but only
+the scenarios that reference a file by path when that file changes: an
+`alpine` bump queues the roles that use it, not all of them.
+
+Renovate's ansible manager only reads `tasks/`, so a regex manager in
+`.github/renovate.json5` tracks this file, and a `packageRules` group per
+image keeps its copies in prod tasks and compose fixtures in the same PR.
+Fixture `compose.yaml` files can't use Ansible variables and keep their
+own pin, which the `docker-compose` manager tracks.
 
 ### Why `fuse-overlayfs`
 

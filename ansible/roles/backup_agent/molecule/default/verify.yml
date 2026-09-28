@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
   vars:
     compose_deploy_dir: /opt/stacks
     molecule_test_bucket: molecule-test-backups

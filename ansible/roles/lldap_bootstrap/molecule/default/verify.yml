@@ -2,6 +2,8 @@
 - name: Verify
   hosts: all
   become: true
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images.yml"
   tasks:
     # The role's own internal check (tasks/main.yaml) already proves the
     # observer account binds with the right password — asserting that
@@ -15,7 +17,7 @@
     - name: Query the observer account's groups as admin
       community.docker.docker_container:
         name: lldap-bootstrap-verify-groups
-        image: curlimages/curl:8.22.0
+        image: "{{ molecule_helpers_curl_image }}"
         entrypoint:
           - /bin/sh
           - -c

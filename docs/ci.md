@@ -118,6 +118,10 @@ consumer are eligible:
 - Python, compared as its AST plus the shebang and any `coding:` line,
   which the interpreter reads. A docstring is code.
 - `pyproject.toml` and `uv.lock`, compared as parsed TOML.
+  `pyproject.toml` is compared without `[tool.ruff]`, which only
+  configures a linter `pre-commit-checks` runs over every file anyway.
+  Every other table counts, including one added later, so an unknown
+  table errs toward running the checks.
 
 Anything else (`.j2` templates, shell, compose files), a file added or
 deleted, a file that doesn't parse on either side, and a mode-only

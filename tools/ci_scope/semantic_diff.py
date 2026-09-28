@@ -14,6 +14,12 @@ fixture or a cloud-init file, where a leading `#cloud-config` comment
 means something to the receiver), Python, and TOML. Anything else, any
 file added, deleted or unparseable on either side, and any change that
 leaves the bytes identical (a mode change), is a real change.
+
+pyproject.toml is compared without `[tool.ruff]`, which only configures
+a linter that pre-commit-checks runs over every file on every PR. Every
+other table (the dependencies, the dependency groups, `[tool.uv]`, and
+any tool table added later) still counts, so an unknown one errs toward
+running the check.
 """
 
 from __future__ import annotations
@@ -39,6 +45,8 @@ ELIGIBLE_YAML = tuple(
     )
 )
 ELIGIBLE_TOML = ("pyproject.toml", "uv.lock")
+# pyproject.toml tables no CI job other than pre-commit-checks reads.
+LINT_ONLY_TOML_TABLES = (("tool", "ruff"),)
 
 # UnicodeDecodeError is a ValueError.
 _PARSE_ERRORS = (yaml.YAMLError, SyntaxError, ValueError)
@@ -55,10 +63,34 @@ def is_noop_change(path: str, old: bytes | None, new: bytes | None) -> bool:
         if path.endswith(".py"):
             return _python_signature(old) == _python_signature(new)
         if path in ELIGIBLE_TOML:
-            return tomllib.loads(old.decode()) == tomllib.loads(new.decode())
+            return _toml_data(path, old) == _toml_data(path, new)
     except _PARSE_ERRORS:
         return False
     return False
+
+
+def _toml_data(path: str, raw: bytes) -> dict:
+    data = tomllib.loads(raw.decode())
+    if path == "pyproject.toml":
+        for table in LINT_ONLY_TOML_TABLES:
+            _drop_table(data, table)
+    return data
+
+
+def _drop_table(data: dict, table: tuple[str, ...]) -> None:
+    """Remove a nested table, and any parent table that leaves empty."""
+    parent = data
+    for key in table[:-1]:
+        if not isinstance(parent.get(key), dict):
+            return
+        parent = parent[key]
+    parent.pop(table[-1], None)
+    for depth in range(len(table) - 1, 0, -1):
+        node = data
+        for key in table[: depth - 1]:
+            node = node[key]
+        if node[table[depth - 1]] == {}:
+            del node[table[depth - 1]]
 
 
 def _yaml_data(raw: bytes) -> list:

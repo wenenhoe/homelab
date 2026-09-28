@@ -123,6 +123,50 @@ class TomlTests(unittest.TestCase):
         self.assertTrue(noop("pyproject.toml", self.BASE, "# note\n" + self.BASE))
         self.assertFalse(noop("pyproject.toml", self.BASE, self.BASE.replace("a>=1", "a>=2")))
 
+    PYPROJECT = (
+        '[project]\nname = "x"\ndependencies = ["a>=1"]\n\n[dependency-groups]\ndev = ["pytest"]\n\n[tool.uv]\npackage = false\n\n'
+        '[tool.ruff]\nline-length = 160\n\n[tool.ruff.lint]\nselect = ["E"]\n\n[tool.ruff.lint.per-file-ignores]\n"a/**" = ["S101"]\n'
+    )
+
+    def test_ruff_tables_are_ignored_in_pyproject(self):
+        for change in ("line-length = 100", 'select = ["E", "F"]', '"a/**" = ["S101", "S105"]'):
+            edited = self.PYPROJECT.replace("line-length = 160", change) if "line-length" in change else self.PYPROJECT
+            if "select" in change:
+                edited = self.PYPROJECT.replace('select = ["E"]', change)
+            if "a/**" in change:
+                edited = self.PYPROJECT.replace('"a/**" = ["S101"]', change)
+            with self.subTest(change=change):
+                self.assertTrue(noop("pyproject.toml", self.PYPROJECT, edited))
+
+    def test_ruff_table_added_or_removed_is_a_noop(self):
+        without = self.PYPROJECT[: self.PYPROJECT.index("[tool.ruff]")]
+        self.assertTrue(noop("pyproject.toml", self.PYPROJECT, without))
+        self.assertTrue(noop("pyproject.toml", without, self.PYPROJECT))
+
+    def test_every_other_pyproject_table_is_real(self):
+        for old, new in (
+            ('dependencies = ["a>=1"]', 'dependencies = ["a>=2"]'),
+            ('dev = ["pytest"]', 'dev = ["pytest", "molecule"]'),
+            ("package = false", "package = true"),
+            ('name = "x"', 'name = "y"'),
+        ):
+            with self.subTest(change=new):
+                self.assertFalse(noop("pyproject.toml", self.PYPROJECT, self.PYPROJECT.replace(old, new)))
+
+    def test_a_new_tool_table_is_real(self):
+        self.assertFalse(noop("pyproject.toml", self.PYPROJECT, self.PYPROJECT + '\n[tool.pytest.ini_options]\naddopts = "-q"\n'))
+
+    def test_ruff_change_alongside_a_dependency_change_is_real(self):
+        edited = self.PYPROJECT.replace("line-length = 160", "line-length = 100").replace("a>=1", "a>=2")
+        self.assertFalse(noop("pyproject.toml", self.PYPROJECT, edited))
+
+    def test_the_real_pyproject_has_the_tables_this_relies_on(self):
+        import tomllib
+
+        data = tomllib.loads((ms.REPO_ROOT / "pyproject.toml").read_text())
+        self.assertIn("ruff", data["tool"])
+        self.assertIn("uv", data["tool"])
+
     def test_uv_lock_is_eligible_and_other_toml_is_not(self):
         self.assertTrue(noop("uv.lock", self.BASE, "# note\n" + self.BASE))
         self.assertFalse(noop("other.toml", self.BASE, "# note\n" + self.BASE))
@@ -188,6 +232,10 @@ class ScopeIntegrationTests(unittest.TestCase):
         self.write("ansible/roles/alpha/tasks/main.yaml", "# why\n- ansible.builtin.debug:\n    msg: hi\n")
         self.write("ansible/roles/beta/tasks/main.yaml", "- ansible.builtin.debug:\n    msg: bye\n")
         self.assertEqual(self.queued(), 'roles=["beta"]')
+
+    def test_ruff_only_pyproject_change_is_not_repo_wide(self):
+        self.write("pyproject.toml", '[project]\nname = "x"\n[tool.ruff]\nline-length = 100\n')
+        self.assertEqual(self.queued(), "roles=[]")
 
     def test_comment_only_pyproject_change_is_not_repo_wide(self):
         self.write("pyproject.toml", '# note\n[project]\nname = "x"\n')

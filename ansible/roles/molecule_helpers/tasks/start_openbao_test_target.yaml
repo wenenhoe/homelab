@@ -162,7 +162,7 @@
 - name: Issue OpenBao's leaf cert from step-ca-test
   community.docker.docker_container:
     name: openbao-test-cert-issue
-    image: smallstep/step-cli:0.30.6
+    image: smallstep/step-cli:0.31.0
     networks:
       - name: "{{ molecule_helpers_openbao_network_name }}"
     volumes:

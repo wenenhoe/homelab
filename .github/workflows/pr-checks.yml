@@ -433,29 +433,21 @@ jobs:
     if: always()
     runs-on: ubuntu-26.04
     steps:
-      # The matrix jobs report skipped both when nothing
-      # changed and when an upstream job failed, so the upstream jobs must
-      # be checked on their own: only they distinguish the two.
+      # Only tools/ci is needed, and only its stdlib — plain python3, no
+      # uv. A checkout that fails fails the gate, which blocks the merge.
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: tools/ci
+
+      # The verdict is tools/ci/gates/matrix_gate.py: the matrix jobs (named
+      # in MATRIX_JOBS, kept equal to the jobs that use a matrix by a test)
+      # report skipped both when nothing changed and when an upstream job
+      # failed, so every other job in `needs` must be exactly `success` and
+      # only the matrix jobs may be skipped.
       - name: Fail unless upstream jobs passed and matrix jobs did not fail
         env:
-          UPSTREAM: >-
-            ${{ needs.detect-changes.result }}
-            ${{ needs.warm-uv-cache.result }}
-            ${{ needs.warm-galaxy-cache.result }}
-          MATRIX: >-
-            ${{ needs.molecule.result }}
-            ${{ needs.compose-boot-test.result }}
-            ${{ needs.dockerfile-build-check.result }}
-        run: |
-          for r in $UPSTREAM; do
-            if [[ "$r" != "success" ]]; then
-              echo "::error::An upstream job did not succeed (result: $r)."
-              exit 1
-            fi
-          done
-          for r in $MATRIX; do
-            if [[ "$r" != "success" && "$r" != "skipped" ]]; then
-              echo "::error::A required job did not pass (result: $r)."
-              exit 1
-            fi
-          done
+          NEEDS: ${{ toJSON(needs) }}
+          MATRIX_JOBS: molecule compose-boot-test dockerfile-build-check
+        run: python3 -m ci.gates.matrix_gate
+        working-directory: tools

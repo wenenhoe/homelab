@@ -71,23 +71,13 @@ jobs:
       #    real .yaml files here — harmless, just re-evaluates their
       #    tasks under their own entry alongside their host playbook).
       #
-      # Generated inline rather than committed, so the secret scan job
-      # below can't also auto-discover it if Trivy's cwd-based config
-      # lookup ever changes.
+      # Generated at run time rather than committed, so the secret scan
+      # job below can't also auto-discover it if Trivy's cwd-based config
+      # lookup ever changes. tools/ci/scan/trivy_config.py writes it (and
+      # fails if there are no playbooks, rather than scanning nothing).
       - name: Write ansible-only misconfig-scanners config
-        run: |
-          {
-            echo "misconfiguration:"
-            echo "  scanners:"
-            echo "    - ansible"
-            echo "ansible:"
-            echo "  playbooks:"
-            for f in ansible/playbooks/*.yaml ansible/playbooks/*.yml; do
-              [ -f "$f" ] || continue
-              echo "    - \"${f#ansible/}\""
-            done
-          } > /tmp/trivy-ansible.yaml
-          cat /tmp/trivy-ansible.yaml
+        run: python3 -m ci.scan.trivy_config /tmp/trivy-ansible.yaml
+        working-directory: tools
 
       - name: Trivy Ansible misconfiguration scan
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0

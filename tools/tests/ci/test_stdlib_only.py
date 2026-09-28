@@ -28,6 +28,9 @@ BARE_PYTHON = (
     "gates/__init__.py",
     "gates/compose_health.py",
     "gates/renovate_window.py",
+    "gates/matrix_gate.py",
+    "scan/__init__.py",
+    "scan/trivy_config.py",
 )
 
 
@@ -60,6 +63,8 @@ class StdlibOnlyTests(unittest.TestCase):
             ("_compose-boot-test.yml", "ci.gates.compose_health"),
             ("renovate.yml", "ci.gates.renovate_window"),
             ("build-caddy-image.yml", "ci.images.registry"),
+            ("pr-checks.yml", "ci.gates.matrix_gate"),
+            ("_trivy-scan.yml", "ci.scan.trivy_config"),
         ):
             with self.subTest(module=module):
                 text = (REPO_ROOT / ".github/workflows" / workflow).read_text()

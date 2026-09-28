@@ -19,8 +19,10 @@ it as `python -m ci.<domain>.<module>` from `tools/`:
 - `ci.scope` — what a PR's diff needs run: the Molecule watch sets,
   no-op filtering, the compose-app and Dockerfile lists.
 - `ci.gates` — checks with their own verdicts: the deploy-ordering
-  regression check, the compose health wait, the Renovate window.
+  regression check, the compose health wait, the Renovate window, and
+  `matrix-jobs-gate`.
 - `ci.images` — the image registry and the CI image builds.
+- `ci.scan` — setup for the security scans (the Trivy config).
 
 What stays in workflow YAML or `.github/scripts/` is what needs Actions
 (`uses:` steps, caches, registry login) or is a plain command sequence
@@ -28,8 +30,9 @@ What stays in workflow YAML or `.github/scripts/` is what needs Actions
 tests, `pre-commit`, `pytest`, `molecule test`).
 
 The modules jobs run on the runner's own `python3` (`ci.images.*`,
-`ci.gates.compose_health`, `ci.gates.renovate_window`, `ci.output`,
-`ci.proc`) are standard-library only, so those jobs install nothing;
+`ci.gates.compose_health`, `ci.gates.renovate_window`,
+`ci.gates.matrix_gate`, `ci.scan.*`, `ci.output`, `ci.proc`) are
+standard-library only, so those jobs install nothing;
 `tools/tests/ci/test_stdlib_only.py` enforces it, including that they still
 parse on an older Python than the repo's own. The rest run through
 `uv run`.
@@ -389,6 +392,25 @@ if any genuinely failed (not skipped). It also depends on
 each to succeed: a failure there makes the matrix jobs report
 `skipped`, which would otherwise pass. One fixed name, correct for every
 PR shape.
+
+The verdict is [`tools/ci/gates/matrix_gate.py`](../tools/ci/gates/matrix_gate.py),
+given the whole `needs` context (`toJSON(needs)`) and the matrix jobs'
+names (`MATRIX_JOBS`). Matrix jobs pass on `success` or `skipped`; every
+other job in `needs` must be exactly `success`; any other value, including
+one the check has never seen, fails. It lists every failing job by name
+rather than stopping at the first, and a matrix job named but missing from
+`needs` is an error. `tools/tests/ci/gates/` parses the real workflow to
+keep the two lists honest: every job that uses a matrix (directly, or
+through a reusable workflow that does) must be in the gate's `needs` and in
+`MATRIX_JOBS`, and nothing else may be in `MATRIX_JOBS`. So adding a matrix
+job means adding it to both, and forgetting fails a test rather than
+weakening the gate.
+
+The gate job checks out only `tools/ci` (`sparse-checkout`) and runs the
+module on the runner's `python3`, so it needs no uv and no dependencies. A
+checkout that fails fails the gate, and the merge stays blocked. Like every
+job in this workflow it runs the PR's own code; a PR that edits the gate
+also edits what checks it.
 
 ## Deploy-ordering-check
 

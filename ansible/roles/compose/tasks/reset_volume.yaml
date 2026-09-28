@@ -40,18 +40,24 @@
 # delete task always produced — that's an acceptable fallback for a
 # situation this role has no safe way to resolve on its own.
 - name: "Find any other containers still referencing this volume ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
-  ansible.builtin.command:
-    cmd: >-
-      docker ps -a
-      --filter volume={{ compose_app_item.name }}_{{ compose_volume_item.name }}
-      --format {% raw %}'{{ .Label "com.docker.compose.project" }}'{% endraw %}
-  register: compose_reset_volume_blocking_raw
-  changed_when: false
+  community.docker.docker_host_info:
+    containers: true
+    containers_all: true
+    containers_filters:
+      volume: "{{ compose_app_item.name }}_{{ compose_volume_item.name }}"
+    # Without this the module trims each container to a fixed key list
+    # that omits Labels, which would leave the project list below empty.
+    verbose_output: true
+  register: compose_reset_volume_blocking_info
 
 - name: "Reduce that to the distinct compose projects to tear down and restore"
   ansible.builtin.set_fact:
     compose_reset_volume_blocking_projects: >-
-      {{ compose_reset_volume_blocking_raw.stdout_lines
+      {{ compose_reset_volume_blocking_info.containers
+         | map(attribute='Labels') | map('default', {}, true)
+         | map('dict2items') | flatten
+         | selectattr('key', 'equalto', 'com.docker.compose.project')
+         | map(attribute='value')
          | reject('equalto', '')
          | reject('equalto', compose_app_item.name)
          | unique | list }}

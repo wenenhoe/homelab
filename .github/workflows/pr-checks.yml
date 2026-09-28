@@ -46,7 +46,8 @@ jobs:
 
       - name: Determine which ansible roles to test
         id: roles
-        run: uv run python tools/ci_scope/molecule_scope.py "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        run: uv run python -m ci_scope.molecule_scope "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
       - name: Determine which compose stacks to boot-test
         id: compose

@@ -93,6 +93,39 @@ falls inside it:
   `docker/seaweedfs/configs/s3-identity.json.j2` reach the scenarios
   that read them.
 
+### Comments and formatting don't queue Molecule
+
+Before any of that matching, `detect-changes` drops a changed file whose
+*parsed* content is identical in base and head
+(`tools/ci_scope/semantic_diff.py`). A comment added, edited or
+removed, or a reformat (indentation, quoting, blank lines), queues no
+role, and doesn't trip the repo-wide or `molecule_helpers` fail-safes
+either. The log line says `comments/formatting only -> ignored`.
+
+It compares what the parser produces, not the text, so a `#` line
+inside a YAML block scalar (a script or config written into a file) is
+data and counts as a real change. Only files whose parser is the
+consumer are eligible:
+
+- YAML that Ansible, `ansible-galaxy` or Molecule loads: a role's
+  `tasks/`, `handlers/`, `defaults/`, `vars/`, `meta/`; a scenario's
+  own playbooks, `molecule.yml` and `host_vars/`/`group_vars/`;
+  `molecule_helpers`' playbooks and requirements files;
+  `ansible/requirements.yml`; `ansible/playbooks/`, `inventory/` and
+  `ci-inventory/`; `.config/molecule/`. YAML shipped as content (a
+  compose fixture, a file copied to a host) is not, since a comment
+  there can mean something to whatever reads it (`#cloud-config`).
+- Python, compared as its AST plus the shebang and any `coding:` line,
+  which the interpreter reads. A docstring is code.
+- `pyproject.toml` and `uv.lock`, compared as parsed TOML.
+
+Anything else (`.j2` templates, shell, compose files), a file added or
+deleted, a file that doesn't parse on either side, and a mode-only
+change are real changes. Only the Molecule scope is narrowed: every
+other job's trigger is path-based and unchanged, so `ansible-lint` and
+`pre-commit-checks` still see a comment-only change (a comment can be a
+`# noqa` or `# yamllint disable`).
+
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own — so a change there queues only the
 roles whose watch set contains that file. Two fail-safes always queue
@@ -115,7 +148,7 @@ Because a scenario that links `docker/seaweedfs/` files is queued when
 they change, the `seaweedfs` `compose-boot-test-exclusions.txt` entry
 below stays correct — see there for the SeaweedFS-specific case.
 
-`detect-changes` runs the scanner through `uv run`, so it sets up uv
+`detect-changes` runs the scanner with `uv run python -m ci_scope.molecule_scope` from `tools/`, so it sets up uv
 (no `needs:` on `warm-uv-cache`, and unlocked, for the reasons under
 [Cache warming](#cache-warming)).
 

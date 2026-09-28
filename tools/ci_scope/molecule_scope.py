@@ -35,13 +35,18 @@ resolve (a templated `include_role` name, a role that doesn't exist, a
 dangling symlink, a missing `tasks_from` file) raises ScopeError and
 fails the job instead of being skipped.
 
+Before matching, a changed file whose parsed content is identical in
+base and head (comments or formatting only; see semantic_diff.py) is
+dropped from the diff, so it queues nothing, not even through the
+fail-safes.
+
 Not modelled: paths built any other way (a variable not defined as
 above, a literal continued with `~`), and reads through a file's
 runtime contents. Computed paths that don't exist, that resolve outside
 the repo, or that are the role's own directory or an ancestor of it are
 ignored.
 
-Usage: molecule_scope.py <base-sha> <head-sha>
+Usage (from tools/): python -m ci_scope.molecule_scope <base-sha> <head-sha>
 Writes roles=<json array> to $GITHUB_OUTPUT (stdout if unset).
 """
 
@@ -53,9 +58,12 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import yaml
+
+from ci_scope import semantic_diff
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ROLES_DIR = "ansible/roles"
@@ -334,11 +342,22 @@ def _matches(changed: str, watched_path: str) -> bool:
     return changed.startswith(watched_path) if watched_path.endswith("/") else changed == watched_path
 
 
-def roles_to_test(root: Path, changed: list[str]) -> tuple[list[str], list[str]]:
-    """(roles, log lines) for a list of changed repo-relative paths."""
+def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool] | None = None) -> tuple[list[str], list[str]]:
+    """(roles, log lines) for a list of changed repo-relative paths.
+
+    `is_noop` says a path's change is comments or formatting only; such
+    paths are dropped before anything is matched.
+    """
     roles = role_names(root)
     log: list[str] = []
+    effective: list[str] = []
     for path in changed:
+        if is_noop is not None and is_noop(path):
+            log.append(f"{path}: comments/formatting only -> ignored")
+        else:
+            effective.append(path)
+
+    for path in effective:
         for global_path in GLOBAL_PATHS:
             if _matches(path, global_path):
                 log.append(f"{path}: repo-wide ({global_path}) -> every role")
@@ -346,7 +365,7 @@ def roles_to_test(root: Path, changed: list[str]) -> tuple[list[str], list[str]]
 
     watches = {role: watch_set(root, role) for role in roles}
     queued: set[str] = set()
-    for path in changed:
+    for path in effective:
         hit = False
         for role, watched in watches.items():
             for watched_path, reasons in watched.items():
@@ -376,13 +395,23 @@ def changed_files(root: Path, base: str, head: str) -> list[str]:
     return [line for line in result.stdout.splitlines() if line]
 
 
+def read_at(root: Path, rev: str, path: str) -> bytes | None:
+    """`path` as of `rev`, or None if it doesn't exist there."""
+    result = subprocess.run(["git", "show", f"{rev}:{path}"], cwd=root, capture_output=True, check=False)
+    return result.stdout if result.returncode == 0 else None
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("base")
     parser.add_argument("head")
     args = parser.parse_args(argv)
     try:
-        roles, log = roles_to_test(REPO_ROOT, changed_files(REPO_ROOT, args.base, args.head))
+        roles, log = roles_to_test(
+            REPO_ROOT,
+            changed_files(REPO_ROOT, args.base, args.head),
+            lambda path: semantic_diff.is_noop_change(path, read_at(REPO_ROOT, args.base, path), read_at(REPO_ROOT, args.head, path)),
+        )
     except ScopeError as exc:
         print(f"::error::{exc}", file=sys.stderr)
         return 1

@@ -102,6 +102,17 @@ removed, or a reformat (indentation, quoting, blank lines), queues no
 role, and doesn't trip the repo-wide or `molecule_helpers` fail-safes
 either. The log line says `comments/formatting only -> ignored`.
 
+The same rule gates three of the path-filter outputs
+(`tools/ci_scope/effective_changes.py`): `uv_lock`, `deploy_ordering`
+and `python_unit_tests` are true only if at least one file the filter
+matched changed for real. The filter step lists its matched files
+(`list-files: json`), and the `effective` step checks each one. So a
+comment in a test, or an edit to `[tool.ruff]`, no longer starts
+`python-unit-tests`, `uv-lock` or `deploy-ordering-check`. `ansible_lint`,
+`trivy_ansible` and `any_compose` are never gated, and the script
+refuses to: ansible-lint honours `# noqa`, Trivy honours
+`#trivy:ignore`, and compose files are never a no-op.
+
 It compares what the parser produces, not the text, so a `#` line
 inside a YAML block scalar (a script or config written into a file) is
 data and counts as a real change. Only files whose parser is the
@@ -125,10 +136,10 @@ consumer are eligible:
 
 Anything else (`.j2` templates, shell, compose files), a file added or
 deleted, a file that doesn't parse on either side, and a mode-only
-change are real changes. Only the Molecule scope is narrowed: every
-other job's trigger is path-based and unchanged, so `ansible-lint` and
-`pre-commit-checks` still see a comment-only change (a comment can be a
-`# noqa` or `# yamllint disable`).
+change are real changes. Everything not named above keeps its path-based trigger, so
+`ansible-lint`, `trivy-scan` and `pre-commit-checks` still see a
+comment-only change (a comment can be a `# noqa`, `# yamllint disable`
+or `#trivy:ignore`).
 
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own — so a change there queues only the

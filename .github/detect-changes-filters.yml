@@ -4,6 +4,9 @@
 # reasoning as .github/scripts/wait-for-compose-health.sh's own header
 # comment). See docs/ci.md#change-scoped-not-a-full-sweep for what each
 # output actually gates.
+# uv_lock, deploy_ordering and python_unit_tests are further narrowed by
+# ci_scope.effective_changes: a match only counts if some matched file
+# changed for real, not just in a comment or formatting.
 uv_lock:
   - 'pyproject.toml'
   - 'uv.lock'

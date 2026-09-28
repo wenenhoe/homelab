@@ -17,12 +17,12 @@ jobs:
   detect-changes:
     runs-on: ubuntu-26.04
     outputs:
-      uv_lock: ${{ steps.filter.outputs.uv_lock }}
+      uv_lock: ${{ steps.effective.outputs.uv_lock }}
       any_compose: ${{ steps.filter.outputs.any_compose }}
-      deploy_ordering: ${{ steps.filter.outputs.deploy_ordering }}
+      deploy_ordering: ${{ steps.effective.outputs.deploy_ordering }}
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
-      python_unit_tests: ${{ steps.filter.outputs.python_unit_tests }}
+      python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
       dockerfiles: ${{ steps.dockerfiles.outputs.dockerfiles }}
@@ -37,12 +37,33 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         with:
           filters: .github/detect-changes-filters.yml
+          # The matched files feed the `effective` step below.
+          list-files: json
 
       # Unlocked and not `needs: warm-uv-cache`, for the same reasons as
       # warm-uv-cache above: a stale lockfile must surface as uv-lock's own
       # failure, not fail this job and skip everything behind it.
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
+
+      # uv_lock, deploy_ordering and python_unit_tests stay false when
+      # every file that matched only changed a comment or formatting (or
+      # `[tool.ruff]`) — see docs/ci.md#comments-and-formatting-dont-queue-molecule.
+      # The job outputs above read this step, not `filter`. ansible_lint,
+      # trivy_ansible and any_compose are deliberately not gated: they
+      # read comments (`# noqa`, `#trivy:ignore`).
+      - name: Drop no-op changes from the gated filters
+        id: effective
+        run: >-
+          uv run python -m ci_scope.effective_changes
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"
+          uv_lock deploy_ordering python_unit_tests
+        working-directory: tools
+        env:
+          UV_LOCK_FILES: ${{ steps.filter.outputs.uv_lock_files }}
+          DEPLOY_ORDERING_FILES: ${{ steps.filter.outputs.deploy_ordering_files }}
+          PYTHON_UNIT_TESTS_FILES: ${{ steps.filter.outputs.python_unit_tests_files }}
 
       - name: Determine which ansible roles to test
         id: roles

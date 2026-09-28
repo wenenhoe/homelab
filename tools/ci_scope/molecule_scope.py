@@ -395,12 +395,6 @@ def changed_files(root: Path, base: str, head: str) -> list[str]:
     return [line for line in result.stdout.splitlines() if line]
 
 
-def read_at(root: Path, rev: str, path: str) -> bytes | None:
-    """`path` as of `rev`, or None if it doesn't exist there."""
-    result = subprocess.run(["git", "show", f"{rev}:{path}"], cwd=root, capture_output=True, check=False)
-    return result.stdout if result.returncode == 0 else None
-
-
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("base")
@@ -410,7 +404,7 @@ def main(argv: list[str] | None = None) -> int:
         roles, log = roles_to_test(
             REPO_ROOT,
             changed_files(REPO_ROOT, args.base, args.head),
-            lambda path: semantic_diff.is_noop_change(path, read_at(REPO_ROOT, args.base, path), read_at(REPO_ROOT, args.head, path)),
+            lambda path: semantic_diff.is_noop_between(REPO_ROOT, args.base, args.head, path),
         )
     except ScopeError as exc:
         print(f"::error::{exc}", file=sys.stderr)

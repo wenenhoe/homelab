@@ -201,6 +201,29 @@ class HelperTaskTests(FakeRepo):
         self.scenario("beta")
         self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/tasks/inner.yaml"), ["alpha"])
 
+    def test_a_deleted_helper_that_no_scenario_references_needs_nothing_run(self):
+        self.helper_task("orphan.yaml")
+        self.scenario("alpha")
+        self.scenario("beta")
+        (self.root / "ansible/roles/molecule_helpers/tasks/orphan.yaml").unlink()
+        roles, log = ms.roles_to_test(self.root, ["ansible/roles/molecule_helpers/tasks/orphan.yaml"])
+        self.assertEqual(roles, [])
+        self.assertIn("deleted, and no scenario references it", log[0])
+
+    def test_deleting_a_helper_that_a_scenario_still_references_fails_the_scan(self):
+        self.helper_task("used.yaml")
+        self.scenario("alpha", converge=CONVERGE_WITH_HELPER.format(tasks_from="used.yaml"))
+        (self.root / "ansible/roles/molecule_helpers/tasks/used.yaml").unlink()
+        with self.assertRaisesRegex(ms.ScopeError, "matches no file"):
+            self.roles_for("ansible/roles/molecule_helpers/tasks/used.yaml")
+
+    def test_a_deleted_helper_does_not_hide_a_real_change_in_the_same_diff(self):
+        self.helper_task("orphan.yaml")
+        self.scenario("alpha")
+        self.scenario("beta")
+        (self.root / "ansible/roles/molecule_helpers/tasks/orphan.yaml").unlink()
+        self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/tasks/orphan.yaml", "ansible/roles/beta/tasks/main.yaml"), ["beta"])
+
     def test_unreferenced_helper_file_queues_every_role(self):
         self.helper_task("orphan.yaml")
         self.scenario("alpha")
@@ -299,6 +322,56 @@ class ComputedPathTests(FakeRepo):
         self.scenario("alpha", converge="- vars:\n    project_root: \"{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}\"\n")
         self.write("ansible/roles/alpha/templates/key.asc.j2", "{{ lookup('file', project_root ~ '/ansible/files/key.asc') }}\n")
         self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/ansible/files/key.asc"), ["alpha"])
+
+    BACKUP_LIKE = "- vars:\n    project_root: \"{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}\"\n"
+
+    def backup_like_role(self) -> None:
+        """The shape backup_agent has: a base directory in the scenario, files read from it in the role."""
+        self.write("ansible/roles/molecule_helpers/ansible/files/key.asc")
+        self.scenario("alpha", converge=self.BACKUP_LIKE)
+        self.write("ansible/roles/alpha/templates/key.asc.j2", "{{ lookup('file', project_root ~ '/ansible/files/key.asc') }}\n")
+
+    def test_a_base_directory_variables_own_definition_is_not_a_read_of_that_directory(self):
+        self.backup_like_role()
+        watched = ms.watch_set(self.root, "alpha")
+        self.assertNotIn("ansible/roles/molecule_helpers/", watched)
+        self.assertIn("ansible/roles/molecule_helpers/ansible/files/key.asc", watched)
+
+    def test_an_unreferenced_helper_still_queues_every_role_when_a_role_defines_a_base_directory(self):
+        # The over-broad watch this replaces made alpha answer for any helper, hiding the fail-safe.
+        self.backup_like_role()
+        self.scenario("beta")
+        self.write("ansible/roles/molecule_helpers/tasks/orphan.yaml")
+        self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/tasks/orphan.yaml"), ["alpha", "beta"])
+
+    def test_only_the_file_a_base_directory_is_joined_to_queues_its_reader(self):
+        self.backup_like_role()
+        self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/ansible/files/key.asc"), ["alpha"])
+
+    def test_a_variable_never_used_as_a_base_is_a_direct_read_of_what_it_names(self):
+        self.write("ansible/roles/molecule_helpers/fixtures/data.txt")
+        self.scenario("alpha", converge="- src: \"{{ (playbook_dir ~ '/../../../molecule_helpers/fixtures') | realpath }}\"\n")
+        self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/fixtures/data.txt"), ["alpha"])
+
+    def test_a_variable_used_both_ways_counts_as_a_base(self):
+        self.backup_like_role()
+        self.write("ansible/roles/alpha/tasks/main.yaml", '- ansible.builtin.debug:\n    msg: "{{ project_root }}/ansible/files/key.asc"\n')
+        self.assertNotIn("ansible/roles/molecule_helpers/", ms.watch_set(self.root, "alpha"))
+
+    def test_deleting_a_file_a_scenario_reads_by_a_computed_path_still_queues_the_reader(self):
+        self.write("ansible/scripts/tool.py")
+        self.scenario("alpha", converge='- src: "{{ playbook_dir }}/../../../../scripts/tool.py"\n')
+        self.scenario("beta")
+        (self.root / "ansible/scripts/tool.py").unlink()
+        self.assertEqual(self.roles_for("ansible/scripts/tool.py"), ["alpha"])
+
+    def test_deleting_the_file_a_base_directory_is_joined_to_still_queues_the_reader(self):
+        self.backup_like_role()
+        self.scenario("beta")
+        (self.root / "ansible/roles/molecule_helpers/ansible/files/key.asc").unlink()
         self.assertEqual(self.roles_for("ansible/roles/molecule_helpers/ansible/files/key.asc"), ["alpha"])
 
     def test_path_variable_defined_and_used_in_a_scenario_resolves(self):
@@ -487,6 +560,22 @@ class RealTreeTests(unittest.TestCase):
         for path in ("ansible/molecule-coverage/thresholds.yaml", "ansible/molecule-coverage/molecule_cov/cli.py"):
             with self.subTest(path=path):
                 self.assertEqual(ms.roles_to_test(ms.REPO_ROOT, [path])[0], [])
+
+    def test_no_role_watches_the_whole_helpers_directory(self):
+        # backup_agent used to, through the definition of its project_root variable.
+        for role in ms.role_names(ms.REPO_ROOT):
+            with self.subTest(role=role):
+                self.assertNotIn(f"{ms.HELPERS_DIR}/", ms.watch_set(ms.REPO_ROOT, role))
+
+    def test_backup_agent_still_watches_the_one_helper_file_it_reads(self):
+        watched = ms.watch_set(ms.REPO_ROOT, "backup_agent")
+        self.assertIn(f"{ms.HELPERS_DIR}/ansible/files/backup-gpg-public-key.asc", watched)
+
+    def test_deleting_the_removed_bootstrap_helper_queues_nothing(self):
+        # The change that removed it, as detect-changes saw it.
+        queued, log = ms.roles_to_test(ms.REPO_ROOT, [f"{ms.HELPERS_DIR}/tasks/bootstrap_docker.yaml"])
+        self.assertEqual(queued, [])
+        self.assertIn("deleted", log[0])
 
     def test_a_helper_task_change_no_longer_queues_every_role(self):
         roles = ms.role_names(ms.REPO_ROOT)

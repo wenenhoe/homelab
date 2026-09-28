@@ -135,7 +135,11 @@ falls inside it:
   scenario defines as `{{ playbook_dir }}` or
   `{{ (playbook_dir ~ '...') | realpath }}` (`project_root`,
   `repo_root`), whether the path is written in the scenario or in the
-  role's own tasks and templates. This is how
+  role's own tasks and templates. The target need not exist: deleting a file
+  a scenario reads still queues that scenario. A variable used only as a base
+  directory (`project_root ~ '/ansible/files/key.asc'`) contributes the files
+  it is joined to, not the directory its definition names, so a role that
+  defines one doesn't end up watching everything under it. This is how
   `inventory/group_vars/all/app_registry.yaml`, `ansible/scripts/restore_all.py`,
   `docker/openbao/policies/controller.hcl` and
   `docker/seaweedfs/configs/s3-identity.json.j2` reach the scenarios
@@ -193,7 +197,9 @@ or `#trivy:ignore`).
 `molecule/` scenario of its own — so a change there queues only the
 roles whose watch set contains that file. Two fail-safes always queue
 *more*: a changed file under `molecule_helpers/` that no scenario
-references queues every role, as does any repo-wide path: `GLOBAL_PATHS`
+references queues every role (a *deleted* one queues nothing: no scenario
+names it, or the scan would have failed, and a reference removed in the same
+change is in a scenario file that changed with it), as does any repo-wide path: `GLOBAL_PATHS`
 plus every path in `.config/molecule/config.yml`, the base config deep-merged
 into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those
 are resolved from the config on each run (`base_config_paths`), so pointing
@@ -210,8 +216,8 @@ changed file and why it matched.
 
 Not modelled: paths built any other way (a variable not defined as
 above, or a literal continued with `~`), which are ignored, as are
-computed paths that don't exist, leave the repo, or are the role's own
-directory or an ancestor of it. Roles are watched whole-directory
+computed paths that leave the repo or are the role's own directory or an
+ancestor of it. Roles are watched whole-directory
 rather than by `tasks_from`, so a change to any file in an included
 role queues its consumers.
 

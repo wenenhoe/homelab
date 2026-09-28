@@ -26,11 +26,15 @@ scenarios actually reference:
   `{{ playbook_dir }}/../x`, and the same through any variable a
   scenario defines as `{{ playbook_dir }}` or
   `{{ (playbook_dir ~ '...') | realpath }}` (`project_root`,
-  `repo_root`, ...), in the scenario's files and in the role's own.
+  `repo_root`, ...), in the scenario's files and in the role's own. The
+  target need not exist, so deleting a file a scenario reads still queues
+  it, and a variable used only as a base directory (`project_root ~ '/x'`)
+  contributes the files it is joined to, not its own directory.
 
 Two fail-safes always err toward testing more, never less: a changed
 file under `molecule_helpers/` that no scenario references queues every
-role, and so does a repo-wide path: one in GLOBAL_PATHS, or one the base
+role (unless the file was deleted: nothing left can read it), and so does a
+repo-wide path: one in GLOBAL_PATHS, or one the base
 config (.config/molecule/config.yml, deep-merged into every scenario)
 points every scenario at through `${MOLECULE_PROJECT_DIRECTORY}` (the
 Galaxy requirements files, ansible.cfg, the coverage callback plugin), which
@@ -46,9 +50,8 @@ fail-safes.
 
 Not modelled: paths built any other way (a variable not defined as
 above, a literal continued with `~`), and reads through a file's
-runtime contents. Computed paths that don't exist, that resolve outside
-the repo, or that are the role's own directory or an ancestor of it are
-ignored.
+runtime contents. Computed paths that resolve outside the repo, or that
+are the role's own directory or an ancestor of it, are ignored.
 
 Usage (from tools/): python -m ci.scope.molecule_scope <base-sha> <head-sha>
 Writes roles=<json array> to $GITHUB_OUTPUT (stdout if unset).
@@ -273,6 +276,9 @@ def _role_text_files(role_dir: Path):
             yield path
 
 
+# `key: "{{ (playbook_dir ~ '...') | realpath }}"`, as text. Whether it is a read depends on how
+# `key` is used: a base directory (`key ~ '/x'`) is not one, a value passed as-is is.
+_PATH_VAR_DEFINITION = re.compile(r"(?P<key>[A-Za-z_]\w*)\s*:\s*[\"']?\{\{\s*\(?\s*playbook_dir\s*~\s*'[^'{}]*'\s*\)?\s*\|\s*realpath\s*\}\}[\"']?")
 _PATH_VAR_PLAIN = re.compile(r"^\{\{\s*playbook_dir\s*\}\}$")
 _PATH_VAR_REALPATH = re.compile(r"^\{\{\s*\(?\s*playbook_dir\s*~\s*'([^'{}]*)'\s*\)?\s*\|\s*realpath\s*\}\}$")
 
@@ -295,14 +301,30 @@ def _path_vars(scenario_dir: Path, scenario_yaml: list[Path]) -> dict[str, set[P
     return found
 
 
+def _used_as_base(var: str, contents: list[str]) -> bool:
+    """Is `var` ever a prefix of a longer path (`var ~ '/x'`, `{{ var }}/x`), not a whole path?"""
+    pattern = re.compile(rf"(?<![\w.]){re.escape(var)}\s*~\s*'/|\{{\{{\s*{re.escape(var)}\s*\}}\}}/")
+    return any(pattern.search(content) for content in contents)
+
+
 def _computed_paths(root: Path, role_dir: Path, scenario_dir: Path, scenario_yaml: list[Path], texts: list[Path]) -> dict[str, str]:
-    """Existing repo paths built from a scenario's path variables -> where they were built."""
+    """Repo paths built from a scenario's path variables -> where they were built.
+
+    The paths need not exist: a file that was deleted is still one its reader
+    read, and the reader has to be re-run. The definition of a variable that
+    is only ever used as a base directory is not a read, so it is masked out
+    before the search: `project_root: "{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}"`
+    names a directory the role reads *files from*, one `project_root ~ '/x'`
+    at a time, and treating the definition as a read would watch all of it.
+    """
     resolved_root = root.resolve()
     role_resolved = role_dir.resolve()
     found: dict[str, str] = {}
     path_vars = _path_vars(scenario_dir, scenario_yaml)
-    for text_path in texts:
-        text = text_path.read_text()
+    contents = {text_path: text_path.read_text() for text_path in texts}
+    bases = {var for var in path_vars if var != "playbook_dir" and _used_as_base(var, list(contents.values()))}
+    for text_path, original in contents.items():
+        text = _PATH_VAR_DEFINITION.sub(lambda match: "" if match.group("key") in bases else match.group(0), original)
         for var, anchors in path_vars.items():
             literals = re.findall(rf"(?<![\w.]){re.escape(var)}\s*~\s*'(/[^'{{}}\n]*)'(?!\s*~)", text)
             literals += re.findall(rf"\{{\{{\s*{re.escape(var)}\s*\}}\}}(/[^\s\"'{{}}]*)", text)
@@ -313,7 +335,7 @@ def _computed_paths(root: Path, role_dir: Path, scenario_dir: Path, scenario_yam
                         rel = candidate.relative_to(resolved_root).as_posix()
                     except ValueError:
                         continue
-                    if not candidate.exists() or candidate == resolved_root or candidate in (role_resolved, *role_resolved.parents):
+                    if candidate == resolved_root or candidate in (role_resolved, *role_resolved.parents):
                         continue
                     if candidate.is_relative_to(role_resolved):
                         continue
@@ -414,6 +436,11 @@ def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool]
                     log.append(f"{path}: {role} ({reasons[0]})")
                     break
         if not hit and path.startswith(f"{HELPERS_DIR}/"):
+            if not (root / path).exists():
+                # Gone, and no scenario names it: any reference left would have raised in the scan
+                # above, and one that was just removed is in a scenario file that changed with it.
+                log.append(f"{path}: deleted, and no scenario references it -> nothing to run")
+                continue
             log.append(f"{path}: under {HELPERS_ROLE}/ but no scenario references it -> every role")
             return roles, log
     return sorted(queued), log

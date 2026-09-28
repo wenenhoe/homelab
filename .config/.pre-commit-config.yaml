@@ -136,6 +136,18 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
+      - id: check-molecule-image-vars
+        name: check-molecule-image-vars
+        description: >-
+          Molecule playbooks name their helper images through
+          molecule_helpers/vars/images/, never as literals, and each
+          play loads exactly the image files it uses — see
+          tools/ci/images/molecule_vars.py. Stdlib-only, so it needs no
+          extra dependencies.
+        entry: bash -c 'cd tools && python3 -m ci.images.molecule_vars check' --
+        language: python
+        pass_filenames: false
+        always_run: true
       - id: check-project-scope
         name: check-project-scope
         description: >-

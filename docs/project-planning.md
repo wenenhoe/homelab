@@ -57,7 +57,7 @@ set. It narrows where to look; it doesn't replace looking.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`app-resolver.md`](projects/app-resolver.md) | Not started | A pure resolve_apps filter builds resolved_apps; every consumer reads it, and app_registry becomes app_catalog. |
+| [`app-resolver.md`](projects/app-resolver.md) | Building | A pure resolve_apps filter builds resolved_apps; every consumer reads it, and app_registry becomes app_catalog. |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 
 ## Decisions awaiting a project

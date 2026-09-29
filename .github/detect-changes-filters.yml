@@ -66,6 +66,9 @@ python_unit_tests:
   # Sibling of molecule_cov/ above - test_callback_plugin.py
   # imports it directly via sys.path, same pattern.
   - 'ansible/molecule-coverage/callback_plugins/**'
+  # The filters ansible/ansible.cfg loads for every play; their tests are
+  # in ansible/tests/, already a trigger below.
+  - 'ansible/filter_plugins/**'
   - 'ansible/tests/**'
   - 'tools/tests/**'
   # The documentation-workflow checks (ADR 0037); tools/tests/doc_scripts/

@@ -16,6 +16,11 @@ scenarios actually reference:
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   transitively through the helper playbooks/task files that themselves
   include further helper task files or roles;
+- every filter plugin under `ansible/filter_plugins/` that defines a
+  filter named anywhere in the files above (`| cron_period_hours`, or
+  the bare name in `map('...')`), so editing a filter re-runs the roles
+  that call it, not every role. The names come from the dict literal
+  `FilterModule.filters()` returns, read from the code, never imported;
 - every `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
   molecule.yml (the shared `prepare` playbooks);
 - the resolved target of every symlink under `molecule/` (scenarios
@@ -31,10 +36,13 @@ scenarios actually reference:
   it, and a variable used only as a base directory (`project_root ~ '/x'`)
   contributes the files it is joined to, not its own directory.
 
-Two fail-safes always err toward testing more, never less: a changed
+Three fail-safes always err toward testing more, never less: a changed
 file under `molecule_helpers/` that no scenario references queues every
-role (unless the file was deleted: nothing left can read it), and so does a
-repo-wide path: one in GLOBAL_PATHS, or one the base
+role (unless the file was deleted: nothing left can read it); a changed
+file under `ansible/filter_plugins/` whose filter names can't be read
+(deleted, a helper module, a plugin that builds its `filters()` dict any
+way but a literal, anything nested or not `.py`) queues every role, since
+there is no telling who called it; and so does a repo-wide path: one in GLOBAL_PATHS, or one the base
 config (.config/molecule/config.yml, deep-merged into every scenario)
 points every scenario at through `${MOLECULE_PROJECT_DIRECTORY}` (the
 Galaxy requirements files, ansible.cfg, the coverage callback plugin), which
@@ -60,6 +68,7 @@ Writes roles=<json array> to $GITHUB_OUTPUT (stdout if unset).
 from __future__ import annotations
 
 import argparse
+import ast
 import json
 import os
 import re
@@ -77,13 +86,16 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 ROLES_DIR = "ansible/roles"
 HELPERS_ROLE = "molecule_helpers"
 HELPERS_DIR = f"{ROLES_DIR}/{HELPERS_ROLE}"
+FILTER_DIR = "ansible/filter_plugins"
+MAX_SCANNED_BYTES = 1_000_000
 PROJECT_DIR_TOKEN = "${MOLECULE_PROJECT_DIRECTORY}"  # noqa: S105 - Molecule's env var name, not a credential
 YAML_SUFFIXES = (".yml", ".yaml")
 
 # Paths every scenario inherits regardless of what it references: the
 # base config's Galaxy inputs (.config/molecule/config.yml deep-merges
-# it into every scenario) and the toolchain pins. tools/tests/ci/scope
-# asserts the base config still points at the files listed here.
+# it into every scenario) and the toolchain pins.
+# tools/tests/ci/scope asserts the base config still points at the files
+# listed here.
 GLOBAL_PATHS = (
     ".config/molecule/",
     "ansible/requirements.yml",
@@ -343,7 +355,80 @@ def _computed_paths(root: Path, role_dir: Path, scenario_dir: Path, scenario_yam
     return found
 
 
-def watch_set(root: Path, role: str) -> dict[str, list[str]]:
+def _defined_filters(path: Path) -> tuple[str, ...] | None:
+    """The names in the dict literal `FilterModule.filters()` returns; None when it isn't one."""
+    try:
+        tree = ast.parse(path.read_text())
+    except SyntaxError, UnicodeDecodeError:
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ClassDef) and node.name == "FilterModule":
+            for method in node.body:
+                if isinstance(method, ast.FunctionDef) and method.name == "filters":
+                    returns = [n for n in ast.walk(method) if isinstance(n, ast.Return)]
+                    if len(returns) == 1 and isinstance(returns[0].value, ast.Dict):
+                        keys = returns[0].value.keys
+                        if keys and all(isinstance(k, ast.Constant) and isinstance(k.value, str) for k in keys):
+                            return tuple(k.value for k in keys)
+    return None
+
+
+def filter_plugins(root: Path) -> dict[str, tuple[str, ...] | None]:
+    """Each top-level plugin module (repo-relative) -> the filter names it defines, None if unreadable."""
+    base = root / FILTER_DIR
+    if not base.is_dir():
+        return {}
+    return {_relative(root, path): _defined_filters(path) for path in sorted(base.glob("*.py"))}
+
+
+def filter_index(root: Path) -> dict[str, list[str]]:
+    """Filter name -> the plugin modules that define it."""
+    index: dict[str, list[str]] = {}
+    for plugin, names in filter_plugins(root).items():
+        for name in names or ():
+            index.setdefault(name, []).append(plugin)
+    return index
+
+
+def _scannable_files(root: Path, watched_path: str):
+    path = root / watched_path
+    if watched_path.endswith("/"):
+        if path.is_dir():
+            yield from (p for p in sorted(path.rglob("*")) if p.is_file())
+    elif path.is_file():
+        yield path
+
+
+def _mentioned_filters(path: Path, pattern: re.Pattern[str], cache: dict[Path, frozenset[str]]) -> frozenset[str]:
+    if path not in cache:
+        try:
+            text = path.read_text() if path.stat().st_size <= MAX_SCANNED_BYTES else ""
+        except UnicodeDecodeError, OSError:
+            text = ""
+        cache[path] = frozenset(pattern.findall(text))
+    return cache[path]
+
+
+def _watch_filter_plugins(root: Path, watched: dict[str, list[str]], filters: dict[str, list[str]], cache: dict[Path, frozenset[str]]) -> None:
+    """Watch each plugin module defining a filter that a file already in the watch set names.
+
+    The name must stand alone: `compose_app_deploy_plan` is not a use of `app_deploy_plan`,
+    and neither is `item.app_deploy_plan`.
+    """
+    if not filters:
+        return
+    pattern = re.compile(r"(?<![\w.])(" + "|".join(re.escape(name) for name in sorted(filters, key=len, reverse=True)) + r")(?!\w)")
+    used: dict[str, str] = {}
+    for watched_path in list(watched):
+        for file in _scannable_files(root, watched_path):
+            for name in _mentioned_filters(file, pattern, cache):
+                used.setdefault(name, _relative(root, file))
+    for name, where in sorted(used.items()):
+        for plugin in filters[name]:
+            watched.setdefault(plugin, []).append(f"uses filter {name} ({where})")
+
+
+def watch_set(root: Path, role: str, filters: dict[str, list[str]] | None = None, scan_cache: dict[Path, frozenset[str]] | None = None) -> dict[str, list[str]]:
     """Watched path -> why it's watched. Paths ending `/` are directory prefixes."""
     role_dir = root / ROLES_DIR / role
     molecule_dir = role_dir / "molecule"
@@ -395,6 +480,7 @@ def watch_set(root: Path, role: str) -> dict[str, list[str]]:
             visited_roles.add(included)
             watch(f"{ROLES_DIR}/{included}/", f"runs role {included} ({label})")
             pending.extend((prod, _relative(root, prod)) for prod in _role_production_yaml(root / ROLES_DIR / included))
+    _watch_filter_plugins(root, watched, filter_index(root) if filters is None else filters, {} if scan_cache is None else scan_cache)
     return watched
 
 
@@ -424,7 +510,14 @@ def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool]
                 log.append(f"{path}: repo-wide ({global_path}) -> every role")
                 return roles, log
 
-    watches = {role: watch_set(root, role) for role in roles}
+    plugins = filter_plugins(root)
+    for path in effective:
+        if path.startswith(f"{FILTER_DIR}/") and plugins.get(path) is None:
+            log.append(f"{path}: under {FILTER_DIR}/ but not a plugin whose filter names can be read -> every role")
+            return roles, log
+
+    filters, scan_cache = filter_index(root), {}
+    watches = {role: watch_set(root, role, filters, scan_cache) for role in roles}
     queued: set[str] = set()
     for path in effective:
         hit = False
@@ -435,6 +528,9 @@ def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool]
                     hit = True
                     log.append(f"{path}: {role} ({reasons[0]})")
                     break
+        if not hit and path in plugins:
+            log.append(f"{path}: no role's Molecule run uses its filters -> nothing to run")
+            continue
         if not hit and path.startswith(f"{HELPERS_DIR}/"):
             if not (root / path).exists():
                 # Gone, and no scenario names it: any reference left would have raised in the scan

@@ -19,7 +19,7 @@
 
     # Pinned to exact values, not just "differ from each other" — the
     # underlying algorithm (max gap within a rolling window, see
-    # filter_plugins/cron_period_hours.py) is itself worth catching a
+    # ansible/filter_plugins/cron_period_hours.py) is itself worth catching a
     # regression in, not only its "produces different numbers per app"
     # property.
     - name: Confirm each app's freshness threshold matches its own cron cadence, not a shared value

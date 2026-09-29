@@ -119,6 +119,12 @@ falls inside it:
   `compose`'s own scenarios. A role with no scenario of its own (like
   `molecule_helpers`, or a shared role nothing tests directly) is
   watched but never queued;
+- each filter plugin in `ansible/filter_plugins/` that defines a filter
+  named in any of the files this watch set already covers (`| cron_period_hours`,
+  or the bare name in `map('...')`), so editing a filter queues the roles
+  that call it and not every role. The names are read from the dict literal
+  `FilterModule.filters()` returns, without importing the plugin, and must
+  stand alone: `compose_app_deploy_plan` is not a use of `app_deploy_plan`;
 - each `molecule_helpers` task file a scenario pulls in with
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   through the helper playbooks and task files that include further
@@ -195,11 +201,16 @@ or `#trivy:ignore`).
 
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own — so a change there queues only the
-roles whose watch set contains that file. Two fail-safes always queue
+roles whose watch set contains that file. Three fail-safes always queue
 *more*: a changed file under `molecule_helpers/` that no scenario
 references queues every role (a *deleted* one queues nothing: no scenario
 names it, or the scan would have failed, and a reference removed in the same
-change is in a scenario file that changed with it), as does any repo-wide path: `GLOBAL_PATHS`
+change is in a scenario file that changed with it); a changed file under
+`ansible/filter_plugins/` whose filter names can't be read (deleted, a helper
+module, a plugin that builds `filters()` any way but a dict literal, or
+anything nested or not `.py`) queues every role, since there is no telling who
+called it, while a readable plugin no role calls queues nothing; and so does
+any repo-wide path: `GLOBAL_PATHS`
 plus every path in `.config/molecule/config.yml`, the base config deep-merged
 into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those
 are resolved from the config on each run (`base_config_paths`), so pointing
@@ -241,7 +252,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`tools/doc_scripts/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`tools/doc_scripts/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/filter_plugins/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |

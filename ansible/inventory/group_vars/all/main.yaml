@@ -111,7 +111,8 @@ offsite_backup_retention_days: 7
 # Slack added on top of each app's own cron-derived interval before the
 # freshness check (docs/uptime-kuma.md) stops pushing to Kuma - covers
 # backup duration plus scheduling jitter, not the interval itself. The
-# interval comes from each app's own resolved cron (backup_agent's
-# cron_period_hours filter) so it can never drift from whatever cron
-# actually says - see backup_agent/tasks/build_schedules.yaml.
+# interval comes from each app's own resolved cron (the
+# cron_period_hours filter in ansible/filter_plugins/) so it can never
+# drift from whatever cron actually says - see
+# backup_agent/tasks/build_schedules.yaml.
 offsite_backup_freshness_buffer_hours: 2

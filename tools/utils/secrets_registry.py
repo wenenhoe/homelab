@@ -57,6 +57,30 @@ def load_registry(path: Path = REGISTRY_PATH) -> Registry:
     return registry
 
 
+STORES = ("openbao", "controller_file")
+
+
+def store_of(name: str, spec: dict[str, object]) -> str:
+    """Where `name` is kept. A missing or unknown `store` is an error, never a default, so no entry is silently in neither place."""
+    store = spec.get("store")
+    if store not in STORES:
+        raise RegistryError(f"`{name}` must state `store` as one of {', '.join(STORES)}, not {store!r}")
+    return store
+
+
 def file_cache_entries(registry: Registry) -> Registry:
-    """The entries kept in the controller-side file cache: those with no `vault_scope`."""
-    return {name: spec for name, spec in registry.items() if "vault_scope" not in spec}
+    """The entries kept in the controller-side file cache: those with `store: controller_file`."""
+    return {name: spec for name, spec in registry.items() if store_of(name, spec) == "controller_file"}
+
+
+def openbao_scopes(registry: Registry) -> dict[str, str]:
+    """Entry name -> `scope` for every entry with `store: openbao`; its OpenBao path is `<scope>/<name>`."""
+    scopes = {}
+    for name, spec in registry.items():
+        if store_of(name, spec) != "openbao":
+            continue
+        scope = spec.get("scope")
+        if not isinstance(scope, str) or not scope:
+            raise RegistryError(f"`{name}` has `store: openbao` but no `scope`")
+        scopes[name] = scope
+    return scopes

@@ -80,7 +80,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         self.registry_file.write_text(text)
 
     def test_restores_a_value_present_in_the_backup_but_not_in_vault(self):
-        self._seed_registry("secrets_registry:\n  lldap-jwt-secret:\n    format: hex\n    vault_scope: hosts/security\n")
+        self._seed_registry("secrets_registry:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
         (self.backup_dir / "lldap-jwt-secret").write_text("the-old-jwt-secret")
 
         written = {}
@@ -94,7 +94,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         self.assertEqual(written, {"hosts/security/lldap-jwt-secret": "the-old-jwt-secret"})
 
     def test_never_overwrites_a_value_already_in_vault(self):
-        self._seed_registry("secrets_registry:\n  lldap-jwt-secret:\n    format: hex\n    vault_scope: hosts/security\n")
+        self._seed_registry("secrets_registry:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
         (self.backup_dir / "lldap-jwt-secret").write_text("stale-backup-value")
 
         with (
@@ -107,7 +107,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         fake_write.assert_not_called()
 
     def test_entry_missing_from_the_backup_is_reported_not_written(self):
-        self._seed_registry("secrets_registry:\n  never-backed-up:\n    format: manual\n    vault_scope: hosts/services\n")
+        self._seed_registry("secrets_registry:\n  never-backed-up:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
 
         with (
             patch.object(restore, "read_vault_path", return_value=None),
@@ -118,8 +118,8 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         self.assertEqual(rc, 0)
         fake_write.assert_not_called()
 
-    def test_skips_entries_without_a_vault_scope(self):
-        self._seed_registry("secrets_registry:\n  no-scope-key:\n    format: manual\n")
+    def test_skips_entries_stored_in_the_file_cache(self):
+        self._seed_registry("secrets_registry:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         (self.backup_dir / "no-scope-key").write_text("value")
 
         with (
@@ -138,7 +138,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         # value with no added whitespace, so stripping on the way back
         # in would silently corrupt a value with meaningful
         # leading/trailing whitespace.
-        self._seed_registry("secrets_registry:\n  padded-value:\n    format: manual\n    vault_scope: hosts/services\n")
+        self._seed_registry("secrets_registry:\n  padded-value:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
         (self.backup_dir / "padded-value").write_text("  has padding  \n")
 
         written = {}

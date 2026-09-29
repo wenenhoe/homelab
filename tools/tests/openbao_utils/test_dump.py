@@ -58,8 +58,8 @@ class DumpHostsScopeTests(unittest.TestCase):
     def _seed_registry(self, text: str) -> None:
         self.registry_file.write_text(text)
 
-    def test_skips_entries_without_a_vault_scope(self):
-        self._seed_registry("secrets_registry:\n  no-scope-key:\n    format: manual\n")
+    def test_skips_entries_stored_in_the_file_cache(self):
+        self._seed_registry("secrets_registry:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         dest = self.tmp / "out"
         dest.mkdir()
         with patch.object(dump, "REGISTRY_PATH", self.registry_file), patch.object(dump, "read_vault_path", return_value="v"):
@@ -68,7 +68,7 @@ class DumpHostsScopeTests(unittest.TestCase):
         self.assertEqual(blank, [])
 
     def test_writes_scoped_entry_from_its_declared_path(self):
-        self._seed_registry("secrets_registry:\n  telegram-token:\n    format: manual\n    vault_scope: hosts/all/telegram\n")
+        self._seed_registry("secrets_registry:\n  telegram-token:\n    source: manual\n    store: openbao\n    scope: hosts/all/telegram\n")
         dest = self.tmp / "out"
         dest.mkdir()
         calls = []
@@ -113,7 +113,7 @@ class MainTests(unittest.TestCase):
 
     def test_creates_a_fresh_owner_only_directory_each_run(self):
         registry_file = self.tmp / "registry.yaml"
-        registry_file.write_text("secrets_registry:\n  no-scope-key:\n    format: manual\n")
+        registry_file.write_text("secrets_registry:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         with (
             patch.object(dump, "REGISTRY_PATH", registry_file),
             patch.object(dump, "LEGACY_CACHE_KEYS", []),

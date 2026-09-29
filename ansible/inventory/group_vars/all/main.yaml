@@ -1,7 +1,7 @@
 ---
 server_timezone: Asia/Singapore
 
-# main_domain is a `manual`-format secrets_registry entry (not sensitive,
+# main_domain is a `source: manual` secrets_registry entry (not sensitive,
 # just routed through the same mechanism) — see docs/secrets.md.
 main_domain: "{{ secrets_generated['main-domain'] }}"
 

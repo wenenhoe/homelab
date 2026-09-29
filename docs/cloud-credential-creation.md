@@ -29,7 +29,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   (`_rotation-key-cloudflare-r2-token` — prompted for once, then reused
   — see R2's section for why this one is a materially broader-blast-radius
   credential than the other two's). All six leaf credentials stay
-  `format: manual` in the registry; this script is just an automated
+  `source: manual` in the registry; this script is just an automated
   way to fill them in.
 - **`openbao_utils/audit.py`** — run whenever, read-only. `--local`
   diffs `ansible/files/secrets/` against `secrets_registry.yaml` to

@@ -121,9 +121,9 @@ can't fix.
    Vault. Skipping this means the next `deploy.yaml` silently mints new
    random values for every `hex`/`uuid4` secret in the registry
    (ADR 0025's Context explains why). Restores two things in one pass:
-   every `secrets_registry.yaml` entry with a `vault_scope` (including
+   every `secrets_registry.yaml` entry with `store: openbao` (including
    all 20 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` leaf credentials,
-   each of which now has its own `vault_scope` of
+   each of which now has its own `scope` of
    `cloud_credentials/leaf`), and `cloud_credentials`' internal
    leaf/rotation bookkeeping keys with no registry entry of their own
    (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two

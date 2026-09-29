@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Checks that every entry in secrets_registry.yaml follows the rules its header comment states.
 
-A wrong combination otherwise surfaces at deploy or rotation time: a hex entry
-with no `vault_scope` is silently skipped by the `secrets` role, and a mistyped
-key on a manual entry moves it to the file cache. Each violation is reported
-with the entry's name and the rule it breaks; any violation fails the check.
+A wrong combination otherwise surfaces at deploy or rotation time: a generated
+entry stored anywhere but OpenBao is silently skipped by the `secrets` role, and
+a mistyped key on a manual entry can move it to the file cache. Each violation
+is reported with the entry's name and the rule it breaks; any violation fails
+the check.
 
 Runs in pre-commit (PyYAML only) and so in the pre-commit-checks job.
 
@@ -17,10 +18,11 @@ import re
 import sys
 from dataclasses import dataclass
 
-from utils.secrets_registry import REGISTRY_PATH, Registry, RegistryError, load_registry
+from utils.secrets_registry import REGISTRY_PATH, STORES, Registry, RegistryError, load_registry
 
-FORMATS = ("hex", "uuid4", "manual")
-KEYS = frozenset({"format", "length", "vault_scope", "description", "allow_blank", "sensitive"})
+SOURCES = ("hex", "uuid4", "manual")
+GENERATED = ("hex", "uuid4")
+KEYS = frozenset({"source", "store", "scope", "length", "description", "allow_blank", "sensitive"})
 MANUAL_ONLY_FLAGS = ("allow_blank", "sensitive")
 
 KEBAB_CASE = re.compile(r"[a-z0-9]+(-[a-z0-9]+)*")
@@ -54,31 +56,39 @@ def _check_entry(name: str, spec: dict[str, object]) -> list[Violation]:
     for key in sorted(set(spec) - KEYS):
         fail("unknown-key", f"`{key}` isn't a registry key (one of: {', '.join(sorted(KEYS))})")
 
-    fmt = spec.get("format")
-    if fmt not in FORMATS:
-        fail("format", f"`format` must be one of {', '.join(FORMATS)}, not {fmt!r}")
+    source = spec.get("source")
+    if source not in SOURCES:
+        fail("source", f"`source` must be one of {', '.join(SOURCES)}, not {source!r}")
+    store = spec.get("store")
+    if store not in STORES:
+        fail("store", f"`store` is required and must be one of {', '.join(STORES)}, not {store!r}")
 
-    if fmt == "hex" and not _is_positive_int(spec.get("length")):
-        fail("length-required", "`format: hex` requires `length`, a positive integer")
-    if fmt in ("uuid4", "manual") and "length" in spec:
-        fail("length-forbidden", f"`length` applies only to `format: hex`, not `format: {fmt}`")
+    if source == "hex" and not _is_positive_int(spec.get("length")):
+        fail("length-required", "`source: hex` requires `length`, a positive integer")
+    if source in ("uuid4", "manual") and "length" in spec:
+        fail("length-forbidden", f"`length` applies only to `source: hex`, not `source: {source}`")
 
-    if fmt in ("hex", "uuid4") and "vault_scope" not in spec:
-        fail("scope-required", f"`format: {fmt}` requires `vault_scope`: Ansible can only generate into OpenBao")
-    if "vault_scope" in spec and not (isinstance(spec["vault_scope"], str) and SCOPE.fullmatch(spec["vault_scope"])):
+    if store == "openbao" and "scope" not in spec:
+        fail("scope-required", "`store: openbao` requires `scope`")
+    if store == "controller_file" and "scope" in spec:
+        fail("scope-forbidden", "`store: controller_file` forbids `scope`: the file cache has no path prefix")
+    if "scope" in spec and not (isinstance(spec["scope"], str) and SCOPE.fullmatch(spec["scope"])):
         fail(
             "scope-shape",
-            f"`vault_scope` must be hosts/<security|services|storage|play>, hosts/all/<concern> or cloud_credentials/leaf, not {spec['vault_scope']!r}",
+            f"`scope` must be hosts/<security|services|storage|play>, hosts/all/<concern> or cloud_credentials/leaf, not {spec['scope']!r}",
         )
 
-    if fmt == "manual" and not _is_text(spec.get("description")):
-        fail("description-required", "`format: manual` requires a non-empty `description`: it is what a missing secret's error shows")
+    if source in GENERATED and store in STORES and store != "openbao":
+        fail("generated-store", f"`source: {source}` requires `store: openbao`: Ansible can only generate into OpenBao")
+
+    if source == "manual" and not _is_text(spec.get("description")):
+        fail("description-required", "`source: manual` requires a non-empty `description`: it is what a missing secret's error shows")
 
     for flag in MANUAL_ONLY_FLAGS:
         if flag not in spec:
             continue
-        if fmt != "manual":
-            fail("flag-manual-only", f"`{flag}` is valid only on `format: manual`")
+        if source != "manual":
+            fail("flag-manual-only", f"`{flag}` is valid only on `source: manual`")
         elif not isinstance(spec[flag], bool):
             fail("flag-boolean", f"`{flag}` must be true or false, not {spec[flag]!r}")
     return found

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes the registry override for deploy-ordering-check's own two ansible-playbook
-invocations to pass via `-e @<o>`: only the entries kept in the controller-side
-file cache.
+invocations to pass via `-e @<o>`: only the entries with `store: controller_file`, the
+controller-side file cache.
 
 That job exercises the real ansible_host -> ddns_domain -> main_domain ->
 secrets_generated chain against the real secrets_registry.yaml (see

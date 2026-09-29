@@ -14,7 +14,7 @@ it produces.
 Covers:
   - Every cloud_credentials leaf/rotation key (_legacy_cache_keys.py's
     LEGACY_CACHE_KEYS), read via each key's own registered category.
-  - Every secrets_registry.yaml entry with a vault_scope (the secrets
+  - Every secrets_registry.yaml entry with `store: openbao` (the secrets
     role's hosts/* material, ADR 0021).
   - A live cross-check for _oci-leaf-user-ocid-{read,write}: reads both
     the leaf/ and rotation/ paths, not just the one LEGACY_CACHE_KEYS
@@ -39,7 +39,7 @@ from pathlib import Path
 
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path
-from utils.secrets_registry import REGISTRY_PATH, load_registry
+from utils.secrets_registry import REGISTRY_PATH, load_registry, openbao_scopes
 
 
 def _backup_dir() -> Path:
@@ -68,10 +68,7 @@ def _dump_cloud_credentials(dest: Path) -> tuple[list[str], list[str]]:
 def _dump_hosts_scope(dest: Path) -> tuple[list[str], list[str]]:
     registry = load_registry(REGISTRY_PATH)
     written, blank = [], []
-    for name, entry in registry.items():
-        scope = entry.get("vault_scope")
-        if not scope:
-            continue  # cloud_credentials-managed, or a permanent file-cache-only exception - not this function's concern
+    for name, scope in openbao_scopes(registry).items():
         value = read_vault_path(f"{scope}/{name}")
         if value is None:
             blank.append(name)

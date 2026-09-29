@@ -131,7 +131,11 @@ class AuditLocalTests(unittest.TestCase):
         registry_dir = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(registry_dir, ignore_errors=True))
         registry_path = registry_dir / "secrets_registry.yaml"
-        registry_path.write_text("secrets_registry:\n  cloudflare-r2-write-access-key: {}\n  cloudflare-r2-write-secret-key: {}\n")
+        registry_path.write_text(
+            "secrets_registry:\n"
+            "  cloudflare-r2-write-access-key: { source: manual, store: controller_file }\n"
+            "  cloudflare-r2-write-secret-key: { source: manual, store: controller_file }\n"
+        )
         registry_patcher = patch.object(audit, "REGISTRY_PATH", registry_path)
         registry_patcher.start()
         self.addCleanup(registry_patcher.stop)
@@ -172,14 +176,14 @@ class AuditLocalTests(unittest.TestCase):
         """Regression test: a controller that predates the entry's move
         to Vault (Track A stage 4 for most entries, stage 5/6 for cloud
         credentials) can have a stray, never-since-read local file for
-        a registry entry that has a vault_scope. That's a distinct
+        a registry entry that has `store: openbao`. That's a distinct
         finding from a genuine orphan - the name IS known, it's just
         the wrong mechanism now - found via the stage 6 cutover drill
         surfacing exactly this on a real controller."""
         registry_dir = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(registry_dir, ignore_errors=True))
         registry_path = registry_dir / "secrets_registry.yaml"
-        registry_path.write_text("secrets_registry:\n  lldap-jwt-secret: { format: hex, length: 32, vault_scope: hosts/security }\n")
+        registry_path.write_text("secrets_registry:\n  lldap-jwt-secret: { source: hex, length: 32, store: openbao, scope: hosts/security }\n")
         registry_patcher = patch.object(audit, "REGISTRY_PATH", registry_path)
         registry_patcher.start()
         self.addCleanup(registry_patcher.stop)
@@ -191,7 +195,7 @@ class AuditLocalTests(unittest.TestCase):
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("lldap-jwt-secret", printed)
-        self.assertIn("vault_scope: hosts/security", printed)
+        self.assertIn("scope: hosts/security", printed)
         self.assertIn("1 file(s) for a Vault-backed entry", printed)
         # Must not also be reported as a plain orphan - it's a known name.
         self.assertNotIn("not referenced by current config at all", printed)

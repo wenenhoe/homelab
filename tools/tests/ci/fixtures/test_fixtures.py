@@ -31,12 +31,12 @@ from utils import secrets_registry as sr
 REPO_ROOT = sr.REPO_ROOT
 
 REGISTRY = {
-    "cf-token": {"format": "manual", "description": "d", "sensitive": True, "vault_scope": "hosts/all"},
-    "beszel-key": {"format": "manual", "allow_blank": True, "vault_scope": "hosts/play"},
-    "main-domain": {"format": "manual"},
-    "role-id": {"format": "manual", "allow_blank": True},
-    "session-key": {"format": "hex", "length": 32, "vault_scope": "hosts/all"},
-    "request-id": {"format": "uuid4", "vault_scope": "hosts/all"},
+    "cf-token": {"source": "manual", "description": "d", "sensitive": True, "store": "openbao", "scope": "hosts/all"},
+    "beszel-key": {"source": "manual", "allow_blank": True, "store": "openbao", "scope": "hosts/play"},
+    "main-domain": {"source": "manual", "store": "controller_file"},
+    "role-id": {"source": "manual", "allow_blank": True, "store": "controller_file"},
+    "session-key": {"source": "hex", "length": 32, "store": "openbao", "scope": "hosts/all"},
+    "request-id": {"source": "uuid4", "store": "openbao", "scope": "hosts/all"},
 }
 
 
@@ -63,19 +63,21 @@ class ManualValuesTests(unittest.TestCase):
         self.assertEqual(values["main-domain"], "ci-dummy-main-domain")
 
     def test_allow_blank_false_or_missing_is_not_blank(self):
-        values = pre.manual_values({"a": {"format": "manual", "allow_blank": False}, "b": {"format": "manual"}})
+        values = pre.manual_values(
+            {"a": {"source": "manual", "allow_blank": False, "store": "controller_file"}, "b": {"source": "manual", "store": "controller_file"}}
+        )
         self.assertEqual(values, {"a": "ci-dummy-a", "b": "ci-dummy-b"})
 
     def test_a_key_that_is_not_a_plain_file_name_is_refused(self):
         for key in ("../escape", "a/b", "/abs", "..", ".", ""):
             with self.subTest(key=key), self.assertRaisesRegex(sr.RegistryError, "can't be used as a file name"):
-                pre.manual_values({key: {"format": "manual"}})
+                pre.manual_values({key: {"source": "manual", "store": "controller_file"}})
 
     def test_an_unsafe_key_on_a_non_manual_entry_is_not_a_file_and_is_ignored(self):
-        self.assertEqual(pre.manual_values({"../x": {"format": "hex"}}), {})
+        self.assertEqual(pre.manual_values({"../x": {"source": "hex", "store": "openbao", "scope": "hosts/play"}}), {})
 
-    def test_a_vault_scoped_manual_entry_is_not_a_file_and_is_ignored(self):
-        self.assertEqual(pre.manual_values({"../x": {"format": "manual", "vault_scope": "hosts/all/x"}}), {})
+    def test_an_openbao_stored_manual_entry_is_not_a_file_and_is_ignored(self):
+        self.assertEqual(pre.manual_values({"../x": {"source": "manual", "store": "openbao", "scope": "hosts/all/x"}}), {})
 
 
 class PreseedTests(Scratch):
@@ -99,13 +101,13 @@ class PreseedTests(Scratch):
         self.assertEqual((secrets_dir / "unrelated").read_text(), "keep")
 
     def test_a_registry_with_no_manual_entries_writes_nothing(self):
-        self.write_registry({"a": {"format": "hex", "vault_scope": "hosts/play"}})
+        self.write_registry({"a": {"source": "hex", "store": "openbao", "scope": "hosts/play"}})
         written, secrets_dir = pre.preseed(self.root)
         self.assertEqual(written, 0)
         self.assertEqual(list(secrets_dir.iterdir()), [])
 
     def test_an_unsafe_key_writes_nothing_at_all(self):
-        self.write_registry({"ok": {"format": "manual"}, "../bad": {"format": "manual"}})
+        self.write_registry({"ok": {"source": "manual", "store": "controller_file"}, "../bad": {"source": "manual", "store": "controller_file"}})
         with self.assertRaises(sr.RegistryError):
             pre.preseed(self.root)
         self.assertFalse((self.root / pre.SECRETS_RELATIVE / "ok").exists())
@@ -124,9 +126,9 @@ class PreseedTests(Scratch):
 
 
 class FileCacheRegistryTests(Scratch):
-    def test_keeps_only_the_entries_with_no_vault_scope_and_every_field_of_them(self):
+    def test_keeps_only_the_controller_file_entries_and_every_field_of_them(self):
         override = fcr.file_cache_registry(REGISTRY)
-        self.assertEqual(override, {"main-domain": {"format": "manual"}, "role-id": {"format": "manual", "allow_blank": True}})
+        self.assertEqual(override, {"main-domain": REGISTRY["main-domain"], "role-id": REGISTRY["role-id"]})
 
     def test_does_not_mutate_its_input(self):
         original = json.loads(json.dumps(REGISTRY))
@@ -134,7 +136,7 @@ class FileCacheRegistryTests(Scratch):
         self.assertEqual(REGISTRY, original)
 
     def test_a_registry_whose_main_domain_is_not_a_file_cache_entry_is_an_error(self):
-        for registry in ({"role-id": {"format": "manual"}}, {"main-domain": {"format": "manual", "vault_scope": "hosts/all/x"}}):
+        for registry in ({"role-id": REGISTRY["role-id"]}, {"main-domain": {"source": "manual", "store": "openbao", "scope": "hosts/all/x"}}):
             with self.subTest(registry=registry), self.assertRaisesRegex(sr.RegistryError, "main-domain"):
                 fcr.file_cache_registry(registry)
 
@@ -156,7 +158,7 @@ class FileCacheRegistryTests(Scratch):
         self.assertFalse(target.exists())
 
     def test_main_reports_a_registry_without_main_domain_without_writing(self):
-        registry_path = self.write_registry({"role-id": {"format": "manual"}})
+        registry_path = self.write_registry({"role-id": REGISTRY["role-id"]})
         target = self.root / "out.json"
         with patch.object(fcr, "REGISTRY_PATH", registry_path), redirect_stderr(io.StringIO()):
             self.assertEqual(fcr.main([str(target)]), 1)
@@ -174,7 +176,7 @@ class RealRegistryTests(unittest.TestCase):
         cls.registry = sr.load_registry()
 
     def test_every_manual_file_cache_entry_is_seeded_and_no_other(self):
-        manual = {key for key, spec in self.registry.items() if spec.get("format") == "manual" and "vault_scope" not in spec}
+        manual = {key for key, spec in self.registry.items() if spec.get("source") == "manual" and spec.get("store") == "controller_file"}
         self.assertTrue(manual)
         self.assertEqual(set(pre.manual_values(self.registry)), manual)
 
@@ -186,22 +188,22 @@ class RealRegistryTests(unittest.TestCase):
             target.write_text((REPO_ROOT / sr.REGISTRY_RELATIVE).read_text())
             written, secrets_dir = pre.preseed(root)
             self.assertEqual(written, len(list(secrets_dir.iterdir())))
-            blank = {key for key, spec in sr.file_cache_entries(self.registry).items() if spec.get("format") == "manual" and spec.get("allow_blank")}
+            blank = {key for key, spec in sr.file_cache_entries(self.registry).items() if spec.get("source") == "manual" and spec.get("allow_blank")}
             self.assertTrue(blank)
             for key in blank:
                 self.assertEqual((secrets_dir / key).read_text(), "", key)
 
-    def test_the_real_override_is_exactly_the_entries_with_no_vault_scope_and_includes_main_domain(self):
+    def test_the_real_override_is_exactly_the_controller_file_entries_and_includes_main_domain(self):
         override = fcr.file_cache_registry(self.registry)
-        self.assertEqual(set(override), {key for key, spec in self.registry.items() if "vault_scope" not in spec})
+        self.assertEqual(set(override), {key for key, spec in self.registry.items() if spec["store"] == "controller_file"})
         self.assertIn("main-domain", override)
         for key, spec in override.items():
             with self.subTest(key=key):
                 self.assertEqual(spec, self.registry[key])
 
     def test_the_real_registry_has_entries_stored_in_openbao_that_the_override_leaves_out(self):
-        self.assertTrue(any("vault_scope" in spec for spec in self.registry.values()))
-        self.assertFalse(any("vault_scope" in spec for spec in fcr.file_cache_registry(self.registry).values()))
+        self.assertTrue(any(spec["store"] == "openbao" for spec in self.registry.values()))
+        self.assertFalse(any(spec["store"] == "openbao" for spec in fcr.file_cache_registry(self.registry).values()))
 
 
 class RealWorkflowTests(unittest.TestCase):

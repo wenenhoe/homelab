@@ -510,14 +510,14 @@ Two fixtures run first, both in
 [`tools/ci/fixtures/`](../tools/ci/fixtures/) and both read from the real
 `secrets_registry.yaml` at run time, so neither can drift from it:
 
-- `preseed_manual_secrets` writes every manual-format secret kept in the
-  file cache (the entries with no `vault_scope`) as a plain file under
+- `preseed_manual_secrets` writes every `source: manual` secret kept in the
+  file cache (the entries with `store: controller_file`) as a plain file under
   `ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py`
   produces — an empty file for an `allow_blank` entry, `ci-dummy-<key>`
   otherwise. Throwaway CI values, same non-secret status as
   `ci-inventory/group_vars/all/ci_dummy_vars.yaml`. A registry key that isn't
   a plain file name is refused, since it becomes a path.
-- `file_cache_registry` writes the registry's file-cache entries, unchanged,
+- `file_cache_registry` writes the registry's `store: controller_file` entries, unchanged,
   to `/tmp/ci-secrets-registry-no-vault.json`, which both playbook runs load
   with `-e @`. This job has no OpenBao or step-ca target, so an entry stored
   in OpenBao would make `vault_login.yaml` run and fail; Vault reachability
@@ -534,17 +534,20 @@ registry, and checks the job's steps run them before the playbooks.
 
 `ci.gates.secrets_registry_rules` checks every entry in
 `secrets_registry.yaml` against the rules the file's header comment states:
-kebab-case names and no unknown keys; `format` one of `hex`, `uuid4` or
-`manual`; `length` on `hex` entries and nowhere else; a `vault_scope` of one
-of the three shapes the header names, required on every `hex` and `uuid4`
-entry; a `description` on every `manual` entry; and `allow_blank` and
-`sensitive` only on `manual` entries, as booleans. Each violation is printed
+kebab-case names and no unknown keys (so the old `format` and
+`vault_scope` fields are refused); `source` one of `hex`, `uuid4` or
+`manual`; `store` stated on every entry as `openbao` or `controller_file`;
+`length` on `hex` entries and nowhere else; a `scope`, of one of the three
+shapes the header names, on every `store: openbao` entry and on no
+`controller_file` entry; `store: openbao` on every `hex` and `uuid4` entry; a
+`description` on every `manual` entry; and `allow_blank` and `sensitive` only
+on `manual` entries, as booleans. Each violation is printed
 with the entry and the rule, and any violation fails the check.
 
 It runs as the `check-secrets-registry` pre-commit hook, so `pre-commit-checks`
 runs it on every PR, and the hook needs only PyYAML. A wrong combination
 would otherwise surface at deploy or rotation time: the `secrets` role skips
-a `hex` entry with no `vault_scope` without an error.
+a `hex` entry stored anywhere but OpenBao without an error.
 `tools/tests/ci/gates/test_secrets_registry_rules.py` has a case for each rule
 and runs the check over the real registry.
 

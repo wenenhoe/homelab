@@ -5,7 +5,7 @@ checks, run separately since they need different access:
 --local (default, no credentials needed): diffs every file under
 ansible/files/secrets/ against secrets_registry.yaml's declared keys.
 Two different findings, not one:
-  - A file whose registry entry has a `vault_scope` is stale — Vault is
+  - A file whose registry entry has `store: openbao` is stale — Vault is
     that entry's only real source since whichever stage moved it there
     (Track A stage 4 for most, stage 5/6 for cloud credentials); the
     file predates that move and nothing has read it since. Flagged
@@ -45,7 +45,7 @@ import sys
 import requests
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from utils.repo import SECRETS_DIR
-from utils.secrets_registry import REGISTRY_PATH, load_registry
+from utils.secrets_registry import REGISTRY_PATH, load_registry, openbao_scopes
 
 B2_BUCKET = "homelab-backups-b2"
 
@@ -68,7 +68,7 @@ def cached(name: str) -> str | None:
 def audit_local() -> None:
     print("== Local secrets cache vs. secrets_registry.yaml ==")
     registry = load_registry(REGISTRY_PATH)
-    vault_backed_scope = {name: spec["vault_scope"] for name, spec in registry.items() if spec.get("vault_scope")}
+    vault_backed_scope = openbao_scopes(registry)
     # cloud_credentials' own internal bookkeeping keys (_rotation-key-*,
     # _oci-leaf-user-ocid-*, the two scim-ids) have no secrets_registry.yaml
     # entry of their own - reusing LEGACY_CACHE_KEYS' own name list here,
@@ -94,7 +94,7 @@ def audit_local() -> None:
             "unread since it moved to Vault, not confirmed against Vault by this check (no credentials needed for --local):"
         )
         for name in stale_vault_backed:
-            print(f"    {name}  (vault_scope: {vault_backed_scope[name]})")
+            print(f"    {name}  (scope: {vault_backed_scope[name]})")
         print("\n  Confirm each has a real value in Vault before deleting (e.g. openbao_utils/bootstrap.py")
         print("  reports it as already-set, or a direct kv get) — then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in stale_vault_backed))
 

@@ -21,7 +21,7 @@
 # don't invent a workaround elsewhere.
 # ---------------------------------------------------------------------------
 
-# Normally a `manual`-format secrets_registry.yaml entry
+# Normally a `source: manual` secrets_registry.yaml entry
 # (main.yaml: main_domain: "{{ secrets_generated['main-domain'] }}").
 # lab_domain/ddns_domain (main.yaml) derive from this, so defining it
 # flatly here is enough to make those resolve too.

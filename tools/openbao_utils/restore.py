@@ -14,7 +14,7 @@ currently authenticate with, etc.). This restores the exact prior
 value instead of letting anything regenerate.
 
 Two phases, covering two Vault-path shapes that don't overlap:
-  1. Every secrets_registry.yaml entry with a vault_scope (every
+  1. Every secrets_registry.yaml entry with `store: openbao` (every
      `hosts/*` key, plus the 20 cloud_credentials/leaf ones a registry
      entry exists for as of Track A stage 6) - via cache.py's
      read_vault_path()/write_vault_path() escape hatch.
@@ -53,12 +53,11 @@ from pathlib import Path
 
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path, write_vault_path
-from utils.secrets_registry import REGISTRY_PATH, load_registry
+from utils.secrets_registry import REGISTRY_PATH, load_registry, openbao_scopes
 
 
 def _scoped_registry_entries() -> dict[str, str]:
-    registry = load_registry(REGISTRY_PATH)
-    return {name: spec["vault_scope"] for name, spec in registry.items() if spec.get("vault_scope")}
+    return openbao_scopes(load_registry(REGISTRY_PATH))
 
 
 def main() -> int:

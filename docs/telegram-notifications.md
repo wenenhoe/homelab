@@ -40,7 +40,7 @@ above has its own `telegram-topic-id-*` entry, `allow_blank: true` since
 Topics is optional — a blank topic ID falls back to posting in the
 group's main stream, no code change needed either way (see `main.yaml`'s
 `telegram_chatid_*` vars). All of these are Vault-backed
-(`vault_scope: hosts/all/telegram`); bootstrap them the same way as any
+(`store: openbao`, `scope: hosts/all/telegram`); bootstrap them the same way as any
 other Vault-backed manual secret:
 
 ```sh

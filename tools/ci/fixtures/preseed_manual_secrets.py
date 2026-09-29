@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes a throwaway dummy value to ansible/files/secrets/<key> for every
-manual-format secrets_registry entry kept in the file cache, for
+manual secrets_registry entry kept in the file cache, for
 deploy-ordering-check's own two ansible-playbook invocations. Mirrors what
 openbao_utils/bootstrap.py would produce on a real first-ever deploy, for the
 entries the job's registry override (ci.fixtures.file_cache_registry) holds.
@@ -37,10 +37,10 @@ SECRETS_RELATIVE = "ansible/files/secrets"
 
 
 def manual_values(registry: dict[str, dict[str, object]]) -> dict[str, str]:
-    """Secret name -> dummy value, for every manual-format file-cache entry."""
+    """Secret name -> dummy value, for every manual file-cache entry."""
     values = {}
     for key, spec in file_cache_entries(registry).items():
-        if spec.get("format") != "manual":
+        if spec.get("source") != "manual":
             continue
         if not key or Path(key).name != key or key in {".", ".."}:
             raise RegistryError(f"secret name {key!r} can't be used as a file name")

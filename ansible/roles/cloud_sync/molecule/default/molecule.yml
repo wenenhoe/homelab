@@ -27,6 +27,7 @@ provisioner:
   playbooks:
     prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind_prebuilt.yml
     converge: converge.yml
+    side_effect: side_effect.yml
     verify: verify.yml
 verifier:
   name: ansible
@@ -39,5 +40,6 @@ scenario:
     - prepare
     - converge
     - idempotence
+    - side_effect
     - verify
     - destroy

@@ -1,0 +1,44 @@
+---
+# Library role, no tasks/main.yaml — always called explicitly via
+# include_role: {name: systemd_reload, tasks_from: reload.yaml} once the
+# caller has installed its notifier units and templated its own service
+# and timer (each with `notify: Reload systemd`), just before it enables
+# the timer.
+#
+# Before its first `notify`, the caller includes this role with no
+# tasks_from (`include_role: {name: systemd_reload}`). That is what makes
+# the `Reload systemd` handler in handlers/main.yaml exist; a handler is
+# only known once its role has loaded. Not a `dependencies:` entry in
+# meta/main.yaml: Molecule's prerun treats a role with a meta/main.yaml as
+# a Galaxy role and then fails it without a galaxy_info namespace.
+#
+# telegram_notify and uptime_kuma_push deliberately neither reload systemd
+# nor notify a handler (see their own install.yaml headers), so this
+# reloads off the results they register.
+#
+# Optional var:
+#   systemd_reload_uptime_kuma  true when the caller also installed an
+#                               uptime_kuma_push unit. Those results are
+#                               only read then: they persist as host vars
+#                               from whichever role set them last in the
+#                               play, so a caller without that unit must
+#                               not see a stale one.
+
+# Registered so cloud_sync's side_effect scenario can tell whether this ran
+# or was skipped.
+- name: Reload systemd if a notifier unit changed
+  ansible.builtin.systemd:
+    daemon_reload: true
+  register: systemd_reload_notifier_result
+  when: >-
+    telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
+    telegram_notify_service_result.changed or
+    ((systemd_reload_uptime_kuma | default(false) | bool) and
+    (uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed))
+
+# Handlers only flush at the end of the play by default, but "Enable and
+# start" after this needs systemd to have already picked up the current
+# unit content. On a genuinely first-ever run the unit isn't in systemd's
+# cache at all until a reload happens.
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers

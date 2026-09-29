@@ -1,6 +1,8 @@
 ---
 - name: Converge
-  hosts: all
+  # Not `all`: side_effect.yml imports this play again after add_host below has
+  # registered fake hosts, which `all` would then include.
+  hosts: cloud-sync-instance
   become: true
   vars_files:
     - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/aws_cli.yml"

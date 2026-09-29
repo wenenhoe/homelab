@@ -159,6 +159,12 @@
 # already-scoped SeaweedFS credential (read access is strictly less
 # than the write access it already has).
 
+# The units below notify a handler that only exists once its role has
+# loaded; see systemd_reload/tasks/reload.yaml.
+- name: Load the shared Reload systemd handler
+  ansible.builtin.include_role:
+    name: systemd_reload
+
 - name: Install Telegram alerting for freshness-check failures
   ansible.builtin.include_role:
     name: telegram_notify
@@ -195,20 +201,10 @@
     mode: "0644"
   notify: Reload systemd
 
-# telegram_notify's own install.yaml deliberately doesn't reload systemd
-# or notify a handler itself (see its own header comment) - do it here
-# instead, off the results it registers.
-- name: Reload systemd if the Telegram notifier unit changed
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: >-
-    telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
-    telegram_notify_service_result.changed
-
-# "Enable and start" below needs systemd to have already picked
-# up the current unit content, which only happens once handlers flush.
-- name: Flush handlers so systemd has the current unit definitions
-  ansible.builtin.meta: flush_handlers
+- name: Reload systemd and flush handlers so systemd has the current unit definitions
+  ansible.builtin.include_role:
+    name: systemd_reload
+    tasks_from: reload.yaml
 
 - name: Enable and start the freshness-check timer
   ansible.builtin.systemd:

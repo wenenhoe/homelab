@@ -44,6 +44,12 @@
     group: root
     mode: "0755"
 
+# The units below notify a handler that only exists once its role has
+# loaded; see systemd_reload/tasks/reload.yaml.
+- name: Load the shared Reload systemd handler
+  ansible.builtin.include_role:
+    name: systemd_reload
+
 - name: Install Telegram alerting for cert-expiry check failures
   ansible.builtin.include_role:
     name: telegram_notify
@@ -85,22 +91,12 @@
     mode: "0644"
   notify: Reload systemd
 
-# telegram_notify's own install.yaml deliberately doesn't reload systemd
-# or notify a handler itself (see its own header comment) - do it here
-# instead, off the results it registers. uptime_kuma_push follows the
-# same convention, for the same reason.
-- name: Reload systemd if either notifier unit changed
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: >-
-    telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
-    telegram_notify_service_result.changed or
-    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
-
-# "Enable and start" below needs systemd to have already picked up the current unit
-# content, which only happens once handlers actually flush.
-- name: Flush handlers so systemd has the current unit definitions
-  ansible.builtin.meta: flush_handlers
+- name: Reload systemd and flush handlers so systemd has the current unit definitions
+  ansible.builtin.include_role:
+    name: systemd_reload
+    tasks_from: reload.yaml
+  vars:
+    systemd_reload_uptime_kuma: true
 
 - name: Enable and start the cert-expiry-check timer
   ansible.builtin.systemd:

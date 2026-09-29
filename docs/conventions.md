@@ -45,7 +45,11 @@ Named for the job they do, not the host or project running it — no
 (e.g. `ansible/roles/cloud_sync/templates/cloud-sync.service.j2`), and
 every task that writes one pairs it with a `notify: Reload systemd`
 handler — a unit file changing without a reload is a real, non-obvious
-way for a deploy to silently not take effect.
+way for a deploy to silently not take effect. The handler is defined once,
+in the `systemd_reload` role; a role that writes units includes that role
+(`include_role: {name: systemd_reload}`) before its first `notify` so the
+handler exists (see
+[`telegram-notifications.md`](telegram-notifications.md#wiring-it-into-this-repo)).
 
 ## Telegram topics
 

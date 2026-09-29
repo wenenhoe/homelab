@@ -206,6 +206,12 @@
         path: "/tmp/{{ step_ca_cert_app_name }}-cert-provisioner-password"
         state: absent
 
+# The units below notify a handler that only exists once its role has
+# loaded; see systemd_reload/tasks/reload.yaml.
+- name: Load the shared Reload systemd handler
+  ansible.builtin.include_role:
+    name: systemd_reload
+
 - name: Install Telegram alerting for cert-renewal failures
   ansible.builtin.include_role:
     name: telegram_notify
@@ -230,18 +236,6 @@
     uptime_kuma_push_unit_name: "uptime-kuma-push-cert-renewer-{{ step_ca_cert_app_name }}"
     uptime_kuma_push_description: "Uptime Kuma liveness push for a successful {{ step_ca_cert_app_name }} cert renewal"
     uptime_kuma_push_url: "{{ step_ca_cert_uptime_kuma_push_url }}"
-
-# telegram_notify's own install.yaml deliberately doesn't reload systemd
-# or notify a handler itself (see its own header comment) - do it here
-# instead, off the results it registers. uptime_kuma_push follows the
-# same convention, for the same reason.
-- name: Reload systemd if either notifier unit changed
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: >-
-    telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
-    telegram_notify_service_result.changed or
-    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
 
 - name: Ensure the cert-renewer env directory exists
   ansible.builtin.file:
@@ -281,15 +275,12 @@
     mode: "0644"
   notify: Reload systemd
 
-# Handlers only flush at the end of the play by default (and this role
-# runs for both lldap and openbao, plus tinyauth_ca_trust, in the same
-# play — see deploy.yaml's Play 6), but "Enable and start" below needs
-# systemd to have already picked up the current unit content first: on
-# a genuinely first-ever run, the unit doesn't exist in systemd's own
-# cache at all until a reload happens. Force the flush here instead of
-# leaving it to the play's natural end.
-- name: Flush handlers so systemd has the current unit definitions
-  ansible.builtin.meta: flush_handlers
+- name: Reload systemd and flush handlers so systemd has the current unit definitions
+  ansible.builtin.include_role:
+    name: systemd_reload
+    tasks_from: reload.yaml
+  vars:
+    systemd_reload_uptime_kuma: true
 
 - name: "Enable and start the renewal timer for: {{ step_ca_cert_app_name }}"
   ansible.builtin.systemd:

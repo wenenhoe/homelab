@@ -66,12 +66,32 @@ alongside `telegram_chatid_*`.
   `tasks/main.yaml`.
 - Has no `tasks/main.yaml` or molecule suite of its own (same shape as
   `molecule_helpers`).
-- Never reloads systemd or notifies a handler itself — the including
-  role does that off the `telegram_notify_env_result`/
-  `telegram_notify_curlrc_result`/`telegram_notify_service_result` it
-  registers, so the shared role
-  never depends on a same-named handler existing in whatever play
-  includes it.
+- Never reloads systemd or notifies a handler itself, so it never
+  depends on a same-named handler existing in whatever play includes it.
+  The including role reloads instead, by including the `systemd_reload`
+  library role's `reload.yaml` (below), which reads the
+  `telegram_notify_env_result`/`telegram_notify_curlrc_result`/
+  `telegram_notify_service_result` it registers.
+
+Each timer role (`backup_agent`, `caddy_cert_expiry`, `cloud_sync`,
+`step_ca_cert`) runs the same sequence, in this order:
+
+1. Include `systemd_reload` with no `tasks_from`, so its handler exists,
+   then install the Telegram notifier with the role above, and the Uptime
+   Kuma push unit where it has one.
+2. Template its own service and timer, each with `notify: Reload systemd`.
+3. Include `systemd_reload`'s `reload.yaml`: reload systemd if a notifier
+   unit changed, then flush handlers so the handler for its own units has
+   run too. A role that installed a Kuma push unit sets
+   `systemd_reload_uptime_kuma: true`.
+4. Enable and start its timer.
+
+`Reload systemd` is defined once, in `systemd_reload`'s handlers. Each of
+these roles includes `systemd_reload` (no `tasks_from`) before its first
+`notify`; without that the handler doesn't exist yet and the run fails with
+"handler not found". It is an include, not a `dependencies:` entry in
+`meta/main.yaml`, because Molecule treats a role with a `meta/main.yaml` as
+a Galaxy role and fails its prerun without `galaxy_info`.
 
 A trailing `@` in the unit name (`telegram-notify@`, `cert-renewer@`'s
 own notifier) renders a genuine systemd `@`-instantiated template unit,

@@ -67,9 +67,7 @@ type in the repo:
   [`#molecule-watch-sets`](#molecule-watch-sets). A few paths still map
   to *every* role: `ansible/requirements.yml` (a Galaxy collection
   bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
-  role's Molecule run actually executes under), `.config/molecule/`,
-  `ansible/filter_plugins/` (the filters `ansible.cfg` loads into every
-  play, so any role may call one), and
+  role's Molecule run actually executes under), `.config/molecule/`, and
   everything that base config points every scenario at: `molecule_helpers/`'s
   two requirements files, `ansible/ansible.cfg` and the coverage callback
   plugin under `ansible/molecule-coverage/callback_plugins/`. The last
@@ -121,6 +119,12 @@ falls inside it:
   `compose`'s own scenarios. A role with no scenario of its own (like
   `molecule_helpers`, or a shared role nothing tests directly) is
   watched but never queued;
+- each filter plugin in `ansible/filter_plugins/` that defines a filter
+  named in any of the files this watch set already covers (`| cron_period_hours`,
+  or the bare name in `map('...')`), so editing a filter queues the roles
+  that call it and not every role. The names are read from the dict literal
+  `FilterModule.filters()` returns, without importing the plugin, and must
+  stand alone: `compose_app_deploy_plan` is not a use of `app_deploy_plan`;
 - each `molecule_helpers` task file a scenario pulls in with
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   through the helper playbooks and task files that include further
@@ -197,11 +201,16 @@ or `#trivy:ignore`).
 
 `ansible/roles/molecule_helpers/` isn't a normal role — it has no
 `molecule/` scenario of its own — so a change there queues only the
-roles whose watch set contains that file. Two fail-safes always queue
+roles whose watch set contains that file. Three fail-safes always queue
 *more*: a changed file under `molecule_helpers/` that no scenario
 references queues every role (a *deleted* one queues nothing: no scenario
 names it, or the scan would have failed, and a reference removed in the same
-change is in a scenario file that changed with it), as does any repo-wide path: `GLOBAL_PATHS`
+change is in a scenario file that changed with it); a changed file under
+`ansible/filter_plugins/` whose filter names can't be read (deleted, a helper
+module, a plugin that builds `filters()` any way but a dict literal, or
+anything nested or not `.py`) queues every role, since there is no telling who
+called it, while a readable plugin no role calls queues nothing; and so does
+any repo-wide path: `GLOBAL_PATHS`
 plus every path in `.config/molecule/config.yml`, the base config deep-merged
 into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those
 are resolved from the config on each run (`base_config_paths`), so pointing

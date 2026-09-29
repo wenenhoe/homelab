@@ -115,12 +115,6 @@ class GlobalPathTests(FakeRepo):
             with self.subTest(path=path):
                 self.assertEqual(self.roles_for(path), ["alpha", "beta"])
 
-    def test_a_change_under_the_filter_plugin_directory_queues_every_role(self):
-        # ansible.cfg loads these into every play, so no role's own directory names them.
-        self.scenario("alpha")
-        self.scenario("beta")
-        self.assertEqual(self.roles_for("ansible/filter_plugins/cron_period_hours.py"), ["alpha", "beta"])
-
     def test_every_path_the_base_config_points_scenarios_at_queues_every_role(self):
         self.scenario("alpha")
         self.scenario("beta")
@@ -475,6 +469,127 @@ class SymlinkTests(FakeRepo):
                 self.roles_for("docs/ci.md")
 
 
+class FilterPluginTests(FakeRepo):
+    PLUGIN = "ansible/filter_plugins/my_plugin.py"
+
+    def plugin(self, *names: str, file: str = "my_plugin") -> str:
+        entries = ", ".join(f'"{name}": len' for name in names)
+        path = f"ansible/filter_plugins/{file}.py"
+        self.write(path, f"class FilterModule:\n    def filters(self):\n        return {{{entries}}}\n")
+        return path
+
+    def uses(self, role: str, text: str, where: str = "tasks/main.yaml") -> None:
+        self.write(f"ansible/roles/{role}/{where}", text)
+
+    def test_a_filter_change_queues_only_the_roles_that_call_it(self):
+        plugin = self.plugin("my_filter")
+        for role in ("alpha", "beta", "gamma"):
+            self.scenario(role)
+        self.uses("alpha", '- ansible.builtin.debug:\n    msg: "{{ x | my_filter }}"\n')
+        self.uses("beta", "- ansible.builtin.debug:\n    msg: nothing\n")
+        self.assertEqual(self.roles_for(plugin), ["alpha"])
+
+    def test_a_template_defaults_or_scenario_file_counts_as_a_call(self):
+        plugin = self.plugin("my_filter")
+        for role in ("alpha", "beta", "gamma", "delta"):
+            self.scenario(role)
+        self.uses("alpha", "{{ value | my_filter }}\n", "templates/unit.j2")
+        self.uses("beta", 'beta_value: "{{ 3 | my_filter }}"\n', "defaults/main.yaml")
+        self.write("ansible/roles/gamma/molecule/default/verify.yml", '- ansible.builtin.assert:\n    that: "1 | my_filter"\n')
+        self.assertEqual(self.roles_for(plugin), ["alpha", "beta", "gamma"])
+
+    def test_a_call_in_an_included_role_queues_the_role_that_runs_it(self):
+        plugin = self.plugin("my_filter")
+        for role in ("alpha", "beta", "gamma"):
+            self.scenario(role)
+        self.uses("alpha", "- ansible.builtin.include_role:\n    name: beta\n")
+        self.uses("beta", '- ansible.builtin.debug:\n    msg: "{{ 1 | my_filter }}"\n')
+        self.assertEqual(self.roles_for(plugin), ["alpha", "beta"])
+
+    def test_a_call_in_a_helper_task_a_scenario_pulls_in_counts(self):
+        plugin = self.plugin("my_filter")
+        self.scenario("alpha", converge=CONVERGE_WITH_HELPER.format(tasks_from="shared.yaml"))
+        self.scenario("beta")
+        self.helper_task("shared.yaml", '- ansible.builtin.debug:\n    msg: "{{ 1 | my_filter }}"\n')
+        self.assertEqual(self.roles_for(plugin), ["alpha"])
+
+    def test_any_filter_a_module_defines_counts(self):
+        plugin = self.plugin("first_filter", "second_filter")
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.uses("beta", 'msg: "{{ x | second_filter }}"\n')
+        self.assertEqual(self.roles_for(plugin), ["beta"])
+
+    def test_the_bare_name_in_map_or_select_counts(self):
+        plugin = self.plugin("my_filter")
+        self.scenario("alpha")
+        self.uses("alpha", "msg: \"{{ items | map('my_filter') | list }}\"\n")
+        self.assertEqual(self.roles_for(plugin), ["alpha"])
+
+    def test_the_name_has_to_stand_alone(self):
+        plugin = self.plugin("my_filter")
+        self.scenario("alpha")
+        self.uses("alpha", 'a: "{{ compose_my_filter }}"\nb: "{{ item.my_filter }}"\nc: "{{ my_filter_extra }}"\n')
+        self.assertEqual(self.roles_for(plugin), [])
+
+    def test_a_filter_no_role_calls_queues_nothing_and_says_so(self):
+        plugin = self.plugin("my_filter")
+        self.scenario("alpha")
+        roles, log = ms.roles_to_test(self.root, [plugin])
+        self.assertEqual(roles, [])
+        self.assertIn(f"{plugin}: no role's Molecule run uses its filters -> nothing to run", log)
+
+    def test_the_watch_set_says_which_filter_and_which_file(self):
+        plugin = self.plugin("my_filter")
+        self.scenario("alpha")
+        self.uses("alpha", 'msg: "{{ 1 | my_filter }}"\n')
+        self.assertEqual(ms.watch_set(self.root, "alpha")[plugin], ["uses filter my_filter (ansible/roles/alpha/tasks/main.yaml)"])
+
+    def test_a_comment_only_change_to_a_plugin_queues_nothing(self):
+        plugin = self.plugin("my_filter")
+        self.scenario("alpha")
+        self.uses("alpha", 'msg: "{{ 1 | my_filter }}"\n')
+        roles, log = ms.roles_to_test(self.root, [plugin], is_noop=lambda path: True)
+        self.assertEqual(roles, [])
+        self.assertIn(f"{plugin}: comments/formatting only -> ignored", log)
+
+    def test_a_file_whose_filters_cannot_be_read_queues_every_role(self):
+        self.scenario("alpha")
+        self.scenario("beta")
+        unreadable = {
+            "built by a call": "class FilterModule:\n    def filters(self):\n        return dict(a=len)\n",
+            "built by a helper": "class FilterModule:\n    def filters(self):\n        return build()\n",
+            "spread into the dict": "class FilterModule:\n    def filters(self):\n        return {**base(), 'a': len}\n",
+            "an empty dict": "class FilterModule:\n    def filters(self):\n        return {}\n",
+            "no FilterModule at all": "def shared_helper():\n    return 1\n",
+            "a syntax error": "class FilterModule(:\n",
+        }
+        for label, text in unreadable.items():
+            with self.subTest(label):
+                path = f"ansible/filter_plugins/{label.replace(' ', '_')}.py"
+                self.write(path, text)
+                roles, log = ms.roles_to_test(self.root, [path])
+                self.assertEqual(roles, ["alpha", "beta"])
+                self.assertIn(f"{path}: under ansible/filter_plugins/ but not a plugin whose filter names can be read -> every role", log)
+
+    def test_a_deleted_nested_or_non_python_file_queues_every_role(self):
+        self.plugin("my_filter")
+        self.write("ansible/filter_plugins/sub/nested.py", "x = 1\n")
+        self.write("ansible/filter_plugins/README.md", "notes\n")
+        self.scenario("alpha")
+        self.scenario("beta")
+        for label, path in (
+            ("deleted", "ansible/filter_plugins/gone.py"),
+            ("nested", "ansible/filter_plugins/sub/nested.py"),
+            ("non-python", "ansible/filter_plugins/README.md"),
+        ):
+            with self.subTest(label):
+                self.assertEqual(self.roles_for(path), ["alpha", "beta"])
+
+    def test_a_readable_plugin_is_not_a_repo_wide_path(self):
+        self.assertNotIn("ansible/filter_plugins/", ms.GLOBAL_PATHS)
+
+
 class CliTests(FakeRepo):
     def git(self, *args: str) -> str:
         env = {**os.environ, "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
@@ -612,6 +727,19 @@ class RealTreeTests(unittest.TestCase):
     def test_the_role_whose_scenario_reads_its_own_helper_key_is_watched(self):
         watched = ms.watch_set(ms.REPO_ROOT, "backup_agent")
         self.assertIn("ansible/roles/molecule_helpers/ansible/files/backup-gpg-public-key.asc", watched)
+
+    def test_editing_a_filter_queues_the_roles_that_call_it_not_every_role(self):
+        queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/filter_plugins/cron_period_hours.py"])[0]
+        self.assertIn("backup_agent", queued)
+        self.assertLess(len(queued), len(ms.role_names(ms.REPO_ROOT)))
+
+    def test_every_real_filter_plugin_has_names_the_scanner_can_read(self):
+        # An unreadable one would quietly queue every role whenever it changed.
+        plugins = ms.filter_plugins(ms.REPO_ROOT)
+        self.assertTrue(plugins)
+        for plugin, names in plugins.items():
+            with self.subTest(plugin=plugin):
+                self.assertTrue(names, f"{plugin}: FilterModule.filters() must return a dict literal of string keys")
 
     def test_helper_change_json_is_compact_and_sorted(self):
         queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/roles/apt/tasks/main.yaml"])[0]

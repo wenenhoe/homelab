@@ -8,9 +8,9 @@
 # against a real lldap_bootstrap-populated lldap target instead of
 # compose-boot-test's per-app isolation, which can never provide one —
 # see docs/ci.md.
-- name: Resolve tinyauth's own compose_apps entry
+- name: Find tinyauth's own entry in resolved_apps
   ansible.builtin.set_fact:
-    tinyauth_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'tinyauth') | first }}"
+    tinyauth_compose_app_item: "{{ resolved_apps | selectattr('name', 'equalto', 'tinyauth') | first }}"
 
 - name: Init and deploy tinyauth
   ansible.builtin.include_role:

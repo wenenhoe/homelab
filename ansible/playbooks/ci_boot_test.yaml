@@ -77,7 +77,7 @@
       ansible.builtin.set_fact:
         ansible_user: "{{ ansible_facts.user_id }}"
 
-    - name: Resolve compose_apps against the real app registry
+    - name: Ensure the stacks directory exists
       ansible.builtin.include_role:
         name: compose
         tasks_from: preinit.yaml
@@ -87,4 +87,4 @@
         name: compose
         tasks_from: init.yaml
       vars:
-        compose_app_item: "{{ compose_apps[0] }}"
+        compose_app_item: "{{ resolved_apps[0] }}"

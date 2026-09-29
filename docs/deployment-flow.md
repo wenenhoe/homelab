@@ -158,12 +158,13 @@ compose_apps:
         host: dashy
 ```
 
-Play 1's `preinit.yaml` merges each host's short entry with its
-`app_registry` definition (`registry_defaults | combine(item,
-recursive=True)`) and replaces `compose_apps` in `hostvars` with the
-resolved list. Every downstream role reads only that resolved list, so an
-app's routing/upstream/auth is defined once regardless of how many hosts
-run it.
+`resolved_apps` (`group_vars/all/main.yaml`) merges each host's short entry
+with its `app_registry` definition through the `resolve_apps` filter
+(`ansible/filter_plugins/resolve_apps.py`; dicts merge, lists are replaced).
+`compose_apps` stays the host's own short list and is never reassigned. Every
+downstream role reads only `resolved_apps`, so an app's routing/upstream/auth
+is defined once regardless of how many hosts run it, and any host's value is
+readable through `hostvars` without that host's play having run.
 
 See [`adding-an-app.md`](adding-an-app.md) for a worked example.
 
@@ -175,8 +176,8 @@ See [`adding-an-app.md`](adding-an-app.md) for a worked example.
 | `images` | Pull/rebuild every app's image and recreate containers whose image changed (Plays 2–9) | Config rendering, directory/volume provisioning, Docker install |
 | `infra` | Re-render Caddyfile/`named.conf`/zones, restart only changed containers | Image pulls/rebuilds, directory/volume provisioning, Docker install |
 
-`preinit` and the `secrets` role always run regardless of tags, since
-everything else reads their output. One-time provisioning (`caddy`/`bind9`
+`preinit` (the stacks directory) and the `secrets` role always run regardless
+of tags, since everything else reads their output. One-time provisioning (`caddy`/`bind9`
 init, `compose_app`'s per-app init) has no tag and only runs on a full,
 untagged pass — `images`/`infra` both assume the host is already
 provisioned.

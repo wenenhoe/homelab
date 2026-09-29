@@ -6,9 +6,9 @@
 # compose service — see docs/openbao.md's "Non-root user" section for
 # why a one-shot compose service doesn't work here.
 
-- name: Resolve openbao's own compose_apps entry, if present
+- name: Find openbao's own entry in resolved_apps, if present
   ansible.builtin.set_fact:
-    openbao_compose_app_matches: "{{ compose_apps | selectattr('name', 'equalto', 'openbao') | list }}"
+    openbao_compose_app_matches: "{{ resolved_apps | selectattr('name', 'equalto', 'openbao') | list }}"
   tags:
     - always
 

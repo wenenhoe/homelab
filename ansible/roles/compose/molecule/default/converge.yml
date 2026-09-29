@@ -29,4 +29,4 @@
         name: compose
         tasks_from: main.yaml
       vars:
-        compose_app_item: "{{ compose_apps[0] }}"
+        compose_app_item: "{{ resolved_apps[0] }}"

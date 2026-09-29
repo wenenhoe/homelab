@@ -47,7 +47,7 @@ all:
         ci-managed-host:
           ansible_host: "ci-managed-host.{{ ddns_domain }}"
           ansible_connection: local
-          # preinit.yaml (compose role) loops over compose_apps directly
+          # resolved_apps (group_vars/all/main.yaml) reads compose_apps
           # with no | default([]) — needs to exist, empty is fine, this
           # job never reaches anything that deploys a real app.
           compose_apps: []

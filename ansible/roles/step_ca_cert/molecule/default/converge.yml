@@ -32,7 +32,7 @@
 
     - name: Resolve lldap's own compose_apps entry
       ansible.builtin.set_fact:
-        step_ca_cert_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'lldap') | first }}"
+        step_ca_cert_compose_app_item: "{{ resolved_apps | selectattr('name', 'equalto', 'lldap') | first }}"
 
     # Deploys the REAL docker/lldap/compose.yaml + env.j2 (copied into
     # this scenario's own files/docker/ — see host_vars's own comment on

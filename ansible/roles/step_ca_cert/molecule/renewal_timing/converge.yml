@@ -69,7 +69,7 @@
 
     - name: Resolve lldap's own compose_apps entry
       ansible.builtin.set_fact:
-        step_ca_cert_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'lldap') | first }}"
+        step_ca_cert_compose_app_item: "{{ resolved_apps | selectattr('name', 'equalto', 'lldap') | first }}"
 
     # Same cold-volume bootstrap race as default's own scenario
     # — see that scenario's own comment. This scenario reuses it purely

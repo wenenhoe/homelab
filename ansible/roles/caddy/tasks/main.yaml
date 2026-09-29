@@ -1,7 +1,7 @@
 ---
-- name: Resolve caddy's own compose_apps entry, if present
+- name: Find caddy's own entry in resolved_apps, if present
   ansible.builtin.set_fact:
-    caddy_compose_app_matches: "{{ compose_apps | selectattr('name', 'equalto', 'caddy') | list }}"
+    caddy_compose_app_matches: "{{ resolved_apps | selectattr('name', 'equalto', 'caddy') | list }}"
   tags:
     - always
 

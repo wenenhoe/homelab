@@ -3,8 +3,7 @@
 # non-infra app) and caddy/bind9 (called directly for their own app, to
 # control ordering relative to their own config generation/deploy).
 #
-# Expects compose_app_item: one fully-resolved entry from compose_apps,
-# already merged with app_registry defaults.
+# Expects compose_app_item: one entry from resolved_apps.
 
 - name: Reset extra-changed flag ({{ compose_app_item.name }})
   ansible.builtin.set_fact:

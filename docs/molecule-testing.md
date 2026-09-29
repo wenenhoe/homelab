@@ -140,7 +140,9 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    is already running once the container boots, so `converge.yml` doesn't
    install it.
 3. If the role uses `app_registry`/`compose_apps`, point `converge.yml`
-   at `molecule_helpers`'s `resolve_compose_apps.yaml`.
+   at `molecule_helpers`'s `resolve_compose_apps.yaml`, and read
+   `resolved_apps`. A scenario that builds other hosts with `add_host` sets
+   each one's `resolved_apps` with `| resolve_apps(app_registry)`.
 4. Don't add `dependency.options` or a `provisioner.env` block — the base
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR — there's no CI for

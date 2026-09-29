@@ -7,13 +7,13 @@
 # a differently-scoped play, same defensive convention as
 # roles/secrets/tasks/ensure_secret.yaml.
 #
-# Building the manifest here (Jinja/app_registry/host_vars), not in
+# Building the manifest here (Jinja/resolved_apps/host_vars), not in
 # restore_all.py, keeps app→host/volume/cloud-target resolution in one
 # place — the same data compose_app and cloud_sync already resolve from
-# app_registry and host_vars/storage.yaml. Duplicating that logic in
+# resolved_apps and host_vars/storage.yaml. Duplicating that logic in
 # Python would be a second, driftable copy of it.
 
-# app_registry's own `backup:` key is authoritative for scope — the
+# An app's own `backup:` key (in resolved_apps) is authoritative for scope — the
 # same `(item.backup.volumes | default([])) | length > 0` test
 # backup_agent's own tasks/main.yaml uses to decide what it backs up in
 # the first place, so batch-restore covers exactly what's actually
@@ -24,20 +24,21 @@
 - name: Determine which host runs each backed-up, non-excluded app
   ansible.builtin.set_fact:
     restore_discovery_app_discovery: >-
-      {%- set ns = namespace(hosts={}, collisions=[]) -%}
+      {%- set ns = namespace(hosts={}, apps={}, collisions=[]) -%}
       {%- for host in groups['managed_hosts'] -%}
-        {%- for app in hostvars[host].compose_apps -%}
-          {%- set backed_up = (app_registry[app.name].backup.volumes | default([])) | length > 0 -%}
+        {%- for app in hostvars[host].resolved_apps -%}
+          {%- set backed_up = (app.backup.volumes | default([])) | length > 0 -%}
           {%- if backed_up and app.name not in restore_discovery_excluded_apps -%}
             {%- if app.name in ns.hosts and ns.hosts[app.name] != host -%}
               {%- set _ = ns.collisions.append(app.name ~ ' (' ~ ns.hosts[app.name] ~ ', ' ~ host ~ ')') -%}
             {%- else -%}
               {%- set _ = ns.hosts.update({app.name: host}) -%}
+              {%- set _ = ns.apps.update({app.name: app}) -%}
             {%- endif -%}
           {%- endif -%}
         {%- endfor -%}
       {%- endfor -%}
-      {{ {'hosts': ns.hosts, 'collisions': ns.collisions} }}
+      {{ {'hosts': ns.hosts, 'apps': ns.apps, 'collisions': ns.collisions} }}
   delegate_to: localhost
   become: false
 
@@ -58,13 +59,14 @@
   delegate_to: localhost
   become: false
 
-- name: Extract the discovered app-to-host mapping
+- name: Extract the discovered app-to-host mapping and each app's definition
   ansible.builtin.set_fact:
     restore_discovery_app_hosts: "{{ restore_discovery_app_discovery.hosts }}"
+    restore_discovery_app_defs: "{{ restore_discovery_app_discovery.apps }}"
   delegate_to: localhost
   become: false
 
-- name: Fail loudly if nothing was discovered (empty inventory/app_registry, or restore_discovery_excluded_apps excluded everything)
+- name: Fail loudly if nothing was discovered (empty inventory/catalog, or restore_discovery_excluded_apps excluded everything)
   ansible.builtin.assert:
     that: restore_discovery_app_hosts | length > 0
     fail_msg: >-
@@ -101,7 +103,7 @@
       {%- set ns = namespace(out=[]) -%}
       {%- for app in restore_discovery_apps -%}
         {%- set host = restore_discovery_app_hosts[app] -%}
-        {%- set backup_def = app_registry[app].backup -%}
+        {%- set backup_def = restore_discovery_app_defs[app].backup -%}
         {%- set target_names = backup_def.extra_cloud_targets | default(hostvars['storage'].cloud_sync_default_targets) -%}
         {%- set target_ns = namespace(list=[]) -%}
         {%- for t in target_names -%}

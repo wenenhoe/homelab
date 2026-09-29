@@ -76,7 +76,7 @@
 
     # alpha-host/beta-host, not real inventory hosts — registered below
     # via add_host, carrying only what cloud_sync itself reads
-    # (compose_apps), not a full fake inventory.
+    # (resolved_apps), not a full fake inventory.
     seaweedfs_backup_hosts: [alpha-host, beta-host]
 
     # happy_app_no_backup (caddy-equivalent) declares no backup: key at
@@ -102,7 +102,7 @@
           volumes: [backups]
           extra_cloud_targets: [target_a]
   tasks:
-    - name: Register alpha-host/beta-host as ephemeral inventory hosts so hostvars[...].compose_apps resolves like production
+    - name: Register alpha-host/beta-host as ephemeral inventory hosts so hostvars[...].resolved_apps resolves like production
       # add_host is pure in-memory bookkeeping for this run — it has no
       # "already added with these exact vars" state to compare against,
       # so it reports changed unconditionally, every single time,
@@ -114,6 +114,7 @@
         name: "{{ item.name }}"
         groups: molecule_fake_backup_hosts
         compose_apps: "{{ item.compose_apps }}"
+        resolved_apps: "{{ item.compose_apps | resolve_apps(app_registry) }}"
       changed_when: false
       loop:
         - name: alpha-host

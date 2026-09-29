@@ -74,8 +74,15 @@ Docker.
 - `resolved_apps` is defined once in `group_vars/all` as
   `"{{ compose_apps | resolve_apps(app_catalog) }}"`. Any host's value is
   reachable through `hostvars` with no play having run.
-- Roles and playbooks read `resolved_apps` and never `app_catalog`. The
-  resolver's one call site is the only reader of the catalog.
+- A Molecule scenario declares its own inventory and does not load
+  `group_vars/all`. `molecule_helpers` sets `resolved_apps` there from the
+  scenario's own `compose_apps` and catalog with the same expression, and a
+  scenario that builds other hosts with `add_host` gives each one its
+  `resolved_apps` the same way. A test keeps these equal to the definition in
+  `group_vars/all`.
+- Roles and playbooks read `resolved_apps` and never `app_catalog`. The only
+  readers of the catalog are the resolver's call sites: the definition in
+  `group_vars/all` and the Molecule stand-ins above.
 - The filter lives in one repo-level plugin directory, `ansible/filter_plugins/`,
   that `ansible.cfg` names, so it loads for playbooks, roles and Molecule
   scenarios alike. Its unit tests live under `ansible/tests/`, beside the other
@@ -97,6 +104,10 @@ Docker.
   configuration data with no remote state to inspect or change.
 - **A lookup plugin.** Hides a dictionary read behind a name that reads
   like an external source.
+- **Define `resolved_apps` once in a vars file every scenario loads.** One
+  definition, but every scenario's setup changes to load it, and an edit to
+  the file queues every scenario. The filter named in the helper queues only
+  the scenarios that call it, which the Molecule scope check already derives.
 - **Leave the two catalog readers as they are.** They keep re-implementing
   defaults the resolver would hand them, including the duplicated
   cloud-target rule.
@@ -115,7 +126,7 @@ Docker.
 
 ## Invariants
 
-- Only the resolver reads `app_catalog`.
+- Only a resolver call site reads `app_catalog`: the `group_vars/all` definition or its Molecule stand-in.
 - `compose_apps` is never reassigned.
 - The resolver is pure and unit tested.
 
@@ -128,5 +139,6 @@ Docker.
 
 ## Validation
 
-A pytest suite for the filter and the validator, and a test that fails if
-any file outside the resolver's call site names `app_catalog`.
+A pytest suite for the filter and the validator, a test that fails if any
+role, playbook or template names `app_catalog`, and a test that fails if a
+Molecule stand-in differs from the `group_vars/all` definition.

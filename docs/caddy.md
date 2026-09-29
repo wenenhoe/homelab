@@ -8,7 +8,7 @@ Caddy's DNS-01 challenge support for DigitalOcean isn't in the stock image, so `
 
 ## Caddyfile generation
 
-`Caddyfile.j2` is rendered from the host's resolved `compose_apps` and covers three concerns:
+`Caddyfile.j2` is rendered from the host's `resolved_apps` and covers three concerns:
 
 1. A global `cert_issuer acme` block using the DigitalOcean DNS provider
    and public DNS resolvers, so certs come via DNS-01 (no port 80/443

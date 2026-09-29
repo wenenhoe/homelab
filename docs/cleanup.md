@@ -49,8 +49,8 @@ For each app, `roles/compose/tasks/cleanup_stale_volumes.yaml` compares
 volumes found by the `homelab.app=<app>` label against the app's *current*
 `.volumes | map(attribute='name')`, prefixed `<app>_` to match the naming
 `ensure_volume.yaml` uses. Anything labelled but no longer declared is
-stale. This needs `compose_apps` resolved against `app_registry`
-(`preinit.yaml`), unlike Play 1, which only ever needed `.name`.
+stale. This needs `resolved_apps`, unlike Play 1, which only ever needed the
+names in `compose_apps`.
 
 Governed by its own flag, independent of Play 1's
 `compose_cleanup_remove_content`/`compose_cleanup_app_overrides` — a

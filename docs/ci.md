@@ -139,7 +139,9 @@ falls inside it:
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   through the helper playbooks and task files that include further
   helper task files or roles (`resolve_compose_apps.yaml` runs
-  `compose`'s `preinit.yaml`, so its consumers watch `compose` too);
+  `compose`'s `preinit.yaml`, so its consumers watch `compose` too, and it
+  names the `resolve_apps` filter, so they watch that plugin and no other
+  scenario does);
 - each `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
   `molecule.yml` (the shared `prepare` playbooks);
 - the target of every symlink under `molecule/`. Scenarios link the

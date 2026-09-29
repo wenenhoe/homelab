@@ -1,31 +1,10 @@
 ---
-# Resolves compose_apps against the app registry and publishes the result
-# via hostvars. Runs in Play 1 on every host, ahead of caddy (Play 2,
-# needs its resolved entry to render the Caddyfile) and bind9 (Play 3,
-# scrapes resolved compose_apps back out of hostvars to build CNAMEs).
-#
-# After this, compose_apps carries every app's full create_dirs/scripts/
-# templates/configs/env/caddy set regardless of what host_vars declared
-# explicitly — host_vars only needs the app name and, for routable apps,
-# its caddy hostname(s). `caddy` is a dict keyed by route id (`default`
-# for single-route apps, e.g. shlink's `short`/`web` for multi-route), so
-# a recursive combine() merges each route's registry defaults with the
-# host-defined hostname automatically.
-- name: Merge app registry defaults into each compose app definition
-  ansible.builtin.set_fact:
-    compose_app_compose_apps_resolved: "{{ (current_list | list) + [merged_app] }}"
-  loop: "{{ compose_apps }}"
-  loop_control:
-    label: "{{ item.name }}"
-  vars:
-    current_list: "{{ compose_app_compose_apps_resolved | default([]) }}"
-    registry_defaults: "{{ app_registry[item.name] | default({}) }}"
-    merged_app: "{{ registry_defaults | combine(item, recursive=True) }}"
-
-- name: Replace compose_apps with the fully-resolved definitions
-  ansible.builtin.set_fact:
-    compose_apps: "{{ compose_app_compose_apps_resolved }}" # noqa: var-naming[no-role-prefix]
-
+# Ensures the stacks directory exists before any app's files land in it.
+# Runs in Play 1 on every host (deploy.yaml), and ahead of init.yaml in
+# ci_boot_test.yaml and the Molecule scenarios. The resolved app
+# definitions are not built here: `resolved_apps` (group_vars/all/main.yaml)
+# is derived from `compose_apps` on demand, and `compose_apps` is never
+# reassigned.
 - name: Ensure stacks directory exists
   ansible.builtin.file:
     path: "{{ compose_deploy_dir }}"

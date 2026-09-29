@@ -26,14 +26,9 @@
   gather_facts: false
   become: true
   tasks:
-    - name: Resolve compose_apps against the app registry
-      ansible.builtin.include_role:
-        name: compose
-        tasks_from: preinit.yaml
-
     - name: "Find the target app ({{ volume_reset_app }})"
       ansible.builtin.set_fact:
-        volume_reset_app_item: "{{ compose_apps | selectattr('name', 'equalto', volume_reset_app) | first | default(none) }}"
+        volume_reset_app_item: "{{ resolved_apps | selectattr('name', 'equalto', volume_reset_app) | first | default(none) }}"
 
     - name: Refuse to proceed if the app isn't declared on this host
       ansible.builtin.assert:

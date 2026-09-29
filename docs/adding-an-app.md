@@ -90,8 +90,8 @@ compose_apps:
         host: my-app
 ```
 
-At deploy time this merges with the `app_registry` entry
-(`registry_defaults | combine(item, recursive=True)`). If the host is in
+`resolved_apps` merges this with the `app_registry` entry (dicts merge, lists
+are replaced). If the host is in
 `app_hosts` (every managed host), a CNAME for `my-app.{{ caddy_domain }}`
 is generated automatically. See [`host-vars.md`](host-vars.md) for the
 full field reference, including the alias-variable pattern

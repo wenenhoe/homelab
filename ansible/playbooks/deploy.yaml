@@ -7,8 +7,7 @@
   ansible.builtin.import_playbook: bootstrap-secrets.yaml
 
 # Play 1 — System setup on every managed (real) host. Covers docker
-# engine and the app_registry resolve — bind9/caddy only need
-# compose_apps resolved in hostvars here, per-app files come later.
+# engine and the stacks directory; per-app files come later.
 # hosts: managed_hosts, not hosts: all — all also includes the
 # controller (see inventory.yaml), which must never get Docker
 # installed on it or a container deployed to it.
@@ -34,7 +33,7 @@
         name: compose
         tasks_from: preinit.yaml
       tags:
-        - always # every role below reads the resolved compose_apps this sets
+        - always # the stacks directory every role below writes into
 
 # Play 2 — Caddy builds/deploys/restarts itself so it's already routing
 # before anything else comes up behind it.
@@ -51,7 +50,7 @@
         - infra
 
     # Runs in the same play/hosts as caddy above, right after it - needs
-    # this host's own compose_apps resolved (Play 1) and its own
+    # this host's own resolved_apps and its own
     # caddy_domain, nothing from any other host. See
     # docs/telegram-notifications.md.
     - name: Include caddy_cert_expiry role

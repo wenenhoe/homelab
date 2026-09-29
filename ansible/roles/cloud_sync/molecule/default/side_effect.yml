@@ -1,0 +1,78 @@
+---
+# Runs after idempotence and before verify. converge.yml can't be perturbed
+# (idempotence re-runs it and needs zero changes), so this is where the
+# conditional reload in systemd_reload/tasks/reload.yaml gets its coverage.
+# It is the only thing that reloads systemd when just a notifier unit
+# changed: on a fresh install the role's own service and timer notify a
+# handler that reloads regardless, and on a re-run nothing changed at all.
+#
+# Each pass edits one notifier unit behind the role's back, re-runs
+# converge, and expects the role to have restored the file and to have run
+# the reload rather than skipped it. The Uptime Kuma pass is the one that
+# depends on cloud_sync setting `systemd_reload_uptime_kuma: true`.
+#
+# The plays name the instance, not `all`: converge.yml's add_host registers
+# two fake backup hosts, and every play after it would target them too.
+
+- name: Edit the Telegram notifier unit out of band
+  hosts: cloud-sync-instance
+  become: true
+  tasks:
+    - name: Append a line to the unit, as a hand edit would
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/telegram-notify-cloud-sync.service
+        line: "# edited out of band"
+        insertafter: EOF
+
+- name: Re-run converge with only the Telegram notifier unit different
+  ansible.builtin.import_playbook: converge.yml
+
+- name: Confirm the Telegram notifier unit was restored and systemd reloaded for it
+  hosts: cloud-sync-instance
+  become: true
+  tasks:
+    - name: Read the unit back
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/telegram-notify-cloud-sync.service
+      register: cloud_sync_telegram_unit
+
+    - name: Assert the edit is gone and the reload ran
+      ansible.builtin.assert:
+        that:
+          - "'# edited out of band' not in (cloud_sync_telegram_unit.content | b64decode)"
+          - systemd_reload_notifier_result is not skipped
+        fail_msg: >-
+          A changed Telegram notifier unit was not put back, or systemd_reload
+          skipped its reload check for it.
+
+- name: Edit the Uptime Kuma push unit out of band
+  hosts: cloud-sync-instance
+  become: true
+  tasks:
+    - name: Append a line to the unit, as a hand edit would
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/uptime-kuma-push-cloud-sync.service
+        line: "# edited out of band"
+        insertafter: EOF
+
+- name: Re-run converge with only the Uptime Kuma push unit different
+  ansible.builtin.import_playbook: converge.yml
+
+- name: Confirm the Uptime Kuma push unit was restored and systemd reloaded for it
+  hosts: cloud-sync-instance
+  become: true
+  tasks:
+    - name: Read the unit back
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/uptime-kuma-push-cloud-sync.service
+      register: cloud_sync_kuma_unit
+
+    - name: Assert the edit is gone and the reload ran
+      ansible.builtin.assert:
+        that:
+          - "'# edited out of band' not in (cloud_sync_kuma_unit.content | b64decode)"
+          - systemd_reload_notifier_result is not skipped
+        fail_msg: >-
+          A changed Uptime Kuma push unit was not put back, or systemd_reload
+          skipped its reload check for it (is systemd_reload_uptime_kuma set
+          in cloud_sync's include?).

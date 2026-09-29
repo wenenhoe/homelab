@@ -24,9 +24,12 @@
 #                               play, so a caller without that unit must
 #                               not see a stale one.
 
+# Registered so cloud_sync's side_effect scenario can tell whether this ran
+# or was skipped.
 - name: Reload systemd if a notifier unit changed
   ansible.builtin.systemd:
     daemon_reload: true
+  register: systemd_reload_notifier_result
   when: >-
     telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
     telegram_notify_service_result.changed or

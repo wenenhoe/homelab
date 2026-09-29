@@ -218,5 +218,6 @@ for the reasoning.
 | [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | Build the isolated 5XX block and run the first restore.yaml against it. |
 | [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Kea, VLAN, and static DNS configured through OPNsense's API. |
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
+| [`vault-secret-module.md`](vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |
 | [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](operator-host.md), [`workstation-management.md`](workstation-management.md) | Remove every infrastructure credential and the controller tooling from VM 401 once the operator host runs the controller. |
 | [`workstation-management.md`](workstation-management.md) | Not started — waiting on [`operator-host.md`](operator-host.md) | Bring VM 401 under Ansible management from the operator host, with SSH client configuration and a TLS remote desktop. |

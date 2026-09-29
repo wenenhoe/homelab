@@ -24,7 +24,7 @@ seaweedfs_cloud_sync_reader_secret_key: "{{ secrets_generated['seaweedfs-s3-secr
 seaweedfs_backup_hosts: [services, security, play]
 
 # --- cloud_sync — see docs/disaster-recovery.md ---
-# Every app's extra_cloud_targets (app_registry.yaml, defaults to
+# Every app's extra_cloud_targets (app_catalog.yaml, defaults to
 # cloud_sync_default_targets below if omitted) picks which of these it
 # fans out to, beyond SeaweedFS. bucket/endpoint values for R2/B2/OCI
 # themselves are still manual, out-of-band setup — see
@@ -69,7 +69,7 @@ cloud_sync_targets:
 
 # Small config-app archives (everything except minecraft) go to both
 # free-tier clouds for offsite redundancy. minecraft overrides this in
-# app_registry.yaml — see docs/disaster-recovery.md's "Cloud target
+# app_catalog.yaml — see docs/disaster-recovery.md's "Cloud target
 # selection" for why it gets OCI instead.
 cloud_sync_default_targets: [r2, b2]
 

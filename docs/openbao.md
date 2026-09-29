@@ -15,7 +15,7 @@ Single-node, integrated raft storage, on `security` — same trust tier
 as `step-ca`/`tinyauth`/`lldap`
 ([0017](decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
 `docker/openbao/configs/openbao.hcl.j2` renders the raft/listener
-config; `app_registry.yaml`'s `openbao` entry seeds it into a `config`
+config; `app_catalog.yaml`'s `openbao` entry seeds it into a `config`
 named volume the same way `dashy` seeds its `conf.yml`
 ([`volumes.md`](volumes.md)). `data` (raft state) and `certs` (TLS
 material) are separate named volumes — `data` must never be wiped by
@@ -24,7 +24,7 @@ it means restoring from the raft snapshot backup
 ([`openbao-backup-restore.md`](openbao-backup-restore.md)), not just
 recreating the volume.
 
-No `backup:` entry in `app_registry.yaml` — the generic `backup_agent`
+No `backup:` entry in `app_catalog.yaml` — the generic `backup_agent`
 path stops the container and tars its volumes
 ([`disaster-recovery.md`](disaster-recovery.md)), which for OpenBao
 would mean sealing it (and a manual unseal per

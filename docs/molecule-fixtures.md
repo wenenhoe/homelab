@@ -23,20 +23,20 @@ ignores symlinks outright, so a version-bump PR touches the one real
 file, and the same test run that exercises the role exercises prod's
 actual compose file — there's no separate fixture pin left to drift.
 
-## `app_registry` entries
+## `app_catalog` entries
 
 For scenarios that carry their own local copy (molecule never loads the
 real inventory, so `host_vars/*.yaml` or `converge.yml`'s play `vars:`
 duplicate the relevant entry rather than reference it — see `bind9`'s
 `host_vars` for why it has to be a `host_vars` file specifically, not
-play `vars:`), extract from the real registry instead of hand-copying
+play `vars:`), extract from the real catalog instead of hand-copying
 it:
 
 ```yaml
-app_registry: >-
+app_catalog: >-
   {{
-    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
-     | from_yaml).app_registry
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')
+     | from_yaml).app_catalog
     | combine({'testapp': {}})
   }}
 ```
@@ -44,16 +44,16 @@ app_registry: >-
 `playbook_dir` here resolves to the *scenario's* directory (wherever
 `converge.yml` lives), not wherever this expression is written.
 `combine()` adds whatever synthetic fixture-only apps the scenario needs
-(`testapp` above has no real registry entry to extract). Every scenario
+(`testapp` above has no real catalog entry to extract). Every scenario
 with a real prod counterpart uses this now — `bind9`, `caddy`,
 `caddy_cert_expiry`, `step_ca_cert` (×3: `default`,
 `signal_chown`, `renewal_timing`), `tinyauth`, and
 `tinyauth_ca_trust`. `caddy_cert_expiry`'s `no_routed_apps` scenario is
-the one holdout: its `app_registry` entries are empty stubs on purpose
+the one holdout: its `app_catalog` entries are empty stubs on purpose
 (the guard it tests fires before that content would ever matter), not a
 real duplicate at risk of drift. The remaining synthetic-app scenarios
 (`compose`, `compose_app`, `backup_agent`, `restore`, ...) still
-hand-copy an `app_registry` and always will — there's no real entry to
+hand-copy an `app_catalog` and always will — there's no real entry to
 extract for a fixture app like `testapp`/`happy_app_a` that doesn't
 exist in production.
 
@@ -99,7 +99,7 @@ instead, all under `molecule_helpers/fixtures/`:
   `env_file: [.env]`. Not every app with `env_file` qualifies for this —
   only ones where the rendered `.env` content and its assertions live
   entirely in the *consuming* scenario (its own
-  `app_registry`/`verify.yml`), not in the compose file itself.
+  `app_catalog`/`verify.yml`), not in the compose file itself.
 
 ## Container discovery without `container_name`
 
@@ -127,7 +127,7 @@ Scaffolding for scenarios, not a role under test:
 | `playbooks/prepare_dind_prebuilt.yml` | Shared `prepare` playbook for scenarios on the pre-baked DinD image (below) — coverage reset only. |
 | `tasks/dind_storage_driver.yaml` | Forces the nested Docker daemon onto `fuse-overlayfs` via `/etc/docker/daemon.json`. |
 | `tasks/install_docker_api_requests.yaml` | Installs `python3-requests`, needed by `community.docker` modules that talk to the Docker API directly. |
-| `tasks/resolve_compose_apps.yaml` | Sets `resolved_apps` from a scenario's `compose_apps` and `app_registry` with the `resolve_apps` filter, as `group_vars/all` does for production, and creates the stacks directory. |
+| `tasks/resolve_compose_apps.yaml` | Sets `resolved_apps` from a scenario's `compose_apps` and `app_catalog` with the `resolve_apps` filter, as `group_vars/all` does for production, and creates the stacks directory. |
 | `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
 | `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
 | `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |

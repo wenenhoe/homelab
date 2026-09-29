@@ -7,7 +7,7 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
-    app_registry:
+    app_catalog:
       restore_confirm_target:
         volumes:
           - name: data
@@ -17,7 +17,7 @@
     restore_test_archive: /tmp/restore-molecule-confirmation-declined-archive.tar.gz
     restore_before_marker: /tmp/restore-molecule-confirmation-declined-before-started-at
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

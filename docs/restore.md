@@ -92,7 +92,7 @@ SeaweedFS is unreachable), decrypts it, then calls the exact same
 bypasses the per-app gates described above — every call it makes still
 goes through the real playbook, confirmation included (see below).
 
-In scope: every app with a `backup:` key in `app_registry.yaml` — the
+In scope: every app with a `backup:` key in `app_catalog.yaml` — the
 same test `backup_agent` itself uses to decide what it backs up, so
 there's no separate list to keep in sync. That now includes
 `uptime-kuma` along with `step-ca`, `kms`, `wastebin`, `beszel-hub`,
@@ -120,7 +120,7 @@ What it does, in order:
 1. Renders a controller-local manifest + a read-only `rclone.conf`
    (`ansible/roles/restore_discovery`, via
    `playbooks/restore-discovery-setup.yaml`) — app → host → volumes →
-   cloud fallback target(s), the same `app_registry`/`host_vars`
+   cloud fallback target(s), the same `app_catalog`/`host_vars`
    resolution `cloud_sync` already does for its own upload side, so the
    two can't drift apart. The rclone identities are the SeaweedFS
    `cloud-sync-reader` identity and the six cloud **read**-leaf
@@ -196,7 +196,7 @@ For `minecraft`, restoring `minecraft_backups` only gets you the on-host
 needs `itzg/mc-backup`'s `restore-tar-backup` entrypoint as a second
 step, deliberately kept out of Ansible:
 `docker/minecraft/scripts/run_restore.sh` (deployed alongside the app,
-see `app_registry.yaml`), runs directly on the `play` host. For the
+see `app_catalog.yaml`), runs directly on the `play` host. For the
 common case — undoing today's session from last night's on-host
 snapshot — that script alone is the whole restore, no offsite archive
 or the `restore` role involved at all. Run it after this playbook only

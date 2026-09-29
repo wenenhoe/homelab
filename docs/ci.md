@@ -35,7 +35,7 @@ call it as `python -m <package>.<module>` from `tools/`
 rules check all load it through `load_catalog`, which refuses a repeated
 secret name instead of keeping the last. It needs only PyYAML, so a
 pre-commit hook can import it. `tools/utils/app_catalog.py` does the same for
-`app_registry.yaml`, and both use the duplicate-refusing loader in
+`app_catalog.yaml`, and both use the duplicate-refusing loader in
 `tools/utils/unique_key_yaml.py`.
 
 `tools/doc_scripts/` is the documentation-workflow checks and generators
@@ -158,7 +158,7 @@ falls inside it:
   directory (`project_root ~ '/ansible/files/key.asc'`) contributes the files
   it is joined to, not the directory its definition names, so a role that
   defines one doesn't end up watching everything under it. This is how
-  `inventory/group_vars/all/app_registry.yaml`, `ansible/scripts/restore_all.py`,
+  `inventory/group_vars/all/app_catalog.yaml`, `ansible/scripts/restore_all.py`,
   `docker/openbao/policies/controller.hcl` and
   `docker/seaweedfs/configs/s3-identity.json.j2` reach the scenarios
   that read them.
@@ -558,7 +558,7 @@ and runs the check over the real catalog.
 
 ## App catalog rules
 
-`ci.gates.app_catalog_rules` checks the invariants of `app_registry.yaml` that
+`ci.gates.app_catalog_rules` checks the invariants of `app_catalog.yaml` that
 a merge cannot: every route has an `upstream`, every name in an app's
 `backup.volumes` is a volume its `volumes` declares, and no app name appears
 twice (the loader refuses a repeated name instead of keeping the last). A

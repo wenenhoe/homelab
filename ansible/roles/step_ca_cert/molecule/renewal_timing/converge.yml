@@ -8,13 +8,13 @@
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
     # main_domain, lab_domain, caddy_domain, lldap_host, server_timezone,
-    # lldap_*, step_ca_*, app_registry, compose_apps live in
+    # lldap_*, step_ca_*, app_catalog, compose_apps live in
     # host_vars/step-ca-cert-renewal-timing-instance.yaml instead — see
     # the comment there. Same fixture as default's own, copied
     # rather than shared (see that scenario's own host_vars comment on
     # why).
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

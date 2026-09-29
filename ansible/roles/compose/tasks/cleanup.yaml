@@ -88,7 +88,7 @@
     - not (compose_cleanup_should_remove_content | bool)
 
 # --- Decide keep vs remove named volumes ------------------------------------
-# Volumes are discovered by label, not the (now-gone) app_registry
+# Volumes are discovered by label, not the (now-gone) app_catalog
 # volumes list — every volume ensure_volume.yaml creates is labelled
 # homelab.app/homelab.volume for this reason. Gated by the same
 # keep/remove decision as the directory above, independent of whether the

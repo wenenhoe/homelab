@@ -5,7 +5,7 @@
 # seaweedfs, step-ca all use it) worth exercising, but nothing about
 # testing it needs a distinct fixture per consumer — the actual rendered
 # .env content and its assertion live in each scenario's own
-# app_registry/verify.yml, not in this file.
+# app_catalog/verify.yml, not in this file.
 services:
   app:
     image: alpine:3.24

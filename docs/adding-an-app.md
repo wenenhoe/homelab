@@ -1,6 +1,6 @@
 # Adding an App
 
-New apps are wired in through three places: a `docker/<app>/` directory, an `app_registry` entry, and a `compose_apps` entry on whichever host(s) should run it.
+New apps are wired in through three places: a `docker/<app>/` directory, an `app_catalog` entry, and a `compose_apps` entry on whichever host(s) should run it.
 
 ## 1. Add `docker/<app>/`
 
@@ -43,18 +43,18 @@ docker/<app>/
   `main_domain`, it goes in `configs/*.j2` with `no_log: true`, not here.
 - Anything in `configs/` is rendered through Ansible's `template` module
   (so it can reference any Ansible variable, e.g. `{{ server_timezone }}`)
-  and written to whatever `dest` its `app_registry` entry specifies —
+  and written to whatever `dest` its `app_catalog` entry specifies —
   this is also how `.env` files are generated, for apps that either need
   `env_file:` to inject a whole set of container-facing vars at once, or
   where the value is a real secret and needs `configs`' `no_log:`/`mode`
   handling regardless of whether it's a single value.
 
-## 2. Register it in `app_registry`
+## 2. Register it in `app_catalog`
 
-In `ansible/inventory/group_vars/all/app_registry.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:
+In `ansible/inventory/group_vars/all/app_catalog.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:
 
 ```yaml
-app_registry:
+app_catalog:
   my-app:
     volumes:
       - name: data
@@ -72,7 +72,7 @@ app_registry:
 | :--- | :--- |
 | `volumes` | Named Docker volumes Ansible creates and migrates existing bind-mount data into (`./data:/data` becomes `data:/data`). See [`volumes.md`](volumes.md). Omit for stateless apps or to keep a plain bind mount. |
 | `create_dirs` | Subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount. |
-| `configs` | Templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself — no app in the registry needs this today, so there's no worked example to point to yet. Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](secrets.md)). Secrets this repo can generate go in `secret_catalog.yaml`, not a raw `lookup('password', ...)` in the template. |
+| `configs` | Templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself — no app in the catalog needs this today, so there's no worked example to point to yet. Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](secrets.md)). Secrets this repo can generate go in `secret_catalog.yaml`, not a raw `lookup('password', ...)` in the template. |
 | `scripts` | Helper scripts copied verbatim into `<app>/scripts/`. |
 | `caddy` | Omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth. |
 
@@ -90,7 +90,7 @@ compose_apps:
         host: my-app
 ```
 
-`resolved_apps` merges this with the `app_registry` entry (dicts merge, lists
+`resolved_apps` merges this with the `app_catalog` entry (dicts merge, lists
 are replaced). If the host is in
 `app_hosts` (every managed host), a CNAME for `my-app.{{ caddy_domain }}`
 is generated automatically. See [`host-vars.md`](host-vars.md) for the
@@ -108,10 +108,10 @@ The app is picked up by Play 4 (`compose_app` role), which provisions its direct
 
 ## Multi-route apps
 
-Some apps front more than one container behind two different hostnames (e.g. `shlink`, which pairs a redirector and a web UI). Give each route its own key under `caddy` in both the registry entry and the host's `compose_apps` entry — the key just needs to match between the two:
+Some apps front more than one container behind two different hostnames (e.g. `shlink`, which pairs a redirector and a web UI). Give each route its own key under `caddy` in both the catalog entry and the host's `compose_apps` entry — the key just needs to match between the two:
 
 ```yaml
-# app_registry
+# app_catalog
 shlink:
   caddy:
     short:

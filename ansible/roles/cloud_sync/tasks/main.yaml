@@ -15,7 +15,7 @@
 # R2/B2/OCI, only add to it.
 #
 # One flat job per (app, cloud target) across every backup_agent host —
-# built from the same app_registry `backup.extra_cloud_targets` data
+# built from the same app_catalog `backup.extra_cloud_targets` data
 # every host already declares (dormant from every OTHER role's
 # perspective; this is the one role that reads it), via
 # hostvars[host].resolved_apps rather than requiring those hosts' own

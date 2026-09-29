@@ -126,7 +126,7 @@ EQUALITY_PLAY = """
         expected: >-
           {%- set out = [] -%}
           {%- for app in hostvars[item].compose_apps -%}
-          {%- set _ = out.append((app_registry[app.name] | default({})) | combine(app, recursive=True)) -%}
+          {%- set _ = out.append((app_catalog[app.name] | default({})) | combine(app, recursive=True)) -%}
           {%- endfor -%}
           {{ out }}
         differing: >-

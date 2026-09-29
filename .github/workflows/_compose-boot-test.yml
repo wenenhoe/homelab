@@ -66,13 +66,13 @@ jobs:
       # Runs the real compose role's preinit+init tasks (volume creation +
       # config/script seeding — see ansible/roles/compose/tasks/init.yaml
       # and ansible/playbooks/ci_boot_test.yaml) against the actual
-      # app_registry.yaml, instead of a bespoke bash step per app.
+      # app_catalog.yaml, instead of a bespoke bash step per app.
       #
       # ci-inventory/ is a dedicated CI-only inventory
       # (ansible/ci-inventory/) — bypasses ansible.cfg's default
       # inventory.yaml entirely, whose all:vars: sets a non-standard sudo
       # binary and SSH-only settings meant for real remote hosts, not this
-      # runner. Needed group_vars (main.yaml, app_registry.yaml) and CI
+      # runner. Needed group_vars (main.yaml, app_catalog.yaml) and CI
       # placeholders (ci_dummy_vars.yaml) are loaded explicitly via
       # vars_files in ci_boot_test.yaml — see its own comments for why.
       #

@@ -1,6 +1,6 @@
 # Beszel: Host & Container Monitoring
 
-`beszel-hub` and `beszel-agent` are two entries in `app_registry`. The hub runs once, on `security`; the agent runs on every
+`beszel-hub` and `beszel-agent` are two entries in `app_catalog`. The hub runs once, on `security`; the agent runs on every
 host in `app_hosts` (`security`, `services`, `play`, `storage`), including `security` itself. See [`docs/adding-an-app.md`](adding-an-app.md) for the general pattern this follows.
 
 ## Connection model

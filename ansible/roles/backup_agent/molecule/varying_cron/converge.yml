@@ -18,7 +18,7 @@
       - name: daily_app
       - name: frequent_app
       - name: weekdays_app
-    app_registry:
+    app_catalog:
       daily_app:
         backup:
           volumes: [data]
@@ -31,7 +31,7 @@
           volumes: [data]
           cron: "30 4 * * 1-5"
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

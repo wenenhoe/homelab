@@ -22,7 +22,7 @@ services:
       - caddy-proxy
     restart: unless-stopped
     labels:
-      # Value must match this app's name in app_registry.yaml exactly —
+      # Value must match this app's name in app_catalog.yaml exactly —
       # ansible/roles/backup_agent keys each app's stop label on it.
       - docker-volume-backup.stop-during-backup=tinyauth
 networks:

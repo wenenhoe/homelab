@@ -87,7 +87,7 @@
     # cloud_sync_default_targets. happy_app_override_targets
     # (minecraft-equivalent) overrides to target_a only — must NOT show
     # up under target_b at all.
-    app_registry:
+    app_catalog:
       caddy:
         volumes: []
       happy_app_default_targets:
@@ -114,7 +114,7 @@
         name: "{{ item.name }}"
         groups: molecule_fake_backup_hosts
         compose_apps: "{{ item.compose_apps }}"
-        resolved_apps: "{{ item.compose_apps | resolve_apps(app_registry) }}"
+        resolved_apps: "{{ item.compose_apps | resolve_apps(app_catalog) }}"
       changed_when: false
       loop:
         - name: alpha-host

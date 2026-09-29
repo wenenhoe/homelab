@@ -28,16 +28,16 @@ step_ca_provisioner_password: molecule-test-step-ca-password
 # start_step_ca_test_target.yaml's own comment on why.
 step_ca_provisioner_name: admin
 
-# Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
+# Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
 # tinyauth entry) — extracted via lookup rather than hand-copied. This
 # used to be a hand-authored copy kept in sync "by convention" per this
 # comment's previous wording; it had already drifted (missing the real
 # entry's backup: key) by the time that was checked, which is the whole
 # reason it's a lookup now instead — see docs/molecule-fixtures.md.
-app_registry: >-
+app_catalog: >-
   {{
-    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
-     | from_yaml).app_registry
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')
+     | from_yaml).app_catalog
   }}
 
 compose_apps:

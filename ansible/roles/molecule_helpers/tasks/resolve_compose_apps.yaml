@@ -1,13 +1,13 @@
 ---
-# Shared by every scenario that declares its own app_registry/compose_apps
+# Shared by every scenario that declares its own app_catalog/compose_apps
 # and needs them resolved before deploying (compose, compose_app, caddy,
 # bind9). A scenario's inventory doesn't load group_vars/all, so this
 # sets resolved_apps from the scenario's own data with the expression
 # group_vars/all/main.yaml defines (ADR 0065); ansible/tests keeps the two
 # equal.
-- name: Resolve the scenario's compose_apps against its app registry
+- name: Resolve the scenario's compose_apps against its app catalog
   ansible.builtin.set_fact:
-    resolved_apps: "{{ compose_apps | resolve_apps(app_registry) }}" # noqa: var-naming[no-role-prefix]
+    resolved_apps: "{{ compose_apps | resolve_apps(app_catalog) }}" # noqa: var-naming[no-role-prefix]
 
 - name: Ensure the stacks directory exists
   ansible.builtin.include_role:

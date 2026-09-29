@@ -154,9 +154,9 @@ Docker must be running locally for `molecule` (each role's scenario spins up and
   ```sh
   ansible-playbook playbooks/deploy.yaml --check --diff
   ```
-- Check target host variables (e.g. to confirm the resolved `compose_apps`/`app_registry` merge for a host):
+- Check what a host resolves to (`resolved_apps` is `compose_apps` merged over `app_catalog`):
   ```sh
-  ansible-inventory -i inventory/inventory.yaml --host services
+  ansible localhost -i inventory/inventory.yaml -m ansible.builtin.debug -a "var=hostvars['services'].resolved_apps"
   ```
 
 Tag-based runs (skip provisioning, pull only images, re-render
@@ -187,7 +187,7 @@ repo is generated, cached, and rotated through **OpenBao** on
 `docker/` is independently deployable Compose stacks (dashboards,
 media-download tools, Minecraft, a link shortener, a pastebin, PDF
 tools, a speed test, license/activation tooling, etc.), each
-just an `app_registry` entry plus a `docker/<app>/` directory — see
+just an `app_catalog` entry plus a `docker/<app>/` directory — see
 [`adding-an-app.md`](docs/adding-an-app.md) to add one.
 
 ## Testing

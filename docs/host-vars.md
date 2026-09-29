@@ -1,7 +1,7 @@
 # `host_vars`: Per-Host Configuration Reference
 
 Each file under `ansible/inventory/host_vars/<host>.yaml` holds everything
-about a host that varies per host, as opposed to `app_registry` (what
+about a host that varies per host, as opposed to `app_catalog` (what
 doesn't). Field-by-field reference; see
 [`adding-an-app.md`](adding-an-app.md) for the worked flow and
 [`bind9.md`](bind9.md) for how `dns_zones` becomes DNS records.
@@ -14,12 +14,12 @@ The wildcard domain this host's Caddy instance terminates TLS for and routes und
 
 The list of apps this host runs. Each entry needs only:
 
-- `name` — must match a key in `app_registry`.
+- `name` — must match a key in `app_catalog`.
 - `caddy` (routable apps only) — one block per route (`default`, or a
   descriptive key for multi-route apps, see `adding-an-app.md`'s shlink
   example), each supplying `host: <label>`. Merged with the matching
-  `caddy` block in `app_registry` (which supplies `upstream` and
-  optionally `auth: false`): the registry defines *how* to reach the app,
+  `caddy` block in `app_catalog` (which supplies `upstream` and
+  optionally `auth: false`): the catalog defines *how* to reach the app,
   `host_vars` defines *what to call it* on this host.
 
 Apps with no `caddy` block (e.g. `bind9`, `diun`) are non-routable.
@@ -33,7 +33,7 @@ compose_apps:
 ```
 
 `resolved_apps` (`group_vars/all/main.yaml`) resolves this short form against
-`app_registry` into a full definition, which every downstream role (`caddy`,
+`app_catalog` into a full definition, which every downstream role (`caddy`,
 `bind9`, `compose_app`, `cleanup.yaml`) reads. `compose_apps` itself stays as
 written here.
 

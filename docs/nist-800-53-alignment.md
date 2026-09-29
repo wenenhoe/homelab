@@ -73,7 +73,7 @@ and
 
 ## CM-8 — Component Inventory: evaluated, no genuine match
 
-`app_registry` and `host_vars` are real, and they do function as a
+`app_catalog` and `host_vars` are real, and they do function as a
 component inventory — but no ADR ever decided to adopt them as one;
 they're existing Ansible inventory structure, documented in
 [`deployment-flow.md`](deployment-flow.md) and

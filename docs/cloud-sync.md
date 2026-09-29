@@ -28,7 +28,7 @@ lock clears, but B2's fails outright rather than deferring, so closing
 that gap on B2 specifically would start producing failed lifecycle runs
 instead of merely-delayed ones.
 
-**Which apps get which extra clouds:** `app_registry.yaml`'s
+**Which apps get which extra clouds:** `app_catalog.yaml`'s
 `backup.extra_cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
 SeaweedFS only; SeaweedFS itself is implicit for every backed-up app,
 never listed. Defaults to `cloud_sync_default_targets`
@@ -42,7 +42,7 @@ after `offsite_backup_cron` to give every backup host's own nightly run
 room to land in SeaweedFS first) triggers `cloud-sync.service`
 (`Type=oneshot`), which runs one container per firing — `rclone/rclone`,
 looping a job manifest Ansible renders from every backup host's
-`app_registry` data (cross-host, via `hostvars`, not requiring those
+`app_catalog` data (cross-host, via `hostvars`, not requiring those
 hosts' own plays to have run first in the same invocation). One `rclone
 copy` per (app, cloud target) pair; one job failing doesn't block the
 rest of that run.

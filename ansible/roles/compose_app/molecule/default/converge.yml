@@ -7,7 +7,7 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
-    app_registry:
+    app_catalog:
       happy_app_a:
         create_dirs:
           - data
@@ -21,7 +21,7 @@
       - name: happy_app_a
       - name: happy_app_b
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

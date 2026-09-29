@@ -32,7 +32,7 @@ compose_self_managed_apps:
 # A templated variable rather than a set_fact, so any host's value is
 # readable through hostvars without that host's play having run
 # (ADR 0065).
-resolved_apps: "{{ compose_apps | resolve_apps(app_registry) }}"
+resolved_apps: "{{ compose_apps | resolve_apps(app_catalog) }}"
 
 tinyauth_host: sso
 

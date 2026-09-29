@@ -1,6 +1,6 @@
 ---
 # Covers deploy.yaml's `build: true` branch, currently unused by any real
-# app in the registry. Same Docker-in-Docker setup as the other compose
+# app in the catalog. Same Docker-in-Docker setup as the other compose
 # scenarios.
 driver:
   name: docker

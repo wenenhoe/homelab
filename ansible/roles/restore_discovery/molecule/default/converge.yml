@@ -41,7 +41,7 @@
     # iteration order; also multi-volume, standing in for step-ca's own
     # real backup.volumes. excluded_app: has a backup: key but is
     # opted out via restore_discovery_excluded_apps above.
-    app_registry:
+    app_catalog:
       caddy:
         volumes: []
       plain_app:
@@ -72,7 +72,7 @@
         name: "{{ item.name }}"
         groups: "{{ item.groups }}"
         compose_apps: "{{ item.compose_apps | default(omit) }}"
-        resolved_apps: "{{ (item.compose_apps | resolve_apps(app_registry)) if item.compose_apps is defined else omit }}"
+        resolved_apps: "{{ (item.compose_apps | resolve_apps(app_catalog)) if item.compose_apps is defined else omit }}"
         cloud_sync_targets: "{{ item.cloud_sync_targets | default(omit) }}"
         cloud_sync_default_targets: "{{ item.cloud_sync_default_targets | default(omit) }}"
       changed_when: false

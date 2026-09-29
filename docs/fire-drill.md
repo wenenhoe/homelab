@@ -23,7 +23,7 @@ Two levels of "does this actually work," proving different things:
   end to end: a real backup, the real offline GPG key, and a
   scratch/test host, run by hand. **Don't run `restore_all.py`'s full
   orchestration for this** — its manifest always resolves each app's
-  *real* host straight from `app_registry`/`host_vars`, so it has no
+  *real* host straight from `app_catalog`/`host_vars`, so it has no
   way to target a scratch host instead, and `restore.yaml` is
   destructive by design (stops the app, unconditionally overwrites the
   live volume, no dry-run). Pointed at real inventory, a drill would be

@@ -61,7 +61,7 @@ any new secret or config value goes through the catalog instead:
    `ansible/inventory/host_vars/{storage,security,services}.yaml` for
    more examples of the split.
 3. Use `{{ my_new_thing }}` in the app's `configs/*.j2` template, with
-   `no_log: true` on its `app_registry` entry if it's a real secret (see
+   `no_log: true` on its `app_catalog` entry if it's a real secret (see
    `no_log: true` below). Never in `compose.yaml` itself, even though it
    can also reference Ansible vars now — its deploy task has no
    per-app `no_log:`/mode handling, unlike `configs` (see
@@ -163,7 +163,7 @@ host.
 
 ## `no_log: true`
 
-Every `app_registry` entry whose `configs` render a real secret (API key,
+Every `app_catalog` entry whose `configs` render a real secret (API key,
 token, password) sets `no_log: true` — and so does anything that reveals
 the actual configured domain (a routed URL, an LDAP base DN, a DNS name
 list), even though it isn't a credential. A bare timezone or a short
@@ -177,13 +177,13 @@ while still reporting `changed: true`.
 
 ## `force: false`
 
-Every config in this registry defaults to `force: true` (overwrite on
+Every config in this catalog defaults to `force: true` (overwrite on
 drift) — this repo is the source of truth. Reserve `force: false` for a
 destination the *app itself* writes back to after Ansible first renders
 it, where overwriting would destroy state no template can reconstruct.
 Nothing currently needs it. `dashy`'s `conf.yaml.j2` is a candidate if its
 in-UI config editor (`data/conf.yml`) is ever used — see
-[`adding-an-app.md`](adding-an-app.md#2-register-it-in-app_registry)
+[`adding-an-app.md`](adding-an-app.md#2-register-it-in-app_catalog)
 for the general rule.
 
 ## Syncing the LDAP observer account password

@@ -21,7 +21,7 @@ else uses, to close the one remaining CT-log exposure that ADR's
 wildcard-by-default reasoning was meant to close entirely.
 
 Checked against the actual template
-(`ansible/roles/caddy/templates/Caddyfile.j2`) and `app_registry.yaml`'s
+(`ansible/roles/caddy/templates/Caddyfile.j2`) and `app_catalog.yaml`'s
 own comment on the entry: `tinyauth` isn't excluded by convention or
 left over from an unfinished migration — it's excluded because it
 lives at a genuinely different domain level. Every other app's `handle`
@@ -41,7 +41,7 @@ The CT-log exposure ADR 0003 cares about is still real, though: closing
 it means requesting a *second* wildcard — `*.{{ lab_domain }}` — rather
 than putting `tinyauth` inside an existing one. `lab_domain`
 (`lan.{{ main_domain }}`) has exactly one inhabitant today
-(`tinyauth`); nothing else in this repo's `app_registry.yaml` or
+(`tinyauth`); nothing else in this repo's `app_catalog.yaml` or
 inventory currently issues a hostname at that level rather than under
 some host's `caddy_domain`.
 
@@ -70,7 +70,7 @@ all.
   `lab_domain` level would need an explicit carve-out in `tinyauth`'s
   site block (or a rethink of this Decision) rather than "just works"
   the way adding a `caddy_domain`-level app does today.
-  **Checked by:** grepping `app_registry.yaml` and every `host_vars`
+  **Checked by:** grepping `app_catalog.yaml` and every `host_vars`
   file for any hostname pattern that resolves to `lab_domain` directly
   rather than `<host>.lab_domain`'s `caddy_domain` — a five-minute
   check, not a spike, before this is more than a plausible read.
@@ -90,7 +90,7 @@ all.
 
 - `tinyauth`'s hostname stops being individually logged to public CT
   logs, closing ADR 0003's originally-stated gap in full.
-- `app_registry.yaml`'s comment on the `tinyauth` entry
+- `app_catalog.yaml`'s comment on the `tinyauth` entry
   ("isn't routed through the `*.{{ caddy_domain }}` wildcard vhost...")
   needs updating once this lands — it's still accurate about *why*
   (different domain level) but the routing mechanism it describes

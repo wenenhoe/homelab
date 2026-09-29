@@ -1,4 +1,4 @@
-"""Tests for utils.app_catalog: the loader repo tooling reads app_registry.yaml through.
+"""Tests for utils.app_catalog: the loader repo tooling reads app_catalog.yaml through.
 
 Run via `uv run pytest tools/tests/ -v`.
 """

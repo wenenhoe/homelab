@@ -5,12 +5,12 @@
 # through Ansible's result-capture.
 #
 # Deliberately NOT under docker/openbao/configs/: that directory is
-# app_registry.yaml's configs: source, seeded into the config named
+# app_catalog.yaml's configs: source, seeded into the config named
 # volume that OpenBao's own entrypoint auto-scans for server config at
 # boot (see openbao.md's "Duplicate configuration" section) — a Vault
 # ACL policy is not server config, and landing here would get it loaded
 # (and fail to parse) as if it were. This file is never referenced by
-# app_registry.yaml or copied by any Ansible task; it exists only for
+# app_catalog.yaml or copied by any Ansible task; it exists only for
 # the runbook to scp by hand.
 
 path "secret/data/hosts/*" {

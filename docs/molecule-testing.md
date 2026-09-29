@@ -65,7 +65,7 @@ result, then re-converges to check idempotence — mirroring what
 | | `multi_volume` | Multiple volumes restored from one archive at different nesting depths, ignoring a decoy and an unrelated app's directory. |
 | | `validation_failure` | Missing archive path blocks every destructive step (asserted via unchanged `StartedAt`/content, not just task failure). |
 | | `confirmation_declined` | Valid vars/archive but `restore_confirm: false` — same side-effect assertions as `validation_failure`. |
-| `restore_discovery` | `default` | Manifest/rclone.conf content and ordering against synthetic fixtures — scope derivation from `app_registry`'s `backup:` key, `restore_discovery_excluded_apps`, step-ca hoisting, cloud-target fan-out/override, read-not-write credentials. No Docker needed — every task is `delegate_to: localhost`, same shape as `secrets`' own scenario. |
+| `restore_discovery` | `default` | Manifest/rclone.conf content and ordering against synthetic fixtures — scope derivation from `app_catalog`'s `backup:` key, `restore_discovery_excluded_apps`, step-ca hoisting, cloud-target fan-out/override, read-not-write credentials. No Docker needed — every task is `delegate_to: localhost`, same shape as `secrets`' own scenario. |
 | | `discovery_and_restore` | Runs the real role against a real throwaway SeaweedFS target and a real freshly-generated GPG keypair, then drives `restore_all.py`'s `load_manifest()`/`discover_and_decrypt()` directly against that real output: newest-object-by-timestamp selection, and falling over to a cloud target when SeaweedFS is unreachable, both against genuine S3 responses and a genuine decrypt. |
 
 Negative-path scenarios assert on `ansible_failed_task`/`ansible_failed_result`
@@ -139,10 +139,10 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    `molecule-fixtures.md`](molecule-fixtures.md#pre-baked-dind-image)). Docker
    is already running once the container boots, so `converge.yml` doesn't
    install it.
-3. If the role uses `app_registry`/`compose_apps`, point `converge.yml`
+3. If the role uses `app_catalog`/`compose_apps`, point `converge.yml`
    at `molecule_helpers`'s `resolve_compose_apps.yaml`, and read
    `resolved_apps`. A scenario that builds other hosts with `add_host` sets
-   each one's `resolved_apps` with `| resolve_apps(app_registry)`.
+   each one's `resolved_apps` with `| resolve_apps(app_catalog)`.
 4. Don't add `dependency.options` or a `provisioner.env` block — the base
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR — there's no CI for

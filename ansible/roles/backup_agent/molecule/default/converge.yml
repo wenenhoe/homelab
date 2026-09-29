@@ -89,7 +89,7 @@
     # diun, which coexist with backed-up apps: confirms the
     # normalization task's `when: ... | length > 0` skip branch actually
     # excludes it.
-    app_registry:
+    app_catalog:
       happy_app_stop:
         volumes:
           - name: data
@@ -114,7 +114,7 @@
         backup:
           volumes: [data, certs]
       # Mirrors minecraft's real backup.compression: none — its source
-      # volume is already gzipped upstream (see app_registry.yaml),
+      # volume is already gzipped upstream (see app_catalog.yaml),
       # so the schedule must skip a redundant second compression pass.
       happy_app_precompressed:
         volumes:
@@ -129,7 +129,7 @@
       - name: happy_app_multivol
       - name: happy_app_precompressed
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml
@@ -146,7 +146,7 @@
     # anymore — the actual case the stale-file-removal task in
     # tasks/main.yaml exists to handle. Without this, that task's loop
     # is empty on every real run this scenario exercises (nothing here
-    # ever changes app_registry between runs), so its deletion behavior
+    # ever changes app_catalog between runs), so its deletion behavior
     # itself was never actually observed to work. Guarded by a marker
     # file so this seeds exactly once, not on molecule's `idempotence`
     # re-run of this same converge.yml — reseeding there would give the

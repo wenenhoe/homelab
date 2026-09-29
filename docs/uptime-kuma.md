@@ -1,6 +1,6 @@
 # Uptime Kuma: Live Job Status
 
-`uptime-kuma` is one entry in `app_registry`, deployed on `security` only. See
+`uptime-kuma` is one entry in `app_catalog`, deployed on `security` only. See
 [`docs/adding-an-app.md`](adding-an-app.md) for the general pattern this follows.
 
 ## What it's for

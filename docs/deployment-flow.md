@@ -67,7 +67,7 @@ on the same command line instead.
 ## Play 1 — System setup (`hosts: managed_hosts`)
 
 Installs Docker Engine and resolves every host's `compose_apps` against
-`app_registry`. No containers start yet. `managed_hosts` — every real
+`app_catalog`. No containers start yet. `managed_hosts` — every real
 host — never `all` — `all` includes the `controller` host, which must
 never get Docker installed or a container deployed to it.
 
@@ -126,7 +126,7 @@ and Play 5's bucket to already exist. See
 ## Play 9 — Deploy cloud sync (`hosts: storage`)
 
 `storage` only, unlike Play 8 — resolves every backup host's
-`app_registry`-declared `extra_cloud_targets` via `hostvars` rather than
+`app_catalog`-declared `extra_cloud_targets` via `hostvars` rather than
 depending on those hosts' own Play 8 having already run in this same
 invocation (`hostvars` are static inventory data either way), so
 ordering after Play 8 isn't a hard dependency — it's just the natural
@@ -139,9 +139,9 @@ archives onward to R2/B2/OCI. See
 
 Role-by-role reference lives in [`ansible.md`](ansible.md#roles).
 
-## The App Registry
+## The App Catalog
 
-`group_vars/all/app_registry.yaml` defines everything about an app that
+`group_vars/all/app_catalog.yaml` defines everything about an app that
 doesn't vary per host: directories, named volumes (see
 [`volumes.md`](volumes.md)), scripts/config templates, and Caddy
 upstream/auth. `no_log: true` on a `configs` entry keeps a real secret
@@ -159,7 +159,7 @@ compose_apps:
 ```
 
 `resolved_apps` (`group_vars/all/main.yaml`) merges each host's short entry
-with its `app_registry` definition through the `resolve_apps` filter
+with its `app_catalog` definition through the `resolve_apps` filter
 (`ansible/filter_plugins/resolve_apps.py`; dicts merge, lists are replaced).
 `compose_apps` stays the host's own short list and is never reassigned. Every
 downstream role reads only `resolved_apps`, so an app's routing/upstream/auth

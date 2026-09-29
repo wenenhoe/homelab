@@ -30,7 +30,7 @@
     caddy_domain: apps.localhost
     # The resolver reads the catalog, and this scenario has no entries to put
     # in it.
-    app_registry: {}
+    app_catalog: {}
     # No "caddy" key here at all - this is the point of the scenario.
     compose_apps:
       - name: public_app
@@ -40,7 +40,7 @@
             upstream: "public:8080"
             auth: false
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

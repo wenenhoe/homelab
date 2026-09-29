@@ -4,7 +4,7 @@
 # it lets that scenario exercise the real normalization/derivation logic
 # directly, with no DinD/SeaweedFS infra needed at all.
 #
-# Any app_registry entry may declare:
+# Any app_catalog entry may declare:
 #   backup:
 #     volumes: [data, certs, ...]      # which volumes to back up
 #     stop_during_backup: true|false   # default false

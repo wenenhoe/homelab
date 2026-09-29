@@ -33,7 +33,7 @@
       fallback_target:
         access_key: "{{ seaweedfs_fallback_reader_access_key }}"
         secret_key: "{{ seaweedfs_fallback_reader_secret_key }}"
-    app_registry:
+    app_catalog:
       kms:
         volumes:
           - name: data
@@ -225,7 +225,7 @@
         name: "{{ item.name }}"
         groups: "{{ item.groups }}"
         compose_apps: "{{ item.compose_apps | default(omit) }}"
-        resolved_apps: "{{ (item.compose_apps | resolve_apps(app_registry)) if item.compose_apps is defined else omit }}"
+        resolved_apps: "{{ (item.compose_apps | resolve_apps(app_catalog)) if item.compose_apps is defined else omit }}"
         cloud_sync_targets: "{{ item.cloud_sync_targets | default(omit) }}"
         cloud_sync_default_targets: "{{ item.cloud_sync_default_targets | default(omit) }}"
       changed_when: false
@@ -249,7 +249,7 @@
         label: "{{ item.name }}"
 
     # Two REAL runs of the role under test (not a hand-rolled
-    # rclone.conf) — same app_registry/hostvars fixtures, different
+    # rclone.conf) — same app_catalog/hostvars fixtures, different
     # offsite_backup_s3_endpoint/restore_discovery_dir per run, since
     # [seaweedfs] has to be genuinely reachable in one and genuinely
     # unreachable in the other. Both discover kms AND lldap (both are

@@ -133,7 +133,7 @@
       failed_when: compose_app_c_containers_after_cleanup.containers | length > 0
 
     # --- Stale volumes: app still "deployed", volume no longer declared ----
-    - name: Label an extra volume as app_a's, but not one its registry declares
+    - name: Label an extra volume as app_a's, but not one its catalog declares
       community.docker.docker_volume:
         name: cleanup_app_a_stale
         state: present

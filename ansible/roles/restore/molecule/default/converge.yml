@@ -10,7 +10,7 @@
 
     # One app, one volume — the simplest real case (mirrors kms: a single
     # volume, single-volume restore_volumes list).
-    app_registry:
+    app_catalog:
       restore_target:
         volumes:
           - name: data
@@ -29,7 +29,7 @@
     restore_before_marker: /tmp/restore-molecule-default-before-started-at
     restore_default_owner_marker: /tmp/restore-molecule-default-canary-owner
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

@@ -6,7 +6,7 @@
     ansible_user: root
     compose_deploy_dir: /opt/stacks
     caddy_domain: apps.localhost
-    app_registry:
+    app_catalog:
       caddy: {}
       diun: {}
     # Deliberately no app with a caddy: key at all - that's the whole
@@ -18,7 +18,7 @@
       - name: caddy
       - name: diun
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

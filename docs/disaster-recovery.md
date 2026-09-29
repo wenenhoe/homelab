@@ -34,7 +34,7 @@ identity is scoped to its own backup prefix only.
 ## Architecture
 
 - Volumes to back up are declared per-app via a `backup:` key on the app's
-  `app_registry` entry — the agent has no per-app logic beyond that.
+  `app_catalog` entry — the agent has no per-app logic beyond that.
 - One `docker-volume-backup` container per host runs one schedule per
   app, always to SeaweedFS. `docker-volume-backup` does full
   tar-and-upload per run, no delta sync — a schedule's cost scales with
@@ -43,7 +43,7 @@ identity is scoped to its own backup prefix only.
 - Apps that need to be stopped for a consistent snapshot set
   `docker-volume-backup.stop-during-backup=<app-name>` on their own
   compose service (their own name, not a shared `true`) and
-  `backup.stop_during_backup: true` in `app_registry.yaml`. Each such
+  `backup.stop_during_backup: true` in `app_catalog.yaml`. Each such
   app's schedule then sets `BACKUP_STOP_DURING_BACKUP_LABEL=<app-name>`
   to match. That match is scoped per schedule file, not once for the
   whole container: a schedule backing up app A never touches app B's
@@ -127,7 +127,7 @@ with a redundant copy — losing it makes every backup unrecoverable.
 | `security` | `uptime-kuma` → `data` | yes (`uptime-kuma`) | 7 days | R2, B2 (default) |
 | `play` | `minecraft` → `backups` only | no | 7 days | OCI (override) |
 
-Apps without a `backup:` key in `app_registry.yaml` are out of scope.
+Apps without a `backup:` key in `app_catalog.yaml` are out of scope.
 Every app above lands in SeaweedFS directly (`backup_agent`, per-host,
 nightly); "Extra cloud targets" is what `cloud_sync` (storage-only, see
 [`cloud-sync.md`](cloud-sync.md)) additionally relays it to, on its own

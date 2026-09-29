@@ -76,8 +76,9 @@ alongside `telegram_chatid_*`.
 Each timer role (`backup_agent`, `caddy_cert_expiry`, `cloud_sync`,
 `step_ca_cert`) runs the same sequence, in this order:
 
-1. Install the Telegram notifier with the role above, and the Uptime Kuma
-   push unit where it has one.
+1. Include `systemd_reload` with no `tasks_from`, so its handler exists,
+   then install the Telegram notifier with the role above, and the Uptime
+   Kuma push unit where it has one.
 2. Template its own service and timer, each with `notify: Reload systemd`.
 3. Include `systemd_reload`'s `reload.yaml`: reload systemd if a notifier
    unit changed, then flush handlers so the handler for its own units has
@@ -86,9 +87,11 @@ Each timer role (`backup_agent`, `caddy_cert_expiry`, `cloud_sync`,
 4. Enable and start its timer.
 
 `Reload systemd` is defined once, in `systemd_reload`'s handlers. Each of
-these roles lists `systemd_reload` under `dependencies:` in its
-`meta/main.yaml`; without that the handler doesn't exist yet when the
-role's first `notify` runs, and the run fails with "handler not found".
+these roles includes `systemd_reload` (no `tasks_from`) before its first
+`notify`; without that the handler doesn't exist yet and the run fails with
+"handler not found". It is an include, not a `dependencies:` entry in
+`meta/main.yaml`, because Molecule treats a role with a `meta/main.yaml` as
+a Galaxy role and fails its prerun without `galaxy_info`.
 
 A trailing `@` in the unit name (`telegram-notify@`, `cert-renewer@`'s
 own notifier) renders a genuine systemd `@`-instantiated template unit,

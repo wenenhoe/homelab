@@ -46,9 +46,9 @@ Named for the job they do, not the host or project running it — no
 every task that writes one pairs it with a `notify: Reload systemd`
 handler — a unit file changing without a reload is a real, non-obvious
 way for a deploy to silently not take effect. The handler is defined once,
-in the `systemd_reload` role; a role that writes units lists that role
-under `dependencies:` in its `meta/main.yaml` so the handler exists before
-its first `notify` (see
+in the `systemd_reload` role; a role that writes units includes that role
+(`include_role: {name: systemd_reload}`) before its first `notify` so the
+handler exists (see
 [`telegram-notifications.md`](telegram-notifications.md#wiring-it-into-this-repo)).
 
 ## Telegram topics

@@ -75,6 +75,12 @@
     group: "{{ ansible_user }}"
     mode: "0755"
 
+# The units below notify a handler that only exists once its role has
+# loaded; see systemd_reload/tasks/reload.yaml.
+- name: Load the shared Reload systemd handler
+  ansible.builtin.include_role:
+    name: systemd_reload
+
 - name: Install Telegram alerting for cloud-sync failures
   ansible.builtin.include_role:
     name: telegram_notify

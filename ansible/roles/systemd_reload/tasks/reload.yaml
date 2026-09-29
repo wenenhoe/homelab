@@ -5,10 +5,12 @@
 # and timer (each with `notify: Reload systemd`), just before it enables
 # the timer.
 #
-# The caller lists `systemd_reload` under `dependencies:` in its
-# meta/main.yaml. That is what makes the `Reload systemd` handler in this
-# role's handlers/main.yaml exist by the time the caller's first `notify`
-# runs; a handler is only known once its role has loaded.
+# Before its first `notify`, the caller includes this role with no
+# tasks_from (`include_role: {name: systemd_reload}`). That is what makes
+# the `Reload systemd` handler in handlers/main.yaml exist; a handler is
+# only known once its role has loaded. Not a `dependencies:` entry in
+# meta/main.yaml: Molecule's prerun treats a role with a meta/main.yaml as
+# a Galaxy role and then fails it without a galaxy_info namespace.
 #
 # telegram_notify and uptime_kuma_push deliberately neither reload systemd
 # nor notify a handler (see their own install.yaml headers), so this

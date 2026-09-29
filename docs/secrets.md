@@ -34,7 +34,11 @@ any new secret or config value goes through the registry instead:
    from `group_vars/all/main.yaml` — see [ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)):
    ```yaml
    secrets_registry:
-     my-new-thing: { source: hex, length: 32, store: openbao, scope: hosts/security }
+     my-new-thing:
+       source: hex
+       length: 32
+       store: openbao
+       scope: hosts/security
    ```
    The `check-secrets-registry` pre-commit hook rejects an entry that breaks
    the header's rules — a `hex` entry without a `length`, a generated entry

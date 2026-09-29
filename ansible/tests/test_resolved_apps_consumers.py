@@ -119,3 +119,16 @@ def test_a_scenario_host_built_with_add_host_carries_its_own_resolved_apps(path)
     for _, args in _tasks_with(path, "add_host"):
         if isinstance(args, dict) and "compose_apps" in args:
             assert "resolved_apps" in args, "hostvars[host].resolved_apps must resolve like production"
+
+
+def _scenarios_using_the_stand_in():
+    return [path for path in _files(SCENARIO_GLOBS) if path.name == "converge.yml" and "resolve_compose_apps.yaml" in path.read_text()]
+
+
+@pytest.mark.parametrize("path", _scenarios_using_the_stand_in(), ids=_rel)
+def test_a_scenario_using_the_stand_in_defines_its_own_catalog(path):
+    # The stand-in passes `app_registry` to the resolver as production does, where it is always defined.
+    # A scenario with nothing to put in it says so with `app_registry: {}`.
+    scenario = path.parent
+    sources = [path, *(p for p in scenario.rglob("*") if p.is_file() and {"host_vars", "group_vars"} & set(p.relative_to(scenario).parts))]
+    assert any(re.search(r"^\s*app_registry\s*:", source.read_text(), re.M) for source in sources)

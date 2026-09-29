@@ -10,6 +10,8 @@ from pathlib import Path
 
 import yaml
 
+from utils.unique_key_yaml import UniqueKeyLoader
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 CATALOG_RELATIVE = "ansible/inventory/group_vars/all/secret_catalog.yaml"
 CATALOG_PATH = REPO_ROOT / CATALOG_RELATIVE
@@ -19,20 +21,6 @@ Catalog = dict[str, dict[str, object]]
 
 class CatalogError(Exception):
     """The catalog can't be read, or isn't a mapping of secret name -> mapping."""
-
-
-class _UniqueKeyLoader(yaml.SafeLoader):
-    """safe_load keeps the last of two equal keys, so a repeated secret name would silently replace the first."""
-
-    def construct_mapping(self, node, deep=False):
-        self.flatten_mapping(node)
-        seen = set()
-        for key_node, _ in node.value:
-            key = self.construct_object(key_node, deep=deep)
-            if isinstance(key, str) and key in seen:
-                raise yaml.constructor.ConstructorError(None, None, f"found duplicate key {key!r}", key_node.start_mark)
-            seen.add(key)
-        return super().construct_mapping(node, deep)
 
 
 def _label(path: Path) -> str:
@@ -46,7 +34,7 @@ def load_catalog(path: Path = CATALOG_PATH) -> Catalog:
     """The `secret_catalog` mapping in `path`: secret name -> its spec."""
     label = _label(path)
     try:
-        data = yaml.load(path.read_text(), Loader=_UniqueKeyLoader)  # noqa: S506 - SafeLoader subclass
+        data = yaml.load(path.read_text(), Loader=UniqueKeyLoader)  # noqa: S506 - SafeLoader subclass
     except OSError as exc:
         raise CatalogError(f"can't read {label}: {exc}") from exc
     except yaml.YAMLError as exc:

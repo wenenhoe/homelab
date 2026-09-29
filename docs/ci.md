@@ -22,8 +22,9 @@ call it as `python -m <package>.<module>` from `tools/`
   no-op filtering, the compose-app and Dockerfile lists.
 - `ci.gates` — checks with their own verdicts: the deploy-ordering
   regression check, the compose health wait, the Renovate window,
-  `matrix-jobs-gate`, and the secret-catalog rules check (see
-  [Secret catalog rules](#secret-catalog-rules)).
+  `matrix-jobs-gate`, and the secret-catalog and app-catalog rules checks (see
+  [Secret catalog rules](#secret-catalog-rules) and
+  [App catalog rules](#app-catalog-rules)).
 - `ci.images` — the image registry and the CI image builds.
 - `ci.scan` — setup for the security scans (the Trivy config).
 - `ci.fixtures` — data a job seeds before a real run, derived from the repo
@@ -33,7 +34,9 @@ call it as `python -m <package>.<module>` from `tools/`
 `secret_catalog.yaml`: the `openbao_utils` tools, the CI fixtures and the
 rules check all load it through `load_catalog`, which refuses a repeated
 secret name instead of keeping the last. It needs only PyYAML, so a
-pre-commit hook can import it.
+pre-commit hook can import it. `tools/utils/app_catalog.py` does the same for
+`app_registry.yaml`, and both use the duplicate-refusing loader in
+`tools/utils/unique_key_yaml.py`.
 
 `tools/doc_scripts/` is the documentation-workflow checks and generators
 of [ADR 0037](decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
@@ -550,6 +553,22 @@ would otherwise surface at deploy or rotation time: the `secrets` role skips
 a `hex` entry stored anywhere but OpenBao without an error.
 `tools/tests/ci/gates/test_secret_catalog_rules.py` has a case for each rule
 and runs the check over the real catalog.
+
+## App catalog rules
+
+`ci.gates.app_catalog_rules` checks the invariants of `app_registry.yaml` that
+a merge cannot: every route has an `upstream`, every name in an app's
+`backup.volumes` is a volume its `volumes` declares, and no app name appears
+twice (the loader refuses a repeated name instead of keeping the last). A
+`volumes`, `backup` or route entry of the wrong shape is reported as such, not
+left to crash the check. Each violation is printed with the app and the rule,
+and any violation fails the check.
+
+It runs as the `check-app-catalog` pre-commit hook, so `pre-commit-checks`
+runs it on every PR, and the hook needs only PyYAML. Without it a backup of an
+undeclared volume or a route with no upstream would surface at deploy time.
+`tools/tests/ci/gates/test_app_catalog_rules.py` has a case for each rule and
+runs the check over the real catalog.
 
 ## Doc index generation
 

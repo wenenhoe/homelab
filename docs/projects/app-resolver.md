@@ -37,7 +37,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: repo-level plugin directory and lazy `resolved_apps` | Done | A trivial filter loads from one `ansible-playbook` run and one Molecule scenario, and `restore_discovery`'s play reads another host's `resolved_apps`; ADR 0065's first two assumptions are resolved |
 | 2 | `resolve_apps` filter with unit tests | Done | The filter's output equals `preinit.yaml`'s for every app on every host in the inventory; pytest covers dict merge and list replacement |
-| 3 | Catalog validator | Not started | Runs in pre-commit and CI against the real catalog; unique names, `backup.volumes` within `volumes`, and route upstreams are checked |
+| 3 | Catalog validator | Done | Runs in pre-commit and CI against the real catalog; unique names, `backup.volumes` within `volumes`, and route upstreams are checked |
 | 4 | Move consumers to `resolved_apps` | Not started | `cloud_sync` and `restore_discovery` no longer read the catalog; `compose_apps` is never reassigned; `ci_boot_test`, `volume-reset`, `cleanup` and the Molecule helper no longer include `preinit.yaml` for the merge |
 | 5 | Renames | Not started | `app_registry` is `app_catalog` and `caddy:` is `routes:` everywhere, including docs, `AGENTS.md` and Molecule fixtures; only the resolver's call site names `app_catalog`, checked by a test |
 

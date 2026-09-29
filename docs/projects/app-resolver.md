@@ -68,10 +68,11 @@ and for the route key.
 - Whether the shared default for `backup.extra_cloud_targets`, spelled out
   separately in `cloud_sync` and `restore_discovery`, joins the resolver or
   becomes its own filter.
-- Other pure Jinja transformations, such as the direct-versus-seeded
-  classification in `compose/tasks/init.yaml`, can become filters once
-  stage 1 has proven the plugin directory. Each is scoped when it is taken
-  on, not here.
+- Other pure Jinja transformations can become filters in
+  `ansible/filter_plugins/`, as `cron_period_hours` and the
+  direct-versus-seeded classification in `compose/tasks/init.yaml`
+  (`app_deploy_plan`) already have. Each is scoped when it is taken on, not
+  here.
 
 ## Closing checklist
 

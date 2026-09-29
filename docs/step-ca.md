@@ -95,6 +95,33 @@ consumer to follow — this repo's "one explanation, one home" convention
 expects that consumer's own docs to point back here, rather than
 re-explaining provisioner auth or claim duration locally.
 
+## Changing a cert's names
+
+`step_ca_cert` requests two names per app: the common name and
+`<common name>.<caddy_domain>`. It only issues when the app's `certs`
+volume has no `fullchain.pem`, so changing either value (or
+`caddy_domain`) doesn't reach a cert that already exists. On every run
+with an existing cert, the role reads that cert's names with
+`step certificate inspect` (in a read-only `smallstep/step-cli`
+container, like the renewal unit's `needs-renewal` check) and **fails
+loudly if they differ from the requested ones**, printing both sets. It
+never reissues by itself, since a reissue restarts the app (and leaves
+OpenBao sealed, see [`openbao.md`](openbao.md)).
+
+To reissue on purpose, remove the cert file and re-run the deploy; the
+failure message prints this command filled in for the app and host:
+
+```sh
+ansible-playbook volume-file-rm.yaml --limit <host>,localhost \
+  -e volume_rm_app=<app> -e volume_rm_volume=certs \
+  -e '{"volume_rm_paths": ["fullchain.pem"]}' \
+  -e volume_rm_confirm=true -e volume_rm_stop_app=false
+```
+
+See [`volume-maintenance.md`](volume-maintenance.md) for that playbook.
+The names compared are the cert's DNS and IP SANs, as reported by
+`step`'s `names` field.
+
 ## Secrets
 
 `step-ca-password` and `step-ca-provisioner-password`

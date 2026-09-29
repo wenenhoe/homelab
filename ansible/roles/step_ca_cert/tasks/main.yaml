@@ -37,6 +37,71 @@
   changed_when: false
   failed_when: false
 
+# Issuance below only runs when no cert exists, so a change to the
+# requested names never reaches a cert that's already there. Read the
+# issued cert's names and fail on any difference instead of leaving the
+# old cert in place under the new configuration. Nothing is reissued
+# here: a reissue restarts the app, which the operator should choose.
+# Same read-only root mount as the renewal unit's ExecCondition.
+- name: "Read the names on the already-issued cert: {{ step_ca_cert_app_name }}"
+  community.docker.docker_container:
+    name: "step-ca-cert-inspect-{{ step_ca_cert_app_name }}"
+    image: "{{ step_ca_cert_step_cli_image }}"
+    user: root
+    volumes:
+      - "{{ step_ca_cert_certs_volume_name }}:/certs:ro"
+    command:
+      - step
+      - certificate
+      - inspect
+      - /certs/fullchain.pem
+      - --format
+      - json
+    detach: false
+    cleanup: true
+    # `container.Output` below is a placeholder string on any driver
+    # other than json-file, same as roles/openbao's own read of it.
+    log_driver: json-file
+  register: step_ca_cert_inspect_result
+  changed_when: false
+  check_mode: false
+  when: step_ca_cert_existing_cert.rc | default(1) == 0
+
+# step's `names` is the cert's DNS and IP SANs (the CN only if it's
+# also a SAN; emails aren't included). Must match the two --san values
+# passed to `step ca certificate` in the issuance block below.
+- name: "Compare the issued names to the requested names: {{ step_ca_cert_app_name }}"
+  ansible.builtin.set_fact:
+    step_ca_cert_issued_names: "{{ (step_ca_cert_inspect_result.container.Output | from_json).names | sort }}"
+    step_ca_cert_requested_names: "{{ [step_ca_cert_common_name, step_ca_cert_common_name ~ '.' ~ caddy_domain] | sort }}"
+  when: step_ca_cert_existing_cert.rc | default(1) == 0
+
+- name: "Fail loudly if the issued cert's names differ from the requested ones: {{ step_ca_cert_app_name }}"
+  ansible.builtin.fail:
+    msg: >-
+      The cert already issued for {{ step_ca_cert_app_name }}
+      (volume {{ step_ca_cert_certs_volume_name }}) covers
+      {{ step_ca_cert_issued_names }}, but this role now requests
+      {{ step_ca_cert_requested_names }}. This role only issues a cert when
+      none exists, so it will not pick up the change on its own. Nothing was
+      changed.
+
+      To reissue on purpose, remove the cert file and re-run this deploy:
+
+      ansible-playbook volume-file-rm.yaml
+      --limit {{ inventory_hostname }},localhost
+      -e volume_rm_app={{ step_ca_cert_app_name }}
+      -e volume_rm_volume={{ step_ca_cert_certs_volume_name | regex_replace('^' ~ step_ca_cert_app_name ~ '_', '') }}
+      -e '{"volume_rm_paths": ["fullchain.pem"]}'
+      -e volume_rm_confirm=true -e volume_rm_stop_app=false
+
+      The reissue restarts {{ step_ca_cert_app_name }} (an OpenBao restart
+      leaves it sealed, see docs/openbao.md). If the requested names are the
+      mistake, revert the change instead.
+  when:
+    - step_ca_cert_existing_cert.rc | default(1) == 0
+    - step_ca_cert_issued_names != step_ca_cert_requested_names
+
 # Ongoing renewal is the systemd timer's job from here on (installed
 # unconditionally below, regardless of this block) - this only ever
 # runs once, on a genuinely empty certs volume.
@@ -73,6 +138,7 @@
           - "{{ step_ca_cert_common_name }}"
           - /certs/fullchain.pem
           - /certs/privkey.pem
+          # Keep in sync with step_ca_cert_requested_names above.
           - --san
           - "{{ step_ca_cert_common_name }}"
           - --san

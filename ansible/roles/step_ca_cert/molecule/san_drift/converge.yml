@@ -1,0 +1,125 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+    caddy_domain: home.example
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/step_cli.yml"
+  tasks:
+    # No step-ca needed: the drift guard only reads the cert already in
+    # the volume, before anything that talks to step-ca. A plain
+    # container mounting the volume at the role's default cert dir
+    # stands in for the app. Every setup task below is idempotent so
+    # the idempotence re-converge changes nothing.
+    - name: Create the certs volume the stand-in app mounts
+      community.docker.docker_volume:
+        name: widget_certs
+
+    - name: Start a stand-in for the app
+      community.docker.docker_container:
+        name: widget-test
+        image: "{{ molecule_helpers_alpine_image }}"
+        command: [sleep, infinity]
+        volumes:
+          - widget_certs:/data/certs
+        state: started
+      register: step_ca_cert_san_drift_app
+
+    - name: Check whether the stale cert is already seeded
+      community.docker.docker_container_exec:
+        container: widget-test
+        command: "test -f /data/certs/fullchain.pem"
+      register: step_ca_cert_san_drift_seeded
+      changed_when: false
+      failed_when: false
+
+    # Names the role does NOT request: it asks for "widget" and
+    # "widget.home.example" (common name + caddy_domain above).
+    - name: Seed a cert issued for a different domain
+      community.docker.docker_container:
+        name: widget-cert-seed
+        image: "{{ molecule_helpers_step_cli_image }}"
+        user: root
+        volumes:
+          - widget_certs:/certs
+        command:
+          - step
+          - certificate
+          - create
+          - widget
+          - /certs/fullchain.pem
+          - /certs/privkey.pem
+          - --profile
+          - self-signed
+          - --subtle
+          - --san
+          - widget
+          - --san
+          - widget.old.example
+          - --no-password
+          - --insecure
+          - --force
+        detach: false
+        cleanup: true
+        log_driver: json-file
+      when: step_ca_cert_san_drift_seeded.rc != 0
+
+    # Recorded once (force: false) so verify.yml can prove the cert was
+    # not replaced and the app not restarted by the failing run.
+    - name: Checksum the seeded cert
+      community.docker.docker_container_exec:
+        container: widget-test
+        command: "sha256sum /data/certs/fullchain.pem"
+      register: step_ca_cert_san_drift_sha
+      changed_when: false
+
+    - name: Record the cert checksum and app start time before the role runs
+      ansible.builtin.copy:
+        dest: "/tmp/step_ca_cert_san_drift_{{ item.key }}_before"
+        content: "{{ item.value }}\n"
+        mode: "0644"
+        force: false
+      loop:
+        - key: sha
+          value: "{{ step_ca_cert_san_drift_sha.stdout.split()[0] }}"
+        - key: started
+          value: "{{ step_ca_cert_san_drift_app.container.State.StartedAt }}"
+      loop_control:
+        label: "{{ item.key }}"
+
+    - name: "Run step_ca_cert [block / rescue] (issued names differ from requested, failure is deliberate and expected)"
+      block:
+        - name: Run step_ca_cert against a cert issued for different names
+          ansible.builtin.include_role:
+            name: step_ca_cert
+          vars:
+            step_ca_cert_app_name: widget
+            step_ca_cert_common_name: widget
+            step_ca_cert_container_name: widget-test
+      rescue:
+        # A bare rescue: accepts ANY failure inside the block, so assert
+        # on the exact task and both name sets before trusting the
+        # "expected" label at all.
+        - name: Confirm the failure came from the names-differ guard itself
+          ansible.builtin.assert:
+            that:
+              - 'ansible_failed_task.name is search("^Fail loudly if the issued cert.s names differ")'
+              - "'widget.old.example' in ansible_failed_result.msg"
+              - "'widget.home.example' in ansible_failed_result.msg"
+              - "'volume-file-rm.yaml' in ansible_failed_result.msg"
+              - "'volume_rm_volume=certs' in ansible_failed_result.msg"
+            fail_msg: >-
+              step_ca_cert failed, but not for the reason this scenario
+              exists to test. Expected the names-differ guard to fail
+              naming both name sets and the volume-file-rm.yaml command;
+              got task "{{ ansible_failed_task.name | default('unknown') }}"
+              with message: {{ ansible_failed_result.msg | default('(no msg)') }}
+
+        - name: Leave a marker proving the guard caught the names difference
+          ansible.builtin.copy:
+            dest: /tmp/step_ca_cert_san_drift_halt_marker
+            content: "names difference caught as expected\n"
+            mode: "0644"

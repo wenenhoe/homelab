@@ -1,0 +1,43 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the names-differ guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/step_ca_cert_san_drift_halt_marker
+      register: step_ca_cert_san_drift_marker
+      failed_when: not step_ca_cert_san_drift_marker.stat.exists
+
+    - name: Read the checksum and start time recorded before the role ran
+      ansible.builtin.slurp:
+        src: "/tmp/step_ca_cert_san_drift_{{ item }}_before"
+      loop: [sha, started]
+      register: step_ca_cert_san_drift_before
+
+    - name: Checksum the cert now
+      community.docker.docker_container_exec:
+        container: widget-test
+        command: "sha256sum /data/certs/fullchain.pem"
+      register: step_ca_cert_san_drift_sha_after
+      changed_when: false
+
+    - name: Read the stand-in app's current state
+      community.docker.docker_container_info:
+        name: widget-test
+      register: step_ca_cert_san_drift_app_after
+
+    - name: Confirm the failing run reissued nothing and restarted nothing
+      ansible.builtin.assert:
+        that:
+          - step_ca_cert_san_drift_sha_after.stdout.split()[0] == (step_ca_cert_san_drift_before.results[0].content | b64decode | trim)
+          - step_ca_cert_san_drift_app_after.container.State.StartedAt == (step_ca_cert_san_drift_before.results[1].content | b64decode | trim)
+        fail_msg: >-
+          The cert or the app changed even though the names-differ guard
+          fired - the guard must leave both untouched.
+
+    - name: Confirm step_ca_cert never got as far as installing any renewal unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/cert-renewer@.service
+      register: step_ca_cert_san_drift_unit
+      failed_when: step_ca_cert_san_drift_unit.stat.exists

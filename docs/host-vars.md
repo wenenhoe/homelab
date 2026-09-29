@@ -15,19 +15,19 @@ The wildcard domain this host's Caddy instance terminates TLS for and routes und
 The list of apps this host runs. Each entry needs only:
 
 - `name` — must match a key in `app_catalog`.
-- `caddy` (routable apps only) — one block per route (`default`, or a
+- `routes` (routable apps only) — one block per route (`default`, or a
   descriptive key for multi-route apps, see `adding-an-app.md`'s shlink
   example), each supplying `host: <label>`. Merged with the matching
-  `caddy` block in `app_catalog` (which supplies `upstream` and
+  `routes` block in `app_catalog` (which supplies `upstream` and
   optionally `auth: false`): the catalog defines *how* to reach the app,
   `host_vars` defines *what to call it* on this host.
 
-Apps with no `caddy` block (e.g. `bind9`, `diun`) are non-routable.
+Apps with no `routes` block (e.g. `bind9`, `diun`) are non-routable.
 
 ```yaml
 compose_apps:
   - name: dashy
-    caddy:
+    routes:
       default:
         host: dashy       # -> dashy.<caddy_domain>
 ```
@@ -91,7 +91,7 @@ compose_apps:
   - name: caddy
   - name: bind9
   - name: cobalt
-    caddy:
+    routes:
       default:
         host: "{{ cobalt_host }}"
   # ...rest of this host's apps

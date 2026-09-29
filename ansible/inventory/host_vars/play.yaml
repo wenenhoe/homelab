@@ -16,7 +16,7 @@ compose_apps:
   - name: beszel-agent
 
   - name: minecraft
-    caddy:
+    routes:
       default:
         host: bluemap
 

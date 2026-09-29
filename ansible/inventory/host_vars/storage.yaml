@@ -92,7 +92,7 @@ compose_apps:
   - name: beszel-agent
 
   - name: seaweedfs
-    caddy:
+    routes:
       s3:
         host: s3
       filer:

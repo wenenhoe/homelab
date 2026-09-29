@@ -156,3 +156,22 @@ def test_nothing_still_uses_the_old_catalog_name():
             continue
         offenders += [f"{relative}:{number}" for number, line in enumerate(text.splitlines(), 1) if OLD_NAME.search(line)]
     assert offenders == []
+
+
+def _yaml_files():
+    for path in sorted(ANSIBLE_DIR.rglob("*.y*ml")):
+        if path.suffix in {".yaml", ".yml"} and not path.is_symlink() and ".ansible" not in path.relative_to(ANSIBLE_DIR).parts:
+            yield path
+
+
+def _is_route_map(value) -> bool:
+    return isinstance(value, dict) and bool(value) and all(isinstance(route, dict) for route in value.values())
+
+
+def test_no_app_entry_still_declares_its_routes_under_the_old_key():
+    """`caddy:` is now `routes:`. The old key is ignored without an error, so an app that keeps it loses its route and DNS record."""
+    offenders = []
+    for path in _yaml_files():
+        for doc in yaml.safe_load_all(path.read_text()):
+            offenders += [_rel(path) for node in _walk(doc) if isinstance(node, dict) and _is_route_map(node.get("caddy"))]
+    assert offenders == []

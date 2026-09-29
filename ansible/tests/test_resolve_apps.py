@@ -34,21 +34,21 @@ CATALOG = {
         "volumes": [{"name": "data"}, {"name": "config"}],
         "configs": [{"src": "env.j2", "dest": ".env"}],
         "backup": {"volumes": ["data"], "cron": "0 3 * * *"},
-        "caddy": {"default": {"upstream": "web:8080", "auth": True}},
+        "routes": {"default": {"upstream": "web:8080", "auth": True}},
     },
     "db": {"volumes": [{"name": "data"}]},
 }
 
 
 def test_host_route_joins_catalog_route():
-    (app,) = resolve_apps([{"name": "web", "caddy": {"default": {"host": "web"}}}], CATALOG)
-    assert app["caddy"] == {"default": {"upstream": "web:8080", "auth": True, "host": "web"}}
+    (app,) = resolve_apps([{"name": "web", "routes": {"default": {"host": "web"}}}], CATALOG)
+    assert app["routes"] == {"default": {"upstream": "web:8080", "auth": True, "host": "web"}}
 
 
 def test_nested_dicts_merge_and_host_scalar_wins():
-    (app,) = resolve_apps([{"name": "web", "backup": {"cron": "0 5 * * *"}, "caddy": {"default": {"auth": False}}}], CATALOG)
+    (app,) = resolve_apps([{"name": "web", "backup": {"cron": "0 5 * * *"}, "routes": {"default": {"auth": False}}}], CATALOG)
     assert app["backup"] == {"volumes": ["data"], "cron": "0 5 * * *"}
-    assert app["caddy"]["default"] == {"upstream": "web:8080", "auth": False}
+    assert app["routes"]["default"] == {"upstream": "web:8080", "auth": False}
 
 
 def test_host_list_replaces_catalog_list():
@@ -64,7 +64,7 @@ def test_catalog_list_is_kept_when_host_names_none():
 
 
 def test_app_without_catalog_entry_resolves_to_itself():
-    entry = {"name": "adhoc", "caddy": {"default": {"host": "adhoc"}}}
+    entry = {"name": "adhoc", "routes": {"default": {"host": "adhoc"}}}
     assert resolve_apps([entry], CATALOG) == [entry]
 
 
@@ -82,7 +82,7 @@ def test_empty_compose_apps_resolves_to_empty_list():
 
 
 def test_inputs_are_not_modified():
-    apps = [{"name": "web", "volumes": [{"name": "x"}], "caddy": {"default": {"host": "web"}}}, {"name": "db"}]
+    apps = [{"name": "web", "volumes": [{"name": "x"}], "routes": {"default": {"host": "web"}}}, {"name": "db"}]
     catalog_before, apps_before = copy.deepcopy(CATALOG), copy.deepcopy(apps)
     resolve_apps(apps, CATALOG)
     assert catalog_before == CATALOG

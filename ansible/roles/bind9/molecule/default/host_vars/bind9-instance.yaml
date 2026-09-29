@@ -47,12 +47,12 @@ app_catalog: >-
 # right and silently isn't (see the comment above this block for the
 # other host_vars/hostvars[] subtlety already found the hard way here).
 
-# testapp carries its own `caddy` route directly (matching how real
+# testapp carries its own `routes` entry directly (matching how real
 # host_vars declare per-host route labels), so zone.db.j2 has something to
 # generate an auto-CNAME for.
 compose_apps:
   - name: bind9
   - name: testapp
-    caddy:
+    routes:
       default:
         host: testapp

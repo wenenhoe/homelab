@@ -153,7 +153,7 @@ for routable apps, what hostname to expose:
 ```yaml
 compose_apps:
   - name: dashy
-    caddy:
+    routes:
       default:
         host: dashy
 ```

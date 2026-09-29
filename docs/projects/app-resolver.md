@@ -39,7 +39,7 @@ Update at the start and end of each PR that works a stage.
 | 2 | `resolve_apps` filter with unit tests | Done | The filter's output equals `preinit.yaml`'s for every app on every host in the inventory; pytest covers dict merge and list replacement |
 | 3 | Catalog validator | Done | Runs in pre-commit and CI against the real catalog; unique names, `backup.volumes` within `volumes`, and route upstreams are checked |
 | 4 | Move consumers to `resolved_apps` | Done | `cloud_sync` and `restore_discovery` no longer read the catalog; `compose_apps` is never reassigned; `ci_boot_test`, `volume-reset`, `cleanup` and the Molecule helper no longer include `preinit.yaml` for the merge; every consumer named in ADR 0065 reads `resolved_apps` |
-| 5 | Renames | In progress | `app_registry` is `app_catalog` and `caddy:` is `routes:` everywhere, including docs, `AGENTS.md` and Molecule fixtures; only the resolver's call sites and the scenarios that supply a catalog name `app_catalog`, checked by a test |
+| 5 | Renames | Done | `app_registry` is `app_catalog` and `caddy:` is `routes:` everywhere, including docs, `AGENTS.md` and Molecule fixtures; only the resolver's call sites and the scenarios that supply a catalog name `app_catalog`, checked by a test |
 
 Stage status is `Not started`, `In progress`, or `Done`. Stage 5 is
 mechanical and ships as separate pull requests for the variable and file

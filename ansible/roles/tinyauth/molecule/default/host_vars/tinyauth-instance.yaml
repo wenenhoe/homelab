@@ -42,7 +42,7 @@ app_catalog: >-
      | from_yaml).app_catalog
   }}
 
-# No caddy: block — matches host_vars/security.yaml's real tinyauth
+# No routes: block — matches host_vars/security.yaml's real tinyauth
 # entry (it fronts its own top-level auth domain rather than the
 # wildcard vhost every other app gets, see app_catalog.yaml's comment).
 compose_apps:

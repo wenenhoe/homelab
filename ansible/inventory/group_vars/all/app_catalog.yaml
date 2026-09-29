@@ -14,7 +14,7 @@
 #
 # Sources live at {{ compose_source_dir }}/{{ app_name }}/configs/{{ item.src }}.
 # Per-host files (host_vars/*.yaml) only list which apps to deploy and,
-# for routable apps, the caddy host label(s).
+# for routable apps, the route host label(s).
 app_catalog:
   caddy:
     volumes:
@@ -38,7 +38,7 @@ app_catalog:
     backup:
       volumes: [data]
       stop_during_backup: true
-    caddy:
+    routes:
       default:
         upstream: "beszel-hub:8090"
         auth: false   # agents auth via TOKEN/KEY handshake, not Tinyauth/LDAP
@@ -60,7 +60,7 @@ app_catalog:
       - name: run
 
   bentopdf:
-    caddy:
+    routes:
       default:
         upstream: "bentopdf:8080"
 
@@ -70,7 +70,7 @@ app_catalog:
         dest: .env
         mode: "0600"
         no_log: true   # COBALT_API_URL leaks the domain
-    caddy:
+    routes:
       default:
         upstream: "cobalt:9000"
         auth: false
@@ -81,7 +81,7 @@ app_catalog:
     configs:
       - src: conf.yaml.j2
         dest: "data/conf.yml"
-    caddy:
+    routes:
       default:
         upstream: "dashy:8080"
         auth: false
@@ -92,12 +92,12 @@ app_catalog:
     backup:
       volumes: [data]
       stop_during_backup: true
-    caddy:
+    routes:
       default:
         upstream: "kms-gui:3000"
 
   librespeed:
-    caddy:
+    routes:
       default:
         upstream: "librespeed:8080"
 
@@ -109,7 +109,7 @@ app_catalog:
         no_log: true
     # Two containers front one "app": the short-link redirector and the
     # web UI. Host files pair these up by key and supply the hostname.
-    caddy:
+    routes:
       short:
         upstream: "shlink:8080"
       web:
@@ -123,7 +123,7 @@ app_catalog:
         dest: "data/s3-identity.json"
         mode: "0600"
         no_log: true
-    caddy:
+    routes:
       s3:
         upstream: "seaweedfs:8333"
         auth: false   # SigV4-authenticated machine traffic, not a Tinyauth session
@@ -135,7 +135,7 @@ app_catalog:
       - name: data
     backup:
       volumes: [data]
-    caddy:
+    routes:
       default:
         upstream: "wastebin:8088"
 
@@ -174,7 +174,7 @@ app_catalog:
         no_log: true
     backup:
       volumes: [data, certs]
-    caddy:
+    routes:
       default:
         upstream: "lldap:17170"
         auth: false
@@ -192,7 +192,7 @@ app_catalog:
         no_log: true
     backup:
       volumes: [data]
-    # No caddy: entry — reachable directly on caddy-proxy by container
+    # No routes: entry — reachable directly on caddy-proxy by container
     # name (step-ca:9000), the same no-Caddy-frontend pattern bind9
     # uses. See docs/step-ca.md.
 
@@ -210,7 +210,7 @@ app_catalog:
     # manual unseal per ADR 0018) on every backup cycle. See
     # docs/openbao.md.
     #
-    # No caddy: entry either, same reasoning as step-ca above — plus
+    # No routes: entry either, same reasoning as step-ca above — plus
     # published directly (see compose.yaml.j2) rather than proxied,
     # like lldap's LDAPS. See docs/openbao.md.
 
@@ -248,7 +248,7 @@ app_catalog:
       # docs/disaster-recovery.md's "Cloud target selection" for why
       # minecraft gets OCI instead of the R2+B2 default.
       extra_cloud_targets: [oci]
-    caddy:
+    routes:
       default:
         upstream: "bluemap:8100"
 
@@ -258,7 +258,7 @@ app_catalog:
     backup:
       volumes: [data]
       stop_during_backup: true
-    caddy:
+    routes:
       default:
         upstream: "uptime-kuma:3001"
         # Push-monitor pings (plain HTTP GETs from cert-renewer@,

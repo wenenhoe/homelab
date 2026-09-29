@@ -101,7 +101,7 @@ CASES = {
         ),
     ),
     "unknown keys on the app are ignored": (
-        {"caddy": {"upstream": "x"}, "volumes": volumes("data"), "configs": [{"src": "a", "dest": ".env"}]},
+        {"routes": {"upstream": "x"}, "volumes": volumes("data"), "configs": [{"src": "a", "dest": ".env"}]},
         plan(configs_direct=[{"src": "a", "dest": ".env"}]),
     ),
     "order is preserved within each bucket": (

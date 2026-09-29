@@ -34,7 +34,7 @@
     # No "caddy" key here at all - this is the point of the scenario.
     compose_apps:
       - name: public_app
-        caddy:
+        routes:
           default:
             host: public
             upstream: "public:8080"

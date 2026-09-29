@@ -63,7 +63,7 @@ app_catalog:
         dest: .env
         mode: "0600"
         no_log: true      # if this .env holds a real secret — see below
-    caddy:
+    routes:
       default:
         upstream: "my-app:8080"
 ```
@@ -74,18 +74,18 @@ app_catalog:
 | `create_dirs` | Subdirectories created under `{{ compose_deploy_dir }}/<app>/` before the stack starts — only needed for content that stays a bind mount. |
 | `configs` | Templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself — no app in the catalog needs this today, so there's no worked example to point to yet. Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](secrets.md)). Secrets this repo can generate go in `secret_catalog.yaml`, not a raw `lookup('password', ...)` in the template. |
 | `scripts` | Helper scripts copied verbatim into `<app>/scripts/`. |
-| `caddy` | Omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth. |
+| `routes` | Omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth. |
 
 The `check-app-catalog` pre-commit hook rejects an entry whose `backup.volumes` names a volume its `volumes` doesn't declare, or whose route has no `upstream`, and a repeated app name. See [`ci.md`](ci.md#app-catalog-rules).
 
 ## 3. Add it to a host's `compose_apps`
 
-In the relevant `ansible/inventory/host_vars/<host>.yaml`, add a minimal entry with just the app name, plus a `caddy` block supplying the hostname if it's routable:
+In the relevant `ansible/inventory/host_vars/<host>.yaml`, add a minimal entry with just the app name, plus a `routes` block supplying the hostname if it's routable:
 
 ```yaml
 compose_apps:
   - name: my-app
-    caddy:
+    routes:
       default:
         host: my-app
 ```
@@ -108,12 +108,12 @@ The app is picked up by Play 4 (`compose_app` role), which provisions its direct
 
 ## Multi-route apps
 
-Some apps front more than one container behind two different hostnames (e.g. `shlink`, which pairs a redirector and a web UI). Give each route its own key under `caddy` in both the catalog entry and the host's `compose_apps` entry — the key just needs to match between the two:
+Some apps front more than one container behind two different hostnames (e.g. `shlink`, which pairs a redirector and a web UI). Give each route its own key under `routes` in both the catalog entry and the host's `compose_apps` entry — the key just needs to match between the two:
 
 ```yaml
 # app_catalog
 shlink:
-  caddy:
+  routes:
     short:
       upstream: "shlink:8080"
     web:
@@ -122,7 +122,7 @@ shlink:
 # host_vars
 compose_apps:
   - name: shlink
-    caddy:
+    routes:
       short:
         host: short
       web:

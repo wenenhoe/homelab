@@ -46,7 +46,7 @@ running step-ca behind a reverse proxy or on Docker Swarm.
 ## Network
 
 Reachable only on `caddy-proxy`, by container name (`step-ca:9000`) —
-no Caddy vhost (no `caddy:` key in its `app_catalog` entry, the same
+no Caddy vhost (no `routes:` key in its `app_catalog` entry, the same
 pattern `bind9` uses), and no host port published. A CA's admin/signing
 API isn't something to put behind a reverse proxy the way an ordinary
 web app is.

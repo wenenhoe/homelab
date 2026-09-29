@@ -32,14 +32,14 @@
       - name: tinyauth
         upstream: "tinyauth:3000"
       - name: authed_app
-        caddy:
+        routes:
           default:
             host: authed
             upstream: "authed:8080"
             # auth omitted deliberately - exercises the `| default(true)`
             # branch of the Caddyfile template, not just the explicit one.
       - name: public_app
-        caddy:
+        routes:
           default:
             host: public
             upstream: "public:8080"

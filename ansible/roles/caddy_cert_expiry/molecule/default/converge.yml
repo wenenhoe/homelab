@@ -42,7 +42,7 @@
     compose_apps:
       - name: caddy
       - name: bentopdf
-        caddy:
+        routes:
           default:
             host: bentopdf
   tasks:

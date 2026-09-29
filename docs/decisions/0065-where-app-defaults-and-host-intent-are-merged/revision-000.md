@@ -44,9 +44,10 @@ Docker.
   `backup.extra_cloud_targets`, each in its own Jinja.
 - Ansible variables in `group_vars/all` are templated lazily per host, and a
   filter plugin is plain Python that can be unit tested with pytest.
-  `roles/backup_agent/filter_plugins/cron_period_hours.py` is the existing
-  example; it loads only when that role is in the play and has no pytest
-  test.
+  `cron_period_hours` is the existing example. It used to sit in
+  `roles/backup_agent/filter_plugins/`, so it loaded only when that role was
+  in the play and had no pytest test; it now lives in `ansible/filter_plugins/`
+  with one.
 
 ## Decision
 
@@ -64,10 +65,12 @@ Docker.
   reachable through `hostvars` with no play having run.
 - Roles and playbooks read `resolved_apps` and never `app_catalog`. The
   resolver's one call site is the only reader of the catalog.
-- The filter lives in one repo-level plugin directory that `ansible.cfg`
-  names, so it loads for playbooks, roles and Molecule scenarios alike. Its
-  unit tests live under `tools/tests/`, per ADR 0064's layout.
-- A catalog validator, also under `tools/`, checks the invariants a merge
+- The filter lives in one repo-level plugin directory, `ansible/filter_plugins/`,
+  that `ansible.cfg` names, so it loads for playbooks, roles and Molecule
+  scenarios alike. Its unit tests live under `ansible/tests/`, beside the other
+  tests of Ansible-side Python: ADR 0064's `tools/` layout covers the code CI
+  and documentation checks run, not code Ansible loads.
+- A catalog validator, under `tools/`, checks the invariants a merge
   cannot: app names are unique, `backup.volumes` are a subset of `volumes`,
   and each route names an upstream.
 

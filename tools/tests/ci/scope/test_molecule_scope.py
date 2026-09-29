@@ -115,6 +115,12 @@ class GlobalPathTests(FakeRepo):
             with self.subTest(path=path):
                 self.assertEqual(self.roles_for(path), ["alpha", "beta"])
 
+    def test_a_change_under_the_filter_plugin_directory_queues_every_role(self):
+        # ansible.cfg loads these into every play, so no role's own directory names them.
+        self.scenario("alpha")
+        self.scenario("beta")
+        self.assertEqual(self.roles_for("ansible/filter_plugins/cron_period_hours.py"), ["alpha", "beta"])
+
     def test_every_path_the_base_config_points_scenarios_at_queues_every_role(self):
         self.scenario("alpha")
         self.scenario("beta")

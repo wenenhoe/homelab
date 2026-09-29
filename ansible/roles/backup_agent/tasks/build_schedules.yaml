@@ -55,7 +55,7 @@
 # being passed as separate sources.
 #
 # freshness_hours is derived from this same app's own cron (the
-# cron_period_hours filter, this role's own filter_plugins/), not a
+# cron_period_hours filter in ansible/filter_plugins/), not a
 # separately declared field - a hand-set value here could silently
 # drift out of sync the moment cron changes and nobody remembers to
 # update both; a derived one can't, because there is nothing second to

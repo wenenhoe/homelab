@@ -101,8 +101,8 @@ the backup container) checks whether *every* app's newest SeaweedFS
 object is within that app's own freshness threshold (via `rclone lsf
 --max-age`; `rclone` not `mc` — MinIO archived `mc`'s Docker Hub image),
 and pushes only if all of them are. Each app's threshold is derived
-from that app's own resolved cron (`backup_agent`'s `cron_period_hours`
-filter: the longest gap between two consecutive firings, plus
+from that app's own resolved cron (the `cron_period_hours` filter in
+`ansible/filter_plugins/`: the longest gap between two consecutive firings, plus
 `offsite_backup_freshness_buffer_hours` for backup duration and
 scheduling slack) rather than a value set independently — every app on
 today's shared daily `offsite_backup_cron` computes to the same 26h

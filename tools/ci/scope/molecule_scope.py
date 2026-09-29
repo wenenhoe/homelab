@@ -82,10 +82,13 @@ YAML_SUFFIXES = (".yml", ".yaml")
 
 # Paths every scenario inherits regardless of what it references: the
 # base config's Galaxy inputs (.config/molecule/config.yml deep-merges
-# it into every scenario) and the toolchain pins. tools/tests/ci/scope
-# asserts the base config still points at the files listed here.
+# it into every scenario), the toolchain pins, and the filter plugins
+# ansible.cfg loads into every play (any role may call one).
+# tools/tests/ci/scope asserts the base config still points at the files
+# listed here.
 GLOBAL_PATHS = (
     ".config/molecule/",
+    "ansible/filter_plugins/",
     "ansible/requirements.yml",
     "pyproject.toml",
     "uv.lock",

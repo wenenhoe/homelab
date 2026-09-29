@@ -77,6 +77,31 @@ Each entry's `source` says how its value is produced; its `store` says where it 
 | `uuid4` | `shlink-api-key` only | Vault-backed only, same reasoning as `hex` above — this source always generates via `python3 -c "import uuid; print(uuid.uuid4())"`, since `lookup('password')`'s `chars=` can't produce a structurally valid UUID4. |
 | `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, Beszel's post-boot key/token) | No generation step. Vault-backed entries (everything except the three permanent exceptions) are populated by `create_leaf_keys.py`/`create_rotation_keys.py` for cloud credentials, or `openbao_utils/bootstrap.py` for everything else, before they're first read; missing → the play fails loudly naming the OpenBao path and pointing at the right script. File-cache-backed entries (`main-domain`, the controller AppRole pair) work the same as before: missing cache file → same loud failure, naming the file to create by hand. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank either way. |
 
+## Catalog fields
+
+| Field | Values | Where it applies |
+| :--- | :--- | :--- |
+| `source` | `hex`, `uuid4`, `manual` | Every entry. |
+| `store` | `openbao`, `controller_file` | Every entry, with no default: the three file-cache entries show up as exceptions, and a typo can't fall back to a default. |
+| `scope` | The Vault path prefix | Required with `store: openbao`, forbidden with `controller_file`. |
+| `length` | A positive integer | `source: hex` only. |
+| `description` | Text shown when the value is missing | Every `manual` entry. |
+| `allow_blank`, `sensitive` | `true` or `false` | `manual` entries only. |
+
+A `scope` is `hosts/<host>` (`security`, `services`, `storage` or `play`),
+`hosts/all/<concern>`, or `cloud_credentials/leaf`. `hex` and `uuid4` entries
+are always `store: openbao`, because Ansible can only generate into OpenBao.
+An entry's OpenBao path is `<scope>/<name>` under the `secret` mount, and it
+doesn't change unless a decision says so
+([ADR 0066](decisions/0066-how-a-secret-definition-states-production-and-storage/revision-000.md)).
+
+Every reader other than Ansible loads the catalog through
+`tools/utils/secret_catalog.py`, which refuses a repeated secret name and an
+entry whose `store` is missing or unknown. No tool decides where a secret
+lives from anything but its `store`. The `check-secret-catalog` pre-commit
+hook enforces the rules above before a change merges, so a wrong combination
+never reaches a deploy — see [`ci.md`](ci.md#secret-catalog-rules).
+
 ## Bootstrapping manual secrets
 
 Before your first `deploy.yaml` run:

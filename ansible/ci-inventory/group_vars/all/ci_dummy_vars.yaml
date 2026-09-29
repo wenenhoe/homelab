@@ -9,7 +9,7 @@
 # ansible-lint treats every .yaml under playbooks/ as a playbook, so a
 # bare vars dict there is a syntax-check failure.
 #
-# Every value below exists in production via a `manual` secrets_registry
+# Every value below exists in production via a `manual` secret_catalog
 # entry, a per-host host_vars file, or manual post-bootstrap setup
 # (Beszel's key/token). None of that machinery runs in this single-host,
 # no-inventory CI run, so every value here is a throwaway placeholder —
@@ -21,7 +21,7 @@
 # don't invent a workaround elsewhere.
 # ---------------------------------------------------------------------------
 
-# Normally a `manual`-format secrets_registry.yaml entry
+# Normally a `source: manual` secret_catalog.yaml entry
 # (main.yaml: main_domain: "{{ secrets_generated['main-domain'] }}").
 # lab_domain/ddns_domain (main.yaml) derive from this, so defining it
 # flatly here is enough to make those resolve too.

@@ -23,8 +23,8 @@ check; classify_restore turns the exit code and log into a verdict:
   somewhere else.
 
 Usage (from tools/): python -m ci.gates.deploy_ordering {deploy|restore}
-Expects the registry override from ci.fixtures.strip_vault_scope at
-/tmp/ci-secrets-registry-no-vault.json.
+Expects the catalog override from ci.fixtures.file_cache_catalog at
+/tmp/ci-secret-catalog-no-vault.json.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 ANSIBLE_DIR = REPO_ROOT / "ansible"
 
 INVENTORY = "inventory/ci-deploy-ordering-inventory.yaml"
-REGISTRY_OVERRIDE = "@/tmp/ci-secrets-registry-no-vault.json"
+CATALOG_OVERRIDE = "@/tmp/ci-secret-catalog-no-vault.json"
 LIMIT = "ci-managed-host,localhost"
 
 # What an unresolved ansible_host looks like in the log. Matched per line,
@@ -62,7 +62,7 @@ DEPLOY_ARGS = [
     "-e",
     "compose_deploy_dir=/tmp/compose-deploy-ordering-check",
     "-e",
-    REGISTRY_OVERRIDE,
+    CATALOG_OVERRIDE,
 ]
 RESTORE_ARGS = [
     "ansible-playbook",
@@ -79,7 +79,7 @@ RESTORE_ARGS = [
     "-e",
     'restore_volumes=["ci_ordering_check_data"]',
     "-e",
-    REGISTRY_OVERRIDE,
+    CATALOG_OVERRIDE,
 ]
 
 # (args, cwd, capture) -> result. capture=False lets the child write straight

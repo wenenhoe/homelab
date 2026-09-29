@@ -1,7 +1,7 @@
 ---
 server_timezone: Asia/Singapore
 
-# main_domain is a `manual`-format secrets_registry entry (not sensitive,
+# main_domain is a `source: manual` secret_catalog entry (not sensitive,
 # just routed through the same mechanism) — see docs/secrets.md.
 main_domain: "{{ secrets_generated['main-domain'] }}"
 
@@ -36,16 +36,16 @@ beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_dom
 uptime_kuma_host: uptime-kuma
 uptime_kuma_url: "https://{{ uptime_kuma_host }}.{{ hostvars['security'].caddy_domain }}"
 
-# One secrets_registry.yaml entry per host (uptime-kuma-push-url-cert-
+# One secret_catalog.yaml entry per host (uptime-kuma-push-url-cert-
 # expiry-<host>) - inventory_hostname resolves this identically on
 # every app_host, no per-host host_vars entry needed. See
 # docs/uptime-kuma.md.
 uptime_kuma_push_url_cert_expiry: "{{ secrets_generated['uptime-kuma-push-url-cert-expiry-' + inventory_hostname] }}"
 
 # Every value below is sourced from secrets_generated (secrets role, Play 0
-# of deploy.yaml), driven by secrets_registry.yaml. See docs/secrets.md.
-# New entry: add to secrets_registry.yaml, then a line here referencing
-# secrets_generated['<registry-key>'] — unless it's only ever needed on
+# of deploy.yaml), driven by secret_catalog.yaml. See docs/secrets.md.
+# New entry: add to secret_catalog.yaml, then a line here referencing
+# secrets_generated['<catalog-key>'] — unless it's only ever needed on
 # one specific host (no other host's template/role references it), in
 # which case it belongs in that host's own host_vars file instead. See
 # docs/secrets.md and the seaweedfs/lldap/tinyauth/step-ca/shlink
@@ -93,7 +93,7 @@ telegram_chatid_backups: "{{ telegram_chat_id }}{{ ':' ~ telegram_topic_id_backu
 
 # Unknown until after beszel-hub's first boot (self-generated ED25519
 # keypair; token created by hand in Settings > Tokens). allow_blank: true
-# in the registry means "" here is expected on first deploy — beszel-agent
+# in the catalog means "" here is expected on first deploy — beszel-agent
 # sits in a harmless auth-retry loop until filled in and redeployed. See
 # docs/beszel.md.
 beszel_hub_key: "{{ secrets_generated['beszel-hub-key'] }}"

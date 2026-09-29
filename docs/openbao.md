@@ -333,9 +333,9 @@ for why, and its threat model for what this does and doesn't expose.
 
 ## Secrets
 
-Nothing in `secrets_registry.yaml` backs OpenBao's own credentials —
-by design, this is the thing everything else in that registry will
-eventually move into. The one registry entry this stage adds,
+Nothing in `secret_catalog.yaml` backs OpenBao's own credentials —
+by design, this is the thing everything else in that catalog will
+eventually move into. The one catalog entry this stage adds,
 `uptime-kuma-push-url-cert-renewer-openbao`, is unrelated: it's the
 push-monitor URL for the cert-renewal timer, same shape as
 [`lldap.md`](lldap.md)'s identical entry for lldap.

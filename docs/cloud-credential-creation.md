@@ -22,17 +22,17 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials:
   This is what actually creates/rotates the 6 `cloud_sync`/
   restore-discovery credentials (`cloudflare-r2-write-*`/`-read-*`,
   `backblaze-b2-write-*`/`-read-*`, `oci-write-*`/`-read-*` in
-  `secrets_registry.yaml` — **write** for `cloud_sync`'s own upload leaf
+  `secret_catalog.yaml` — **write** for `cloud_sync`'s own upload leaf
   in `host_vars/storage.yaml`, **read** for the controller-side
   restore-discovery script). B2 and OCI authenticate with their cached
   rotation key; R2 authenticates with its own cached admin token
   (`_rotation-key-cloudflare-r2-token` — prompted for once, then reused
   — see R2's section for why this one is a materially broader-blast-radius
   credential than the other two's). All six leaf credentials stay
-  `format: manual` in the registry; this script is just an automated
+  `source: manual` in the catalog; this script is just an automated
   way to fill them in.
 - **`openbao_utils/audit.py`** — run whenever, read-only. `--local`
-  diffs `ansible/files/secrets/` against `secrets_registry.yaml` to
+  diffs `ansible/files/secrets/` against `secret_catalog.yaml` to
   flag cache files nothing currently references (e.g. leftover from a
   naming change). `--provider {oci,b2,r2,all}` lists each provider's
   actual write/read-leaf credentials — including the standing

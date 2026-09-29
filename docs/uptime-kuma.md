@@ -30,7 +30,7 @@ dashboard itself.
    admin account (first-visit wizard, same as Beszel's hub).
 3. **Settings → Notifications**: add a Telegram notification per topic
    that needs live status — bot token/chat ID are the same
-   `telegram_token`/`telegram_chat_id` already in `secrets_registry.yaml`,
+   `telegram_token`/`telegram_chat_id` already in `secret_catalog.yaml`,
    plus that topic's own `telegram_topic_id_*` in the **Message Thread ID**
    field. This is what actually routes a monitor's up/down alert into the
    right existing forum topic instead of the group's main stream.
@@ -40,7 +40,7 @@ dashboard itself.
    the same reason `beszel_hub_key`/`beszel_agent_token` can't be
    templated ahead of time either.
 
-There's no `secrets_registry.yaml` entry for Kuma's own admin account —
+There's no `secret_catalog.yaml` entry for Kuma's own admin account —
 unlike Beszel's KEY/TOKEN, nothing outside Kuma itself needs to know it.
 
 ## Wiring a job to its push monitor

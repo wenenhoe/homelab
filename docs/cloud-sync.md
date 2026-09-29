@@ -60,7 +60,7 @@ rest of that run.
   the one exception) — a reasonable first OpenTofu project once that
   expansion starts.
 - Fill in the sixteen `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
-  in `secrets_registry.yaml` — a write and a read credential per
+  in `secret_catalog.yaml` — a write and a read credential per
   provider, plus the three shared endpoint values (account ID, B2
   region, OCI namespace/region). For B2 and OCI, `tools/cloud_credentials/create_rotation_keys.py`
   followed by `tools/cloud_credentials/create_leaf_keys.py` does this via each

@@ -124,6 +124,17 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         always_run: true
+      - id: check-secret-catalog
+        name: check-secret-catalog
+        description: >-
+          Every secret_catalog.yaml entry follows the rules the registry's
+          header comment states — see
+          tools/ci/gates/secret_catalog_rules.py. Needs only PyYAML.
+        entry: bash -c 'cd tools && python3 -m ci.gates.secret_catalog_rules' --
+        language: python
+        additional_dependencies: [pyyaml]
+        files: ^(ansible/inventory/group_vars/all/secret_catalog\.yaml|tools/(utils/secret_catalog|ci/gates/secret_catalog_rules)\.py)$
+        pass_filenames: false
       - id: check-image-pins
         name: check-image-pins
         description: >-

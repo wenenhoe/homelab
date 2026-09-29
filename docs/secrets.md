@@ -5,7 +5,7 @@ For the offsite-backup S3 credentials specifically, see
 
 Every value this repo needs but doesn't want hardcoded is resolved once
 and cached by the `secrets` role (`ansible/roles/secrets/`), driven by a
-central registry (`ansible/inventory/group_vars/all/secrets_registry.yaml`).
+central catalog (`ansible/inventory/group_vars/all/secret_catalog.yaml`).
 It runs as `deploy.yaml`'s Play 0, tagged `always`, `gather_facts: false`
 — before Play 1, since `ansible_host` itself resolves through a secret
 (`main_domain`) and Play 1's implicit fact-gathering needs a live
@@ -14,26 +14,36 @@ connection first.
 Every secret lives in OpenBao except three permanent exceptions that stay in the controller-side file cache instead:
 `main-domain` and the `openbao-controller-role-id`/`-secret-id` AppRole
 credential — because resolving any of them is a prerequisite for
-reaching Vault at all. Every registry entry's `vault_scope` says where
-in Vault it lives, including every `cloudflare-r2-*`/`backblaze-b2-*`/
-`oci-*` entry (`vault_scope: cloud_credentials/leaf`, the same top-level
+reaching Vault at all. Every catalog entry states its `store`
+(`openbao` or `controller_file`), and every `store: openbao` entry's
+`scope` says where in Vault it lives, including every
+`cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entry
+(`scope: cloud_credentials/leaf`, the same top-level
 path `tools/cloud_credentials/*.py` itself writes to — see
-`cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secrets_registry.yaml`'s own header comment and
+`cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secret_catalog.yaml`'s own header comment and
 [ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
 for the full picture.
 
 No template should call `lookup('password', ...)` / `lookup('pipe', ...)`
 directly, and `deploy.yaml` should never grow a new `vars_prompt` entry —
-any new secret or config value goes through the registry instead:
+any new secret or config value goes through the catalog instead:
 
-1. Add an entry to `secrets_registry.yaml`, with a `vault_scope`
+1. Add an entry to `secret_catalog.yaml`, with `store: openbao` and a `scope`
    (`hosts/<host>` if it's referenced from that host's own
    `host_vars/<host>.yaml`, `hosts/all/<concern>` if it's referenced
    from `group_vars/all/main.yaml` — see [ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)):
    ```yaml
-   secrets_registry:
-     my-new-thing: { format: hex, length: 32, vault_scope: hosts/security }
+   secret_catalog:
+     my-new-thing:
+       source: hex
+       length: 32
+       store: openbao
+       scope: hosts/security
    ```
+   The `check-secret-catalog` pre-commit hook rejects an entry that breaks
+   the header's rules — a `hex` entry without a `length`, a generated entry
+   that isn't `store: openbao`, a `manual` entry without a `description` —
+   before it merges. See [`ci.md`](ci.md#secret-catalog-rules).
 2. Reference it from a plain var in `group_vars/all/main.yaml`:
    ```yaml
    my_new_thing: "{{ secrets_generated['my-new-thing'] }}"
@@ -57,13 +67,40 @@ any new secret or config value goes through the registry instead:
    per-app `no_log:`/mode handling, unlike `configs` (see
    [`adding-an-app.md`](adding-an-app.md)).
 
-## Three formats
+## Three sources
 
-| Format | Used for | Mechanism |
+Each entry's `source` says how its value is produced; its `store` says where it is kept.
+
+| Source | Used for | Mechanism |
 | :--- | :--- | :--- |
 | `hex` | Most secrets | Vault-backed only: check-then-write against KV v2 with `cas=0`, value generated via `python3 -c "import secrets; ..."` — see `ensure_secret.yaml`/`generate_vault_value.yaml`. |
-| `uuid4` | `shlink-api-key` only | Vault-backed only, same reasoning as `hex` above — this format always generates via `python3 -c "import uuid; print(uuid.uuid4())"`, since `lookup('password')`'s `chars=` can't produce a structurally valid UUID4. |
+| `uuid4` | `shlink-api-key` only | Vault-backed only, same reasoning as `hex` above — this source always generates via `python3 -c "import uuid; print(uuid.uuid4())"`, since `lookup('password')`'s `chars=` can't produce a structurally valid UUID4. |
 | `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, Beszel's post-boot key/token) | No generation step. Vault-backed entries (everything except the three permanent exceptions) are populated by `create_leaf_keys.py`/`create_rotation_keys.py` for cloud credentials, or `openbao_utils/bootstrap.py` for everything else, before they're first read; missing → the play fails loudly naming the OpenBao path and pointing at the right script. File-cache-backed entries (`main-domain`, the controller AppRole pair) work the same as before: missing cache file → same loud failure, naming the file to create by hand. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank either way. |
+
+## Catalog fields
+
+| Field | Values | Where it applies |
+| :--- | :--- | :--- |
+| `source` | `hex`, `uuid4`, `manual` | Every entry. |
+| `store` | `openbao`, `controller_file` | Every entry, with no default: the three file-cache entries show up as exceptions, and a typo can't fall back to a default. |
+| `scope` | The Vault path prefix | Required with `store: openbao`, forbidden with `controller_file`. |
+| `length` | A positive integer | `source: hex` only. |
+| `description` | Text shown when the value is missing | Every `manual` entry. |
+| `allow_blank`, `sensitive` | `true` or `false` | `manual` entries only. |
+
+A `scope` is `hosts/<host>` (`security`, `services`, `storage` or `play`),
+`hosts/all/<concern>`, or `cloud_credentials/leaf`. `hex` and `uuid4` entries
+are always `store: openbao`, because Ansible can only generate into OpenBao.
+An entry's OpenBao path is `<scope>/<name>` under the `secret` mount, and it
+doesn't change unless a decision says so
+([ADR 0066](decisions/0066-how-a-secret-definition-states-production-and-storage/revision-000.md)).
+
+Every reader other than Ansible loads the catalog through
+`tools/utils/secret_catalog.py`, which refuses a repeated secret name and an
+entry whose `store` is missing or unknown. No tool decides where a secret
+lives from anything but its `store`. The `check-secret-catalog` pre-commit
+hook enforces the rules above before a change merges, so a wrong combination
+never reaches a deploy — see [`ci.md`](ci.md#secret-catalog-rules).
 
 ## Bootstrapping manual secrets
 
@@ -84,15 +121,15 @@ validate OpenBao's TLS cert, the same mechanism
 uses from Ansible. To set a file-cache-backed value without the script:
 
 ```sh
-printf '%s' '<value>' > ansible/files/secrets/<registry-key>
-chmod 600 ansible/files/secrets/<registry-key>
+printf '%s' '<value>' > ansible/files/secrets/<catalog-key>
+chmod 600 ansible/files/secrets/<catalog-key>
 ```
 
 Beszel's key/token can't be known ahead of time — see the manual
 redeploy sequence in [`beszel.md`](beszel.md).
 
 The R2/B2/OCI entries are `manual` too, but Vault-backed
-(`vault_scope: cloud_credentials/leaf`) and deliberately excluded from
+(`scope: cloud_credentials/leaf`) and deliberately excluded from
 `openbao_utils/bootstrap.py`'s own prompting — `create_rotation_keys.py`/
 `create_leaf_keys.py` own them, with real provider-side verification
 `openbao_utils/bootstrap.py`'s generic prompt-and-write can't do. See
@@ -101,11 +138,11 @@ to create them instead.
 
 ## Where secrets live
 
-Vault-backed: OpenBao, at `secret/data/{{ vault_scope }}/<registry-key>`
-(mount `secret`, KV v2). File-cache-backed: `ansible/files/secrets/<registry-key>`
+`store: openbao`: OpenBao, at `secret/data/{{ scope }}/<catalog-key>`
+(mount `secret`, KV v2). `store: controller_file`: `ansible/files/secrets/<catalog-key>`
 on the controller, one file per secret, gitignored, never committed.
 Either way, target hosts only ever receive the rendered config the
-value ends up in — never the registry key or its storage location.
+value ends up in — never the catalog key or its storage location.
 
 **Rotating a credential**: see [`secrets-rotation.md`](secrets-rotation.md)
 for the `rotate-secret.yaml` playbook and exactly which host(s) each

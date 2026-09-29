@@ -20,8 +20,7 @@ anything depends on it, and because the renames touch most of the repo.
 The resolver filter and its plugin directory, `resolved_apps`, a catalog
 validator, the consumers that read the catalog or re-include `preinit.yaml`,
 and the `app_registry` → `app_catalog` and `caddy:` → `routes:` renames.
-Not in scope: the secret registry
-([`secret-catalog.md`](secret-catalog.md)), changes to what any catalog
+Not in scope: the secret catalog, changes to what any catalog
 entry says, and other filters (see Open items).
 
 ## Decision

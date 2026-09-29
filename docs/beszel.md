@@ -16,7 +16,7 @@ Hub and agent can talk over SSH (hub -> agent) or WebSocket (agent -> hub). This
 `beszel_hub_key` and `beszel_agent_token` don't exist until *after* the
 hub's first boot (the hub generates its keypair on first start; a token
 is created by hand in its web UI). Both are `manual`-format
-`secrets_registry.yaml` entries marked `allow_blank: true`, so a missing
+`secret_catalog.yaml` entries marked `allow_blank: true`, so a missing
 value doesn't block the first deploy. `beszel-agent`'s `.env` uses
 `no_log: true` like any other secret-bearing config (see
 [`secrets.md`](secrets.md)).
@@ -31,7 +31,7 @@ Sequence:
 
 ## Rotating the KEY and TOKEN
 
-Unlike a plain `secrets_registry.yaml` entry, there's no narrower way
+Unlike a plain `secret_catalog.yaml` entry, there's no narrower way
 to replace just the KEY or just the TOKEN — both live inside the hub's
 own PocketBase database, in its `data` volume, alongside the admin
 account, every system's historical monitoring data, and notification

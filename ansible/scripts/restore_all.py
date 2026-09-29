@@ -27,7 +27,7 @@ machine):
   - The backup GPG private key imported, with gpg-agent able to decrypt
     non-interactively (already unlocked, or a passphrase-less key) —
     this script never prompts for a GPG passphrase itself.
-  - Every secret in secrets_registry.yaml already populated (see
+  - Every secret in secret_catalog.yaml already populated (see
     docs/cloud-credential-creation.md) — this script doesn't create or
     rotate any credential.
 

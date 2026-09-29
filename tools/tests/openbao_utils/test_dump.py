@@ -53,22 +53,22 @@ class DumpHostsScopeTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        self.registry_file = self.tmp / "registry.yaml"
+        self.catalog_file = self.tmp / "catalog.yaml"
 
-    def _seed_registry(self, text: str) -> None:
-        self.registry_file.write_text(text)
+    def _seed_catalog(self, text: str) -> None:
+        self.catalog_file.write_text(text)
 
-    def test_skips_entries_without_a_vault_scope(self):
-        self._seed_registry("secrets_registry:\n  no-scope-key:\n    format: manual\n")
+    def test_skips_entries_stored_in_the_file_cache(self):
+        self._seed_catalog("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         dest = self.tmp / "out"
         dest.mkdir()
-        with patch.object(dump, "REGISTRY_PATH", self.registry_file), patch.object(dump, "read_vault_path", return_value="v"):
+        with patch.object(dump, "CATALOG_PATH", self.catalog_file), patch.object(dump, "read_vault_path", return_value="v"):
             written, blank = dump._dump_hosts_scope(dest)
         self.assertEqual(written, [])
         self.assertEqual(blank, [])
 
     def test_writes_scoped_entry_from_its_declared_path(self):
-        self._seed_registry("secrets_registry:\n  telegram-token:\n    format: manual\n    vault_scope: hosts/all/telegram\n")
+        self._seed_catalog("secret_catalog:\n  telegram-token:\n    source: manual\n    store: openbao\n    scope: hosts/all/telegram\n")
         dest = self.tmp / "out"
         dest.mkdir()
         calls = []
@@ -77,7 +77,7 @@ class DumpHostsScopeTests(unittest.TestCase):
             calls.append(path)
             return "the-token"
 
-        with patch.object(dump, "REGISTRY_PATH", self.registry_file), patch.object(dump, "read_vault_path", side_effect=fake_read):
+        with patch.object(dump, "CATALOG_PATH", self.catalog_file), patch.object(dump, "read_vault_path", side_effect=fake_read):
             written, _blank = dump._dump_hosts_scope(dest)
 
         self.assertEqual(written, ["telegram-token"])
@@ -112,10 +112,10 @@ class MainTests(unittest.TestCase):
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
 
     def test_creates_a_fresh_owner_only_directory_each_run(self):
-        registry_file = self.tmp / "registry.yaml"
-        registry_file.write_text("secrets_registry:\n  no-scope-key:\n    format: manual\n")
+        catalog_file = self.tmp / "catalog.yaml"
+        catalog_file.write_text("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         with (
-            patch.object(dump, "REGISTRY_PATH", registry_file),
+            patch.object(dump, "CATALOG_PATH", catalog_file),
             patch.object(dump, "LEGACY_CACHE_KEYS", []),
             patch.object(dump, "read_vault_path", return_value=None),
             patch.object(Path, "home", return_value=self.tmp),
@@ -132,10 +132,10 @@ class MainTests(unittest.TestCase):
         # calls happen to get different timestamps.
         with patch.object(dump, "_backup_dir", return_value=self.tmp / "collision"):
             (self.tmp / "collision").mkdir()
-            registry_file = self.tmp / "registry.yaml"
-            registry_file.write_text("secrets_registry: {}\n")
+            catalog_file = self.tmp / "catalog.yaml"
+            catalog_file.write_text("secret_catalog: {}\n")
             with (
-                patch.object(dump, "REGISTRY_PATH", registry_file),
+                patch.object(dump, "CATALOG_PATH", catalog_file),
                 patch.object(dump, "LEGACY_CACHE_KEYS", []),
                 self.assertRaises(FileExistsError),
             ):

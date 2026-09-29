@@ -3,9 +3,9 @@
 checks, run separately since they need different access:
 
 --local (default, no credentials needed): diffs every file under
-ansible/files/secrets/ against secrets_registry.yaml's declared keys.
+ansible/files/secrets/ against secret_catalog.yaml's declared keys.
 Two different findings, not one:
-  - A file whose registry entry has a `vault_scope` is stale — Vault is
+  - A file whose catalog entry has `store: openbao` is stale — Vault is
     that entry's only real source since whichever stage moved it there
     (Track A stage 4 for most, stage 5/6 for cloud credentials); the
     file predates that move and nothing has read it since. Flagged
@@ -14,7 +14,7 @@ Two different findings, not one:
     the value (this check alone doesn't, deliberately: that needs a
     live Vault session, and this mode's whole point is not needing
     one) before deleting.
-  - A name matching neither a registry entry nor cloud_credentials'
+  - A name matching neither a catalog entry nor cloud_credentials'
     own internal bookkeeping (LEGACY_CACHE_KEYS) is a genuine orphan —
     a stray manual test file, a leftover from a naming change, or
     similar.
@@ -43,11 +43,9 @@ import getpass
 import sys
 
 import requests
-import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from utils.repo import PROJECT_ROOT, SECRETS_DIR
-
-REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
+from utils.repo import SECRETS_DIR
+from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 B2_BUCKET = "homelab-backups-b2"
 
@@ -68,15 +66,15 @@ def cached(name: str) -> str | None:
 
 
 def audit_local() -> None:
-    print("== Local secrets cache vs. secrets_registry.yaml ==")
-    registry = yaml.safe_load(REGISTRY_PATH.read_text())["secrets_registry"]
-    vault_backed_scope = {name: spec["vault_scope"] for name, spec in registry.items() if spec.get("vault_scope")}
+    print("== Local secrets cache vs. secret_catalog.yaml ==")
+    catalog = load_catalog(CATALOG_PATH)
+    vault_backed_scope = openbao_scopes(catalog)
     # cloud_credentials' own internal bookkeeping keys (_rotation-key-*,
-    # _oci-leaf-user-ocid-*, the two scim-ids) have no secrets_registry.yaml
+    # _oci-leaf-user-ocid-*, the two scim-ids) have no secret_catalog.yaml
     # entry of their own - reusing LEGACY_CACHE_KEYS' own name list here,
     # instead of a second hand-maintained one, is what keeps this from
     # drifting the way this script's own cached() helper once did.
-    known = set(registry) | {name for name, _module in LEGACY_CACHE_KEYS}
+    known = set(catalog) | {name for name, _module in LEGACY_CACHE_KEYS}
 
     if not SECRETS_DIR.exists():
         print(f"  {SECRETS_DIR} doesn't exist here — nothing to check")
@@ -96,7 +94,7 @@ def audit_local() -> None:
             "unread since it moved to Vault, not confirmed against Vault by this check (no credentials needed for --local):"
         )
         for name in stale_vault_backed:
-            print(f"    {name}  (vault_scope: {vault_backed_scope[name]})")
+            print(f"    {name}  (scope: {vault_backed_scope[name]})")
         print("\n  Confirm each has a real value in Vault before deleting (e.g. openbao_utils/bootstrap.py")
         print("  reports it as already-set, or a direct kv get) — then: rm " + " ".join(f"ansible/files/secrets/{n}" for n in stale_vault_backed))
 

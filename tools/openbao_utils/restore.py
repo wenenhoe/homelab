@@ -7,19 +7,19 @@ freshly re-initialized, otherwise-empty OpenBao.
 Necessary before the first `ansible-playbook deploy.yaml` against a
 freshly re-initialized Vault: `ensure_secret.yaml`'s generate-once-if-
 missing logic would otherwise see nothing at these paths and mint new
-random values for all of this registry's hex/uuid4 entries - silently
+random values for all of this catalog's hex/uuid4 entries - silently
 invalidating already-deployed services that still expect the old value
 (lldap's live JWT secret, SeaweedFS access keys cloud_sync/backup_agent
 currently authenticate with, etc.). This restores the exact prior
 value instead of letting anything regenerate.
 
 Two phases, covering two Vault-path shapes that don't overlap:
-  1. Every secrets_registry.yaml entry with a vault_scope (every
-     `hosts/*` key, plus the 20 cloud_credentials/leaf ones a registry
+  1. Every secret_catalog.yaml entry with `store: openbao` (every
+     `hosts/*` key, plus the 20 cloud_credentials/leaf ones a catalog
      entry exists for as of Track A stage 6) - via cache.py's
      read_vault_path()/write_vault_path() escape hatch.
   2. cloud_credentials' own internal bookkeeping keys with no
-     secrets_registry.yaml entry of their own (_rotation-key-*,
+     secret_catalog.yaml entry of their own (_rotation-key-*,
      _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values) -
      the ~10 LEGACY_CACHE_KEYS names phase 1 has no way to reach,
      via each key's own registered module.
@@ -51,18 +51,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path, write_vault_path
-from utils.repo import PROJECT_ROOT
-
-REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
+from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 
-def _scoped_registry_entries() -> dict[str, str]:
-    with REGISTRY_PATH.open() as f:
-        registry = yaml.safe_load(f)["secrets_registry"]
-    return {name: spec["vault_scope"] for name, spec in registry.items() if spec.get("vault_scope")}
+def _scoped_catalog_entries() -> dict[str, str]:
+    return openbao_scopes(load_catalog(CATALOG_PATH))
 
 
 def main() -> int:
@@ -79,7 +74,7 @@ def main() -> int:
     already_in_vault: list[str] = []
     no_backup_file: list[str] = []
 
-    for name, scope in _scoped_registry_entries().items():
+    for name, scope in _scoped_catalog_entries().items():
         backup_file = backup_dir / name
         if not backup_file.exists():
             no_backup_file.append(name)

@@ -6,7 +6,7 @@ fetch_root_cert/vault_read/vault_write/the bare vault_login are
 openbao_utils.client's own functions (imported directly, some
 re-exported under the same name) - tested once, directly, in
 tools/tests/openbao_utils/test_client.py. This file only tests
-bootstrap.py's own remaining logic: the registry/prompt handling, its
+bootstrap.py's own remaining logic: the catalog/prompt handling, its
 own vault_login wrapper, and main()'s wiring.
 """
 
@@ -50,39 +50,46 @@ class SecretsDirTestCase(unittest.TestCase):
         (self.tmp / name).write_text(value)
 
 
-class RegistryLoadingTests(unittest.TestCase):
+class CatalogLoadingTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        self.registry_path = self.tmp / "secrets_registry.yaml"
-        patcher = patch.object(bootstrap, "REGISTRY_PATH", self.registry_path)
+        self.catalog_path = self.tmp / "secret_catalog.yaml"
+        patcher = patch.object(bootstrap, "CATALOG_PATH", self.catalog_path)
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def write_registry(self, content: str) -> None:
-        self.registry_path.write_text(content)
+    def write_catalog(self, content: str) -> None:
+        self.catalog_path.write_text(content)
 
-    def test_load_registry_returns_the_secrets_registry_key(self):
-        self.write_registry("secrets_registry:\n  main-domain: { format: manual }\n")
-        self.assertEqual(bootstrap.load_registry(), {"main-domain": {"format": "manual"}})
+    def test_load_catalog_returns_the_secret_catalog_key(self):
+        self.write_catalog("secret_catalog:\n  main-domain: { source: manual, store: controller_file }\n")
+        self.assertEqual(bootstrap.load_catalog(bootstrap.CATALOG_PATH), {"main-domain": {"source": "manual", "store": "controller_file"}})
 
     def test_load_manual_entries_excludes_hex_and_uuid4(self):
-        self.write_registry("secrets_registry:\n  main-domain: { format: manual }\n  some-hex: { format: hex, length: 32 }\n  some-uuid: { format: uuid4 }\n")
-        registry = bootstrap.load_registry()
-        manual = bootstrap.load_manual_entries(registry)
+        self.write_catalog(
+            "secret_catalog:\n"
+            "  main-domain: { source: manual, store: controller_file }\n"
+            "  some-hex: { source: hex, length: 32, store: openbao, scope: hosts/play }\n"
+            "  some-uuid: { source: uuid4, store: openbao, scope: hosts/play }\n"
+        )
+        catalog = bootstrap.load_catalog(bootstrap.CATALOG_PATH)
+        manual = bootstrap.load_manual_entries(catalog)
         self.assertEqual(list(manual.keys()), ["main-domain"])
 
     def test_load_manual_entries_excludes_cloud_credential_owned_names(self):
         # cloudflare-r2-write-access-key is a real LEGACY_CACHE_KEYS name
         # (create_leaf_keys.py/create_rotation_keys.py's own concern, per
-        # this script's module docstring) — even with format: manual and a
-        # vault_scope, it must never reach this script's prompt-and-write
+        # this script's module docstring) — even with source: manual and
+        # store: openbao, it must never reach this script's prompt-and-write
         # path.
-        self.write_registry(
-            "secrets_registry:\n  main-domain: { format: manual }\n  cloudflare-r2-write-access-key: { format: manual, vault_scope: cloud_credentials/leaf }\n"
+        self.write_catalog(
+            "secret_catalog:\n"
+            "  main-domain: { source: manual, store: controller_file }\n"
+            "  cloudflare-r2-write-access-key: { source: manual, store: openbao, scope: cloud_credentials/leaf }\n"
         )
-        registry = bootstrap.load_registry()
-        manual = bootstrap.load_manual_entries(registry)
+        catalog = bootstrap.load_catalog(bootstrap.CATALOG_PATH)
+        manual = bootstrap.load_manual_entries(catalog)
         self.assertEqual(list(manual.keys()), ["main-domain"])
 
 
@@ -153,33 +160,33 @@ class VaultLoginTests(SecretsDirTestCase):
         mock_bare_login.assert_called_once_with(mock_client, "some-role-id", "some-secret-id")
 
 
-class MainNoRegistryTests(unittest.TestCase):
-    @patch.object(bootstrap, "REGISTRY_PATH", Path("/does/not/exist/secrets_registry.yaml"))
-    def test_returns_1_when_registry_missing(self):
+class MainNoCatalogTests(unittest.TestCase):
+    @patch.object(bootstrap, "CATALOG_PATH", Path("/does/not/exist/secret_catalog.yaml"))
+    def test_returns_1_when_catalog_missing(self):
         self.assertEqual(bootstrap.main(), 1)
 
 
 class MainFileEntriesTests(SecretsDirTestCase):
     def setUp(self):
         super().setUp()
-        self.registry_tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.registry_tmp, ignore_errors=True))
-        self.registry_path = self.registry_tmp / "secrets_registry.yaml"
-        patcher = patch.object(bootstrap, "REGISTRY_PATH", self.registry_path)
+        self.catalog_tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(self.catalog_tmp, ignore_errors=True))
+        self.catalog_path = self.catalog_tmp / "secret_catalog.yaml"
+        patcher = patch.object(bootstrap, "CATALOG_PATH", self.catalog_path)
         patcher.start()
         self.addCleanup(patcher.stop)
 
-    def write_registry(self, content: str) -> None:
-        self.registry_path.write_text(content)
+    def write_catalog(self, content: str) -> None:
+        self.catalog_path.write_text(content)
 
     def test_no_manual_entries_returns_0_without_touching_the_filesystem(self):
-        self.write_registry("secrets_registry:\n  some-hex: { format: hex, length: 32 }\n")
+        self.write_catalog("secret_catalog:\n  some-hex: { source: hex, length: 32, store: controller_file }\n")
         self.assertEqual(bootstrap.main(), 0)
         self.assertFalse(any(self.tmp.iterdir()), "SECRETS_DIR should never be created when there's nothing manual to do")
 
     @patch("openbao_utils.bootstrap.prompt_for_value", return_value="a-typed-value")
     def test_creates_a_missing_file_entry(self, mock_prompt):
-        self.write_registry("secrets_registry:\n  digitalocean-api-key: { format: manual, sensitive: true }\n")
+        self.write_catalog("secret_catalog:\n  digitalocean-api-key: { source: manual, sensitive: true, store: controller_file }\n")
         self.assertEqual(bootstrap.main(), 0)
         self.assertEqual((self.tmp / "digitalocean-api-key").read_text(), "a-typed-value")
         mode = (self.tmp / "digitalocean-api-key").stat().st_mode & 0o777
@@ -187,7 +194,7 @@ class MainFileEntriesTests(SecretsDirTestCase):
 
     @patch("openbao_utils.bootstrap.prompt_for_value")
     def test_skips_an_already_present_file_entry_without_prompting(self, mock_prompt):
-        self.write_registry("secrets_registry:\n  digitalocean-api-key: { format: manual, sensitive: true }\n")
+        self.write_catalog("secret_catalog:\n  digitalocean-api-key: { source: manual, sensitive: true, store: controller_file }\n")
         self.seed("digitalocean-api-key", "already-set")
         self.assertEqual(bootstrap.main(), 0)
         mock_prompt.assert_not_called()
@@ -195,7 +202,7 @@ class MainFileEntriesTests(SecretsDirTestCase):
 
     @patch("openbao_utils.bootstrap.prompt_for_value", side_effect=KeyboardInterrupt)
     def test_keyboard_interrupt_during_prompt_returns_1(self, mock_prompt):
-        self.write_registry("secrets_registry:\n  digitalocean-api-key: { format: manual, sensitive: true }\n")
+        self.write_catalog("secret_catalog:\n  digitalocean-api-key: { source: manual, sensitive: true, store: controller_file }\n")
         self.assertEqual(bootstrap.main(), 1)
         self.assertFalse((self.tmp / "digitalocean-api-key").exists())
 
@@ -203,11 +210,11 @@ class MainFileEntriesTests(SecretsDirTestCase):
 class MainVaultEntriesTests(SecretsDirTestCase):
     def setUp(self):
         super().setUp()
-        self.registry_tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.registry_tmp, ignore_errors=True))
-        self.registry_path = self.registry_tmp / "secrets_registry.yaml"
-        self.registry_path.write_text("secrets_registry:\n  telegram-token: { format: manual, sensitive: true, vault_scope: hosts/all/telegram }\n")
-        patcher = patch.object(bootstrap, "REGISTRY_PATH", self.registry_path)
+        self.catalog_tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(self.catalog_tmp, ignore_errors=True))
+        self.catalog_path = self.catalog_tmp / "secret_catalog.yaml"
+        self.catalog_path.write_text("secret_catalog:\n  telegram-token: { source: manual, sensitive: true, store: openbao, scope: hosts/all/telegram }\n")
+        patcher = patch.object(bootstrap, "CATALOG_PATH", self.catalog_path)
         patcher.start()
         self.addCleanup(patcher.stop)
 

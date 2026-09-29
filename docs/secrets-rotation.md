@@ -1,19 +1,19 @@
 # Rotating a secret
 
 Which mechanism applies depends on where the value actually comes from —
-see `secrets_registry.yaml`'s `format` field for each entry
+see `secret_catalog.yaml`'s `source` field for each entry
 ([`secrets.md`](secrets.md) covers the full generate/cache mechanism this
 all builds on).
 
-## Generated secrets (`format: hex` / `format: uuid4`)
+## Generated secrets (`source: hex` / `source: uuid4`)
 
 ```
 ansible-playbook playbooks/rotate-secret.yaml \
-  -e secret_name=<key-from-secrets_registry.yaml> -e confirm=true
+  -e secret_name=<key-from-secret_catalog.yaml> -e confirm=true
 ```
 
-Every `hex`/`uuid4` entry is required to have a `vault_scope` (see
-`secrets_registry.yaml`'s own header comment) and rotates the same way:
+Every `hex`/`uuid4` entry is required to have `store: openbao` (see
+`secret_catalog.yaml`'s own header comment) and rotates the same way:
 a fresh value written in place with `cas=<current version>` — an
 update, not a delete, since `controller`'s AppRole policy grants no
 `delete` on `secret/data/hosts/*` by design
@@ -55,12 +55,12 @@ account exists" play (`lldap_bootstrap`) also updates the real lldap
 account to match, in the same `security` run — so a single redeploy
 after rotating it is enough, no separate manual sync step.
 
-## Manual secrets (`format: manual`)
+## Manual secrets (`source: manual`)
 
 Nothing here can generate a replacement — these are externally issued
 (cloud API keys) or come from an app's own post-boot state (Beszel's
 hub key/agent token). Get the new value from wherever it actually comes
-from (each entry's `description` in `secrets_registry.yaml` says where),
+from (each entry's `description` in `secret_catalog.yaml` says where),
 then:
 
 ```
@@ -107,9 +107,9 @@ on each provider's console and flags anything not matching the current
 cache — useful after any `--rotate`, or after a failed one that left an
 unverified key orphaned, for all three providers.
 
-## Certificate-backed material (not in `secrets_registry.yaml` at all)
+## Certificate-backed material (not in `secret_catalog.yaml` at all)
 
-lldap's LDAPS keypair isn't a registry secret — it's issued into the
+lldap's LDAPS keypair isn't a catalog secret — it's issued into the
 `lldap_certs` volume by `step_ca_cert`, and rotating it means forcing
 re-issuance, not deleting a cache file:
 
@@ -140,7 +140,7 @@ referencing the volume, tears it down first, and brings it back up once
 the volume is safe again — this happens automatically, no separate
 manual step needed anymore.
 
-## App-generated secrets (not in `secrets_registry.yaml` either)
+## App-generated secrets (not in `secret_catalog.yaml` either)
 
 `beszel-hub`'s KEY and TOKEN are a harder case than lldap's cert above:
 they're generated inside the hub's own database on first boot, with no

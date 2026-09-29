@@ -19,10 +19,11 @@ deploy_ordering:
   - 'ansible/playbooks/**'
   - 'ansible/roles/secrets/**'
   - 'ansible/roles/restore/**'
-  # The job's two playbook runs and the verdict on the second, and the
-  # fixtures it seeds first.
+  # The job's two playbook runs and the verdict on the second, the
+  # fixtures it seeds first, and the loader they read the catalog with.
   - 'tools/ci/gates/deploy_ordering.py'
   - 'tools/ci/fixtures/**'
+  - 'tools/utils/secret_catalog.py'
   - 'pyproject.toml'
   - 'uv.lock'
 # Gates whether the job runs at all — the hook itself always

@@ -14,7 +14,7 @@ it produces.
 Covers:
   - Every cloud_credentials leaf/rotation key (_legacy_cache_keys.py's
     LEGACY_CACHE_KEYS), read via each key's own registered category.
-  - Every secrets_registry.yaml entry with a vault_scope (the secrets
+  - Every secret_catalog.yaml entry with `store: openbao` (the secrets
     role's hosts/* material, ADR 0021).
   - A live cross-check for _oci-leaf-user-ocid-{read,write}: reads both
     the leaf/ and rotation/ paths, not just the one LEGACY_CACHE_KEYS
@@ -37,12 +37,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path
-from utils.repo import PROJECT_ROOT
-
-REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
+from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 
 def _backup_dir() -> Path:
@@ -69,13 +66,9 @@ def _dump_cloud_credentials(dest: Path) -> tuple[list[str], list[str]]:
 
 
 def _dump_hosts_scope(dest: Path) -> tuple[list[str], list[str]]:
-    with REGISTRY_PATH.open() as f:
-        registry = yaml.safe_load(f)["secrets_registry"]
+    catalog = load_catalog(CATALOG_PATH)
     written, blank = [], []
-    for name, entry in registry.items():
-        scope = entry.get("vault_scope")
-        if not scope:
-            continue  # cloud_credentials-managed, or a permanent file-cache-only exception - not this function's concern
+    for name, scope in openbao_scopes(catalog).items():
         value = read_vault_path(f"{scope}/{name}")
         if value is None:
             blank.append(name)

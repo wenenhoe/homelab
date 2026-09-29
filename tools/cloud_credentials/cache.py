@@ -20,7 +20,7 @@ Two secrets live permanently in the file cache instead, read directly
 from SECRETS_DIR below, never through Vault: main-domain and
 openbao-controller-role-id/-secret-id - the credentials Vault access
 itself depends on, so they can't live in the thing they unlock (see
-secrets_registry.yaml's header comment for the equivalent exception on
+secret_catalog.yaml's header comment for the equivalent exception on
 the Ansible side).
 """
 

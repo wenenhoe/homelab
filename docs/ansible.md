@@ -20,7 +20,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`volume-maintenance.md`](volume-maintenance.md). |
 | `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`volume-maintenance.md`](volume-maintenance.md). |
 | `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Deletes one generated secret's cached value, so the next `deploy.yaml` run regenerates it. Doesn't redeploy anything itself. See [`secrets-rotation.md`](secrets-rotation.md). |
-| `playbooks/bootstrap-secrets.yaml` | none — `hosts: localhost` | Leading play imported by `deploy.yaml`/`restore.yaml` to resolve `secrets_registry.yaml`. See [`secrets.md`](secrets.md). |
+| `playbooks/bootstrap-secrets.yaml` | none — `hosts: localhost` | Leading play imported by `deploy.yaml`/`restore.yaml` to resolve `secret_catalog.yaml`. See [`secrets.md`](secrets.md). |
 | `playbooks/pin-telegram-topics.yaml` | none — `hosts: localhost` | Pins a static header message in each Telegram forum topic. See [`telegram-notifications.md`](telegram-notifications.md). |
 | `playbooks/ci_boot_test.yaml` | `ci-inventory/` | CI-only: seeds one app for the compose boot-test job. See [`ci.md`](ci.md). |
 
@@ -53,7 +53,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `cloud_sync` | Offsite replication of SeaweedFS archives to R2/B2/OCI. |
 | `restore` | Restores a decrypted offsite archive back to a named volume. |
 | `restore_discovery` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` for `restore_all.py`. |
-| `secrets` | Generates/validates every entry in `secrets_registry.yaml`. |
+| `secrets` | Generates/validates every entry in `secret_catalog.yaml`. |
 | `molecule_helpers` | Shared Molecule test fixtures/setup, not deployed. |
 
 ## Tag-based commands

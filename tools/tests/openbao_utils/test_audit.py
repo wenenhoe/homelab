@@ -126,15 +126,19 @@ class AuditLocalTests(unittest.TestCase):
         self.addCleanup(patcher.stop)
 
         # Deliberately a separate directory from SECRETS_DIR - audit_local()
-        # scans every file under SECRETS_DIR, so a registry file placed
+        # scans every file under SECRETS_DIR, so a catalog file placed
         # inside it would incorrectly show up as its own orphan.
-        registry_dir = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(registry_dir, ignore_errors=True))
-        registry_path = registry_dir / "secrets_registry.yaml"
-        registry_path.write_text("secrets_registry:\n  cloudflare-r2-write-access-key: {}\n  cloudflare-r2-write-secret-key: {}\n")
-        registry_patcher = patch.object(audit, "REGISTRY_PATH", registry_path)
-        registry_patcher.start()
-        self.addCleanup(registry_patcher.stop)
+        catalog_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(catalog_dir, ignore_errors=True))
+        catalog_path = catalog_dir / "secret_catalog.yaml"
+        catalog_path.write_text(
+            "secret_catalog:\n"
+            "  cloudflare-r2-write-access-key: { source: manual, store: controller_file }\n"
+            "  cloudflare-r2-write-secret-key: { source: manual, store: controller_file }\n"
+        )
+        catalog_patcher = patch.object(audit, "CATALOG_PATH", catalog_path)
+        catalog_patcher.start()
+        self.addCleanup(catalog_patcher.stop)
 
     def seed(self, name: str, value: str) -> None:
         (self.tmp / name).write_text(value)
@@ -172,17 +176,17 @@ class AuditLocalTests(unittest.TestCase):
         """Regression test: a controller that predates the entry's move
         to Vault (Track A stage 4 for most entries, stage 5/6 for cloud
         credentials) can have a stray, never-since-read local file for
-        a registry entry that has a vault_scope. That's a distinct
+        a catalog entry that has `store: openbao`. That's a distinct
         finding from a genuine orphan - the name IS known, it's just
         the wrong mechanism now - found via the stage 6 cutover drill
         surfacing exactly this on a real controller."""
-        registry_dir = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(registry_dir, ignore_errors=True))
-        registry_path = registry_dir / "secrets_registry.yaml"
-        registry_path.write_text("secrets_registry:\n  lldap-jwt-secret: { format: hex, length: 32, vault_scope: hosts/security }\n")
-        registry_patcher = patch.object(audit, "REGISTRY_PATH", registry_path)
-        registry_patcher.start()
-        self.addCleanup(registry_patcher.stop)
+        catalog_dir = Path(tempfile.mkdtemp())
+        self.addCleanup(lambda: shutil.rmtree(catalog_dir, ignore_errors=True))
+        catalog_path = catalog_dir / "secret_catalog.yaml"
+        catalog_path.write_text("secret_catalog:\n  lldap-jwt-secret: { source: hex, length: 32, store: openbao, scope: hosts/security }\n")
+        catalog_patcher = patch.object(audit, "CATALOG_PATH", catalog_path)
+        catalog_patcher.start()
+        self.addCleanup(catalog_patcher.stop)
 
         self.seed("lldap-jwt-secret", "stale-pre-vault-value")
 
@@ -191,7 +195,7 @@ class AuditLocalTests(unittest.TestCase):
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         self.assertIn("lldap-jwt-secret", printed)
-        self.assertIn("vault_scope: hosts/security", printed)
+        self.assertIn("scope: hosts/security", printed)
         self.assertIn("1 file(s) for a Vault-backed entry", printed)
         # Must not also be reported as a plain orphan - it's a known name.
         self.assertNotIn("not referenced by current config at all", printed)

@@ -77,12 +77,19 @@ configs:
     dest: .env               # no volume named ".env" -> deployed directly, as always
 ```
 
-Classified once per app in `init.yaml`'s `compose_app_deploy_plan` fact
-(`configs`/`scripts` split into `direct`/`seeded`):
+Classified once per app by the `app_deploy_plan` filter
+(`ansible/filter_plugins/`), stored in `init.yaml`'s
+`compose_app_deploy_plan` fact (`configs`/`scripts` split into
+`direct`/`seeded`, each in input order):
 
 - **Direct** items deploy straight to their final path, as before.
 - **Seeded** items render/copy to staging; Ansible's own checksum diff
   against the previous staging file decides whether anything changed.
+- A script is a bare name: it is seeded into the app's `scripts` volume when
+  the app declares one, and otherwise deployed directly to `scripts/<name>`.
+- A `dest` that names a volume with nothing inside it (`data`, not
+  `data/<file>`) fails the run with an error naming the app and the volume,
+  rather than the config being skipped.
 - Any volume with a changed staged file gets bulk-copied in
   (`seed_volume.yaml`: throwaway container, `cp -a /src/. /dest/`), which
   feeds `compose_app_extra_changed` so the stack restarts only when its

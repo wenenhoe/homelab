@@ -84,34 +84,13 @@
   loop_control:
     label: "{{ item.path | regex_replace('^' ~ project_root ~ '/', '') }}"
 
-# Scripts and configs share the same direct-vs-volume-seeded split.
-# Scripts are normalised to config-shaped items (dest "scripts/<name>")
-# first, so both feed the same classification/staging/seed-detection
-# logic — just via `copy` instead of `template`, since scripts are static.
+# Scripts and configs share the same direct-vs-volume-seeded split, made by
+# the app_deploy_plan filter (ansible/filter_plugins/). Scripts come out
+# config-shaped, so both feed the same staging/seed-detection logic below -
+# just via `copy` instead of `template`, since scripts are static.
 - name: Classify configs and scripts as direct or volume-seeded ({{ compose_app_item.name }})
   ansible.builtin.set_fact:
-    compose_app_deploy_plan: >-
-      {%- set volume_names = compose_app_item.volumes | default([]) | map(attribute='name') | list -%}
-      {%- set plan = {'configs': {'direct': [], 'seeded': []}, 'scripts': {'direct': [], 'seeded': []}} -%}
-      {%- for c in compose_app_item.configs | default([]) -%}
-        {%- set volume_name = c.dest.split('/')[0] -%}
-        {%- if volume_name in volume_names -%}
-          {%- set _ = plan.configs.seeded.append(c | combine({
-              'volume_name': volume_name,
-              'volume_relpath': c.dest.split('/', 1)[1]
-          })) -%}
-        {%- else -%}
-          {%- set _ = plan.configs.direct.append(c) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {%- for s in compose_app_item.scripts | default([]) -%}
-        {%- if 'scripts' in volume_names -%}
-          {%- set _ = plan.scripts.seeded.append({'src': s, 'volume_name': 'scripts', 'volume_relpath': s}) -%}
-        {%- else -%}
-          {%- set _ = plan.scripts.direct.append({'src': s, 'dest': 'scripts/' ~ s}) -%}
-        {%- endif -%}
-      {%- endfor -%}
-      {{ plan }}
+    compose_app_deploy_plan: "{{ compose_app_item | app_deploy_plan }}"
 
 - name: Ensure staging directories exist for volume-seeded configs and scripts ({{ compose_app_item.name }})
   ansible.builtin.file:

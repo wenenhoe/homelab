@@ -6,7 +6,7 @@ title: "How a secret definition states production and storage"
 solution: "Flat source, store and scope fields, read through one loader and checked by one validator"
 summary: "How a secret's definition says how its value is produced and where it is kept, so no tool has to infer either."
 topic: secrets-store
-status: working
+status: approved
 related: [ADR-0013, ADR-0021, ADR-0031, ADR-0064]
 ---
 
@@ -42,6 +42,18 @@ from something else.
 - Four modules under `tools/openbao_utils/` each load the registry with
   their own `yaml.safe_load(...)["secrets_registry"]`, and
   `tools/ci/fixtures/secrets_registry.py` is a fifth loader.
+- Converting all 60 entries to the fields below leaves every OpenBao path
+  as it is today: 57 distinct `<scope>/<n>` paths under the same mount,
+  and no entry that has a scope without being stored in OpenBao or the
+  reverse. The current file breaks none of the rules below, and has no
+  duplicate keys.
+- The deploy-ordering CI job needs only the entries on the controller
+  file cache. It resolves `main-domain` from the cache, and with nothing
+  stored in OpenBao it skips the OpenBao login. With a registry holding
+  just the three `controller_file` entries, its `deploy` and `restore`
+  runs both pass, and with `main-domain` removed the `restore` run fails
+  with the ansible_host resolution verdict, so the check still catches the
+  regression it exists for.
 
 ## Decision
 
@@ -70,6 +82,11 @@ from something else.
   reads the variable directly.
 - `store` is stated on every entry. It has no default, so the three
   file-cache entries are visible as exceptions instead of an absence.
+- The deploy-ordering CI job's registry override holds only the catalog's
+  `store: controller_file` entries, selected through the shared loader
+  instead of rewriting every entry. The pre-seed fixture writes dummy
+  files for those same entries. The override is not a catalog, so the
+  validator does not run on it.
 
 ## Alternatives considered
 
@@ -82,21 +99,6 @@ from something else.
 - **Default `store` to `openbao`.** Shorter entries, but the three
   exceptions become the only entries that say anything, and a typo in
   `store` silently falls back to the default.
-
-## Assumptions
-
-- **Claim:** Every entry's OpenBao path is `<scope>/<name>` under the same
-  mount after the change, unchanged from today.
-  **Breaks if wrong:** a deploy reads or writes a different secret than
-  before, or generates a second one.
-  **Checked by:** computing every entry's path from the old and new
-  definitions and diffing them before the schema PR merges.
-- **Claim:** The deploy-ordering CI job can emulate the file cache by
-  setting `store: controller_file` and dropping `scope`, where it strips
-  `vault_scope` today.
-  **Breaks if wrong:** that job stops exercising the ordering it exists
-  to test.
-  **Checked by:** running the job against the converted catalog.
 
 ## Consequences
 

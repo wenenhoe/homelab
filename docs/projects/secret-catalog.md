@@ -27,8 +27,8 @@ layout.
 
 Implements
 [ADR 0066](../decisions/0066-how-a-secret-definition-states-production-and-storage/revision-000.md),
-still `working`, so this project stays `not-started` until that
-revision's assumptions are resolved.
+now `approved`, so implementation may begin. The project stays
+`not-started` until a pull request works a stage.
 
 ## Execution plan
 

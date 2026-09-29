@@ -2,7 +2,7 @@
 id: PROJ-app-resolver
 title: "App Resolver"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "A pure resolve_apps filter builds resolved_apps; every consumer reads it, and app_registry becomes app_catalog."
 decision: ADR-0065/0
@@ -27,8 +27,7 @@ entry says, and other filters (see Open items).
 
 Implements
 [ADR 0065](../decisions/0065-where-app-defaults-and-host-intent-are-merged/revision-000.md),
-still `working`, so this project stays `not-started` until stage 1
-resolves its assumptions.
+`approved` once stage 1 resolved its assumptions.
 
 ## Execution plan
 
@@ -36,11 +35,11 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike: repo-level plugin directory and lazy `resolved_apps` | Not started | A trivial filter loads from one `ansible-playbook` run and one Molecule scenario, and `restore_discovery`'s play reads another host's `resolved_apps`; ADR 0065's first two assumptions are resolved |
-| 2 | `resolve_apps` filter with unit tests | Not started | The filter's output equals `preinit.yaml`'s for every app on every host in the inventory; pytest covers dict merge and list replacement |
-| 3 | Catalog validator | Not started | Runs in pre-commit and CI against the real catalog; unique names, `backup.volumes` within `volumes`, and route upstreams are checked |
-| 4 | Move consumers to `resolved_apps` | Not started | `cloud_sync` and `restore_discovery` no longer read the catalog; `compose_apps` is never reassigned; `ci_boot_test`, `volume-reset`, `cleanup` and the Molecule helper no longer include `preinit.yaml` for the merge |
-| 5 | Renames | Not started | `app_registry` is `app_catalog` and `caddy:` is `routes:` everywhere, including docs, `AGENTS.md` and Molecule fixtures; only the resolver's call site names `app_catalog`, checked by a test |
+| 1 | Spike: repo-level plugin directory and lazy `resolved_apps` | Done | A trivial filter loads from one `ansible-playbook` run and one Molecule scenario, and `restore_discovery`'s play reads another host's `resolved_apps`; ADR 0065's first two assumptions are resolved |
+| 2 | `resolve_apps` filter with unit tests | Done | The filter's output equals `preinit.yaml`'s for every app on every host in the inventory; pytest covers dict merge and list replacement |
+| 3 | Catalog validator | Done | Runs in pre-commit and CI against the real catalog; unique names, `backup.volumes` within `volumes`, and route upstreams are checked |
+| 4 | Move consumers to `resolved_apps` | Done | `cloud_sync` and `restore_discovery` no longer read the catalog; `compose_apps` is never reassigned; `ci_boot_test`, `volume-reset`, `cleanup` and the Molecule helper no longer include `preinit.yaml` for the merge; every consumer named in ADR 0065 reads `resolved_apps` |
+| 5 | Renames | Not started | `app_registry` is `app_catalog` and `caddy:` is `routes:` everywhere, including docs, `AGENTS.md` and Molecule fixtures; only the resolver's call sites and the scenarios that supply a catalog name `app_catalog`, checked by a test |
 
 Stage status is `Not started`, `In progress`, or `Done`. Stage 5 is
 mechanical and ships as separate pull requests for the variable and file
@@ -59,8 +58,9 @@ and for the route key.
 - The rename touches 88 files and can conflict with other open work. Do it
   when few branches are in flight.
 - `combine(recursive=True)` replaces lists. A filter that merged lists
-  instead would change deployed configs; stage 2's equality check exists
-  to catch that.
+  instead would change deployed configs. No host overrides a catalog list
+  today, so the inventory equality test cannot see that drift; the filter's
+  unit tests pin the behaviour instead.
 
 ## Open items
 

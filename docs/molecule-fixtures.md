@@ -127,7 +127,7 @@ Scaffolding for scenarios, not a role under test:
 | `playbooks/prepare_dind_prebuilt.yml` | Shared `prepare` playbook for scenarios on the pre-baked DinD image (below) — coverage reset only. |
 | `tasks/dind_storage_driver.yaml` | Forces the nested Docker daemon onto `fuse-overlayfs` via `/etc/docker/daemon.json`. |
 | `tasks/install_docker_api_requests.yaml` | Installs `python3-requests`, needed by `community.docker` modules that talk to the Docker API directly. |
-| `tasks/resolve_compose_apps.yaml` | Resolves a scenario's `compose_apps` against `app_registry`, same merge as `deploy.yaml`. |
+| `tasks/resolve_compose_apps.yaml` | Sets `resolved_apps` from a scenario's `compose_apps` and `app_registry` with the `resolve_apps` filter, as `group_vars/all` does for production, and creates the stacks directory. |
 | `tasks/start_seaweedfs_test_target.yaml` | Starts a real throwaway SeaweedFS S3 target with a real identity config (single-identity default, or a caller-supplied `molecule_helpers_seaweedfs_identity_json` for scenarios testing scoping across multiple identities — `identity_scoping` and `cloud_sync` both use this); exposes its IP as `molecule_helpers_seaweedfs_ip`. |
 | `tasks/start_lldap_test_target.yaml` | Starts a real throwaway lldap target with a self-signed LDAPS cert, reachable under a caller-chosen network alias (needed for TLS hostname verification); exposes its IP as `molecule_helpers_lldap_ip`. |
 | `tasks/reset_coverage_data.yaml` | Clears a scenario's `molecule-coverage` JSONL at `prepare` time (the callback appends, doesn't truncate). No-op if `MOLECULE_COVERAGE_DIR` isn't set. |

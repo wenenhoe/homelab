@@ -32,10 +32,10 @@ compose_apps:
         host: dashy       # -> dashy.<caddy_domain>
 ```
 
-At Play 1 (`compose`'s `preinit.yaml`), this short form resolves against
-`app_registry` into a full definition and is written back into
-`hostvars`, which every downstream role (`caddy`, `bind9`, `compose_app`,
-`cleanup.yaml`) reads.
+`resolved_apps` (`group_vars/all/main.yaml`) resolves this short form against
+`app_registry` into a full definition, which every downstream role (`caddy`,
+`bind9`, `compose_app`, `cleanup.yaml`) reads. `compose_apps` itself stays as
+written here.
 
 ## Per-host alias variables (e.g. `cobalt_host`, `shlink_short_host`, `lldap_host`)
 

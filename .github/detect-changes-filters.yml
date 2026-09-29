@@ -24,6 +24,7 @@ deploy_ordering:
   - 'tools/ci/gates/deploy_ordering.py'
   - 'tools/ci/fixtures/**'
   - 'tools/utils/secret_catalog.py'
+  - 'tools/utils/unique_key_yaml.py'
   - 'pyproject.toml'
   - 'uv.lock'
 # Gates whether the job runs at all — the hook itself always

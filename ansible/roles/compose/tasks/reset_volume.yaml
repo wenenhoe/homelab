@@ -11,8 +11,7 @@
 # Tears the app's container down (not just stops it) before touching the
 # volume - see the note above the docker_volume task below for why.
 #
-# Expects: compose_app_item (resolved compose_apps entry — needs
-# .volumes, so callers must run preinit.yaml first), compose_volume_item
+# Expects: compose_app_item (a resolved_apps entry), compose_volume_item
 # (one entry from compose_app_item.volumes), compose_reset_volume_confirm.
 
 - name: "Require explicit confirmation ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"

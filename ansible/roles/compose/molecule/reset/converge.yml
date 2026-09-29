@@ -38,7 +38,7 @@
       ansible.builtin.include_role:
         name: compose
         tasks_from: main.yaml
-      loop: "{{ compose_apps }}"
+      loop: "{{ resolved_apps }}"
       loop_control:
         loop_var: compose_app_item
         label: "{{ compose_app_item.name }}"

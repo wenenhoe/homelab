@@ -8,7 +8,7 @@
 
 - name: Resolve this host's routable apps (same selectattr Caddyfile.j2 uses)
   ansible.builtin.set_fact:
-    caddy_cert_expiry_routable_apps: "{{ compose_apps | selectattr('caddy', 'defined') | list }}"
+    caddy_cert_expiry_routable_apps: "{{ resolved_apps | selectattr('caddy', 'defined') | list }}"
 
 - name: Fail loudly if this host has no Caddy-routed app to check against
   ansible.builtin.fail:

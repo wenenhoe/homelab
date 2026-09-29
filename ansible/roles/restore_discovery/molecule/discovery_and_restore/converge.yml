@@ -225,6 +225,7 @@
         name: "{{ item.name }}"
         groups: "{{ item.groups }}"
         compose_apps: "{{ item.compose_apps | default(omit) }}"
+        resolved_apps: "{{ (item.compose_apps | resolve_apps(app_registry)) if item.compose_apps is defined else omit }}"
         cloud_sync_targets: "{{ item.cloud_sync_targets | default(omit) }}"
         cloud_sync_default_targets: "{{ item.cloud_sync_default_targets | default(omit) }}"
       changed_when: false

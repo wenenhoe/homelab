@@ -88,7 +88,7 @@ shlink_web_domain: "{{ shlink_web_host }}.{{ caddy_domain }}"
 # Normally generated once by the `secrets` role (deploy.yaml Play 1) and
 # read back from secrets_generated — see group_vars/all/main.yaml. That
 # role never runs in this single-app CI path (ci_boot_test.yaml only
-# mirrors preinit.yaml + init.yaml), so main.yaml's
+# mirrors the stacks-directory step + init.yaml), so main.yaml's
 # shlink_api_key: "{{ secrets_generated['shlink-api-key'] }}" would be
 # undefined here. Overridden flatly instead, same pattern as
 # tinyauth_ldap_observer_password and the lldap_* secrets above —

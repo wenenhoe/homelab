@@ -1,6 +1,6 @@
 ---
 # Aggregates SeaweedFS backup targets across every app on this host
-# (compose_apps is already resolved per-host by Play 1's preinit). See
+# (resolved_apps is each host's compose_apps over the catalog). See
 # docs/disaster-recovery.md (Architecture) for the full design,
 # including why cloud coverage (R2/B2/OCI) lives entirely on `storage`
 # (cloud_sync role) and never touches this role or these hosts at all —
@@ -25,7 +25,7 @@
   ansible.builtin.set_fact:
     backup_agent_deploy_dir: "{{ compose_deploy_dir }}/backup-agent"
 
-- name: Build backup_agent_schedules from app_registry
+- name: Build backup_agent_schedules from resolved_apps
   ansible.builtin.include_tasks: build_schedules.yaml
 
 - name: Ensure backup-agent deploy directory exists

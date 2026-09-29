@@ -28,6 +28,12 @@ compose_self_managed_apps:
   - caddy
   - openbao
 
+# Every app's full definition: its host's compose_apps over the catalog.
+# A templated variable rather than a set_fact, so any host's value is
+# readable through hostvars without that host's play having run
+# (ADR 0065).
+resolved_apps: "{{ compose_apps | resolve_apps(app_registry) }}"
+
 tinyauth_host: sso
 
 beszel_hub_host: beszel

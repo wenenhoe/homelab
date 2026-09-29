@@ -33,7 +33,7 @@
           'compression': item.backup.compression | default('gz'),
         }]
       }}
-  loop: "{{ compose_apps }}"
+  loop: "{{ resolved_apps }}"
   loop_control:
     label: "{{ item.name }}"
   when: (item.backup.volumes | default([])) | length > 0

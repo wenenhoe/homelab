@@ -179,7 +179,7 @@
 
     - name: Resolve tinyauth's own compose_apps entry
       ansible.builtin.set_fact:
-        tinyauth_ca_trust_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'tinyauth') | first }}"
+        tinyauth_ca_trust_compose_app_item: "{{ resolved_apps | selectattr('name', 'equalto', 'tinyauth') | first }}"
 
     # Deploys the real docker/tinyauth/compose.yaml + config.yaml.j2
     # (copied into this scenario's own files/docker/) with

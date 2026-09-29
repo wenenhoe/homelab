@@ -21,7 +21,7 @@
 # deploy_one_app.yaml's tasks.
 - name: Init and deploy each non-infra app
   ansible.builtin.include_tasks: deploy_one_app.yaml
-  loop: "{{ compose_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy', 'openbao'])) | list }}"
+  loop: "{{ resolved_apps | rejectattr('name', 'in', compose_self_managed_apps | default(['bind9', 'caddy', 'openbao'])) | list }}"
   loop_control:
     loop_var: compose_app_target
     label: "{{ compose_app_target.name }}"

@@ -1,7 +1,6 @@
 ---
 # Prune volumes labelled for an app that's still deployed
-# (compose_stale_volume_app, a resolved compose_apps entry — needs
-# .volumes, so callers must run preinit.yaml first), where the volume no
+# (compose_stale_volume_app, a resolved_apps entry), where the volume no
 # longer appears in that app's current .volumes list. Companion to
 # cleanup.yaml above: that handles apps removed entirely; this handles an
 # app that's still active but had a volume entry removed from it.

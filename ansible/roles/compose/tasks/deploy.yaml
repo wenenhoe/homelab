@@ -4,7 +4,7 @@
 # config is generated, so their container is up before anything
 # downstream needs it).
 #
-# Expects compose_app_item (a resolved compose_apps entry) and optional
+# Expects compose_app_item (a resolved_apps entry) and optional
 # compose_app_extra_changed (set true when config outside the compose
 # file changed — e.g. Caddyfile, named.conf/zones — so the container
 # should restart even though docker_compose_v2 sees no diff).

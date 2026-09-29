@@ -28,6 +28,9 @@
     tinyauth_host: sso
     lab_domain: lan.localhost
     caddy_domain: apps.localhost
+    # The resolver reads the catalog, and this scenario has no entries to put
+    # in it.
+    app_registry: {}
     # No "caddy" key here at all - this is the point of the scenario.
     compose_apps:
       - name: public_app

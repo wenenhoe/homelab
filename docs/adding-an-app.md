@@ -76,6 +76,8 @@ app_registry:
 | `scripts` | Helper scripts copied verbatim into `<app>/scripts/`. |
 | `caddy` | Omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth. |
 
+The `check-app-catalog` pre-commit hook rejects an entry whose `backup.volumes` names a volume its `volumes` doesn't declare, or whose route has no `upstream`, and a repeated app name. See [`ci.md`](ci.md#app-catalog-rules).
+
 ## 3. Add it to a host's `compose_apps`
 
 In the relevant `ansible/inventory/host_vars/<host>.yaml`, add a minimal entry with just the app name, plus a `caddy` block supplying the hostname if it's routable:
@@ -88,8 +90,8 @@ compose_apps:
         host: my-app
 ```
 
-At deploy time this merges with the `app_registry` entry
-(`registry_defaults | combine(item, recursive=True)`). If the host is in
+`resolved_apps` merges this with the `app_registry` entry (dicts merge, lists
+are replaced). If the host is in
 `app_hosts` (every managed host), a CNAME for `my-app.{{ caddy_domain }}`
 is generated automatically. See [`host-vars.md`](host-vars.md) for the
 full field reference, including the alias-variable pattern

@@ -6,7 +6,7 @@ title: "Where app defaults and host intent are merged"
 solution: "A pure resolver filter computes resolved_apps from compose_apps and app_catalog; only the resolver reads the catalog"
 summary: "Which layer merges an app's host-independent definition with its host's intent, and what every other role and tool reads."
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0002, ADR-0064]
 ---
 
@@ -48,6 +48,17 @@ Docker.
   `roles/backup_agent/filter_plugins/`, so it loaded only when that role was
   in the play and had no pytest test; it now lives in `ansible/filter_plugins/`
   with one.
+- A plugin directory that `ansible.cfg` names loads for `ansible-playbook`
+  run from `ansible/`, as CI does, and for every Molecule scenario, because
+  `.config/molecule/config.yml` sets `ANSIBLE_CONFIG` to that file. From a
+  scenario directory without it, Ansible finds no config and no filter:
+  `cron_period_hours` fails with "No filter named".
+- `hostvars[h].resolved_apps`, defined in `group_vars/all` as a filter over
+  `compose_apps`, evaluates for every managed host from a controller-only
+  play in which no host play has run.
+- `combine(recursive=True)` over the same inputs gives the same result
+  whether it runs as `preinit.yaml`'s `set_fact` loop or inside a filter:
+  identical for every app on every managed host in the inventory.
 
 ## Decision
 
@@ -63,8 +74,15 @@ Docker.
 - `resolved_apps` is defined once in `group_vars/all` as
   `"{{ compose_apps | resolve_apps(app_catalog) }}"`. Any host's value is
   reachable through `hostvars` with no play having run.
-- Roles and playbooks read `resolved_apps` and never `app_catalog`. The
-  resolver's one call site is the only reader of the catalog.
+- A Molecule scenario declares its own inventory and does not load
+  `group_vars/all`. `molecule_helpers` sets `resolved_apps` there from the
+  scenario's own `compose_apps` and catalog with the same expression, and a
+  scenario that builds other hosts with `add_host` gives each one its
+  `resolved_apps` the same way. A test keeps these equal to the definition in
+  `group_vars/all`.
+- Roles and playbooks read `resolved_apps` and never `app_catalog`. The only
+  readers of the catalog are the resolver's call sites: the definition in
+  `group_vars/all` and the Molecule stand-ins above.
 - The filter lives in one repo-level plugin directory, `ansible/filter_plugins/`,
   that `ansible.cfg` names, so it loads for playbooks, roles and Molecule
   scenarios alike. Its unit tests live under `ansible/tests/`, beside the other
@@ -86,29 +104,13 @@ Docker.
   configuration data with no remote state to inspect or change.
 - **A lookup plugin.** Hides a dictionary read behind a name that reads
   like an external source.
+- **Define `resolved_apps` once in a vars file every scenario loads.** One
+  definition, but every scenario's setup changes to load it, and an edit to
+  the file queues every scenario. The filter named in the helper queues only
+  the scenarios that call it, which the Molecule scope check already derives.
 - **Leave the two catalog readers as they are.** They keep re-implementing
   defaults the resolver would hand them, including the duplicated
   cloud-target rule.
-
-## Assumptions
-
-- **Claim:** A plugin directory set in `ansible.cfg` is loaded by
-  `ansible-playbook` from CI and by every Molecule scenario.
-  **Breaks if wrong:** each scenario needs its own path setting, or the
-  filter has to ship as a role.
-  **Checked by:** a spike running one scenario and one playbook against a
-  trivial filter.
-- **Claim:** `hostvars[h].resolved_apps` evaluates for a host whose play has
-  not run, including from a controller-only play.
-  **Breaks if wrong:** `cloud_sync` and `restore_discovery` still cannot use
-  it.
-  **Checked by:** the same spike, reading another host's value from
-  `restore_discovery`'s play.
-- **Claim:** The filter reproduces today's merged output exactly for every
-  app on every host, including list-replacement behaviour.
-  **Breaks if wrong:** a deployed app's config changes silently.
-  **Checked by:** diffing `preinit.yaml`'s output against the filter's over
-  the whole inventory.
 
 ## Consequences
 
@@ -124,7 +126,7 @@ Docker.
 
 ## Invariants
 
-- Only the resolver reads `app_catalog`.
+- Only a resolver call site reads `app_catalog`: the `group_vars/all` definition or its Molecule stand-in.
 - `compose_apps` is never reassigned.
 - The resolver is pure and unit tested.
 
@@ -137,5 +139,6 @@ Docker.
 
 ## Validation
 
-A pytest suite for the filter and the validator, and a test that fails if
-any file outside the resolver's call site names `app_catalog`.
+A pytest suite for the filter and the validator, a test that fails if any
+role, playbook or template names `app_catalog`, and a test that fails if a
+Molecule stand-in differs from the `group_vars/all` definition.

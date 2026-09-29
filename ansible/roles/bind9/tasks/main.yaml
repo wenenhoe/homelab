@@ -19,9 +19,9 @@
   tags:
     - always
 
-- name: Resolve bind9's own compose_apps entry
+- name: Find bind9's own entry in resolved_apps
   ansible.builtin.set_fact:
-    bind9_compose_app_item: "{{ compose_apps | selectattr('name', 'equalto', 'bind9') | first }}"
+    bind9_compose_app_item: "{{ resolved_apps | selectattr('name', 'equalto', 'bind9') | first }}"
   tags:
     - always
 
@@ -71,7 +71,7 @@
     - infra
 
 # Scrapes every app host's dns_zones via hostvars and flattens into a list
-# of dicts (key/value/dns_ddns_target/caddy_domain/compose_apps) so the
+# of dicts (key/value/dns_ddns_target/caddy_domain/resolved_apps) so the
 # templates don't need to reach into hostvars again. Done as a single
 # Jinja2 expression in set_fact to do the double iteration in one task.
 - name: Collect and flatten zones from all app hosts
@@ -86,7 +86,7 @@
             'value':           zone_data | combine({'serial': bind9_dns_serial}),
             'dns_ddns_target': hv.dns_ddns_target,
             'caddy_domain':    hv.caddy_domain,
-            'compose_apps':    hv.compose_apps
+            'resolved_apps':   hv.resolved_apps
           }) -%}
         {%- endfor -%}
       {%- endfor -%}
@@ -128,7 +128,7 @@
         'zone_data': item.value,
         'dns_ddns_target': item.dns_ddns_target,
         'caddy_domain': item.caddy_domain,
-        'zone_compose_apps': item.compose_apps }) }}
+        'zone_resolved_apps': item.resolved_apps }) }}
   no_log: true
   tags:
     - infra

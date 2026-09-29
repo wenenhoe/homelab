@@ -119,13 +119,13 @@ can't fix.
 5. `cd tools && python3 -m openbao_utils.restore <backup-dir>` -
    **before** any `ansible-playbook deploy.yaml` run against the fresh
    Vault. Skipping this means the next `deploy.yaml` silently mints new
-   random values for every `hex`/`uuid4` secret in the registry
+   random values for every `hex`/`uuid4` secret in the catalog
    (ADR 0025's Context explains why). Restores two things in one pass:
-   every `secrets_registry.yaml` entry with `store: openbao` (including
+   every `secret_catalog.yaml` entry with `store: openbao` (including
    all 20 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` leaf credentials,
    each of which now has its own `scope` of
    `cloud_credentials/leaf`), and `cloud_credentials`' internal
-   leaf/rotation bookkeeping keys with no registry entry of their own
+   leaf/rotation bookkeeping keys with no catalog entry of their own
    (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two
    `oci-{write,read}-scim-id` values). The `_oci-leaf-user-ocid-*`
    duplicate under `cloud_credentials/leaf/` (see ADR 0025's Context)

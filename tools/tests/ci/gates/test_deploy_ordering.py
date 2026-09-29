@@ -96,7 +96,7 @@ class RunTests(unittest.TestCase):
         self.assertEqual(args[args.index("--limit") + 1], "ci-managed-host,localhost")
         self.assertIn("restore_archive_local_path=/nonexistent/ci-ordering-check-archive.tar.gz", args)
         self.assertIn('restore_volumes=["ci_ordering_check_data"]', args)
-        self.assertIn("@/tmp/ci-secrets-registry-no-vault.json", args)
+        self.assertIn("@/tmp/ci-secret-catalog-no-vault.json", args)
 
     def test_restore_passes_on_the_expected_failure_and_prints_the_log(self):
         code, out, _ = self.run_main("restore", completed(2, GOOD_LOG))

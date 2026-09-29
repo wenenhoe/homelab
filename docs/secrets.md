@@ -5,7 +5,7 @@ For the offsite-backup S3 credentials specifically, see
 
 Every value this repo needs but doesn't want hardcoded is resolved once
 and cached by the `secrets` role (`ansible/roles/secrets/`), driven by a
-central registry (`ansible/inventory/group_vars/all/secrets_registry.yaml`).
+central catalog (`ansible/inventory/group_vars/all/secret_catalog.yaml`).
 It runs as `deploy.yaml`'s Play 0, tagged `always`, `gather_facts: false`
 — before Play 1, since `ansible_host` itself resolves through a secret
 (`main_domain`) and Play 1's implicit fact-gathering needs a live
@@ -14,36 +14,36 @@ connection first.
 Every secret lives in OpenBao except three permanent exceptions that stay in the controller-side file cache instead:
 `main-domain` and the `openbao-controller-role-id`/`-secret-id` AppRole
 credential — because resolving any of them is a prerequisite for
-reaching Vault at all. Every registry entry states its `store`
+reaching Vault at all. Every catalog entry states its `store`
 (`openbao` or `controller_file`), and every `store: openbao` entry's
 `scope` says where in Vault it lives, including every
 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entry
 (`scope: cloud_credentials/leaf`, the same top-level
 path `tools/cloud_credentials/*.py` itself writes to — see
-`cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secrets_registry.yaml`'s own header comment and
+`cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secret_catalog.yaml`'s own header comment and
 [ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
 for the full picture.
 
 No template should call `lookup('password', ...)` / `lookup('pipe', ...)`
 directly, and `deploy.yaml` should never grow a new `vars_prompt` entry —
-any new secret or config value goes through the registry instead:
+any new secret or config value goes through the catalog instead:
 
-1. Add an entry to `secrets_registry.yaml`, with `store: openbao` and a `scope`
+1. Add an entry to `secret_catalog.yaml`, with `store: openbao` and a `scope`
    (`hosts/<host>` if it's referenced from that host's own
    `host_vars/<host>.yaml`, `hosts/all/<concern>` if it's referenced
    from `group_vars/all/main.yaml` — see [ADR 0021](decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)):
    ```yaml
-   secrets_registry:
+   secret_catalog:
      my-new-thing:
        source: hex
        length: 32
        store: openbao
        scope: hosts/security
    ```
-   The `check-secrets-registry` pre-commit hook rejects an entry that breaks
+   The `check-secret-catalog` pre-commit hook rejects an entry that breaks
    the header's rules — a `hex` entry without a `length`, a generated entry
    that isn't `store: openbao`, a `manual` entry without a `description` —
-   before it merges. See [`ci.md`](ci.md#secrets-registry-rules).
+   before it merges. See [`ci.md`](ci.md#secret-catalog-rules).
 2. Reference it from a plain var in `group_vars/all/main.yaml`:
    ```yaml
    my_new_thing: "{{ secrets_generated['my-new-thing'] }}"
@@ -96,8 +96,8 @@ validate OpenBao's TLS cert, the same mechanism
 uses from Ansible. To set a file-cache-backed value without the script:
 
 ```sh
-printf '%s' '<value>' > ansible/files/secrets/<registry-key>
-chmod 600 ansible/files/secrets/<registry-key>
+printf '%s' '<value>' > ansible/files/secrets/<catalog-key>
+chmod 600 ansible/files/secrets/<catalog-key>
 ```
 
 Beszel's key/token can't be known ahead of time — see the manual
@@ -113,11 +113,11 @@ to create them instead.
 
 ## Where secrets live
 
-`store: openbao`: OpenBao, at `secret/data/{{ scope }}/<registry-key>`
-(mount `secret`, KV v2). `store: controller_file`: `ansible/files/secrets/<registry-key>`
+`store: openbao`: OpenBao, at `secret/data/{{ scope }}/<catalog-key>`
+(mount `secret`, KV v2). `store: controller_file`: `ansible/files/secrets/<catalog-key>`
 on the controller, one file per secret, gitignored, never committed.
 Either way, target hosts only ever receive the rendered config the
-value ends up in — never the registry key or its storage location.
+value ends up in — never the catalog key or its storage location.
 
 **Rotating a credential**: see [`secrets-rotation.md`](secrets-rotation.md)
 for the `rotate-secret.yaml` playbook and exactly which host(s) each

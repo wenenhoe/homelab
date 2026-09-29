@@ -37,7 +37,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Shared loader and validator for the current schema | Done | The four `tools/openbao_utils/` modules and the CI fixture load the registry through one function; a validator enforcing the header's rules runs in pre-commit and CI against the real file; no entry changes |
 | 2 | `source`/`store`/`scope` schema | Done | Every entry uses the new fields; every entry's OpenBao path is identical before and after; the `secrets` role, `rotate-secret.yaml`, the tools and the deploy-ordering fixture read `store` instead of the presence of `vault_scope`; Molecule and CI pass |
-| 3 | Rename to `secret_catalog` | Not started | The variable, file and every reference use the new name, including docs and Molecule scenarios |
+| 3 | Rename to `secret_catalog` | Done | The variable, file and every reference use the new name, including docs and Molecule scenarios |
 
 Stage status is `Not started`, `In progress`, or `Done`. Stage 2 spans
 Ansible and Python in one pull request, since both read the fields.

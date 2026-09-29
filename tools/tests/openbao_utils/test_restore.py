@@ -1,12 +1,12 @@
 """Unit tests for openbao_utils.restore.
 
 Run via `uv run pytest tools/tests/ -v`. Fake Vault reads/writes, a
-real tmp filesystem for the backup dir and registry file - no real
-Vault. Covers both phases this script merges: registry-scoped restore
+real tmp filesystem for the backup dir and catalog file - no real
+Vault. Covers both phases this script merges: catalog-scoped restore
 (via read_vault_path/write_vault_path) and LEGACY_CACHE_KEYS restore
 (via each key's own module double). Each phase's own tests neutralize
 the *other* phase (an empty LEGACY_CACHE_KEYS list, or an empty
-registry) rather than mocking it away - main() runs both phases
+catalog) rather than mocking it away - main() runs both phases
 unconditionally, so leaving the other phase's real dependencies
 wired up would mean an unmocked real Vault session gets built.
 """
@@ -63,24 +63,24 @@ class UsageErrorTests(unittest.TestCase):
         self.assertEqual(rc, 1)
 
 
-class RegistryScopedRestoreTests(unittest.TestCase):
+class CatalogScopedRestoreTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        self.registry_file = self.tmp / "registry.yaml"
+        self.catalog_file = self.tmp / "catalog.yaml"
         self.backup_dir = self.tmp / "backup"
         self.backup_dir.mkdir()
-        patch.object(restore, "REGISTRY_PATH", self.registry_file).start()
+        patch.object(restore, "CATALOG_PATH", self.catalog_file).start()
         # Neutralizes the other phase - an empty list means its for
         # loop never iterates, never touching a real Vault session.
         patch.object(restore, "LEGACY_CACHE_KEYS", []).start()
         self.addCleanup(patch.stopall)
 
-    def _seed_registry(self, text: str) -> None:
-        self.registry_file.write_text(text)
+    def _seed_catalog(self, text: str) -> None:
+        self.catalog_file.write_text(text)
 
     def test_restores_a_value_present_in_the_backup_but_not_in_vault(self):
-        self._seed_registry("secrets_registry:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
+        self._seed_catalog("secret_catalog:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
         (self.backup_dir / "lldap-jwt-secret").write_text("the-old-jwt-secret")
 
         written = {}
@@ -94,7 +94,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         self.assertEqual(written, {"hosts/security/lldap-jwt-secret": "the-old-jwt-secret"})
 
     def test_never_overwrites_a_value_already_in_vault(self):
-        self._seed_registry("secrets_registry:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
+        self._seed_catalog("secret_catalog:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
         (self.backup_dir / "lldap-jwt-secret").write_text("stale-backup-value")
 
         with (
@@ -107,7 +107,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         fake_write.assert_not_called()
 
     def test_entry_missing_from_the_backup_is_reported_not_written(self):
-        self._seed_registry("secrets_registry:\n  never-backed-up:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
+        self._seed_catalog("secret_catalog:\n  never-backed-up:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
 
         with (
             patch.object(restore, "read_vault_path", return_value=None),
@@ -119,7 +119,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         fake_write.assert_not_called()
 
     def test_skips_entries_stored_in_the_file_cache(self):
-        self._seed_registry("secrets_registry:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
+        self._seed_catalog("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         (self.backup_dir / "no-scope-key").write_text("value")
 
         with (
@@ -138,7 +138,7 @@ class RegistryScopedRestoreTests(unittest.TestCase):
         # value with no added whitespace, so stripping on the way back
         # in would silently corrupt a value with meaningful
         # leading/trailing whitespace.
-        self._seed_registry("secrets_registry:\n  padded-value:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
+        self._seed_catalog("secret_catalog:\n  padded-value:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
         (self.backup_dir / "padded-value").write_text("  has padding  \n")
 
         written = {}
@@ -155,12 +155,12 @@ class LegacyCacheKeysRestoreTests(unittest.TestCase):
     def setUp(self):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        self.registry_file = self.tmp / "registry.yaml"
-        # Neutralizes the other phase - an empty registry means
-        # _scoped_registry_entries() returns {}, never touching a real
+        self.catalog_file = self.tmp / "catalog.yaml"
+        # Neutralizes the other phase - an empty catalog means
+        # _scoped_catalog_entries() returns {}, never touching a real
         # Vault session via read_vault_path/write_vault_path.
-        self.registry_file.write_text("secrets_registry: {}\n")
-        patch.object(restore, "REGISTRY_PATH", self.registry_file).start()
+        self.catalog_file.write_text("secret_catalog: {}\n")
+        patch.object(restore, "CATALOG_PATH", self.catalog_file).start()
         self.addCleanup(patch.stopall)
 
     def seed_backup_file(self, name: str, value: str) -> None:
@@ -200,7 +200,7 @@ class LegacyCacheKeysRestoreTests(unittest.TestCase):
 
     def test_restores_backup_content_byte_for_byte_not_stripped(self):
         # Regression test for the bug found on merge - see the
-        # matching test in RegistryScopedRestoreTests for the full
+        # matching test in CatalogScopedRestoreTests for the full
         # explanation.
         mod = _FakeModule()
         self.seed_backup_file("padded-key", "  has padding  \n")

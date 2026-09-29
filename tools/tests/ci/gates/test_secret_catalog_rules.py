@@ -1,4 +1,4 @@
-"""Tests for ci.gates.secrets_registry_rules: one case per rule, then the real registry.
+"""Tests for ci.gates.secret_catalog_rules: one case per rule, then the real catalog.
 
 Run via `uv run pytest tools/tests/ -v`.
 """
@@ -15,8 +15,8 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from ci.gates import secrets_registry_rules as rules
-from utils.secrets_registry import load_registry
+from ci.gates import secret_catalog_rules as rules
+from utils.secret_catalog import load_catalog
 
 GOOD = {
     "session-key": {"source": "hex", "length": 32, "store": "openbao", "scope": "hosts/services"},
@@ -34,7 +34,7 @@ def broken(name: str, spec: dict[str, object]) -> list[str]:
 
 
 class EachRuleTests(unittest.TestCase):
-    def test_a_registry_that_follows_every_rule_has_no_violations(self):
+    def test_a_catalog_that_follows_every_rule_has_no_violations(self):
         self.assertEqual(rules.validate(GOOD), [])
         self.assertEqual(rules.validate({}), [])
 
@@ -136,23 +136,23 @@ class MainTests(unittest.TestCase):
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self._tmp.cleanup)
-        self.path = Path(self._tmp.name) / "registry.yaml"
+        self.path = Path(self._tmp.name) / "catalog.yaml"
 
     def run_main(self, text: str | None) -> tuple[int, str, str]:
         if text is not None:
             self.path.write_text(text)
         out, err = io.StringIO(), io.StringIO()
-        with patch.object(rules, "REGISTRY_PATH", self.path), redirect_stdout(out), redirect_stderr(err):
+        with patch.object(rules, "CATALOG_PATH", self.path), redirect_stdout(out), redirect_stderr(err):
             code = rules.main()
         return code, out.getvalue(), err.getvalue()
 
-    def test_passes_a_clean_registry(self):
-        code, out, err = self.run_main("secrets_registry:\n  a: { source: uuid4, store: openbao, scope: hosts/play }\n")
+    def test_passes_a_clean_catalog(self):
+        code, out, err = self.run_main("secret_catalog:\n  a: { source: uuid4, store: openbao, scope: hosts/play }\n")
         self.assertEqual((code, err), (0, ""))
         self.assertIn("follows the header's rules", out)
 
     def test_fails_and_names_each_violation_and_its_rule(self):
-        code, _, err = self.run_main("secrets_registry:\n  a: { source: hex, length: 8, store: openbao }\n  b: { source: manual, store: controller_file }\n")
+        code, _, err = self.run_main("secret_catalog:\n  a: { source: hex, length: 8, store: openbao }\n  b: { source: manual, store: controller_file }\n")
         self.assertEqual(code, 1)
         self.assertIn("::error::a:", err)
         self.assertIn("[scope-required]", err)
@@ -160,14 +160,14 @@ class MainTests(unittest.TestCase):
         self.assertIn("[description-required]", err)
         self.assertIn("2 rule violation(s)", err)
 
-    def test_fails_on_an_unreadable_registry(self):
+    def test_fails_on_an_unreadable_catalog(self):
         code, _, err = self.run_main(None)
         self.assertEqual(code, 1)
         self.assertIn("::error::can't read", err)
 
     def test_fails_on_a_repeated_name(self):
         code, _, err = self.run_main(
-            "secrets_registry:\n"
+            "secret_catalog:\n"
             "  a: { source: manual, description: d, store: controller_file }\n"
             "  a: { source: manual, description: d, store: controller_file }\n"
         )
@@ -175,16 +175,16 @@ class MainTests(unittest.TestCase):
         self.assertIn("duplicate key", err)
 
 
-class RealRegistryTests(unittest.TestCase):
-    def test_the_real_registry_follows_every_rule(self):
-        self.assertEqual(rules.validate(load_registry()), [])
+class RealCatalogTests(unittest.TestCase):
+    def test_the_real_catalog_follows_every_rule(self):
+        self.assertEqual(rules.validate(load_catalog()), [])
 
-    def test_main_passes_on_the_real_registry(self):
+    def test_main_passes_on_the_real_catalog(self):
         with redirect_stdout(io.StringIO()), redirect_stderr(io.StringIO()):
             self.assertEqual(rules.main(), 0)
 
     def test_every_real_entry_states_its_store(self):
-        self.assertTrue(all(spec.get("store") in ("openbao", "controller_file") for spec in load_registry().values()))
+        self.assertTrue(all(spec.get("store") in ("openbao", "controller_file") for spec in load_catalog().values()))
 
 
 if __name__ == "__main__":

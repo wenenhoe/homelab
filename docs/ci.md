@@ -22,16 +22,16 @@ call it as `python -m <package>.<module>` from `tools/`
   no-op filtering, the compose-app and Dockerfile lists.
 - `ci.gates` — checks with their own verdicts: the deploy-ordering
   regression check, the compose health wait, the Renovate window,
-  `matrix-jobs-gate`, and the secrets-registry rules check (see
-  [Secrets registry rules](#secrets-registry-rules)).
+  `matrix-jobs-gate`, and the secret-catalog rules check (see
+  [Secret catalog rules](#secret-catalog-rules)).
 - `ci.images` — the image registry and the CI image builds.
 - `ci.scan` — setup for the security scans (the Trivy config).
 - `ci.fixtures` — data a job seeds before a real run, derived from the repo
   (the deploy-ordering check's secrets).
 
-`tools/utils/secrets_registry.py` is the one reader of
-`secrets_registry.yaml`: the `openbao_utils` tools, the CI fixtures and the
-rules check all load it through `load_registry`, which refuses a repeated
+`tools/utils/secret_catalog.py` is the one reader of
+`secret_catalog.yaml`: the `openbao_utils` tools, the CI fixtures and the
+rules check all load it through `load_catalog`, which refuses a repeated
 secret name instead of keeping the last. It needs only PyYAML, so a
 pre-commit hook can import it.
 
@@ -260,7 +260,7 @@ below stays correct — see there for the SeaweedFS-specific case.
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/utils/**`/`tools/ci/**`/`tools/doc_scripts/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/filter_plugins/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
-| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`tools/utils/secrets_registry.py`/`pyproject.toml`/`uv.lock` changed | See below. |
+| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`tools/utils/secret_catalog.py`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](#molecule-coverage-gate). See [`molecule-testing.md`](molecule-testing.md). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](#dockerfile-changes). |
@@ -483,7 +483,7 @@ real so provisioning never runs — only secrets generation/propagation
 and the `ansible_host` resolution it gates.
 
 `ansible/inventory/**` in the trigger list covers `inventory.yaml` itself
-plus `group_vars/all/main.yaml`/`secrets_registry.yaml` — deliberately
+plus `group_vars/all/main.yaml`/`secret_catalog.yaml` — deliberately
 broad, since either is the shape of change that caused the original
 regression. `pyproject.toml`/`uv.lock` are in the trigger list too: this
 job runs the real playbooks through the uv-managed `ansible-core`, so an
@@ -508,17 +508,17 @@ resolution failure (that signature means the regression is back).
 
 Two fixtures run first, both in
 [`tools/ci/fixtures/`](../tools/ci/fixtures/) and both read from the real
-`secrets_registry.yaml` at run time, so neither can drift from it:
+`secret_catalog.yaml` at run time, so neither can drift from it:
 
 - `preseed_manual_secrets` writes every `source: manual` secret kept in the
   file cache (the entries with `store: controller_file`) as a plain file under
   `ansible/files/secrets/`, mirroring what `openbao_utils/bootstrap.py`
   produces — an empty file for an `allow_blank` entry, `ci-dummy-<key>`
   otherwise. Throwaway CI values, same non-secret status as
-  `ci-inventory/group_vars/all/ci_dummy_vars.yaml`. A registry key that isn't
+  `ci-inventory/group_vars/all/ci_dummy_vars.yaml`. A catalog key that isn't
   a plain file name is refused, since it becomes a path.
-- `file_cache_registry` writes the registry's `store: controller_file` entries, unchanged,
-  to `/tmp/ci-secrets-registry-no-vault.json`, which both playbook runs load
+- `file_cache_catalog` writes the catalog's `store: controller_file` entries, unchanged,
+  to `/tmp/ci-secret-catalog-no-vault.json`, which both playbook runs load
   with `-e @`. This job has no OpenBao or step-ca target, so an entry stored
   in OpenBao would make `vault_login.yaml` run and fail; Vault reachability
   is Molecule's job (`vault_backed`, `rotate_secret`). The ordering chain
@@ -528,12 +528,12 @@ Two fixtures run first, both in
   step and in `deploy_ordering.py`, and a test holds the two equal.
 
 `tools/tests/ci/fixtures/` covers both, including a run over the real
-registry, and checks the job's steps run them before the playbooks.
+catalog, and checks the job's steps run them before the playbooks.
 
-## Secrets registry rules
+## Secret catalog rules
 
-`ci.gates.secrets_registry_rules` checks every entry in
-`secrets_registry.yaml` against the rules the file's header comment states:
+`ci.gates.secret_catalog_rules` checks every entry in
+`secret_catalog.yaml` against the rules the file's header comment states:
 kebab-case names and no unknown keys (so the old `format` and
 `vault_scope` fields are refused); `source` one of `hex`, `uuid4` or
 `manual`; `store` stated on every entry as `openbao` or `controller_file`;
@@ -544,12 +544,12 @@ shapes the header names, on every `store: openbao` entry and on no
 on `manual` entries, as booleans. Each violation is printed
 with the entry and the rule, and any violation fails the check.
 
-It runs as the `check-secrets-registry` pre-commit hook, so `pre-commit-checks`
+It runs as the `check-secret-catalog` pre-commit hook, so `pre-commit-checks`
 runs it on every PR, and the hook needs only PyYAML. A wrong combination
 would otherwise surface at deploy or rotation time: the `secrets` role skips
 a `hex` entry stored anywhere but OpenBao without an error.
-`tools/tests/ci/gates/test_secrets_registry_rules.py` has a case for each rule
-and runs the check over the real registry.
+`tools/tests/ci/gates/test_secret_catalog_rules.py` has a case for each rule
+and runs the check over the real catalog.
 
 ## Doc index generation
 

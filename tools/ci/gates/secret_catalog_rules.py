@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Checks that every entry in secrets_registry.yaml follows the rules its header comment states.
+"""Checks that every entry in secret_catalog.yaml follows the rules its header comment states.
 
 A wrong combination otherwise surfaces at deploy or rotation time: a generated
 entry stored anywhere but OpenBao is silently skipped by the `secrets` role, and
@@ -9,7 +9,7 @@ the check.
 
 Runs in pre-commit (PyYAML only) and so in the pre-commit-checks job.
 
-Usage (from tools/): python -m ci.gates.secrets_registry_rules
+Usage (from tools/): python -m ci.gates.secret_catalog_rules
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ import re
 import sys
 from dataclasses import dataclass
 
-from utils.secrets_registry import REGISTRY_PATH, STORES, Registry, RegistryError, load_registry
+from utils.secret_catalog import CATALOG_PATH, STORES, Catalog, CatalogError, load_catalog
 
 SOURCES = ("hex", "uuid4", "manual")
 GENERATED = ("hex", "uuid4")
@@ -54,7 +54,7 @@ def _check_entry(name: str, spec: dict[str, object]) -> list[Violation]:
     if not KEBAB_CASE.fullmatch(name):
         fail("name", "names are kebab-case: lowercase letters and digits separated by single hyphens")
     for key in sorted(set(spec) - KEYS):
-        fail("unknown-key", f"`{key}` isn't a registry key (one of: {', '.join(sorted(KEYS))})")
+        fail("unknown-key", f"`{key}` isn't a catalog key (one of: {', '.join(sorted(KEYS))})")
 
     source = spec.get("source")
     if source not in SOURCES:
@@ -94,23 +94,23 @@ def _check_entry(name: str, spec: dict[str, object]) -> list[Violation]:
     return found
 
 
-def validate(registry: Registry) -> list[Violation]:
-    """Every rule violation in `registry`, in entry order."""
-    return [violation for name, spec in registry.items() for violation in _check_entry(name, spec)]
+def validate(catalog: Catalog) -> list[Violation]:
+    """Every rule violation in `catalog`, in entry order."""
+    return [violation for name, spec in catalog.items() for violation in _check_entry(name, spec)]
 
 
 def main() -> int:
     try:
-        violations = validate(load_registry(REGISTRY_PATH))
-    except RegistryError as exc:
+        violations = validate(load_catalog(CATALOG_PATH))
+    except CatalogError as exc:
         print(f"::error::{exc}", file=sys.stderr)
         return 1
     for violation in violations:
         print(f"::error::{violation.name}: {violation.message} [{violation.rule}]", file=sys.stderr)
     if violations:
-        print(f"{len(violations)} rule violation(s) in the secrets registry", file=sys.stderr)
+        print(f"{len(violations)} rule violation(s) in the secret catalog", file=sys.stderr)
         return 1
-    print("secrets_registry.yaml: every entry follows the header's rules")
+    print("secret_catalog.yaml: every entry follows the header's rules")
     return 0
 
 

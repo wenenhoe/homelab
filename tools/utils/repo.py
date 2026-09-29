@@ -45,7 +45,7 @@ def main_domain() -> str:
     if not domain:
         print(
             "main-domain isn't cached yet - it's needed to reach OpenBao at all "
-            "(secrets_registry.yaml's header comment explains why it never moves "
+            "(secret_catalog.yaml's header comment explains why it never moves "
             "into Vault). Set it first:\n"
             f"  printf '%s' '<your-domain>' > {SECRETS_DIR / 'main-domain'}\n"
             f"  chmod 600 {SECRETS_DIR / 'main-domain'}",

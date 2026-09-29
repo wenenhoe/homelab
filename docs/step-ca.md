@@ -125,6 +125,6 @@ The names compared are the cert's DNS and IP SANs, as reported by
 ## Secrets
 
 `step-ca-password` and `step-ca-provisioner-password`
-(`secrets_registry.yaml`, both `hex`/32) are Ansible-generated and
+(`secret_catalog.yaml`, both `hex`/32) are Ansible-generated and
 cached like any other secret — see [`secrets.md`](secrets.md). Neither
 is externally issued, so neither needs `source: manual`.

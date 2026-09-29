@@ -4,7 +4,7 @@ Shared by openbao_utils/restore.py, openbao_utils/audit.py,
 and openbao_utils/bootstrap.py's own exclusion list, so none of them can
 drift against each other or against what cache.py's scoped() actually
 writes - duplicating this list per-consumer is what let
-secrets_registry.yaml's header comment and openbao_utils/bootstrap.py's own
+secret_catalog.yaml's header comment and openbao_utils/bootstrap.py's own
 behavior disagree, pre-Track-A-stage-6.
 
 Reusing each module's own bound functions (rather than reconstructing

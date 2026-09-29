@@ -8,13 +8,13 @@ seaweedfs_admin_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-admin
 seaweedfs_admin_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-admin'] }}"
 
 # cloud_sync's own identity — Read/List only, whole bucket. See
-# docs/disaster-recovery.md and the matching secrets_registry.yaml entry.
+# docs/disaster-recovery.md and the matching secret_catalog.yaml entry.
 seaweedfs_cloud_sync_reader_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-cloud-sync-reader'] }}"
 seaweedfs_cloud_sync_reader_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-cloud-sync-reader'] }}"
 
 # Which hosts run backup_agent and get their own path-scoped SeaweedFS
 # identity (docker/seaweedfs/configs/s3-identity.json.j2) — add a host
-# here AND a matching secrets_registry.yaml pair AND that host's own
+# here AND a matching secret_catalog.yaml pair AND that host's own
 # seaweedfs_s3_access_key/secret_key in its host_vars file. Single-host
 # consumers only (this file's own s3-identity.json.j2 rendering, and
 # cloud_sync's job-building loop below — both storage-only; backup_agent

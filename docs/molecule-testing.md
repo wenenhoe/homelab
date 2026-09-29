@@ -38,6 +38,7 @@ result, then re-converges to check idempotence — mirroring what
 | `telegram_notify` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through whatever role includes it: `caddy_cert_expiry` above, `step_ca_cert`, and `cloud_sync` (see `docs/telegram-notifications.md`). |
 | `telegram_topic_pins` | *(none)* | Library role, control-node-only (`hosts: localhost` in `playbooks/pin-telegram-topics.yaml`) — nothing here to containerize in Molecule's per-host model. |
 | `uptime_kuma_push` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through whatever role includes it: `cloud_sync` today (see `docs/uptime-kuma.md`). |
+| `systemd_reload` | *(none)* | Library role, no `tasks/main.yaml` and no molecule suite of its own — exercised only indirectly through the roles that depend on it: `backup_agent`, `caddy_cert_expiry`, `cloud_sync` and `step_ca_cert` (see `docs/telegram-notifications.md`). |
 | `bind9` | `default` | Zone-file aggregation/rendering/reload against a single self-hosting instance. |
 | `seaweedfs_bucket` | `default` | Bucket doesn't exist → role creates it against a real throwaway SeaweedFS target, verified by listing the bucket after. |
 | | `wrong_credentials` | Mismatched credentials must fail loudly, not get retried into a slow eventual failure or otherwise swallowed. |

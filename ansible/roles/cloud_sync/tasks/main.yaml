@@ -98,18 +98,6 @@
     uptime_kuma_push_description: Uptime Kuma liveness push for a successful cloud-sync run
     uptime_kuma_push_url: "{{ uptime_kuma_push_url_cloud_sync }}"
 
-# telegram_notify's own install.yaml deliberately doesn't reload systemd
-# or notify a handler itself (see its own header comment) - do it here
-# instead, off the results it registers. uptime_kuma_push follows the
-# same convention, for the same reason.
-- name: Reload systemd if either notifier unit changed
-  ansible.builtin.systemd:
-    daemon_reload: true
-  when: >-
-    telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
-    telegram_notify_service_result.changed or
-    uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed
-
 - name: Install the cloud-sync systemd service
   ansible.builtin.template:
     src: cloud-sync.service.j2
@@ -124,11 +112,12 @@
     mode: "0644"
   notify: Reload systemd
 
-# Handlers only flush at the end of the play by default — "Enable and
-# start" below needs systemd to have already picked up the current unit
-# content first.
-- name: Flush handlers so systemd has the current unit definitions
-  ansible.builtin.meta: flush_handlers
+- name: Reload systemd and flush handlers so systemd has the current unit definitions
+  ansible.builtin.include_role:
+    name: systemd_reload
+    tasks_from: reload.yaml
+  vars:
+    systemd_reload_uptime_kuma: true
 
 - name: Enable and start the cloud-sync timer
   ansible.builtin.systemd:

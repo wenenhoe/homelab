@@ -1,19 +1,27 @@
 ---
-# One-time, control-node-only: posts a static header message into a
-# forum topic and pins it, then caches the resulting message_id under
-# ansible/files/telegram-pins/ (gitignored, same convention as
-# ansible/files/secrets/) so re-running this doesn't post/pin a new
-# header on top of the existing one.
+# Control-node-only: posts a static header message into a forum topic
+# and pins it. Progress is recorded under ansible/files/telegram-pins/
+# (gitignored, same convention as ansible/files/secrets/) so re-running
+# neither posts a second header nor pins twice.
 #
-# Telegram's Bot API has no per-topic "is this already pinned" query —
+# Telegram's Bot API has no per-topic "is this already pinned" query -
 # getChat only ever returns the whole chat's single most recent pinned
 # message, not one per forum topic (core.telegram.org/bots/api,
-# ChatFullInfo.pinned_message) — so the cache file, not a live API
+# ChatFullInfo.pinned_message) - so the state file, not a live API
 # check, is what makes this idempotent.
+#
+# State file <key>, one line:
+#   "<message_id> unpinned"  sent, pin not yet confirmed - the next run
+#                            pins it without posting again
+#   "<message_id> pinned"    done
+#   "<message_id>"           written before pin state was recorded; counts
+#                            as pinned, so existing installs don't re-pin
+#                            over whatever was pinned in the topic since
+# Anything other than the literal word "unpinned" counts as pinned.
 #
 # Required vars (set by the including playbook - see
 # ansible/playbooks/pin-telegram-topics.yaml):
-#   telegram_topic_pins_key      short slug used as the cache filename (e.g. "updates")
+#   telegram_topic_pins_key      short slug used as the state filename (e.g. "updates")
 #   telegram_topic_pins_topic_id raw telegram_topic_id_* value for this topic
 #   telegram_topic_pins_text     the header message text (legacy Markdown)
 
@@ -36,7 +44,7 @@
       nothing to pin.
   when: telegram_topic_pins_topic_id | length == 0
 
-- name: Ensure the pin-state cache directory exists
+- name: Ensure the pin-state directory exists
   ansible.builtin.file:
     path: "{{ project_root }}/ansible/files/telegram-pins"
     state: directory
@@ -46,7 +54,7 @@
   when: telegram_topic_pins_topic_id | length > 0
 
 # Two concurrent runs of this playbook against the same topic would
-# otherwise both see the cache file absent and both send/pin a header -
+# otherwise both see the state file absent and both send/pin a header -
 # mkdir is atomic (EEXIST on a second caller), so it doubles as a simple
 # mutex without needing a separate flock binary. Released in `always:`
 # below no matter how the block exits.
@@ -64,7 +72,7 @@
       retries: 30
       delay: 2
 
-    - name: "Check whether the header is already pinned for {{ telegram_topic_pins_key }}"
+    - name: "Check whether the header was already sent for {{ telegram_topic_pins_key }}"
       ansible.builtin.stat:
         path: "{{ project_root }}/ansible/files/telegram-pins/{{ telegram_topic_pins_key }}"
       register: telegram_topic_pins_cache
@@ -73,7 +81,7 @@
 
     - name: "Post the header message for {{ telegram_topic_pins_key }}"
       ansible.builtin.uri:
-        url: "https://api.telegram.org/bot{{ telegram_token }}/sendMessage"
+        url: "{{ telegram_topic_pins_api_base }}/bot{{ telegram_token }}/sendMessage"
         method: POST
         body_format: json
         body:
@@ -88,47 +96,53 @@
       no_log: true
       when: not telegram_topic_pins_cache.stat.exists
 
-    # Written right after sendMessage succeeds, before pinChatMessage -
-    # if pinChatMessage then fails, the cache already reflects that the
-    # header was sent, so a re-run sees it as already-sent and doesn't
-    # post a duplicate header on top of it (the bug this fixes). It does
-    # NOT retry the pin itself - see the comment on that task below.
-    - name: "Cache the sent message_id for {{ telegram_topic_pins_key }}"
+    # Recorded before pinChatMessage runs, so a failed pin leaves a state
+    # file that says "sent, not pinned" and the next run retries only the
+    # pin.
+    - name: "Record the sent message_id for {{ telegram_topic_pins_key }}"
       ansible.builtin.copy:
         dest: "{{ project_root }}/ansible/files/telegram-pins/{{ telegram_topic_pins_key }}"
-        content: "{{ telegram_topic_pins_send.json.result.message_id }}\n"
+        content: "{{ telegram_topic_pins_send.json.result.message_id }} unpinned\n"
         mode: "0600"
       delegate_to: localhost
       become: false
       when: not telegram_topic_pins_cache.stat.exists
 
-    - name: "Read back the cached message_id for {{ telegram_topic_pins_key }}"
+    - name: "Read back the recorded state for {{ telegram_topic_pins_key }}"
       ansible.builtin.slurp:
         path: "{{ project_root }}/ansible/files/telegram-pins/{{ telegram_topic_pins_key }}"
+      delegate_to: localhost
+      become: false
       register: telegram_topic_pins_cache_read
 
-    # Not "pins the existing message on a re-run" - pin stays gated the
-    # same as send, matching pin-telegram-topics.yaml's own "already-
-    # pinned topics are skipped" contract. What moving this write earlier
-    # actually buys: if pinChatMessage fails right after this, the cache
-    # already reflects that sendMessage succeeded, so a re-run sees the
-    # header as already sent and doesn't post a duplicate on top of it -
-    # completing the pin at that point is then a manual, one-time fix
-    # (or delete the cache file to have this role redo both steps).
+    - name: "Parse the recorded state for {{ telegram_topic_pins_key }}"
+      ansible.builtin.set_fact:
+        telegram_topic_pins_message_id: "{{ (telegram_topic_pins_cache_read.content | b64decode).split()[0] }}"
+        telegram_topic_pins_pinned: "{{ 'unpinned' not in (telegram_topic_pins_cache_read.content | b64decode).split()[1:] }}"
+
     - name: "Pin the header message for {{ telegram_topic_pins_key }}"
       ansible.builtin.uri:
-        url: "https://api.telegram.org/bot{{ telegram_token }}/pinChatMessage"
+        url: "{{ telegram_topic_pins_api_base }}/bot{{ telegram_token }}/pinChatMessage"
         method: POST
         body_format: json
         body:
           chat_id: "{{ telegram_chat_id }}"
-          message_id: "{{ telegram_topic_pins_cache_read.content | b64decode | trim }}"
+          message_id: "{{ telegram_topic_pins_message_id }}"
           disable_notification: true
         status_code: 200
       delegate_to: localhost
       become: false
       no_log: true
-      when: not telegram_topic_pins_cache.stat.exists
+      when: not telegram_topic_pins_pinned
+
+    - name: "Record that the header is pinned for {{ telegram_topic_pins_key }}"
+      ansible.builtin.copy:
+        dest: "{{ project_root }}/ansible/files/telegram-pins/{{ telegram_topic_pins_key }}"
+        content: "{{ telegram_topic_pins_message_id }} pinned\n"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+      when: not telegram_topic_pins_pinned
   always:
     - name: "Release the pin-state lock for {{ telegram_topic_pins_key }}"
       ansible.builtin.file:

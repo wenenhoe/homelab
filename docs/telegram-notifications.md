@@ -159,10 +159,22 @@ a placeholder that isn't shaped like one.
 static header message per topic in the table above and pins it, so
 opening the group shows what each topic is for without scrolling.
 Control-node-only (`hosts: localhost`) — nothing to do with any managed
-host. Safe to re-run: each topic's pinned `message_id` is cached in
-`ansible/files/telegram-pins/` (gitignored, same convention as
-`ansible/files/secrets/`) and skipped on later runs, since Telegram's
-API has no per-topic "already pinned?" query to check against instead.
+host. Safe to re-run: each topic's `message_id` and whether it has been
+pinned are recorded in `ansible/files/telegram-pins/<topic>` (gitignored,
+same convention as `ansible/files/secrets/`), since Telegram's API has no
+per-topic "already pinned?" query to check against instead. The file
+reads `<message_id> unpinned` once the header is posted and
+`<message_id> pinned` once the pin succeeds:
+
+- Posted but not pinned (for example the bot lacks the right below): the
+  run fails, and the next run pins the same message without posting a
+  second header.
+- Posted and pinned: later runs do nothing.
+- A file holding only a message id, from before pin state was recorded,
+  counts as pinned, so an existing install doesn't re-pin over whatever
+  was pinned in the topic since.
+- To force a fresh post, delete the file; that posts a new header.
+
 The bot needs the **Pin Messages** admin right in the group for this,
 in addition to the admin right the setup steps above already require.
 

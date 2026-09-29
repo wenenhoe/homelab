@@ -64,11 +64,11 @@ class RegistryLoadingTests(unittest.TestCase):
 
     def test_load_registry_returns_the_secrets_registry_key(self):
         self.write_registry("secrets_registry:\n  main-domain: { format: manual }\n")
-        self.assertEqual(bootstrap.load_registry(), {"main-domain": {"format": "manual"}})
+        self.assertEqual(bootstrap.load_registry(bootstrap.REGISTRY_PATH), {"main-domain": {"format": "manual"}})
 
     def test_load_manual_entries_excludes_hex_and_uuid4(self):
         self.write_registry("secrets_registry:\n  main-domain: { format: manual }\n  some-hex: { format: hex, length: 32 }\n  some-uuid: { format: uuid4 }\n")
-        registry = bootstrap.load_registry()
+        registry = bootstrap.load_registry(bootstrap.REGISTRY_PATH)
         manual = bootstrap.load_manual_entries(registry)
         self.assertEqual(list(manual.keys()), ["main-domain"])
 
@@ -81,7 +81,7 @@ class RegistryLoadingTests(unittest.TestCase):
         self.write_registry(
             "secrets_registry:\n  main-domain: { format: manual }\n  cloudflare-r2-write-access-key: { format: manual, vault_scope: cloud_credentials/leaf }\n"
         )
-        registry = bootstrap.load_registry()
+        registry = bootstrap.load_registry(bootstrap.REGISTRY_PATH)
         manual = bootstrap.load_manual_entries(registry)
         self.assertEqual(list(manual.keys()), ["main-domain"])
 

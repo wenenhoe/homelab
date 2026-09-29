@@ -47,20 +47,12 @@ import tempfile
 from pathlib import Path
 
 import hvac
-import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from utils.repo import PROJECT_ROOT, SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
+from utils.repo import SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
+from utils.secrets_registry import REGISTRY_PATH, load_registry
 
 from openbao_utils.client import openbao_base_url, vault_read, vault_write
 from openbao_utils.client import vault_login as _bare_vault_login
-
-REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
-
-
-def load_registry() -> dict[str, dict]:
-    with REGISTRY_PATH.open() as f:
-        return yaml.safe_load(f)["secrets_registry"]
-
 
 # Names create_leaf_keys.py/create_rotation_keys.py own (see this
 # module's own docstring) - reusing cloud_credentials' own canonical
@@ -143,7 +135,7 @@ def main() -> int:
         print(f"Registry not found at {REGISTRY_PATH}", file=sys.stderr)
         return 1
 
-    registry = load_registry()
+    registry = load_registry(REGISTRY_PATH)
     manual_entries = load_manual_entries(registry)
     if not manual_entries:
         print("No manual-format entries in secrets_registry.yaml — nothing to do.")

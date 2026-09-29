@@ -34,6 +34,10 @@ any new secret or config value goes through the registry instead:
    secrets_registry:
      my-new-thing: { format: hex, length: 32, vault_scope: hosts/security }
    ```
+   The `check-secrets-registry` pre-commit hook rejects an entry that breaks
+   the header's rules — a `hex` entry without a `length`, a generated entry
+   without a `vault_scope`, a `manual` entry without a `description` — before
+   it merges. See [`ci.md`](ci.md#secrets-registry-rules).
 2. Reference it from a plain var in `group_vars/all/main.yaml`:
    ```yaml
    my_new_thing: "{{ secrets_generated['my-new-thing'] }}"

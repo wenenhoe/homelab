@@ -23,7 +23,7 @@ check; classify_restore turns the exit code and log into a verdict:
   somewhere else.
 
 Usage (from tools/): python -m ci.gates.deploy_ordering {deploy|restore}
-Expects the registry override from ci.fixtures.strip_vault_scope at
+Expects the registry override from ci.fixtures.file_cache_registry at
 /tmp/ci-secrets-registry-no-vault.json.
 """
 

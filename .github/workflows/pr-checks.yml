@@ -295,20 +295,17 @@ jobs:
         run: uv run python -m ci.fixtures.preseed_manual_secrets
         working-directory: tools
 
-      # Track A stage 4 gave most secrets_registry entries a
-      # vault_scope, but this job has no real OpenBao/step-ca target —
-      # without this, vault_login.yaml now actually runs (secrets_registry
-      # isn't stubbed here on purpose, see ci-deploy-ordering-inventory.yaml's
-      # own header) and fails loudly, since no AppRole is provisioned in
-      # this job and even a dummy one would still try to reach a
-      # nonexistent `security` host. See
-      # tools/ci/fixtures/strip_vault_scope.py's docstring for why this
-      # strips vault_scope from the real registry at CI-run time rather
-      # than hand-maintaining a separate stub that could drift from it. Vault reachability itself is already covered for
-      # real by the `secrets` role's own vault_backed/rotate_secret
-      # Molecule scenarios — this job only ever tested ordering.
-      - name: Strip vault_scope from secrets_registry for this job's own two invocations
-        run: uv run python -m ci.fixtures.strip_vault_scope /tmp/ci-secrets-registry-no-vault.json
+      # This job has no real OpenBao/step-ca target, so any OpenBao-stored
+      # secrets_registry entry would make vault_login.yaml run and fail
+      # (secrets_registry isn't stubbed here on purpose, see
+      # ci-deploy-ordering-inventory.yaml's own header). See
+      # tools/ci/fixtures/file_cache_registry.py's docstring for why the
+      # override keeps only the file-cache entries, selected from the real
+      # registry at CI-run time. Vault reachability itself is covered by the
+      # `secrets` role's own vault_backed/rotate_secret Molecule scenarios —
+      # this job only tests ordering.
+      - name: Limit secrets_registry to its file-cache entries for this job's own two invocations
+        run: uv run python -m ci.fixtures.file_cache_registry /tmp/ci-secrets-registry-no-vault.json
         working-directory: tools
 
       # Both playbook runs, and the verdict on the second, live in

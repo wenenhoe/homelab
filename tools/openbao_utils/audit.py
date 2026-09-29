@@ -43,11 +43,9 @@ import getpass
 import sys
 
 import requests
-import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from utils.repo import PROJECT_ROOT, SECRETS_DIR
-
-REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
+from utils.repo import SECRETS_DIR
+from utils.secrets_registry import REGISTRY_PATH, load_registry
 
 B2_BUCKET = "homelab-backups-b2"
 
@@ -69,7 +67,7 @@ def cached(name: str) -> str | None:
 
 def audit_local() -> None:
     print("== Local secrets cache vs. secrets_registry.yaml ==")
-    registry = yaml.safe_load(REGISTRY_PATH.read_text())["secrets_registry"]
+    registry = load_registry(REGISTRY_PATH)
     vault_backed_scope = {name: spec["vault_scope"] for name, spec in registry.items() if spec.get("vault_scope")}
     # cloud_credentials' own internal bookkeeping keys (_rotation-key-*,
     # _oci-leaf-user-ocid-*, the two scim-ids) have no secrets_registry.yaml

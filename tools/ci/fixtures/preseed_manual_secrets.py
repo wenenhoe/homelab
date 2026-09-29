@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Writes a throwaway dummy value to ansible/files/secrets/<key> for every
-manual-format secrets_registry entry, for deploy-ordering-check's own two
-ansible-playbook invocations. Mirrors what openbao_utils/bootstrap.py
-would produce on a real first-ever deploy.
+manual-format secrets_registry entry kept in the file cache, for
+deploy-ordering-check's own two ansible-playbook invocations. Mirrors what
+openbao_utils/bootstrap.py would produce on a real first-ever deploy, for the
+entries the job's registry override (ci.fixtures.file_cache_registry) holds.
 
 Driven off the real secrets_registry.yaml at CI-run time rather than a
 hand-maintained list of printf lines in the workflow file: the previous
@@ -30,15 +31,15 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from ci.fixtures.secrets_registry import REPO_ROOT, RegistryError, load_registry
+from utils.secrets_registry import REGISTRY_RELATIVE, REPO_ROOT, RegistryError, file_cache_entries, load_registry
 
 SECRETS_RELATIVE = "ansible/files/secrets"
 
 
 def manual_values(registry: dict[str, dict[str, object]]) -> dict[str, str]:
-    """Secret name -> dummy value, for every manual-format entry."""
+    """Secret name -> dummy value, for every manual-format file-cache entry."""
     values = {}
-    for key, spec in registry.items():
+    for key, spec in file_cache_entries(registry).items():
         if spec.get("format") != "manual":
             continue
         if not key or Path(key).name != key or key in {".", ".."}:
@@ -49,7 +50,7 @@ def manual_values(registry: dict[str, dict[str, object]]) -> dict[str, str]:
 
 def preseed(root: Path) -> tuple[int, Path]:
     """Write every manual secret under `root`; return how many and where."""
-    values = manual_values(load_registry(root))
+    values = manual_values(load_registry(root / REGISTRY_RELATIVE))
     secrets_dir = root / SECRETS_RELATIVE
     secrets_dir.mkdir(parents=True, exist_ok=True)
     for key, value in values.items():

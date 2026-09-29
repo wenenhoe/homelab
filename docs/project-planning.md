@@ -59,7 +59,7 @@ set. It narrows where to look; it doesn't replace looking.
 | :--- | :--- | :--- |
 | [`app-resolver.md`](projects/app-resolver.md) | Not started | A pure resolve_apps filter builds resolved_apps; every consumer reads it, and app_registry becomes app_catalog. |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
-| [`secret-catalog.md`](projects/secret-catalog.md) | Not started | One loader and validator for secret definitions, explicit source/store/scope fields, and secrets_registry renamed secret_catalog. |
+| [`secret-catalog.md`](projects/secret-catalog.md) | Building | One loader and validator for secret definitions, explicit source/store/scope fields, and secrets_registry renamed secret_catalog. |
 
 ## Decisions awaiting a project
 

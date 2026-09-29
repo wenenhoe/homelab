@@ -2,7 +2,7 @@
 id: PROJ-secret-catalog
 title: "Secret Catalog"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "One loader and validator for secret definitions, explicit source/store/scope fields, and secrets_registry renamed secret_catalog."
 decision: ADR-0066/0
@@ -27,8 +27,7 @@ layout.
 
 Implements
 [ADR 0066](../decisions/0066-how-a-secret-definition-states-production-and-storage/revision-000.md),
-now `approved`, so implementation may begin. The project stays
-`not-started` until a pull request works a stage.
+`approved`.
 
 ## Execution plan
 
@@ -36,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Shared loader and validator for the current schema | Not started | The four `tools/openbao_utils/` modules and the CI fixture load the registry through one function; a validator enforcing the header's rules runs in pre-commit and CI against the real file; no entry changes |
+| 1 | Shared loader and validator for the current schema | Done | The four `tools/openbao_utils/` modules and the CI fixture load the registry through one function; a validator enforcing the header's rules runs in pre-commit and CI against the real file; no entry changes |
 | 2 | `source`/`store`/`scope` schema | Not started | Every entry uses the new fields; every entry's OpenBao path is identical before and after; the `secrets` role, `rotate-secret.yaml`, the tools and the deploy-ordering fixture read `store` instead of the presence of `vault_scope`; Molecule and CI pass |
 | 3 | Rename to `secret_catalog` | Not started | The variable, file and every reference use the new name, including docs and Molecule scenarios |
 

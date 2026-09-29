@@ -51,17 +51,13 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path, write_vault_path
-from utils.repo import PROJECT_ROOT
-
-REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
+from utils.secrets_registry import REGISTRY_PATH, load_registry
 
 
 def _scoped_registry_entries() -> dict[str, str]:
-    with REGISTRY_PATH.open() as f:
-        registry = yaml.safe_load(f)["secrets_registry"]
+    registry = load_registry(REGISTRY_PATH)
     return {name: spec["vault_scope"] for name, spec in registry.items() if spec.get("vault_scope")}
 
 

@@ -37,12 +37,9 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-import yaml
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path
-from utils.repo import PROJECT_ROOT
-
-REGISTRY_PATH = PROJECT_ROOT / "ansible/inventory/group_vars/all/secrets_registry.yaml"
+from utils.secrets_registry import REGISTRY_PATH, load_registry
 
 
 def _backup_dir() -> Path:
@@ -69,8 +66,7 @@ def _dump_cloud_credentials(dest: Path) -> tuple[list[str], list[str]]:
 
 
 def _dump_hosts_scope(dest: Path) -> tuple[list[str], list[str]]:
-    with REGISTRY_PATH.open() as f:
-        registry = yaml.safe_load(f)["secrets_registry"]
+    registry = load_registry(REGISTRY_PATH)
     written, blank = [], []
     for name, entry in registry.items():
         scope = entry.get("vault_scope")

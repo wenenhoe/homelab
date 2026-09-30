@@ -4,8 +4,9 @@
 `resolve_apps` lays a host's entry over the catalog's; it never looks inside
 either. A backup naming a volume the app doesn't declare, or a route with no
 upstream, otherwise surfaces at deploy time, a repeated app name silently
-replaces the first entry when the file is loaded, and a route map under the
-old `caddy` key is ignored without an error. Each violation is reported
+replaces the first entry when the file is loaded, a route map under the
+old `caddy` key is ignored without an error, and so are cloud targets under
+the old `backup.extra_cloud_targets` key. Each violation is reported
 with the app's name and the rule it breaks; any violation fails the check.
 
 Runs in pre-commit (PyYAML only) and so in the pre-commit-checks job.
@@ -22,6 +23,8 @@ from utils.app_catalog import CATALOG_PATH, CATALOG_RELATIVE, Catalog, CatalogEr
 
 ROUTES_KEY = "routes"
 LEGACY_ROUTES_KEY = "caddy"
+CLOUD_TARGETS_KEY = "cloud_targets"
+LEGACY_CLOUD_TARGETS_KEY = "extra_cloud_targets"
 
 
 @dataclass(frozen=True)
@@ -61,6 +64,12 @@ def _check_app(name: str, app: dict[str, object]) -> list[Violation]:
             for volume in backed_up:
                 if volume not in declared:
                     fail("backup-volume", f"`backup.volumes` names `{volume}`, which the app's `volumes` doesn't declare")
+
+    if isinstance(backup, dict) and LEGACY_CLOUD_TARGETS_KEY in backup:
+        fail(
+            "legacy-cloud-targets-key",
+            f"`backup.{LEGACY_CLOUD_TARGETS_KEY}` was renamed `backup.{CLOUD_TARGETS_KEY}`; the old key is ignored, so the app gets the defaults",
+        )
 
     legacy = app.get(LEGACY_ROUTES_KEY)
     if isinstance(legacy, dict) and legacy and all(isinstance(route, dict) for route in legacy.values()):

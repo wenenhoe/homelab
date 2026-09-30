@@ -2,10 +2,11 @@
 
 The unit tests import the filters directly. The last three run against the
 repo's real inventory: `test_backup_defaults_match_the_variables_they_replace`
-keeps the new defaults equal to the variables and literals the roles still read,
-and the two after it run a real controller-only play and compare each managed
-host's `backup_plan`, and the derived `backup_hosts`, with what `backup_agent`'s
-normalization and `seaweedfs_backup_hosts` say today.
+keeps the new defaults equal to the variables and literals `backup_agent` still
+reads, and the two after it run a real controller-only play and compare each
+managed host's `backup_plan`, and the derived `backup_hosts`, with what
+`backup_agent`'s normalization, the catalog's own cloud targets and
+`seaweedfs_backup_hosts` say today.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -171,12 +172,10 @@ def _load(path: Path) -> dict:
 
 def test_backup_defaults_match_the_variables_they_replace():
     main = _load(INVENTORY_DIR / "group_vars" / "all" / "main.yaml")
-    storage = _load(INVENTORY_DIR / "host_vars" / "storage.yaml")
     defaults = main["backup_defaults"]
     assert set(defaults) == set(filter_mod.BACKUP_SETTINGS)
     assert defaults["cron"] == main["offsite_backup_cron"]
     assert defaults["retention_days"] == main["offsite_backup_retention_days"]
-    assert defaults["cloud_targets"] == storage["cloud_sync_default_targets"]
 
     # These two are literals in backup_agent's own normalization, not variables.
     schedules = (ANSIBLE_DIR / "roles" / "backup_agent" / "tasks" / "build_schedules.yaml").read_text()
@@ -233,8 +232,8 @@ def real_inventory_output(tmp_path_factory):
     return hosts, plans
 
 
-def _old_normalization(resolved_apps: list[dict], main: dict) -> list[dict]:
-    """What backup_agent's build_schedules.yaml computes for one host today."""
+def _expected_plan(resolved_apps: list[dict], main: dict) -> list[dict]:
+    """backup_agent's normalization for one host, with the cloud targets cloud_sync fans out to."""
     out = []
     for app in resolved_apps:
         block = app.get("backup") or {}
@@ -248,6 +247,7 @@ def _old_normalization(resolved_apps: list[dict], main: dict) -> list[dict]:
                 "retention_days": block.get("retention_days", main["offsite_backup_retention_days"]),
                 "cron": block.get("cron", main["offsite_backup_cron"]),
                 "compression": block.get("compression", "gz"),
+                "cloud_targets": block.get("cloud_targets", main["backup_defaults"]["cloud_targets"]),
             }
         )
     return out
@@ -257,18 +257,11 @@ def test_plan_matches_backup_agent_normalization_for_every_host(real_inventory_o
     _, plans = real_inventory_output
     main = _load(INVENTORY_DIR / "group_vars" / "all" / "main.yaml")
     catalog = _load(INVENTORY_DIR / "group_vars" / "all" / "app_catalog.yaml")["app_catalog"]
-    default_targets = _load(INVENTORY_DIR / "host_vars" / "storage.yaml")["cloud_sync_default_targets"]
     assert plans, "no managed hosts"
 
     for host, plan in plans.items():
         compose_apps = _load(INVENTORY_DIR / "host_vars" / f"{host}.yaml")["compose_apps"]
-        expected = _old_normalization(resolver_mod.resolve_apps(compose_apps, catalog), main)
-        assert [{k: v for k, v in entry.items() if k != "cloud_targets"} for entry in plan] == expected, host
-        for entry in plan:
-            # The catalog still names `extra_cloud_targets`, which the plan does not
-            # read until the key is renamed, so only an app without one is comparable.
-            if "extra_cloud_targets" not in (catalog[entry["name"]].get("backup") or {}):
-                assert entry["cloud_targets"] == default_targets, f"{host}/{entry['name']}"
+        assert plan == _expected_plan(resolver_mod.resolve_apps(compose_apps, catalog), main), host
 
 
 def test_backup_hosts_are_the_hosts_with_a_plan_in_inventory_order(real_inventory_output):

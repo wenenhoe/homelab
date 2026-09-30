@@ -125,9 +125,9 @@ and Play 5's bucket to already exist. See
 
 ## Play 9 — Deploy cloud sync (`hosts: storage`)
 
-`storage` only, unlike Play 8 — resolves every backup host's
-`app_catalog`-declared `extra_cloud_targets` via `hostvars` rather than
-depending on those hosts' own Play 8 having already run in this same
+`storage` only, unlike Play 8 — reads every backup host's `backup_plan`
+via `hostvars` rather than depending on those hosts' own Play 8 having
+already run in this same
 invocation (`hostvars` are static inventory data either way), so
 ordering after Play 8 isn't a hard dependency — it's just the natural
 place for "the next stage of the backup pipeline" to live. Installs the
@@ -170,7 +170,8 @@ readable through `hostvars` without that host's play having run.
 `backup_plan` filter (`ansible/filter_plugins/backup_plan.py`) lays each
 resolved app's `backup:` block over `backup_defaults` and returns one entry per
 app that has backup volumes, every setting resolved. `backup_hosts` lists the
-managed hosts whose plan is non-empty. No role reads either yet; see
+managed hosts whose plan is non-empty. `cloud_sync` and `restore_discovery`
+read each host's `backup_plan`; nothing reads `backup_hosts` yet. See
 [ADR 0068](decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md).
 
 See [`adding-an-app.md`](adding-an-app.md) for a worked example.

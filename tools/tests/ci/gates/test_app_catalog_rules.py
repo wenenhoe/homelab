@@ -74,6 +74,15 @@ class EachRuleTests(unittest.TestCase):
         self.assertEqual(broken({rules.LEGACY_ROUTES_KEY: {}}), [])
         self.assertEqual(broken({rules.LEGACY_ROUTES_KEY: {"volumes": []}}), [])
 
+    def test_cloud_targets_under_the_old_key_are_refused(self):
+        self.assertEqual(broken({"backup": {"volumes": [], rules.LEGACY_CLOUD_TARGETS_KEY: ["oci"]}}), ["legacy-cloud-targets-key"])
+        self.assertEqual(
+            broken({"backup": {"volumes": [], rules.LEGACY_CLOUD_TARGETS_KEY: ["oci"], rules.CLOUD_TARGETS_KEY: ["oci"]}}), ["legacy-cloud-targets-key"]
+        )
+
+    def test_cloud_targets_under_the_new_key_are_fine(self):
+        self.assertEqual(broken({"backup": {"volumes": [], rules.CLOUD_TARGETS_KEY: ["oci"]}}), [])
+
     def test_an_app_with_no_routes_is_fine(self):
         self.assertEqual(broken({"volumes": [{"name": "data"}]}), [])
         self.assertEqual(broken({rules.ROUTES_KEY: {}}), [])

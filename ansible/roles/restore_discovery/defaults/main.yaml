@@ -1,9 +1,8 @@
 ---
 # Batch-restore scope (restore_all.py) is derived in tasks/main.yaml
-# from app_catalog's own `backup:` key — the same test backup_agent
-# itself uses to decide what it backs up, so there's no separate
-# allow-list that can drift out of sync with what's actually backed up.
-# This is the only override: an app that DOES have a `backup:` key but
+# from each host's backup_plan — the apps that are actually backed up,
+# so there's no separate allow-list that can drift out of sync with
+# them. This is the only override: an app that IS backed up but
 # should never be included in an automated batch restore (e.g. a
 # cold-storage archive you always want restored by hand, deliberately,
 # one at a time). Empty by default — nothing is excluded unless you

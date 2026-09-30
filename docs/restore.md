@@ -130,9 +130,9 @@ What it does, in order:
    (the exact `AWS_S3_PATH` prefix `backup_agent`'s own
    `schedule.env.j2` uses). If that fails outright (SeaweedFS/`storage`
    unreachable), falls back to that app's own cloud target(s) — the
-   same `extra_cloud_targets`/`cloud_sync_default_targets` resolution
-   `cloud_sync` uses, so a fallback only ever tries a bucket the app
-   was actually relayed to. Whichever remote answers, it picks the
+   `cloud_targets` of its `backup_plan` entry, the same list
+   `cloud_sync` fans out to, so a fallback only ever tries a bucket the
+   app was actually relayed to. Whichever remote answers, it picks the
    newest object by `BACKUP_FILENAME`'s embedded timestamp (not
    directory-listing order or upload mtime), downloads it, and
    `gpg --decrypt`s it.

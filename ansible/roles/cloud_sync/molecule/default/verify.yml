@@ -140,7 +140,7 @@
       retries: 12
       delay: 10
 
-    # This is the one that actually proves extra_cloud_targets scoping
+    # This is the one that actually proves cloud_targets scoping
     # works, not just that copying works at all: happy_app_override_targets
     # declared target_a only, so it must never show up here.
     - name: Confirm the default-target app landed in target_b, but the overridden one did not
@@ -149,10 +149,10 @@
           - "'alpha-host-happy_app_default_targets' in cloud_sync_dest_b_listing.stdout"
           - "'beta-host-happy_app_override_targets' not in cloud_sync_dest_b_listing.stdout"
         fail_msg: >-
-          happy_app_override_targets (extra_cloud_targets: [target_a])
+          happy_app_override_targets (cloud_targets: [target_a])
           showed up in target_b — the per-app target restriction isn't
           being enforced, every app is landing everywhere regardless of
-          its own extra_cloud_targets. target_b listing:
+          its own cloud_targets. target_b listing:
           {{ cloud_sync_dest_b_listing.stdout }}
 
     # --- telegram-notify-cloud-sync wiring -------------------------------

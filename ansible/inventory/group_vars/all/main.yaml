@@ -120,15 +120,20 @@ offsite_backup_cron: "30 4 * * *"
 offsite_backup_retention_days: 7
 
 # Backup settings for an app whose `backup:` block leaves them out. The
-# keys are the block's own keys. cron, retention_days and cloud_targets
-# repeat offsite_backup_cron, offsite_backup_retention_days and
-# cloud_sync_default_targets until their readers switch to backup_plan;
-# a test keeps the copies equal.
+# keys are the block's own keys. cron and retention_days repeat
+# offsite_backup_cron and offsite_backup_retention_days, and compression
+# and stop_during_backup repeat literals in backup_agent, until
+# backup_agent switches to backup_plan; a test keeps the copies equal.
 backup_defaults:
   cron: "30 4 * * *"
   retention_days: 7
   compression: gz
   stop_during_backup: false
+  # Small config-app archives (everything except minecraft) go to both
+  # free-tier clouds for offsite redundancy. minecraft overrides this in
+  # app_catalog.yaml — see docs/disaster-recovery.md's "Cloud target
+  # selection" for why it gets OCI instead. Each name must be a key of
+  # host_vars/storage.yaml's cloud_sync_targets.
   cloud_targets: [r2, b2]
 
 # Slack added on top of each app's own cron-derived interval before the

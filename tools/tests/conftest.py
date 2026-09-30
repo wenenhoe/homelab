@@ -16,9 +16,14 @@ class SecretsDir:
 
 
 @pytest.fixture
-def secrets_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> SecretsDir:
-    """An empty stand-in for utils.repo.SECRETS_DIR, where main-domain and the AppRole files are always read from."""
+def secrets_dir(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch) -> SecretsDir:
+    """An empty stand-in for utils.repo.SECRETS_DIR, where main-domain and the AppRole files are always read from.
+
+    Not `tmp_path`: that embeds the test's name in the path, and error messages quote the path, so a `match=` regex
+    can pass on the path instead of the message.
+    """
     from utils import repo
 
-    monkeypatch.setattr(repo, "SECRETS_DIR", tmp_path)
-    return SecretsDir(tmp_path)
+    path = tmp_path_factory.mktemp("secrets")
+    monkeypatch.setattr(repo, "SECRETS_DIR", path)
+    return SecretsDir(path)

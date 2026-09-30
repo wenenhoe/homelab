@@ -5,7 +5,7 @@ so no role, template or playbook reads an app's `backup` block or
 `backup_defaults`; the Molecule stand-in that computes the plan from them is the
 one place that names `backup_defaults`. And the names the decision retired appear
 nowhere except in the catalog validator that refuses one of them and in the
-decision and project records that describe the change.
+decision records that describe the change.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -81,9 +81,9 @@ def test_the_pattern_leaves_the_plan_and_unrelated_words_alone(line):
 # The variables and catalog key ADR 0068 retired. `offsite_backup_` goes as a whole prefix: the cloud copies are
 # the offsite ones now, and what the SeaweedFS settings were called says nothing of them.
 RETIRED = re.compile(r"(?<![A-Za-z0-9_])(extra_cloud_targets|cloud_sync_default_targets|seaweedfs_backup_hosts|offsite_backup_[A-Za-z0-9_]*)")
-# Accepted decision revisions keep the old names as history. The validator, its test and the doc that describes its
-# rules name the old catalog key, and only that key, to refuse it; every other retired name stays guarded there too.
-HISTORICAL = ("docs/decisions/", "docs/projects/backup-plan.md")
+# Decision revisions keep the old names as history. The validator, its test and the doc that describes its rules
+# name the old catalog key, and only that key, to refuse it; every other retired name stays guarded there too.
+HISTORICAL = ("docs/decisions/",)
 REFUSES_THE_OLD_KEY = {"tools/ci/gates/app_catalog_rules.py", "tools/tests/ci/gates/test_app_catalog_rules.py", "docs/ci.md"}
 OLD_KEY = "extra_cloud_targets"
 SKIPPED_DIRS = {".git", ".venv", ".ansible", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}

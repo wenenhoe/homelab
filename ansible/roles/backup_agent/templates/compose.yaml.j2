@@ -26,7 +26,7 @@ services:
     image: ghcr.io/offen/docker-volume-backup:v2.49.1
     container_name: backup-agent
     volumes:
-{% for app in backup_agent_normalized %}
+{% for app in backup_plan %}
 {% for vol in app.volumes %}
       - {{ app.name }}_{{ vol }}:/backup/{{ app.name }}/{{ app.name }}_{{ vol }}:ro
 {% endfor %}
@@ -54,7 +54,7 @@ networks:
     driver: bridge
 
 volumes:
-{% for app in backup_agent_normalized %}
+{% for app in backup_plan %}
 {% for vol in app.volumes %}
   {{ app.name }}_{{ vol }}:
     external: true

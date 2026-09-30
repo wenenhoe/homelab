@@ -23,8 +23,14 @@
     # (confirmed the hard way — an earlier version of this file did
     # exactly that via `ansible.builtin.replace` + a manual container
     # restart, and both permanently failed the `idempotence` step).
-    offsite_backup_cron: "* * * * *"
-    offsite_backup_retention_days: 7
+    # cloud_targets is never read by backup_agent; it is here because
+    # backup_plan requires every default.
+    backup_defaults:
+      cron: "* * * * *"
+      retention_days: 7
+      compression: gz
+      stop_during_backup: false
+      cloud_targets: []
 
     # env.j2 now renders NOTIFICATION_URLS from these — see
     # docs/telegram-notifications.md.
@@ -70,7 +76,7 @@
 
     # check-freshness.sh.j2 (included from backup_agent's own
     # tasks/main.yaml) needs this — see docs/uptime-kuma.md. Each app's
-    # actual threshold is derived from its own cron (offsite_backup_cron
+    # actual threshold is derived from its own cron (backup_defaults.cron
     # above, every minute in this scenario) plus this buffer - a small
     # value here keeps the total short, though the exact number doesn't
     # matter for what this scenario checks: every uploaded object below
@@ -87,7 +93,7 @@
     # on. happy_app_nostop carries neither. happy_app_no_backup declares
     # no `backup:` key at all — mirrors real apps like caddy/beszel-agent/
     # diun, which coexist with backed-up apps: confirms the
-    # normalization task's `when: ... | length > 0` skip branch actually
+    # backup_plan's skip of an app with no backup volumes actually
     # excludes it.
     app_catalog:
       happy_app_stop:
@@ -133,6 +139,11 @@
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml
+
+    - name: Work out the backup plan for the resolved apps
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_backup_plan.yaml
 
     # Mirrors Play 4 running before Play 5 in the real deploy.yaml —
     # backup_agent's compose.yaml references these apps' volumes as

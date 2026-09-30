@@ -143,6 +143,11 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    at `molecule_helpers`'s `resolve_compose_apps.yaml`, and read
    `resolved_apps`. A scenario that builds other hosts with `add_host` sets
    each one's `resolved_apps` with `| resolve_apps(app_catalog)`.
+   If the role reads a `backup_plan`, define `backup_defaults` in the
+   scenario's vars, then either run `resolve_backup_plan.yaml` after
+   `resolve_compose_apps.yaml` (the role reads its own host's plan) or give
+   each `add_host` host `backup_plan: "{{ ... | resolve_apps(app_catalog) |
+   backup_plan(backup_defaults) }}"` (the role reads other hosts').
 4. Don't add `dependency.options` or a `provisioner.env` block — the base
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR — there's no CI for

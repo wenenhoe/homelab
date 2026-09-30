@@ -113,18 +113,13 @@ beszel_agent_token: "{{ secrets_generated['beszel-agent-token'] }}"
 offsite_backup_s3_bucket: homelab-backups
 offsite_backup_s3_endpoint: "s3.{{ hostvars['storage'].caddy_domain }}"
 offsite_backup_s3_proto: "https"
-# 30 4 * * * (not 0 4): runs 30min after itzg/mc-backup's own "0 4 * * *"
-# cron (docker/minecraft/compose.yaml), so the `backups` volume is never
-# archived mid-write. See docs/disaster-recovery.md.
-offsite_backup_cron: "30 4 * * *"
-offsite_backup_retention_days: 7
 
-# Backup settings for an app whose `backup:` block leaves them out. The
-# keys are the block's own keys. cron and retention_days repeat
-# offsite_backup_cron and offsite_backup_retention_days, and compression
-# and stop_during_backup repeat literals in backup_agent, until
-# backup_agent switches to backup_plan; a test keeps the copies equal.
+# Backup settings for an app whose `backup:` block leaves them out; the
+# keys are the block's own keys (ADR 0068).
 backup_defaults:
+  # 30 4 * * * (not 0 4): runs 30min after itzg/mc-backup's own "0 4 * * *"
+  # cron (docker/minecraft/compose.yaml), so the `backups` volume is never
+  # archived mid-write. See docs/disaster-recovery.md.
   cron: "30 4 * * *"
   retention_days: 7
   compression: gz

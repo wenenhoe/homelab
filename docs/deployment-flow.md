@@ -120,15 +120,14 @@ needs lldap's web port, not its LDAPS cert). See
 
 Runs last among `managed_hosts` plays: mounts other apps' named volumes
 as `external: true`, which needs each app's Play 4 volume-creation step
-and Play 5's bucket to already exist. See
-[`disaster-recovery.md`](disaster-recovery.md).
+and Play 5's bucket to already exist. Each host's schedules come from its
+own `backup_plan`. See [`disaster-recovery.md`](disaster-recovery.md).
 
 ## Play 9 — Deploy cloud sync (`hosts: storage`)
 
 `storage` only, unlike Play 8 — reads every backup host's `backup_plan`
 via `hostvars` rather than depending on those hosts' own Play 8 having
-already run in this same
-invocation (`hostvars` are static inventory data either way), so
+already run in this same invocation (`hostvars` are static inventory data either way), so
 ordering after Play 8 isn't a hard dependency — it's just the natural
 place for "the next stage of the backup pipeline" to live. Installs the
 `cloud-sync.timer`/`cloud-sync.service` pair that relays SeaweedFS
@@ -170,8 +169,9 @@ readable through `hostvars` without that host's play having run.
 `backup_plan` filter (`ansible/filter_plugins/backup_plan.py`) lays each
 resolved app's `backup:` block over `backup_defaults` and returns one entry per
 app that has backup volumes, every setting resolved. `backup_hosts` lists the
-managed hosts whose plan is non-empty. `cloud_sync` and `restore_discovery`
-read each host's `backup_plan`; nothing reads `backup_hosts` yet. See
+managed hosts whose plan is non-empty. `backup_agent` reads its own host's
+`backup_plan`, `cloud_sync` and `restore_discovery` read every backup host's;
+nothing reads `backup_hosts` yet. See
 [ADR 0068](decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md).
 
 See [`adding-an-app.md`](adding-an-app.md) for a worked example.

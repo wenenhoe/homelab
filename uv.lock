@@ -128,6 +128,15 @@ wheels = [
 ]
 
 [[package]]
+name = "asn1crypto"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/de/cf/d547feed25b5244fcb9392e288ff9fdc3280b10260362fc45d37a798a6ee/asn1crypto-1.5.1.tar.gz", hash = "sha256:13ae38502be632115abf8a24cbe5f4da52e3b5231990aff31123c805306ccb9c", size = 121080, upload-time = "2022-03-15T14:46:52.889Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/7f/09065fd9e27da0eda08b4d6897f1c13535066174cc023af248fc2a8d5e5a/asn1crypto-1.5.1-py2.py3-none-any.whl", hash = "sha256:db4e40728b728508912cbb3d44f19ce188f218e9eba635821bb4b68564f8fd67", size = 105045, upload-time = "2022-03-15T14:46:51.055Z" },
+]
+
+[[package]]
 name = "attrs"
 version = "26.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -927,7 +936,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.187.0"
+version = "2.187.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -938,12 +947,13 @@ dependencies = [
     { name = "pyjwt" },
     { name = "pyopenssl" },
     { name = "python-dateutil" },
+    { name = "python-pkcs11" },
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/42/01/d5f48c25ffb97345688f9474e088c0d06687225b4358b00ec4b3a5743c6f/oci-2.187.0.tar.gz", hash = "sha256:091913c264b98bac02b6caad3e4b005565e4788c3650f02647a3eda7f719df07", size = 18199653, upload-time = "2026-09-22T01:55:28.608Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/97/79/28d75548d6fe9e531b604516783c8fcd8dfe295d65bcdeea1dc77da5d593/oci-2.187.1.tar.gz", hash = "sha256:9c7beeebe9f60ba92191f97d645185168c48877e3bbfff0fd9ab743106159f5f", size = 18259289, upload-time = "2026-09-29T05:38:49.824Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/87/d8/111fca38d72ef3866e1da2262ce3476ba07941adb2c65c17f55e015117fe/oci-2.187.0-py3-none-any.whl", hash = "sha256:2ad560a4d404f835a50799d3ec1ff428d3b29f07ed65a27e07ca52e33afaad32", size = 37011917, upload-time = "2026-09-22T01:55:22.954Z" },
+    { url = "https://files.pythonhosted.org/packages/c0/95/0baa5bd77bf35314161cf6d13bc231ed95cae825efdc76ee9a21cd547601/oci-2.187.1-py3-none-any.whl", hash = "sha256:0c20492d852430ccc8e25ab12fec55c631e73c5be155067328f6b8322c6c6e3b", size = 37199876, upload-time = "2026-09-29T05:38:42.643Z" },
 ]
 
 [[package]]
@@ -1193,6 +1203,23 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/0c/57/250bd238b966cece44328235eb85290045d059265fdaf7527a3a958123db/python_discovery-1.6.1.tar.gz", hash = "sha256:cf87d3627dfb4412437fdd5b13eae402607722998d21567993aedbc59b23c15e", size = 84338, upload-time = "2026-09-18T01:31:53.971Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/16/7d/e9ffbadfbf89c93848412d04594135c4ae8c1d37d9e053b9c3ed718fabc4/python_discovery-1.6.1-py3-none-any.whl", hash = "sha256:d43fcdef879fe795352bd13ccf8d185ba5a9f86f36cfcd00529f596e737442b3", size = 38664, upload-time = "2026-09-18T01:31:52.448Z" },
+]
+
+[[package]]
+name = "python-pkcs11"
+version = "0.9.4"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "asn1crypto" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/89/33/4287ebdcbdcae6f93521be56ffdd5f474b6aebda1a50df4c4b9870a140fa/python_pkcs11-0.9.4.tar.gz", hash = "sha256:3d950aadefa473b880dc75f01539133487e65ec2a97db1e955c4f6bef1bd71d5", size = 180658, upload-time = "2026-04-13T13:32:51.769Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e8/04/aa4c33e3d14612d3855dd3f6f72f6ef9db82d1575a387fce8a22678fe908/python_pkcs11-0.9.4-cp314-cp314-macosx_10_15_universal2.whl", hash = "sha256:0e1c88481eeada4fd81cfefe117413137a2868cc072e588c05972aca92020cc8", size = 524552, upload-time = "2026-04-13T13:32:32.124Z" },
+    { url = "https://files.pythonhosted.org/packages/a3/fd/eaf6527c25c116a29fec54776634c1afc7cb9326a2e07c1af1f9f843494e/python_pkcs11-0.9.4-cp314-cp314-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:c5c24e6a25ee6756f8116960a9b0757c54dc355ae1b86ec47a0704bde5c6ee62", size = 1847496, upload-time = "2026-04-13T13:32:33.562Z" },
+    { url = "https://files.pythonhosted.org/packages/82/d7/711f205660a4a6ce4f2e937b2fe1bd9f1274449658a07cd050cfb4ed9507/python_pkcs11-0.9.4-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:2351da910df98e6b9f4befdafbfc2c81fc9c86358ec88dd802e67e6e3ae85f33", size = 1865861, upload-time = "2026-04-13T13:32:35.23Z" },
+    { url = "https://files.pythonhosted.org/packages/de/51/43be836fb48a87e8589adddd47fbee86c0b0c09b9edd60ea267cc7fefc55/python_pkcs11-0.9.4-cp314-cp314-musllinux_1_2_aarch64.whl", hash = "sha256:7081ec0a3456a40abcde382c8b64048b922076391e9ae90a272a970c96dc10c8", size = 1783570, upload-time = "2026-04-13T13:32:37.357Z" },
+    { url = "https://files.pythonhosted.org/packages/b3/05/492e46d0f60bccebed71f4e3429a55842ad5989e07d9ad98989d762d9455/python_pkcs11-0.9.4-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:16aba462e30169a9898f51532297aad94f13ee944873fa48eb2504b6efaf373d", size = 1830078, upload-time = "2026-04-13T13:32:38.897Z" },
+    { url = "https://files.pythonhosted.org/packages/53/ef/4b95b463e48fd2474e6c51446ea45d9b7042b8a67b5abc1e06bfbfbc8595/python_pkcs11-0.9.4-cp314-cp314-win_amd64.whl", hash = "sha256:d13f9a6b76d56ff5628a85530aab7b021e9f90e3300be985423b69301c6aae38", size = 280929, upload-time = "2026-04-13T13:32:40.712Z" },
 ]
 
 [[package]]

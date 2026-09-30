@@ -60,6 +60,37 @@ same scheme) rather than one topic per app — see
 [`telegram-notifications.md`](telegram-notifications.md) for the
 concern → topic mapping itself.
 
+## Python unit tests
+
+Tests under `ansible/tests/` and `tools/tests/` are written pytest-native
+and run with `uv run pytest ansible/tests/ tools/tests/`; the choice and
+the conversion order are in
+[ADR 0069](decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md).
+Until that conversion closes, files not yet converted are still
+`unittest.TestCase` and run in the same session.
+
+- **Style.** Plain functions or `Test*` classes, plain `assert`, and
+  `pytest.raises(..., match=)`. Setup and cleanup are fixtures
+  (`tmp_path` and `monkeypatch` before anything hand-rolled), not
+  `setUp`, `addCleanup` or a base class. Write no new `TestCase`.
+- **Variants.** Cases of one behavior are one
+  `@pytest.mark.parametrize` test with an explicit `id`.
+  `parametrize` does not apply to `TestCase` methods, so a `subTest`
+  loop becomes parametrized cases when its file is converted.
+- **Import roots.** Declared once in `[tool.pytest]` in `pyproject.toml`;
+  a test file adds nothing to `sys.path`. A new source directory that
+  tests import from is added there. `strict = true` in that table makes
+  an unknown option or marker, or a duplicate parametrize id, fail the
+  run.
+- **Fixtures.** `secrets_dir` (`tools/tests/conftest.py`) points
+  `utils.repo.SECRETS_DIR` at an empty directory.
+  `fake_vault` (`tools/tests/cloud_credentials/conftest.py`) stands in
+  for Vault I/O at the layer `cache.py` reads and writes through.
+- **Paths in error messages.** `tmp_path` embeds the test's own name in
+  the directory it returns. When the code under test quotes a path in
+  an error, create the directory with `tmp_path_factory.mktemp("name")`,
+  so a `match=` regex can't pass on the path instead of the message.
+
 ## Not yet a convention
 
 AppRole naming has only two real instances so far (`controller`,

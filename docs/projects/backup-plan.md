@@ -11,6 +11,7 @@ allowed_paths:
   - ansible/filter_plugins/cron_period_hours.py
   - ansible/tests/test_backup_plan.py
   - ansible/tests/test_resolved_apps_consumers.py
+  - ansible/tests/test_backup_plan_invariants.py
   - ansible/inventory/group_vars/all/*.yaml
   - ansible/inventory/host_vars/storage.yaml
   - ansible/playbooks/deploy.yaml
@@ -24,6 +25,8 @@ allowed_paths:
   - tools/utils/app_catalog.py
   - tools/tests/ci/gates/test_app_catalog_rules.py
   - tools/tests/utils/test_app_catalog.py
+  - .config/.pre-commit-config.yaml
+  - docs/ci.md
   - docs/adding-an-app.md
   - docs/cloud-sync.md
   - docs/deployment-flow.md

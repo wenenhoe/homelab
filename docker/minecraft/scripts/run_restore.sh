@@ -10,7 +10,7 @@
 # risks a corrupt/partial write.
 #
 # This restores from whatever's already in ./backups. If that volume
-# itself needs reconstituting from an offsite archive first (host disk
+# itself needs reconstituting from a backup archive first (host disk
 # loss, not an ordinary rollback), run playbooks/restore.yaml
 # (restore_app=minecraft, restore_volumes=["minecraft_backups"]) before
 # this script — see docs/disaster-recovery.md.

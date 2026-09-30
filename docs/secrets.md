@@ -1,6 +1,6 @@
 # Secrets
 
-For the offsite-backup S3 credentials specifically, see
+For the SeaweedFS backup S3 credentials specifically, see
 [`disaster-recovery.md`](disaster-recovery.md).
 
 Every value this repo needs but doesn't want hardcoded is resolved once

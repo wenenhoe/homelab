@@ -103,7 +103,7 @@ object is within that app's own freshness threshold (via `rclone lsf
 and pushes only if all of them are. Each app's threshold is derived
 from that app's own resolved cron (the `cron_period_hours` filter in
 `ansible/filter_plugins/`: the longest gap between two consecutive firings, plus
-`offsite_backup_freshness_buffer_hours` for backup duration and
+`backup_freshness_buffer_hours` for backup duration and
 scheduling slack) rather than a value set independently — every app on
 today's shared daily `backup_defaults.cron` computes to the same 26h
 either way, and an app on a different cadence gets a threshold that

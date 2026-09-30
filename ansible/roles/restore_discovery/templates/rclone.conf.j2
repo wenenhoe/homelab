@@ -16,7 +16,7 @@ type = s3
 provider = Other
 access_key_id = {{ secrets_generated['seaweedfs-s3-access-key-cloud-sync-reader'] }}
 secret_access_key = {{ secrets_generated['seaweedfs-s3-secret-key-cloud-sync-reader'] }}
-endpoint = {{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}
+endpoint = {{ seaweedfs_s3_proto }}://{{ seaweedfs_s3_endpoint }}
 force_path_style = true
 {% for target, config in hostvars['storage'].cloud_sync_targets.items() %}
 

@@ -5,7 +5,7 @@
   vars_files:
     - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/aws_cli.yml"
   vars:
-    offsite_backup_s3_bucket: molecule-test-ensure-bucket
+    seaweedfs_s3_bucket: molecule-test-ensure-bucket
     seaweedfs_admin_access_key: molecule-test-access-key
     seaweedfs_admin_secret_key: molecule-test-secret-key
   tasks:
@@ -41,7 +41,7 @@
           AWS_DEFAULT_REGION: us-east-1
         command: >-
           --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333
-          s3 ls s3://{{ offsite_backup_s3_bucket }}
+          s3 ls s3://{{ seaweedfs_s3_bucket }}
         detach: false
         cleanup: true
         output_logs: true

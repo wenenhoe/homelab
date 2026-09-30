@@ -20,8 +20,8 @@
     seaweedfs_admin_access_key: molecule-test-admin-ak
     seaweedfs_admin_secret_key: molecule-test-admin-sk
 
-    offsite_backup_s3_bucket: "{{ molecule_source_bucket }}"
-    offsite_backup_s3_proto: http
+    seaweedfs_s3_bucket: "{{ molecule_source_bucket }}"
+    seaweedfs_s3_proto: http
 
     # target_a/target_b, not r2/b2 — this scenario proves the fan-out
     # and override mechanism generically, not anything R2/B2/OCI-
@@ -41,7 +41,7 @@
     # works anyway because Jinja templates in `vars:` aren't rendered
     # until something actually reads them, and nothing does until the
     # cloud_sync role itself renders rclone.conf at the very end of this
-    # file's tasks — same lazy-evaluation pattern offsite_backup_s3_endpoint
+    # file's tasks — same lazy-evaluation pattern seaweedfs_s3_endpoint
     # below already relies on.
     cloud_sync_targets:
       target_a:
@@ -195,14 +195,14 @@
       ansible.builtin.set_fact:
         cloud_sync_test_ip: "{{ molecule_helpers_seaweedfs_ip }}"
 
-    - name: Point offsite_backup_s3_endpoint at the discovered SeaweedFS IP
-      # noqa: var-naming[no-role-prefix] — offsite_backup_s3_endpoint is a
+    - name: Point seaweedfs_s3_endpoint at the discovered SeaweedFS IP
+      # noqa: var-naming[no-role-prefix] — seaweedfs_s3_endpoint is a
       # fixed global var name the role's templates consume, can't be
       # renamed. Same pattern as seaweedfs_bucket/molecule/default's
       # identical override, for the identical reason: the IP is only
       # known after the discovery task above runs.
       ansible.builtin.set_fact:
-        offsite_backup_s3_endpoint: "{{ cloud_sync_test_ip }}:8333"
+        seaweedfs_s3_endpoint: "{{ cloud_sync_test_ip }}:8333"
 
     # Persistent (state: started, never removed), not created-and-torn-
     # down each run — an ephemeral container reports `changed` on both

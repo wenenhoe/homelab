@@ -6,8 +6,8 @@
     ansible_user: root
     server_timezone: "Etc/UTC"
 
-    offsite_backup_s3_bucket: molecule-test-ensure-bucket
-    offsite_backup_s3_proto: "http"
+    seaweedfs_s3_bucket: molecule-test-ensure-bucket
+    seaweedfs_s3_proto: "http"
     seaweedfs_admin_access_key: molecule-test-access-key
     seaweedfs_admin_secret_key: molecule-test-secret-key
   tasks:
@@ -24,7 +24,7 @@
       vars:
         molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_admin_access_key }}"
         molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_admin_secret_key }}"
-        molecule_helpers_seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
+        molecule_helpers_seaweedfs_bucket: "{{ seaweedfs_s3_bucket }}"
 
     # molecule_helpers_seaweedfs_ip is exposed by the shared task above —
     # no need to re-discover it here.
@@ -33,13 +33,13 @@
         seaweedfs_bucket_test_ip: "{{ molecule_helpers_seaweedfs_ip }}"
 
     - name: Point this scenario's endpoint at the discovered IP
-      # noqa: var-naming[no-role-prefix] — offsite_backup_s3_endpoint is a
+      # noqa: var-naming[no-role-prefix] — seaweedfs_s3_endpoint is a
       # fixed global var name the role's tasks/main.yaml consumes, can't
       # be renamed. Overriding it dynamically is unavoidable — the IP is
       # only known after the discovery task above runs, unlike
       # backup_agent's own test which addresses SeaweedFS by hostname.
       ansible.builtin.set_fact:
-        offsite_backup_s3_endpoint: "{{ seaweedfs_bucket_test_ip }}:8333"
+        seaweedfs_s3_endpoint: "{{ seaweedfs_bucket_test_ip }}:8333"
 
     # The role under test talks to that IP directly via
     # amazon.aws.s3_bucket (boto3/botocore on the DinD instance's own

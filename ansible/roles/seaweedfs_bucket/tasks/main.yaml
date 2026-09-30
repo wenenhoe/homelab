@@ -35,7 +35,7 @@
 #
 # Play 4 (compose_app) returns once `docker compose up` exits, not once
 # SeaweedFS is healthy — on a cold start this call (routed through
-# Caddy, see offsite_backup_s3_endpoint) can hit a connection failure
+# Caddy, see seaweedfs_s3_endpoint) can hit a connection failure
 # before the S3 listener is up. The module has no built-in wait/retry
 # (checked its full option list, confirmed live) — this task still
 # needs its own retry loop for that, same as the previous
@@ -61,7 +61,7 @@
 # connection failure or a genuine SeaweedFS 5xx) produces a botocore
 # response this condition still correctly retries — every test above
 # talked to SeaweedFS directly, never through the real reverse proxy
-# `offsite_backup_s3_proto`/`offsite_backup_s3_endpoint` route through
+# `seaweedfs_s3_proto`/`seaweedfs_s3_endpoint` route through
 # in production. Worth a deliberate watch on `storage`'s first real
 # cold-start deploy, not assumed safe just because the logic above
 # reads as though it should cover it.
@@ -99,9 +99,9 @@
 # grant would not fix it; nothing to change here if it reappears.
 - name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
   amazon.aws.s3_bucket:
-    name: "{{ offsite_backup_s3_bucket }}"
+    name: "{{ seaweedfs_s3_bucket }}"
     state: present
-    endpoint_url: "{{ offsite_backup_s3_proto }}://{{ offsite_backup_s3_endpoint }}"
+    endpoint_url: "{{ seaweedfs_s3_proto }}://{{ seaweedfs_s3_endpoint }}"
     access_key: "{{ seaweedfs_admin_access_key }}"
     secret_key: "{{ seaweedfs_admin_secret_key }}"
     region: us-east-1

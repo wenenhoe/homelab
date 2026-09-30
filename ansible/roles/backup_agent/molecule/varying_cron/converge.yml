@@ -11,7 +11,7 @@
       compression: gz
       stop_during_backup: false
       cloud_targets: []
-    offsite_backup_freshness_buffer_hours: 2
+    backup_freshness_buffer_hours: 2
     # daily_app uses the shared default cron implicitly. frequent_app
     # overrides to every-6-hours. weekdays_app overrides to weekdays
     # only, whose real worst-case gap (Friday to Monday) is 72h, not

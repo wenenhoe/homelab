@@ -1,50 +1,30 @@
 ---
 # Extracted from main.yaml so this pure computation (no Docker, no side
 # effects) is separately includable - see molecule/varying_cron for why:
-# it lets that scenario exercise the real normalization/derivation logic
-# directly, with no DinD/SeaweedFS infra needed at all.
+# it lets that scenario exercise the real derivation logic directly, with
+# no DinD/SeaweedFS infra needed at all.
 #
+# Reads backup_plan, where every setting is already resolved (ADR 0068).
 # Any app_catalog entry may declare:
 #   backup:
 #     volumes: [data, certs, ...]      # which volumes to back up
-#     stop_during_backup: true|false   # default false
-#     retention_days: N                # override of offsite_backup_retention_days
-#     cron: "..."                      # override of offsite_backup_cron
-#     compression: gz|zst|none         # default "gz"; use "none" when the
-#                                       # source volume is already compressed
+#     stop_during_backup: true|false   # replaces backup_defaults
+#     retention_days: N                # replaces backup_defaults
+#     cron: "..."                      # replaces backup_defaults
+#     compression: gz|zst|none         # replaces backup_defaults; use "none"
+#                                      # when the source volume is already
+#                                      # compressed
 #
 # No separate freshness_hours field - see the "Build the flat list of
 # per-app schedules" task below for why one isn't needed.
 
-- name: Reset normalized backup candidate list
-  ansible.builtin.set_fact:
-    backup_agent_normalized: []
-
-- name: Normalize each app's backup settings (fill in global defaults)
-  ansible.builtin.set_fact:
-    backup_agent_normalized: >-
-      {{
-        backup_agent_normalized + [{
-          'name': item.name,
-          'volumes': item.backup.volumes,
-          'stop_during_backup': item.backup.stop_during_backup | default(false),
-          'retention_days': item.backup.retention_days | default(offsite_backup_retention_days),
-          'cron': item.backup.cron | default(offsite_backup_cron),
-          'compression': item.backup.compression | default('gz'),
-        }]
-      }}
-  loop: "{{ resolved_apps }}"
-  loop_control:
-    label: "{{ item.name }}"
-  when: (item.backup.volumes | default([])) | length > 0
-
 - name: Skip this host entirely — no app here declares any backup volumes
   ansible.builtin.meta: end_host
-  when: backup_agent_normalized | length == 0
+  when: backup_plan | length == 0
 
 - name: Note whether any app on this host needs stopping during its own backup
   ansible.builtin.set_fact:
-    backup_agent_any_stop_apps: "{{ backup_agent_normalized | selectattr('stop_during_backup') | list | length > 0 }}"
+    backup_agent_any_stop_apps: "{{ backup_plan | selectattr('stop_during_backup') | list | length > 0 }}"
 
 # One dict per app: {app, source, retention, cron, compression,
 # stop_label, filename, freshness_hours}. stop_label is '' (template
@@ -64,7 +44,7 @@
   ansible.builtin.set_fact:
     backup_agent_schedules: >-
       {%- set ns = namespace(out=[]) -%}
-      {%- for app in backup_agent_normalized -%}
+      {%- for app in backup_plan -%}
         {%- set _ = ns.out.append({
               'app': app.name,
               'source': '/backup/' ~ app.name,

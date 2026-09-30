@@ -1,12 +1,10 @@
 """Tests for filter_plugins/backup_plan.py.
 
 The unit tests import the filters directly. The last three run against the
-repo's real inventory: `test_backup_defaults_match_the_variables_they_replace`
-keeps the new defaults equal to the variables and literals `backup_agent` still
-reads, and the two after it run a real controller-only play and compare each
-managed host's `backup_plan`, and the derived `backup_hosts`, with what
-`backup_agent`'s normalization, the catalog's own cloud targets and
-`seaweedfs_backup_hosts` say today.
+repo's real inventory: the first checks `backup_defaults` names every setting,
+and the two after it run a real controller-only play and compare each managed
+host's `backup_plan`, and the derived `backup_hosts`, with the catalog laid over
+`backup_defaults` and with `seaweedfs_backup_hosts`.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -16,7 +14,6 @@ from __future__ import annotations
 import copy
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -170,17 +167,9 @@ def _load(path: Path) -> dict:
     return yaml.safe_load(path.read_text())
 
 
-def test_backup_defaults_match_the_variables_they_replace():
-    main = _load(INVENTORY_DIR / "group_vars" / "all" / "main.yaml")
-    defaults = main["backup_defaults"]
+def test_backup_defaults_define_every_setting():
+    defaults = _load(INVENTORY_DIR / "group_vars" / "all" / "main.yaml")["backup_defaults"]
     assert set(defaults) == set(filter_mod.BACKUP_SETTINGS)
-    assert defaults["cron"] == main["offsite_backup_cron"]
-    assert defaults["retention_days"] == main["offsite_backup_retention_days"]
-
-    # These two are literals in backup_agent's own normalization, not variables.
-    schedules = (ANSIBLE_DIR / "roles" / "backup_agent" / "tasks" / "build_schedules.yaml").read_text()
-    assert re.search(r"item\.backup\.compression \| default\(['\"]" + re.escape(defaults["compression"]) + r"['\"]\)", schedules)
-    assert re.search(r"item\.backup\.stop_during_backup \| default\(" + str(defaults["stop_during_backup"]).lower() + r"\)", schedules)
 
 
 PLAN_PLAY = """
@@ -232,8 +221,8 @@ def real_inventory_output(tmp_path_factory):
     return hosts, plans
 
 
-def _expected_plan(resolved_apps: list[dict], main: dict) -> list[dict]:
-    """backup_agent's normalization for one host, with the cloud targets cloud_sync fans out to."""
+def _expected_plan(resolved_apps: list[dict], defaults: dict) -> list[dict]:
+    """One host's plan: each app's own backup block over the defaults, for the apps that have volumes."""
     out = []
     for app in resolved_apps:
         block = app.get("backup") or {}
@@ -243,25 +232,21 @@ def _expected_plan(resolved_apps: list[dict], main: dict) -> list[dict]:
             {
                 "name": app["name"],
                 "volumes": block["volumes"],
-                "stop_during_backup": block.get("stop_during_backup", False),
-                "retention_days": block.get("retention_days", main["offsite_backup_retention_days"]),
-                "cron": block.get("cron", main["offsite_backup_cron"]),
-                "compression": block.get("compression", "gz"),
-                "cloud_targets": block.get("cloud_targets", main["backup_defaults"]["cloud_targets"]),
+                **{key: block.get(key, defaults[key]) for key in filter_mod.BACKUP_SETTINGS},
             }
         )
     return out
 
 
-def test_plan_matches_backup_agent_normalization_for_every_host(real_inventory_output):
+def test_plan_is_the_catalog_over_the_defaults_for_every_host(real_inventory_output):
     _, plans = real_inventory_output
-    main = _load(INVENTORY_DIR / "group_vars" / "all" / "main.yaml")
+    defaults = _load(INVENTORY_DIR / "group_vars" / "all" / "main.yaml")["backup_defaults"]
     catalog = _load(INVENTORY_DIR / "group_vars" / "all" / "app_catalog.yaml")["app_catalog"]
     assert plans, "no managed hosts"
 
     for host, plan in plans.items():
         compose_apps = _load(INVENTORY_DIR / "host_vars" / f"{host}.yaml")["compose_apps"]
-        assert plan == _expected_plan(resolver_mod.resolve_apps(compose_apps, catalog), main), host
+        assert plan == _expected_plan(resolver_mod.resolve_apps(compose_apps, catalog), defaults), host
 
 
 def test_backup_hosts_are_the_hosts_with_a_plan_in_inventory_order(real_inventory_output):

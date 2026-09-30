@@ -1,0 +1,10 @@
+---
+# Shared by every scenario whose role reads its own host's backup_plan
+# (backup_agent). A scenario's inventory doesn't load group_vars/all, so
+# this sets backup_plan from the scenario's own resolved_apps and
+# backup_defaults with the expression group_vars/all/main.yaml defines
+# (ADR 0068); ansible/tests keeps the two equal. Runs after
+# resolve_compose_apps.yaml, which sets resolved_apps.
+- name: Work out the scenario's backup plan
+  ansible.builtin.set_fact:
+    backup_plan: "{{ resolved_apps | backup_plan(backup_defaults) }}" # noqa: var-naming[no-role-prefix]

@@ -3,7 +3,7 @@
 `compose_apps` is host intent and is never reassigned; every consumer reads
 `resolved_apps`; only the definition in `group_vars/all/main.yaml` and its
 Molecule stand-in read the catalog. ADR 0068 adds the same stand-in rule for a
-role that reads another host's `backup_plan`.
+role that reads a `backup_plan`, its own host's or another's.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -19,6 +19,7 @@ import yaml
 ANSIBLE_DIR = Path(__file__).resolve().parent.parent
 MAIN_VARS = ANSIBLE_DIR / "inventory/group_vars/all/main.yaml"
 HELPER = ANSIBLE_DIR / "roles/molecule_helpers/tasks/resolve_compose_apps.yaml"
+BACKUP_PLAN_HELPER = ANSIBLE_DIR / "roles/molecule_helpers/tasks/resolve_backup_plan.yaml"
 
 # Code that runs a task or renders a template. Scenario data files are not here:
 # they define `compose_apps` and the catalog, they don't consume the result.
@@ -135,19 +136,21 @@ def test_a_scenario_using_the_stand_in_defines_its_own_catalog(path):
     assert any(re.search(r"^\s*app_catalog\s*:", source.read_text(), re.M) for source in sources)
 
 
-# A role that reads another host's `backup_plan` runs, in Molecule, against fake hosts that have no
-# `group_vars/all`. Each scenario host built with `add_host` carries the plan the definition would give
-# it, and the scenario defines the `backup_defaults` that computes it (ADR 0068).
-BACKUP_PLAN_READ = re.compile(r"hostvars\[[^\]]+\]\.backup_plan")
+# A role that reads a `backup_plan` runs, in Molecule, where there is no `group_vars/all`. A scenario host
+# built with `add_host` carries the plan the definition would give it, a scenario that resolves its own
+# apps works out its own plan with the same expression, and the scenario defines the `backup_defaults`
+# that computes it (ADR 0068).
+BACKUP_PLAN_READ = re.compile(r"\bbackup_plan\b")
 
 
 def _backup_plan_reader_roles() -> set[str]:
     roles_dir = ANSIBLE_DIR / "roles"
-    return {
+    readers = {
         path.relative_to(roles_dir).parts[0]
         for path in _files(CONSUMER_GLOBS)
         if path.is_relative_to(roles_dir) and any(BACKUP_PLAN_READ.search(line) for _, line in _code_lines(path))
     }
+    return readers - {"molecule_helpers"}
 
 
 def _reader_scenario_files():
@@ -156,7 +159,17 @@ def _reader_scenario_files():
 
 
 def test_the_scan_finds_the_roles_that_read_backup_plan():
-    assert {"cloud_sync", "restore_discovery"} <= _backup_plan_reader_roles()
+    assert {"backup_agent", "cloud_sync", "restore_discovery"} <= _backup_plan_reader_roles()
+
+
+def test_the_backup_plan_stand_in_is_the_definition_in_group_vars():
+    ((_, args),) = _tasks_with(BACKUP_PLAN_HELPER, "set_fact")
+    assert args["backup_plan"] == yaml.safe_load(MAIN_VARS.read_text())["backup_plan"]
+
+
+@pytest.mark.parametrize("path", [p for p in _reader_scenario_files() if p.name == "converge.yml" and "resolve_compose_apps.yaml" in p.read_text()], ids=_rel)
+def test_a_reader_scenario_that_resolves_its_apps_works_out_its_plan_too(path):
+    assert "resolve_backup_plan.yaml" in path.read_text()
 
 
 @pytest.mark.parametrize("path", _reader_scenario_files(), ids=_rel)

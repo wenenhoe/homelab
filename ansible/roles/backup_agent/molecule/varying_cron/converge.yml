@@ -5,8 +5,12 @@
   vars:
     ansible_user: root
     compose_deploy_dir: /opt/stacks
-    offsite_backup_cron: "30 4 * * *"
-    offsite_backup_retention_days: 7
+    backup_defaults:
+      cron: "30 4 * * *"
+      retention_days: 7
+      compression: gz
+      stop_during_backup: false
+      cloud_targets: []
     offsite_backup_freshness_buffer_hours: 2
     # daily_app uses the shared default cron implicitly. frequent_app
     # overrides to every-6-hours. weekdays_app overrides to weekdays
@@ -35,6 +39,11 @@
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml
+
+    - name: Work out the backup plan for the resolved apps
+      ansible.builtin.include_role:
+        name: molecule_helpers
+        tasks_from: resolve_backup_plan.yaml
 
     - name: Build backup_agent_schedules directly - no Docker infra needed for this pure computation
       ansible.builtin.include_role:

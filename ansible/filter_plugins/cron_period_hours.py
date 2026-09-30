@@ -1,7 +1,7 @@
 """cron_period_hours: derive a freshness threshold from a cron expression.
 
 backup_agent's own per-app cron (app_catalog's `backup.cron`, defaulting
-to offsite_backup_cron) is the one thing that actually determines how
+to backup_defaults.cron) is the one thing that actually determines how
 often an app's backup runs. A separately hand-set freshness threshold can
 drift from it the moment the cron changes and nobody remembers to update
 both — this filter makes that structurally impossible by computing the

@@ -28,7 +28,7 @@
       - "'happy_app_no_backup_data:/backup/happy_app_no_backup/happy_app_no_backup_data:ro' not in backup_agent_mounted_volumes"
     fail_msg: >-
       happy_app_no_backup_data appeared despite declaring no backup: key
-      — the normalization task's `when` guard isn't excluding it.
+      — backup_plan isn't excluding it.
 
 # --- One schedule per app, always SeaweedFS ------------------------
 - name: List the rendered conf.d schedule files

@@ -1,6 +1,7 @@
 ---
 # Aggregates SeaweedFS backup targets across every app on this host
-# (resolved_apps is each host's compose_apps over the catalog). See
+# (backup_plan is each host's resolved apps with every backup setting
+# filled in). See
 # docs/disaster-recovery.md (Architecture) for the full design,
 # including why cloud coverage (R2/B2/OCI) lives entirely on `storage`
 # (cloud_sync role) and never touches this role or these hosts at all —
@@ -8,8 +9,8 @@
 # SeaweedFS write credential (docker/seaweedfs/configs/s3-identity.json.j2),
 # never anything cloud-capable.
 #
-# See build_schedules.yaml for the app_catalog.backup fields this
-# reads, and how each app's freshness threshold is derived.
+# See build_schedules.yaml for the app_catalog.backup fields behind
+# backup_plan, and how each app's freshness threshold is derived.
 #
 # One docker-volume-backup schedule per app, all sharing one container
 # per host. BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule
@@ -25,7 +26,7 @@
   ansible.builtin.set_fact:
     backup_agent_deploy_dir: "{{ compose_deploy_dir }}/backup-agent"
 
-- name: Build backup_agent_schedules from resolved_apps
+- name: Build backup_agent_schedules from backup_plan
   ansible.builtin.include_tasks: build_schedules.yaml
 
 - name: Ensure backup-agent deploy directory exists

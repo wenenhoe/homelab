@@ -106,7 +106,7 @@
 # mechanism needs meaningfully more remote scratch space than a
 # plain command, and this scenario is already heavy (SeaweedFS, two
 # aws-cli containers, alpine, docker-socket-proxy, backup-agent,
-# rclone). Every app here shares the same cron (offsite_backup_cron,
+# rclone). Every app here shares the same cron (backup_defaults.cron,
 # no per-app override in this fixture), so they all render the same
 # threshold — read it back from the deployed script itself rather
 # than re-declaring it here, which would just be the same

@@ -40,7 +40,7 @@ archive at 7-day retention (~13GB) would eat most of a single 10GB
 R2/B2 free tier, so it gets OCI's 20GB allowance to itself instead.
 
 **Mechanism:** a systemd timer (`cloud-sync.timer`, daily, offset ~90min
-after `offsite_backup_cron` to give every backup host's own nightly run
+after `backup_defaults.cron` to give every backup host's own nightly run
 room to land in SeaweedFS first) triggers `cloud-sync.service`
 (`Type=oneshot`), which runs one container per firing — `rclone/rclone`,
 looping a job manifest Ansible renders from every backup host's

@@ -1,9 +1,9 @@
 ---
 # Same lightweight, no-Docker-in-Docker shape as secrets/manual_missing
 # and backup_agent's own build_schedules.yaml computation — this
-# scenario only exercises pure set_fact/assert tasks (schedule
-# normalization plus the cron_period_hours filter), never Docker or the
-# rest of the role.
+# scenario only exercises pure set_fact/assert tasks (the backup plan
+# plus the cron_period_hours filter), never Docker or the rest of the
+# role.
 driver:
   name: docker
 platforms:

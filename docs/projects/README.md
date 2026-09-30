@@ -199,7 +199,7 @@ for the reasoning.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
-| [`backup-plan.md`](backup-plan.md) | Not started | One backup_defaults block and one backup_plan filter replace three roles' hand-written backup defaults and the hand-maintained backup host list, with matching renames and validator rules. |
+| [`backup-plan.md`](backup-plan.md) | Building | One backup_defaults block and one backup_plan filter replace three roles' hand-written backup defaults and the hand-maintained backup host list, with matching renames and validator rules. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |

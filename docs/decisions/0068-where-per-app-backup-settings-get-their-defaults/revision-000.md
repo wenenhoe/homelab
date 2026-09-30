@@ -6,7 +6,7 @@ title: "Where per-app backup settings get their defaults"
 solution: "A pure backup_plan filter over resolved_apps and one backup_defaults block whose keys match an app's backup block; roles read backup_plan, and the backup hosts are derived from it"
 summary: "Where an app's backup settings meet the shared defaults, what decides that an app is backed up, and what those settings and the hosts that run them are called."
 topic: backup-recovery
-status: working
+status: approved
 related: [ADR-0006, ADR-0012, ADR-0065]
 ---
 
@@ -27,6 +27,9 @@ An app's backup settings (what to back up, when, how long to keep it, whether to
 - `offsite_backup_freshness_buffer_hours` is slack added to an app's cron-derived interval before the freshness check stops pushing to Kuma. The check looks at the objects that have landed in SeaweedFS ([ADR 0012](../0012-verifying-backups-actually-land/revision-000.md)).
 - `seaweedfs_backup_hosts` (`host_vars/storage.yaml`) is a hand-maintained list of the hosts that back up. It is read by the SeaweedFS identity template and by `cloud_sync`'s job loop. Each entry also needs a secret pair in `secret_catalog.yaml` and the host's own `seaweedfs_s3_access_key` and `seaweedfs_s3_secret_key`. `backup_agent` already skips a host with no backup volumes, so the list equals the managed hosts that have at least one backed-up app: `services` (two), `security` (five) and `play` (one) today, and `storage` none.
 - `resolved_apps` ([ADR 0065](../0065-where-app-defaults-and-host-intent-are-merged/revision-000.md)) is a lazy `group_vars/all` variable readable for any host through `hostvars`, and a filter plugin in `ansible/filter_plugins/` is plain Python with a pytest suite. `cron_period_hours` and `resolve_apps` are the existing examples.
+- Defined in `group_vars/all`, `backup_plan` and a host list derived from it evaluate to the same value from a controller-only play and from `storage`'s play. The filter receives Ansible's lazily templated list and mapping types, and reads them as a `Sequence` and a `Mapping`. A filter that takes `hostvars` and the host names directly gives the same list as a longer Jinja expression that builds a host-to-plan mapping first.
+- Derived from `managed_hosts` in inventory order, the backup hosts are `services`, `play` and `security`: the same set as `seaweedfs_backup_hosts`, with `play` and `security` in the opposite order. Rendered with either list, the SeaweedFS identity file has identical entries; only that order differs.
+- The `seaweedfs` app's identity file is a seeded config. A change to its rendered content marks the `data` volume changed, and the app is restarted.
 - `cloud_sync_targets` holds credentials rendered from `secrets_generated`, which is why it lives with the host that uses them ([ADR 0006](../0006-offsite-backup-credential-blast-radius/revision-000.md)). The default is only a list of target names.
 
 ## Decision
@@ -35,9 +38,9 @@ An app's backup settings (what to back up, when, how long to keep it, whether to
 - The catalog key `backup.extra_cloud_targets` is renamed `backup.cloud_targets`. An app's list replaces the default, as it does now.
 - `cloud_sync_targets` stays a `storage` host variable. Only target names move.
 - A filter `backup_plan(resolved_apps, backup_defaults)` returns one entry per backed-up app, each with every setting resolved. It is pure: no file, network or Ansible-state access. A list value replaces the default; nothing is merged inside it. It is the only place that decides an app is backed up, which it does when `backup.volumes` is non-empty, and the only place a backup default is applied.
-- `backup_plan` is defined once in `group_vars/all` as `"{{ resolved_apps | backup_plan(backup_defaults) }}"`, so any host's value is reachable through `hostvars`. A Molecule scenario that does not load `group_vars/all` sets it the same way `resolved_apps` is set, and a test keeps the two equal.
+- `backup_plan` is defined once in `group_vars/all` as `"{{ resolved_apps | backup_plan(backup_defaults) }}"`, so any host's value is reachable through `hostvars`. A Molecule scenario that does not load `group_vars/all` sets `backup_plan` and `backup_hosts` the same way `resolved_apps` is set, and a test keeps each equal to its `group_vars/all` definition.
 - `backup_agent`, `cloud_sync` and `restore_discovery` read `backup_plan`. None applies a backup default or tests whether an app is backed up itself.
-- The hosts that back up are derived, not listed: the members of `managed_hosts` whose `backup_plan` is non-empty. `seaweedfs_backup_hosts` is removed. The SeaweedFS identity template and `cloud_sync` read the derived list. Each host's own secret pair and `seaweedfs_s3_*` host variables stay hand-maintained; the catalog validator fails when a derived backup host lacks either.
+- The hosts that back up are derived, not listed. A filter `backup_hosts(hosts, hostvars)` returns the hosts whose `backup_plan` is non-empty, in the order given. `backup_hosts` is defined once in `group_vars/all` as `"{{ groups['managed_hosts'] | backup_hosts(hostvars) }}"`. `seaweedfs_backup_hosts` is removed. The SeaweedFS identity template and `cloud_sync` read `backup_hosts`. Each host's own secret pair and `seaweedfs_s3_*` host variables stay hand-maintained; the catalog validator fails when a derived backup host lacks either.
 - The catalog validator gains these rules. A `backup:` block must name at least one volume, so a block without volumes cannot exist to disagree with the filter. `backup` keys have the right shapes: `cloud_targets` a list of names, `retention_days` a positive integer, `compression` one of `gz`, `zst`, `none`, `stop_during_backup` a boolean, `cron` a non-empty string. The old key `extra_cloud_targets` is rejected, as `caddy` is. Each name in `cloud_targets`, and in the default, must be a key of `cloud_sync_targets`, read as plain YAML from `host_vars/storage.yaml` without rendering any value.
 - Names that describe SeaweedFS say so. `offsite_backup_s3_bucket`, `offsite_backup_s3_endpoint` and `offsite_backup_s3_proto` become `seaweedfs_s3_bucket`, `seaweedfs_s3_endpoint` and `seaweedfs_s3_proto`, beside the existing `seaweedfs_s3_access_key`. `offsite_backup_freshness_buffer_hours` becomes `backup_freshness_buffer_hours`; it is not a per-app setting, so it stays outside `backup_defaults`. "Offsite" is kept only for the cloud copies.
 - Role-internal variables keep their role prefix and are not renamed.
@@ -49,23 +52,15 @@ An app's backup settings (what to back up, when, how long to keep it, whether to
 - **Hoist only a list of backed-up apps.** Settles the predicate but leaves each role applying defaults itself.
 - **A separate backup catalog file.** Splits one app's definition across two files; the per-app `backup:` block is already in the catalog.
 - **Keep `seaweedfs_backup_hosts` as an explicit list.** A reviewer sees each identity grant as a line in a diff. But the list repeats what `backup_plan` already says, and three places must agree by hand: the list, the secret pair and the host variables.
+- **Build the host-to-plan mapping in Jinja and pass it to a filter.** Gives the same list, but spells out in the variable definition the loop the filter exists to hold.
 - **Keep the `offsite_` names.** They read as if the SeaweedFS bucket were the off-site copy.
-
-## Assumptions
-
-- **Claim:** A lazily templated `resolved_apps` value passes into a second filter as it does into `resolve_apps`, and the derived host list evaluates from `storage`'s play and from the controller as `resolved_apps` does for `restore_discovery`.
-  **Breaks if wrong:** The filter needs to coerce its input, or the derived host list needs a different home than a `group_vars/all` variable.
-  **Checked by:** a throwaway spike in the implementing project's de-risking stage: the filter run over the real inventory through Ansible, and the derived list compared with `seaweedfs_backup_hosts`.
-- **Claim:** Deriving the hosts changes the rendered SeaweedFS identity file only in the order of its entries: `managed_hosts` order (`services`, `play`, `security`) replaces the current list order (`services`, `security`, `play`).
-  **Breaks if wrong:** The identities differ in content, so the derivation is not equivalent to the list.
-  **Checked by:** the same spike, rendering the identity template both ways against the real inventory.
 
 ## Consequences
 
 - One name for a setting at both levels, and one place that decides what is backed up. The plan can be printed to debug a deploy, and downstream roles can be tested against fixed plans.
 - The renames touch the catalog, `group_vars/all`, `host_vars/storage.yaml`, four roles, the SeaweedFS identity template, Molecule scenarios and several topic docs. They ship as mechanical changes after the filter exists, each old name is removed when its last reader switches, and a test fails if one comes back.
 - A host that gains a backed-up app is granted a SeaweedFS identity by that catalog change rather than by a separate list edit. The identity stays scoped to the host's own prefix ([ADR 0006](../0006-offsite-backup-credential-blast-radius/revision-000.md)) and needs the host's own credentials, which the validator requires.
-- The rendered identity file may reorder once; the implementing project checks whether that restarts the container.
+- The first deploy after `seaweedfs_backup_hosts` is removed swaps two identity entries, which restarts SeaweedFS on `storage` once. It is applied outside the schedule in `backup_defaults.cron`.
 - Docs that describe these settings change in the pull requests that change the behavior: `docs/disaster-recovery.md`, `docs/cloud-sync.md`, `docs/restore.md`, `docs/deployment-flow.md`, `docs/secrets-rotation.md`, `docs/adding-an-app.md` and `docs/molecule-testing.md`. Three comments that misstate where or how a default is defined are corrected with them.
 
 ## Invariants

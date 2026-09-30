@@ -7,7 +7,9 @@ upstream, otherwise surfaces at deploy time, a repeated app name silently
 replaces the first entry when the file is loaded, a route map under the
 old `caddy` key is ignored without an error, and so are cloud targets under
 the old `backup.extra_cloud_targets` key. A `backup` block has to name
-volumes and keep each setting in its shape, and, against the inventory (ADR
+volumes, keep each setting in its shape and use only backup keys (in the catalog,
+in a host's own override and in `backup_defaults`: the plan ignores a misspelt
+one without a word), and, against the inventory (ADR
 0068), every cloud target it or `backup_defaults` names has to be defined in
 `cloud_sync_targets` and every host that runs a backed-up app has to have its
 own SeaweedFS secret pair and host variables, or the deploy fails late on an
@@ -22,6 +24,7 @@ Usage (from tools/): python -m ci.gates.app_catalog_rules
 
 from __future__ import annotations
 
+import difflib
 import sys
 from dataclasses import dataclass
 
@@ -36,6 +39,7 @@ DEFAULTS_NAME = "backup_defaults"
 # backup_plan filter in ansible/filter_plugins/ keeps the same list; a test holds the two equal.
 BACKUP_SETTINGS = ("cron", "retention_days", "compression", "stop_during_backup", "cloud_targets")
 COMPRESSIONS = ("gz", "zst", "none")
+BACKUP_KEYS = ("volumes", *BACKUP_SETTINGS)
 
 
 @dataclass(frozen=True)
@@ -64,6 +68,19 @@ def _setting_problems(block: dict[str, object], prefix: str) -> list[str]:
         problems.append(f"`{prefix}.stop_during_backup` must be true or false")
     if "cron" in block and not _is_text(block["cron"]):
         problems.append(f"`{prefix}.cron` must be a non-empty string")
+    return problems
+
+
+def _key_problems(block: dict[object, object], prefix: str, allowed: tuple[str, ...]) -> list[tuple[str, str]]:
+    """(rule, message) for each key of `block` that is not one of `allowed`; the plan ignores such a key without a word."""
+    problems = []
+    for key in block:
+        if key == LEGACY_CLOUD_TARGETS_KEY:
+            problems.append(("legacy-cloud-targets-key", f"`{prefix}.{key}` was renamed `{prefix}.{CLOUD_TARGETS_KEY}`; the old key is ignored"))
+        elif key not in allowed:
+            close = difflib.get_close_matches(str(key), allowed, n=1)
+            hint = f" (did you mean `{close[0]}`?)" if close else ""
+            problems.append(("backup-unknown-key", f"`{prefix}.{key}` isn't a backup setting; the keys are {', '.join(allowed)}{hint}"))
     return problems
 
 
@@ -98,11 +115,9 @@ def _check_app(name: str, app: dict[str, object]) -> list[Violation]:
         for problem in _setting_problems(backup, "backup"):
             fail("backup-shape", problem)
 
-    if isinstance(backup, dict) and LEGACY_CLOUD_TARGETS_KEY in backup:
-        fail(
-            "legacy-cloud-targets-key",
-            f"`backup.{LEGACY_CLOUD_TARGETS_KEY}` was renamed `backup.{CLOUD_TARGETS_KEY}`; the old key is ignored, so the app gets the defaults",
-        )
+    if isinstance(backup, dict):
+        for rule, problem in _key_problems(backup, "backup", BACKUP_KEYS):
+            fail(rule, problem)
 
     legacy = app.get(LEGACY_ROUTES_KEY)
     if isinstance(legacy, dict) and legacy and all(isinstance(route, dict) for route in legacy.values()):
@@ -155,7 +170,27 @@ def _check_defaults(inventory: BackupInventory) -> list[Violation]:
     defaults = inventory.defaults
     missing = [key for key in BACKUP_SETTINGS if key not in defaults]
     found = [Violation(DEFAULTS_NAME, "backup-shape", f"`{DEFAULTS_NAME}` has no {', '.join(f'`{key}`' for key in missing)}")] if missing else []
-    return found + [Violation(DEFAULTS_NAME, "backup-shape", problem) for problem in _setting_problems(defaults, DEFAULTS_NAME)]
+    found += [Violation(DEFAULTS_NAME, "backup-shape", problem) for problem in _setting_problems(defaults, DEFAULTS_NAME)]
+    return found + [Violation(DEFAULTS_NAME, rule, problem) for rule, problem in _key_problems(defaults, DEFAULTS_NAME, BACKUP_SETTINGS)]
+
+
+def _check_overrides(inventory: BackupInventory) -> list[Violation]:
+    """A host entry may lay its own `backup:` over an app's; it keeps the same keys and shapes, and may empty `volumes`."""
+    found = []
+    for host in inventory.managed_hosts:
+        for entry in inventory.compose_apps[host]:
+            own, prefix = entry.get("backup"), f"{entry['name']}.backup"
+            if own is None:
+                continue
+            if not isinstance(own, dict):
+                found.append(Violation(host, "backup-shape", f"`{prefix}` must be a mapping"))
+                continue
+            volumes = own.get("volumes", [])
+            if not _is_list_of_text(volumes):
+                found.append(Violation(host, "backup-shape", f"`{prefix}.volumes` must be a list of volume names"))
+            found += [Violation(host, "backup-shape", problem) for problem in _setting_problems(own, prefix)]
+            found += [Violation(host, rule, problem) for rule, problem in _key_problems(own, prefix, BACKUP_KEYS)]
+    return found
 
 
 def _effective_volumes(entry: dict[str, object], catalog: Catalog) -> object:
@@ -208,7 +243,7 @@ def validate(catalog: Catalog, inventory: BackupInventory | None = None) -> list
     """Every rule violation in `catalog`, in app order, then those that need the inventory if it is given."""
     found = [violation for name, app in catalog.items() for violation in _check_app(name, app)]
     if inventory is not None:
-        found += _check_defaults(inventory) + _check_cloud_targets(catalog, inventory) + _check_backup_hosts(catalog, inventory)
+        found += _check_defaults(inventory) + _check_overrides(inventory) + _check_cloud_targets(catalog, inventory) + _check_backup_hosts(catalog, inventory)
     return found
 
 

@@ -716,8 +716,8 @@ class RealTreeTests(unittest.TestCase):
                 with self.subTest(shared=shared, caller=caller):
                     self.assertIn(caller, queued)
 
-    def test_app_registry_change_queues_the_scenarios_that_read_it(self):
-        queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/inventory/group_vars/all/app_registry.yaml"])[0]
+    def test_app_catalog_change_queues_the_scenarios_that_read_it(self):
+        queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/inventory/group_vars/all/app_catalog.yaml"])[0]
         for role in ("bind9", "caddy", "tinyauth", "step_ca_cert"):
             self.assertIn(role, queued)
 

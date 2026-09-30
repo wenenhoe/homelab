@@ -41,7 +41,7 @@
     - name: Confirm it targets the right hostname and threshold
       ansible.builtin.assert:
         that:
-          # bentopdf is this fixture's only routed app - selectattr('caddy',
+          # bentopdf is this fixture's only routed app - selectattr('routes',
           # 'defined')'s single match, so it must be what got picked.
           - "'HOST=\"bentopdf.apps.localhost\"' in (caddy_cert_expiry_verify_check_sh_raw.content | b64decode)"
           - "'THRESHOLD_DAYS=0' in (caddy_cert_expiry_verify_check_sh_raw.content | b64decode)"

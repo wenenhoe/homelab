@@ -11,11 +11,11 @@
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
     # main_domain, lab_domain, caddy_domain, lldap_host, tinyauth_host,
-    # server_timezone, tinyauth_ldap_insecure, step_ca_*, app_registry,
+    # server_timezone, tinyauth_ldap_insecure, step_ca_*, app_catalog,
     # compose_apps live in host_vars/tinyauth-ca-trust-instance.yaml
     # instead — see the comment there.
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

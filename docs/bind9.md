@@ -15,9 +15,9 @@ zone into one list (`bind9_all_zones`), tagging each with that host's
 - **`named.conf.local.j2`** — one `zone { type master; ... }` block per
   entry in `bind9_all_zones`.
 - **`zone.db.j2`** — each zone's SOA header, static `extra_records`, and
-  **auto-generated CNAMEs**: for every app with a `caddy` route whose
+  **auto-generated CNAMEs**: for every app with a `routes` entry whose
   hostname falls inside the zone, it emits a CNAME pointing at that
-  host's `dns_ddns_target`. Adding `caddy: { default: { host: foo } }` to
+  host's `dns_ddns_target`. Adding `routes: { default: { host: foo } }` to
   an app in `host_vars` gets it both a routing rule and a DNS record, no
   manual zone editing.
 

@@ -33,9 +33,9 @@ SCENARIO_GLOBS = ("roles/*/molecule/*/converge.yml", "roles/*/molecule/*/verify.
 # A read of the variable in Jinja: piped, indexed or printed. `item.compose_apps`
 # is a scenario's data for an `add_host` loop, not a read of a host's variable.
 COMPOSE_APPS_READ = re.compile(r"(?<!item\.)(?<![\w.])compose_apps\s*(\||\[|\}\})|hostvars\[[^\]]+\]\.compose_apps|\bhv\.compose_apps")
-# A scenario defines the catalog it supplies (`app_registry:`, or `... | from_yaml).app_registry` out of the real
+# A scenario defines the catalog it supplies (`app_catalog:`, or `... | from_yaml).app_catalog` out of the real
 # file) and passes it to the resolver; neither is a read of the resolved result.
-CATALOG_READ = re.compile(r"(?<!\)\.)\bapp_registry\b(?!\.yaml|\s*:)")
+CATALOG_READ = re.compile(r"(?<!\)\.)\bapp_catalog\b(?!\.yaml|\s*:)")
 
 # Play 1 of cleanup.yaml lists this host's intended app names to find orphaned stacks.
 # The Molecule helper is the resolver's stand-in call site, so it reads the intent it resolves.
@@ -127,8 +127,51 @@ def _scenarios_using_the_stand_in():
 
 @pytest.mark.parametrize("path", _scenarios_using_the_stand_in(), ids=_rel)
 def test_a_scenario_using_the_stand_in_defines_its_own_catalog(path):
-    # The stand-in passes `app_registry` to the resolver as production does, where it is always defined.
-    # A scenario with nothing to put in it says so with `app_registry: {}`.
+    # The stand-in passes `app_catalog` to the resolver as production does, where it is always defined.
+    # A scenario with nothing to put in it says so with `app_catalog: {}`.
     scenario = path.parent
     sources = [path, *(p for p in scenario.rglob("*") if p.is_file() and {"host_vars", "group_vars"} & set(p.relative_to(scenario).parts))]
-    assert any(re.search(r"^\s*app_registry\s*:", source.read_text(), re.M) for source in sources)
+    assert any(re.search(r"^\s*app_catalog\s*:", source.read_text(), re.M) for source in sources)
+
+
+# The catalog was called `app_registry` until ADR 0065. Accepted decision revisions and the project
+# records keep the old name as history; nothing else names it.
+OLD_NAME = re.compile("app_" + "registry|app " + "registry", re.I)
+HISTORICAL = ("docs/decisions/", "docs/projects/", "docs/project-planning.md")
+SKIPPED_DIRS = {".git", ".venv", ".ansible", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
+
+
+def test_nothing_still_uses_the_old_catalog_name():
+    root = ANSIBLE_DIR.parent
+    offenders = []
+    for path in sorted(root.rglob("*")):
+        relative = path.relative_to(root).as_posix()
+        if not path.is_file() or SKIPPED_DIRS & set(path.relative_to(root).parts) or relative.startswith(HISTORICAL) or path == Path(__file__):
+            continue
+        if path.name == "uv.lock" or path.suffix in {".pyc", ".png", ".jpg", ".gz", ".zip"}:
+            continue
+        try:
+            text = path.read_text()
+        except UnicodeDecodeError:
+            continue
+        offenders += [f"{relative}:{number}" for number, line in enumerate(text.splitlines(), 1) if OLD_NAME.search(line)]
+    assert offenders == []
+
+
+def _yaml_files():
+    for path in sorted(ANSIBLE_DIR.rglob("*.y*ml")):
+        if path.suffix in {".yaml", ".yml"} and not path.is_symlink() and ".ansible" not in path.relative_to(ANSIBLE_DIR).parts:
+            yield path
+
+
+def _is_route_map(value) -> bool:
+    return isinstance(value, dict) and bool(value) and all(isinstance(route, dict) for route in value.values())
+
+
+def test_no_app_entry_still_declares_its_routes_under_the_old_key():
+    """`caddy:` is now `routes:`. The old key is ignored without an error, so an app that keeps it loses its route and DNS record."""
+    offenders = []
+    for path in _yaml_files():
+        for doc in yaml.safe_load_all(path.read_text()):
+            offenders += [_rel(path) for node in _walk(doc) if isinstance(node, dict) and _is_route_map(node.get("caddy"))]
+    assert offenders == []

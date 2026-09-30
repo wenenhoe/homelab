@@ -54,7 +54,7 @@
       The same app name is backed up on more than one managed host -
       restore_all.py's manifest is keyed by app name alone and can't
       tell them apart: {{ restore_discovery_app_discovery.collisions | join('; ') }}.
-      Rename one of the apps in app_registry.yaml, or add it to
+      Rename one of the apps in app_catalog.yaml, or add it to
       restore_discovery_excluded_apps and restore it manually.
   delegate_to: localhost
   become: false
@@ -70,16 +70,16 @@
   ansible.builtin.assert:
     that: restore_discovery_app_hosts | length > 0
     fail_msg: >-
-      No app on any managed host has a backup: key in app_registry.yaml
+      No app on any managed host has a backup: key in app_catalog.yaml
       (after restore_discovery_excluded_apps) — nothing for restore_all.py
-      to discover. Check app_registry.yaml and
+      to discover. Check app_catalog.yaml and
       roles/restore_discovery/defaults/main.yaml.
   delegate_to: localhost
   become: false
 
 # step-ca first if it's actually in scope — see docs/restore.md's
 # batch-restore section for why. If step-ca itself has no backup: key,
-# this silently can't hoist anything — an app_registry gap to fix
+# this silently can't hoist anything — an app_catalog gap to fix
 # there, not something this role can detect on its own.
 - name: Order the discovered apps, step-ca first
   ansible.builtin.set_fact:

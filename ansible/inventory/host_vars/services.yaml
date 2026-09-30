@@ -37,39 +37,39 @@ compose_apps:
   - name: beszel-agent
 
   - name: bentopdf
-    caddy:
+    routes:
       default:
         host: bentopdf
 
   - name: cobalt
-    caddy:
+    routes:
       default:
         host: "{{ cobalt_host }}"
 
   - name: dashy
-    caddy:
+    routes:
       default:
         host: dashy
 
   - name: kms
-    caddy:
+    routes:
       default:
         host: kms
 
   - name: librespeed
-    caddy:
+    routes:
       default:
         host: speedtest
 
   - name: shlink
-    caddy:
+    routes:
       short:
         host: "{{ shlink_short_host }}"
       web:
         host: "{{ shlink_web_host }}"
 
   - name: wastebin
-    caddy:
+    routes:
       default:
         host: wastebin
 

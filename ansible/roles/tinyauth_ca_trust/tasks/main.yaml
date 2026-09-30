@@ -97,7 +97,7 @@
 # to land in an already-declared volume outside the generic per-config
 # staging classification (see docs/volumes.md's "Self-managed apps"
 # section) - this bundle is built from live host/container data, not a
-# static Jinja template, so it can't go through app_registry's normal
+# static Jinja template, so it can't go through app_catalog's normal
 # configs: list.
 #
 # `when: X.changed`, not a handler notified by the task above: unlike

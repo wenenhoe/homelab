@@ -7,7 +7,7 @@
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
     project_root: "{{ playbook_dir }}"
-    app_registry:
+    app_catalog:
       restore_val_target:
         volumes:
           - name: data
@@ -15,7 +15,7 @@
       - name: restore_val_target
     restore_before_marker: /tmp/restore-molecule-validation-failure-before-started-at
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

@@ -5,7 +5,7 @@
 # "letsencrypt/conf" for the letsencrypt_conf volume) — defaults to `name`.
 #
 # Ensures the external volume "<app>_<volume>" exists, labelled so it can
-# be found later without the app still being in the registry (see
+# be found later without the app still being in the catalog (see
 # cleanup.yaml). If a legacy bind-mount directory still exists at the
 # expected path, copies its contents in once via a throwaway container,
 # then renames the old directory to "<path>.migrated" so it isn't picked

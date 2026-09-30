@@ -1,4 +1,4 @@
-"""Tests for utils.app_catalog: the loader repo tooling reads app_registry.yaml through.
+"""Tests for utils.app_catalog: the loader repo tooling reads app_catalog.yaml through.
 
 Run via `uv run pytest tools/tests/ -v`.
 """
@@ -17,7 +17,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from utils import app_catalog as ac
 
 CATALOG = {
-    "web": {"volumes": [{"name": "data"}], "caddy": {"default": {"upstream": "web:80"}}},
+    "web": {"volumes": [{"name": "data"}], "routes": {"default": {"upstream": "web:80"}}},
     "db": {"volumes": [{"name": "data"}], "backup": {"volumes": ["data"]}},
 }
 

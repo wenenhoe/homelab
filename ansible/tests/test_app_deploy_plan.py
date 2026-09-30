@@ -101,7 +101,7 @@ CASES = {
         ),
     ),
     "unknown keys on the app are ignored": (
-        {"caddy": {"upstream": "x"}, "volumes": volumes("data"), "configs": [{"src": "a", "dest": ".env"}]},
+        {"routes": {"upstream": "x"}, "volumes": volumes("data"), "configs": [{"src": "a", "dest": ".env"}]},
         plan(configs_direct=[{"src": "a", "dest": ".env"}]),
     ),
     "order is preserved within each bucket": (
@@ -199,7 +199,7 @@ def test_filter_module_registers_the_filter_under_its_own_name():
 
 
 def _catalog():
-    return yaml.safe_load((ANSIBLE_DIR / "inventory" / "group_vars" / "all" / "app_registry.yaml").read_text())["app_registry"]
+    return yaml.safe_load((ANSIBLE_DIR / "inventory" / "group_vars" / "all" / "app_catalog.yaml").read_text())["app_catalog"]
 
 
 @pytest.mark.parametrize("name", sorted(_catalog()))

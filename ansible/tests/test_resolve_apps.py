@@ -4,7 +4,9 @@ The unit tests import the filter directly. `test_matches_catalog_merge_for_every
 runs a real controller-only play against the repo's inventory and compares each
 managed host's `resolved_apps` with the merge that `roles/compose/tasks/preinit.yaml`
 performed before the resolver existed: `combine(recursive=True)` of the catalog
-entry under the host's entry.
+entry under the host's entry. That test only sees list replacement where a host
+overrides a list its catalog entry also defines, and none does, so the unit tests
+are what pin it.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -34,21 +36,21 @@ CATALOG = {
         "volumes": [{"name": "data"}, {"name": "config"}],
         "configs": [{"src": "env.j2", "dest": ".env"}],
         "backup": {"volumes": ["data"], "cron": "0 3 * * *"},
-        "caddy": {"default": {"upstream": "web:8080", "auth": True}},
+        "routes": {"default": {"upstream": "web:8080", "auth": True}},
     },
     "db": {"volumes": [{"name": "data"}]},
 }
 
 
 def test_host_route_joins_catalog_route():
-    (app,) = resolve_apps([{"name": "web", "caddy": {"default": {"host": "web"}}}], CATALOG)
-    assert app["caddy"] == {"default": {"upstream": "web:8080", "auth": True, "host": "web"}}
+    (app,) = resolve_apps([{"name": "web", "routes": {"default": {"host": "web"}}}], CATALOG)
+    assert app["routes"] == {"default": {"upstream": "web:8080", "auth": True, "host": "web"}}
 
 
 def test_nested_dicts_merge_and_host_scalar_wins():
-    (app,) = resolve_apps([{"name": "web", "backup": {"cron": "0 5 * * *"}, "caddy": {"default": {"auth": False}}}], CATALOG)
+    (app,) = resolve_apps([{"name": "web", "backup": {"cron": "0 5 * * *"}, "routes": {"default": {"auth": False}}}], CATALOG)
     assert app["backup"] == {"volumes": ["data"], "cron": "0 5 * * *"}
-    assert app["caddy"]["default"] == {"upstream": "web:8080", "auth": False}
+    assert app["routes"]["default"] == {"upstream": "web:8080", "auth": False}
 
 
 def test_host_list_replaces_catalog_list():
@@ -64,7 +66,7 @@ def test_catalog_list_is_kept_when_host_names_none():
 
 
 def test_app_without_catalog_entry_resolves_to_itself():
-    entry = {"name": "adhoc", "caddy": {"default": {"host": "adhoc"}}}
+    entry = {"name": "adhoc", "routes": {"default": {"host": "adhoc"}}}
     assert resolve_apps([entry], CATALOG) == [entry]
 
 
@@ -82,7 +84,7 @@ def test_empty_compose_apps_resolves_to_empty_list():
 
 
 def test_inputs_are_not_modified():
-    apps = [{"name": "web", "volumes": [{"name": "x"}], "caddy": {"default": {"host": "web"}}}, {"name": "db"}]
+    apps = [{"name": "web", "volumes": [{"name": "x"}], "routes": {"default": {"host": "web"}}}, {"name": "db"}]
     catalog_before, apps_before = copy.deepcopy(CATALOG), copy.deepcopy(apps)
     resolve_apps(apps, CATALOG)
     assert catalog_before == CATALOG
@@ -126,7 +128,7 @@ EQUALITY_PLAY = """
         expected: >-
           {%- set out = [] -%}
           {%- for app in hostvars[item].compose_apps -%}
-          {%- set _ = out.append((app_registry[app.name] | default({})) | combine(app, recursive=True)) -%}
+          {%- set _ = out.append((app_catalog[app.name] | default({})) | combine(app, recursive=True)) -%}
           {%- endfor -%}
           {{ out }}
         differing: >-

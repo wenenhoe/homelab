@@ -4,7 +4,7 @@
 #            that are no longer listed in this host's compose_apps, and
 #            tears each one down via compose role's cleanup.yaml.
 #   Play 2 — for stacks that ARE still listed, prunes any volume docker
-#            still labels for that app but that its current app_registry
+#            still labels for that app but that its current app_catalog
 #            entry no longer declares (compose role's
 #            cleanup_stale_volumes.yaml). See docs/cleanup.md.
 #

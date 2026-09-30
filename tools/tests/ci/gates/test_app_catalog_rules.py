@@ -23,7 +23,7 @@ GOOD = {
         "volumes": [{"name": "data"}, {"name": "config"}],
         "configs": [{"src": "env.j2", "dest": ".env"}],
         "backup": {"volumes": ["data"], "stop_during_backup": True},
-        "caddy": {"default": {"upstream": "web:8080"}, "admin": {"upstream": "web:9000", "auth": False}},
+        "routes": {"default": {"upstream": "web:8080"}, "admin": {"upstream": "web:9000", "auth": False}},
     },
     "agent": {"volumes": [{"name": "data"}]},
     "bare": {},
@@ -63,6 +63,16 @@ class EachRuleTests(unittest.TestCase):
     def test_a_missing_upstream_names_its_route(self):
         found = rules.validate({"a": {rules.ROUTES_KEY: {"web": {"upstream": "a:1"}, "admin": {"auth": False}}}})
         self.assertEqual([(v.rule, "`admin`" in v.message) for v in found], [("route-upstream", True)])
+
+    def test_a_route_map_under_the_old_key_is_refused(self):
+        self.assertEqual(broken({rules.LEGACY_ROUTES_KEY: {"default": {"upstream": "web:80"}}}), ["legacy-route-key"])
+        self.assertEqual(
+            broken({rules.LEGACY_ROUTES_KEY: {"default": {"upstream": "web:80"}}, rules.ROUTES_KEY: {"default": {"upstream": "web:80"}}}), ["legacy-route-key"]
+        )
+
+    def test_the_old_key_holding_something_else_is_not_a_route_map(self):
+        self.assertEqual(broken({rules.LEGACY_ROUTES_KEY: {}}), [])
+        self.assertEqual(broken({rules.LEGACY_ROUTES_KEY: {"volumes": []}}), [])
 
     def test_an_app_with_no_routes_is_fine(self):
         self.assertEqual(broken({"volumes": [{"name": "data"}]}), [])

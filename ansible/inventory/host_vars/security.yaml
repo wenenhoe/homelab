@@ -53,7 +53,7 @@ compose_apps:
   - name: tinyauth
 
   - name: lldap
-    caddy:
+    routes:
       default:
         host: "{{ lldap_host }}"
 
@@ -62,12 +62,12 @@ compose_apps:
   - name: openbao
 
   - name: beszel-hub
-    caddy:
+    routes:
       default:
         host: "{{ beszel_hub_host }}"
 
   - name: uptime-kuma
-    caddy:
+    routes:
       default:
         host: "{{ uptime_kuma_host }}"
 
@@ -102,9 +102,9 @@ dns_zones:
     extra_records:
       - { name: "@", type: NS, value: "ns1.{{ caddy_domain }}." }
       - { name: "ns1", type: A, value: "127.0.0.1" }
-      # Hand-written, not auto-generated: openbao has no caddy: route
-      # in app_registry.yaml (docs/openbao.md), so bind9's auto-CNAME
-      # (one per app with a caddy route, see
+      # Hand-written, not auto-generated: openbao has no routes: entry
+      # in app_catalog.yaml (docs/openbao.md), so bind9's auto-CNAME
+      # (one per app with a route, see
       # docs/architecture/reverse-proxy-and-dns.md) never fires for
       # it, even though its cert (step_ca_cert) carries this exact
       # SAN. Same pattern as sso above.

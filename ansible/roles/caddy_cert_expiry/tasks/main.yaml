@@ -8,12 +8,12 @@
 
 - name: Resolve this host's routable apps (same selectattr Caddyfile.j2 uses)
   ansible.builtin.set_fact:
-    caddy_cert_expiry_routable_apps: "{{ resolved_apps | selectattr('caddy', 'defined') | list }}"
+    caddy_cert_expiry_routable_apps: "{{ resolved_apps | selectattr('routes', 'defined') | list }}"
 
 - name: Fail loudly if this host has no Caddy-routed app to check against
   ansible.builtin.fail:
     msg: >-
-      No compose_apps entry on this host declares a caddy: route, so
+      No compose_apps entry on this host declares a routes: entry, so
       there's no live *.{{ caddy_domain }} cert to check - see
       Caddyfile.j2's own routable_apps selection.
   when: caddy_cert_expiry_routable_apps | length == 0
@@ -21,7 +21,7 @@
 - name: Pick the first routed hostname to check (the wildcard cert covers all of them)
   ansible.builtin.set_fact:
     caddy_cert_expiry_check_host: >-
-      {{ (caddy_cert_expiry_routable_apps[0].caddy.values() | list | first).host }}.{{ caddy_domain }}
+      {{ (caddy_cert_expiry_routable_apps[0].routes.values() | list | first).host }}.{{ caddy_domain }}
 
 - name: Ensure openssl is present (check.sh's live TLS handshake needs it)
   ansible.builtin.apt:

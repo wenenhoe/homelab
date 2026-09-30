@@ -74,7 +74,7 @@ class YamlTests(unittest.TestCase):
             "ansible/roles/molecule_helpers/playbooks/prepare_dind.yml",
             "ansible/roles/molecule_helpers/requirements.yml",
             "ansible/requirements.yml",
-            "ansible/inventory/group_vars/all/app_registry.yaml",
+            "ansible/inventory/group_vars/all/app_catalog.yaml",
             ".config/molecule/config.yml",
         ):
             with self.subTest(path=path):

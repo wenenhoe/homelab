@@ -9,12 +9,12 @@ populated by Ansible rather than a `./data`-style host path.
 
 ## Declaring volumes
 
-A `volumes` list in an app's `app_registry` entry triggers this. An app
+A `volumes` list in an app's `app_catalog` entry triggers this. An app
 with no `volumes` key is unaffected (see
 [Backward compatibility](#backward-compatibility-with-bind-mounted-apps)):
 
 ```yaml
-app_registry:
+app_catalog:
   dashy:
     volumes:
       - name: data
@@ -36,7 +36,7 @@ volumes:
     name: dashy_data
 ```
 
-If a volume's on-disk directory name doesn't match its registry name (e.g. `lldap`'s `letsencrypt/conf` mapping to a `letsencrypt_conf` volume), add `legacy_path`:
+If a volume's on-disk directory name doesn't match its catalog name (e.g. `lldap`'s `letsencrypt/conf` mapping to a `letsencrypt_conf` volume), add `legacy_path`:
 
 ```yaml
 volumes:
@@ -51,7 +51,7 @@ once per deploy:
 
 1. Create the volume (`community.docker.docker_volume`, `state: present`),
    labelled `homelab.app`/`homelab.volume` — lets `cleanup.yaml` find and
-   remove it later even after the `app_registry` entry is gone. See
+   remove it later even after the `app_catalog` entry is gone. See
    [`cleanup.md`](cleanup.md).
 2. Check whether a legacy bind-mount directory still exists at
    `legacy_path` (defaults to the volume's own name).

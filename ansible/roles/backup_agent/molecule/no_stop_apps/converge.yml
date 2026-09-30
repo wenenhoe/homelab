@@ -53,7 +53,7 @@
     # the shape no current real host has (services/security both have
     # at least one stop app), but the remaining untested branch:
     # backup_agent_any_stop_apps ends up false.
-    app_registry:
+    app_catalog:
       happy_app_solo_nostop:
         volumes:
           - name: data
@@ -62,7 +62,7 @@
     compose_apps:
       - name: happy_app_solo_nostop
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

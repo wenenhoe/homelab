@@ -11,7 +11,7 @@ For each host, "orphaned" means: present on disk under `compose_deploy_dir` **or
 3. `compose_cleanup_compose_ls` — every running Compose project (`docker compose ls --format json`).
 4. `compose_cleanup_orphaned_stacks` — the union of (2) and (3), minus (1) and `compose_cleanup_exclude`, deduplicated and sorted.
 
-`compose_cleanup_exclude` (a `vars:` default on `cleanup.yaml`'s own Play 1, not a role default — see its own comment there) covers directories that are never going to be a `compose_apps` entry at all: `backup_agent` and `cloud_sync` are separate roles, included directly from `deploy.yaml`, not through the app registry, so without this they'd be misidentified as orphaned on every single run.
+`compose_cleanup_exclude` (a `vars:` default on `cleanup.yaml`'s own Play 1, not a role default — see its own comment there) covers directories that are never going to be a `compose_apps` entry at all: `backup_agent` and `cloud_sync` are separate roles, included directly from `deploy.yaml`, not through the app catalog, so without this they'd be misidentified as orphaned on every single run.
 
 Union-ing disk and runtime state (not disk alone) catches a stack whose
 containers are still running but whose directory was already deleted by
@@ -34,13 +34,13 @@ hands each name to `roles/compose/tasks/cleanup.yaml` to tear it down.
    `compose_cleanup_remove_content`. "Remove" deletes the directory and
    every volume labelled `homelab.app=<stack>`; otherwise both are left
    and reported as preserved. Volumes are found by label, not the app's
-   `app_registry` entry (gone once an app is orphaned) — see
+   `app_catalog` entry (gone once an app is orphaned) — see
    [`volumes.md`](volumes.md).
 
 ## Pruning stale volumes on stacks that are still deployed
 
 The playbook's second play covers a different case: an app is still in
-`compose_apps` (so Play 1 above never touches it), but its `app_registry`
+`compose_apps` (so Play 1 above never touches it), but its `app_catalog`
 entry no longer declares one of the volumes docker still has for it —
 e.g. a `volumes` entry was removed or renamed while the app itself stays
 deployed.

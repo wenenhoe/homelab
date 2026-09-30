@@ -27,15 +27,15 @@ telegram_topic_id_certs: ""
 # "not configured yet" happy path as the telegram vars above.
 step_ca_cert_uptime_kuma_push_url: ""
 
-# Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
+# Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
 # openbao entry) — extracted via lookup rather than hand-copied, same
 # reasoning as default's own host_vars (see
 # docs/molecule-fixtures.md): a hand-copied fixture drifts silently, a
 # lookup can't.
-app_registry: >-
+app_catalog: >-
   {{
-    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
-     | from_yaml).app_registry
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')
+     | from_yaml).app_catalog
   }}
 
 compose_apps:

@@ -35,7 +35,7 @@ which is the thing that plugin doesn't support.
 
 Neither of those is the direction being pursued, for two reasons.
 First, coupling: `services`' zone data comes from `host_vars`/
-`app_registry`, resolved at Ansible render time; Tofu-provisioned VM
+`app_catalog`, resolved at Ansible render time; Tofu-provisioned VM
 data would come from the not-yet-built Tofu→Ansible inventory
 generator (Stage 4), resolved from Tofu's own state/outputs. Feeding
 both into one role's render pipeline ties two independently-evolving
@@ -55,7 +55,7 @@ bolted onto an existing host.
 A second, dedicated BIND9 instance on `security`, authoritative only
 for A records of Tofu-provisioned VMs — separate from `services`'
 CNAME zone, fed by the Tofu→Ansible inventory generator's output
-instead of `host_vars`/`app_registry`. It reuses the same
+instead of `host_vars`/`app_catalog`. It reuses the same
 render-diff-reload mechanism `services`' `bind9` role already proves
 out, either as a parameterized version of that role or a close sibling
 — which of the two isn't decided here (see Assumptions).

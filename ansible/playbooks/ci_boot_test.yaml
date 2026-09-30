@@ -18,7 +18,7 @@
 # — bind9/caddy/seaweedfs/tinyauth are excluded there already, for their
 # own documented reasons, unrelated to this.
 #
-# Adding a *new* app to the registry that needs a config template variable
+# Adding a *new* app to the catalog that needs a config template variable
 # not already a real group_vars/all default: add it to ci_dummy_vars.yaml,
 # not as a one-off here.
 - name: CI boot-test prep — seed one app's volumes via the real compose role
@@ -27,7 +27,7 @@
   gather_facts: true
   vars_files:
     - "{{ playbook_dir }}/../inventory/group_vars/all/main.yaml"
-    - "{{ playbook_dir }}/../inventory/group_vars/all/app_registry.yaml"
+    - "{{ playbook_dir }}/../inventory/group_vars/all/app_catalog.yaml"
     # Loaded last so it can override main.yaml's real (but here-unresolvable
     # — e.g. hostvars-dependent) values with CI-safe flat placeholders.
     # Deliberately an explicit vars_files entry here, NOT relied on via

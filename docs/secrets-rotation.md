@@ -131,7 +131,7 @@ action anywhere else as long as step-ca's own root hasn't changed (see
 [`step-ca.md`](step-ca.md)).
 
 **If the app whose volume you're resetting is currently backed up**
-(has a `backup:` entry in `app_registry.yaml`), `backup_agent`'s
+(has a `backup:` entry in `app_catalog.yaml`), `backup_agent`'s
 long-running container holds a read-only mount on that volume the whole
 time it's running, which used to make the volume delete above fail with
 a `409 volume is in use` even after the app's own container was torn

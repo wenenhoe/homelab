@@ -138,14 +138,14 @@ repos:
       - id: check-app-catalog
         name: check-app-catalog
         description: >-
-          Every app in app_registry.yaml keeps the invariants a merge
+          Every app in app_catalog.yaml keeps the invariants a merge
           cannot: unique names, backup.volumes within volumes, and an
           upstream on every route - see tools/ci/gates/app_catalog_rules.py.
           Needs only PyYAML.
         entry: bash -c 'cd tools && python3 -m ci.gates.app_catalog_rules' --
         language: python
         additional_dependencies: [pyyaml]
-        files: ^(ansible/inventory/group_vars/all/app_registry\.yaml|tools/(utils/(app_catalog|unique_key_yaml)|ci/gates/app_catalog_rules)\.py)$
+        files: ^(ansible/inventory/group_vars/all/app_catalog\.yaml|tools/(utils/(app_catalog|unique_key_yaml)|ci/gates/app_catalog_rules)\.py)$
         pass_filenames: false
       - id: check-image-pins
         name: check-image-pins

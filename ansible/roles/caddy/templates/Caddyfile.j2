@@ -29,11 +29,11 @@
 }
 
 {% endif %}
-{% set routable_apps = resolved_apps | selectattr('caddy', 'defined') | list %}
+{% set routable_apps = resolved_apps | selectattr('routes', 'defined') | list %}
 {% if routable_apps | length > 0 %}
 *.{{ caddy_domain }} {
 {% for app in routable_apps %}
-{% for id, route in app.caddy.items() %}
+{% for id, route in app.routes.items() %}
     @{{ route.host }} host {{ route.host }}.{{ caddy_domain }}
     handle @{{ route.host }} {
         {% if route.auth | default(true) %}

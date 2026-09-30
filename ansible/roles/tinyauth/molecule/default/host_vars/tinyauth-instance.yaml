@@ -31,19 +31,19 @@ tinyauth_ldap_observer_password: molecule-test-observer-password
 # real step-ca-issued one. See main.yaml's own comment.
 tinyauth_ldap_insecure: true
 
-# Real production shape (ansible/inventory/group_vars/all/app_registry.yaml's
+# Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
 # tinyauth entry) — extracted via lookup rather than hand-copied, so it
 # can't drift from the real entry the way tinyauth_ca_trust's own
 # fixture already had (missing backup:) before converting to this same
 # pattern — see docs/molecule-fixtures.md.
-app_registry: >-
+app_catalog: >-
   {{
-    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml')
-     | from_yaml).app_registry
+    (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')
+     | from_yaml).app_catalog
   }}
 
-# No caddy: block — matches host_vars/security.yaml's real tinyauth
+# No routes: block — matches host_vars/security.yaml's real tinyauth
 # entry (it fronts its own top-level auth domain rather than the
-# wildcard vhost every other app gets, see app_registry.yaml's comment).
+# wildcard vhost every other app gets, see app_catalog.yaml's comment).
 compose_apps:
   - name: tinyauth

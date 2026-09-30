@@ -137,7 +137,7 @@ Tofu does not write into `ansible/` directly. Instead, a small generator
 script reads Tofu state/outputs (VMID, IP, MAC, hostname per VM) and
 produces the inventory data Ansible consumes — keeping each tool's
 write-ownership single-purpose, consistent with how `host_vars` /
-`app_registry` already split concerns in this repo.
+`app_catalog` already split concerns in this repo.
 
 ## State backend & secrets
 

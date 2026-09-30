@@ -6,7 +6,7 @@
 # based on the INVENTORY FILE's own directory (confirmed live), so a
 # file under ci-inventory/ would pick up ci-inventory/group_vars/all/
 # ci_dummy_vars.yaml's flat main_domain override instead of this
-# directory's real main.yaml/secret_catalog.yaml/app_registry.yaml —
+# directory's real main.yaml/secret_catalog.yaml/app_catalog.yaml —
 # defeating the entire point of this check, which is to exercise the
 # REAL main_domain -> secrets_generated chain, not a stub of it. Never
 # auto-included in a normal run: ansible.cfg's `inventory =` setting

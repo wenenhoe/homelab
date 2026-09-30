@@ -67,11 +67,11 @@ unwritten and raise it privately.
 | [`project-planning.md`](project-planning.md) | Generated cross-cutting views: projects with an initiative by build order, standalone projects, and open ADRs no project covers yet. |
 | [`nist-800-53-alignment.md`](nist-800-53-alignment.md) | Selective, narrative NIST SP 800-53 alignment — which existing decisions resemble which control's intent, and one control evaluated and left unmapped. Not a compliance artifact. |
 | [`ansible.md`](ansible.md) | Playbook, role, and inventory reference tables. |
-| [`deployment-flow.md`](deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_registry`. |
+| [`deployment-flow.md`](deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_catalog`. |
 | [`volumes.md`](volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
 | [`host-vars.md`](host-vars.md) | `host_vars/<host>.yaml` field reference. |
 | [`network-infra.md`](network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, and their bootstrap prerequisites. |
-| [`adding-an-app.md`](adding-an-app.md) | Wiring a new Compose app into the registry. |
+| [`adding-an-app.md`](adding-an-app.md) | Wiring a new Compose app into the catalog. |
 
 ### Planned, not yet implemented
 
@@ -119,7 +119,7 @@ unwritten and raise it privately.
 | Doc | Covers |
 | :--- | :--- |
 | [`molecule-testing.md`](molecule-testing.md) | Molecule scenario matrix and how to add one. |
-| [`molecule-fixtures.md`](molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_registry` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
+| [`molecule-fixtures.md`](molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_catalog` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
 | [`ci.md`](ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check, and the project-scope check. |
 | [`security-scanning.md`](security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |
 | [`security-findings.md`](security-findings.md) | The private `homelab-security` tracker for code-review findings: what it holds, the contract a writer follows, how findings are triaged, and how this repo may refer to them. |

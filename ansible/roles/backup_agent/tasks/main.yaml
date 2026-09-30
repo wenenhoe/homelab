@@ -8,7 +8,7 @@
 # SeaweedFS write credential (docker/seaweedfs/configs/s3-identity.json.j2),
 # never anything cloud-capable.
 #
-# See build_schedules.yaml for the app_registry.backup fields this
+# See build_schedules.yaml for the app_catalog.backup fields this
 # reads, and how each app's freshness threshold is derived.
 #
 # One docker-volume-backup schedule per app, all sharing one container

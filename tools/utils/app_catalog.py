@@ -1,4 +1,4 @@
-"""The reader of ansible/inventory/group_vars/all/app_registry.yaml for repo tooling.
+"""The reader of ansible/inventory/group_vars/all/app_catalog.yaml for repo tooling.
 
 Standard library and PyYAML only, so a pre-commit hook can import it. Ansible
 reads the same file through the `resolve_apps` filter, not through this module.
@@ -13,9 +13,9 @@ import yaml
 from utils.unique_key_yaml import UniqueKeyLoader
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-CATALOG_RELATIVE = "ansible/inventory/group_vars/all/app_registry.yaml"
+CATALOG_RELATIVE = "ansible/inventory/group_vars/all/app_catalog.yaml"
 CATALOG_PATH = REPO_ROOT / CATALOG_RELATIVE
-CATALOG_KEY = "app_registry"
+CATALOG_KEY = "app_catalog"
 
 Catalog = dict[str, dict[str, object]]
 

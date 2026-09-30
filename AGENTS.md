@@ -28,7 +28,7 @@ the indexes, lints the markdown, and runs
 
 - **Public exposure.** Every app in `compose_apps` is proxied through
   Caddy with Tinyauth forward-auth and TLS by default;
-  [`docs/adding-an-app.md`](docs/adding-an-app.md)'s `caddy` block only
+  [`docs/adding-an-app.md`](docs/adding-an-app.md)'s `routes` block only
   accepts `auth: false` as an explicit, per-route opt-out — there's no
   default-open path.
 - **Least privilege.** Non-root containers and scoped AppRoles are the

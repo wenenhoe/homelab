@@ -34,19 +34,19 @@
     # own tasks/main.yaml) needs this — see docs/uptime-kuma.md. Blank,
     # same "not configured yet" happy path as the telegram vars above.
     uptime_kuma_push_url_cert_expiry: ""
-    app_registry: "{{ (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_registry.yaml') | from_yaml).app_registry }}"
-    # Extracted from the real registry rather than hand-copied — see
+    app_catalog: "{{ (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml') | from_yaml).app_catalog }}"
+    # Extracted from the real catalog rather than hand-copied — see
     # docs/molecule-fixtures.md. Both caddy and
     # bentopdf used here already have real entries, so no combine()
     # override is needed, unlike caddy/molecule/default's own scenario.
     compose_apps:
       - name: caddy
       - name: bentopdf
-        caddy:
+        routes:
           default:
             host: bentopdf
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

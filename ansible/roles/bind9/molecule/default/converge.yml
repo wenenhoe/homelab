@@ -12,10 +12,10 @@
     # file with a symlink, so this task can't be exercised here. See
     # bind9's defaults/main.yaml and network_conf.yaml.
     bind9_manage_resolv_conf: false
-    # main_domain, lab_domain, dns_zones, app_registry, compose_apps live
+    # main_domain, lab_domain, dns_zones, app_catalog, compose_apps live
     # in host_vars/bind9-instance.yaml instead — see the comment there.
   tasks:
-    - name: Resolve compose_apps against the app registry
+    - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers
         tasks_from: resolve_compose_apps.yaml

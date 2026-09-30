@@ -15,6 +15,9 @@ cloud_credentials/{leaf,rotation}/* taxonomy scoped() builds);
 vault_seed_path()/vault_get_path() key by a full Vault path directly,
 for read_vault_path()'s callers (e.g. check_freshness.py's
 hosts/all/telegram/* reads, outside that taxonomy).
+
+FakeVault holds that keying once; FakeVaultTestCase and conftest.py's
+fake_vault fixture are the two ways to install it.
 """
 
 from __future__ import annotations
@@ -25,27 +28,48 @@ from unittest.mock import patch
 from cloud_credentials import cache
 
 
+class FakeVault:
+    def __init__(self) -> None:
+        self.store: dict[str, str] = {}
+
+    def write(self, full_path: str, value: str) -> None:
+        self.store[full_path] = value
+
+    def seed(self, category: str, name: str, value: str) -> None:
+        self.store[cache._vault_path(category, name)] = value
+
+    def get(self, category: str, name: str) -> str | None:
+        return self.store.get(cache._vault_path(category, name))
+
+    def delete(self, category: str, name: str) -> None:
+        self.store.pop(cache._vault_path(category, name), None)
+
+    def seed_path(self, full_path: str, value: str) -> None:
+        self.store[full_path] = value
+
+    def get_path(self, full_path: str) -> str | None:
+        return self.store.get(full_path)
+
+
 class FakeVaultTestCase(unittest.TestCase):
     def setUp(self):
-        self._store: dict[str, str] = {}
+        self._vault = FakeVault()
+        self._store = self._vault.store
         patch.object(cache, "_vault_read_at", side_effect=self._store.get).start()
-        patch.object(cache, "_vault_write_at", side_effect=self._fake_write).start()
+        patch.object(cache, "_vault_write_at", side_effect=self._vault.write).start()
         self.addCleanup(patch.stopall)
 
-    def _fake_write(self, full_path: str, value: str) -> None:
-        self._store[full_path] = value
-
     def vault_seed(self, category: str, name: str, value: str) -> None:
-        self._store[cache._vault_path(category, name)] = value
+        self._vault.seed(category, name, value)
 
     def vault_get(self, category: str, name: str) -> str | None:
-        return self._store.get(cache._vault_path(category, name))
+        return self._vault.get(category, name)
 
     def vault_delete(self, category: str, name: str) -> None:
-        self._store.pop(cache._vault_path(category, name), None)
+        self._vault.delete(category, name)
 
     def vault_seed_path(self, full_path: str, value: str) -> None:
-        self._store[full_path] = value
+        self._vault.seed_path(full_path, value)
 
     def vault_get_path(self, full_path: str) -> str | None:
-        return self._store.get(full_path)
+        return self._vault.get_path(full_path)

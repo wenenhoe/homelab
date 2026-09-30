@@ -66,3 +66,16 @@ ignore = [
 # a real credential.
 "ansible/tests/**" = ["S101", "S108", "S105", "S106"]
 "tools/tests/**" = ["S101", "S108", "S105", "S106"]
+
+[tool.pytest]
+minversion = "9.1"
+testpaths = ["ansible/tests", "tools/tests"]
+pythonpath = [
+    "tools",
+    "ansible/filter_plugins",
+    "ansible/molecule-coverage",
+    "ansible/molecule-coverage/callback_plugins",
+    "ansible/scripts",
+    "docker/openbao/watcher",
+]
+strict = true

@@ -96,11 +96,11 @@
       tags:
         - images
 
-# Play 5 — Ensure the offsite-backup bucket exists. Runs after
+# Play 5 — Ensure the SeaweedFS backup bucket exists. Runs after
 # SeaweedFS deploys (Play 4), before backup_agent uploads to it (Play 6)
 # — SeaweedFS doesn't auto-create buckets on first PUT. See
 # ansible/roles/seaweedfs_bucket.
-- name: Ensure offsite-backup bucket exists
+- name: Ensure SeaweedFS backup bucket exists
   hosts: storage
   gather_facts: false
   become: true
@@ -193,11 +193,11 @@
       tags:
         - images
 
-# Play 8 — Offsite backup agent. Runs last among the managed_hosts
+# Play 8 — Backup agent. Runs last among the managed_hosts
 # plays deliberately: it mounts other apps' volumes as `external:
 # true`, which requires each app's own Play 4 ensure_volume step to
 # have already created them. Play 9 (storage-only) runs after this one.
-- name: Deploy offsite backup agent
+- name: Deploy backup agent
   hosts: managed_hosts # not all — see inventory.yaml's controller group / Play 1's comment
   gather_facts: false
   become: true

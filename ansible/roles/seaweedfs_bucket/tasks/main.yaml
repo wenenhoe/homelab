@@ -97,7 +97,7 @@
 # bucket-scoped `Admin:` grant — resolves to the anonymous account for
 # this one call and gets denied regardless of scope. Widening that
 # grant would not fix it; nothing to change here if it reappears.
-- name: Create the offsite-backup bucket in SeaweedFS if it doesn't already exist
+- name: Create the backup bucket in SeaweedFS if it doesn't already exist
   amazon.aws.s3_bucket:
     name: "{{ seaweedfs_s3_bucket }}"
     state: present

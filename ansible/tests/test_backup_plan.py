@@ -4,8 +4,8 @@ The unit tests import the filters directly. The last three run against the
 repo's real inventory: the first checks `backup_defaults` names every setting,
 and the two after it run a real controller-only play and compare each managed
 host's `backup_plan`, and the derived `backup_hosts`, with the catalog laid over
-`backup_defaults`, and check that every backup host has the credentials SeaweedFS's
-identity file builds its scoped identity from.
+`backup_defaults`, and with the same facts restated for the catalog validator, which
+runs in a pre-commit hook and so can't import this plugin or ask Ansible.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -27,9 +27,12 @@ from ansible.errors import AnsibleFilterError
 ANSIBLE_DIR = Path(__file__).resolve().parent.parent
 INVENTORY_DIR = ANSIBLE_DIR / "inventory"
 sys.path.insert(0, str(ANSIBLE_DIR / "filter_plugins"))
+sys.path.insert(0, str(ANSIBLE_DIR.parent / "tools"))
 
 import backup_plan as filter_mod  # noqa: E402
 import resolve_apps as resolver_mod  # noqa: E402
+from ci.gates import app_catalog_rules as validator  # noqa: E402
+from utils.app_catalog import load_backup_inventory, load_catalog  # noqa: E402
 
 backup_plan = filter_mod.backup_plan
 backup_hosts = filter_mod.backup_hosts
@@ -256,15 +259,10 @@ def test_backup_hosts_are_the_hosts_with_a_plan_in_inventory_order(real_inventor
     assert hosts["backup_hosts"], "no host backs up"
 
 
-def test_every_backup_host_has_its_own_seaweedfs_credentials(real_inventory_output):
-    """A host with a backed-up app is given a scoped identity, built from these; without them the deploy fails."""
+def test_the_validator_derives_the_backup_hosts_ansible_does(real_inventory_output):
     hosts, _ = real_inventory_output
-    secrets = _load(INVENTORY_DIR / "group_vars" / "all" / "secret_catalog.yaml")["secret_catalog"]
-    for host in hosts["backup_hosts"]:
-        host_vars = _load(INVENTORY_DIR / "host_vars" / f"{host}.yaml")
-        for kind in ("access", "secret"):
-            name = f"seaweedfs-s3-{kind}-key-{host}"
-            assert secrets.get(name, {}).get("scope") == f"hosts/{host}", f"secret_catalog.yaml needs {name} scoped to hosts/{host}"
-            assert f"secrets_generated['{name}']" in host_vars.get(f"seaweedfs_s3_{kind}_key", ""), (
-                f"host_vars/{host}.yaml needs seaweedfs_s3_{kind}_key from {name}"
-            )
+    assert validator.backup_hosts(load_catalog(), load_backup_inventory()) == hosts["backup_hosts"]
+
+
+def test_the_validator_and_the_filter_agree_on_the_backup_settings():
+    assert set(validator.BACKUP_SETTINGS) == set(filter_mod.BACKUP_SETTINGS)

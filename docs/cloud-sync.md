@@ -28,7 +28,7 @@ lock clears, but B2's fails outright rather than deferring, so closing
 that gap on B2 specifically would start producing failed lifecycle runs
 instead of merely-delayed ones.
 
-**Which apps get which extra clouds:** `app_catalog.yaml`'s
+**Which clouds each app is relayed to:** `app_catalog.yaml`'s
 `backup.cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
 SeaweedFS only; SeaweedFS itself is implicit for every backed-up app,
 never listed. An app's list replaces the default rather than adding to

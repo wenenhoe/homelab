@@ -64,5 +64,82 @@ class LoadCatalogTests(unittest.TestCase):
         self.assertTrue(ac.load_catalog())
 
 
+def write_inventory(root: Path, **changes: object) -> None:
+    """A minimal valid inventory under `root`; `changes` replaces a file's mapping, or removes the file when None."""
+    files = {
+        "group_vars/all/main.yaml": {"backup_defaults": {"cron": "30 4 * * *"}, "other": "{{ rendered }}"},
+        "group_vars/all/secret_catalog.yaml": {"secret_catalog": {"a-secret": {"scope": "hosts/alpha"}, "not-a-mapping": "x"}},
+        "host_vars/storage.yaml": {"cloud_sync_targets": {"r2": {"bucket": "b"}, "b2": {}}},
+        "inventory.yaml": {"all": {"children": {"managed_hosts": {"hosts": {"alpha": {"ansible_host": "a.{{ d }}"}, "storage": {}}}}}},
+        "host_vars/alpha.yaml": {"compose_apps": [{"name": "web"}], "seaweedfs_s3_access_key": "{{ k }}"},
+    }
+    files.update(changes)
+    for relative, data in files.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if data is None:
+            path.unlink(missing_ok=True)
+        else:
+            path.write_text(data if isinstance(data, str) else yaml.safe_dump(data, sort_keys=False))
+
+
+class LoadBackupInventoryTests(unittest.TestCase):
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._tmp.cleanup)
+        self.root = Path(self._tmp.name)
+
+    def load(self, **changes: object) -> ac.BackupInventory:
+        write_inventory(self.root, **changes)
+        return ac.load_backup_inventory(self.root)
+
+    def test_reads_each_fact_the_backup_rules_need(self):
+        inventory = self.load()
+        self.assertEqual(inventory.defaults, {"cron": "30 4 * * *"})
+        self.assertEqual(inventory.cloud_targets, frozenset({"r2", "b2"}))
+        self.assertEqual(inventory.managed_hosts, ("alpha", "storage"))
+        self.assertEqual(inventory.compose_apps, {"alpha": [{"name": "web"}], "storage": []})
+        self.assertEqual(inventory.host_vars["alpha"]["seaweedfs_s3_access_key"], "{{ k }}")
+        self.assertEqual(inventory.secrets, {"a-secret": {"scope": "hosts/alpha"}})
+
+    def test_values_are_read_not_rendered(self):
+        self.assertEqual(self.load().host_vars["alpha"]["seaweedfs_s3_access_key"], "{{ k }}")
+
+    def test_hosts_keep_the_order_the_inventory_lists_them(self):
+        hosts = {"zulu": {}, "alpha": {}, "mike": {}}
+        inventory = self.load(
+            **{"inventory.yaml": {"all": {"children": {"managed_hosts": {"hosts": hosts}}}}, "host_vars/zulu.yaml": {}, "host_vars/mike.yaml": {}}
+        )
+        self.assertEqual(inventory.managed_hosts, ("zulu", "alpha", "mike"))
+
+    def test_a_missing_or_misshapen_file_is_an_error_naming_it(self):
+        cases = {
+            "group_vars/all/main.yaml": ({"other": 1}, "main.yaml must hold a `backup_defaults` mapping"),
+            "group_vars/all/secret_catalog.yaml": ({"secret_catalog": []}, "secret_catalog.yaml must hold a `secret_catalog` mapping"),
+            "host_vars/storage.yaml": ({"compose_apps": []}, "storage.yaml must hold a `cloud_sync_targets` mapping"),
+            "inventory.yaml": ({"all": {"children": {}}}, "must define the `managed_hosts` group"),
+            "host_vars/alpha.yaml": (None, "can't read .*alpha.yaml"),
+            "group_vars/all/main.yaml ": ("a: [", "isn't valid YAML"),
+        }
+        for changes, (data, message) in cases.items():
+            with self.subTest(file=changes), self.assertRaisesRegex(ac.CatalogError, message):
+                write_inventory(self.root)
+                self.load(**{changes.strip(): data})
+
+    def test_a_compose_apps_entry_without_a_name_is_an_error(self):
+        for entries in ("web", [{"image": "x"}], [{"name": 1}], ["web"]):
+            with self.subTest(entries=entries), self.assertRaisesRegex(ac.CatalogError, "alpha.yaml.*compose_apps"):
+                self.load(**{"host_vars/alpha.yaml": {"compose_apps": entries}})
+
+    def test_a_host_with_no_compose_apps_key_has_none(self):
+        self.assertEqual(self.load(**{"host_vars/alpha.yaml": {}}).compose_apps["alpha"], [])
+
+    def test_the_real_inventory_loads(self):
+        inventory = ac.load_backup_inventory()
+        self.assertTrue(inventory.managed_hosts)
+        self.assertTrue(inventory.cloud_targets)
+        self.assertEqual(set(inventory.compose_apps), set(inventory.managed_hosts))
+
+
 if __name__ == "__main__":
     unittest.main()

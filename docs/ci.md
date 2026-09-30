@@ -558,19 +558,11 @@ and runs the check over the real catalog.
 
 ## App catalog rules
 
-`ci.gates.app_catalog_rules` checks the invariants of `app_catalog.yaml` that
-a merge cannot: every route has an `upstream`, every name in an app's
-`backup.volumes` is a volume its `volumes` declares, and no app name appears
-twice (the loader refuses a repeated name instead of keeping the last). A
-`volumes`, `backup` or route entry of the wrong shape is reported as such, not
-left to crash the check. Each violation is printed with the app and the rule,
-and any violation fails the check.
+`ci.gates.app_catalog_rules` checks the invariants of `app_catalog.yaml` that a merge cannot. Every route has an `upstream`. A `backup:` block names at least one volume (an app with nothing to back up leaves the block out), and every name in `backup.volumes` is a volume the app's `volumes` declares. Each backup setting keeps its shape: `cloud_targets` a list of names, `retention_days` a positive integer, `compression` one of `gz`, `zst` or `none`, `stop_during_backup` a boolean, `cron` a non-empty string. A route map under the old `caddy` key and cloud targets under the old `backup.extra_cloud_targets` key are refused, because both are ignored silently otherwise. No app name appears twice (the loader refuses a repeated name instead of keeping the last). A `volumes`, `backup` or route entry of the wrong shape is reported as such, not left to crash the check.
 
-It runs as the `check-app-catalog` pre-commit hook, so `pre-commit-checks`
-runs it on every PR, and the hook needs only PyYAML. Without it a backup of an
-undeclared volume or a route with no upstream would surface at deploy time.
-`tools/tests/ci/gates/test_app_catalog_rules.py` has a case for each rule and
-runs the check over the real catalog.
+It also checks the catalog against the inventory, read as plain YAML with no value rendered ([ADR 0068](decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)). `backup_defaults` supplies every setting in its shape. Every cloud target an app or `backup_defaults` names is a key of `cloud_sync_targets` in `host_vars/storage.yaml`. Every managed host that runs a backed-up app (Ansible's `backup_hosts`, derived here from each host's `compose_apps` and the catalog) has its own `seaweedfs-s3-access-key-<host>` and `seaweedfs-s3-secret-key-<host>` in `secret_catalog.yaml`, scoped to `hosts/<host>`, and its own `seaweedfs_s3_access_key` and `seaweedfs_s3_secret_key` host variables taken from them. Without these, a misspelt target or a host's first backed-up app would surface at deploy time as an undefined variable. Each violation is printed with the app or host and the rule, and any violation fails the check.
+
+It runs as the `check-app-catalog` pre-commit hook, so `pre-commit-checks` runs it on every PR; locally the hook runs when the catalog or any inventory file it reads changes, and it needs only PyYAML. `tools/tests/ci/gates/test_app_catalog_rules.py` has a case for each rule and runs the check over the real catalog and inventory. Because the hook cannot import Ansible code, two tests in `ansible/tests/test_backup_plan.py` keep its restatements honest: its list of backup settings equals the `backup_plan` filter's, and the backup hosts it derives equal the `backup_hosts` Ansible derives from the real inventory. `ansible/tests/test_backup_plan_invariants.py` fails if a role, template or playbook reads an app's `backup` block or `backup_defaults` instead of `backup_plan`, or if a variable or key that ADR 0068 retired is used again.
 
 ## Doc index generation
 

@@ -116,7 +116,7 @@ with a redundant copy — losing it makes every backup unrecoverable.
 
 ## What's backed up
 
-| Host | App → volumes | Stopped during backup | Retention | Extra cloud targets |
+| Host | App → volumes | Stopped during backup | Retention | Cloud targets |
 | :--- | :--- | :--- | :--- | :--- |
 | `services` | `kms` → `data` | yes (`kms`) | 7 days | R2, B2 (default) |
 | `services` | `wastebin` → `data` | no | 7 days | R2, B2 (default) |
@@ -129,10 +129,15 @@ with a redundant copy — losing it makes every backup unrecoverable.
 
 Apps without a `backup:` key in `app_catalog.yaml` are out of scope.
 Every app above lands in SeaweedFS directly (`backup_agent`, per-host,
-nightly); "Extra cloud targets" is what `cloud_sync` (storage-only, see
+nightly); "Cloud targets" is what `cloud_sync` (storage-only, see
 [`cloud-sync.md`](cloud-sync.md)) additionally relays it to, on its own
 separate schedule. A failed run alerts to Telegram — see
 [`telegram-notifications.md`](telegram-notifications.md).
+
+Schedule, retention, compression and whether the app is stopped come from
+`backup_defaults` (`group_vars/all/main.yaml`) unless the app's own
+`backup:` block sets them; see
+[`adding-an-app.md`](adding-an-app.md#2-register-it-in-app_catalog).
 
 `lldap` is deliberately never stopped — it's the auth backend, and every
 other app behind Caddy/tinyauth loses login for the stop window, a

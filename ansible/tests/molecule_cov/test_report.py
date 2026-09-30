@@ -11,13 +11,7 @@ Run via `uv run pytest ansible/tests/ -v`.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-MOLECULE_COVERAGE_DIR = Path(__file__).resolve().parent.parent.parent / "molecule-coverage"
-sys.path.insert(0, str(MOLECULE_COVERAGE_DIR))
-
-from molecule_cov import report  # noqa: E402
+from molecule_cov import report
 
 
 def _report(role: str, coverage_pct: float | None, **summary_overrides) -> dict:

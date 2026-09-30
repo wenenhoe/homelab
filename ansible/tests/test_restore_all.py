@@ -9,16 +9,12 @@ honestly.
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
-import unittest
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-
+import pytest
 import restore_all
 
 
@@ -42,7 +38,14 @@ def _result(app: str = "wastebin", host: str = "services") -> restore_all.Discov
     )
 
 
-class PickLatestTests(unittest.TestCase):
+@pytest.fixture
+def scratch_dir(tmp_path_factory, monkeypatch):
+    path = tmp_path_factory.mktemp("scratch")
+    monkeypatch.setattr(restore_all, "SCRATCH_DIR", path)
+    return path
+
+
+class TestPickLatest:
     def test_picks_the_newest_of_several_matching_objects(self):
         objects = [
             {"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"},
@@ -50,51 +53,47 @@ class PickLatestTests(unittest.TestCase):
             {"Name": "services-wastebin-2026-09-02T12-00-00.tar.gz.gpg"},
         ]
         name, timestamp = restore_all.pick_latest(objects, "services", "wastebin")
-        self.assertEqual(name, "services-wastebin-2026-09-03T12-00-00.tar.gz.gpg")
-        self.assertEqual(timestamp, datetime(2026, 9, 3, 12, tzinfo=UTC))
+        assert name == "services-wastebin-2026-09-03T12-00-00.tar.gz.gpg"
+        assert timestamp == datetime(2026, 9, 3, 12, tzinfo=UTC)
 
     def test_ignores_objects_for_a_different_app_or_host(self):
         objects = [
             {"Name": "services-tinyauth-2026-09-01T12-00-00.tar.gz.gpg"},
             {"Name": "play-wastebin-2026-09-01T12-00-00.tar.gz.gpg"},
         ]
-        self.assertIsNone(restore_all.pick_latest(objects, "services", "wastebin"))
+        assert restore_all.pick_latest(objects, "services", "wastebin") is None
 
     def test_ignores_a_name_missing_the_trailing_dot_after_the_timestamp(self):
         # Guards the pattern's own r"\." anchor - a name that merely starts
         # with the right prefix but has no extension after the timestamp
         # should not match.
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00"}]
-        self.assertIsNone(restore_all.pick_latest(objects, "services", "wastebin"))
+        assert restore_all.pick_latest(objects, "services", "wastebin") is None
 
     def test_returns_none_for_an_empty_object_list(self):
-        self.assertIsNone(restore_all.pick_latest([], "services", "wastebin"))
+        assert restore_all.pick_latest([], "services", "wastebin") is None
 
 
-class DiscoverAndDecryptTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        patch.object(restore_all, "SCRATCH_DIR", self.tmp).start()
-        self.addCleanup(patch.stopall)
-
-    def _good_copy_and_decrypt(self):
+@pytest.mark.usefixtures("scratch_dir")
+class TestDiscoverAndDecrypt:
+    @pytest.fixture
+    def good_copy_and_decrypt(self, monkeypatch):
         """Patches the copyto + gpg steps to both succeed, for tests
         that only care about the discovery/fallback branch above them."""
-        patch.object(restore_all, "_run_rclone", return_value=Mock(returncode=0, stderr="")).start()
-        patch.object(restore_all.subprocess, "run", return_value=Mock(returncode=0, stderr="")).start()
+        monkeypatch.setattr(restore_all, "_run_rclone", MagicMock(return_value=Mock(returncode=0, stderr="")))
+        monkeypatch.setattr(restore_all.subprocess, "run", MagicMock(return_value=Mock(returncode=0, stderr="")))
 
+    @pytest.mark.usefixtures("good_copy_and_decrypt")
     def test_uses_seaweedfs_when_it_has_a_matching_object(self):
-        self._good_copy_and_decrypt()
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"}]
         with patch.object(restore_all, "rclone_lsjson", return_value=objects):
             result = restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
-        self.assertEqual(result.source, "seaweedfs")
-        self.assertEqual(result.object_name, "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg")
+        assert result.source == "seaweedfs"
+        assert result.object_name == "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"
 
+    @pytest.mark.usefixtures("good_copy_and_decrypt")
     def test_falls_back_to_a_cloud_target_when_seaweedfs_is_unreachable(self):
-        self._good_copy_and_decrypt()
         entry = _entry(cloud_targets=[{"name": "b2", "bucket": "backups-b2"}, {"name": "oci", "bucket": "backups-oci"}])
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"}]
 
@@ -108,19 +107,19 @@ class DiscoverAndDecryptTests(unittest.TestCase):
         with patch.object(restore_all, "rclone_lsjson", side_effect=fake_lsjson):
             result = restore_all.discover_and_decrypt(entry, "the-bucket")
 
-        self.assertEqual(result.source, "oci")
+        assert result.source == "oci"
 
     def test_raises_when_seaweedfs_and_every_cloud_target_are_unreachable(self):
-        with patch.object(restore_all, "rclone_lsjson", return_value=None), self.assertRaisesRegex(restore_all.RestoreAllError, "unreachable"):
+        with patch.object(restore_all, "rclone_lsjson", return_value=None), pytest.raises(restore_all.RestoreAllError, match="unreachable"):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
     def test_raises_when_the_reachable_source_has_no_objects(self):
-        with patch.object(restore_all, "rclone_lsjson", return_value=[]), self.assertRaisesRegex(restore_all.RestoreAllError, "no objects found"):
+        with patch.object(restore_all, "rclone_lsjson", return_value=[]), pytest.raises(restore_all.RestoreAllError, match="no objects found"):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
     def test_raises_when_no_object_matches_the_expected_filename_pattern(self):
         objects = [{"Name": "not-a-matching-name.tar.gz.gpg"}]
-        with patch.object(restore_all, "rclone_lsjson", return_value=objects), self.assertRaisesRegex(restore_all.RestoreAllError, "expected"):
+        with patch.object(restore_all, "rclone_lsjson", return_value=objects), pytest.raises(restore_all.RestoreAllError, match="expected"):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
     def test_refuses_a_latest_object_without_a_gpg_suffix(self):
@@ -128,7 +127,7 @@ class DiscoverAndDecryptTests(unittest.TestCase):
         # GPG-encrypted, so an unexpected non-.gpg name must not be
         # handed to gpg --decrypt as-is.
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz"}]
-        with patch.object(restore_all, "rclone_lsjson", return_value=objects), self.assertRaisesRegex(restore_all.RestoreAllError, "no \\.gpg suffix"):
+        with patch.object(restore_all, "rclone_lsjson", return_value=objects), pytest.raises(restore_all.RestoreAllError, match=r"no \.gpg suffix"):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
     def test_raises_when_rclone_copyto_fails(self):
@@ -136,7 +135,7 @@ class DiscoverAndDecryptTests(unittest.TestCase):
         with (
             patch.object(restore_all, "rclone_lsjson", return_value=objects),
             patch.object(restore_all, "_run_rclone", return_value=Mock(returncode=1, stderr="connection refused")),
-            self.assertRaisesRegex(restore_all.RestoreAllError, "copyto from seaweedfs failed"),
+            pytest.raises(restore_all.RestoreAllError, match="copyto from seaweedfs failed"),
         ):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
@@ -146,28 +145,19 @@ class DiscoverAndDecryptTests(unittest.TestCase):
             patch.object(restore_all, "rclone_lsjson", return_value=objects),
             patch.object(restore_all, "_run_rclone", return_value=Mock(returncode=0, stderr="")),
             patch.object(restore_all.subprocess, "run", return_value=Mock(returncode=1, stderr="decryption failed: No secret key")),
-            self.assertRaisesRegex(restore_all.RestoreAllError, "gpg --decrypt failed"),
+            pytest.raises(restore_all.RestoreAllError, match="gpg --decrypt failed"),
         ):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
 
-class MainBatchOrderingTests(unittest.TestCase):
-    """The step-ca-first, step-ca-gates-everything-else contract from
-    this module's own docstring - the part of main() that's safety-
-    relevant rather than plumbing, so worth locking in independent of
-    a live fire drill."""
+@pytest.fixture
+def run_with(monkeypatch):
+    """entries: list[AppManifestEntry]. discover_side_effect: dict
+    app -> DiscoveryResult, or app -> RestoreAllError instance to
+    raise. restore_results: dict app -> bool for run_app_restore."""
 
-    def setUp(self):
-        patch.object(restore_all, "run_discovery_setup").start()
-        patch.object(restore_all, "append_audit_log").start()
-        patch.object(sys, "argv", ["restore_all.py", "--yes"]).start()
-        self.addCleanup(patch.stopall)
-
-    def _run_with(self, entries, discover_side_effect, restore_results):
-        """entries: list[AppManifestEntry]. discover_side_effect: dict
-        app -> DiscoveryResult, or app -> RestoreAllError instance to
-        raise. restore_results: dict app -> bool for run_app_restore."""
-        patch.object(restore_all, "load_manifest", return_value=("the-bucket", entries)).start()
+    def _run_with(entries, discover_side_effect, restore_results):
+        monkeypatch.setattr(restore_all, "load_manifest", MagicMock(return_value=("the-bucket", entries)))
 
         def fake_discover(entry, bucket):
             outcome = discover_side_effect[entry.app]
@@ -175,73 +165,86 @@ class MainBatchOrderingTests(unittest.TestCase):
                 raise outcome
             return outcome
 
-        patch.object(restore_all, "discover_and_decrypt", side_effect=fake_discover).start()
-        mock_restore = patch.object(restore_all, "run_app_restore", side_effect=lambda r: restore_results[r.entry.app]).start()
-        mock_minecraft = patch.object(restore_all, "run_minecraft_world_restore", return_value=True).start()
+        monkeypatch.setattr(restore_all, "discover_and_decrypt", MagicMock(side_effect=fake_discover))
+        mock_restore = MagicMock(side_effect=lambda r: restore_results[r.entry.app])
+        monkeypatch.setattr(restore_all, "run_app_restore", mock_restore)
+        mock_minecraft = MagicMock(return_value=True)
+        monkeypatch.setattr(restore_all, "run_minecraft_world_restore", mock_minecraft)
         return restore_all.main(), mock_restore, mock_minecraft
 
-    def test_aborts_before_restoring_anything_if_step_ca_discovery_fails(self):
+    return _run_with
+
+
+class TestMainBatchOrdering:
+    """The step-ca-first, step-ca-gates-everything-else contract from
+    this module's own docstring - the part of main() that's safety-
+    relevant rather than plumbing, so worth locking in independent of
+    a live fire drill."""
+
+    @pytest.fixture(autouse=True)
+    def _batch_environment(self, monkeypatch):
+        monkeypatch.setattr(restore_all, "run_discovery_setup", MagicMock())
+        monkeypatch.setattr(restore_all, "append_audit_log", MagicMock())
+        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes"])
+
+    def test_aborts_before_restoring_anything_if_step_ca_discovery_fails(self, run_with):
         entries = [_entry("step-ca"), _entry("wastebin")]
-        rc, mock_restore, _ = self._run_with(
+        rc, mock_restore, _ = run_with(
             entries,
             discover_side_effect={"step-ca": restore_all.RestoreAllError("boom"), "wastebin": _result("wastebin")},
             restore_results={},
         )
-        self.assertEqual(rc, 1)
+        assert rc == 1
         mock_restore.assert_not_called()
 
-    def test_aborts_the_rest_of_the_batch_if_step_ca_restore_fails(self):
+    def test_aborts_the_rest_of_the_batch_if_step_ca_restore_fails(self, run_with):
         entries = [_entry("step-ca"), _entry("wastebin")]
-        rc, mock_restore, _ = self._run_with(
+        rc, mock_restore, _ = run_with(
             entries,
             discover_side_effect={"step-ca": _result("step-ca"), "wastebin": _result("wastebin")},
             restore_results={"step-ca": False, "wastebin": True},
         )
-        self.assertEqual(rc, 1)
+        assert rc == 1
         mock_restore.assert_called_once()
 
-    def test_a_failed_app_does_not_block_the_rest_of_the_batch(self):
+    def test_a_failed_app_does_not_block_the_rest_of_the_batch(self, run_with):
         entries = [_entry("step-ca"), _entry("appA"), _entry("appB")]
-        rc, mock_restore, _ = self._run_with(
+        rc, mock_restore, _ = run_with(
             entries,
             discover_side_effect={"step-ca": _result("step-ca"), "appA": _result("appA"), "appB": _result("appB")},
             restore_results={"step-ca": True, "appA": False, "appB": True},
         )
-        self.assertEqual(rc, 1)  # overall_ok is False because appA failed
-        self.assertEqual(mock_restore.call_count, 3)  # appB still ran despite appA's failure
+        assert rc == 1  # overall_ok is False because appA failed
+        assert mock_restore.call_count == 3  # appB still ran despite appA's failure
 
-    def test_declining_the_confirmation_prompt_restores_nothing(self):
-        patch.object(sys, "argv", ["restore_all.py"]).start()  # no --yes
+    def test_declining_the_confirmation_prompt_restores_nothing(self, run_with, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py"])  # no --yes
         entries = [_entry("step-ca")]
         with patch("builtins.input", return_value="no"):
-            rc, mock_restore, _ = self._run_with(
+            rc, mock_restore, _ = run_with(
                 entries,
                 discover_side_effect={"step-ca": _result("step-ca")},
                 restore_results={"step-ca": True},
             )
-        self.assertEqual(rc, 1)
+        assert rc == 1
         mock_restore.assert_not_called()
 
-    def test_minecraft_world_restore_runs_only_after_a_successful_minecraft_app_restore(self):
+    def test_minecraft_world_restore_runs_only_after_a_successful_minecraft_app_restore(self, run_with):
         entries = [_entry("step-ca"), _entry("minecraft")]
-        rc, _mock_restore, mock_minecraft = self._run_with(
+        rc, _mock_restore, mock_minecraft = run_with(
             entries,
             discover_side_effect={"step-ca": _result("step-ca"), "minecraft": _result("minecraft")},
             restore_results={"step-ca": True, "minecraft": True},
         )
-        self.assertEqual(rc, 0)
+        assert rc == 0
         mock_minecraft.assert_called_once()
 
-    def test_minecraft_world_restore_is_skipped_if_the_minecraft_app_restore_fails(self):
+    def test_minecraft_world_restore_is_skipped_if_the_minecraft_app_restore_fails(self, run_with):
         entries = [_entry("step-ca"), _entry("minecraft")]
-        rc, _mock_restore, mock_minecraft = self._run_with(
+        rc, _mock_restore, mock_minecraft = run_with(
             entries,
             discover_side_effect={"step-ca": _result("step-ca"), "minecraft": _result("minecraft")},
             restore_results={"step-ca": True, "minecraft": False},
         )
-        self.assertEqual(rc, 1)
+        assert rc == 1
         mock_minecraft.assert_not_called()
-
-
-if __name__ == "__main__":
-    unittest.main()

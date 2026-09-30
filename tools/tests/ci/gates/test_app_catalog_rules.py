@@ -102,6 +102,32 @@ class EachRuleTests(unittest.TestCase):
                     found = rules.validate({"a": {"volumes": [{"name": "data"}], "backup": {"volumes": ["data"], key: value}}})
                     self.assertEqual([(v.rule, key in v.message) for v in found], [("backup-shape", True)])
 
+    def test_an_unknown_backup_key_is_refused_with_the_nearest_valid_one(self):
+        found = rules.validate({"a": {"volumes": [{"name": "d"}], "backup": {"volumes": ["d"], "retention_day": 3}}})
+        self.assertEqual(
+            [(v.rule, "`backup.retention_day`" in v.message, "did you mean `retention_days`" in v.message) for v in found],
+            [("backup-unknown-key", True, True)],
+        )
+
+    def test_an_unknown_key_with_nothing_close_gets_no_suggestion(self):
+        found = rules.validate({"a": {"volumes": [{"name": "d"}], "backup": {"volumes": ["d"], "frequency": 3}}})
+        self.assertEqual([(v.rule, "did you mean" in v.message) for v in found], [("backup-unknown-key", False)])
+
+    def test_every_unknown_backup_key_is_reported(self):
+        block = {"volumes": ["d"], "crn": "0 4 * * *", "compresion": "gz", "cron": "0 4 * * *"}
+        self.assertEqual(broken({"volumes": [{"name": "d"}], "backup": block}), ["backup-unknown-key", "backup-unknown-key"])
+
+    def test_a_key_that_is_not_text_is_reported_not_a_crash(self):
+        self.assertEqual(broken({"volumes": [{"name": "d"}], "backup": {"volumes": ["d"], 1: "x"}}), ["backup-unknown-key"])
+
+    def test_every_backup_key_together_is_accepted(self):
+        block = {"volumes": ["d"], "cron": "0 4 * * *", "retention_days": 3, "compression": "zst", "stop_during_backup": True, "cloud_targets": ["oci"]}
+        self.assertEqual(broken({"volumes": [{"name": "d"}], "backup": block}), [])
+
+    def test_the_old_cloud_targets_key_is_one_violation_not_also_an_unknown_key(self):
+        block = {"volumes": ["d"], rules.LEGACY_CLOUD_TARGETS_KEY: ["oci"]}
+        self.assertEqual(broken({"volumes": [{"name": "d"}], "backup": block}), ["legacy-cloud-targets-key"])
+
     def test_every_valid_value_of_a_backup_setting_is_accepted(self):
         valid = {
             "cloud_targets": [[], ["oci"], ["r2", "b2"]],
@@ -201,6 +227,44 @@ class AgainstTheInventoryTests(unittest.TestCase):
         found = rules.validate(GOOD, inventory(defaults=missing))
         self.assertEqual([(v.name, v.rule, "`cron`" in v.message and "`compression`" in v.message) for v in found], [("backup_defaults", "backup-shape", True)])
         self.assertEqual(broken_against(inventory(defaults={**DEFAULTS, "retention_days": 0, "compression": "bz2"})), [("backup_defaults", "backup-shape")] * 2)
+
+    def test_an_unknown_key_in_the_defaults_is_refused_under_their_own_name(self):
+        for extra in ({"retention_day": 7}, {"volumes": ["d"]}):
+            with self.subTest(extra=extra):
+                self.assertEqual(broken_against(inventory(defaults={**DEFAULTS, **extra})), [("backup_defaults", "backup-unknown-key")])
+
+    def test_the_old_cloud_targets_key_in_the_defaults_is_refused(self):
+        found = broken_against(inventory(defaults={**DEFAULTS, rules.LEGACY_CLOUD_TARGETS_KEY: ["r2"]}))
+        self.assertEqual(found, [("backup_defaults", "legacy-cloud-targets-key")])
+
+    def test_a_host_override_keeps_the_same_keys_and_shapes_under_the_hosts_name(self):
+        cases = {
+            "an unknown key": ({"retention_day": 3}, [("alpha", "backup-unknown-key")]),
+            "the old cloud key": ({rules.LEGACY_CLOUD_TARGETS_KEY: ["oci"]}, [("alpha", "legacy-cloud-targets-key")]),
+            "a bad setting": ({"retention_days": "3"}, [("alpha", "backup-shape")]),
+            "a bad setting and an unknown key": ({"retention_days": 0, "frequency": 1}, [("alpha", "backup-shape"), ("alpha", "backup-unknown-key")]),
+            "volumes that are not a list": ({"volumes": "data"}, [("alpha", "backup-shape")]),
+            "volumes of the wrong type": ({"volumes": [1]}, [("alpha", "backup-shape")]),
+            "a valid override": ({"cron": "0 1 * * *", "retention_days": 30, "cloud_targets": ["oci"]}, []),
+            "volumes emptied to switch the backup off": ({"volumes": []}, []),
+            "volumes replaced": ({"volumes": ["data"]}, []),
+        }
+        for label, (override, expected) in cases.items():
+            with self.subTest(label):
+                inv = inventory(managed_hosts=("alpha",), compose_apps={"alpha": [{"name": "web", "backup": override}]})
+                found = broken_against(inv)
+                self.assertEqual([f for f in found if f[0] == "alpha" and f[1] != "backup-host-credentials"], expected)
+
+    def test_a_host_override_that_is_not_a_mapping_is_refused_and_a_null_one_is_fine(self):
+        for override, expected in (("data", [("alpha", "backup-shape")]), (["data"], [("alpha", "backup-shape")]), (None, [])):
+            with self.subTest(override=override):
+                inv = inventory(managed_hosts=("alpha",), compose_apps={"alpha": [{"name": "web", "backup": override}]})
+                self.assertEqual([f for f in broken_against(inv) if f[1] != "backup-host-credentials"], expected)
+
+    def test_a_violation_in_an_override_names_the_app_and_the_key(self):
+        inv = inventory(managed_hosts=("alpha",), compose_apps={"alpha": [{"name": "web", "backup": {"retention_day": 3}}]})
+        (found,) = [v for v in rules.validate(GOOD, inv) if v.rule == "backup-unknown-key"]
+        self.assertEqual((found.name, "`web.backup.retention_day`" in found.message, "retention_days" in found.message), ("alpha", True, True))
 
     def test_backup_hosts_are_the_hosts_running_a_backed_up_app_in_inventory_order(self):
         inv = inventory(

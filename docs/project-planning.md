@@ -57,7 +57,6 @@ set. It narrows where to look; it doesn't replace looking.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`app-resolver.md`](projects/app-resolver.md) | Building | A pure resolve_apps filter builds resolved_apps; every consumer reads it, and app_registry becomes app_catalog. |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 | [`vault-secret-module.md`](projects/vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |
 

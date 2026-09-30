@@ -4,7 +4,9 @@ The unit tests import the filter directly. `test_matches_catalog_merge_for_every
 runs a real controller-only play against the repo's inventory and compares each
 managed host's `resolved_apps` with the merge that `roles/compose/tasks/preinit.yaml`
 performed before the resolver existed: `combine(recursive=True)` of the catalog
-entry under the host's entry.
+entry under the host's entry. That test only sees list replacement where a host
+overrides a list its catalog entry also defines, and none does, so the unit tests
+are what pin it.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """

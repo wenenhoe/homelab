@@ -6,9 +6,9 @@
     ansible_user: root
     project_root: /tmp/restore-discovery-default
 
-    offsite_backup_s3_bucket: molecule-test-backups
-    offsite_backup_s3_proto: https
-    offsite_backup_s3_endpoint: s3.store.molecule.invalid
+    seaweedfs_s3_bucket: molecule-test-backups
+    seaweedfs_s3_proto: https
+    seaweedfs_s3_endpoint: s3.store.molecule.invalid
 
     secrets_generated:
       seaweedfs-s3-access-key-cloud-sync-reader: molecule-seaweedfs-reader-ak

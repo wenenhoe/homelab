@@ -53,7 +53,7 @@
               'compression': app.compression,
               'stop_label': app.name if app.stop_during_backup else '',
               'filename': app.name ~ '.env',
-              'freshness_hours': (app.cron | cron_period_hours) + offsite_backup_freshness_buffer_hours,
+              'freshness_hours': (app.cron | cron_period_hours) + backup_freshness_buffer_hours,
             }) -%}
       {%- endfor -%}
       {{ ns.out }}

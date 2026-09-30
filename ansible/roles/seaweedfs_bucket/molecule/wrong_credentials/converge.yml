@@ -6,8 +6,8 @@
     ansible_user: root
     server_timezone: "Etc/UTC"
 
-    offsite_backup_s3_bucket: molecule-test-ensure-bucket
-    offsite_backup_s3_proto: "http"
+    seaweedfs_s3_bucket: molecule-test-ensure-bucket
+    seaweedfs_s3_proto: "http"
     # The identity actually configured on the SeaweedFS server below —
     # deliberately NOT what gets passed to the role (see the block
     # below), so the role's request is genuinely unauthenticated/wrong,
@@ -25,7 +25,7 @@
       vars:
         molecule_helpers_seaweedfs_access_key: "{{ seaweedfs_real_access_key }}"
         molecule_helpers_seaweedfs_secret_key: "{{ seaweedfs_real_secret_key }}"
-        molecule_helpers_seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
+        molecule_helpers_seaweedfs_bucket: "{{ seaweedfs_s3_bucket }}"
 
     # molecule_helpers_seaweedfs_ip is exposed by the shared task above —
     # no need to re-discover it here.
@@ -34,7 +34,7 @@
       # ../default/converge.yml; same fixed global var name, same
       # unavoidable runtime-discovery override.
       ansible.builtin.set_fact:
-        offsite_backup_s3_endpoint: "{{ molecule_helpers_seaweedfs_ip }}:8333"
+        seaweedfs_s3_endpoint: "{{ molecule_helpers_seaweedfs_ip }}:8333"
 
     # The role under test — deliberately given credentials that don't
     # match the identity actually configured on the server, wrapped in

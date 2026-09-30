@@ -176,12 +176,12 @@ own doc: [`cloud-sync.md`](cloud-sync.md).
 
 ## S3 endpoint format
 
-`offsite_backup_s3_endpoint` (`group_vars/all/main.yaml`) must be a
+`seaweedfs_s3_endpoint` (`group_vars/all/main.yaml`) must be a
 **bare hostname** (e.g. `s3.store.{{ lab_domain }}`), not a URL —
 `docker-volume-backup` passes it straight into minio-go's
 `AWS_ENDPOINT`, which rejects a scheme prefix (`Endpoint url cannot
 have fully qualified paths`). Scheme is the separate
-`offsite_backup_s3_proto` var (default `https`). `cloud_sync`'s own
+`seaweedfs_s3_proto` var (default `https`). `cloud_sync`'s own
 `rclone.conf` is unrelated and follows the opposite convention — see
 [`cloud-sync.md`](cloud-sync.md).
 

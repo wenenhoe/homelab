@@ -15,7 +15,7 @@
     seaweedfs_cloud_sync_reader_access_key: molecule-test-cloud-sync-reader-ak
     seaweedfs_cloud_sync_reader_secret_key: molecule-test-cloud-sync-reader-sk
     molecule_test_bucket: molecule-test-backups
-    offsite_backup_s3_bucket: "{{ molecule_test_bucket }}"
+    seaweedfs_s3_bucket: "{{ molecule_test_bucket }}"
     # alpha/beta, not real host names — this scenario tests the
     # template's scoping mechanism generically, not any specific
     # inventory's shape.

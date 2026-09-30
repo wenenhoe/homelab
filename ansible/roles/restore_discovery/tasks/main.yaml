@@ -123,7 +123,7 @@
 - name: Combine the manifest with the SeaweedFS bucket name for rendering
   ansible.builtin.set_fact:
     restore_discovery_manifest_full:
-      seaweedfs_bucket: "{{ offsite_backup_s3_bucket }}"
+      seaweedfs_bucket: "{{ seaweedfs_s3_bucket }}"
       apps: "{{ restore_discovery_manifest }}"
   delegate_to: localhost
   become: false

@@ -38,9 +38,9 @@
       compression: gz
       stop_during_backup: false
       cloud_targets: []
-    offsite_backup_s3_bucket: molecule-test-backups
-    offsite_backup_s3_endpoint: "unused-in-this-scenario:8333"
-    offsite_backup_s3_proto: http
+    seaweedfs_s3_bucket: molecule-test-backups
+    seaweedfs_s3_endpoint: "unused-in-this-scenario:8333"
+    seaweedfs_s3_proto: http
     seaweedfs_s3_access_key: molecule-test-access-key
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
@@ -50,7 +50,7 @@
     # doesn't trigger a backup (see the comment below), so the exact
     # value doesn't matter — just needs to be set for the template to
     # render at all.
-    offsite_backup_freshness_buffer_hours: 2
+    backup_freshness_buffer_hours: 2
     backup_agent_freshness_push_url: ""
 
     # The one app on this host declares no stop_during_backup at all —

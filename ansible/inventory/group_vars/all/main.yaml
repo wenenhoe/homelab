@@ -110,9 +110,9 @@ telegram_chatid_backups: "{{ telegram_chat_id }}{{ ':' ~ telegram_topic_id_backu
 beszel_hub_key: "{{ secrets_generated['beszel-hub-key'] }}"
 beszel_agent_token: "{{ secrets_generated['beszel-agent-token'] }}"
 
-offsite_backup_s3_bucket: homelab-backups
-offsite_backup_s3_endpoint: "s3.{{ hostvars['storage'].caddy_domain }}"
-offsite_backup_s3_proto: "https"
+seaweedfs_s3_bucket: homelab-backups
+seaweedfs_s3_endpoint: "s3.{{ hostvars['storage'].caddy_domain }}"
+seaweedfs_s3_proto: "https"
 
 # Backup settings for an app whose `backup:` block leaves them out; the
 # keys are the block's own keys (ADR 0068).
@@ -138,4 +138,4 @@ backup_defaults:
 # cron_period_hours filter in ansible/filter_plugins/) so it can never
 # drift from whatever cron actually says - see
 # backup_agent/tasks/build_schedules.yaml.
-offsite_backup_freshness_buffer_hours: 2
+backup_freshness_buffer_hours: 2

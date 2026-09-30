@@ -68,9 +68,9 @@
     # here would catch a scoping regression there. See
     # docs/disaster-recovery.md for that coverage instead.
     molecule_test_bucket: molecule-test-backups
-    offsite_backup_s3_bucket: "{{ molecule_test_bucket }}"
-    offsite_backup_s3_endpoint: "seaweedfs-test:8333"
-    offsite_backup_s3_proto: http
+    seaweedfs_s3_bucket: "{{ molecule_test_bucket }}"
+    seaweedfs_s3_endpoint: "seaweedfs-test:8333"
+    seaweedfs_s3_proto: http
     seaweedfs_s3_access_key: molecule-test-access-key
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
@@ -84,7 +84,7 @@
     # for the whole host now (not per-app) — every app in this scenario
     # gets a real backup uploaded below, so this exercises the "every
     # app fresh, one push fires" path.
-    offsite_backup_freshness_buffer_hours: 1
+    backup_freshness_buffer_hours: 1
     backup_agent_freshness_push_url: "http://uptime-kuma-test.invalid/api/push/molecule-fake-token"
 
     # happy_app_stop carries docker-volume-backup.stop-during-backup=

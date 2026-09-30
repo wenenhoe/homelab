@@ -9,7 +9,7 @@
         }
       ],
       "actions": [
-        "Admin:{{ offsite_backup_s3_bucket }}"
+        "Admin:{{ seaweedfs_s3_bucket }}"
       ]
     },
     {
@@ -21,8 +21,8 @@
         }
       ],
       "actions": [
-        "Read:{{ offsite_backup_s3_bucket }}",
-        "List:{{ offsite_backup_s3_bucket }}"
+        "Read:{{ seaweedfs_s3_bucket }}",
+        "List:{{ seaweedfs_s3_bucket }}"
       ]
     }{{ "," if backup_hosts else "" }}
 {% for host in backup_hosts %}
@@ -35,10 +35,10 @@
         }
       ],
       "actions": [
-        "Write:{{ offsite_backup_s3_bucket }}/{{ host }}-*",
-        "Read:{{ offsite_backup_s3_bucket }}/{{ host }}-*",
-        "List:{{ offsite_backup_s3_bucket }}/{{ host }}-*",
-        "Tagging:{{ offsite_backup_s3_bucket }}/{{ host }}-*"
+        "Write:{{ seaweedfs_s3_bucket }}/{{ host }}-*",
+        "Read:{{ seaweedfs_s3_bucket }}/{{ host }}-*",
+        "List:{{ seaweedfs_s3_bucket }}/{{ host }}-*",
+        "Tagging:{{ seaweedfs_s3_bucket }}/{{ host }}-*"
       ]
     }{{ "," if not loop.last else "" }}
 {% endfor %}

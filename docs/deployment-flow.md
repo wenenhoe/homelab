@@ -2,7 +2,7 @@
 
 `deploy.yaml` runs as eleven ordered plays: secrets before anything needs
 `ansible_host` resolved, DNS and the reverse proxy live before anything
-that depends on them starts, and the offsite-backup destination created
+that depends on them starts, and the SeaweedFS backup bucket created
 before anything uploads to it.
 
 ```mermaid
@@ -12,10 +12,10 @@ flowchart TD
     p2["Play 2 — Deploy Caddy<br/>(managed_hosts)"]
     p3["Play 3 — Configure BIND9<br/>(services)"]
     p4["Play 4 — Deploy Compose apps<br/>(managed_hosts)"]
-    p5["Play 5 — Ensure offsite-backup<br/>bucket exists (storage)"]
+    p5["Play 5 — Ensure SeaweedFS backup<br/>bucket exists (storage)"]
     p6["Play 6 — Wire lldap/tinyauth/<br/>openbao into step-ca (security)"]
     p7["Play 7 — Ensure lldap's<br/>observer account (security)"]
-    p8["Play 8 — Deploy offsite<br/>backup agent (managed_hosts)"]
+    p8["Play 8 — Deploy backup<br/>agent (managed_hosts)"]
     p9["Play 9 — Deploy cloud sync<br/>(storage)"]
     p10["Play 10 — Deploy OpenBao<br/>snapshot push tooling (security)"]
 
@@ -92,7 +92,7 @@ Everything except `caddy`/`bind9` (already deployed in Plays 2–3) and
 not a separate one — see [`roles/openbao`](../ansible/roles/openbao))
 gets its directories/configs provisioned and its container started.
 
-## Play 5 — Ensure offsite-backup bucket exists (`hosts: storage`)
+## Play 5 — Ensure SeaweedFS backup bucket exists (`hosts: storage`)
 
 After SeaweedFS deploys in Play 4. Creates the `homelab-backups` bucket
 explicitly — SeaweedFS doesn't auto-create one on first `PUT`. Must run
@@ -116,7 +116,7 @@ After lldap's own deploy in Play 4 (independent of Play 6 — this only
 needs lldap's web port, not its LDAPS cert). See
 [`lldap.md`](lldap.md#bootstrapping-the-observer-account).
 
-## Play 8 — Deploy offsite backup agent (`hosts: managed_hosts`)
+## Play 8 — Deploy backup agent (`hosts: managed_hosts`)
 
 Runs last among `managed_hosts` plays: mounts other apps' named volumes
 as `external: true`, which needs each app's Play 4 volume-creation step

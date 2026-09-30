@@ -1,6 +1,6 @@
 ---
 # Restores one app's volume(s) on a single target host from an
-# already-decrypted offsite backup archive. playbooks/restore.yaml is a
+# already-decrypted backup archive. playbooks/restore.yaml is a
 # thin wrapper over this role (never touches GPG/SeaweedFS itself) — see
 # docs/disaster-recovery.md for the operator-facing walkthrough.
 #

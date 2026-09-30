@@ -1,5 +1,5 @@
 ---
-# Restore one app's volume(s) from an offsite backup archive.
+# Restore one app's volume(s) from a backup archive.
 #
 # Doesn't talk to SeaweedFS or GPG directly — pull the object out of the
 # `homelab-backups` bucket and `gpg --decrypt` it with the offline
@@ -44,7 +44,7 @@
 # Destructive by design (overwrites current volume contents) — the pause
 # step requires explicit confirmation before anything happens.
 
-- name: Restore an app's volume(s) from an offsite backup archive
+- name: Restore an app's volume(s) from a backup archive
   hosts: managed_hosts
   gather_facts: false
   become: true

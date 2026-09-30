@@ -22,7 +22,7 @@ The lab is organized as a small group of hosts, each owning a subdomain of `lan.
 | `services` | Core infra: DNS (BIND9), utility apps, DIUN update notifications | `svc.lan.{{ main_domain }}` |
 | `play` | Game server hosting (Minecraft) | `play.lan.{{ main_domain }}` |
 | `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub, OpenBao secrets store | `sec.lan.{{ main_domain }}` |
-| `storage` | Offsite-backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host, `cloud_sync` relay to R2/B2/OCI | `store.lan.{{ main_domain }}` |
+| `storage` | Backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host, `cloud_sync` relay to R2/B2/OCI | `store.lan.{{ main_domain }}` |
 
 Every `app_hosts` member runs its own Caddy instance and terminates TLS
 for its own `*.{{ caddy_domain }}` wildcard via DNS-01 (DigitalOcean).

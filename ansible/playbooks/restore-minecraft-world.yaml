@@ -8,7 +8,7 @@
 # docs/restore.md.
 #
 # restore_all.py always runs phase 1 immediately before this. Standalone
-# use (e.g. an ordinary same-day rollback with no offsite archive
+# use (e.g. an ordinary same-day rollback with no backup archive
 # involved) should call docker/minecraft/scripts/run_restore.sh
 # directly on `play` instead — see the script's own -y usage.
 #

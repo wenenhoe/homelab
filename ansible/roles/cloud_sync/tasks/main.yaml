@@ -23,7 +23,7 @@
   ansible.builtin.set_fact:
     cloud_sync_jobs: >-
       {%- set ns = namespace(out=[]) -%}
-      {%- for host in seaweedfs_backup_hosts -%}
+      {%- for host in backup_hosts -%}
         {%- for entry in hostvars[host].backup_plan -%}
           {%- for target in entry.cloud_targets -%}
             {%- set _ = ns.out.append({

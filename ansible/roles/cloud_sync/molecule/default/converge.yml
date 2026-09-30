@@ -85,7 +85,6 @@
     # alpha-host/beta-host, not real inventory hosts — registered below
     # via add_host, carrying only what cloud_sync itself reads
     # (backup_plan), not a full fake inventory.
-    seaweedfs_backup_hosts: [alpha-host, beta-host]
 
     # happy_app_no_backup (caddy-equivalent) declares no backup: key at
     # all — confirms cloud_sync's own job-building `when` guard excludes
@@ -135,6 +134,10 @@
             - name: happy_app_override_targets
       loop_control:
         label: "{{ item.name }}"
+
+    - name: Work out which of them back up, the way group_vars/all does for managed_hosts
+      ansible.builtin.set_fact:
+        backup_hosts: "{{ groups['molecule_fake_backup_hosts'] | backup_hosts(hostvars) }}" # noqa: var-naming[no-role-prefix]
 
     # A custom identity config, not the real production
     # s3-identity.json.j2 (unlike seaweedfs_bucket's identity_scoping

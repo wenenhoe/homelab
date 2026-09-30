@@ -147,7 +147,11 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    scenario's vars, then either run `resolve_backup_plan.yaml` after
    `resolve_compose_apps.yaml` (the role reads its own host's plan) or give
    each `add_host` host `backup_plan: "{{ ... | resolve_apps(app_catalog) |
-   backup_plan(backup_defaults) }}"` (the role reads other hosts').
+   backup_plan(backup_defaults) }}"` (the role reads other hosts'). If it, or
+   the SeaweedFS identity file it renders, reads `backup_hosts`, derive it from
+   the fake hosts with `groups['<group>'] | backup_hosts(hostvars)` in a
+   `set_fact` after the `add_host`; each such host needs a non-empty
+   `backup_plan`.
 4. Don't add `dependency.options` or a `provisioner.env` block — the base
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR — there's no CI for

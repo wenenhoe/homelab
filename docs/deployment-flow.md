@@ -166,6 +166,13 @@ downstream role reads only `resolved_apps`, so an app's routing/upstream/auth
 is defined once regardless of how many hosts run it, and any host's value is
 readable through `hostvars` without that host's play having run.
 
+`backup_plan` (also `group_vars/all/main.yaml`) does the same for backups: the
+`backup_plan` filter (`ansible/filter_plugins/backup_plan.py`) lays each
+resolved app's `backup:` block over `backup_defaults` and returns one entry per
+app that has backup volumes, every setting resolved. `backup_hosts` lists the
+managed hosts whose plan is non-empty. No role reads either yet; see
+[ADR 0068](decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md).
+
 See [`adding-an-app.md`](adding-an-app.md) for a worked example.
 
 ## Tags

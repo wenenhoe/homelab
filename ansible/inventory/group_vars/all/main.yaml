@@ -34,6 +34,11 @@ compose_self_managed_apps:
 # (ADR 0065).
 resolved_apps: "{{ compose_apps | resolve_apps(app_catalog) }}"
 
+# What a host backs up, every setting resolved, and which hosts back up
+# anything (ADR 0068). Lazy for the same reason as resolved_apps.
+backup_plan: "{{ resolved_apps | backup_plan(backup_defaults) }}"
+backup_hosts: "{{ groups['managed_hosts'] | backup_hosts(hostvars) }}"
+
 tinyauth_host: sso
 
 beszel_hub_host: beszel
@@ -113,6 +118,23 @@ offsite_backup_s3_proto: "https"
 # archived mid-write. See docs/disaster-recovery.md.
 offsite_backup_cron: "30 4 * * *"
 offsite_backup_retention_days: 7
+
+# Backup settings for an app whose `backup:` block leaves them out. The
+# keys are the block's own keys. cron and retention_days repeat
+# offsite_backup_cron and offsite_backup_retention_days, and compression
+# and stop_during_backup repeat literals in backup_agent, until
+# backup_agent switches to backup_plan; a test keeps the copies equal.
+backup_defaults:
+  cron: "30 4 * * *"
+  retention_days: 7
+  compression: gz
+  stop_during_backup: false
+  # Small config-app archives (everything except minecraft) go to both
+  # free-tier clouds for offsite redundancy. minecraft overrides this in
+  # app_catalog.yaml — see docs/disaster-recovery.md's "Cloud target
+  # selection" for why it gets OCI instead. Each name must be a key of
+  # host_vars/storage.yaml's cloud_sync_targets.
+  cloud_targets: [r2, b2]
 
 # Slack added on top of each app's own cron-derived interval before the
 # freshness check (docs/uptime-kuma.md) stops pushing to Kuma - covers

@@ -242,12 +242,12 @@ app_catalog:
       # second gzip pass here would just be compressing a .tar.gz again
       # for no size benefit — see docs/disaster-recovery.md.
       compression: none
-      # Overrides cloud_sync_default_targets (group_vars/all/main.yaml)
-      # — additional clouds beyond SeaweedFS only; SeaweedFS itself is
-      # never listed here, it's implicit for every backed-up app. See
+      # Replaces backup_defaults.cloud_targets (group_vars/all/main.yaml)
+      # — clouds beyond SeaweedFS only; SeaweedFS itself is never listed
+      # here, it's implicit for every backed-up app. See
       # docs/disaster-recovery.md's "Cloud target selection" for why
       # minecraft gets OCI instead of the R2+B2 default.
-      extra_cloud_targets: [oci]
+      cloud_targets: [oci]
     routes:
       default:
         upstream: "bluemap:8100"

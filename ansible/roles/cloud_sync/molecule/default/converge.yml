@@ -54,7 +54,15 @@
         endpoint: "http://{{ cloud_sync_test_ip }}:8333"
         access_key: molecule-test-dest-b-ak
         secret_key: molecule-test-dest-b-sk
-    cloud_sync_default_targets: [target_a, target_b]
+    # What group_vars/all's backup_defaults supplies in production. Only
+    # cloud_targets matters here (the fan-out for an app that names none);
+    # the other keys just satisfy backup_plan.
+    backup_defaults:
+      cron: "30 4 * * *"
+      retention_days: 7
+      compression: gz
+      stop_during_backup: false
+      cloud_targets: [target_a, target_b]
     cloud_sync_on_calendar: "*-*-* 06:00:00" # never actually fires in this scenario — verify.yml triggers the service directly
 
     # telegram_notify's install.yaml (included from cloud_sync's own
@@ -76,15 +84,15 @@
 
     # alpha-host/beta-host, not real inventory hosts — registered below
     # via add_host, carrying only what cloud_sync itself reads
-    # (resolved_apps), not a full fake inventory.
+    # (backup_plan), not a full fake inventory.
     seaweedfs_backup_hosts: [alpha-host, beta-host]
 
     # happy_app_no_backup (caddy-equivalent) declares no backup: key at
     # all — confirms cloud_sync's own job-building `when` guard excludes
     # it, same shape as backup_agent's own equivalent test app.
     # happy_app_default_targets (kms-equivalent) has no
-    # extra_cloud_targets override — must fan out to both
-    # cloud_sync_default_targets. happy_app_override_targets
+    # cloud_targets override — must fan out to both
+    # backup_defaults.cloud_targets. happy_app_override_targets
     # (minecraft-equivalent) overrides to target_a only — must NOT show
     # up under target_b at all.
     app_catalog:
@@ -100,9 +108,9 @@
           - name: backups
         backup:
           volumes: [backups]
-          extra_cloud_targets: [target_a]
+          cloud_targets: [target_a]
   tasks:
-    - name: Register alpha-host/beta-host as ephemeral inventory hosts so hostvars[...].resolved_apps resolves like production
+    - name: Register alpha-host/beta-host as ephemeral inventory hosts so hostvars[...].backup_plan resolves like production
       # add_host is pure in-memory bookkeeping for this run — it has no
       # "already added with these exact vars" state to compare against,
       # so it reports changed unconditionally, every single time,
@@ -115,6 +123,7 @@
         groups: molecule_fake_backup_hosts
         compose_apps: "{{ item.compose_apps }}"
         resolved_apps: "{{ item.compose_apps | resolve_apps(app_catalog) }}"
+        backup_plan: "{{ item.compose_apps | resolve_apps(app_catalog) | backup_plan(backup_defaults) }}"
       changed_when: false
       loop:
         - name: alpha-host

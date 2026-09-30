@@ -2,7 +2,8 @@
 
 `compose_apps` is host intent and is never reassigned; every consumer reads
 `resolved_apps`; only the definition in `group_vars/all/main.yaml` and its
-Molecule stand-in read the catalog.
+Molecule stand-in read the catalog. ADR 0068 adds the same stand-in rule for a
+role that reads another host's `backup_plan`.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -132,6 +133,47 @@ def test_a_scenario_using_the_stand_in_defines_its_own_catalog(path):
     scenario = path.parent
     sources = [path, *(p for p in scenario.rglob("*") if p.is_file() and {"host_vars", "group_vars"} & set(p.relative_to(scenario).parts))]
     assert any(re.search(r"^\s*app_catalog\s*:", source.read_text(), re.M) for source in sources)
+
+
+# A role that reads another host's `backup_plan` runs, in Molecule, against fake hosts that have no
+# `group_vars/all`. Each scenario host built with `add_host` carries the plan the definition would give
+# it, and the scenario defines the `backup_defaults` that computes it (ADR 0068).
+BACKUP_PLAN_READ = re.compile(r"hostvars\[[^\]]+\]\.backup_plan")
+
+
+def _backup_plan_reader_roles() -> set[str]:
+    roles_dir = ANSIBLE_DIR / "roles"
+    return {
+        path.relative_to(roles_dir).parts[0]
+        for path in _files(CONSUMER_GLOBS)
+        if path.is_relative_to(roles_dir) and any(BACKUP_PLAN_READ.search(line) for _, line in _code_lines(path))
+    }
+
+
+def _reader_scenario_files():
+    readers = _backup_plan_reader_roles()
+    return [path for path in _files(SCENARIO_GLOBS) if path.relative_to(ANSIBLE_DIR / "roles").parts[0] in readers]
+
+
+def test_the_scan_finds_the_roles_that_read_backup_plan():
+    assert {"cloud_sync", "restore_discovery"} <= _backup_plan_reader_roles()
+
+
+@pytest.mark.parametrize("path", _reader_scenario_files(), ids=_rel)
+def test_a_reader_scenario_host_carries_the_plan_its_apps_would_give_it(path):
+    for _, args in _tasks_with(path, "add_host"):
+        if isinstance(args, dict) and "compose_apps" in args:
+            assert "backup_plan" in args, "hostvars[host].backup_plan must resolve like production"
+            assert "resolve_apps(app_catalog)" in args["backup_plan"]
+            assert "| backup_plan(backup_defaults)" in args["backup_plan"]
+
+
+@pytest.mark.parametrize("path", [p for p in _reader_scenario_files() if p.name == "converge.yml" and "backup_plan" in p.read_text()], ids=_rel)
+def test_a_reader_scenario_defines_every_backup_default(path):
+    wanted = set(yaml.safe_load(MAIN_VARS.read_text())["backup_defaults"])
+    defined = [play["vars"]["backup_defaults"] for doc in yaml.safe_load_all(path.read_text()) for play in doc if "backup_defaults" in (play.get("vars") or {})]
+    assert defined, "define backup_defaults in the play's vars"
+    assert all(set(d) == wanted for d in defined)
 
 
 # The catalog was called `app_registry` until ADR 0065. Accepted decision revisions and the project

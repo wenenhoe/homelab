@@ -26,6 +26,16 @@
         access_key: molecule-target-b-read-ak
         secret_key: molecule-target-b-read-sk
 
+    # What group_vars/all's backup_defaults supplies in production. Only
+    # cloud_targets matters here (the fan-out for an app that names none);
+    # the other keys just satisfy backup_plan.
+    backup_defaults:
+      cron: "30 4 * * *"
+      retention_days: 7
+      compression: gz
+      stop_during_backup: false
+      cloud_targets: [target_a, target_b]
+
     # excluded_app has a real backup: key below (so it WOULD be
     # discovered) but is opted out here — proves
     # restore_discovery_excluded_apps actually removes an otherwise-
@@ -33,7 +43,7 @@
     restore_discovery_excluded_apps: [excluded_app]
 
     # caddy: no backup: key -> excluded by discovery itself, no
-    # allow-list involved. plain_app: no extra_cloud_targets override
+    # allow-list involved. plain_app: no cloud_targets override
     # -> both default targets. override_app: restricted to target_a
     # only -> must NOT show up under target_b. step-ca: the real app
     # name (not a placeholder) — the only one discovery must hoist to
@@ -54,7 +64,7 @@
           - name: backups
         backup:
           volumes: [backups]
-          extra_cloud_targets: [target_a]
+          cloud_targets: [target_a]
       step-ca:
         volumes:
           - name: data
@@ -73,8 +83,8 @@
         groups: "{{ item.groups }}"
         compose_apps: "{{ item.compose_apps | default(omit) }}"
         resolved_apps: "{{ (item.compose_apps | resolve_apps(app_catalog)) if item.compose_apps is defined else omit }}"
+        backup_plan: "{{ (item.compose_apps | resolve_apps(app_catalog) | backup_plan(backup_defaults)) if item.compose_apps is defined else omit }}"
         cloud_sync_targets: "{{ item.cloud_sync_targets | default(omit) }}"
-        cloud_sync_default_targets: "{{ item.cloud_sync_default_targets | default(omit) }}"
       changed_when: false
       loop:
         # step-ca deliberately listed on the SECOND host, after
@@ -101,7 +111,6 @@
             target_b:
               bucket: molecule-bucket-b
               endpoint: https://b.example.invalid
-          cloud_sync_default_targets: [target_a, target_b]
       loop_control:
         label: "{{ item.name }}"
 

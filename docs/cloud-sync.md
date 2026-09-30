@@ -29,11 +29,13 @@ that gap on B2 specifically would start producing failed lifecycle runs
 instead of merely-delayed ones.
 
 **Which apps get which extra clouds:** `app_catalog.yaml`'s
-`backup.extra_cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
+`backup.cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
 SeaweedFS only; SeaweedFS itself is implicit for every backed-up app,
-never listed. Defaults to `cloud_sync_default_targets`
-(`host_vars/storage.yaml`, currently `[r2, b2]`) when an app doesn't
-override it. Minecraft overrides to `[oci]` alone: its ~1.8GB/night
+never listed. An app's list replaces the default rather than adding to
+it; the default is `backup_defaults.cloud_targets`
+(`group_vars/all/main.yaml`, currently `[r2, b2]`). Each name must be a
+key of `cloud_sync_targets` (`host_vars/storage.yaml`), which alone
+holds the credentials. Minecraft overrides to `[oci]` alone: its ~1.8GB/night
 archive at 7-day retention (~13GB) would eat most of a single 10GB
 R2/B2 free tier, so it gets OCI's 20GB allowance to itself instead.
 

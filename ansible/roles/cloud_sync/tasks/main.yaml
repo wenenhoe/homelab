@@ -15,28 +15,23 @@
 # R2/B2/OCI, only add to it.
 #
 # One flat job per (app, cloud target) across every backup_agent host —
-# built from the same app_catalog `backup.extra_cloud_targets` data
-# every host already declares (dormant from every OTHER role's
-# perspective; this is the one role that reads it), via
-# hostvars[host].resolved_apps rather than requiring those hosts' own
-# plays to have already run in this same playbook invocation — it is
-# derived from static inventory data, resolvable regardless of play order.
+# built from each host's backup_plan via hostvars rather than requiring
+# those hosts' own plays to have already run in this same playbook
+# invocation — it is derived from static inventory data, resolvable
+# regardless of play order.
 - name: Build the flat list of per-app-per-target cloud sync jobs
   ansible.builtin.set_fact:
     cloud_sync_jobs: >-
       {%- set ns = namespace(out=[]) -%}
       {%- for host in seaweedfs_backup_hosts -%}
-        {%- for app in hostvars[host].resolved_apps -%}
-          {%- if app.backup is defined -%}
-            {%- set targets = app.backup.extra_cloud_targets | default(cloud_sync_default_targets) -%}
-            {%- for target in targets -%}
-              {%- set _ = ns.out.append({
-                    'path': host ~ '-' ~ app.name,
-                    'target': target,
-                    'target_bucket': cloud_sync_targets[target].bucket,
-                  }) -%}
-            {%- endfor -%}
-          {%- endif -%}
+        {%- for entry in hostvars[host].backup_plan -%}
+          {%- for target in entry.cloud_targets -%}
+            {%- set _ = ns.out.append({
+                  'path': host ~ '-' ~ entry.name,
+                  'target': target,
+                  'target_bucket': cloud_sync_targets[target].bucket,
+                }) -%}
+          {%- endfor -%}
         {%- endfor -%}
       {%- endfor -%}
       {{ ns.out }}

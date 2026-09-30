@@ -7,15 +7,9 @@ so it is imported directly rather than through an Ansible run.
 from __future__ import annotations
 
 import datetime
-import sys
-from pathlib import Path
 
+import cron_period_hours as filter_mod
 import pytest
-
-FILTER_PLUGINS_DIR = Path(__file__).resolve().parent.parent / "filter_plugins"
-sys.path.insert(0, str(FILTER_PLUGINS_DIR))
-
-import cron_period_hours as filter_mod  # noqa: E402
 
 cron_period_hours = filter_mod.cron_period_hours
 

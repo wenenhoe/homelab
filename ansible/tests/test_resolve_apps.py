@@ -21,12 +21,10 @@ import sys
 from pathlib import Path
 
 import pytest
+import resolve_apps as filter_mod
 from ansible.errors import AnsibleFilterError
 
 ANSIBLE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ANSIBLE_DIR / "filter_plugins"))
-
-import resolve_apps as filter_mod  # noqa: E402
 
 resolve_apps = filter_mod.resolve_apps
 

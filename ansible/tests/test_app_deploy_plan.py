@@ -7,17 +7,14 @@ so it is imported directly rather than through an Ansible run.
 from __future__ import annotations
 
 import copy
-import sys
 from pathlib import Path
 
+import app_deploy_plan as filter_mod
 import pytest
 import yaml
 from ansible.errors import AnsibleFilterError
 
 ANSIBLE_DIR = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ANSIBLE_DIR / "filter_plugins"))
-
-import app_deploy_plan as filter_mod  # noqa: E402
 
 app_deploy_plan = filter_mod.app_deploy_plan
 

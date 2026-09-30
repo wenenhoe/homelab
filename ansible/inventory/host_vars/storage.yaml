@@ -12,17 +12,6 @@ seaweedfs_admin_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-admin
 seaweedfs_cloud_sync_reader_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-cloud-sync-reader'] }}"
 seaweedfs_cloud_sync_reader_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-cloud-sync-reader'] }}"
 
-# Which hosts run backup_agent and get their own path-scoped SeaweedFS
-# identity (docker/seaweedfs/configs/s3-identity.json.j2) — add a host
-# here AND a matching secret_catalog.yaml pair AND that host's own
-# seaweedfs_s3_access_key/secret_key in its host_vars file. Single-host
-# consumers only (this file's own s3-identity.json.j2 rendering, and
-# cloud_sync's job-building loop below — both storage-only; backup_agent
-# itself never needs to know about the other hosts running it) — see
-# docs/secrets.md on why some vars live here instead of
-# group_vars/all/main.yaml. See docs/disaster-recovery.md.
-seaweedfs_backup_hosts: [services, security, play]
-
 # --- cloud_sync — see docs/disaster-recovery.md ---
 # Every app's backup.cloud_targets (app_catalog.yaml; backup_defaults in
 # group_vars/all/main.yaml if omitted) picks which of these it fans out

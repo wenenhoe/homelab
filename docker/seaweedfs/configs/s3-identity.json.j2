@@ -24,8 +24,8 @@
         "Read:{{ offsite_backup_s3_bucket }}",
         "List:{{ offsite_backup_s3_bucket }}"
       ]
-    }{{ "," if seaweedfs_backup_hosts else "" }}
-{% for host in seaweedfs_backup_hosts %}
+    }{{ "," if backup_hosts else "" }}
+{% for host in backup_hosts %}
     {
       "name": "seaweedfs-backup-{{ host }}",
       "credentials": [

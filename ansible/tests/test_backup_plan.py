@@ -4,7 +4,8 @@ The unit tests import the filters directly. The last three run against the
 repo's real inventory: the first checks `backup_defaults` names every setting,
 and the two after it run a real controller-only play and compare each managed
 host's `backup_plan`, and the derived `backup_hosts`, with the catalog laid over
-`backup_defaults` and with `seaweedfs_backup_hosts`.
+`backup_defaults`, and check that every backup host has the credentials SeaweedFS's
+identity file builds its scoped identity from.
 
 Run via `uv run pytest ansible/tests/ -v`.
 """
@@ -253,5 +254,17 @@ def test_backup_hosts_are_the_hosts_with_a_plan_in_inventory_order(real_inventor
     hosts, plans = real_inventory_output
     assert hosts["backup_hosts"] == [host for host in hosts["managed_hosts"] if plans[host]]
     assert hosts["backup_hosts"], "no host backs up"
-    listed = _load(INVENTORY_DIR / "host_vars" / "storage.yaml")["seaweedfs_backup_hosts"]
-    assert set(hosts["backup_hosts"]) == set(listed)
+
+
+def test_every_backup_host_has_its_own_seaweedfs_credentials(real_inventory_output):
+    """A host with a backed-up app is given a scoped identity, built from these; without them the deploy fails."""
+    hosts, _ = real_inventory_output
+    secrets = _load(INVENTORY_DIR / "group_vars" / "all" / "secret_catalog.yaml")["secret_catalog"]
+    for host in hosts["backup_hosts"]:
+        host_vars = _load(INVENTORY_DIR / "host_vars" / f"{host}.yaml")
+        for kind in ("access", "secret"):
+            name = f"seaweedfs-s3-{kind}-key-{host}"
+            assert secrets.get(name, {}).get("scope") == f"hosts/{host}", f"secret_catalog.yaml needs {name} scoped to hosts/{host}"
+            assert f"secrets_generated['{name}']" in host_vars.get(f"seaweedfs_s3_{kind}_key", ""), (
+                f"host_vars/{host}.yaml needs seaweedfs_s3_{kind}_key from {name}"
+            )

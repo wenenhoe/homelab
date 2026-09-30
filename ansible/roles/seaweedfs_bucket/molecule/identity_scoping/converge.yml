@@ -19,7 +19,6 @@
     # alpha/beta, not real host names — this scenario tests the
     # template's scoping mechanism generically, not any specific
     # inventory's shape.
-    seaweedfs_backup_hosts: [alpha, beta]
     seaweedfs_alpha_access_key: molecule-test-alpha-ak
     seaweedfs_alpha_secret_key: molecule-test-alpha-sk
     seaweedfs_beta_access_key: molecule-test-beta-ak
@@ -28,7 +27,9 @@
     # Registers alpha/beta as real (if ephemeral) inventory hosts for
     # the rest of this play, each carrying its own
     # seaweedfs_s3_access_key/secret_key — the same vars the real
-    # s3-identity.json.j2 reads via hostvars[host].*. Confirmed live
+    # s3-identity.json.j2 reads via hostvars[host].* — and a backup_plan,
+    # of which only being non-empty matters: it is what makes backup_hosts
+    # include the host. Confirmed live
     # (python3 ansible-playbook, outside molecule) that add_host +
     # lookup('ansible.builtin.template', ...) resolves hostvars[host]
     # for a host added this way, not just ones from real inventory —
@@ -39,11 +40,17 @@
         groups: molecule_fake_backup_hosts
         seaweedfs_s3_access_key: "{{ item.access_key }}"
         seaweedfs_s3_secret_key: "{{ item.secret_key }}"
+        backup_plan:
+          - name: molecule_app
       loop:
         - { name: alpha, access_key: "{{ seaweedfs_alpha_access_key }}", secret_key: "{{ seaweedfs_alpha_secret_key }}" }
         - { name: beta, access_key: "{{ seaweedfs_beta_access_key }}", secret_key: "{{ seaweedfs_beta_secret_key }}" }
       loop_control:
         label: "{{ item.name }}"
+
+    - name: Work out which of them back up, the way group_vars/all does for managed_hosts
+      ansible.builtin.set_fact:
+        backup_hosts: "{{ groups['molecule_fake_backup_hosts'] | backup_hosts(hostvars) }}" # noqa: var-naming[no-role-prefix]
 
     # The actual file under test, rendered exactly as a real deploy
     # would — not a hand-copied approximation of its content.

@@ -42,8 +42,9 @@ skipping regeneration.
 | `seaweedfs-s3-*-admin`, `seaweedfs-s3-*-cloud-sync-reader` | `storage` |
 
 Every `seaweedfs-s3-*-<host>` row above needs `storage` alongside the
-owning host, for every host in `seaweedfs_backup_hosts`
-(`host_vars/storage.yaml`: `services`, `security`, `play`) — SeaweedFS's
+owning host, for every host in `backup_hosts`
+(`group_vars/all/main.yaml`: the hosts with a backed-up app — `services`,
+`security`, `play`) — SeaweedFS's
 own identity config (`s3-identity.json.j2`) is rendered on `storage`,
 but pulls each host's key in via `hostvars[host].seaweedfs_s3_access_key`.
 Redeploying only the owning host leaves `storage` serving the old key,

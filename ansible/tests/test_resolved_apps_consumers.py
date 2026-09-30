@@ -158,6 +158,43 @@ def _reader_scenario_files():
     return [path for path in _files(SCENARIO_GLOBS) if path.relative_to(ANSIBLE_DIR / "roles").parts[0] in readers]
 
 
+# Whatever reads `backup_hosts` (a role, or the SeaweedFS identity file) reads a list that group_vars/all derives
+# from `managed_hosts`. A scenario has no such group, so it derives the list from the fake hosts it registers,
+# with the same expression, rather than writing the hosts out.
+BACKUP_HOSTS_READ = re.compile(r"\bbackup_hosts\b")
+IDENTITY_TEMPLATE = ANSIBLE_DIR.parent / "docker/seaweedfs/configs/s3-identity.json.j2"
+
+
+def _backup_hosts_reader_scenarios():
+    roles_dir = ANSIBLE_DIR / "roles"
+    reader_roles = {
+        path.relative_to(roles_dir).parts[0]
+        for path in _files(CONSUMER_GLOBS)
+        if path.is_relative_to(roles_dir) and any(BACKUP_HOSTS_READ.search(line) for _, line in _code_lines(path))
+    } - {"molecule_helpers"}
+    return [
+        path
+        for path in _files(SCENARIO_GLOBS)
+        if path.name == "converge.yml"
+        and (path.relative_to(roles_dir).parts[0] in reader_roles or any("s3-identity.json.j2" in line for _, line in _code_lines(path)))
+    ]
+
+
+def test_the_scan_finds_what_reads_backup_hosts():
+    assert BACKUP_HOSTS_READ.search(IDENTITY_TEMPLATE.read_text())
+    assert {"cloud_sync", "seaweedfs_bucket"} <= {_rel(path).split("/")[1] for path in _backup_hosts_reader_scenarios()}
+
+
+@pytest.mark.parametrize("path", _backup_hosts_reader_scenarios(), ids=_rel)
+def test_a_scenario_derives_backup_hosts_the_way_group_vars_does(path):
+    definition = yaml.safe_load(MAIN_VARS.read_text())["backup_hosts"]
+    derived = [args["backup_hosts"] for _, args in _tasks_with(path, "set_fact") if isinstance(args, dict) and "backup_hosts" in args]
+    assert len(derived) == 1, "derive backup_hosts once, with a set_fact"
+    assert isinstance(derived[0], str), "a list written out is not derived"
+    assert re.sub(r"groups\['[\w-]+'\]", "groups['managed_hosts']", derived[0]) == definition
+    assert not any("backup_hosts" in (play.get("vars") or {}) for play in yaml.safe_load(path.read_text())), "a list written out is not derived"
+
+
 def test_the_scan_finds_the_roles_that_read_backup_plan():
     assert {"backup_agent", "cloud_sync", "restore_discovery"} <= _backup_plan_reader_roles()
 

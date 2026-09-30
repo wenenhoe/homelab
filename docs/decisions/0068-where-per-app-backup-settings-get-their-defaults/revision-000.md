@@ -6,7 +6,7 @@ title: "Where per-app backup settings get their defaults"
 solution: "A pure backup_plan filter over resolved_apps and one backup_defaults block whose keys match an app's backup block; roles read backup_plan, and the backup hosts are derived from it"
 summary: "Where an app's backup settings meet the shared defaults, what decides that an app is backed up, and what those settings and the hosts that run them are called."
 topic: backup-recovery
-status: approved
+status: accepted
 related: [ADR-0006, ADR-0012, ADR-0065]
 ---
 

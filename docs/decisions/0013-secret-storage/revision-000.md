@@ -52,5 +52,5 @@ parity with B2's/OCI's rotation keys even after that migration (see
 secrets manager narrows *who/what can reach* that token, not *what it
 can do* once reached.
 
-See [`cloud-credential-creation.md`](../../topics/secrets/cloud-credential-creation.md)
+See [`cloud-credentials/scoping.md`](../../topics/secrets/cloud-credentials/scoping.md)
 for what each cached credential is scoped to, provider by provider.

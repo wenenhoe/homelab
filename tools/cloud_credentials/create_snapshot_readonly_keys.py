@@ -108,7 +108,7 @@ def mint_r2() -> bool:
     # Same rclone S3-compatible path production would actually use to
     # fetch a snapshot — proving the API accepted the token isn't the
     # same claim as proving it can list this specific bucket (see
-    # docs/topics/secrets/cloud-credential-creation.md's own reasoning for why
+    # docs/topics/secrets/cloud-credentials/rotation.md's own reasoning for why
     # create_leaf_keys.py --rotate does this same check before trusting
     # a leaf). "auto" region: confirmed in leaf_keys/r2.py's rotate_r2.
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://{account_id}.r2.cloudflarestorage.com", "auto", SNAPSHOT_BUCKET_R2, "read")

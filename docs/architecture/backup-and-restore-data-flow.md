@@ -49,7 +49,7 @@ flowchart LR
 
 The controller never holds a write credential for SeaweedFS or any
 cloud target — only the six read-leaf credentials from
-[`cloud-credential-creation.md`](../topics/secrets/cloud-credential-creation.md), and
+[`cloud-credentials/creation.md`](../topics/secrets/cloud-credentials/creation.md), and
 only for the discovery/fallback step above. The actual extraction runs
 through the same `restore` Ansible role either way, on the target app
 host itself.

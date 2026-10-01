@@ -49,7 +49,10 @@ OpenBao and the credentials around it.
 | :--- | :--- |
 | [`secrets.md`](secrets/secrets.md) | The `secrets` role, `openbao_utils/bootstrap.py`, rotation. |
 | [`secrets-rotation.md`](secrets/secrets-rotation.md) | Rotating a generated secret, a manual credential, or a cert-backed volume — which mechanism applies and which host(s) each one needs redeployed. |
-| [`cloud-credential-creation.md`](secrets/cloud-credential-creation.md) | Creating the 6 R2/B2/OCI write+read credentials via each provider's HTTP API, what each is scoped to, rotation. |
+| [`cloud-credentials/creation.md`](secrets/cloud-credentials/creation.md) | The scripts that mint, audit and verify the R2/B2/OCI credentials, and how to run them. |
+| [`cloud-credentials/scoping.md`](secrets/cloud-credentials/scoping.md) | What each provider's master credential can be narrowed to, and what the rotation and leaf credentials are scoped to. |
+| [`cloud-credentials/rotation.md`](secrets/cloud-credentials/rotation.md) | How the leaf and rotation credentials rotate, per provider: the `--rotate` flow, its verification, and rotating the rotation credential itself. |
+| [`cloud-credentials/expiry.md`](secrets/cloud-credentials/expiry.md) | The 90-day expiry of all 9 credentials, the weekly freshness check, and the Telegram warning ladder. |
 | [`openbao.md`](secrets/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
 | [`openbao-auth.md`](secrets/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
 | [`openbao-vault-bootstrap.md`](secrets/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |

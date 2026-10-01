@@ -22,7 +22,7 @@ against the actual bucket). Letting this script's generic prompt-and-
 write path also touch the same Vault paths would mean two independently-
 written mechanisms both claiming to be authoritative for the same
 credential, with only one of them actually verifying what it stores. See
-docs/topics/secrets/cloud-credential-creation.md for how those are created instead.
+docs/topics/secrets/cloud-credentials/creation.md for how those are created instead.
 
 Safe to re-run: an entry that already has a value (on disk, or in Vault)
 is left untouched. To rotate a value, see docs/topics/secrets/secrets-rotation.md.

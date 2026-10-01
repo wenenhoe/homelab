@@ -23,7 +23,7 @@ cloud_sync_targets:
   # matching read-only credentials (cloudflare-r2-read-*, etc.) are
   # created alongside these but aren't consumed here; the future
   # restore-discovery script is what reads them. See
-  # docs/topics/secrets/cloud-credential-creation.md.
+  # docs/topics/secrets/cloud-credentials/creation.md.
   r2:
     bucket: homelab-backups
     endpoint: "https://{{ secrets_generated['cloudflare-r2-account-id'] }}.r2.cloudflarestorage.com"

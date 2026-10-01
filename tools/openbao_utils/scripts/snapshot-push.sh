@@ -117,7 +117,7 @@ access_key_id = $(kv_value cloudflare-r2-openbao-snapshot-write-access-key)
 secret_access_key = $(kv_value cloudflare-r2-openbao-snapshot-write-secret-key)
 endpoint = https://${r2_account_id}.r2.cloudflarestorage.com
 force_path_style = true
-# Required, not optional - see docs/topics/secrets/cloud-credential-creation.md's
+# Required, not optional - see docs/topics/secrets/cloud-credentials/rotation.md's
 # "rclone config requirements verification depends on".
 no_check_bucket = true
 region = auto

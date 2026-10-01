@@ -82,7 +82,7 @@ python3 -m cloud_credentials.create_leaf_keys --provider <r2|b2|oci> --rotate {w
 This creates the new key, verifies it actually works over the same
 path production uses, and only then revokes the old one — no manual
 provider-console cleanup step for any of them. See
-[`cloud-credential-creation.md`](cloud-credential-creation.md#rotation)
+[`cloud-credentials/rotation.md`](cloud-credentials/rotation.md#rotation)
 for exactly what it does and doesn't do, including what happens if
 verification fails, and that same doc's R2 section for why R2's cached
 rotation credential is a materially broader-blast-radius risk than

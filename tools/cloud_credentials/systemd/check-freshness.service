@@ -5,6 +5,6 @@ Description=Check whether every cloud_credentials leaf/rotation credential is st
 Type=oneshot
 # Edit to this clone's actual path before installing - not templated,
 # since this runs on the operator's own machine, not through Ansible.
-# See docs/topics/secrets/cloud-credential-creation.md's Freshness check section.
+# See docs/topics/secrets/cloud-credentials/expiry.md's Credential expiry section.
 WorkingDirectory=%h/CHANGE-ME-path-to-this-repo/tools
 ExecStart=/usr/bin/python3 -m cloud_credentials.check_freshness

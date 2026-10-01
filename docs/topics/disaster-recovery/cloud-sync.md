@@ -68,13 +68,13 @@ rest of that run.
   followed by `tools/cloud_credentials/create_leaf_keys.py` does this via each
   provider's HTTP API rather than console click-through; R2 has no
   rotation-key step at all (Cloudflare structurally can't delegate
-  that capability — see `cloud-credential-creation.md`'s R2 section),
+  that capability — see `cloud-credentials/scoping.md`'s R2 section),
   so `create_leaf_keys.py` alone handles it, prompting for the
   master token each time it actually needs one. `openbao_utils/bootstrap.py`
   remains the manual fallback for any of the sixteen if you'd rather
   paste in console-created values — both paths write to the same
   cache files; see
-  [`cloud-credential-creation.md`](../secrets/cloud-credential-creation.md)
+  [`cloud-credentials/scoping.md`](../secrets/cloud-credentials/scoping.md)
   for exactly what each credential is scoped to, provider by provider —
   B2 and OCI both fully exclude delete from the write credential, R2
   can't (a platform limitation, not something worth re-chasing; see

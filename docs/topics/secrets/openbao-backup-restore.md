@@ -35,7 +35,7 @@ scoped to the `openbao-snapshots` bucket — a different credential from
 [0017](../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)'s break-glass
 **read-only** restore key, which stays reserved for actual disaster
 recovery and is never cached to disk. See
-[`cloud-credential-creation.md`](cloud-credential-creation.md) for how
+[`cloud-credentials/creation.md`](cloud-credentials/creation.md) for how
 it's minted and rotated.
 
 ## Before first use

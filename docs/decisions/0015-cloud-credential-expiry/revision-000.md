@@ -56,7 +56,7 @@ created. The rotation admin token is a human-created Console token
 (see [0014](../0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)),
 so it can carry an expiration too, set by hand at creation, and
 `check_freshness.py` reads that back live the same way — see
-`cloud-credential-creation.md`'s Credential expiry section for exactly
+`cloud-credentials/expiry.md`'s Credential expiry section for exactly
 which endpoint that requires and why (it changed once already, after
 this ADR was first written — don't restate the specific endpoint here
 a second time).
@@ -117,7 +117,7 @@ material or self-tracked timestamps anywhere new.
   credential breaks routine leaf rotation until a human re-runs
   `create_rotation_keys` (B2/OCI) or pastes a new Console token (R2) —
   the same low-frequency, human-attended action
-  `cloud-credential-creation.md`'s Rotation section already describes,
+  `cloud-credentials/rotation.md`'s Rotation section already describes,
   just now with a hard deadline instead of an open-ended one.
 - The freshness check depends on `controller` actually running its
   timer, which depends on the operator's own machine being on often
@@ -127,7 +127,7 @@ material or self-tracked timestamps anywhere new.
   without giving some managed host read access to
   `ansible/files/secrets/`, which is a materially different security
   posture and not something this decision takes on silently.
-- OCI's gap noted in `cloud-credential-creation.md` — no confirmed
+- OCI's gap noted in `cloud-credentials/scoping.md` — no confirmed
   policy condition scoping `manage users` to one named resource —
   remains open and unrelated to this change.
 - If `telegram-token`/`telegram-chat-id` aren't cached, an alert is
@@ -138,5 +138,5 @@ material or self-tracked timestamps anywhere new.
   otherwise watching.
 
 See
-[`cloud-credential-creation.md`](../../topics/secrets/cloud-credential-creation.md#credential-expiry)
+[`cloud-credentials/expiry.md`](../../topics/secrets/cloud-credentials/expiry.md#credential-expiry)
 for the setup/verification steps this decision produced.

@@ -17,7 +17,7 @@ related: [ADR-0013, ADR-0006]
 ## Context
 
 OpenBao is the planned replacement for [0013](../0013-secret-storage/revision-000.md)'s
-file cache (see `cloud-credential-creation.md` for what's cached
+file cache (see `cloud-credentials/creation.md` for what's cached
 today). If every credential — including the ones needed to fetch and
 restore OpenBao's own backup — lives only inside OpenBao, a sealed or
 lost instance can't be brought back: nothing exists yet to authenticate

@@ -27,7 +27,7 @@ only ever runs on a dedicated/hardened admin machine):
     non-interactively (already unlocked, or a passphrase-less key) —
     this script never prompts for a GPG passphrase itself.
   - Every secret in secret_catalog.yaml already populated (see
-    docs/topics/secrets/cloud-credential-creation.md) — this script doesn't create or
+    docs/topics/secrets/cloud-credentials/creation.md) — this script doesn't create or
     rotate any credential.
 
 Usage:

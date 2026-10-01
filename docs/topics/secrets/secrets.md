@@ -133,7 +133,7 @@ The R2/B2/OCI entries are `manual` too, but Vault-backed
 `openbao_utils/bootstrap.py`'s own prompting — `create_rotation_keys.py`/
 `create_leaf_keys.py` own them, with real provider-side verification
 `openbao_utils/bootstrap.py`'s generic prompt-and-write can't do. See
-[`cloud-credential-creation.md`](cloud-credential-creation.md) for how
+[`cloud-credentials/creation.md`](cloud-credentials/creation.md) for how
 to create them instead.
 
 ## Where secrets live

@@ -36,7 +36,7 @@ def _verify_marker_key(leaf: str) -> str:
 # A brand-new leaf credential isn't always usable by the provider's
 # S3-compat API the instant the create call returns (confirmed live on
 # OCI and R2, different HTTP status per provider — see
-# docs/topics/secrets/cloud-credential-creation.md's Rotation section for specifics).
+# docs/topics/secrets/cloud-credentials/rotation.md's Rotation section for specifics).
 # Retried broadly on status alone, not specific error text, since
 # neither provider distinguishes "not propagated yet" from "genuinely
 # denied by policy" in the response — a real policy problem now also
@@ -73,7 +73,7 @@ def verify_leaf_via_rclone(access_key: str, secret_key: str, endpoint: str, regi
     """Prove a freshly-minted leaf key can do its actual job over the same
     rclone S3-compatible path cloud_sync/restore-discovery use in
     production — not just that the provider's native API accepts it
-    (see docs/topics/secrets/cloud-credential-creation.md's B2 section for why that
+    (see docs/topics/secrets/cloud-credentials/scoping.md's B2 section for why that
     distinction matters).
 
     read: a real ListObjectsV2 (`rclone lsjson`). write: a real PutObject
@@ -84,7 +84,7 @@ def verify_leaf_via_rclone(access_key: str, secret_key: str, endpoint: str, regi
 
     `region` and `no_check_bucket = true` are both required, not
     optional, and retries run through a real provider propagation
-    window — see docs/topics/secrets/cloud-credential-creation.md's Rotation section
+    window — see docs/topics/secrets/cloud-credentials/rotation.md's Rotation section
     for what breaks without each of these and why the retry gate is as
     broad as it is.
     """

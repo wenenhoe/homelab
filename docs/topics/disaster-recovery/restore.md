@@ -124,7 +124,7 @@ What it does, in order:
    resolution `cloud_sync` already does for its own upload side, so the
    two can't drift apart. The rclone identities are the SeaweedFS
    `cloud-sync-reader` identity and the six cloud **read**-leaf
-   credentials from `docs/topics/secrets/cloud-credential-creation.md` — nothing here
+   credentials from `docs/topics/secrets/cloud-credentials/creation.md` — nothing here
    can write to SeaweedFS or any cloud target.
 2. For each in-scope app: lists `seaweedfs:homelab-backups/<host>-<app>/`
    (the exact `AWS_S3_PATH` prefix `backup_agent`'s own

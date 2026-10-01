@@ -70,5 +70,5 @@ on-prem compromise from deleting R2 objects — see
 defense-in-depth is at the leaf-token/`copy`-vs-`sync` level, not IAM
 narrowing at the rotation-token level.
 
-See [`cloud-credential-creation.md`](../../topics/secrets/cloud-credential-creation.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)
+See [`cloud-credentials/scoping.md`](../../topics/secrets/cloud-credentials/scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)
 for the R2 master-token setup steps this credential depends on.

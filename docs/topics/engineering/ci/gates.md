@@ -178,6 +178,17 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for
   Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no
   `compose.yaml`/`.j2` of its own.
+- `openbao` — can't boot in isolation. Its data volume is chowned to the
+  image's non-root user by `roles/openbao` before the container starts, which
+  the boot-test seeding doesn't do, so the server dies opening `vault.db`; its
+  listener needs a leaf cert in the `certs` volume, and the workflow issues
+  one only for `lldap`; and its healthcheck, `bao status`, exits non-zero while
+  OpenBao is sealed or uninitialized (see the comment on it in
+  `docker/openbao/compose.yaml.j2`), which a fresh volume always is, so
+  `compose_health` would fail it even with the other two fixed. It is also a
+  self-managed app (`compose_self_managed_apps`). Unlike the others it has no
+  Molecule scenario, and `compose-syntax-check` skips its `compose.yaml.j2`, so
+  nothing in CI checks its compose file.
 
 `lldap` is no longer in that list: `_compose-boot-test.yml` issues a real
 cert for it from a throwaway `smallstep/step-ca` container (the official

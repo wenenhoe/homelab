@@ -88,8 +88,9 @@ Until that conversion closes, files not yet converted are still
   for Vault I/O at the layer `cache.py` reads and writes through;
   `vault` and `rotation_vault` wrap it with `seed()`/`get()`/`delete()`
   defaulting to the `leaf` or `rotation` category.
-  `root` (`tools/tests/doc_scripts/conftest.py`) is an empty directory
-  standing in for a repository root.
+  `root` is an empty directory standing in for a repository root, defined
+  in `tools/tests/doc_scripts/conftest.py` and in
+  `tools/tests/ci/conftest.py`.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,

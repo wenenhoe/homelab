@@ -13,8 +13,9 @@ from __future__ import annotations
 
 import ast
 import sys
-import unittest
 from pathlib import Path
+
+import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CI = REPO_ROOT / "tools/ci"
@@ -46,34 +47,31 @@ def _imported_modules(tree: ast.AST) -> list[str]:
     return modules
 
 
-class StdlibOnlyTests(unittest.TestCase):
-    def test_imports_are_standard_library_or_ci_only(self):
-        for name in BARE_PYTHON:
-            tree = ast.parse((CI / name).read_text(), feature_version=(3, 10))
-            for module in _imported_modules(tree):
-                top = module.split(".")[0]
-                with self.subTest(file=name, module=module):
-                    self.assertTrue(top in sys.stdlib_module_names or top == "ci", f"{name} imports {module}")
+class TestStdlibOnly:
+    @pytest.mark.parametrize("name", BARE_PYTHON)
+    def test_imports_are_standard_library_or_ci_only(self, name, subtests):
+        tree = ast.parse((CI / name).read_text(), feature_version=(3, 10))
+        for module in _imported_modules(tree):
+            top = module.split(".")[0]
+            with subtests.test(module=module):
+                assert top in sys.stdlib_module_names or top == "ci", f"{name} imports {module}"
 
-    def test_every_listed_file_exists(self):
-        for name in BARE_PYTHON:
-            with self.subTest(file=name):
-                self.assertTrue((CI / name).is_file())
+    @pytest.mark.parametrize("name", BARE_PYTHON)
+    def test_every_listed_file_exists(self, name):
+        assert (CI / name).is_file()
 
-    def test_the_workflows_run_these_modules_with_plain_python3(self):
-        for workflow, module in (
-            ("_compose-boot-test.yml", "ci.gates.compose_health"),
-            ("renovate.yml", "ci.gates.renovate_window"),
-            ("build-caddy-image.yml", "ci.images.registry"),
-            ("check-image-tags.yml", "ci.images.remote"),
-            ("pr-checks.yml", "ci.gates.matrix_gate"),
-            ("_trivy-scan.yml", "ci.scan.trivy_config"),
-        ):
-            with self.subTest(module=module):
-                text = (REPO_ROOT / ".github/workflows" / workflow).read_text()
-                self.assertIn(f"python3 -m {module}", text)
-                self.assertNotIn(f"uv run python -m {module}", text)
-
-
-if __name__ == "__main__":
-    unittest.main()
+    @pytest.mark.parametrize(
+        ("workflow", "module"),
+        [
+            pytest.param("_compose-boot-test.yml", "ci.gates.compose_health", id="compose_health"),
+            pytest.param("renovate.yml", "ci.gates.renovate_window", id="renovate_window"),
+            pytest.param("build-caddy-image.yml", "ci.images.registry", id="registry"),
+            pytest.param("check-image-tags.yml", "ci.images.remote", id="remote"),
+            pytest.param("pr-checks.yml", "ci.gates.matrix_gate", id="matrix_gate"),
+            pytest.param("_trivy-scan.yml", "ci.scan.trivy_config", id="trivy_config"),
+        ],
+    )
+    def test_the_workflows_run_these_modules_with_plain_python3(self, workflow, module):
+        text = (REPO_ROOT / ".github/workflows" / workflow).read_text()
+        assert f"python3 -m {module}" in text
+        assert f"uv run python -m {module}" not in text

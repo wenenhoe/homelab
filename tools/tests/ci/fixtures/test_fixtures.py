@@ -1,8 +1,8 @@
 """Tests for ci.fixtures: the two fixture writers the deploy-ordering job runs.
 
-Most cases build a scratch repo holding a small catalog; RealCatalogTests
-run the same code over the real secret_catalog.yaml (writing into a
-temporary tree, never into ansible/files/secrets), and RealWorkflowTests hold
+Most cases build a scratch repo holding a small catalog; TestRealCatalog
+runs the same code over the real secret_catalog.yaml (writing into a
+temporary tree, never into ansible/files/secrets), and TestRealWorkflow holds
 the deploy-ordering job's steps to what the code and the gate module expect.
 
 Run via `uv run pytest tools/tests/ -v`.
@@ -12,17 +12,11 @@ from __future__ import annotations
 
 import io
 import json
-import sys
-import tempfile
-import unittest
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
-from unittest.mock import patch
 
+import pytest
 import yaml
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-
 from ci.fixtures import file_cache_catalog as fcr
 from ci.fixtures import preseed_manual_secrets as pre
 from ci.gates import deploy_ordering
@@ -40,209 +34,219 @@ CATALOG = {
 }
 
 
-class Scratch(unittest.TestCase):
-    def setUp(self):
-        self._tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self._tmp.cleanup)
-        self.root = Path(self._tmp.name).resolve()
-
-    def write_catalog(self, catalog: object = None, text: str | None = None) -> Path:
-        path = self.root / sr.CATALOG_RELATIVE
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text if text is not None else yaml.safe_dump({"secret_catalog": CATALOG if catalog is None else catalog}))
-        return path
+def write_catalog(root: Path, catalog: object = None, text: str | None = None) -> Path:
+    path = root / sr.CATALOG_RELATIVE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text if text is not None else yaml.safe_dump({"secret_catalog": CATALOG if catalog is None else catalog}))
+    return path
 
 
-class ManualValuesTests(unittest.TestCase):
+class TestManualValues:
     def test_only_manual_file_cache_entries_get_a_value(self):
-        self.assertEqual(set(pre.manual_values(CATALOG)), {"main-domain", "role-id"})
+        assert set(pre.manual_values(CATALOG)) == {"main-domain", "role-id"}
 
     def test_allow_blank_entries_get_an_empty_string_and_the_rest_a_traceable_dummy(self):
         values = pre.manual_values(CATALOG)
-        self.assertEqual(values["role-id"], "")
-        self.assertEqual(values["main-domain"], "ci-dummy-main-domain")
+        assert values["role-id"] == ""
+        assert values["main-domain"] == "ci-dummy-main-domain"
 
     def test_allow_blank_false_or_missing_is_not_blank(self):
         values = pre.manual_values(
             {"a": {"source": "manual", "allow_blank": False, "store": "controller_file"}, "b": {"source": "manual", "store": "controller_file"}}
         )
-        self.assertEqual(values, {"a": "ci-dummy-a", "b": "ci-dummy-b"})
+        assert values == {"a": "ci-dummy-a", "b": "ci-dummy-b"}
 
-    def test_a_key_that_is_not_a_plain_file_name_is_refused(self):
-        for key in ("../escape", "a/b", "/abs", "..", ".", ""):
-            with self.subTest(key=key), self.assertRaisesRegex(sr.CatalogError, "can't be used as a file name"):
-                pre.manual_values({key: {"source": "manual", "store": "controller_file"}})
+    @pytest.mark.parametrize(
+        "key",
+        [
+            pytest.param("../escape", id="parent-traversal"),
+            pytest.param("a/b", id="contains-a-slash"),
+            pytest.param("/abs", id="absolute-path"),
+            pytest.param("..", id="parent-directory"),
+            pytest.param(".", id="current-directory"),
+            pytest.param("", id="empty"),
+        ],
+    )
+    def test_a_key_that_is_not_a_plain_file_name_is_refused(self, key):
+        with pytest.raises(sr.CatalogError, match="can't be used as a file name"):
+            pre.manual_values({key: {"source": "manual", "store": "controller_file"}})
 
     def test_an_unsafe_key_on_a_non_manual_entry_is_not_a_file_and_is_ignored(self):
-        self.assertEqual(pre.manual_values({"../x": {"source": "hex", "store": "openbao", "scope": "hosts/play"}}), {})
+        assert pre.manual_values({"../x": {"source": "hex", "store": "openbao", "scope": "hosts/play"}}) == {}
 
     def test_an_openbao_stored_manual_entry_is_not_a_file_and_is_ignored(self):
-        self.assertEqual(pre.manual_values({"../x": {"source": "manual", "store": "openbao", "scope": "hosts/all/x"}}), {})
+        assert pre.manual_values({"../x": {"source": "manual", "store": "openbao", "scope": "hosts/all/x"}}) == {}
 
 
-class PreseedTests(Scratch):
-    def test_writes_one_file_per_manual_file_cache_secret_with_exact_contents(self):
-        self.write_catalog()
-        written, secrets_dir = pre.preseed(self.root)
-        self.assertEqual(written, 2)
-        self.assertEqual(secrets_dir, self.root / pre.SECRETS_RELATIVE)
-        self.assertEqual(sorted(p.name for p in secrets_dir.iterdir()), ["main-domain", "role-id"])
-        self.assertEqual((secrets_dir / "role-id").read_bytes(), b"")
-        self.assertEqual((secrets_dir / "main-domain").read_bytes(), b"ci-dummy-main-domain")
+class TestPreseed:
+    def test_writes_one_file_per_manual_file_cache_secret_with_exact_contents(self, root):
+        write_catalog(root)
+        written, secrets_dir = pre.preseed(root)
+        assert written == 2
+        assert secrets_dir == root / pre.SECRETS_RELATIVE
+        assert sorted(p.name for p in secrets_dir.iterdir()) == ["main-domain", "role-id"]
+        assert (secrets_dir / "role-id").read_bytes() == b""
+        assert (secrets_dir / "main-domain").read_bytes() == b"ci-dummy-main-domain"
 
-    def test_overwrites_an_existing_file_and_keeps_unrelated_ones(self):
-        self.write_catalog()
-        secrets_dir = self.root / pre.SECRETS_RELATIVE
+    def test_overwrites_an_existing_file_and_keeps_unrelated_ones(self, root):
+        write_catalog(root)
+        secrets_dir = root / pre.SECRETS_RELATIVE
         secrets_dir.mkdir(parents=True)
         (secrets_dir / "main-domain").write_text("stale")
         (secrets_dir / "unrelated").write_text("keep")
-        pre.preseed(self.root)
-        self.assertEqual((secrets_dir / "main-domain").read_text(), "ci-dummy-main-domain")
-        self.assertEqual((secrets_dir / "unrelated").read_text(), "keep")
+        pre.preseed(root)
+        assert (secrets_dir / "main-domain").read_text() == "ci-dummy-main-domain"
+        assert (secrets_dir / "unrelated").read_text() == "keep"
 
-    def test_a_catalog_with_no_manual_entries_writes_nothing(self):
-        self.write_catalog({"a": {"source": "hex", "store": "openbao", "scope": "hosts/play"}})
-        written, secrets_dir = pre.preseed(self.root)
-        self.assertEqual(written, 0)
-        self.assertEqual(list(secrets_dir.iterdir()), [])
+    def test_a_catalog_with_no_manual_entries_writes_nothing(self, root):
+        write_catalog(root, {"a": {"source": "hex", "store": "openbao", "scope": "hosts/play"}})
+        written, secrets_dir = pre.preseed(root)
+        assert written == 0
+        assert list(secrets_dir.iterdir()) == []
 
-    def test_an_unsafe_key_writes_nothing_at_all(self):
-        self.write_catalog({"ok": {"source": "manual", "store": "controller_file"}, "../bad": {"source": "manual", "store": "controller_file"}})
-        with self.assertRaises(sr.CatalogError):
-            pre.preseed(self.root)
-        self.assertFalse((self.root / pre.SECRETS_RELATIVE / "ok").exists())
+    def test_an_unsafe_key_writes_nothing_at_all(self, root):
+        write_catalog(root, {"ok": {"source": "manual", "store": "controller_file"}, "../bad": {"source": "manual", "store": "controller_file"}})
+        with pytest.raises(sr.CatalogError):
+            pre.preseed(root)
+        assert not (root / pre.SECRETS_RELATIVE / "ok").exists()
 
-    def test_main_prints_the_summary_and_reports_a_bad_catalog_as_a_failure(self):
-        self.write_catalog()
+    def test_main_prints_the_summary_and_reports_a_bad_catalog_as_a_failure(self, root, monkeypatch):
+        write_catalog(root)
         out = io.StringIO()
-        with patch.object(pre, "REPO_ROOT", self.root), redirect_stdout(out):
-            self.assertEqual(pre.main(), 0)
-        self.assertIn("Pre-seeded 2 manual secrets", out.getvalue())
-        self.write_catalog(text="[]")
+        monkeypatch.setattr(pre, "REPO_ROOT", root)
+        with redirect_stdout(out):
+            assert pre.main() == 0
+        assert "Pre-seeded 2 manual secrets" in out.getvalue()
+        write_catalog(root, text="[]")
         err = io.StringIO()
-        with patch.object(pre, "REPO_ROOT", self.root), redirect_stderr(err):
-            self.assertEqual(pre.main(), 1)
-        self.assertIn("::error::", err.getvalue())
+        with redirect_stderr(err):
+            assert pre.main() == 1
+        assert "::error::" in err.getvalue()
 
 
-class FileCacheCatalogTests(Scratch):
+class TestFileCacheCatalog:
     def test_keeps_only_the_controller_file_entries_and_every_field_of_them(self):
         override = fcr.file_cache_catalog(CATALOG)
-        self.assertEqual(override, {"main-domain": CATALOG["main-domain"], "role-id": CATALOG["role-id"]})
+        assert override == {"main-domain": CATALOG["main-domain"], "role-id": CATALOG["role-id"]}
 
     def test_does_not_mutate_its_input(self):
         original = json.loads(json.dumps(CATALOG))
         fcr.file_cache_catalog(CATALOG)
-        self.assertEqual(CATALOG, original)
+        assert original == CATALOG
 
-    def test_a_catalog_whose_main_domain_is_not_a_file_cache_entry_is_an_error(self):
-        for catalog in ({"role-id": CATALOG["role-id"]}, {"main-domain": {"source": "manual", "store": "openbao", "scope": "hosts/all/x"}}):
-            with self.subTest(catalog=catalog), self.assertRaisesRegex(sr.CatalogError, "main-domain"):
-                fcr.file_cache_catalog(catalog)
+    @pytest.mark.parametrize(
+        "catalog",
+        [
+            pytest.param({"role-id": CATALOG["role-id"]}, id="main-domain-missing"),
+            pytest.param({"main-domain": {"source": "manual", "store": "openbao", "scope": "hosts/all/x"}}, id="main-domain-stored-in-openbao"),
+        ],
+    )
+    def test_a_catalog_whose_main_domain_is_not_a_file_cache_entry_is_an_error(self, catalog):
+        with pytest.raises(sr.CatalogError, match="main-domain"):
+            fcr.file_cache_catalog(catalog)
 
-    def test_main_writes_json_under_a_secret_catalog_key_that_ansible_can_load(self):
-        catalog_path = self.write_catalog()
-        target = self.root / "out.json"
+    def test_main_writes_json_under_a_secret_catalog_key_that_ansible_can_load(self, root, monkeypatch):
+        catalog_path = write_catalog(root)
+        target = root / "out.json"
         out = io.StringIO()
-        with patch.object(fcr, "CATALOG_PATH", catalog_path), redirect_stdout(out):
-            self.assertEqual(fcr.main([str(target)]), 0)
-        self.assertEqual(json.loads(target.read_text()), {"secret_catalog": fcr.file_cache_catalog(CATALOG)})
-        self.assertIn("Wrote 2 file-cache entries", out.getvalue())
+        monkeypatch.setattr(fcr, "CATALOG_PATH", catalog_path)
+        with redirect_stdout(out):
+            assert fcr.main([str(target)]) == 0
+        assert json.loads(target.read_text()) == {"secret_catalog": fcr.file_cache_catalog(CATALOG)}
+        assert "Wrote 2 file-cache entries" in out.getvalue()
 
-    def test_main_reports_a_bad_catalog_without_writing(self):
-        target = self.root / "out.json"
+    def test_main_reports_a_bad_catalog_without_writing(self, root, monkeypatch):
+        target = root / "out.json"
         err = io.StringIO()
-        with patch.object(fcr, "CATALOG_PATH", self.root / "missing.yaml"), redirect_stderr(err):
-            self.assertEqual(fcr.main([str(target)]), 1)
-        self.assertIn("::error::", err.getvalue())
-        self.assertFalse(target.exists())
+        monkeypatch.setattr(fcr, "CATALOG_PATH", root / "missing.yaml")
+        with redirect_stderr(err):
+            assert fcr.main([str(target)]) == 1
+        assert "::error::" in err.getvalue()
+        assert not target.exists()
 
-    def test_main_reports_a_catalog_without_main_domain_without_writing(self):
-        catalog_path = self.write_catalog({"role-id": CATALOG["role-id"]})
-        target = self.root / "out.json"
-        with patch.object(fcr, "CATALOG_PATH", catalog_path), redirect_stderr(io.StringIO()):
-            self.assertEqual(fcr.main([str(target)]), 1)
-        self.assertFalse(target.exists())
+    def test_main_reports_a_catalog_without_main_domain_without_writing(self, root, monkeypatch):
+        catalog_path = write_catalog(root, {"role-id": CATALOG["role-id"]})
+        target = root / "out.json"
+        monkeypatch.setattr(fcr, "CATALOG_PATH", catalog_path)
+        with redirect_stderr(io.StringIO()):
+            assert fcr.main([str(target)]) == 1
+        assert not target.exists()
 
     def test_main_requires_an_output_path(self):
-        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+        with redirect_stderr(io.StringIO()), pytest.raises(SystemExit) as raised:
             fcr.main([])
-        self.assertEqual(raised.exception.code, 2)
+        assert raised.value.code == 2
 
 
-class RealCatalogTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        cls.catalog = sr.load_catalog()
+@pytest.fixture(scope="module")
+def catalog():
+    return sr.load_catalog()
 
-    def test_every_manual_file_cache_entry_is_seeded_and_no_other(self):
-        manual = {key for key, spec in self.catalog.items() if spec.get("source") == "manual" and spec.get("store") == "controller_file"}
-        self.assertTrue(manual)
-        self.assertEqual(set(pre.manual_values(self.catalog)), manual)
 
-    def test_the_real_catalog_seeds_into_a_temporary_tree(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            root = Path(tmp)
-            target = root / sr.CATALOG_RELATIVE
-            target.parent.mkdir(parents=True)
-            target.write_text((REPO_ROOT / sr.CATALOG_RELATIVE).read_text())
-            written, secrets_dir = pre.preseed(root)
-            self.assertEqual(written, len(list(secrets_dir.iterdir())))
-            blank = {key for key, spec in sr.file_cache_entries(self.catalog).items() if spec.get("source") == "manual" and spec.get("allow_blank")}
-            self.assertTrue(blank)
-            for key in blank:
-                self.assertEqual((secrets_dir / key).read_text(), "", key)
+class TestRealCatalog:
+    def test_every_manual_file_cache_entry_is_seeded_and_no_other(self, catalog):
+        manual = {key for key, spec in catalog.items() if spec.get("source") == "manual" and spec.get("store") == "controller_file"}
+        assert manual
+        assert set(pre.manual_values(catalog)) == manual
 
-    def test_the_real_override_is_exactly_the_controller_file_entries_and_includes_main_domain(self):
-        override = fcr.file_cache_catalog(self.catalog)
-        self.assertEqual(set(override), {key for key, spec in self.catalog.items() if spec["store"] == "controller_file"})
-        self.assertIn("main-domain", override)
+    def test_the_real_catalog_seeds_into_a_temporary_tree(self, catalog, root):
+        target = root / sr.CATALOG_RELATIVE
+        target.parent.mkdir(parents=True)
+        target.write_text((REPO_ROOT / sr.CATALOG_RELATIVE).read_text())
+        written, secrets_dir = pre.preseed(root)
+        assert written == len(list(secrets_dir.iterdir()))
+        blank = {key for key, spec in sr.file_cache_entries(catalog).items() if spec.get("source") == "manual" and spec.get("allow_blank")}
+        assert blank
+        for key in blank:
+            assert (secrets_dir / key).read_text() == "", key
+
+    def test_the_real_override_is_exactly_the_controller_file_entries_and_includes_main_domain(self, catalog, subtests):
+        override = fcr.file_cache_catalog(catalog)
+        assert set(override) == {key for key, spec in catalog.items() if spec["store"] == "controller_file"}
+        assert "main-domain" in override
         for key, spec in override.items():
-            with self.subTest(key=key):
-                self.assertEqual(spec, self.catalog[key])
+            with subtests.test(key=key):
+                assert spec == catalog[key]
 
-    def test_the_real_catalog_has_entries_stored_in_openbao_that_the_override_leaves_out(self):
-        self.assertTrue(any(spec["store"] == "openbao" for spec in self.catalog.values()))
-        self.assertFalse(any(spec["store"] == "openbao" for spec in fcr.file_cache_catalog(self.catalog).values()))
+    def test_the_real_catalog_has_entries_stored_in_openbao_that_the_override_leaves_out(self, catalog):
+        assert any(spec["store"] == "openbao" for spec in catalog.values())
+        assert not any(spec["store"] == "openbao" for spec in fcr.file_cache_catalog(catalog).values())
 
 
-class RealWorkflowTests(unittest.TestCase):
-    @classmethod
-    def setUpClass(cls):
-        workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/pr-checks.yml").read_text())
-        cls.steps = workflow["jobs"]["deploy-ordering-check"]["steps"]
+@pytest.fixture(scope="module")
+def steps():
+    workflow = yaml.safe_load((REPO_ROOT / ".github/workflows/pr-checks.yml").read_text())
+    return workflow["jobs"]["deploy-ordering-check"]["steps"]
 
-    def step(self, module: str) -> dict[str, str]:
-        return next(step for step in self.steps if module in step.get("run", ""))
 
-    def test_the_steps_run_the_modules_from_tools_under_uv(self):
-        for module in ("ci.fixtures.preseed_manual_secrets", "ci.fixtures.file_cache_catalog"):
-            with self.subTest(module=module):
-                step = self.step(module)
-                self.assertTrue(step["run"].startswith(f"uv run python -m {module}"))
-                self.assertEqual(step["working-directory"], "tools")
+def step_running(steps, module: str) -> dict[str, str]:
+    return next(step for step in steps if module in step.get("run", ""))
 
-    def test_the_catalog_override_path_matches_what_the_gate_module_passes_to_ansible(self):
-        argument = self.step("ci.fixtures.file_cache_catalog")["run"].split()[-1]
-        self.assertEqual(deploy_ordering.CATALOG_OVERRIDE, f"@{argument}")
 
-    def test_both_fixtures_run_before_the_playbooks(self):
-        names = [step["run"] for step in self.steps if "run" in step]
+class TestRealWorkflow:
+    @pytest.mark.parametrize("module", ["ci.fixtures.preseed_manual_secrets", "ci.fixtures.file_cache_catalog"])
+    def test_the_steps_run_the_modules_from_tools_under_uv(self, steps, module):
+        step = step_running(steps, module)
+        assert step["run"].startswith(f"uv run python -m {module}")
+        assert step["working-directory"] == "tools"
+
+    def test_the_catalog_override_path_matches_what_the_gate_module_passes_to_ansible(self, steps):
+        argument = step_running(steps, "ci.fixtures.file_cache_catalog")["run"].split()[-1]
+        assert f"@{argument}" == deploy_ordering.CATALOG_OVERRIDE
+
+    def test_both_fixtures_run_before_the_playbooks(self, steps):
+        names = [step["run"] for step in steps if "run" in step]
         order = {
             module: next(i for i, run in enumerate(names) if module in run)
             for module in ("preseed_manual_secrets", "file_cache_catalog", "ci.gates.deploy_ordering deploy")
         }
-        self.assertLess(order["preseed_manual_secrets"], order["ci.gates.deploy_ordering deploy"])
-        self.assertLess(order["file_cache_catalog"], order["ci.gates.deploy_ordering deploy"])
+        assert order["preseed_manual_secrets"] < order["ci.gates.deploy_ordering deploy"]
+        assert order["file_cache_catalog"] < order["ci.gates.deploy_ordering deploy"]
 
     def test_the_job_reruns_when_a_fixture_changes(self):
         filters = yaml.safe_load((REPO_ROOT / ".github/detect-changes-filters.yml").read_text())
-        self.assertIn("tools/ci/fixtures/**", filters["deploy_ordering"])
+        assert "tools/ci/fixtures/**" in filters["deploy_ordering"]
 
     def test_the_job_reruns_when_the_loader_the_fixtures_read_the_catalog_with_changes(self):
         filters = yaml.safe_load((REPO_ROOT / ".github/detect-changes-filters.yml").read_text())
-        self.assertIn("tools/utils/secret_catalog.py", filters["deploy_ordering"])
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert "tools/utils/secret_catalog.py" in filters["deploy_ordering"]

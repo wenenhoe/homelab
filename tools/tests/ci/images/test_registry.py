@@ -19,22 +19,27 @@ from ci.images import registry as reg
 class TestFinalFrom:
     SOURCE = staticmethod(reg.final_from("caddy"))
 
-    def test_takes_the_tag_of_the_last_from(self):
-        assert self.SOURCE("FROM caddy:2.11.4-builder AS builder\nRUN x\nFROM caddy:2.11.4\nCOPY a b\n") == "2.11.4"
+    @pytest.mark.parametrize(
+        ("text", "tag"),
+        [
+            pytest.param("FROM caddy:2.11.4-builder AS builder\nRUN x\nFROM caddy:2.11.4\nCOPY a b\n", "2.11.4", id="last-from"),
+            pytest.param("FROM --platform=linux/amd64 caddy:2.11 AS final\n", "2.11", id="as-alias-and-platform-flag"),
+            pytest.param("from caddy:2.1.0 as x\n", "2.1.0", id="lowercase-keywords"),
+        ],
+    )
+    def test_takes_the_tag_of_the_final_from(self, text, tag):
+        assert self.SOURCE(text) == tag
 
-    def test_an_as_alias_and_platform_flag_are_ignored(self):
-        assert self.SOURCE("FROM --platform=linux/amd64 caddy:2.11 AS final\n") == "2.11"
-
-    def test_is_case_insensitive_about_the_keywords(self):
-        assert self.SOURCE("from caddy:2.1.0 as x\n") == "2.1.0"
-
-    def test_a_different_final_image_is_an_error(self):
-        with pytest.raises(reg.ImageError, match="final FROM is 'alpine'"):
-            self.SOURCE("FROM caddy:2.11.4 AS b\nFROM alpine:3.20\n")
-
-    def test_no_from_is_an_error(self):
-        with pytest.raises(reg.ImageError, match="no FROM"):
-            self.SOURCE("# nothing\n")
+    @pytest.mark.parametrize(
+        ("text", "message"),
+        [
+            pytest.param("FROM caddy:2.11.4 AS b\nFROM alpine:3.20\n", "final FROM is 'alpine'", id="a-different-final-image"),
+            pytest.param("# nothing\n", "no FROM", id="no-from"),
+        ],
+    )
+    def test_a_final_from_that_is_not_the_image_is_an_error(self, text, message):
+        with pytest.raises(reg.ImageError, match=message):
+            self.SOURCE(text)
 
     @pytest.mark.parametrize(
         "line",
@@ -149,20 +154,43 @@ class TestCheckPins:
     def test_agreeing_tree_has_no_errors(self, tree):
         assert reg.check_pins(tree.root) == []
 
-    def test_compose_pin_behind_the_dockerfile_is_an_error(self, tree):
-        tree.write("docker/caddy/Dockerfile", "FROM caddy:2.12.0-builder AS builder\nFROM caddy:2.12.0\n")
+    @pytest.mark.parametrize(
+        ("path", "content", "fragment"),
+        [
+            pytest.param(
+                "docker/caddy/Dockerfile",
+                "FROM caddy:2.12.0-builder AS builder\nFROM caddy:2.12.0\n",
+                "docker/caddy/compose.yaml: pins ghcr.io/wenenhoe/caddy-digitalocean:2.11.4, but the Dockerfile publishes 2.12.0",
+                id="compose-pin-behind-the-dockerfile",
+            ),
+            pytest.param("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:3.7.1\n", "compose.yaml.j2", id="templated-compose-file"),
+            pytest.param("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin\n", "(no tag)", id="compose-pin-with-no-tag"),
+            pytest.param(
+                "docker/wastebin/compose.yaml.j2",
+                "    image: ghcr.io/wenenhoe/mystery:1.0.0\n",
+                "pins ghcr.io/wenenhoe/mystery, which no image entry publishes",
+                id="self-built-image-with-no-entry",
+            ),
+            pytest.param("docker/newapp/Dockerfile", "FROM alpine:3.20\n", "docker/newapp/Dockerfile has no entry", id="dockerfile-with-no-entry"),
+            pytest.param("tools/coderabbit-review/Dockerfile", "ARG CODERABBIT_VERSION=latest\n", "coderabbit-review", id="unresolvable-dockerfile"),
+            pytest.param(
+                "ansible/roles/r/molecule/default/molecule.yml",
+                "    image: ghcr.io/wenenhoe/molecule-dind:v2\n",
+                "molecule.yml: uses ghcr.io/wenenhoe/molecule-dind:v2",
+                id="molecule-scenario-on-an-unpublished-tag",
+            ),
+            pytest.param(
+                "ansible/roles/r/molecule/default/molecule.yml",
+                "    image: ghcr.io/wenenhoe/other:latest\n",
+                "which no image entry publishes",
+                id="molecule-scenario-on-an-unknown-image",
+            ),
+        ],
+    )
+    def test_one_drifting_file_is_one_error_naming_the_cause(self, tree, path, content, fragment):
+        tree.write(path, content)
         (error,) = reg.check_pins(tree.root)
-        assert "docker/caddy/compose.yaml: pins ghcr.io/wenenhoe/caddy-digitalocean:2.11.4, but the Dockerfile publishes 2.12.0" in error
-
-    def test_templated_compose_files_are_checked_too(self, tree):
-        tree.write("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:3.7.1\n")
-        (error,) = reg.check_pins(tree.root)
-        assert "compose.yaml.j2" in error
-
-    def test_a_compose_pin_with_no_tag_is_an_error(self, tree):
-        tree.write("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin\n")
-        (error,) = reg.check_pins(tree.root)
-        assert "(no tag)" in error
+        assert fragment in error
 
     def test_a_quoted_image_is_still_read(self, tree):
         tree.write("docker/wastebin/compose.yaml.j2", "    image: 'ghcr.io/wenenhoe/wastebin:1.0.0'\n")
@@ -176,35 +204,10 @@ class TestCheckPins:
         tree.write("docker/caddy/compose.yaml", "    image: redis:7\n    image: ghcr.io/other/thing:1\n")
         assert reg.check_pins(tree.root) == []
 
-    def test_a_self_built_image_with_no_entry_is_an_error(self, tree):
-        tree.write("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/mystery:1.0.0\n")
-        (error,) = reg.check_pins(tree.root)
-        assert "pins ghcr.io/wenenhoe/mystery, which no image entry publishes" in error
-
-    def test_a_dockerfile_with_no_entry_is_an_error(self, tree):
-        tree.write("docker/newapp/Dockerfile", "FROM alpine:3.20\n")
-        (error,) = reg.check_pins(tree.root)
-        assert "docker/newapp/Dockerfile has no entry" in error
-
     def test_an_entry_with_no_dockerfile_is_an_error(self, tree):
         (tree.root / "docker/molecule-dind/Dockerfile").unlink()
         (error,) = reg.check_pins(tree.root)
         assert "molecule-dind: docker/molecule-dind/Dockerfile doesn't exist" in error
-
-    def test_an_unresolvable_dockerfile_is_reported_not_raised(self, tree):
-        tree.write("tools/coderabbit-review/Dockerfile", "ARG CODERABBIT_VERSION=latest\n")
-        (error,) = reg.check_pins(tree.root)
-        assert "coderabbit-review" in error
-
-    def test_molecule_scenario_on_an_unpublished_tag_is_an_error(self, tree):
-        tree.write("ansible/roles/r/molecule/default/molecule.yml", "    image: ghcr.io/wenenhoe/molecule-dind:v2\n")
-        (error,) = reg.check_pins(tree.root)
-        assert "molecule.yml: uses ghcr.io/wenenhoe/molecule-dind:v2" in error
-
-    def test_molecule_scenario_on_an_unknown_image_is_an_error(self, tree):
-        tree.write("ansible/roles/r/molecule/default/molecule.yml", "    image: ghcr.io/wenenhoe/other:latest\n")
-        (error,) = reg.check_pins(tree.root)
-        assert "which no image entry publishes" in error
 
     def test_every_disagreement_is_reported_not_just_the_first(self, tree):
         tree.write("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:1.0.0\n")

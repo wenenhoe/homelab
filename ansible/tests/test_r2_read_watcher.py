@@ -61,24 +61,19 @@ class TestMatchR2Read:
         assert match["display_name"] == "approle"
         assert match["remote_address"] == "127.0.0.1"
 
-    def test_ignores_the_response_line_for_the_same_read(self):
-        assert watcher.match_r2_read(REAL_R2_RESPONSE_LINE) is None
-
-    def test_ignores_an_unrelated_path(self):
-        assert watcher.match_r2_read(REAL_UNRELATED_LINE) is None
-
-    def test_ignores_malformed_json_without_raising(self):
-        assert watcher.match_r2_read("not json at all {{{") is None
-
-    def test_ignores_an_empty_line_without_raising(self):
-        assert watcher.match_r2_read("") is None
-
-    def test_ignores_valid_json_that_is_not_a_dict(self):
-        assert watcher.match_r2_read("[1, 2, 3]") is None
-
-    def test_ignores_a_write_to_the_same_path(self):
-        write_line = REAL_R2_REQUEST_LINE.replace('"operation":"read"', '"operation":"update"')
-        assert watcher.match_r2_read(write_line) is None
+    @pytest.mark.parametrize(
+        "line",
+        [
+            pytest.param(REAL_R2_RESPONSE_LINE, id="response-line-for-the-same-read"),
+            pytest.param(REAL_UNRELATED_LINE, id="unrelated-path"),
+            pytest.param("not json at all {{{", id="malformed-json"),
+            pytest.param("", id="empty-line"),
+            pytest.param("[1, 2, 3]", id="json-that-is-not-a-dict"),
+            pytest.param(REAL_R2_REQUEST_LINE.replace('"operation":"read"', '"operation":"update"'), id="write-to-the-same-path"),
+        ],
+    )
+    def test_ignores_a_line_that_is_not_a_read_of_the_r2_token(self, line):
+        assert watcher.match_r2_read(line) is None
 
 
 class TestSendAlert:

@@ -198,8 +198,21 @@ class TestDocPathMention:
         drift.check_doc_path_mentions()
         assert len(drift.errors) == 1, drift.errors
 
-    def test_unscanned_extensions_are_ignored(self, repo):
-        repo.write("notes.txt", "docs/decisions/0009-gone/revision-000.md\n")
+    @pytest.mark.parametrize(
+        ("path", "content"),
+        [
+            pytest.param("notes.txt", "docs/decisions/0009-gone/revision-000.md\n", id="unscanned-extension"),
+            pytest.param("tools/tool.py", "# moved from the finished openbao-python-client-hardening project\n", id="deleted-project-named-not-pathed"),
+            pytest.param(
+                "docs/topic.md",
+                "Pattern docs/decisions/NNNN-slug/revision-NNN.md; the draft `deleted-draft` was removed.\n",
+                id="placeholders-and-names-without-a-path",
+            ),
+            pytest.param("tools/tests/doc_scripts/fixture.py", 'x = "docs/decisions/0099-fake/revision-000.md"\n', id="test-fixture-is-exempt"),
+        ],
+    )
+    def test_text_that_is_not_a_reference_to_a_missing_path_is_ignored(self, repo, path, content):
+        repo.write(path, content)
         drift.check_doc_path_mentions()
         assert drift.errors == []
 
@@ -213,22 +226,7 @@ class TestDocPathMention:
         assert len(drift.errors) == 1, drift.errors
         assert "finished-and-deleted.md" in drift.errors[0]
 
-    def test_a_deleted_project_is_referred_to_by_name_not_path(self, repo):
-        repo.write("tools/tool.py", "# moved from the finished openbao-python-client-hardening project\n")
-        drift.check_doc_path_mentions()
-        assert drift.errors == []
-
     def test_old_flat_style_path_fails_after_a_refile(self, repo):
         repo.write("tools/tool.py", "# docs/decisions/0001-old-flat-name.md\n")
         drift.check_doc_path_mentions()
         assert len(drift.errors) == 1, drift.errors
-
-    def test_placeholders_and_names_without_a_path_are_ignored(self, repo):
-        repo.write("docs/topic.md", "Pattern docs/decisions/NNNN-slug/revision-NNN.md; the draft `deleted-draft` was removed.\n")
-        drift.check_doc_path_mentions()
-        assert drift.errors == []
-
-    def test_test_fixtures_are_exempt(self, repo):
-        repo.write("tools/tests/doc_scripts/fixture.py", 'x = "docs/decisions/0099-fake/revision-000.md"\n')
-        drift.check_doc_path_mentions()
-        assert drift.errors == []

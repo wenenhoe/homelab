@@ -2,7 +2,7 @@
 # Relays already-GPG-encrypted archives that backup_agent hosts already
 # pushed to SeaweedFS onward to R2/B2/OCI — storage-only (see
 # deploy.yaml), never touches an app host at all. See
-# docs/backup-threat-model.md for why cloud credentials
+# docs/topics/disaster-recovery/backup-threat-model.md for why cloud credentials
 # live only here, never on services/security/play.
 #
 # rclone copy, not sync: one-way, additive-only — this role's own
@@ -10,7 +10,7 @@
 # even if it wanted to, and copy never deletes anything on the
 # destination side either. Retention on the cloud side is a
 # provider-native lifecycle rule, not anything this role manages — see
-# docs/cloud-sync.md's "Before first use" checklist. A
+# docs/topics/disaster-recovery/cloud-sync.md's "Before first use" checklist. A
 # compromised `storage` host still can't touch what's already landed in
 # R2/B2/OCI, only add to it.
 #
@@ -87,7 +87,7 @@
       did not relay, check `journalctl -u cloud-sync.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_backups }}"
 
-# Only ever pushes on success (see docs/uptime-kuma.md) — failure
+# Only ever pushes on success (see docs/topics/monitoring/uptime-kuma.md) — failure
 # alerting stays on the telegram_notify unit above, unchanged.
 - name: Install the Uptime Kuma push-on-success unit for cloud-sync
   ansible.builtin.include_role:

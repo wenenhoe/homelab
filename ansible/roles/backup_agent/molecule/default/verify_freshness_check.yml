@@ -1,6 +1,6 @@
 ---
 # --- Freshness check: liveness signal for Uptime Kuma ----------------
-# See docs/uptime-kuma.md. Runs against the real backups already
+# See docs/topics/monitoring/uptime-kuma.md. Runs against the real backups already
 # confirmed in S3 above, not synthetic data - happy_app_nostop
 # genuinely has a fresh object by this point in the run, and
 # converge.yml gave it a (fake, unreachable) push URL specifically

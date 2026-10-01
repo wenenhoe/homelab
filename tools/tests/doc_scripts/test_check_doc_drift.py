@@ -12,7 +12,7 @@ import pytest
 from _doc_fixtures import revision
 from doc_scripts import check_doc_drift as drift
 
-INDEX_DIRS = ("docs", "docs/decisions", "docs/architecture", "docs/projects")
+INDEX_DIRS = ("docs", "docs/decisions", "docs/architecture", "docs/projects", "docs/topics")
 
 
 class TmpRepo:
@@ -53,6 +53,76 @@ class TestLineageIndex:
         assert drift.errors == []
 
 
+class TestRecursiveIndex:
+    """A recursive INDEXED_DOC_DIRS entry covers nested folders and matches
+    each doc by its path relative to the index, not by bare filename."""
+
+    @pytest.fixture(autouse=True)
+    def _indexed_dirs(self, repo, monkeypatch):
+        monkeypatch.setattr(drift, "INDEXED_DOC_DIRS", (("", False), ("topics", True)))
+        repo.write("docs/README.md", "# Docs\n")
+
+    def test_nested_doc_missing_from_the_index_fails_by_relative_path(self, repo):
+        repo.write("docs/topics/README.md", "# Topics\n")
+        repo.write("docs/topics/dev/ci/overview.md", "# CI\n")
+        drift.check_doc_indexes()
+        assert len(drift.errors) == 1, drift.errors
+        assert "dev/ci/overview.md exists but isn't linked" in drift.errors[0]
+
+    def test_nested_doc_linked_by_relative_path_passes(self, repo):
+        repo.write("docs/topics/README.md", "[CI](dev/ci/overview.md) [Tests](dev/molecule.md)\n")
+        repo.write("docs/topics/dev/ci/overview.md", "# CI\n")
+        repo.write("docs/topics/dev/molecule.md", "# Molecule\n")
+        drift.check_doc_indexes()
+        assert drift.errors == []
+
+    def test_same_filename_in_two_folders_needs_each_to_be_linked(self, repo):
+        repo.write("docs/topics/README.md", "[A](a/overview.md)\n")
+        repo.write("docs/topics/a/overview.md", "# A\n")
+        repo.write("docs/topics/b/overview.md", "# B\n")
+        drift.check_doc_indexes()
+        assert len(drift.errors) == 1, drift.errors
+        assert "b/overview.md exists but isn't linked" in drift.errors[0]
+
+    @pytest.mark.parametrize("name", ["README.md", "TEMPLATE.md"], ids=["readme", "template"])
+    def test_nested_readmes_and_templates_are_exempt(self, repo, name):
+        repo.write("docs/topics/README.md", "# Topics\n")
+        repo.write(f"docs/topics/dev/{name}", "# Exempt\n")
+        drift.check_doc_indexes()
+        assert drift.errors == []
+
+    def test_non_recursive_directory_ignores_nested_folders(self, repo):
+        repo.write("docs/topics/README.md", "# Topics\n")
+        repo.write("docs/nested/other.md", "# not indexed by docs/README.md\n")
+        drift.check_doc_indexes()
+        assert drift.errors == []
+
+
+class TestCrossFolderLink:
+    @pytest.fixture(autouse=True)
+    def _sibling_docs(self, repo):
+        repo.write("docs/topics/services/openbao.md", "# OpenBao\n\n## Unsealing\n")
+
+    def test_relative_link_into_a_sibling_folder_resolves(self, repo):
+        repo.write("docs/topics/secrets/rotation.md", "See [OpenBao](../services/openbao.md#unsealing).\n")
+        drift.check_no_stale_anchors()
+        assert drift.errors == []
+
+    @pytest.mark.parametrize(
+        ("link", "reported"),
+        [
+            ("../services/openbao.md#sealing", "#sealing"),
+            ("../services/gone.md", "../services/gone.md"),
+        ],
+        ids=["wrong-anchor", "dangling-file"],
+    )
+    def test_a_broken_cross_folder_link_fails(self, repo, link, reported):
+        repo.write("docs/topics/secrets/rotation.md", f"See [x]({link}).\n")
+        drift.check_no_stale_anchors()
+        assert len(drift.errors) == 1, drift.errors
+        assert reported in drift.errors[0]
+
+
 class TestRepoFileLink:
     def test_relative_link_to_an_existing_config_file_passes(self, repo):
         repo.write("docker/openbao/policy.hcl", "path {}\n")
@@ -76,7 +146,7 @@ class TestNistAlignment:
     def test_link_to_a_superseded_lineage_revision_fails(self, repo):
         revision(repo.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
         revision(repo.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
-        repo.write("docs/nist-800-53-alignment.md", "[old](decisions/0013-secret-storage/revision-000.md)\n")
+        repo.write("docs/topics/engineering/nist-800-53-alignment.md", "[old](../../decisions/0013-secret-storage/revision-000.md)\n")
         drift.check_nist_alignment_currency()
         assert len(drift.errors) == 1, drift.errors
         assert "now status: superseded" in drift.errors[0]
@@ -84,14 +154,14 @@ class TestNistAlignment:
     def test_link_to_the_accepted_revision_passes(self, repo):
         revision(repo.root, "0013-secret-storage", 0, status="superseded", superseded_by=1)
         revision(repo.root, "0013-secret-storage", 1, status="accepted", supersedes=0)
-        repo.write("docs/nist-800-53-alignment.md", "[now](decisions/0013-secret-storage/revision-001.md)\n")
+        repo.write("docs/topics/engineering/nist-800-53-alignment.md", "[now](../../decisions/0013-secret-storage/revision-001.md)\n")
         drift.check_nist_alignment_currency()
         assert drift.errors == []
 
     def test_links_outside_lineages_are_ignored(self, repo):
         repo.write("docs/decisions/0001-flat.md", "# not a lineage\n")
-        repo.write("docs/host-vars.md", "# Host vars\n")
-        repo.write("docs/nist-800-53-alignment.md", "[flat](decisions/0001-flat.md) and [other](host-vars.md)\n")
+        repo.write("docs/topics/deploy/host-vars.md", "# Host vars\n")
+        repo.write("docs/topics/engineering/nist-800-53-alignment.md", "[flat](../../decisions/0001-flat.md) and [other](../deploy/host-vars.md)\n")
         drift.check_nist_alignment_currency()
         assert drift.errors == []
 

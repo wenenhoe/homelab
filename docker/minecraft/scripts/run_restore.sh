@@ -13,7 +13,7 @@
 # itself needs reconstituting from a backup archive first (host disk
 # loss, not an ordinary rollback), run playbooks/restore.yaml
 # (restore_app=minecraft, restore_volumes=["minecraft_backups"]) before
-# this script — see docs/backup.md.
+# this script — see docs/topics/disaster-recovery/backup.md.
 #
 # Usage: ./run_restore.sh [-y|--yes]
 #   -y, --yes   skip the confirmation prompt (for non-interactive use)

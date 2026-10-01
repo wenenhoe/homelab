@@ -3,27 +3,27 @@ caddy_domain: "store.{{ lab_domain }}"
 
 # Bucket-admin identity only — ansible/roles/seaweedfs_bucket,
 # docker/seaweedfs/configs/s3-identity.json.j2, both storage-only. See
-# docs/backup.md.
+# docs/topics/disaster-recovery/backup.md.
 seaweedfs_admin_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-admin'] }}"
 seaweedfs_admin_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-admin'] }}"
 
 # cloud_sync's own identity — Read/List only, whole bucket. See
-# docs/backup.md and the matching secret_catalog.yaml entry.
+# docs/topics/disaster-recovery/backup.md and the matching secret_catalog.yaml entry.
 seaweedfs_cloud_sync_reader_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-cloud-sync-reader'] }}"
 seaweedfs_cloud_sync_reader_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-cloud-sync-reader'] }}"
 
-# --- cloud_sync — see docs/backup.md ---
+# --- cloud_sync — see docs/topics/disaster-recovery/backup.md ---
 # Every app's backup.cloud_targets (app_catalog.yaml; backup_defaults in
 # group_vars/all/main.yaml if omitted) picks which of these it fans out
 # to, beyond SeaweedFS. bucket/endpoint values for R2/B2/OCI
 # themselves are still manual, out-of-band setup — see
-# docs/cloud-sync.md's "Before first use" checklist.
+# docs/topics/disaster-recovery/cloud-sync.md's "Before first use" checklist.
 cloud_sync_targets:
   # write credentials only — cloud_sync uploads, never reads back. The
   # matching read-only credentials (cloudflare-r2-read-*, etc.) are
   # created alongside these but aren't consumed here; the future
   # restore-discovery script is what reads them. See
-  # docs/cloud-credential-creation.md.
+  # docs/topics/secrets/cloud-credentials/creation.md.
   r2:
     bucket: homelab-backups
     endpoint: "https://{{ secrets_generated['cloudflare-r2-account-id'] }}.r2.cloudflarestorage.com"
@@ -65,7 +65,7 @@ cloud_sync_targets:
 # docker-volume-backup's own BACKUP_CRON_EXPRESSION instead.
 cloud_sync_on_calendar: "*-*-* 06:00:00"
 
-# See docs/uptime-kuma.md — "" (blank) until the matching Push monitor
+# See docs/topics/monitoring/uptime-kuma.md — "" (blank) until the matching Push monitor
 # is created by hand in Kuma's own UI.
 uptime_kuma_push_url_cloud_sync: "{{ secrets_generated['uptime-kuma-push-url-cloud-sync'] }}"
 

@@ -29,7 +29,7 @@ class TestDocKind:
 
     def test_outside_decisions_and_projects_is_rejected(self):
         with pytest.raises(SystemExit):
-            fm_mod.doc_kind(Path("/repo/docs/ansible.md"))
+            fm_mod.doc_kind(Path("/repo/docs/topics/deploy/ansible.md"))
 
 
 class TestReadFrontmatter:

@@ -19,7 +19,7 @@ related: [ADR-0005]
 Everything in this repo runs on one Proxmox host: 6-core i5-9400 (6
 physical cores, no hyperthreading), 32 GB RAM, NVMe for VM disks, a
 separate HDD for backups only (`../../../README.md#hardware`).
-[`vm-provisioning.md`'s default sizing table](../../vm-provisioning.md#ubuntu-vms)
+[`vm-provisioning.md`'s default sizing table](../../topics/infra/vm-provisioning.md#ubuntu-vms)
 — a provisional planning baseline, not measured production usage —
 already accounts for most of that budget: 12 vCPU and 14 GB RAM across
 OPNsense, `services`, `security`, `play`, and `storage`, leaving

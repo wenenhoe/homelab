@@ -18,7 +18,7 @@ The repo's Molecule scenarios must run on the coding-agent host, and running the
 
 ## Context
 
-Nearly every scenario uses the Docker driver against `ghcr.io/wenenhoe/molecule-dind`, with `privileged: true`, `cgroupns_mode: host`, a writable `/sys/fs/cgroup` bind, and systemd as PID 1 ([`molecule-testing.md`](../../molecule-testing.md), [`molecule-fixtures.md`](../../molecule-fixtures.md)). The exceptions are `docker` and `bind9`, which start from a different base, and lightweight scenarios such as `apt` that need neither systemd nor privileged mode.
+Nearly every scenario uses the Docker driver against `ghcr.io/wenenhoe/molecule-dind`, with `privileged: true`, `cgroupns_mode: host`, a writable `/sys/fs/cgroup` bind, and systemd as PID 1 ([`molecule-testing.md`](../../topics/engineering/molecule-testing.md), [`molecule-fixtures.md`](../../topics/engineering/molecule-fixtures.md)). The exceptions are `docker` and `bind9`, which start from a different base, and lightweight scenarios such as `apt` that need neither systemd nor privileged mode.
 
 The `secrets` role's Vault-backed scenarios start sibling containers through the Molecule control node's own Docker daemon (`molecule_helpers/tasks/start_openbao_test_target.yaml`), so they need daemon access on the host that runs Molecule.
 
@@ -45,7 +45,7 @@ Not yet. The candidates are compared by running the real fixtures, not by readin
 
 ## Consequences
 
-- Scenario coverage on the host may be a subset of CI's. The subset is named in [`molecule-testing.md`](../../molecule-testing.md) once known.
+- Scenario coverage on the host may be a subset of CI's. The subset is named in [`molecule-testing.md`](../../topics/engineering/molecule-testing.md) once known.
 - GitHub-hosted CI is unchanged.
 
 ## Invariants

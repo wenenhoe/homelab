@@ -30,20 +30,20 @@ step_ca_provisioner_password: molecule-test-step-ca-password
 step_ca_provisioner_name: admin
 
 # telegram_notify's install.yaml (included from step_ca_cert's own
-# tasks/main.yaml) needs these — see docs/telegram-notifications.md.
+# tasks/main.yaml) needs these — see docs/topics/monitoring/telegram-notifications.md.
 telegram_token: molecule-dummy-telegram-token
 telegram_chat_id: molecule-dummy-chat-id
 telegram_topic_id_certs: ""
 
 # uptime_kuma_push's install.yaml (included from step_ca_cert's own
-# tasks/main.yaml) needs this — see docs/uptime-kuma.md. Blank, same
+# tasks/main.yaml) needs this — see docs/topics/monitoring/uptime-kuma.md. Blank, same
 # "not configured yet" happy path as the telegram vars above.
 step_ca_cert_uptime_kuma_push_url: ""
 
 # Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
 # lldap entry) — extracted via lookup rather than hand-copied. A
 # hand-authored copy drifts silently; a lookup can't — see
-# docs/molecule-fixtures.md.
+# docs/topics/engineering/molecule-fixtures.md.
 app_catalog: >-
   {{
     (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')

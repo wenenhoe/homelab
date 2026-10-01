@@ -28,7 +28,7 @@ the indexes, lints the markdown, and runs
 
 - **Public exposure.** Every app in `compose_apps` is proxied through
   Caddy with Tinyauth forward-auth and TLS by default;
-  [`docs/adding-an-app.md`](docs/adding-an-app.md)'s `routes` block only
+  [`docs/topics/deploy/adding-an-app.md`](docs/topics/deploy/adding-an-app.md)'s `routes` block only
   accepts `auth: false` as an explicit, per-route opt-out — there's no
   default-open path.
 - **Least privilege.** Non-root containers and scoped AppRoles are the
@@ -40,7 +40,7 @@ the indexes, lints the markdown, and runs
 - **Idempotency.** Every Molecule scenario runs a real `idempotence`
   check — converge twice, second run reports no changes — except ones
   documented otherwise (rotation, one-shot jobs, timed renewal; see
-  [`docs/molecule-testing.md`](docs/molecule-testing.md)). A role that
+  [`docs/topics/engineering/molecule-testing.md`](docs/topics/engineering/molecule-testing.md)). A role that
   can't pass this either earns a documented exception there or isn't
   done.
 
@@ -72,6 +72,6 @@ docs.
   against it, not authored independently from memory.
 - A test for a side effect asserts the side effect happened (a
   timestamp changed, a file exists, a KV version incremented) — see
-  [`docs/molecule-testing.md`](docs/molecule-testing.md)'s
+  [`docs/topics/engineering/molecule-testing.md`](docs/topics/engineering/molecule-testing.md)'s
   `rotate_secret` scenario for a real example — not just that a task
   exited zero.

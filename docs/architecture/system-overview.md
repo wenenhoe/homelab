@@ -40,11 +40,11 @@ diagram illustrating that one doc.
 ## What this deliberately leaves out
 
 - Per-app compose services within a host — that's
-  [`adding-an-app.md`](../adding-an-app.md) and each app's own doc under
-  "Per-app infra" in the main README.
+  [`adding-an-app.md`](../topics/deploy/adding-an-app.md) and each app's own doc, listed in
+  [`topics/README.md`](../topics/README.md).
 - The credential-scoping detail behind each arrow into SeaweedFS/cloud —
-  see [`backup-threat-model.md`](../backup-threat-model.md) and
-  [`cloud-credential-creation.md`](../cloud-credential-creation.md).
+  see [`backup-threat-model.md`](../topics/disaster-recovery/backup-threat-model.md) and
+  [`cloud-credentials/scoping.md`](../topics/secrets/cloud-credentials/scoping.md).
 - Anything from the planned OpenTofu/Proxmox work — that's
-  [`vm-provisioning.md`](../vm-provisioning.md), and nothing in it is
+  [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), and nothing in it is
   running yet.

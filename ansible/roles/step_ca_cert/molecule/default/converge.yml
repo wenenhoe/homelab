@@ -39,7 +39,7 @@
     # why a copy, not an import). LDAPS is enabled with no cert seeded,
     # so lldap crash-loops until step_ca_cert (below) issues one and
     # restarts it — the actual production bootstrap race (see
-    # docs/lldap.md), not something worked around here.
+    # docs/topics/services/lldap.md), not something worked around here.
     - name: Init and deploy lldap on a cold certs volume
       ansible.builtin.include_role:
         name: compose

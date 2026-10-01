@@ -26,7 +26,7 @@ beyond reading its text.
 Move to a group chat with [Topics](https://telegram.org/blog/topics-in-groups-collectible-usernames)
 enabled, the bot added as an admin, and a separate topic per concern
 (Updates, Monitoring, Backups, Certs) — see
-[`telegram-notifications.md`](../../telegram-notifications.md) for the
+[`telegram-notifications.md`](../../topics/monitoring/telegram-notifications.md) for the
 full concern-to-topic mapping and setup steps.
 
 ## Consequences

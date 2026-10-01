@@ -20,7 +20,7 @@ Every module under `tools/cloud_credentials/` talked to B2/R2/OCI
 entirely over hand-rolled `requests` calls. The `oci` package was
 already a pinned dependency (`oci.signer.Signer`,
 `oci.config.from_file` — `rotation_keys/oci_iam.py`'s classic-IAM
-bootstrap, per `cloud-credential-creation.md`), but the OCI SCIM
+bootstrap, per `cloud-credentials/creation.md`), but the OCI SCIM
 leaf/rotation flow (`leaf_keys/oci.py`, `rotation_keys/oci_bootstrap.py`,
 `rotation_keys/oci_scim.py`, added by
 [0016](../0016-oci-credential-creation-and-expiry/revision-000.md))
@@ -147,7 +147,7 @@ Both migrations are built and confirmed live:
   against. If a future rotation run ever hits a genuine breaking
   change on this specific Cloudflare endpoint, that's the trigger to
   revisit this call, not a scheduled recheck.
-- Every provider-specific quirk in `cloud-credential-creation.md`
+- Every provider-specific quirk in `cloud-credentials/creation.md`
   needed re-verifying against whichever SDK replaced its raw calls —
   confirmed live for both OCI and B2, not just read from SDK docs.
 - `tools/tests/cloud_credentials/`'s mock boundary moved per

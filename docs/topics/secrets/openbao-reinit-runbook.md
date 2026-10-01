@@ -1,0 +1,197 @@
+# OpenBao re-init runbook
+
+For when OpenBao's raft dataset needs to be discarded and rebuilt from
+scratch - not the [restore drill](openbao-backup-restore.md), which
+deliberately preserves the original cluster's keys and data. See
+[`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md) for what
+the AppRole this runbook creates in step 4 actually is and how it's
+used afterward; this doc is just the one-time procedure.
+
+See [ADR 0025](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)
+for why this was necessary the first time. It shouldn't be needed
+again for *that* reason - once `vault-bootstrap` exists, regaining
+root is a policy edit away (see `openbao-vault-bootstrap.md`'s
+emergency-root section), not another re-init. What's left here is
+narrower: genuine raft-data loss or corruption a snapshot restore
+can't fix.
+
+1. **Full backup first:**
+   `cd tools && python3 -m openbao_utils.dump` - never skip
+   this; it's the only copy of everything once step 2 runs.
+2. On `security`: stop the `openbao` container, remove the
+   `openbao_data` volume's contents, restart it, then init fresh from
+   `controller` (mirrored from [`openbao.md`](openbao.md)'s **First
+   init** section - that doc is canonical for the reasoning and for
+   the exact command if the two ever disagree):
+
+   ```sh
+   cd tools && python3 -m openbao_utils.init_unseal init
+   ```
+
+   Copy the 3 unseal shares and root token into the password manager
+   entry plus one offline physical copy, same as the original bundle -
+   this one fully supersedes it, replace rather than keep both.
+   Unseal with 2 of the 3 shares
+   (`cd tools && python3 -m openbao_utils.init_unseal unseal`, once
+   per share).
+
+3. Recreate `controller`'s AppRole (commands mirrored from
+   [`openbao-auth.md`](openbao-auth.md)'s Runbook section - canonical
+   for TTL/parameter reasoning and the exact values if the two ever
+   disagree):
+
+   ```sh
+   ssh security
+   export BAO_TOKEN=<fresh root token from step 2>
+   export BAO_ADDR=https://127.0.0.1:8200
+   export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
+   export BAO_CACERT=/etc/step-ca/root_ca.crt
+
+   bao secrets enable -path=secret kv-v2
+   bao auth enable approle
+
+   # from controller, first: scp docker/openbao/policies/controller.hcl security:/tmp/
+   bao policy write controller - < /tmp/controller.hcl
+
+   bao write auth/approle/role/controller \
+     token_policies="controller" \
+     token_ttl=1h \
+     token_max_ttl=1h \
+     secret_id_ttl=2160h \
+     secret_id_num_uses=0
+
+   bao read auth/approle/role/controller/role-id
+   bao write -f auth/approle/role/controller/secret-id
+   ```
+
+   Copy the resulting `role_id`/`secret_id` into
+   `ansible/files/secrets/openbao-controller-{role,secret}-id` on
+   `controller`, `chmod 600` both - then confirm the AppRole actually
+   works per `openbao-auth.md` step 6 before moving on, same reasoning
+   as this runbook's own scope-proof in step 4 below.
+
+4. Create `vault-bootstrap`, using the fresh root token from step 2 -
+   nothing else can create it yet:
+
+   ```sh
+   ssh security
+   export BAO_TOKEN=<fresh root token from step 2>
+   export BAO_ADDR=https://127.0.0.1:8200
+   export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
+   export BAO_CACERT=/etc/step-ca/root_ca.crt
+
+   # from controller, first: scp docker/openbao/policies/vault-bootstrap.hcl security:/tmp/
+   bao policy write vault-bootstrap - < /tmp/vault-bootstrap.hcl
+
+   bao write auth/approle/role/vault-bootstrap \
+     token_policies="vault-bootstrap" \
+     token_ttl=1h \
+     token_max_ttl=1h \
+     secret_id_ttl=0 \
+     secret_id_num_uses=0
+
+   bao read auth/approle/role/vault-bootstrap/role-id
+   bao write -f auth/approle/role/vault-bootstrap/secret-id
+   ```
+
+   `secret_id_ttl=0` (never expires) - this is a break-glass credential
+   like the Shamir shares, not a rotation-habit one. Store the
+   resulting `role_id`/`secret_id` the same way: password manager plus
+   one offline physical copy, same entry class as the Shamir shares -
+   never `ansible/files/secrets/`.
+
+   **Confirm the scope actually holds before trusting it**, same
+   reasoning as `openbao-auth.md`'s own step 6 - a policy file is a
+   claim until proven. From `controller`, paste `secret_id` when
+   prompted:
+
+   ```sh
+   cd tools && python3 -m openbao_utils.bao_session "<role_id from above>"
+   bao policy write _stage-test-policy - <<< 'path "sys/health" { capabilities = ["read"] }'   # succeeds
+   bao kv get -mount=secret hosts/security/lldap-jwt-secret                                    # denied
+   exit
+   ```
+
+   The denied read is the actual proof: `vault-bootstrap` can write
+   policy but genuinely cannot read a secret through any path of its
+   own. Clean up the test policy with the root token, back on
+   `security`: `bao policy delete _stage-test-policy`.
+5. `cd tools && python3 -m openbao_utils.restore <backup-dir>` -
+   **before** any `ansible-playbook deploy.yaml` run against the fresh
+   Vault. Skipping this means the next `deploy.yaml` silently mints new
+   random values for every `hex`/`uuid4` secret in the catalog
+   (ADR 0025's Context explains why). Restores two things in one pass:
+   every `secret_catalog.yaml` entry with `store: openbao` (including
+   all 20 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` leaf credentials,
+   each of which now has its own `scope` of
+   `cloud_credentials/leaf`), and `cloud_credentials`' internal
+   leaf/rotation bookkeeping keys with no catalog entry of their own
+   (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two
+   `oci-{write,read}-scim-id` values). The `_oci-leaf-user-ocid-*`
+   duplicate under `cloud_credentials/leaf/` (see ADR 0025's Context)
+   is not recreated - this script, like the retired
+   `migrate_legacy_cache_to_vault.py` before it, only ever writes to
+   each key's own registered category.
+6. Provision the R2 watcher's AppRole (ADR 0026) using
+   `vault-bootstrap`:
+
+   ```sh
+   cd tools && python3 -m openbao_utils.bao_session "<vault-bootstrap role_id>"
+
+   # from controller, copy the checked-in policy over first:
+   #   scp docker/openbao/policies/r2-read-watcher.hcl security:/tmp/
+   bao policy write r2-read-watcher - < /tmp/r2-read-watcher.hcl
+
+   bao write auth/approle/role/r2-read-watcher \
+     token_policies="r2-read-watcher" \
+     token_ttl=1h \
+     token_max_ttl=1h \
+     secret_id_ttl=0 \
+     secret_id_num_uses=0
+
+   bao read auth/approle/role/r2-read-watcher/role-id
+   bao write -f auth/approle/role/r2-read-watcher/secret-id
+   exit
+   ```
+
+   `secret_id_ttl=0` (never expires), unlike `controller`'s 90-day
+   cycle: this identity lives permanently on `security` itself, not on
+   a laptop with a rotation habit - same "always-on box" reasoning
+   [ADR 0020](../../decisions/0020-automation-identity-and-access-scope/revision-000.md)
+   gives for `cd_agent`'s own AppRoles, applied here a stage early
+   since this identity exists before `cd_agent` does.
+
+   No `secret_id_bound_cidrs`/`token_bound_cidrs` set here - unlike
+   `cd_agent`'s genuine cross-host LAN traffic, the watcher and OpenBao
+   both run on `security`, and whether that traffic presents as
+   `127.0.0.1` or `security`'s LAN IP to OpenBao's listener isn't
+   confirmed. Worth checking once the watcher's actual connection
+   method is built, not guessed here - add the bind then if it's
+   meaningful.
+
+   Where the watcher's own `role_id`/`secret_id` get cached is part of
+   building the watcher's systemd unit itself (not done yet - this
+   step only provisions the identity it will use), matching
+   `uptime_kuma_push`'s own env-file convention rather than
+   `ansible/files/secrets/`.
+
+7. Revoke root, same as `openbao-auth.md`'s own last step.
+8. Confirm:
+
+   ```sh
+   cd tools
+   python3 -m openbao_utils.dump
+   python3 -m openbao_utils.diff \
+     ~/secrets-backup-pre-reinit-<original-timestamp> \
+     ~/secrets-backup-pre-reinit-<this-run's-timestamp>
+   ```
+
+   Expect `IDENTICAL`, no exceptions - the `leaf/`-side
+   `_oci-leaf-user-ocid-*` duplicate from step 5 was never a second
+   *file* in either dump (both always read from the correct
+   `rotation/` path), so there's nothing that should legitimately
+   differ here.
+
+Every consumer of OpenBao is unusable for the duration - schedule this
+when nothing else needs `check_freshness.py`, `snapshot-push.sh`, or a
+`deploy.yaml` run to succeed.

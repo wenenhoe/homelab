@@ -39,7 +39,7 @@ process's argv or appears in `ps` on either end.
 
 Both subcommands print the remote output directly to this process's own
 stdout as it arrives - nothing here captures, logs, or stores it
-anywhere, for the same reason docs/openbao.md's own runbook has never
+anywhere, for the same reason docs/topics/secrets/openbao.md's own runbook has never
 been an Ansible task: init's output includes the initial root token and
 raw unseal key shares, and the only safe place for that to land is the
 operator's own eyes and the password manager entry they copy it into by
@@ -137,7 +137,7 @@ def run_init() -> int:
     print(
         "\nCopy the 3 unseal key shares and the root token above into the "
         "password manager entry now, plus one offline physical copy of one "
-        "share - see docs/openbao.md's First init section. Nothing above "
+        "share - see docs/topics/secrets/openbao.md's First init section. Nothing above "
         "was written to disk or logged by this script."
     )
     return 0

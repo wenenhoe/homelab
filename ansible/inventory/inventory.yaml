@@ -55,12 +55,12 @@ all:
     # managed_hosts ("<host>.{{ ddns_domain }}") — confirmed this host
     # follows the same DDNS convention as the rest of the fleet, not the
     # static-LAN-IP fallback an earlier revision of this entry assumed.
-    # See docs/network-infra.md.
+    # See docs/topics/infra/network-infra.md.
     network_infra:
       hosts:
         tailscale:
           # management as Stage 1 of docs/projects/monitoring-host-isolation.md.
-          # See docs/network-infra.md for why this entry is interim
+          # See docs/topics/infra/network-infra.md for why this entry is interim
           # (see that doc's "Future: superseded by Tofu" note) rather
           # than permanent.
           ansible_host: "tailscale.{{ ddns_domain }}"
@@ -89,7 +89,7 @@ all:
     # stable, predictable inventory member --limit patterns can target by
     # name. bootstrap-secrets.yaml's Play 0 runs here specifically, since
     # it can't touch any real (managed_hosts) host until secrets exist —
-    # see that file and docs/deployment-flow.md.
+    # see that file and docs/topics/deploy/deployment-flow.md.
     #
     # Deliberately its own group, NOT under managed_hosts: every
     # playbook that provisions/deploys/upgrades real infrastructure targets

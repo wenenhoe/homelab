@@ -16,7 +16,7 @@ status: working
 Today, `services`' BIND9 is the lab's single authoritative internal
 nameserver: it aggregates every app host's `dns_zones` from
 `host_vars` and auto-generates CNAMEs for anything with a `caddy`
-route ([`bind9.md`](../../bind9.md)). `vm-provisioning.md`'s original
+route ([`bind9.md`](../../topics/services/bind9.md)). `vm-provisioning.md`'s original
 Phase 2 plan pointed Tofu-provisioned VM A records somewhere different
 — static host overrides pushed through OPNsense's own config API,
 since Tofu assigns those VMs deterministic IPs at provision time and

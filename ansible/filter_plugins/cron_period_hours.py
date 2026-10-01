@@ -16,7 +16,7 @@ over the weekend that an average would hide, and a freshness check must
 tolerate the worst case, not the typical one. The reference point is a
 fixed date (not "now"), so the same cron string always renders the same
 value - required for Ansible's idempotence check (see
-docs/molecule-testing.md), which a "now"-dependent value would fail
+docs/topics/engineering/molecule-testing.md), which a "now"-dependent value would fail
 every single run.
 """
 

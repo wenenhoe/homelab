@@ -3,7 +3,7 @@
 # compose_self_managed_apps in group_vars/all/main.yaml): its data
 # volume needs chowning to the image's own non-root user before first
 # start, and that fix has to be a plain guarded `docker run`, not a
-# compose service — see docs/openbao.md's "Non-root user" section for
+# compose service — see docs/topics/secrets/openbao.md's "Non-root user" section for
 # why a one-shot compose service doesn't work here.
 
 - name: Find openbao's own entry in resolved_apps, if present
@@ -31,7 +31,7 @@
 # reports a completed `restart: "no"` container as needing to run
 # again on every `up`, showing `changed` forever —
 # ./scripts/molecule-test-all.sh step_ca_cert caught this directly via its
-# idempotence check. See docs/openbao.md for the full story. A plain,
+# idempotence check. See docs/topics/secrets/openbao.md for the full story. A plain,
 # guarded `docker run` (below) has no such issue.
 - name: "Ensure the data volume is owned by the openbao user, not root [block]"
   when: openbao_has_compose_app

@@ -3,9 +3,9 @@
 # include_role: {name: telegram_notify, tasks_from: install.yaml} with
 # the vars below. Renders one plain systemd oneshot unit that curls
 # Telegram's Bot API directly (the direct-curl address shape, not
-# shoutrrr's chat:topic string — see docs/telegram-notifications.md).
+# shoutrrr's chat:topic string — see docs/topics/monitoring/telegram-notifications.md).
 # Deliberately does not reload systemd or notify a handler itself (see
-# docs/telegram-notifications.md#wiring-it-into-this-repo) — the caller reloads
+# docs/topics/monitoring/telegram-notifications.md#wiring-it-into-this-repo) — the caller reloads
 # using the changed results registered below, so this role never
 # depends on a same-named handler existing in whatever play includes it.
 #
@@ -27,7 +27,7 @@
 #                                is the caller's job, not this role's)
 #   telegram_notify_topic_id    the raw telegram_topic_id_* var to embed
 #                                ("" is valid - falls back to the main
-#                                stream, see docs/telegram-notifications.md)
+#                                stream, see docs/topics/monitoring/telegram-notifications.md)
 
 - name: Fail loudly if a required telegram_notify_* var is missing
   ansible.builtin.assert:

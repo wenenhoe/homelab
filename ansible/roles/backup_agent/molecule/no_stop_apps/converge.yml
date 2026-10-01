@@ -13,7 +13,7 @@
     server_timezone: "Etc/UTC"
 
     # env.j2 now renders NOTIFICATION_URLS from these — see
-    # docs/telegram-notifications.md.
+    # docs/topics/monitoring/telegram-notifications.md.
     # Must be digits:alnum-shaped — see default scenario's converge.yml
     # for why (shoutrrr's own token validation, not this repo's).
     telegram_token: "123456789:molecule-dummy-token"

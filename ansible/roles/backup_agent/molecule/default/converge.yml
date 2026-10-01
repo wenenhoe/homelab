@@ -33,7 +33,7 @@
       cloud_targets: []
 
     # env.j2 now renders NOTIFICATION_URLS from these — see
-    # docs/telegram-notifications.md.
+    # docs/topics/monitoring/telegram-notifications.md.
     # shoutrrr's telegram service reconstructs "token" from the URL's
     # userinfo as username + ":" + password and validates it against
     # ^[0-9]+:[a-zA-Z0-9_-]+$ — a token without that digits:alnum shape
@@ -66,7 +66,7 @@
     # (docker/seaweedfs/configs/s3-identity.json.j2), which is a
     # property of that template, not of backup_agent itself; nothing
     # here would catch a scoping regression there. See
-    # docs/backup.md for that coverage instead.
+    # docs/topics/disaster-recovery/backup.md for that coverage instead.
     molecule_test_bucket: molecule-test-backups
     seaweedfs_s3_bucket: "{{ molecule_test_bucket }}"
     seaweedfs_s3_endpoint: "seaweedfs-test:8333"
@@ -75,7 +75,7 @@
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
     # check-freshness.sh.j2 (included from backup_agent's own
-    # tasks/main.yaml) needs this — see docs/uptime-kuma.md. Each app's
+    # tasks/main.yaml) needs this — see docs/topics/monitoring/uptime-kuma.md. Each app's
     # actual threshold is derived from its own cron (backup_defaults.cron
     # above, every minute in this scenario) plus this buffer - a small
     # value here keeps the total short, though the exact number doesn't

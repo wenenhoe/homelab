@@ -6,13 +6,13 @@
 step_ca_cert_container_name: "{{ step_ca_cert_app_name }}"
 step_ca_cert_certs_volume_name: "{{ step_ca_cert_app_name }}_certs"
 step_ca_cert_network_name: caddy-proxy
-# Same version as docker/step-ca's own pin — see docs/step-ca.md.
+# Same version as docker/step-ca's own pin — see docs/topics/services/step-ca.md.
 step_ca_cert_step_cli_image: "smallstep/step-cli:0.31.0"
 # step-ca's own container name, not localhost: `step` always runs inside
 # a container on caddy-proxy (both this role's one-time issuance and the
 # systemd renewal unit's ExecStart/ExecCondition), which resolves
 # "step-ca" the same way any other container on that network does. See
-# docs/step-ca.md.
+# docs/topics/services/step-ca.md.
 step_ca_cert_step_ca_url: "https://step-ca:9000"
 
 # step_ca_cert_common_name has no default — every caller must set it
@@ -26,7 +26,7 @@ step_ca_cert_step_ca_url: "https://step-ca:9000"
 # app (e.g. lldap: /data/certs, openbao: /openbao/certs).
 step_ca_cert_container_cert_dir: "/data/certs"
 
-# restart | signal — see docs/step-ca.md's "Cert renewal action" section.
+# restart | signal — see docs/topics/services/step-ca.md's "Cert renewal action" section.
 # restart is correct for any app with no in-place TLS reload and no
 # state a restart would disturb. signal sends SIGHUP instead, for an
 # app that reloads its TLS listener on SIGHUP without restarting.

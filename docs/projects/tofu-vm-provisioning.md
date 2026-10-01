@@ -13,12 +13,12 @@ track: provisioning
 # OpenTofu-Driven Proxmox VM Provisioning
 
 Builds the OpenTofu code implementing the design already recorded in
-[`docs/vm-provisioning.md`](../vm-provisioning.md) — VMID/VLAN/IP/MAC
+[`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) — VMID/VLAN/IP/MAC
 scheme, Ubuntu/OPNsense provisioning, and the Tofu↔Ansible boundary —
 through the migration cutover that design describes. Real motivation,
 not just a design preference: a DHCP dual-lease bug on the current
 fleet — see
-[`netplan-dhcp-identifier.md`](../netplan-dhcp-identifier.md) — is part
+[`netplan-dhcp-identifier.md`](../topics/infra/netplan-dhcp-identifier.md) — is part
 of why this design gives Tofu-provisioned VMs static IPs with no DHCP
 at all, rather than carrying the same class of problem forward.
 
@@ -30,7 +30,7 @@ The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory g
 
 ## Decision
 
-Implements [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md) (where Tofu's own credentials live), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved. The rest of the design is [`docs/vm-provisioning.md`](../vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
+Implements [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md) (where Tofu's own credentials live), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved. The rest of the design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
 
 ## Environment (baseline, at project start)
 
@@ -110,7 +110,7 @@ section — install and initial config stay manual. Phase 2
 - [ ] Tofu's credentials live where ADR 0048 decides.
 - [ ] The modules provision Ubuntu VMs and the OPNsense VM shell to `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme.
 - [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
-- [ ] The resulting behavior is described in [`docs/vm-provisioning.md`](../vm-provisioning.md) or a new topic doc, not only here.
+- [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Open items
 
@@ -125,7 +125,7 @@ section — install and initial config stay manual. Phase 2
   untracked — Stage 1 of
   [`monitoring-host-isolation.md`](monitoring-host-isolation.md) brought it under
   interim Ansible management as the `network_infra` group (see
-  [`network-infra.md`](../network-infra.md)) ahead of and independent
+  [`network-infra.md`](../topics/infra/network-infra.md)) ahead of and independent
   of this project. It becomes Tofu-managed once this project reaches
   its VMID (Migration Stage 2, [`tofu-migration-cutover.md`](tofu-migration-cutover.md)); Stage 4's inventory
   generator should then supersede — not duplicate alongside —

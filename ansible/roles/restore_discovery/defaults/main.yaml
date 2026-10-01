@@ -12,7 +12,7 @@ restore_discovery_excluded_apps: []
 # Where this role writes its controller-local output — read by
 # restore_all.py. Not under ansible/files/secrets/ (that dir is
 # per-secret cache files, this is derived/generated output) but
-# alongside it, same gitignore treatment. See docs/restore.md.
+# alongside it, same gitignore treatment. See docs/topics/disaster-recovery/restore.md.
 restore_discovery_dir: "{{ project_root }}/ansible/files/restore"
 
 # Read-only counterparts of host_vars/storage.yaml's cloud_sync_targets

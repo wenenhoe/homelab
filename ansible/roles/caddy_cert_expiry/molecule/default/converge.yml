@@ -31,12 +31,12 @@
     telegram_chat_id: "-100000000"
     telegram_topic_id_certs: "5"
     # uptime_kuma_push's install.yaml (included from caddy_cert_expiry's
-    # own tasks/main.yaml) needs this — see docs/uptime-kuma.md. Blank,
+    # own tasks/main.yaml) needs this — see docs/topics/monitoring/uptime-kuma.md. Blank,
     # same "not configured yet" happy path as the telegram vars above.
     uptime_kuma_push_url_cert_expiry: ""
     app_catalog: "{{ (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml') | from_yaml).app_catalog }}"
     # Extracted from the real catalog rather than hand-copied — see
-    # docs/molecule-fixtures.md. Both caddy and
+    # docs/topics/engineering/molecule-fixtures.md. Both caddy and
     # bentopdf used here already have real entries, so no combine()
     # override is needed, unlike caddy/molecule/default's own scenario.
     compose_apps:

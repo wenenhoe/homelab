@@ -1,7 +1,7 @@
 """Unit tests for restore_all.py's discovery/orchestration logic.
 
 Run via `uv run pytest ansible/tests/ -v`. Scoped to what's mockable
-without real rclone/gpg/ansible-playbook — see docs/fire-drill.md for
+without real rclone/gpg/ansible-playbook — see docs/topics/disaster-recovery/fire-drill.md for
 the parts (real SeaweedFS/cloud reachability, real GPG decryption,
 the actual restore role) that only a live fire drill can validate
 honestly.

@@ -11,9 +11,9 @@ oversight: Cloudflare rejects granting "manage other tokens" permission
 to any token created via the API, so no delegate credential can ever be
 minted for R2. --provider r2 here doesn't create anything; it only
 caches (or re-caches) the Custom Token a human creates in the Console.
-See docs/cloud-credential-creation.md's R2 section.
+See docs/topics/secrets/cloud-credentials/scoping.md's R2 section.
 
-See docs/cloud-credential-creation.md for what each remaining
+See docs/topics/secrets/cloud-credentials/scoping.md for what each remaining
 provider's rotation key is actually scoped to (the achievable floor
 differs a lot by provider — OCI has real, documented limits on how far
 this can be narrowed, not a uniform "create/delete keys only"

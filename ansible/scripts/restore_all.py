@@ -6,7 +6,7 @@ back to that app's own cloud target(s) if SeaweedFS is unreachable),
 downloads it, decrypts it with the controller's GPG key, prints one
 batch confirmation summary, then runs the existing per-app
 `playbooks/restore.yaml` for each app in order — step-ca first (see
-docs/restore.md's batch-restore section for why), the rest after. A
+docs/topics/disaster-recovery/restore.md's batch-restore section for why), the rest after. A
 step-ca failure — discovery or restore — aborts the whole batch; a
 failure in any other app is independent and doesn't block the rest.
 
@@ -15,19 +15,19 @@ it shells out to `rclone` (against a controller-local rclone.conf
 rendered by the `restore_discovery` role) and to `gpg`, and delegates
 the actual stop/extract/redeploy to the already-tested `restore` role
 via `ansible-playbook`, the same as a manual per-app restore would. See
-docs/restore.md's batch-restore section for the full design, and
-docs/fire-drill.md for how to validate this against real infrastructure
+docs/topics/disaster-recovery/restore.md's batch-restore section for the full design, and
+docs/topics/disaster-recovery/fire-drill.md for how to validate this against real infrastructure
 (a real fire drill is a manual step, not run by CI or by this script
 itself).
 
-Requires, on the controller (see docs/backup-threat-model.md for why this
+Requires, on the controller (see docs/topics/disaster-recovery/backup-threat-model.md for why this
 only ever runs on a dedicated/hardened admin machine):
   - `rclone` and `gpg` on PATH.
   - The backup GPG private key imported, with gpg-agent able to decrypt
     non-interactively (already unlocked, or a passphrase-less key) —
     this script never prompts for a GPG passphrase itself.
   - Every secret in secret_catalog.yaml already populated (see
-    docs/cloud-credential-creation.md) — this script doesn't create or
+    docs/topics/secrets/cloud-credentials/creation.md) — this script doesn't create or
     rotate any credential.
 
 Usage:
@@ -97,7 +97,7 @@ def load_manifest() -> tuple[str, list[AppManifestEntry]]:
         raise SystemExit(
             f"{MANIFEST_PATH} not found — run this script again after "
             "playbooks/restore-discovery-setup.yaml has rendered it (this "
-            "script normally runs that step itself; see docs/restore.md)."
+            "script normally runs that step itself; see docs/topics/disaster-recovery/restore.md)."
         )
     data = json.loads(MANIFEST_PATH.read_text())
     entries = [AppManifestEntry(**app) for app in data["apps"]]
@@ -148,7 +148,7 @@ def _run_rclone(args: list[str], timeout: int) -> subprocess.CompletedProcess | 
 def rclone_lsjson(remote: str, bucket: str, prefix: str) -> list[dict] | None:
     """List objects under remote:bucket/prefix. None means unreachable (not: empty)."""
     result = _run_rclone(["lsjson", f"{remote}:{bucket}/{prefix}"], timeout=45)
-    # NEEDS LIVE VERIFICATION — see docs/restore.md's batch-restore
+    # NEEDS LIVE VERIFICATION — see docs/topics/disaster-recovery/restore.md's batch-restore
     # section: an existing-but-empty prefix vs. a genuinely missing
     # bucket may not be distinguishable this way. The unreachable/hung
     # case is already handled and confirmed live — see _run_rclone.
@@ -213,7 +213,7 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
     # since archives can be large (e.g. minecraft's); --contimeout/
     # --low-level-retries above (via _run_rclone) still fail fast if the
     # connection itself never comes up. NEEDS LIVE VERIFICATION for
-    # slow/high-latency links — see docs/restore.md's batch-restore
+    # slow/high-latency links — see docs/topics/disaster-recovery/restore.md's batch-restore
     # section.
     copy_result = _run_rclone(["copyto", f"{source}:{bucket}/{prefix}/{name}", str(encrypted_path)], timeout=1800)
     if copy_result is None:

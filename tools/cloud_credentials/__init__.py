@@ -1,6 +1,6 @@
 """Cloud-credential tooling for cloud_sync's R2/B2/OCI backends.
 
-Credential hierarchy (see docs/cloud-credential-creation.md):
+Credential hierarchy (see docs/topics/secrets/cloud-credentials/scoping.md):
   master key -> rotation key -> leaf key
 
 - rotation_keys/ + create_rotation_keys.py: one-time bootstrap, run by

@@ -32,7 +32,7 @@ these scripts exist to get right per provider.
 Cache every credential — rotation keys/tokens and leaf credentials
 alike — to `ansible/files/secrets/`, the same flat-file convention
 every other secret in this repo already uses (see
-[`secrets.md`](../../secrets.md)). No separate secrets-manager dependency
+[`secrets.md`](../../topics/secrets/secrets.md)). No separate secrets-manager dependency
 for this subproject.
 
 ## Consequences
@@ -52,5 +52,5 @@ parity with B2's/OCI's rotation keys even after that migration (see
 secrets manager narrows *who/what can reach* that token, not *what it
 can do* once reached.
 
-See [`cloud-credential-creation.md`](../../cloud-credential-creation.md)
+See [`cloud-credentials/scoping.md`](../../topics/secrets/cloud-credentials/scoping.md)
 for what each cached credential is scoped to, provider by provider.

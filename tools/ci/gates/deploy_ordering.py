@@ -3,7 +3,7 @@
 
 Regression coverage for an incident where `ansible_host` was wired to
 resolve through a role-generated fact (`secrets_generated`) without
-anything in CI exercising that chain — see docs/ci.md#deploy-ordering-check.
+anything in CI exercising that chain — see docs/topics/engineering/ci/gates.md#deploy-ordering-check.
 Both runs use the purpose-built inventory, so they touch no real host.
 
 `deploy` runs the real deploy.yaml with `--tags` matching nothing real, so
@@ -12,7 +12,7 @@ provisioning is filtered out while Gathering Facts and the secrets tasks
 targets `hosts: localhost`, which `--limit ci-managed-host` alone would skip.
 
 `restore` runs bootstrap-secrets.yaml and restore.yaml as one two-file
-invocation, the pattern restore.yaml needs (see docs/restore.md), against a
+invocation, the pattern restore.yaml needs (see docs/topics/disaster-recovery/restore.md), against a
 nonexistent archive. The run must fail, and fail at the archive-existence
 check; classify_restore turns the exit code and log into a verdict:
 

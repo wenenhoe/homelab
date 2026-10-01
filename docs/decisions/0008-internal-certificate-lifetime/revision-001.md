@@ -22,8 +22,8 @@ automatically — a 24h cert would have expired unattended. That ADR
 already flags itself "Accepted, flagged for review": the renewal
 automation it was routing around not having now exists and live
 (`step_ca_cert`'s `cert-renewer@` systemd timer, one instance each for
-`lldap` and `openbao` — confirmed via `docs/lldap.md`'s and
-`docs/openbao.md`'s own reference to it), and the duration was never
+`lldap` and `openbao` — confirmed via `docs/topics/services/lldap.md`'s and
+`docs/topics/secrets/openbao.md`'s own reference to it), and the duration was never
 reconsidered afterward.
 
 The duration is set once, provisioner-wide

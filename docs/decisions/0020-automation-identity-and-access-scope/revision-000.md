@@ -39,7 +39,7 @@ mean a third identity solely for one read-only path — the Decision
 below folds it into `controller`'s policy instead. This does mean
 `controller`'s `secret_id` ends up cached on two hosts (the operator's
 laptop and `security`) rather than one; see
-[`openbao-auth.md`](../../openbao-auth.md) for the runbook.
+[`openbao-auth.md`](../../topics/secrets/openbao-auth.md) for the runbook.
 
 `cd_agent` has a fixed LAN IP; `controller` doesn't (laptop, DHCP) —
 confirmed directly rather than assumed. That asymmetry is the other

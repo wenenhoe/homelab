@@ -113,7 +113,7 @@ Preserves the credentials-out-of-process design intact everywhere it
 exists today, and keeps exactly one S3-compatible client
 (`rclone.conf`) across every part of this repo that talks to
 B2/R2/OCI/SeaweedFS — one place to apply the config-requirement
-findings in `cloud-credential-creation.md` (`no_check_bucket`,
+findings in `cloud-credentials/rotation.md` (`no_check_bucket`,
 explicit `region`, endpoint scheme), rather than re-deriving them once
 for rclone's backend and again for boto3's. Cost: keeps two
 `subprocess`-based S3 clients in Python code that a direct SDK call
@@ -157,7 +157,7 @@ read of `verify.py`'s existing credential handling.
   `region` handling on OCI, `region=auto` on R2).
   **Breaks if wrong:** if boto3's default request behavior differs
   (e.g., a different pre-flight check than rclone's `HeadObject`),
-  the hard-won findings in `cloud-credential-creation.md` need
+  the hard-won findings in `cloud-credentials/rotation.md` need
   re-verifying per provider, not assumed to carry over.
   **Checked by:** a spike running boto3's `put_object`/`list_objects_v2`
   against a real bucket on each of B2/R2/OCI with the actual leaf

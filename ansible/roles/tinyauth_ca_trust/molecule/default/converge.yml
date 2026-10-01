@@ -186,7 +186,7 @@
     # insecure:false and no CA bundle seeded yet — tinyauth's LDAP bind
     # fails at startup exactly like it would in production on a cold
     # deploy, crash-looping until tinyauth_ca_trust (below) seeds the
-    # bundle and restarts it. See docs/lldap.md.
+    # bundle and restarts it. See docs/topics/services/lldap.md.
     - name: Init and deploy tinyauth, insecure:false, no bundle seeded yet
       ansible.builtin.include_role:
         name: compose

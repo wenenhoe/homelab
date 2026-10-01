@@ -2,7 +2,7 @@
 # Restores one app's volume(s) on a single target host from an
 # already-decrypted backup archive. playbooks/restore.yaml is a
 # thin wrapper over this role (never touches GPG/SeaweedFS itself) — see
-# docs/backup.md for the operator-facing walkthrough.
+# docs/topics/disaster-recovery/backup.md for the operator-facing walkthrough.
 #
 # SAFETY-CRITICAL: this MUST stay a single play (see playbooks/restore.yaml),
 # with validation tasks delegate_to: localhost inline, not split into a
@@ -48,7 +48,7 @@
     msg: >-
       {{ restore_archive_local_path }} not found on the controller. Did
       you download + `gpg --decrypt` the object out of the
-      homelab-backups bucket first? See docs/backup.md.
+      homelab-backups bucket first? See docs/topics/disaster-recovery/backup.md.
   when: not restore_archive_stat.stat.exists
   delegate_to: localhost
   become: false

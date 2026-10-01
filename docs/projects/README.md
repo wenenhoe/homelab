@@ -151,7 +151,7 @@ Omit the field for work no agent will touch. It is path-level only: it
 can't tell whether an edit inside an allowed file is the permitted one,
 and a change that never touches its project doc isn't bounded. How and
 where it runs is in
-[`docs/ci.md#project-scope-check`](../ci.md#project-scope-check).
+[`docs/topics/engineering/ci/doc-checks.md#project-scope-check`](../topics/engineering/ci/doc-checks.md#project-scope-check).
 
 ## Public repo
 
@@ -176,7 +176,7 @@ project for the remainder, which also means this one isn't the last.
 `also_implements:` doesn't count as naming.
 [`check_project_close.py`](../../tools/doc_scripts/check_project_close.py)
 fails a PR that deletes a project doc and does neither; see
-[`docs/ci.md#project-close-check`](../ci.md#project-close-check), and
+[`docs/topics/engineering/ci/doc-checks.md#project-close-check`](../topics/engineering/ci/doc-checks.md#project-close-check), and
 [ADR 0037 revision 2](../decisions/0037-decision-and-project-documentation-workflow/revision-002.md)
 for the reasoning.
 

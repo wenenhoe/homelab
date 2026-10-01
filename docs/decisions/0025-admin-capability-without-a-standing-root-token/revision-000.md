@@ -23,7 +23,7 @@ Creating any new AppRole needs a token with `create`/`update` on
 ([`controller.hcl`](../../../docker/openbao/policies/controller.hcl))
 grants neither, and the only token that ever could -
 the initial root token - was deliberately revoked at the end of
-[`openbao-auth.md`](../../openbao-auth.md)'s own runbook. No live
+[`openbao-auth.md`](../../topics/secrets/openbao-auth.md)'s own runbook. No live
 credential in this Vault can currently create a new AppRole.
 
 Four candidates were considered:
@@ -88,7 +88,7 @@ admin-capable credential again.
 
 1. Full backup first (`dump_vault_to_file_cache.py`) - already run.
 2. Fresh `bao operator init -key-shares=3 -key-threshold=2`
-   ([`openbao.md`](../../openbao.md)'s existing convention) on `security`,
+   ([`openbao.md`](../../topics/secrets/openbao.md)'s existing convention) on `security`,
    discarding the old raft dataset. New Shamir shares and root token,
    handled with the same offline discipline as the original bundle -
    this fully supersedes the old one, which becomes useless the moment
@@ -118,7 +118,7 @@ admin-capable credential again.
 8. Revoke root again, same as the original auth/policy setup's last
    step. This time it's
    not a dead end: see
-   [`openbao-vault-bootstrap.md`](../../openbao-vault-bootstrap.md) for
+   [`openbao-vault-bootstrap.md`](../../topics/secrets/openbao-vault-bootstrap.md) for
    how `vault-bootstrap` bootstraps a fresh root token on demand if
    ever genuinely needed, without a second re-init.
 
@@ -145,7 +145,7 @@ admin-capable credential again.
 - `vault-bootstrap`'s `secret_id` is now this repo's actual
   root-recovery mechanism, not a convenience credential - it needs the
   same offline discipline as the Shamir shares, spelled out in
-  [`openbao-vault-bootstrap.md`](../../openbao-vault-bootstrap.md) rather
+  [`openbao-vault-bootstrap.md`](../../topics/secrets/openbao-vault-bootstrap.md) rather
   than treated as another cached AppRole.
 - Every consumer of OpenBao (`controller`, `snapshot-push.sh`,
   `check_freshness.py`, `create_leaf_keys.py`/`create_rotation_keys.py`)

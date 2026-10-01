@@ -2,12 +2,12 @@
 caddy_domain: "play.{{ lab_domain }}"
 
 # Scoped in docker/seaweedfs/configs/s3-identity.json.j2 to this host's
-# own `play-*` objects only — see docs/backup.md.
+# own `play-*` objects only — see docs/topics/disaster-recovery/backup.md.
 seaweedfs_s3_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-play'] }}"
 seaweedfs_s3_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-play'] }}"
 
 # backup_agent's freshness-check push URL, one for the whole host — see
-# docs/uptime-kuma.md.
+# docs/topics/monitoring/uptime-kuma.md.
 backup_agent_freshness_push_url: "{{ secrets_generated['uptime-kuma-push-url-backup-play'] }}"
 
 compose_apps:

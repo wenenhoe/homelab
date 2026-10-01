@@ -92,7 +92,7 @@ until then there's nothing to re-evaluate.
   `compose-boot-test`/Molecule's DinD jobs already accept elsewhere in
   this pipeline.
   **Breaks if wrong:** the `python-unit-tests` job — currently fully
-  offline per `docs/ci.md` ("every provider HTTP call and `rclone`
+  offline per `docs/topics/engineering/ci/pipeline.md` ("every provider HTTP call and `rclone`
   invocation mocked") — picks up a real latency/flakiness cost for a
   narrow slice of coverage.
   **Checked by:** timing a `docker compose up floci-oci` + spike-test
@@ -103,7 +103,7 @@ until then there's nothing to re-evaluate.
 
 - `python-unit-tests` stops being a pure-`MagicMock`, no-Docker suite
   for the classic-IAM slice specifically — a real behavior change to
-  `docs/ci.md`'s current description, to update once this leaves
+  `docs/topics/engineering/ci/pipeline.md`'s current description, to update once this leaves
   draft.
 - The SCIM/leaf surface — the part that actually runs on a schedule in
   production — gets no new coverage from this decision. Don't let

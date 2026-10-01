@@ -2,14 +2,14 @@
 # playbooks/restore-discovery-setup.yaml (or restore_all.py, which runs
 # it for you) to refresh. Read-only credentials only, unlike
 # cloud_sync's own rclone.conf on `storage` — see
-# docs/cloud-credential-creation.md. Same shape, including the
+# docs/topics/secrets/cloud-credentials/scoping.md. Same shape, including the
 # endpoint-scheme convention, as
 # ansible/roles/cloud_sync/templates/rclone.conf.j2 — see that
 # template's own header instead of repeating it here.
 #
 # NEEDS LIVE VERIFICATION per remote before trusting a real restore —
 # confirm with `rclone lsd --config rclone.conf <name>:` (see
-# docs/restore.md's batch-restore section).
+# docs/topics/disaster-recovery/restore.md's batch-restore section).
 
 [seaweedfs]
 type = s3

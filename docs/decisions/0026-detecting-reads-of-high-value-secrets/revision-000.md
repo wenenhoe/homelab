@@ -20,7 +20,7 @@ related: [ADR-0020, ADR-0024]
 read of the R2 admin token's Vault path, calling the audit log "the
 natural source" but leaving the exact mechanism to this stage.
 OpenBao currently has no audit device configured at all
-([`openbao.md`](../../openbao.md)).
+([`openbao.md`](../../topics/secrets/openbao.md)).
 
 Two ways to enable one. API-driven (`bao audit enable`) requires
 `unsafe_allow_api_audit_creation = true` in server config on OpenBao
@@ -44,7 +44,7 @@ tokens stay HMAC'd even in the response — `probe` came back as
 OpenBao's audit device can't be scoped at the source: every enabled
 device receives every request/response system-wide except a small,
 fixed, non-configurable exemption list (`sys/init`, `sys/health`,
-etc. — [`openbao.md`](../../openbao.md)'s own audit docs). Vault's
+etc. — [`openbao.md`](../../topics/secrets/openbao.md)'s own audit docs). Vault's
 field-level `exclude` capability is a HashiCorp Enterprise-only
 feature with no OpenBao equivalent, and even there it only redacts
 fields within an entry that's still written, not the entry itself.
@@ -121,7 +121,7 @@ silently going dark.
   entities, timing); values and tokens stay HMAC'd. Accepted given no
   log-shipping destination exists today — revisit the day one is
   added.
-- [`openbao.md`](../../openbao.md)'s "no audit device configured" line
+- [`openbao.md`](../../topics/secrets/openbao.md)'s "no audit device configured" line
   goes stale the moment this lands; update it alongside this work.
 - Another Vault identity now exists alongside `controller`'s broad
   AppRole ([0020](../0020-automation-identity-and-access-scope/revision-000.md)) — a

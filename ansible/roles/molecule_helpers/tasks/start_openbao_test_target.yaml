@@ -329,7 +329,7 @@
 # already-initialized instance, and there's no admin token left to
 # re-read role_id/secret_id with on a later run anyway (the root token
 # is never persisted past this block, same paranoia as
-# docs/openbao.md's real Init runbook). role_id/secret_id are written
+# docs/topics/secrets/openbao.md's real Init runbook). role_id/secret_id are written
 # straight to the SAME file-cache paths ensure_secret.yaml reads in
 # production, rather than exposed as facts for the caller to write
 # somewhere else — on a Molecule idempotence re-run, those files

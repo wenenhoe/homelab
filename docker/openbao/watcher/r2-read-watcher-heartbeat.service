@@ -1,7 +1,7 @@
 [Unit]
 Description=Check r2-read-watcher.service is active, push heartbeat on success
 ; Same convention as cloud_sync/cert-renewer@/cert-expiry-check
-; (docs/uptime-kuma.md): OnSuccess= only, never an explicit ?status=down
+; (docs/topics/monitoring/uptime-kuma.md): OnSuccess= only, never an explicit ?status=down
 ; push - Uptime Kuma's own missing-heartbeat timeout is the backstop for
 ; a watcher that's stopped or crash-looping.
 OnSuccess=uptime-kuma-push-r2-read-watcher.service

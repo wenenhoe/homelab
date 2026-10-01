@@ -70,7 +70,7 @@ grow past reading-and-reporting into anything that writes to this repo.
 
 - **Allowed to change:** the `homelab-security` repo, plus this project's own doc in this repo while it's active (whoever implements a stage records its progress there).
 - **Must not change:** anything else in this repo. The audit job itself never writes here, per ADR 0061's invariants.
-- **Relevant files and interfaces:** `docs/decisions/`, `docs/projects/` (what the agent reads); the tracker's finding contract in [`security-findings.md`](../security-findings.md).
+- **Relevant files and interfaces:** `docs/decisions/`, `docs/projects/` (what the agent reads); the tracker's finding contract in [`security-findings.md`](../topics/engineering/security-findings.md).
 - **Required checks:** none in this repo's CI, since this project's changes live in `homelab-security`.
 
 ## Risks

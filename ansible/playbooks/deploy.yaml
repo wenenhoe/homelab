@@ -52,7 +52,7 @@
     # Runs in the same play/hosts as caddy above, right after it - needs
     # this host's own resolved_apps and its own
     # caddy_domain, nothing from any other host. See
-    # docs/telegram-notifications.md.
+    # docs/topics/monitoring/telegram-notifications.md.
     - name: Include caddy_cert_expiry role
       ansible.builtin.include_role:
         name: caddy_cert_expiry
@@ -118,7 +118,7 @@
 # to issue into, plus step_ca_client's cached root; tinyauth_ca_trust
 # needs a running tinyauth to seed into and the same cached root. No
 # ordering constraint between those three — sequenced arbitrarily, all
-# after the shared prerequisite. See docs/step-ca.md for why lldap and
+# after the shared prerequisite. See docs/topics/services/step-ca.md for why lldap and
 # openbao differ on cert dir, renew action, and chown. openbao_cli runs
 # last and isn't arbitrary: it needs openbao's own step_ca_cert instance
 # to have already issued and installed its leaf cert.
@@ -213,7 +213,7 @@
 # own plays having already run in this same invocation (host_vars are
 # static inventory data either way), so ordering after Play 8 isn't a
 # hard dependency — it's just the natural place for "the next stage of
-# the backup pipeline" to live. See docs/backup.md.
+# the backup pipeline" to live. See docs/topics/disaster-recovery/backup.md.
 - name: Deploy cloud sync
   hosts: storage
   gather_facts: false

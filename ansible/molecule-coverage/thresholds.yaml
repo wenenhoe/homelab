@@ -1,6 +1,6 @@
 # Per-role coverage floor for report.py --thresholds-file. A role missing
 # here is a hard error, not a silent pass. Why each non-100.0 value is
-# where it is: docs/ci.md#molecule-coverage-gate.
+# where it is: docs/topics/engineering/ci/gates.md#molecule-coverage-gate.
 apt: 75.0
 backup_agent: 100.0
 bind9: 94.4

@@ -6,7 +6,7 @@ paths `cache.py`'s `scoped("leaf")` always writes to (Track A stage 5).
 Entries stay `source: manual` in secret_catalog.yaml — this script is
 just an automated way to fill them in; `openbao_utils/bootstrap.py` itself
 deliberately excludes these names from its own prompting (see that
-script's docstring). See docs/cloud-credential-creation.md for the
+script's docstring). See docs/topics/secrets/cloud-credentials/scoping.md for the
 exact grant each leaf gets, provider-by-provider.
 
 B2 and OCI authenticate using a rotation-key credential — narrower
@@ -24,7 +24,7 @@ granting token-management permission to any API-created token, so this
 can only be a human-created Console token in the first place — caching
 it doesn't change what it can do, only how often you have to paste it
 in). This is a deliberate, accepted risk — see
-docs/cloud-credential-creation.md's R2 section for the trade-off and
+docs/topics/secrets/cloud-credentials/scoping.md's R2 section for the trade-off and
 what's expected to narrow it later (a secrets-manager migration, not
 this script).
 
@@ -35,7 +35,7 @@ To rotate a leaf key with verify-before-revoke of the old one (the new
 key must actually pass a live read/write check over the same rclone
 S3-compatible path production uses before the old key is touched), use
 --rotate instead of deleting cache files for all three providers now —
-see docs/cloud-credential-creation.md's Rotation section.
+see docs/topics/secrets/cloud-credentials/rotation.md's Rotation section.
 
 Usage (run from tools/):
     python3 -m cloud_credentials.create_leaf_keys [--provider {r2,b2,oci,all}]

@@ -34,7 +34,7 @@ rather than step-ca's own 24h default.
 ## Consequences
 
 `step_ca_cert`'s systemd `cert-renewer@` timer (see
-[`lldap.md`](../../lldap.md)) is now exactly the renewal automation that
+[`lldap.md`](../../topics/services/lldap.md)) is now exactly the renewal automation that
 720h was chosen to route around not having — and it's been live since
 before this ADR was written. Moving back toward step-ca's own 24h
 philosophy (shorter-lived certs, smaller revocation-risk window) is

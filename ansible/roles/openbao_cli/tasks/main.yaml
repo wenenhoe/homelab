@@ -3,7 +3,7 @@
 # already-running Docker server, replacing BAO_SKIP_VERIFY/the
 # docker-exec alias for every security-local use except init/unseal
 # itself (which stays docker-exec-based permanently — see
-# docs/openbao.md). Design/rationale:
+# docs/topics/secrets/openbao.md). Design/rationale:
 # docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md.
 # Run in deploy.yaml's Play 6, after step_ca_client (root cert) and
 # step_ca_cert's openbao instance (leaf cert) — the TLS check below
@@ -119,7 +119,7 @@
 # that role's own tasks/main.yaml promotes past its role boundary
 # (already populated earlier in this same play). Same
 # sealed/uninitialized-is-still-"healthy" caveat as compose.yaml.j2's
-# own healthcheck (docs/openbao.md's Healthcheck section) — rc 2 here
+# own healthcheck (docs/topics/secrets/openbao.md's Healthcheck section) — rc 2 here
 # is expected, not a failure.
 - name: Confirm the native CLI reaches OpenBao over real TLS
   ansible.builtin.command:

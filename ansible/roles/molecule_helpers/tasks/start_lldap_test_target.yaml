@@ -3,7 +3,7 @@
 # exercise the real lldap_bootstrap -> tinyauth LDAPS dependency chain.
 # A standalone container, not lldap's own compose stack: this helper
 # only needs LDAPS + the admin web UI actually running, not lldap's own
-# cert-issuance/renewal machinery (see docs/lldap.md for that lifecycle;
+# cert-issuance/renewal machinery (see docs/topics/services/lldap.md for that lifecycle;
 # a throwaway self-signed cert stands in for it here, same spirit as
 # .github/scripts/seed-lldap-ci-cert.sh does for compose-boot-test's
 # lldap entry).

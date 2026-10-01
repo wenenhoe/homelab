@@ -53,7 +53,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Open items
 
-- The docs describe `controller` as a laptop ([`openbao-auth.md`](../openbao-auth.md)), while VM 401 has run the tooling. Any other machine that holds copies of these credentials must be stripped the same way, and is not yet inventoried.
+- The docs describe `controller` as a laptop ([`openbao-auth.md`](../topics/secrets/openbao-auth.md)), while VM 401 has run the tooling. Any other machine that holds copies of these credentials must be stripped the same way, and is not yet inventoried.
 
 ## Closing checklist
 

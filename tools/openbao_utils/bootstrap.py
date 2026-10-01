@@ -10,7 +10,7 @@ openbao-controller-role-id/-secret-id are `store: controller_file`, and stay
 in the controller-side file cache instead (see secret_catalog.yaml's own
 header comment for why — Vault access itself depends on them). Vault-
 backed entries need OpenBao reachable and the controller AppRole already
-provisioned (docs/openbao-auth.md's runbook) before this script can do
+provisioned (docs/topics/secrets/openbao-auth.md's runbook) before this script can do
 anything with them.
 
 Every cloudflare-r2-*/backblaze-b2-*/oci-* entry has `store: openbao` too
@@ -22,10 +22,10 @@ against the actual bucket). Letting this script's generic prompt-and-
 write path also touch the same Vault paths would mean two independently-
 written mechanisms both claiming to be authoritative for the same
 credential, with only one of them actually verifying what it stores. See
-docs/cloud-credential-creation.md for how those are created instead.
+docs/topics/secrets/cloud-credentials/creation.md for how those are created instead.
 
 Safe to re-run: an entry that already has a value (on disk, or in Vault)
-is left untouched. To rotate a value, see docs/secrets-rotation.md.
+is left untouched. To rotate a value, see docs/topics/secrets/secrets-rotation.md.
 
 Uses hvac for the OpenBao client and paramiko for the SSH root-cert
 fetch, via the shared primitives in tools/openbao_utils/client.py -
@@ -122,7 +122,7 @@ def vault_login(client: hvac.Client) -> None:
     if not role_id or not secret_id:
         print(
             "openbao-controller-role-id/-secret-id aren't set yet — run "
-            "docs/openbao-auth.md's runbook (Track A stage 3) before "
+            "docs/topics/secrets/openbao-auth.md's runbook (Track A stage 3) before "
             "bootstrapping any Vault-backed manual secret.",
             file=sys.stderr,
         )

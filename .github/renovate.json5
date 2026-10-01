@@ -62,7 +62,7 @@
 
   // backup_agent's compose file, and now several docker/<app>/ ones too
   // (bind9, kms, lldap, minecraft, seaweedfs, step-ca — see
-  // docs/adding-an-app.md), are Jinja2 templates (compose.yaml.j2) with
+  // docs/topics/deploy/adding-an-app.md), are Jinja2 templates (compose.yaml.j2) with
   // static, non-interpolated image: lines — Renovate can parse them
   // fine, it just never looks at .j2 files by default. This pattern is
   // additive to the manager's built-in default, not a replacement.
@@ -357,7 +357,7 @@
     // own ansible role defaults, deploy.yaml's step_ca_cert include_role
     // vars (resolves the image only to read its non-root UID for a
     // post-issuance/renewal chown, never to run the server itself; see
-    // docs/openbao.md), and — a different datasource, GitHub Releases
+    // docs/topics/secrets/openbao.md), and — a different datasource, GitHub Releases
     // rather than the Docker Hub image, but grouped here via the shared
     // depName regardless (see that customManager's own comment) —
     // openbao_cli's native-CLI version pin on `security`. All four need
@@ -391,7 +391,7 @@
       matchDatasources: ["custom.coderabbit-cli"],
       matchDepNames: ["coderabbit-cli"],
       prBodyNotes: [
-        "⚠️ CODERABBIT_SHA256 (tools/coderabbit-review/Dockerfile) is NOT updated by this PR — replace it with the coderabbit-linux-x64.zip entry from https://cli.coderabbit.ai/releases/<new version>/SHA256SUMS before merging; until then this PR's build check fails at the checksum step. See docs/coderabbit-review.md.",
+        "⚠️ CODERABBIT_SHA256 (tools/coderabbit-review/Dockerfile) is NOT updated by this PR — replace it with the coderabbit-linux-x64.zip entry from https://cli.coderabbit.ai/releases/<new version>/SHA256SUMS before merging; until then this PR's build check fails at the checksum step. See docs/topics/engineering/coderabbit-review.md.",
       ],
     },
 
@@ -467,7 +467,7 @@
 
     // docker/lldap/compose.yaml, docker/bind9/compose.yaml, and
     // docker/caddy/compose.yaml's molecule fixtures are symlinks to
-    // these same files (see docs/molecule-testing.md), so there is only
+    // these same files (see docs/topics/engineering/molecule-testing.md), so there is only
     // ever one real occurrence of each of those image pins for Renovate
     // to see — no groupName needed to keep prod and test fixture in
     // lockstep, because there's nothing left to drift apart.

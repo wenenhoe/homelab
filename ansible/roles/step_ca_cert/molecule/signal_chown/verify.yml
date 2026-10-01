@@ -101,7 +101,7 @@
       # Not asserting on State.Health here: this scenario never runs
       # `bao operator init`, so the healthcheck (`bao status`) is
       # expected to report unhealthy the whole time — see
-      # docs/openbao.md's healthcheck section. "running" is the actual
+      # docs/topics/secrets/openbao.md's healthcheck section. "running" is the actual
       # claim this task tests (recovered from the crash loop), not
       # "healthy".
 
@@ -210,7 +210,7 @@
         or 'if [ "${RENEW_ACTION}" = "signal" ]' not in step_ca_cert_verify_unit_content.stdout
         or 'EnvironmentFile=/etc/cert-renewer/%i.env' not in step_ca_cert_verify_unit_content.stdout
 
-    # --- SIGHUP reload, not a restart (see docs/openbao.md for the
+    # --- SIGHUP reload, not a restart (see docs/topics/secrets/openbao.md for the
     # citations this relies on) -------------------------------------
     # Two separate claims, both worth proving directly rather than
     # trusting the docs alone:
@@ -243,7 +243,7 @@
           ({{ step_ca_cert_verify_restart_before.container.State.StartedAt }} ->
           {{ step_ca_cert_verify_restart_after.container.State.StartedAt }}) —
           dumb-init may not be forwarding the signal the way
-          docs/openbao.md assumes it does.
+          docs/topics/secrets/openbao.md assumes it does.
 
     # A sealed/uninitialized OpenBao (this scenario never runs `bao
     # operator init`) still completes a TLS handshake — sealed only

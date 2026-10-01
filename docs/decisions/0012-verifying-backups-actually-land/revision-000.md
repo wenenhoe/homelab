@@ -47,5 +47,5 @@ genuinely new host running `backup_agent` needs a new
 The cost: one stale app suppresses that whole host's push, and *which*
 app is stale is only visible in that unit's own journal, not from
 Uptime Kuma directly. See
-[`uptime-kuma.md`](../../uptime-kuma.md#wiring-a-job-to-its-push-monitor)
+[`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md#wiring-a-job-to-its-push-monitor)
 for the exit-code/push mechanics this decision produced.

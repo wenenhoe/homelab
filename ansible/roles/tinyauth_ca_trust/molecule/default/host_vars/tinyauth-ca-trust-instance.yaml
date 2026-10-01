@@ -33,7 +33,7 @@ step_ca_provisioner_name: admin
 # used to be a hand-authored copy kept in sync "by convention" per this
 # comment's previous wording; it had already drifted (missing the real
 # entry's backup: key) by the time that was checked, which is the whole
-# reason it's a lookup now instead — see docs/molecule-fixtures.md.
+# reason it's a lookup now instead — see docs/topics/engineering/molecule-fixtures.md.
 app_catalog: >-
   {{
     (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')

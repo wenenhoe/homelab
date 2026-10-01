@@ -15,7 +15,7 @@ depends_on:
 
 # Tofu Migration Rehearsal
 
-Migration Stage 1 and 1.5 of the plan in [`vm-provisioning.md`](../vm-provisioning.md): Tofu builds an isolated 5XX block, and the first real `restore.yaml` runs against it. It needs the modules and inventory generator from [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md).
+Migration Stage 1 and 1.5 of the plan in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): Tofu builds an isolated 5XX block, and the first real `restore.yaml` runs against it. It needs the modules and inventory generator from [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md).
 
 ## Scope
 
@@ -23,7 +23,7 @@ The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) and the first `restore.ya
 
 ## Decision
 
-No ADR. The design is [`vm-provisioning.md`](../vm-provisioning.md), a topic doc that predates ADRs.
+No ADR. The design is [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs.
 
 "Migration Stage" is `vm-provisioning.md`'s own numbering for its cutover plan, not this doc's stage numbers — the two are independent sequences that happen to share a word; see [`docs/projects/README.md`](README.md#hierarchy).
 
@@ -55,14 +55,14 @@ current OPNsense) with zero firewall/routing changes on production.
 **Migration Stage 1.5** — first real run of `restore.yaml` against the
 Stage 1 VM(s): validates disaster recovery and rehearses the actual
 cutover mechanics at the same time. See
-[`fire-drill.md`](../fire-drill.md) for how this doubles as the
+[`fire-drill.md`](../topics/disaster-recovery/fire-drill.md) for how this doubles as the
 restore-path fire drill once OpenTofu is up.
 
 ## Acceptance criteria
 
 - [ ] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
 - [ ] The first `restore.yaml` run against it succeeds, as the restore-path fire drill.
-- [ ] The resulting behavior is described in [`docs/vm-provisioning.md`](../vm-provisioning.md) or a new topic doc, not only here.
+- [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Closing checklist
 

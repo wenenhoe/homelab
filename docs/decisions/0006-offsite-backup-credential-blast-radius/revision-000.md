@@ -64,6 +64,6 @@ overwrites there either.
 renders the real `s3-identity.json.j2` against a live throwaway
 SeaweedFS target with two fake backup hosts, and asserts cross-prefix
 write/read are denied and Admin actions aren't available to a scoped
-identity — see [`backup-threat-model.md`](../../backup-threat-model.md)
+identity — see [`backup-threat-model.md`](../../topics/disaster-recovery/backup-threat-model.md)
 for the current state of that coverage, including which specific
 assertions have and haven't independently hit a real failure yet.

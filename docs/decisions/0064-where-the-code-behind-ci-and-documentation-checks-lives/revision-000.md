@@ -121,14 +121,14 @@ change that makes it.
   `bash -c 'cd tools && python3 -m doc_scripts.<module>'`, the way the
   image-pin hook already does.
 - Every place that names a moved path changes with it: links in
-  `docs/README.md`, `AGENTS.md`, `README.md`, `docs/ci.md` and
-  `docs/molecule-fixtures.md`, the `allowed_paths` example in
+  `docs/README.md`, `AGENTS.md`, `README.md`, `docs/topics/engineering/ci/pipeline.md` and
+  `docs/topics/engineering/molecule-fixtures.md`, the `allowed_paths` example in
   `docs/projects/README.md`, and any project's own `allowed_paths`.
 - A change to a check is reviewed with the code it checks, and the code that
   runs is the PR's own. That is already true of every workflow and is
   unchanged here.
 - The resulting layout is described in
-  [`docs/ci.md#where-the-ci-logic-lives`](../../ci.md#where-the-ci-logic-lives).
+  [`docs/topics/engineering/ci/pipeline.md#where-the-ci-logic-lives`](../../topics/engineering/ci/pipeline.md#where-the-ci-logic-lives).
 
 ## Invariants
 

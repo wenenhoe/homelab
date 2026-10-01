@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   # Scopes the expensive jobs below to what this PR actually touched —
-  # see docs/ci.md#change-scoped-not-a-full-sweep.
+  # see docs/topics/engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep.
   detect-changes:
     runs-on: ubuntu-26.04
     outputs:
@@ -48,7 +48,7 @@ jobs:
 
       # uv_lock, deploy_ordering and python_unit_tests stay false when
       # every file that matched only changed a comment or formatting (or
-      # `[tool.ruff]`) — see docs/ci.md#comments-and-formatting-dont-queue-molecule.
+      # `[tool.ruff]`) — see docs/topics/engineering/ci/change-scoping.md#comments-and-formatting-dont-queue-molecule.
       # The job outputs above read this step, not `filter`. ansible_lint,
       # trivy_ansible and any_compose are deliberately not gated: they
       # read comments (`# noqa`, `#trivy:ignore`).
@@ -81,7 +81,7 @@ jobs:
           "${{ github.event.pull_request.head.sha }}"
         working-directory: tools
 
-  # Single-writer cache population — see docs/ci.md#cache-warming for why
+  # Single-writer cache population — see docs/topics/engineering/ci/pipeline.md#cache-warming for why
   # this exists as its own job rather than letting every uv-consuming job
   # below populate the cache itself. Unconditional (no needs:, no if:) so
   # it self-heals a cold/evicted cache on any PR, not just ones
@@ -129,7 +129,7 @@ jobs:
   # pre-commit's own hook environments (~/.cache/pre-commit) — rebuilt
   # from scratch by both pre-commit-checks and ansible-lint below,
   # dominated by ansible-lint's own isolated `ansible` venv (measured
-  # ~500MB) — see docs/ci.md#cache-warming. `pre-commit install-hooks`
+  # ~500MB) — see docs/topics/engineering/ci/pipeline.md#cache-warming. `pre-commit install-hooks`
   # only builds environments, it never runs a hook, so this job needs
   # nothing (Docker included) that only running the hooks would.
   warm-pre-commit-cache:
@@ -144,10 +144,10 @@ jobs:
           install-precommit-hooks: "true"
           save-precommit-cache: "true"
 
-  # Unconditional — see docs/ci.md#change-scoped-not-a-full-sweep. needs
+  # Unconditional — see docs/topics/engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep. needs
   # warm-uv-cache (not detect-changes, which this job deliberately
   # bypasses) purely so it restores a warm cache rather than racing to
-  # populate one itself — see docs/ci.md#cache-warming.
+  # populate one itself — see docs/topics/engineering/ci/pipeline.md#cache-warming.
   pre-commit-checks:
     needs: [warm-uv-cache, warm-pre-commit-cache]
     runs-on: ubuntu-26.04
@@ -164,7 +164,7 @@ jobs:
         run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit --show-diff-on-failure
 
   # A PR that touches a project doc must stay inside that project's
-  # allowed_paths - see docs/ci.md#project-scope-check. Diffs from the
+  # allowed_paths - see docs/topics/engineering/ci/doc-checks.md#project-scope-check. Diffs from the
   # merge-base of the PR's base and head (not the base tip itself), so a
   # branch that is behind doesn't see main's newer commits as its own.
   project-scope:
@@ -188,7 +188,7 @@ jobs:
 
   # A PR that deletes a project doc must leave the revision its decision:
   # names accepted or still named by another project - see
-  # docs/ci.md#project-close-check. Diffs from the merge-base, like
+  # docs/topics/engineering/ci/doc-checks.md#project-close-check. Diffs from the merge-base, like
   # project-scope, so main's newer commits aren't read as this PR's own.
   project-close:
     needs: warm-uv-cache
@@ -245,7 +245,7 @@ jobs:
           locked: "true"
 
   # Plain controller-side Python, not an Ansible role — no molecule/
-  # scenario applies (see docs/molecule-testing.md). Every provider HTTP
+  # scenario applies (see docs/topics/engineering/molecule-testing.md). Every provider HTTP
   # call and rclone invocation is mocked; nothing here needs network
   # access or Galaxy collections.
   python-unit-tests:
@@ -265,7 +265,7 @@ jobs:
         run: uv run pytest ansible/tests/ tools/tests/ -v
 
   # Regression coverage for the ansible_host resolution ordering incident —
-  # see docs/ci.md#deploy-ordering-check for what it catches and why.
+  # see docs/topics/engineering/ci/gates.md#deploy-ordering-check for what it catches and why.
   deploy-ordering-check:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.deploy_ordering == 'true'
@@ -284,7 +284,7 @@ jobs:
           install-galaxy-collections: "true"
 
       # Mirrors openbao_utils/bootstrap.py's output — throwaway CI values, see
-      # docs/ci.md#deploy-ordering-check. Driven off the real
+      # docs/topics/engineering/ci/gates.md#deploy-ordering-check. Driven off the real
       # secret_catalog.yaml at CI-run time (see
       # tools/ci/fixtures/preseed_manual_secrets.py's docstring for why)
       # rather than a hand-maintained list of printf lines here — the
@@ -317,7 +317,7 @@ jobs:
         working-directory: tools
 
       # Regression check for restore.yaml's two-file invocation pattern
-      # specifically (see docs/ci.md#deploy-ordering-check) — not for
+      # specifically (see docs/topics/engineering/ci/gates.md#deploy-ordering-check) — not for
       # restore's own logic, which Molecule already covers.
       - name: Run restore.yaml's two-file invocation against the CI ordering-check inventory
         run: uv run python -m ci.gates.deploy_ordering restore
@@ -362,7 +362,7 @@ jobs:
             | tee -a "$GITHUB_STEP_SUMMARY"
         working-directory: ansible/molecule-coverage
 
-  # Shared logic — see docs/ci.md#compose-boot-test.
+  # Shared logic — see docs/topics/engineering/ci/gates.md#compose-boot-test.
   compose-boot-test:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.compose_apps != '[]'
@@ -372,7 +372,7 @@ jobs:
 
   # Builds each changed Dockerfile without pushing it and smoke-tests the
   # image — the published image is only built after merge. See
-  # docs/ci.md#dockerfile-changes. A matrix job, so it's aggregated by
+  # docs/topics/engineering/ci/gates.md#dockerfile-changes. A matrix job, so it's aggregated by
   # matrix-jobs-gate below rather than required directly.
   dockerfile-build-check:
     needs: detect-changes
@@ -394,7 +394,7 @@ jobs:
 
   # Fallback for stacks the boot-test job deliberately excludes: only the
   # excluded apps are checked, since anything compose-boot-test covers gets
-  # a stronger check there. See docs/ci.md#compose-boot-test.
+  # a stronger check there. See docs/topics/engineering/ci/gates.md#compose-boot-test.
   compose-syntax-check:
     needs: detect-changes
     if: needs.detect-changes.outputs.any_compose == 'true'
@@ -415,7 +415,7 @@ jobs:
           "${{ github.event.pull_request.head.sha }}"
         working-directory: tools
 
-  # See docs/security-scanning.md#trivy-security-scans.
+  # See docs/topics/engineering/security-scanning.md#trivy-security-scans.
   trivy-scan:
     needs: detect-changes
     permissions:
@@ -427,7 +427,7 @@ jobs:
       run-secrets: true
 
   # Fixed-name required-check aggregator for the three matrix jobs above —
-  # see docs/ci.md#requiring-checks-before-merge for why a matrix job
+  # see docs/topics/engineering/ci/pipeline.md#requiring-checks-before-merge for why a matrix job
   # can't be marked required directly. if: always() so a skipped
   # upstream job doesn't skip this one too.
   matrix-jobs-gate:

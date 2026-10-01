@@ -23,7 +23,7 @@ updated since the last check, pulls
 `ghcr.io/wenenhoe/coderabbit-review:latest` and runs a `review` against
 that PR's diff, authenticated headlessly; parses the `--agent` output
 into finding files in `homelab-security`, per the tracker's contract in
-[`security-findings.md`](../security-findings.md), one
+[`security-findings.md`](../topics/engineering/security-findings.md), one
 file per finding ([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md)):
 a finding whose file already exists is left as it is, whatever its
 status, and two distinct findings on one PR stay two files. Each run
@@ -33,7 +33,7 @@ in `homelab-security` and merges it at once.
 Not in scope: the full-repository audit
 ([`agent-full-repo-audit`](agent-full-repo-audit.md)); the review tool and
 its CI-built image, described in
-[`coderabbit-review.md`](../coderabbit-review.md).
+[`coderabbit-review.md`](../topics/engineering/coderabbit-review.md).
 
 ## Decision
 
@@ -59,7 +59,7 @@ Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-wha
 
 - **Allowed to change:** the `homelab-security` repo only — nothing in this repo changes as part of this project.
 - **Must not change:** this repo's own workflows or secrets; no credential capable of writing to this repo is introduced anywhere.
-- **Relevant files and interfaces:** `tools/coderabbit-review/coderabbit-review.sh` (post-trim), `ghcr.io/wenenhoe/coderabbit-review`, the tracker's finding contract in [`security-findings.md`](../security-findings.md).
+- **Relevant files and interfaces:** `tools/coderabbit-review/coderabbit-review.sh` (post-trim), `ghcr.io/wenenhoe/coderabbit-review`, the tracker's finding contract in [`security-findings.md`](../topics/engineering/security-findings.md).
 - **Required checks:** none in this repo's CI, since this project's changes live in `homelab-security`.
 
 ## Risks

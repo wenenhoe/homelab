@@ -3,7 +3,7 @@ name: Check image tags exist
 # Once a week, and on demand. Renovate only proposes tags that exist, so a tag
 # an upstream later removes or renames goes unnoticed until a deploy fails to
 # pull it. This asks each registry whether every image this repo pins is still
-# there — see docs/ci.md#image-tag-existence-check.
+# there — see docs/topics/engineering/ci/gates.md#image-tag-existence-check.
 #
 # Weekly on purpose: a couple of HEAD requests per image (43 images on
 # ghcr.io and Docker Hub today), spaced out and retried politely

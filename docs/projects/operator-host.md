@@ -63,13 +63,13 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 - [ ] SSH to the operator host fails from the workstation, from a VM in the coding-agent VLAN, and from any tailnet node other than the laptop.
 - [ ] Outbound from VLAN 30 reaches only the allowlisted destinations.
 - [ ] The operator host runs no desktop, browser, or software that handles untrusted content, and holds no push credential.
-- [ ] The resulting behavior is described in `docs/operator-host.md`.
+- [ ] The resulting behavior is described in `docs/topics/infra/operator-host.md`.
 
 ## Agent handoff
 
 - **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
 - **Must not change:** other hosts' inventory entries, the `all.vars` SSH key, existing OpenBao policies.
-- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (the `controller` group), `docs/openbao-auth.md` (issuing a new AppRole secret), `docs/network-infra.md`.
+- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (the `controller` group), `docs/topics/secrets/openbao-auth.md` (issuing a new AppRole secret), `docs/topics/infra/network-infra.md`.
 - **Required checks:** `pre-commit run --all-files`; the role's Molecule scenario.
 
 ## Risks
@@ -83,7 +83,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 ## Open items
 
 - Tofu's flows come from the docs, not code, since no Tofu exists yet. The Proxmox provider may need SSH to the node for some resources; check when the Tofu skeleton lands.
-- The restore procedure on this host: import the backup GPG private key for the restore only, then remove it. It belongs in `docs/operator-host.md`.
+- The restore procedure on this host: import the backup GPG private key for the restore only, then remove it. It belongs in `docs/topics/infra/operator-host.md`.
 - Binding the interim controller AppRole to this host's CIDR until the retirement project deletes it. Cheap, but only worth doing if the retirement is far off.
 - Whether VM 301 is built by hand or waits for the Tofu Ubuntu module ([`tofu-vm-provisioning.md`](tofu-vm-provisioning.md)); the VM is small enough to build by hand.
 

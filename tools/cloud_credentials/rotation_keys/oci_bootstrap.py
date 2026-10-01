@@ -31,7 +31,7 @@ cached, read_cache, write_cache, require_cache_file = scoped("rotation")
 OCI_BUCKET = "homelab-backups"
 
 # The Confidential Application is registered by hand in Console under
-# exactly this name (see docs/cloud-credential-creation.md) - there is
+# exactly this name (see docs/topics/secrets/cloud-credentials/scoping.md) - there is
 # no API path here to create one. Automating Confidential Application
 # registration + OAuth configuration + app role grant + activation is a
 # materially larger, unverified surface than prompting once for values
@@ -69,7 +69,7 @@ def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: s
             post,
             tenancy,
             name,
-            f"cloud_sync {leaf} credential for {OCI_BUCKET} — see docs/cloud-credential-creation.md",
+            f"cloud_sync {leaf} credential for {OCI_BUCKET} — see docs/topics/secrets/cloud-credentials/scoping.md",
             admin_email,
         )
         group = oci_get_or_create_group(session, endpoint, post, tenancy, name, f"Grants {name} its bucket-scoped policy")
@@ -113,7 +113,7 @@ def _prompt_oci_scim_app_credentials() -> tuple[str, str, str]:
         "credentials' grant, grant the 'User Administrator' app role "
         "(confirmed sufficient for both CustomerSecretKeys and this "
         "app's own secret regeneration — see "
-        "docs/cloud-credential-creation.md), skip Web Tier Policy, and "
+        "docs/topics/secrets/cloud-credentials/scoping.md), skip Web Tier Policy, and "
         "Activate it. Domain URL and Client ID aren't secret; Client "
         "Secret input is hidden and cached after this:"
     )
@@ -127,7 +127,8 @@ def _find_app_id(client, display_name: str) -> str:
     resources = client.list_apps(filter=f'displayName eq "{display_name}"').data.resources
     if not resources:
         raise RuntimeError(
-            f"no Confidential Application found with displayName={display_name!r} - register it in Console first, see docs/cloud-credential-creation.md"
+            f"no Confidential Application found with displayName={display_name!r} - register it in Console first, "
+            "see docs/topics/secrets/cloud-credentials/scoping.md"
         )
     return resources[0].id
 

@@ -1,6 +1,6 @@
-# Controller's Era A AppRole policy (ADR 0020, docs/openbao-auth.md).
+# Controller's Era A AppRole policy (ADR 0020, docs/topics/secrets/openbao-auth.md).
 # Applied by hand via that doc's runbook, not by Ansible — writing it
-# requires the initial root token, which docs/openbao.md's Init runbook
+# requires the initial root token, which docs/topics/secrets/openbao.md's Init runbook
 # already treats as something that must never touch a file or flow
 # through Ansible's result-capture.
 #
@@ -27,7 +27,7 @@ path "secret/data/cloud_credentials/rotation/*" {
 
 # So snapshot-push.sh can eventually authenticate as this role instead
 # of the operator exporting the root token by hand — see
-# docs/openbao-backup-restore.md. Read-only: this role can pull a
+# docs/topics/secrets/openbao-backup-restore.md. Read-only: this role can pull a
 # snapshot, never configure automated snapshots or anything else under
 # sys/storage.
 path "sys/storage/raft/snapshot" {

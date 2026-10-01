@@ -18,7 +18,7 @@ Tofu needs standing credentials before it can provision anything: a
 Proxmox API token from the start, an OPNsense API key once Phase 2
 lands, and the S3 credential for its own state backend
 (`opentofu-state` on `storage` —
-[`vm-provisioning.md`](../../vm-provisioning.md#state-backend--secrets)).
+[`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#state-backend--secrets)).
 The doc's original text assumed these stay outside OpenBao entirely,
 mirroring `openbao_utils/bootstrap.py`'s pre-OpenBao file-cache pattern —
 but that mechanism no longer exists in this repo. Track A

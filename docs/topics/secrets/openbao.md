@@ -1,0 +1,354 @@
+# OpenBao: Secrets Store Bootstrap
+
+`openbao` is this migration's replacement for the file-based secrets
+cache
+([ADR 0013](../../decisions/0013-secret-storage/revision-000.md)).
+This doc covers deploying it, its TLS cert, and getting it initialized
+and unsealed. Auth and policies are covered in
+[`openbao-auth.md`](openbao-auth.md); the secrets role migration is
+covered in [`secrets.md`](secrets.md). The backup/restore drill has
+its own doc too: [`openbao-backup-restore.md`](openbao-backup-restore.md).
+
+## Deployment
+
+Single-node, integrated raft storage, on `security` — same trust tier
+as `step-ca`/`tinyauth`/`lldap`
+([0017](../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)'s Context).
+`docker/openbao/configs/openbao.hcl.j2` renders the raft/listener
+config; `app_catalog.yaml`'s `openbao` entry seeds it into a `config`
+named volume the same way `dashy` seeds its `conf.yml`
+([`volumes.md`](../deploy/volumes.md)). `data` (raft state) and `certs` (TLS
+material) are separate named volumes — `data` must never be wiped by
+`cleanup.yaml`/a volume reset outside a deliberate restore; recovering
+it means restoring from the raft snapshot backup
+([`openbao-backup-restore.md`](openbao-backup-restore.md)), not just
+recreating the volume.
+
+No `backup:` entry in `app_catalog.yaml` — the generic `backup_agent`
+path stops the container and tars its volumes
+([`backup.md`](../disaster-recovery/backup.md)), which for OpenBao
+would mean sealing it (and a manual unseal per
+[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup cycle.
+OpenBao's own `bao operator raft snapshot save` is the backup mechanism
+here instead — see
+[`openbao-backup-restore.md`](openbao-backup-restore.md).
+
+No `caddy:` entry either, same reasoning `step-ca` already documents:
+an admin/secrets API isn't something to put behind an ordinary
+reverse-proxy vhost. Unlike step-ca, though, OpenBao does need
+reachability from other hosts eventually — `controller`-run plays on
+hosts other than `security` reach Vault's API for every secret now
+sourced from it. `compose.yaml.j2` publishes `8200` directly on the host
+(`0.0.0.0:8200:8200`), the same bypass-Caddy-but-still-TLS approach
+lldap's LDAPS listener uses (see [`lldap.md`](../services/lldap.md)) — not proxied
+HTTP-through-Caddy, since API/token clients don't want Caddy's
+forward-auth in front of them the way a browser app does. The hostname
+itself is a hand-written `extra_records` CNAME in
+`host_vars/security.yaml` — bind9's auto-generated CNAMEs only fire for
+apps with a `caddy:` route (see
+[`reverse-proxy-and-dns.md`](../../architecture/reverse-proxy-and-dns.md)),
+which this deliberately isn't, so it needed the same manual treatment
+`sso` already gets in the same file.
+
+`ui = false` in the rendered config — this repo's day-to-day OpenBao
+consumers are Ansible and, once the
+[CD agent project](../../projects/cd-agent.md) lands, the CD agent — not a
+human clicking through a browser. A human who needs to look inside
+Vault directly can still do it from the CLI (native `bao` on
+`security`, real TLS — see
+[`openbao-auth.md`](openbao-auth.md#runbook)) or `ssh -L
+8200:localhost:8200` for a one-off UI session; there's no standing
+need to expose it.
+
+## TLS
+
+`step_ca_cert` (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6,
+called once per app) issues OpenBao's leaf cert from step-ca and
+installs a `cert-renewer@openbao.timer`, the same one-time-issuance-
+then-renewal shape it uses for [lldap's LDAPS cert](../services/lldap.md) — same
+provisioner-password-for-initial-issuance/mTLS-for-renewal split, same
+`smallstep/step-cli` image rather than a host-installed `step` binary.
+Both instances install the same generic `cert-renewer@.service`/`.timer`
+templates to the same literal path
+(`/etc/systemd/system/cert-renewer@.service`, shared by every `%i`
+instance — there's only ever one file on disk), but the content is
+identical regardless of which instance renders it: per-app behavior
+(restart vs. `SIGHUP`, whether to chown the cert back to a non-root
+user) comes from that instance's own `/etc/cert-renewer/<app>.env`, not
+from branching in the template — see the section below for why openbao
+needs `RENEW_ACTION=signal` and a chown, and lldap needs neither.
+
+On a genuinely first deploy, the `certs` volume starts empty and
+`openbao.hcl`'s listener requires `tls_cert_file`/`tls_key_file` to
+exist — the container is expected to fail to start and be retried by
+`restart: unless-stopped` until Play 6 issues the cert and restarts it.
+This is the same bootstrap race [`lldap.md`](../services/lldap.md) documents for
+tinyauth's first-ever deploy; OpenBao's own exact failure mode on a
+missing cert file hasn't been independently confirmed (Vault/OpenBao's
+listener startup behavior here wasn't checked against upstream source
+before writing this), but the fallback either way is the same tolerated
+crash-loop, so nothing about first-deploy behavior depends on knowing
+the exact failure message.
+
+## Non-root user, and what it costs
+
+`openbao/openbao`'s own Dockerfile (checked directly, not inferred)
+creates a system user named `openbao`, `chown -R openbao:openbao
+/openbao` at build time, then `USER openbao` — the container process
+never runs as root. lldap has the same property but manages it itself
+(`LLDAP_UID`/`LLDAP_GID` env vars its own entrypoint reads); OpenBao's
+image has no such mechanism, so this repo has to handle two
+consequences directly:
+
+- A freshly-created named volume is root-owned, and the `openbao` user
+  can't write into one it doesn't own. Fixed for the raft data volume
+  by [`roles/openbao`](../../../ansible/roles/openbao) — a plain, guarded
+  `docker run --rm --user root ... chown -R openbao:openbao` that only
+  actually runs when the volume's current owner doesn't already match,
+  checked before every deploy. By username, not a hardcoded UID:
+  `adduser -S` assigns that number at image-build time, and it's not
+  this repo's business to pin it.
+
+  A one-shot `openbao-init` compose service (`depends_on:
+  condition: service_completed_successfully`) doesn't work for this:
+  Compose brings every service to "running" on `docker compose up`, and
+  a `restart: "no"` container that already exited successfully doesn't
+  count as running — so Compose restarts it on *every* `up`, which
+  `community.docker.docker_compose_v2` reports as changed,
+  unconditionally, forever. `openbao` is self-managed
+  (`compose_self_managed_apps`, same mechanism `caddy`/`bind9` use, see
+  [`deployment-flow.md`](../deploy/deployment-flow.md)'s Play 4) specifically so
+  this chown could be a plain guarded task instead.
+- `step ca certificate`/`step ca renew` both run as `--user root` too
+  (same freshly-created-volume issue `step_ca_cert` already documents),
+  so every issuance and every renewal leaves `fullchain.pem`/`privkey.pem`
+  root-owned — which the non-root `openbao` process then can't read.
+  `step_ca_cert`'s issuance task, and its `ExecStartPost=` chown line in
+  the shared `cert-renewer@.service` template (a no-op unless the
+  instance's own env file sets `CHOWN_IMAGE`), both hand the `certs`
+  volume back to `openbao:openbao` by the same by-username approach
+  right after `step` runs. This one was a plain Ansible task and a
+  systemd `ExecStart=` line from the start, never a compose service, so
+  it never hit the same problem.
+
+## Duplicate configuration warning
+
+Don't pass `command: ["server", "-config=/openbao/config/openbao.hcl"]`
+in `compose.yaml.j2` — the image's own entrypoint already scans
+`/openbao/config` as a directory by default
+([Docker Hub](https://hub.docker.com/r/openbao/openbao): "the server
+will load any HCL or JSON configuration files placed here by binding a
+volume"), so an explicit `-config=` flag loads the same file a second
+time, producing `WARNING: ignoring duplicate configuration found in
+directory: /openbao/config/openbao.hcl`. `command: ["server"]` alone is
+correct and relies on that default scan.
+
+## Healthcheck
+
+`compose.yaml.j2` runs `bao status -address=https://127.0.0.1:8200`
+with `BAO_SKIP_VERIFY: true` (confirmed against
+[openbao.org's environment-variable reference](https://openbao.org/docs/commands/#bao_skip_verify) —
+loopback-only, against our own internal CA's cert, so there's no real
+trust decision being loosened here, unlike using it against a real
+remote OpenBao). Worth knowing before treating "unhealthy" here the
+same as any other app in this repo: `bao status` exits non-zero
+whenever OpenBao is *sealed or uninitialized*, not just when it's
+genuinely down (confirmed against openbao.org's own CLI exit-code
+docs for the sealed case: it's a "remote error", exit 2; the
+uninitialized case isn't separately documented there, but it's the
+same category of "server up, not yet able to serve" response, and
+`bao status`'s own output distinguishes `Initialized: false` the same
+way it reports `Sealed: true` — treating both as the same class of
+"unhealthy" here, not confirmed byte-for-byte against a live exit
+code). Since
+[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) means every restart
+leaves OpenBao sealed until a human runs the unseal command above
+(and a genuinely fresh deploy starts out uninitialized on top of
+that), this container will show unhealthy in Beszel/Uptime-Kuma for
+both stretches — an accurate reflection of "not currently serving
+anything", not a false alarm, but a different meaning than "unhealthy"
+carries for every other app here.
+
+## Cert renewal uses SIGHUP, not a restart
+
+`cert-renewer@openbao`'s `ExecStartPost` sends `SIGHUP`, not a restart
+— driven by `RENEW_ACTION=signal` in openbao's own
+`/etc/cert-renewer/openbao.env` (lldap's instance sets
+`RENEW_ACTION=restart` instead, since a restart is free for it — no
+seal state to lose). Restarting OpenBao on every renewal would reseal
+the vault at whatever cadence cert renewal fires, not just on reboot —
+undermining
+[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)'s cost-benefit premise
+that unseal only costs a human at the moments they're already at the
+keyboard.
+
+Three things back the SIGHUP approach:
+
+- OpenBao's TCP listener documents `tls_cert_file`/`tls_key_file` as
+  "reloads-on-SIGHUP"
+  ([openbao.org](https://openbao.org/docs/configuration/listener/tcp/)).
+- HashiCorp's own Vault SIGHUP reference (OpenBao's upstream, same
+  listener code lineage) is explicit that a SIGHUP reloads listener
+  TLS certs and leaves everything else — seal state included —
+  untouched: ["TLS certificates used by Vault listeners are
+  reloaded"](https://support.hashicorp.com/hc/en-us/articles/5767318985107-Vault-SIGHUP-Behavior),
+  with no mention of seal state anywhere in that document.
+- `dumb-init` (this image's entrypoint) forwards received signals to
+  its child by default — confirmed against its own README, not
+  inferred from general container-init behavior.
+
+One real caveat: OpenBao issue
+[#2915](https://github.com/openbao/openbao/issues/2915) reports a
+SIGHUP-triggered seal-client wedge on 2.5.2, but only for the
+combination of `seal "gcpckms"` plus a declarative `audit "file"`
+config stanza. This deployment does use a declarative `audit "file"`
+stanza (see the Audit logging section below) but stays on Shamir seal,
+not `gcpckms` — the specific combination the issue reports — so this
+doesn't apply here. Worth re-checking again if the seal type ever
+changes.
+
+`step_ca_cert/molecule/signal_chown`'s own scenario runs the exact
+`ExecStartPost` command, confirms `StartedAt` doesn't change (proving
+it didn't restart), and confirms — via a raw `openssl s_client` TLS
+handshake, not `bao status` — that the listener is actually serving the
+renewed cert's serial afterwards, not just that the file on disk
+changed (100.0%, in `ansible/molecule-coverage/thresholds.yaml`'s
+`step_ca_cert` entry). A real forced renewal on
+`security` itself has since confirmed the same thing outside Molecule:
+`bao status` before and after showed an identical `Active Since`
+timestamp and unchanged raft indices, and `docker ps` showed the
+container's uptime never reset — `dumb-init` forwarding the signal
+through to `bao`, and `bao` reloading without resealing, are no longer
+documentation-only claims.
+
+## Init and unseal — manual, via `init_unseal.py`
+
+[0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) chose manual Shamir
+unseal over cloud auto-unseal specifically because a human is already
+at the keyboard for every reboot `security` has ever had. Run from
+`controller` via `tools/openbao_utils/init_unseal.py` (paramiko,
+driving `docker exec` on `security` remotely) rather than SSHing in
+and typing the command by hand - but the same constraints that kept
+this out of Ansible still hold, and the wrapper is built to respect
+them, not work around them:
+
+- `bao operator init`'s *output* — the unseal key shares and initial
+  root token — is the sensitive part, and it only exists at the moment
+  the command runs. `init_unseal.py` doesn't capture, log, or write it
+  anywhere; both subcommands print the remote output straight to the
+  operator's own terminal as it arrives, the same as typing the
+  command by hand would.
+- `bao operator unseal`'s prompt for each key share is masked input:
+  read locally via `getpass` and written only to the SSH channel's own
+  stdin - never a positional argument, so it never touches this
+  process's argv or `ps` on either end.
+- Running either through Ansible (rather than an operator's own
+  terminal) means the output flows through Ansible's own
+  result-capture/`--diff` machinery — exactly what `no_log: true`
+  exists to prevent elsewhere in this repo, and init/unseal output
+  can't be `no_log`-suppressed and also be legible to the human who
+  needs to transcribe it. This is why it's a standalone script an
+  operator runs directly, never an `ansible-playbook` task.
+
+Both subcommands keep driving `docker exec` against the live
+container, permanently, by necessity — see
+[ADR 0034](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md)'s
+Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
+but the container crash-loops until `step_ca_cert` issues its leaf
+cert, so there's no trustworthy network path to it during that window.
+This is the one place in the whole OpenBao CLI surface that stays
+`docker exec`-based — everywhere else now uses the native `bao`
+binary directly (`security` or `controller`, whichever you're on), or
+`bao_session.py` (`controller` only — see
+[ADR 0033](../../decisions/0033-where-the-interactive-bao-session-runs/revision-000.md))
+when starting from an AppRole login; see
+[`openbao-auth.md`](openbao-auth.md#runbook).
+
+### First init (once, ever, per raft dataset)
+
+From `controller`:
+
+```sh
+cd tools && python3 -m openbao_utils.init_unseal init
+```
+
+3 shares / 2 threshold (baked into the script, not a flag) — not the
+CLI's own 5/3 default: this is a solo-operator homelab, so more shares
+than storage locations doesn't add security, just more copies of the
+same material to account for. Threshold 2-of-3 means losing any *one*
+stored copy doesn't lock you out, while no single copy unseals it
+alone.
+
+The command prints 3 unseal key shares and an initial root token,
+**once** — nothing re-displays them later. Before doing anything else:
+
+1. Copy all 3 unseal key shares and the root token into the password
+   manager entry this repo already uses for the backup GPG key and (once
+   generated) the snapshot read-only credentials
+   ([`create_snapshot_readonly_keys.py`](../../../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
+   same offline handling, one entry.
+2. Print or write down one of the three shares and store it physically
+   offline, separate from the password manager — the same
+   two-copies-not-one pattern [`backup.md`](../disaster-recovery/backup.md)
+   uses for the GPG private key.
+3. Do not leave any of this in shell scrollback, a file on `security`,
+   or a file on `controller`. Nothing here is written to
+   `ansible/files/secrets/` — that cache only holds the three
+   permanent bootstrap exceptions now (`main-domain`,
+   `openbao-controller-role-id`/`-secret-id`).
+
+The root token is not one of 0017's two recovery-critical items, but
+treat it with the same discipline for now: it's the only credential
+that can configure anything in a freshly-initialized, empty Vault.
+[`openbao-auth.md`](openbao-auth.md) is what gives
+`controller` its own AppRole and revokes this initial root token once
+that AppRole is proven — don't revoke it before then, and don't leave
+it standing indefinitely after.
+
+### Unsealing (every restart of the `openbao` container)
+
+From `controller`, once per share:
+
+```sh
+cd tools && python3 -m openbao_utils.init_unseal unseal
+```
+
+Run it 2 times (the threshold above), each time pasting one of the 3
+shares when prompted. To check seal state without spending a share, on
+`security` itself: `bao status -address=https://127.0.0.1:8200
+-tls-server-name=openbao.{{ caddy_domain }}
+-ca-cert=/etc/step-ca/root_ca.crt` - native CLI, real TLS, no login
+needed.
+
+## Audit logging
+
+A declarative `audit "file"` device (`docker/openbao/configs/
+openbao.hcl.j2`) writes every request/response to `stdout`, captured
+by Docker's own log driver — not the API/CLI route, which needs
+`unsafe_allow_api_audit_creation` and a privileged token neither of
+which this deployment has. `logging:` on the `openbao` compose service
+caps growth (`max-size`/`max-file`). See
+[ADR 0026](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+for why, and its threat model for what this does and doesn't expose.
+
+## Secrets
+
+Nothing in `secret_catalog.yaml` backs OpenBao's own credentials —
+by design, this is the thing everything else in that catalog will
+eventually move into. The one catalog entry this stage adds,
+`uptime-kuma-push-url-cert-renewer-openbao`, is unrelated: it's the
+push-monitor URL for the cert-renewal timer, same shape as
+[`lldap.md`](../services/lldap.md)'s identical entry for lldap.
+
+## Open follow-up
+
+`cert-renewer@openbao.timer` hasn't yet fired entirely on its own
+schedule, unattended — every renewal so far has been forced by hand.
+Every piece it's built from (`ExecCondition`'s gate, the
+renew/chown/reload sequence itself) has been exercised for real; this
+is closing the loop on the last untested piece, not proving anything
+new.
+
+This doesn't block Track A's completion — see the
+[CD agent project doc](../../projects/cd-agent.md) for what's still in
+progress in the broader migration.

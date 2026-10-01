@@ -18,7 +18,7 @@ The maintainer workstation's configuration is reproducible from the repo like ev
 
 ## Context
 
-[ADR 0001](../0001-host-configuration-reproducible-from-repo/revision-000.md) makes Ansible the only way a host is configured. [`vm-provisioning.md`](../../vm-provisioning.md) places the 4XX desktop range, including VM 401, outside Tofu and Ansible management because of manual OS installs and GPU passthrough.
+[ADR 0001](../0001-host-configuration-reproducible-from-repo/revision-000.md) makes Ansible the only way a host is configured. [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md) places the 4XX desktop range, including VM 401, outside Tofu and Ansible management because of manual OS installs and GPU passthrough.
 
 VM 401 runs Ubuntu 26.04 Desktop, whose GNOME session is Wayland-only, so there is no X11 session for a remote-display shim to attach to. The desktop ships its own RDP service, with one mode that shares the live session and one that starts a headless session at login.
 
@@ -28,7 +28,7 @@ The workstation runs none of the infrastructure tooling ([ADR 0056](../0056-cred
 
 ## Decision
 
-- **Scope.** Ansible configures the workstation after a manual OS install. Tofu still does not manage it. The out-of-scope statement in [`vm-provisioning.md`](../../vm-provisioning.md) narrows to installation and hardware passthrough when this is built.
+- **Scope.** Ansible configures the workstation after a manual OS install. Tofu still does not manage it. The out-of-scope statement in [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md) narrows to installation and hardware passthrough when this is built.
 - **Own inventory group.** The workstation is in none of `managed_hosts`, `app_hosts`, or `patched_hosts`, and its play is run deliberately, not by a general job.
 - **Applied from the operator host over SSH,** under the same handling as [ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md): a dedicated key and account, no `fetch` or `synchronize`, facts and results treated as untrusted. The management account accepts connections only from the operator host, which the workstation cannot reach in return.
 - **Remote access.** The desktop's RDP service over TLS with a per-user credential, reachable only from the maintainer's client addresses. Hypervisor console access is reserved for recovery.

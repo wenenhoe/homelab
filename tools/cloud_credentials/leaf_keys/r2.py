@@ -56,7 +56,7 @@ def r2_rotation_token() -> str:
     keys, Cloudflare has no equivalent of "manage users but only
     R2-related permissions" — this credential can mint a token with
     *any* permission the account holder has, not just R2 ones. See
-    docs/cloud-credential-creation.md's R2 section for why that's
+    docs/topics/secrets/cloud-credentials/scoping.md's R2 section for why that's
     accepted rather than avoided, and what narrows the blast radius in
     the meantime (a future secrets-manager migration is the intended
     next mitigation, not this script).

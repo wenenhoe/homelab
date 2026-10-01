@@ -112,5 +112,5 @@ neither has native expiry. This supersedes only the OCI portion of
   `rotation_keys/oci_bootstrap.py`) has been removed, not left
   alongside the new path.
 
-See `cloud-credential-creation.md`'s Credential expiry section for the
+See `cloud-credentials/expiry.md`'s Credential expiry section for the
 resulting setup/verification steps.

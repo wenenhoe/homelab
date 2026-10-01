@@ -78,7 +78,7 @@ field is needed.
   `tools/tests/doc_scripts/`.
 - [`docs/projects/README.md`](../../projects/README.md)'s lifecycle
   table, closing checklist, and "When a project finishes" change, and
-  [`docs/ci.md`](../../ci.md) describes the new job.
+  [`docs/topics/engineering/ci/doc-checks.md`](../../topics/engineering/ci/doc-checks.md) describes the new job.
 - A revision can sit `approved` after part of its work has merged.
   `approved` still means only that no open assumptions remain and
   implementation may proceed.

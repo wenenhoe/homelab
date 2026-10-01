@@ -1,6 +1,6 @@
 ---
 # One-time control-node action: pins a static header message in each
-# Telegram forum topic listed in docs/telegram-notifications.md's
+# Telegram forum topic listed in docs/topics/monitoring/telegram-notifications.md's
 # table. Safe to re-run — already-pinned topics are skipped (see
 # ansible/roles/telegram_topic_pins/tasks/pin.yaml).
 #

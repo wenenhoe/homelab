@@ -255,7 +255,7 @@ def _send_telegram_alert(lines: list[str]) -> None:
     `controller` (where this actually runs - see ADR 0015) deliberately
     isn't one. Also not that role's parse_mode: this call uses HTML,
     not legacy Markdown - see _escape_telegram_html for why. See
-    docs/telegram-notifications.md for the shared conventions (topic
+    docs/topics/monitoring/telegram-notifications.md for the shared conventions (topic
     routing) this still follows."""
     token = _read_telegram_secret("telegram-token")
     chat_id = _read_telegram_secret("telegram-chat-id")

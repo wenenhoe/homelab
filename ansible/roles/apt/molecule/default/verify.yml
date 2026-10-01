@@ -28,7 +28,7 @@
     # gets created here regardless of what the role's own upgrade did -
     # confirming that is confirming this scenario genuinely never
     # exercises the role's reboot branch, not just that it happened not
-    # to this run. See docs/ci.md#molecule-coverage-gate for why a real
+    # to this run. See docs/topics/engineering/ci/gates.md#molecule-coverage-gate for why a real
     # reboot isn't tested in a separate scenario either: a privileged
     # container's `reboot` syscall isn't scoped to the container - it
     # reboots the underlying Docker host's own kernel (confirmed

@@ -9,7 +9,7 @@
 # Targets ONE host — pass --limit explicitly. A volume name referenced by
 # docker_container that doesn't already exist gets silently auto-created
 # rather than erroring, so this playbook checks existence itself first and
-# fails rather than relying on that to fail loudly. See docs/volume-maintenance.md.
+# fails rather than relying on that to fail loudly. See docs/topics/deploy/volume-maintenance.md.
 #
 # Required -e vars:
 #   volume_rm_app     — app name (matches its compose_deploy_dir subdir
@@ -18,7 +18,7 @@
 #   volume_rm_paths   — list of paths, relative to the volume root, to
 #                       remove (e.g. a SQLite reset needs the db file AND
 #                       its -wal/-shm sidecars listed explicitly — see
-#                       docs/volume-maintenance.md)
+#                       docs/topics/deploy/volume-maintenance.md)
 #   volume_rm_confirm — must be explicitly `true`; no default
 #
 # Optional -e vars:

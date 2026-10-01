@@ -9,7 +9,7 @@ deliberately not the same shape:
   credential a script reads on every backup run — not a one-time value
   copied into the break-glass password-manager entry.
 - It carries the same quarterly native expiry every other leaf gets
-  (see docs/cloud-credential-creation.md), rotated by hand via
+  (see docs/topics/secrets/cloud-credentials/expiry.md), rotated by hand via
   --rotate the same way create_leaf_keys.py's leaves are, since it's
   now part of the ordinary rotation cycle rather than a dormant
   disaster-recovery credential.

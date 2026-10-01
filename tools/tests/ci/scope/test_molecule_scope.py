@@ -83,7 +83,7 @@ class TestOwnDirectory:
 
     def test_unrelated_path_queues_nothing(self, fake):
         fake.scenario("alpha")
-        assert fake.roles_for("docs/ci.md") == []
+        assert fake.roles_for("docs/topics/engineering/ci/pipeline.md") == []
 
 
 BASE_CONFIG = """\
@@ -235,13 +235,13 @@ class TestHelperTask:
     def test_missing_tasks_from_file_is_an_error(self, fake):
         fake.scenario("alpha", converge=CONVERGE_WITH_HELPER.format(tasks_from="gone.yaml"))
         with pytest.raises(ms.ScopeError, match="matches no file"):
-            fake.roles_for("docs/ci.md")
+            fake.roles_for("docs/topics/engineering/ci/pipeline.md")
 
     def test_templated_include_role_is_an_error(self, fake):
         templated = "- hosts: all\n  tasks:\n    - ansible.builtin.include_role:\n        name: '{{ which }}'\n"
         fake.scenario("alpha", converge=templated)
         with pytest.raises(ms.ScopeError, match="templated"):
-            fake.roles_for("docs/ci.md")
+            fake.roles_for("docs/topics/engineering/ci/pipeline.md")
 
 
 class TestRoleInclude:
@@ -299,12 +299,12 @@ class TestRoleInclude:
 
     def test_collection_role_names_are_ignored(self, fake):
         fake.scenario("alpha", converge=self.include("community.general.thing"))
-        assert fake.roles_for("docs/ci.md") == []
+        assert fake.roles_for("docs/topics/engineering/ci/pipeline.md") == []
 
     def test_including_a_role_that_does_not_exist_is_an_error(self, fake):
         fake.scenario("alpha", converge=self.include("ghost"))
         with pytest.raises(ms.ScopeError, match="not a directory"):
-            fake.roles_for("docs/ci.md")
+            fake.roles_for("docs/topics/engineering/ci/pipeline.md")
 
 
 class TestComputedPath:
@@ -395,7 +395,7 @@ class TestComputedPath:
 
     def test_nonexistent_computed_path_is_ignored(self, fake):
         fake.scenario("alpha", converge="- x: \"{{ playbook_dir ~ '/../../../../nope.yaml' }}\"\n")
-        assert fake.roles_for("docs/ci.md") == []
+        assert fake.roles_for("docs/topics/engineering/ci/pipeline.md") == []
 
     def test_literal_continued_with_a_tilde_is_a_partial_path_and_ignored(self, fake):
         fake.write("ansible/files/telegram-pins/.lock-")
@@ -431,12 +431,12 @@ class TestMoleculeYmlPath:
     def test_missing_referenced_path_is_an_error(self, fake):
         fake.scenario("alpha", molecule_yml=MOLECULE_YML)
         with pytest.raises(ms.ScopeError, match="doesn't exist"):
-            fake.roles_for("docs/ci.md")
+            fake.roles_for("docs/topics/engineering/ci/pipeline.md")
 
     def test_token_used_mid_string_is_an_error(self, fake):
         fake.scenario("alpha", molecule_yml="provisioner:\n  env:\n    X: prefix:${MOLECULE_PROJECT_DIRECTORY}/y\n")
         with pytest.raises(ms.ScopeError, match="mid-string"):
-            fake.roles_for("docs/ci.md")
+            fake.roles_for("docs/topics/engineering/ci/pipeline.md")
 
 
 class TestSymlink:
@@ -457,7 +457,7 @@ class TestSymlink:
         fake.scenario("alpha")
         fake.link("ansible/roles/alpha/molecule/default/files/x", "docker/missing.yaml")
         with pytest.raises(ms.ScopeError, match="dangling"):
-            fake.roles_for("docs/ci.md")
+            fake.roles_for("docs/topics/engineering/ci/pipeline.md")
 
     def test_symlink_leaving_the_repo_is_an_error(self, fake, tmp_path_factory):
         fake.scenario("alpha")
@@ -468,7 +468,7 @@ class TestSymlink:
         path.parent.mkdir(parents=True)
         os.symlink(target, path)
         with pytest.raises(ms.ScopeError, match="outside the repository"):
-            fake.roles_for("docs/ci.md")
+            fake.roles_for("docs/topics/engineering/ci/pipeline.md")
 
 
 class TestFilterPlugin:

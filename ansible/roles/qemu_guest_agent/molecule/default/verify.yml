@@ -18,7 +18,7 @@
         src: /lib/systemd/system/qemu-guest-agent.service
       register: qemu_guest_agent_unit
 
-    # Guards the role's design decision (see docs/qemu-guest-agent.md):
+    # Guards the role's design decision (see docs/topics/infra/qemu-guest-agent.md):
     # no enable/start task, because this unit is udev/device-activated,
     # not boot-enabled. If Ubuntu's packaging ever adds a real
     # [Install] section, this fails loudly instead of the role silently
@@ -32,5 +32,5 @@
           - "'WantedBy=' not in qemu_guest_agent_unit_content"
         fail_msg: >-
           qemu-guest-agent.service no longer matches the udev-activated
-          shape docs/qemu-guest-agent.md documents - re-verify against
+          shape docs/topics/infra/qemu-guest-agent.md documents - re-verify against
           the real package and update the role/doc together.

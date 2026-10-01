@@ -282,7 +282,7 @@ class TestTelegramAlert:
     def test_no_topic_id_cached_omits_the_param_instead_of_sending_empty(self, mock_post, mock_b2, mock_oci, mock_r2):
         # Telegram's API rejects message_thread_id outright if it's
         # passed empty rather than ignoring it (see
-        # docs/telegram-notifications.md) - must be omitted, not "".
+        # docs/topics/monitoring/telegram-notifications.md) - must be omitted, not "".
         mock_post.return_value = MagicMock(raise_for_status=lambda: None)
         check_freshness.main()
         assert "message_thread_id" not in mock_post.call_args.kwargs["data"]

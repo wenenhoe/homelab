@@ -25,7 +25,7 @@ services:
     networks:
       - caddy-proxy
     restart: unless-stopped
-    # Caps disk growth from the audit device above (docs/openbao.md's
+    # Caps disk growth from the audit device above (docs/topics/secrets/openbao.md's
     # Audit logging section, ADR 0026) - every Vault operation writes a
     # line here, not just app-level events like every other service's
     # logs, so the default uncapped json-file driver bites here in a
@@ -36,12 +36,12 @@ services:
         max-size: "50m"
         max-file: "5"
     # Published directly (not routed through Caddy), same as lldap's
-    # LDAPS listener - see docs/openbao.md. The certs volume starts
+    # LDAPS listener - see docs/topics/secrets/openbao.md. The certs volume starts
     # empty on a fresh deploy, so this crash-loops until step_ca_cert
     # issues the leaf cert (deploy.yaml's Play 6) - the same tolerated
-    # bootstrap race docs/lldap.md documents for tinyauth. The data
+    # bootstrap race docs/topics/services/lldap.md documents for tinyauth. The data
     # volume, unlike certs, is chowned by roles/openbao itself (see
-    # that role, and docs/openbao.md) BEFORE this container ever
+    # that role, and docs/topics/secrets/openbao.md) BEFORE this container ever
     # starts, not by anything in this compose file — see that role's
     # own comment for why a persistent compose service turned out to
     # be the wrong tool for that one-time fix.
@@ -55,7 +55,7 @@ services:
     # not only on a genuine failure. That's the accurate state (sealed
     # = not serving), not a false alarm, but it means "unhealthy" here
     # reads differently than it does for every other app in this repo.
-    # See docs/openbao.md.
+    # See docs/topics/secrets/openbao.md.
     #
     # BAO_SKIP_VERIFY (not a real trust decision): this is loopback,
     # self-signed-from-our-own-internal-CA - the healthcheck only needs

@@ -46,7 +46,7 @@ popular."
 
 There's also a secondary, non-technical motive worth naming honestly:
 this repo already carries a portfolio/compliance-demonstration angle
-([`nist-800-53-alignment.md`](../../nist-800-53-alignment.md), a
+([`nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md), a
 narrative alignment doc, not a compliance artifact). A recognizable
 baseline (CIS-shaped) has legibility value for that purpose distinct
 from its actual security value — worth naming as a factor, not

@@ -1,7 +1,7 @@
 ---
 # Checks the cert Caddy is actually serving, not a file on disk (see
 # check.sh.j2's header). One check per host: caddy_domain and its
-# wildcard cert are both per-host (see docs/telegram-notifications.md),
+# wildcard cert are both per-host (see docs/topics/monitoring/telegram-notifications.md),
 # so there's nothing to enumerate beyond picking one routed hostname to
 # connect to - same source data and first-match selection Caddyfile.j2
 # itself uses for its *.{{ caddy_domain }} block.
@@ -62,7 +62,7 @@
       on `{{ ansible_facts['hostname'] }}` - check `journalctl -u cert-expiry-check.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
 
-# Only ever pushes on success (see docs/uptime-kuma.md) — failure
+# Only ever pushes on success (see docs/topics/monitoring/uptime-kuma.md) — failure
 # alerting stays on the telegram_notify unit above, unchanged. One
 # concrete unit per host, not a systemd @-template - this role already
 # runs once per app_host via Ansible's own per-host loop, and each

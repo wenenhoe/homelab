@@ -41,7 +41,7 @@ of failing loudly.
 Replace both containers with two host-level Ansible roles —
 `step_ca_client` and `step_ca_cert` — that issue and renew the LDAPS cert
 from this repo's own internal `step-ca` (see
-[`step-ca.md`](../../step-ca.md)) instead of an external ACME provider.
+[`step-ca.md`](../../topics/services/step-ca.md)) instead of an external ACME provider.
 Renewal runs as a systemd `cert-renewer@lldap.timer`, adapted from
 Smallstep's own canonical renewal-unit pattern, not another
 long-running loop in a container.
@@ -55,7 +55,7 @@ via `docker compose` directly. A renewal failure is now a failed
 systemd unit (`systemctl status cert-renewer@lldap.service`) that pages
 a Telegram topic via `OnFailure=`, not a swallowed exception inside a
 best-effort shell loop — see
-[`lldap.md`](../../lldap.md#why-renewal-is-a-systemd-timer-not-an-in-container-daemon)
+[`lldap.md`](../../topics/services/lldap.md#why-renewal-is-a-systemd-timer-not-an-in-container-daemon)
 for the full mechanism.
 
 lldap's LDAPS cert no longer depends on DigitalOcean DNS-01 at all.

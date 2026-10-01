@@ -16,14 +16,8 @@ from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _responses import response
 from openbao_utils import audit
-
-
-def _mock_response(status_code: int, json_body: dict | None = None):
-    resp = MagicMock(status_code=status_code, text=str(json_body))
-    resp.json.return_value = json_body or {}
-    resp.raise_for_status = MagicMock() if status_code < 400 else MagicMock(side_effect=Exception(str(status_code)))
-    return resp
 
 
 @pytest.fixture
@@ -61,7 +55,7 @@ class TestAuditOci:
 
         def get_side_effect(url, params=None):
             if "user.ocid eq" in params.get("filter", ""):
-                return _mock_response(
+                return response(
                     200,
                     {
                         "Resources": [
@@ -70,7 +64,7 @@ class TestAuditOci:
                         ]
                     },
                 )
-            return _mock_response(200, {"Resources": []})
+            return response(200, {"Resources": []})
 
         session.get.side_effect = get_side_effect
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
@@ -89,7 +83,7 @@ class TestAuditOci:
     def test_filter_query_scoped_to_the_correct_leaf_user(self, mock_session, cached_values):
         cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
         session = MagicMock()
-        session.get.return_value = _mock_response(200, {"Resources": []})
+        session.get.return_value = response(200, {"Resources": []})
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         audit.audit_oci()
@@ -209,8 +203,8 @@ class TestAuditLocal:
 
 
 def _mock_b2_session(keys):
-    auth_resp = _mock_response(200, {"authorizationToken": "tok", "apiUrl": "https://api.example.com", "accountId": "acct"})
-    list_resp = _mock_response(200, {"keys": keys})
+    auth_resp = response(200, {"authorizationToken": "tok", "apiUrl": "https://api.example.com", "accountId": "acct"})
+    list_resp = response(200, {"keys": keys})
     session = MagicMock()
     session.get.return_value = list_resp
     return auth_resp, session
@@ -274,7 +268,7 @@ class TestAuditB2:
 
 
 def _run_r2_with_tokens(tokens):
-    resp = _mock_response(200, {"success": True, "result": tokens})
+    resp = response(200, {"success": True, "result": tokens})
     session = MagicMock()
     session.get.return_value = resp
     with (

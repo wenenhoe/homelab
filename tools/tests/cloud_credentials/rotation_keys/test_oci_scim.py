@@ -6,10 +6,11 @@ nothing here talks to a real tenancy.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 import requests
+from _responses import response
 from cloud_credentials.rotation_keys import oci_scim
 
 
@@ -28,7 +29,7 @@ class TestOciScim:
 
     @patch.object(oci_scim.requests, "post")
     def test_access_token_uses_client_credentials_grant(self, mock_post):
-        mock_post.return_value = MagicMock(raise_for_status=lambda: None, json=lambda: {"access_token": "tok"})
+        mock_post.return_value = response(json_body={"access_token": "tok"})
         token = oci_scim.oci_scim_access_token("https://x", "cid", "csec")
         assert token == "tok"
         sent = mock_post.call_args
@@ -37,14 +38,14 @@ class TestOciScim:
 
     @patch.object(oci_scim.requests, "post")
     def test_session_carries_bearer_token_and_domain_url(self, mock_post):
-        mock_post.return_value = MagicMock(raise_for_status=lambda: None, json=lambda: {"access_token": "tok"})
+        mock_post.return_value = response(json_body={"access_token": "tok"})
         session, domain_url = oci_scim.oci_scim_session()
         assert domain_url == "https://idcs-example.identity.oraclecloud.com"
         assert session.headers["Authorization"] == "Bearer tok"
 
     @patch.object(oci_scim.requests, "post")
     def test_identity_domains_client_targets_the_cached_domain_url(self, mock_post):
-        mock_post.return_value = MagicMock(raise_for_status=lambda: None, json=lambda: {"access_token": "tok"})
+        mock_post.return_value = response(json_body={"access_token": "tok"})
         client = oci_scim.oci_identity_domains_client()
         assert client.base_client.endpoint == "https://idcs-example.identity.oraclecloud.com"
 

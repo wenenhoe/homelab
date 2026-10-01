@@ -90,6 +90,9 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   `root` is an empty directory standing in for a repository root, defined
   in `tools/tests/doc_scripts/conftest.py` and in
   `tools/tests/ci/conftest.py`.
+  `response(status_code, json_body, text)` (`tools/tests/_responses.py`)
+  builds a real `requests.Response`; use it wherever the code under test
+  reads one, in `tools/tests/`.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,

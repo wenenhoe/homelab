@@ -10,14 +10,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _responses import response
 from cloud_credentials.rotation_keys import oci_bootstrap
-
-
-def _mock_response(status_code: int, json_body: dict | None = None, text: str = ""):
-    resp = MagicMock(status_code=status_code, text=text or str(json_body))
-    resp.json.return_value = json_body or {}
-    resp.raise_for_status = MagicMock() if status_code < 400 else MagicMock(side_effect=Exception(f"{status_code} {text}"))
-    return resp
 
 
 def seed_scim_app_credentials(rotation_vault):
@@ -101,7 +95,7 @@ class TestRotateOciRotationKey:
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_token.side_effect = ["old-tok", "new-tok"]
         session = mock_session_cls.return_value
-        session.post.return_value = _mock_response(201, {"clientSecret": "NEW_SECRET"})
+        session.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
 
         oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
@@ -125,7 +119,7 @@ class TestRotateOciRotationKey:
     def test_regenerate_failure_leaves_old_secret_untouched(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth, rotation_vault):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         session = mock_session_cls.return_value
-        session.post.return_value = _mock_response(403, text="insufficient_scope")
+        session.post.return_value = response(403, text="insufficient_scope")
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
@@ -143,7 +137,7 @@ class TestRotateOciRotationKey:
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_token.side_effect = ["old-tok", oci_bootstrap.requests.HTTPError("network blip")]
         session = mock_session_cls.return_value
-        session.post.return_value = _mock_response(201, {"clientSecret": "NEW_SECRET"})
+        session.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
@@ -158,7 +152,7 @@ class TestRotateOciRotationKey:
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_token.side_effect = ["old-tok", "new-tok"]
         session = mock_session_cls.return_value
-        session.post.return_value = _mock_response(201, {"clientSecret": "NEW_SECRET"})
+        session.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
         rotation_vault.seed("_rotation-key-oci-created-at", "2020-01-01T00:00:00+00:00")
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")

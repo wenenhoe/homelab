@@ -8,9 +8,10 @@ from __future__ import annotations
 import hashlib
 import re
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from _responses import response
 from cloud_credentials.expiry import QUARTERLY_DAYS
 from cloud_credentials.leaf_keys import r2
 
@@ -36,8 +37,8 @@ class TestR2RotationToken:
 
 
 def _permission_groups_response():
-    return MagicMock(
-        json=lambda: {
+    return response(
+        json_body={
             "success": True,
             "result": [
                 {"name": "Workers R2 Storage Bucket Item Write", "id": "grp-write"},
@@ -48,7 +49,7 @@ def _permission_groups_response():
 
 
 def _create_token_response(token_id, token_value):
-    return MagicMock(json=lambda: {"success": True, "result": {"id": token_id, "value": token_value}})
+    return response(json_body={"success": True, "result": {"id": token_id, "value": token_value}})
 
 
 class TestR2Rotation:
@@ -65,7 +66,7 @@ class TestR2Rotation:
         session = mock_session_cls.return_value
         session.get.return_value = _permission_groups_response()
         session.post.return_value = _create_token_response("NEW_TOKEN_ID", "new-token-value")
-        session.delete.return_value = MagicMock(json=lambda: {"success": True})
+        session.delete.return_value = response(json_body={"success": True})
 
         ok = r2.rotate_r2(["write"])
 

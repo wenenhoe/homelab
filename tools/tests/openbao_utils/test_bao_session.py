@@ -19,6 +19,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _responses import response
 from openbao_utils import bao_session
 
 
@@ -55,7 +56,7 @@ class TestServerVersion:
         # requests.Response instead, per openbao.org's own /sys/health
         # docs. Treated the same as any other read failure here.
         mock_client = MagicMock()
-        mock_client.sys.read_health_status.return_value = MagicMock(name="requests.Response")
+        mock_client.sys.read_health_status.return_value = response(503)
         assert bao_session.server_version(mock_client) is None
 
     def test_returns_none_on_any_exception(self):

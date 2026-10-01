@@ -8,6 +8,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _responses import response
 from b2sdk.v2 import FullApplicationKey
 from cloud_credentials import create_snapshot_write_keys as snap
 
@@ -23,7 +24,7 @@ class TestMintR2:
     @patch.object(snap.requests, "Session")
     def test_mints_write_leaf_scoped_to_the_snapshot_bucket_with_quarterly_expiry(self, mock_session_cls, _mock_groups, mock_verify):
         session = mock_session_cls.return_value
-        session.post.return_value = MagicMock(json=lambda: {"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
+        session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
         ok = snap.mint_r2()
 
@@ -48,7 +49,7 @@ class TestMintR2:
     @patch.object(snap.requests, "Session")
     def test_does_not_cache_a_credential_that_fails_verification(self, mock_session_cls, _mock_groups, _mock_verify):
         session = mock_session_cls.return_value
-        session.post.return_value = MagicMock(json=lambda: {"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
+        session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
         ok = snap.mint_r2()
 
@@ -170,7 +171,7 @@ class TestRotateR2:
     @patch.object(snap.requests, "Session")
     def test_verifies_new_token_before_revoking_the_old_one(self, mock_session_cls, _mock_groups, _mock_verify, mock_delete):
         session = mock_session_cls.return_value
-        session.post.return_value = MagicMock(json=lambda: {"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})
+        session.post.return_value = response(json_body={"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})
 
         ok = snap.rotate_r2()
 
@@ -184,7 +185,7 @@ class TestRotateR2:
     @patch.object(snap.requests, "Session")
     def test_leaves_old_token_untouched_when_new_one_fails_verification(self, mock_session_cls, _mock_groups, _mock_verify, mock_delete):
         session = mock_session_cls.return_value
-        session.post.return_value = MagicMock(json=lambda: {"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})
+        session.post.return_value = response(json_body={"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})
 
         ok = snap.rotate_r2()
 

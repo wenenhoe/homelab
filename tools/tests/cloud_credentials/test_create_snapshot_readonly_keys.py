@@ -8,6 +8,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _responses import response
 from b2sdk.v2 import FullApplicationKey
 from cloud_credentials import create_snapshot_readonly_keys as snap
 
@@ -23,7 +24,7 @@ class TestMintR2:
     @patch.object(snap.requests, "Session")
     def test_mints_readonly_token_scoped_to_the_snapshot_bucket_with_no_expiry(self, mock_session_cls, _mock_groups, mock_verify):
         session = mock_session_cls.return_value
-        session.post.return_value = MagicMock(json=lambda: {"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
+        session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
         ok = snap.mint_r2()
 
@@ -50,7 +51,7 @@ class TestMintR2:
     @patch.object(snap.requests, "Session")
     def test_does_not_confirm_a_credential_that_fails_verification(self, mock_session_cls, _mock_groups, _mock_verify):
         session = mock_session_cls.return_value
-        session.post.return_value = MagicMock(json=lambda: {"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
+        session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
         ok = snap.mint_r2()
 

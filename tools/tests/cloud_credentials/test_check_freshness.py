@@ -11,6 +11,7 @@ from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _responses import response
 from cloud_credentials import check_freshness
 from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
@@ -85,10 +86,8 @@ class TestCheckB2:
         assert statuses["b2 write"] == check_freshness.URGENT
 
 
-def _mock_scim_get_response(status_code: int, expires_on: str | None = None):
-    resp = MagicMock(status_code=status_code, text=f"status {status_code}")
-    resp.json.return_value = {"expiresOn": expires_on} if expires_on is not None else {}
-    return resp
+def _scim_get_response(status_code: int, expires_on: str | None = None):
+    return response(status_code, {"expiresOn": expires_on} if expires_on is not None else {})
 
 
 @pytest.mark.usefixtures("fake_vault")
@@ -103,8 +102,8 @@ class TestCheckOci:
         fresh_expires_on = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
         stale_expires_on = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         session.get.side_effect = [
-            _mock_scim_get_response(200, fresh_expires_on),
-            _mock_scim_get_response(200, stale_expires_on),
+            _scim_get_response(200, fresh_expires_on),
+            _scim_get_response(200, stale_expires_on),
         ]
         mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
@@ -159,11 +158,11 @@ class TestCheckR2:
 
         def get(url, timeout=None):
             if url.endswith("/user/tokens/verify"):
-                return MagicMock(json=lambda: {"success": True, "result": {"id": "x", "status": "active", "expires_on": future}})
+                return response(json_body={"success": True, "result": {"id": "x", "status": "active", "expires_on": future}})
             if "TOKEN_ID_WRITE" in url:
-                return MagicMock(json=lambda: {"success": True, "result": {"expires_on": future}})
+                return response(json_body={"success": True, "result": {"expires_on": future}})
             if "TOKEN_ID_READ" in url:
-                return MagicMock(json=lambda: {"success": True, "result": {"expires_on": past}})
+                return response(json_body={"success": True, "result": {"expires_on": past}})
             raise AssertionError(f"unexpected URL: {url}")
 
         session.get.side_effect = get
@@ -189,7 +188,7 @@ class TestCheckR2:
 
         def get(url, timeout=None):
             if url == "https://api.cloudflare.com/client/v4/user/tokens/verify":
-                return MagicMock(json=lambda: {"success": True, "result": {"id": "x", "status": "active", "expires_on": "2099-01-01T00:00:00Z"}})
+                return response(json_body={"success": True, "result": {"id": "x", "status": "active", "expires_on": "2099-01-01T00:00:00Z"}})
             raise AssertionError(f"check_r2 must not call the account-scoped tokens endpoints for the rotation token: {url}")
 
         session.get.side_effect = get
@@ -202,7 +201,7 @@ class TestCheckR2:
     @patch.object(check_freshness.requests, "Session")
     def test_rotation_token_verify_failure_is_check_failed(self, mock_session_cls):
         session = mock_session_cls.return_value
-        session.get.return_value = MagicMock(json=lambda: {"success": False, "errors": [{"code": 1000, "message": "Invalid API Token"}]})
+        session.get.return_value = response(json_body={"success": False, "errors": [{"code": 1000, "message": "Invalid API Token"}]})
 
         result = check_freshness._r2_rotation_token_result(session)
 
@@ -264,7 +263,7 @@ class TestTelegramAlert:
         # soon" result must, since it's the only outcome that gives any
         # lead time before B2/R2 actually reject the credential.
         seed_telegram(fake_vault, "telegram-topic-id-backups", "42")
-        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        mock_post.return_value = response()
 
         check_freshness.main()
 
@@ -283,7 +282,7 @@ class TestTelegramAlert:
         # Telegram's API rejects message_thread_id outright if it's
         # passed empty rather than ignoring it (see
         # docs/topics/monitoring/telegram-notifications.md) - must be omitted, not "".
-        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        mock_post.return_value = response()
         check_freshness.main()
         assert "message_thread_id" not in mock_post.call_args.kwargs["data"]
 
@@ -311,7 +310,7 @@ class TestTelegramAlert:
         instead of being consumed. HTML mode has neither problem -
         confirmed here by checking the actual parse_mode and tag shape
         sent, not just that a message went out."""
-        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        mock_post.return_value = response()
         check_freshness.main()
         data = mock_post.call_args.kwargs["data"]
         assert data["parse_mode"] == "HTML"
@@ -331,7 +330,7 @@ class TestTelegramAlert:
         # unlike telegram_notify's other callers (all static templates),
         # this one will eventually interpolate a literal &, <, or > and
         # must not let it be interpreted as real markup.
-        mock_post.return_value = MagicMock(raise_for_status=lambda: None)
+        mock_post.return_value = response()
         check_freshness.main()
         text = mock_post.call_args.kwargs["data"]["text"]
         assert "provider said &lt;b&gt;bad&lt;/b&gt; &amp; broken" in text

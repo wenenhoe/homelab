@@ -13,11 +13,12 @@ trustworthy.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import hvac
 import pytest
 import r2_read_watcher as watcher
+import requests
 
 REAL_R2_REQUEST_LINE = (
     '{"time":"2026-09-09T06:12:11.937092952Z","type":"request","auth":{"client_token":"hmac-sha256:x",'
@@ -53,6 +54,12 @@ def mock_client():
     return MagicMock()
 
 
+def _ok_response() -> requests.Response:
+    resp = requests.Response()
+    resp.status_code = 200
+    return resp
+
+
 class TestMatchR2Read:
     def test_matches_a_real_request_line_for_the_r2_token(self):
         match = watcher.match_r2_read(REAL_R2_REQUEST_LINE)
@@ -79,7 +86,7 @@ class TestMatchR2Read:
 class TestSendAlert:
     @patch("r2_read_watcher.requests.post")
     def test_includes_topic_id_when_present(self, mock_post):
-        mock_post.return_value = Mock(raise_for_status=Mock())
+        mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": "42"}
         match = {"time": "now", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
 
@@ -90,7 +97,7 @@ class TestSendAlert:
 
     @patch("r2_read_watcher.requests.post")
     def test_omits_topic_id_when_blank(self, mock_post):
-        mock_post.return_value = Mock(raise_for_status=Mock())
+        mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
         match = {"time": "now", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
 
@@ -101,7 +108,7 @@ class TestSendAlert:
 
     @patch("r2_read_watcher.requests.post")
     def test_escapes_html_special_characters_in_match_fields(self, mock_post):
-        mock_post.return_value = Mock(raise_for_status=Mock())
+        mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
         match = {"time": "now", "role_name": "<script>", "display_name": "approle", "remote_address": "1.2.3.4"}
 

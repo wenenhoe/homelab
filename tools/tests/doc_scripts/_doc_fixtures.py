@@ -5,7 +5,11 @@ so nothing here is mocked.
 
 from __future__ import annotations
 
+import contextlib
+import io
+import subprocess
 from pathlib import Path
+from types import ModuleType
 
 import yaml
 
@@ -41,3 +45,42 @@ def project(root: Path, name: str, **overrides) -> Path:
     fm = {"id": f"PROJ-{name}", "title": name, "type": "project", "status": "not-started", "summary": f"{name} summary"}
     fm.update(overrides)
     return write_doc(root, f"docs/projects/{name}.md", fm)
+
+
+def assert_one_error(errors: list[str], *fragments: str) -> None:
+    assert len(errors) == 1, errors
+    for fragment in fragments:
+        assert fragment in errors[0], f"{fragment!r} not in {errors[0]!r}"
+
+
+class GitRepo:
+    """A throwaway git repository at `root`, and the CLI under test run against it."""
+
+    def __init__(self, root: Path, cli: ModuleType) -> None:
+        self.root = root
+        self.cli = cli
+
+    def git(self, *args: str) -> str:
+        cmd = ["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@t.t", "-c", "commit.gpgsign=false", *args]
+        return subprocess.run(cmd, check=True, capture_output=True, text=True).stdout
+
+    def write(self, rel: str, text: str) -> None:
+        path = self.root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    def commit(self, message: str) -> None:
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", message)
+
+    def branch(self, name: str = "feature") -> None:
+        self.git("checkout", "-q", "-b", name)
+
+    def run_cli(self, *args: str) -> tuple[int, str]:
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            code = self.cli.main([*args, "--root", str(self.root)])
+        return code, out.getvalue() + err.getvalue()
+
+    def pr(self) -> tuple[int, str]:
+        return self.run_cli("--base", "main", "--head", "feature")

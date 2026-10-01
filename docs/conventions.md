@@ -86,6 +86,8 @@ Until that conversion closes, files not yet converted are still
   `utils.repo.SECRETS_DIR` at an empty directory.
   `fake_vault` (`tools/tests/cloud_credentials/conftest.py`) stands in
   for Vault I/O at the layer `cache.py` reads and writes through.
+  `root` (`tools/tests/doc_scripts/conftest.py`) is an empty directory
+  standing in for a repository root.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,

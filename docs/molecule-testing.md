@@ -154,8 +154,9 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    `backup_plan`.
 4. Don't add `dependency.options` or a `provisioner.env` block — the base
    config already supplies both to every scenario.
-5. Run `molecule test` locally before opening a PR — there's no CI for
-   this yet.
+5. Run `molecule test` locally before opening a PR for faster feedback —
+   CI also runs every role whose watch set a PR touches (see
+   [`ci.md`](ci.md#change-scoped-not-a-full-sweep)).
 
 ## Coverage
 

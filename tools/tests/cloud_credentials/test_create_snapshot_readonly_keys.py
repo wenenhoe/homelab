@@ -21,9 +21,8 @@ class TestMintR2:
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"))
     @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Read": "grp-read"})
-    @patch.object(snap.requests, "Session")
-    def test_mints_readonly_token_scoped_to_the_snapshot_bucket_with_no_expiry(self, mock_session_cls, _mock_groups, mock_verify):
-        session = mock_session_cls.return_value
+    def test_mints_readonly_token_scoped_to_the_snapshot_bucket_with_no_expiry(self, _mock_groups, mock_verify, session_class):
+        session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
         ok = snap.mint_r2()
@@ -48,9 +47,8 @@ class TestMintR2:
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (ListObjectsV2) failed: AccessDenied"))
     @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Read": "grp-read"})
-    @patch.object(snap.requests, "Session")
-    def test_does_not_confirm_a_credential_that_fails_verification(self, mock_session_cls, _mock_groups, _mock_verify):
-        session = mock_session_cls.return_value
+    def test_does_not_confirm_a_credential_that_fails_verification(self, _mock_groups, _mock_verify, session_class):
+        session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
 
         ok = snap.mint_r2()

@@ -12,6 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from _responses import response
+from _sessions import stubbed_session
 from cloud_credentials import check_freshness
 from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
@@ -98,7 +99,7 @@ class TestCheckOci:
         vault.seed("oci-read-scim-id", "scim-read-1")
         # rotation credential's -created-at deliberately not seeded
 
-        session = MagicMock()
+        session = stubbed_session()
         fresh_expires_on = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
         stale_expires_on = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
         session.get.side_effect = [
@@ -118,7 +119,7 @@ class TestCheckOci:
     def test_missing_scim_id_is_a_check_failure_not_a_crash(self, mock_scim_session):
         # oci-write-scim-id deliberately not seeded — a leaf key created
         # before the SCIM migration (ADR 0016) would have no such file.
-        session = MagicMock()
+        session = stubbed_session()
         mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         results = check_freshness.check_oci()
@@ -150,9 +151,8 @@ class TestCheckR2:
         vault.seed("cloudflare-r2-write-access-key", "TOKEN_ID_WRITE")
         vault.seed("cloudflare-r2-read-access-key", "TOKEN_ID_READ")
 
-    @patch.object(check_freshness.requests, "Session")
-    def test_fresh_and_stale_and_rotation_token_all_reported(self, mock_session_cls):
-        session = mock_session_cls.return_value
+    def test_fresh_and_stale_and_rotation_token_all_reported(self, session_class):
+        session = session_class.return_value
         future = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
         past = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -174,8 +174,7 @@ class TestCheckR2:
         assert statuses["r2 read"] == check_freshness.STALE
         assert statuses["r2 rotation token"] == check_freshness.FRESH
 
-    @patch.object(check_freshness.requests, "Session")
-    def test_rotation_token_is_a_user_token_not_an_account_token(self, mock_session_cls):
+    def test_rotation_token_is_a_user_token_not_an_account_token(self, session_class):
         """Regression test for two wrong theories in a row before this
         one: the rotation token is a Cloudflare User API Token (My
         Profile > API Tokens), not an Account Owned one -
@@ -184,7 +183,7 @@ class TestCheckR2:
         token no matter how they're queried. /user/tokens/verify is the
         only endpoint that can actually check it, and needs no
         account_id to do so."""
-        session = mock_session_cls.return_value
+        session = session_class.return_value
 
         def get(url, timeout=None):
             if url == "https://api.cloudflare.com/client/v4/user/tokens/verify":
@@ -198,9 +197,8 @@ class TestCheckR2:
         assert result[0] == "r2 rotation token"
         assert result[1] == check_freshness.FRESH
 
-    @patch.object(check_freshness.requests, "Session")
-    def test_rotation_token_verify_failure_is_check_failed(self, mock_session_cls):
-        session = mock_session_cls.return_value
+    def test_rotation_token_verify_failure_is_check_failed(self, session_class):
+        session = session_class.return_value
         session.get.return_value = response(json_body={"success": False, "errors": [{"code": 1000, "message": "Invalid API Token"}]})
 
         result = check_freshness._r2_rotation_token_result(session)

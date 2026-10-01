@@ -61,9 +61,8 @@ class TestR2Rotation:
         vault.seed("cloudflare-r2-write-secret-key", "old_secret_hash")
 
     @patch.object(r2, "verify_leaf_via_rclone", return_value=(True, "ok"))
-    @patch.object(r2.requests, "Session")
-    def test_successful_rotation_deletes_old_token_and_caches_new_one(self, mock_session_cls, mock_verify, vault):
-        session = mock_session_cls.return_value
+    def test_successful_rotation_deletes_old_token_and_caches_new_one(self, mock_verify, vault, session_class):
+        session = session_class.return_value
         session.get.return_value = _permission_groups_response()
         session.post.return_value = _create_token_response("NEW_TOKEN_ID", "new-token-value")
         session.delete.return_value = response(json_body={"success": True})
@@ -90,9 +89,8 @@ class TestR2Rotation:
         assert days_out == QUARTERLY_DAYS - 1  # -1: truncated days, not a bug in the code under test
 
     @patch.object(r2, "verify_leaf_via_rclone", return_value=(False, "denied"))
-    @patch.object(r2.requests, "Session")
-    def test_failed_verification_leaves_old_token_untouched(self, mock_session_cls, mock_verify, vault):
-        session = mock_session_cls.return_value
+    def test_failed_verification_leaves_old_token_untouched(self, mock_verify, vault, session_class):
+        session = session_class.return_value
         session.get.return_value = _permission_groups_response()
         session.post.return_value = _create_token_response("NEW_TOKEN_ID", "new-token-value")
 

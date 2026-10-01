@@ -93,6 +93,11 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   `response(status_code, json_body, text)` (`tools/tests/_responses.py`)
   builds a real `requests.Response`; use it wherever the code under test
   reads one, in `tools/tests/`.
+  `http_session` is a real `requests.Session` whose network methods are
+  autospec'd stand-ins (`stubbed_session()` in `tools/tests/_sessions.py`,
+  for a helper that cannot take a fixture); `session_class` also replaces
+  `requests.Session` with a class that returns it. A test sets
+  `.return_value` on the method it expects the code to call.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,

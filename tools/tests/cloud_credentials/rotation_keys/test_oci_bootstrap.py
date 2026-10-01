@@ -90,11 +90,10 @@ class TestRotateOciRotationKey:
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
     @patch.object(oci_bootstrap, "oci_scim_access_token")
-    @patch.object(oci_bootstrap.requests, "Session")
-    def test_reverifies_leaf_identities_before_touching_the_secret(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth):
+    def test_reverifies_leaf_identities_before_touching_the_secret(self, mock_token, mock_ensure_leaf, mock_auth, session_class):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_token.side_effect = ["old-tok", "new-tok"]
-        session = mock_session_cls.return_value
+        session = session_class.return_value
         session.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
 
         oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
@@ -115,10 +114,9 @@ class TestRotateOciRotationKey:
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="old-tok")
-    @patch.object(oci_bootstrap.requests, "Session")
-    def test_regenerate_failure_leaves_old_secret_untouched(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth, rotation_vault):
+    def test_regenerate_failure_leaves_old_secret_untouched(self, mock_token, mock_ensure_leaf, mock_auth, rotation_vault, session_class):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
-        session = mock_session_cls.return_value
+        session = session_class.return_value
         session.post.return_value = response(403, text="insufficient_scope")
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
@@ -129,14 +127,13 @@ class TestRotateOciRotationKey:
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
     @patch.object(oci_bootstrap, "oci_scim_access_token")
-    @patch.object(oci_bootstrap.requests, "Session")
-    def test_verification_failure_still_caches_the_new_secret(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth, rotation_vault):
+    def test_verification_failure_still_caches_the_new_secret(self, mock_token, mock_ensure_leaf, mock_auth, rotation_vault, session_class):
         """The safety property that matters most here: once regenerate
         succeeds, the OLD secret is already gone - a failed verification
         round-trip must not throw away the only copy of the new one."""
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_token.side_effect = ["old-tok", oci_bootstrap.requests.HTTPError("network blip")]
-        session = mock_session_cls.return_value
+        session = session_class.return_value
         session.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
@@ -147,11 +144,10 @@ class TestRotateOciRotationKey:
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint")
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity")
     @patch.object(oci_bootstrap, "oci_scim_access_token")
-    @patch.object(oci_bootstrap.requests, "Session")
-    def test_full_success_caches_new_secret_and_updates_timestamp(self, mock_session_cls, mock_token, mock_ensure_leaf, mock_auth, rotation_vault):
+    def test_full_success_caches_new_secret_and_updates_timestamp(self, mock_token, mock_ensure_leaf, mock_auth, rotation_vault, session_class):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_token.side_effect = ["old-tok", "new-tok"]
-        session = mock_session_cls.return_value
+        session = session_class.return_value
         session.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
         rotation_vault.seed("_rotation-key-oci-created-at", "2020-01-01T00:00:00+00:00")
 

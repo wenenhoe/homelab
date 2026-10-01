@@ -17,6 +17,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from _responses import response
+from _sessions import stubbed_session
 from openbao_utils import audit
 
 
@@ -37,7 +38,7 @@ class TestAuditOci:
     @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session")
     def test_leaf_without_cached_user_ocid_is_skipped(self, mock_session, cached_values):
         # Neither _oci-leaf-user-ocid-write nor -read seeded.
-        session = MagicMock()
+        session = stubbed_session()
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         with patch("sys.stdout") as mock_stdout:
@@ -51,7 +52,7 @@ class TestAuditOci:
     def test_active_key_matches_cached_scim_id_orphan_does_not(self, mock_session, cached_values):
         cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
         cached_values["oci-write-scim-id"] = "scim-active"
-        session = MagicMock()
+        session = stubbed_session()
 
         def get_side_effect(url, params=None):
             if "user.ocid eq" in params.get("filter", ""):
@@ -82,7 +83,7 @@ class TestAuditOci:
     @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session")
     def test_filter_query_scoped_to_the_correct_leaf_user(self, mock_session, cached_values):
         cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
-        session = MagicMock()
+        session = stubbed_session()
         session.get.return_value = response(200, {"Resources": []})
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
@@ -205,7 +206,7 @@ class TestAuditLocal:
 def _mock_b2_session(keys):
     auth_resp = response(200, {"authorizationToken": "tok", "apiUrl": "https://api.example.com", "accountId": "acct"})
     list_resp = response(200, {"keys": keys})
-    session = MagicMock()
+    session = stubbed_session()
     session.get.return_value = list_resp
     return auth_resp, session
 
@@ -234,7 +235,7 @@ class TestAuditB2:
         auth_resp, session = _mock_b2_session([{"applicationKeyId": "snapshot-write-key-id", "keyName": "openbao-snapshot-write"}])
         with (
             patch("openbao_utils.audit.requests.get", return_value=auth_resp),
-            patch("openbao_utils.audit.requests.Session", return_value=session),
+            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
             patch("sys.stdout") as mock_stdout,
         ):
             audit.audit_b2()
@@ -246,7 +247,7 @@ class TestAuditB2:
         auth_resp, session = _mock_b2_session([{"applicationKeyId": "some-other-id", "keyName": "openbao-snapshot-readonly"}])
         with (
             patch("openbao_utils.audit.requests.get", return_value=auth_resp),
-            patch("openbao_utils.audit.requests.Session", return_value=session),
+            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
             patch("sys.stdout") as mock_stdout,
         ):
             audit.audit_b2()
@@ -258,7 +259,7 @@ class TestAuditB2:
         auth_resp, session = _mock_b2_session([{"applicationKeyId": "mystery-id", "keyName": "some-leftover-key"}])
         with (
             patch("openbao_utils.audit.requests.get", return_value=auth_resp),
-            patch("openbao_utils.audit.requests.Session", return_value=session),
+            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
             patch("sys.stdout") as mock_stdout,
         ):
             audit.audit_b2()
@@ -269,10 +270,10 @@ class TestAuditB2:
 
 def _run_r2_with_tokens(tokens):
     resp = response(200, {"success": True, "result": tokens})
-    session = MagicMock()
+    session = stubbed_session()
     session.get.return_value = resp
     with (
-        patch("openbao_utils.audit.requests.Session", return_value=session),
+        patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
         patch("openbao_utils.audit.getpass.getpass", return_value="admin-token"),
         patch("sys.stdout") as mock_stdout,
     ):

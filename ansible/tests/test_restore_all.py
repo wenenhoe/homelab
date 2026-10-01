@@ -9,13 +9,18 @@ honestly.
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 import restore_all
+
+
+def _completed(returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
+    return subprocess.CompletedProcess(args=[], returncode=returncode, stdout="", stderr=stderr)
 
 
 def _entry(app: str = "wastebin", host: str = "services", cloud_targets=None) -> restore_all.AppManifestEntry:
@@ -80,8 +85,8 @@ class TestDiscoverAndDecrypt:
     def good_copy_and_decrypt(self, monkeypatch):
         """Patches the copyto + gpg steps to both succeed, for tests
         that only care about the discovery/fallback branch above them."""
-        monkeypatch.setattr(restore_all, "_run_rclone", MagicMock(return_value=Mock(returncode=0, stderr="")))
-        monkeypatch.setattr(restore_all.subprocess, "run", MagicMock(return_value=Mock(returncode=0, stderr="")))
+        monkeypatch.setattr(restore_all, "_run_rclone", MagicMock(return_value=_completed()))
+        monkeypatch.setattr(restore_all.subprocess, "run", MagicMock(return_value=_completed()))
 
     @pytest.mark.usefixtures("good_copy_and_decrypt")
     def test_uses_seaweedfs_when_it_has_a_matching_object(self):
@@ -134,7 +139,7 @@ class TestDiscoverAndDecrypt:
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"}]
         with (
             patch.object(restore_all, "rclone_lsjson", return_value=objects),
-            patch.object(restore_all, "_run_rclone", return_value=Mock(returncode=1, stderr="connection refused")),
+            patch.object(restore_all, "_run_rclone", return_value=_completed(1, "connection refused")),
             pytest.raises(restore_all.RestoreAllError, match="copyto from seaweedfs failed"),
         ):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
@@ -143,8 +148,8 @@ class TestDiscoverAndDecrypt:
         objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"}]
         with (
             patch.object(restore_all, "rclone_lsjson", return_value=objects),
-            patch.object(restore_all, "_run_rclone", return_value=Mock(returncode=0, stderr="")),
-            patch.object(restore_all.subprocess, "run", return_value=Mock(returncode=1, stderr="decryption failed: No secret key")),
+            patch.object(restore_all, "_run_rclone", return_value=_completed()),
+            patch.object(restore_all.subprocess, "run", return_value=_completed(1, "decryption failed: No secret key")),
             pytest.raises(restore_all.RestoreAllError, match="gpg --decrypt failed"),
         ):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")

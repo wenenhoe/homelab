@@ -94,6 +94,18 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,
   so a `match=` regex can't pass on the path instead of the message.
+- **Test doubles.** A new or changed test chooses a double in this
+  order, from
+  [ADR 0070](../../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md).
+  The real object when it builds without I/O (a `requests.Response`, a
+  `subprocess.CompletedProcess`, an SDK model object). When the object
+  also does I/O (a session, a client, a channel), the real one with only
+  its I/O methods replaced by `patch.object(obj, "method", autospec=True)`.
+  Otherwise a double bound to the real interface: `autospec=True` on a
+  replaced function or method, `create_autospec(Class, instance=True)`
+  for an object that cannot be built (a `subprocess.Popen`), and
+  `patch("builtins.name", autospec=True)` for a builtin. A bare `Mock` or
+  `MagicMock` is only for a value handed back unchanged or a callback.
 - **Assertions.** A test ends in an assertion on an outcome the code
   under test decides: a returned value, a raised error, or a side effect
   that happened. Three shapes do not meet that:

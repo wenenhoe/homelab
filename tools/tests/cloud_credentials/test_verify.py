@@ -8,7 +8,7 @@ real provider.
 from __future__ import annotations
 
 import subprocess
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from cloud_credentials import verify
 
@@ -50,11 +50,8 @@ class TestRunRcloneWithRetry:
     # broadly those two are retried.
     NON_RETRYABLE_ERR = "operation error S3: PutObject, https response error StatusCode: 400, api error InvalidRequest: bad bucket name"
 
-    def _completed(self, returncode: int, stderr: str = "") -> MagicMock:
-        return MagicMock(returncode=returncode, stderr=stderr)
-
-    def _completed(self, returncode: int, stderr: str = "") -> MagicMock:
-        return MagicMock(returncode=returncode, stderr=stderr)
+    def _completed(self, returncode: int, stderr: str = "") -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=[], returncode=returncode, stdout="", stderr=stderr)
 
     @patch.object(verify.time, "sleep")
     @patch.object(verify.subprocess, "run")

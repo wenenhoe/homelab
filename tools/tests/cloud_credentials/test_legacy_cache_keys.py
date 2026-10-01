@@ -19,12 +19,6 @@ ever gets the chance to fail on a live controller.
 
 from __future__ import annotations
 
-import sys
-import unittest
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.rotation_keys import b2 as rotation_b2
 from cloud_credentials.rotation_keys import oci_bootstrap as rotation_oci
@@ -50,18 +44,18 @@ _CROSS_CATEGORY_ROTATION_KEYS = {
 }
 
 
-class LegacyCacheKeysInterfaceTests(unittest.TestCase):
+class TestLegacyCacheKeysInterface:
     def test_every_paired_module_exposes_cached_read_cache_write_cache(self):
         missing: list[str] = []
         for name, module in LEGACY_CACHE_KEYS:
             for attr in _REQUIRED_ATTRS:
                 if not callable(getattr(module, attr, None)):
                     missing.append(f"{name} -> {module.__name__}.{attr}")
-        self.assertEqual(missing, [], f"modules missing a required callable: {missing}")
+        assert missing == [], f"modules missing a required callable: {missing}"
 
     def test_key_names_are_unique(self):
         names = [name for name, _ in LEGACY_CACHE_KEYS]
-        self.assertEqual(len(names), len(set(names)), "duplicate key name in LEGACY_CACHE_KEYS")
+        assert len(names) == len(set(names)), "duplicate key name in LEGACY_CACHE_KEYS"
 
     def test_cross_category_keys_are_paired_with_the_rotation_module_not_the_leaf_module(self):
         as_dict = dict(LEGACY_CACHE_KEYS)
@@ -70,8 +64,4 @@ class LegacyCacheKeysInterfaceTests(unittest.TestCase):
             actual_module = as_dict.get(name)
             if actual_module is not expected_module:
                 wrong.append(f"{name}: paired with {getattr(actual_module, '__name__', actual_module)}, expected {expected_module.__name__}")
-        self.assertEqual(wrong, [], f"cross-category keys paired with the wrong module: {wrong}")
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert wrong == [], f"cross-category keys paired with the wrong module: {wrong}"

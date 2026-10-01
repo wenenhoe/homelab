@@ -15,12 +15,8 @@ from __future__ import annotations
 import contextlib
 import io
 import sys
-from pathlib import Path
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 from cloud_credentials import create_leaf_keys, create_rotation_keys
 
 

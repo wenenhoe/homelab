@@ -149,7 +149,14 @@ class TestRepoInvariant:
                 assert (build.REPO_ROOT / build.SMOKE_DIR / f"{app}.sh").is_file()
                 assert app in IMAGES
 
+    def test_every_registry_image_has_a_smoke_test(self, subtests):
+        # Covers the images built from outside docker/, which the glob above misses.
+        for key in sorted(IMAGES):
+            with subtests.test(app=key):
+                assert (build.REPO_ROOT / build.SMOKE_DIR / f"{key}.sh").is_file()
+
     def test_every_smoke_test_has_a_dockerfile(self, subtests):
         for smoke in sorted((build.REPO_ROOT / build.SMOKE_DIR).glob("*.sh")):
             with subtests.test(app=smoke.stem):
-                assert (build.REPO_ROOT / f"docker/{smoke.stem}/Dockerfile").is_file()
+                assert smoke.stem in IMAGES
+                assert IMAGES[smoke.stem].dockerfile(build.REPO_ROOT).is_file()

@@ -225,7 +225,10 @@ merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
 tag. Before this, a PR that changed a Dockerfile was never built, and
 `compose-boot-test` booted the published image regardless: a Dockerfile
 edit that kept the same tag tested the old image, and a version bump
-pinned a tag that doesn't exist in `ghcr.io` until after merge.
+pinned a tag that doesn't exist in `ghcr.io` until after merge. The
+CodeRabbit review image, built from `tools/coderabbit-review/Dockerfile` and
+published by `build-coderabbit-review-image.yml`, is published the same way,
+though no compose file pins it.
 
 Three pieces close that gap. All of them are stdlib-only Python that
 runs on the runner's own `python3` (a test enforces that), so the jobs
@@ -262,15 +265,20 @@ which hold a package-write token.
   `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
   Dockerfile with `docker build`, without pushing, tagged
   `local/<app>:pr-check`, then runs
-  `.github/image-smoke-tests/<app>.sh <image>`. Every Dockerfile needs
+  `.github/image-smoke-tests/<app>.sh <image>`. Every registry image needs
   a smoke test there — a new one without it fails the job — and
   `tools/tests/ci/images/` asserts the two sets match. The smoke test
   checks what the image exists to add: `caddy` the DigitalOcean DNS
   module and `curl`; `molecule-dind` Docker Engine,
   `python3-requests`, `fuse-overlayfs` and its `daemon.json` default;
+  `coderabbit-review` that the CLI reports the version the `Dockerfile`
+  pins, `git` is present and the default user is UID 1001 — it never
+  runs a review, whose findings must stay off this repo's logs;
   `wastebin` only that the build produced an image, since
   `compose-boot-test` boots it for real. This covers the Dockerfiles
-  `compose-boot-test` excludes (`caddy`, `molecule-dind`).
+  `compose-boot-test` excludes (`caddy`, `molecule-dind`) and
+  `coderabbit-review`, which isn't a compose app and is queued from its
+  registry entry's path rather than from `docker/`.
 - **Shadow-tagging** in `_compose-boot-test.yml`
   (`ci.images.build shadow-tag`, and a `Dockerfile` change queues the
   app): for an app with a `Dockerfile`, it reads the images the deployed

@@ -159,6 +159,25 @@ class TestChangedDockerfiles:
         (tree.root / "docker/wastebin/Dockerfile").unlink()
         assert ca.changed_dockerfiles(tree.root, ["docker/wastebin/Dockerfile"]) == []
 
+    def test_a_tool_image_outside_docker_is_queued_by_its_registry_key(self, tree):
+        tree.write("tools/coderabbit-review/Dockerfile")
+        assert ca.changed_dockerfiles(tree.root, ["tools/coderabbit-review/Dockerfile", "docker/caddy/Dockerfile"]) == ["caddy", "coderabbit-review"]
+
+    def test_a_tool_image_is_never_a_boot_test_app(self, tree):
+        tree.write("tools/coderabbit-review/Dockerfile")
+        assert apps(tree, "tools/coderabbit-review/Dockerfile") == []
+
+    def test_other_files_under_a_tool_image_dir_do_not_queue_it(self, tree):
+        tree.write("tools/coderabbit-review/Dockerfile")
+        assert ca.changed_dockerfiles(tree.root, ["tools/coderabbit-review/coderabbit-review.sh", "tools/coderabbit-review/sub/Dockerfile"]) == []
+
+    def test_deleted_tool_image_dockerfile_is_not_queued(self, tree):
+        assert ca.changed_dockerfiles(tree.root, ["tools/coderabbit-review/Dockerfile"]) == []
+
+    def test_a_docker_dockerfile_with_no_registry_entry_is_still_queued(self, tree):
+        tree.write("docker/newapp/Dockerfile")
+        assert ca.changed_dockerfiles(tree.root, ["docker/newapp/Dockerfile"]) == ["newapp"]
+
 
 class TestExcludedComposeFiles:
     def test_changed_compose_yaml_of_an_excluded_app_is_listed(self, tree):

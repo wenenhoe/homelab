@@ -14,7 +14,8 @@ before the stack boots). Excluded apps are never queued, and a directory
 with no compose file isn't an app.
 
 Subcommands (from tools/: python -m ci.scope.compose_apps ...):
-  changed <base> <head>       writes apps=<json> and dockerfiles=<json>
+  changed <base> <head>       writes apps=<json> and dockerfiles=<json> (the
+                              latter also covers the registry's tool images)
   all                         writes apps=<json>: every non-excluded compose app
   syntax-check <base> <head>  `docker compose config --quiet` on the changed
                               compose files of the excluded apps
@@ -31,6 +32,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from ci.images.registry import IMAGES
 from ci.output import write_output
 from ci.scope.diff import DiffError, changed_files
 
@@ -41,6 +43,12 @@ COMPOSE_FILES = ("compose.yaml", "compose.yaml.j2")
 
 _BOOT_TEST_INPUT = re.compile(r"^docker/([^/]+)/(?:compose\.yaml(?:\.j2)?|Dockerfile|(?:configs|scripts)/.+)$")
 _DOCKERFILE = re.compile(r"^docker/([^/]+)/Dockerfile$")
+
+# Registry images built from outside docker/ (tool images no compose file
+# pins), keyed by Dockerfile path. They are built and smoke-tested like a
+# docker/<app> Dockerfile but are never compose apps, so they stay out of
+# _BOOT_TEST_INPUT.
+_TOOL_DOCKERFILES = {f"{image.context}/Dockerfile": key for key, image in IMAGES.items() if not image.context.startswith(f"{DOCKER_DIR}/")}
 
 # (args, cwd) -> exit code
 Runner = Callable[[list[str], Path], int]
@@ -79,9 +87,20 @@ def changed_apps(root: Path, changed: list[str]) -> list[str]:
 
 
 def changed_dockerfiles(root: Path, changed: list[str]) -> list[str]:
-    """Apps whose Dockerfile changed and still exists, excluded apps included."""
+    """Image keys whose Dockerfile changed and still exists.
+
+    Excluded and composeless apps are included, and so are the registry's
+    tool images under tools/. A `docker/<app>/Dockerfile` with no registry
+    entry is still listed, so the build check fails it instead of skipping it.
+    """
     candidates = {m.group(1) for path in changed if (m := _DOCKERFILE.match(path))}
-    return sorted(app for app in candidates if (root / DOCKER_DIR / app / "Dockerfile").is_file())
+    candidates |= {_TOOL_DOCKERFILES[path] for path in changed if path in _TOOL_DOCKERFILES}
+    return sorted(key for key in candidates if _dockerfile(root, key).is_file())
+
+
+def _dockerfile(root: Path, key: str) -> Path:
+    context = IMAGES[key].context if key in IMAGES else f"{DOCKER_DIR}/{key}"
+    return root / context / "Dockerfile"
 
 
 def excluded_compose_files(root: Path, changed: list[str]) -> list[str]:

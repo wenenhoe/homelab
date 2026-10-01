@@ -12,12 +12,10 @@ from __future__ import annotations
 import io
 import subprocess
 import sys
-import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
-
+import pytest
 from ci.gates import deploy_ordering as do
 
 REPO_ROOT = do.REPO_ROOT
@@ -30,116 +28,115 @@ def completed(returncode: int, stdout: str = "", stderr: str = "") -> subprocess
     return subprocess.CompletedProcess(args=[], returncode=returncode, stdout=stdout, stderr=stderr)
 
 
-class ClassifyRestoreTests(unittest.TestCase):
+class TestClassifyRestore:
     def test_failing_with_the_archive_message_passes(self):
         verdict = do.classify_restore(2, GOOD_LOG)
-        self.assertTrue(verdict.ok)
-        self.assertTrue(verdict.message.startswith("OK:"))
+        assert verdict.ok
+        assert verdict.message.startswith("OK:")
 
     def test_remote_addr_in_the_log_is_the_regression(self):
         verdict = do.classify_restore(2, "UNREACHABLE! => {remote_addr: None}\n" + GOOD_LOG)
-        self.assertFalse(verdict.ok)
-        self.assertIn("ordering regression", verdict.message)
+        assert not verdict.ok
+        assert "ordering regression" in verdict.message
 
     def test_secrets_generated_undefined_on_one_line_is_the_regression(self):
         verdict = do.classify_restore(2, "error: 'secrets_generated' is undefined\n")
-        self.assertFalse(verdict.ok)
-        self.assertIn("ordering regression", verdict.message)
+        assert not verdict.ok
+        assert "ordering regression" in verdict.message
 
     def test_secrets_generated_and_undefined_on_different_lines_is_not_the_signature(self):
         # grep -E matched per line, and so does this: the two words must share one.
         verdict = do.classify_restore(2, "secrets_generated\nis undefined\n")
-        self.assertFalse(verdict.ok)
-        self.assertIn("not with the expected", verdict.message)
+        assert not verdict.ok
+        assert "not with the expected" in verdict.message
 
     def test_regression_signature_wins_over_the_expected_message(self):
-        self.assertIn("ordering regression", do.classify_restore(2, GOOD_LOG + "remote_addr\n").message)
+        assert "ordering regression" in do.classify_restore(2, GOOD_LOG + "remote_addr\n").message
 
     def test_success_is_an_error_even_with_the_message_in_the_log(self):
         verdict = do.classify_restore(0, GOOD_LOG)
-        self.assertFalse(verdict.ok)
-        self.assertIn("succeeded instead", verdict.message)
+        assert not verdict.ok
+        assert "succeeded instead" in verdict.message
 
     def test_failure_without_the_archive_message_is_an_error(self):
         verdict = do.classify_restore(2, "fatal: something else broke\n")
-        self.assertFalse(verdict.ok)
-        self.assertIn("not with the expected", verdict.message)
+        assert not verdict.ok
+        assert "not with the expected" in verdict.message
 
     def test_regression_signature_is_checked_before_the_exit_code(self):
-        self.assertIn("ordering regression", do.classify_restore(0, "remote_addr\n").message)
+        assert "ordering regression" in do.classify_restore(0, "remote_addr\n").message
 
 
-class RunTests(unittest.TestCase):
-    def stub(self, result: subprocess.CompletedProcess[str]):
-        calls: list[tuple[list[str], Path, bool]] = []
+def stub(result: subprocess.CompletedProcess[str]):
+    calls: list[tuple[list[str], Path, bool]] = []
 
-        def run(args: list[str], cwd: Path, capture: bool) -> subprocess.CompletedProcess[str]:
-            calls.append((args, cwd, capture))
-            return result
+    def run(args: list[str], cwd: Path, capture: bool) -> subprocess.CompletedProcess[str]:
+        calls.append((args, cwd, capture))
+        return result
 
-        return run, calls
+    return run, calls
 
-    def run_main(self, mode: str, result: subprocess.CompletedProcess[str]):
-        run, calls = self.stub(result)
-        out = io.StringIO()
-        with redirect_stdout(out):
-            code = do.main([mode], run)
-        return code, out.getvalue(), calls
 
+def run_main(mode: str, result: subprocess.CompletedProcess[str]):
+    run, calls = stub(result)
+    out = io.StringIO()
+    with redirect_stdout(out):
+        code = do.main([mode], run)
+    return code, out.getvalue(), calls
+
+
+class TestRun:
     def test_restore_runs_both_playbooks_as_one_invocation_from_the_ansible_dir(self):
-        _, _, calls = self.run_main("restore", completed(2, GOOD_LOG))
+        _, _, calls = run_main("restore", completed(2, GOOD_LOG))
         ((args, cwd, capture),) = calls
-        self.assertEqual(cwd, do.ANSIBLE_DIR)
-        self.assertTrue(capture)
-        self.assertEqual(args[0], "ansible-playbook")
-        self.assertEqual(args[args.index("playbooks/bootstrap-secrets.yaml") + 1], "playbooks/restore.yaml")
-        self.assertEqual(args[args.index("--limit") + 1], "ci-managed-host,localhost")
-        self.assertIn("restore_archive_local_path=/nonexistent/ci-ordering-check-archive.tar.gz", args)
-        self.assertIn('restore_volumes=["ci_ordering_check_data"]', args)
-        self.assertIn("@/tmp/ci-secret-catalog-no-vault.json", args)
+        assert cwd == do.ANSIBLE_DIR
+        assert capture
+        assert args[0] == "ansible-playbook"
+        assert args[args.index("playbooks/bootstrap-secrets.yaml") + 1] == "playbooks/restore.yaml"
+        assert args[args.index("--limit") + 1] == "ci-managed-host,localhost"
+        assert "restore_archive_local_path=/nonexistent/ci-ordering-check-archive.tar.gz" in args
+        assert 'restore_volumes=["ci_ordering_check_data"]' in args
+        assert "@/tmp/ci-secret-catalog-no-vault.json" in args
 
     def test_restore_passes_on_the_expected_failure_and_prints_the_log(self):
-        code, out, _ = self.run_main("restore", completed(2, GOOD_LOG))
-        self.assertEqual(code, 0)
-        self.assertIn("not found on the controller", out)
-        self.assertIn("OK:", out)
+        code, out, _ = run_main("restore", completed(2, GOOD_LOG))
+        assert code == 0
+        assert "not found on the controller" in out
+        assert "OK:" in out
 
     def test_restore_fails_with_an_error_annotation(self):
-        code, out, _ = self.run_main("restore", completed(0, "all good\n"))
-        self.assertEqual(code, 1)
-        self.assertIn("::error::Expected a failure", out)
+        code, out, _ = run_main("restore", completed(0, "all good\n"))
+        assert code == 1
+        assert "::error::Expected a failure" in out
 
     def test_deploy_runs_the_real_playbook_with_a_tag_that_matches_nothing(self):
-        code, _, calls = self.run_main("deploy", completed(0))
+        code, _, calls = run_main("deploy", completed(0))
         ((args, cwd, capture),) = calls
-        self.assertEqual(code, 0)
-        self.assertEqual(cwd, do.ANSIBLE_DIR)
-        self.assertFalse(capture)
-        self.assertEqual(args[args.index("playbooks/deploy.yaml") + 1 :][:2], ["--tags", "ci-deploy-ordering-check-tag-matches-nothing"])
-        self.assertEqual(args[args.index("--limit") + 1], "ci-managed-host,localhost")
-        self.assertIn("compose_deploy_dir=/tmp/compose-deploy-ordering-check", args)
+        assert code == 0
+        assert cwd == do.ANSIBLE_DIR
+        assert not capture
+        assert args[args.index("playbooks/deploy.yaml") + 1 :][:2] == ["--tags", "ci-deploy-ordering-check-tag-matches-nothing"]
+        assert args[args.index("--limit") + 1] == "ci-managed-host,localhost"
+        assert "compose_deploy_dir=/tmp/compose-deploy-ordering-check" in args
 
     def test_deploy_returns_the_playbooks_exit_code(self):
-        self.assertEqual(self.run_main("deploy", completed(4))[0], 4)
+        assert run_main("deploy", completed(4))[0] == 4
 
     def test_the_real_runner_merges_stderr_into_stdout_in_order(self):
         script = "import sys; print('a'); sys.stdout.flush(); print('b', file=sys.stderr); sys.stderr.flush(); print('c')"
         result = do._run([sys.executable, "-c", script], REPO_ROOT, True)
-        self.assertEqual(result.stdout.split(), ["a", "b", "c"])
+        assert result.stdout.split() == ["a", "b", "c"]
 
 
-class RepoInvariantTests(unittest.TestCase):
-    def test_referenced_inventory_and_playbooks_exist(self):
-        self.assertTrue((do.ANSIBLE_DIR / do.INVENTORY).is_file())
-        for playbook in ("deploy", "bootstrap-secrets", "restore"):
-            with self.subTest(playbook=playbook):
-                self.assertTrue((do.ANSIBLE_DIR / f"playbooks/{playbook}.yaml").is_file())
+class TestRepoInvariant:
+    def test_the_referenced_inventory_exists(self):
+        assert (do.ANSIBLE_DIR / do.INVENTORY).is_file()
+
+    @pytest.mark.parametrize("playbook", ["deploy", "bootstrap-secrets", "restore"])
+    def test_referenced_playbooks_exist(self, playbook):
+        assert (do.ANSIBLE_DIR / f"playbooks/{playbook}.yaml").is_file()
 
     def test_the_expected_failure_message_is_still_the_restore_roles_own(self):
         text = (REPO_ROOT / "ansible/roles/restore/tasks/main.yaml").read_text()
         # The role wraps the message across lines, so compare with whitespace collapsed.
-        self.assertIn(do.EXPECTED_FAILURE, " ".join(text.split()))
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert do.EXPECTED_FAILURE in " ".join(text.split())

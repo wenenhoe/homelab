@@ -94,6 +94,24 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,
   so a `match=` regex can't pass on the path instead of the message.
+- **Assertions.** A test ends in an assertion on an outcome the code
+  under test decides: a returned value, a raised error, or a side effect
+  that happened. Three shapes do not meet that:
+  - *No assertion.* A test whose behavior is "does not raise" asserts
+    what the code did instead (a value returned, nothing sent), or it
+    is not written.
+  - *Pass-through.* A test that stubs a collaborator to return a value
+    and asserts the code returns it uses a value the code could not
+    produce by itself. A stub returning `0` with an assertion on `0`
+    still passes when the code hard-codes `0`.
+  - *Mock calls only.* A test that asserts only that a mock was called
+    asserts the arguments too when it has any
+    (`assert_called_once_with`), because the call is the effect under
+    test.
+- **Inputs.** A test passes the states a caller can produce. A `None` or
+  wrong-typed argument to an annotated parameter belongs only where the
+  code reads data from outside the program, such as a parsed JSON
+  document that is not an object.
 
 ## Not yet a convention
 

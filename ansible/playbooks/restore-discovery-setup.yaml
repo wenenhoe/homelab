@@ -2,7 +2,7 @@
 # Renders ansible/files/restore/{manifest.json,rclone.conf} for
 # restore_all.py. hosts: controller (localhost only) — never touches a
 # real host, unlike playbooks/restore.yaml. See
-# ansible/roles/restore_discovery and docs/restore.md's batch-restore
+# ansible/roles/restore_discovery and docs/topics/disaster-recovery/restore.md's batch-restore
 # section.
 #
 # REQUIRES bootstrap-secrets.yaml passed on the SAME command line ahead

@@ -3,7 +3,7 @@
 #
 # Doesn't talk to SeaweedFS or GPG directly — pull the object out of the
 # `homelab-backups` bucket and `gpg --decrypt` it with the offline
-# private key first (see docs/backup.md), then hand this
+# private key first (see docs/topics/disaster-recovery/backup.md), then hand this
 # playbook the resulting plain .tar.gz.
 #
 # A decrypted archive may contain more apps than the one you're

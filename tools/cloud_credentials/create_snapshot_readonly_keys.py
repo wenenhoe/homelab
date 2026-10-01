@@ -9,10 +9,10 @@ mechanism Track A stage 6 retired; a credential meant to survive
 (b) no longer exists at all, post-cutover. Instead this script prints
 the credential once and exits — the operator copies it straight into
 the password manager entry that already holds the Shamir unseal shares
-(see docs/openbao.md), same offline handling this repo already gives
-the backup GPG key (docs/backup.md).
+(see docs/topics/secrets/openbao.md), same offline handling this repo already gives
+the backup GPG key (docs/topics/disaster-recovery/backup.md).
 
-Two providers, not one — R2 and B2, per docs/openbao.md — so recovery
+Two providers, not one — R2 and B2, per docs/topics/secrets/openbao.md — so recovery
 doesn't depend on a single cloud vendor being reachable. Both point at a
 bucket dedicated to OpenBao's own snapshots (openbao-snapshots on both
 providers — B2 bucket names are globally unique across every B2
@@ -20,11 +20,11 @@ customer, unlike R2's per-account uniqueness, so this name isn't
 guaranteed available on B2 the way it is on R2; confirmed available at
 setup time, not assumed), separate from homelab-backups/-b2: the existing
 per-app backup bucket is written to by every app host's backup_agent
-(see docs/backup-threat-model.md), and this credential's
+(see docs/topics/disaster-recovery/backup-threat-model.md), and this credential's
 whole point is to keep working even if that path is compromised.
 
 Create the bucket by hand first, same as homelab-backups/-b2 (see
-docs/cloud-sync.md's Setup section) — this script doesn't create buckets,
+docs/topics/disaster-recovery/cloud-sync.md's Setup section) — this script doesn't create buckets,
 only credentials. Authenticates using the same cached rotation
 credentials create_leaf_keys.py already uses (b2_rotation_session,
 r2_rotation_token) — Vault-backed via cache.py's own scoped("rotation")
@@ -108,7 +108,7 @@ def mint_r2() -> bool:
     # Same rclone S3-compatible path production would actually use to
     # fetch a snapshot — proving the API accepted the token isn't the
     # same claim as proving it can list this specific bucket (see
-    # docs/cloud-credential-creation.md's own reasoning for why
+    # docs/topics/secrets/cloud-credential-creation.md's own reasoning for why
     # create_leaf_keys.py --rotate does this same check before trusting
     # a leaf). "auto" region: confirmed in leaf_keys/r2.py's rotate_r2.
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://{account_id}.r2.cloudflarestorage.com", "auto", SNAPSHOT_BUCKET_R2, "read")

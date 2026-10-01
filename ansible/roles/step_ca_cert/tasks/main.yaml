@@ -10,7 +10,7 @@
 #      authenticate with.
 #   2. Ongoing renewal (systemd, host-level, forever after) - uses mTLS
 #      against the cert this role just issued, so it never touches the
-#      provisioner password at all. See docs/step-ca.md.
+#      provisioner password at all. See docs/topics/services/step-ca.md.
 
 - name: "Confirm the app is actually running before touching its cert volume: {{ step_ca_cert_app_name }}"
   community.docker.docker_container_info:
@@ -96,7 +96,7 @@
       -e volume_rm_confirm=true -e volume_rm_stop_app=false
 
       The reissue restarts {{ step_ca_cert_app_name }} (an OpenBao restart
-      leaves it sealed, see docs/openbao.md). If the requested names are the
+      leaves it sealed, see docs/topics/secrets/openbao.md). If the requested names are the
       mistake, revert the change instead.
   when:
     - step_ca_cert_existing_cert.rc | default(1) == 0
@@ -222,7 +222,7 @@
     telegram_notify_message: "Certificate renewal failed for `%i` on `{{ ansible_facts['hostname'] }}`"
     telegram_notify_topic_id: "{{ step_ca_cert_telegram_topic_id }}"
 
-# Only ever pushes on success (see docs/uptime-kuma.md) — failure
+# Only ever pushes on success (see docs/topics/monitoring/uptime-kuma.md) — failure
 # alerting stays on the telegram_notify@ unit above, unchanged. A
 # concrete unit for this specific instance, not a template - see
 # cert-renewer@.service.j2's own OnSuccess= comment for why a per-

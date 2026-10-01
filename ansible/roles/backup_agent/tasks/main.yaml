@@ -2,7 +2,7 @@
 # Aggregates SeaweedFS backup targets across every app on this host
 # (backup_plan is each host's resolved apps with every backup setting
 # filled in). See
-# docs/backup.md (Architecture) for the full design,
+# docs/topics/disaster-recovery/backup.md (Architecture) for the full design,
 # including why cloud coverage (R2/B2/OCI) lives entirely on `storage`
 # (cloud_sync role) and never touches this role or these hosts at all —
 # a compromised app host holds only its own narrow, path-scoped
@@ -103,7 +103,7 @@
     group: "{{ ansible_user }}"
     mode: "0600"
   # Now carries NOTIFICATION_URLS (embeds telegram_token) — same
-  # no_log rule as any other secret-bearing config, see docs/secrets.md.
+  # no_log rule as any other secret-bearing config, see docs/topics/secrets/secrets.md.
   no_log: true
 
 - name: Render one conf.d schedule per app
@@ -151,7 +151,7 @@
          | map(attribute='Name') | list | first }}
 
 # --- Freshness check: liveness signal for Uptime Kuma -----------------
-# See docs/uptime-kuma.md. Runs host-side, outside the backup-agent
+# See docs/topics/monitoring/uptime-kuma.md. Runs host-side, outside the backup-agent
 # container entirely - offen/docker-volume-backup's own exec-hook
 # labels need Docker `exec` access, which this host's socket-proxy
 # deliberately doesn't grant (see compose.yaml.j2's own comment on

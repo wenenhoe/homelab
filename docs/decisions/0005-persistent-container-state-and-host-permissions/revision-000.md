@@ -28,7 +28,7 @@ Offsite backup coverage was also being planned around this time.
 Nearly every viable backup tool in the Docker ecosystem — including
 [`offen/docker-volume-backup`](https://github.com/offen/docker-volume-backup),
 which this repo went on to adopt (see
-[`backup.md`](../../backup.md)) — operates on named
+[`backup.md`](../../topics/disaster-recovery/backup.md)) — operates on named
 volumes, not arbitrary bind-mount host paths. Building the backup
 design around bind mounts would have meant bespoke per-app path
 discovery instead of a generic "mount whatever volumes this app
@@ -46,7 +46,7 @@ problems directly in front of it.
 ## Decision
 
 Move persistent app state to Docker-managed named volumes, created and
-populated by Ansible (see [`volumes.md`](../../volumes.md)), instead of
+populated by Ansible (see [`volumes.md`](../../topics/deploy/volumes.md)), instead of
 host bind mounts.
 
 ## Consequences
@@ -58,8 +58,8 @@ fix above worked around manually no longer needs a per-app manual fix.
 Volumes are also now labelable and discoverable by Docker's own volume
 API, which is what makes `backup_agent`'s generic "back up whatever
 volumes this app declares" design possible at all (see
-[`backup.md`](../../backup.md)) and what
-[`cleanup.md`](../../cleanup.md) uses to find orphaned volumes.
+[`backup.md`](../../topics/disaster-recovery/backup.md)) and what
+[`cleanup.md`](../../topics/deploy/cleanup.md) uses to find orphaned volumes.
 
 The Kubernetes path stays rejected on the same basis until the
 underlying constraint changes — specifically, having enough machines

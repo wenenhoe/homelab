@@ -4,7 +4,7 @@
 # The upstream image's own DOCKER_STEPCA_INIT_* auto-init encrypts both
 # the CA keys and the initial JWK provisioner key with a single shared
 # password, and has no flag for a non-default provisioner claim duration
-# - see docs/step-ca.md. This runs the same `step ca init` operation by
+# - see docs/topics/services/step-ca.md. This runs the same `step ca init` operation by
 # hand instead, to get both. It's still gated on the same idempotency
 # check the stock entrypoint uses (config/ca.json not yet existing), so
 # it's a one-time bootstrap of the identity persisted in the `data`

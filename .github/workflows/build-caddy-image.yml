@@ -85,7 +85,7 @@ jobs:
       # I know about" trigger, not a blind refresh.
       #
       # platforms: linux/amd64 is explicit, not left to the runner's
-      # default — the fleet is amd64-only (see docs/caddy.md), and an
+      # default — the fleet is amd64-only (see docs/topics/services/caddy.md), and an
       # explicit platform keeps that true regardless of what architecture
       # a future runner defaults to.
       - name: Build and push

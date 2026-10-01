@@ -3,7 +3,7 @@
 # throwaway step-ca instead of an independently-authored openssl
 # self-signed cert, then seeds the result into lldap's `certs` volume —
 # used by _compose-boot-test.yml for the lldap matrix entry only. See
-# docs/ci.md#compose-boot-test for why this exists.
+# docs/topics/engineering/ci.md#compose-boot-test for why this exists.
 #
 # Deliberately the official smallstep/step-ca image driven by its own
 # stock DOCKER_STEPCA_INIT_* auto-init, not docker/step-ca's own

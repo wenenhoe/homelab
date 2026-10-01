@@ -32,13 +32,13 @@
 
     # Deploys the REAL docker/openbao/compose.yaml.j2 + configs/openbao.hcl.j2
     # (symlinked into this scenario's own files/docker/ — see
-    # docs/molecule-fixtures.md), through the exact same `roles/openbao`
+    # docs/topics/engineering/molecule-fixtures.md), through the exact same `roles/openbao`
     # production uses — not a reimplemented inline deploy sequence — so
     # this scenario exercises the real data-volume chown-if-needed guard
     # too, not just the cert-issuance path step_ca_cert itself owns. TLS
     # is enabled with no cert seeded, so openbao crash-loops until
     # step_ca_cert (below) issues one and restarts it — the actual
-    # production bootstrap race (see docs/openbao.md), not something
+    # production bootstrap race (see docs/topics/secrets/openbao.md), not something
     # worked around here.
     - name: Deploy openbao on cold data/certs volumes
       ansible.builtin.include_role:

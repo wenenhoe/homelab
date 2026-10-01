@@ -66,9 +66,9 @@ day) are unaffected: they stay properly bucket-scoped and never hold
 `API Tokens Write`, so they carry none of this risk. `cloud_sync`'s own
 `rclone copy`-only design (never `sync`) is what actually prevents an
 on-prem compromise from deleting R2 objects — see
-[`backup-threat-model.md`](../../backup-threat-model.md). R2's
+[`backup-threat-model.md`](../../topics/disaster-recovery/backup-threat-model.md). R2's
 defense-in-depth is at the leaf-token/`copy`-vs-`sync` level, not IAM
 narrowing at the rotation-token level.
 
-See [`cloud-credential-creation.md`](../../cloud-credential-creation.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)
+See [`cloud-credential-creation.md`](../../topics/secrets/cloud-credential-creation.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)
 for the R2 master-token setup steps this credential depends on.

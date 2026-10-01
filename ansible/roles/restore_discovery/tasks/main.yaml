@@ -74,7 +74,7 @@
   delegate_to: localhost
   become: false
 
-# step-ca first if it's actually in scope — see docs/restore.md's
+# step-ca first if it's actually in scope — see docs/topics/disaster-recovery/restore.md's
 # batch-restore section for why. If step-ca itself has no backup volumes,
 # this silently can't hoist anything — an app_catalog gap to fix
 # there, not something this role can detect on its own.

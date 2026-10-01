@@ -1,7 +1,7 @@
 ---
 # Wipe one volume entirely and recreate it empty, then restore only
 # whatever Ansible seeds into it (configs/scripts whose dest matches this
-# volume — see docs/volumes.md) via a straight re-run of ensure_volume.yaml
+# volume — see docs/topics/deploy/volumes.md) via a straight re-run of ensure_volume.yaml
 # + seed_volume.yaml. Anything the app itself wrote at runtime (a
 # database, a cache) is NOT restored — that's the point. Companion to
 # volume-file-rm.yaml's single-file removal: this is the "reset
@@ -72,7 +72,7 @@
 # docker_volume below fails with "volume is in use" if any container -
 # running OR stopped - still references it; only removing the container
 # (state: absent above, not stopped) releases that reference. compose's
-# external: true on every volume (see docs/volumes.md) means this
+# external: true on every volume (see docs/topics/deploy/volumes.md) means this
 # teardown never touches the volume itself, regardless.
 - name: "Delete the volume ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
   community.docker.docker_volume:

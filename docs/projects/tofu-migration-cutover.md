@@ -15,7 +15,7 @@ depends_on:
 
 # Tofu Migration Cutover
 
-Migration Stage 2 of the plan in [`vm-provisioning.md`](../vm-provisioning.md): rebuild on the real VMID ranges, cut over, and decommission the old VMs. It follows the proven rehearsal in [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md).
+Migration Stage 2 of the plan in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): rebuild on the real VMID ranges, cut over, and decommission the old VMs. It follows the proven rehearsal in [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md).
 
 ## Scope
 
@@ -23,7 +23,7 @@ The rebuild on the real VMID ranges (1XX/2XX/…), the cutover, and decommission
 
 ## Decision
 
-No ADR. The design is [`vm-provisioning.md`](../vm-provisioning.md), a topic doc that predates ADRs.
+No ADR. The design is [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs.
 
 "Migration Stage" is `vm-provisioning.md`'s own numbering for its cutover plan, not this doc's stage numbers — the two are independent sequences that happen to share a word; see [`docs/projects/README.md`](README.md#hierarchy).
 
@@ -49,7 +49,7 @@ DR restore target.
 - [ ] Every VM is rebuilt on the real VMID ranges by Tofu.
 - [ ] The old VMs are decommissioned.
 - [ ] `storage` stayed up throughout.
-- [ ] The resulting behavior is described in [`docs/vm-provisioning.md`](../vm-provisioning.md) or a new topic doc, not only here.
+- [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Open items
 

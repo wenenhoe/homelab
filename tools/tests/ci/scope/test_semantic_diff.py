@@ -86,7 +86,7 @@ class TestYaml:
             "ansible/roles/alpha/molecule/default/files/docker/app/compose.yaml",
             "docker/app/compose.yaml",
             "ansible/roles/alpha/templates/x.yaml.j2",
-            "docs/ci.md",
+            "docs/topics/engineering/ci.md",
             "ansible/roles/alpha/tasks/run.sh",
         ],
     )

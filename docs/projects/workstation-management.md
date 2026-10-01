@@ -20,7 +20,7 @@ Makes VM 401's configuration reproducible from the repo. Staged because the remo
 
 ## Scope
 
-An inventory group and play for the workstation, a `workstation` role (management account, SSH client configuration for the coding-agent host, editor workspace-trust settings, git and pre-commit tooling, the remote desktop service), the role's Molecule scenario, and updating [`vm-provisioning.md`](../vm-provisioning.md)'s out-of-scope statement. Not in scope: the OS install, GPU passthrough, other desktops, and stripping credentials ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)).
+An inventory group and play for the workstation, a `workstation` role (management account, SSH client configuration for the coding-agent host, editor workspace-trust settings, git and pre-commit tooling, the remote desktop service), the role's Molecule scenario, and updating [`vm-provisioning.md`](../topics/infra/vm-provisioning.md)'s out-of-scope statement. Not in scope: the OS install, GPU passthrough, other desktops, and stripping credentials ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)).
 
 ## Decision
 
@@ -44,13 +44,13 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [ ] The play rebuilds the workstation's configuration from a fresh OS install without manual steps beyond the install and first login.
 - [ ] The maintainer reaches a persistent desktop session from a Windows client over TLS.
 - [ ] The workstation is in none of `managed_hosts`, `app_hosts`, or `patched_hosts`, and it has no network path to the operator host.
-- [ ] The resulting behavior is described in `docs/workstation.md`.
+- [ ] The resulting behavior is described in `docs/topics/infra/workstation.md`.
 
 ## Agent handoff
 
 - **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
 - **Must not change:** other hosts' inventory entries and the `all.vars` SSH key.
-- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` and `docs/network-infra.md` (the pattern for a host outside `managed_hosts`), [ADR 0054](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) (management key handling).
+- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` and `docs/topics/infra/network-infra.md` (the pattern for a host outside `managed_hosts`), [ADR 0054](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) (management key handling).
 - **Required checks:** `pre-commit run --all-files`; the role's Molecule scenario.
 
 ## Risks

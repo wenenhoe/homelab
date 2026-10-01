@@ -8,7 +8,7 @@ EnvironmentFile=/etc/telegram-notify/{{ telegram_notify_unit_name }}.env
 
 ; message_thread_id is only added when a topic ID is actually configured -
 ; Telegram's API rejects the param outright if passed empty rather than
-; ignoring it (see docs/telegram-notifications.md).
+; ignoring it (see docs/topics/monitoring/telegram-notifications.md).
 ;
 ; parse_mode=Markdown (legacy), not MarkdownV2: legacy mode only requires
 ; escaping '_', '*', '`', '[' when used literally (Telegram's own docs,

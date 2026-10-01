@@ -14,7 +14,7 @@ exclude_paths:
 kinds:
     # backup_agent's default scenario splits verify.yml into several
     # files, each imported via import_tasks from verify.yml's own play
-    # (docs/molecule-testing.md) — plain task lists, not standalone
+    # (docs/topics/engineering/molecule-testing.md) — plain task lists, not standalone
     # playbooks, so ansible-lint's default playbook-shaped parsing for
     # anything under molecule/ needs an explicit override here.
     - tasks: "ansible/roles/backup_agent/molecule/default/verify_*.yml"

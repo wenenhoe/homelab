@@ -41,7 +41,7 @@ different footprints:
   not a separate problem.
 
 A blocker worth naming plainly rather than discovering mid-build:
-[`vm-provisioning.md`](../../vm-provisioning.md) already documents
+[`vm-provisioning.md`](../../topics/infra/vm-provisioning.md) already documents
 OPNsense's day-2 config (installing plugins, applying settings via its
 config API) as **Phase 2, not yet built** — today's OPNsense
 provisioning is Phase 1 only (VM shell + manual install). Perimeter

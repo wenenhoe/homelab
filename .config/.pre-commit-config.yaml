@@ -29,7 +29,7 @@ repos:
         # ansible/ansible-lint manifest, not assumed).
         always_run: false
         # Same file set as pr-checks.yml's ansible_lint path-filter —
-        # see docs/ci.md#docs-drift-check and that workflow's own
+        # see docs/topics/engineering/ci.md#docs-drift-check and that workflow's own
         # comment on why pyproject.toml/uv.lock aren't included here.
         files: ^(ansible/|\.config/\.ansible-lint$|\.config/\.pre-commit-config\.yaml$)
         # Overrides upstream's own `entry: python3 -m ansiblelint -v
@@ -57,7 +57,7 @@ repos:
         # (\.j2)? at the end — same reasoning as renovate.json5's
         # docker-compose managerFilePatterns: compose.yaml.j2 is still
         # a compose file, just also referencing an Ansible var (see
-        # docs/adding-an-app.md). Confirmed dclint parses the embedded
+        # docs/topics/deploy/adding-an-app.md). Confirmed dclint parses the embedded
         # {{ }} fine (it's just YAML scalar content) and --fix doesn't
         # touch it.
         files: (docker-)?compose(\..+)?\.ya?ml(\.j2)?$

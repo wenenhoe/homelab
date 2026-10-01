@@ -116,7 +116,7 @@ path from that bucket, which the hash does not cover; see Non-goals.
 
 - The Dockerfile is rewritten on the new base, `renovate.json5` gains a
   custom datasource and manager, and the publish workflow computes the
-  tags. [`docs/coderabbit-review.md`](../../coderabbit-review.md)
+  tags. [`docs/topics/engineering/coderabbit-review.md`](../../topics/engineering/coderabbit-review.md)
   describes the tags and how to back out.
 - Every CLI release becomes a PR to review. In exchange the image names
   its CLI version and a bad release can be reverted.

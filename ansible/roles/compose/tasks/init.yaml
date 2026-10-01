@@ -36,7 +36,7 @@
     # compose*.yaml.j2 is the same file, just referencing an Ansible var
     # directly instead of staying a plain static file — see the template
     # task below for why, and .j2 is a visible marker for which apps do
-    # this (docs/adding-an-app.md). The destination path strips the
+    # this (docs/topics/deploy/adding-an-app.md). The destination path strips the
     # .j2 suffix back off, so this is invisible past this file.
     patterns:
       - "compose*.yaml"
@@ -46,7 +46,7 @@
     # classifies a symlink as type "link" and never matches it as "file",
     # even with follow: true (that only affects recursion/stat-following,
     # not this classification). Molecule fixtures that symlink straight
-    # at a production compose.yaml (see docs/molecule-testing.md) would
+    # at a production compose.yaml (see docs/topics/engineering/molecule-testing.md) would
     # silently vanish here without this.
     file_type: any
   register: compose_compose_files_raw
@@ -60,7 +60,7 @@
   # isn't used. What it buys: an app whose only variable content is
   # non-secret and domain-free (a timezone, a hardcoded port — never a
   # real secret or anything derived from main_domain/lab_domain/
-  # caddy_domain, those stay in configs/*.j2 per docs/adding-an-app.md)
+  # caddy_domain, those stay in configs/*.j2 per docs/topics/deploy/adding-an-app.md)
   # can reference an Ansible var directly in its compose.yaml.j2 instead
   # of carrying a separate one-line .env just to get it into the
   # container. mode stays 0644 unconditionally — this task has no

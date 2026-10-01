@@ -108,7 +108,7 @@
     # condition skip as a deliberate no-op, not a failure. failed_when
     # false either way: the real assertion is the serial number below,
     # not this command's own exit code (Assert Side Effects, Not Exit
-    # Codes — see docs/molecule-testing.md's own convention on this).
+    # Codes — see docs/topics/engineering/molecule-testing.md's own convention on this).
     # Deliberately `command`, not the systemd_service module — this is a
     # Type=oneshot unit, which returns to "inactive" after running
     # regardless of whether ExecStart actually ran or ExecCondition

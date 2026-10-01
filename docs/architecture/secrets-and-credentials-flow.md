@@ -2,10 +2,10 @@
 
 How `controller` reaches OpenBao day-to-day, and how cloud credential
 rotation plus the R2 per-read watcher fit together — spans
-[`openbao-auth.md`](../openbao-auth.md) (`controller`'s AppRole),
-[`cloud-credential-creation.md`](../cloud-credential-creation.md)
+[`openbao-auth.md`](../topics/secrets/openbao-auth.md) (`controller`'s AppRole),
+[`cloud-credential-creation.md`](../topics/secrets/cloud-credential-creation.md)
 (minting/rotating R2/B2/OCI credentials), and
-[`openbao-r2-read-watcher.md`](../openbao-r2-read-watcher.md) (the
+[`openbao-r2-read-watcher.md`](../topics/secrets/openbao-r2-read-watcher.md) (the
 per-read alert on the R2 admin token), none of which shows the whole
 picture on one page.
 

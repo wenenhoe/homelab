@@ -45,13 +45,13 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [ ] `ANTHROPIC_API_KEY` and `CLAUDE_CODE_OAUTH_TOKEN` are unset on the host; sign-in is by interactive login only.
 - [ ] The host holds no OpenBao credential, infrastructure SSH key, or git credential, confirmed by a scan run from outside the host.
 - [ ] The host is in none of `managed_hosts`, `app_hosts`, or `patched_hosts`.
-- [ ] The resulting behavior is described in `docs/coding-agent.md`.
+- [ ] The resulting behavior is described in `docs/topics/infra/coding-agent.md`.
 
 ## Agent handoff
 
 - **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
 - **Must not change:** other hosts' inventory entries, the `all.vars` key, any existing role's behavior.
-- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (`all.vars` key inheritance), `docs/network-infra.md` (the pattern for a host outside `managed_hosts`).
+- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (`all.vars` key inheritance), `docs/topics/infra/network-infra.md` (the pattern for a host outside `managed_hosts`).
 - **Required checks:** `pre-commit run --all-files`; the role's Molecule scenario.
 
 ## Risks

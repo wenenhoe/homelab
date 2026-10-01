@@ -19,7 +19,7 @@ Every existing `BAO_SKIP_VERIFY=true` use in this repo
 (`openbao-auth.md`'s runbook, `snapshot-push.sh.j2`) is documented as
 loopback-only, against the container's own self-signed-from-our-CA
 cert — "there's no real trust decision being loosened here" per
-[`openbao.md`](../../openbao.md)'s healthcheck section. Migrating the
+[`openbao.md`](../../topics/secrets/openbao.md)'s healthcheck section. Migrating the
 secrets role's
 `ensure_secret.yaml` breaks that precedent: its Vault calls run
 `delegate_to: localhost` (the operator's own machine, not `security`),
@@ -50,7 +50,7 @@ Two real alternatives:
 
 Fetch fresh every run. Play 0 (`bootstrap-secrets.yaml`), after
 `main-domain` resolves from the file cache (permanently exempt from
-Vault per this stage's own scoping — see [`secrets.md`](../../secrets.md)),
+Vault per this stage's own scoping — see [`secrets.md`](../../topics/secrets/secrets.md)),
 adds one task delegated to `security`:
 `community.docker.docker_container_exec` reading `step-ca`'s
 `root_ca.crt` (the same command `step_ca_client` already runs), written

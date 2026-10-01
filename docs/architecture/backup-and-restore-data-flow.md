@@ -1,9 +1,9 @@
 # Backup & Restore Data Flow
 
 The one end-to-end view that spans three separate topic docs —
-[`backup.md`](../backup.md) (the backup side),
-[`cloud-sync.md`](../cloud-sync.md) (the offsite relay), and
-[`restore.md`](../restore.md) (reversing the path) — none of which
+[`backup.md`](../topics/disaster-recovery/backup.md) (the backup side),
+[`cloud-sync.md`](../topics/disaster-recovery/cloud-sync.md) (the offsite relay), and
+[`restore.md`](../topics/disaster-recovery/restore.md) (reversing the path) — none of which
 shows the whole pipeline on one page.
 
 ## Backup: app host to offsite cloud
@@ -27,7 +27,7 @@ flowchart LR
 Every app host's `backup_agent` identity can write only its own
 `homelab-backups/<hostname>-*` prefix; only `storage` ever holds a
 cloud write credential. See
-[`backup-threat-model.md`](../backup-threat-model.md) for why.
+[`backup-threat-model.md`](../topics/disaster-recovery/backup-threat-model.md) for why.
 
 ## Restore: cloud/SeaweedFS back to an app host's volume
 
@@ -49,7 +49,7 @@ flowchart LR
 
 The controller never holds a write credential for SeaweedFS or any
 cloud target — only the six read-leaf credentials from
-[`cloud-credential-creation.md`](../cloud-credential-creation.md), and
+[`cloud-credential-creation.md`](../topics/secrets/cloud-credential-creation.md), and
 only for the discovery/fallback step above. The actual extraction runs
 through the same `restore` Ansible role either way, on the target app
 host itself.

@@ -31,7 +31,7 @@ git, to code review, and to Ansible.
 
 Replace npm with Caddy everywhere, configured entirely through a
 `Caddyfile` (later templated via Jinja — see
-[`caddy.md`](../../caddy.md)) checked into this repo like every other
+[`caddy.md`](../../topics/services/caddy.md)) checked into this repo like every other
 config.
 
 ## Consequences
@@ -42,4 +42,4 @@ UI setup — the same property this repo already wanted for everything
 else. The cost: no web UI for ad hoc changes; every new route is a
 `Caddyfile`/`app_registry` change and a redeploy, not a few clicks.
 That's the trade this repo consistently makes elsewhere too (see
-[`adding-an-app.md`](../../adding-an-app.md)).
+[`adding-an-app.md`](../../topics/deploy/adding-an-app.md)).

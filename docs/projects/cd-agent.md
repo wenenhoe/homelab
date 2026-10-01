@@ -83,7 +83,7 @@ against it.
   is why this wasn't feasible from `controller`. Previous CI-integrated
   image scanning was dropped for being mostly non-actionable noise
   (third-party images awaiting upstream rebuilds) — see
-  [`security-scanning.md`](../security-scanning.md#why-no-image-cve-scanning).
+  [`security-scanning.md`](../topics/engineering/security-scanning.md#why-no-image-cve-scanning).
   This reframes the same capability as informational rather than
   actionable, which may sidestep that problem. Not scoped beyond the
   idea yet.

@@ -72,7 +72,7 @@ def tree(root):
     tree.write("docker/dashy/configs/conf.yaml.j2")
     tree.write("docker/openbao/policies/controller.hcl")
     tree.write("docker/molecule-dind/Dockerfile")
-    tree.write("docs/ci.md")
+    tree.write("docs/topics/engineering/ci.md")
     return tree
 
 
@@ -124,7 +124,7 @@ class TestChangedApps:
         assert apps(tree, "docker/molecule-dind/Dockerfile", "docker/openbao/configs/x.j2") == []
 
     def test_files_outside_configs_scripts_compose_and_dockerfile_are_ignored(self, tree):
-        assert apps(tree, "docker/openbao/policies/controller.hcl", "docker/lldap/README.md", "docs/ci.md") == []
+        assert apps(tree, "docker/openbao/policies/controller.hcl", "docker/lldap/README.md", "docs/topics/engineering/ci.md") == []
 
     def test_only_a_bare_configs_directory_name_is_not_enough(self, tree):
         assert apps(tree, "docker/lldap/configs") == []
@@ -244,7 +244,7 @@ class TestCli:
         assert repo.out.read_text().splitlines() == ['apps=["lldap","wastebin"]', 'dockerfiles=["caddy","wastebin"]']
 
     def test_changed_with_nothing_relevant_writes_empty_arrays(self, repo):
-        repo.write("docs/ci.md", "changed\n")
+        repo.write("docs/topics/engineering/ci.md", "changed\n")
         head = repo.commit("change")
         assert repo.main("changed", repo.base, head) == 0
         assert repo.out.read_text().splitlines() == ["apps=[]", "dockerfiles=[]"]

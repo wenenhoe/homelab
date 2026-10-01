@@ -118,10 +118,10 @@ Docker.
   debug a deploy, and downstream roles can be tested against fixed
   `resolved_apps` fixtures.
 - The rename touches 88 files that mention `app_registry`, every
-  `caddy:` route entry, `AGENTS.md`, and `docs/adding-an-app.md`. It ships
+  `caddy:` route entry, `AGENTS.md`, and `docs/topics/deploy/adding-an-app.md`. It ships
   as its own mechanical changes after the resolver exists.
-- Docs that describe the resolve step (`docs/deployment-flow.md`,
-  `docs/adding-an-app.md`) change in the pull requests that change the
+- Docs that describe the resolve step (`docs/topics/deploy/deployment-flow.md`,
+  `docs/topics/deploy/adding-an-app.md`) change in the pull requests that change the
   behaviour.
 
 ## Invariants

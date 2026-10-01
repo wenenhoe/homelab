@@ -42,7 +42,7 @@ beszel_hub_url: "http://ci-dummy-beszel-hub:8090"
 uptime_kuma_url: "http://ci-dummy-uptime-kuma:3001"
 
 # Normally unset by default until manual post-bootstrap setup (see
-# docs/beszel.md) — CI needs *some* value for beszel-agent's config to
+# docs/topics/monitoring/beszel.md) — CI needs *some* value for beszel-agent's config to
 # render at all. Must be a real, structurally valid SSH public key, not
 # an arbitrary string — beszel-agent's Go SSH parser rejects malformed
 # input at startup (confirmed: "Failed to load public keys: failed to
@@ -74,7 +74,7 @@ lldap_ldap_user_pass: "ci-dummy-lldap-user-pass"
 telegram_token: "ci-dummy-telegram-token"
 telegram_chat_id: "0"
 # diun's env.j2 renders this (topic-routed chat ID) instead of
-# telegram_chat_id directly — see docs/telegram-notifications.md.
+# telegram_chat_id directly — see docs/topics/monitoring/telegram-notifications.md.
 telegram_chatid_updates: "0"
 
 shlink_short_host: "short"

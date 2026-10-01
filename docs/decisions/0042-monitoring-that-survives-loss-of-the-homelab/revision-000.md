@@ -15,7 +15,7 @@ related: [ADR-0010, ADR-0049]
 ## Context
 
 The idea: Beszel Hub and Uptime Kuma both already exist
-(`docs/beszel.md`, `docs/uptime-kuma.md`), deployed on-prem on
+(`docs/topics/monitoring/beszel.md`, `docs/topics/monitoring/uptime-kuma.md`), deployed on-prem on
 `security`, with a connection model that already solves "no inbound
 port needed" for the agent/push fleet. The real gap: both live
 entirely on `security` — if `security`, or the whole homelab's
@@ -52,6 +52,6 @@ Two stages, in this order:
 ## Not yet done
 
 - VM 202's current configuration is now read and recorded in
-  [`network-infra.md`](../../network-infra.md) (Stage 1, done) — the
+  [`network-infra.md`](../../topics/infra/network-infra.md) (Stage 1, done) — the
   tailnet-wide ACL policy itself is the one piece of that still
   unreviewed.

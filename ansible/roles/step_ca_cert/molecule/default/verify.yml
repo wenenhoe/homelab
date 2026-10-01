@@ -147,7 +147,7 @@
     # stays 0 here even though the container demonstrably did restart.
     # StartedAt changes on every restart regardless of cause, the same
     # signal backup_agent's own scenario already uses for this exact
-    # kind of assertion (see docs/molecule-testing.md).
+    # kind of assertion (see docs/topics/engineering/molecule-testing.md).
     - name: Record lldap's start time after
       community.docker.docker_container_info:
         name: lldap
@@ -218,7 +218,7 @@
     # --- telegram-notify@ wiring -----------------------------------------
     # Doesn't exercise a real Telegram delivery (no live bot/network in
     # CI) — that part still needs a manual live check, see
-    # docs/telegram-notifications.md. What this confirms instead: the
+    # docs/topics/monitoring/telegram-notifications.md. What this confirms instead: the
     # OnFailure= link is actually present, and the templated unit loads
     # and runs cleanly under real systemd rather than just "the file
     # looks right" (catches quoting/escaping bugs the static content

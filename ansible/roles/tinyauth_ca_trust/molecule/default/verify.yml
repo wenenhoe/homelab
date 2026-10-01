@@ -10,7 +10,7 @@
     # outright. Reaching healthy here, with tinyauth_ldap_insecure: false
     # (this scenario's one deliberate difference from that one), is only
     # possible if SSL_CERT_FILE genuinely got tinyauth's LDAP client to
-    # trust a step-ca-issued cert — the exact thing docs/lldap.md flagged
+    # trust a step-ca-issued cert — the exact thing docs/topics/services/lldap.md flagged
     # as unverified. This is what confirms it.
     - name: Wait for tinyauth to report healthy
       community.docker.docker_container_info:

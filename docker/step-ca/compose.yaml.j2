@@ -15,9 +15,9 @@ services:
       # (`step ca health`) - is derived from the FIRST name below, so it
       # must be one the container resolves to itself. Keep `step-ca`
       # (this compose service's own name on caddy-proxy) first. See
-      # docs/step-ca.md.
+      # docs/topics/services/step-ca.md.
       # step-ca's own default is 24h, built for constant automated
-      # renewal this repo doesn't have yet - see docs/step-ca.md.
+      # renewal this repo doesn't have yet - see docs/topics/services/step-ca.md.
       STEP_CA_DEFAULT_CERT_DURATION: 720h
     env_file:
       - .env

@@ -5,7 +5,7 @@
 # the newest tar in ./backups into ./data via itzg/mc-backup's
 # restore-tar-backup entrypoint — deliberately kept out of the
 # `restore` role itself, see that script's own header and
-# docs/restore.md.
+# docs/topics/disaster-recovery/restore.md.
 #
 # restore_all.py always runs phase 1 immediately before this. Standalone
 # use (e.g. an ordinary same-day rollback with no backup archive

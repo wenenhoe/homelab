@@ -18,7 +18,7 @@ related: [ADR-0017]
 
 Proving OpenBao's backup/restore loop needed a way to get the
 encrypted raft snapshot
-(`docs/openbao-backup-restore.md`) from `security` to R2/B2. Every
+(`docs/topics/secrets/openbao-backup-restore.md`) from `security` to R2/B2. Every
 other app's offsite backup goes through `backup_agent` (tar the volume,
 encrypt, land on SeaweedFS) and `cloud_sync` (relay SeaweedFS onward on
 its own timer) — routing this through the same pipeline instead of a
@@ -26,7 +26,7 @@ standalone script was a real alternative, not a hypothetical one, and
 would have bought scheduling for free.
 
 `backup_agent`'s actual job is tarring a volume, and that doesn't fit
-here regardless of the pipeline question: `docs/openbao.md` already
+here regardless of the pipeline question: `docs/topics/secrets/openbao.md` already
 established that stopping OpenBao to tar its data volume means sealing
 it, needing a manual unseal ([0018](../0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on
 every cycle. So `backup_agent` itself was never in scope. The open
@@ -85,7 +85,7 @@ yet — `controller` is the operator's own machine, never meant to run
 scheduled jobs. Until a dedicated automation host exists, this runs by
 hand, authenticating as `controller`'s AppRole rather than the root
 token (see
-`docs/openbao-backup-restore.md`'s "Why manual" section). Once that
+`docs/topics/secrets/openbao-backup-restore.md`'s "Why manual" section). Once that
 host exists, the natural next step is `snapshot-push.sh`'s own
 systemd timer on `security` — the same shape `cloud_sync` already is
 (a standalone timer, not living inside `backup_agent`), not an

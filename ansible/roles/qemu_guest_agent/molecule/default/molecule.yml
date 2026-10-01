@@ -1,6 +1,6 @@
 ---
 # qemu_guest_agent installs a single apt package and, deliberately, does
-# nothing service-related (see docs/qemu-guest-agent.md) — no systemd,
+# nothing service-related (see docs/topics/infra/qemu-guest-agent.md) — no systemd,
 # no privileged mode, no Docker-in-Docker needed.
 driver:
   name: docker

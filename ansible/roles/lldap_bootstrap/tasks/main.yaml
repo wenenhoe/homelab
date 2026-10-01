@@ -1,6 +1,6 @@
 ---
 # Automates lldap's `observer` account (see
-# docs/lldap.md#bootstrapping-the-observer-account) using lldap's own
+# docs/topics/services/lldap.md#bootstrapping-the-observer-account) using lldap's own
 # bootstrap.sh against its admin API, run from an ephemeral container
 # built off the exact image tag the real `lldap` container is already
 # running — so this role never carries its own copy of that version pin.

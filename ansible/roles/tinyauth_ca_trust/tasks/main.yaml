@@ -9,7 +9,7 @@
 # tinyauth's default trust store to include step-ca without touching its
 # image or turning verification off. Confirmed via a live run of this
 # role's own molecule/default scenario, not just reasoned through — see
-# docs/lldap.md.
+# docs/topics/services/lldap.md.
 #
 # Expects step_ca_client to have already run in this play (root cert
 # cached at step_ca_client_root_cert_path).
@@ -39,7 +39,7 @@
 
 # Staged into tinyauth's own _staging/data/ dir, the same path
 # docker/tinyauth/configs/config.yaml.j2 already stages into as part of
-# its normal Play 4 init (see docs/volumes.md) - so this reuses an
+# its normal Play 4 init (see docs/topics/deploy/volumes.md) - so this reuses an
 # already-existing directory rather than needing its own file: task.
 - name: Work out the CA bundle's expected content
   ansible.builtin.set_fact:
@@ -95,7 +95,7 @@
 
 # Mirrors caddy/bind9's own self-managed pattern for content that needs
 # to land in an already-declared volume outside the generic per-config
-# staging classification (see docs/volumes.md's "Self-managed apps"
+# staging classification (see docs/topics/deploy/volumes.md's "Self-managed apps"
 # section) - this bundle is built from live host/container data, not a
 # static Jinja template, so it can't go through app_catalog's normal
 # configs: list.

@@ -68,7 +68,7 @@ approach first:
   fact, by someone other than whoever wrote the ADR. A doc that links
   *to* the ADR instead carries that claim without touching it.
 
-[`docs/nist-800-53-alignment.md`](../../nist-800-53-alignment.md) is
+[`docs/topics/engineering/nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md) is
 that single doc: a narrow, explicitly-not-compliance narrative — a few
 existing practices genuinely resemble a specific 800-53 control, most
 don't and aren't forced to, and it says so plainly where a mapping was
@@ -150,10 +150,10 @@ by `doc_frontmatter.py`'s type/status rules on every commit; a doc
 missing or misshaping it fails the build rather than drifting quietly.
 The generator and NIST alignment doc are both real, running tooling,
 not aspirational — see
-[`docs/ci.md#doc-index-generation`](../../ci.md#doc-index-generation) and
-[`#docs-drift-check`](../../ci.md#docs-drift-check) for what actually
+[`docs/topics/engineering/ci.md#doc-index-generation`](../../topics/engineering/ci.md#doc-index-generation) and
+[`#docs-drift-check`](../../topics/engineering/ci.md#docs-drift-check) for what actually
 runs and what each check catches, and
-[`docs/nist-800-53-alignment.md`](../../nist-800-53-alignment.md) for the
+[`docs/topics/engineering/nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md) for the
 NIST mapping itself.
 
 A `depends_on`-field-driven Mermaid dependency graph was evaluated and

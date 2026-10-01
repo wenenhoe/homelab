@@ -5,7 +5,7 @@
 # the wire even if the reason turns out to be unrelated to renewal
 # timing (wrong SNI routing, Caddy down, DNS issuer failure, etc). One
 # check covers the whole host: every {{ caddy_domain }} subdomain
-# shares the same wildcard cert (see docs/telegram-notifications.md).
+# shares the same wildcard cert (see docs/topics/monitoring/telegram-notifications.md).
 #
 # Connects to 127.0.0.1, not $HOST — openssl s_client has no curl
 # --resolve equivalent, and this role always runs on the same host as

@@ -138,5 +138,5 @@ material or self-tracked timestamps anywhere new.
   otherwise watching.
 
 See
-[`cloud-credential-creation.md`](../../cloud-credential-creation.md#credential-expiry)
+[`cloud-credential-creation.md`](../../topics/secrets/cloud-credential-creation.md#credential-expiry)
 for the setup/verification steps this decision produced.

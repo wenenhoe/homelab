@@ -14,7 +14,7 @@ related: [ADR-0048]
 
 ## Context
 
-[`security-scanning.md`](../../security-scanning.md) documents Trivy's
+[`security-scanning.md`](../../topics/engineering/security-scanning.md) documents Trivy's
 existing Ansible misconfiguration scanner (`_trivy-scan.yml`), scoped
 via `detect-changes` on PRs and unscoped weekly. Making it work at all
 against this repo's layout took real, non-obvious engineering — a

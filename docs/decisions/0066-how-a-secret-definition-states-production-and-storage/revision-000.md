@@ -107,7 +107,7 @@ from something else.
 - The schema change spans Ansible and Python in one pull request, because
   both read the fields. The rename is a separate mechanical change after it:
   `secrets_registry` appears in 64 files.
-- `docs/secrets.md` and the other docs that name the fields change in the
+- `docs/topics/secrets/secrets.md` and the other docs that name the fields change in the
   pull requests that change them.
 
 ## Invariants

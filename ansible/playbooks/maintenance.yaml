@@ -27,7 +27,7 @@
 # two separate playbooks for no benefit. network_infra has no
 # equivalent play in deploy.yaml (it never reaches deploy.yaml at all —
 # see inventory.yaml's network_infra comment), so this is its only
-# home. See docs/network-infra.md.
+# home. See docs/topics/infra/network-infra.md.
 - name: Ensure Proxmox guest agent on network infrastructure hosts
   hosts: network_infra
   become: true

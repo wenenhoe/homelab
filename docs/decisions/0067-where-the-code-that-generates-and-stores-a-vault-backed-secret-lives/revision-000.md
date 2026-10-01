@@ -137,7 +137,7 @@ implementing project, not a design assumption.
   against a real OpenBao test target, needs a create-race case added so
   the module's `InvalidRequest`-catching branch is exercised the same way
   `process_vault_secrets.yaml`'s reread-on-conflict branch is today.
-- `docs/secrets.md` and `docs/molecule-testing.md` describe the new module
+- `docs/topics/secrets/secrets.md` and `docs/topics/engineering/molecule-testing.md` describe the new module
   and its test target once implemented.
 
 ## Invariants

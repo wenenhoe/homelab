@@ -4,7 +4,7 @@ Pictures of what the system looks like right now: components, how they
 talk to each other, and how data moves through it. This directory holds
 only the views that don't have one natural home in a single topic doc —
 if a diagram would just illustrate one existing page, it lives embedded
-in that page instead (e.g. [`deployment-flow.md`](../deployment-flow.md)
+in that page instead (e.g. [`deployment-flow.md`](../topics/deploy/deployment-flow.md)
 has its own play-order diagram).
 
 Split into one high-level diagram (`system-overview.md` — the whole

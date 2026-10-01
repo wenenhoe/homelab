@@ -43,7 +43,7 @@ inputs:
       pr-checks.yml's warm-uv-cache and warm-caches.yml on main — so a
       PR that changes uv.lock/pyproject.toml gets exactly one job
       writing the new cache entry instead of every uv-consuming job
-      racing to write it — see docs/ci.md#cache-warming.
+      racing to write it — see docs/topics/engineering/ci.md#cache-warming.
     required: false
     default: "false"
   save-galaxy-cache:

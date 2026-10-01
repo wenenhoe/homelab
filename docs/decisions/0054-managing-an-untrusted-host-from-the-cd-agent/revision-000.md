@@ -24,7 +24,7 @@ A host that runs untrusted code is built and patched by automation that also hol
 
 The CD agent ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md)) does not exist yet. Until it does, provisioning is run from the operator host ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)), which becomes the controller for every host.
 
-Converging in place does not remove an implant, and a controller running against a compromised host ingests its facts and task results. Provisioning a VM from the Tofu definition ([`vm-provisioning.md`](../../vm-provisioning.md)) is repeatable and starts from a known image.
+Converging in place does not remove an implant, and a controller running against a compromised host ingests its facts and task results. Provisioning a VM from the Tofu definition ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) is repeatable and starts from a known image.
 
 **Threat model.** The adversary controls the target host. The asset is the controller's credentials and its other targets. The attack path is the management connection and the data returned over it.
 

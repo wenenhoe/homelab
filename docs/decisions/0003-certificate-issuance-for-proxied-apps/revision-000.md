@@ -43,7 +43,7 @@ at the time:
 
 Route apps through one wildcard vhost per host by default, matched by
 `@app host app.{{ caddy_domain }}` + `handle` blocks inside it (see
-[`caddy.md`](../../caddy.md)), rather than a separate site block and cert
+[`caddy.md`](../../topics/services/caddy.md)), rather than a separate site block and cert
 per app.
 
 ## Consequences

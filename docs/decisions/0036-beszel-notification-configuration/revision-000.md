@@ -15,7 +15,7 @@ status: accepted
 
 ## Context
 
-[`beszel.md`](../../beszel.md) documents the current state: Beszel's
+[`beszel.md`](../../topics/monitoring/beszel.md) documents the current state: Beszel's
 Telegram notification channel is set by hand, **Settings →
 Notifications**, pasting
 `telegram://<telegram_token>@telegram?chats=<telegram_chatid_monitoring>`

@@ -5,7 +5,7 @@ cross-doc link can't silently drift out of sync with what documents it.
 
 Narrow presence/shape checks only, deliberately not content-equality —
 see each check's docstring for what it does and doesn't catch, and
-docs/ci.md#docs-drift-check for the summary.
+docs/topics/engineering/ci.md#docs-drift-check for the summary.
 """
 
 from __future__ import annotations
@@ -34,7 +34,7 @@ PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
 # (directory under docs/, whether its README.md also indexes docs in nested
 # folders). A recursive directory is matched by path relative to that
 # README, so two folders can each hold a doc of the same name.
-INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), ("projects", False))
+INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), ("projects", False), ("topics", True))
 
 DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
 PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
@@ -88,11 +88,11 @@ def check_doc_indexes() -> None:
 
 
 def check_ansible_reference() -> None:
-    """docs/ansible.md's Playbooks table lists every ansible/playbooks/*.yaml
+    """docs/topics/deploy/ansible.md's Playbooks table lists every ansible/playbooks/*.yaml
     file; its Roles table lists every ansible/roles/*/ directory.
     Presence-only matching, not full link validation.
     """
-    doc = read(ROOT / "docs/ansible.md")
+    doc = read(ROOT / "docs/topics/deploy/ansible.md")
 
     pb_section = re.search(r"## Playbooks\n\n(.*?)\n\n", doc, re.DOTALL)
     if not pb_section:
@@ -118,11 +118,11 @@ def check_ansible_reference() -> None:
 
 
 def check_molecule_matrix() -> None:
-    """docs/molecule-testing.md's Scenario matrix table, role-for-role
+    """docs/topics/engineering/molecule-testing.md's Scenario matrix table, role-for-role
     and scenario-for-scenario, against the real
     ansible/roles/*/molecule/*/ directories.
     """
-    lines = read(ROOT / "docs/molecule-testing.md").splitlines()
+    lines = read(ROOT / "docs/topics/engineering/molecule-testing.md").splitlines()
     start = next(i for i, line in enumerate(lines) if line.strip() == "## Scenario matrix")
     table_lines: list[str] = []
     for line in lines[start:]:
@@ -177,7 +177,7 @@ def check_deploy_flow() -> None:
     without the docs' numbering following it.
     """
     play_names = re.findall(r"^- name:\s*(.+)$", read(ROOT / "ansible/playbooks/deploy.yaml"), re.MULTILINE)
-    heading_nums = [int(n) for n in re.findall(r"^## Play (\d+)", read(ROOT / "docs/deployment-flow.md"), re.MULTILINE)]
+    heading_nums = [int(n) for n in re.findall(r"^## Play (\d+)", read(ROOT / "docs/topics/deploy/deployment-flow.md"), re.MULTILINE)]
 
     if len(heading_nums) != len(play_names):
         fail(f"deployment-flow.md: {len(heading_nums)} 'Play N' headings vs {len(play_names)} plays in deploy.yaml — one was added/removed without the other")
@@ -186,11 +186,11 @@ def check_deploy_flow() -> None:
 
 
 def check_ci_jobs_table() -> None:
-    """docs/ci.md's Jobs table against pr-checks.yml's actual job ids."""
+    """docs/topics/engineering/ci.md's Jobs table against pr-checks.yml's actual job ids."""
     workflow = yaml.safe_load(read(ROOT / ".github/workflows/pr-checks.yml"))
     job_ids = set(workflow["jobs"].keys())
 
-    section = re.search(r"## Jobs\n\n(.*?)\n\n", read(ROOT / "docs/ci.md"), re.DOTALL)
+    section = re.search(r"## Jobs\n\n(.*?)\n\n", read(ROOT / "docs/topics/engineering/ci.md"), re.DOTALL)
     if not section:
         fail("ci.md: couldn't find the ## Jobs table")
         return
@@ -322,7 +322,7 @@ def check_doc_path_mentions() -> None:
 
 
 def check_nist_alignment_currency() -> None:
-    """docs/nist-800-53-alignment.md links to specific ADRs as
+    """docs/topics/engineering/nist-800-53-alignment.md links to specific ADRs as
     evidence for a control mapping; unlike a plain dead link, an ADR
     being marked superseded doesn't move or delete the file, so
     check_no_stale_anchors's link-resolution check passes right through
@@ -335,7 +335,7 @@ def check_nist_alignment_currency() -> None:
     those stay on whoever's making that change, same as the page's own
     "What this page is not" section says.
     """
-    doc = ROOT / "docs/nist-800-53-alignment.md"
+    doc = ROOT / "docs/topics/engineering/nist-800-53-alignment.md"
     text = read(doc)
 
     for rel in PLAIN_MD_LINK_RE.findall(text):

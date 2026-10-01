@@ -3,7 +3,7 @@
 # cert at a well-known host path both of those roles read from — bind-
 # mounted (read-only) into whichever ephemeral smallstep/step-cli
 # container is doing the actual `step` invocation, since nothing in this
-# repo runs `step` as a host-installed binary (see docs/step-ca.md for
+# repo runs `step` as a host-installed binary (see docs/topics/services/step-ca.md for
 # why: no host process needs to resolve step-ca by name, and this repo
 # has no other third-party-apt-repo precedent to justify one just for
 # this).

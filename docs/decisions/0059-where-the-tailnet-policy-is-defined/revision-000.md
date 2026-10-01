@@ -23,7 +23,7 @@ over time.
 ## Context
 
 The policy today is the default allow-all grant, held only in the
-Tailscale admin console ([`network-infra.md`](../../network-infra.md);
+Tailscale admin console ([`network-infra.md`](../../topics/infra/network-infra.md);
 recorded in ADR 0058's Context). No revision of it has ever been
 reviewed as code. ADR 0058's Stage 2
 ([`operator-host.md`](../../projects/operator-host.md)) is about to

@@ -16,12 +16,12 @@ listener "tcp" {
 # Both must resolve for a client actually connecting - "openbao" is this
 # compose service's own name on caddy-proxy, the same first-name-must-
 # self-resolve convention step-ca's STEP_CA_DNS_NAMES already uses (see
-# docs/step-ca.md). cluster_addr is unused on a single-node cluster
+# docs/topics/services/step-ca.md). cluster_addr is unused on a single-node cluster
 # (nothing ever joins) but still required config.
 api_addr     = "https://openbao:8200"
 cluster_addr = "https://openbao:8201"
 
-# No UI - see docs/openbao.md for why this stays CLI/API-only.
+# No UI - see docs/topics/secrets/openbao.md for why this stays CLI/API-only.
 ui = false
 
 # Declarative, not API-driven (unsafe_allow_api_audit_creation would be
@@ -29,7 +29,7 @@ ui = false
 # to stdout, captured by Docker's own log driver - compose.yaml.j2's
 # logging: block is what bounds its growth, not this file.
 audit "file" "openbao" {
-  description = "Request/response audit log - see docs/openbao.md's Audit logging section and ADR 0026"
+  description = "Request/response audit log - see docs/topics/secrets/openbao.md's Audit logging section and ADR 0026"
   options {
     file_path = "stdout"
   }

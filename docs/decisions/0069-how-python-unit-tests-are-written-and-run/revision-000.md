@@ -38,7 +38,7 @@ Tests are pytest-native.
 - **Import roots.** Declared once in the `pytest` configuration in `pyproject.toml`. A `conftest.py` holds only what configuration can't express. Test files carry no `sys.path` edits.
 - **Order.** Configuration and shared fixtures first, with no test changes. Then one mechanical conversion per directory. A conversion changes no behavior and drops no assertion: the same behaviors are collected, each test keeps its assertions, and any difference is stated in that change. Fixes to what tests assert or double come afterward, as separate changes on the converted files.
 
-The conventions are written down in a testing section of `docs/conventions.md`, added with the first conversion.
+The conventions are written down in a testing section of `docs/topics/engineering/conventions.md`, added with the first conversion.
 
 ## Alternatives considered
 
@@ -63,7 +63,7 @@ The conventions are written down in a testing section of `docs/conventions.md`, 
 
 - Rules for test doubles and assertion strength: what a mock is bound to, which values a pass-through test may use, which tests are deleted. That is a separate problem that would still stand if the framework changed, so it gets its own lineage before that work starts.
 - Mutation testing. Whether it adds signal on the pure-logic modules is answered by a spike before any decision.
-- Molecule scenarios and role testing, which [`docs/molecule-testing.md`](../../molecule-testing.md) covers.
+- Molecule scenarios and role testing, which [`docs/topics/engineering/molecule-testing.md`](../../topics/engineering/molecule-testing.md) covers.
 - Which behaviors get a test.
 
 ## Reconsideration triggers

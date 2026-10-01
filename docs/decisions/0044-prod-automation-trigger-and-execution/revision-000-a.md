@@ -15,7 +15,7 @@ related: [ADR-0020, ADR-0023]
 
 ## Context
 
-`docs/ci.md` documents this repo's existing GitHub Actions pipeline
+`docs/topics/engineering/ci.md` documents this repo's existing GitHub Actions pipeline
 (`pr-checks.yml`) — GitHub-hosted runners, no prod access, nothing at
 stake if a workflow is compromised beyond CI noise. The CD side this
 migration exists to support is a different animal: at minimum it needs

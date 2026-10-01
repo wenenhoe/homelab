@@ -1,0 +1,91 @@
+# Ansible Reference
+
+Reference tables for everything under `ansible/`. For the `deploy.yaml`
+play-by-play and role responsibilities during a deploy, see
+[`deployment-flow.md`](deployment-flow.md). See
+[ADR 0001](../../decisions/0001-host-configuration-reproducible-from-repo/revision-000.md) for
+why every host is Ansible-managed rather than configured by hand.
+
+## Playbooks
+
+| Playbook File | Inventory | Description |
+| :--- | :--- | :--- |
+| `playbooks/deploy.yaml` | `inventory/inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`deployment-flow.md`](deployment-flow.md). |
+| `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`cleanup.md`](cleanup.md). |
+| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required (`patched_hosts`), plus `qemu_guest_agent` presence (`network_infra` only). |
+| `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
+| `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted backup archive (stage 1 DR). See [`restore.md`](../disaster-recovery/restore.md). |
+| `playbooks/restore-discovery-setup.yaml` | `inventory/inventory.yaml` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` `restore_all.py` uses. See [`restore.md`](../disaster-recovery/restore.md). |
+| `playbooks/restore-minecraft-world.yaml` | `inventory/inventory.yaml` | Phase 2 of a minecraft restore: unpacks the newest backup tar into the live world. See [`restore.md`](../disaster-recovery/restore.md). |
+| `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`volume-maintenance.md`](volume-maintenance.md). |
+| `playbooks/volume-reset.yaml` | `inventory/inventory.yaml` | Wipes a volume entirely and recreates it, restoring only Ansible-seeded content. See [`volume-maintenance.md`](volume-maintenance.md). |
+| `playbooks/rotate-secret.yaml` | none — `hosts: localhost` | Deletes one generated secret's cached value, so the next `deploy.yaml` run regenerates it. Doesn't redeploy anything itself. See [`secrets-rotation.md`](../secrets/secrets-rotation.md). |
+| `playbooks/bootstrap-secrets.yaml` | none — `hosts: localhost` | Leading play imported by `deploy.yaml`/`restore.yaml` to resolve `secret_catalog.yaml`. See [`secrets.md`](../secrets/secrets.md). |
+| `playbooks/pin-telegram-topics.yaml` | none — `hosts: localhost` | Pins a static header message in each Telegram forum topic. See [`telegram-notifications.md`](../monitoring/telegram-notifications.md). |
+| `playbooks/ci_boot_test.yaml` | `ci-inventory/` | CI-only: seeds one app for the compose boot-test job. See [`ci.md`](../engineering/ci.md). |
+
+## Roles
+
+| Role | Purpose |
+| :--- | :--- |
+| `apt` | System package updates. |
+| `fwupd` | Firmware updates. |
+| `docker` | Docker Engine install. |
+| `qemu_guest_agent` | Installs `qemu-guest-agent` for Proxmox VM integration. |
+| `compose` | Reusable init/deploy/cleanup tasks for one compose app. |
+| `compose_app` | Batch-drives `compose` for every non-infra app. |
+| `caddy` | Renders Caddyfile, builds custom image, deploys. |
+| `caddy_cert_expiry` | Alerts if Caddy's live-serving cert is expiring/unreachable. |
+| `bind9` | Renders zone files, deploys, rewires host DNS. |
+| `openbao` | Chowns openbao's data volume to its own non-root user before it first starts, deploys. |
+| `openbao_cli` | Installs/verifies a native `bao` CLI on `security`, version-matched to the running server. |
+| `seaweedfs_bucket` | Ensures the SeaweedFS backup bucket exists on `storage`. |
+| `lldap_bootstrap` | Automates lldap's `observer` account for tinyauth's LDAP bind. |
+| `step_ca_client` | Shared prerequisite: caches step-ca's root cert on the host. |
+| `step_ca_cert` | Issues/renews a per-app cert from step-ca (lldap's LDAPS cert, OpenBao's TLS listener cert). |
+| `telegram_notify` | Shared library role: direct-curl Telegram alert unit. |
+| `telegram_topic_pins` | Shared library role: posts/pins a static per-topic header message, control-node-only. |
+| `uptime_kuma_push` | Shared library role: direct-curl unit for a job's Uptime Kuma push-monitor URL. |
+| `systemd_reload` | Shared library role: the one `Reload systemd` handler, plus the notifier reload and handler flush the timer roles run before enabling their timers. |
+| `tinyauth_ca_trust` | Builds the CA bundle tinyauth needs to trust step-ca-issued certs. |
+| `tinyauth` | Molecule-only: deploys tinyauth for real in its own scenario. |
+| `backup_agent` | Per-host backup aggregation into SeaweedFS (stage 1 DR). |
+| `cloud_sync` | Offsite replication of SeaweedFS archives to R2/B2/OCI. |
+| `restore` | Restores a decrypted backup archive back to a named volume. |
+| `restore_discovery` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` for `restore_all.py`. |
+| `secrets` | Generates/validates every entry in `secret_catalog.yaml`. |
+| `molecule_helpers` | Shared Molecule test fixtures/setup, not deployed. |
+
+## Tag-based commands
+
+- Skip the Docker Engine install on hosts that already have it:
+  ```sh
+  ansible-playbook playbooks/deploy.yaml --skip-tags "initial-setup"
+  ```
+- Pull/rebuild changed images and recreate their containers only:
+  ```sh
+  ansible-playbook playbooks/deploy.yaml --tags "images"
+  ```
+- Re-render Caddyfile/DNS zones, restarting only containers whose config
+  changed:
+  ```sh
+  ansible-playbook playbooks/deploy.yaml --tags "infra"
+  ```
+
+Both assume the host is already provisioned once (a full, untagged run
+first). See [Tags in `deployment-flow.md`](deployment-flow.md#tags).
+
+## Inventory
+
+Separate inventories exist for different situations:
+
+| Inventory | Used by | Host addressing | Purpose |
+| :--- | :--- | :--- | :--- |
+| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) — same for `managed_hosts` and `network_infra` alike | Day-to-day operation once DNS is up |
+| `inventory/sos-inventory.yaml` | `playbooks/reset-network.yaml` | Static IPs (see [`vm-provisioning.md`](../infra/vm-provisioning.md#vmid--vlan--ip-scheme) for the scheme) | Recovery path when DNS/network is down |
+
+`inventory/inventory.yaml` also defines groups the roles depend on directly:
+
+- **`app_hosts`** — every host that owns `compose_apps` / `dns_zones` / `caddy_domain`; the `bind9` role iterates this group's `hostvars` to build DNS zone files.
+- **`dns`** — the host (`services`) the `bind9` role actually runs on.
+- **`network_infra`** / **`patched_hosts`** — non-app infrastructure hosts and the managed_hosts+network_infra alias `maintenance.yaml` patches. See [`network-infra.md`](../infra/network-infra.md).

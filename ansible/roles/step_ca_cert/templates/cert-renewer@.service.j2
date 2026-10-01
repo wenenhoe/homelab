@@ -18,7 +18,7 @@ OnFailure=telegram-notify@%i.service
 # tasks/main.yaml). A future cert-renewer@ instance with no matching
 # unit installed just gets a harmless "unit not found" line in the
 # journal at trigger time - standard systemd dependency-resolution
-# behavior, not a failure of the renewal itself. See docs/uptime-kuma.md.
+# behavior, not a failure of the renewal itself. See docs/topics/monitoring/uptime-kuma.md.
 OnSuccess=uptime-kuma-push-cert-renewer-%i.service
 
 [Service]
@@ -68,13 +68,13 @@ ExecStartPost=/bin/sh -c '[ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --
 
 ; %i is assumed to be a compose_deploy_dir/<app>/compose.yaml app name
 ; with a same-named service inside it - true for every app in this repo
-; (see docs/adding-an-app.md). RENEW_ACTION=restart adapts Smallstep's
+; (see docs/topics/deploy/adding-an-app.md). RENEW_ACTION=restart adapts Smallstep's
 ; own canonical template (which instead runs
 ; `systemctl try-reload-or-restart %i` - there's no systemd unit
 ; representing a Docker Compose service to reload here) by restarting
 ; the container directly. RENEW_ACTION=signal sends SIGHUP instead, for
 ; an app whose TLS listener reloads-on-SIGHUP without a restart - see
-; docs/openbao.md for why openbao sets this.
+; docs/topics/secrets/openbao.md for why openbao sets this.
 ExecStartPost=/bin/sh -c 'if [ "${RENEW_ACTION}" = "signal" ]; then /usr/bin/docker kill --signal=HUP %i; else /usr/bin/docker compose -f {{ compose_deploy_dir }}/%i/compose.yaml restart %i; fi'
 
 [Install]

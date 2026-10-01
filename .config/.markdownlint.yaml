@@ -6,7 +6,7 @@ default: true
 MD013: false
 
 # Plain-text tree/output diagrams (e.g. README.md's Repository Layout,
-# docs/adding-an-app.md's directory listing) are deliberately fenced without
+# docs/topics/deploy/adding-an-app.md's directory listing) are deliberately fenced without
 # a language tag throughout this repo.
 MD040: false
 

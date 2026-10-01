@@ -20,7 +20,7 @@ it":
 
 - **Human-typed, per-run:** `snapshot-push.sh.j2` requires a human to
   `export BAO_TOKEN` in their own shell before running it by hand.
-  Confirmed against `docs/openbao-backup-restore.md` directly, not
+  Confirmed against `docs/topics/secrets/openbao-backup-restore.md` directly, not
   assumed: this is an explicit stopgap, not a permanent choice — the
   doc states outright that it "proves the mechanism with a human
   running it interactively... for now," pending the

@@ -40,7 +40,7 @@
   ansible.builtin.debug:
     msg: >-
       telegram_topic_id_{{ telegram_topic_pins_key }} is blank (Topics not
-      set up for this concern yet, see docs/telegram-notifications.md) -
+      set up for this concern yet, see docs/topics/monitoring/telegram-notifications.md) -
       nothing to pin.
   when: telegram_topic_pins_topic_id | length == 0
 

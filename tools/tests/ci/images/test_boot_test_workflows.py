@@ -1,4 +1,4 @@
-"""How the two callers of the reusable boot-test workflow differ (ADR 0064 layout, docs/ci.md#dockerfile-changes).
+"""How the two callers of the reusable boot-test workflow differ (ADR 0064 layout, docs/topics/engineering/ci.md#dockerfile-changes).
 
 A PR boots the Dockerfile it changed, because that image isn't published until
 after merge. A full sweep boots the published images instead, so it also

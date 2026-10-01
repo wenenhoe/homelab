@@ -108,5 +108,5 @@ doesn't silently relocate a secret in Vault.
   mechanically derivable — flagged in `secrets_registry.yaml`'s own
   header comment.
 - Full current mapping lives in `secrets_registry.yaml` itself (each
-  entry's `vault_scope` field) and in [`secrets.md`](../../secrets.md) —
+  entry's `vault_scope` field) and in [`secrets.md`](../../topics/secrets/secrets.md) —
   not duplicated here.

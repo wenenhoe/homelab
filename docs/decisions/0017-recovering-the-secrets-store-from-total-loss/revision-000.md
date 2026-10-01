@@ -81,7 +81,7 @@ restore playbook pulls everything else from Vault.
   doesn't depend on a single cloud vendor being reachable — minted by
   `tools/cloud_credentials/create_snapshot_readonly_keys.py`, which
   prints each credential once rather than caching it. See
-  [`openbao.md`](../../openbao.md).
+  [`openbao.md`](../../topics/secrets/openbao.md).
 - This adds a second offline secret to the operator's break-glass
   process (the Shamir shares) alongside the existing GPG key, and a
   second narrowly-scoped credential outside any automated rotation.
@@ -90,7 +90,7 @@ restore playbook pulls everything else from Vault.
   ([0013](../0013-secret-storage/revision-000.md)).
 - Proving the backup/restore loop before any secret's authoritative
   copy moves into Vault is the actual test of this split. See
-  [`openbao-backup-restore.md`](../../openbao-backup-restore.md) for the
+  [`openbao-backup-restore.md`](../../topics/secrets/openbao-backup-restore.md) for the
   drill procedure — its own doc, not `backup.md`, since the
   mechanism (raft snapshot, not the volume-backup pipeline that doc
   covers) is genuinely different.

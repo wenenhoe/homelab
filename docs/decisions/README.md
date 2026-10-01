@@ -77,7 +77,7 @@ yet built.
   declares `supersedes:` back.
 - A material change to an `accepted` or `superseded` revision is a new
   revision in the same lineage, never an edit. When a superseded ADR is
-  referenced from [`nist-800-53-alignment.md`](../nist-800-53-alignment.md),
+  referenced from [`nist-800-53-alignment.md`](../topics/engineering/nist-800-53-alignment.md),
   re-check the mapping in the same patch; `check_doc_drift.py` fails
   until it is addressed.
 - Competing candidates in one generation stay `working` until one is
@@ -248,7 +248,7 @@ docs. See
 
 ## Other design records
 
-`docs/vm-provisioning.md` is this repo's other major architecture
+`docs/topics/infra/vm-provisioning.md` is this repo's other major architecture
 decision (the OpenTofu/Ansible ownership boundary) — it predates this
 directory and already documents itself as a design record, so it's
 left where it is rather than moved. Once OpenTofu work actually lands,

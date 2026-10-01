@@ -13,7 +13,7 @@ same path - matching on `type == "request"` alone is sufficient and
 avoids double-alerting on one real read.
 
 Runs as a persistent systemd service on `security` - see
-docs/openbao-r2-read-watcher.md for installation. Logs in once at
+docs/topics/secrets/openbao-r2-read-watcher.md for installation. Logs in once at
 startup to fetch Telegram's secrets, then never touches Vault again
 for the rest of the process's life; alerting itself is a direct
 Telegram Bot API call, not a Vault operation.
@@ -59,7 +59,7 @@ import urllib3
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)  # hvac.Client(verify=False) below is deliberate (loopback), silence its warning
 
 TARGET_PATH = "secret/data/cloud_credentials/rotation/_rotation-key-cloudflare-r2-token"
-OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/openbao-r2-read-watcher.md
+OPENBAO_BASE_URL = "https://127.0.0.1:8200"  # loopback, same host - see docs/topics/secrets/openbao-r2-read-watcher.md
 ROLE_ID_PATH = "/etc/r2-read-watcher/role_id"
 SECRET_ID_PATH = "/etc/r2-read-watcher/secret_id"  # noqa: S105 - file path, not a secret value
 TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021

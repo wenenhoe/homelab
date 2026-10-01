@@ -10,7 +10,7 @@
 # needs it currently; comment why if you add one.
 #
 # Set `no_log: true` on anything rendering a real secret, or `--diff`
-# prints it in plaintext — see docs/secrets.md.
+# prints it in plaintext — see docs/topics/secrets/secrets.md.
 #
 # Sources live at {{ compose_source_dir }}/{{ app_name }}/configs/{{ item.src }}.
 # Per-host files (host_vars/*.yaml) only list which apps to deploy and,
@@ -194,7 +194,7 @@ app_catalog:
       volumes: [data]
     # No routes: entry — reachable directly on caddy-proxy by container
     # name (step-ca:9000), the same no-Caddy-frontend pattern bind9
-    # uses. See docs/step-ca.md.
+    # uses. See docs/topics/services/step-ca.md.
 
   openbao:
     volumes:
@@ -208,11 +208,11 @@ app_catalog:
     # mechanism (Track A stage 2), not backup_agent's generic
     # stop-and-tar path, which would mean sealing OpenBao (and a
     # manual unseal per ADR 0018) on every backup cycle. See
-    # docs/openbao.md.
+    # docs/topics/secrets/openbao.md.
     #
     # No routes: entry either, same reasoning as step-ca above — plus
     # published directly (see compose.yaml.j2) rather than proxied,
-    # like lldap's LDAPS. See docs/openbao.md.
+    # like lldap's LDAPS. See docs/topics/secrets/openbao.md.
 
   minecraft:
     volumes:
@@ -236,16 +236,16 @@ app_catalog:
     backup:
       # Only `backups` — already RCON-quiesced by the backups service above.
       # Never `data` (risks a mid-write world file) or bluemap_*/extras
-      # (regenerable render cache / Ansible-managed — see docs/volumes.md).
+      # (regenerable render cache / Ansible-managed — see docs/topics/deploy/volumes.md).
       volumes: [backups]
       # itzg/mc-backup already gzips this volume's contents itself, so a
       # second gzip pass here would just be compressing a .tar.gz again
-      # for no size benefit — see docs/backup.md.
+      # for no size benefit — see docs/topics/disaster-recovery/backup.md.
       compression: none
       # Replaces backup_defaults.cloud_targets (group_vars/all/main.yaml)
       # — clouds beyond SeaweedFS only; SeaweedFS itself is never listed
       # here, it's implicit for every backed-up app. See
-      # docs/cloud-sync.md for why minecraft gets OCI
+      # docs/topics/disaster-recovery/cloud-sync.md for why minecraft gets OCI
       # instead of the R2+B2 default.
       cloud_targets: [oci]
     routes:
@@ -267,5 +267,5 @@ app_catalog:
         # beszel-hub's auth: false. Tinyauth's forward_auth would
         # redirect those GETs to a login page instead of letting them
         # reach Kuma, silently breaking every push monitor. Kuma's own
-        # login still gates the dashboard itself. See docs/uptime-kuma.md.
+        # login still gates the dashboard itself. See docs/topics/monitoring/uptime-kuma.md.
         auth: false

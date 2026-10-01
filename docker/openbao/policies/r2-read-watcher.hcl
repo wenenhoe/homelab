@@ -1,4 +1,4 @@
-# r2-read-watcher's policy (ADR 0026, docs/openbao-vault-bootstrap.md).
+# r2-read-watcher's policy (ADR 0026, docs/topics/secrets/openbao-vault-bootstrap.md).
 # Applied by hand via vault-bootstrap, same convention as
 # controller.hcl/vault-bootstrap.hcl's own header comments - not
 # seeded via docker/openbao/configs/, not written by Ansible.

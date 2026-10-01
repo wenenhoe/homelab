@@ -4,7 +4,7 @@
 # the vars below. Renders one plain systemd oneshot unit that curls a
 # pre-generated Uptime Kuma push-monitor URL. Deliberately only ever
 # used from OnSuccess= (never OnFailure=/an explicit ?status=down push)
-# — see docs/uptime-kuma.md's "Wiring a job to its push monitor" for why.
+# — see docs/topics/monitoring/uptime-kuma.md's "Wiring a job to its push monitor" for why.
 #
 # Required vars (no defaults/main.yaml - a missing one should fail
 # loudly here, not render a broken unit):

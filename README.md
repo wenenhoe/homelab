@@ -31,7 +31,7 @@ instance, scraping every app host's declared DNS zones and serving
 CNAMEs back to each host's dynamic DNS target. Non-public apps sit behind
 **Tinyauth** forward-auth. Every host also runs a `backup_agent` instance
 pushing GPG-encrypted archives of its own apps' named volumes to
-`storage` nightly — see [`docs/backup.md`](docs/backup.md).
+`storage` nightly — see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md).
 
 ## Hardware
 
@@ -50,17 +50,17 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 ```
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
-├── .github/                 # CI workflows, PR-check scripts, Renovate config — see docs/ci.md
-├── ansible/                 # All automation: playbooks, inventory, roles — see docs/ansible.md
+├── .github/                 # CI workflows, PR-check scripts, Renovate config — see docs/topics/engineering/ci.md
+├── ansible/                 # All automation: playbooks, inventory, roles — see docs/topics/deploy/ansible.md
 ├── docker/                  # One directory per application
 ├── docs/                    # Deep dives — see docs/README.md
-├── tools/                   # Controller-side Python: cloud-credential minting, OpenBao/Vault utilities — see docs/secrets.md, docs/cloud-credential-creation.md
+├── tools/                   # Controller-side Python: cloud-credential minting, OpenBao/Vault utilities — see docs/topics/secrets/secrets.md, docs/topics/secrets/cloud-credential-creation.md
 ├── AGENTS.md                # Where an agent starts: the doc workflow's rules and stop conditions
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
 
 Each app under `docker/<app>/` holds its `compose.yaml` (or
-`compose.yaml.j2` — see [`adding-an-app.md`](docs/adding-an-app.md))
+`compose.yaml.j2` — see [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md))
 plus a `configs/` directory of Jinja2 templates that Ansible renders
 onto the target host — nothing is hand-authored on the servers
 themselves. `docker/molecule-dind/` is the one exception: it's Molecule
@@ -133,7 +133,7 @@ reproducible dependency set.
   cd tools && python3 -m openbao_utils.bootstrap
    ```
   Safe to re-run — only fills in what's missing. See
-  [`docs/secrets.md`](docs/secrets.md).
+  [`docs/topics/secrets/secrets.md`](docs/topics/secrets/secrets.md).
 
 Docker must be running locally for `molecule` (each role's scenario spins up and tears down real containers).
 
@@ -160,7 +160,7 @@ Docker must be running locally for `molecule` (each role's scenario spins up and
   ```
 
 Tag-based runs (skip provisioning, pull only images, re-render
-infra-only) are in [`docs/ansible.md`](docs/ansible.md#tag-based-commands).
+infra-only) are in [`docs/topics/deploy/ansible.md`](docs/topics/deploy/ansible.md#tag-based-commands).
 
 ### `docker` commands
 
@@ -178,17 +178,17 @@ can't sit behind the auth check it backs), backed by **LLDAP** as the
 directory. **DIUN** watches
 deployed images and notifies over Telegram on updates. **Beszel**
 monitors host/container health lab-wide — see
-[`docs/beszel.md`](docs/beszel.md). Every host runs a **`backup_agent`**
+[`docs/topics/monitoring/beszel.md`](docs/topics/monitoring/beszel.md). Every host runs a **`backup_agent`**
 pushing GPG-encrypted archives to **SeaweedFS** on `storage` nightly —
-see [`docs/backup.md`](docs/backup.md), relayed
+see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md), relayed
 further offsite by **`cloud_sync`** to R2/B2/OCI. Every secret in this
 repo is generated, cached, and rotated through **OpenBao** on
-`security` — see [`docs/openbao.md`](docs/openbao.md). The rest of
+`security` — see [`docs/topics/secrets/openbao.md`](docs/topics/secrets/openbao.md). The rest of
 `docker/` is independently deployable Compose stacks (dashboards,
 media-download tools, Minecraft, a link shortener, a pastebin, PDF
 tools, a speed test, license/activation tooling, etc.), each
 just an `app_catalog` entry plus a `docker/<app>/` directory — see
-[`adding-an-app.md`](docs/adding-an-app.md) to add one.
+[`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) to add one.
 
 ## Testing
 
@@ -202,7 +202,7 @@ molecule test              # default scenario
 molecule test -s volumes   # named scenario (cd ansible/roles/compose first)
 ```
 
-See [`docs/molecule-testing.md`](docs/molecule-testing.md) for the full
+See [`docs/topics/engineering/molecule-testing.md`](docs/topics/engineering/molecule-testing.md) for the full
 scenario matrix and how to add one.
 
 Plain controller-side Python (`tools/cloud_credentials/`,
@@ -216,7 +216,7 @@ pytest ansible/tests/ tools/tests/ -v
 
 Every provider HTTP call and `rclone` invocation is mocked — no
 network access or real cloud credentials needed. See
-[`docs/ci.md`](docs/ci.md) for how this runs in CI.
+[`docs/topics/engineering/ci.md`](docs/topics/engineering/ci.md) for how this runs in CI.
 
 ## Linting & Pre-commit
 
@@ -259,4 +259,4 @@ suppressing would get the same per-line treatment as `hadolint`'s
 
 Run `pre-commit install` once after
 cloning. CI enforces the same checks on every PR regardless of whether
-hooks are installed locally — see [`docs/ci.md`](docs/ci.md).
+hooks are installed locally — see [`docs/topics/engineering/ci.md`](docs/topics/engineering/ci.md).

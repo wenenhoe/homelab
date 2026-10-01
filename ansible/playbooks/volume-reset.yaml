@@ -2,7 +2,7 @@
 # Ad hoc playbook for reset_volume.yaml — wipes one named volume entirely
 # and recreates it, restoring only Ansible-seeded content (rendered
 # configs/scripts), not app-written runtime state. See
-# docs/volume-maintenance.md for when to use this vs. volume-file-rm.yaml.
+# docs/topics/deploy/volume-maintenance.md for when to use this vs. volume-file-rm.yaml.
 #
 # Targets ONE host — pass --limit explicitly.
 #

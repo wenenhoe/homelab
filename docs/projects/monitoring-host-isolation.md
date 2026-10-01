@@ -37,7 +37,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ### Stage 1 — inventory VM 202
 
 Done. Current state read directly off the host and recorded in
-[`network-infra.md`](../network-infra.md) — Ubuntu 26.04, Tailscale
+[`network-infra.md`](../topics/infra/network-infra.md) — Ubuntu 26.04, Tailscale
 1.102.3, no per-node ACL tags (tailnet-wide policy itself not yet
 reviewed). Brought under management as its own `network_infra`
 inventory group rather than `managed_hosts` (it runs no Docker/compose

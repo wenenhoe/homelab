@@ -102,6 +102,10 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   b2sdk: a real `B2Api` over an in-memory account with its network calls
   stubbed, and `full_application_key()`, `application_key()` and
   `bucket()` in `_b2_objects.py` build the real key and bucket objects.
+  `hvac_client` (`tools/tests/conftest.py`) is a real `hvac.Client` with
+  every request stubbed at the adapter and the calls the code makes
+  stubbed on top; its `token` starts as `None`, so a `VAULT_TOKEN` in the
+  environment never reaches a test.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,

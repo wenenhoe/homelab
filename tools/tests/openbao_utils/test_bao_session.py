@@ -16,7 +16,7 @@ import signal
 import subprocess
 import sys
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import pytest
 from _responses import response
@@ -45,48 +45,45 @@ class TestLocalBaoVersion:
 
 
 class TestServerVersion:
-    def test_returns_the_version_field_from_a_dict_response(self):
-        mock_client = MagicMock()
-        mock_client.sys.read_health_status.return_value = {"initialized": True, "sealed": False, "version": "2.6.2"}
-        assert bao_session.server_version(mock_client) == "2.6.2"
+    def test_returns_the_version_field_from_a_dict_response(self, hvac_client):
+        hvac_client.sys.read_health_status.return_value = {"initialized": True, "sealed": False, "version": "2.6.2"}
+        assert bao_session.server_version(hvac_client) == "2.6.2"
 
-    def test_returns_none_for_a_non_dict_response(self):
+    def test_returns_none_for_a_non_dict_response(self, hvac_client):
         # hvac's JSONAdapter only decodes a 200 into a dict - a sealed
         # (503) or uninitialized (501) server comes back as a raw
         # requests.Response instead, per openbao.org's own /sys/health
         # docs. Treated the same as any other read failure here.
-        mock_client = MagicMock()
-        mock_client.sys.read_health_status.return_value = response(503)
-        assert bao_session.server_version(mock_client) is None
+        hvac_client.sys.read_health_status.return_value = response(503)
+        assert bao_session.server_version(hvac_client) is None
 
-    def test_returns_none_on_any_exception(self):
-        mock_client = MagicMock()
-        mock_client.sys.read_health_status.side_effect = RuntimeError("boom")
-        assert bao_session.server_version(mock_client) is None
+    def test_returns_none_on_any_exception(self, hvac_client):
+        hvac_client.sys.read_health_status.side_effect = RuntimeError("boom")
+        assert bao_session.server_version(hvac_client) is None
 
 
 class TestWarnOnVersionMismatch:
     @patch.object(bao_session, "server_version", return_value="2.6.1")
     @patch.object(bao_session, "local_bao_version", return_value="2.6.2")
-    def test_warns_on_mismatch(self, _mock_local, _mock_remote):
+    def test_warns_on_mismatch(self, _mock_local, _mock_remote, hvac_client):
         with patch("sys.stderr") as mock_stderr:
-            bao_session.warn_on_version_mismatch(MagicMock())
+            bao_session.warn_on_version_mismatch(hvac_client)
         written = "".join(c.args[0] for c in mock_stderr.write.call_args_list if c.args)
         assert "2.6.2" in written
         assert "2.6.1" in written
 
     @patch.object(bao_session, "server_version", return_value="2.6.2")
     @patch.object(bao_session, "local_bao_version", return_value="2.6.2")
-    def test_silent_on_match(self, _mock_local, _mock_remote):
+    def test_silent_on_match(self, _mock_local, _mock_remote, hvac_client):
         with patch("sys.stderr") as mock_stderr:
-            bao_session.warn_on_version_mismatch(MagicMock())
+            bao_session.warn_on_version_mismatch(hvac_client)
         mock_stderr.write.assert_not_called()
 
     @patch.object(bao_session, "server_version", return_value=None)
     @patch.object(bao_session, "local_bao_version", return_value="2.6.2")
-    def test_silent_when_either_side_is_unknown(self, _mock_local, _mock_remote):
+    def test_silent_when_either_side_is_unknown(self, _mock_local, _mock_remote, hvac_client):
         with patch("sys.stderr") as mock_stderr:
-            bao_session.warn_on_version_mismatch(MagicMock())
+            bao_session.warn_on_version_mismatch(hvac_client)
         mock_stderr.write.assert_not_called()
 
 
@@ -112,18 +109,16 @@ class TestRevoke:
     both the finally block and the SIGHUP handler can reach it for the
     same session (ADR 0033)."""
 
-    def test_clears_the_token_after_revoking(self):
-        mock_client = MagicMock()
-        mock_client.token = "fake-token"
-        bao_session._revoke(mock_client)
-        mock_client.auth.token.revoke_self.assert_called_once()
-        assert mock_client.token is None
+    def test_clears_the_token_after_revoking(self, hvac_client):
+        hvac_client.token = "fake-token"
+        bao_session._revoke(hvac_client)
+        hvac_client.auth.token.revoke_self.assert_called_once()
+        assert hvac_client.token is None
 
-    def test_a_second_call_is_a_silent_no_op(self):
-        mock_client = MagicMock()
-        mock_client.token = None  # as if _revoke already ran once
-        bao_session._revoke(mock_client)
-        mock_client.auth.token.revoke_self.assert_not_called()
+    def test_a_second_call_is_a_silent_no_op(self, hvac_client):
+        hvac_client.token = None  # as if _revoke already ran once
+        bao_session._revoke(hvac_client)
+        hvac_client.auth.token.revoke_self.assert_not_called()
 
     def test_a_client_that_never_logged_in_is_a_no_op(self, capsys):
         assert bao_session._revoke(None) is None
@@ -131,16 +126,15 @@ class TestRevoke:
 
 
 @pytest.fixture
-def mock_client():
-    client = MagicMock()
-    client.token = "fake-token"
-    return client
+def logged_in_client(hvac_client):
+    hvac_client.token = "fake-token"
+    return hvac_client
 
 
 @pytest.fixture
-def mocks(mock_client, monkeypatch):
+def mocks(logged_in_client, monkeypatch):
     mocks = {
-        "hvac_client_cls": MagicMock(return_value=mock_client),
+        "hvac_client_cls": create_autospec(bao_session.hvac.Client, return_value=logged_in_client),
         "vault_login": MagicMock(),
         "fetch_root_cert": MagicMock(return_value="fake-root-ca-pem"),
         "warn": MagicMock(),
@@ -172,9 +166,9 @@ class TestMain:
     construction, and that cleanup (revoke + temp-file removal) always
     runs."""
 
-    def test_logs_in_with_the_given_role_id_and_prompted_secret_id(self, mocks, mock_client):
+    def test_logs_in_with_the_given_role_id_and_prompted_secret_id(self, mocks, logged_in_client):
         run_main(["bao_session.py", "some-role-id"])
-        mocks["vault_login"].assert_called_once_with(mock_client, "some-role-id", "fake-secret-id")
+        mocks["vault_login"].assert_called_once_with(logged_in_client, "some-role-id", "fake-secret-id")
 
     def test_fetches_the_root_cert_fresh_over_ssh(self, mocks):
         trusted = []
@@ -212,18 +206,18 @@ class TestMain:
         mocks["spawn"].return_value = 7
         assert run_main(["bao_session.py", "some-role-id"]) == 7
 
-    def test_revokes_the_token_after_the_session_ends(self, mocks, mock_client):
+    def test_revokes_the_token_after_the_session_ends(self, mocks, logged_in_client):
         revoked_during_session = []
 
         def spy(env):
-            revoked_during_session.append(mock_client.auth.token.revoke_self.called)
+            revoked_during_session.append(logged_in_client.auth.token.revoke_self.called)
             return 0
 
         mocks["spawn"].side_effect = spy
         run_main(["bao_session.py", "some-role-id"])
 
         assert revoked_during_session == [False]
-        mock_client.auth.token.revoke_self.assert_called_once()
+        logged_in_client.auth.token.revoke_self.assert_called_once()
 
     def test_deletes_the_temp_ca_file_after_the_session_ends(self, mocks):
         captured_paths = []
@@ -236,31 +230,31 @@ class TestMain:
         run_main(["bao_session.py", "some-role-id"])
         assert not Path(captured_paths[0]).exists()
 
-    def test_does_not_revoke_when_login_itself_fails(self, mocks, mock_client):
+    def test_does_not_revoke_when_login_itself_fails(self, mocks, hvac_client):
         # A real hvac.Client's own .token stays None until a login call
         # actually sets it - mimicked here since vault_login is mocked
         # out and would otherwise leave setUp's placeholder token in
         # place despite the "failed" login.
-        mock_client.token = None
+        hvac_client.token = None
         mocks["vault_login"].side_effect = RuntimeError("bad credentials")
         with pytest.raises(RuntimeError):
             run_main(["bao_session.py", "some-role-id"])
-        mock_client.auth.token.revoke_self.assert_not_called()
+        hvac_client.auth.token.revoke_self.assert_not_called()
 
-    def test_still_deletes_the_temp_ca_file_when_login_itself_fails(self, mocks, mock_client):
-        mock_client.token = None
+    def test_still_deletes_the_temp_ca_file_when_login_itself_fails(self, mocks, hvac_client):
+        hvac_client.token = None
         mocks["vault_login"].side_effect = RuntimeError("bad credentials")
         with patch("openbao_utils.bao_session.Path") as mock_path_cls, pytest.raises(RuntimeError):
             run_main(["bao_session.py", "some-role-id"])
         mock_path_cls.return_value.unlink.assert_called_once_with(missing_ok=True)
 
-    def test_revoke_failure_doesnt_prevent_the_session_from_completing(self, mock_client):
-        mock_client.auth.token.revoke_self.side_effect = RuntimeError("network blip")
+    def test_revoke_failure_doesnt_prevent_the_session_from_completing(self, hvac_client):
+        hvac_client.auth.token.revoke_self.side_effect = RuntimeError("network blip")
         with patch("sys.stderr"):
             result = run_main(["bao_session.py", "some-role-id"])
         assert result == 0
 
-    def test_sighup_mid_session_still_revokes_and_removes_the_ca_file(self, mocks, mock_client):
+    def test_sighup_mid_session_still_revokes_and_removes_the_ca_file(self, mocks, hvac_client):
         # Actually raises real SIGHUP against this test process while
         # spawn_session is "running", rather than calling the internal
         # handler directly - the whole point (ADR 0033) is that
@@ -277,5 +271,5 @@ class TestMain:
         with pytest.raises(SystemExit) as excinfo:
             run_main(["bao_session.py", "some-role-id"])
         assert excinfo.value.code == 1
-        mock_client.auth.token.revoke_self.assert_called_once()
+        hvac_client.auth.token.revoke_self.assert_called_once()
         assert not Path(captured["ca_path"]).exists()

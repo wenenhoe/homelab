@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import hvac
 import pytest
 import requests
+from _hvac_clients import stubbed_hvac_client
 from _responses import response
 from _sessions import stubbed_session
 from utils import repo
@@ -84,3 +86,37 @@ def test_session_class_replaces_requests_session_with_the_fixture_session(sessio
 def test_session_class_rejects_a_constructor_call_the_real_class_would(session_class):
     with pytest.raises(TypeError):
         requests.Session("unexpected")
+
+
+def test_a_stubbed_hvac_client_ignores_a_token_in_the_environment(monkeypatch):
+    monkeypatch.setenv("VAULT_TOKEN", "a-real-token")
+
+    assert stubbed_hvac_client().token is None
+
+
+def test_a_stubbed_hvac_client_serves_what_is_set_on_the_method_called():
+    client = stubbed_hvac_client()
+    client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+
+    assert client.secrets.kv.v2.read_secret_version(path="p", mount_point="m")["data"]["data"]["value"] == "x"
+    client.secrets.kv.v2.read_secret_version.assert_called_once_with(path="p", mount_point="m")
+
+
+def test_a_stubbed_hvac_client_rejects_a_call_the_real_method_would():
+    with pytest.raises(TypeError):
+        stubbed_hvac_client().secrets.kv.v2.read_secret_version()
+
+
+def test_a_stubbed_hvac_client_cannot_reach_the_network_through_an_unstubbed_call():
+    client = stubbed_hvac_client()
+
+    client.sys.read_seal_status()
+
+    client.adapter.get.assert_called_once()
+
+
+def test_the_hvac_client_fixture_is_a_real_client_that_keeps_what_is_set_on_it(hvac_client):
+    hvac_client.token = "fake-token"
+
+    assert isinstance(hvac_client, hvac.Client)
+    assert hvac_client.token == "fake-token"

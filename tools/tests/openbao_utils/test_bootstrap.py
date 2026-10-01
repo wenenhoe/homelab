@@ -119,26 +119,24 @@ class TestVaultLogin:
     def _main_domain(self, secrets_dir):
         secrets_dir.seed("main-domain", "example.com")
 
-    def test_raises_system_exit_when_role_id_missing(self, secrets_dir):
+    def test_raises_system_exit_when_role_id_missing(self, secrets_dir, hvac_client):
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
         with pytest.raises(SystemExit):
-            bootstrap.vault_login(MagicMock())
+            bootstrap.vault_login(hvac_client)
 
-    def test_raises_system_exit_when_secret_id_blank(self, secrets_dir):
+    def test_raises_system_exit_when_secret_id_blank(self, secrets_dir, hvac_client):
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "   ")
         with pytest.raises(SystemExit):
-            bootstrap.vault_login(MagicMock())
+            bootstrap.vault_login(hvac_client)
 
     @patch("openbao_utils.bootstrap._bare_vault_login")
-    def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login, secrets_dir):
+    def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login, secrets_dir, hvac_client):
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
-        mock_client = MagicMock()
+        bootstrap.vault_login(hvac_client)
 
-        bootstrap.vault_login(mock_client)
-
-        mock_bare_login.assert_called_once_with(mock_client, "some-role-id", "some-secret-id")
+        mock_bare_login.assert_called_once_with(hvac_client, "some-role-id", "some-secret-id")
 
 
 class TestMainNoCatalog:
@@ -211,7 +209,7 @@ class TestMainVaultEntries:
         mock_prompt.assert_not_called()
         mock_write.assert_not_called()
 
-    @patch("openbao_utils.bootstrap.hvac.Client")
+    @patch("openbao_utils.bootstrap.hvac.Client", autospec=True)
     @patch("openbao_utils.bootstrap.vault_write")
     @patch("openbao_utils.bootstrap.vault_read", return_value=None)
     @patch("openbao_utils.bootstrap.prompt_for_value", return_value="x")

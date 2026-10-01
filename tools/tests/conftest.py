@@ -5,8 +5,10 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import create_autospec
 
+import hvac
 import pytest
 import requests
+from _hvac_clients import stubbed_hvac_client
 from _sessions import stubbed_session
 
 
@@ -44,3 +46,9 @@ def session_class(http_session: requests.Session, monkeypatch: pytest.MonkeyPatc
     cls = create_autospec(requests.Session, return_value=http_session)
     monkeypatch.setattr(requests, "Session", cls)
     return cls
+
+
+@pytest.fixture
+def hvac_client() -> hvac.Client:
+    """A real `hvac.Client` with its network calls stubbed (see `_hvac_clients.py`)."""
+    return stubbed_hvac_client()

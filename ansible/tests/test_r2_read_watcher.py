@@ -13,7 +13,7 @@ trustworthy.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import create_autospec, patch
 
 import hvac
 import pytest
@@ -50,8 +50,21 @@ REAL_UNRELATED_LINE = (
 
 
 @pytest.fixture
-def mock_client():
-    return MagicMock()
+def hvac_client() -> hvac.Client:
+    """A real hvac.Client whose network calls are autospec'd stand-ins.
+
+    Every request funnels through the adapter, so nothing can leave the
+    process; the calls the watcher makes are stubbed on top with their real
+    signatures. token starts as None so a token in the environment never
+    reaches a test.
+    """
+    client = hvac.Client(url=watcher.OPENBAO_BASE_URL)
+    client.token = None
+    for name in ("request", "get", "post", "put", "delete", "list"):
+        setattr(client.adapter, name, create_autospec(getattr(client.adapter, name)))
+    for owner, name in ((client.secrets.kv.v2, "read_secret_version"), (client.auth.approle, "login")):
+        setattr(owner, name, create_autospec(getattr(owner, name)))
+    return client
 
 
 def _ok_response() -> requests.Response:
@@ -158,27 +171,25 @@ class TestWatch:
 
 
 class TestVaultLogin:
-    def test_logs_in_with_the_given_role_and_secret_id(self):
-        mock_client = MagicMock()
+    def test_logs_in_with_the_given_role_and_secret_id(self, hvac_client):
+        watcher._vault_login(hvac_client, "some-role-id", "some-secret-id")
 
-        watcher._vault_login(mock_client, "some-role-id", "some-secret-id")
-
-        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
+        hvac_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
 
 
 class TestReadVaultSecret:
-    def test_returns_none_on_invalid_path(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
-        assert watcher._read_vault_secret(mock_client, "telegram-token") is None
+    def test_returns_none_on_invalid_path(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
+        assert watcher._read_vault_secret(hvac_client, "telegram-token") is None
 
-    def test_returns_value_on_success(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-token"}}}
-        assert watcher._read_vault_secret(mock_client, "telegram-token") == "the-token"
+    def test_returns_value_on_success(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-token"}}}
+        assert watcher._read_vault_secret(hvac_client, "telegram-token") == "the-token"
 
-    def test_uses_the_telegram_scope_and_mount(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
-        watcher._read_vault_secret(mock_client, "telegram-token")
-        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+    def test_uses_the_telegram_scope_and_mount(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+        watcher._read_vault_secret(hvac_client, "telegram-token")
+        hvac_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="hosts/all/telegram/telegram-token",
             mount_point=watcher.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
@@ -187,7 +198,7 @@ class TestReadVaultSecret:
 
 class TestFetchTelegramSecrets:
     @pytest.fixture
-    def stub_reads(self, mock_client):
+    def stub_reads(self, hvac_client):
         def _stub_reads(values: dict[str, str | None]) -> None:
             def fake_read_secret_version(path: str, **_: object) -> dict:
                 name = path.rsplit("/", 1)[-1]
@@ -195,26 +206,26 @@ class TestFetchTelegramSecrets:
                     raise hvac.exceptions.InvalidPath
                 return {"data": {"data": {"value": values[name]}}}
 
-            mock_client.secrets.kv.v2.read_secret_version.side_effect = fake_read_secret_version
+            hvac_client.secrets.kv.v2.read_secret_version.side_effect = fake_read_secret_version
 
         return _stub_reads
 
-    def test_returns_none_when_token_missing(self, mock_client, stub_reads):
+    def test_returns_none_when_token_missing(self, hvac_client, stub_reads):
         stub_reads({"telegram-token": None, "telegram-chat-id": "c"})
-        assert watcher._fetch_telegram_secrets(mock_client) is None
+        assert watcher._fetch_telegram_secrets(hvac_client) is None
 
-    def test_returns_none_when_chat_id_missing(self, mock_client, stub_reads):
+    def test_returns_none_when_chat_id_missing(self, hvac_client, stub_reads):
         stub_reads({"telegram-token": "t", "telegram-chat-id": None})
-        assert watcher._fetch_telegram_secrets(mock_client) is None
+        assert watcher._fetch_telegram_secrets(hvac_client) is None
 
-    def test_returns_secrets_with_empty_topic_id_when_absent(self, mock_client, stub_reads):
+    def test_returns_secrets_with_empty_topic_id_when_absent(self, hvac_client, stub_reads):
         stub_reads({"telegram-token": "t", "telegram-chat-id": "c", "telegram-topic-id-backups": None})
-        secrets = watcher._fetch_telegram_secrets(mock_client)
+        secrets = watcher._fetch_telegram_secrets(hvac_client)
         assert secrets == {"token": "t", "chat_id": "c", "topic_id": ""}
 
-    def test_returns_secrets_with_topic_id_when_present(self, mock_client, stub_reads):
+    def test_returns_secrets_with_topic_id_when_present(self, hvac_client, stub_reads):
         stub_reads({"telegram-token": "t", "telegram-chat-id": "c", "telegram-topic-id-backups": "42"})
-        secrets = watcher._fetch_telegram_secrets(mock_client)
+        secrets = watcher._fetch_telegram_secrets(hvac_client)
         assert secrets == {"token": "t", "chat_id": "c", "topic_id": "42"}
 
 
@@ -223,7 +234,7 @@ class TestMain:
     @patch("r2_read_watcher._load_state", return_value=None)
     @patch("r2_read_watcher._fetch_telegram_secrets")
     @patch("r2_read_watcher._vault_login")
-    @patch("r2_read_watcher.hvac.Client")
+    @patch("r2_read_watcher.hvac.Client", autospec=True)
     @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"])
     def test_builds_one_client_and_threads_it_through_login_and_fetch(
         self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch
@@ -242,7 +253,7 @@ class TestMain:
     @patch("r2_read_watcher._load_state", return_value=None)
     @patch("r2_read_watcher._fetch_telegram_secrets", return_value={"token": "t", "chat_id": "c", "topic_id": ""})
     @patch("r2_read_watcher._vault_login")
-    @patch("r2_read_watcher.hvac.Client")
+    @patch("r2_read_watcher.hvac.Client", autospec=True)
     @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"])
     def test_passes_fetched_telegram_secrets_and_prior_state_to_watch(
         self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch

@@ -9,16 +9,9 @@ etc.) are tested once, directly, in tools/tests/utils/test_repo.py.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
-
 import hvac
 import pytest
 from openbao_utils import client
-
-
-@pytest.fixture
-def mock_client():
-    return MagicMock()
 
 
 class TestOpenbaoBaseUrl:
@@ -36,57 +29,55 @@ class TestVaultLogin:
     caller's own job (see cache.py's/openbao_utils/bootstrap.py's own
     VaultLoginTests for the wrapper behavior)."""
 
-    def test_logs_in_with_the_given_role_and_secret_id(self):
-        mock_client = MagicMock()
+    def test_logs_in_with_the_given_role_and_secret_id(self, hvac_client):
+        client.vault_login(hvac_client, "some-role-id", "some-secret-id")
 
-        client.vault_login(mock_client, "some-role-id", "some-secret-id")
-
-        mock_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
+        hvac_client.auth.approle.login.assert_called_once_with(role_id="some-role-id", secret_id="some-secret-id")
 
 
 class TestVaultReadWrite:
-    def test_read_returns_none_on_invalid_path(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
-        assert client.vault_read(mock_client, "some/path") is None
+    def test_read_returns_none_on_invalid_path(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
+        assert client.vault_read(hvac_client, "some/path") is None
 
-    def test_read_returns_value_on_success(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-value"}}}
-        assert client.vault_read(mock_client, "some/path") == "the-value"
+    def test_read_returns_value_on_success(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-value"}}}
+        assert client.vault_read(hvac_client, "some/path") == "the-value"
 
-    def test_read_uses_the_default_mount_point(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
-        client.vault_read(mock_client, "some/path")
-        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+    def test_read_uses_the_default_mount_point(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+        client.vault_read(hvac_client, "some/path")
+        hvac_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="some/path",
             mount_point=client.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
         )
 
-    def test_read_accepts_a_mount_point_override(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
-        client.vault_read(mock_client, "some/path", mount_point="other-mount")
-        _, kwargs = mock_client.secrets.kv.v2.read_secret_version.call_args
+    def test_read_accepts_a_mount_point_override(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+        client.vault_read(hvac_client, "some/path", mount_point="other-mount")
+        _, kwargs = hvac_client.secrets.kv.v2.read_secret_version.call_args
         assert kwargs["mount_point"] == "other-mount"
 
-    def test_read_propagates_non_invalid_path_errors(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.Forbidden
+    def test_read_propagates_non_invalid_path_errors(self, hvac_client):
+        hvac_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.Forbidden
         with pytest.raises(hvac.exceptions.Forbidden):
-            client.vault_read(mock_client, "some/path")
+            client.vault_read(hvac_client, "some/path")
 
-    def test_write_writes_the_correct_payload(self, mock_client):
-        client.vault_write(mock_client, "some/path", "the-value")
-        mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
+    def test_write_writes_the_correct_payload(self, hvac_client):
+        client.vault_write(hvac_client, "some/path", "the-value")
+        hvac_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
             path="some/path",
             secret={"value": "the-value"},
             mount_point=client.VAULT_KV_MOUNT,
         )
 
-    def test_write_accepts_a_mount_point_override(self, mock_client):
-        client.vault_write(mock_client, "some/path", "the-value", mount_point="other-mount")
-        _, kwargs = mock_client.secrets.kv.v2.create_or_update_secret.call_args
+    def test_write_accepts_a_mount_point_override(self, hvac_client):
+        client.vault_write(hvac_client, "some/path", "the-value", mount_point="other-mount")
+        _, kwargs = hvac_client.secrets.kv.v2.create_or_update_secret.call_args
         assert kwargs["mount_point"] == "other-mount"
 
-    def test_write_propagates_errors(self, mock_client):
-        mock_client.secrets.kv.v2.create_or_update_secret.side_effect = hvac.exceptions.Forbidden
+    def test_write_propagates_errors(self, hvac_client):
+        hvac_client.secrets.kv.v2.create_or_update_secret.side_effect = hvac.exceptions.Forbidden
         with pytest.raises(hvac.exceptions.Forbidden):
-            client.vault_write(mock_client, "some/path", "value")
+            client.vault_write(hvac_client, "some/path", "value")

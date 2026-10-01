@@ -12,7 +12,7 @@ tools/tests/openbao_utils/test_client.py.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, create_autospec, patch
 
 import hvac
 import pytest
@@ -38,20 +38,18 @@ class TestVaultLogin:
     tools/tests/openbao_utils/test_client.py for the login call
     itself."""
 
-    def test_raises_system_exit_when_role_id_missing(self, secrets_dir):
+    def test_raises_system_exit_when_role_id_missing(self, secrets_dir, hvac_client):
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
         with pytest.raises(SystemExit):
-            cache._vault_login(MagicMock())
+            cache._vault_login(hvac_client)
 
     @patch("cloud_credentials.cache._bare_vault_login")
-    def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login, secrets_dir):
+    def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login, secrets_dir, hvac_client):
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
-        mock_client = MagicMock()
+        cache._vault_login(hvac_client)
 
-        cache._vault_login(mock_client)
-
-        mock_bare_login.assert_called_once_with(mock_client, "some-role-id", "some-secret-id")
+        mock_bare_login.assert_called_once_with(hvac_client, "some-role-id", "some-secret-id")
 
 
 class TestGetSession:
@@ -62,20 +60,23 @@ class TestGetSession:
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
         monkeypatch.setattr(cache, "fetch_root_cert", MagicMock(return_value="fake-cert"))
 
-    @patch("cloud_credentials.cache.hvac.Client")
-    def test_logs_in_only_once_across_multiple_calls(self, mock_client_cls):
+    @patch("cloud_credentials.cache.hvac.Client", autospec=True)
+    def test_logs_in_only_once_across_multiple_calls(self, mock_client_cls, hvac_client):
+        mock_client_cls.return_value = hvac_client
         sessions = [cache._get_session() for _ in range(3)]
         assert sessions[0] is sessions[1] is sessions[2]
-        mock_client_cls.return_value.auth.approle.login.assert_called_once()
+        hvac_client.auth.approle.login.assert_called_once()
 
-    @patch("cloud_credentials.cache.hvac.Client")
-    def test_session_carries_client_and_ca_path(self, mock_client_cls):
+    @patch("cloud_credentials.cache.hvac.Client", autospec=True)
+    def test_session_carries_client_and_ca_path(self, mock_client_cls, hvac_client):
+        mock_client_cls.return_value = hvac_client
         session = cache._get_session()
-        assert session["client"] is mock_client_cls.return_value
+        assert session["client"] is hvac_client
         assert Path(session["ca_path"]).exists()
 
-    @patch("cloud_credentials.cache.hvac.Client")
-    def test_client_constructed_with_a_timeout(self, mock_client_cls):
+    @patch("cloud_credentials.cache.hvac.Client", autospec=True)
+    def test_client_constructed_with_a_timeout(self, mock_client_cls, hvac_client):
+        mock_client_cls.return_value = hvac_client
         cache._get_session()
         _, kwargs = mock_client_cls.call_args
         assert kwargs["timeout"] == cache.TIMEOUT_SECONDS
@@ -94,60 +95,59 @@ class TestVaultPath:
 
 
 @pytest.fixture
-def mock_client(secrets_dir, monkeypatch):
+def session_client(secrets_dir, monkeypatch, hvac_client):
     """Bypasses SSH/AppRole login entirely - _vault_read_at/_vault_write_at
     only need a session dict with a usable hvac.Client, however it was
     built."""
-    client = MagicMock()
-    monkeypatch.setattr(cache, "_get_session", MagicMock(return_value={"client": client, "ca_path": "/fake/ca.pem"}))
-    return client
+    monkeypatch.setattr(cache, "_get_session", create_autospec(cache._get_session, return_value={"client": hvac_client, "ca_path": "/fake/ca.pem"}))
+    return hvac_client
 
 
 class TestScopedReadWrite:
     @pytest.fixture(autouse=True)
-    def _scoped(self, mock_client):
+    def _scoped(self, session_client):
         self.cached, self.read_cache, self.write_cache, self.require_cache_file = cache.scoped("leaf")
 
-    def test_read_cache_returns_none_on_invalid_path(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
+    def test_read_cache_returns_none_on_invalid_path(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
         assert self.read_cache("does-not-exist") is None
 
-    def test_read_cache_returns_value_on_success(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-value"}}}
+    def test_read_cache_returns_value_on_success(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "the-value"}}}
         assert self.read_cache("some-key") == "the-value"
 
-    def test_read_cache_uses_the_leaf_path_and_mount(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+    def test_read_cache_uses_the_leaf_path_and_mount(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
         self.read_cache("backblaze-b2-write-access-key")
-        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+        session_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="cloud_credentials/leaf/backblaze-b2-write-access-key",
             mount_point=openbao_utils_module.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
         )
 
-    def test_cached_false_on_invalid_path(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
+    def test_cached_false_on_invalid_path(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
         assert not self.cached("does-not-exist")
 
-    def test_cached_true_on_success(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+    def test_cached_true_on_success(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
         assert self.cached("some-key")
 
-    def test_write_cache_writes_the_correct_payload(self, mock_client):
+    def test_write_cache_writes_the_correct_payload(self, session_client):
         self.write_cache("some-key", "the-value")
-        mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
+        session_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
             path="cloud_credentials/leaf/some-key",
             secret={"value": "the-value"},
             mount_point=openbao_utils_module.VAULT_KV_MOUNT,
         )
 
-    def test_require_cache_file_exits_with_message_when_missing(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
+    def test_require_cache_file_exits_with_message_when_missing(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
         with pytest.raises(SystemExit):
             self.require_cache_file("missing-key", "run some-command to create it")
 
-    def test_require_cache_file_returns_value_when_present(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "present-value"}}}
+    def test_require_cache_file_returns_value_when_present(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "present-value"}}}
         assert self.require_cache_file("present-key", "unused") == "present-value"
 
 
@@ -155,18 +155,18 @@ class TestVaultPathHelper:
     """read_vault_path/write_vault_path - the arbitrary-path escape
     hatch outside the leaf/rotation taxonomy, e.g. hosts/* material."""
 
-    def test_read_vault_path_uses_the_exact_given_path(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+    def test_read_vault_path_uses_the_exact_given_path(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
         cache.read_vault_path("hosts/all/telegram/telegram-token")
-        mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+        session_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             path="hosts/all/telegram/telegram-token",
             mount_point=openbao_utils_module.VAULT_KV_MOUNT,
             raise_on_deleted_version=True,
         )
 
-    def test_write_vault_path_writes_to_the_exact_given_path(self, mock_client):
+    def test_write_vault_path_writes_to_the_exact_given_path(self, session_client):
         cache.write_vault_path("hosts/security/lldap-jwt-secret", "the-value")
-        mock_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
+        session_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
             path="hosts/security/lldap-jwt-secret",
             secret={"value": "the-value"},
             mount_point=openbao_utils_module.VAULT_KV_MOUNT,
@@ -179,11 +179,11 @@ class TestScopedRotationCategory:
     detail by TestScopedReadWrite above, and the two categories only
     differ in which _vault_path prefix gets used."""
 
-    def test_read_cache_uses_the_rotation_path(self, mock_client):
-        mock_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+    def test_read_cache_uses_the_rotation_path(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
         _, read_cache, _, _ = cache.scoped("rotation")
         read_cache("_rotation-key-cloudflare-r2-token")
-        _, kwargs = mock_client.secrets.kv.v2.read_secret_version.call_args
+        _, kwargs = session_client.secrets.kv.v2.read_secret_version.call_args
         assert kwargs["path"] == "cloud_credentials/rotation/_rotation-key-cloudflare-r2-token"
 
 

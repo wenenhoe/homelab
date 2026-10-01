@@ -150,8 +150,8 @@ by `doc_frontmatter.py`'s type/status rules on every commit; a doc
 missing or misshaping it fails the build rather than drifting quietly.
 The generator and NIST alignment doc are both real, running tooling,
 not aspirational — see
-[`docs/topics/engineering/ci.md#doc-index-generation`](../../topics/engineering/ci.md#doc-index-generation) and
-[`#docs-drift-check`](../../topics/engineering/ci.md#docs-drift-check) for what actually
+[`docs/topics/engineering/ci/doc-checks.md#doc-index-generation`](../../topics/engineering/ci/doc-checks.md#doc-index-generation) and
+[`#docs-drift-check`](../../topics/engineering/ci/doc-checks.md#docs-drift-check) for what actually
 runs and what each check catches, and
 [`docs/topics/engineering/nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md) for the
 NIST mapping itself.

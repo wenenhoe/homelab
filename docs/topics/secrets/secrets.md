@@ -43,7 +43,7 @@ any new secret or config value goes through the catalog instead:
    The `check-secret-catalog` pre-commit hook rejects an entry that breaks
    the header's rules — a `hex` entry without a `length`, a generated entry
    that isn't `store: openbao`, a `manual` entry without a `description` —
-   before it merges. See [`ci.md`](../engineering/ci.md#secret-catalog-rules).
+   before it merges. See [`ci/gates.md`](../engineering/ci/gates.md#secret-catalog-rules).
 2. Reference it from a plain var in `group_vars/all/main.yaml`:
    ```yaml
    my_new_thing: "{{ secrets_generated['my-new-thing'] }}"
@@ -100,7 +100,7 @@ Every reader other than Ansible loads the catalog through
 entry whose `store` is missing or unknown. No tool decides where a secret
 lives from anything but its `store`. The `check-secret-catalog` pre-commit
 hook enforces the rules above before a change merges, so a wrong combination
-never reaches a deploy — see [`ci.md`](../engineering/ci.md#secret-catalog-rules).
+never reaches a deploy — see [`ci/gates.md`](../engineering/ci/gates.md#secret-catalog-rules).
 
 ## Bootstrapping manual secrets
 

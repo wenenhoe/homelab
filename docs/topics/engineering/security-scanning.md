@@ -1,6 +1,6 @@
 # Security Scanning
 
-Trivy checks, separate from the [PR-checks pipeline](ci.md)'s
+Trivy checks, separate from the [PR-checks pipeline](ci/pipeline.md)'s
 correctness/linting jobs — these are report-only, not merge-blocking.
 
 ## Trivy security scans

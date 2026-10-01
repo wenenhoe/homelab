@@ -156,13 +156,13 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR for faster feedback —
    CI also runs every role whose watch set a PR touches (see
-   [`ci.md`](ci.md#change-scoped-not-a-full-sweep)).
+   [`ci/pipeline.md`](ci/pipeline.md#change-scoped-not-a-full-sweep)).
 
 ## Coverage
 
 See [`molecule-coverage/README.md`](../../../ansible/molecule-coverage/README.md)
 for the task/loop/branch coverage tool that runs on top of these
-scenarios and gates CI (see [`ci.md`](ci.md#molecule-coverage-gate)).
+scenarios and gates CI (see [`ci/gates.md`](ci/gates.md#molecule-coverage-gate)).
 
 ## What molecule scenarios can't catch: tag wiring
 

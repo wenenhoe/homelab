@@ -5,7 +5,7 @@ cross-doc link can't silently drift out of sync with what documents it.
 
 Narrow presence/shape checks only, deliberately not content-equality —
 see each check's docstring for what it does and doesn't catch, and
-docs/topics/engineering/ci.md#docs-drift-check for the summary.
+docs/topics/engineering/ci/doc-checks.md#docs-drift-check for the summary.
 """
 
 from __future__ import annotations
@@ -186,13 +186,13 @@ def check_deploy_flow() -> None:
 
 
 def check_ci_jobs_table() -> None:
-    """docs/topics/engineering/ci.md's Jobs table against pr-checks.yml's actual job ids."""
+    """docs/topics/engineering/ci/pipeline.md's Jobs table against pr-checks.yml's actual job ids."""
     workflow = yaml.safe_load(read(ROOT / ".github/workflows/pr-checks.yml"))
     job_ids = set(workflow["jobs"].keys())
 
-    section = re.search(r"## Jobs\n\n(.*?)\n\n", read(ROOT / "docs/topics/engineering/ci.md"), re.DOTALL)
+    section = re.search(r"## Jobs\n\n(.*?)\n\n", read(ROOT / "docs/topics/engineering/ci/pipeline.md"), re.DOTALL)
     if not section:
-        fail("ci.md: couldn't find the ## Jobs table")
+        fail("ci/pipeline.md: couldn't find the ## Jobs table")
         return
     documented = set(re.findall(r"^\| `([\w-]+)`", section.group(1), re.MULTILINE))
 
@@ -202,9 +202,9 @@ def check_ci_jobs_table() -> None:
     allowed_undocumented = {"detect-changes", "trivy-scan"}
 
     for job in sorted(job_ids - documented - allowed_undocumented):
-        fail(f"ci.md Jobs table: missing a row for pr-checks.yml's '{job}' job")
+        fail(f"ci/pipeline.md Jobs table: missing a row for pr-checks.yml's '{job}' job")
     for job in sorted(documented - job_ids):
-        fail(f"ci.md Jobs table: documents '{job}', which isn't a job in pr-checks.yml")
+        fail(f"ci/pipeline.md Jobs table: documents '{job}', which isn't a job in pr-checks.yml")
 
 
 def _slugify(heading: str) -> str:

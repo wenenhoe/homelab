@@ -86,7 +86,10 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | Doc | Covers |
 | :--- | :--- |
 | [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style. |
-| [`ci.md`](engineering/ci.md) | The PR-checks pipeline: change-scoped jobs, boot-testing, deploy-ordering regression check, and the project-scope check. |
+| [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, change-scoped jobs, the job list, cache warming, and which checks to require before merge. |
+| [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing, Dockerfile builds and image tags. |
+| [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
+| [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |
 | [`molecule-testing.md`](engineering/molecule-testing.md) | Molecule scenario matrix and how to add one. |
 | [`molecule-fixtures.md`](engineering/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_catalog` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
 | [`security-scanning.md`](engineering/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |

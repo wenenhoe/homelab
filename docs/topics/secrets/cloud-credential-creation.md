@@ -79,7 +79,7 @@ model (`docs/topics/engineering/molecule-testing.md`) doesn't apply. `ansible/te
 holds pytest tests — every provider HTTP call and `rclone` invocation
 mocked — run via `uv run pytest ansible/tests/ -v` and wired into CI as
 `pr-checks.yml`'s
-`python-unit-tests` job (see `docs/topics/engineering/ci.md`).
+`python-unit-tests` job (see `docs/topics/engineering/ci/pipeline.md`).
 
 Rotation keys/tokens (all three providers) are cached to OpenBao KV v2,
 at `secret/data/cloud_credentials/rotation/*` — see

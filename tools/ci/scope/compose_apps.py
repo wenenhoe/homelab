@@ -8,7 +8,7 @@ list-apps each used to parse the exclusion list themselves.
 
 An app is queued for a boot test when its `compose.yaml`/`compose.yaml.j2`
 changes, its `Dockerfile` does (the boot test builds it in place of the
-published image — see docs/topics/engineering/ci.md#dockerfile-changes), or anything under its
+published image — see docs/topics/engineering/ci/gates.md#dockerfile-changes), or anything under its
 `configs/` or `scripts/` does (the `compose` role renders and stages both
 before the stack boots). Excluded apps are never queued, and a directory
 with no compose file isn't an app.

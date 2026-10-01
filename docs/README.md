@@ -37,7 +37,7 @@ by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
 the handful of places that check mechanically (this index and each
 subdirectory's own (`topics/`'s covering every doc under it, at any
 depth), `ansible.md`'s playbook table, the molecule
-scenario matrix, the deploy play numbering, `ci.md`'s job table, every
+scenario matrix, the deploy play numbering, `ci/pipeline.md`'s job table, every
 cross-file `#anchor` reference repo-wide, every `docs/decisions/` or
 `docs/projects/` path written anywhere — comments included — and the
 decision-lineage and project rules in

@@ -84,7 +84,7 @@ RETIRED = re.compile(r"(?<![A-Za-z0-9_])(extra_cloud_targets|cloud_sync_default_
 # Decision revisions keep the old names as history. The validator, its test and the doc that describes its rules
 # name the old catalog key, and only that key, to refuse it; every other retired name stays guarded there too.
 HISTORICAL = ("docs/decisions/",)
-REFUSES_THE_OLD_KEY = {"tools/ci/gates/app_catalog_rules.py", "tools/tests/ci/gates/test_app_catalog_rules.py", "docs/topics/engineering/ci.md"}
+REFUSES_THE_OLD_KEY = {"tools/ci/gates/app_catalog_rules.py", "tools/tests/ci/gates/test_app_catalog_rules.py", "docs/topics/engineering/ci/gates.md"}
 OLD_KEY = "extra_cloud_targets"
 SKIPPED_DIRS = {".git", ".venv", ".ansible", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
 

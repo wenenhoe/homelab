@@ -136,7 +136,7 @@ frontmatter adoption and its NIST alignment decision stand.
 ## Validation
 
 `.github/scripts/check-doc-drift.py` enforces the invariants above and is
-described in [`ci.md`](../../topics/engineering/ci.md#docs-drift-check); its rules are unit
+described in [`ci/doc-checks.md`](../../topics/engineering/ci/doc-checks.md#docs-drift-check); its rules are unit
 tested under `tools/tests/doc_scripts/`.
 
 ## Reconsideration triggers

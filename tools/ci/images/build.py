@@ -3,7 +3,7 @@
 
 The images built from docker/<app>/Dockerfile are only published after
 merge, so a PR's own Dockerfile change is otherwise never exercised — see
-docs/topics/engineering/ci.md#dockerfile-changes.
+docs/topics/engineering/ci/gates.md#dockerfile-changes.
 
 `shadow-tag` builds an app's Dockerfile and tags the result as the
 `ghcr.io/wenenhoe/<image>` reference its deployed compose file pins, so

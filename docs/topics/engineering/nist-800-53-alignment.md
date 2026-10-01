@@ -89,7 +89,7 @@ and projects it references — they stay untouched, deliberately (see
 ADR 0028 linked above for why). `check_doc_drift.py` catches
 one specific staleness case mechanically: a linked ADR going
 `status: superseded` fails the build until this page is reviewed (see
-[`docs/topics/engineering/ci.md#docs-drift-check`](ci.md#docs-drift-check)). It does
+[`docs/topics/engineering/ci/doc-checks.md#docs-drift-check`](ci/doc-checks.md#docs-drift-check)). It does
 *not* catch a still-`accepted` ADR's reasoning changing enough to
 break a mapping, or a new ADR that should be added here — both stay on
 whoever's making that change, the same way most of this repo's

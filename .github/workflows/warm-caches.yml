@@ -2,7 +2,7 @@ name: Warm base-branch caches
 
 # A cache saved by a pull_request run is scoped to that PR's merge ref
 # and no other PR can restore it; only entries saved on main are visible
-# to every PR — see docs/topics/engineering/ci.md#base-branch-warming.
+# to every PR — see docs/topics/engineering/ci/pipeline.md#base-branch-warming.
 on:  # yamllint disable-line rule:truthy
   push:
     branches: [main]

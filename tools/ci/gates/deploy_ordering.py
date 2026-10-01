@@ -3,7 +3,7 @@
 
 Regression coverage for an incident where `ansible_host` was wired to
 resolve through a role-generated fact (`secrets_generated`) without
-anything in CI exercising that chain — see docs/topics/engineering/ci.md#deploy-ordering-check.
+anything in CI exercising that chain — see docs/topics/engineering/ci/gates.md#deploy-ordering-check.
 Both runs use the purpose-built inventory, so they touch no real host.
 
 `deploy` runs the real deploy.yaml with `--tags` matching nothing real, so

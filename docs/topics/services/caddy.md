@@ -4,7 +4,7 @@ The `caddy` role runs on **every** host in the inventory, giving each host its o
 
 ## Custom image
 
-Caddy's DNS-01 challenge support for DigitalOcean isn't in the stock image, so `docker/caddy/Dockerfile` uses `xcaddy` to build Caddy with the `github.com/caddy-dns/digitalocean` plugin. A GitHub Actions workflow (`.github/workflows/build-caddy-image.yml`) builds and pushes it to `ghcr.io/wenenhoe/caddy-digitalocean`, tagged by Caddy version. Hosts pull it like any other app's image — the `caddy` role has no build step. See [`ci.md`](../engineering/ci.md) for the workflow's triggers.
+Caddy's DNS-01 challenge support for DigitalOcean isn't in the stock image, so `docker/caddy/Dockerfile` uses `xcaddy` to build Caddy with the `github.com/caddy-dns/digitalocean` plugin. A GitHub Actions workflow (`.github/workflows/build-caddy-image.yml`) builds and pushes it to `ghcr.io/wenenhoe/caddy-digitalocean`, tagged by Caddy version. Hosts pull it like any other app's image — the `caddy` role has no build step. See [`ci/gates.md`](../engineering/ci/gates.md#dockerfile-changes) for the workflow's triggers.
 
 ## Caddyfile generation
 

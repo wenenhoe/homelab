@@ -50,7 +50,7 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 ```
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
-├── .github/                 # CI workflows, PR-check scripts, Renovate config — see docs/topics/engineering/ci.md
+├── .github/                 # CI workflows, PR-check scripts, Renovate config — see docs/topics/engineering/ci/pipeline.md
 ├── ansible/                 # All automation: playbooks, inventory, roles — see docs/topics/deploy/ansible.md
 ├── docker/                  # One directory per application
 ├── docs/                    # Deep dives — see docs/README.md
@@ -216,7 +216,7 @@ pytest ansible/tests/ tools/tests/ -v
 
 Every provider HTTP call and `rclone` invocation is mocked — no
 network access or real cloud credentials needed. See
-[`docs/topics/engineering/ci.md`](docs/topics/engineering/ci.md) for how this runs in CI.
+[`docs/topics/engineering/ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) for how this runs in CI.
 
 ## Linting & Pre-commit
 
@@ -231,7 +231,7 @@ network access or real cloud credentials needed. See
 - [`actionlint`](https://github.com/rhysd/actionlint) — lints every `.github/workflows/*.yml`: expression types, `needs`/`outputs` wiring, script injection via untrusted `${{ }}` in `run:`, and `shellcheck` over inline `run:` blocks. Runs via its Docker-image variant (`.config/.actionlint.yaml`). Composite actions under `.github/actions/` aren't covered — it only parses workflow files
 - `generate-doc-indexes` (local) — regenerates the index tables in `docs/projects/README.md`, `docs/project-planning.md`, and `docs/decisions/README.md` from each doc's YAML frontmatter; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`tools/doc_scripts/generate_doc_indexes.py`](tools/doc_scripts/generate_doc_indexes.py)
 - [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
-- `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`tools/doc_scripts/check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py)
+- `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci/pipeline.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`tools/doc_scripts/check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py)
 - `check-project-scope` (local) — a commit that touches a project doc stays inside that project's `allowed_paths`, read from `HEAD`; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_scope.py`](tools/doc_scripts/check_project_scope.py)
 - `check-project-close` (local) — a commit that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project, judged on what is staged; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_close.py`](tools/doc_scripts/check_project_close.py)
 - [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
@@ -259,4 +259,4 @@ suppressing would get the same per-line treatment as `hadolint`'s
 
 Run `pre-commit install` once after
 cloning. CI enforces the same checks on every PR regardless of whether
-hooks are installed locally — see [`docs/topics/engineering/ci.md`](docs/topics/engineering/ci.md).
+hooks are installed locally — see [`docs/topics/engineering/ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md).

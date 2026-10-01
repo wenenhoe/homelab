@@ -6,7 +6,7 @@ title: "How the repo's Python unit tests are written and run"
 solution: "pytest-native tests, with fixtures for setup and parametrize for variants; unittest-style tests are converted rather than left"
 summary: "How Python unit tests are written and run so the suite has one style for setup, cases and assertions, and a failing case names its input."
 topic: repository-tooling
-status: approved
+status: accepted
 related: [ADR-0064]
 ---
 

@@ -63,20 +63,19 @@ concern → topic mapping itself.
 ## Python unit tests
 
 Tests under `ansible/tests/` and `tools/tests/` are written pytest-native
-and run with `uv run pytest ansible/tests/ tools/tests/`; the choice and
-the conversion order are in
+and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
 [ADR 0069](decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md).
-Until that conversion closes, files not yet converted are still
-`unittest.TestCase` and run in the same session.
 
 - **Style.** Plain functions or `Test*` classes, plain `assert`, and
   `pytest.raises(..., match=)`. Setup and cleanup are fixtures
   (`tmp_path` and `monkeypatch` before anything hand-rolled), not
   `setUp`, `addCleanup` or a base class. Write no new `TestCase`.
 - **Variants.** Cases of one behavior are one
-  `@pytest.mark.parametrize` test with an explicit `id`.
-  `parametrize` does not apply to `TestCase` methods, so a `subTest`
-  loop becomes parametrized cases when its file is converted.
+  `@pytest.mark.parametrize` test with an explicit `id`. A loop over data
+  read from the real tree at run time, or over cases that must share
+  setup a parametrized test would repeat, uses the built-in `subtests`
+  fixture (`with subtests.test(...)`), so each case still reports on its
+  own. Write no `subTest`.
 - **Import roots.** Declared once in `[tool.pytest]` in `pyproject.toml`;
   a test file adds nothing to `sys.path`. A new source directory that
   tests import from is added there. `strict = true` in that table makes

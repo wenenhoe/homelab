@@ -13,15 +13,12 @@ wired up would mean an unmocked real Vault session gets built.
 
 from __future__ import annotations
 
-import shutil
 import sys
-import tempfile
-import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
+import pytest
 from openbao_utils import restore
 
 
@@ -44,170 +41,162 @@ class _FakeModule:
         self.store[name] = value
 
 
-class UsageErrorTests(unittest.TestCase):
+@pytest.fixture
+def tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("restore")
+
+
+class TestUsageError:
     """main()'s usage/directory checks happen before either phase
     runs, so these don't need either phase mocked."""
-
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
 
     def test_usage_error_when_no_directory_given(self):
         with patch.object(sys, "argv", ["restore.py"]):
             rc = restore.main()
-        self.assertEqual(rc, 1)
+        assert rc == 1
 
-    def test_error_when_given_path_is_not_a_directory(self):
-        with patch.object(sys, "argv", ["restore.py", str(self.tmp / "does-not-exist")]):
+    def test_error_when_given_path_is_not_a_directory(self, tmp):
+        with patch.object(sys, "argv", ["restore.py", str(tmp / "does-not-exist")]):
             rc = restore.main()
-        self.assertEqual(rc, 1)
+        assert rc == 1
 
 
-class CatalogScopedRestoreTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        self.catalog_file = self.tmp / "catalog.yaml"
-        self.backup_dir = self.tmp / "backup"
-        self.backup_dir.mkdir()
-        patch.object(restore, "CATALOG_PATH", self.catalog_file).start()
+class TestCatalogScopedRestore:
+    @pytest.fixture(autouse=True)
+    def env(self, tmp, monkeypatch) -> SimpleNamespace:
+        catalog_file = tmp / "catalog.yaml"
+        backup_dir = tmp / "backup"
+        backup_dir.mkdir()
+        monkeypatch.setattr(restore, "CATALOG_PATH", catalog_file)
         # Neutralizes the other phase - an empty list means its for
         # loop never iterates, never touching a real Vault session.
-        patch.object(restore, "LEGACY_CACHE_KEYS", []).start()
-        self.addCleanup(patch.stopall)
+        monkeypatch.setattr(restore, "LEGACY_CACHE_KEYS", [])
+        return SimpleNamespace(catalog_file=catalog_file, backup_dir=backup_dir)
 
-    def _seed_catalog(self, text: str) -> None:
-        self.catalog_file.write_text(text)
-
-    def test_restores_a_value_present_in_the_backup_but_not_in_vault(self):
-        self._seed_catalog("secret_catalog:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
-        (self.backup_dir / "lldap-jwt-secret").write_text("the-old-jwt-secret")
+    def test_restores_a_value_present_in_the_backup_but_not_in_vault(self, env):
+        env.catalog_file.write_text("secret_catalog:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
+        (env.backup_dir / "lldap-jwt-secret").write_text("the-old-jwt-secret")
 
         written = {}
         with (
             patch.object(restore, "read_vault_path", return_value=None),
             patch.object(restore, "write_vault_path", side_effect=lambda path, value: written.__setitem__(path, value)),
         ):
-            rc = _run(self.backup_dir)
+            rc = _run(env.backup_dir)
 
-        self.assertEqual(rc, 0)
-        self.assertEqual(written, {"hosts/security/lldap-jwt-secret": "the-old-jwt-secret"})
+        assert rc == 0
+        assert written == {"hosts/security/lldap-jwt-secret": "the-old-jwt-secret"}
 
-    def test_never_overwrites_a_value_already_in_vault(self):
-        self._seed_catalog("secret_catalog:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
-        (self.backup_dir / "lldap-jwt-secret").write_text("stale-backup-value")
+    def test_never_overwrites_a_value_already_in_vault(self, env):
+        env.catalog_file.write_text("secret_catalog:\n  lldap-jwt-secret:\n    source: hex\n    store: openbao\n    scope: hosts/security\n")
+        (env.backup_dir / "lldap-jwt-secret").write_text("stale-backup-value")
 
         with (
             patch.object(restore, "read_vault_path", return_value="already-there"),
             patch.object(restore, "write_vault_path") as fake_write,
         ):
-            rc = _run(self.backup_dir)
+            rc = _run(env.backup_dir)
 
-        self.assertEqual(rc, 0)
+        assert rc == 0
         fake_write.assert_not_called()
 
-    def test_entry_missing_from_the_backup_is_reported_not_written(self):
-        self._seed_catalog("secret_catalog:\n  never-backed-up:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
+    def test_entry_missing_from_the_backup_is_reported_not_written(self, env):
+        env.catalog_file.write_text("secret_catalog:\n  never-backed-up:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
 
         with (
             patch.object(restore, "read_vault_path", return_value=None),
             patch.object(restore, "write_vault_path") as fake_write,
         ):
-            rc = _run(self.backup_dir)
+            rc = _run(env.backup_dir)
 
-        self.assertEqual(rc, 0)
+        assert rc == 0
         fake_write.assert_not_called()
 
-    def test_skips_entries_stored_in_the_file_cache(self):
-        self._seed_catalog("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
-        (self.backup_dir / "no-scope-key").write_text("value")
+    def test_skips_entries_stored_in_the_file_cache(self, env):
+        env.catalog_file.write_text("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
+        (env.backup_dir / "no-scope-key").write_text("value")
 
         with (
             patch.object(restore, "read_vault_path", return_value=None),
             patch.object(restore, "write_vault_path") as fake_write,
         ):
-            rc = _run(self.backup_dir)
+            rc = _run(env.backup_dir)
 
-        self.assertEqual(rc, 0)
+        assert rc == 0
         fake_write.assert_not_called()
 
-    def test_restores_backup_content_byte_for_byte_not_stripped(self):
+    def test_restores_backup_content_byte_for_byte_not_stripped(self, env):
         # Regression test for the bug found on merge: the other phase
         # (LEGACY_CACHE_KEYS) used to strip() backup content before
         # this merge - openbao_utils/dump.py writes the raw
         # value with no added whitespace, so stripping on the way back
         # in would silently corrupt a value with meaningful
         # leading/trailing whitespace.
-        self._seed_catalog("secret_catalog:\n  padded-value:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
-        (self.backup_dir / "padded-value").write_text("  has padding  \n")
+        env.catalog_file.write_text("secret_catalog:\n  padded-value:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
+        (env.backup_dir / "padded-value").write_text("  has padding  \n")
 
         written = {}
         with (
             patch.object(restore, "read_vault_path", return_value=None),
             patch.object(restore, "write_vault_path", side_effect=lambda path, value: written.__setitem__(path, value)),
         ):
-            _run(self.backup_dir)
+            _run(env.backup_dir)
 
-        self.assertEqual(written["hosts/services/padded-value"], "  has padding  \n")
+        assert written["hosts/services/padded-value"] == "  has padding  \n"
 
 
-class LegacyCacheKeysRestoreTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        self.catalog_file = self.tmp / "catalog.yaml"
+class TestLegacyCacheKeysRestore:
+    @pytest.fixture(autouse=True)
+    def _empty_catalog(self, tmp, monkeypatch):
+        catalog_file = tmp / "catalog.yaml"
         # Neutralizes the other phase - an empty catalog means
         # _scoped_catalog_entries() returns {}, never touching a real
         # Vault session via read_vault_path/write_vault_path.
-        self.catalog_file.write_text("secret_catalog: {}\n")
-        patch.object(restore, "CATALOG_PATH", self.catalog_file).start()
-        self.addCleanup(patch.stopall)
+        catalog_file.write_text("secret_catalog: {}\n")
+        monkeypatch.setattr(restore, "CATALOG_PATH", catalog_file)
 
-    def seed_backup_file(self, name: str, value: str) -> None:
-        (self.tmp / name).write_text(value)
+    @staticmethod
+    def seed_backup_file(tmp: Path, name: str, value: str) -> None:
+        (tmp / name).write_text(value)
 
-    def test_restores_a_key_present_in_backup_but_not_vault(self):
+    def test_restores_a_key_present_in_backup_but_not_vault(self, tmp):
         mod = _FakeModule()
-        self.seed_backup_file("some-key", "the-value")
+        self.seed_backup_file(tmp, "some-key", "the-value")
         with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
-            rc = _run(self.tmp)
-        self.assertEqual(rc, 0)
-        self.assertEqual(mod.store["some-key"], "the-value")
+            rc = _run(tmp)
+        assert rc == 0
+        assert mod.store["some-key"] == "the-value"
 
-    def test_skips_a_key_already_present_in_vault_without_overwriting(self):
+    def test_skips_a_key_already_present_in_vault_without_overwriting(self, tmp):
         mod = _FakeModule()
         mod.store["some-key"] = "vault-value"
-        self.seed_backup_file("some-key", "backup-value")
+        self.seed_backup_file(tmp, "some-key", "backup-value")
         with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
-            _run(self.tmp)
-        self.assertEqual(mod.store["some-key"], "vault-value")
+            _run(tmp)
+        assert mod.store["some-key"] == "vault-value"
 
-    def test_key_with_no_backup_file_is_left_alone(self):
+    def test_key_with_no_backup_file_is_left_alone(self, tmp):
         mod = _FakeModule()
         with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
-            rc = _run(self.tmp)
-        self.assertEqual(rc, 0)
-        self.assertNotIn("some-key", mod.store)
+            rc = _run(tmp)
+        assert rc == 0
+        assert "some-key" not in mod.store
 
-    def test_multiple_keys_are_handled_independently(self):
+    def test_multiple_keys_are_handled_independently(self, tmp):
         mod_a, mod_b = _FakeModule(), _FakeModule()
-        self.seed_backup_file("key-a", "value-a")
+        self.seed_backup_file(tmp, "key-a", "value-a")
         # key-b deliberately has no backup file.
         with patch.object(restore, "LEGACY_CACHE_KEYS", [("key-a", mod_a), ("key-b", mod_b)]):
-            _run(self.tmp)
-        self.assertEqual(mod_a.store.get("key-a"), "value-a")
-        self.assertNotIn("key-b", mod_b.store)
+            _run(tmp)
+        assert mod_a.store.get("key-a") == "value-a"
+        assert "key-b" not in mod_b.store
 
-    def test_restores_backup_content_byte_for_byte_not_stripped(self):
+    def test_restores_backup_content_byte_for_byte_not_stripped(self, tmp):
         # Regression test for the bug found on merge - see the
         # matching test in CatalogScopedRestoreTests for the full
         # explanation.
         mod = _FakeModule()
-        self.seed_backup_file("padded-key", "  has padding  \n")
+        self.seed_backup_file(tmp, "padded-key", "  has padding  \n")
         with patch.object(restore, "LEGACY_CACHE_KEYS", [("padded-key", mod)]):
-            _run(self.tmp)
-        self.assertEqual(mod.store["padded-key"], "  has padding  \n")
-
-
-if __name__ == "__main__":
-    unittest.main()
+            _run(tmp)
+        assert mod.store["padded-key"] == "  has padding  \n"

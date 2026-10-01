@@ -7,15 +7,10 @@ as test_restore.py.
 
 from __future__ import annotations
 
-import shutil
-import sys
-import tempfile
-import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
+import pytest
 from openbao_utils import dump
 
 
@@ -27,49 +22,46 @@ class _FakeModule:
         return self._value
 
 
-class DumpCloudCredentialsTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
+@pytest.fixture
+def tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    return tmp_path_factory.mktemp("dump")
 
-    def test_writes_present_values_with_owner_only_permissions(self):
+
+class TestDumpCloudCredentials:
+    def test_writes_present_values_with_owner_only_permissions(self, tmp):
         with patch.object(dump, "LEGACY_CACHE_KEYS", [("k", _FakeModule("secret-value"))]):
-            written, blank = dump._dump_cloud_credentials(self.tmp)
-        self.assertEqual(written, ["k"])
-        self.assertEqual(blank, [])
-        dest = self.tmp / "k"
-        self.assertEqual(dest.read_text(), "secret-value")
-        self.assertEqual(dest.stat().st_mode & 0o777, 0o600)
+            written, blank = dump._dump_cloud_credentials(tmp)
+        assert written == ["k"]
+        assert blank == []
+        dest = tmp / "k"
+        assert dest.read_text() == "secret-value"
+        assert dest.stat().st_mode & 0o777 == 0o600
 
-    def test_reports_missing_value_as_blank_not_an_error(self):
+    def test_reports_missing_value_as_blank_not_an_error(self, tmp):
         with patch.object(dump, "LEGACY_CACHE_KEYS", [("k", _FakeModule(None))]):
-            written, blank = dump._dump_cloud_credentials(self.tmp)
-        self.assertEqual(written, [])
-        self.assertEqual(blank, ["k"])
-        self.assertFalse((self.tmp / "k").exists())
+            written, blank = dump._dump_cloud_credentials(tmp)
+        assert written == []
+        assert blank == ["k"]
+        assert not (tmp / "k").exists()
 
 
-class DumpHostsScopeTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-        self.catalog_file = self.tmp / "catalog.yaml"
+class TestDumpHostsScope:
+    @pytest.fixture
+    def catalog_file(self, tmp) -> Path:
+        return tmp / "catalog.yaml"
 
-    def _seed_catalog(self, text: str) -> None:
-        self.catalog_file.write_text(text)
-
-    def test_skips_entries_stored_in_the_file_cache(self):
-        self._seed_catalog("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
-        dest = self.tmp / "out"
+    def test_skips_entries_stored_in_the_file_cache(self, tmp, catalog_file):
+        catalog_file.write_text("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
+        dest = tmp / "out"
         dest.mkdir()
-        with patch.object(dump, "CATALOG_PATH", self.catalog_file), patch.object(dump, "read_vault_path", return_value="v"):
+        with patch.object(dump, "CATALOG_PATH", catalog_file), patch.object(dump, "read_vault_path", return_value="v"):
             written, blank = dump._dump_hosts_scope(dest)
-        self.assertEqual(written, [])
-        self.assertEqual(blank, [])
+        assert written == []
+        assert blank == []
 
-    def test_writes_scoped_entry_from_its_declared_path(self):
-        self._seed_catalog("secret_catalog:\n  telegram-token:\n    source: manual\n    store: openbao\n    scope: hosts/all/telegram\n")
-        dest = self.tmp / "out"
+    def test_writes_scoped_entry_from_its_declared_path(self, tmp, catalog_file):
+        catalog_file.write_text("secret_catalog:\n  telegram-token:\n    source: manual\n    store: openbao\n    scope: hosts/all/telegram\n")
+        dest = tmp / "out"
         dest.mkdir()
         calls = []
 
@@ -77,15 +69,15 @@ class DumpHostsScopeTests(unittest.TestCase):
             calls.append(path)
             return "the-token"
 
-        with patch.object(dump, "CATALOG_PATH", self.catalog_file), patch.object(dump, "read_vault_path", side_effect=fake_read):
+        with patch.object(dump, "CATALOG_PATH", catalog_file), patch.object(dump, "read_vault_path", side_effect=fake_read):
             written, _blank = dump._dump_hosts_scope(dest)
 
-        self.assertEqual(written, ["telegram-token"])
-        self.assertEqual(calls, ["hosts/all/telegram/telegram-token"])
-        self.assertEqual((dest / "telegram-token").read_text(), "the-token")
+        assert written == ["telegram-token"]
+        assert calls == ["hosts/all/telegram/telegram-token"]
+        assert (dest / "telegram-token").read_text() == "the-token"
 
 
-class OciMisfileCheckTests(unittest.TestCase):
+class TestOciMisfileCheck:
     def test_flags_a_value_present_only_under_the_wrong_category(self):
         def fake_read(path: str) -> str | None:
             return "user-ocid-value" if path.startswith("cloud_credentials/leaf/") else None
@@ -93,8 +85,8 @@ class OciMisfileCheckTests(unittest.TestCase):
         with patch.object(dump, "read_vault_path", side_effect=fake_read):
             report = dump._check_oci_leaf_user_ocid_misfile()
 
-        self.assertIn("rotation/ (expected): MISSING", report)
-        self.assertIn("leaf/     (suspect):  present", report)
+        assert "rotation/ (expected): MISSING" in report
+        assert "leaf/     (suspect):  present" in report
 
     def test_never_prints_the_actual_secret_value(self):
         def fake_read(path: str) -> str | None:
@@ -103,44 +95,36 @@ class OciMisfileCheckTests(unittest.TestCase):
         with patch.object(dump, "read_vault_path", side_effect=fake_read):
             report = dump._check_oci_leaf_user_ocid_misfile()
 
-        self.assertNotIn("super-secret-ocid", report)
+        assert "super-secret-ocid" not in report
 
 
-class MainTests(unittest.TestCase):
-    def setUp(self):
-        self.tmp = Path(tempfile.mkdtemp())
-        self.addCleanup(lambda: shutil.rmtree(self.tmp, ignore_errors=True))
-
-    def test_creates_a_fresh_owner_only_directory_each_run(self):
-        catalog_file = self.tmp / "catalog.yaml"
+class TestMain:
+    def test_creates_a_fresh_owner_only_directory_each_run(self, tmp):
+        catalog_file = tmp / "catalog.yaml"
         catalog_file.write_text("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         with (
             patch.object(dump, "CATALOG_PATH", catalog_file),
             patch.object(dump, "LEGACY_CACHE_KEYS", []),
             patch.object(dump, "read_vault_path", return_value=None),
-            patch.object(Path, "home", return_value=self.tmp),
+            patch.object(Path, "home", return_value=tmp),
         ):
             rc = dump.main()
-        self.assertEqual(rc, 0)
-        backups = [p for p in self.tmp.iterdir() if p.name.startswith("secrets-backup-pre-reinit-")]
-        self.assertEqual(len(backups), 1)
-        self.assertEqual(backups[0].stat().st_mode & 0o777, 0o700)
+        assert rc == 0
+        backups = [p for p in tmp.iterdir() if p.name.startswith("secrets-backup-pre-reinit-")]
+        assert len(backups) == 1
+        assert backups[0].stat().st_mode & 0o777 == 0o700
 
-    def test_refuses_to_clobber_an_existing_backup_directory(self):
+    def test_refuses_to_clobber_an_existing_backup_directory(self, tmp):
         # _backup_dir() is timestamped, but exist_ok=False is the actual
         # guarantee - assert the real failure mode, not just that two
         # calls happen to get different timestamps.
-        with patch.object(dump, "_backup_dir", return_value=self.tmp / "collision"):
-            (self.tmp / "collision").mkdir()
-            catalog_file = self.tmp / "catalog.yaml"
+        with patch.object(dump, "_backup_dir", return_value=tmp / "collision"):
+            (tmp / "collision").mkdir()
+            catalog_file = tmp / "catalog.yaml"
             catalog_file.write_text("secret_catalog: {}\n")
             with (
                 patch.object(dump, "CATALOG_PATH", catalog_file),
                 patch.object(dump, "LEGACY_CACHE_KEYS", []),
-                self.assertRaises(FileExistsError),
+                pytest.raises(FileExistsError),
             ):
                 dump.main()
-
-
-if __name__ == "__main__":
-    unittest.main()

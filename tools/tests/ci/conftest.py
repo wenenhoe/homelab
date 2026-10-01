@@ -1,4 +1,4 @@
-"""Fixtures for the doc_scripts tests."""
+"""Fixtures for the ci tests."""
 
 from __future__ import annotations
 

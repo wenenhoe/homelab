@@ -63,7 +63,7 @@ unwritten and raise it privately.
 
 | Doc | Covers |
 | :--- | :--- |
-| [`conventions.md`](conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics. |
+| [`conventions.md`](conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style. |
 | [`project-planning.md`](project-planning.md) | Generated cross-cutting views: projects with an initiative by build order, standalone projects, and open ADRs no project covers yet. |
 | [`nist-800-53-alignment.md`](nist-800-53-alignment.md) | Selective, narrative NIST SP 800-53 alignment — which existing decisions resemble which control's intent, and one control evaluated and left unmapped. Not a compliance artifact. |
 | [`ansible.md`](ansible.md) | Playbook, role, and inventory reference tables. |

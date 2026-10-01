@@ -8,17 +8,12 @@ real provider.
 from __future__ import annotations
 
 import subprocess
-import sys
-import unittest
-from pathlib import Path
 from unittest.mock import MagicMock, patch
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from cloud_credentials import verify
 
 
-class VerifyMarkerKeyTests(unittest.TestCase):
+class TestVerifyMarkerKey:
     """Covers the fix for a real RetentionRuleViolation: a fixed, reused
     marker path broke permanently the moment the bucket had a retention
     rule, since the second write to the same key was a genuine
@@ -27,14 +22,14 @@ class VerifyMarkerKeyTests(unittest.TestCase):
 
     def test_two_calls_never_collide(self):
         keys = {verify._verify_marker_key("write") for _ in range(1000)}
-        self.assertEqual(len(keys), 1000)
+        assert len(keys) == 1000
 
     def test_key_is_scoped_under_the_reserved_prefix_and_leaf(self):
         key = verify._verify_marker_key("write")
-        self.assertTrue(key.startswith("_rotation-verify/write-"))
+        assert key.startswith("_rotation-verify/write-")
 
 
-class RunRcloneWithRetryTests(unittest.TestCase):
+class TestRunRcloneWithRetry:
     """Covers the fix for OCI's key-propagation window: a freshly created
     customer secret key isn't always immediately usable by Object
     Storage's S3-compat API (confirmed live — an already-propagated key
@@ -58,6 +53,9 @@ class RunRcloneWithRetryTests(unittest.TestCase):
     def _completed(self, returncode: int, stderr: str = "") -> MagicMock:
         return MagicMock(returncode=returncode, stderr=stderr)
 
+    def _completed(self, returncode: int, stderr: str = "") -> MagicMock:
+        return MagicMock(returncode=returncode, stderr=stderr)
+
     @patch.object(verify.time, "sleep")
     @patch.object(verify.subprocess, "run")
     def test_retries_on_list_objects_propagation_error_then_succeeds(self, mock_run, mock_sleep):
@@ -67,9 +65,9 @@ class RunRcloneWithRetryTests(unittest.TestCase):
             self._completed(0),
         ]
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(mock_run.call_count, 3)
-        self.assertEqual(mock_sleep.call_count, 2)
+        assert result.returncode == 0
+        assert mock_run.call_count == 3
+        assert mock_sleep.call_count == 2
 
     @patch.object(verify.time, "sleep")
     @patch.object(verify.subprocess, "run")
@@ -82,8 +80,8 @@ class RunRcloneWithRetryTests(unittest.TestCase):
             self._completed(0),
         ]
         result = verify._run_rclone_with_retry(["rclone", "copyto"], timeout=45)
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(mock_run.call_count, 2)
+        assert result.returncode == 0
+        assert mock_run.call_count == 2
         mock_sleep.assert_called_once()
 
     @patch.object(verify.time, "sleep")
@@ -98,8 +96,8 @@ class RunRcloneWithRetryTests(unittest.TestCase):
             self._completed(0),
         ]
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(mock_run.call_count, 2)
+        assert result.returncode == 0
+        assert mock_run.call_count == 2
         mock_sleep.assert_called_once()
 
     @patch.object(verify.time, "sleep")
@@ -107,7 +105,7 @@ class RunRcloneWithRetryTests(unittest.TestCase):
     def test_does_not_retry_a_non_403_or_401_error(self, mock_run, mock_sleep):
         mock_run.side_effect = [self._completed(1, self.NON_RETRYABLE_ERR)]
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
-        self.assertEqual(result.returncode, 1)
+        assert result.returncode == 1
         mock_run.assert_called_once()
         mock_sleep.assert_not_called()
 
@@ -116,7 +114,7 @@ class RunRcloneWithRetryTests(unittest.TestCase):
     def test_timeout_expired_is_treated_as_non_retryable_failure(self, mock_run, mock_sleep):
         mock_run.side_effect = subprocess.TimeoutExpired(cmd=["rclone", "lsjson"], timeout=45)
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
-        self.assertEqual(result.returncode, 1)
+        assert result.returncode == 1
         mock_run.assert_called_once()
         mock_sleep.assert_not_called()
 
@@ -125,10 +123,6 @@ class RunRcloneWithRetryTests(unittest.TestCase):
     def test_gives_up_after_exhausting_retries(self, mock_run, mock_sleep):
         mock_run.return_value = self._completed(1, self.PROPAGATION_ERR_LIST)
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45, retries=3, delay=1)
-        self.assertEqual(result.returncode, 1)
-        self.assertEqual(mock_run.call_count, 3)
-        self.assertEqual(mock_sleep.call_count, 2)  # sleeps between attempts, not after the last
-
-
-if __name__ == "__main__":
-    unittest.main()
+        assert result.returncode == 1
+        assert mock_run.call_count == 3
+        assert mock_sleep.call_count == 2  # sleeps between attempts, not after the last

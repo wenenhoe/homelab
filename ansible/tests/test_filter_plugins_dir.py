@@ -11,16 +11,18 @@ import configparser
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 ANSIBLE_DIR = Path(__file__).resolve().parent.parent
 PLUGIN_DIR = ANSIBLE_DIR / "filter_plugins"
+PLUGIN_PATHS = sorted(PLUGIN_DIR.glob("*.py"))
 
 
-def _plugin_modules():
-    for path in sorted(PLUGIN_DIR.glob("*.py")):
-        spec = importlib.util.spec_from_file_location(path.stem, path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        yield path, module
+def _load(path: Path):
+    spec = importlib.util.spec_from_file_location(path.stem, path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def test_ansible_cfg_names_the_plugin_directory():
@@ -33,13 +35,13 @@ def test_directory_holds_at_least_one_plugin():
     assert list(PLUGIN_DIR.glob("*.py"))
 
 
-def test_every_module_exposes_callable_filters():
-    for path, module in _plugin_modules():
-        filters = module.FilterModule().filters()
-        assert filters, path.name
-        assert all(callable(fn) for fn in filters.values()), path.name
+@pytest.mark.parametrize("path", PLUGIN_PATHS, ids=lambda path: path.name)
+def test_every_module_exposes_callable_filters(path):
+    filters = _load(path).FilterModule().filters()
+    assert filters
+    assert all(callable(fn) for fn in filters.values())
 
 
 def test_filter_names_are_unique_across_the_directory():
-    names = [name for _, module in _plugin_modules() for name in module.FilterModule().filters()]
+    names = [name for path in PLUGIN_PATHS for name in _load(path).FilterModule().filters()]
     assert len(names) == len(set(names))

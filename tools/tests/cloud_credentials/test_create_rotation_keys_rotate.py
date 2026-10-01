@@ -8,13 +8,9 @@ Run via `uv run pytest tools/tests/ -v`.
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
 from cloud_credentials import create_rotation_keys
 
 

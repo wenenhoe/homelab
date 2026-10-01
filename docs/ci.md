@@ -111,7 +111,8 @@ type in the repo:
   not Ansible roles, so it's covered by `ansible/tests/`'s and
   `tools/tests/`'s `pytest` suites instead of Molecule — including
   `r2_read_watcher.py`, the one file outside either tree that
-  `ansible/tests/` still imports directly via `sys.path`.
+  `ansible/tests/` imports directly, through the `pythonpath` in
+  `pyproject.toml`'s `[tool.pytest]`.
 
 ### Molecule watch sets
 

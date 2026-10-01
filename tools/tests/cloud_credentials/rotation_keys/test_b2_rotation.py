@@ -7,41 +7,28 @@ account.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent.parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from _fake_vault import FakeVaultTestCase
+import pytest
 from b2sdk.v2 import FullApplicationKey
 from cloud_credentials.rotation_keys import b2 as rotation_b2
 
 
-class B2RotationKeyTestBase(FakeVaultTestCase):
-    def seed(self, name: str, value: str) -> None:
-        self.vault_seed("rotation", name, value)
-
-    def get(self, name: str) -> str | None:
-        return self.vault_get("rotation", name)
-
-
-class CreateB2RotationKeyTests(B2RotationKeyTestBase):
+class TestCreateB2RotationKey:
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
-    def test_mints_and_caches_on_first_run(self, mock_mint, mock_prompt):
+    def test_mints_and_caches_on_first_run(self, mock_mint, mock_prompt, rotation_vault):
         mock_mint.return_value = {"master_api": MagicMock(), "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
         rotation_b2.create_b2_rotation_key()
 
-        self.assertEqual(self.get("_rotation-key-backblaze-b2-key-id"), "NEW_ID")
-        self.assertEqual(self.get("_rotation-key-backblaze-b2-application-key"), "NEW_KEY")
+        assert rotation_vault.get("_rotation-key-backblaze-b2-key-id") == "NEW_ID"
+        assert rotation_vault.get("_rotation-key-backblaze-b2-application-key") == "NEW_KEY"
 
     @patch.object(rotation_b2, "_prompt_master_credentials")
-    def test_skips_entirely_when_already_cached(self, mock_prompt):
-        self.seed("_rotation-key-backblaze-b2-key-id", "EXISTING_ID")
-        self.seed("_rotation-key-backblaze-b2-application-key", "EXISTING_KEY")
+    def test_skips_entirely_when_already_cached(self, mock_prompt, rotation_vault):
+        rotation_vault.seed("_rotation-key-backblaze-b2-key-id", "EXISTING_ID")
+        rotation_vault.seed("_rotation-key-backblaze-b2-application-key", "EXISTING_KEY")
 
         rotation_b2.create_b2_rotation_key()
 
@@ -50,7 +37,8 @@ class CreateB2RotationKeyTests(B2RotationKeyTestBase):
         mock_prompt.assert_not_called()
 
 
-class MintRotationKeyTests(FakeVaultTestCase):
+@pytest.mark.usefixtures("fake_vault")
+class TestMintRotationKey:
     @patch.object(rotation_b2, "B2Api")
     def test_mints_with_account_wide_key_management_capabilities_only(self, mock_api_cls):
         """The point of docs/cloud-credential-creation.md's B2 section:
@@ -64,49 +52,49 @@ class MintRotationKeyTests(FakeVaultTestCase):
 
         api.authorize_account.assert_called_once_with("production", "masterKeyId", "masterKey")
         sent = api.create_key.call_args.kwargs
-        self.assertEqual(set(sent["capabilities"]), {"listKeys", "writeKeys", "deleteKeys", "listBuckets"})
-        self.assertNotIn("bucket_id", sent)
-        self.assertEqual(minted["key_id"], "NEW_ID")
-        self.assertEqual(minted["app_key"], "NEW_KEY")
+        assert set(sent["capabilities"]) == {"listKeys", "writeKeys", "deleteKeys", "listBuckets"}
+        assert "bucket_id" not in sent
+        assert minted["key_id"] == "NEW_ID"
+        assert minted["app_key"] == "NEW_KEY"
 
 
-class RotateB2RotationKeyTests(B2RotationKeyTestBase):
-    def setUp(self):
-        super().setUp()
-        self.seed("_rotation-key-backblaze-b2-key-id", "OLD_ID")
-        self.seed("_rotation-key-backblaze-b2-application-key", "OLD_KEY")
+class TestRotateB2RotationKey:
+    @pytest.fixture(autouse=True)
+    def _seeded(self, rotation_vault):
+        rotation_vault.seed("_rotation-key-backblaze-b2-key-id", "OLD_ID")
+        rotation_vault.seed("_rotation-key-backblaze-b2-application-key", "OLD_KEY")
 
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
     @patch.object(rotation_b2, "_verify_rotation_key", return_value=(True, ""))
-    def test_successful_rotation_revokes_old_key_and_caches_new(self, mock_verify, mock_mint, mock_prompt):
+    def test_successful_rotation_revokes_old_key_and_caches_new(self, mock_verify, mock_mint, mock_prompt, rotation_vault):
         master_api = MagicMock()
         mock_mint.return_value = {"master_api": master_api, "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
         ok = rotation_b2.rotate_b2_rotation_key()
 
-        self.assertTrue(ok)
+        assert ok
         mock_verify.assert_called_once_with("NEW_ID", "NEW_KEY")
         # Revoked via the master session that minted the new key, not
         # the (about-to-be-invalid) old rotation key itself.
         master_api.session.delete_key.assert_called_once_with("OLD_ID")
-        self.assertEqual(self.get("_rotation-key-backblaze-b2-key-id"), "NEW_ID")
-        self.assertEqual(self.get("_rotation-key-backblaze-b2-application-key"), "NEW_KEY")
+        assert rotation_vault.get("_rotation-key-backblaze-b2-key-id") == "NEW_ID"
+        assert rotation_vault.get("_rotation-key-backblaze-b2-application-key") == "NEW_KEY"
 
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
     @patch.object(rotation_b2, "_verify_rotation_key", return_value=(False, "401 unauthorized"))
-    def test_failed_verification_leaves_old_key_cached_and_unrevoked(self, mock_verify, mock_mint, mock_prompt):
+    def test_failed_verification_leaves_old_key_cached_and_unrevoked(self, mock_verify, mock_mint, mock_prompt, rotation_vault):
         master_api = MagicMock()
         mock_mint.return_value = {"master_api": master_api, "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
         ok = rotation_b2.rotate_b2_rotation_key()
 
-        self.assertFalse(ok)
+        assert not ok
         # The old, still-working rotation key must survive a failed
         # rotation untouched — no revoke call at all.
         master_api.session.delete_key.assert_not_called()
-        self.assertEqual(self.get("_rotation-key-backblaze-b2-key-id"), "OLD_ID")
+        assert rotation_vault.get("_rotation-key-backblaze-b2-key-id") == "OLD_ID"
 
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
@@ -120,9 +108,3 @@ class RotateB2RotationKeyTests(B2RotationKeyTestBase):
         rotation_b2.rotate_b2_rotation_key()
 
         mock_prompt.assert_called_once()
-
-
-if __name__ == "__main__":
-    import unittest
-
-    unittest.main()

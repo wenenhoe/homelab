@@ -20,19 +20,16 @@ import subprocess
 import sys
 from pathlib import Path
 
+import backup_plan as filter_mod
 import pytest
+import resolve_apps as resolver_mod
 import yaml
 from ansible.errors import AnsibleFilterError
+from ci.gates import app_catalog_rules as validator
+from utils.app_catalog import load_backup_inventory, load_catalog
 
 ANSIBLE_DIR = Path(__file__).resolve().parent.parent
 INVENTORY_DIR = ANSIBLE_DIR / "inventory"
-sys.path.insert(0, str(ANSIBLE_DIR / "filter_plugins"))
-sys.path.insert(0, str(ANSIBLE_DIR.parent / "tools"))
-
-import backup_plan as filter_mod  # noqa: E402
-import resolve_apps as resolver_mod  # noqa: E402
-from ci.gates import app_catalog_rules as validator  # noqa: E402
-from utils.app_catalog import load_backup_inventory, load_catalog  # noqa: E402
 
 backup_plan = filter_mod.backup_plan
 backup_hosts = filter_mod.backup_hosts

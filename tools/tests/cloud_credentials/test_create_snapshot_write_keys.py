@@ -5,23 +5,18 @@ Run via `uv run pytest tools/tests/ -v`.
 
 from __future__ import annotations
 
-import sys
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-sys.path.insert(0, str(Path(__file__).resolve().parent / "leaf_keys"))
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
-
-from _base import RotationTestBase
+import pytest
 from b2sdk.v2 import FullApplicationKey
 from cloud_credentials import create_snapshot_write_keys as snap
 
 
-class MintR2Tests(RotationTestBase):
-    def setUp(self):
-        super().setUp()
-        self.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
-        self.seed("cloudflare-r2-account-id", "acct123")
+class TestMintR2:
+    @pytest.fixture(autouse=True)
+    def _seeded(self, vault):
+        vault.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
+        vault.seed("cloudflare-r2-account-id", "acct123")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
     @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"})
@@ -32,12 +27,12 @@ class MintR2Tests(RotationTestBase):
 
         ok = snap.mint_r2()
 
-        self.assertTrue(ok)
+        assert ok
         create_call = session.post.call_args
         body = create_call.kwargs["json"]
-        self.assertIn(f"acct123_default_{snap.SNAPSHOT_BUCKET_R2}", next(iter(body["policies"][0]["resources"])))
-        self.assertIn("expires_on", body, "unlike the break-glass read-only credential, this one IS on the quarterly rotation cycle")
-        self.assertEqual(body["name"], snap.TOKEN_NAME_R2)
+        assert f"acct123_default_{snap.SNAPSHOT_BUCKET_R2}" in next(iter(body["policies"][0]["resources"]))
+        assert "expires_on" in body, "unlike the break-glass read-only credential, this one IS on the quarterly rotation cycle"
+        assert body["name"] == snap.TOKEN_NAME_R2
         mock_verify.assert_called_once_with(
             "TOKEN_ID",
             snap.hashlib.sha256(b"token-value").hexdigest(),
@@ -46,7 +41,7 @@ class MintR2Tests(RotationTestBase):
             snap.SNAPSHOT_BUCKET_R2,
             "write",
         )
-        self.assertEqual(snap.read_cache(snap.CACHE_R2_ACCESS), "TOKEN_ID")
+        assert snap.read_cache(snap.CACHE_R2_ACCESS) == "TOKEN_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"))
     @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"})
@@ -57,24 +52,24 @@ class MintR2Tests(RotationTestBase):
 
         ok = snap.mint_r2()
 
-        self.assertFalse(ok)
-        self.assertIsNone(snap.read_cache(snap.CACHE_R2_ACCESS), "a credential that fails its own rclone check must never be cached")
+        assert not ok
+        assert snap.read_cache(snap.CACHE_R2_ACCESS) is None, "a credential that fails its own rclone check must never be cached"
 
-    def test_skips_if_already_cached(self):
-        self.seed(snap.CACHE_R2_ACCESS, "existing-id")
-        self.seed(snap.CACHE_R2_SECRET, "existing-secret")
+    def test_skips_if_already_cached(self, vault):
+        vault.seed(snap.CACHE_R2_ACCESS, "existing-id")
+        vault.seed(snap.CACHE_R2_SECRET, "existing-secret")
 
         ok = snap.mint_r2()
 
-        self.assertTrue(ok)
+        assert ok
 
 
-class MintB2Tests(RotationTestBase):
-    def setUp(self):
-        super().setUp()
-        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
-        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
-        self.seed("backblaze-b2-region", "us-west-004")
+class TestMintB2:
+    @pytest.fixture(autouse=True)
+    def _seeded(self, vault):
+        vault.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
+        vault.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
+        vault.seed("backblaze-b2-region", "us-west-004")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
     @patch("cloud_credentials.leaf_keys.b2.B2Api")
@@ -85,15 +80,15 @@ class MintB2Tests(RotationTestBase):
 
         ok = snap.mint_b2()
 
-        self.assertTrue(ok)
+        assert ok
         bucket_lookup_call = api.get_bucket_by_name.call_args
-        self.assertEqual(bucket_lookup_call.args[0], snap.SNAPSHOT_BUCKET_B2)
+        assert bucket_lookup_call.args[0] == snap.SNAPSHOT_BUCKET_B2
 
         create_call = api.create_key.call_args
-        self.assertEqual(create_call.kwargs["capabilities"], snap.B2_LEAF_CAPABILITIES["write"])
-        self.assertNotIn("deleteFiles", create_call.kwargs["capabilities"])
-        self.assertEqual(create_call.kwargs["valid_duration_seconds"], snap.QUARTERLY_SECONDS)
-        self.assertEqual(create_call.kwargs["key_name"], snap.KEY_NAME_B2)
+        assert create_call.kwargs["capabilities"] == snap.B2_LEAF_CAPABILITIES["write"]
+        assert "deleteFiles" not in create_call.kwargs["capabilities"]
+        assert create_call.kwargs["valid_duration_seconds"] == snap.QUARTERLY_SECONDS
+        assert create_call.kwargs["key_name"] == snap.KEY_NAME_B2
         mock_verify.assert_called_once_with(
             "KEY_ID",
             "APP_KEY",
@@ -102,7 +97,7 @@ class MintB2Tests(RotationTestBase):
             snap.SNAPSHOT_BUCKET_B2,
             "write",
         )
-        self.assertEqual(snap.read_cache(snap.CACHE_B2_ACCESS), "KEY_ID")
+        assert snap.read_cache(snap.CACHE_B2_ACCESS) == "KEY_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"))
     @patch("cloud_credentials.leaf_keys.b2.B2Api")
@@ -113,26 +108,26 @@ class MintB2Tests(RotationTestBase):
 
         ok = snap.mint_b2()
 
-        self.assertFalse(ok)
-        self.assertIsNone(snap.read_cache(snap.CACHE_B2_ACCESS))
+        assert not ok
+        assert snap.read_cache(snap.CACHE_B2_ACCESS) is None
 
-    def test_skips_if_already_cached(self):
-        self.seed(snap.CACHE_B2_ACCESS, "existing-id")
-        self.seed(snap.CACHE_B2_SECRET, "existing-secret")
+    def test_skips_if_already_cached(self, vault):
+        vault.seed(snap.CACHE_B2_ACCESS, "existing-id")
+        vault.seed(snap.CACHE_B2_SECRET, "existing-secret")
 
         ok = snap.mint_b2()
 
-        self.assertTrue(ok)
+        assert ok
 
 
-class RotateB2Tests(RotationTestBase):
-    def setUp(self):
-        super().setUp()
-        self.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
-        self.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
-        self.seed("backblaze-b2-region", "us-west-004")
-        self.seed(snap.CACHE_B2_ACCESS, "OLD_KEY_ID")
-        self.seed(snap.CACHE_B2_SECRET, "old-secret")
+class TestRotateB2:
+    @pytest.fixture(autouse=True)
+    def _seeded(self, vault):
+        vault.seed("_rotation-key-backblaze-b2-key-id", "rot-id", category="rotation")
+        vault.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
+        vault.seed("backblaze-b2-region", "us-west-004")
+        vault.seed(snap.CACHE_B2_ACCESS, "OLD_KEY_ID")
+        vault.seed(snap.CACHE_B2_SECRET, "old-secret")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
     @patch("cloud_credentials.leaf_keys.b2.B2Api")
@@ -143,9 +138,9 @@ class RotateB2Tests(RotationTestBase):
 
         ok = snap.rotate_b2()
 
-        self.assertTrue(ok)
+        assert ok
         api.session.delete_key.assert_called_once_with("OLD_KEY_ID")
-        self.assertEqual(snap.read_cache(snap.CACHE_B2_ACCESS), "NEW_KEY_ID")
+        assert snap.read_cache(snap.CACHE_B2_ACCESS) == "NEW_KEY_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"))
     @patch("cloud_credentials.leaf_keys.b2.B2Api")
@@ -156,18 +151,18 @@ class RotateB2Tests(RotationTestBase):
 
         ok = snap.rotate_b2()
 
-        self.assertFalse(ok)
+        assert not ok
         api.session.delete_key.assert_not_called()
-        self.assertEqual(snap.read_cache(snap.CACHE_B2_ACCESS), "OLD_KEY_ID", "old credential must stay live and cached until a new one actually verifies")
+        assert snap.read_cache(snap.CACHE_B2_ACCESS) == "OLD_KEY_ID", "old credential must stay live and cached until a new one actually verifies"
 
 
-class RotateR2Tests(RotationTestBase):
-    def setUp(self):
-        super().setUp()
-        self.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
-        self.seed("cloudflare-r2-account-id", "acct123")
-        self.seed(snap.CACHE_R2_ACCESS, "OLD_TOKEN_ID")
-        self.seed(snap.CACHE_R2_SECRET, "old-secret")
+class TestRotateR2:
+    @pytest.fixture(autouse=True)
+    def _seeded(self, vault):
+        vault.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
+        vault.seed("cloudflare-r2-account-id", "acct123")
+        vault.seed(snap.CACHE_R2_ACCESS, "OLD_TOKEN_ID")
+        vault.seed(snap.CACHE_R2_SECRET, "old-secret")
 
     @patch.object(snap, "r2_delete_token")
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
@@ -179,9 +174,9 @@ class RotateR2Tests(RotationTestBase):
 
         ok = snap.rotate_r2()
 
-        self.assertTrue(ok)
+        assert ok
         mock_delete.assert_called_once_with(session, "acct123", "OLD_TOKEN_ID")
-        self.assertEqual(snap.read_cache(snap.CACHE_R2_ACCESS), "NEW_TOKEN_ID")
+        assert snap.read_cache(snap.CACHE_R2_ACCESS) == "NEW_TOKEN_ID"
 
     @patch.object(snap, "r2_delete_token")
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"))
@@ -193,6 +188,6 @@ class RotateR2Tests(RotationTestBase):
 
         ok = snap.rotate_r2()
 
-        self.assertFalse(ok)
+        assert not ok
         mock_delete.assert_not_called()
-        self.assertEqual(snap.read_cache(snap.CACHE_R2_ACCESS), "OLD_TOKEN_ID", "old credential must stay live and cached until a new one actually verifies")
+        assert snap.read_cache(snap.CACHE_R2_ACCESS) == "OLD_TOKEN_ID", "old credential must stay live and cached until a new one actually verifies"

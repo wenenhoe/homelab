@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   # Scopes the expensive jobs below to what this PR actually touched —
-  # see docs/topics/engineering/ci/pipeline.md#change-scoped-not-a-full-sweep.
+  # see docs/topics/engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep.
   detect-changes:
     runs-on: ubuntu-26.04
     outputs:
@@ -48,7 +48,7 @@ jobs:
 
       # uv_lock, deploy_ordering and python_unit_tests stay false when
       # every file that matched only changed a comment or formatting (or
-      # `[tool.ruff]`) — see docs/topics/engineering/ci/pipeline.md#comments-and-formatting-dont-queue-molecule.
+      # `[tool.ruff]`) — see docs/topics/engineering/ci/change-scoping.md#comments-and-formatting-dont-queue-molecule.
       # The job outputs above read this step, not `filter`. ansible_lint,
       # trivy_ansible and any_compose are deliberately not gated: they
       # read comments (`# noqa`, `#trivy:ignore`).
@@ -144,7 +144,7 @@ jobs:
           install-precommit-hooks: "true"
           save-precommit-cache: "true"
 
-  # Unconditional — see docs/topics/engineering/ci/pipeline.md#change-scoped-not-a-full-sweep. needs
+  # Unconditional — see docs/topics/engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep. needs
   # warm-uv-cache (not detect-changes, which this job deliberately
   # bypasses) purely so it restores a warm cache rather than racing to
   # populate one itself — see docs/topics/engineering/ci/pipeline.md#cache-warming.

@@ -26,7 +26,7 @@ broad, since either is the shape of change that caused the original
 regression. `pyproject.toml`/`uv.lock` are in the trigger list too: this
 job runs the real playbooks through the uv-managed `ansible-core`, so an
 `ansible-core` bump is exercised here as well as by
-[Molecule](pipeline.md#molecule-watch-sets).
+[Molecule](change-scoping.md#molecule-watch-sets).
 
 Both runs and the verdict on the second are
 [`tools/ci/gates/deploy_ordering.py`](../../../../tools/ci/gates/deploy_ordering.py),
@@ -165,7 +165,7 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   real-protocol assertions than a healthcheck poll would add:
   `bind9`/`caddy` by their own role's scenario, `seaweedfs` by
   `seaweedfs_bucket`'s and `backup_agent`'s (see
-  [`#molecule-watch-sets`](pipeline.md#molecule-watch-sets)).
+  [`#molecule-watch-sets`](change-scoping.md#molecule-watch-sets)).
 - `tinyauth` — same category: `tinyauth/molecule/default` stands up a
   real, throwaway lldap target, runs `lldap_bootstrap` against it (see
   [`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then

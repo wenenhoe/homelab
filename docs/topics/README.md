@@ -86,7 +86,8 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | Doc | Covers |
 | :--- | :--- |
 | [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style. |
-| [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, change-scoped jobs, the job list, cache warming, and which checks to require before merge. |
+| [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |
+| [`ci/change-scoping.md`](engineering/ci/change-scoping.md) | How a change decides which jobs run: the scoped outputs `detect-changes` produces, Molecule watch sets, and the comment-only and formatting-only changes that queue nothing. |
 | [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing, Dockerfile builds and image tags. |
 | [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |

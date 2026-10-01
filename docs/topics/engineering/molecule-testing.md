@@ -156,7 +156,7 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
    config already supplies both to every scenario.
 5. Run `molecule test` locally before opening a PR for faster feedback —
    CI also runs every role whose watch set a PR touches (see
-   [`ci/pipeline.md`](ci/pipeline.md#change-scoped-not-a-full-sweep)).
+   [`ci/change-scoping.md`](ci/change-scoping.md#change-scoped-not-a-full-sweep)).
 
 ## Coverage
 

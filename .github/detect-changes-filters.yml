@@ -2,7 +2,7 @@
 # job — pulled out of that job's `filters: |` block so it's diffable and
 # reviewable on its own instead of living only inside workflow YAML (same
 # reasoning as the other CI logic that lives in files of its own, not in
-# a `run:` block). See docs/topics/engineering/ci/pipeline.md#change-scoped-not-a-full-sweep for what each
+# a `run:` block). See docs/topics/engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep for what each
 # output actually gates.
 # uv_lock, deploy_ordering and python_unit_tests are further narrowed by
 # ci.scope.effective_changes: a match only counts if some matched file
@@ -43,7 +43,7 @@ ansible_lint:
 trivy_ansible:
   - 'ansible/**'
 # ansible/tests/ and tools/tests/ have no molecule/ scenario
-# of their own (see docs/topics/engineering/ci/pipeline.md#change-scoped-not-a-full-sweep)
+# of their own (see docs/topics/engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep)
 # — these are plain controller-side Python, covered by
 # ansible/tests/ and tools/tests/ instead.
 python_unit_tests:
@@ -62,7 +62,7 @@ python_unit_tests:
   - 'tools/openbao_utils/**'
   - 'tools/utils/**'
   # CI logic that detect-changes and the other workflows run (see
-  # docs/topics/engineering/ci/pipeline.md#molecule-watch-sets), so a change to it is tested here.
+  # docs/topics/engineering/ci/change-scoping.md#molecule-watch-sets), so a change to it is tested here.
   - 'tools/ci/**'
   - 'ansible/molecule-coverage/molecule_cov/**'
   # Sibling of molecule_cov/ above - test_callback_plugin.py

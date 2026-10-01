@@ -31,6 +31,11 @@ ANCHOR_SCAN_EXCLUDE_PREFIXES = ("tools/tests/doc_scripts/",)
 CROSS_FILE_ANCHOR_RE = re.compile(r"([\w./-]+\.md)#([\w-]+)")
 SAME_FILE_ANCHOR_RE = re.compile(r"\]\(#([\w-]+)\)")
 PLAIN_MD_LINK_RE = re.compile(r"\]\(([\w./-]+\.md)\)")
+# (directory under docs/, whether its README.md also indexes docs in nested
+# folders). A recursive directory is matched by path relative to that
+# README, so two folders can each hold a doc of the same name.
+INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), ("projects", False))
+
 DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
 PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
 REPO_FILE_LINK_RE = re.compile(r"\]\((\.{1,2}/[\w./-]+\.(?:yaml|yml|hcl|sh|py|j2|json|toml))(?:#[^)]*)?\)")
@@ -45,24 +50,30 @@ def read(path: Path) -> str:
 
 
 def check_doc_indexes() -> None:
-    """Every doc directly under docs/, and every doc one level down under
-    docs/decisions/, docs/architecture/, and docs/projects/, is linked in
-    that directory's own README.md — both directions, a link to a missing
-    file fails too. Substring matching for the forward direction,
-    markdown-link-syntax matching for the reverse — cheap, and a false
-    positive (a name coincidentally appearing elsewhere) is the safe
-    failure mode here, not a false negative.
+    """Every doc in an INDEXED_DOC_DIRS directory is linked in that
+    directory's own README.md — both directions, a link to a missing
+    file fails too. A directory is scanned one level deep, or at any
+    depth when flagged recursive; a recursive one matches each doc by
+    its path relative to the README, so same-named docs in different
+    folders can't satisfy each other. Substring matching for the forward
+    direction, markdown-link-syntax matching for the reverse — cheap, and
+    a false positive (a name coincidentally appearing elsewhere) is the
+    safe failure mode here, not a false negative. The reverse direction
+    only reads bare-filename links; a link with a path in it that points
+    nowhere is caught repo-wide by check_no_stale_anchors.
     """
-    for subdir in ("", "decisions", "architecture", "projects"):
+    for subdir, recursive in INDEXED_DOC_DIRS:
         label = f"docs/{subdir}" if subdir else "docs"
-        index_path = ROOT / "docs" / subdir / "README.md"
+        base = ROOT / "docs" / subdir
+        index_path = base / "README.md"
         index = read(index_path)
 
-        for doc in sorted((ROOT / "docs" / subdir).glob("*.md")):
+        for doc in sorted(base.rglob("*.md") if recursive else base.glob("*.md")):
             if doc.name in ("README.md", "TEMPLATE.md"):
                 continue
-            if doc.name not in index:
-                fail(f"{label}/README.md: {doc.name} exists but isn't linked in its index")
+            rel = doc.relative_to(base).as_posix()
+            if rel not in index:
+                fail(f"{label}/README.md: {rel} exists but isn't linked in its index")
 
         if subdir == "decisions":
             for lineage_dir in sorted(p for p in (ROOT / "docs" / subdir).iterdir() if p.is_dir() and LINEAGE_DIR_RE.match(p.name)):
@@ -222,9 +233,10 @@ def _heading_slugs(path: Path) -> set[str]:
 
 
 def _resolve_anchor_target(referencing: Path, rel: str) -> Path | None:
-    """docs/*.md files reference each other by bare filename (relative
-    to docs/); everything else references docs by their docs/-prefixed
-    path (relative to repo root). Try both.
+    """A markdown file references another relative to itself (a bare
+    filename within a folder, `../group/doc.md` across folders); anything
+    else references docs by their docs/-prefixed path (relative to repo
+    root). Try both.
     """
     for base in (referencing.parent, ROOT):
         candidate = (base / rel).resolve()

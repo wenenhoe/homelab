@@ -35,8 +35,10 @@ def cached_values(monkeypatch) -> dict[str, str]:
 
 class TestAuditOci:
     @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", side_effect=SystemExit(1))
-    def test_no_scim_credentials_returns_gracefully_without_crashing(self, mock_session, cached_values):
-        audit.audit_oci()  # must not raise
+    def test_no_scim_credentials_stops_after_the_header(self, mock_session, cached_values, capsys):
+        audit.audit_oci()
+
+        assert capsys.readouterr().out.strip() == "== OCI customer secret keys (write + read leaves) =="
 
     @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session")
     def test_leaf_without_cached_user_ocid_is_skipped(self, mock_session, cached_values):

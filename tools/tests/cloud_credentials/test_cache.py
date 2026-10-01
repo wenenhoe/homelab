@@ -64,9 +64,8 @@ class TestGetSession:
 
     @patch("cloud_credentials.cache.hvac.Client")
     def test_logs_in_only_once_across_multiple_calls(self, mock_client_cls):
-        cache._get_session()
-        cache._get_session()
-        cache._get_session()
+        sessions = [cache._get_session() for _ in range(3)]
+        assert sessions[0] is sessions[1] is sessions[2]
         mock_client_cls.return_value.auth.approle.login.assert_called_once()
 
     @patch("cloud_credentials.cache.hvac.Client")

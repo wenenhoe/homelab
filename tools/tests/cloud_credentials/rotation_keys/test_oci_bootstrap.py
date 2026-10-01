@@ -43,12 +43,14 @@ class TestCreateOciRotationKey:
         mock_ensure_scim.assert_called_once()
 
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
-    def test_scim_credentials_already_cached_skips_prompting(self, mock_token, rotation_vault):
+    def test_scim_credentials_already_cached_skips_prompting(self, mock_token, rotation_vault, capsys):
         seed_scim_app_credentials(rotation_vault)
         with patch.object(oci_bootstrap, "input") as mock_input:
             oci_bootstrap._oci_ensure_scim_app_credentials()
         mock_input.assert_not_called()
         mock_token.assert_not_called()
+        assert "already cached, skipping" in capsys.readouterr().out
+        assert rotation_vault.get("_rotation-key-oci-client-secret") == "OLD_SECRET"
 
     @patch.object(oci_bootstrap, "identity_domains_client_for_token")
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")

@@ -98,7 +98,7 @@ class TestRunInit:
 
     def test_closes_the_client_even_on_failure(self, mock_client):
         mock_client.exec_command.return_value = _mock_exec_command_result(exit_status=1, stderr=b"boom")
-        init_unseal.run_init()
+        assert init_unseal.run_init() == 1
         mock_client.close.assert_called_once()
 
 

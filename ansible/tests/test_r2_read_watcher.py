@@ -117,10 +117,13 @@ class TestSendAlert:
         assert "&lt;script&gt;" in kwargs["data"]["text"]
 
     @patch("r2_read_watcher.requests.post", side_effect=watcher.requests.RequestException("boom"))
-    def test_a_failed_send_does_not_raise(self, mock_post):
+    def test_a_failed_send_is_reported_on_stderr_not_raised(self, mock_post, capsys):
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
         match = {"time": "now", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
-        watcher.send_alert(telegram, match)  # should not raise
+
+        watcher.send_alert(telegram, match)
+
+        assert "telegram: alert send failed: boom" in capsys.readouterr().err
 
 
 class TestWatch:
@@ -140,15 +143,17 @@ class TestWatch:
 
     @patch("r2_read_watcher._save_state")
     @patch("r2_read_watcher.subprocess.Popen")
-    def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state):
+    def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state, capsys):
         mock_proc = Mock()
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n"])
         mock_proc.wait.return_value = 0
         mock_popen.return_value = mock_proc
 
         with patch("r2_read_watcher.send_alert") as mock_send:
-            watcher.watch(None, None)
+            rc = watcher.watch(None, None)
 
+        assert rc == 0
+        assert "R2 admin token read" in capsys.readouterr().err
         mock_send.assert_not_called()
 
 

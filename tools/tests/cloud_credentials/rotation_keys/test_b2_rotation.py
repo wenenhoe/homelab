@@ -35,6 +35,8 @@ class TestCreateB2RotationKey:
         # The whole point of the cache check: never re-prompt for master
         # credentials once a rotation key already exists.
         mock_prompt.assert_not_called()
+        assert rotation_vault.get("_rotation-key-backblaze-b2-key-id") == "EXISTING_ID"
+        assert rotation_vault.get("_rotation-key-backblaze-b2-application-key") == "EXISTING_KEY"
 
 
 @pytest.mark.usefixtures("fake_vault")
@@ -108,3 +110,4 @@ class TestRotateB2RotationKey:
         rotation_b2.rotate_b2_rotation_key()
 
         mock_prompt.assert_called_once()
+        mock_mint.assert_called_once_with("masterKeyId", "masterKey")

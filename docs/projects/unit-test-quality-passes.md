@@ -2,7 +2,7 @@
 id: PROJ-unit-test-quality-passes
 title: "Unit Test Quality Passes"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Bring the converted Python unit tests in line with ADR 0070's rules for doubles and the conventions' assertion rules, one pass per change."
 decision: ADR-0070/0
@@ -30,7 +30,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Tests with no assertion, or only mock-call assertions | Not started | Every test meets the Assertions rule: it asserts an outcome the code decides, and a mock-call check includes the arguments. A test that cannot be given one is deleted, with the reason in its commit message. |
+| 1 | Tests with no assertion, or only mock-call assertions | Done | Every test meets the Assertions rule: it asserts an outcome the code decides, and a mock-call check includes the arguments. A test that cannot be given one is deleted, with the reason in its commit message. |
 | 2 | Same-file families of tests whose bodies differ only in constants | Not started | Each family is one `parametrize` test with ids, or the commit message names why its cases are not one behavior. |
 | 3 | Real stand-ins for responses, processes, sessions, SDK objects and clients | Not started | No bare `Mock` or `MagicMock` stands in for a response, process, session, client, key or channel; the shared factories are listed in the conventions' Fixtures bullet, and the conventions state ADR 0070's rule for new tests. |
 | 4 | `autospec` on every remaining replaced function and method | Not started | Every `patch` that does not pass `new=` or `new_callable` has `autospec=True`; no `patch.object` reaches a builtin through a module; every function placed with `monkeypatch.setattr` is a `create_autospec` of the real one. |

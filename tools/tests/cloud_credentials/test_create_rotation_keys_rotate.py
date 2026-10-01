@@ -53,10 +53,11 @@ def test_plain_run_without_rotate_still_uses_create_path(mock_create_oci, mock_c
     # already-relied-upon idempotent bootstrap behavior.
     monkeypatch.setattr(sys, "argv", ["prog", "--provider", "all", "--admin-email", "you@example.com"])
 
-    create_rotation_keys.main()
+    rc = create_rotation_keys.main()
 
-    mock_create_b2.assert_called_once()
-    mock_create_oci.assert_called_once()
+    assert rc == 0
+    mock_create_b2.assert_called_once_with()
+    mock_create_oci.assert_called_once_with("you@example.com")
 
 
 @patch("cloud_credentials.create_rotation_keys.cache_r2_rotation_token")
@@ -67,8 +68,9 @@ def test_provider_all_never_touches_r2(mock_create_oci, mock_create_b2, mock_cac
     # --provider all must never block on it implicitly.
     monkeypatch.setattr(sys, "argv", ["prog", "--provider", "all", "--admin-email", "you@example.com"])
 
-    create_rotation_keys.main()
+    rc = create_rotation_keys.main()
 
+    assert rc == 0
     mock_cache_r2.assert_not_called()
 
 

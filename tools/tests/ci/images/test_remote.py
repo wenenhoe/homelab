@@ -535,7 +535,11 @@ class TestRealTree:
     def test_every_reference_parses(self, collected, subtests):
         for text in collected.images:
             with subtests.test(text=text):
-                rm.parse_image(text)
+                image = rm.parse_image(text)
+                name_and_tag, _, digest = text.partition("@")
+                tag = name_and_tag.rpartition("/")[2].partition(":")[2]
+                assert image.repository.rsplit("/", 1)[-1] in text
+                assert image.reference == (digest or tag or "latest")
 
     def test_the_pins_renovate_tracks_outside_compose_are_found(self, collected):
         found = set(collected.images)

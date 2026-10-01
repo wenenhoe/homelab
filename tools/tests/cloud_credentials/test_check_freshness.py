@@ -251,7 +251,7 @@ class TestTelegramAlert:
     def test_all_fresh_sends_no_telegram_message(self, mock_post, mock_b2, mock_oci, mock_r2):
         # The whole point of alerting only on non-fresh outcomes: a
         # healthy weekly run shouldn't page anyone.
-        check_freshness.main()
+        assert check_freshness.main() == 0
         mock_post.assert_not_called()
 
     @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])

@@ -124,8 +124,9 @@ class TestRevoke:
         bao_session._revoke(mock_client)
         mock_client.auth.token.revoke_self.assert_not_called()
 
-    def test_tolerates_a_client_that_never_logged_in(self):
-        bao_session._revoke(None)  # must not raise
+    def test_a_client_that_never_logged_in_is_a_no_op(self, capsys):
+        assert bao_session._revoke(None) is None
+        assert capsys.readouterr().err == ""
 
 
 @pytest.fixture
@@ -175,8 +176,19 @@ class TestMain:
         mocks["vault_login"].assert_called_once_with(mock_client, "some-role-id", "fake-secret-id")
 
     def test_fetches_the_root_cert_fresh_over_ssh(self, mocks):
+        trusted = []
+
+        def spy(env):
+            # Read from inside the spawn call, before main()'s own
+            # finally-block cleanup deletes the file.
+            trusted.append(Path(env["BAO_CACERT"]).read_text())
+            return 0
+
+        mocks["spawn"].side_effect = spy
         run_main(["bao_session.py", "some-role-id"])
+
         mocks["fetch_root_cert"].assert_called_once()
+        assert trusted == ["fake-root-ca-pem"]
 
     def test_spawns_with_bao_env_vars_set_from_the_login(self, mocks):
         captured_env = {}
@@ -199,8 +211,17 @@ class TestMain:
         mocks["spawn"].return_value = 7
         assert run_main(["bao_session.py", "some-role-id"]) == 7
 
-    def test_revokes_the_token_after_the_session_ends(self, mock_client):
+    def test_revokes_the_token_after_the_session_ends(self, mocks, mock_client):
+        revoked_during_session = []
+
+        def spy(env):
+            revoked_during_session.append(mock_client.auth.token.revoke_self.called)
+            return 0
+
+        mocks["spawn"].side_effect = spy
         run_main(["bao_session.py", "some-role-id"])
+
+        assert revoked_during_session == [False]
         mock_client.auth.token.revoke_self.assert_called_once()
 
     def test_deletes_the_temp_ca_file_after_the_session_ends(self, mocks):

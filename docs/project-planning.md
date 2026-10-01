@@ -59,7 +59,7 @@ set. It narrows where to look; it doesn't replace looking.
 | :--- | :--- | :--- |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
-| [`unit-test-quality-passes.md`](projects/unit-test-quality-passes.md) | Not started | Bring the converted Python unit tests in line with ADR 0070's rules for doubles and the conventions' assertion rules, one pass per change. |
+| [`unit-test-quality-passes.md`](projects/unit-test-quality-passes.md) | Building | Bring the converted Python unit tests in line with ADR 0070's rules for doubles and the conventions' assertion rules, one pass per change. |
 | [`vault-secret-module.md`](projects/vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |
 
 ## Decisions awaiting a project

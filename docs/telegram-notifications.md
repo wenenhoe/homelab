@@ -5,7 +5,7 @@ enabled, a different topic per concern — see
 [ADR 0011](decisions/0011-alert-routing-and-noise/revision-000.md) for why
 this replaced the original one-on-one bot chat. Two consumers share
 the Backups topic since they're the two halves of the same
-disaster-recovery story (see [`disaster-recovery.md`](disaster-recovery.md)),
+disaster-recovery story (see [`backup.md`](backup.md)),
 and two share the Certs topic since they're both certificate-lifecycle
 alerts, just for different certs:
 
@@ -148,7 +148,7 @@ a placeholder that isn't shaped like one.
   consumer of `telegram_notify` above — posts to the same Backups topic
   as backup_agent above, since it's the "relay it onward" half of the
   same disaster-recovery story (see
-  [`disaster-recovery.md`](disaster-recovery.md)).
+  [`backup.md`](backup.md)).
 - **Cert renewal**: `ansible/roles/step_ca_cert/templates/cert-renewer@.service.j2`
   sets `OnFailure=telegram-notify@%i.service` — `telegram_notify` called
   with `telegram_notify_unit_name: "telegram-notify@"`, the `@`-instantiated

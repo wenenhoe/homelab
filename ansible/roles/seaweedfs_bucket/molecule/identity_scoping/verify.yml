@@ -115,8 +115,7 @@
           failed for a reason unrelated to access control — the
           path-scoping in s3-identity.json.j2 is not being confirmed as
           enforced. This is the load-bearing check the whole per-host
-          credential redesign depends on (see docs/disaster-recovery.md's
-          Threat model). rc: {{ seaweedfs_bucket_alpha_write_beta.rc }}
+          credential redesign depends on (see docs/backup-threat-model.md). rc: {{ seaweedfs_bucket_alpha_write_beta.rc }}
           stdout/stderr: {{ seaweedfs_bucket_alpha_write_beta.stdout }}
           {{ seaweedfs_bucket_alpha_write_beta.stderr }}
 

@@ -97,7 +97,7 @@ gets its directories/configs provisioned and its container started.
 After SeaweedFS deploys in Play 4. Creates the `homelab-backups` bucket
 explicitly — SeaweedFS doesn't auto-create one on first `PUT`. Must run
 before Play 8 or the first backup upload fails with `NoSuchBucket`. See
-[`disaster-recovery.md`](disaster-recovery.md).
+[`backup.md`](backup.md).
 
 ## Play 6 — Wire lldap, tinyauth, and openbao into step-ca (`hosts: security`)
 
@@ -121,7 +121,7 @@ needs lldap's web port, not its LDAPS cert). See
 Runs last among `managed_hosts` plays: mounts other apps' named volumes
 as `external: true`, which needs each app's Play 4 volume-creation step
 and Play 5's bucket to already exist. Each host's schedules come from its
-own `backup_plan`. See [`disaster-recovery.md`](disaster-recovery.md).
+own `backup_plan`. See [`backup.md`](backup.md).
 
 ## Play 9 — Deploy cloud sync (`hosts: storage`)
 
@@ -132,7 +132,7 @@ ordering after Play 8 isn't a hard dependency — it's just the natural
 place for "the next stage of the backup pipeline" to live. Installs the
 `cloud-sync.timer`/`cloud-sync.service` pair that relays SeaweedFS
 archives onward to R2/B2/OCI. See
-[`disaster-recovery.md`](disaster-recovery.md).
+[`backup.md`](backup.md).
 
 ## Roles
 

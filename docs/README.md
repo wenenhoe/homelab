@@ -104,7 +104,8 @@ unwritten and raise it privately.
 | Doc | Covers |
 | :--- | :--- |
 | [`cleanup.md`](cleanup.md) | Removing stacks orphaned from `compose_apps`. |
-| [`disaster-recovery.md`](disaster-recovery.md) | Stage 1 DR: SeaweedFS, `backup_agent`, GPG encryption. |
+| [`backup.md`](backup.md) | SeaweedFS target, `backup_agent`, GPG encryption, what is backed up and where it goes. |
+| [`backup-threat-model.md`](backup-threat-model.md) | The adversary the backup design assumes, the credential-scoping constraints that follow, and the automated coverage for them. |
 | [`restore.md`](restore.md) | Restoring an app's volume(s) from a backup archive: the runbook. |
 | [`fire-drill.md`](fire-drill.md) | Proving the restore path actually works: automated coverage vs. a real fire drill, and how to run one without touching production. |
 | [`cloud-sync.md`](cloud-sync.md) | Offsite replication to R2/B2/OCI: mechanism, retention, first-use setup. |

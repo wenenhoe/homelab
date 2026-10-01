@@ -2,7 +2,7 @@
 caddy_domain: "sec.{{ lab_domain }}"
 
 # Scoped in docker/seaweedfs/configs/s3-identity.json.j2 to this host's
-# own `security-*` objects only — see docs/disaster-recovery.md.
+# own `security-*` objects only — see docs/backup.md.
 seaweedfs_s3_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-security'] }}"
 seaweedfs_s3_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-security'] }}"
 

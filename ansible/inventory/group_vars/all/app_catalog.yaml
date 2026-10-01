@@ -240,13 +240,13 @@ app_catalog:
       volumes: [backups]
       # itzg/mc-backup already gzips this volume's contents itself, so a
       # second gzip pass here would just be compressing a .tar.gz again
-      # for no size benefit — see docs/disaster-recovery.md.
+      # for no size benefit — see docs/backup.md.
       compression: none
       # Replaces backup_defaults.cloud_targets (group_vars/all/main.yaml)
       # — clouds beyond SeaweedFS only; SeaweedFS itself is never listed
       # here, it's implicit for every backed-up app. See
-      # docs/disaster-recovery.md's "Cloud target selection" for why
-      # minecraft gets OCI instead of the R2+B2 default.
+      # docs/cloud-sync.md for why minecraft gets OCI
+      # instead of the R2+B2 default.
       cloud_targets: [oci]
     routes:
       default:

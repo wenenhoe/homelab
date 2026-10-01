@@ -2,7 +2,7 @@
 # Aggregates SeaweedFS backup targets across every app on this host
 # (backup_plan is each host's resolved apps with every backup setting
 # filled in). See
-# docs/disaster-recovery.md (Architecture) for the full design,
+# docs/backup.md (Architecture) for the full design,
 # including why cloud coverage (R2/B2/OCI) lives entirely on `storage`
 # (cloud_sync role) and never touches this role or these hosts at all —
 # a compromised app host holds only its own narrow, path-scoped

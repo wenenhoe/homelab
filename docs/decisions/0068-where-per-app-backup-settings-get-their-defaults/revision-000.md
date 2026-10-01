@@ -61,7 +61,7 @@ An app's backup settings (what to back up, when, how long to keep it, whether to
 - The renames touch the catalog, `group_vars/all`, `host_vars/storage.yaml`, four roles, the SeaweedFS identity template, Molecule scenarios and several topic docs. They ship as mechanical changes after the filter exists, each old name is removed when its last reader switches, and a test fails if one comes back.
 - A host that gains a backed-up app is granted a SeaweedFS identity by that catalog change rather than by a separate list edit. The identity stays scoped to the host's own prefix ([ADR 0006](../0006-offsite-backup-credential-blast-radius/revision-000.md)) and needs the host's own credentials, which the validator requires.
 - The first deploy after `seaweedfs_backup_hosts` is removed swaps two identity entries, which restarts SeaweedFS on `storage` once. It is applied outside the schedule in `backup_defaults.cron`.
-- Docs that describe these settings change in the pull requests that change the behavior: `docs/disaster-recovery.md`, `docs/cloud-sync.md`, `docs/restore.md`, `docs/deployment-flow.md`, `docs/secrets-rotation.md`, `docs/adding-an-app.md` and `docs/molecule-testing.md`. Three comments that misstate where or how a default is defined are corrected with them.
+- Docs that describe these settings change in the pull requests that change the behavior: `docs/backup.md`, `docs/cloud-sync.md`, `docs/restore.md`, `docs/deployment-flow.md`, `docs/secrets-rotation.md`, `docs/adding-an-app.md` and `docs/molecule-testing.md`. Three comments that misstate where or how a default is defined are corrected with them.
 
 ## Invariants
 

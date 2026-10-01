@@ -28,7 +28,7 @@ Offsite backup coverage was also being planned around this time.
 Nearly every viable backup tool in the Docker ecosystem — including
 [`offen/docker-volume-backup`](https://github.com/offen/docker-volume-backup),
 which this repo went on to adopt (see
-[`disaster-recovery.md`](../../disaster-recovery.md)) — operates on named
+[`backup.md`](../../backup.md)) — operates on named
 volumes, not arbitrary bind-mount host paths. Building the backup
 design around bind mounts would have meant bespoke per-app path
 discovery instead of a generic "mount whatever volumes this app
@@ -58,7 +58,7 @@ fix above worked around manually no longer needs a per-app manual fix.
 Volumes are also now labelable and discoverable by Docker's own volume
 API, which is what makes `backup_agent`'s generic "back up whatever
 volumes this app declares" design possible at all (see
-[`disaster-recovery.md`](../../disaster-recovery.md)) and what
+[`backup.md`](../../backup.md)) and what
 [`cleanup.md`](../../cleanup.md) uses to find orphaned volumes.
 
 The Kubernetes path stays rejected on the same basis until the

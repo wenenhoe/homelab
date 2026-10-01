@@ -24,8 +24,7 @@ SeaweedFS's own native remote-sync tooling (`weed filer.remote.gateway`)
 was checked first and ruled out: its own docs state that local
 deletions propagate to the remote. That's exactly the failure mode
 this design needs to avoid — see
-[`disaster-recovery.md`](../../disaster-recovery.md#threat-model)'s threat
-model: a compromised on-prem host shouldn't be able to reach into the
+[`backup-threat-model.md`](../../backup-threat-model.md): a compromised on-prem host shouldn't be able to reach into the
 offsite copy at all, and a mechanism that mirrors deletions gives it
 exactly that reach through the relay, even without a direct cloud
 credential.

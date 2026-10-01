@@ -66,7 +66,7 @@
     # (docker/seaweedfs/configs/s3-identity.json.j2), which is a
     # property of that template, not of backup_agent itself; nothing
     # here would catch a scoping regression there. See
-    # docs/disaster-recovery.md for that coverage instead.
+    # docs/backup.md for that coverage instead.
     molecule_test_bucket: molecule-test-backups
     seaweedfs_s3_bucket: "{{ molecule_test_bucket }}"
     seaweedfs_s3_endpoint: "seaweedfs-test:8333"

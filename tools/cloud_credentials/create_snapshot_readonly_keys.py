@@ -10,7 +10,7 @@ mechanism Track A stage 6 retired; a credential meant to survive
 the credential once and exits — the operator copies it straight into
 the password manager entry that already holds the Shamir unseal shares
 (see docs/openbao.md), same offline handling this repo already gives
-the backup GPG key (docs/disaster-recovery.md).
+the backup GPG key (docs/backup.md).
 
 Two providers, not one — R2 and B2, per docs/openbao.md — so recovery
 doesn't depend on a single cloud vendor being reachable. Both point at a
@@ -20,7 +20,7 @@ customer, unlike R2's per-account uniqueness, so this name isn't
 guaranteed available on B2 the way it is on R2; confirmed available at
 setup time, not assumed), separate from homelab-backups/-b2: the existing
 per-app backup bucket is written to by every app host's backup_agent
-(see docs/disaster-recovery.md's threat model), and this credential's
+(see docs/backup-threat-model.md), and this credential's
 whole point is to keep working even if that path is compromised.
 
 Create the bucket by hand first, same as homelab-backups/-b2 (see

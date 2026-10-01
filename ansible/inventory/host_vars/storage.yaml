@@ -3,21 +3,21 @@ caddy_domain: "store.{{ lab_domain }}"
 
 # Bucket-admin identity only — ansible/roles/seaweedfs_bucket,
 # docker/seaweedfs/configs/s3-identity.json.j2, both storage-only. See
-# docs/disaster-recovery.md.
+# docs/backup.md.
 seaweedfs_admin_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-admin'] }}"
 seaweedfs_admin_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-admin'] }}"
 
 # cloud_sync's own identity — Read/List only, whole bucket. See
-# docs/disaster-recovery.md and the matching secret_catalog.yaml entry.
+# docs/backup.md and the matching secret_catalog.yaml entry.
 seaweedfs_cloud_sync_reader_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-cloud-sync-reader'] }}"
 seaweedfs_cloud_sync_reader_secret_key: "{{ secrets_generated['seaweedfs-s3-secret-key-cloud-sync-reader'] }}"
 
-# --- cloud_sync — see docs/disaster-recovery.md ---
+# --- cloud_sync — see docs/backup.md ---
 # Every app's backup.cloud_targets (app_catalog.yaml; backup_defaults in
 # group_vars/all/main.yaml if omitted) picks which of these it fans out
 # to, beyond SeaweedFS. bucket/endpoint values for R2/B2/OCI
 # themselves are still manual, out-of-band setup — see
-# docs/disaster-recovery.md's "Before first use" checklist.
+# docs/cloud-sync.md's "Before first use" checklist.
 cloud_sync_targets:
   # write credentials only — cloud_sync uploads, never reads back. The
   # matching read-only credentials (cloudflare-r2-read-*, etc.) are

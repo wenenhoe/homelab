@@ -167,7 +167,7 @@ already-existing objects. So the write leaf can read backup contents,
 not just list and write them — the boundary this key actually holds is
 narrower than "read-only excluded": it's `deleteFiles` being absent,
 which is the property that matters for the threat model in
-`disaster-recovery.md`, and it's untouched by this.
+[`backup-threat-model.md`](backup-threat-model.md), and it's untouched by this.
 
 Both leaf keys request `listBuckets listAllBucketNames listFiles
 readFiles writeFiles` (write) / `listBuckets listAllBucketNames

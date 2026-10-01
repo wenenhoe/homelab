@@ -20,9 +20,8 @@ docs/fire-drill.md for how to validate this against real infrastructure
 (a real fire drill is a manual step, not run by CI or by this script
 itself).
 
-Requires, on the controller (see docs/disaster-recovery.md's Threat
-model for why this only ever runs on a dedicated/hardened admin
-machine):
+Requires, on the controller (see docs/backup-threat-model.md for why this
+only ever runs on a dedicated/hardened admin machine):
   - `rclone` and `gpg` on PATH.
   - The backup GPG private key imported, with gpg-agent able to decrypt
     non-interactively (already unlocked, or a passphrase-less key) —

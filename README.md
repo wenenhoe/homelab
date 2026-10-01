@@ -69,8 +69,9 @@ test scaffolding, not a deployed app.
 ## Further Reading
 
 See [`docs/README.md`](docs/README.md) for how these docs are
-organized and its full categorized index — start there if you're
-looking for where something new should go, or for any specific topic.
+organized — start there if you're looking for where something new
+should go — and [`docs/topics/README.md`](docs/topics/README.md) for the
+index of every topic doc.
 
 ## Setup
 

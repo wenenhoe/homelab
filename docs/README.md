@@ -1,9 +1,13 @@
 # Docs: where things go
 
-Topic docs live under [`topics/`](topics/README.md), grouped by subject;
-three more subdirectories hold the artifact types that don't fit a
-per-topic page:
+Docs are grouped by artifact type, one directory each:
 
+- **[`topics/`](topics/README.md)** — what is true on `main` now, one
+  doc per subject, grouped by what it is about; its index says how the
+  groups are chosen. One topic, one doc, cross-referenced rather than
+  duplicated — if you're about to explain the same gotcha in a second
+  place, link to the first instead. A topic doc describes what is true
+  on `main` at every commit, not what a project is still building.
 - **[`decisions/`](decisions/README.md)** — why a design was chosen,
   when the reasoning isn't obvious from the code. One lineage per
   problem, one revision per solution tried for it; an `accepted`
@@ -22,26 +26,20 @@ per-topic page:
   (that's a topic doc) — it links to both, and is deleted once the work is
   done and everything durable has been promoted out of it. It can also
   bound what its work may change (`allowed_paths`); see
-  [`projects/README.md#scope`](projects/README.md#scope).
-
-A topic doc is one topic, one doc, cross-referenced rather than
-duplicated — if you're about to explain the same gotcha in a second
-place, link to the first instead. [`topics/README.md`](topics/README.md)
-says how the groups are chosen.
-
-Topic docs describe what is true on `main` at every commit, not what a
-project is still building.
+  [`projects/README.md#scope`](projects/README.md#scope). The generated
+  [`project-planning.md`](project-planning.md) orders them across the
+  whole repo: projects with an initiative by build order, standalone
+  projects, and the open ADRs no project covers yet.
 
 **Every doc's source of truth is the code/config it describes, checked
 by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
-the handful of places that check mechanically (this index and each
-subdirectory's own (`topics/`'s covering every doc under it, at any
-depth), `ansible.md`'s playbook table, the molecule
-scenario matrix, the deploy play numbering, `ci/pipeline.md`'s job table, every
-cross-file `#anchor` reference repo-wide, every `docs/decisions/` or
-`docs/projects/` path written anywhere — comments included — and the
-decision-lineage and project rules in
-[`decisions/README.md`](decisions/README.md) and
+the handful of places that check mechanically (every directory's own
+index, with `topics/`'s covering every doc under it at any depth;
+`ansible.md`'s playbook table; the molecule scenario matrix; the deploy
+play numbering; `ci/pipeline.md`'s job table; every cross-file `#anchor`
+reference repo-wide; every `docs/decisions/` or `docs/projects/` path
+written anywhere, comments included; and the decision-lineage and
+project rules in [`decisions/README.md`](decisions/README.md) and
 [`projects/README.md`](projects/README.md)). What a change is allowed to
 touch is checked separately, by
 [`check_project_scope.py`](../tools/doc_scripts/check_project_scope.py);
@@ -59,10 +57,3 @@ or commit message records a security incident, a live or recent
 vulnerability, or an exposure window — including in ADRs, project risks,
 and blockers. If a doc would need those specifics to be useful, leave it
 unwritten and raise it privately.
-
-## Index
-
-| Doc | Covers |
-| :--- | :--- |
-| [`topics/README.md`](topics/README.md) | Every topic doc, by group. |
-| [`project-planning.md`](project-planning.md) | Generated cross-cutting views: projects with an initiative by build order, standalone projects, and open ADRs no project covers yet. |

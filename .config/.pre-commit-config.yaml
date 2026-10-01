@@ -116,7 +116,7 @@ repos:
       - id: check-doc-drift
         name: check-doc-drift
         description: >-
-          README/molecule-testing/deployment-flow/ci/pipeline.md stay in sync
+          ansible/molecule-testing/deployment-flow/ci/pipeline.md stay in sync
           with the roles, playbooks, scenarios, and CI jobs they
           describe — see tools/doc_scripts/check_doc_drift.py.
         entry: bash -c 'cd tools && python3 -m doc_scripts.check_doc_drift' --

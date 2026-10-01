@@ -28,33 +28,58 @@ Every `app_hosts` member runs its own Caddy instance and terminates TLS
 for its own `*.{{ caddy_domain }}` wildcard via DNS-01 (DigitalOcean).
 `services` additionally runs the lab's single authoritative BIND9
 instance, scraping every app host's declared DNS zones and serving
-CNAMEs back to each host's dynamic DNS target. Non-public apps sit behind
-**Tinyauth** forward-auth. Every host also runs a `backup_agent` instance
-pushing GPG-encrypted archives of its own apps' named volumes to
-`storage` nightly — see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md).
+CNAMEs back to each host's dynamic DNS target. Routes sit behind
+**Tinyauth** forward-auth, backed by **LLDAP** as the directory, unless
+a route sets `auth: false`. **Beszel** monitors host and container
+health lab-wide, and **DIUN** watches deployed images and notifies over
+Telegram on updates. Every host runs a `backup_agent` pushing
+GPG-encrypted archives of its own apps' named volumes to **SeaweedFS** on
+`storage` nightly, relayed further offsite by `cloud_sync` to R2/B2/OCI
+— see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md).
+Every secret in this repo is generated, cached, and rotated through
+**OpenBao** on `security` — see
+[`docs/topics/secrets/openbao.md`](docs/topics/secrets/openbao.md).
+
+The rest of `docker/` is independently deployable Compose stacks
+(dashboards, media-download tools, Minecraft, a link shortener, a
+pastebin, PDF tools, a speed test and more), each just an `app_catalog`
+entry plus a `docker/<app>/` directory — see
+[`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) to add one.
+[`docs/architecture/system-overview.md`](docs/architecture/system-overview.md)
+has a 10,000-ft diagram of the fleet.
 
 ## Hardware
 
 Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boot/VM disk (1TB) plus a secondary 1TB HDD for backups.
 
-## Project Management
+## Where to go next
 
-- **Decisions** — non-obvious design choices are [ADRs](docs/decisions/README.md): one lineage per problem, one revision per solution tried, indexed by topic. A revision is `approved` (authorized to build) before it is `accepted` (built and on `main`).
-- **Multi-stage work** — tracked in a [project doc](docs/projects/README.md) that says what remains and what it waits on; its status follows the state of the decision it implements, and it can bound what its work may change. [`project-planning.md`](docs/project-planning.md) groups projects that belong to an initiative in dependency order, lists the standalone projects that don't, and separately surfaces open ADRs no project covers yet. A project is deleted once the work is done and its rationale and behavior have been promoted into an ADR or topic doc.
-- **Doc metadata** — every project/decision doc carries YAML frontmatter (`id`/`type`/`status`, plus topic and relations on ADRs); the index tables in `docs/decisions/README.md`, `docs/projects/README.md`, and `docs/project-planning.md` are generated from it rather than hand-maintained — see [ADR 0037](docs/decisions/0037-decision-and-project-documentation-workflow/revision-002.md). Agents start from [`AGENTS.md`](AGENTS.md).
-- **Drift enforcement** — CI checks that docs stay in sync with the code, the playbook/role reference tables match what's on disk, every cross-file link and `docs/decisions/`/`docs/projects/` path resolves (comments included), decisions and projects follow their lifecycle rules, and a change that touches a project doc stays inside that project's `allowed_paths`.
-- **Testing** — Molecule role tests, controller-side Python unit tests (pytest), boot-testing, deploy-ordering regression checks, and scheduled Trivy scans.
+| I want to… | Read |
+| :--- | :--- |
+| Add an app | [`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) |
+| Follow what a `deploy.yaml` run does | [`deployment-flow.md`](docs/topics/deploy/deployment-flow.md) |
+| Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
+| Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
+| Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
+| Find any other topic | [`docs/topics/README.md`](docs/topics/README.md) |
+| Know why a design was chosen | [decisions](docs/decisions/README.md) |
+| See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |
+| Work out where a new doc goes | [`docs/README.md`](docs/README.md) |
+| Start as an agent | [`AGENTS.md`](AGENTS.md) |
+
+CI keeps the docs in step with the code — see
+[`ci/doc-checks.md`](docs/topics/engineering/ci/doc-checks.md).
 
 ## Repository Layout
 
 ```
 .
 ├── .config/                 # Tool configs (lint/format/pre-commit)
-├── .github/                 # CI workflows, PR-check scripts, Renovate config — see docs/topics/engineering/ci/pipeline.md
-├── ansible/                 # All automation: playbooks, inventory, roles — see docs/topics/deploy/ansible.md
+├── .github/                 # CI workflows, PR-check scripts, Renovate config
+├── ansible/                 # All automation: playbooks, inventory, roles
 ├── docker/                  # One directory per application
-├── docs/                    # Deep dives — see docs/README.md
-├── tools/                   # Controller-side Python: cloud-credential minting, OpenBao/Vault utilities — see docs/topics/secrets/secrets.md, docs/topics/secrets/cloud-credential-creation.md
+├── docs/                    # Topic docs, decisions, projects, diagrams
+├── tools/                   # Controller-side Python: cloud-credential minting, OpenBao/Vault utilities
 ├── AGENTS.md                # Where an agent starts: the doc workflow's rules and stop conditions
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
@@ -65,13 +90,6 @@ plus a `configs/` directory of Jinja2 templates that Ansible renders
 onto the target host — nothing is hand-authored on the servers
 themselves. `docker/molecule-dind/` is the one exception: it's Molecule
 test scaffolding, not a deployed app.
-
-## Further Reading
-
-See [`docs/README.md`](docs/README.md) for how these docs are
-organized — start there if you're looking for where something new
-should go — and [`docs/topics/README.md`](docs/topics/README.md) for the
-index of every topic doc.
 
 ## Setup
 
@@ -103,17 +121,8 @@ reproducible dependency set.
    ```sh
    pre-commit install
    ```
-   `.pre-commit-config.yaml` at the repo root is a symlink to
-   `.config/.pre-commit-config.yaml` (config lives under `.config/`, but
-   `pre-commit` only ever looks for its own config at the repo root by
-   default — no `-c` flag needed for this or `pre-commit run`, and
-   nothing lints the symlink itself, only real `.yaml` files). Installs
-   both the `pre-commit` and `pre-push` git hooks in one step
-   (`default_install_hook_types` in the config) — most hooks run at
-   commit time, `ansible-lint` runs at push time since it always re-lints
-   the whole `ansible/` tree rather than just what changed. To run
-   everything manually regardless of stage: `pre-commit run --all-files
-   --hook-stage pre-commit` and `... --hook-stage pre-push`.
+   This installs both the commit-time and push-time hooks; what runs when
+   is in [`pre-commit.md`](docs/topics/engineering/pre-commit.md).
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
 - Install a native `bao` CLI (needed for `tools/openbao_utils/bao_session.py` and anything else that talks to OpenBao from here) - a personal, one-time step, not Ansible-managed, since this machine's own OS can't be assumed the way a `managed_hosts` member's can:
    ```sh
@@ -170,32 +179,11 @@ infra-only) are in [`docs/topics/deploy/ansible.md`](docs/topics/deploy/ansible.
   docker stop $(docker ps -q) && docker rm $(docker ps -aq)
   ```
 
-## Applications
-
-Everything routed through Caddy sits behind **Tinyauth** forward-auth by
-default (per-route `auth: false` opts out, e.g. Cobalt, Dashy,
-Beszel's hub, and Uptime Kuma — plus **LLDAP**'s own web UI, which
-can't sit behind the auth check it backs), backed by **LLDAP** as the
-directory. **DIUN** watches
-deployed images and notifies over Telegram on updates. **Beszel**
-monitors host/container health lab-wide — see
-[`docs/topics/monitoring/beszel.md`](docs/topics/monitoring/beszel.md). Every host runs a **`backup_agent`**
-pushing GPG-encrypted archives to **SeaweedFS** on `storage` nightly —
-see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md), relayed
-further offsite by **`cloud_sync`** to R2/B2/OCI. Every secret in this
-repo is generated, cached, and rotated through **OpenBao** on
-`security` — see [`docs/topics/secrets/openbao.md`](docs/topics/secrets/openbao.md). The rest of
-`docker/` is independently deployable Compose stacks (dashboards,
-media-download tools, Minecraft, a link shortener, a pastebin, PDF
-tools, a speed test, license/activation tooling, etc.), each
-just an `app_catalog` entry plus a `docker/<app>/` directory — see
-[`adding-an-app.md`](docs/topics/deploy/adding-an-app.md) to add one.
-
 ## Testing
 
 Roles are tested individually with
 [Molecule](https://ansible.readthedocs.io/projects/molecule/), co-located
-at `ansible/roles/<role>/molecule/<scenario>/`.
+at `ansible/roles/<role>/molecule/<scenario>/`:
 
 ```sh
 cd ansible/roles/apt
@@ -203,61 +191,27 @@ molecule test              # default scenario
 molecule test -s volumes   # named scenario (cd ansible/roles/compose first)
 ```
 
-See [`docs/topics/engineering/molecule-testing.md`](docs/topics/engineering/molecule-testing.md) for the full
-scenario matrix and how to add one.
+The scenario matrix and how to add one are in
+[`molecule-testing.md`](docs/topics/engineering/molecule-testing.md).
 
 Plain controller-side Python (`tools/cloud_credentials/`,
-`tools/openbao_utils/`, `ansible/molecule-coverage/molecule_cov/`,
-the R2 read-watcher) is tested separately with
-[pytest](https://docs.pytest.org/), from the repo root:
+`tools/openbao_utils/`, `ansible/molecule-coverage/molecule_cov/`, the R2
+read-watcher) is tested separately with [pytest](https://docs.pytest.org/),
+from the repo root. Every provider HTTP call and `rclone` invocation is
+mocked, so no network access or real cloud credentials are needed:
 
 ```sh
 pytest ansible/tests/ tools/tests/ -v
 ```
 
-Every provider HTTP call and `rclone` invocation is mocked — no
-network access or real cloud credentials needed. See
-[`docs/topics/engineering/ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) for how this runs in CI.
+On every PR CI also boot-tests each changed compose app and checks deploy
+ordering, and Trivy scans run on a schedule — see
+[`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md).
 
 ## Linting & Pre-commit
 
-`.config/.pre-commit-config.yaml` wires up:
-
-- `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene
-- [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning
-- [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
-- [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
-- [`hadolint`](https://github.com/hadolint/hadolint) — lints every `Dockerfile`, via its Docker-image variant
-- [`shellcheck`](https://github.com/shellcheck-py/shellcheck-py) — lints every `*.sh`
-- [`actionlint`](https://github.com/rhysd/actionlint) — lints every `.github/workflows/*.yml`: expression types, `needs`/`outputs` wiring, script injection via untrusted `${{ }}` in `run:`, and `shellcheck` over inline `run:` blocks. Runs via its Docker-image variant (`.config/.actionlint.yaml`). Composite actions under `.github/actions/` aren't covered — it only parses workflow files
-- `generate-doc-indexes` (local) — regenerates the index tables in `docs/projects/README.md`, `docs/project-planning.md`, and `docs/decisions/README.md` from each doc's YAML frontmatter; runs before the two hooks below so a bad generation is caught the same way a bad hand-edit would be — see [`tools/doc_scripts/generate_doc_indexes.py`](tools/doc_scripts/generate_doc_indexes.py)
-- [`markdownlint-cli2`](https://github.com/DavidAnson/markdownlint-cli2) — lints every `*.md`
-- `check-doc-drift` (local) — keeps README/`molecule-testing.md`/`deployment-flow.md`/`ci/pipeline.md` in sync with the roles, playbooks, scenarios, and CI jobs they describe, and validates every doc's frontmatter, the decision-lineage and project rules, and every `docs/decisions/`/`docs/projects/` path written anywhere — see [`tools/doc_scripts/check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py)
-- `check-project-scope` (local) — a commit that touches a project doc stays inside that project's `allowed_paths`, read from `HEAD`; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_scope.py`](tools/doc_scripts/check_project_scope.py)
-- `check-project-close` (local) — a commit that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project, judged on what is staged; CI runs the same check over the whole PR — see [`tools/doc_scripts/check_project_close.py`](tools/doc_scripts/check_project_close.py)
-- [`ruff`](https://github.com/astral-sh/ruff-pre-commit) — lints (auto-fixing) and formats every `*.py`
-
-All of the above run at commit time. [`ansible-lint`](https://github.com/ansible/ansible-lint)
-(lints `ansible/`; `docker/` excluded, it's Compose files not playbooks)
-runs at **push** time instead — it always re-lints the whole `ansible/`
-tree regardless of what changed, so it's too slow to pay on every commit.
-
-All tool configs live under `.config/` (each hook is passed an explicit
-`-c` flag, since these tools don't auto-discover configs there by
-default). `ansible-lint` also gets `--project-dir ansible`, since it
-resolves `roles_path` relative to cwd rather than the config file.
-`ruff` is one exception — its config lives in `pyproject.toml` at
-the repo root, which it finds on its own, so no `-c` flag or
-`.config/` entry exists for it. `hadolint` is another: its accepted-risk
-findings are per-file, so they're justified inline with
-`# hadolint ignore=DLxxxx # reason` comments next to the line they apply
-to (`docker/caddy/Dockerfile`, `docker/molecule-dind/Dockerfile`) rather
-than a repo-wide `.config/` ignore list. `shellcheck` is the third: no
-args and no `.config/` entry either, since the repo's `.sh` scripts are
-already clean at its default severity — a future finding worth
-suppressing would get the same per-line treatment as `hadolint`'s
-(`# shellcheck disable=SCxxxx # reason`), not a repo-wide config.
-
-Run `pre-commit install` once after
-cloning. CI enforces the same checks on every PR regardless of whether
-hooks are installed locally — see [`docs/topics/engineering/ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md).
+Most hooks run at commit time; `ansible-lint` runs at push time.
+`pre-commit run --all-files` runs the commit-time hooks by hand, and CI
+enforces the same checks on every PR whether or not hooks are installed
+locally. The hook list, what runs when, and where each tool's config
+lives are in [`pre-commit.md`](docs/topics/engineering/pre-commit.md).

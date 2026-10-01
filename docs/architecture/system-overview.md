@@ -40,8 +40,8 @@ diagram illustrating that one doc.
 ## What this deliberately leaves out
 
 - Per-app compose services within a host — that's
-  [`adding-an-app.md`](../topics/deploy/adding-an-app.md) and each app's own doc under
-  "Per-app infra" in the main README.
+  [`adding-an-app.md`](../topics/deploy/adding-an-app.md) and each app's own doc, listed in
+  [`topics/README.md`](../topics/README.md).
 - The credential-scoping detail behind each arrow into SeaweedFS/cloud —
   see [`backup-threat-model.md`](../topics/disaster-recovery/backup-threat-model.md) and
   [`cloud-credential-creation.md`](../topics/secrets/cloud-credential-creation.md).

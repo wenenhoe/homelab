@@ -7,10 +7,10 @@ account.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from b2sdk.v2 import FullApplicationKey
+from _b2_objects import full_application_key, stubbed_b2_api
 from cloud_credentials.rotation_keys import b2 as rotation_b2
 
 
@@ -18,7 +18,7 @@ class TestCreateB2RotationKey:
     @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
     @patch.object(rotation_b2, "_mint_rotation_key")
     def test_mints_and_caches_on_first_run(self, mock_mint, mock_prompt, rotation_vault):
-        mock_mint.return_value = {"master_api": MagicMock(), "key_id": "NEW_ID", "app_key": "NEW_KEY"}
+        mock_mint.return_value = {"master_api": stubbed_b2_api(), "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
         rotation_b2.create_b2_rotation_key()
 
@@ -41,14 +41,14 @@ class TestCreateB2RotationKey:
 
 @pytest.mark.usefixtures("fake_vault")
 class TestMintRotationKey:
-    @patch.object(rotation_b2, "B2Api")
-    def test_mints_with_account_wide_key_management_capabilities_only(self, mock_api_cls):
+    @patch.object(rotation_b2, "B2Api", autospec=True)
+    def test_mints_with_account_wide_key_management_capabilities_only(self, mock_api_cls, b2_api):
         """The point of docs/topics/secrets/cloud-credentials/scoping.md's B2 section:
         no bucket_id (rejected outright by B2 for these capabilities),
         and file/bucket-data capabilities excluded entirely - this key
         can only manage other keys."""
-        api = mock_api_cls.return_value
-        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="NEW_ID", application_key="NEW_KEY")
+        api = mock_api_cls.return_value = b2_api
+        api.create_key.return_value = full_application_key("NEW_ID", "NEW_KEY")
 
         minted = rotation_b2._mint_rotation_key("masterKeyId", "masterKey")
 
@@ -70,7 +70,7 @@ class TestRotateB2RotationKey:
     @patch.object(rotation_b2, "_mint_rotation_key")
     @patch.object(rotation_b2, "_verify_rotation_key", return_value=(True, ""))
     def test_successful_rotation_revokes_old_key_and_caches_new(self, mock_verify, mock_mint, mock_prompt, rotation_vault):
-        master_api = MagicMock()
+        master_api = stubbed_b2_api()
         mock_mint.return_value = {"master_api": master_api, "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
         ok = rotation_b2.rotate_b2_rotation_key()
@@ -87,7 +87,7 @@ class TestRotateB2RotationKey:
     @patch.object(rotation_b2, "_mint_rotation_key")
     @patch.object(rotation_b2, "_verify_rotation_key", return_value=(False, "401 unauthorized"))
     def test_failed_verification_leaves_old_key_cached_and_unrevoked(self, mock_verify, mock_mint, mock_prompt, rotation_vault):
-        master_api = MagicMock()
+        master_api = stubbed_b2_api()
         mock_mint.return_value = {"master_api": master_api, "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
         ok = rotation_b2.rotate_b2_rotation_key()
@@ -105,7 +105,7 @@ class TestRotateB2RotationKey:
         # B2 has no way to mint an account-management key from another
         # account-management key — only the master credential can, same
         # requirement as create_b2_rotation_key's first run.
-        mock_mint.return_value = {"master_api": MagicMock(), "key_id": "NEW_ID", "app_key": "NEW_KEY"}
+        mock_mint.return_value = {"master_api": stubbed_b2_api(), "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
         rotation_b2.rotate_b2_rotation_key()
 

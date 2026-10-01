@@ -5,11 +5,11 @@ Run via `uv run pytest tools/tests/ -v`.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from _b2_objects import bucket, full_application_key
 from _responses import response
-from b2sdk.v2 import FullApplicationKey
 from cloud_credentials import create_snapshot_readonly_keys as snap
 
 
@@ -74,11 +74,11 @@ class TestMintB2:
         vault.seed("backblaze-b2-region", "us-west-004")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"))
-    @patch("cloud_credentials.leaf_keys.b2.B2Api")
-    def test_mints_readonly_key_scoped_to_the_snapshot_bucket_with_no_expiry(self, mock_api_cls, mock_verify):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="KEY_ID", application_key="APP_KEY")
+    @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
+    def test_mints_readonly_key_scoped_to_the_snapshot_bucket_with_no_expiry(self, mock_api_cls, mock_verify, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("KEY_ID", "APP_KEY")
 
         ok = snap.mint_b2()
 
@@ -100,25 +100,25 @@ class TestMintB2:
         )
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (ListObjectsV2) failed: AccessDenied"))
-    @patch("cloud_credentials.leaf_keys.b2.B2Api")
-    def test_does_not_confirm_a_credential_that_fails_verification(self, mock_api_cls, _mock_verify):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="KEY_ID", application_key="APP_KEY")
+    @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
+    def test_does_not_confirm_a_credential_that_fails_verification(self, mock_api_cls, _mock_verify, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("KEY_ID", "APP_KEY")
 
         ok = snap.mint_b2()
 
         assert not ok, "a credential that fails its own rclone check must not be reported as ready to use"
 
-    def test_fails_loudly_without_the_region_cached(self, vault):
+    def test_fails_loudly_without_the_region_cached(self, vault, b2_api):
         # b2_rotation_api/b2_lookup_bucket_id both succeed here (the
         # rotation key and bucket lookup don't need the region) — this
         # isolates the region guard specifically, needed only for the
         # verification step's endpoint.
         vault.delete("backblaze-b2-region")
-        with patch("cloud_credentials.leaf_keys.b2.B2Api") as mock_api_cls:
-            api = mock_api_cls.return_value
-            api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-            api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="KEY_ID", application_key="APP_KEY")
+        with patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True) as mock_api_cls:
+            api = mock_api_cls.return_value = b2_api
+            api.get_bucket_by_name.return_value = bucket(api)
+            api.create_key.return_value = full_application_key("KEY_ID", "APP_KEY")
             with pytest.raises(SystemExit):
                 snap.mint_b2()

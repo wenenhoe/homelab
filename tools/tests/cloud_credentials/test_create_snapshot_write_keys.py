@@ -5,11 +5,11 @@ Run via `uv run pytest tools/tests/ -v`.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from _b2_objects import bucket, full_application_key
 from _responses import response
-from b2sdk.v2 import FullApplicationKey
 from cloud_credentials import create_snapshot_write_keys as snap
 
 
@@ -71,11 +71,11 @@ class TestMintB2:
         vault.seed("backblaze-b2-region", "us-west-004")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
-    @patch("cloud_credentials.leaf_keys.b2.B2Api")
-    def test_mints_write_key_scoped_to_the_snapshot_bucket_with_quarterly_expiry(self, mock_api_cls, mock_verify):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="KEY_ID", application_key="APP_KEY")
+    @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
+    def test_mints_write_key_scoped_to_the_snapshot_bucket_with_quarterly_expiry(self, mock_api_cls, mock_verify, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("KEY_ID", "APP_KEY")
 
         ok = snap.mint_b2()
 
@@ -99,11 +99,11 @@ class TestMintB2:
         assert snap.read_cache(snap.CACHE_B2_ACCESS) == "KEY_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"))
-    @patch("cloud_credentials.leaf_keys.b2.B2Api")
-    def test_does_not_cache_a_credential_that_fails_verification(self, mock_api_cls, _mock_verify):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="KEY_ID", application_key="APP_KEY")
+    @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
+    def test_does_not_cache_a_credential_that_fails_verification(self, mock_api_cls, _mock_verify, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("KEY_ID", "APP_KEY")
 
         ok = snap.mint_b2()
 
@@ -129,11 +129,11 @@ class TestRotateB2:
         vault.seed(snap.CACHE_B2_SECRET, "old-secret")
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
-    @patch("cloud_credentials.leaf_keys.b2.B2Api")
-    def test_verifies_new_key_before_revoking_the_old_one(self, mock_api_cls, _mock_verify):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="NEW_KEY_ID", application_key="NEW_APP_KEY")
+    @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
+    def test_verifies_new_key_before_revoking_the_old_one(self, mock_api_cls, _mock_verify, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("NEW_KEY_ID", "NEW_APP_KEY")
 
         ok = snap.rotate_b2()
 
@@ -142,11 +142,11 @@ class TestRotateB2:
         assert snap.read_cache(snap.CACHE_B2_ACCESS) == "NEW_KEY_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"))
-    @patch("cloud_credentials.leaf_keys.b2.B2Api")
-    def test_leaves_old_key_untouched_when_new_one_fails_verification(self, mock_api_cls, _mock_verify):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = MagicMock(spec=FullApplicationKey, id_="NEW_KEY_ID", application_key="NEW_APP_KEY")
+    @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
+    def test_leaves_old_key_untouched_when_new_one_fails_verification(self, mock_api_cls, _mock_verify, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("NEW_KEY_ID", "NEW_APP_KEY")
 
         ok = snap.rotate_b2()
 

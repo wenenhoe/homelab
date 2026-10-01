@@ -8,9 +8,10 @@ not real B2/OCI/Cloudflare behavior.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from _b2_objects import application_key, stubbed_b2_api
 from _responses import response
 from _sessions import stubbed_session
 from cloud_credentials import check_freshness
@@ -26,13 +27,13 @@ def delete_telegram(fake_vault, name: str) -> None:
 
 
 def _b2_key(key_id: str, expiration_ms: float | None):
-    return MagicMock(id_=key_id, expiration_timestamp_millis=expiration_ms)
+    return application_key(key_id, expiration_ms)
 
 
 @pytest.mark.usefixtures("fake_vault")
 class TestCheckB2:
     @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_api", return_value=MagicMock())
+    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api())
     def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_api, mock_list_keys, vault):
         future_ms = (datetime.now(UTC) + timedelta(days=45)).timestamp() * 1000
         past_ms = (datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000
@@ -60,7 +61,7 @@ class TestCheckB2:
         assert len(results) == 3
 
     @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_api", return_value=MagicMock())
+    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api())
     def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_api, mock_list_keys, vault):
         # This is the whole point of WARNING_DAYS: B2 enforces its own
         # expiry server-side, so this key still authenticates today,
@@ -74,7 +75,7 @@ class TestCheckB2:
         assert statuses["b2 write"] == check_freshness.WARNING
 
     @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_api", return_value=MagicMock())
+    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api())
     def test_within_urgent_window_escalates_past_plain_warning(self, mock_api, mock_list_keys, vault):
         # The whole point of a second tier: 10 days out is a different
         # conversation than 25 days out, even though both are technically

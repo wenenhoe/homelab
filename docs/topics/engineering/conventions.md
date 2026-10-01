@@ -98,6 +98,10 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   for a helper that cannot take a fixture); `session_class` also replaces
   `requests.Session` with a class that returns it. A test sets
   `.return_value` on the method it expects the code to call.
+  `b2_api` (`tools/tests/cloud_credentials/conftest.py`) is the same for
+  b2sdk: a real `B2Api` over an in-memory account with its network calls
+  stubbed, and `full_application_key()`, `application_key()` and
+  `bucket()` in `_b2_objects.py` build the real key and bucket objects.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,

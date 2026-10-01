@@ -48,7 +48,7 @@ The trade-off is narrower, not zero: `docker-socket-proxy`'s own grants
 have no per-container ACL. `backup_agent`'s `POST=1` grant, for
 example, can start/stop *any* container on that host, not just ones
 with a matching `stop-during-backup` label — see
-[`disaster-recovery.md`](../../disaster-recovery.md#whats-backed-up)'s own
+[`backup.md`](../../backup.md#whats-backed-up)'s own
 noted limitation on this. The label matching that actually scopes each
 backup schedule to its own app happens on the `docker-volume-backup`
 side, not in the proxy's own grant.

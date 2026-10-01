@@ -1,7 +1,8 @@
 # Fire Drill: Proving the Restore Path Actually Works
 
-For the backup design this proves — threat model, encryption, what's
-covered — see [`disaster-recovery.md`](disaster-recovery.md). For the
+For the backup design this proves — encryption, what's covered — see
+[`backup.md`](backup.md), and [`backup-threat-model.md`](backup-threat-model.md) for the threat
+model it's built against. For the
 per-app and batch restore runbooks themselves, see
 [`restore.md`](restore.md).
 

@@ -213,7 +213,7 @@
 # own plays having already run in this same invocation (host_vars are
 # static inventory data either way), so ordering after Play 8 isn't a
 # hard dependency — it's just the natural place for "the next stage of
-# the backup pipeline" to live. See docs/disaster-recovery.md.
+# the backup pipeline" to live. See docs/backup.md.
 - name: Deploy cloud sync
   hosts: storage
   gather_facts: false

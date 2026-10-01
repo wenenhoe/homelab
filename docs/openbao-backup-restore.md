@@ -1,6 +1,6 @@
 # OpenBao Backup and Restore
 
-A different mechanism from [`disaster-recovery.md`](disaster-recovery.md)'s
+A different mechanism from [`backup.md`](backup.md)'s
 generic volume-backup pipeline — `docker/openbao/compose.yaml.j2` has no
 `backup:` entry, and [`openbao.md`](openbao.md) explains why: stopping
 OpenBao to tar its data volume means sealing it, which needs a manual
@@ -73,7 +73,7 @@ cached per [`openbao-auth.md`](openbao-auth.md)'s runbook. Prompts for
 paste it when asked — the script never takes it as an argument). One
 process end to end: logs in over real TLS, saves the snapshot,
 GPG-encrypts it (same public key as
-[`disaster-recovery.md`](disaster-recovery.md)'s
+[`backup.md`](backup.md)'s
 `backup-gpg-public-key.asc`, independently of Vault's own encryption),
 pushes it to both R2 and B2, and revokes the token — all from one
 `mktemp -d` scratch directory removed when the script exits, nothing
@@ -153,7 +153,7 @@ On a throwaway host — burn it afterward, don't reuse it:
    ([`create_snapshot_readonly_keys.py`](../tools/cloud_credentials/create_snapshot_readonly_keys.py)) —
    not the write leaf above, which can't read.
 3. Decrypt it with the offline GPG private key
-   ([`disaster-recovery.md`](disaster-recovery.md#encryption)).
+   ([`backup.md`](backup.md#encryption)).
 4. Authenticate with the throwaway host's own root token (from step 1)
    and run `bao operator raft snapshot restore -force <path>` — a
    token is required even against a target with nothing real on it

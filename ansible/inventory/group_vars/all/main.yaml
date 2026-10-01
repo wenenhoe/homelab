@@ -119,15 +119,15 @@ seaweedfs_s3_proto: "https"
 backup_defaults:
   # 30 4 * * * (not 0 4): runs 30min after itzg/mc-backup's own "0 4 * * *"
   # cron (docker/minecraft/compose.yaml), so the `backups` volume is never
-  # archived mid-write. See docs/disaster-recovery.md.
+  # archived mid-write. See docs/backup.md.
   cron: "30 4 * * *"
   retention_days: 7
   compression: gz
   stop_during_backup: false
   # Small config-app archives (everything except minecraft) go to both
   # free-tier clouds for offsite redundancy. minecraft overrides this in
-  # app_catalog.yaml — see docs/disaster-recovery.md's "Cloud target
-  # selection" for why it gets OCI instead. Each name must be a key of
+  # app_catalog.yaml — see docs/cloud-sync.md for why it gets OCI
+  # instead. Each name must be a key of
   # host_vars/storage.yaml's cloud_sync_targets.
   cloud_targets: [r2, b2]
 

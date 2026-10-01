@@ -15,7 +15,7 @@
 # The load-bearing assumption behind collapsing to one container:
 # BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule file, not
 # once for the whole container. Confirmed live by hand before this
-# test existed (see docs/disaster-recovery.md's Architecture
+# test existed (see docs/backup.md's Architecture
 # section) — this codifies that check so it can't silently regress
 # on an image version bump.
 - name: Capture happy_app_stop's StartedAt BEFORE any cron-triggered backup

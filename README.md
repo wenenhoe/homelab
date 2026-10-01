@@ -31,7 +31,7 @@ instance, scraping every app host's declared DNS zones and serving
 CNAMEs back to each host's dynamic DNS target. Non-public apps sit behind
 **Tinyauth** forward-auth. Every host also runs a `backup_agent` instance
 pushing GPG-encrypted archives of its own apps' named volumes to
-`storage` nightly — see [`docs/disaster-recovery.md`](docs/disaster-recovery.md).
+`storage` nightly — see [`docs/backup.md`](docs/backup.md).
 
 ## Hardware
 
@@ -180,7 +180,7 @@ deployed images and notifies over Telegram on updates. **Beszel**
 monitors host/container health lab-wide — see
 [`docs/beszel.md`](docs/beszel.md). Every host runs a **`backup_agent`**
 pushing GPG-encrypted archives to **SeaweedFS** on `storage` nightly —
-see [`docs/disaster-recovery.md`](docs/disaster-recovery.md), relayed
+see [`docs/backup.md`](docs/backup.md), relayed
 further offsite by **`cloud_sync`** to R2/B2/OCI. Every secret in this
 repo is generated, cached, and rotated through **OpenBao** on
 `security` — see [`docs/openbao.md`](docs/openbao.md). The rest of

@@ -1,7 +1,7 @@
 # Secrets
 
 For the SeaweedFS backup S3 credentials specifically, see
-[`disaster-recovery.md`](disaster-recovery.md).
+[`backup.md`](backup.md).
 
 Every value this repo needs but doesn't want hardcoded is resolved once
 and cached by the `secrets` role (`ansible/roles/secrets/`), driven by a
@@ -149,7 +149,7 @@ for the `rotate-secret.yaml` playbook and exactly which host(s) each
 secret needs redeployed — the per-host SeaweedFS identity keys in
 particular need both the owning host *and* `storage` redeployed, not
 just one, since SeaweedFS's own identity config
-([`disaster-recovery.md`](disaster-recovery.md)) is rendered on
+([`backup.md`](backup.md)) is rendered on
 `storage` but pulls each host's key in via `hostvars`.
 
 ## Why S3 credentials need a controller-side cache

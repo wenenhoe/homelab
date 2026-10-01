@@ -91,6 +91,6 @@ restore playbook pulls everything else from Vault.
 - Proving the backup/restore loop before any secret's authoritative
   copy moves into Vault is the actual test of this split. See
   [`openbao-backup-restore.md`](../../openbao-backup-restore.md) for the
-  drill procedure — its own doc, not `disaster-recovery.md`, since the
+  drill procedure — its own doc, not `backup.md`, since the
   mechanism (raft snapshot, not the volume-backup pipeline that doc
   covers) is genuinely different.

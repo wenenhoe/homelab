@@ -66,7 +66,7 @@ day) are unaffected: they stay properly bucket-scoped and never hold
 `API Tokens Write`, so they carry none of this risk. `cloud_sync`'s own
 `rclone copy`-only design (never `sync`) is what actually prevents an
 on-prem compromise from deleting R2 objects — see
-[`disaster-recovery.md`](../../disaster-recovery.md)'s Threat model. R2's
+[`backup-threat-model.md`](../../backup-threat-model.md). R2's
 defense-in-depth is at the leaf-token/`copy`-vs-`sync` level, not IAM
 narrowing at the rotation-token level.
 

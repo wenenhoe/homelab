@@ -26,7 +26,7 @@ recreating the volume.
 
 No `backup:` entry in `app_catalog.yaml` — the generic `backup_agent`
 path stops the container and tars its volumes
-([`disaster-recovery.md`](disaster-recovery.md)), which for OpenBao
+([`backup.md`](backup.md)), which for OpenBao
 would mean sealing it (and a manual unseal per
 [0018](decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)) on every backup cycle.
 OpenBao's own `bao operator raft snapshot save` is the backup mechanism
@@ -289,7 +289,7 @@ The command prints 3 unseal key shares and an initial root token,
    same offline handling, one entry.
 2. Print or write down one of the three shares and store it physically
    offline, separate from the password manager — the same
-   two-copies-not-one pattern [`disaster-recovery.md`](disaster-recovery.md)
+   two-copies-not-one pattern [`backup.md`](backup.md)
    uses for the GPG private key.
 3. Do not leave any of this in shell scrollback, a file on `security`,
    or a file on `controller`. Nothing here is written to

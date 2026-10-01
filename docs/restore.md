@@ -1,7 +1,7 @@
 # Restore: Recovering from a Backup
 
-For the backup design this restores from — threat model, encryption,
-what's covered — see [`disaster-recovery.md`](disaster-recovery.md).
+For the backup design this restores from — encryption, what's covered —
+see [`backup.md`](backup.md), and [`backup-threat-model.md`](backup-threat-model.md) for the threat model it's built against.
 
 `playbooks/restore.yaml` wraps `ansible/roles/restore`: extracts a
 decrypted archive into one or more named volumes, stopping and
@@ -42,7 +42,7 @@ never shows a human that prompt (see `ansible/scripts/restore_all.py`'s own
 `run_app_restore()`, fixed for exactly this).
 
 Each archive holds exactly one app (one schedule = one app — see
-[Architecture in `disaster-recovery.md`](disaster-recovery.md#architecture)),
+[Architecture in `backup.md`](backup.md#architecture)),
 so `restore_volumes` only ever needs to list that one app's own volumes.
 
 Manual steps before running it (private key never touches a homelab host):
@@ -109,7 +109,7 @@ python3 ansible/scripts/restore_all.py --yes      # unattended (fire-drill autom
 ```
 
 Run this on the controller only — same machine/trust requirement as
-everything else in [`disaster-recovery.md`'s Threat model](disaster-recovery.md#threat-model):
+everything else in [the backup threat model](backup-threat-model.md):
 the GPG private key has to be there, and decryption has to be able to
 happen non-interactively (gpg-agent already unlocked, or a
 passphrase-less key) since nothing here ever prompts for a GPG
@@ -160,7 +160,7 @@ What it does, in order:
 
 **Known limitation carried over, not introduced here:** `minecraft`'s
 own backup uses `compression: none`
-([`disaster-recovery.md`](disaster-recovery.md#whats-backed-up)) — the
+([`backup.md`](backup.md#whats-backed-up)) — the
 `restore` role's own extraction step assumes gzip (`tar -xzf`)
 unconditionally, and hasn't been re-verified against an uncompressed
 archive. That's the existing, tested `restore` role's own behavior,

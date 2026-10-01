@@ -2,7 +2,7 @@
 # Relays already-GPG-encrypted archives that backup_agent hosts already
 # pushed to SeaweedFS onward to R2/B2/OCI — storage-only (see
 # deploy.yaml), never touches an app host at all. See
-# docs/disaster-recovery.md's Threat model for why cloud credentials
+# docs/backup-threat-model.md for why cloud credentials
 # live only here, never on services/security/play.
 #
 # rclone copy, not sync: one-way, additive-only — this role's own
@@ -10,7 +10,7 @@
 # even if it wanted to, and copy never deletes anything on the
 # destination side either. Retention on the cloud side is a
 # provider-native lifecycle rule, not anything this role manages — see
-# docs/disaster-recovery.md's "Before first use" checklist. A
+# docs/cloud-sync.md's "Before first use" checklist. A
 # compromised `storage` host still can't touch what's already landed in
 # R2/B2/OCI, only add to it.
 #

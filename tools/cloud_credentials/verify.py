@@ -21,7 +21,7 @@ from pathlib import Path
 # propagation issue, and it never resolves by waiting. A fresh key
 # avoids that entirely, and better matches production anyway (cloud_sync
 # uses `rclone copy`, never `sync` — always new objects, never
-# overwrites, per this doc's Threat model section). The write leaf
+# overwrites, per docs/backup-threat-model.md). The write leaf
 # deliberately has no delete capability on either provider (see this
 # doc), so these accumulate forever — accepted cost, since rotations are
 # rare and each marker is a few bytes.

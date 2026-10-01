@@ -1,4 +1,4 @@
-# Disaster Recovery — Off-host and Cloud Backups
+# Backup — Off-host and Cloud Copies
 
 A separate VM (`storage`) runs
 [SeaweedFS](https://github.com/seaweedfs/seaweedfs) as a self-hosted
@@ -8,7 +8,7 @@ selected named volumes to SeaweedFS — nothing else. Cloud coverage
 (Cloudflare R2 / Backblaze B2 / OCI Object Storage) is a separate
 `cloud_sync` role running only on `storage`, reading those same
 already-encrypted objects out of SeaweedFS and copying them onward — see
-"Threat model" below for why it's designed this way, "What's backed up"
+[`backup-threat-model.md`](backup-threat-model.md) for why it's designed this way, "What's backed up"
 for SeaweedFS coverage, and [`cloud-sync.md`](cloud-sync.md) for how the
 cloud leaf works.
 
@@ -19,17 +19,8 @@ OpenBao's own backup/restore uses a different mechanism entirely (a
 raft snapshot, not this volume-backup pipeline) — see
 [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
-## Threat model
-
-Every app host's `backup_agent` holds a live, write-capable S3
-credential, so its reach matters as much as its existence. See
-[ADR 0006](decisions/0006-offsite-backup-credential-blast-radius/revision-000.md)
-for the full threat model this design is built against and the two
-structural constraints that follow from it — in short: cloud
-credentials never touch an app host, and each app host's SeaweedFS
-identity is scoped to its own backup prefix only.
-
-**Automated coverage exists now** (`ansible/roles/seaweedfs_bucket/molecule/identity_scoping`) — it renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts cross-prefix write/read are denied and Admin actions aren't available to a scoped identity. The `AccessDenied` substring match for the write-denial case is confirmed against a real SeaweedFS error (`An error occurred (AccessDenied) when calling the PutObject operation: Access Denied.`, seen in an actual run) — not just a guess anymore. The read-denial and Admin-action checks use the same substring pattern but haven't independently been seen against real output yet; if either looks fragile on a run that reaches that far, that's the part still worth double-checking.
+Getting data back is [`restore.md`](restore.md); proving that path works end
+to end is [`fire-drill.md`](fire-drill.md).
 
 ## Architecture
 
@@ -73,8 +64,8 @@ copy exists off-host," not HA for the backup target itself.
   `docker/seaweedfs/configs/s3-identity.json.j2` — one broad
   bucket-admin identity (bucket creation only), one narrow, path-scoped
   identity per `backup_agent` host, and one bucket-wide but read-only
-  identity for `cloud_sync`'s own relay-outward reads. See "Threat model"
-  above for why, and the [SeaweedFS S3 Configuration
+  identity for `cloud_sync`'s own relay-outward reads. See
+  [`backup-threat-model.md`](backup-threat-model.md) for why, and the [SeaweedFS S3 Configuration
   wiki](https://github.com/seaweedfs/seaweedfs/wiki/S3-Configuration) to
   adjust the scoping.
 
@@ -156,7 +147,7 @@ already-compressed file for no size benefit. Every other app above uses
 the `gz` default since their sources are raw, uncompressed volume data.
 
 **Migration note:** every app host previously also pushed directly to
-R2/B2/OCI (a design this doc's Threat model section replaces). Any
+R2/B2/OCI (a design [the threat model](backup-threat-model.md) rules out). Any
 objects already sitting in those buckets from that period are now
 orphaned under a different path scheme than `cloud_sync` uses — nothing
 will prune them, and `cloud_sync` won't add to or recognize them.
@@ -169,16 +160,6 @@ label match on the `docker-volume-backup` side is what actually scopes
 each schedule to its own app (see Architecture above); the proxy itself
 is a broader grant than that.
 
-## Cloud sync
-
-`cloud_sync` (`storage`-only) relays already-encrypted SeaweedFS
-archives onward to R2/B2/OCI via rclone `copy` — never `sync` — so
-nothing on-prem, even fully compromised, can delete or overwrite what's
-already landed in the cloud; that's the property "Threat model" above
-relies on for the offsite copy specifically. Setup, per-provider
-retention values, and the sync mechanism itself are covered in their
-own doc: [`cloud-sync.md`](cloud-sync.md).
-
 ## S3 endpoint format
 
 `seaweedfs_s3_endpoint` (`group_vars/all/main.yaml`) must be a
@@ -189,14 +170,6 @@ have fully qualified paths`). Scheme is the separate
 `seaweedfs_s3_proto` var (default `https`). `cloud_sync`'s own
 `rclone.conf` is unrelated and follows the opposite convention — see
 [`cloud-sync.md`](cloud-sync.md).
-
-## Restoring from a backup
-
-Covered in its own runbook: [`restore.md`](restore.md).
-
-## Fire drill
-
-Covered in its own doc: [`fire-drill.md`](fire-drill.md).
 
 ## Out of scope
 

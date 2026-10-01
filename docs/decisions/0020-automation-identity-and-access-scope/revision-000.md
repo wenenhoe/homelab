@@ -77,6 +77,6 @@ transitional by design.
   that exists today, not as a permanent shape. If a dedicated
   automation host is ever built to take over prod deploys and
   rotation, this AppRole's removal is a required step of that work,
-  not an optional cleanup. `disaster-recovery.md`/`ansible.md` should
+  not an optional cleanup. `backup.md`/`ansible.md` should
   say so once that lands, so a future reader doesn't assume it's
   permanent.

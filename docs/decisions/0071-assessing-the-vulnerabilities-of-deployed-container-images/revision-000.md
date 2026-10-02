@@ -6,7 +6,7 @@ title: "Assessing the vulnerabilities of deployed container images"
 solution: "A scheduled scan run from homelab-security's own CI over the images this repo deploys, ranked by reachability and consequence, with every result kept in the private tracker"
 summary: "How known vulnerabilities in deployed images are found, ranked and tracked without publishing them, given most are upstream's to fix."
 topic: security-hardening
-status: working
+status: approved
 related: [ADR-0038, ADR-0045, ADR-0049, ADR-0060, ADR-0061]
 ---
 

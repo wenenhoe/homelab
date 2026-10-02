@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import hvac
+import paramiko
 import pytest
 import requests
 from _hvac_clients import stubbed_hvac_client
 from _responses import response
 from _sessions import stubbed_session
+from _ssh_objects import exec_result, pty_result, stubbed_ssh_client
 from utils import repo
 
 
@@ -120,3 +122,47 @@ def test_the_hvac_client_fixture_is_a_real_client_that_keeps_what_is_set_on_it(h
 
     assert isinstance(hvac_client, hvac.Client)
     assert hvac_client.token == "fake-token"
+
+
+def test_a_stubbed_ssh_client_connects_and_closes_without_the_network():
+    client = stubbed_ssh_client()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+    client.connect("host.example", username="u", timeout=5)
+    client.close()
+
+    client.connect.assert_called_once_with("host.example", username="u", timeout=5)
+    client.close.assert_called_once()
+    assert isinstance(client, paramiko.SSHClient)
+
+
+def test_a_stubbed_ssh_client_does_not_read_the_known_hosts_file():
+    stubbed_ssh_client().load_system_host_keys()
+
+
+def test_a_stubbed_ssh_client_rejects_a_call_the_real_method_would():
+    with pytest.raises(TypeError):
+        stubbed_ssh_client().exec_command()
+
+
+def test_an_exec_result_is_the_three_real_streams_with_the_output_and_exit_status_given():
+    stdin, stdout, stderr = exec_result(stdout=b"out", stderr=b"err", exit_status=3)
+
+    assert (stdout.read(), stderr.read(), stdout.channel.recv_exit_status()) == (b"out", b"err", 3)
+    assert isinstance(stdout, paramiko.ChannelFile)
+    assert stdin.channel is stdout.channel is stderr.channel
+
+
+def test_an_exec_result_records_what_is_written_to_stdin():
+    stdin, _, _ = exec_result()
+
+    stdin.write("share\n")
+
+    stdin.write.assert_called_once_with("share\n")
+
+
+def test_a_pty_result_has_a_channel_with_nothing_to_read_that_has_already_exited():
+    _, stdout, _ = pty_result(exit_status=1)
+    channel = stdout.channel
+
+    assert (channel.recv_ready(), channel.exit_status_ready(), channel.recv_exit_status()) == (False, True, 1)

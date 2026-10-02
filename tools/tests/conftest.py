@@ -6,10 +6,12 @@ from pathlib import Path
 from unittest.mock import create_autospec
 
 import hvac
+import paramiko
 import pytest
 import requests
 from _hvac_clients import stubbed_hvac_client
 from _sessions import stubbed_session
+from _ssh_objects import stubbed_ssh_client
 
 
 class SecretsDir:
@@ -52,3 +54,9 @@ def session_class(http_session: requests.Session, monkeypatch: pytest.MonkeyPatc
 def hvac_client() -> hvac.Client:
     """A real `hvac.Client` with its network calls stubbed (see `_hvac_clients.py`)."""
     return stubbed_hvac_client()
+
+
+@pytest.fixture
+def ssh_client() -> paramiko.SSHClient:
+    """A real `paramiko.SSHClient` with its network and file calls stubbed (see `_ssh_objects.py`)."""
+    return stubbed_ssh_client()

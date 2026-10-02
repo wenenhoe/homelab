@@ -106,6 +106,16 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   every request stubbed at the adapter and the calls the code makes
   stubbed on top; its `token` starts as `None`, so a `VAULT_TOKEN` in the
   environment never reaches a test.
+  `ssh_client` (`tools/tests/conftest.py`) is a real `paramiko.SSHClient`
+  with connect, exec_command and close stubbed and `known_hosts` never
+  read; `exec_result()` and `pty_result()` in `_ssh_objects.py` build the
+  three real streams `exec_command` returns. `identity_domains_client`
+  (`tools/tests/cloud_credentials/conftest.py`) is the real OCI
+  `IdentityDomainsClient` the repo's own factory builds, every service
+  call stubbed; `customer_secret_key()`, `apps_response()` and
+  `response()` in `_oci_objects.py` build the SDK's own models. Its
+  service methods take `**kwargs`, so the test's assertion on the call
+  pins what the code sends.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,

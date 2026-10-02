@@ -10,6 +10,7 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import pytest
+from _oci_objects import apps_response
 from _responses import response
 from cloud_credentials.rotation_keys import oci_bootstrap
 
@@ -46,11 +47,11 @@ class TestCreateOciRotationKey:
         assert "already cached, skipping" in capsys.readouterr().out
         assert rotation_vault.get("_rotation-key-oci-client-secret") == "OLD_SECRET"
 
-    @patch.object(oci_bootstrap, "identity_domains_client_for_token")
+    @patch.object(oci_bootstrap, "identity_domains_client_for_token", autospec=True)
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
-    def test_first_run_prompts_verifies_and_caches(self, mock_token, mock_client_factory, rotation_vault):
-        client = mock_client_factory.return_value
-        client.list_apps.return_value = MagicMock(data=MagicMock(resources=[MagicMock(id="app-1")]))
+    def test_first_run_prompts_verifies_and_caches(self, mock_token, mock_client_factory, rotation_vault, identity_domains_client):
+        client = mock_client_factory.return_value = identity_domains_client
+        client.list_apps.return_value = apps_response("app-1")
 
         with (
             patch.object(oci_bootstrap, "input", side_effect=["https://idcs-example.identity.oraclecloud.com/", "client-123"]),
@@ -66,11 +67,11 @@ class TestCreateOciRotationKey:
         assert rotation_vault.get("_rotation-key-oci-created-at") is not None
         mock_client_factory.assert_called_once_with("https://idcs-example.identity.oraclecloud.com", "tok")
 
-    @patch.object(oci_bootstrap, "identity_domains_client_for_token")
+    @patch.object(oci_bootstrap, "identity_domains_client_for_token", autospec=True)
     @patch.object(oci_bootstrap, "oci_scim_access_token", return_value="tok")
-    def test_app_not_found_raises_before_caching_anything(self, mock_token, mock_client_factory, rotation_vault):
-        client = mock_client_factory.return_value
-        client.list_apps.return_value = MagicMock(data=MagicMock(resources=[]))
+    def test_app_not_found_raises_before_caching_anything(self, mock_token, mock_client_factory, rotation_vault, identity_domains_client):
+        client = mock_client_factory.return_value = identity_domains_client
+        client.list_apps.return_value = apps_response()
 
         with (
             patch.object(oci_bootstrap, "input", side_effect=["https://idcs-example.identity.oraclecloud.com", "client-123"]),

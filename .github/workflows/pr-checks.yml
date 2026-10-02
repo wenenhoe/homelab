@@ -31,6 +31,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Detect simple file-category changes
         id: filter
@@ -99,6 +100,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup uv (writes the shared cache)
         uses: ./.github/actions/setup-uv-ansible
@@ -118,6 +121,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup uv + Ansible Galaxy collections (writes the shared Galaxy cache)
         uses: ./.github/actions/setup-uv-ansible
@@ -137,6 +142,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup uv (builds and writes the shared pre-commit hook cache)
         uses: ./.github/actions/setup-uv-ansible
@@ -154,6 +161,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
@@ -175,6 +184,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the merge-base needs both histories
+          persist-credentials: false
 
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
@@ -198,6 +208,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the merge-base needs both histories
+          persist-credentials: false
 
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
@@ -218,6 +229,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
@@ -234,6 +247,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # check-lock catches an unregenerated lockfile; locked additionally
       # realizes the environment, catching a resolvable-but-broken
@@ -255,6 +270,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
@@ -273,6 +290,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # restore.yaml's own role calls community.docker modules
       # unconditionally (no tags: to skip past it), unlike everything
@@ -334,6 +353,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # Also pulls molecule_helpers/role-requirements.yml per
       # .config/molecule/config.yml — cache key hashes both files.
@@ -385,6 +406,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       # tools/ci/images/build.py is stdlib-only, so plain python3 runs it
       # and this job needs no uv.
@@ -404,6 +427,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # the diff needs both the base and head commits
+          persist-credentials: false
 
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
@@ -441,6 +465,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           sparse-checkout: tools/ci
+          persist-credentials: false
 
       # The verdict is tools/ci/gates/matrix_gate.py: the matrix jobs (named
       # in MATRIX_JOBS, kept equal to the jobs that use a matrix by a test)

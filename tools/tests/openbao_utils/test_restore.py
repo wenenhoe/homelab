@@ -79,8 +79,8 @@ class TestCatalogScopedRestore:
 
         written = {}
         with (
-            patch.object(restore, "read_vault_path", return_value=None),
-            patch.object(restore, "write_vault_path", side_effect=lambda path, value: written.__setitem__(path, value)),
+            patch.object(restore, "read_vault_path", return_value=None, autospec=True),
+            patch.object(restore, "write_vault_path", side_effect=lambda path, value: written.__setitem__(path, value), autospec=True),
         ):
             rc = _run(env.backup_dir)
 
@@ -92,8 +92,8 @@ class TestCatalogScopedRestore:
         (env.backup_dir / "lldap-jwt-secret").write_text("stale-backup-value")
 
         with (
-            patch.object(restore, "read_vault_path", return_value="already-there"),
-            patch.object(restore, "write_vault_path") as fake_write,
+            patch.object(restore, "read_vault_path", return_value="already-there", autospec=True),
+            patch.object(restore, "write_vault_path", autospec=True) as fake_write,
         ):
             rc = _run(env.backup_dir)
 
@@ -104,8 +104,8 @@ class TestCatalogScopedRestore:
         env.catalog_file.write_text("secret_catalog:\n  never-backed-up:\n    source: manual\n    store: openbao\n    scope: hosts/services\n")
 
         with (
-            patch.object(restore, "read_vault_path", return_value=None),
-            patch.object(restore, "write_vault_path") as fake_write,
+            patch.object(restore, "read_vault_path", return_value=None, autospec=True),
+            patch.object(restore, "write_vault_path", autospec=True) as fake_write,
         ):
             rc = _run(env.backup_dir)
 
@@ -117,8 +117,8 @@ class TestCatalogScopedRestore:
         (env.backup_dir / "no-scope-key").write_text("value")
 
         with (
-            patch.object(restore, "read_vault_path", return_value=None),
-            patch.object(restore, "write_vault_path") as fake_write,
+            patch.object(restore, "read_vault_path", return_value=None, autospec=True),
+            patch.object(restore, "write_vault_path", autospec=True) as fake_write,
         ):
             rc = _run(env.backup_dir)
 
@@ -137,8 +137,8 @@ class TestCatalogScopedRestore:
 
         written = {}
         with (
-            patch.object(restore, "read_vault_path", return_value=None),
-            patch.object(restore, "write_vault_path", side_effect=lambda path, value: written.__setitem__(path, value)),
+            patch.object(restore, "read_vault_path", return_value=None, autospec=True),
+            patch.object(restore, "write_vault_path", side_effect=lambda path, value: written.__setitem__(path, value), autospec=True),
         ):
             _run(env.backup_dir)
 

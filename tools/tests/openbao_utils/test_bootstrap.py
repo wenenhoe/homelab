@@ -13,7 +13,7 @@ own vault_login wrapper, and main()'s wiring.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import create_autospec, patch
 
 import pytest
 from openbao_utils import bootstrap
@@ -84,25 +84,25 @@ class TestReadCacheFile:
 
 
 class TestPromptForValue:
-    @patch("builtins.input", return_value="typed-value")
+    @patch("builtins.input", return_value="typed-value", autospec=True)
     def test_non_sensitive_uses_input(self, mock_input):
         value = bootstrap.prompt_for_value("some-key", {"description": "d", "sensitive": False})
         assert value == "typed-value"
         mock_input.assert_called_once()
 
-    @patch("openbao_utils.bootstrap.getpass.getpass", return_value="hidden-value")
+    @patch("openbao_utils.bootstrap.getpass.getpass", return_value="hidden-value", autospec=True)
     def test_sensitive_uses_getpass(self, mock_getpass):
         value = bootstrap.prompt_for_value("some-key", {"description": "d", "sensitive": True})
         assert value == "hidden-value"
         mock_getpass.assert_called_once()
 
-    @patch("builtins.input", return_value="")
+    @patch("builtins.input", return_value="", autospec=True)
     def test_allow_blank_accepts_empty_string_immediately(self, mock_input):
         value = bootstrap.prompt_for_value("some-key", {"description": "d", "allow_blank": True})
         assert value == ""
         mock_input.assert_called_once()
 
-    @patch("builtins.input", side_effect=["", "", "real-value"])
+    @patch("builtins.input", side_effect=["", "", "real-value"], autospec=True)
     def test_non_blank_required_reprompts_until_a_value_is_given(self, mock_input):
         value = bootstrap.prompt_for_value("some-key", {"description": "d"})
         assert value == "real-value"
@@ -130,7 +130,7 @@ class TestVaultLogin:
         with pytest.raises(SystemExit):
             bootstrap.vault_login(hvac_client)
 
-    @patch("openbao_utils.bootstrap._bare_vault_login")
+    @patch("openbao_utils.bootstrap._bare_vault_login", autospec=True)
     def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login, secrets_dir, hvac_client):
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
@@ -152,7 +152,7 @@ class TestMainFileEntries:
         assert bootstrap.main() == 0
         assert not any(secrets_dir.path.iterdir()), "SECRETS_DIR should never be created when there's nothing manual to do"
 
-    @patch("openbao_utils.bootstrap.prompt_for_value", return_value="a-typed-value")
+    @patch("openbao_utils.bootstrap.prompt_for_value", return_value="a-typed-value", autospec=True)
     def test_creates_a_missing_file_entry(self, mock_prompt, secrets_dir, catalog_path):
         catalog_path.write_text("secret_catalog:\n  digitalocean-api-key: { source: manual, sensitive: true, store: controller_file }\n")
         assert bootstrap.main() == 0
@@ -160,7 +160,7 @@ class TestMainFileEntries:
         mode = (secrets_dir.path / "digitalocean-api-key").stat().st_mode & 0o777
         assert mode == 0o600
 
-    @patch("openbao_utils.bootstrap.prompt_for_value")
+    @patch("openbao_utils.bootstrap.prompt_for_value", autospec=True)
     def test_skips_an_already_present_file_entry_without_prompting(self, mock_prompt, secrets_dir, catalog_path):
         catalog_path.write_text("secret_catalog:\n  digitalocean-api-key: { source: manual, sensitive: true, store: controller_file }\n")
         secrets_dir.seed("digitalocean-api-key", "already-set")
@@ -168,7 +168,7 @@ class TestMainFileEntries:
         mock_prompt.assert_not_called()
         assert (secrets_dir.path / "digitalocean-api-key").read_text() == "already-set"
 
-    @patch("openbao_utils.bootstrap.prompt_for_value", side_effect=KeyboardInterrupt)
+    @patch("openbao_utils.bootstrap.prompt_for_value", side_effect=KeyboardInterrupt, autospec=True)
     def test_keyboard_interrupt_during_prompt_returns_1(self, mock_prompt, secrets_dir, catalog_path):
         catalog_path.write_text("secret_catalog:\n  digitalocean-api-key: { source: manual, sensitive: true, store: controller_file }\n")
         assert bootstrap.main() == 1
@@ -184,12 +184,12 @@ class TestMainVaultEntries:
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
 
-        monkeypatch.setattr(bootstrap, "fetch_root_cert", MagicMock(return_value="fake-root-cert"))
-        monkeypatch.setattr(bootstrap, "vault_login", MagicMock())
+        monkeypatch.setattr(bootstrap, "fetch_root_cert", create_autospec(bootstrap.fetch_root_cert, return_value="fake-root-cert"))
+        monkeypatch.setattr(bootstrap, "vault_login", create_autospec(bootstrap.vault_login))
 
-    @patch("openbao_utils.bootstrap.vault_write")
-    @patch("openbao_utils.bootstrap.vault_read", return_value=None)
-    @patch("openbao_utils.bootstrap.prompt_for_value", return_value="a-telegram-token")
+    @patch("openbao_utils.bootstrap.vault_write", autospec=True)
+    @patch("openbao_utils.bootstrap.vault_read", return_value=None, autospec=True)
+    @patch("openbao_utils.bootstrap.prompt_for_value", return_value="a-telegram-token", autospec=True)
     def test_creates_a_missing_vault_entry(self, mock_prompt, mock_read, mock_write):
         assert bootstrap.main() == 0
         mock_write.assert_called_once()
@@ -201,27 +201,27 @@ class TestMainVaultEntries:
         assert bootstrap.vault_login.call_args.args[0] is client_arg
         assert mock_read.call_args.args[0] is client_arg
 
-    @patch("openbao_utils.bootstrap.vault_write")
-    @patch("openbao_utils.bootstrap.vault_read", return_value="already-there")
-    @patch("openbao_utils.bootstrap.prompt_for_value")
+    @patch("openbao_utils.bootstrap.vault_write", autospec=True)
+    @patch("openbao_utils.bootstrap.vault_read", return_value="already-there", autospec=True)
+    @patch("openbao_utils.bootstrap.prompt_for_value", autospec=True)
     def test_skips_an_already_present_vault_entry_without_prompting_or_writing(self, mock_prompt, mock_read, mock_write):
         assert bootstrap.main() == 0
         mock_prompt.assert_not_called()
         mock_write.assert_not_called()
 
     @patch("openbao_utils.bootstrap.hvac.Client", autospec=True)
-    @patch("openbao_utils.bootstrap.vault_write")
-    @patch("openbao_utils.bootstrap.vault_read", return_value=None)
-    @patch("openbao_utils.bootstrap.prompt_for_value", return_value="x")
+    @patch("openbao_utils.bootstrap.vault_write", autospec=True)
+    @patch("openbao_utils.bootstrap.vault_read", return_value=None, autospec=True)
+    @patch("openbao_utils.bootstrap.prompt_for_value", return_value="x", autospec=True)
     def test_temp_ca_file_is_removed_after_use(self, mock_prompt, mock_read, mock_write, mock_client_cls):
         bootstrap.main()
         ca_path = mock_client_cls.call_args.kwargs["verify"]
         assert ca_path, "ca_path should be a real temp-file path, not empty/None"
         assert not Path(ca_path).exists(), "temp CA file should be cleaned up after main() returns"
 
-    @patch("openbao_utils.bootstrap.vault_write")
-    @patch("openbao_utils.bootstrap.vault_read", return_value=None)
-    @patch("openbao_utils.bootstrap.prompt_for_value", side_effect=KeyboardInterrupt)
+    @patch("openbao_utils.bootstrap.vault_write", autospec=True)
+    @patch("openbao_utils.bootstrap.vault_read", return_value=None, autospec=True)
+    @patch("openbao_utils.bootstrap.prompt_for_value", side_effect=KeyboardInterrupt, autospec=True)
     def test_keyboard_interrupt_during_vault_prompt_returns_1_and_does_not_write(self, mock_prompt, mock_read, mock_write):
         assert bootstrap.main() == 1
         mock_write.assert_not_called()

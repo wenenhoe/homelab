@@ -26,7 +26,7 @@ def connected_client(monkeypatch, ssh_client):
 
 class TestConnect:
     @patch("openbao_utils.init_unseal.paramiko.SSHClient", autospec=True)
-    @patch.object(init_unseal, "security_ssh_target", return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key"))
+    @patch.object(init_unseal, "security_ssh_target", return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key"), autospec=True)
     def test_connects_with_the_target_from_utils_repo(self, _mock_target, mock_ssh_client_cls, ssh_client):
         mock_ssh_client_cls.return_value = ssh_client
         init_unseal._connect()
@@ -51,7 +51,7 @@ class TestRunInit:
 
     def test_prints_output_and_succeeds_on_a_clean_exit(self, connected_client):
         connected_client.exec_command.return_value = exec_result(exit_status=0, stdout=b"Unseal Key 1: abc\nInitial Root Token: xyz\n")
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout", autospec=True) as mock_stdout:
             result = init_unseal.run_init()
         assert result == 0
         written = "".join(c.args[0] for c in mock_stdout.write.call_args_list if c.args)
@@ -77,7 +77,7 @@ class TestRunUnsealShare:
 
     def test_requests_a_pty_and_keeps_the_manual_it_command(self, connected_client):
         connected_client.exec_command.return_value = pty_result()
-        with patch("getpass.getpass", return_value="fake-share"):
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
             init_unseal.run_unseal_share()
         args, kwargs = connected_client.exec_command.call_args
         assert f"docker exec -it {init_unseal.OPENBAO_CONTAINER} bao operator unseal" in args[0]
@@ -86,7 +86,7 @@ class TestRunUnsealShare:
     def test_writes_the_share_from_getpass_to_stdin_never_argv(self, connected_client):
         stdin, stdout_stream, stderr_stream = pty_result()
         connected_client.exec_command.return_value = (stdin, stdout_stream, stderr_stream)
-        with patch("getpass.getpass", return_value="fake-unseal-share") as mock_getpass:
+        with patch("getpass.getpass", return_value="fake-unseal-share", autospec=True) as mock_getpass:
             init_unseal.run_unseal_share()
         mock_getpass.assert_called_once()
         stdin.write.assert_called_once_with("fake-unseal-share\n")
@@ -100,7 +100,7 @@ class TestRunUnsealShare:
         # met) exits 0, same as a completing share - see the module
         # docstring. A nonzero exit here is a real failure to surface.
         connected_client.exec_command.return_value = pty_result(exit_status=1)
-        with patch("getpass.getpass", return_value="fake-share"):
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
             result = init_unseal.run_unseal_share()
         assert result == 1
 
@@ -109,7 +109,7 @@ class TestRunUnsealShare:
         # shares accepted, still sealed" - confirmed live, see the
         # module docstring. Either way this function reports success.
         connected_client.exec_command.return_value = pty_result(exit_status=0)
-        with patch("getpass.getpass", return_value="fake-share"):
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
             result = init_unseal.run_unseal_share()
         assert result == 0
 
@@ -122,12 +122,12 @@ class TestRunUnsealShare:
 
 class TestMain:
     def test_dispatches_init(self):
-        with patch.object(init_unseal, "run_init", return_value=0) as mock_run_init, patch.object(sys, "argv", ["prog", "init"]):
+        with patch.object(init_unseal, "run_init", return_value=0, autospec=True) as mock_run_init, patch.object(sys, "argv", ["prog", "init"]):
             assert init_unseal.main() == 0
         mock_run_init.assert_called_once()
 
     def test_dispatches_unseal(self):
-        with patch.object(init_unseal, "run_unseal_share", return_value=0) as mock_run_unseal, patch.object(sys, "argv", ["prog", "unseal"]):
+        with patch.object(init_unseal, "run_unseal_share", return_value=0, autospec=True) as mock_run_unseal, patch.object(sys, "argv", ["prog", "unseal"]):
             assert init_unseal.main() == 0
         mock_run_unseal.assert_called_once()
 

@@ -39,11 +39,11 @@ class TestRotateR2RotationToken:
 
         ok = rotation_r2.rotate_r2_rotation_token()
 
-        # This is the actual fix for the real incident: rolling the
-        # Custom Token in the Console already revoked OLD_TOKEN before
-        # this ever runs — there's no "verify old still works" step to
-        # gate on the way B2/OCI's rotate has, so this must always
-        # prompt and overwrite, never skip because something's cached.
+        # Rolling the Custom Token in the Console already revoked
+        # OLD_TOKEN before this runs, and there is no "verify old still
+        # works" step to gate on as B2/OCI's rotate has, so this must
+        # always prompt and overwrite, never skip because something is
+        # cached.
         assert ok
         mock_prompt.assert_called_once()
         assert rotation_vault.get("_rotation-key-cloudflare-r2-token") == "ROLLED_TOKEN"

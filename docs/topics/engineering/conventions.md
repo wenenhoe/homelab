@@ -129,9 +129,12 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   its I/O methods replaced by `patch.object(obj, "method", autospec=True)`.
   Otherwise a double bound to the real interface: `autospec=True` on a
   replaced function or method, `create_autospec(Class, instance=True)`
-  for an object that cannot be built (a `subprocess.Popen`), and
-  `patch("builtins.name", autospec=True)` for a builtin. A bare `Mock` or
-  `MagicMock` is only for a value handed back unchanged or a callback.
+  for an object that cannot be built (a `subprocess.Popen`),
+  `create_autospec(fn, return_value=...)` for a function placed with
+  `monkeypatch.setattr`, and `patch("builtins.name", autospec=True)` for
+  a builtin. A bare `Mock` or `MagicMock` is only for a value handed back
+  unchanged or a callback. A fake with behaviour of its own (`FakeVault`)
+  and a plain value (a path, an argv list) are not doubles.
 - **Assertions.** A test ends in an assertion on an outcome the code
   under test decides: a returned value, a raised error, or a side effect
   that happened. Three shapes do not meet that:

@@ -6,7 +6,7 @@ title: "What a unit test's doubles are bound to"
 solution: "Use the real object with its I/O methods replaced by autospec'd stand-ins; bind every other double to the real interface with autospec; keep bare mocks for sentinels that have no interface"
 summary: "What a replaced collaborator in a unit test is bound to, so a test fails when the real interface and the code's use of it disagree."
 topic: repository-tooling
-status: approved
+status: accepted
 related: [ADR-0041, ADR-0064, ADR-0069]
 ---
 

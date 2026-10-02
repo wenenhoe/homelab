@@ -300,15 +300,13 @@ class TestTelegramAlert:
     @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")], autospec=True)
     @patch.object(check_freshness.requests, "post", autospec=True)
     def test_uses_html_parse_mode_not_legacy_markdown(self, mock_post, mock_b2, mock_oci, mock_r2):
-        """Regression test for two distinct incidents on legacy Markdown
-        in a row, both confirmed live: an unescaped literal underscore
-        in the static header broke every alert outright (400); after
-        escaping it, Telegram's own documented rule ("escaping inside
-        entities is not allowed") meant the escaped underscore inside
-        the bold *...* span rendered as a literal visible backslash
-        instead of being consumed. HTML mode has neither problem -
-        confirmed here by checking the actual parse_mode and tag shape
-        sent, not just that a message went out."""
+        """Legacy Markdown fails twice over here: an unescaped underscore
+        in the static header makes Telegram reject the alert (400), and
+        an escaped one inside the bold *...* span renders as a literal
+        backslash, because Telegram does not allow escaping inside
+        entities. HTML mode has neither problem. This checks the
+        parse_mode and tag shape actually sent, not just that a message
+        went out."""
         mock_post.return_value = response()
         check_freshness.main()
         data = mock_post.call_args.kwargs["data"]

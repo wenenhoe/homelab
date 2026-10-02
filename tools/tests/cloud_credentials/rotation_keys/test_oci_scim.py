@@ -37,6 +37,12 @@ class TestOciScim:
         assert sent.kwargs["data"] == {"grant_type": "client_credentials", "scope": "urn:opc:idm:__myscopes__"}
 
     @patch.object(oci_scim.requests, "post", autospec=True)
+    def test_access_token_raises_when_the_token_request_is_rejected(self, mock_post):
+        mock_post.return_value = response(401, json_body={"error": "invalid_client"})
+        with pytest.raises(requests.HTTPError, match="401"):
+            oci_scim.oci_scim_access_token("https://x", "cid", "wrong")
+
+    @patch.object(oci_scim.requests, "post", autospec=True)
     def test_session_carries_bearer_token_and_domain_url(self, mock_post):
         mock_post.return_value = response(json_body={"access_token": "tok"})
         session, domain_url = oci_scim.oci_scim_session()

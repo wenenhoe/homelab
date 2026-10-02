@@ -26,6 +26,9 @@ on:  # yamllint disable-line rule:truthy
         type: boolean
         default: true
 
+permissions:
+  contents: read
+
 jobs:
   compose-boot-test:
     if: inputs.apps != '[]'

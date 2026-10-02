@@ -120,7 +120,7 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,
   so a `match=` regex can't pass on the path instead of the message.
-- **Test doubles.** A new or changed test chooses a double in this
+- **Test doubles.** A test chooses a double in this
   order, from
   [ADR 0070](../../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md).
   The real object when it builds without I/O (a `requests.Response`, a

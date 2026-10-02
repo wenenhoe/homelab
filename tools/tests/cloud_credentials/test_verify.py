@@ -56,13 +56,14 @@ class TestRunRcloneWithRetry:
     @patch.object(verify.time, "sleep", autospec=True)
     @patch.object(verify.subprocess, "run", autospec=True)
     def test_retries_on_list_objects_propagation_error_then_succeeds(self, mock_run, mock_sleep):
+        succeeded = self._completed(0)
         mock_run.side_effect = [
             self._completed(1, self.PROPAGATION_ERR_LIST),
             self._completed(1, self.PROPAGATION_ERR_LIST),
-            self._completed(0),
+            succeeded,
         ]
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
-        assert result.returncode == 0
+        assert result is succeeded
         assert mock_run.call_count == 3
         assert mock_sleep.call_count == 2
 
@@ -72,12 +73,13 @@ class TestRunRcloneWithRetry:
         # The write leaf's failure shape — bare 403 Forbidden, no
         # SignatureDoesNotMatch text at all — is the specific case this
         # patch fixes; the previous two-marker gate never retried this.
+        succeeded = self._completed(0)
         mock_run.side_effect = [
             self._completed(1, self.PROPAGATION_ERR_HEAD),
-            self._completed(0),
+            succeeded,
         ]
         result = verify._run_rclone_with_retry(["rclone", "copyto"], timeout=45)
-        assert result.returncode == 0
+        assert result is succeeded
         assert mock_run.call_count == 2
         mock_sleep.assert_called_once()
 
@@ -88,21 +90,23 @@ class TestRunRcloneWithRetry:
         # 401 Unauthorized, no distinguishing text, different status
         # code from OCI's 403s. Confirmed live: 10s to resolve on a
         # throwaway measurement token.
+        succeeded = self._completed(0)
         mock_run.side_effect = [
             self._completed(1, self.PROPAGATION_ERR_R2),
-            self._completed(0),
+            succeeded,
         ]
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
-        assert result.returncode == 0
+        assert result is succeeded
         assert mock_run.call_count == 2
         mock_sleep.assert_called_once()
 
     @patch.object(verify.time, "sleep", autospec=True)
     @patch.object(verify.subprocess, "run", autospec=True)
     def test_does_not_retry_a_non_403_or_401_error(self, mock_run, mock_sleep):
-        mock_run.side_effect = [self._completed(1, self.NON_RETRYABLE_ERR)]
+        failed = self._completed(1, self.NON_RETRYABLE_ERR)
+        mock_run.side_effect = [failed]
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45)
-        assert result.returncode == 1
+        assert result is failed
         mock_run.assert_called_once()
         mock_sleep.assert_not_called()
 
@@ -118,8 +122,9 @@ class TestRunRcloneWithRetry:
     @patch.object(verify.time, "sleep", autospec=True)
     @patch.object(verify.subprocess, "run", autospec=True)
     def test_gives_up_after_exhausting_retries(self, mock_run, mock_sleep):
-        mock_run.return_value = self._completed(1, self.PROPAGATION_ERR_LIST)
+        failed = self._completed(1, self.PROPAGATION_ERR_LIST)
+        mock_run.return_value = failed
         result = verify._run_rclone_with_retry(["rclone", "lsjson"], timeout=45, retries=3, delay=1)
-        assert result.returncode == 1
+        assert result is failed
         assert mock_run.call_count == 3
         assert mock_sleep.call_count == 2  # sleeps between attempts, not after the last

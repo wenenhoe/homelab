@@ -101,6 +101,7 @@ class TestCli:
         code, _, _ = run_main({"NEEDS": json.dumps(needs(**ALL_GOOD)), "MATRIX_JOBS": "molecule\ncompose-boot-test\n"})
         assert code == 0
 
+    # NEEDS is the workflow's `toJSON(needs)` (pr-checks.yml): unset if the step loses its env, any other shape if the expression is edited.
     @pytest.mark.parametrize(
         "value",
         [

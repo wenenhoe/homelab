@@ -185,6 +185,7 @@ def test_malformed_input_raises_an_error_that_names_the_app(app, message):
         app_deploy_plan(app)
 
 
+# An entry of a host's `compose_apps` list in host_vars YAML: a malformed one parses as a string, a list, a number or None.
 @pytest.mark.parametrize("not_an_app", [None, "x", ["a"], 3])
 def test_a_non_mapping_is_rejected(not_an_app):
     with pytest.raises(AnsibleFilterError, match="expected an app mapping"):

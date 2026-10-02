@@ -121,14 +121,14 @@ class TestRunUnsealShare:
 
 
 class TestMain:
-    def test_dispatches_init(self):
-        with patch.object(init_unseal, "run_init", return_value=0, autospec=True) as mock_run_init, patch.object(sys, "argv", ["prog", "init"]):
-            assert init_unseal.main() == 0
+    def test_dispatches_init_and_returns_its_result(self):
+        with patch.object(init_unseal, "run_init", return_value=3, autospec=True) as mock_run_init, patch.object(sys, "argv", ["prog", "init"]):
+            assert init_unseal.main() == 3
         mock_run_init.assert_called_once()
 
-    def test_dispatches_unseal(self):
-        with patch.object(init_unseal, "run_unseal_share", return_value=0, autospec=True) as mock_run_unseal, patch.object(sys, "argv", ["prog", "unseal"]):
-            assert init_unseal.main() == 0
+    def test_dispatches_unseal_and_returns_its_result(self):
+        with patch.object(init_unseal, "run_unseal_share", return_value=4, autospec=True) as mock_run_unseal, patch.object(sys, "argv", ["prog", "unseal"]):
+            assert init_unseal.main() == 4
         mock_run_unseal.assert_called_once()
 
     def test_rejects_an_unknown_action(self):

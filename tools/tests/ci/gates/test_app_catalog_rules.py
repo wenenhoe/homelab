@@ -287,6 +287,7 @@ class TestAgainstTheInventory:
         found = broken_against(override_inventory(override))
         assert [f for f in found if f[0] == "alpha" and f[1] != "backup-host-credentials"] == expected
 
+    # A host's `backup:` override is read from its host_vars YAML, where a typo gives a string or a list and an empty key gives None.
     @pytest.mark.parametrize(
         ("override", "expected"),
         [
@@ -309,6 +310,7 @@ class TestAgainstTheInventory:
         )
         assert rules.backup_hosts(GOOD, inv) == ["alpha", "gamma"]
 
+    # "nulls the block": an app entry whose `backup:` key is left empty in host_vars YAML loads as None.
     @pytest.mark.parametrize(
         ("entries", "expected"),
         [

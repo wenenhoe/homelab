@@ -144,15 +144,15 @@ class TestSendAlert:
 class TestWatch:
     @patch("r2_read_watcher._save_state", autospec=True)
     @patch("r2_read_watcher.subprocess.Popen", autospec=True)
-    def test_calls_send_alert_exactly_once_for_a_matching_line(self, mock_popen, mock_save_state):
+    def test_calls_send_alert_exactly_once_for_a_matching_line_and_returns_the_docker_logs_exit_code(self, mock_popen, mock_save_state):
         mock_proc = mock_popen.return_value
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n", REAL_UNRELATED_LINE + "\n"])
-        mock_proc.wait.return_value = 0
+        mock_proc.wait.return_value = 3
 
         with patch("r2_read_watcher.send_alert", autospec=True) as mock_send:
             rc = watcher.watch({"token": "t", "chat_id": "c", "topic_id": ""}, None)
 
-        assert rc == 0
+        assert rc == 3
         mock_send.assert_called_once()
 
     @patch("r2_read_watcher._save_state", autospec=True)
@@ -160,12 +160,12 @@ class TestWatch:
     def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state, capsys):
         mock_proc = mock_popen.return_value
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n"])
-        mock_proc.wait.return_value = 0
+        mock_proc.wait.return_value = 3
 
         with patch("r2_read_watcher.send_alert", autospec=True) as mock_send:
             rc = watcher.watch(None, None)
 
-        assert rc == 0
+        assert rc == 3
         assert "R2 admin token read" in capsys.readouterr().err
         mock_send.assert_not_called()
 

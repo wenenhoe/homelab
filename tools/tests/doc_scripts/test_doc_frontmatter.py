@@ -132,6 +132,7 @@ class TestRevisionValidation:
         with pytest.raises(SystemExit):
             fm_mod.read_frontmatter(revision(root, "0100-y", 1, **overrides))
 
+    # `ref_label` reads a frontmatter field, so the value is whatever YAML parses: an unquoted 0 is an int, a bare key is None, 1.5 a float.
     @pytest.mark.parametrize(
         ("value", "expected"),
         [
@@ -245,6 +246,7 @@ class TestProjectValidation:
         ok = project(root, "ok", allowed_paths=["src/**", "tools/doc_scripts/doc_*.py", "README.md"])
         assert len(fm_mod.read_frontmatter(ok)["allowed_paths"]) == 3
 
+    # `allowed_paths` is a frontmatter field: YAML gives a bare string, or a list holding a number, wherever it is written wrongly.
     @pytest.mark.parametrize(
         "value",
         [

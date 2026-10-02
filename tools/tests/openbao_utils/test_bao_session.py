@@ -88,10 +88,10 @@ class TestWarnOnVersionMismatch:
 
 
 class TestSpawnSession:
-    @patch("openbao_utils.bao_session.subprocess.call", return_value=0, autospec=True)
-    def test_spawns_the_env_shell(self, mock_call):
+    @patch("openbao_utils.bao_session.subprocess.call", return_value=7, autospec=True)
+    def test_spawns_the_env_shell_and_returns_its_exit_code(self, mock_call):
         env = {"SHELL": "/bin/zsh", "BAO_TOKEN": "x"}
-        assert bao_session.spawn_session(env) == 0
+        assert bao_session.spawn_session(env) == 7
         mock_call.assert_called_once_with(["/bin/zsh"], env=env)
 
     @patch("openbao_utils.bao_session.subprocess.call", autospec=True)

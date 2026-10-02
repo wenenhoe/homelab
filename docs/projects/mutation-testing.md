@@ -2,31 +2,35 @@
 id: PROJ-mutation-testing
 title: "Mutation Testing"
 type: project
-status: not-started
+status: de-risking
 blocked: false
-summary: "Spike whether mutmut adds signal on the pure-logic modules, and decide whether the mutation-comparison script becomes a repo tool."
+summary: "Decide where a mutmut survey of the credential tooling runs and what it writes; the mutation-comparison script stays out of this repo."
 ---
 
 # Mutation Testing
 
-Answers two questions the unit-test quality passes left open, and the first
-gates the second: whether mutation testing finds weak tests that review and
-the suite do not, and whether the script that compares old and new tests
-against mutants of the code under test earns a place in the repo. Staged
-because the spike is throwaway and the tool, if it is kept, needs its own
-decision first.
+Whether mutation testing finds weak tests that review and the suite do not.
+A throwaway spike answered it: it does, on the modules that handle
+credentials. What is left is where the survey runs and what it writes. It
+runs from `homelab-security`, not here, because its output is a list of the
+behaviours no test guards, and that list does not belong in a public
+repository's history, logs or artifacts. The script that compares old and
+new tests against mutants of the code under test is not adopted into this
+repo; it stays a private tool for the rare change that rewrites tests
+without changing the code under test.
 
 ## Scope
 
-A throwaway `mutmut` run on the pure-logic modules under `tools/`, a
-decision on the comparison script, and, only if that decision keeps it, its
-adoption as a tool with a home, a doc and a test. Not in scope: changing
-tests or the code under test because a mutant survived; each of those is a
-change of its own.
+A scheduled `mutmut` survey of the Python under `tools/`, run from
+`homelab-security` the way [ADR 0071](../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md)
+runs its image scan, with its results kept there. The ADR that decides it,
+and the workflow that implements it. Not in scope: changing tests or the
+code under test because a mutant survived, which is an ordinary change of
+its own; hosting the comparison script in this repo.
 
 ## Decision
 
-None yet. [ADR 0069](../decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md) and [ADR 0070](../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md) leave mutation testing out and say a spike answers whether it adds signal before any decision. Stage 2 writes the ADR if the answer is to keep either tool.
+None yet. [ADR 0069](../decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md) and [ADR 0070](../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md) leave mutation testing out and say a spike answers whether it adds signal before any decision. Stage 2 writes the ADR.
 
 ## Execution plan
 
@@ -34,24 +38,26 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `mutmut` spike | Not started | `mutmut` has run on at least two pure-logic modules whose tests were reviewed in the quality passes, and the result states what it caught that the existing mutation-comparison script and review did not, with the run's cost in time. |
-| 2 | Decide what is kept | Not started | An ADR revision states whether `mutmut`, the comparison script, both or neither is a standing tool, when a change must run it, and where it lives. |
-| 3 | Adopt | Not started | Each tool the ADR keeps is in the repo with a doc and a test, and the ADR is `accepted`. Skipped, with this project closed, if the answer is neither. |
+| 1 | `mutmut` spike | Done | `mutmut` has run on at least two pure-logic modules whose tests were reviewed in the quality passes, and its result is known in aggregate: mutants run, killed and surviving, the run's time, and what running it here needs. The surviving mutants themselves stay private. |
+| 2 | Decide where the survey runs | Not started | An ADR revision states where `mutmut` runs, which modules it covers, what it writes and where, how the run that executes this repo's tests is kept from holding a write credential, and that the comparison script is not a repo tool. It records the spike's result as aggregates only. |
+| 3 | Build the survey | Not started | The survey runs on a schedule in `homelab-security`, its first run's output has been triaged by the maintainer, and the ADR is `accepted`. |
 
 ## Acceptance criteria
 
-- [ ] Stage 1's result is recorded in the ADR revision of stage 2, not left in a chat or a private copy.
-- [ ] Every tool the ADR keeps is in the repo, documented in a topic doc, and covered by a test under ADR 0064.
-- [ ] Any rule that makes a test-editing change run a tool is written in the Python unit tests section of [`conventions.md`](../topics/engineering/conventions.md).
+- [ ] The ADR records the spike's result as aggregates only, never a surviving mutant or the test that missed it.
+- [ ] The survey runs on a schedule in `homelab-security` and writes only there; nothing from a run reaches this repo's history, logs or artifacts.
+- [ ] This repo carries no `mutmut` configuration, import-path workaround or mutants directory.
 
 ## Risks
 
-- Until stage 2 is decided, the mutation comparison is a script kept outside this repo, and no repo rule requires it. A change that edits what a test asserts is checked by review and the suite alone unless its author runs it.
-- The comparison script is tied to the `tools/` and `ansible/` test layout through a path pattern in its harness; moving it into the repo means deciding whether to generalise that or keep it local.
+- The survey executes this repo's code and tests in the private repo's CI. The run must hold no write credential, as [ADR 0071](../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md) does for the job that runs code taken from this repo.
+- `mutmut` keys a mutant by file path, and this repo imports through `pythonpath` roots, so it needs a flat copy of the packages to run. That wrapper lives with the survey, not here.
+- The comparison script is a private tool, and no repo rule requires it. A change that edits what a test asserts is checked by review and the suite alone unless its author runs it. A future project that rewrites tests without changing the code under test names the comparison in its required checks, as the unit-test quality passes did.
 
 ## Open items
 
-- Whether the comparison script's operators (comparison swaps, boolean flips, dropped returns and raises, string and integer constants) should be extended to call arguments, default arguments and slicing, which it does not mutate today. Settle it in stage 2, after the spike shows what `mutmut` reaches that it does not.
+- Whether survey results use the tracker's finding schema or separate records with their own validator, as ADR 0071's do, and the filter that keeps a run's output small enough to triage. Settle it in stage 2.
+- Whether running `mutmut` once with the old tests and once with the new, and diffing which mutants each killed, can stand in for the comparison script on a test-only change. Check it by replaying one past test-only change through both tools before relying on it.
 
 ## Closing checklist
 

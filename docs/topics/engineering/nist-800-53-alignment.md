@@ -11,8 +11,8 @@ individual docs with a label that then has to be kept in sync forever
 [ADR 0028](../../decisions/0028-doc-metadata-and-governance/revision-000.md)
 for why per-doc tagging was tried and rejected).
 
-Six controls were checked against actual repo content, not assumed
-from the control's title. Five had a real, specific match. One didn't
+Seven controls were checked against actual repo content, not assumed
+from the control's title. Six had a real, specific match. One didn't
 and says so below, rather than being quietly dropped.
 
 ## RA-3 — Risk Assessment
@@ -25,6 +25,24 @@ documentation habit instead of a formal risk register. A revision
 can't be `approved` while any entry remains; a resolved one folds into
 Context and is deleted (see
 [`docs/decisions/README.md#assumptions`](../../decisions/README.md#assumptions)).
+
+## RA-5 — Vulnerability Monitoring and Scanning
+
+[ADR 0071](../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md)
+decides a weekly scan of every deployed container image, ranked by how
+reachable each image is and what its compromise would grant. That is
+RA-5's intent — monitor for vulnerabilities on a defined schedule,
+analyze what the scans find, and remediate by risk — in the places this
+repo can act. The scan is checked against the repo's own image inventory,
+so a gap in coverage is visible; each run records how fresh the
+vulnerability database it used was; and each fixable finding is tracked
+from its first sighting, so the time to remediate is measurable against
+a target set per priority band. See
+[`security-scanning.md`](security-scanning.md#image-vulnerability-assessment).
+
+What it isn't: it covers container images only, not host operating
+systems; the remediation targets are measured, not enforced; and a fixed
+package version doesn't mean a published image carries the fix.
 
 ## CM-2 — Baseline Configuration
 

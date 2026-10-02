@@ -35,7 +35,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `cd_agent` host — dedicated LAN box, fixed IP, pollers for deploy/maintenance/rotation/freshness/security-reporting (mechanism per ADR 0044) | Not started | ADR 0044 is settled (one candidate approved) and `decision:` is set; the host runs the deploy, maintenance, rotation, and freshness jobs with zero inbound ports |
+| 1 | `cd_agent` host — dedicated LAN box, fixed IP, pollers for deploy/maintenance/rotation/freshness (mechanism per ADR 0044) | Not started | ADR 0044 is settled (one candidate approved) and `decision:` is set; the host runs the deploy, maintenance, rotation, and freshness jobs with zero inbound ports |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -44,7 +44,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 A dedicated LAN host, fixed IP, zero inbound ports, running
 systemd-timer pollers that invoke `preloop` against GitHub
 Actions-format workflow files for deploy/maintenance/rotation/
-freshness/security-reporting jobs. `preloop`'s CLI event-flag behavior beyond bare
+freshness jobs. `preloop`'s CLI event-flag behavior beyond bare
 `pull_request` is unverified — needs a spike before this stage's
 deploy/rotation jobs are built on it. See the
 [working decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md)
@@ -77,16 +77,6 @@ against it.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,
   and whether "rotation" means alert-only or full rotate-and-revoke,
   isn't scoped yet.
-- A weekly security-reporting job: Trivy image scanning, redesigned as
-  a PDF report sent to Telegram (trend visibility, not a CI gate) —
-  needs `cd_agent` specifically for its Telegram secret access, which
-  is why this wasn't feasible from `controller`. Previous CI-integrated
-  image scanning was dropped for being mostly non-actionable noise
-  (third-party images awaiting upstream rebuilds) — see
-  [`security-scanning.md`](../topics/engineering/security-scanning.md#why-no-image-cve-scanning).
-  This reframes the same capability as informational rather than
-  actionable, which may sidestep that problem. Not scoped beyond the
-  idea yet.
 - The shared SSH private key across every managed host (and possibly
   the maintainer's laptop) hasn't been split into a `cd_agent`-only
   key.

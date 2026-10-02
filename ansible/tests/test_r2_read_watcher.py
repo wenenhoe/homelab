@@ -97,7 +97,7 @@ class TestMatchR2Read:
 
 
 class TestSendAlert:
-    @patch("r2_read_watcher.requests.post")
+    @patch("r2_read_watcher.requests.post", autospec=True)
     def test_includes_topic_id_when_present(self, mock_post):
         mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": "42"}
@@ -108,7 +108,7 @@ class TestSendAlert:
         _, kwargs = mock_post.call_args
         assert kwargs["data"]["message_thread_id"] == "42"
 
-    @patch("r2_read_watcher.requests.post")
+    @patch("r2_read_watcher.requests.post", autospec=True)
     def test_omits_topic_id_when_blank(self, mock_post):
         mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
@@ -119,7 +119,7 @@ class TestSendAlert:
         _, kwargs = mock_post.call_args
         assert "message_thread_id" not in kwargs["data"]
 
-    @patch("r2_read_watcher.requests.post")
+    @patch("r2_read_watcher.requests.post", autospec=True)
     def test_escapes_html_special_characters_in_match_fields(self, mock_post):
         mock_post.return_value = _ok_response()
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
@@ -131,7 +131,7 @@ class TestSendAlert:
         assert "<script>" not in kwargs["data"]["text"]
         assert "&lt;script&gt;" in kwargs["data"]["text"]
 
-    @patch("r2_read_watcher.requests.post", side_effect=watcher.requests.RequestException("boom"))
+    @patch("r2_read_watcher.requests.post", side_effect=watcher.requests.RequestException("boom"), autospec=True)
     def test_a_failed_send_is_reported_on_stderr_not_raised(self, mock_post, capsys):
         telegram = {"token": "t", "chat_id": "c", "topic_id": ""}
         match = {"time": "now", "role_name": "controller", "display_name": "approle", "remote_address": "1.2.3.4"}
@@ -142,27 +142,27 @@ class TestSendAlert:
 
 
 class TestWatch:
-    @patch("r2_read_watcher._save_state")
+    @patch("r2_read_watcher._save_state", autospec=True)
     @patch("r2_read_watcher.subprocess.Popen", autospec=True)
     def test_calls_send_alert_exactly_once_for_a_matching_line(self, mock_popen, mock_save_state):
         mock_proc = mock_popen.return_value
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n", REAL_UNRELATED_LINE + "\n"])
         mock_proc.wait.return_value = 0
 
-        with patch("r2_read_watcher.send_alert") as mock_send:
+        with patch("r2_read_watcher.send_alert", autospec=True) as mock_send:
             rc = watcher.watch({"token": "t", "chat_id": "c", "topic_id": ""}, None)
 
         assert rc == 0
         mock_send.assert_called_once()
 
-    @patch("r2_read_watcher._save_state")
+    @patch("r2_read_watcher._save_state", autospec=True)
     @patch("r2_read_watcher.subprocess.Popen", autospec=True)
     def test_never_alerts_when_telegram_secrets_are_unavailable(self, mock_popen, mock_save_state, capsys):
         mock_proc = mock_popen.return_value
         mock_proc.stdout = iter([REAL_R2_REQUEST_LINE + "\n"])
         mock_proc.wait.return_value = 0
 
-        with patch("r2_read_watcher.send_alert") as mock_send:
+        with patch("r2_read_watcher.send_alert", autospec=True) as mock_send:
             rc = watcher.watch(None, None)
 
         assert rc == 0
@@ -230,12 +230,12 @@ class TestFetchTelegramSecrets:
 
 
 class TestMain:
-    @patch("r2_read_watcher.watch", return_value=0)
-    @patch("r2_read_watcher._load_state", return_value=None)
-    @patch("r2_read_watcher._fetch_telegram_secrets")
-    @patch("r2_read_watcher._vault_login")
+    @patch("r2_read_watcher.watch", return_value=0, autospec=True)
+    @patch("r2_read_watcher._load_state", return_value=None, autospec=True)
+    @patch("r2_read_watcher._fetch_telegram_secrets", autospec=True)
+    @patch("r2_read_watcher._vault_login", autospec=True)
     @patch("r2_read_watcher.hvac.Client", autospec=True)
-    @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"])
+    @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"], autospec=True)
     def test_builds_one_client_and_threads_it_through_login_and_fetch(
         self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch
     ):
@@ -249,12 +249,12 @@ class TestMain:
         assert kwargs["verify"] is False
         assert kwargs["timeout"] == watcher._TIMEOUT_SECONDS
 
-    @patch("r2_read_watcher.watch", return_value=0)
-    @patch("r2_read_watcher._load_state", return_value=None)
-    @patch("r2_read_watcher._fetch_telegram_secrets", return_value={"token": "t", "chat_id": "c", "topic_id": ""})
-    @patch("r2_read_watcher._vault_login")
+    @patch("r2_read_watcher.watch", return_value=0, autospec=True)
+    @patch("r2_read_watcher._load_state", return_value=None, autospec=True)
+    @patch("r2_read_watcher._fetch_telegram_secrets", return_value={"token": "t", "chat_id": "c", "topic_id": ""}, autospec=True)
+    @patch("r2_read_watcher._vault_login", autospec=True)
     @patch("r2_read_watcher.hvac.Client", autospec=True)
-    @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"])
+    @patch("r2_read_watcher._read_file", side_effect=["some-role-id", "some-secret-id"], autospec=True)
     def test_passes_fetched_telegram_secrets_and_prior_state_to_watch(
         self, mock_read_file, mock_client_cls, mock_login, mock_fetch, mock_load_state, mock_watch
     ):

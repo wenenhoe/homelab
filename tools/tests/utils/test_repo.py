@@ -11,7 +11,7 @@ here - see that module's own comment on why.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import create_autospec, patch
 
 import pytest
 from _ssh_objects import exec_result
@@ -72,7 +72,11 @@ class TestFetchRootCert:
     @pytest.fixture(autouse=True)
     def _main_domain_and_ssh_target(self, secrets_dir, monkeypatch):
         secrets_dir.seed("main-domain", "example.com")
-        monkeypatch.setattr(repo, "security_ssh_target", lambda: ("secadmin", "security.internal.example.com", "/home/x/.ssh/key"))
+        monkeypatch.setattr(
+            repo,
+            "security_ssh_target",
+            create_autospec(repo.security_ssh_target, return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key")),
+        )
 
     @patch("utils.repo.paramiko.SSHClient", autospec=True)
     def test_returns_stdout_on_success(self, mock_ssh_client_cls, ssh_client):

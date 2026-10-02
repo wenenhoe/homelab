@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import io
 from contextlib import redirect_stderr, redirect_stdout
-from unittest.mock import MagicMock
+from unittest.mock import create_autospec
 
 import pytest
 from ci.gates import app_catalog_rules as rules
@@ -368,7 +368,7 @@ def run_main(tmp_path_factory, monkeypatch):
         out, err = io.StringIO(), io.StringIO()
         loader = {"side_effect": inv} if isinstance(inv, Exception) else {"return_value": inv or inventory()}
         monkeypatch.setattr(rules, "CATALOG_PATH", path)
-        monkeypatch.setattr(rules, "load_backup_inventory", MagicMock(**loader))
+        monkeypatch.setattr(rules, "load_backup_inventory", create_autospec(rules.load_backup_inventory, **loader))
         with redirect_stdout(out), redirect_stderr(err):
             code = rules.main()
         return code, out.getvalue(), err.getvalue()

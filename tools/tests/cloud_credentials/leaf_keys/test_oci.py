@@ -107,13 +107,12 @@ class TestOciRotation:
 
     @patch.object(oci, "oci_identity_domains_client", autospec=True)
     def test_missing_scim_id_alone_is_not_treated_as_already_done(self, mock_client_factory, vault, identity_domains_client):
-        """Regression test for a real incident: oci-{leaf}-access-key
-        and -secret-key existed but -scim-id didn't (from a run that
-        predates this cache key, or an interrupted write), and the old
-        two-field check treated that leaf as permanently 'done' -
-        silently never backfilling the missing scim-id, which then made
-        openbao_utils/audit.py misreport the actually-in-use key as an
-        ORPHAN, since it had nothing to compare it against."""
+        """A leaf cached with its access and secret keys but no scim-id
+        (a run that predates this cache key, or an interrupted write)
+        is not done. The two-field check this replaced skipped it
+        forever, so the scim-id was never backfilled and
+        openbao_utils/audit.py reported the key in use as an ORPHAN,
+        with nothing to compare it against."""
         vault.seed("oci-write-access-key", "STALE_ACCESS_NO_SCIM_ID")
         vault.seed("oci-write-secret-key", "STALE_SECRET_NO_SCIM_ID")
         # oci-write-scim-id deliberately not seeded.

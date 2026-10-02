@@ -11,6 +11,10 @@ pointed to instead.
   lifecycle and the stop conditions.
 - [`docs/README.md`](docs/README.md) — where each kind of doc goes, and
   the public-repo rule.
+- [`docs/topics/engineering/conventions.md`](docs/topics/engineering/conventions.md)
+  — naming and structural rules that span components, including the
+  Python unit test conventions (style, fixtures, test doubles,
+  assertions). Read it before writing or changing a test.
 
 Before implementing a project, open its `decision:` revision.
 `approved` means proceed; anything else means stop and ask.

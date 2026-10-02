@@ -17,6 +17,10 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   contents: read
 
+concurrency:
+  group: boot-test-all
+  cancel-in-progress: false
+
 jobs:
   list-apps:
     runs-on: ubuntu-26.04

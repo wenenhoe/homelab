@@ -54,7 +54,7 @@ class TestDumpHostsScope:
         catalog_file.write_text("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         dest = tmp / "out"
         dest.mkdir()
-        with patch.object(dump, "CATALOG_PATH", catalog_file), patch.object(dump, "read_vault_path", return_value="v"):
+        with patch.object(dump, "CATALOG_PATH", catalog_file), patch.object(dump, "read_vault_path", return_value="v", autospec=True):
             written, blank = dump._dump_hosts_scope(dest)
         assert written == []
         assert blank == []
@@ -69,7 +69,7 @@ class TestDumpHostsScope:
             calls.append(path)
             return "the-token"
 
-        with patch.object(dump, "CATALOG_PATH", catalog_file), patch.object(dump, "read_vault_path", side_effect=fake_read):
+        with patch.object(dump, "CATALOG_PATH", catalog_file), patch.object(dump, "read_vault_path", side_effect=fake_read, autospec=True):
             written, _blank = dump._dump_hosts_scope(dest)
 
         assert written == ["telegram-token"]
@@ -82,7 +82,7 @@ class TestOciMisfileCheck:
         def fake_read(path: str) -> str | None:
             return "user-ocid-value" if path.startswith("cloud_credentials/leaf/") else None
 
-        with patch.object(dump, "read_vault_path", side_effect=fake_read):
+        with patch.object(dump, "read_vault_path", side_effect=fake_read, autospec=True):
             report = dump._check_oci_leaf_user_ocid_misfile()
 
         assert "rotation/ (expected): MISSING" in report
@@ -92,7 +92,7 @@ class TestOciMisfileCheck:
         def fake_read(path: str) -> str | None:
             return "super-secret-ocid" if path.startswith("cloud_credentials/leaf/") else None
 
-        with patch.object(dump, "read_vault_path", side_effect=fake_read):
+        with patch.object(dump, "read_vault_path", side_effect=fake_read, autospec=True):
             report = dump._check_oci_leaf_user_ocid_misfile()
 
         assert "super-secret-ocid" not in report
@@ -105,8 +105,8 @@ class TestMain:
         with (
             patch.object(dump, "CATALOG_PATH", catalog_file),
             patch.object(dump, "LEGACY_CACHE_KEYS", []),
-            patch.object(dump, "read_vault_path", return_value=None),
-            patch.object(Path, "home", return_value=tmp),
+            patch.object(dump, "read_vault_path", return_value=None, autospec=True),
+            patch.object(Path, "home", return_value=tmp, autospec=True),
         ):
             rc = dump.main()
         assert rc == 0
@@ -118,7 +118,7 @@ class TestMain:
         # _backup_dir() is timestamped, but exist_ok=False is the actual
         # guarantee - assert the real failure mode, not just that two
         # calls happen to get different timestamps.
-        with patch.object(dump, "_backup_dir", return_value=tmp / "collision"):
+        with patch.object(dump, "_backup_dir", return_value=tmp / "collision", autospec=True):
             (tmp / "collision").mkdir()
             catalog_file = tmp / "catalog.yaml"
             catalog_file.write_text("secret_catalog: {}\n")

@@ -106,6 +106,7 @@ def test_inputs_are_not_modified_and_results_share_no_list_with_them():
     assert defaults_before == DEFAULTS
 
 
+# `resolved_apps` and `backup_defaults` reach the filter from host_vars and group_vars YAML through Jinja, so a typo there arrives as the wrong type.
 @pytest.mark.parametrize(
     ("resolved_apps", "defaults", "message"),
     [

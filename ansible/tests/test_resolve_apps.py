@@ -89,6 +89,7 @@ def test_inputs_are_not_modified():
     assert apps == apps_before
 
 
+# `compose_apps` comes from a host's host_vars YAML and `app_catalog` from group_vars: a malformed file arrives as the wrong type or None.
 @pytest.mark.parametrize(
     ("compose_apps", "catalog", "message"),
     [

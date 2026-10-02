@@ -34,34 +34,24 @@ class TestClassifyRestore:
         assert verdict.ok
         assert verdict.message.startswith("OK:")
 
-    def test_remote_addr_in_the_log_is_the_regression(self):
-        verdict = do.classify_restore(2, "UNREACHABLE! => {remote_addr: None}\n" + GOOD_LOG)
+    @pytest.mark.parametrize(
+        ("exit_code", "log", "message"),
+        [
+            pytest.param(2, "UNREACHABLE! => {remote_addr: None}\n" + GOOD_LOG, "ordering regression", id="remote-addr-in-the-log"),
+            pytest.param(2, "error: 'secrets_generated' is undefined\n", "ordering regression", id="secrets-generated-undefined-on-one-line"),
+            # grep -E matched per line, and so does this: the two words must share one.
+            pytest.param(2, "secrets_generated\nis undefined\n", "not with the expected", id="secrets-generated-and-undefined-on-different-lines"),
+            pytest.param(0, GOOD_LOG, "succeeded instead", id="success-even-with-the-message-in-the-log"),
+            pytest.param(2, "fatal: something else broke\n", "not with the expected", id="failure-without-the-archive-message"),
+        ],
+    )
+    def test_a_restore_that_did_not_fail_as_expected_is_an_error(self, exit_code, log, message):
+        verdict = do.classify_restore(exit_code, log)
         assert not verdict.ok
-        assert "ordering regression" in verdict.message
-
-    def test_secrets_generated_undefined_on_one_line_is_the_regression(self):
-        verdict = do.classify_restore(2, "error: 'secrets_generated' is undefined\n")
-        assert not verdict.ok
-        assert "ordering regression" in verdict.message
-
-    def test_secrets_generated_and_undefined_on_different_lines_is_not_the_signature(self):
-        # grep -E matched per line, and so does this: the two words must share one.
-        verdict = do.classify_restore(2, "secrets_generated\nis undefined\n")
-        assert not verdict.ok
-        assert "not with the expected" in verdict.message
+        assert message in verdict.message
 
     def test_regression_signature_wins_over_the_expected_message(self):
         assert "ordering regression" in do.classify_restore(2, GOOD_LOG + "remote_addr\n").message
-
-    def test_success_is_an_error_even_with_the_message_in_the_log(self):
-        verdict = do.classify_restore(0, GOOD_LOG)
-        assert not verdict.ok
-        assert "succeeded instead" in verdict.message
-
-    def test_failure_without_the_archive_message_is_an_error(self):
-        verdict = do.classify_restore(2, "fatal: something else broke\n")
-        assert not verdict.ok
-        assert "not with the expected" in verdict.message
 
     def test_regression_signature_is_checked_before_the_exit_code(self):
         assert "ordering regression" in do.classify_restore(0, "remote_addr\n").message

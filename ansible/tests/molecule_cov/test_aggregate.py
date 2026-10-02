@@ -15,6 +15,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from molecule_cov import aggregate as agg
 
 TASK_FILE = "/repo/ansible/roles/sample/tasks/main.yaml"
@@ -169,8 +170,5 @@ def test_branch_never_negated_when_only_ever_true(tmp_path):
 def test_missing_inventory_file_raises_filenotfounderror(tmp_path):
     role_dir = tmp_path / "sample"
     role_dir.mkdir()
-    try:
+    with pytest.raises(FileNotFoundError, match=r"run inventory\.py for this role first"):
         agg.compute_coverage(role_dir)
-        raise AssertionError("expected FileNotFoundError")
-    except FileNotFoundError:
-        pass

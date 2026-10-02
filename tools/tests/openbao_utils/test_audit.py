@@ -13,53 +13,50 @@ files left on disk), so AuditLocalTests still seeds real files there.
 from __future__ import annotations
 
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import create_autospec, patch
 
 import pytest
+from _responses import response
+from _sessions import stubbed_session
 from openbao_utils import audit
-
-
-def _mock_response(status_code: int, json_body: dict | None = None):
-    resp = MagicMock(status_code=status_code, text=str(json_body))
-    resp.json.return_value = json_body or {}
-    resp.raise_for_status = MagicMock() if status_code < 400 else MagicMock(side_effect=Exception(str(status_code)))
-    return resp
 
 
 @pytest.fixture
 def cached_values(monkeypatch) -> dict[str, str]:
     values: dict[str, str] = {}
-    monkeypatch.setattr(audit, "cached", MagicMock(side_effect=lambda name: values.get(name)))
+    monkeypatch.setattr(audit, "cached", create_autospec(audit.cached, side_effect=lambda name: values.get(name)))
     return values
 
 
 class TestAuditOci:
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", side_effect=SystemExit(1))
-    def test_no_scim_credentials_returns_gracefully_without_crashing(self, mock_session, cached_values):
-        audit.audit_oci()  # must not raise
+    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", side_effect=SystemExit(1), autospec=True)
+    def test_no_scim_credentials_stops_after_the_header(self, mock_session, cached_values, capsys):
+        audit.audit_oci()
 
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session")
+        assert capsys.readouterr().out.strip() == "== OCI customer secret keys (write + read leaves) =="
+
+    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", autospec=True)
     def test_leaf_without_cached_user_ocid_is_skipped(self, mock_session, cached_values):
         # Neither _oci-leaf-user-ocid-write nor -read seeded.
-        session = MagicMock()
+        session = stubbed_session()
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout", autospec=True) as mock_stdout:
             audit.audit_oci()
 
         session.get.assert_not_called()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
         assert "no cached user OCID, skipping" in printed
 
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session")
+    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", autospec=True)
     def test_active_key_matches_cached_scim_id_orphan_does_not(self, mock_session, cached_values):
         cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
         cached_values["oci-write-scim-id"] = "scim-active"
-        session = MagicMock()
+        session = stubbed_session()
 
         def get_side_effect(url, params=None):
             if "user.ocid eq" in params.get("filter", ""):
-                return _mock_response(
+                return response(
                     200,
                     {
                         "Resources": [
@@ -68,12 +65,12 @@ class TestAuditOci:
                         ]
                     },
                 )
-            return _mock_response(200, {"Resources": []})
+            return response(200, {"Resources": []})
 
         session.get.side_effect = get_side_effect
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout", autospec=True) as mock_stdout:
             audit.audit_oci()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -83,11 +80,11 @@ class TestAuditOci:
         assert "ORPHAN" in printed
         assert "DELETE https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-orphan" in printed
 
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session")
+    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", autospec=True)
     def test_filter_query_scoped_to_the_correct_leaf_user(self, mock_session, cached_values):
         cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
-        session = MagicMock()
-        session.get.return_value = _mock_response(200, {"Resources": []})
+        session = stubbed_session()
+        session.get.return_value = response(200, {"Resources": []})
         mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         audit.audit_oci()
@@ -101,7 +98,7 @@ class TestCachedDispatch:
     LEGACY_CACHE_KEYS-mapped module rather than any local file."""
 
     def test_reads_via_the_names_own_module(self):
-        with patch.object(audit._CACHE_MODULE_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123") as mock_read:
+        with patch.object(audit._CACHE_MODULE_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123", autospec=True) as mock_read:
             assert audit.cached("cloudflare-r2-account-id") == "acct-123"
         mock_read.assert_called_once_with("cloudflare-r2-account-id")
 
@@ -139,7 +136,7 @@ class TestAuditLocal:
         env.seed("cloudflare-r2-write-access-key", "abc")
         env.seed("cloudflare-r2-write-secret-key", "def")
 
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout", autospec=True) as mock_stdout:
             audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -151,7 +148,7 @@ class TestAuditLocal:
         env.seed("cloudflare-r2-write-secret-key", "def")
         env.seed("some-leftover-from-a-naming-change", "stale")
 
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout", autospec=True) as mock_stdout:
             audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -173,7 +170,7 @@ class TestAuditLocal:
 
         env.seed("lldap-jwt-secret", "stale-pre-vault-value")
 
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout", autospec=True) as mock_stdout:
             audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -199,7 +196,7 @@ class TestAuditLocal:
         env.seed("cloudflare-r2-write-access-key", "abc")
         env.seed("cloudflare-r2-write-secret-key", "def")
 
-        with patch("sys.stdout") as mock_stdout:
+        with patch("sys.stdout", autospec=True) as mock_stdout:
             audit.audit_local()
 
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -207,9 +204,9 @@ class TestAuditLocal:
 
 
 def _mock_b2_session(keys):
-    auth_resp = _mock_response(200, {"authorizationToken": "tok", "apiUrl": "https://api.example.com", "accountId": "acct"})
-    list_resp = _mock_response(200, {"keys": keys})
-    session = MagicMock()
+    auth_resp = response(200, {"authorizationToken": "tok", "apiUrl": "https://api.example.com", "accountId": "acct"})
+    list_resp = response(200, {"keys": keys})
+    session = stubbed_session()
     session.get.return_value = list_resp
     return auth_resp, session
 
@@ -237,9 +234,9 @@ class TestAuditB2:
     def test_openbao_snapshot_write_leaf_is_active_not_orphan(self):
         auth_resp, session = _mock_b2_session([{"applicationKeyId": "snapshot-write-key-id", "keyName": "openbao-snapshot-write"}])
         with (
-            patch("openbao_utils.audit.requests.get", return_value=auth_resp),
-            patch("openbao_utils.audit.requests.Session", return_value=session),
-            patch("sys.stdout") as mock_stdout,
+            patch("openbao_utils.audit.requests.get", return_value=auth_resp, autospec=True),
+            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
+            patch("sys.stdout", autospec=True) as mock_stdout,
         ):
             audit.audit_b2()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -249,9 +246,9 @@ class TestAuditB2:
     def test_openbao_snapshot_readonly_is_active_matched_by_name(self):
         auth_resp, session = _mock_b2_session([{"applicationKeyId": "some-other-id", "keyName": "openbao-snapshot-readonly"}])
         with (
-            patch("openbao_utils.audit.requests.get", return_value=auth_resp),
-            patch("openbao_utils.audit.requests.Session", return_value=session),
-            patch("sys.stdout") as mock_stdout,
+            patch("openbao_utils.audit.requests.get", return_value=auth_resp, autospec=True),
+            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
+            patch("sys.stdout", autospec=True) as mock_stdout,
         ):
             audit.audit_b2()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -261,9 +258,9 @@ class TestAuditB2:
     def test_genuinely_unknown_key_is_still_flagged_orphan(self):
         auth_resp, session = _mock_b2_session([{"applicationKeyId": "mystery-id", "keyName": "some-leftover-key"}])
         with (
-            patch("openbao_utils.audit.requests.get", return_value=auth_resp),
-            patch("openbao_utils.audit.requests.Session", return_value=session),
-            patch("sys.stdout") as mock_stdout,
+            patch("openbao_utils.audit.requests.get", return_value=auth_resp, autospec=True),
+            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
+            patch("sys.stdout", autospec=True) as mock_stdout,
         ):
             audit.audit_b2()
         printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
@@ -272,13 +269,13 @@ class TestAuditB2:
 
 
 def _run_r2_with_tokens(tokens):
-    resp = _mock_response(200, {"success": True, "result": tokens})
-    session = MagicMock()
+    resp = response(200, {"success": True, "result": tokens})
+    session = stubbed_session()
     session.get.return_value = resp
     with (
-        patch("openbao_utils.audit.requests.Session", return_value=session),
-        patch("openbao_utils.audit.getpass.getpass", return_value="admin-token"),
-        patch("sys.stdout") as mock_stdout,
+        patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
+        patch("openbao_utils.audit.getpass.getpass", return_value="admin-token", autospec=True),
+        patch("sys.stdout", autospec=True) as mock_stdout,
     ):
         audit.audit_r2()
     return "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)

@@ -7,23 +7,13 @@ the b2sdk B2Api boundary (Stage 3, docs/projects/cloud-credentials-hardening.md)
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from b2sdk.v2 import FullApplicationKey
+from _b2_objects import bucket, full_application_key
 from b2sdk.v2.exception import Unauthorized
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.leaf_keys import b2
-
-
-def _full_application_key(access_key: str, secret_key: str) -> MagicMock:
-    # spec=FullApplicationKey, not a bare MagicMock: the real class
-    # stores the key id as .id_, not .application_key_id (the
-    # constructor's own parameter name) - a bare MagicMock would accept
-    # either name silently, and this exact mismatch shipped once
-    # already (caught only by a live spike, not by these tests). spec
-    # makes a typo here raise immediately instead of hiding it.
-    return MagicMock(spec=FullApplicationKey, id_=access_key, application_key=secret_key)
 
 
 class TestB2Rotation:
@@ -35,12 +25,12 @@ class TestB2Rotation:
         vault.seed("backblaze-b2-write-access-key", "OLD_ACCESS")
         vault.seed("backblaze-b2-write-secret-key", "OLD_SECRET")
 
-    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"))
-    @patch.object(b2, "B2Api")
-    def test_successful_rotation_revokes_old_key_and_caches_new_one(self, mock_api_cls, mock_verify, vault):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = _full_application_key("NEW_ACCESS", "NEW_SECRET")
+    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
+    @patch.object(b2, "B2Api", autospec=True)
+    def test_successful_rotation_revokes_old_key_and_caches_new_one(self, mock_api_cls, mock_verify, vault, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("NEW_ACCESS", "NEW_SECRET")
 
         ok = b2.rotate_b2(["write"])
 
@@ -58,12 +48,12 @@ class TestB2Rotation:
         # native expiry, not just get created.
         assert api.create_key.call_args.kwargs["valid_duration_seconds"] == QUARTERLY_SECONDS
 
-    @patch.object(b2, "verify_leaf_via_rclone", return_value=(False, "auth failed"))
-    @patch.object(b2, "B2Api")
-    def test_failed_verification_leaves_old_key_untouched(self, mock_api_cls, mock_verify, vault):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = _full_application_key("NEW_ACCESS", "NEW_SECRET")
+    @patch.object(b2, "verify_leaf_via_rclone", return_value=(False, "auth failed"), autospec=True)
+    @patch.object(b2, "B2Api", autospec=True)
+    def test_failed_verification_leaves_old_key_untouched(self, mock_api_cls, mock_verify, vault, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("NEW_ACCESS", "NEW_SECRET")
 
         ok = b2.rotate_b2(["write"])
 
@@ -73,12 +63,12 @@ class TestB2Rotation:
         assert vault.get("backblaze-b2-write-access-key") == "OLD_ACCESS"
         assert vault.get("backblaze-b2-write-secret-key") == "OLD_SECRET"
 
-    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"))
-    @patch.object(b2, "B2Api")
-    def test_revoke_failure_is_reported_not_raised(self, mock_api_cls, mock_verify, vault):
-        api = mock_api_cls.return_value
-        api.get_bucket_by_name.return_value = MagicMock(id_="bkt")
-        api.create_key.return_value = _full_application_key("NEW_ACCESS", "NEW_SECRET")
+    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
+    @patch.object(b2, "B2Api", autospec=True)
+    def test_revoke_failure_is_reported_not_raised(self, mock_api_cls, mock_verify, vault, b2_api):
+        api = mock_api_cls.return_value = b2_api
+        api.get_bucket_by_name.return_value = bucket(api)
+        api.create_key.return_value = full_application_key("NEW_ACCESS", "NEW_SECRET")
         api.session.delete_key.side_effect = Unauthorized("", "unauthorized")
 
         ok = b2.rotate_b2(["write"])

@@ -2,7 +2,7 @@
 id: PROJ-unit-test-quality-passes
 title: "Unit Test Quality Passes"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Bring the converted Python unit tests in line with ADR 0070's rules for doubles and the conventions' assertion rules, one pass per change."
 decision: ADR-0070/0
@@ -28,13 +28,15 @@ Implements [ADR 0070](../decisions/0070-what-a-unit-tests-doubles-are-bound-to/r
 
 Update at the start and end of each PR that works a stage.
 
+Stages 1 to 5 are done. What remains is the closing checklist and the open items below; one PR does both, deletes this doc and sets ADR 0070 `accepted`, since this is the last project that names it.
+
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Tests with no assertion, or only mock-call assertions | Not started | Every test meets the Assertions rule: it asserts an outcome the code decides, and a mock-call check includes the arguments. A test that cannot be given one is deleted, with the reason in its commit message. |
-| 2 | Same-file families of tests whose bodies differ only in constants | Not started | Each family is one `parametrize` test with ids, or the commit message names why its cases are not one behavior. |
-| 3 | Real stand-ins for responses, processes, sessions, SDK objects and clients | Not started | No bare `Mock` or `MagicMock` stands in for a response, process, session, client, key or channel; the shared factories are listed in the conventions' Fixtures bullet, and the conventions state ADR 0070's rule for new tests. |
-| 4 | `autospec` on every remaining replaced function and method | Not started | Every `patch` that does not pass `new=` or `new_callable` has `autospec=True`; no `patch.object` reaches a builtin through a module; every function placed with `monkeypatch.setattr` is a `create_autospec` of the real one. |
-| 5 | Pass-through values and impossible inputs | Not started | No test stubs a collaborator to return a constant and asserts the code returns that constant when the code could hard-code it; every `None` or wrong-typed argument names the outside source that can produce it, or is removed. |
+| 1 | Tests with no assertion, or only mock-call assertions | Done | Every test meets the Assertions rule: it asserts an outcome the code decides, and a mock-call check includes the arguments. A test that cannot be given one is deleted, with the reason in its commit message. |
+| 2 | Same-file families of tests whose bodies differ only in constants | Done | Each family is one `parametrize` test with ids, or the commit message names why its cases are not one behavior. |
+| 3 | Real stand-ins for responses, processes, sessions, SDK objects and clients | Done | No bare `Mock` or `MagicMock` stands in for a response, process, session, client, key or channel; the shared factories are listed in the conventions' Fixtures bullet, and the conventions state ADR 0070's rule for new tests. |
+| 4 | `autospec` on every remaining replaced function and method | Done | Every `patch` that does not pass `new=` or `new_callable` has `autospec=True`; no `patch.object` reaches a builtin through a module; every function a test replaces with a double that records its calls or returns a canned value, whether by `patch` or by `monkeypatch.setattr`, is a `create_autospec` of the real one. A fake with behaviour of its own (`FakeVault`) and a plain value (a path, an argv list) are not doubles. |
+| 5 | Pass-through values and impossible inputs | Done | No test stubs a collaborator to return a constant and asserts the code returns that constant when the code could hard-code it; every `None` or wrong-typed argument names the outside source that can produce it, or is removed. |
 
 Stage 3 comes before stage 4: forcing `autospec` onto every eligible `patch` as a one-off run failed 18 tests that read attributes an autospec'd class does not have (`requests.Session.headers`, the `session` of a b2sdk `B2Api`), and a real object is the answer to each. Stage 3 may be split by collaborator (requests, subprocess, b2sdk, hvac, paramiko, OCI) across several changes; each stays a change of its own.
 
@@ -62,6 +64,8 @@ Stage 3 comes before stage 4: forcing `autospec` onto every eligible `patch` as 
 
 - `tools/cloud_credentials/rotation_keys/oci_iam.py` has no test file. Whether it gets one is a question about which behaviors are tested, which ADR 0070 leaves out; settle it separately from this project.
 - Whether `mutmut` adds signal on the pure-logic modules is an open spike, separate from these passes and from ADR 0070.
+- Each change in this project was checked by running the old and the new tests against mutants of the code under test, with the old tests kept in a private copy beside the new ones. The script that does it is not in this repo. Keep it as a tool (it needs a home, a doc and a test) or let it go; either resolves this item.
+- No test checks that a failed OCI SCIM token request raises: `oci_scim_access_token` calls `raise_for_status()`, but every test that reaches it stubs the response as a success. Whether it gets a test is a question about which behaviors are tested.
 
 ## Closing checklist
 

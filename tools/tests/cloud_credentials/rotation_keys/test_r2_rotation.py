@@ -12,14 +12,14 @@ from cloud_credentials.rotation_keys import r2 as rotation_r2
 
 
 class TestCacheR2RotationToken:
-    @patch.object(rotation_r2, "_prompt_r2_admin_token", return_value="NEW_TOKEN")
+    @patch.object(rotation_r2, "_prompt_r2_admin_token", return_value="NEW_TOKEN", autospec=True)
     def test_prompts_and_caches_on_first_run(self, mock_prompt, rotation_vault):
         rotation_r2.cache_r2_rotation_token()
 
         mock_prompt.assert_called_once()
         assert rotation_vault.get("_rotation-key-cloudflare-r2-token") == "NEW_TOKEN"
 
-    @patch.object(rotation_r2, "_prompt_r2_admin_token")
+    @patch.object(rotation_r2, "_prompt_r2_admin_token", autospec=True)
     def test_skips_entirely_when_already_cached(self, mock_prompt, rotation_vault):
         rotation_vault.seed("_rotation-key-cloudflare-r2-token", "EXISTING_TOKEN")
 
@@ -33,7 +33,7 @@ class TestCacheR2RotationToken:
 
 
 class TestRotateR2RotationToken:
-    @patch.object(rotation_r2, "_prompt_r2_admin_token", return_value="ROLLED_TOKEN")
+    @patch.object(rotation_r2, "_prompt_r2_admin_token", return_value="ROLLED_TOKEN", autospec=True)
     def test_overwrites_existing_cached_token_unconditionally(self, mock_prompt, rotation_vault):
         rotation_vault.seed("_rotation-key-cloudflare-r2-token", "OLD_TOKEN")
 
@@ -48,7 +48,7 @@ class TestRotateR2RotationToken:
         mock_prompt.assert_called_once()
         assert rotation_vault.get("_rotation-key-cloudflare-r2-token") == "ROLLED_TOKEN"
 
-    @patch.object(rotation_r2, "_prompt_r2_admin_token", return_value="FIRST_TOKEN")
+    @patch.object(rotation_r2, "_prompt_r2_admin_token", return_value="FIRST_TOKEN", autospec=True)
     def test_works_even_with_nothing_cached_yet(self, mock_prompt, rotation_vault):
         ok = rotation_r2.rotate_r2_rotation_token()
 

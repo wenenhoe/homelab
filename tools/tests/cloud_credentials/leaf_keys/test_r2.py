@@ -8,9 +8,10 @@ from __future__ import annotations
 import hashlib
 import re
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
+from _responses import response
 from cloud_credentials.expiry import QUARTERLY_DAYS
 from cloud_credentials.leaf_keys import r2
 
@@ -21,7 +22,7 @@ class TestR2RotationToken:
     Console token."""
 
     def test_prompts_and_caches_when_nothing_cached(self, vault):
-        with patch.object(r2.getpass, "getpass", return_value="cf-token-value") as mock_prompt:
+        with patch.object(r2.getpass, "getpass", return_value="cf-token-value", autospec=True) as mock_prompt:
             token = r2.r2_rotation_token()
         mock_prompt.assert_called_once()
         assert token == "cf-token-value"
@@ -29,15 +30,15 @@ class TestR2RotationToken:
 
     def test_uses_cache_without_prompting_on_subsequent_calls(self, vault):
         vault.seed("_rotation-key-cloudflare-r2-token", "cached-token-value", category="rotation")
-        with patch.object(r2.getpass, "getpass") as mock_prompt:
+        with patch.object(r2.getpass, "getpass", autospec=True) as mock_prompt:
             token = r2.r2_rotation_token()
         mock_prompt.assert_not_called()
         assert token == "cached-token-value"
 
 
 def _permission_groups_response():
-    return MagicMock(
-        json=lambda: {
+    return response(
+        json_body={
             "success": True,
             "result": [
                 {"name": "Workers R2 Storage Bucket Item Write", "id": "grp-write"},
@@ -48,7 +49,7 @@ def _permission_groups_response():
 
 
 def _create_token_response(token_id, token_value):
-    return MagicMock(json=lambda: {"success": True, "result": {"id": token_id, "value": token_value}})
+    return response(json_body={"success": True, "result": {"id": token_id, "value": token_value}})
 
 
 class TestR2Rotation:
@@ -59,13 +60,12 @@ class TestR2Rotation:
         vault.seed("cloudflare-r2-write-access-key", "OLD_TOKEN_ID")
         vault.seed("cloudflare-r2-write-secret-key", "old_secret_hash")
 
-    @patch.object(r2, "verify_leaf_via_rclone", return_value=(True, "ok"))
-    @patch.object(r2.requests, "Session")
-    def test_successful_rotation_deletes_old_token_and_caches_new_one(self, mock_session_cls, mock_verify, vault):
-        session = mock_session_cls.return_value
+    @patch.object(r2, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
+    def test_successful_rotation_deletes_old_token_and_caches_new_one(self, mock_verify, vault, session_class):
+        session = session_class.return_value
         session.get.return_value = _permission_groups_response()
         session.post.return_value = _create_token_response("NEW_TOKEN_ID", "new-token-value")
-        session.delete.return_value = MagicMock(json=lambda: {"success": True})
+        session.delete.return_value = response(json_body={"success": True})
 
         ok = r2.rotate_r2(["write"])
 
@@ -88,10 +88,9 @@ class TestR2Rotation:
         days_out = (datetime.strptime(expires_on, "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC) - datetime.now(UTC)).days
         assert days_out == QUARTERLY_DAYS - 1  # -1: truncated days, not a bug in the code under test
 
-    @patch.object(r2, "verify_leaf_via_rclone", return_value=(False, "denied"))
-    @patch.object(r2.requests, "Session")
-    def test_failed_verification_leaves_old_token_untouched(self, mock_session_cls, mock_verify, vault):
-        session = mock_session_cls.return_value
+    @patch.object(r2, "verify_leaf_via_rclone", return_value=(False, "denied"), autospec=True)
+    def test_failed_verification_leaves_old_token_untouched(self, mock_verify, vault, session_class):
+        session = session_class.return_value
         session.get.return_value = _permission_groups_response()
         session.post.return_value = _create_token_response("NEW_TOKEN_ID", "new-token-value")
 

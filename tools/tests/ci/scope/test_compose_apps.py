@@ -99,38 +99,35 @@ class TestAllApps:
 
 
 class TestChangedApps:
-    def test_configs_change(self, tree):
-        assert apps(tree, "docker/lldap/configs/env.j2") == ["lldap"]
+    @pytest.mark.parametrize(
+        ("changed", "app"),
+        [
+            pytest.param("docker/lldap/configs/env.j2", "lldap", id="configs"),
+            pytest.param("docker/lldap/configs/sub/dir/x.j2", "lldap", id="nested-configs"),
+            pytest.param("docker/lldap/scripts/run.sh", "lldap", id="scripts"),
+            pytest.param("docker/lldap/compose.yaml.j2", "lldap", id="templated-compose"),
+            pytest.param("docker/plain/compose.yaml", "plain", id="plain-compose"),
+            pytest.param("docker/wastebin/Dockerfile", "wastebin", id="dockerfile"),
+        ],
+    )
+    def test_a_change_to_a_file_the_app_ships_queues_the_app(self, tree, changed, app):
+        assert apps(tree, changed) == [app]
 
-    def test_nested_configs_change(self, tree):
-        assert apps(tree, "docker/lldap/configs/sub/dir/x.j2") == ["lldap"]
-
-    def test_scripts_change(self, tree):
-        assert apps(tree, "docker/lldap/scripts/run.sh") == ["lldap"]
-
-    def test_templated_compose_change(self, tree):
-        assert apps(tree, "docker/lldap/compose.yaml.j2") == ["lldap"]
-
-    def test_plain_compose_change(self, tree):
-        assert apps(tree, "docker/plain/compose.yaml") == ["plain"]
-
-    def test_dockerfile_change_queues_the_app(self, tree):
-        assert apps(tree, "docker/wastebin/Dockerfile") == ["wastebin"]
-
-    def test_excluded_app_is_never_queued(self, tree):
-        assert apps(tree, "docker/caddy/configs/env.j2", "docker/caddy/Dockerfile", "docker/caddy/compose.yaml") == []
-
-    def test_directory_without_a_compose_file_is_never_queued(self, tree):
-        assert apps(tree, "docker/molecule-dind/Dockerfile", "docker/openbao/configs/x.j2") == []
-
-    def test_files_outside_configs_scripts_compose_and_dockerfile_are_ignored(self, tree):
-        assert apps(tree, "docker/openbao/policies/controller.hcl", "docker/lldap/README.md", "docs/topics/engineering/ci/pipeline.md") == []
-
-    def test_only_a_bare_configs_directory_name_is_not_enough(self, tree):
-        assert apps(tree, "docker/lldap/configs") == []
-
-    def test_a_similarly_named_file_is_not_a_compose_file(self, tree):
-        assert apps(tree, "docker/plain/compose.yaml.bak", "docker/plain/docker-compose.yaml", "docker/plain/sub/Dockerfile") == []
+    @pytest.mark.parametrize(
+        "changed",
+        [
+            pytest.param(("docker/caddy/configs/env.j2", "docker/caddy/Dockerfile", "docker/caddy/compose.yaml"), id="excluded-app"),
+            pytest.param(("docker/molecule-dind/Dockerfile", "docker/openbao/configs/x.j2"), id="directory-without-a-compose-file"),
+            pytest.param(
+                ("docker/openbao/policies/controller.hcl", "docker/lldap/README.md", "docs/topics/engineering/ci/pipeline.md"),
+                id="files-outside-configs-scripts-compose-and-dockerfile",
+            ),
+            pytest.param(("docker/lldap/configs",), id="bare-configs-directory-name"),
+            pytest.param(("docker/plain/compose.yaml.bak", "docker/plain/docker-compose.yaml", "docker/plain/sub/Dockerfile"), id="similarly-named-file"),
+        ],
+    )
+    def test_a_change_that_belongs_to_no_app_queues_nothing(self, tree, changed):
+        assert apps(tree, *changed) == []
 
     def test_deleting_only_a_config_still_queues_the_app(self, tree):
         (tree.root / "docker/lldap/configs/env.j2").unlink()

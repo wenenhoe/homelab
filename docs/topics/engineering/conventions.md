@@ -90,10 +90,48 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   `root` is an empty directory standing in for a repository root, defined
   in `tools/tests/doc_scripts/conftest.py` and in
   `tools/tests/ci/conftest.py`.
+  `response(status_code, json_body, text)` (`tools/tests/_responses.py`)
+  builds a real `requests.Response`; use it wherever the code under test
+  reads one, in `tools/tests/`.
+  `http_session` is a real `requests.Session` whose network methods are
+  autospec'd stand-ins (`stubbed_session()` in `tools/tests/_sessions.py`,
+  for a helper that cannot take a fixture); `session_class` also replaces
+  `requests.Session` with a class that returns it. A test sets
+  `.return_value` on the method it expects the code to call.
+  `b2_api` (`tools/tests/cloud_credentials/conftest.py`) is the same for
+  b2sdk: a real `B2Api` over an in-memory account with its network calls
+  stubbed, and `full_application_key()`, `application_key()` and
+  `bucket()` in `_b2_objects.py` build the real key and bucket objects.
+  `hvac_client` (`tools/tests/conftest.py`) is a real `hvac.Client` with
+  every request stubbed at the adapter and the calls the code makes
+  stubbed on top; its `token` starts as `None`, so a `VAULT_TOKEN` in the
+  environment never reaches a test.
+  `ssh_client` (`tools/tests/conftest.py`) is a real `paramiko.SSHClient`
+  with connect, exec_command and close stubbed and `known_hosts` never
+  read; `exec_result()` and `pty_result()` in `_ssh_objects.py` build the
+  three real streams `exec_command` returns. `identity_domains_client`
+  (`tools/tests/cloud_credentials/conftest.py`) is the real OCI
+  `IdentityDomainsClient` the repo's own factory builds, every service
+  call stubbed; `customer_secret_key()`, `apps_response()` and
+  `response()` in `_oci_objects.py` build the SDK's own models. Its
+  service methods take `**kwargs`, so the test's assertion on the call
+  pins what the code sends.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in
   the directory it returns. When the code under test quotes a path in
   an error, create the directory with `tmp_path_factory.mktemp("name")`,
   so a `match=` regex can't pass on the path instead of the message.
+- **Test doubles.** A test chooses a double in this
+  order, from
+  [ADR 0070](../../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md).
+  The real object when it builds without I/O (a `requests.Response`, a
+  `subprocess.CompletedProcess`, an SDK model object). When the object
+  also does I/O (a session, a client, a channel), the real one with only
+  its I/O methods replaced by `patch.object(obj, "method", autospec=True)`.
+  Otherwise a double bound to the real interface: `autospec=True` on a
+  replaced function or method, `create_autospec(Class, instance=True)`
+  for an object that cannot be built (a `subprocess.Popen`), and
+  `patch("builtins.name", autospec=True)` for a builtin. A bare `Mock` or
+  `MagicMock` is only for a value handed back unchanged or a callback.
 - **Assertions.** A test ends in an assertion on an outcome the code
   under test decides: a returned value, a raised error, or a side effect
   that happened. Three shapes do not meet that:

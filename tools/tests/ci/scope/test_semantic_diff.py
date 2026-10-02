@@ -102,21 +102,20 @@ class TestPython:
         changed = self.BASE.replace("return x + 1", "# add one\n    return (x + 1)")
         assert noop("ansible/scripts/tool.py", self.BASE, changed)
 
-    def test_code_change_is_real(self):
-        assert not noop("ansible/scripts/tool.py", self.BASE, self.BASE.replace("x + 1", "x + 2"))
+    CODED = "# -*- coding: utf-8 -*-\n" + BASE
 
-    def test_docstring_change_is_real(self):
-        assert not noop("ansible/scripts/tool.py", self.BASE, self.BASE.replace("Doc.", "Other."))
-
-    def test_shebang_change_is_real(self):
-        assert not noop("ansible/scripts/tool.py", self.BASE, self.BASE.replace("python3", "python"))
-
-    def test_coding_declaration_change_is_real(self):
-        with_coding = "# -*- coding: utf-8 -*-\n" + self.BASE
-        assert not noop("ansible/scripts/tool.py", with_coding, with_coding.replace("utf-8", "latin-1"))
-
-    def test_syntax_error_is_real(self):
-        assert not noop("ansible/scripts/tool.py", self.BASE, "def f(:\n")
+    @pytest.mark.parametrize(
+        ("before", "after"),
+        [
+            pytest.param(BASE, BASE.replace("x + 1", "x + 2"), id="code"),
+            pytest.param(BASE, BASE.replace("Doc.", "Other."), id="docstring"),
+            pytest.param(BASE, BASE.replace("python3", "python"), id="shebang"),
+            pytest.param(CODED, CODED.replace("utf-8", "latin-1"), id="coding-declaration"),
+            pytest.param(BASE, "def f(:\n", id="syntax-error"),
+        ],
+    )
+    def test_a_change_beyond_comments_and_formatting_is_real(self, before, after):
+        assert not noop("ansible/scripts/tool.py", before, after)
 
 
 class TestToml:
@@ -242,38 +241,35 @@ def queued(repo, monkeypatch):
 class TestScopeIntegration:
     """molecule_scope.main against a real git history."""
 
-    def test_comment_only_change_to_a_role_queues_nothing(self, repo, queued):
-        repo.write("ansible/roles/alpha/tasks/main.yaml", "# why\n- ansible.builtin.debug:\n    msg: hi  # note\n")
-        assert queued() == "roles=[]"
-
-    def test_real_change_still_queues_the_role(self, repo, queued):
-        repo.write("ansible/roles/alpha/tasks/main.yaml", "- ansible.builtin.debug:\n    msg: bye\n")
-        assert queued() == 'roles=["alpha"]'
+    @pytest.mark.parametrize(
+        ("path", "content", "queued_roles"),
+        [
+            pytest.param(
+                "ansible/roles/alpha/tasks/main.yaml", "# why\n- ansible.builtin.debug:\n    msg: hi  # note\n", "roles=[]", id="comment-only-change-to-a-role"
+            ),
+            pytest.param("ansible/roles/alpha/tasks/main.yaml", "- ansible.builtin.debug:\n    msg: bye\n", 'roles=["alpha"]', id="real-change-to-a-role"),
+            pytest.param("pyproject.toml", '[project]\nname = "x"\n[tool.ruff]\nline-length = 100\n', "roles=[]", id="ruff-only-pyproject-change"),
+            pytest.param("pyproject.toml", '# note\n[project]\nname = "x"\n', "roles=[]", id="comment-only-pyproject-change"),
+            pytest.param("pyproject.toml", '[project]\nname = "y"\n', 'roles=["alpha","beta"]', id="real-pyproject-change"),
+            pytest.param(
+                "ansible/roles/molecule_helpers/tasks/orphan.yaml",
+                "# note\n- ansible.builtin.debug:\n    msg: hi\n",
+                "roles=[]",
+                id="comment-only-change-to-an-unreferenced-helper",
+            ),
+            pytest.param(
+                "ansible/roles/alpha/templates/app.conf.j2", "# listen\nlisten 80;\n", 'roles=["alpha"]', id="comment-in-a-file-ansible-ships-as-content"
+            ),
+        ],
+    )
+    def test_one_changed_file_queues_the_roles_it_affects(self, repo, queued, path, content, queued_roles):
+        repo.write(path, content)
+        assert queued() == queued_roles
 
     def test_comment_and_real_change_together_queue_only_for_the_real_one(self, repo, queued):
         repo.write("ansible/roles/alpha/tasks/main.yaml", "# why\n- ansible.builtin.debug:\n    msg: hi\n")
         repo.write("ansible/roles/beta/tasks/main.yaml", "- ansible.builtin.debug:\n    msg: bye\n")
         assert queued() == 'roles=["beta"]'
-
-    def test_ruff_only_pyproject_change_is_not_repo_wide(self, repo, queued):
-        repo.write("pyproject.toml", '[project]\nname = "x"\n[tool.ruff]\nline-length = 100\n')
-        assert queued() == "roles=[]"
-
-    def test_comment_only_pyproject_change_is_not_repo_wide(self, repo, queued):
-        repo.write("pyproject.toml", '# note\n[project]\nname = "x"\n')
-        assert queued() == "roles=[]"
-
-    def test_real_pyproject_change_is_still_repo_wide(self, repo, queued):
-        repo.write("pyproject.toml", '[project]\nname = "y"\n')
-        assert queued() == 'roles=["alpha","beta"]'
-
-    def test_comment_only_change_to_an_unreferenced_helper_does_not_hit_the_fail_safe(self, repo, queued):
-        repo.write("ansible/roles/molecule_helpers/tasks/orphan.yaml", "# note\n- ansible.builtin.debug:\n    msg: hi\n")
-        assert queued() == "roles=[]"
-
-    def test_a_comment_in_a_file_ansible_ships_as_content_is_a_real_change(self, repo, queued):
-        repo.write("ansible/roles/alpha/templates/app.conf.j2", "# listen\nlisten 80;\n")
-        assert queued() == 'roles=["alpha"]'
 
     def test_added_and_deleted_files_are_real_changes(self, repo, queued):
         repo.write("ansible/roles/beta/tasks/new.yaml", "# only a comment\n")

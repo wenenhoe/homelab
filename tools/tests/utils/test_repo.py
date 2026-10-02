@@ -11,24 +11,11 @@ here - see that module's own comment on why.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import create_autospec, patch
 
 import pytest
+from _ssh_objects import exec_result
 from utils import repo
-
-
-def _mock_ssh_client(exit_status: int = 0, stdout: bytes = b"", stderr: bytes = b""):
-    """A paramiko.SSHClient() stand-in - exec_command()'s 3-tuple, with
-    stdout.channel.recv_exit_status() driving fetch_root_cert()'s
-    success/failure branch."""
-    ssh_client = MagicMock()
-    stdout_stream = MagicMock()
-    stdout_stream.read.return_value = stdout
-    stdout_stream.channel.recv_exit_status.return_value = exit_status
-    stderr_stream = MagicMock()
-    stderr_stream.read.return_value = stderr
-    ssh_client.exec_command.return_value = (MagicMock(), stdout_stream, stderr_stream)
-    return ssh_client
 
 
 @pytest.fixture
@@ -85,45 +72,51 @@ class TestFetchRootCert:
     @pytest.fixture(autouse=True)
     def _main_domain_and_ssh_target(self, secrets_dir, monkeypatch):
         secrets_dir.seed("main-domain", "example.com")
-        monkeypatch.setattr(repo, "security_ssh_target", lambda: ("secadmin", "security.internal.example.com", "/home/x/.ssh/key"))
+        monkeypatch.setattr(
+            repo,
+            "security_ssh_target",
+            create_autospec(repo.security_ssh_target, return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key")),
+        )
 
-    @patch("utils.repo.paramiko.SSHClient")
-    def test_returns_stdout_on_success(self, mock_ssh_client_cls):
-        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=0, stdout=b"-----BEGIN CERTIFICATE-----\n...")
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_returns_stdout_on_success(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        ssh_client.exec_command.return_value = exec_result(exit_status=0, stdout=b"-----BEGIN CERTIFICATE-----\n...")
         cert = repo.fetch_root_cert()
         assert "BEGIN CERTIFICATE" in cert
 
-    @patch("utils.repo.paramiko.SSHClient")
-    def test_connects_to_the_correct_host_and_execs_the_correct_command(self, mock_ssh_client_cls):
-        mock_ssh_client = _mock_ssh_client(exit_status=0, stdout=b"cert")
-        mock_ssh_client_cls.return_value = mock_ssh_client
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_connects_to_the_correct_host_and_execs_the_correct_command(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        ssh_client.exec_command.return_value = exec_result(exit_status=0, stdout=b"cert")
         repo.fetch_root_cert()
-        args, kwargs = mock_ssh_client.connect.call_args
+        args, kwargs = ssh_client.connect.call_args
         assert args[0] == "security.internal.example.com"
         assert kwargs["username"] == "secadmin"
         assert kwargs["key_filename"] == "/home/x/.ssh/key"
-        command = mock_ssh_client.exec_command.call_args.args[0]
+        command = ssh_client.exec_command.call_args.args[0]
         assert repo.STEP_CA_CONTAINER in command
         assert "/home/step/certs/root_ca.crt" in command
 
-    @patch("utils.repo.paramiko.SSHClient")
-    def test_connects_with_a_timeout(self, mock_ssh_client_cls):
-        mock_ssh_client = _mock_ssh_client(exit_status=0)
-        mock_ssh_client_cls.return_value = mock_ssh_client
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_connects_with_a_timeout(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        ssh_client.exec_command.return_value = exec_result(exit_status=0)
         repo.fetch_root_cert()
-        _, kwargs = mock_ssh_client.connect.call_args
+        _, kwargs = ssh_client.connect.call_args
         assert kwargs["timeout"] == repo.TIMEOUT_SECONDS
 
-    @patch("utils.repo.paramiko.SSHClient")
-    def test_raises_system_exit_on_nonzero_exit_status(self, mock_ssh_client_cls):
-        mock_ssh_client_cls.return_value = _mock_ssh_client(exit_status=1, stderr=b"Permission denied")
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_raises_system_exit_on_nonzero_exit_status(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        ssh_client.exec_command.return_value = exec_result(exit_status=1, stderr=b"Permission denied")
         with pytest.raises(SystemExit):
             repo.fetch_root_cert()
 
-    @patch("utils.repo.paramiko.SSHClient")
-    def test_closes_the_client_even_on_failure(self, mock_ssh_client_cls):
-        mock_ssh_client = _mock_ssh_client(exit_status=1, stderr=b"boom")
-        mock_ssh_client_cls.return_value = mock_ssh_client
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_closes_the_client_even_on_failure(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        ssh_client.exec_command.return_value = exec_result(exit_status=1, stderr=b"boom")
         with pytest.raises(SystemExit):
             repo.fetch_root_cert()
-        mock_ssh_client.close.assert_called_once()
+        ssh_client.close.assert_called_once()

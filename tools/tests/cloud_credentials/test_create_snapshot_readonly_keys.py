@@ -19,8 +19,8 @@ class TestMintR2:
         vault.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
         vault.seed("cloudflare-r2-account-id", "acct123")
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"))
-    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Read": "grp-read"})
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"), autospec=True)
+    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Read": "grp-read"}, autospec=True)
     def test_mints_readonly_token_scoped_to_the_snapshot_bucket_with_no_expiry(self, _mock_groups, mock_verify, session_class):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
@@ -45,8 +45,8 @@ class TestMintR2:
             "read",
         )
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (ListObjectsV2) failed: AccessDenied"))
-    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Read": "grp-read"})
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (ListObjectsV2) failed: AccessDenied"), autospec=True)
+    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Read": "grp-read"}, autospec=True)
     def test_does_not_confirm_a_credential_that_fails_verification(self, _mock_groups, _mock_verify, session_class):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
@@ -73,7 +73,7 @@ class TestMintB2:
         vault.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
         vault.seed("backblaze-b2-region", "us-west-004")
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"))
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "ListObjectsV2 succeeded"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
     def test_mints_readonly_key_scoped_to_the_snapshot_bucket_with_no_expiry(self, mock_api_cls, mock_verify, b2_api):
         api = mock_api_cls.return_value = b2_api
@@ -99,7 +99,7 @@ class TestMintB2:
             "read",
         )
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (ListObjectsV2) failed: AccessDenied"))
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (ListObjectsV2) failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
     def test_does_not_confirm_a_credential_that_fails_verification(self, mock_api_cls, _mock_verify, b2_api):
         api = mock_api_cls.return_value = b2_api

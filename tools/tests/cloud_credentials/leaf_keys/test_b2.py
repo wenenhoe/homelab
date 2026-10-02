@@ -25,7 +25,7 @@ class TestB2Rotation:
         vault.seed("backblaze-b2-write-access-key", "OLD_ACCESS")
         vault.seed("backblaze-b2-write-secret-key", "OLD_SECRET")
 
-    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"))
+    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
     @patch.object(b2, "B2Api", autospec=True)
     def test_successful_rotation_revokes_old_key_and_caches_new_one(self, mock_api_cls, mock_verify, vault, b2_api):
         api = mock_api_cls.return_value = b2_api
@@ -48,7 +48,7 @@ class TestB2Rotation:
         # native expiry, not just get created.
         assert api.create_key.call_args.kwargs["valid_duration_seconds"] == QUARTERLY_SECONDS
 
-    @patch.object(b2, "verify_leaf_via_rclone", return_value=(False, "auth failed"))
+    @patch.object(b2, "verify_leaf_via_rclone", return_value=(False, "auth failed"), autospec=True)
     @patch.object(b2, "B2Api", autospec=True)
     def test_failed_verification_leaves_old_key_untouched(self, mock_api_cls, mock_verify, vault, b2_api):
         api = mock_api_cls.return_value = b2_api
@@ -63,7 +63,7 @@ class TestB2Rotation:
         assert vault.get("backblaze-b2-write-access-key") == "OLD_ACCESS"
         assert vault.get("backblaze-b2-write-secret-key") == "OLD_SECRET"
 
-    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"))
+    @patch.object(b2, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
     @patch.object(b2, "B2Api", autospec=True)
     def test_revoke_failure_is_reported_not_raised(self, mock_api_cls, mock_verify, vault, b2_api):
         api = mock_api_cls.return_value = b2_api

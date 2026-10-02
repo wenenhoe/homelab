@@ -15,8 +15,8 @@ from cloud_credentials.rotation_keys import b2 as rotation_b2
 
 
 class TestCreateB2RotationKey:
-    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
-    @patch.object(rotation_b2, "_mint_rotation_key")
+    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"), autospec=True)
+    @patch.object(rotation_b2, "_mint_rotation_key", autospec=True)
     def test_mints_and_caches_on_first_run(self, mock_mint, mock_prompt, rotation_vault):
         mock_mint.return_value = {"master_api": stubbed_b2_api(), "key_id": "NEW_ID", "app_key": "NEW_KEY"}
 
@@ -25,7 +25,7 @@ class TestCreateB2RotationKey:
         assert rotation_vault.get("_rotation-key-backblaze-b2-key-id") == "NEW_ID"
         assert rotation_vault.get("_rotation-key-backblaze-b2-application-key") == "NEW_KEY"
 
-    @patch.object(rotation_b2, "_prompt_master_credentials")
+    @patch.object(rotation_b2, "_prompt_master_credentials", autospec=True)
     def test_skips_entirely_when_already_cached(self, mock_prompt, rotation_vault):
         rotation_vault.seed("_rotation-key-backblaze-b2-key-id", "EXISTING_ID")
         rotation_vault.seed("_rotation-key-backblaze-b2-application-key", "EXISTING_KEY")
@@ -66,9 +66,9 @@ class TestRotateB2RotationKey:
         rotation_vault.seed("_rotation-key-backblaze-b2-key-id", "OLD_ID")
         rotation_vault.seed("_rotation-key-backblaze-b2-application-key", "OLD_KEY")
 
-    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
-    @patch.object(rotation_b2, "_mint_rotation_key")
-    @patch.object(rotation_b2, "_verify_rotation_key", return_value=(True, ""))
+    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"), autospec=True)
+    @patch.object(rotation_b2, "_mint_rotation_key", autospec=True)
+    @patch.object(rotation_b2, "_verify_rotation_key", return_value=(True, ""), autospec=True)
     def test_successful_rotation_revokes_old_key_and_caches_new(self, mock_verify, mock_mint, mock_prompt, rotation_vault):
         master_api = stubbed_b2_api()
         mock_mint.return_value = {"master_api": master_api, "key_id": "NEW_ID", "app_key": "NEW_KEY"}
@@ -83,9 +83,9 @@ class TestRotateB2RotationKey:
         assert rotation_vault.get("_rotation-key-backblaze-b2-key-id") == "NEW_ID"
         assert rotation_vault.get("_rotation-key-backblaze-b2-application-key") == "NEW_KEY"
 
-    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
-    @patch.object(rotation_b2, "_mint_rotation_key")
-    @patch.object(rotation_b2, "_verify_rotation_key", return_value=(False, "401 unauthorized"))
+    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"), autospec=True)
+    @patch.object(rotation_b2, "_mint_rotation_key", autospec=True)
+    @patch.object(rotation_b2, "_verify_rotation_key", return_value=(False, "401 unauthorized"), autospec=True)
     def test_failed_verification_leaves_old_key_cached_and_unrevoked(self, mock_verify, mock_mint, mock_prompt, rotation_vault):
         master_api = stubbed_b2_api()
         mock_mint.return_value = {"master_api": master_api, "key_id": "NEW_ID", "app_key": "NEW_KEY"}
@@ -98,9 +98,9 @@ class TestRotateB2RotationKey:
         master_api.session.delete_key.assert_not_called()
         assert rotation_vault.get("_rotation-key-backblaze-b2-key-id") == "OLD_ID"
 
-    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"))
-    @patch.object(rotation_b2, "_mint_rotation_key")
-    @patch.object(rotation_b2, "_verify_rotation_key", return_value=(True, ""))
+    @patch.object(rotation_b2, "_prompt_master_credentials", return_value=("masterKeyId", "masterKey"), autospec=True)
+    @patch.object(rotation_b2, "_mint_rotation_key", autospec=True)
+    @patch.object(rotation_b2, "_verify_rotation_key", return_value=(True, ""), autospec=True)
     def test_rotate_always_re_prompts_for_master_credentials(self, mock_verify, mock_mint, mock_prompt):
         # B2 has no way to mint an account-management key from another
         # account-management key — only the master credential can, same

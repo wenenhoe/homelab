@@ -23,8 +23,8 @@ def test_rotate_with_provider_all_is_a_usage_error(monkeypatch):
         create_rotation_keys.main()
 
 
-@patch("cloud_credentials.create_rotation_keys.rotate_b2_rotation_key", return_value=True)
-@patch("cloud_credentials.create_rotation_keys.create_b2_rotation_key")
+@patch("cloud_credentials.create_rotation_keys.rotate_b2_rotation_key", return_value=True, autospec=True)
+@patch("cloud_credentials.create_rotation_keys.create_b2_rotation_key", autospec=True)
 def test_rotate_provider_b2_calls_rotate_not_create(mock_create, mock_rotate, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["prog", "--rotate", "--provider", "b2"])
 
@@ -35,7 +35,7 @@ def test_rotate_provider_b2_calls_rotate_not_create(mock_create, mock_rotate, mo
     assert rc == 0
 
 
-@patch("cloud_credentials.create_rotation_keys.rotate_oci_rotation_key", return_value=False)
+@patch("cloud_credentials.create_rotation_keys.rotate_oci_rotation_key", return_value=False, autospec=True)
 def test_rotate_provider_oci_passes_admin_email_and_reports_failure(mock_rotate, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["prog", "--rotate", "--provider", "oci", "--admin-email", "you@example.com"])
 
@@ -46,8 +46,8 @@ def test_rotate_provider_oci_passes_admin_email_and_reports_failure(mock_rotate,
     assert rc == 1
 
 
-@patch("cloud_credentials.create_rotation_keys.create_b2_rotation_key")
-@patch("cloud_credentials.create_rotation_keys.create_oci_rotation_key")
+@patch("cloud_credentials.create_rotation_keys.create_b2_rotation_key", autospec=True)
+@patch("cloud_credentials.create_rotation_keys.create_oci_rotation_key", autospec=True)
 def test_plain_run_without_rotate_still_uses_create_path(mock_create_oci, mock_create_b2, monkeypatch):
     # Regression check: adding --rotate must not change the default,
     # already-relied-upon idempotent bootstrap behavior.
@@ -60,9 +60,9 @@ def test_plain_run_without_rotate_still_uses_create_path(mock_create_oci, mock_c
     mock_create_oci.assert_called_once_with("you@example.com")
 
 
-@patch("cloud_credentials.create_rotation_keys.cache_r2_rotation_token")
-@patch("cloud_credentials.create_rotation_keys.create_b2_rotation_key")
-@patch("cloud_credentials.create_rotation_keys.create_oci_rotation_key")
+@patch("cloud_credentials.create_rotation_keys.cache_r2_rotation_token", autospec=True)
+@patch("cloud_credentials.create_rotation_keys.create_b2_rotation_key", autospec=True)
+@patch("cloud_credentials.create_rotation_keys.create_oci_rotation_key", autospec=True)
 def test_provider_all_never_touches_r2(mock_create_oci, mock_create_b2, mock_cache_r2, monkeypatch):
     # r2 needs a Console step the operator may not have done yet -
     # --provider all must never block on it implicitly.
@@ -74,7 +74,7 @@ def test_provider_all_never_touches_r2(mock_create_oci, mock_create_b2, mock_cac
     mock_cache_r2.assert_not_called()
 
 
-@patch("cloud_credentials.create_rotation_keys.cache_r2_rotation_token")
+@patch("cloud_credentials.create_rotation_keys.cache_r2_rotation_token", autospec=True)
 def test_provider_r2_without_rotate_calls_cache_not_rotate(mock_cache_r2, monkeypatch):
     monkeypatch.setattr(sys, "argv", ["prog", "--provider", "r2"])
 
@@ -84,7 +84,7 @@ def test_provider_r2_without_rotate_calls_cache_not_rotate(mock_cache_r2, monkey
     assert rc == 0
 
 
-@patch("cloud_credentials.create_rotation_keys.rotate_r2_rotation_token", return_value=True)
+@patch("cloud_credentials.create_rotation_keys.rotate_r2_rotation_token", return_value=True, autospec=True)
 def test_rotate_provider_r2_is_a_valid_combination(mock_rotate, monkeypatch):
     # This is the actual feature request: --rotate --provider r2 must
     # work, not just b2/oci, so updating the cached Console token never

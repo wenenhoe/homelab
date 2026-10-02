@@ -19,8 +19,8 @@ class TestMintR2:
         vault.seed("_rotation-key-cloudflare-r2-token", "admin-token", category="rotation")
         vault.seed("cloudflare-r2-account-id", "acct123")
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
-    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"})
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
+    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"}, autospec=True)
     def test_mints_write_leaf_scoped_to_the_snapshot_bucket_with_quarterly_expiry(self, _mock_groups, mock_verify, session_class):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
@@ -43,8 +43,8 @@ class TestMintR2:
         )
         assert snap.read_cache(snap.CACHE_R2_ACCESS) == "TOKEN_ID"
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"))
-    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"})
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"), autospec=True)
+    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"}, autospec=True)
     def test_does_not_cache_a_credential_that_fails_verification(self, _mock_groups, _mock_verify, session_class):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "TOKEN_ID", "value": "token-value"}})
@@ -70,7 +70,7 @@ class TestMintB2:
         vault.seed("_rotation-key-backblaze-b2-application-key", "rot-key", category="rotation")
         vault.seed("backblaze-b2-region", "us-west-004")
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
     def test_mints_write_key_scoped_to_the_snapshot_bucket_with_quarterly_expiry(self, mock_api_cls, mock_verify, b2_api):
         api = mock_api_cls.return_value = b2_api
@@ -98,7 +98,7 @@ class TestMintB2:
         )
         assert snap.read_cache(snap.CACHE_B2_ACCESS) == "KEY_ID"
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"))
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
     def test_does_not_cache_a_credential_that_fails_verification(self, mock_api_cls, _mock_verify, b2_api):
         api = mock_api_cls.return_value = b2_api
@@ -128,7 +128,7 @@ class TestRotateB2:
         vault.seed(snap.CACHE_B2_ACCESS, "OLD_KEY_ID")
         vault.seed(snap.CACHE_B2_SECRET, "old-secret")
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
     def test_verifies_new_key_before_revoking_the_old_one(self, mock_api_cls, _mock_verify, b2_api):
         api = mock_api_cls.return_value = b2_api
@@ -141,7 +141,7 @@ class TestRotateB2:
         api.session.delete_key.assert_called_once_with("OLD_KEY_ID")
         assert snap.read_cache(snap.CACHE_B2_ACCESS) == "NEW_KEY_ID"
 
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"))
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
     def test_leaves_old_key_untouched_when_new_one_fails_verification(self, mock_api_cls, _mock_verify, b2_api):
         api = mock_api_cls.return_value = b2_api
@@ -163,9 +163,9 @@ class TestRotateR2:
         vault.seed(snap.CACHE_R2_ACCESS, "OLD_TOKEN_ID")
         vault.seed(snap.CACHE_R2_SECRET, "old-secret")
 
-    @patch.object(snap, "r2_delete_token")
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"))
-    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"})
+    @patch.object(snap, "r2_delete_token", autospec=True)
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(True, "PutObject succeeded"), autospec=True)
+    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"}, autospec=True)
     def test_verifies_new_token_before_revoking_the_old_one(self, _mock_groups, _mock_verify, mock_delete, session_class):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})
@@ -176,9 +176,9 @@ class TestRotateR2:
         mock_delete.assert_called_once_with(session, "acct123", "OLD_TOKEN_ID")
         assert snap.read_cache(snap.CACHE_R2_ACCESS) == "NEW_TOKEN_ID"
 
-    @patch.object(snap, "r2_delete_token")
-    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"))
-    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"})
+    @patch.object(snap, "r2_delete_token", autospec=True)
+    @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
+    @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"}, autospec=True)
     def test_leaves_old_token_untouched_when_new_one_fails_verification(self, _mock_groups, _mock_verify, mock_delete, session_class):
         session = session_class.return_value
         session.post.return_value = response(json_body={"success": True, "result": {"id": "NEW_TOKEN_ID", "value": "new-value"}})

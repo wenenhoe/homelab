@@ -34,7 +34,7 @@ class TestOciRotation:
         vault.seed("oci-read-secret-key", "OLD_SECRET")
         vault.seed("oci-read-scim-id", "OLD_SCIM_ID")
 
-    @patch.object(oci, "verify_leaf_via_rclone", return_value=(True, "ok"))
+    @patch.object(oci, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
     @patch.object(oci, "oci_identity_domains_client", autospec=True)
     def test_successful_rotation_deletes_old_secret_key(self, mock_client_factory, mock_verify, vault, identity_domains_client):
         client = mock_client_factory.return_value = identity_domains_client
@@ -59,7 +59,7 @@ class TestOciRotation:
         # -created-at cache file should exist for a SCIM-created key.
         assert vault.get("oci-read-created-at") is None
 
-    @patch.object(oci, "verify_leaf_via_rclone", return_value=(False, "permission denied"))
+    @patch.object(oci, "verify_leaf_via_rclone", return_value=(False, "permission denied"), autospec=True)
     @patch.object(oci, "oci_identity_domains_client", autospec=True)
     def test_failed_verification_never_calls_delete(self, mock_client_factory, mock_verify, vault, identity_domains_client):
         client = mock_client_factory.return_value = identity_domains_client
@@ -72,7 +72,7 @@ class TestOciRotation:
         assert vault.get("oci-read-access-key") == "OLD_ACCESS"
         assert vault.get("oci-read-scim-id") == "OLD_SCIM_ID"
 
-    @patch.object(oci, "verify_leaf_via_rclone", return_value=(True, "ok"))
+    @patch.object(oci, "verify_leaf_via_rclone", return_value=(True, "ok"), autospec=True)
     @patch.object(oci, "oci_identity_domains_client", autospec=True)
     def test_revoke_failure_is_reported_not_raised(self, mock_client_factory, mock_verify, vault, identity_domains_client):
         # ServiceError, not requests.HTTPError - the SDK's own error

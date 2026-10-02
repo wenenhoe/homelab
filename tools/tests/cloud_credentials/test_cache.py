@@ -12,7 +12,7 @@ tools/tests/openbao_utils/test_client.py.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, create_autospec, patch
+from unittest.mock import create_autospec, patch
 
 import hvac
 import pytest
@@ -43,7 +43,7 @@ class TestVaultLogin:
         with pytest.raises(SystemExit):
             cache._vault_login(hvac_client)
 
-    @patch("cloud_credentials.cache._bare_vault_login")
+    @patch("cloud_credentials.cache._bare_vault_login", autospec=True)
     def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login, secrets_dir, hvac_client):
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
@@ -58,7 +58,7 @@ class TestGetSession:
         secrets_dir.seed("main-domain", "example.com")
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
-        monkeypatch.setattr(cache, "fetch_root_cert", MagicMock(return_value="fake-cert"))
+        monkeypatch.setattr(cache, "fetch_root_cert", create_autospec(cache.fetch_root_cert, return_value="fake-cert"))
 
     @patch("cloud_credentials.cache.hvac.Client", autospec=True)
     def test_logs_in_only_once_across_multiple_calls(self, mock_client_cls, hvac_client):

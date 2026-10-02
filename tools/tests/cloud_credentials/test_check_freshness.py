@@ -32,8 +32,8 @@ def _b2_key(key_id: str, expiration_ms: float | None):
 
 @pytest.mark.usefixtures("fake_vault")
 class TestCheckB2:
-    @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api())
+    @patch.object(check_freshness, "b2_list_keys", autospec=True)
+    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api(), autospec=True)
     def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_api, mock_list_keys, vault):
         future_ms = (datetime.now(UTC) + timedelta(days=45)).timestamp() * 1000
         past_ms = (datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000
@@ -54,14 +54,14 @@ class TestCheckB2:
         assert statuses["b2 read"] == check_freshness.STALE
         assert statuses["b2 rotation key"] == check_freshness.CHECK_FAILED
 
-    @patch.object(check_freshness, "b2_rotation_api", side_effect=SystemExit(1))
+    @patch.object(check_freshness, "b2_rotation_api", side_effect=SystemExit(1), autospec=True)
     def test_auth_failure_reports_check_failed_for_all_three(self, mock_api):
         results = check_freshness.check_b2()
         assert all(status == check_freshness.CHECK_FAILED for _, status, _ in results)
         assert len(results) == 3
 
-    @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api())
+    @patch.object(check_freshness, "b2_list_keys", autospec=True)
+    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api(), autospec=True)
     def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_api, mock_list_keys, vault):
         # This is the whole point of WARNING_DAYS: B2 enforces its own
         # expiry server-side, so this key still authenticates today,
@@ -74,8 +74,8 @@ class TestCheckB2:
         statuses = {name: status for name, status, _ in results}
         assert statuses["b2 write"] == check_freshness.WARNING
 
-    @patch.object(check_freshness, "b2_list_keys")
-    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api())
+    @patch.object(check_freshness, "b2_list_keys", autospec=True)
+    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api(), autospec=True)
     def test_within_urgent_window_escalates_past_plain_warning(self, mock_api, mock_list_keys, vault):
         # The whole point of a second tier: 10 days out is a different
         # conversation than 25 days out, even though both are technically
@@ -94,7 +94,7 @@ def _scim_get_response(status_code: int, expires_on: str | None = None):
 
 @pytest.mark.usefixtures("fake_vault")
 class TestCheckOci:
-    @patch.object(check_freshness, "oci_scim_session")
+    @patch.object(check_freshness, "oci_scim_session", autospec=True)
     def test_fresh_stale_and_missing_all_reported(self, mock_scim_session, vault):
         vault.seed("oci-write-scim-id", "scim-write-1")
         vault.seed("oci-read-scim-id", "scim-read-1")
@@ -116,7 +116,7 @@ class TestCheckOci:
         assert statuses["oci read"] == check_freshness.STALE
         assert statuses["oci rotation credential"] == check_freshness.CHECK_FAILED
 
-    @patch.object(check_freshness, "oci_scim_session")
+    @patch.object(check_freshness, "oci_scim_session", autospec=True)
     def test_missing_scim_id_is_a_check_failure_not_a_crash(self, mock_scim_session):
         # oci-write-scim-id deliberately not seeded — a leaf key created
         # before the SCIM migration (ADR 0016) would have no such file.
@@ -129,7 +129,7 @@ class TestCheckOci:
         assert statuses["oci write"] == check_freshness.CHECK_FAILED
         session.get.assert_not_called()  # no scim_id, so no point calling out
 
-    @patch.object(check_freshness, "oci_scim_session", side_effect=SystemExit(1))
+    @patch.object(check_freshness, "oci_scim_session", side_effect=SystemExit(1), autospec=True)
     def test_auth_failure_fails_every_leaf_entry_but_not_the_rotation_credential_check(self, mock_scim_session, vault):
         vault.seed("_rotation-key-oci-created-at", datetime.now(UTC).isoformat(), category="rotation")
 
@@ -211,7 +211,7 @@ class TestCheckR2:
         # cached" path, not the happy path.
         vault.delete("_rotation-key-cloudflare-r2-token", category="rotation")
 
-        with patch("getpass.getpass") as mock_prompt:
+        with patch("getpass.getpass", autospec=True) as mock_prompt:
             results = check_freshness.check_r2()
 
         mock_prompt.assert_not_called()
@@ -220,18 +220,18 @@ class TestCheckR2:
 
 @pytest.mark.usefixtures("fake_vault")
 class TestMainExitCode:
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")])
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")], autospec=True)
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
     def test_stale_alone_does_not_fail_the_run(self, mock_b2, mock_oci, mock_r2):
         # Matches backup_agent's check-freshness.sh: ordinary expiry is
         # an alert to read in the journal, not a run failure — only an
         # actual check error should make the unit itself fail.
         assert check_freshness.main() == 0
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")])
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")], autospec=True)
     def test_check_failure_fails_the_run(self, mock_b2, mock_oci, mock_r2):
         assert check_freshness.main() == 1
 
@@ -242,20 +242,20 @@ class TestTelegramAlert:
         seed_telegram(fake_vault, "telegram-token", "123:abc")
         seed_telegram(fake_vault, "telegram-chat-id", "-100999")
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness.requests, "post")
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness.requests, "post", autospec=True)
     def test_all_fresh_sends_no_telegram_message(self, mock_post, mock_b2, mock_oci, mock_r2):
         # The whole point of alerting only on non-fresh outcomes: a
         # healthy weekly run shouldn't page anyone.
         assert check_freshness.main() == 0
         mock_post.assert_not_called()
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.WARNING, "expires in 5d")])
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness.requests, "post")
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.WARNING, "expires in 5d")], autospec=True)
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness.requests, "post", autospec=True)
     def test_warning_alone_still_sends_a_telegram_alert(self, mock_post, mock_b2, mock_oci, mock_r2, fake_vault):
         # This is the actual point of adding WARNING — a checked-fine
         # "past its window" result used to not even alert; a "expiring
@@ -273,10 +273,10 @@ class TestTelegramAlert:
         assert kwargs["data"]["message_thread_id"] == "42"
         assert "oci write" in kwargs["data"]["text"]
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")])
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness.requests, "post")
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")], autospec=True)
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness.requests, "post", autospec=True)
     def test_no_topic_id_cached_omits_the_param_instead_of_sending_empty(self, mock_post, mock_b2, mock_oci, mock_r2):
         # Telegram's API rejects message_thread_id outright if it's
         # passed empty rather than ignoring it (see
@@ -285,20 +285,20 @@ class TestTelegramAlert:
         check_freshness.main()
         assert "message_thread_id" not in mock_post.call_args.kwargs["data"]
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")])
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness.requests, "post")
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")], autospec=True)
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness.requests, "post", autospec=True)
     def test_missing_telegram_credentials_does_not_crash_the_run(self, mock_post, mock_b2, mock_oci, mock_r2, fake_vault):
         delete_telegram(fake_vault, "telegram-token")
         rc = check_freshness.main()
         mock_post.assert_not_called()
         assert rc == 0  # STALE alone still doesn't fail the run, even unalerted
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")])
-    @patch.object(check_freshness.requests, "post")
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.CHECK_FAILED, "boom")], autospec=True)
+    @patch.object(check_freshness.requests, "post", autospec=True)
     def test_uses_html_parse_mode_not_legacy_markdown(self, mock_post, mock_b2, mock_oci, mock_r2):
         """Regression test for two distinct incidents on legacy Markdown
         in a row, both confirmed live: an unescaped literal underscore
@@ -316,14 +316,15 @@ class TestTelegramAlert:
         assert "<b>cloud_credentials freshness check</b>" in data["text"]
         assert "\\_" not in data["text"]  # no leftover Markdown-escape artifact
 
-    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")])
-    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")])
+    @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
+    @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.FRESH, "")], autospec=True)
     @patch.object(
         check_freshness,
         "check_b2",
         return_value=[("b2 write", check_freshness.CHECK_FAILED, "provider said <b>bad</b> & broken")],
+        autospec=True,
     )
-    @patch.object(check_freshness.requests, "post")
+    @patch.object(check_freshness.requests, "post", autospec=True)
     def test_detail_containing_html_special_chars_is_escaped(self, mock_post, mock_b2, mock_oci, mock_r2):
         # Detail strings embed arbitrary provider error text and URLs -
         # unlike telegram_notify's other callers (all static templates),

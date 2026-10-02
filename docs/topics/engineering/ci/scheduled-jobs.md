@@ -1,6 +1,6 @@
 # CI Scheduled Jobs
 
-Checks that run on a schedule: the Renovate window check, and the Trivy scans (which also run as a PR job). The PR pipeline is in [CI: PR Checks](pipeline.md).
+Checks that run on a schedule: the Renovate window check, and the Trivy scans (which also run as a PR job). The PR pipeline is in [CI: PR Checks](pipeline.md). The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
 
 ## Renovate schedule window
 
@@ -27,3 +27,10 @@ failure. Cron fields support `*`, ranges, lists and steps; minutes must be
 Report-only Ansible-misconfig and secret scanning, separate from the
 correctness/linting jobs in [CI: PR Checks](pipeline.md#jobs) — see
 [`security-scanning.md`](../security-scanning.md).
+
+## Image vulnerability assessment
+
+Runs weekly from the private `homelab-security` repo, not from a workflow in this
+repo, and writes nothing here. What it reads from this repo, how it ranks images
+and what it doesn't cover are in
+[`security-scanning.md`](../security-scanning.md#image-vulnerability-assessment).

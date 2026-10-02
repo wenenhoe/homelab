@@ -1,7 +1,9 @@
 # Security Scanning
 
 Trivy checks, separate from the [PR-checks pipeline](ci/pipeline.md)'s
-correctness/linting jobs — these are report-only, not merge-blocking.
+correctness/linting jobs — these are report-only, not merge-blocking. Image
+vulnerabilities are assessed by a separate program, described
+[last](#image-vulnerability-assessment).
 
 ## Trivy security scans
 
@@ -59,13 +61,55 @@ it would catch a misconfigured cloud module if one is ever added.
 
 ## Why no image CVE scanning
 
-Dropped after trying several scopes (PR-triggered, diff-aware,
-unconditional) and a Vulnerability Dashboard issue to aggregate
-results. In a real scan, the overwhelming majority of findings were
-third-party images awaiting an upstream rebuild — not actionable from
-this repo regardless of scan frequency or presentation. Ansible
-misconfig and secrets don't have that problem (a finding in either is
-fixable here), so those stayed.
+Image CVE scanning doesn't run in this repo's CI, for two reasons.
 
-For occasional visibility without reintroducing standing CI cost, run
-Trivy by hand against `docker/**/compose*.yaml`.
+- **Where a result can live.** A scan result says which deployed image has
+  which fixable vulnerability, and this repo's commits, pull requests, issues
+  and Actions logs are public ([`docs/README.md#public-repo`](../../README.md#public-repo)).
+  Findings belong in the private tracker.
+- **The first attempt was noise.** It was tried in several scopes (PR-triggered,
+  diff-aware, unconditional) with a Vulnerability Dashboard issue to aggregate
+  the results, and dropped because most of what it reported was third-party
+  images awaiting an upstream rebuild, which nothing here can act on. It also
+  scanned only a subset: it found images with a `compose*.yaml` glob, which
+  skips the templated compose files and every image pinned in Ansible.
+
+Ansible misconfig and secrets don't have the noise problem (a finding in
+either is fixable here), so those stayed. Images are assessed by the program
+below, over a complete inventory.
+
+## Image vulnerability assessment
+
+A weekly job in the private `homelab-security` repo's own CI scans every image
+this repo deploys, ranks what it finds, and keeps the results there. It is
+decided in
+[ADR 0071](../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md).
+This repo's part is the inventory it reads and the rule that no result lands
+here.
+
+- **Inventory.** The job reads this repo by a plain clone and runs
+  `python -m ci.images.remote list --json`
+  ([the contract](ci/gates.md#image-inventory-json)). An image pinned in a
+  compose file, an Ansible role or a script is **deployed** and scanned. A
+  Dockerfile base is covered through the image built from it. An image used
+  only by Molecule or CI is listed and not scanned.
+- **Ranking.** An image's priority band comes from how reachable it is and what
+  its compromise would grant. Reachability is derived from this repo's own
+  configuration, from the point of view of anything already on the LAN or
+  tailnet: a route marked `auth: false`, a published port that isn't bound to
+  loopback, or host networking makes an image reachable without logging in, and
+  a Tinyauth-protected route makes it reachable after. Consequence is a judgment
+  kept in the private repo's policy file, where an image nobody has classified
+  ranks as high.
+- **Where it runs.** Three jobs. The one that runs code from this repo and the
+  one that scans hold read-only tokens; only the job that records results can
+  write. Results, the policy and accepted-risk records stay in the private repo,
+  which notifies by pull request when something needs attention.
+- **Coupled to this repo's shape.** Classification reads each app's `routes`
+  (`upstream`, `auth`) in `app_catalog.yaml` and each compose service's `ports`,
+  `network_mode` and `container_name`. A change to those shapes shows up there
+  as images it can't classify, which rank top band, not as silence.
+- **Not covered.** Host operating-system packages, whether what runs matches
+  what `main` declares, and whether a vulnerability is exploitable here. A fixed
+  package version doesn't mean a published image carries the fix, so a finding
+  can count as fixable while nothing published fixes it.

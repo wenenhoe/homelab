@@ -1,0 +1,6 @@
+rules:
+  # self-repository wants `$/.github/...` for local actions and reusable
+  # workflows. actionlint 1.7.12 (the pinned hook) rejects that syntax as
+  # an invalid `uses:` format, so the `./` form stays until it accepts it.
+  self-repository:
+    disable: true

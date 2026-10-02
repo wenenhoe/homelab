@@ -170,6 +170,11 @@ jobs:
           install-precommit-hooks: "true"
 
       - name: Run commit-stage hooks against all files
+        # Without a token zizmor silently drops its audits that query
+        # GitHub (impostor commits, known-vulnerable actions, stale pins)
+        # and prints one WARN line.
+        env:
+          ZIZMOR_GITHUB_TOKEN: ${{ github.token }}
         run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit --show-diff-on-failure
 
   # A PR that touches a project doc must stay inside that project's

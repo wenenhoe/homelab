@@ -6,14 +6,13 @@
 # scenario, which always registers caddy — nor by the real fleet, since
 # every current host_vars file registers caddy too.
 #
-# Tracing it through surfaced a real bug: "Seed the caddyfile volume from
-# staging" was gated only on caddy_config_changes.changed, not
-# caddy_has_compose_app, so it would run with the {} fallback the moment
-# the Caddyfile changed (essentially every first run) and blow up on
-# compose_app_item.name being undefined. Fixed in tasks/main.yaml by also
-# requiring caddy_has_compose_app there.
+# "Seed the caddyfile volume from staging" is gated on both
+# caddy_config_changes.changed and caddy_has_compose_app: gated on the
+# former alone, it would run with the {} fallback the moment the
+# Caddyfile changed (essentially every first run) and fail on
+# compose_app_item.name being undefined.
 #
-# Expected behaviour post-fix: the Caddyfile still renders to staging
+# Expected behaviour: the Caddyfile still renders to staging
 # (doesn't depend on caddy being a compose app), but nothing gets seeded
 # into a volume and no caddy container gets deployed.
 - name: Converge

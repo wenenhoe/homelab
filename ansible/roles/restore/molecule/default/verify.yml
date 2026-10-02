@@ -72,10 +72,10 @@
     # --- Did the restore preserve the archive's ownership, not reset it? ---
     # docker_volume_backup ships a legacy volume the same way it originally
     # got populated — right or wrong. restore's own extraction preserves
-    # whatever it's handed (see docker-wastebin's live incident: a volume
-    # first populated under a since-corrected UID stays wrong until someone
-    # manually chowns it). If this ever regresses to reset ownership
-    # instead of preserving it, this is the test that would catch it.
+    # whatever it's handed (a volume first populated under a since-corrected
+    # UID stays wrong until someone manually chowns it). If this ever
+    # regresses to reset ownership instead of preserving it, this is the
+    # test that would catch it.
     - name: Read back the source canary's original owner
       ansible.builtin.slurp:
         path: "{{ restore_default_owner_marker }}"

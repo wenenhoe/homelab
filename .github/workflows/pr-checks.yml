@@ -264,7 +264,7 @@ jobs:
       - name: Run unit tests
         run: uv run pytest ansible/tests/ tools/tests/ -v
 
-  # Regression coverage for the ansible_host resolution ordering incident —
+  # Regression coverage for the ansible_host resolution ordering —
   # see docs/topics/engineering/ci/gates.md#deploy-ordering-check for what it catches and why.
   deploy-ordering-check:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]

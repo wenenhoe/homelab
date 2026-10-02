@@ -38,12 +38,12 @@
     # userinfo as username + ":" + password and validates it against
     # ^[0-9]+:[a-zA-Z0-9_-]+$ — a token without that digits:alnum shape
     # fails NOTIFICATION_URLS's sender setup at every single scheduled
-    # run, never reaching the actual backup logic (confirmed live: this
-    # value used to be "molecule-dummy-telegram-token", which doesn't
-    # embed a ":" at all, and every cron tick logged "error creating
-    # sender: ... telegram: failed to initialize service"). A real bot
-    # token from BotFather already has this shape, so production is
-    # unaffected — only this placeholder needed to match it.
+    # run, never reaching the actual backup logic (confirmed live: a
+    # token without a ":" such as "molecule-dummy-telegram-token" logs
+    # "error creating sender: ... telegram: failed to initialize
+    # service" on every cron tick). A real bot token from BotFather
+    # already has this shape, so production is unaffected — only this
+    # placeholder needs to match it.
     telegram_token: "123456789:molecule-dummy-token"
     telegram_chatid_backups: "molecule-dummy-chat-id"
     # telegram_notify's install.yaml also needs this — the bare chat

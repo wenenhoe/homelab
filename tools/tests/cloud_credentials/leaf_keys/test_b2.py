@@ -35,10 +35,10 @@ class TestB2Rotation:
         ok = b2.rotate_b2(["write"])
 
         assert ok
-        # Region matters, not just endpoint: a missing/wrong region is
-        # exactly the live bug this caught (OCI 403 SignatureDoesNotMatch
-        # outside the tenancy's home region) — assert the actual call
-        # arguments, not just that verify ran.
+        # Region matters, not just endpoint: a missing or wrong region
+        # fails with an OCI 403 SignatureDoesNotMatch outside the
+        # tenancy's home region — assert the actual call arguments, not
+        # just that verify ran.
         mock_verify.assert_called_once_with("NEW_ACCESS", "NEW_SECRET", "https://s3.us-west-004.backblazeb2.com", "us-west-004", b2.B2_BUCKET, "write")
         # The old key's delete call must happen, and only after verify passed.
         api.session.delete_key.assert_called_once_with("OLD_ACCESS")

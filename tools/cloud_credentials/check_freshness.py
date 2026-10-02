@@ -174,9 +174,8 @@ def check_r2() -> list[tuple[str, str, str]]:
 
 def _r2_rotation_token_result(session: requests.Session) -> tuple[str, str, str]:
     """GET /user/tokens/verify, not the /accounts/{account_id}/tokens
-    equivalents — confirmed live, not a guess, and not a Cloudflare bug
-    either (an earlier version of this function claimed exactly that;
-    wrong, corrected here). This admin token is a Cloudflare **User API
+    equivalents — confirmed live, not a guess, and not a Cloudflare bug.
+    This admin token is a Cloudflare **User API
     Token** — created via My Profile > API Tokens, exactly as
     leaf_keys/r2.py's own prompt instructs — which is a genuinely
     different resource category from "Account Owned API Tokens"
@@ -219,16 +218,14 @@ def _r2_expires_on_result(label: str, expires_on: str | None) -> tuple[str, str,
 
 
 def _escape_telegram_html(text: str) -> str:
-    """`parse_mode=HTML`, not legacy Markdown — deliberately switched
-    after two distinct incidents on Markdown in a row, both confirmed
-    live: an unescaped literal underscore in the static header broke
-    every alert outright (400, "can't parse entities"); after escaping
-    that, Telegram's own documented rule for legacy Markdown —
-    "escaping inside entities is not allowed" — meant the
-    backslash-escaped underscore, sitting inside the bold `*...*`
-    span, rendered as a literal visible backslash instead of being
-    consumed. HTML has no equivalent trap: `<b>` is either well-formed
-    or it isn't, and `_`/`*`/`` ` ``/`[` are always ordinary characters,
+    """`parse_mode=HTML`, not legacy Markdown, which fails two ways: an
+    unescaped literal underscore in the static header rejects every
+    alert outright (400, "can't parse entities"), and Telegram's own
+    documented rule for legacy Markdown — "escaping inside entities is
+    not allowed" — means a backslash-escaped underscore inside the
+    bold `*...*` span renders as a literal visible backslash instead of
+    being consumed. HTML has no equivalent trap: `<b>` is either
+    well-formed or it isn't, and `_`/`*`/`` ` ``/`[` are always ordinary characters,
     inside a tag's content or outside it. Only `&`, `<`, `>` are ever
     special, and only these three need escaping — no entity-nesting
     rules to violate by accident."""

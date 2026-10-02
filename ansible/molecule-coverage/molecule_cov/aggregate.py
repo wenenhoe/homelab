@@ -55,8 +55,7 @@ genuinely skipped (false branch), across ALL raw events - not the
 already-collapsed per-scenario/aggregate status - so idempotence's second
 pass counts as real evidence even for a task whose aggregate_status is
 "covered" because of its first pass. Deliberately does NOT exclude
-empty-loop skips from the false-branch signal - an earlier version of
-this code did, which turned out to be a real bug: a looped task's
+empty-loop skips from the false-branch signal: a looped task's
 `when:` being false can make its own loop source empty too, and Ansible
 reports that with the same skip_reason as a genuinely unrelated empty
 loop ("No items in the list", not "Conditional result was False") - see

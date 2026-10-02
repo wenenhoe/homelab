@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """The deploy-ordering-check job's two playbook runs, and the verdict on the second.
 
-Regression coverage for an incident where `ansible_host` was wired to
-resolve through a role-generated fact (`secrets_generated`) without
-anything in CI exercising that chain — see docs/topics/engineering/ci/gates.md#deploy-ordering-check.
+Regression coverage for `ansible_host` resolving through a
+role-generated fact (`secrets_generated`), a chain nothing else in CI
+exercises — see docs/topics/engineering/ci/gates.md#deploy-ordering-check.
 Both runs use the purpose-built inventory, so they touch no real host.
 
 `deploy` runs the real deploy.yaml with `--tags` matching nothing real, so

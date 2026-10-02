@@ -81,10 +81,12 @@ jobs:
       # compose_deploy_dir must be passed as -e here (Ansible precedence)
       # rather than relying on the group_vars default.
       - name: Seed ${{ matrix.app }} via the real compose role
+        env:
+          MATRIX_APP: ${{ matrix.app }}
         run: |
           uv run ansible-playbook -i ci-inventory/inventory.yaml --connection=local \
             playbooks/ci_boot_test.yaml \
-            -e app_name=${{ matrix.app }} \
+            -e "app_name=$MATRIX_APP" \
             -e compose_deploy_dir=/tmp/compose-deploy
         working-directory: ansible
 
@@ -93,10 +95,12 @@ jobs:
       # tools/ci/images/build.py and docs/topics/engineering/ci/gates.md#dockerfile-changes.
       - name: Build ${{ matrix.app }}'s Dockerfile as the image its compose file pins
         if: inputs.build-dockerfiles
+        env:
+          MATRIX_APP: ${{ matrix.app }}
         run: >-
           python3 -m ci.images.build shadow-tag
-          "${{ matrix.app }}"
-          "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+          "$MATRIX_APP"
+          "/tmp/compose-deploy/$MATRIX_APP/compose.yaml"
         working-directory: tools
 
       # lldap-only: see .github/scripts/seed-lldap-ci-cert.sh for why this
@@ -107,7 +111,9 @@ jobs:
         run: .github/scripts/seed-lldap-ci-cert.sh caddy-proxy lldap.svc.ci.invalid
 
       - name: Bring the stack up
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" up -d
+        env:
+          MATRIX_APP: ${{ matrix.app }}
+        run: docker compose -f "/tmp/compose-deploy/$MATRIX_APP/compose.yaml" up -d
 
       # Bring the stack up failing means Wait for healthy state (which
       # normally dumps logs on an unhealthy service) never runs, and Tear
@@ -115,12 +121,18 @@ jobs:
       # this, the crash reason is gone before anyone can see it.
       - name: DEBUG dump logs if Bring the stack up failed
         if: failure()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" logs
+        env:
+          MATRIX_APP: ${{ matrix.app }}
+        run: docker compose -f "/tmp/compose-deploy/$MATRIX_APP/compose.yaml" logs
 
       - name: Wait for healthy state (or, if none defined, that it stayed running)
-        run: python3 -m ci.gates.compose_health "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml"
+        env:
+          MATRIX_APP: ${{ matrix.app }}
+        run: python3 -m ci.gates.compose_health "/tmp/compose-deploy/$MATRIX_APP/compose.yaml"
         working-directory: tools
 
       - name: Tear down
         if: always()
-        run: docker compose -f "/tmp/compose-deploy/${{ matrix.app }}/compose.yaml" down -v
+        env:
+          MATRIX_APP: ${{ matrix.app }}
+        run: docker compose -f "/tmp/compose-deploy/$MATRIX_APP/compose.yaml" down -v

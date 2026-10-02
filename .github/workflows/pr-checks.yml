@@ -364,7 +364,9 @@ jobs:
           install-galaxy-collections: "true"
 
       - name: Run molecule test — ${{ matrix.role }}
-        run: uv run ./scripts/molecule-test-all.sh "${{ matrix.role }}"
+        env:
+          MATRIX_ROLE: ${{ matrix.role }}
+        run: uv run ./scripts/molecule-test-all.sh "$MATRIX_ROLE"
         working-directory: ansible
 
       # if: always() - partial coverage from a mid-run failure is still
@@ -373,12 +375,14 @@ jobs:
       # without it a failure upstream of `| tee` is masked by tee's exit 0.
       - name: Coverage report + gate — ${{ matrix.role }}
         if: always()
+        env:
+          MATRIX_ROLE: ${{ matrix.role }}
         run: |
           set -o pipefail
-          uv run python3 -m molecule_cov.cli inventory "../roles/${{ matrix.role }}" \
+          uv run python3 -m molecule_cov.cli inventory "../roles/$MATRIX_ROLE" \
             --coverage-dir .data
           uv run python3 -m molecule_cov.cli report \
-            --coverage-dir .data --role "${{ matrix.role }}" \
+            --coverage-dir .data --role "$MATRIX_ROLE" \
             --thresholds-file thresholds.yaml \
             | tee -a "$GITHUB_STEP_SUMMARY"
         working-directory: ansible/molecule-coverage
@@ -412,7 +416,9 @@ jobs:
       # tools/ci/images/build.py is stdlib-only, so plain python3 runs it
       # and this job needs no uv.
       - name: Build and smoke-test ${{ matrix.app }}'s image
-        run: python3 -m ci.images.build build-check "${{ matrix.app }}"
+        env:
+          MATRIX_APP: ${{ matrix.app }}
+        run: python3 -m ci.images.build build-check "$MATRIX_APP"
         working-directory: tools
 
   # Fallback for stacks the boot-test job deliberately excludes: only the

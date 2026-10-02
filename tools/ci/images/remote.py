@@ -35,7 +35,7 @@ cooldown for whatever stayed unanswered. An image whose registry never
 answered is a warning, not a failure; only a tag the registry says isn't
 there, or a Renovate manager that lost its file, fails the run.
 
-Usage (from tools/): python -m ci.images.remote {list|check}
+Usage (from tools/): python -m ci.images.remote {list [--json]|check}
 """
 
 from __future__ import annotations
@@ -244,6 +244,19 @@ def collect(root: Path) -> Collected:
     return collected
 
 
+INVENTORY_VERSION = 1
+
+
+def inventory(collected: Collected) -> dict[str, object]:
+    """The document `list --json` prints; docs/topics/engineering/ci/gates.md defines its shape."""
+    return {
+        "version": INVENTORY_VERSION,
+        "images": [{"ref": text, "sources": sorted(files)} for text, files in sorted(collected.images.items())],
+        "skipped": [{"ref": text, "reason": reason} for text, reason in sorted(collected.skipped.items())],
+        "problems": list(collected.problems),
+    }
+
+
 class Verdict(Enum):
     OK = "ok"
     MISSING = "missing"
@@ -410,13 +423,19 @@ def report(collected: Collected, results: dict[str, tuple[Verdict, str]]) -> tup
 def main(argv: list[str] | None = None, registry: Registry | None = None, sleep: Callable[[float], None] = time.sleep) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("command", choices=["list", "check"])
+    parser.add_argument("--json", action="store_true", help="with list: print the inventory as one JSON document")
     args = parser.parse_args(argv)
+    if args.json and args.command != "list":
+        parser.error("--json applies to list only")
     try:
         collected = collect(REPO_ROOT)
     except RemoteError as exc:
         print(f"::error::{exc}", file=sys.stderr)
         return 1
     if args.command == "list":
+        if args.json:
+            print(json.dumps(inventory(collected), indent=2))
+            return 0
         for text, files in sorted(collected.images.items()):
             print(f"{text}  <- {', '.join(files)}")
         for problem in collected.problems:

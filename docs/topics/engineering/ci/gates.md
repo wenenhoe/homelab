@@ -368,3 +368,31 @@ and can answer 429 and 5xx; **they don't reach a real registry**, so the
 first `workflow_dispatch` run against `ghcr.io` and Docker Hub is the live
 check. `python -m ci.images.remote list` (from `tools/`) prints every
 reference and the files naming it without making a request.
+
+### Image inventory JSON
+
+`python -m ci.images.remote list --json` (from `tools/`) prints the same
+collection as one JSON document on stdout, again without a request. It exists
+so a consumer outside this repo, the [image vulnerability
+assessment](../../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md),
+depends on a tested shape instead of the text output.
+
+```json
+{
+  "version": 1,
+  "images": [{ "ref": "redis:7", "sources": ["docker/a/compose.yaml"] }],
+  "skipped": [{ "ref": "buildapp:local", "reason": "built locally" }],
+  "problems": []
+}
+```
+
+- `images` has one entry per distinct reference, sorted by `ref`. `sources`
+  holds the repo-relative files that name it, sorted.
+- `skipped` is the list the text output prints, each with its reason.
+- `problems` is non-empty when a Renovate manager lost its file or its text.
+  The exit code is still 0, as for the text output, so a consumer treats a
+  non-empty `problems` as an inventory it can't trust.
+- When the inventory can't be built at all (an unreadable Renovate config),
+  stdout stays empty, the error goes to stderr and the exit code is 1.
+- `version` changes when a key is removed or changes meaning. Adding a key
+  doesn't change it.

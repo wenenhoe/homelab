@@ -14,6 +14,9 @@ name: Boot-test every compose app
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}
 
+permissions:
+  contents: read
+
 jobs:
   list-apps:
     runs-on: ubuntu-26.04

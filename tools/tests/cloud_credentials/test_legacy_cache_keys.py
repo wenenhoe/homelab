@@ -31,10 +31,9 @@ _REQUIRED_ATTRS = ("cached", "read_cache", "write_cache")
 # _rotation_require_cache_file) - confirmed by hand against each
 # module's actual source, not inferred. LEGACY_CACHE_KEYS must pair
 # every one of these with the rotation module, never the leaf module -
-# exactly the class of bug that shipped in patch 0003 for
-# _oci-leaf-user-ocid-{write,read} (paired with leaf_oci there,
-# confirmed live against a real controller to be wrong: leaf_keys/
-# oci.py's own oci_leaf_user_id() reads it via _rotation_require_cache_file).
+# e.g. _oci-leaf-user-ocid-{write,read} pair with rotation_oci, because
+# leaf_keys/oci.py's own oci_leaf_user_id() reads it via
+# _rotation_require_cache_file.
 _CROSS_CATEGORY_ROTATION_KEYS = {
     "_rotation-key-backblaze-b2-key-id": rotation_b2,
     "_rotation-key-backblaze-b2-application-key": rotation_b2,

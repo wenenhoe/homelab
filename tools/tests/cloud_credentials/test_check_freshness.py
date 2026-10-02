@@ -176,8 +176,7 @@ class TestCheckR2:
         assert statuses["r2 rotation token"] == check_freshness.FRESH
 
     def test_rotation_token_is_a_user_token_not_an_account_token(self, session_class):
-        """Regression test for two wrong theories in a row before this
-        one: the rotation token is a Cloudflare User API Token (My
+        """The rotation token is a Cloudflare User API Token (My
         Profile > API Tokens), not an Account Owned one -
         /accounts/{account_id}/tokens/verify and List Tokens both only
         ever see the Account-owned category and would never find this

@@ -161,8 +161,7 @@ class TestAuditLocal:
         credentials) can have a stray, never-since-read local file for
         a catalog entry that has `store: openbao`. That's a distinct
         finding from a genuine orphan - the name IS known, it's just
-        the wrong mechanism now - found via the stage 6 cutover drill
-        surfacing exactly this on a real controller."""
+        the wrong mechanism now."""
         catalog_dir = tmp_path_factory.mktemp("catalog")
         catalog_path = catalog_dir / "secret_catalog.yaml"
         catalog_path.write_text("secret_catalog:\n  lldap-jwt-secret: { source: hex, length: 32, store: openbao, scope: hosts/security }\n")
@@ -212,12 +211,11 @@ def _mock_b2_session(keys):
 
 
 class TestAuditB2:
-    """audit_b2()'s active-key classification. Regression coverage for
-    two real bugs found running audit.py --provider all against
-    a live account (Track A stage 6's cutover drill): the openbao
-    snapshot write leaf was cached in Vault but never checked against,
-    and the break-glass readonly key (ADR 0017) can never match a cache
-    lookup since it's never cached anywhere by design."""
+    """audit_b2()'s active-key classification. Two cases need explicit
+    handling: the openbao snapshot write leaf is cached in Vault and
+    must be checked against it, and the break-glass readonly key
+    (ADR 0017) can never match a cache lookup since it's never cached
+    anywhere by design."""
 
     @pytest.fixture(autouse=True)
     def _cached(self, cached_values):

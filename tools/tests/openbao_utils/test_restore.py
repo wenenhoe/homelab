@@ -126,9 +126,8 @@ class TestCatalogScopedRestore:
         fake_write.assert_not_called()
 
     def test_restores_backup_content_byte_for_byte_not_stripped(self, env):
-        # Regression test for the bug found on merge: the other phase
-        # (LEGACY_CACHE_KEYS) used to strip() backup content before
-        # this merge - openbao_utils/dump.py writes the raw
+        # The other phase (LEGACY_CACHE_KEYS) must not strip() backup
+        # content before this merge - openbao_utils/dump.py writes the raw
         # value with no added whitespace, so stripping on the way back
         # in would silently corrupt a value with meaningful
         # leading/trailing whitespace.
@@ -192,9 +191,8 @@ class TestLegacyCacheKeysRestore:
         assert "key-b" not in mod_b.store
 
     def test_restores_backup_content_byte_for_byte_not_stripped(self, tmp):
-        # Regression test for the bug found on merge - see the
-        # matching test in CatalogScopedRestoreTests for the full
-        # explanation.
+        # See the matching test in CatalogScopedRestoreTests for the
+        # full explanation.
         mod = _FakeModule()
         self.seed_backup_file(tmp, "padded-key", "  has padding  \n")
         with patch.object(restore, "LEGACY_CACHE_KEYS", [("padded-key", mod)]):

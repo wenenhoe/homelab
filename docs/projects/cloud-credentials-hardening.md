@@ -90,7 +90,7 @@ files (they share `leaf_keys/b2.py`'s `b2_rotation_api`/
 so a partial swap would leave callers broken); tests updated to mock
 `b2sdk.v2.B2Api` instead of raw `requests` calls.
 
-**Confirmed live, after one real bug caught along the way.**
+**Confirmed live; `FullApplicationKey` stores its key ID under a different name than its constructor takes.**
 [ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md)'s
 claim that `b2sdk` exposes the precise capability list without
 abstracting it away held —

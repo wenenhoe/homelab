@@ -4,10 +4,9 @@ The regression checks and gates in `.github/workflows/pr-checks.yml` that look a
 
 ## Deploy-ordering-check
 
-Regression coverage for an incident where `ansible_host` (`inventory.yaml`)
-was wired to resolve through a role-generated fact
-(`secrets_generated`) without anything in CI ever exercising that chain
-— every other check either bypasses `ansible_host` resolution entirely
+Regression coverage for `ansible_host` (`inventory.yaml`) resolving
+through a role-generated fact (`secrets_generated`), a chain nothing
+else in CI exercises — every other check either bypasses `ansible_host` resolution entirely
 or tests the `secrets` role against a synthetic inventory that never
 touches the real one.
 

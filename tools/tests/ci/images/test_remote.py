@@ -495,6 +495,60 @@ class TestMain:
         assert code == 0
         assert "redis:7  <- docker/a/compose.yaml" in out
 
+    def test_list_json_prints_the_inventory_document(self, root, run_main):
+        write(root, "docker/b/compose.yaml", "image: redis:7\nimage: ${IMG}\n")
+        write(root, "docker/a/compose.yaml", "image: alpine:3.20\n")
+        renovate(root, "")
+        code, out = run_main("list", "--json")
+        assert code == 0
+        assert json.loads(out) == {
+            "version": 1,
+            "images": [
+                {"ref": "alpine:3.20", "sources": ["docker/a/compose.yaml"]},
+                {"ref": "redis:7", "sources": ["docker/b/compose.yaml"]},
+            ],
+            "skipped": [{"ref": "${IMG}", "reason": "templated"}],
+            "problems": [],
+        }
+
+    def test_list_json_sorts_sources_whatever_order_they_were_found_in(self, root, run_main):
+        # compose files are collected before Renovate-tracked ones, so discovery order is docker/z/... then a-service
+        write(root, "docker/z/compose.yaml", "image: redis:7\n")
+        write(root, "a-service", "redis:7\n")
+        renovate(
+            root,
+            """{
+              customType: "regex",
+              managerFilePatterns: ["/^a-service$/"],
+              matchStrings: ["redis:(?<currentValue>[0-9]+)"],
+              datasourceTemplate: "docker",
+              depNameTemplate: "redis",
+            },""",
+        )
+        assert [i["sources"] for i in json.loads(run_main("list", "--json")[1])["images"]] == [["a-service", "docker/z/compose.yaml"]]
+
+    def test_list_json_reports_problems_and_still_exits_zero(self, root, run_main):
+        write(root, "docker/a/compose.yaml", "image: redis:7\n")
+        renovate(root, TestRenovateRefs.MANAGER)
+        code, out = run_main("list", "--json")
+        assert code == 0
+        problems = json.loads(out)["problems"]
+        assert len(problems) == 1
+        assert "rclone in a unit" in problems[0]
+
+    def test_list_json_prints_nothing_when_the_inventory_cannot_be_built(self, root, run_main, capsys):
+        write(root, "docker/a/compose.yaml", "image: redis:7\n")  # no renovate config: RemoteError
+        code, out = run_main("list", "--json")
+        assert code == 1
+        assert out == ""
+        assert "::error::can't read .github/renovate.json5" in capsys.readouterr().err
+
+    def test_json_is_refused_for_check(self, root, run_main, capsys):
+        with pytest.raises(SystemExit) as exc:
+            run_main("check", "--json")
+        assert exc.value.code == 2
+        assert "--json applies to list only" in capsys.readouterr().err
+
     def test_check_end_to_end_against_the_fake_registry(self, fake, root, run_main):
         fake.manifests[("library/redis", "7")] = 200  # alpine:3.20 is left out: missing
         write(root, "docker/a/compose.yaml", "image: redis:7\nimage: alpine:3.20\n")
@@ -558,6 +612,19 @@ class TestRealTree:
     def test_dockerfile_base_images_are_checked_too(self, collected):
         assert "quxfoo/wastebin:3.7.2" in collected.images
         assert any(t.startswith("caddy:") for t in collected.images)
+
+    def test_the_json_inventory_is_the_collection_as_one_json_document(self, collected):
+        document = rm.inventory(collected)
+        assert json.loads(json.dumps(document)) == document
+        assert set(document) == {"version", "images", "skipped", "problems"}
+        assert [i["ref"] for i in document["images"]] == sorted(collected.images)
+
+    def test_every_source_the_json_inventory_names_is_a_file_in_the_repo(self, collected, subtests):
+        for image in rm.inventory(collected)["images"]:
+            with subtests.test(ref=image["ref"]):
+                assert image["sources"]
+                for source in image["sources"]:
+                    assert (REPO_ROOT / source).is_file()
 
     def test_the_list_is_the_size_of_a_real_repo(self, collected):
         assert len(collected.images) > 30

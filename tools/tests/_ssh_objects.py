@@ -46,11 +46,12 @@ def exec_result(stdout: bytes = b"", stderr: bytes = b"", exit_status: int = 0):
     return _streams(channel, stdout, stderr)
 
 
-def pty_result(exit_status: int = 0):
-    """What `exec_command(get_pty=True)` returns when the channel never has data ready and has already exited."""
+def pty_result(exit_status: int = 0, chunks: tuple[bytes, ...] = ()):
+    """What `exec_command(get_pty=True)` returns when the channel has already exited and holds `chunks` (none by default) to read."""
+    pending = list(chunks)
     channel = paramiko.Channel(1)
-    _stub(channel, "recv_ready", return_value=False)
+    _stub(channel, "recv_ready", side_effect=lambda: bool(pending))
     _stub(channel, "exit_status_ready", return_value=True)
     _stub(channel, "recv_exit_status", return_value=exit_status)
-    _stub(channel, "recv")
+    _stub(channel, "recv", side_effect=lambda _nbytes: pending.pop(0))
     return _streams(channel, b"", b"")

@@ -2,7 +2,7 @@
 
 Run via `uv run pytest tools/tests/ -v`. Every SSH call is mocked;
 nothing here touches a real `security` host or a real OpenBao/docker.
-_DRAIN_IDLE_SECONDS is shrunk in every test that exercises _drain() -
+_DRAIN_IDLE_SECONDS and _DRAIN_SETTLE_SECONDS are shrunk in every test that exercises _drain() -
 same technique step_ca_cert's own caddy_cert_expiry molecule scenario
 uses (a real threshold, made small enough to hit for real in a test),
 not a mock of time itself.
@@ -11,6 +11,7 @@ not a mock of time itself.
 from __future__ import annotations
 
 import sys
+import time
 from unittest.mock import create_autospec, patch
 
 import pytest
@@ -74,6 +75,7 @@ class TestRunUnsealShare:
     @pytest.fixture(autouse=True)
     def _short_drain(self, monkeypatch):
         monkeypatch.setattr(init_unseal, "_DRAIN_IDLE_SECONDS", 0.01)
+        monkeypatch.setattr(init_unseal, "_DRAIN_SETTLE_SECONDS", 0.01)
 
     def test_requests_a_pty_and_keeps_the_manual_it_command(self, connected_client):
         connected_client.exec_command.return_value = pty_result()
@@ -113,11 +115,76 @@ class TestRunUnsealShare:
             result = init_unseal.run_unseal_share()
         assert result == 0
 
+    def test_reads_the_share_before_connecting(self, connected_client):
+        calls: list[str] = []
+        init_unseal._connect.side_effect = lambda: calls.append("connect") or connected_client
+        connected_client.exec_command.return_value = pty_result()
+        with patch("getpass.getpass", side_effect=lambda _prompt="": calls.append("getpass") or "fake-share", autospec=True):
+            init_unseal.run_unseal_share()
+        assert calls == ["getpass", "connect"]
+
+    def test_sends_nothing_and_fails_on_an_empty_share(self, connected_client, capsys):
+        with patch("getpass.getpass", return_value="", autospec=True):
+            result = init_unseal.run_unseal_share()
+        assert result == 1
+        init_unseal._connect.assert_not_called()
+        assert "nothing sent" in capsys.readouterr().err
+
+    def test_waits_for_the_remote_prompt_before_writing_the_share(self, connected_client):
+        stdin, stdout_stream, stderr_stream = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
+        connected_client.exec_command.return_value = (stdin, stdout_stream, stderr_stream)
+        recv = stdout_stream.channel.recv
+        reads_when_written: list[int] = []
+        stdin.write.side_effect = lambda _data: reads_when_written.append(recv.call_count)
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
+            init_unseal.run_unseal_share()
+        assert reads_when_written == [1]
+
+    def test_does_not_show_the_remote_prompt_after_the_share_was_read_locally(self, connected_client, capsys):
+        connected_client.exec_command.return_value = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
+            init_unseal.run_unseal_share()
+        assert "Unseal Key" not in capsys.readouterr().out
+
+    def test_still_shows_other_output_that_arrives_before_the_share_is_sent(self, connected_client, capsys):
+        connected_client.exec_command.return_value = pty_result(chunks=(b"Error response from daemon: No such container: openbao\r\n",))
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
+            init_unseal.run_unseal_share()
+        assert "No such container: openbao" in capsys.readouterr().out
+
     def test_closes_the_client_even_if_something_raises(self, connected_client):
         connected_client.exec_command.side_effect = RuntimeError("boom")
-        with pytest.raises(RuntimeError):
+        with patch("getpass.getpass", return_value="fake-share", autospec=True), pytest.raises(RuntimeError):
             init_unseal.run_unseal_share()
         connected_client.close.assert_called_once()
+
+
+class TestDrain:
+    @pytest.fixture(autouse=True)
+    def _long_idle_short_settle(self, monkeypatch):
+        monkeypatch.setattr(init_unseal, "_DRAIN_IDLE_SECONDS", 30)
+        monkeypatch.setattr(init_unseal, "_DRAIN_SETTLE_SECONDS", 0.01)
+
+    def test_returns_once_output_goes_quiet_instead_of_waiting_out_the_idle_bound(self, capsys):
+        _stdin, stdout_stream, _stderr = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
+        channel = stdout_stream.channel
+        channel.exit_status_ready.return_value = False
+        started = time.monotonic()
+        init_unseal._drain(channel)
+        assert time.monotonic() - started < 5
+        assert capsys.readouterr().out == "Unseal Key (will be hidden): "
+
+    def test_collects_the_output_without_printing_it_when_echo_is_off(self, capsys):
+        _stdin, stdout_stream, _stderr = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
+        collected = init_unseal._drain(stdout_stream.channel, echo=False)
+        assert collected == "Unseal Key (will be hidden): "
+        assert capsys.readouterr().out == ""
+
+    def test_returns_at_once_when_the_command_has_exited_with_nothing_to_read(self):
+        _stdin, stdout_stream, _stderr = pty_result()
+        started = time.monotonic()
+        init_unseal._drain(stdout_stream.channel)
+        assert time.monotonic() - started < 5
 
 
 class TestMain:

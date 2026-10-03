@@ -315,8 +315,8 @@ cd tools && python3 -m openbao_utils.init_unseal unseal
 
 Run it 2 times (the threshold above). Each run asks for one of the 3
 shares first (`Unseal key share (hidden):`), then connects and submits
-it; nothing is pasted at the remote prompt that follows. To check seal state without spending a share, on
-`security` itself: `bao status -address=https://127.0.0.1:8200
+it; bao's own prompt line is not shown, since the share is already in.
+To check seal state without spending a share, on `security` itself: `bao status -address=https://127.0.0.1:8200
 -tls-server-name=openbao.{{ caddy_domain }}
 -ca-cert=/etc/step-ca/root_ca.crt` - native CLI, real TLS, no login
 needed.

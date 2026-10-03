@@ -130,15 +130,27 @@ class TestRunUnsealShare:
         init_unseal._connect.assert_not_called()
         assert "nothing sent" in capsys.readouterr().err
 
-    def test_writes_the_share_only_after_the_remote_prompt_was_shown(self, connected_client, capsys):
+    def test_waits_for_the_remote_prompt_before_writing_the_share(self, connected_client):
         stdin, stdout_stream, stderr_stream = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
         connected_client.exec_command.return_value = (stdin, stdout_stream, stderr_stream)
-        shown_when_written: list[str] = []
-        stdin.write.side_effect = lambda _data: shown_when_written.append(capsys.readouterr().out)
+        recv = stdout_stream.channel.recv
+        reads_when_written: list[int] = []
+        stdin.write.side_effect = lambda _data: reads_when_written.append(recv.call_count)
         with patch("getpass.getpass", return_value="fake-share", autospec=True):
             init_unseal.run_unseal_share()
-        assert len(shown_when_written) == 1
-        assert "Unseal Key (will be hidden)" in shown_when_written[0]
+        assert reads_when_written == [1]
+
+    def test_does_not_show_the_remote_prompt_after_the_share_was_read_locally(self, connected_client, capsys):
+        connected_client.exec_command.return_value = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
+            init_unseal.run_unseal_share()
+        assert "Unseal Key" not in capsys.readouterr().out
+
+    def test_still_shows_other_output_that_arrives_before_the_share_is_sent(self, connected_client, capsys):
+        connected_client.exec_command.return_value = pty_result(chunks=(b"Error response from daemon: No such container: openbao\r\n",))
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
+            init_unseal.run_unseal_share()
+        assert "No such container: openbao" in capsys.readouterr().out
 
     def test_closes_the_client_even_if_something_raises(self, connected_client):
         connected_client.exec_command.side_effect = RuntimeError("boom")
@@ -161,6 +173,12 @@ class TestDrain:
         init_unseal._drain(channel)
         assert time.monotonic() - started < 5
         assert capsys.readouterr().out == "Unseal Key (will be hidden): "
+
+    def test_collects_the_output_without_printing_it_when_echo_is_off(self, capsys):
+        _stdin, stdout_stream, _stderr = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
+        collected = init_unseal._drain(stdout_stream.channel, echo=False)
+        assert collected == "Unseal Key (will be hidden): "
+        assert capsys.readouterr().out == ""
 
     def test_returns_at_once_when_the_command_has_exited_with_nothing_to_read(self):
         _stdin, stdout_stream, _stderr = pty_result()

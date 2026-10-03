@@ -102,10 +102,17 @@ covers the call and raw HTTP otherwise, no `b2`/`oci` CLI binary
 required — `requests`, `oci`, and `b2sdk` are all pinned in
 `pyproject.toml`. `oci` supplies both `oci.signer.Signer` (OCI's
 leaf-identity IAM bootstrap, `rotation_keys/oci_iam.py` — a separate,
-unrelated auth model from SCIM) and, as of
-[`cloud-credentials-hardening.md`](../../../projects/cloud-credentials-hardening.md)'s
-Stage 2, `oci.identity_domains.IdentityDomainsClient` for the SCIM
+unrelated auth model from SCIM) and
+`oci.identity_domains.IdentityDomainsClient` for the SCIM
 customer-secret-key and Apps-lookup calls (`AppClientSecretRegenerator`
 has no SDK method and stays on raw `requests` regardless). `b2sdk`
-covers B2's leaf/rotation key create/delete/list calls as of that same
-project's Stage 3.
+covers B2's leaf/rotation key create/delete/list calls. The choices
+are in
+[ADR 0029](../../../decisions/0029-cloud-provider-api-client-library/revision-000.md).
+
+Three call sites still use the providers' HTTP APIs directly where
+that ADR puts them on an SDK: `check_freshness.py`'s OCI key lookup and
+`openbao_utils/audit.py`'s B2 and OCI listings, tracked in
+[`cloud-credentials-sdk-followups.md`](../../../projects/cloud-credentials-sdk-followups.md).
+`check_freshness.py`'s Telegram `sendMessage` call stays on `requests`:
+it is one endpoint, with no SDK worth adding.

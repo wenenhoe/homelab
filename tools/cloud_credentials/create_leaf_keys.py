@@ -55,9 +55,9 @@ from cloud_credentials.leaf_keys.b2 import create_b2, rotate_b2
 from cloud_credentials.leaf_keys.oci import create_oci, rotate_oci
 from cloud_credentials.leaf_keys.r2 import create_r2, rotate_r2
 
-# Each provider now raises its own client's error type instead of a
-# uniform requests.HTTPError (oci.identity_domains, b2sdk - Stages 2/3,
-# docs/projects/cloud-credentials-hardening.md). Only requests.HTTPError
+# Each provider raises its own client's error type rather than a
+# uniform requests.HTTPError (oci.identity_domains, b2sdk -
+# docs/decisions/0029-cloud-provider-api-client-library/revision-000.md). Only requests.HTTPError
 # carries a separate .response with a status code/body worth pulling
 # apart; str() on the SDK exceptions already includes the equivalent
 # detail (oci.exceptions.ServiceError's own __str__, b2sdk.B2Error

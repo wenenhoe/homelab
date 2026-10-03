@@ -76,11 +76,12 @@ def verify_leaf_via_rclone(access_key: str, secret_key: str, endpoint: str, regi
     (see docs/topics/secrets/cloud-credentials/scoping.md's B2 section for why that
     distinction matters).
 
-    read: a real ListObjectsV2 (`rclone lsjson`). write: a real PutObject
+    read: a real ListObjects (`rclone lsjson`; rclone lists with the v1
+    call on these providers, not ListObjectsV2). write: a real PutObject
     (`rclone copyto`) to a fresh, uniquely-named marker key (see
-    _verify_marker_key) — rclone's S3 backend does its own pre-flight
-    HeadObject before the upload either way, so this exercises both
-    calls the write leaf actually needs. Returns (ok, detail).
+    _verify_marker_key) — rclone's S3 backend sends HeadObject before the
+    upload and again after it, so this exercises the calls the write
+    leaf actually needs. Returns (ok, detail).
 
     `region` and `no_check_bucket = true` are both required, not
     optional, and retries run through a real provider propagation
@@ -107,8 +108,8 @@ def verify_leaf_via_rclone(access_key: str, secret_key: str, endpoint: str, regi
         if leaf == "read":
             result = _run_rclone_with_retry([*cmd, "lsjson", f"verify:{bucket}", "--max-depth", "1"], timeout)
             if result.returncode != 0:
-                return False, f"rclone lsjson (ListObjectsV2) failed: {result.stderr.strip()}"
-            return True, "ListObjectsV2 succeeded"
+                return False, f"rclone lsjson (ListObjects) failed: {result.stderr.strip()}"
+            return True, "ListObjects succeeded"
 
         marker_path = Path(tmp) / "marker.txt"
         marker_path.write_text(f"homelab rotation-verify marker for the {leaf} leaf\n")

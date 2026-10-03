@@ -3,204 +3,71 @@ id: ADR-0046
 revision: 0
 type: adr
 title: Python client for S3-compatible object storage
-solution: 'Leaning: boto3 for the single-object verify call; rclone stays for bulk copy and restore'
+solution: rclone for every S3-compatible call, Python and bash alike; boto3 is not adopted
 summary: Which client Python code uses to talk to S3-compatible storage, and where rclone stays.
 topic: cloud-credentials
-status: working
+status: accepted
 related: [ADR-0010, ADR-0029]
 ---
 
-# Scope boto3 to single-object Python calls, never the bulk-copy path
+# 0046. Keep rclone as the one S3-compatible client
+
+## Problem
+
+Python code in this repo exercises S3-compatible storage (B2, R2, OCI, SeaweedFS). It needs one client whose behavior against each provider is known, without weakening the guarantees the backup design rests on.
 
 ## Context
 
-`rclone` appears at five real call sites, in two structurally different
-shapes:
+`rclone` appears at five call sites, in two shapes:
 
-- **Bash, containerized, bulk-copy:** `cloud_sync`'s `run.sh.j2` (the
-  production job — `rclone copy seaweedfs:<bucket>/<path>
-  <target>:<bucket>/<path>` per job in `/jobs.txt`), `openbao_backup`'s
-  `snapshot-push.sh.j2`, and `backup_agent`'s `check-freshness.sh.j2` —
-  all POSIX `sh`, all running `rclone` inside a pinned
-  `rclone/rclone:1.75` container via `docker run`.
-- **Python, single-object:** `cloud_credentials/verify.py`'s
-  `lsjson`/`copyto` against a tiny marker object, and
-  `restore_all.py`'s `rclone_lsjson`/`copyto` — one `lsjson` per
-  discovery attempt, one `copyto` per app being restored. Both shell
-  out via `subprocess`, never touching S3 credentials as Python values
-  — `restore_all.py`'s own module docstring states this directly:
-  *"This never touches GPG/SeaweedFS/cloud credentials directly in
-  Python — it shells out to `rclone`... and to `gpg`."*
+- **Bash, containerized, bulk copy:** `cloud_sync`'s `run.sh.j2` (`rclone copy seaweedfs:<bucket>/<path> <target>:<bucket>/<path>` per job in `/jobs.txt`), `openbao_backup`'s `snapshot-push.sh.j2`, and `backup_agent`'s `check-freshness.sh.j2`. All are POSIX `sh` running `rclone` inside a pinned `rclone/rclone` container via `docker run`.
+- **Python, single object:** `cloud_credentials/verify.py` (`lsjson` and `copyto` against a small marker object) and `restore_all.py` (`rclone_lsjson`/`copyto`, one `lsjson` per discovery attempt and one `copyto` per restored app). Both shell out via `subprocess`.
 
-The bulk-copy sites aren't a boto3 candidate, for one decisive
-reason: `cloud_sync`'s `rclone copy` specifically
-*is* the security control
-[ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) documents — the
-guarantee that a compromised on-prem host can't touch the offsite copy
-comes from `copy`'s own never-overwrite/never-delete semantics, not
-from IAM scoping alone. Reimplementing that in hand-rolled boto3 calls
-means re-deriving and re-proving that property instead of relying on a
-well-known command. "They're not Python" is *not* an independent reason
-on its own — see the next section for why that framing doesn't hold up.
+**The bulk-copy sites are not a candidate for another client.** `cloud_sync`'s `rclone copy` is the control [ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) documents: a compromised on-prem host can't touch the offsite copy because `copy` never overwrites or deletes, not from IAM scoping alone. Reimplementing that with hand-written client calls means re-deriving and re-proving the property.
 
-## A separate axis: wrapper language, not just client library
+**What `verify.py` is for.** `verify_leaf_via_rclone` proves that a freshly minted leaf key works over the path production uses, before the old key is revoked. The write leaf's need for `readFiles` on B2 is an example of what that catches: rclone sends a HEAD before every copy, and a check that sends no HEAD never exercises that permission.
 
-The exclusion above is about *client library* (rclone's CLI semantics
-vs. hand-rolled boto3 calls) — it says nothing about *implementation
-language*. Rewriting `run.sh.j2`/`snapshot-push.sh.j2`/
-`check-freshness.sh.j2` as Python wrappers that still shell out to the
-same `rclone` binary via `subprocess` — exactly the pattern `verify.py`
-and `restore_all.py` already use — is a genuinely separate, live
-option: real exception handling and this repo's own JSON/YAML
-libraries in place of `sh`'s `read`/`case` parsing of `/jobs.txt`,
-while preserving `rclone copy`'s ADR 0010 semantics exactly as today,
-since the binary being invoked doesn't change. This is not the same
-proposal as swapping to boto3 — a Python wrapper around the same
-`rclone copy` call carries none of the re-derive-the-security-property
-risk above.
+**Credential handling is not what separates the options.** `restore_all.py` never holds S3 credentials in its own process. `verify.py` already does: `rotate_*` and the snapshot key scripts mint the key as a Python value and pass it to `verify_leaf_via_rclone`, which writes it to a single-use `rclone.conf` (mode 0600) in a temporary directory.
 
-Not decided here — it changes deployment shape (today: `docker run
-rclone/rclone:X.Y.Z <cmd>`, a container with no Python interpreter; a
-Python wrapper needs one added, or a different container entirely) and
-needs its own check before it's more than a plausible idea: whether
-adding a Python interpreter to the pinned `rclone/rclone` image (or
-building a thin wrapper image) is worth the added image-maintenance
-cost against three POSIX-`sh` scripts that are currently short and
-already well-commented. Worth scoping as its own draft once someone's
-ready to spike it, rather than deciding by extension here.
+**Measured against B2, R2, and OCI** with rclone 1.75.0 and boto3 1.43.108, using freshly minted leaf keys:
 
-Third-party rclone wrappers (`rclone_python`, `py-rclone`, etc.) were
-considered separately and rejected regardless of which option below
-wins: they still shell out to the same CLI underneath (no wire-format
-drift they'd remove), don't carry this repo's own propagation-window
-retry logic, and — unlike `boto3` or the SDKs in the sibling
-`cloud_credentials` draft — aren't vendor/canonical, just a single
-maintainer's project sitting in a credential-verification/restore
-path. `rclone`'s own Remote Control (RC) API would be a genuinely
-different transport, but means a standing daemon and an auth token to
-secure, for scripts that run a handful of times per quarter — not
-worth it at this scale.
-
-The two Python sites are genuine candidates on the "does an official
-SDK reduce risk" question [ADR 0029](../0029-cloud-provider-api-client-library/revision-000.md)
-already applies elsewhere — but they carry the credentials-in-process
-trade the docstring above calls out, which needs its own decision, not
-an assumption inherited from the other drafts. Both already handle
-subprocess failure reasonably: `restore_all.py`'s `_run_rclone` catches
-`subprocess.TimeoutExpired` and folds it into "treat this remote as
-unreachable"; `verify.py`'s retry loop doesn't (tracked as its own
-Stage 1 bug fix in
-[`cloud-credentials-hardening.md`](../../projects/cloud-credentials-hardening.md),
-independent of this decision).
-
-## Options
-
-### A — Adopt boto3 for both Python single-object sites
-
-`verify.py` and `restore_all.py` both do plain `list_objects_v2`/
-`put_object`/`get_object`-shaped work against S3-compatible endpoints —
-boto3 is a natural fit for the operation shape, is AWS's own SDK
-(widest possible maintenance guarantee of anything considered so far),
-and removes two more `subprocess` calls this repo has to reason about.
-Cost: `restore_all.py`'s stated design (credentials never enter this
-script's own Python process) is given up, not preserved — the
-access/secret key becomes a real client-constructor argument instead
-of a path handed to an external binary.
-
-### B — Leave both on rclone
-
-Preserves the credentials-out-of-process design intact everywhere it
-exists today, and keeps exactly one S3-compatible client
-(`rclone.conf`) across every part of this repo that talks to
-B2/R2/OCI/SeaweedFS — one place to apply the config-requirement
-findings in `cloud-credentials/rotation.md` (`no_check_bucket`,
-explicit `region`, endpoint scheme), rather than re-deriving them once
-for rclone's backend and again for boto3's. Cost: keeps two
-`subprocess`-based S3 clients in Python code that a direct SDK call
-could otherwise remove.
-
-### C — Adopt boto3 only where the credentials-in-process trade is already accepted
-
-`verify.py` runs as part of `create_leaf_keys.py --rotate`, which
-already holds the freshly-minted access/secret key as a Python value
-(it just minted it) before ever handing it to `rclone` via a
-temporary, single-use `rclone.conf` — so the "never touches credentials
-directly in Python" property doesn't actually hold for `verify.py`
-today the way it does for `restore_all.py`. Moving `verify.py` to boto3
-gives up nothing that isn't already given up; moving `restore_all.py`
-does. Split the decision instead of treating the two sites as one.
+- **Request sequences differ.** rclone lists with the v1 `ListObjects` call (no `list-type=2`) on all three providers. For a write it sends HEAD, PUT, HEAD. boto3's `list_objects_v2` and `put_object` send a listing v2 call and a single PUT.
+- **boto3 needs different settings per provider.**
+  - OCI answers boto3's default-checksum PUT with `501 NotImplemented`; `request_checksum_calculation="when_required"` works, with or without a HEAD first.
+  - B2 closes the connection without an HTTP response on boto3's PUT when it carries `Expect: 100-continue` under `when_required`. With `Expect` removed, `when_required` gets `400 InvalidRequest`. Of the variants tried, only the default checksum mode (`aws-chunked` with a trailing CRC32) with `Expect` removed succeeded. The default mode with `Expect` present was not tried.
+  - R2 accepts every variant tried.
+- **Retrying is controllable.** With `retries={"total_max_attempts": 1}`, boto3 made one HTTP request per call and surfaced 401 (R2) or 403 `SignatureDoesNotMatch` (OCI) as `ClientError`, so a caller can own the retry loop and gate it on HTTP status.
 
 ## Decision
 
-Leaning Option C, pending the Assumptions below: `verify.py` → boto3,
-`restore_all.py` stays on `rclone`. Not yet promotable — the first
-Assumption needs a real check before this is more than a plausible
-read of `verify.py`'s existing credential handling.
+`rclone` remains the S3-compatible client at every call site, Python and bash. `verify.py` and `restore_all.py` stay on it, and `boto3` is not added to `pyproject.toml`.
 
-## Assumptions
+Two reasons decide it:
 
-- **Claim:** `verify.py`'s credential handling today already holds the
-  access/secret key as a Python value before it ever reaches
-  `rclone.conf`, so boto3 doesn't newly expose anything.
-  **Breaks if wrong:** if the calling code (`create_leaf_keys.py`'s
-  `--rotate` flow) receives the new key only as an opaque value it
-  immediately writes to disk without holding a live reference, the
-  "already given up" framing in Option C is incorrect and `verify.py`
-  deserves the same caution as `restore_all.py`.
-  **Checked by:** reading `create_leaf_keys.py --rotate`'s call path
-  into `verify_leaf_via_rclone`, confirming where the key value lives
-  between minting and the `rclone.conf` write, before Stage building
-  starts.
-- **Claim:** boto3's S3 client, pointed at each provider's
-  `endpoint_url`, reproduces the same request shape rclone's S3 backend
-  does for the specific calls in play (`HeadObject`-before-write on B2,
-  `region` handling on OCI, `region=auto` on R2).
-  **Breaks if wrong:** if boto3's default request behavior differs
-  (e.g., a different pre-flight check than rclone's `HeadObject`),
-  the hard-won findings in `cloud-credentials/rotation.md` need
-  re-verifying per provider, not assumed to carry over.
-  **Checked by:** a spike running boto3's `put_object`/`list_objects_v2`
-  against a real bucket on each of B2/R2/OCI with the actual leaf
-  credentials, diffed against `rclone`'s current behavior.
-- **Claim:** boto3's own retry/timeout configuration can be tuned to
-  match `verify.py`'s intentional propagation-window retry (broad,
-  slow, ~15 minutes) without fighting boto3's default retry mode.
-  **Breaks if wrong:** boto3's built-in retries (`standard`/`adaptive`
-  modes) aren't designed for "keep retrying a 403 for 15 minutes
-  because the key hasn't propagated yet" — if they can't be disabled
-  cleanly in favor of this repo's own loop, the swap adds complexity
-  instead of removing it.
-  **Checked by:** the same spike above, explicitly exercising the
-  propagation-window retry path (a real just-minted, not-yet-propagated
-  key), not just a happy-path call.
+1. **Verification must follow production's client.** boto3 sends a different sequence than rclone does (no HEAD, a different listing call), so a key could pass a boto3 check and still fail under rclone. Reproducing rclone's sequence by hand re-implements what rclone already does.
+2. **One client config instead of one per provider.** rclone needs one configuration for all three providers, whose requirements (`no_check_bucket`, explicit `region`, endpoint scheme) are recorded once in [`rotation.md`](../../topics/secrets/cloud-credentials/rotation.md). boto3 would add a per-provider checksum setting and, for B2, a hook that removes a header botocore adds by default.
+
+What the swap would remove is small: one `subprocess` call and a short-lived `rclone.conf` in a temporary directory.
+
+## Alternatives considered
+
+- **boto3 for both Python sites.** Gives up `restore_all.py`'s property that S3 credentials never enter the Python process, and carries the per-provider settings above.
+- **boto3 for `verify.py` only.** Gives up nothing on credential handling (the key is already a Python value there), but loses the same-path property and still needs the per-provider settings.
+- **Third-party rclone wrappers** (`rclone_python`, `py-rclone`). They shell out to the same CLI, so they remove no wire-format drift, and they are a single maintainer's project in a credential-verification path.
+- **rclone's Remote Control API.** Needs a standing daemon and an auth token for scripts that run a few times per quarter.
 
 ## Consequences
 
-- `cloud_sync`, `snapshot-push.sh.j2`, and `check-freshness.sh.j2` stay
-  on `rclone` regardless of this decision's outcome — not because they
-  weren't considered, but because they're bash/containerized and
-  `cloud_sync`'s in particular is load-bearing for
-  [ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md). Re-raising a boto3
-  swap for these specifically should point back here rather than being
-  re-litigated from scratch.
-- If `verify.py` moves to boto3 and `restore_all.py` doesn't, this repo
-  ends up with two different S3-compatible clients in Python code
-  (`boto3` in one script, `rclone` via `subprocess` in the other) —
-  accepted as a legitimate outcome of the credentials-in-process
-  question landing differently for each, not an inconsistency to
-  "fix" later.
-- Either way, `verify.py`'s uncaught `subprocess.TimeoutExpired` (Stage
-  1 of the hardening project) gets fixed before this decision matters —
-  if boto3 replaces the `rclone` call entirely, that bug becomes moot
-  rather than fixed.
-- Swapping `rclone` for `boto3` doesn't *remove* a secret sitting on
-  disk in the clear — it relocates which one. `rclone.conf` today holds
-  real S3-compatible access/secret keys in plaintext (confirmed:
-  `openbao_backup`'s own `RCLONE_CONF` path is a plain file on the host,
-  mounted read-only into the container). A `boto3`+`hvac` combination
-  needs its own long-lived auth material somewhere unless it's fetched
-  fresh every run — an OpenBao token or AppRole `secret_id` on disk
-  instead of S3 keys on disk is not obviously a win, just a different
-  secret in the same kind of exposure. This is the same problem, one
-  level up, as whatever gets decided for Secret Zero more broadly — not
-  resolvable inside this draft alone.
+- `cloud_sync`, `snapshot-push.sh.j2`, and `check-freshness.sh.j2` stay on `rclone` regardless of future client choices. Re-raising boto3 for them should point back here.
+- Swapping rclone for boto3 plus `hvac` would not remove a secret from disk, only change which one: `rclone.conf` holds real access and secret keys today, and a boto3 path needs its own long-lived OpenBao credential unless it fetches one every run. That is the same problem one level up as [ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md), not something this record resolves.
+- `verify.py` keeps its status-string retry gate (`StatusCode: 401`/`403` in rclone's stderr) and its timeout handling.
+- Behavior is described in [`rotation.md`](../../topics/secrets/cloud-credentials/rotation.md) and [`scoping.md`](../../topics/secrets/cloud-credentials/scoping.md).
+
+## Non-goals
+
+Whether the three bash scripts become Python wrappers around the same `rclone` binary is a separate question. Doing so would keep `rclone copy`'s ADR 0010 semantics unchanged, but it changes the deployment shape (a container with no Python interpreter today), so it needs its own record and a spike on adding an interpreter to the pinned image or building a thin wrapper image.
+
+## Reconsideration triggers
+
+- `cloud_sync` or `restore_all.py` stops using rclone, so verification should follow the new client.
+- A provider's S3-compatible API starts requiring a request shape rclone cannot produce.

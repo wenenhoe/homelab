@@ -1,6 +1,6 @@
-"""Backblaze B2 leaf-key create/rotate logic, via b2sdk (Stage 3,
-docs/projects/cloud-credentials-hardening.md) - not raw requests calls
-against B2's HTTP API directly.
+"""Backblaze B2 leaf-key create/rotate logic, via b2sdk
+(docs/decisions/0029-cloud-provider-api-client-library/revision-000.md) -
+not raw requests calls against B2's HTTP API directly.
 """
 
 from __future__ import annotations

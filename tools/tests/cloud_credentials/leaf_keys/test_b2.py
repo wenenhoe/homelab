@@ -1,7 +1,7 @@
 """Unit tests for cloud_credentials.leaf_keys.b2.
 
 Run via `uv run pytest tools/tests/ -v`. Every B2 call is mocked at
-the b2sdk B2Api boundary (Stage 3, docs/projects/cloud-credentials-hardening.md)
+the b2sdk B2Api boundary (docs/decisions/0029-cloud-provider-api-client-library/revision-000.md)
 - nothing here talks to a real account.
 """
 

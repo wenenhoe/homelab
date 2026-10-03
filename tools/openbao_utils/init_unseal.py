@@ -73,14 +73,16 @@ from utils.repo import TIMEOUT_SECONDS, security_ssh_target
 
 OPENBAO_CONTAINER = "openbao"
 
-# How long _drain() waits for more output before giving up and letting
-# the caller move on (e.g. to prompt locally for a share) - generous,
-# since this runs once per key share, not in a hot loop. Reusing
-# TIMEOUT_SECONDS (utils.repo's one shared bound for a single SSH
-# operation) rather than a second constant - this bounds each
-# individual read, never the human's own time spent typing a share,
-# which happens entirely locally after _drain() has already returned.
+# How long _drain() waits for the first output before giving up - generous,
+# since docker exec and bao's own startup can lag. Reusing TIMEOUT_SECONDS
+# (utils.repo's one shared bound for a single SSH operation) rather than a
+# second constant. Never bounds the human's own time spent typing a share:
+# that happens locally, before the channel is opened.
 _DRAIN_IDLE_SECONDS = TIMEOUT_SECONDS
+
+# Quiet time after output that ends a drain. Short on purpose: it is the
+# delay between bao's prompt appearing and the share being sent.
+_DRAIN_SETTLE_SECONDS = 0.5
 
 
 def _connect() -> paramiko.SSHClient:
@@ -98,11 +100,11 @@ def _drain(channel: paramiko.Channel) -> None:
     """Prints whatever's currently available on the channel to this
     process's own stdout, live - the human should see the remote
     prompt appear exactly as if they'd typed the command themselves.
-    Stops once _DRAIN_IDLE_SECONDS passes with nothing new arriving,
-    not on any particular byte pattern - bao's own prompt text isn't
+    Waits up to _DRAIN_IDLE_SECONDS for the first output, then returns
+    once _DRAIN_SETTLE_SECONDS passes with nothing new arriving, or as
+    soon as the remote command has exited. bao's own prompt text isn't
     pattern-matched here, since the PTY already handles the actual
-    masking; this only needs to know when to stop printing and hand
-    control back to the caller."""
+    masking."""
     deadline = time.monotonic() + _DRAIN_IDLE_SECONDS
     while time.monotonic() < deadline:
         if channel.recv_ready():
@@ -111,7 +113,9 @@ def _drain(channel: paramiko.Channel) -> None:
                 return
             sys.stdout.write(data.decode(errors="replace"))
             sys.stdout.flush()
-            deadline = time.monotonic() + _DRAIN_IDLE_SECONDS
+            deadline = time.monotonic() + _DRAIN_SETTLE_SECONDS
+        elif channel.exit_status_ready():
+            return
         else:
             time.sleep(0.05)
 
@@ -147,6 +151,15 @@ def run_unseal_share() -> int:
     """Drives exactly one share through the real masked prompt over a
     get_pty=True channel - bao operator unseal only ever asks for one
     share per invocation. Run this twice for a 2-of-3 threshold."""
+    # Read before the channel opens: getpass's terminal-mode change
+    # discards anything already typed, so a share pasted as soon as the
+    # remote prompt shows would be echoed in clear and lost, and bao would
+    # receive an empty key.
+    share = getpass.getpass("Unseal key share (hidden): ")
+    if not share:
+        print("No key share entered - nothing sent.", file=sys.stderr)
+        return 1
+
     client = _connect()
     try:
         stdin, stdout, _stderr = client.exec_command(
@@ -157,7 +170,6 @@ def run_unseal_share() -> int:
         channel = stdout.channel
 
         _drain(channel)
-        share = getpass.getpass("")
         stdin.write(share + "\n")
         stdin.flush()
 

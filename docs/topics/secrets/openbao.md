@@ -313,8 +313,9 @@ From `controller`, once per share:
 cd tools && python3 -m openbao_utils.init_unseal unseal
 ```
 
-Run it 2 times (the threshold above), each time pasting one of the 3
-shares when prompted. To check seal state without spending a share, on
+Run it 2 times (the threshold above). Each run asks for one of the 3
+shares first (`Unseal key share (hidden):`), then connects and submits
+it; nothing is pasted at the remote prompt that follows. To check seal state without spending a share, on
 `security` itself: `bao status -address=https://127.0.0.1:8200
 -tls-server-name=openbao.{{ caddy_domain }}
 -ca-cert=/etc/step-ca/root_ca.crt` - native CLI, real TLS, no login

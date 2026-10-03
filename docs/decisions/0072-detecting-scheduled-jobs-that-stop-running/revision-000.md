@@ -6,7 +6,7 @@ title: "Detecting scheduled jobs that stop running"
 solution: "Gatus external endpoints in a thin repo-built image: one declaratively configured push endpoint per job, a per-job bearer token, and Telegram alerting routed by group"
 summary: "How a job that silently stops running is noticed, with per-job heartbeats, per-topic Telegram routing and no hand-created monitor state."
 topic: monitoring-alerting
-status: working
+status: approved
 related: [ADR-0011, ADR-0012, ADR-0042, ADR-0049]
 ---
 

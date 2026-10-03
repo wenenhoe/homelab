@@ -10,6 +10,9 @@ decision: ADR-0049/0
 super_project: off-site-monitoring
 track: monitoring
 phase: 2-off-site
+depends_on:
+  - project: PROJ-gcp-e2-micro-provisioning
+    reason: the e2-micro and its provisioning identity must exist before a role or route can target it
 ---
 
 # Off-Site Monitoring Relocation
@@ -18,7 +21,7 @@ Third stage of the plan to stop Beszel/Kuma monitoring from being a single point
 
 ## Scope
 
-Relocating monitoring to a GCP e2-micro, and extending VM 202's Tailscale subnet route to it. Not in scope: the on-prem host ([`monitoring-host-isolation.md`](monitoring-host-isolation.md)).
+Relocating monitoring to a GCP e2-micro, and extending VM 202's Tailscale subnet route to it. Not in scope: the on-prem host ([`monitoring-host-isolation.md`](monitoring-host-isolation.md)), and creating the GCP project, its provisioning identity, and the e2-micro itself ([`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md)).
 
 ## Decision
 
@@ -53,6 +56,7 @@ heartbeat-only monitor (see [ADR 0049](../decisions/0049-monitoring-that-survive
 
 ## Open items
 
+- The GCP project, provisioning identity, and Tofu definition of the e2-micro — [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md).
 - Tailscale route extension from VM 202 to the GCP node — not yet
   built.
 - The RAM fit, the full-stack-vs-minimal-heartbeat choice, the egress cap, and the credential and hardening gates are recorded as open assumptions in [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md); building starts once they are resolved.

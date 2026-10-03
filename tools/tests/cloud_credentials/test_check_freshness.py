@@ -26,8 +26,35 @@ def delete_telegram(fake_vault, name: str) -> None:
     fake_vault.store.pop(f"{check_freshness._TELEGRAM_VAULT_SCOPE}/{name}", None)
 
 
+def has_a_timeout(call) -> bool:
+    timeout = call.kwargs.get("timeout")
+    return isinstance(timeout, int | float) and timeout > 0
+
+
 def _b2_key(key_id: str, expiration_ms: float | None):
     return application_key(key_id, expiration_ms)
+
+
+class TestClassify:
+    """One hour of margin on each side of a boundary keeps these independent of the clock ticking between the test's `now` and the code's."""
+
+    @pytest.mark.parametrize(
+        ("until_expiry", "status", "detail"),
+        [
+            pytest.param(timedelta(hours=-1), check_freshness.STALE, "expired {at}", id="an-hour-past-expiry"),
+            pytest.param(timedelta(hours=1), check_freshness.URGENT, "expires in 0d ({at})", id="an-hour-before-expiry"),
+            pytest.param(timedelta(days=URGENT_DAYS, hours=1), check_freshness.URGENT, f"expires in {URGENT_DAYS}d ({{at}})", id="last-day-of-urgent"),
+            pytest.param(
+                timedelta(days=URGENT_DAYS + 1, hours=1), check_freshness.WARNING, f"expires in {URGENT_DAYS + 1}d ({{at}})", id="first-day-of-warning"
+            ),
+            pytest.param(timedelta(days=WARNING_DAYS, hours=1), check_freshness.WARNING, f"expires in {WARNING_DAYS}d ({{at}})", id="last-day-of-warning"),
+            pytest.param(timedelta(days=WARNING_DAYS + 1, hours=1), check_freshness.FRESH, "", id="first-day-of-fresh"),
+        ],
+    )
+    def test_status_and_detail_either_side_of_each_boundary(self, until_expiry, status, detail):
+        expires_at = datetime.now(UTC) + until_expiry
+
+        assert check_freshness._classify(expires_at) == (status, detail.format(at=expires_at.isoformat()))
 
 
 @pytest.mark.usefixtures("fake_vault")
@@ -117,6 +144,23 @@ class TestCheckOci:
         assert statuses["oci rotation credential"] == check_freshness.CHECK_FAILED
 
     @patch.object(check_freshness, "oci_scim_session", autospec=True)
+    def test_each_leaf_is_fetched_by_its_stored_scim_id_with_a_timeout(self, mock_scim_session, vault):
+        vault.seed("oci-write-scim-id", "scim-write-1")
+        vault.seed("oci-read-scim-id", "scim-read-1")
+        session = stubbed_session()
+        session.get.return_value = _scim_get_response(200, "2099-01-01T00:00:00Z")
+        mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
+
+        check_freshness.check_oci()
+
+        urls = [call.args[0] for call in session.get.call_args_list]
+        assert urls == [
+            "https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-write-1",
+            "https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-read-1",
+        ]
+        assert all(has_a_timeout(call) for call in session.get.call_args_list)
+
+    @patch.object(check_freshness, "oci_scim_session", autospec=True)
     def test_missing_scim_id_is_a_check_failure_not_a_crash(self, mock_scim_session):
         # oci-write-scim-id deliberately not seeded — a leaf key created
         # before the SCIM migration (ADR 0016) would have no such file.
@@ -174,6 +218,41 @@ class TestCheckR2:
         assert statuses["r2 write"] == check_freshness.FRESH
         assert statuses["r2 read"] == check_freshness.STALE
         assert statuses["r2 rotation token"] == check_freshness.FRESH
+
+    def test_requests_carry_the_cached_rotation_token_as_a_bearer_header(self, session_class):
+        session = session_class.return_value
+        session.get.return_value = response(json_body={"success": True, "result": {"expires_on": "2099-01-01T00:00:00Z"}})
+
+        check_freshness.check_r2()
+
+        assert session.headers["Authorization"] == "Bearer admin-token"
+
+    def test_every_cloudflare_request_has_a_timeout(self, session_class):
+        session = session_class.return_value
+        session.get.return_value = response(json_body={"success": True, "result": {"expires_on": "2099-01-01T00:00:00Z"}})
+
+        check_freshness.check_r2()
+
+        assert len(session.get.call_args_list) == 3
+        assert all(has_a_timeout(call) for call in session.get.call_args_list)
+
+    @pytest.mark.parametrize(
+        ("name", "category", "missing"),
+        [
+            pytest.param("_rotation-key-cloudflare-r2-token", "rotation", "rotation token", id="only-the-token-missing"),
+            pytest.param("cloudflare-r2-account-id", "leaf", "account id", id="only-the-account-id-missing"),
+        ],
+    )
+    def test_either_missing_credential_fails_all_three_entries_and_is_named(self, session_class, vault, name, category, missing):
+        vault.delete(name, category=category)
+
+        results = check_freshness.check_r2()
+
+        assert [(label, status) for label, status, _ in results] == [
+            (f"r2 {entry}", check_freshness.CHECK_FAILED) for entry in ("write", "read", "rotation token")
+        ]
+        assert all(f"no cached {missing} " in detail for _, _, detail in results)
+        session_class.assert_not_called()
 
     def test_rotation_token_is_a_user_token_not_an_account_token(self, session_class):
         """The rotation token is a Cloudflare User API Token (My
@@ -271,6 +350,15 @@ class TestTelegramAlert:
         assert kwargs["data"]["chat_id"] == "-100999"
         assert kwargs["data"]["message_thread_id"] == "42"
         assert "oci write" in kwargs["data"]["text"]
+
+    @patch.object(check_freshness.requests, "post", autospec=True)
+    def test_the_send_has_a_timeout(self, mock_post):
+        mock_post.return_value = response()
+
+        check_freshness._send_telegram_alert(["<b>oci write</b>: past its window"])
+
+        mock_post.assert_called_once()
+        assert has_a_timeout(mock_post.call_args)
 
     @patch.object(check_freshness, "check_r2", return_value=[("r2 write", check_freshness.FRESH, "")], autospec=True)
     @patch.object(check_freshness, "check_oci", return_value=[("oci write", check_freshness.STALE, "old")], autospec=True)

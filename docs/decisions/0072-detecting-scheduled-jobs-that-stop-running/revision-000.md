@@ -44,6 +44,7 @@ What has to be true, independent of the tool:
 - *Alert defaults.* `failure-threshold: 3` and `success-threshold: 2`, counted in results: three missed intervals before an alert and two pushes before it resolves, neither of which suits a job that pushes once a day or once in twenty.
 - *Telegram.* An override is matched on the endpoint's group and merged over the defaults; the request body carries `message_thread_id` only when the topic ID is non-empty.
 - *Config substitution.* `os.ExpandEnv` runs over the whole file, with `$$` kept literal, so any `$` in a value is rewritten.
+- *Config validity.* A config with external endpoints alone is rejected at startup with "configuration should contain at least one endpoint or suite"; the check counts regular endpoints and suites only. The v5.37.0 image panics on such a config.
 - *Image.* The binary has no health subcommand and the image sets no `USER`. With no shell or `wget` in a `FROM scratch` image, a Compose healthcheck has nothing to exec.
 
 **Precedent for a `FROM scratch` image.** [`docker/wastebin/Dockerfile`](../../../docker/wastebin/Dockerfile) layers a static `wget` and an empty, owned data directory over an upstream scratch image, so Compose can run it non-root with a healthcheck; a workflow builds and pushes it.
@@ -58,6 +59,7 @@ Replace Kuma with Gatus for job heartbeats.
 
 - **One external endpoint per job**, generated from the repo, not created in a UI. The endpoint list is rendered from the same definitions that install the push units, so a job and its monitor cannot drift apart.
 - **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)) from a character set without `$`, and passed to Gatus as environment, never written into a world-readable file.
+- **One regular self-probe endpoint** besides the external ones: a `GET` of Gatus's own `/health` on localhost, with no alerts, to satisfy the config rule above. It probes nothing else.
 - **A thin image built in this repo**, following the wastebin pattern: the pinned upstream image plus a static `wget` for the healthcheck and an empty data directory owned by the non-root user the container runs as.
 - **Alert settings fixed per endpoint:** `failure-threshold: 1`, `success-threshold: 1`, `send-on-resolved: true`.
 - **Heartbeat interval** per endpoint is the job's period plus the slack the repo already derives for it (`cron_period_hours` and `backup_freshness_buffer_hours`, [ADR 0068](../0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)). Because detection takes up to two intervals, a job whose failure matters sooner than that gets a more frequent liveness push instead of a longer interval.
@@ -98,4 +100,4 @@ Every producer's push call changes. Existing Kuma push URLs and their secrets ar
 
 ## Non-goals
 
-Active probing of services (Gatus can do it; this record does not adopt it), replacing Beszel, and where the monitor runs ([ADR 0042](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)).
+Active probing of services beyond the one self-probe (Gatus can do it; this record does not adopt it), replacing Beszel, and where the monitor runs ([ADR 0042](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)).

@@ -48,7 +48,9 @@ but the alternative (no retry) means every manual re-run of a failed
 out propagation by hand. Measured windows vary a lot by provider: OCI
 60s–507s, B2 up to ~4 minutes, R2 15–30s — all comfortably inside the
 current ceiling. Widen `_run_rclone_with_retry`'s `retries`/`delay` if
-a real rotation ever exhausts it. A first success doesn't mean the key
+a real rotation ever exhausts it. A hung rclone call (past its `--timeout`) is not a propagation
+denial: it fails verification like any other non-retryable error
+instead of being retried through the window. A first success doesn't mean the key
 has reached every node: on OCI, later requests from fresh connections
 were still denied with 403 for a minute or more after the first
 successful call, so a passing verification means the key works now, not

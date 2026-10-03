@@ -202,7 +202,7 @@ for the reasoning.
 | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
-| [`cloud-credentials-hardening.md`](cloud-credentials-hardening.md) | Building | Selective official-SDK adoption for tools/cloud_credentials; verify.py stays on rclone. |
+| [`cloud-credentials-sdk-followups.md`](cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
 | [`coderabbit-pr-review-pipeline.md`](coderabbit-pr-review-pipeline.md) | Not started | homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files. |
 | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md), [`workstation-management.md`](workstation-management.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
 | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |

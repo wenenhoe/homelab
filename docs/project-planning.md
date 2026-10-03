@@ -57,7 +57,7 @@ set. It narrows where to look; it doesn't replace looking.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | Building | Selective official-SDK adoption for tools/cloud_credentials; verify.py stays on rclone. |
+| [`cloud-credentials-sdk-followups.md`](projects/cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | Not started | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
 | [`vault-secret-module.md`](projects/vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |

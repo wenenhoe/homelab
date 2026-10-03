@@ -1,7 +1,7 @@
 """Backblaze B2 rotation-key bootstrap and rotation: mint a narrower
 key, from the master credential, that can create/delete leaf keys but
-holds no file/bucket-data capabilities itself. Via b2sdk (Stage 3,
-docs/projects/cloud-credentials-hardening.md).
+holds no file/bucket-data capabilities itself. Via b2sdk
+(docs/decisions/0029-cloud-provider-api-client-library/revision-000.md).
 """
 
 from __future__ import annotations

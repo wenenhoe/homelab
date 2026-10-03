@@ -95,6 +95,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing, Dockerfile builds and image tags. |
 | [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |
+| [`mutation-testing.md`](engineering/mutation-testing.md) | When a mutation run is worth making on the credential tooling, how to read a survivor, and why its output stays off public surfaces. |
 | [`molecule-testing.md`](engineering/molecule-testing.md) | Molecule scenario matrix and how to add one. |
 | [`molecule-fixtures.md`](engineering/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_catalog` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |
 | [`security-scanning.md`](engineering/security-scanning.md) | Trivy Ansible-misconfig and secret scanning: report-only, scheduling, known scanner quirks. |

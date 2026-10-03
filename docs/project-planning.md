@@ -59,7 +59,6 @@ set. It narrows where to look; it doesn't replace looking.
 | :--- | :--- | :--- |
 | [`cloud-credentials-hardening.md`](projects/cloud-credentials-hardening.md) | De-risking | Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
-| [`mutation-testing.md`](projects/mutation-testing.md) | De-risking | Decide where a mutmut survey of the credential tooling runs and what it writes; the mutation-comparison script stays out of this repo. |
 | [`vault-secret-module.md`](projects/vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |
 
 ## Decisions awaiting a project

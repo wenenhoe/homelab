@@ -42,7 +42,7 @@ What has to be true, independent of the tool:
 - *Heartbeat timing.* The check runs on a ticker started when monitoring starts, so the first check comes one interval after start. At each tick a failure is recorded unless a result newer than one interval exists. A dead job is therefore noticed between one and two intervals after its last push, not exactly one; with a push just after a tick, the alert came 29.9 seconds after it on a 15-second interval.
 - *Restarts.* After a process restart the first heartbeat check came one interval after start, and the earlier results were still there from sqlite. The config file is polled every 30 seconds; a changed file stops and restarts monitoring, and the first check after the new config loaded came one interval later. A config change delays detection the same way a process restart does.
 - *Alert defaults.* `failure-threshold: 3` and `success-threshold: 2`, counted in results: three missed intervals before an alert and two pushes before it resolves, neither of which suits a job that pushes once a day or once in twenty.
-- *Telegram.* An override is matched on the endpoint's group and merged over the defaults; the request body carries `message_thread_id`, as a JSON string, only when the topic ID is non-empty. Each group's alert carried its own topic ID, and the next push sent a resolved message.
+- *Telegram.* An override is matched on the endpoint's group and merged over the defaults; the request body carries `message_thread_id`, as a JSON string, only when the topic ID is non-empty. Each group's alert carried its own topic ID, and the next push sent a resolved message. Run against the real Telegram API, both sends were accepted and posted into the group's forum topic, so the string form of `message_thread_id` is valid.
 - *Config substitution.* `os.ExpandEnv` runs over the file text, with `$$` kept literal, so a literal `$` in the file has to be written `$$`. A value passed in the environment is substituted once and not expanded again: a token containing `$` authenticated correctly.
 - *Config validity.* A config with external endpoints alone is rejected at startup with "configuration should contain at least one endpoint or suite"; the check counts regular endpoints and suites only. The v5.37.0 image panics on such a config.
 - *Image.* The binary has no health subcommand and the image sets no `USER`. With no shell or `wget` in a `FROM scratch` image, a Compose healthcheck has nothing to exec.
@@ -76,12 +76,6 @@ Replace Kuma with Gatus for job heartbeats.
 - **Kuma's `-slim` variant.** Drops the unused browser and embedded database, which answers the footprint requirement but not the reproducibility one. It is adopted only as an interim step while this migration is built, not as the answer.
 - **Vigil.** Rejected on credentials and routing: a single shared reporter token and a single Telegram thread cannot express per-job tokens or per-topic alerts.
 - **Upptime.** Rejected on topology, see Context.
-
-## Assumptions
-
-- **Claim:** Telegram accepts `message_thread_id` sent as a JSON string, as Gatus sends it.
-  **Breaks if wrong:** alerts land in the group's main stream or are rejected, and per-topic routing needs a different mechanism.
-  **Checked by:** one real alert sent to the bot's chat and a topic with a Gatus config, since the mock cannot say what Telegram accepts.
 
 ## Consequences
 

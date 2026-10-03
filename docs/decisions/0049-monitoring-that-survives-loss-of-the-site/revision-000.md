@@ -7,7 +7,7 @@ solution: Relocate monitoring to a GCP e2-micro, reached by extending VM 202's T
 summary: Something outside the site notices when the whole homelab or its connectivity goes down.
 topic: monitoring-alerting
 status: working
-related: [ADR-0010, ADR-0042, ADR-0047]
+related: [ADR-0010, ADR-0042, ADR-0047, ADR-0073]
 ---
 
 # Off-site monitoring on a GCP e2-micro, reached over the existing Tailscale subnet route
@@ -62,3 +62,9 @@ sharing OCI with it.
 - **Claim:** a hardening pass for the e2-micro host itself exists before it holds credentials; low-spec cloud image defaults are not this stage's starting assumption.
   **Breaks if wrong:** the same blast radius as above, on a host whose defaults nobody reviewed.
   **Checked by:** scoping that pass; it is a separate, not-yet-scoped companion gate.
+- **Claim:** the instance can reach Telegram and the tailnet through an ephemeral external address with all ingress denied, at no charge on the free tier.
+  **Breaks if wrong:** an address or NAT charge applies, or the instance needs a reserved address, and the free-tier claim above no longer holds.
+  **Checked by:** the billing view during the spike in [`gcp-e2-micro-provisioning.md`](../../projects/gcp-e2-micro-provisioning.md); Google's free-tier page states the e2-micro's external address is not charged, which the spike confirms rather than assumes.
+- **Claim:** the identity that provisions the instance is settled by [ADR 0073](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) before any provisioning code is built.
+  **Breaks if wrong:** the first off-site build would fix a standing key or token on the maintainer side by default.
+  **Checked by:** ADR 0073 reaching `approved`.

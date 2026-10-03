@@ -153,6 +153,8 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   wrong-typed argument to an annotated parameter belongs only where the
   code reads data from outside the program, such as a parsed JSON
   document that is not an object.
+- **Mutation testing.** It is run by hand, with tooling kept outside this repo, when a credential module's
+  tests change, never in CI; see [`mutation-testing.md`](mutation-testing.md) for when and what stays private.
 
 ## Not yet a convention
 

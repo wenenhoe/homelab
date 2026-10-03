@@ -212,7 +212,6 @@ for the reasoning.
 | [`coding-agent-network.md`](coding-agent-network.md) | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
 | [`image-vulnerability-assessment.md`](image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
 | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
-| [`mutation-testing.md`](mutation-testing.md) | De-risking | Decide where a mutmut survey of the credential tooling runs and what it writes; the mutation-comparison script stays out of this repo. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
 | [`operator-host.md`](operator-host.md) | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials. |
 | [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Rebuild on the real VMID ranges, cut over, and decommission the old VMs. |

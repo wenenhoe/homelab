@@ -138,4 +138,6 @@ anywhere.
 
 | Compose file | Image | Network | Notes |
 | :--- | :--- | :--- | :--- |
-| `docker/uptime-kuma/compose.yaml` | `louislam/uptime-kuma:2.5.3` | Joins `caddy-proxy`, exposes `3001` to Caddy | Persists `data` volume to `/app/data`; healthcheck is the image's own bundled `extra/healthcheck` script |
+| `docker/uptime-kuma/compose.yaml` | `louislam/uptime-kuma:2.5.5-slim` | Joins `caddy-proxy`, exposes `3001` to Caddy | Persists `data` volume to `/app/data`; healthcheck is the image's own bundled `extra/healthcheck` script |
+
+The `-slim` variant omits the bundled browser and the embedded MariaDB server. Push monitors need neither, but the database must be SQLite: choose it in the first-visit wizard, and confirm an existing instance's `data/db-config.json` says `sqlite` before moving to this tag.

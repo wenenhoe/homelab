@@ -6,9 +6,22 @@ Run via `uv run pytest tools/tests/ -v`.
 from __future__ import annotations
 
 import re
+import time
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from cloud_credentials import expiry
+
+
+@pytest.fixture
+def utc_plus_8(monkeypatch):
+    """The process clock zone set to UTC+8: a helper that reads local time instead of UTC differs from the right answer by eight hours."""
+    with monkeypatch.context() as patched:
+        patched.setenv("TZ", "XYZ-8")
+        time.tzset()
+        assert datetime.now().astimezone().utcoffset() == timedelta(hours=8)
+        yield
+    time.tzset()
 
 
 class TestExpiry:
@@ -32,3 +45,12 @@ class TestExpiry:
         # own examples ("2020-01-01T00:00:00Z").
         result = expiry.rfc3339_in(90)
         assert re.search(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$", result)
+
+    def test_utcnow_iso_is_the_current_utc_time_with_an_offset(self, utc_plus_8):
+        stamp = datetime.fromisoformat(expiry.utcnow_iso())
+        assert stamp.utcoffset() == timedelta(0)
+        assert abs(datetime.now(UTC) - stamp) < timedelta(seconds=5)
+
+    def test_rfc3339_in_is_the_utc_time_that_many_days_ahead(self, utc_plus_8):
+        stamp = datetime.strptime(expiry.rfc3339_in(90), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=UTC)
+        assert abs(datetime.now(UTC) + timedelta(days=90) - stamp) < timedelta(seconds=5)

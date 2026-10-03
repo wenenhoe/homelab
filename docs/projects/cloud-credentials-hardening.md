@@ -2,9 +2,9 @@
 id: PROJ-cloud-credentials-hardening
 title: 'Cloud Credential Scripts: SDK Adoption + Error-Handling Hardening'
 type: project
-status: de-risking
+status: building
 blocked: false
-summary: Selective official-SDK adoption for tools/cloud_credentials, and verify.py's rclone calls to boto3.
+summary: Selective official-SDK adoption for tools/cloud_credentials; verify.py stays on rclone.
 decision: ADR-0046/0
 ---
 
@@ -23,7 +23,7 @@ benefits from that.
 
 ## Decision
 
-Stages 1–3 implemented [ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md), which is `accepted`. The remaining stages implement [ADR 0046](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved.
+Stages 1–3 implemented [ADR 0029](../decisions/0029-cloud-provider-api-client-library/revision-000.md), which is `accepted`. The remaining stages implement [ADR 0046](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md), now `approved`: `rclone` stays the S3-compatible client, so `verify.py` is not moved to boto3.
 
 ## Execution plan
 
@@ -34,8 +34,8 @@ Update at the start and end of each PR that works a stage.
 | 1 | Fix uncaught `subprocess.TimeoutExpired` in `verify.py`'s rclone retry loop (bug fix, no SDK — `rclone` has no Python bindings) | Done | a hang fails like any other non-retryable error instead of raising out of the retry loop |
 | 2 | OCI SCIM leaf/rotation → `oci.identity_domains.IdentityDomainsClient` | Done | the OCI SCIM modules use the SDK client |
 | 3 | B2 leaf/rotation → `b2sdk` | Done | every B2 call site uses `b2sdk` |
-| 4 | `verify.py`'s `rclone` calls → `boto3` (leaning yes) / `restore_all.py`'s stay on `rclone` (leaning no) | Not started | ADR 0046 is approved; `verify.py` uses boto3; `restore_all.py` is unchanged |
-| 5 | Re-baseline `tools/tests/cloud_credentials/` mocks for stages 2-4 | Not started | mocks are spec'd against the SDK types and the suite passes |
+| 4 | Settle `verify.py`'s S3 client (ADR 0046) | Done | ADR 0046 is approved; `verify.py` and `restore_all.py` stay on `rclone`, with the reasoning recorded there |
+| 5 | Re-baseline `tools/tests/cloud_credentials/` mocks for stages 2-3 | Done | mocks are spec'd against the SDK types and the suite passes |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -115,29 +115,19 @@ silently. Every such mock now uses `MagicMock(spec=FullApplicationKey,
 id_=..., ...)` instead — confirmed, by deliberately reintroducing the
 bug, that this now fails the unit tests too, not just a live run.
 
-### Stage 4 — `verify.py` → boto3
+### Stage 4 — `verify.py`'s S3 client
 
-Scoped in
-[`0046-python-client-for-s3-compatible-storage/revision-000.md`](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md) —
-explicitly does not extend to `cloud_sync`, `snapshot-push.sh.j2`, or
-`check-freshness.sh.j2` (bash/containerized, and `cloud_sync`'s
-`rclone copy` is load-bearing for
-[ADR 0010](../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)). Waits on
-that revision's open Assumptions, in particular confirming `verify.py`'s
-credential already lives as a Python value before this swap, so the
-credentials-in-process trade `restore_all.py` avoids doesn't newly
-apply here. `boto3` is not already a `pyproject.toml` dependency —
-`ansible/roles/seaweedfs_bucket/tasks/main.yaml`'s own
-`amazon.aws.s3_bucket` usage confirmed live that it only needs `boto3`
-on the Ansible target host (`storage`, via `apt`), not the controller,
-so this would be the first stage to actually add it to
-`pyproject.toml`, not a second entry to reconcile with an existing one.
+Done, with no code change. [ADR 0046](../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md) records the outcome: live runs against B2, R2, and OCI showed boto3 sends a different request sequence than rclone and needs different client settings per provider, so `verify.py` and `restore_all.py` stay on `rclone`.
+
+### Stage 5 — mock baseline
+
+Done, with no change needed. Every mock at the `b2sdk` and `oci` boundaries is `autospec`'d or built from the real class (`B2Api`, `FullApplicationKey`, the Identity Domains client), and the suite passes. The one bare `MagicMock()` left is an opaque placeholder for the classic-IAM signer, which this project did not move to an SDK.
 
 ## Acceptance criteria
 
 - [ ] No raw `requests` call remains in `tools/cloud_credentials` where an official SDK was judged a clear improvement; the exceptions are the ones ADR 0029 records.
-- [ ] ADR 0046 is settled: `verify.py` uses boto3, or stays on `rclone` with that recorded there.
-- [ ] Mocks in `tools/tests/cloud_credentials/` are spec'd against the SDK types, and the suite passes.
+- [x] ADR 0046 is settled: `verify.py` uses boto3, or stays on `rclone` with that recorded there.
+- [x] Mocks in `tools/tests/cloud_credentials/` are spec'd against the SDK types, and the suite passes.
 
 ## Risks
 
@@ -160,9 +150,8 @@ so this would be the first stage to actually add it to
   schedule, is this project's call, not an independent one.
 - `check_freshness.py`'s single Telegram `sendMessage` call has no SDK
   candidate worth adding for one endpoint — out of scope, noted here so
-  it isn't re-proposed later. `verify.py`'s `rclone` call itself may or
-  may not survive Stage 4 (see that stage's linked decision); its
-  uncaught-timeout bug is fixed regardless, as Stage 1.
+  it isn't re-proposed later. `verify.py` stays on `rclone` (Stage 4), with its
+  uncaught-timeout bug fixed as Stage 1.
 - `cloud_sync`'s bulk-copy job, `snapshot-push.sh.j2`, and
   `check-freshness.sh.j2` are explicitly out of scope for any boto3
   swap — bash/containerized, and `cloud_sync`'s `rclone copy` is
@@ -173,7 +162,7 @@ so this would be the first stage to actually add it to
   wrappers around the same `rclone` binary (better error handling and
   library support, zero change to ADR 0010's security semantics since
   the binary invoked doesn't change) is a live, separate question —
-  see that revision's "wrapper language" section. Not yet its own stage;
+  see that revision's Non-goals. Not yet its own stage;
   needs a deployment-shape spike first (adding a Python interpreter to
   the pinned `rclone/rclone` image or building a new one).
 - Former Stage 6, R2 / OCI classic-IAM bootstrap onto an SDK: only if a stage above changes

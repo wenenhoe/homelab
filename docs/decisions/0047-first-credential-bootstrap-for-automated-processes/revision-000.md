@@ -125,8 +125,8 @@ homelab hosts needs, not assumed as the target.
 ## Why this probably isn't a small addition to an existing draft
 
 Every other draft that touches a credential
-(`0046-python-client-for-s3-compatible-storage/revision-000.md`) currently treats
-"where does the credential live" as a local, per-file Assumption.
+(`0046-python-client-for-s3-compatible-storage/revision-000.md`) treats
+"where does the credential live" as a local, per-file question.
 Resolving Secret Zero properly could change the answer for all of them
 at once — which argues for scoping this as its own project once
 someone's ready to spend real time on it, rather than deciding it as a

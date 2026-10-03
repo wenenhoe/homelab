@@ -12,6 +12,7 @@ import pytest
 import requests
 from _responses import response
 from cloud_credentials.rotation_keys import oci_iam
+from oci.signer import Signer
 
 ENDPOINT = "https://identity.example"
 TENANCY = "ocid1.tenancy.oc1..t"
@@ -32,6 +33,52 @@ def _http_error(status_code: int) -> requests.HTTPError:
     with pytest.raises(requests.HTTPError) as exc:
         response(status_code).raise_for_status()
     return exc.value
+
+
+class TestOciMasterAuthAndEndpoint:
+    @pytest.fixture
+    def config_from_file(self, monkeypatch):
+        config = {
+            "tenancy": TENANCY,
+            "user": "ocid1.user.oc1..u",
+            "fingerprint": "aa:bb:cc",
+            "key_file": "/keys/admin.pem",
+            "region": "eu-frankfurt-1",
+        }
+        stub = create_autospec(oci_iam.oci_config_from_file, return_value=config)
+        monkeypatch.setattr(oci_iam, "oci_config_from_file", stub)
+        return stub
+
+    @pytest.fixture
+    def signer_class(self, monkeypatch):
+        cls = create_autospec(Signer)
+        monkeypatch.setattr(oci_iam, "OCISigner", cls)
+        return cls
+
+    def test_signs_as_the_configured_admin_identity(self, config_from_file, signer_class):
+        signer, _, _, _ = oci_iam.oci_master_auth_and_endpoint()
+
+        config_from_file.assert_called_once_with()
+        signer_class.assert_called_once_with(
+            tenancy=TENANCY,
+            user="ocid1.user.oc1..u",
+            fingerprint="aa:bb:cc",
+            private_key_file_location="/keys/admin.pem",
+            pass_phrase=None,
+        )
+        assert signer is signer_class.return_value
+
+    def test_passes_the_key_passphrase_when_the_config_has_one(self, config_from_file, signer_class):
+        config_from_file.return_value["pass_phrase"] = "hunter2"
+
+        oci_iam.oci_master_auth_and_endpoint()
+
+        assert signer_class.call_args.kwargs["pass_phrase"] == "hunter2"
+
+    def test_returns_the_regional_identity_endpoint_with_the_tenancy_and_region(self, config_from_file, signer_class):
+        _, endpoint, tenancy, region = oci_iam.oci_master_auth_and_endpoint()
+
+        assert (endpoint, tenancy, region) == ("https://identity.eu-frankfurt-1.oraclecloud.com", TENANCY, "eu-frankfurt-1")
 
 
 class TestUserEmail:

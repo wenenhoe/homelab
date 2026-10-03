@@ -37,6 +37,17 @@ class TestOciScim:
         assert sent.kwargs["data"] == {"grant_type": "client_credentials", "scope": "urn:opc:idm:__myscopes__"}
 
     @patch.object(oci_scim.requests, "post", autospec=True)
+    def test_access_token_request_authenticates_as_the_client_and_has_a_timeout(self, mock_post):
+        mock_post.return_value = response(json_body={"access_token": "tok"})
+
+        oci_scim.oci_scim_access_token("https://x", "cid", "csec")
+
+        sent = mock_post.call_args
+        assert sent.kwargs["headers"]["Authorization"] == "Basic Y2lkOmNzZWM="
+        assert isinstance(sent.kwargs.get("timeout"), int | float)
+        assert sent.kwargs["timeout"] > 0
+
+    @patch.object(oci_scim.requests, "post", autospec=True)
     def test_access_token_raises_when_the_token_request_is_rejected(self, mock_post):
         mock_post.return_value = response(401, json_body={"error": "invalid_client"})
         with pytest.raises(requests.HTTPError, match="401"):

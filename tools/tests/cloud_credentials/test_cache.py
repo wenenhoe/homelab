@@ -38,10 +38,21 @@ class TestVaultLogin:
     tools/tests/openbao_utils/test_client.py for the login call
     itself."""
 
-    def test_raises_system_exit_when_role_id_missing(self, secrets_dir, hvac_client):
-        secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
-        with pytest.raises(SystemExit):
+    @pytest.mark.parametrize(
+        "present",
+        [
+            pytest.param("openbao-controller-secret-id", id="role-id-missing"),
+            pytest.param("openbao-controller-role-id", id="secret-id-missing"),
+        ],
+    )
+    def test_exits_1_without_logging_in_when_a_credential_is_missing(self, secrets_dir, hvac_client, capsys, present):
+        secrets_dir.seed(present, "some-value")
+        with pytest.raises(SystemExit) as exc:
             cache._vault_login(hvac_client)
+
+        assert exc.value.code == 1
+        assert "openbao-controller-role-id/-secret-id aren't set yet" in capsys.readouterr().err
+        hvac_client.auth.approle.login.assert_not_called()
 
     @patch("cloud_credentials.cache._bare_vault_login", autospec=True)
     def test_calls_bare_login_with_role_id_and_secret_id(self, mock_bare_login, secrets_dir, hvac_client):
@@ -75,11 +86,25 @@ class TestGetSession:
         assert Path(session["ca_path"]).exists()
 
     @patch("cloud_credentials.cache.hvac.Client", autospec=True)
-    def test_client_constructed_with_a_timeout(self, mock_client_cls, hvac_client):
+    def test_client_targets_openbao_and_trusts_only_the_fetched_root_cert(self, mock_client_cls, hvac_client):
         mock_client_cls.return_value = hvac_client
-        cache._get_session()
-        _, kwargs = mock_client_cls.call_args
-        assert kwargs["timeout"] == cache.TIMEOUT_SECONDS
+        ca_path = cache._get_session()["ca_path"]
+
+        mock_client_cls.assert_called_once_with(url="https://openbao.sec.lan.example.com:8200", verify=ca_path, timeout=cache.TIMEOUT_SECONDS)
+        assert Path(ca_path).read_text() == "fake-cert"
+
+    @patch("cloud_credentials.cache.atexit.register", autospec=True)
+    @patch("cloud_credentials.cache.hvac.Client", autospec=True)
+    def test_removes_the_root_cert_file_at_process_exit(self, mock_client_cls, mock_register, hvac_client):
+        mock_client_cls.return_value = hvac_client
+        ca_path = Path(cache._get_session()["ca_path"])
+        assert ca_path.exists()
+
+        mock_register.assert_called_once()
+        (cleanup,) = mock_register.call_args.args
+        cleanup()
+
+        assert not ca_path.exists()
 
 
 class TestVaultPath:
@@ -133,6 +158,24 @@ class TestScopedReadWrite:
         session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
         assert self.cached("some-key")
 
+    def test_cached_reads_the_leaf_path_for_the_name(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+        self.cached("some-key")
+        session_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            path="cloud_credentials/leaf/some-key",
+            mount_point=openbao_utils_module.VAULT_KV_MOUNT,
+            raise_on_deleted_version=True,
+        )
+
+    def test_require_cache_file_reads_the_leaf_path_for_the_name(self, session_client):
+        session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "x"}}}
+        self.require_cache_file("some-key", "unused")
+        session_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
+            path="cloud_credentials/leaf/some-key",
+            mount_point=openbao_utils_module.VAULT_KV_MOUNT,
+            raise_on_deleted_version=True,
+        )
+
     def test_write_cache_writes_the_correct_payload(self, session_client):
         self.write_cache("some-key", "the-value")
         session_client.secrets.kv.v2.create_or_update_secret.assert_called_once_with(
@@ -141,10 +184,15 @@ class TestScopedReadWrite:
             mount_point=openbao_utils_module.VAULT_KV_MOUNT,
         )
 
-    def test_require_cache_file_exits_with_message_when_missing(self, session_client):
+    def test_require_cache_file_exits_1_naming_the_path_and_how_to_get_it_when_missing(self, session_client, capsys):
         session_client.secrets.kv.v2.read_secret_version.side_effect = hvac.exceptions.InvalidPath
-        with pytest.raises(SystemExit):
+        with pytest.raises(SystemExit) as exc:
             self.require_cache_file("missing-key", "run some-command to create it")
+
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "Missing required secret: cloud_credentials/leaf/missing-key" in err
+        assert "run some-command to create it" in err
 
     def test_require_cache_file_returns_value_when_present(self, session_client):
         session_client.secrets.kv.v2.read_secret_version.return_value = {"data": {"data": {"value": "present-value"}}}

@@ -36,14 +36,14 @@ What has to be true, independent of the tool:
 
 **Gatus, as documented in its README.** An external endpoint is declared in the config file with a `token`, an optional `group` and a `heartbeat.interval`. A job pushes with `POST /api/v1/endpoints/{key}/external?success={success}&error={error}&duration={duration}` and an `Authorization: Bearer` header. `{key}` is `<GROUP_NAME>_<ENDPOINT_NAME>` with ` `, `/`, `_`, `,`, `.`, `#`, `+` and `&` each replaced by `-`. The Telegram provider takes `token`, `id` and `topic-id`, and supports per-group `overrides`. The image is built `FROM scratch`.
 
-**Gatus, as read in its source** (default branch; the pinned release is checked in Assumptions).
+**Gatus, as read in its source and run as the v5.37.0 image** against a mock Telegram API with a 15-second heartbeat.
 
-- *Push route.* It sits on the router the source calls unprotected, with a comment that the bearer token is what protects it, so the dashboard's own `security` setting can gate everything else. A missing or invalid `success` parameter returns 400, a missing or non-Bearer header 401, an unknown key 404, and a wrong token 401.
-- *Heartbeat timing.* The check runs on a ticker started when monitoring starts, so the first check comes one interval after start. At each tick a failure is recorded unless a result newer than one interval exists. A dead job is therefore noticed between one and two intervals after its last push, not exactly one.
-- *Restarts.* The config file is polled every 30 seconds; a changed file stops and restarts monitoring, which restarts every ticker. A config change delays detection the same way a process restart does.
+- *Push route.* It sits on the router the source calls unprotected, with a comment that the bearer token is what protects it, so the dashboard's own `security` setting can gate everything else. A missing or invalid `success` parameter returns 400, a missing or non-Bearer header 401, an unknown key 404, and a wrong token 401; each was observed.
+- *Heartbeat timing.* The check runs on a ticker started when monitoring starts, so the first check comes one interval after start. At each tick a failure is recorded unless a result newer than one interval exists. A dead job is therefore noticed between one and two intervals after its last push, not exactly one; with a push just after a tick, the alert came 29.9 seconds after it on a 15-second interval.
+- *Restarts.* After a process restart the first heartbeat check came one interval after start, and the earlier results were still there from sqlite. The config file is polled every 30 seconds; a changed file stops and restarts monitoring, and the first check after the new config loaded came one interval later. A config change delays detection the same way a process restart does.
 - *Alert defaults.* `failure-threshold: 3` and `success-threshold: 2`, counted in results: three missed intervals before an alert and two pushes before it resolves, neither of which suits a job that pushes once a day or once in twenty.
-- *Telegram.* An override is matched on the endpoint's group and merged over the defaults; the request body carries `message_thread_id` only when the topic ID is non-empty.
-- *Config substitution.* `os.ExpandEnv` runs over the whole file, with `$$` kept literal, so any `$` in a value is rewritten.
+- *Telegram.* An override is matched on the endpoint's group and merged over the defaults; the request body carries `message_thread_id`, as a JSON string, only when the topic ID is non-empty. Each group's alert carried its own topic ID, and the next push sent a resolved message.
+- *Config substitution.* `os.ExpandEnv` runs over the file text, with `$$` kept literal, so a literal `$` in the file has to be written `$$`. A value passed in the environment is substituted once and not expanded again: a token containing `$` authenticated correctly.
 - *Config validity.* A config with external endpoints alone is rejected at startup with "configuration should contain at least one endpoint or suite"; the check counts regular endpoints and suites only. The v5.37.0 image panics on such a config.
 - *Image.* The binary has no health subcommand and the image sets no `USER`. With no shell or `wget` in a `FROM scratch` image, a Compose healthcheck has nothing to exec.
 
@@ -58,9 +58,10 @@ What has to be true, independent of the tool:
 Replace Kuma with Gatus for job heartbeats.
 
 - **One external endpoint per job**, generated from the repo, not created in a UI. The endpoint list is rendered from the same definitions that install the push units, so a job and its monitor cannot drift apart.
-- **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)) from a character set without `$`, and passed to Gatus as environment, never written into a world-readable file.
+- **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)), and passed to Gatus as environment, never written into a world-readable file.
 - **One regular self-probe endpoint** besides the external ones: a `GET` of Gatus's own `/health` on localhost, with no alerts, to satisfy the config rule above. It probes nothing else.
 - **A thin image built in this repo**, following the wastebin pattern: the pinned upstream image plus a static `wget` for the healthcheck and an empty data directory owned by the non-root user the container runs as.
+- **The `cert-renewer@` heartbeat is a daily liveness push, not a push per renewal.** A renewal happens about every 480 hours, and with detection taking up to two intervals a dead renewer could be noticed after the certificate's 720-hour lifetime has ended. Instead a small per-instance timer pushes once a day, only when `step certificate needs-renewal --expires-in <margin>` exits 1, meaning the certificate still has more than the margin left; exit 0, 2 or 255 does not push. Pushes continue while the renewer keeps up and stop once the certificate is inside the margin, so the alert follows within two daily intervals, while the certificate is still valid. The margin must exceed those two intervals; the project chooses it. A failed renewal still reports through its own `OnFailure=`, as today.
 - **Alert settings fixed per endpoint:** `failure-threshold: 1`, `success-threshold: 1`, `send-on-resolved: true`.
 - **Heartbeat interval** per endpoint is the job's period plus the slack the repo already derives for it (`cron_period_hours` and `backup_freshness_buffer_hours`, [ADR 0068](../0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)). Because detection takes up to two intervals, a job whose failure matters sooner than that gets a more frequent liveness push instead of a longer interval.
 - **Telegram routing by group**: one group per existing topic, each an `overrides` entry carrying that topic's `topic-id`.
@@ -78,25 +79,20 @@ Replace Kuma with Gatus for job heartbeats.
 
 ## Assumptions
 
-- **Claim:** the behaviors read from each project's default branch hold in the release this repo would pin.
-  **Breaks if wrong:** the key format, status codes, alert defaults, ticker behavior or Telegram body differ, and the Decision's settings are wrong.
-  **Checked by:** a spike against the pinned image with a short heartbeat interval and a mock Telegram API URL: a push is accepted, a wrong token returns 401 and an unknown key 404, the first missed interval alerts at `failure-threshold: 1`, the next push resolves it, the alert body carries the group's `message_thread_id`, and a restart and a config change each restart the heartbeat timing.
-- **Claim:** the `cert-renewer@` path can emit a liveness push often enough that a dead renewer is noticed before the certificate's 720-hour lifetime ends.
-  **Breaks if wrong:** that endpoint's interval has to exceed the roughly 480-hour renewal period, so a dead renewer is noticed between about 504 and 1008 hours after its last push, which can be after the certificate has expired. Kuma notices after about one interval, so this would be a regression.
-  **Checked by:** reading the `step_ca_cert` unit and timer and confirming a tick skipped by `ExecCondition` can push without a failed renewal pushing too.
-- **Claim:** a second repo-built image fits the existing build workflow, Renovate bumping and image inventory.
-  **Breaks if wrong:** the image is built once and never bumped or inventoried.
-  **Checked by:** reading `build-wastebin-image.yml`, the Renovate config and `tools/ci/images/remote.py`.
+- **Claim:** Telegram accepts `message_thread_id` sent as a JSON string, as Gatus sends it.
+  **Breaks if wrong:** alerts land in the group's main stream or are rejected, and per-topic routing needs a different mechanism.
+  **Checked by:** one real alert sent to the bot's chat and a topic with a Gatus config, since the mock cannot say what Telegram accepts.
 
 ## Consequences
 
-Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. A second repo-built image joins the build and bump pipeline. [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md), [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
+Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. A second repo-built image joins the build and bump pipeline: an entry in `tools/ci/images/registry.py`, a Dockerfile, a build workflow and a smoke test for the image, as wastebin has, with Renovate bumping the Dockerfile's `FROM`. The registry accepts only tags like `5.37.0`, and Gatus's tags carry a leading `v`, so its tag rule needs a source that strips the `v`, with its unit tests. The `cert-renewer@` monitor changes from a push on renewal to a daily liveness push, which replaces the `OnSuccess=` link on that unit. [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md), [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
 
 ## Invariants
 
 - A job with no push produces an alert in its own topic within two of its intervals.
 - No two jobs share a push credential.
 - No monitor, token or notification setting exists only inside a running instance.
+- A certificate that stops being renewed raises an alert while it is still valid.
 
 ## Non-goals
 

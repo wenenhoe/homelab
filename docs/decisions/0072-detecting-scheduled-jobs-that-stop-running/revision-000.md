@@ -3,7 +3,7 @@ id: ADR-0072
 revision: 0
 type: adr
 title: "Detecting scheduled jobs that stop running"
-solution: "Gatus external endpoints: one declaratively configured push endpoint per job, with a per-job bearer token and Telegram alerting routed by group"
+solution: "Gatus external endpoints in a thin repo-built image: one declaratively configured push endpoint per job, a per-job bearer token, and Telegram alerting routed by group"
 summary: "How a job that silently stops running is noticed, with per-job heartbeats, per-topic Telegram routing and no hand-created monitor state."
 topic: monitoring-alerting
 status: working
@@ -24,18 +24,31 @@ What has to be true, independent of the tool:
 - The jobs push; the monitor never needs to reach into a host.
 - Rebuilding the monitor from the repo reproduces every monitor and every credential, with no step done by hand in a UI.
 - The dashboard is gated, while the push path stays reachable from machine clients that cannot do a browser login.
+- The monitor's image carries nothing this use does not need.
 
 ## Context
 
 **What exists.** Uptime Kuma push monitors, one per job. A monitor, its notification wiring and its push token exist only inside Kuma's database, created by hand in the UI; [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md#one-time-setup-after-first-deploy) lists this as a manual step, and every push URL is then copied into the secret store by hand. Kuma is only used for push monitors in this repo.
 
-**What a replacement has to match.** The push contract in use today is an unauthenticated-looking `GET` to a URL that embeds the token, sent from `curl` inside a systemd unit (`ansible/roles/uptime_kuma_push`) or inlined in `check-freshness.sh`. Jobs push on success only.
+**What Kuma's image carries.** Upstream's Dockerfiles build the default image on a base that adds Chromium, fonts and an embedded MariaDB server over a slim base, for browser-engine monitors and the embedded-database option. Neither is used here. A `-slim` variant of each release omits them.
 
-**Gatus, as documented in its README.** An external endpoint is declared in the config file with a `token`, an optional `group` and a `heartbeat.interval`. A job pushes with `POST /api/v1/endpoints/{key}/external?success={success}&error={error}&duration={duration}` and an `Authorization: Bearer` header. `{key}` is `<GROUP_NAME>_<ENDPOINT_NAME>` with ` `, `/`, `_`, `,`, `.`, `#`, `+` and `&` each replaced by `-`. The Telegram provider takes `token`, `id` and `topic-id`, and supports per-group `overrides`, so a group maps to a forum topic. Environment variables are substituted in the config file. The image is built `FROM scratch`.
+**What a replacement has to match.** The push contract in use today is a `GET` to a URL that embeds the token, sent from `curl` inside a systemd unit (`ansible/roles/uptime_kuma_push`) or inlined in `check-freshness.sh`. Jobs push on success only.
 
-**Gatus, as read in its source.** The push route is registered on the router the source calls unprotected, with a comment that the bearer token is what protects it, so the dashboard's own `security` setting can gate everything else. A heartbeat check runs on a ticker started when Gatus starts, every `heartbeat.interval`; at each tick it records a failure unless a result newer than one interval exists. Alert defaults are `failure-threshold: 3` and `success-threshold: 2`, counted in results: for a heartbeat endpoint that means three missed intervals before an alert and two pushes before it resolves, neither of which suits a job that pushes once per day or once per twenty days.
+**Gatus, as documented in its README.** An external endpoint is declared in the config file with a `token`, an optional `group` and a `heartbeat.interval`. A job pushes with `POST /api/v1/endpoints/{key}/external?success={success}&error={error}&duration={duration}` and an `Authorization: Bearer` header. `{key}` is `<GROUP_NAME>_<ENDPOINT_NAME>` with ` `, `/`, `_`, `,`, `.`, `#`, `+` and `&` each replaced by `-`. The Telegram provider takes `token`, `id` and `topic-id`, and supports per-group `overrides`. The image is built `FROM scratch`.
 
-**Vigil, as read in its source.** One `reporter_token` for the whole server (HTTP Basic), so no per-job credential. One `[notify.telegram]` block with a single optional `message_thread_id`, so no per-topic routing. Nodes are declared in config, and a replica reports its own `interval` in the push body.
+**Gatus, as read in its source** (default branch; the pinned release is checked in Assumptions).
+
+- *Push route.* It sits on the router the source calls unprotected, with a comment that the bearer token is what protects it, so the dashboard's own `security` setting can gate everything else. A missing or invalid `success` parameter returns 400, a missing or non-Bearer header 401, an unknown key 404, and a wrong token 401.
+- *Heartbeat timing.* The check runs on a ticker started when monitoring starts, so the first check comes one interval after start. At each tick a failure is recorded unless a result newer than one interval exists. A dead job is therefore noticed between one and two intervals after its last push, not exactly one.
+- *Restarts.* The config file is polled every 30 seconds; a changed file stops and restarts monitoring, which restarts every ticker. A config change delays detection the same way a process restart does.
+- *Alert defaults.* `failure-threshold: 3` and `success-threshold: 2`, counted in results: three missed intervals before an alert and two pushes before it resolves, neither of which suits a job that pushes once a day or once in twenty.
+- *Telegram.* An override is matched on the endpoint's group and merged over the defaults; the request body carries `message_thread_id` only when the topic ID is non-empty.
+- *Config substitution.* `os.ExpandEnv` runs over the whole file, with `$$` kept literal, so any `$` in a value is rewritten.
+- *Image.* The binary has no health subcommand and the image sets no `USER`. With no shell or `wget` in a `FROM scratch` image, a Compose healthcheck has nothing to exec.
+
+**Precedent for a `FROM scratch` image.** [`docker/wastebin/Dockerfile`](../../../docker/wastebin/Dockerfile) layers a static `wget` and an empty, owned data directory over an upstream scratch image, so Compose can run it non-root with a healthcheck; a workflow builds and pushes it.
+
+**Vigil, as read in its source.** One `reporter_token` for the whole server (HTTP Basic), so no per-job credential. One `[notify.telegram]` block with a single optional `message_thread_id`, so no per-topic routing.
 
 **Upptime** runs as GitHub Actions on a schedule and publishes through GitHub Pages. It would have to reach the monitored services from GitHub's network, which this lab, being LAN and tailnet only, does not expose.
 
@@ -44,9 +57,10 @@ What has to be true, independent of the tool:
 Replace Kuma with Gatus for job heartbeats.
 
 - **One external endpoint per job**, generated from the repo, not created in a UI. The endpoint list is rendered from the same definitions that install the push units, so a job and its monitor cannot drift apart.
-- **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)) and passed to Gatus as environment, never written into a world-readable file.
+- **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)) from a character set without `$`, and passed to Gatus as environment, never written into a world-readable file.
+- **A thin image built in this repo**, following the wastebin pattern: the pinned upstream image plus a static `wget` for the healthcheck and an empty data directory owned by the non-root user the container runs as.
 - **Alert settings fixed per endpoint:** `failure-threshold: 1`, `success-threshold: 1`, `send-on-resolved: true`.
-- **Heartbeat interval** per endpoint is the job's period plus the slack the repo already derives for it (`cron_period_hours` and `backup_freshness_buffer_hours`, [ADR 0068](../0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)).
+- **Heartbeat interval** per endpoint is the job's period plus the slack the repo already derives for it (`cron_period_hours` and `backup_freshness_buffer_hours`, [ADR 0068](../0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)). Because detection takes up to two intervals, a job whose failure matters sooner than that gets a more frequent liveness push instead of a longer interval.
 - **Telegram routing by group**: one group per existing topic, each an `overrides` entry carrying that topic's `topic-id`.
 - **Persistence:** `storage.type: sqlite` on a named volume, so history and open incidents survive a restart.
 - **Dashboard gated** by Gatus's own `security` setting. The Caddy route keeps `auth: false`, as Kuma's does, because the push path must bypass forward-auth.
@@ -56,31 +70,29 @@ Replace Kuma with Gatus for job heartbeats.
 ## Alternatives considered
 
 - **Stay on Kuma.** Works today, but every monitor stays hand-made state inside a database, which contradicts the reproducibility requirement.
+- **Kuma's `-slim` variant.** Drops the unused browser and embedded database, which answers the footprint requirement but not the reproducibility one. It is adopted only as an interim step while this migration is built, not as the answer.
 - **Vigil.** Rejected on credentials and routing: a single shared reporter token and a single Telegram thread cannot express per-job tokens or per-topic alerts.
 - **Upptime.** Rejected on topology, see Context.
 
 ## Assumptions
 
 - **Claim:** the behaviors read from each project's default branch hold in the release this repo would pin.
-  **Breaks if wrong:** the alert thresholds, the key format or the unprotected push route differ, and the Decision's settings are wrong.
-  **Checked by:** a spike against the pinned image with a short heartbeat interval: push, miss, resolve, and a push with a wrong token.
-- **Claim:** a Gatus restart defers every heartbeat check by up to one interval, and a restart is rare enough, or its cost small enough, for the longest interval in use.
-  **Breaks if wrong:** after each deploy that restarts Gatus, a dead job on the roughly 480-hour `cert-renewer@` cadence goes unnoticed for up to that long.
-  **Checked by:** the same spike, restarting mid-interval; and reading how a config change is applied.
-- **Claim:** a container with no shell can still be health-checked in a way the repo's Compose conventions accept.
-  **Breaks if wrong:** the app has no healthcheck, unlike the other catalog apps.
-  **Checked by:** reading the image and the Compose conventions during the spike.
-- **Claim:** per-group Telegram `overrides` can carry each topic's `topic-id` from the existing `telegram_topic_id_*` secrets.
-  **Breaks if wrong:** alerts land in the group's main stream instead of the owning topic.
-  **Checked by:** the same spike, against a mock Telegram API URL.
+  **Breaks if wrong:** the key format, status codes, alert defaults, ticker behavior or Telegram body differ, and the Decision's settings are wrong.
+  **Checked by:** a spike against the pinned image with a short heartbeat interval and a mock Telegram API URL: a push is accepted, a wrong token returns 401 and an unknown key 404, the first missed interval alerts at `failure-threshold: 1`, the next push resolves it, the alert body carries the group's `message_thread_id`, and a restart and a config change each restart the heartbeat timing.
+- **Claim:** the `cert-renewer@` path can emit a liveness push often enough that a dead renewer is noticed before the certificate's 720-hour lifetime ends.
+  **Breaks if wrong:** that endpoint's interval has to exceed the roughly 480-hour renewal period, so a dead renewer is noticed between about 504 and 1008 hours after its last push, which can be after the certificate has expired. Kuma notices after about one interval, so this would be a regression.
+  **Checked by:** reading the `step_ca_cert` unit and timer and confirming a tick skipped by `ExecCondition` can push without a failed renewal pushing too.
+- **Claim:** a second repo-built image fits the existing build workflow, Renovate bumping and image inventory.
+  **Breaks if wrong:** the image is built once and never bumped or inventoried.
+  **Checked by:** reading `build-wastebin-image.yml`, the Renovate config and `tools/ci/images/remote.py`.
 
 ## Consequences
 
-Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md), [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
+Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. A second repo-built image joins the build and bump pipeline. [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md), [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
 
 ## Invariants
 
-- A job with no push inside its interval produces an alert in its own topic.
+- A job with no push produces an alert in its own topic within two of its intervals.
 - No two jobs share a push credential.
 - No monitor, token or notification setting exists only inside a running instance.
 

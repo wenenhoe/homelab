@@ -46,7 +46,7 @@ capability-specific error, so it's easy to misdiagnose.
 
 **The write leaf needs `readFiles` too, confirmed live.** rclone's S3
 backend calls `HeadObject` on the destination before *every* `copy`,
-fresh object or not, to decide skip-vs-upload — not `ListObjectsV2`,
+fresh object or not, to decide skip-vs-upload — not a listing,
 despite rclone's own prose docs ("testing by size and modification
 time") suggesting otherwise. B2 maps `HeadObject` to `readFiles`, not
 `listFiles`. A write leaf without `readFiles` fails outright on every
@@ -62,7 +62,7 @@ readFiles writeFiles` (write) / `listBuckets listAllBucketNames
 listFiles readFiles` (read) — identical except for `writeFiles`. A
 generic `Forbidden` with no named operation is a strong signal of an
 outdated rclone binary (pre-1.75-ish); current versions name the
-actual failing S3 call (`HeadObject`/`PutObject`/`ListObjectsV2`),
+actual failing S3 call (`HeadObject`/`PutObject`/`ListObjects`),
 which narrows down which capability is missing far faster than
 guessing from the error text alone.
 

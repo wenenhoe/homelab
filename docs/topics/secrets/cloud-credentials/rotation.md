@@ -22,8 +22,9 @@ python3 -m cloud_credentials.create_leaf_keys --provider r2 --rotate read
 
 Order of operations, per leaf: create a new provider-side key → verify
 it actually works over the same rclone S3-compatible path
-cloud_sync/restore-discovery use in production (a real `ListObjectsV2`
-for the read leaf, a real `PutObject` for the write leaf — see
+cloud_sync/restore-discovery use in production (a `ListObjects` listing
+for the read leaf — rclone lists with the v1 call on B2, R2, and OCI —
+and HeadObject, PutObject, HeadObject for the write leaf — see
 `verify_leaf_via_rclone` in `cloud_credentials/verify.py`) → only then
 revoke the old key and overwrite its cache entry. **If verification
 fails, both keys are left live and the cache is left untouched** — the
@@ -47,7 +48,18 @@ but the alternative (no retry) means every manual re-run of a failed
 out propagation by hand. Measured windows vary a lot by provider: OCI
 60s–507s, B2 up to ~4 minutes, R2 15–30s — all comfortably inside the
 current ceiling. Widen `_run_rclone_with_retry`'s `retries`/`delay` if
-a real rotation ever exhausts it.
+a real rotation ever exhausts it. A first success doesn't mean the key
+has reached every node: on OCI, later requests from fresh connections
+were still denied with 403 for a minute or more after the first
+successful call, so a passing verification means the key works now, not
+that propagation has finished.
+
+**Verification stays on rclone, not an SDK client**, because it has to
+follow production's request sequence. boto3 sends a different one (no
+HEAD around the write, a v2 listing) and needs different settings per
+provider, so a key could pass a boto3 check and still fail under rclone.
+The comparison is in
+[ADR 0046](../../../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md).
 
 **rclone config requirements verification depends on, each confirmed
 against a real failure, not assumed:**

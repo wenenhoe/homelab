@@ -2,7 +2,7 @@
 id: PROJ-host-hardening-baseline
 title: "Host Hardening Baseline"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "A repo-owned role that includes the hardening collection's areas from an allow-list, starting with unattended security updates on every patched host."
 decision: ADR-0043/0
@@ -26,8 +26,8 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Pin `konstruktoid.hardening` (exact version) and `community.general` (13.0.1 or later) in `ansible/requirements.yml`, and add the `host_hardening` role with an empty allow-list | Not started | Both collections install in CI, and the role converges as a no-op and passes idempotence |
-| 2 | `automatic_updates` area: security-only, no automatic reboot, with a Molecule scenario | Not started | The scenario asserts the `20auto-upgrades` and `52unattended-upgrades-local` drop-ins carry security-only updates and no automatic reboot, passes idempotence, and appears in the scenario matrix |
+| 1 | Pin `konstruktoid.hardening` (exact version) and `community.general` (13.0.1 or later) in `ansible/requirements.yml`, and add the `host_hardening` role with an empty allow-list | In progress | Both collections install in CI, and the role converges as a no-op and passes idempotence |
+| 2 | `automatic_updates` area: security-only, no automatic reboot, with a Molecule scenario; the scenario installs collections from `ansible/roles/molecule_helpers/requirements.yml`, so both pins go there too | Not started | The scenario asserts the `20auto-upgrades` and `52unattended-upgrades-local` drop-ins carry security-only updates and no automatic reboot, passes idempotence, and appears in the scenario matrix |
 | 3 | Apply the role to every host in `patched_hosts` | Not started | After a run, each such host has the drop-ins, and `maintenance.yaml` still upgrades and reboots as before |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -49,6 +49,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - The collection is pre-1.0, so a version bump can change an included area's defaults. A bump reruns every included area's scenario.
 - `maintenance.yaml`'s package upgrade and a background unattended run may contend for the package manager's lock.
+- Stage 1's exit condition is only fully proven by the CI Molecule job, which installs both collections and runs the scenario in a container.
 
 ## Open items
 

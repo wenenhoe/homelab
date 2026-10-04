@@ -1,0 +1,24 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Confirm host is Debian-based (matches the role's own assertion)
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'Debian'
+        fail_msg: "Test host is not Debian-based — the role's own assertion should have failed converge already."
+
+    # The one file the first planned area writes; no area is allow-listed
+    # yet, so nothing may have written it.
+    - name: Check that no unattended-upgrades drop-in was written
+      ansible.builtin.stat:
+        path: /etc/apt/apt.conf.d/52unattended-upgrades-local
+      register: host_hardening_verify_drop_in
+
+    - name: Assert no hardening area ran
+      ansible.builtin.assert:
+        that:
+          - not host_hardening_verify_drop_in.stat.exists
+        fail_msg: "A hardening area wrote its drop-in, but none is allow-listed."

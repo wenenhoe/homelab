@@ -1,0 +1,10 @@
+---
+# The allow-list of konstruktoid.hardening areas (ADR 0043) is this file:
+# one include per area, each added by a change that also adds that area's
+# Molecule assertion. No area is included yet.
+
+- name: Ensure the host is Debian-based
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["os_family"] == "Debian"
+    fail_msg: "The hardening areas this role includes support Debian-family hosts only."

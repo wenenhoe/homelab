@@ -14,6 +14,7 @@ result, then re-converges to check idempotence — mirroring what
 | `apt` | `default` | Package updates only — no systemd, no privileged mode. |
 | `fwupd` | *(none)* | Needs real firmware/LVFS hardware; not containerizable. |
 | `docker` | `default` | Installing Docker Engine in a privileged/systemd container. |
+| `host_hardening` | `default` | Platform assertion and an empty allow-list — no systemd, no privileged mode. |
 | `qemu_guest_agent` | `default` | Package installs; shipped unit still matches the udev-activated shape the role relies on (no `[Install]`/`WantedBy=`). No systemd start/enable path — see [`qemu-guest-agent.md`](../infra/qemu-guest-agent.md). |
 | `compose` | `default` | Main init/deploy happy path. |
 | | `volumes` | Named-volume creation, legacy bind-mount migration, config seeding, teardown. |

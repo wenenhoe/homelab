@@ -60,7 +60,7 @@ set. It narrows where to look; it doesn't replace looking.
 | :--- | :--- | :--- |
 | [`cloud-credentials-sdk-followups.md`](projects/cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | Not started | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
-| [`host-hardening-baseline.md`](projects/host-hardening-baseline.md) | Not started | A repo-owned role that includes the hardening collection's areas from an allow-list, starting with unattended security updates on every patched host. |
+| [`host-hardening-baseline.md`](projects/host-hardening-baseline.md) | Building | A repo-owned role that includes the hardening collection's areas from an allow-list, starting with unattended security updates on every patched host. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
 | [`vault-secret-module.md`](projects/vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |
 

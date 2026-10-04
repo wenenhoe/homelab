@@ -24,13 +24,15 @@ A host that runs untrusted code is built and patched by automation that also hol
 
 The CD agent ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)) does not exist yet. Until it does, provisioning is run from the operator host ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)), which becomes the controller for every host. The CD agent runs each job as its own unprivileged user holding only that job's credentials, so a job that holds only this host's key is possible.
 
-Converging in place does not remove an implant, and a controller running against a compromised host ingests its facts and task results. Provisioning a VM from the Tofu definition ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) is repeatable and starts from a known image.
+Converging in place does not remove an implant, and a controller running against a compromised host ingests its facts and task results. Provisioning a VM from the Tofu definition ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) is repeatable and starts from a known image: Tofu builds a cloud-init Ubuntu template itself and clones each VM from it, so a regularly rebuilt template gives every clone a current base.
+
+The host runs on demand, started when the maintainer wants the agent and stopped afterwards, so it need not exist between sessions.
 
 **Threat model.** The adversary controls the target host. The asset is the controller's credentials and its other targets. The attack path is the management connection and the data returned over it.
 
 ## Decision
 
-- **Rebuild first.** The host is replaced from the Tofu definition on a schedule and on suspicion of compromise. Between rebuilds it patches itself with unattended security updates, so Ansible reaches it only as part of a rebuild or a deliberate re-converge.
+- **Rebuild first.** The host is replaced from the Tofu definition each time it is started, and on suspicion of compromise. While it runs it patches itself with unattended security updates ([ADR 0043](../0043-host-os-hardening-baseline/revision-000.md)'s first area), so Ansible reaches it only as part of a rebuild or a deliberate re-converge.
 - **Own inventory group.** The host is in none of `managed_hosts`, `app_hosts`, or `patched_hosts`, so no existing play or job reaches it with a shared key.
 - **Own key and account.** A dedicated SSH key for a management account named per the repo's `<x>admin` convention, overriding the `all.vars` key at group level. The account is root-equivalent on the host by design; the control is the direction of trust, not narrow sudo.
 - **Own execution identity.** The CD agent's job for this host runs as its own user holding only that key: no OpenBao token and no other host's key. Plays against it use no `fetch` or `synchronize`, and treat facts and registered results as untrusted input.
@@ -41,12 +43,19 @@ Converging in place does not remove an implant, and a controller running against
 - **Periodic in-place convergence.** Cannot evict a persistent implant, and keeps a live privileged session into an untrusted host. Kept only for deliberate re-converges.
 - **`ansible-pull` on the host.** Runs repository content as root on the untrusted host itself. Rejected.
 - **Manual maintenance.** Drifts and does not scale to rebuild-first.
+- **Net-booting a stateless image that is rebuilt regularly.** It would take the OS install out of every start. It needs a boot server, a boot path in the host's VLAN, and an image build pipeline, none of which exist, and it has not been compared with cloning from a regularly rebuilt template, which reuses what Tofu already builds. Not chosen yet; see the reconsideration triggers.
+
+## Assumptions
+
+- **Claim:** a rebuild at start leaves the host fully configured from its template and first-boot configuration, with no Ansible session from a host that holds production credentials.
+  **Breaks if wrong:** the rebuild ends with a converge over SSH. Only the operator host holds Tofu credentials ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)), the CD agent has no Tofu job and cannot be started by hand ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), so the operator host would run it, holding production credentials and ingesting the untrusted host's facts, which is the exposure this decision exists to prevent.
+  **Checked by:** reading what a clone gets at first boot against what the host needs (agent account, Claude Code, sandbox settings, `sshd` source restrictions) in the Tofu Ubuntu module and [`coding-agent-host.md`](../../projects/coding-agent-host.md), or a spike.
 
 ## Consequences
 
-- Each rebuild ends with one interactive Claude `/login`, and unfetched work is gone ([ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md)).
+- Each start ends with one interactive Claude `/login`, and work not fetched before the next start is gone ([ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md)).
+- A start takes as long as a clone and a first boot.
 - Rebuild-first depends on the Tofu Ubuntu module ([`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)); until it lands the VM is built by hand.
-- The rebuild cadence is a project decision, not fixed here.
 
 ## Invariants
 
@@ -62,3 +71,7 @@ Converging in place does not remove an implant, and a controller running against
 ## Validation
 
 A CI check that the host's group resolves to its own key and to no shared key. A rebuild exercised end to end from the Tofu definition.
+
+## Reconsideration triggers
+
+- Clone and first boot make a start too slow, or the template and its first-boot configuration become more to maintain than a boot image would be: compare net-booting a stateless image.

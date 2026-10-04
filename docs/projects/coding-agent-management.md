@@ -4,7 +4,7 @@ title: Coding-Agent Host Lifecycle
 type: project
 status: not-started
 blocked: false
-summary: Rebuild-first management of the coding-agent host from the Tofu definition, with a dedicated key and a CD-agent job that holds nothing else.
+summary: Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else.
 decision: ADR-0054/0
 super_project: coding-agent-host
 track: lifecycle
@@ -19,11 +19,11 @@ depends_on:
 
 # Coding-Agent Host Lifecycle
 
-Turns the hand-built host into one that is replaced from its Tofu definition on a schedule. Staged because the definition, the inventory and key separation, the CD-agent job, and the end-to-end rebuild are independent changes with different prerequisites.
+Turns the hand-built host into one that is replaced from its Tofu definition each time it is started. Staged because the definition, the inventory and key separation, the CD-agent job, and the end-to-end rebuild are independent changes with different prerequisites.
 
 ## Scope
 
-The host's Tofu definition, its dedicated SSH key and inventory resolution, the CD-agent job under a separate identity, the rebuild cadence, and a rebuild drill. Not in scope: splitting the shared key for other hosts ([`cd-agent.md`](cd-agent.md)) and the host's build ([`coding-agent-host.md`](coding-agent-host.md)).
+The host's Tofu definition, its dedicated SSH key and inventory resolution, the CD-agent job under a separate identity, the rebuild at each start, and a rebuild drill. Not in scope: splitting the shared key for other hosts ([`cd-agent.md`](cd-agent.md)) and the host's build ([`coding-agent-host.md`](coding-agent-host.md)).
 
 ## Decision
 
@@ -38,7 +38,7 @@ Update at the start and end of each PR that works a stage.
 | 1 | Tofu definition of the host from the Ubuntu module | Not started | `tofu plan` reproduces the hand-built VM's shape |
 | 2 | Group-level key override and a CI check on it | Not started | The inventory resolves the host's own key, and CI fails if it resolves the shared one |
 | 3 | CD-agent job under an identity holding only the host's key | Not started | The job runs with no OpenBao token and no other host key, and plays use no `fetch` or `synchronize` |
-| 4 | Rebuild drill and cadence | Not started | A full rebuild from the definition passes the host's acceptance criteria, and a cadence is set |
+| 4 | Rebuild drill | Not started | A full rebuild from the definition at start passes the host's acceptance criteria |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -52,11 +52,11 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Risks
 
 - Until the CD agent exists, rebuilds are run from the operator host, which holds the host's key ([ADR 0058](../decisions/0058-where-operator-work-runs/revision-000.md)).
-- Each rebuild needs an interactive Claude login and loses unfetched work.
+- Each start needs an interactive Claude login and loses work not fetched before it.
 
 ## Open items
 
-- Rebuild cadence.
+- Who runs a rebuild at start, and what configures the host afterwards, until [ADR 0054](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md)'s open assumption is settled.
 
 ## Closing checklist
 

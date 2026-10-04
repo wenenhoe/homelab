@@ -4,7 +4,7 @@ title: CD Agent AppRoles
 type: project
 status: not-started
 blocked: false
-summary: Two CIDR-bound AppRoles for the CD agent (deploy and rotation).
+summary: Three CIDR-bound AppRoles for the CD agent (deploy, rotation and freshness).
 decision: ADR-0020/1
 super_project: pull-based-cd
 track: credentials
@@ -19,7 +19,7 @@ against — which it now does.
 
 ## Scope
 
-The two AppRoles `cd-agent-deploy` and `cd-agent-rotation`, their policies, and their CIDR binding. Not in scope: the host itself ([`cd-agent.md`](cd-agent.md)) and retiring `controller`'s AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The three AppRoles `cd-agent-deploy`, `cd-agent-rotation` and `cd-agent-freshness`, their policies, and their CIDR binding. Not in scope: the host itself ([`cd-agent.md`](cd-agent.md)) and retiring `controller`'s AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -31,29 +31,31 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `cd-agent-deploy` / `cd-agent-rotation` AppRoles, CIDR-bound | Not started | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
+| 1 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-freshness` AppRoles, CIDR-bound | Not started | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 1 — AppRoles
 
-Two CIDR-bound AppRoles, per the
-[working decision](../decisions/0020-automation-identity-and-access-scope/revision-001.md):
+Three CIDR-bound AppRoles, per the
+[decision](../decisions/0020-automation-identity-and-access-scope/revision-001.md):
 `cd-agent-deploy` (read on `hosts/*` and `cloud_credentials/leaf/*`,
-`create` but not `update` on `hosts/*`) and `cd-agent-rotation`
+`create` but not `update` on `hosts/*`), `cd-agent-rotation`
 (create/update on both `cloud_credentials/leaf/*` and
-`cloud_credentials/rotation/*`, read on `hosts/all/telegram/*` only) —
-no shared access between the two jobs beyond that, since a compromised
-deploy run shouldn't be able to reach rotation-tier credentials or vice
-versa.
+`cloud_credentials/rotation/*`, nothing under `hosts/*`) and
+`cd-agent-freshness` (read-only on `cloud_credentials/leaf/*`,
+`cloud_credentials/rotation/*` and `hosts/all/telegram/*`) — a
+compromised deploy run shouldn't be able to reach rotation-tier
+credentials, and the freshness check shouldn't be able to write any.
 
 ## Acceptance criteria
 
-- [ ] Both AppRoles exist with the policies in ADR 0020 revision 001.
+- [ ] All three AppRoles exist with the policies in ADR 0020 revision 001.
 - [ ] Each is bound to `cd_agent`'s fixed IP (`secret_id_bound_cidrs` and `token_bound_cidrs`).
 - [ ] `cd-agent-deploy` cannot read `cloud_credentials/rotation/*`, verified.
-- [ ] `cd-agent-rotation` can read `hosts/all/telegram/*` and no other `hosts/*` path, verified.
 - [ ] `cd-agent-deploy` can create a missing `hosts/*` path and cannot update an existing one, verified.
+- [ ] `cd-agent-rotation` can read no `hosts/*` path, verified.
+- [ ] `cd-agent-freshness` can read the leaf, rotation and Telegram paths and write none of them, verified.
 
 ## Closing checklist
 

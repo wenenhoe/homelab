@@ -198,7 +198,7 @@ for the reasoning.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
-| [`cd-agent-approles.md`](cd-agent-approles.md) | Not started | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
+| [`cd-agent-approles.md`](cd-agent-approles.md) | Not started | Three CIDR-bound AppRoles for the CD agent (deploy, rotation and freshness). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent.md`](cd-agent.md) | Not started | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
 | [`cloud-credentials-sdk-followups.md`](cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |

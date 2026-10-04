@@ -3,7 +3,7 @@ id: ADR-0020
 revision: 1
 type: adr
 title: Automation identity and access scope
-solution: Two CIDR-bound AppRoles for the CD agent (deploy and rotation), retiring controller's broad grant
+solution: Three CIDR-bound AppRoles for the CD agent (deploy, rotation and freshness), retiring controller's broad grant
 summary: Which identities may read and write which secret paths, once unattended prod-touching work has more than one category.
 topic: secrets-store
 status: approved
@@ -11,7 +11,7 @@ supersedes: 0
 related: [ADR-0017, ADR-0023, ADR-0025, ADR-0044, ADR-0047]
 ---
 
-# Two CIDR-bound AppRoles for the CD agent, replacing controller's broad grant
+# Three CIDR-bound AppRoles for the CD agent, replacing controller's broad grant
 
 ## Context
 
@@ -21,10 +21,10 @@ exists today. [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-
 adds a dedicated automation host (`cd_agent`) that becomes the sole
 path to prod deploys and takes over the rotation/freshness jobs
 [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) schedules.
-`cd_agent` runs two categories of unattended, prod-touching work
-(deploy/maintenance, and credential rotation/freshness) that don't
-need the same access to each other's material, so one broad identity
-stops being the right shape. ADR 0044 gives each job its own timer and
+`cd_agent` runs three categories of unattended, prod-touching work
+(deploy/maintenance, credential rotation, and the freshness check) that
+don't need the same access to each other's material, so one broad
+identity stops being the right shape. ADR 0044 gives each job its own timer and
 its own Unix user, and requires the host to have a fixed address, unlike
 the controller's AppRole today, which has no CIDR binding.
 
@@ -36,7 +36,7 @@ address.
 
 ## Decision
 
-Two AppRoles, both bound to `cd_agent`'s fixed LAN IP via
+Three AppRoles, all bound to `cd_agent`'s fixed LAN IP via
 `secret_id_bound_cidrs` and `token_bound_cidrs`:
 
 - `cd-agent-deploy` — read on `secret/data/hosts/*` and
@@ -51,20 +51,26 @@ Two AppRoles, both bound to `cd_agent`'s fixed LAN IP via
   master-tier credential.
 - `cd-agent-rotation` — create/update (and read) on
   `secret/data/cloud_credentials/leaf/*` and
-  `secret/data/cloud_credentials/rotation/*`, plus `read` on
-  `secret/data/hosts/all/telegram/*` and nothing else under `hosts/*`.
-  The freshness check reads the Telegram credentials from that path
-  ([ADR 0021](../0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md))
+  `secret/data/cloud_credentials/rotation/*`. No access to
+  `secret/data/hosts/*` — the rotation job has no business touching
+  app secrets.
+- `cd-agent-freshness` — read-only on
+  `secret/data/cloud_credentials/leaf/*`,
+  `secret/data/cloud_credentials/rotation/*` and
+  `secret/data/hosts/all/telegram/*`. The freshness check reads the
+  rotation-tier credentials to ask each provider when its keys expire,
+  and the Telegram credentials ([ADR 0021](../0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md))
   to send its alert, as the watcher in
   [ADR 0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md)
-  already does.
+  already does. It can read what rotation holds but cannot write or
+  rotate anything, and rotation never needs the Telegram path.
 
-Both AppRoles live on the same host, so the CIDR bind separates
-`cd_agent` from everything else on the network, not the two jobs from
-each other. Each job runs as its own Unix user ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)),
-so a compromised job process cannot read the other job's `secret_id`.
-The two AppRoles stay two so the policies differ as well as the files;
-root on the host can read both.
+All three AppRoles live on the same host, so the CIDR bind separates
+`cd_agent` from everything else on the network, not the jobs from each
+other. Each job runs as its own Unix user ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)),
+so a compromised job process cannot read another job's `secret_id`. The
+AppRoles stay separate so the policies differ as well as the files;
+root on the host can read all of them.
 
 Each `cd_agent` job authenticates fresh per invocation: a
 short-lived token per run, not one long-lived token held in memory
@@ -97,6 +103,9 @@ drill), narrowly scoped and short-lived, never persisted to disk.
 
 - A compromised deploy job can plant a value for a generated secret that
   does not exist yet, which `controller`'s grant allows today too.
+- The freshness role reads the R2 admin token's path, which the watcher
+  in ADR 0026 alerts on for any read, so each freshness run's alert
+  names `cd-agent-freshness` as the role.
 - The OpenBao snapshot push ([ADR 0019](../0019-openbao-offsite-snapshot-path/revision-000.md))
   is not one of these jobs. `controller`'s read on
   `sys/storage/raft/snapshot` goes when its AppRole is deleted, so moving
@@ -104,10 +113,10 @@ drill), narrowly scoped and short-lived, never persisted to disk.
 - Token lifetime (`token_ttl`) per `cd_agent` invocation is a project
   decision, bounded below by the longest job run and kept short enough
   that a leaked token from one run doesn't outlive it by much.
-- `secret_id` rotation cadence for `cd_agent`'s two AppRoles is a
+- `secret_id` rotation cadence for `cd_agent`'s three AppRoles is a
   project decision too: re-running `cd_agent`'s own provisioning is the
   natural mechanism, matching this repo's human-attended pattern for
   cloud rotation-key bootstrap.
-- If `cd_agent`'s LAN IP ever changes, both AppRoles' CIDR binds need
+- If `cd_agent`'s LAN IP ever changes, every AppRole's CIDR bind needs
   updating — a manual step, not something the agent's own jobs could
   safely do (it would be the job editing its own trust boundary).

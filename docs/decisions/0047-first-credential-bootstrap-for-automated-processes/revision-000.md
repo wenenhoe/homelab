@@ -83,10 +83,11 @@ draft converges on.
   and authenticates to OpenBao via Vault's `cert` auth method instead
   of holding an AppRole. Nothing standing sits on `controller`'s disk
   between uses; every on-demand token mint is backed by a
-  short-lived, renewable certificate instead of a static secret. Not
-  confirmed: whether OpenBao supports the `cert` auth method the same
-  way Vault does — very likely, given how broadly API-compatible it
-  is, but not verified live.
+  short-lived, renewable certificate instead of a static secret.
+  OpenBao documents a `cert` auth method
+  ([openbao.org](https://openbao.org/docs/auth/cert/)); whether it
+  accepts a step-ca-issued certificate on this repo's listener is the
+  open assumption below.
 - **Response wrapping handles the one remaining real gap: provisioning
   `cd_agent` itself.** Not an ongoing relay — `cd_agent` uses its own
   AppRole directly and repeatedly after this — just the single,
@@ -154,11 +155,30 @@ lab can. Both offsite drafts are gated on this one reaching
 neither should provision a real credential onto GCP or OCI, per this
 repo's own hard gate on building against an open Assumption.
 
+## Assumptions
+
+- **Claim:** a client certificate issued by step-ca logs in through
+  OpenBao's `cert` auth method on this repo's listener, and the token
+  it yields carries only the policies bound to that certificate's
+  role. OpenBao's documentation says the method needs `tls_disable`
+  and `tls_disable_client_certs` to be false in the OpenBao
+  configuration. `docker/openbao/configs/openbao.hcl.j2` sets only
+  the listener's address, cluster address, and certificate and key
+  files, and OpenBao is published directly rather than proxied
+  (`app_catalog.yaml`), so the certificate reaches it in the TLS
+  handshake.
+  **Breaks if wrong:** the controller has no way to authenticate
+  without a standing credential, so the on-demand token mint the
+  retirement project assumes has no mechanism, and the controller
+  keeps an AppRole or another auth method takes its place.
+  **Checked by:** a throwaway spike on a scratch OpenBao: enable
+  `cert` auth with the step-ca root, log in with a leaf certificate
+  step-ca issued, and confirm the login succeeds, that the
+  certificate's key usages are accepted for client authentication,
+  and that the token's policies and TTL are the role's.
+
 ## Not yet done
 
-- Confirm OpenBao supports Vault's `cert` auth method the same way —
-  the whole `controller`-side of this design depends on it; not
-  verified live yet.
 - Whether `step_ca_cert`'s existing provisioner-password pattern is
   good enough to reuse as-is for issuing `controller`'s own client
   cert, or needs its own enrollment flow.

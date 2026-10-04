@@ -107,13 +107,7 @@ already depends on — not about site independence.
   to resolve, not this one's — but this draft's OCI-dedicated plan
   depends on it: if e2-micro can't carry both, OCI doesn't get freed
   up for Wazuh alone and this Decision needs revisiting.
-- **Gated on [`../0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)
-  reaching `approved`**, same as the off-site-monitoring draft above and
-  for the same reason: OCI is a host outside physical/network control,
-  and this is the first time this repo would hand it a real credential.
-  No production credential goes onto the OCI box until that's decided
-  — independent of the CPU/ARM64 spike above. A hardening pass for
-  this specific host is a separate, not-yet-scoped companion gate.
+- **Credentials follow [`../0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md), which is approved:** the OCI box holds no OpenBao identity and receives only the secrets Wazuh needs, pushed by Ansible. OCI is a host outside physical/network control, so a hardening pass for this specific host is a separate, not-yet-scoped gate, and no production credential goes onto the OCI box until it exists, independent of the CPU/ARM64 spike above.
 
 ## A conflict this draft creates, not previously connected
 

@@ -6,7 +6,7 @@ title: First-credential bootstrap for automated processes
 solution: Client-certificate login for the operator host from a dedicated step-ca provisioner, response-wrapped one-time handoff for automation identities, and no OpenBao identity on any other host
 summary: How the first credential reaches a process that needs it, without a human typing it or a permanent orchestrator relaying secrets.
 topic: secrets-store
-status: working
+status: approved
 related: [ADR-0020, ADR-0026, ADR-0036, ADR-0043, ADR-0044, ADR-0045, ADR-0049, ADR-0073]
 ---
 

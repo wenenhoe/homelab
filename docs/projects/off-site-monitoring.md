@@ -4,7 +4,7 @@ title: Off-Site Monitoring Relocation
 type: project
 status: de-risking
 blocked: true
-blocked_reason: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped
+blocked_reason: no production credential goes to the GCP host until its hardening pass is scoped and done
 summary: Relocate monitoring to a GCP e2-micro so it survives loss of the whole site.
 decision: ADR-0049/0
 super_project: off-site-monitoring
@@ -25,7 +25,7 @@ Relocating monitoring to a GCP e2-micro, and extending VM 202's Tailscale subnet
 
 ## Decision
 
-Implements [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md), still `working`, so this project is `de-risking` until its open assumptions are resolved. It is also `blocked`: it waits on decisions ([ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)), not on another project.
+Implements [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md), still `working`, so this project is `de-risking` until its open assumptions are resolved. It is also `blocked`: it waits on a decision, the off-site host's hardening pass, which [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md) names as a gate, not on another project.
 
 ## Execution plan
 

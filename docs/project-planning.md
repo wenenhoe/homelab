@@ -39,16 +39,16 @@ set. It narrows where to look; it doesn't replace looking.
 | | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | `controller-separation` | `operator` | — | [`operator-host.md`](projects/operator-host.md) | De-risking |
-| | `workstation` | `1-management` | [`workstation-management.md`](projects/workstation-management.md) | Not started |
+| | `workstation` | `1-management` | [`workstation-management.md`](projects/workstation-management.md) | Not started — ready |
 | | `workstation` | `2-reduction` | [`workstation-capability-reduction.md`](projects/workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`workstation-management.md`](projects/workstation-management.md) |
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | Building |
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | De-risking |
 | | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | Not started |
-| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | Not started |
+| `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | Not started — ready |
+| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | Not started — ready |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `security-review-pipeline` | — | — | [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Not started |
-| | — | — | [`coderabbit-pr-review-pipeline.md`](projects/coderabbit-pr-review-pipeline.md) | Not started |
+| `security-review-pipeline` | — | — | [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Not started — ready |
+| | — | — | [`coderabbit-pr-review-pipeline.md`](projects/coderabbit-pr-review-pipeline.md) | Not started — ready |
 | `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | De-risking |
 | | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
 | | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) |
@@ -58,8 +58,8 @@ set. It narrows where to look; it doesn't replace looking.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`cloud-credentials-sdk-followups.md`](projects/cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
-| [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | Not started | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
+| [`cloud-credentials-sdk-followups.md`](projects/cloud-credentials-sdk-followups.md) | Not started — ready | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
+| [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
 | [`vault-secret-module.md`](projects/vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |

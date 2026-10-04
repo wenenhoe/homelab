@@ -69,7 +69,11 @@ back to `working` stops any project `building` on it. A project without
 
 `blocked: true` with a `blocked_reason` is a flag, not a status: a
 current impediment that isn't another project (hardware, an external
-service). Waiting on a project is derived from `depends_on`. A risk —
+service). Waiting on a project is derived from `depends_on`, and so is
+"ready": the index marks a `not-started` project ready when its decision
+revision is `approved` (or it has no `decision:`), it is not blocked, and
+no project it depends on remains. Neither is a status, so neither needs
+an edit when it changes. A risk —
 something that could cause rework but blocks nothing now — goes in the
 doc's Risks list instead.
 
@@ -197,19 +201,19 @@ for the reasoning.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
-| [`cd-agent-approles.md`](cd-agent-approles.md) | Not started | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
+| [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started — ready | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
+| [`cd-agent-approles.md`](cd-agent-approles.md) | Not started — ready | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
-| [`cd-agent.md`](cd-agent.md) | Not started | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
-| [`cloud-credentials-sdk-followups.md`](cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
-| [`coderabbit-pr-review-pipeline.md`](coderabbit-pr-review-pipeline.md) | Not started | homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files. |
+| [`cd-agent.md`](cd-agent.md) | Not started — ready | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
+| [`cloud-credentials-sdk-followups.md`](cloud-credentials-sdk-followups.md) | Not started — ready | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
+| [`coderabbit-pr-review-pipeline.md`](coderabbit-pr-review-pipeline.md) | Not started — ready | homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files. |
 | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
 | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
 | [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else. |
 | [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
 | [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md), [`coding-agent-network.md`](coding-agent-network.md) | Move the coding-agent VLAN, firewall rules, and proxy configuration from hand-maintained OPNsense state into Tofu. |
 | [`coding-agent-network.md`](coding-agent-network.md) | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
-| [`gatus-job-heartbeats.md`](gatus-job-heartbeats.md) | Not started | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
+| [`gatus-job-heartbeats.md`](gatus-job-heartbeats.md) | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
 | [`host-hardening-remaining-hosts.md`](host-hardening-remaining-hosts.md) | Not started — waiting on [`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`image-vulnerability-assessment.md`](image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
@@ -222,4 +226,4 @@ for the reasoning.
 | [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
 | [`vault-secret-module.md`](vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |
 | [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](operator-host.md), [`workstation-management.md`](workstation-management.md) | Remove every infrastructure credential and the controller tooling from VM 401, then retire it, once the operator host runs the controller and the laptop works as the workstation. |
-| [`workstation-management.md`](workstation-management.md) | Not started | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access. |
+| [`workstation-management.md`](workstation-management.md) | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access. |

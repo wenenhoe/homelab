@@ -31,7 +31,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `apt` | System package updates. |
 | `fwupd` | Firmware updates. |
 | `docker` | Docker Engine install. |
-| `host_hardening` | Includes the hardening collection's allow-listed areas; none yet. |
+| `host_hardening` | Includes the hardening collection's allow-listed areas; today, unattended security updates. |
 | `qemu_guest_agent` | Installs `qemu-guest-agent` for Proxmox VM integration. |
 | `compose` | Reusable init/deploy/cleanup tasks for one compose app. |
 | `compose_app` | Batch-drives `compose` for every non-infra app. |

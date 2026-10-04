@@ -49,7 +49,7 @@ anonymously into its own state directory, checks out the commit as a
 clean tree, and runs the playbook or `tools/` entry point from it. The
 poll, decide and run step is `tools/` code with unit tests. The host's
 only inbound service is `sshd`, accepted from the operator host alone.
-See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) this stage implements.
+The freshness job replaces the weekly user timer on `controller` (`tools/cloud_credentials/systemd/`), running as a plain weekly timer on this always-on host. See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) this stage implements.
 
 ## Acceptance criteria
 

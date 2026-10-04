@@ -115,8 +115,9 @@ drill), narrowly scoped and short-lived, never persisted to disk.
 - A compromised deploy job can plant a value for a generated secret that
   does not exist yet, which `controller`'s grant allows today too.
 - The freshness role reads the R2 admin token's path, which the watcher
-  in ADR 0026 alerts on for any read, so each freshness run's alert
-  names `cd-agent-freshness` as the role.
+  in ADR 0026 alerts on for any read, so each weekly freshness run's
+  alert names `cd-agent-freshness` as the role. That alert is accepted
+  as the weekly signal that the check ran.
 - The snapshot role downloads the whole raft database, sealed under a
   key that is not on `cd_agent`, and GPG-encrypts it again before it
   leaves; its protection rests on the unseal keys never being there.

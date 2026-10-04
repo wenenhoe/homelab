@@ -60,6 +60,7 @@ leaf.
 - [ ] `cd-agent-rotation` can read no `hosts/*` path, verified.
 - [ ] `cd-agent-freshness` can read the leaf, rotation and Telegram paths and write none of them, verified.
 - [ ] `cd-agent-snapshot` can save a snapshot and read its six named leaf paths, and can read no other leaf path, verified.
+- [ ] Each `secret_id` is delivered response-wrapped over stdin and unwrapped once on `cd_agent` into the job user's `0400` file, and a second unwrap of the same token fails, verified.
 
 ## Closing checklist
 

@@ -6,7 +6,7 @@ title: Managing the maintainer workstation from the repo
 solution: Ansible configures it after a manual OS install, applied from the operator host over SSH, with a TLS remote desktop for access
 summary: How the maintainer workstation's configuration becomes reproducible from the repo though it is a desktop a person uses interactively.
 topic: deployment-platform
-status: working
+status: abandoned
 related: [ADR-0001, ADR-0054, ADR-0055, ADR-0056, ADR-0058]
 ---
 

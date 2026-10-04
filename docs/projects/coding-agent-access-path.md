@@ -13,17 +13,15 @@ phase: 1-access-path
 depends_on:
   - project: PROJ-coding-agent-host
     reason: The maintainer's key is installed on the host, which must exist first
-  - project: PROJ-workstation-management
-    reason: The SSH client configuration for the host is defined by the workstation role
 ---
 
 # Coding-Agent Access and Review Path
 
-How the maintainer drives the agent and gets its work into `main`. Staged because the client configuration lives in the workstation role, and the workflow doc and the credential checks are separate changes.
+How the maintainer drives the agent and gets its work into `main`. Staged because the client configuration is set by hand on the laptop and checked by a script, and the workflow doc and the credential checks are separate changes.
 
 ## Scope
 
-The workstation's SSH client entry for the host, the maintainer's key on the host, the git remote and review workflow, and the checks that the host holds no git credential and the workstation's configuration matches the decision. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)), firewall rules ([`coding-agent-network.md`](coding-agent-network.md)), and the workstation role's other contents ([`workstation-management.md`](workstation-management.md)).
+The laptop's SSH client entry for the host, the maintainer's key on the host, the git remote and review workflow, and the checks that the host holds no git credential and the laptop's configuration matches the decision. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)), firewall rules and the tailnet route ([`coding-agent-network.md`](coding-agent-network.md)), and the rest of the laptop's setup ([`workstation-management.md`](workstation-management.md)).
 
 ## Decision
 
@@ -37,19 +35,19 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | SSH client entry for the host and the maintainer's key on it | Not started | The entry names one dedicated key and disables agent, X11, and port forwarding; no other host uses that key |
 | 2 | Fetch-review-push workflow documented | Not started | The remote setup, review-before-execute rule, and push step are in a topic doc; ADR 0050 is `accepted` |
-| 3 | Credential and configuration checks | Not started | The host holds no git credential of any kind, and the workstation's client configuration passes the check in ADR 0055 |
+| 3 | Credential and configuration checks | Not started | The host holds no git credential of any kind, and the laptop's client configuration passes the check in ADR 0055 |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
 - [ ] No token, SSH key, or credential-helper entry that can write to GitHub exists on the host, confirmed from outside it.
-- [ ] The workstation's entry for the host disables forwarding, uses the dedicated key, and no remote-editor session runs against the host.
+- [ ] The laptop's entry for the host disables forwarding, uses the dedicated key, and no remote-editor session runs against the host.
 - [ ] The workflow is described in a topic doc.
 
 ## Risks
 
-- The terminal, SSH client, and git run in the account holding the push credential; that residual risk is accepted in [ADR 0055](../decisions/0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md).
+- The terminal, SSH client, and git run in the account holding the push credential, on a general-purpose laptop; that residual risk is accepted in [ADR 0055](../decisions/0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md).
 - Review discipline is manual.
 
 ## Closing checklist

@@ -27,7 +27,7 @@ The `cd_agent` host: a dedicated LAN box with a fixed IP and zero inbound ports,
 
 ## Decision
 
-No `decision:` is linked yet. This project implements [ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md), which has two competing candidates: [000-a](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md) (a pull-based agent) and [000-b](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md) (a private Gitea or Forgejo). Neither is approved. Set `decision:` to the approved candidate before any production work; until then only throwaway spikes.
+No `decision:` is linked yet. This project implements [ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md), which has three competing candidates: [000-a](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md) (a pull-based agent driving `preloop`), [000-b](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md) (a private Gitea or Forgejo) and [000-c](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) (a pull-based agent running the repo's own playbooks as per-job systemd units). None is approved. Set `decision:` to the approved candidate before any production work; until then only throwaway spikes.
 
 ## Execution plan
 
@@ -68,10 +68,12 @@ against it.
 
 ## Open items
 
-- Whether Stage 1 stays a `preloop` poller or gets replaced by
+- Whether Stage 1 stays a `preloop` poller, gets replaced by
   [`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md)'s
-  Gitea Actions approach — a live, unresolved fork. Resolve this
-  before Stage 1 is actually built, not after.
+  Gitea Actions approach, or runs the repo's own playbooks directly as
+  [`0044-prod-automation-trigger-and-execution/revision-000-c.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)
+  proposes — a live, unresolved fork. Resolve this before Stage 1 is
+  actually built, not after.
 - `preloop`'s CLI event-flag behavior (Stage 1) — spike needed before
   building on it.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,

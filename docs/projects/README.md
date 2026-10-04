@@ -97,7 +97,7 @@ confirms each entry resolves to a real revision — it exists so
 view can tell this ADR is covered without scanning every project's
 prose for a mention. Don't confuse this with a project that simply has
 no `decision:` yet because nothing is `approved` —
-[`cd-agent.md`](cd-agent.md) (ADR 0044, still two competing candidates)
+[`cd-agent.md`](cd-agent.md) (ADR 0044, still competing candidates)
 is that separate case: no ADR is being carried out there, one just
 isn't chosen yet, and it has neither field set.
 

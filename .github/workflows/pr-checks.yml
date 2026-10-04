@@ -361,8 +361,9 @@ jobs:
         with:
           persist-credentials: false
 
-      # Also pulls molecule_helpers/role-requirements.yml per
-      # .config/molecule/config.yml — cache key hashes both files.
+      # Molecule installs molecule_helpers/requirements.yml and
+      # role-requirements.yml itself per .config/molecule/config.yml; the
+      # cache key hashes both along with ansible/requirements.yml.
       - name: Setup uv + Ansible Galaxy collections
         uses: ./.github/actions/setup-uv-ansible
         with:

@@ -142,8 +142,8 @@ what it holds.
 
 All three caches are keyed on a hash of whatever file determines what
 needs installing (`uv.lock`/`pyproject.toml` for uv's own cache, inside
-`astral-sh/setup-uv`; `ansible/requirements.yml` +
-`ansible/roles/molecule_helpers/role-requirements.yml` for the Ansible
+`astral-sh/setup-uv`; `ansible/requirements.yml` and both
+`ansible/roles/molecule_helpers/` requirements files for the Ansible
 Galaxy collections cache; `.config/.pre-commit-config.yaml` — which
 pins every hook's own version — for pre-commit's hook-environment
 cache; the latter two inside `setup-uv-ansible`) — so the key already

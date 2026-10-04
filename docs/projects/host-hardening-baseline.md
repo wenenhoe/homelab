@@ -28,7 +28,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Pin `konstruktoid.hardening` (exact version) and `community.general` (13.0.1 or later) in `ansible/requirements.yml`, and add the `host_hardening` role with an empty allow-list | Done | Both collections install in CI, and the role converges as a no-op and passes idempotence |
 | 2 | `automatic_updates` area: security-only, no automatic reboot, with a Molecule scenario; the scenario installs collections from `ansible/roles/molecule_helpers/requirements.yml`, so both pins go there too | Done | The scenario reads the effective apt configuration and asserts periodic updates are on, no allowed origin is an `-updates` pocket, and no automatic reboot is set; it passes idempotence and appears in the scenario matrix |
-| 3 | Apply the role to every host in `patched_hosts` | In progress | After a run, each such host's effective apt configuration passes the scenario's assertions, and `maintenance.yaml` still upgrades and reboots as before |
+| 3 | Apply the role to every host in `patched_hosts` | Done | After a run, each such host's effective apt configuration passes the scenario's assertions, and `maintenance.yaml` still upgrades and reboots as before |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -37,7 +37,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [x] `ansible/requirements.yml` pins `konstruktoid.hardening` to an exact version and lists `community.general`.
 - [x] The `host_hardening` role includes only allow-listed areas, and the allow-list is `automatic_updates` alone.
 - [x] The area's Molecule scenario asserts the effect, not only a zero exit, passes the idempotence check, and appears in the scenario matrix.
-- [ ] Every host in `patched_hosts` has security-only unattended updates with no automatic reboot.
+- [x] Every host in `patched_hosts` has security-only unattended updates with no automatic reboot.
 
 ## Agent handoff
 

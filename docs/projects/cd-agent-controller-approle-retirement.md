@@ -25,7 +25,7 @@ Deleting `controller`'s Era A AppRole and its policy, and the on-demand token mi
 
 ## Decision
 
-Implements [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md), still `working`: how `controller` authenticates to mint on-demand tokens once its standing AppRole is gone. Not started until that is settled.
+Implements [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md), `approved`: how `controller` authenticates to mint on-demand tokens once its standing AppRole is gone.
 
 ## Execution plan
 

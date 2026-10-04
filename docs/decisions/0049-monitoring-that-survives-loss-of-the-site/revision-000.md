@@ -22,6 +22,8 @@ to reach the 4 managed hosts already exists — no new tunnel technology,
 just extending an existing Tailscale subnet route to a new node and
 bringing the router itself under management.
 
+[ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md) is approved, so the GCP host holds no OpenBao identity and receives only the secrets its own role needs, pushed by Ansible. A compromise of it exposes those secrets and a tailnet route back into the lab.
+
 ## Decision
 
 **Relocate to GCP's e2-micro Always Free instance**, reached by
@@ -56,9 +58,6 @@ sharing OCI with it.
 - **Claim:** this lab's monitoring traffic (push checks, Beszel agent reports) stays under e2-micro's Always Free egress cap: one instance, in `us-west1`/`us-central1`/`us-east1`, with a 1 GB/month cap to most destinations.
   **Breaks if wrong:** the free-tier instance can't carry the monitoring load.
   **Checked by:** estimating the expected traffic before building against it.
-- **Claim:** [ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md) reaches `approved` before any production credential goes onto the GCP host.
-  **Breaks if wrong:** this stage is the first time this repo would hand a real credential (Beszel's KEY/TOKEN, Kuma's admin state, whatever the Telegram wiring needs) to a host outside physical/network control, a materially higher blast radius than any on-prem case.
-  **Checked by:** ADR 0047 reaching `approved`, independent of the RAM spike above.
 - **Claim:** a hardening pass for the e2-micro host itself exists before it holds credentials; low-spec cloud image defaults are not this stage's starting assumption.
   **Breaks if wrong:** the same blast radius as above, on a host whose defaults nobody reviewed.
   **Checked by:** scoping that pass; it is a separate, not-yet-scoped companion gate.

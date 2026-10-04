@@ -64,9 +64,9 @@ and no single deliberate one.
 Checked directly against the CD agent project docs, not assumed: the
 actual planned design is **not** an ongoing
 Trusted-Orchestrator-relays-everything model. `cd_agent` gets its **own**
-CIDR-bound AppRole
+CIDR-bound AppRoles
 ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md):
-`cd-agent-deploy`/`cd-agent-rotation`, no shared access between them) —
+deploy, rotation and freshness, with no shared write access) —
 `controller` doesn't hand it credentials on a recurring basis.
 [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md)
 goes further: it retires `controller`'s own standing AppRole
@@ -85,9 +85,32 @@ draft converges on.
   between uses; every on-demand token mint is backed by a
   short-lived, renewable certificate instead of a static secret.
   OpenBao documents a `cert` auth method
-  ([openbao.org](https://openbao.org/docs/auth/cert/)); whether it
-  accepts a step-ca-issued certificate on this repo's listener is the
-  open assumption below.
+  ([openbao.org](https://openbao.org/docs/auth/cert/)), and it works
+  here. A scratch run against OpenBao 2.7.0 and step-ca 0.30.2, the
+  versions pinned in `docker/openbao/compose.yaml.j2` and
+  `docker/step-ca/compose.yaml.j2`, with the repo's listener stanza
+  (only the certificate and key files set) and a CA initialized as
+  `docker/step-ca/scripts/entrypoint.sh` does, showed:
+
+  - A certificate issued with `step_ca_cert`'s own `step ca certificate`
+    flags logs in when the step-ca root is registered on the role and
+    the leaf-plus-intermediate `fullchain.pem` is presented. The
+    listener needed no change to request client certificates.
+  - The token carried only the role's policies and TTL, and could read
+    the permitted path but nothing else and could not write.
+  - A different common name (`allowed_common_names`), the same name
+    signed by another CA, and no certificate are all refused.
+  - A leaf without the client-authentication key usage is refused with
+    `x509: certificate specifies an incompatible key usage`. step-ca's
+    default leaf template carries both server and client
+    authentication, so a custom template must keep the latter.
+  - A certificate renewed with `step ca renew --force`, as
+    `cert-renewer@` does, logs in again, `token_bound_cidrs` on the
+    role is enforced, and plain-token clients are unaffected.
+
+  Not covered: the live step-ca's own templates and provisioner, and
+  whether `step_ca_cert`, which issues server certificates, suits a
+  client certificate (see Not yet done).
 - **Response wrapping handles the one remaining real gap: provisioning
   `cd_agent` itself.** Not an ongoing relay — `cd_agent` uses its own
   AppRole directly and repeatedly after this — just the single,
@@ -154,28 +177,6 @@ lab can. Both offsite drafts are gated on this one reaching
 `status: approved` — not just on their own RAM/CPU spikes — until then,
 neither should provision a real credential onto GCP or OCI, per this
 repo's own hard gate on building against an open Assumption.
-
-## Assumptions
-
-- **Claim:** a client certificate issued by step-ca logs in through
-  OpenBao's `cert` auth method on this repo's listener, and the token
-  it yields carries only the policies bound to that certificate's
-  role. OpenBao's documentation says the method needs `tls_disable`
-  and `tls_disable_client_certs` to be false in the OpenBao
-  configuration. `docker/openbao/configs/openbao.hcl.j2` sets only
-  the listener's address, cluster address, and certificate and key
-  files, and OpenBao is published directly rather than proxied
-  (`app_catalog.yaml`), so the certificate reaches it in the TLS
-  handshake.
-  **Breaks if wrong:** the controller has no way to authenticate
-  without a standing credential, so the on-demand token mint the
-  retirement project assumes has no mechanism, and the controller
-  keeps an AppRole or another auth method takes its place.
-  **Checked by:** a throwaway spike on a scratch OpenBao: enable
-  `cert` auth with the step-ca root, log in with a leaf certificate
-  step-ca issued, and confirm the login succeeds, that the
-  certificate's key usages are accepted for client authentication,
-  and that the token's policies and TTL are the role's.
 
 ## Not yet done
 

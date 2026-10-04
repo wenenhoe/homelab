@@ -36,10 +36,10 @@ set. It narrows where to look; it doesn't replace looking.
 | | `boundary` | `2-host` | [`coding-agent-host.md`](projects/coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
 | | `boundary` | `3-network-as-code` | [`coding-agent-network-as-code.md`](projects/coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md), [`coding-agent-network.md`](projects/coding-agent-network.md) |
 | | `lifecycle` | — | [`coding-agent-management.md`](projects/coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
-| | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md), [`workstation-management.md`](projects/workstation-management.md) |
+| | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | `controller-separation` | `operator` | — | [`operator-host.md`](projects/operator-host.md) | De-risking |
-| | `workstation` | `1-management` | [`workstation-management.md`](projects/workstation-management.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
+| | `workstation` | `1-management` | [`workstation-management.md`](projects/workstation-management.md) | Not started |
 | | `workstation` | `2-reduction` | [`workstation-capability-reduction.md`](projects/workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`workstation-management.md`](projects/workstation-management.md) |
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | Building |
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | De-risking |

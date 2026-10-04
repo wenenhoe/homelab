@@ -18,7 +18,7 @@ The maintainer drives the agent and reviews its work from the workstation. The u
 
 ## Context
 
-The workstation (VM 401 today, per [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)) holds the push credential ([ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md)) and, under [ADR 0056](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md), no infrastructure credential.
+The workstation is the maintainer's Windows 11 laptop. It holds the push credential ([ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md)) and, under [ADR 0056](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md), no readable infrastructure credential.
 
 The firewall rule "the host may not initiate to the workstation" ([ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md)) does not cover the connection the workstation itself opens. A remote-editor session runs a server-side component on the host and renders what it returns on the client; SSH agent, port, and X11 forwarding are further client-side surfaces. Content the host produces can also be run by the maintainer later: git hooks, pre-commit configuration, editor task files, playbooks.
 
@@ -26,7 +26,7 @@ The firewall rule "the host may not initiate to the workstation" ([ADR 0053](../
 
 ## Decision
 
-- **Driving** is a plain SSH terminal session to the host, authenticated by one key used for nothing else. The client configuration for that host disables agent, X11, and port forwarding. No remote-editor session runs against the host.
+- **Driving** is a plain SSH terminal session to the host, authenticated by one key used for nothing else. The client configuration for that host disables agent, X11, and port forwarding. No remote-editor session runs against the host. Away from home the session reaches the host over the Tailscale route that [ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md) grants to the laptop alone.
 - **Review** is by git. The host's repository is a remote on the workstation; the maintainer fetches it and reads the diff in a local clone before checking anything out where it executes (hooks, pre-commit, Ansible, Molecule, editor tasks), with the editor's workspace trust restricted until then. Pushing follows [ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md).
 
 ## Alternatives considered
@@ -38,7 +38,7 @@ The firewall rule "the host may not initiate to the workstation" ([ADR 0053](../
 
 ## Consequences
 
-- The terminal, SSH client, and git are the client-side surface a compromised host can attack, and they run in the account holding the push credential. This residual risk is accepted.
+- The terminal, SSH client, and git are the client-side surface a compromised host can attack, and they run in the account holding the push credential, on a general-purpose laptop. This residual risk is accepted.
 - Edits reach the host through the agent or as patches, not through the workstation's editor.
 
 ## Invariants

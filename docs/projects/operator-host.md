@@ -16,11 +16,11 @@ Moves the controller off the workstation onto a small host that holds the infras
 
 ## Scope
 
-VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, an `operator_host` role, and moving the toolchain and credentials onto it. Not in scope: stripping VM 401 ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)), shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)), and managing the workstation ([`workstation-management.md`](workstation-management.md)).
+VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, an `operator_host` role, and moving the toolchain and credentials onto it. Not in scope: stripping VM 401 ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)), setting up the laptop as the workstation ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
-Implements [ADR 0058](../decisions/0058-where-operator-work-runs/revision-000.md), `working`, so this project is `de-risking` until its assumption is resolved.
+Implements [ADR 0058](../decisions/0058-where-operator-work-runs/revision-000.md), `working`, so this project is `de-risking` until its assumptions are resolved.
 
 ## Execution plan
 
@@ -29,8 +29,8 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Verify the controller's flows and the tailnet policy | Done | The findings are in ADR 0058; the proxy assumption remains open |
-| 2 | VLAN 30 with default-deny rules built by hand, and the tailnet policy change | Not started | The laptop reaches SSH on a scratch VM in the VLAN; the workstation, the coding-agent VLAN, and every other tailnet node do not |
-| 3 | VM 301 and the `operator_host` role, applied locally | Not started | The role converges idempotently and SSH accepts only the dedicated key |
+| 2 | VLAN 30 with default-deny rules built by hand, the tailnet policy change, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token, which resolves the key assumption in ADR 0058; the coding-agent VLAN and every other tailnet node cannot reach it |
+| 3 | VM 301 and the `operator_host` role, applied locally | Not started | The role converges idempotently and SSH accepts only the dedicated hardware-backed keys |
 | 4 | Egress allowlist through the proxy: starts once [`coding-agent-network.md`](coding-agent-network.md) has built it | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
 | 5 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, Tofu credentials, the shared SSH key. No credential moves before Stage 4 | Not started | A deploy in check mode, a `tofu plan`, and a `bao_session` login all succeed from the operator host |
 
@@ -60,7 +60,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 ## Acceptance criteria
 
 - [ ] Every operation the controller performs today succeeds from the operator host.
-- [ ] SSH to the operator host fails from the workstation, from a VM in the coding-agent VLAN, and from any tailnet node other than the laptop.
+- [ ] SSH to the operator host fails from a VM in the coding-agent VLAN, from any tailnet node other than the laptop, and from the laptop with no token present.
 - [ ] Outbound from VLAN 30 reaches only the allowlisted destinations.
 - [ ] The operator host runs no desktop, browser, or software that handles untrusted content, and holds no push credential.
 - [ ] The resulting behavior is described in `docs/topics/infra/operator-host.md`.
@@ -75,7 +75,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 ## Risks
 
 - OPNsense rules for VLAN 30 are hand-maintained until [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) lands.
-- The laptop's key to this host is a single point of access; a hardware-backed key would harden it.
+- The laptop is the workstation and holds the only key to this host. The key is hardware-backed, and losing both tokens means recovery through the Proxmox node.
 - The node has limited headroom for another VM.
 - Stages 4 and 5 wait on the proxy from [`coding-agent-network.md`](coding-agent-network.md), which is itself still de-risking. The operator host is on the critical path for stripping the workstation.
 - A tailnet policy edit is tailnet-wide and can lock out access.

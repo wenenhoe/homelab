@@ -66,7 +66,7 @@ actual planned design is **not** an ongoing
 Trusted-Orchestrator-relays-everything model. `cd_agent` gets its **own**
 CIDR-bound AppRoles
 ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md):
-deploy, rotation and freshness, with no shared write access) —
+deploy, rotation, freshness and snapshot, with no shared write access) —
 `controller` doesn't hand it credentials on a recurring basis.
 [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md)
 goes further: it retires `controller`'s own standing AppRole

@@ -63,6 +63,7 @@ See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revis
 
 - Poll interval, job schedules, token lifetime, and how a failed commit is retried are project decisions ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 - The agent VM goes in VLAN 30, the 3XX range, next to the operator host, with 2 to 4 GB of RAM, built after VM 401's retirement frees memory; its VMID and address are not assigned. The coding-agent host keeps no path to it ([ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)). Traffic between two hosts in one VLAN is switched without reaching OPNsense, so the `sshd` source restriction to the operator host is enforced on the agent itself, not at the firewall.
+- The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists ([`cd-agent-approles.md`](cd-agent-approles.md)); it needs a native `rclone`, not Docker.
 - Each job's heartbeat depends on ADR 0072's mechanism ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), which is not built.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,
   and whether "rotation" means alert-only or full rotate-and-revoke,

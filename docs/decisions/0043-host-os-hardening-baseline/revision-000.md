@@ -44,6 +44,42 @@ discovered only when something breaks, not declared anywhere. That's
 the actual comparison this draft needs to do, not "which name is more
 popular."
 
+**What reading the role against this repo found.** At
+[`konstruktoid/ansible-role-hardening@b27b739`](https://github.com/konstruktoid/ansible-role-hardening/tree/b27b73944ff8ea33c266857f5f781c82288be702),
+the conflicts are concrete:
+
+- `manage_resolved` is true by default, and `tasks/resolvedconf.yml`
+  templates the whole of `/etc/systemd/resolved.conf` from a template
+  that sets no `DNSStubListener`. The `bind9` role sets that line to
+  `no` on the DNS host (`ansible/roles/bind9/tasks/network_conf.yaml`)
+  so BIND can hold port 53, so the two roles revert each other.
+- The default sysctl settings include `net.ipv4.ip_forward: 0` and
+  `net.ipv6.conf.all.forwarding: 0`, on hosts where `deploy.yaml`
+  installs Docker.
+- `manage_ufw` is true by default and the ufw tasks set a default of
+  `deny`. This repo configures no host firewall, since OPNsense is the
+  perimeter, and how Docker's published ports behave under ufw is not
+  checked.
+- `manage_sudo` is true by default and its tasks validate with
+  `visudo -cf`, while the fleet runs sudo-rs (`ansible_become_exe:
+  /usr/bin/sudo.ws` in `inventory.yaml`). Whether that validation works
+  against sudo-rs is not checked.
+- `disable_root_account` is true by default and locks root's password,
+  which bears on the console break-glass path of
+  [ADR 0058](../0058-where-operator-work-runs/revision-000.md).
+- `automatic_updates` is enabled by default, security-only, and
+  installs `unattended-upgrades` on Debian-family hosts. No role here
+  configures unattended updates, yet
+  [ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md)
+  and [ADR 0058](../0058-where-operator-work-runs/revision-000.md) both
+  rely on hosts that patch themselves, and
+  [`coding-agent-host.md`](../../projects/coding-agent-host.md) plans it
+  inside its own role.
+
+Each is a role default, so none rules the role out alone. The choice is
+between keeping one override per conflict and writing the few settings
+wanted directly.
+
 There's also a secondary, non-technical motive worth naming honestly:
 this repo already carries a portfolio/compliance-demonstration angle
 ([`nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md), a
@@ -59,14 +95,6 @@ question and the real alternatives, not to pick one.
 
 ## Assumptions
 
-- **Whether `konstruktoid/ansible-role-hardening`'s defaults conflict
-  with anything this repo's own roles already set** on the hosts it'd
-  run against. Not yet checked — no spike has read that role's task
-  list against this repo's own `ansible/roles/*` to look for overlap
-  (SSH, sysctl, ufw/nftables, auditd). Breaks a "just add the role"
-  plan if real conflicts exist; likely resolvable with `--tags`/vars
-  to disable conflicting pieces, but that's a claim to verify, not
-  assume.
 - **Whether hardening applies uniformly to every host, or differently
   to the offsite GCP/OCI boxes vs. the on-prem fleet.** An offsite,
   low-spec free-tier VM and an on-prem VM behind OPNsense have

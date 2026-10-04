@@ -2,7 +2,7 @@
 id: PROJ-cd-agent-approles
 title: CD Agent AppRoles
 type: project
-status: de-risking
+status: not-started
 blocked: false
 summary: Two CIDR-bound AppRoles for the CD agent (deploy and rotation).
 decision: ADR-0020/1
@@ -23,7 +23,7 @@ The two AppRoles `cd-agent-deploy` and `cd-agent-rotation`, their policies, and 
 
 ## Decision
 
-Implements [ADR 0020, revision 001](../decisions/0020-automation-identity-and-access-scope/revision-001.md), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved.
+Implements [ADR 0020, revision 001](../decisions/0020-automation-identity-and-access-scope/revision-001.md), `approved`.
 
 ## Execution plan
 
@@ -39,17 +39,21 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 Two CIDR-bound AppRoles, per the
 [working decision](../decisions/0020-automation-identity-and-access-scope/revision-001.md):
-`cd-agent-deploy` (read-only on `hosts/*` and
-`cloud_credentials/leaf/*`) and `cd-agent-rotation` (create/update on
-both `cloud_credentials/leaf/*` and `cloud_credentials/rotation/*`) —
-no shared access between the two jobs, since a compromised deploy run
-shouldn't be able to reach rotation-tier credentials or vice versa.
+`cd-agent-deploy` (read on `hosts/*` and `cloud_credentials/leaf/*`,
+`create` but not `update` on `hosts/*`) and `cd-agent-rotation`
+(create/update on both `cloud_credentials/leaf/*` and
+`cloud_credentials/rotation/*`, read on `hosts/all/telegram/*` only) —
+no shared access between the two jobs beyond that, since a compromised
+deploy run shouldn't be able to reach rotation-tier credentials or vice
+versa.
 
 ## Acceptance criteria
 
 - [ ] Both AppRoles exist with the policies in ADR 0020 revision 001.
 - [ ] Each is bound to `cd_agent`'s fixed IP (`secret_id_bound_cidrs` and `token_bound_cidrs`).
-- [ ] Neither can read the other's paths, verified.
+- [ ] `cd-agent-deploy` cannot read `cloud_credentials/rotation/*`, verified.
+- [ ] `cd-agent-rotation` can read `hosts/all/telegram/*` and no other `hosts/*` path, verified.
+- [ ] `cd-agent-deploy` can create a missing `hosts/*` path and cannot update an existing one, verified.
 
 ## Closing checklist
 

@@ -45,7 +45,7 @@ set. It narrows where to look; it doesn't replace looking.
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | De-risking |
 | | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
 | `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | Not started |
-| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | De-risking |
+| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | Not started |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `security-review-pipeline` | — | — | [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Not started |
 | | — | — | [`coderabbit-pr-review-pipeline.md`](projects/coderabbit-pr-review-pipeline.md) | Not started |

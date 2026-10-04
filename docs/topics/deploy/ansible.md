@@ -12,7 +12,7 @@ why every host is Ansible-managed rather than configured by hand.
 | :--- | :--- | :--- |
 | `playbooks/deploy.yaml` | `inventory/inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`deployment-flow.md`](deployment-flow.md). |
 | `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`cleanup.md`](cleanup.md). |
-| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required (`patched_hosts`), plus `qemu_guest_agent` presence (`network_infra` only). |
+| `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required (`patched_hosts`), plus `qemu_guest_agent` presence (`network_infra` only), then the `host_hardening` baseline on every `patched_hosts` member. |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
 | `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted backup archive (stage 1 DR). See [`restore.md`](../disaster-recovery/restore.md). |
 | `playbooks/restore-discovery-setup.yaml` | `inventory/inventory.yaml` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` `restore_all.py` uses. See [`restore.md`](../disaster-recovery/restore.md). |
@@ -31,7 +31,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `apt` | System package updates. |
 | `fwupd` | Firmware updates. |
 | `docker` | Docker Engine install. |
-| `host_hardening` | Includes the hardening collection's allow-listed areas; today, unattended security updates. |
+| `host_hardening` | Includes the hardening collection's allow-listed areas; today, unattended security updates. See [`host-hardening.md`](../infra/host-hardening.md). |
 | `qemu_guest_agent` | Installs `qemu-guest-agent` for Proxmox VM integration. |
 | `compose` | Reusable init/deploy/cleanup tasks for one compose app. |
 | `compose_app` | Batch-drives `compose` for every non-infra app. |

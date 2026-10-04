@@ -120,6 +120,8 @@ the fourth.
 ansible-playbook playbooks/maintenance.yaml --limit patched_hosts,localhost
 ```
 
-Runs `apt`/`fwupd` against every `patched_hosts` member and
-`qemu_guest_agent` against `network_infra` only. No `deploy.yaml`
-equivalent exists for this group — see "Why its own group" above.
+Runs `apt`/`fwupd` against every `patched_hosts` member,
+`qemu_guest_agent` against `network_infra` only, and then the
+`host_hardening` baseline against every `patched_hosts` member. No
+`deploy.yaml` equivalent exists for this group — see "Why its own group"
+above.

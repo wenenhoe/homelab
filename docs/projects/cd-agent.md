@@ -36,7 +36,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `cd_agent` host — dedicated LAN box, fixed IP, one timer and one unprivileged user per job for deploy/maintenance/rotation/freshness | Not started | The host runs the deploy, maintenance, rotation, and freshness jobs, each as its own user from a clean checkout of `origin/main`, with only `sshd` listening |
+| 1 | `cd_agent` host — dedicated LAN box, fixed IP, one timer and one unprivileged user per job for deploy/maintenance/rotation/freshness, and the hardening baseline's role | Not started | The host runs the deploy, maintenance, rotation, and freshness jobs, each as its own user from a clean checkout of `origin/main`, with only `sshd` listening |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

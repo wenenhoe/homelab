@@ -55,7 +55,7 @@ Each of these is a separate role, so none has to be included in order to include
 - The dependency is pre-1.0, so an exact pin and a bump that reruns every included area's Molecule scenario are the control against a changed default.
 - `ansible/requirements.yml` gains `konstruktoid.hardening` and `community.general`.
 - Coverage is thin on purpose. Until areas are added, hosts have only unattended updates, and the CIS-shaped legibility grows with the areas, not at once.
-- The first area satisfies the unattended-update reliance of ADR 0054 and ADR 0058. [`coding-agent-host.md`](../../projects/coding-agent-host.md) still lists unattended updates inside its own role and should consume this area once a baseline project exists.
+- The first area satisfies the unattended-update reliance of ADR 0054 and ADR 0058. [`coding-agent-host.md`](../../projects/coding-agent-host.md) takes unattended updates from this area, not from its own role.
 - The Proxmox node is outside the baseline.
 
 ## Invariants

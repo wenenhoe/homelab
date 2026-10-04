@@ -26,6 +26,7 @@ Machines and what sits beneath the apps: hosts, network, hypervisor, provisionin
 | :--- | :--- |
 | [`vm-provisioning.md`](infra/vm-provisioning.md) | **Planned, not yet implemented.** Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
 | [`network-infra.md`](infra/network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, and their bootstrap prerequisites. |
+| [`host-hardening.md`](infra/host-hardening.md) | The `host_hardening` role: its allow-list of `konstruktoid.hardening` areas, what each sets, where `maintenance.yaml` applies it, and how to verify a host. |
 | [`qemu-guest-agent.md`](infra/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |
 | [`netplan-dhcp-identifier.md`](infra/netplan-dhcp-identifier.md) | Current-fleet-only fix for a DHCP dual-lease bug on boot; not Ansible-managed, transitional until the Tofu migration decommissions these hosts. |
 

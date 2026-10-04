@@ -49,22 +49,25 @@ Once the agent host and its AppRoles are live and proven, in this order:
    `snapshot-push.sh` on `controller`. `controller`'s policy grants the
    `sys/storage/raft/snapshot` read it uses, and deleting the AppRole
    removes it.
-3. Give `controller` a step-ca client certificate, issued once and
-   renewed over mTLS, and a `cert` role bound to its common name and fixed
-   address ([ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
+3. Add the second step-ca provisioner by hand, with its template checked
+   in and its password held offline and never stored in OpenBao. Issue
+   `controller`'s client certificate once with it, renew it over mTLS, and
+   create a `cert` role bound to its common name, the organizational unit
+   the template stamps, and its fixed address
+   ([ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 4. Delete `controller`'s Era A AppRole and its policy.
 
 ## Acceptance criteria
 
 - [ ] `controller`'s AppRole, its `secret_id`, and its policy are deleted.
-- [ ] Admin and debug access logs in with a step-ca client certificate bound to `controller`'s common name and fixed address, and receives a short-lived token, per ADR 0047.
+- [ ] Admin and debug access logs in with a step-ca client certificate from the second provisioner, bound to `controller`'s common name, organizational unit and fixed address, and receives a short-lived token, per ADR 0047.
+- [ ] The `cert` role refuses the same common name when the original provisioner signs it, verified.
 - [ ] The `check-freshness` user timer is gone from `controller`, and the snapshot push runs from `cd-agent-snapshot`.
 
 ## Open items
 
-- Which step-ca provisioner issues `controller`'s certificate, and how its password is held, is open in [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md). `step_ca_cert` cannot be reused as it is.
 - The `cert` role's policy. The human-attended workflows that still need OpenBao from `controller` (generating and rotating secrets by hand, creating cloud leaf credentials the first time) decide it. It should be no wider than `controller.hcl` is today, minus what moved to `cd_agent`.
-- A client certificate and key on `controller` is itself a standing credential, renewable for as long as the renewal runs. ADR 0047 treats it as narrower than a `secret_id`, since it is bound to a name and an address and expires unless renewed. If the goal is no standing credential at all, this design does not meet it.
+- A client certificate and key on `controller` is itself a standing credential, renewable for as long as the renewal runs. ADR 0047 treats it as narrower than a `secret_id`, since it is bound to a name, a unit and an address and expires unless renewed. If renewal lapses, re-issuing it needs the offline provisioner password. If the goal is no standing credential at all, this design does not meet it.
 
 ## Closing checklist
 

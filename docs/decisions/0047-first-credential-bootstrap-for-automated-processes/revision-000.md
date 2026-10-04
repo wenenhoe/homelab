@@ -156,6 +156,27 @@ as the remote command's stdin and never as an argument another process
 could read. `bao unwrap` on `cd_agent` writes the value straight into the
 job user's `0400` file.
 
+**Client certificates come from a second step-ca provisioner.** The
+`cert` method trusts the CA root and a common name, not the provisioner
+that signed the certificate. The existing provisioner's password is
+stored in OpenBao under `hosts/*`, so any holder of the deploy role can
+mint a certificate for any name, and `token_bound_cidrs` alone would be
+the only barrier. A second JWK provisioner with a password that is never
+stored in OpenBao, held offline like a break-glass credential, closes
+that only if the OpenBao role accepts what the new provisioner alone can
+produce. Its template stamps a fixed organizational unit and the client
+authentication key usage, and the role requires that unit
+(`allowed_organizational_units`). Checked in the same scratch run as
+above (24 checks): the role accepts the second provisioner's certificate;
+refuses the same common name from the original provisioner; refuses an
+attempt to set the unit through the original provisioner, whose
+certificate comes back with no unit; and keeps working after the
+certificate is renewed, since renewal keeps the unit. The second
+provisioner is added to the CA by hand once, like the OpenBao policies
+applied by hand elsewhere in this repo, with its template checked in and
+its password typed, never stored. It is used for the first issuance only;
+renewal is over mTLS and needs no password.
+
 ## Why this probably isn't a small addition to an existing draft
 
 Every other draft that touches a credential
@@ -190,24 +211,6 @@ repo's own hard gate on building against an open Assumption.
 
 ## Not yet done
 
-- Which step-ca provisioner issues client certificates. `step_ca_cert`
-  cannot be reused as it is: it issues server certificates inside an
-  app's Docker volume, with the provisioner password handed to it from
-  OpenBao (`step-ca-provisioner-password`, stored under `hosts/all/step-ca`),
-  and renews them with a `cert-renewer@` unit that runs the step CLI in a
-  container. The operator host needs a certificate on the host itself,
-  issued once with a typed password and renewed over mTLS
-  (`step ca renew --force`, which the check above showed working). The
-  sharper point is who can mint one. That password sits under `hosts/*`,
-  so `cd-agent-deploy` and today's `controller` can read it, and a single
-  JWK provisioner signs any common name (the check issued one for an
-  unrelated name with the same password). A holder of the deploy role
-  could mint a certificate for the operator's common name, and the `cert`
-  role's `token_bound_cidrs`, which the check showed enforced, would be
-  the only thing stopping that login. `cd_agent` and the operator host
-  share VLAN 30. The choice is between a second provisioner for these
-  certificates whose password is not stored in OpenBao, and relying on
-  the CIDR bind alone.
 - A hardening pass for whatever host actually receives a
   Secret-Zero-minted credential first. For on-prem hosts the baseline in
   [ADR 0043](../0043-host-os-hardening-baseline/revision-000.md) now

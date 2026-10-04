@@ -28,8 +28,13 @@ ui = false
 # needed for that route - see ADR 0026 for why that's rejected). Writes
 # to stdout, captured by Docker's own log driver - compose.yaml.j2's
 # logging: block is what bounds its growth, not this file.
+#
+# description is compared against the stored device on every unseal and
+# SIGHUP; any difference fails post-unseal setup and the node never goes
+# active. Keep this string byte-identical to what was first registered,
+# even though its doc path is stale - a docs path sweep must skip it.
 audit "file" "openbao" {
-  description = "Request/response audit log - see docs/topics/secrets/openbao.md's Audit logging section and ADR 0026"
+  description = "Request/response audit log - see docs/openbao.md's Audit logging section and ADR 0026"
   options {
     file_path = "stdout"
   }

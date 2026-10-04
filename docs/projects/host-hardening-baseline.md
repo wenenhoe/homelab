@@ -2,7 +2,7 @@
 id: PROJ-host-hardening-baseline
 title: "Host Hardening Baseline"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "A repo-owned role that includes the hardening collection's areas from an allow-list, starting with unattended security updates on every patched host."
 decision: ADR-0043/0
@@ -26,17 +26,17 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Pin `konstruktoid.hardening` (exact version) and `community.general` (13.0.1 or later) in `ansible/requirements.yml`, and add the `host_hardening` role with an empty allow-list | Not started | Both collections install in CI, and the role converges as a no-op and passes idempotence |
-| 2 | `automatic_updates` area: security-only, no automatic reboot, with a Molecule scenario | Not started | The scenario asserts the `20auto-upgrades` and `52unattended-upgrades-local` drop-ins carry security-only updates and no automatic reboot, passes idempotence, and appears in the scenario matrix |
-| 3 | Apply the role to every host in `patched_hosts` | Not started | After a run, each such host has the drop-ins, and `maintenance.yaml` still upgrades and reboots as before |
+| 1 | Pin `konstruktoid.hardening` (exact version) and `community.general` (13.0.1 or later) in `ansible/requirements.yml`, and add the `host_hardening` role with an empty allow-list | Done | Both collections install in CI, and the role converges as a no-op and passes idempotence |
+| 2 | `automatic_updates` area: security-only, no automatic reboot, with a Molecule scenario; the scenario installs collections from `ansible/roles/molecule_helpers/requirements.yml`, so both pins go there too | Done | The scenario reads the effective apt configuration and asserts periodic updates are on, no allowed origin is an `-updates` pocket, and no automatic reboot is set; it passes idempotence and appears in the scenario matrix |
+| 3 | Apply the role to every host in `patched_hosts` | Not started | After a run, each such host's effective apt configuration passes the scenario's assertions, and `maintenance.yaml` still upgrades and reboots as before |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Acceptance criteria
 
-- [ ] `ansible/requirements.yml` pins `konstruktoid.hardening` to an exact version and lists `community.general`.
-- [ ] The `host_hardening` role includes only allow-listed areas, and the allow-list is `automatic_updates` alone.
-- [ ] The area's Molecule scenario asserts the effect, not only a zero exit, passes the idempotence check, and appears in the scenario matrix.
+- [x] `ansible/requirements.yml` pins `konstruktoid.hardening` to an exact version and lists `community.general`.
+- [x] The `host_hardening` role includes only allow-listed areas, and the allow-list is `automatic_updates` alone.
+- [x] The area's Molecule scenario asserts the effect, not only a zero exit, passes the idempotence check, and appears in the scenario matrix.
 - [ ] Every host in `patched_hosts` has security-only unattended updates with no automatic reboot.
 
 ## Agent handoff
@@ -49,6 +49,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - The collection is pre-1.0, so a version bump can change an included area's defaults. A bump reruns every included area's scenario.
 - `maintenance.yaml`'s package upgrade and a background unattended run may contend for the package manager's lock.
+- If automatic reboot is ever enabled, the area picks a random reboot time on every run, so its drop-in changes on every converge and the idempotence check fails.
 
 ## Open items
 

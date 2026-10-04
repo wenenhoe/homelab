@@ -8,6 +8,8 @@
 # community.crypto for molecule_helpers' own throwaway self-signed
 # lldap cert (start_lldap_test_target.yaml), which runs against the
 # molecule instance itself, not localhost.
+# konstruktoid.hardening and the community.general it depends on, for the
+# host_hardening role's included areas (same pins as ansible/requirements.yml).
 # Referenced from scenario molecule.yml files via:
 #   dependency:
 #     name: galaxy
@@ -25,3 +27,7 @@ collections:
     version: "7.1.0"
   - name: community.crypto
     version: "3.4.0"
+  - name: konstruktoid.hardening
+    version: "0.4.0"
+  - name: community.general
+    version: "13.4.0"

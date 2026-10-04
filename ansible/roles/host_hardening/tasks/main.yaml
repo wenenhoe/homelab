@@ -1,0 +1,25 @@
+---
+# The allow-list of konstruktoid.hardening areas (ADR 0043) is this file:
+# one include per area, each added by a change that also adds that area's
+# Molecule assertion.
+
+- name: Ensure the host is Debian-based
+  ansible.builtin.assert:
+    that:
+      - ansible_facts["os_family"] == "Debian"
+    fail_msg: "The hardening areas this role includes support Debian-family hosts only."
+
+# Security-only updates and no automatic reboot are the collection's
+# defaults, set here so a version bump cannot change them. The whole dict
+# is passed because the role reads every key on each run, even with
+# reboot off, so a partial dict fails.
+- name: Include the unattended security updates area
+  ansible.builtin.include_role:
+    name: konstruktoid.hardening.automatic_updates
+  vars:
+    automatic_updates:
+      only_security: true
+      reboot: false
+      reboot_from_time: "2:00"
+      reboot_time_margin_mins: 20
+      custom_origins: []

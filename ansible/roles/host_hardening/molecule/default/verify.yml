@@ -1,0 +1,53 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Confirm host is Debian-based (matches the role's own assertion)
+      ansible.builtin.assert:
+        that:
+          - ansible_facts['os_family'] == 'Debian'
+        fail_msg: "Test host is not Debian-based — the role's own assertion should have failed converge already."
+
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
+    - name: Assert unattended-upgrades is installed
+      ansible.builtin.assert:
+        that:
+          - "'unattended-upgrades' in ansible_facts.packages"
+
+    # With security-only updates and no automatic reboot the role's own
+    # drop-in holds only unused-package cleanup lines: the security-only
+    # and no-reboot properties are the effective configuration, so that is
+    # what is read here, not the drop-in files.
+    - name: Read the effective periodic apt configuration
+      ansible.builtin.command: apt-config dump APT::Periodic
+      register: host_hardening_verify_periodic
+      changed_when: false
+
+    - name: Read the effective unattended-upgrades configuration
+      ansible.builtin.command: apt-config dump Unattended-Upgrade
+      register: host_hardening_verify_unattended
+      changed_when: false
+
+    - name: Assert periodic updates are on, only security origins are allowed, and no automatic reboot is set
+      ansible.builtin.assert:
+        that:
+          - "'APT::Periodic::Update-Package-Lists \"1\";' in host_hardening_verify_periodic.stdout_lines"
+          - "'APT::Periodic::Unattended-Upgrade \"1\";' in host_hardening_verify_periodic.stdout_lines"
+          - host_hardening_verify_unattended.stdout_lines | select('search', 'Allowed-Origins::.*-security') | list | length > 0
+          - host_hardening_verify_unattended.stdout_lines | select('search', '-updates') | list | length == 0
+          - "'Unattended-Upgrade::Automatic-Reboot \"true\";' not in host_hardening_verify_unattended.stdout_lines"
+
+    - name: Check that the custom-origins drop-in is absent
+      ansible.builtin.stat:
+        path: /etc/apt/apt.conf.d/53unattended-upgrades-custom-origins
+      register: host_hardening_verify_custom_origins
+
+    - name: Assert no custom origin was added
+      ansible.builtin.assert:
+        that:
+          - not host_hardening_verify_custom_origins.stat.exists

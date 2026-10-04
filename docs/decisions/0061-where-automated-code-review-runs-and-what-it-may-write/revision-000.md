@@ -48,7 +48,7 @@ whatever reads it next, the same class of risk
 already names for the coding-agent host (*"a compromised or misdirected
 agent session, for example one steered by content in a dependency or
 repository file"*). The asset is this repo's `main` and, through
-[ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md),
+[ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md),
 everything the CD agent deploys from it. The attack path is any
 credential reachable by a review process that can write to this repo's
 GitHub remote.

@@ -22,6 +22,16 @@ read. See the script's own docstring for why the request id is also
 checked (`--since` is inclusive of its boundary timestamp, confirmed
 live).
 
+## Expected alerts
+
+`check_freshness.py` reads the watched path on every run (`check_r2()`
+reads `_rotation-key-cloudflare-r2-token`), so each weekly run raises one
+alert naming the role that ran it: `controller` today, and
+`cd-agent-freshness` once the check moves to `cd_agent`
+([ADR 0020 revision 1](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)).
+That alert is the accepted weekly signal that the freshness check ran. An
+alert at any other time, or naming any other role, is not expected.
+
 ## Installing
 
 The watcher's own AppRole (`r2-read-watcher`) is already provisioned —

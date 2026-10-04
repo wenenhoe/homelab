@@ -44,8 +44,8 @@ set. It narrows where to look; it doesn't replace looking.
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | Building |
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | De-risking |
 | | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | De-risking |
-| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | De-risking |
+| `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | Not started |
+| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | Not started |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `security-review-pipeline` | — | — | [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Not started |
 | | — | — | [`coderabbit-pr-review-pipeline.md`](projects/coderabbit-pr-review-pipeline.md) | Not started |
@@ -60,6 +60,7 @@ set. It narrows where to look; it doesn't replace looking.
 | :--- | :--- | :--- |
 | [`cloud-credentials-sdk-followups.md`](projects/cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | Not started | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
+| [`host-hardening-baseline.md`](projects/host-hardening-baseline.md) | Not started | A repo-owned role that includes the hardening collection's areas from an allow-list, starting with unattended security updates on every patched host. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
 | [`vault-secret-module.md`](projects/vault-secret-module.md) | Not started | Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module. |
 
@@ -72,7 +73,5 @@ set. It narrows where to look; it doesn't replace looking.
 | [0038](decisions/0038-iac-misconfiguration-scanning/revision-000.md) | **IaC misconfiguration scanning** — Which scanner checks Ansible and OpenTofu for misconfiguration, without a separate migration for each. | Trivy for Ansible now; Checkov once OpenTofu code lands, then covering both | Working |
 | [0039](decisions/0039-intrusion-detection-scope/revision-000.md) | **Intrusion detection scope** — Whether detection lives only on the OPNsense perimeter or also on each VM, without inspecting the lab's own TLS. | Undecided: CrowdSec at the perimeter only, or with per-VM agents | Working |
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |
-| [0043](decisions/0043-host-os-hardening-baseline/revision-000.md) | **Host OS hardening baseline** — A deliberate host-level hardening pass (SSH, sysctl, auditd, mandatory access control), not only per-component least privilege. | Undecided: a third-party baseline, or a hand-picked subset in this repo's own roles | Working |
-| [0044](decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md) | **Trigger and execution of prod-touching automation** — How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host. | Undecided between: (000-a) A pull-based CD agent polling origin/main, not a GitHub-dispatched runner; or (000-b) A private, LAN-only Gitea or Forgejo instance with Actions and a runner on the agent host | Working (000-a), Working (000-b) |
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
 | [0059](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | **Where the tailnet policy is defined** — The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes. | Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048 settles where Tofu's own credentials live | Working |

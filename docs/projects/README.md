@@ -96,10 +96,9 @@ confirms each entry resolves to a real revision — it exists so
 [`project-planning.md`'s "Decisions awaiting a project"](../project-planning.md#decisions-awaiting-a-project)
 view can tell this ADR is covered without scanning every project's
 prose for a mention. Don't confuse this with a project that simply has
-no `decision:` yet because nothing is `approved` —
-[`cd-agent.md`](cd-agent.md) (ADR 0044, still two competing candidates)
-is that separate case: no ADR is being carried out there, one just
-isn't chosen yet, and it has neither field set.
+no `decision:` yet because nothing is `approved`: no ADR is being
+carried out there, one just isn't chosen yet, and it has neither field
+set.
 
 ## Stop conditions
 
@@ -199,19 +198,20 @@ for the reasoning.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
-| [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
+| [`cd-agent-approles.md`](cd-agent-approles.md) | Not started | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
-| [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
+| [`cd-agent.md`](cd-agent.md) | Not started | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
 | [`cloud-credentials-sdk-followups.md`](cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
 | [`coderabbit-pr-review-pipeline.md`](coderabbit-pr-review-pipeline.md) | Not started | homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files. |
 | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
 | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
-| [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition, with a dedicated key and a CD-agent job that holds nothing else. |
+| [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else. |
 | [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
 | [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md), [`coding-agent-network.md`](coding-agent-network.md) | Move the coding-agent VLAN, firewall rules, and proxy configuration from hand-maintained OPNsense state into Tofu. |
 | [`coding-agent-network.md`](coding-agent-network.md) | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
 | [`gatus-job-heartbeats.md`](gatus-job-heartbeats.md) | Not started | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
+| [`host-hardening-baseline.md`](host-hardening-baseline.md) | Not started | A repo-owned role that includes the hardening collection's areas from an allow-list, starting with unattended security updates on every patched host. |
 | [`image-vulnerability-assessment.md`](image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |
 | [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until ADR 0047 is approved, and its hardening pass is unscoped — waiting on [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |

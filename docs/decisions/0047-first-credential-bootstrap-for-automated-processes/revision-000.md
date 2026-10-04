@@ -3,178 +3,95 @@ id: ADR-0047
 revision: 0
 type: adr
 title: First-credential bootstrap for automated processes
-solution: 'Leaning: mTLS for the controller''s own auth, response wrapping for one-time handoff'
+solution: Client-certificate login for the operator host from a dedicated step-ca provisioner, response-wrapped one-time handoff for automation identities, and no OpenBao identity on any other host
 summary: How the first credential reaches a process that needs it, without a human typing it or a permanent orchestrator relaying secrets.
 topic: secrets-store
 status: working
-related: [ADR-0026, ADR-0036]
+related: [ADR-0020, ADR-0026, ADR-0036, ADR-0043, ADR-0044, ADR-0045, ADR-0049, ADR-0073]
 ---
 
-# Secret Zero: mTLS for controller's own auth, response wrapping for one-time handoff
+# 0047. First-credential bootstrap for automated processes
+
+## Problem
+
+How the first credential reaches a process that needs it, without a human typing it or a permanent orchestrator relaying secrets.
 
 ## Context
 
-This repo currently has at least three different, independently-arrived-at
-answers to "how does the first credential get to a process that needs
-it":
+**Who holds an OpenBao identity today.** Only the operator host (`controller` in the inventory), through the `secrets` role, `rotate-secret.yaml` and the `tools/` scripts that read the credential cache or save a snapshot; the `r2-read-watcher` AppRole on `security`; and `vault-bootstrap`, used interactively. Every other host receives secrets pushed by Ansible: `bootstrap-secrets.yaml` runs the `secrets` role on `localhost` and propagates `secrets_generated` onto each host, so no other host authenticates to OpenBao.
 
-- **Human-typed, per-run:** `snapshot-push.sh.j2` requires a human to
-  `export BAO_TOKEN` in their own shell before running it by hand.
-  Confirmed against `docs/topics/secrets/openbao-backup-restore.md` directly, not
-  assumed: this is an explicit stopgap, not a permanent choice — the
-  doc states outright that it "proves the mechanism with a human
-  running it interactively... for now," pending the
-  [CD agent project](../../projects/cd-agent.md)'s `cd_agent` host,
-  "not built yet." Whatever replaces it needs its own answer to this
-  same Secret Zero question, not a continuation of the human-typed
-  pattern.
-- **AppRole `role_id`/`secret_id`:** `cache.py` and
-  `openbao_utils/bootstrap.py` both bootstrap OpenBao access via
-  AppRole, reading `secret_id` from a file on disk
-  (`read_bootstrap_file`) whose own provenance isn't fully traced yet.
-  `tools/openbao_utils/bao_session.py` (which replaced the old
-  `docker/openbao/scripts/bao-login.sh`) already reads `secret_id` via
-  a hidden prompt straight into memory, never a file — so this
-  ambiguity is specific to `cache.py`/`bootstrap.py`, not a repo-wide
-  pattern.
-- **Plaintext config on disk:** `rclone.conf` holds real B2/R2/OCI
-  access/secret keys in the clear, mounted into containers as needed
-  (`cloud_sync`, `openbao_backup`, `restore_discovery`).
-- **SSH private keys:** `cache.py`/`openbao_utils/bootstrap.py` both
-  rely (via `utils.repo`'s shared `fetch_root_cert()`) on an SSH key
-  to reach `security` in the first place.
-- **Hand-typed into a web UI, DB-resident:** Beszel's KEY/TOKEN
-  (`beszel.md`) and, confirmed directly from its source,
-  [ADR 0036](../0036-beszel-notification-configuration/revision-000.md)'s
-  Telegram webhook URL — no Ansible/Vault hook exists for either, both
-  live only in Beszel's own PocketBase `data` volume, and both require
-  a full volume wipe to rotate.
+**How the first credential reaches those identities today.** Each answer was reasoned for its own script, and none is a single deliberate one:
 
-None of these is wrong in isolation — each was a reasoned choice for
-its own script. But
-[`../0046-python-client-for-s3-compatible-storage/revision-000.md`](../0046-python-client-for-s3-compatible-storage/revision-000.md)'s
-Consequences already ran into this from a different angle: swapping
-`rclone` for `boto3`+`hvac` doesn't remove a secret sitting on disk, it
-relocates which one. That's the actual Secret Zero problem surfacing
-again, not a new one — this repo has multiple ad hoc partial answers
-and no single deliberate one.
+- `controller`'s AppRole `role_id` and `secret_id` are files in `SECRETS_DIR` on the operator host (`read_bootstrap_file` in `tools/utils/repo.py`), kept outside OpenBao because they cannot live in the thing they unlock.
+- `tools/openbao_utils/bao_session.py` and `snapshot-push.sh` read a `secret_id` from a hidden prompt into memory, never a file.
+- `rclone.conf` files holding real B2, R2 and OCI keys are rendered by `cloud_sync` and `restore_discovery`.
+- `tools/utils/repo.py`'s `fetch_root_cert()` uses an SSH key to reach `security`.
+- Beszel's KEY and TOKEN and [ADR 0036](../0036-beszel-notification-configuration/revision-000.md)'s Telegram webhook are typed into a web UI and live only in Beszel's own database.
 
-## Directions raised, now converged into a leaning design
+[ADR 0046](../0046-python-client-for-s3-compatible-storage/revision-000.md) met the same problem from another side: swapping `rclone` for `boto3` and `hvac` relocates which secret sits on disk and does not remove one.
 
-Checked directly against the CD agent project docs, not assumed: the
-actual planned design is **not** an ongoing
-Trusted-Orchestrator-relays-everything model. `cd_agent` gets its **own**
-CIDR-bound AppRole
-([`cd-agent-approles.md`](../../projects/cd-agent-approles.md):
-`cd-agent-deploy`/`cd-agent-rotation`, no shared access between them) —
-`controller` doesn't hand it credentials on a recurring basis.
-[`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md)
-goes further: it retires `controller`'s own standing AppRole
-outright, so that "any admin/debug access mints a fresh, narrow,
-short-lived token on demand instead." That's already a better shape
-than a perpetual orchestrator — but the project doc doesn't say *how*
-`controller` authenticates to do that on-demand minting without a
-standing credential of its own. That's the real, concrete gap this
-draft converges on.
+**What is planned.** The CD agent gets its own CIDR-bound AppRoles ([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)), and [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md) deletes `controller`'s standing AppRole. Neither says how the operator host then authenticates to mint a short-lived token.
 
-- **mTLS closes that exact gap.** `controller` gets a step-ca-issued
-  client cert — the identical provisioner-password-once,
-  mTLS-renewal-forever pattern `step_ca_cert` already proves live —
-  and authenticates to OpenBao via Vault's `cert` auth method instead
-  of holding an AppRole. Nothing standing sits on `controller`'s disk
-  between uses; every on-demand token mint is backed by a
-  short-lived, renewable certificate instead of a static secret. Not
-  confirmed: whether OpenBao supports the `cert` auth method the same
-  way Vault does — very likely, given how broadly API-compatible it
-  is, but not verified live.
-- **Response wrapping handles the one remaining real gap: provisioning
-  `cd_agent` itself.** Not an ongoing relay — `cd_agent` uses its own
-  AppRole directly and repeatedly after this — just the single,
-  one-time handoff of its freshly-minted `secret_id` at build time.
-  `controller` (now mTLS-authenticated, per above) requests a wrapped
-  response for that `secret_id`; whoever provisions `cd_agent` unwraps
-  it exactly once. A second unwrap attempt fails outright, turning a
-  silent interception into an immediate, detectable failure instead of
-  a quietly-stolen, reusable credential. This also gives
-  `cache.py`/`openbao_utils/bootstrap.py`'s currently vague "entered by a
-  human or read from wherever it's stored between logins" a concrete,
-  auditable answer for the same class of moment.
+**Off-site hosts.** [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s GCP host and [ADR 0045](../0045-security-event-collection-and-alerting/revision-000.md)'s OCI host run on a provider's hardware and have a route back into the lab over the tailnet. Each of those records is gated on this one being `approved` before any production credential goes onto its host, and [ADR 0073](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) names this record as the home for the credentials such a host holds.
 
-Two directions considered and set aside, not because they're wrong,
-but because the above already answers the actual planned architecture
-more directly:
+**What a scratch run showed.** Against OpenBao 2.7.0 and step-ca 0.30.2, the versions pinned in `docker/openbao/compose.yaml.j2` and `docker/step-ca/compose.yaml.j2`, with the repo's listener stanza (only the certificate and key files set), a CA initialized as `docker/step-ca/scripts/entrypoint.sh` does, and the repo's own `vault-bootstrap.hcl` (31 checks, all passing):
 
-- **Local OS secret stores:** e.g. `systemd-creds`, a TPM-sealed
-  secret, or an OS keyring — keeps the bootstrap credential out of a
-  plain file at the cost of tying it to a specific host's hardware/OS
-  facilities, which cuts against this repo's general preference for
-  reproducible, re-creatable hosts.
-- **Something else / accept the status quo as the deliberate answer:**
-  formalize "a human types it in when needed" as the actual chosen
-  pattern — but this would be a deliberate reversal of the documented
-  plan (`cd_agent` automating this), not a continuation of an existing
-  stance, and the mTLS+wrapping combination above already gives that
-  automation a real mechanism instead of requiring a reversal.
+- OpenBao documents a `cert` auth method ([openbao.org](https://openbao.org/docs/auth/cert/)). A certificate issued with `step_ca_cert`'s own `step ca certificate` flags logs in when the step-ca root is registered on the role and the leaf-plus-intermediate `fullchain.pem` is presented. The listener needed no change to request client certificates. The token carried only the role's policies and TTL.
+- A different common name, the same name signed by another CA, and no certificate are refused. A leaf without the client-authentication key usage is refused with `x509: certificate specifies an incompatible key usage`; step-ca's default leaf template carries it.
+- A certificate renewed with `step ca renew --force`, as `cert-renewer@` does, logs in again, `token_bound_cidrs` on the role is enforced, and plain-token clients are unaffected.
+- The `cert` method trusts the CA root and a common name, not the provisioner that signed. The existing provisioner's password is `step-ca-provisioner-password`, stored under `hosts/all/step-ca`, which `controller` and `cd-agent-deploy` can read, and one JWK provisioner signs any common name. `step_ca_cert` itself issues server certificates inside an app's Docker volume and cannot be reused for a client certificate on the host.
+- A second provisioner whose template stamps `OU=openbao-operator` and the client-authentication usage, with a role requiring that unit, accepts the second provisioner's certificate, refuses the same common name from the original provisioner, refuses an attempt to set the unit through the original provisioner (whose certificate comes back with no unit), and keeps working after renewal.
+- `vault-bootstrap`'s policy as it stands in the repo can read a role's `role-id` and request a response-wrapped `secret_id`, and the wrapping call does not contain the value. It cannot read an application secret. A wrapping token supplied on stdin unwraps once and the unwrapped `secret_id` logs in from the bound address. A second unwrap fails with `wrapping token is not valid or does not exist`.
 
-Attestation-based issuance (SPIFFE/SPIRE-style: sign a CSR based on
-something intrinsic to the host instead of a shared password) remains
-the theoretical ceiling above mTLS+wrapping, named for completeness —
-likely heavier operational weight than a handful of self-managed
-homelab hosts needs, not assumed as the target.
+## Decision
 
-## Why this probably isn't a small addition to an existing draft
+- **The operator host logs in with a client certificate.** It authenticates to OpenBao's `cert` method and receives a short-lived token, holding no AppRole `secret_id`. The certificate comes from a second step-ca JWK provisioner whose template stamps the organizational unit `openbao-operator` and the client-authentication usage. The `cert` role requires the common name, that unit, and the operator host's fixed address (`token_bound_cidrs`).
+- **That provisioner's password is never stored in OpenBao.** It is held offline like a break-glass credential, typed once to issue the first certificate, and not needed again: renewal is over mTLS with `step ca renew --force`. The provisioner is added to the CA by hand, once, with its template checked in, as the OpenBao policies are applied by hand elsewhere in this repo.
+- **An automation identity's `secret_id` is handed over response-wrapped.** The operator host requests it through `vault-bootstrap` ([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)). The wrapping token travels over the SSH session the operator host already has to the target for provisioning ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), as the remote command's stdin and never as an argument another process could read. It is unwrapped once, on the target, straight into the job user's `0400` file. A second unwrap fails, so an interception shows up as a failure instead of a quietly stolen, reusable credential.
+- **No other host holds an OpenBao identity.** A host that is not an automation identity receives the secrets in its own catalog scope, pushed by Ansible through the same `secrets` role and deploy path as an on-prem host.
+- **Off-site hosts follow the same rule.** They hold no OpenBao identity and receive only the secrets their own role needs. A compromised off-site host exposes those secrets and a tailnet route back into the lab.
 
-Every other draft that touches a credential
-(`0046-python-client-for-s3-compatible-storage/revision-000.md`) treats
-"where does the credential live" as a local, per-file question.
-Resolving Secret Zero properly could change the answer for all of them
-at once — which argues for scoping this as its own project once
-someone's ready to spend real time on it, rather than deciding it as a
-side effect of whichever draft gets picked up first.
+## Alternatives considered
 
-That scope just grew concretely, not hypothetically: both
-[`../0049-monitoring-that-survives-loss-of-the-site/revision-000.md`](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s
-Stage 3 (Beszel/Kuma → GCP e2-micro) and
-[`../0045-security-event-collection-and-alerting/revision-000.md`](../0045-security-event-collection-and-alerting/revision-000.md)'s
-Wazuh-on-OCI plan need this draft's answer before either can build,
-not just cite it as background. Both hand credentials to a host
-outside physical/network control for the first time in this repo —
-every current consumer of a secret (`controller`, `security`,
-`storage`, the CD agent once it exists) is a VM on hardware this lab
-owns; a GCP or OCI instance is a provider's hardware, reachable back
-into the 4 managed hosts over the same Tailscale route that makes it
-useful in the first place. That's a strictly higher blast radius than
-the on-prem `cd_agent` case this draft was scoped around: compromise
-of an on-prem VM stays inside a network already assumed hostile-capable
-at that trust tier (see ADR 0026's own threat model); compromise of an
-off-site VM hands whoever's inside it a live route back in, on
-infrastructure that can't be physically secured the way a box in this
-lab can. Both offsite drafts are gated on this one reaching
-`status: approved` — not just on their own RAM/CPU spikes — until then,
-neither should provision a real credential onto GCP or OCI, per this
-repo's own hard gate on building against an open Assumption.
+- **Reusing the existing provisioner for client certificates.** Its password is readable by the deploy role, and it signs any common name, so only the role's address binding would stop a holder of that role from logging in as the operator.
+- **A second provisioner without the unit requirement.** The `cert` method does not look at the provisioner, so the original one could still mint the operator's common name. The role has to require what only the new provisioner's template can produce.
+- **The operator host requesting the wrapped `secret_id` with its own certificate or AppRole.** `controller`'s policy has no `auth/approle` capability, and `vault-bootstrap` is the narrower identity that has exactly it.
+- **An AppRole on each off-site host with a wrapped handoff.** It puts a durable OpenBao identity on hardware the lab does not own, and nothing those hosts do needs OpenBao when the secrets they need can be pushed.
+- **A local OS secret store** (`systemd-creds`, a TPM-sealed secret, an OS keyring). It keeps the credential out of a plain file at the cost of tying it to one host's hardware, which cuts against this repo's preference for hosts that can be re-created.
+- **Accepting that a human types it in when needed.** That reverses the documented plan of the CD agent automating it, and the decision above gives that automation a mechanism.
+- **Attestation-based issuance** (SPIFFE/SPIRE style), signing a request on something intrinsic to the host. It is the ceiling above this decision and heavier than a handful of self-managed hosts needs.
 
-## Not yet done
+## Consequences
 
-- Confirm OpenBao supports Vault's `cert` auth method the same way —
-  the whole `controller`-side of this design depends on it; not
-  verified live yet.
-- Whether `step_ca_cert`'s existing provisioner-password pattern is
-  good enough to reuse as-is for issuing `controller`'s own client
-  cert, or needs its own enrollment flow.
-- The actual mechanics of the one-time `cd_agent` provisioning handoff
-  — what unwraps the wrapped `secret_id`, and over what channel (SSH,
-  a provisioning script, something else) — not designed yet, just
-  identified as the one remaining real gap.
-- Whether this design should be written back into
-  [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md)
-  directly (it currently just says "mints a fresh... token on
-  demand" with no mechanism) once the `cert`-auth-method check above
-  confirms it's viable.
-- A hardening pass for whatever host actually receives a
-  Secret-Zero-minted credential first — not scoped here, and not
-  something this draft's design substitutes for. Response-wrapped
-  handoff protects the credential in transit; it says nothing about
-  the receiving host's own attack surface once it holds one, which
-  matters most exactly where this draft's scope just grew: an
-  offsite, low-spec cloud VM.
+- A certificate and key on the operator host is itself a standing credential, renewable for as long as renewal runs. It is narrower than a `secret_id`: bound to a name, a unit and an address, and expiring unless renewed. If renewal lapses, re-issuing it needs the offline password.
+- The second provisioner lives in the CA's own configuration, and `docker/step-ca/scripts/entrypoint.sh` initializes only when that configuration does not exist. A rebuilt `data` volume loses it, and it has to be added again by hand.
+- `vault-bootstrap` stays a standing AppRole used interactively with a `secret_id` typed at a hidden prompt.
+- This record's approval satisfies the claims in ADR 0049 and ADR 0045 that name it. It does not satisfy their separate gate that a hardening pass for the off-site host exists before it holds credentials.
+- The tailnet route from an off-site host back into the lab is bounded by the tailnet's access rules, which this record does not set.
+- When `controller`'s AppRole is retired, its `role_id` and `secret_id` files in `SECRETS_DIR` go with it.
+
+## Invariants
+
+- A host that is not an automation identity holds no OpenBao credential.
+- The `cert` role accepts only a certificate that the second provisioner's template can produce, and only from the operator host's address.
+- The second provisioner's password is never stored in OpenBao.
+- A response-wrapped value is unwrapped once and carried on stdin, never as an argument.
+
+## Non-goals
+
+- How Tofu authenticates to the cloud account ([ADR 0073](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md)) and where Tofu's own credentials live ([ADR 0048](../0048-where-tofu-credentials-live/revision-000.md)).
+- What each AppRole may read ([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)).
+- Hardening any host. On-prem hosts are covered one area at a time by [ADR 0043](../0043-host-os-hardening-baseline/revision-000.md), and the off-site hosts' pass is a separate gate in ADR 0049 and ADR 0045.
+- The tailnet's access rules for off-site hosts.
+- Attestation-based issuance.
+
+## Validation
+
+[`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md) verifies that the `cert` role refuses the operator's common name when the original provisioner signs it. [`cd-agent-approles.md`](../../projects/cd-agent-approles.md) verifies that a wrapped `secret_id` unwraps once and that a second unwrap fails. A grep of the roles, playbooks, `docker/` and `tools/` for AppRole use finds only the identities listed in Context.
+
+## Reconsideration triggers
+
+- A host other than an automation identity needs to read OpenBao directly.
+- A second person or host needs operator access, so the single common name and address binding no longer fit.
+- The operator host loses its fixed address.
+- Attestation-based issuance becomes affordable for the hosts this lab runs.

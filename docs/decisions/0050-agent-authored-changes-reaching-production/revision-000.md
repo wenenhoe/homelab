@@ -18,7 +18,7 @@ Changes written by an untrusted coding agent reach `main` without any credential
 
 ## Context
 
-[ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md) reduces the deploy trust boundary to who can push to `main`: the CD agent acts on new commits there and holds OpenBao AppRoles and SSH access to the managed hosts. Network and credential separation around the coding-agent host is therefore only as strong as the path its commits take to `main`.
+[ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md) reduces the deploy trust boundary to who can push to `main`: the CD agent acts on new commits there and holds OpenBao AppRoles and SSH access to the managed hosts. Network and credential separation around the coding-agent host is therefore only as strong as the path its commits take to `main`.
 
 The repository is public, so cloning needs no credential. Only writing does.
 
@@ -51,7 +51,7 @@ Fetched content is read as a diff before it is checked out anywhere that execute
 
 ## Non-goals
 
-- Verifying commit provenance in the CD agent. That concerns the trust of GitHub itself and belongs with [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md).
+- Verifying commit provenance in the CD agent. That concerns the trust of GitHub itself and belongs with [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md).
 - How the workstation connects to the host ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)).
 
 ## Validation

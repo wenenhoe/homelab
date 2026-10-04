@@ -26,7 +26,7 @@ The AppRole pair retires once the CD agent and its AppRoles run the jobs ([`cd-a
 
 CI runs `pre-commit` at both hook stages (which includes ansible-lint) and `pytest ansible/tests/ tools/tests/` on GitHub-hosted runners with no secrets and no file cache; the tests seed their own placeholder values. The checks for reviewing and pushing a change therefore need no credential. On the laptop they run in WSL2, which holds none and is no security boundary from Windows, so it follows the same rules as the laptop. Only the deploy-ordering check seeds placeholder secrets, and it runs in CI only.
 
-The CD agent's own provisioning is deliberately outside its deploy loop ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md)), so a human path to the infrastructure must persist. [ADR 0058](../0058-where-operator-work-runs/revision-000.md) gives it a home.
+The CD agent's own provisioning is deliberately outside its deploy loop ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), so a human path to the infrastructure must persist. [ADR 0058](../0058-where-operator-work-runs/revision-000.md) gives it a home.
 
 **Threat model.** The adversary is a compromised routine session: an editor or terminal handling content produced on the coding-agent host, or a desktop assistant or browser handling untrusted content, in Windows or in WSL2. The asset is every infrastructure credential the account can read, and the operator host the laptop can open. The attack paths are a same-account read and, for the operator host, use of the laptop's key by the compromised session.
 
@@ -41,7 +41,7 @@ The credentials move to the operator host, not into thin air, and retire there a
 ## Alternatives considered
 
 - **Identity tiers on the workstation** (driving, maintainer, operator accounts). Two extra identities to maintain, and an account boundary on a shared kernel is weaker than a machine boundary. Rejected.
-- **Wait for the CD agent to absorb the controller.** It absorbs deploys, maintenance, rotation, and freshness, not Tofu or break-glass access, and it is blocked on [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md). Rejected.
+- **Wait for the CD agent to absorb the controller.** It absorbs deploys, maintenance, rotation, and freshness, not Tofu or break-glass access, and it is blocked on [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md). Rejected.
 - **Move operator work onto the CD agent.** Its provisioning is deliberately decoupled from the deploy loop, and running Tofu there would give it authority over the VMs that include itself. Rejected.
 - **A separate workstation machine or VM**, so the untrusted-content work is off the machine that holds the operator-host key. Costs a VM's memory on a node with limited headroom, or a second device, and needs its own remote access path. Rejected for the hardware-backed key and the residual risk accepted below.
 

@@ -27,6 +27,7 @@ inputs:
   install-galaxy-collections:
     description: >-
       Cache (keyed on ansible/requirements.yml +
+      ansible/roles/molecule_helpers/requirements.yml +
       ansible/roles/molecule_helpers/role-requirements.yml) and install
       Ansible Galaxy collections via `ansible-galaxy collection install
       -r requirements.yml`, run from the ansible/ directory. Skip for
@@ -146,7 +147,7 @@ runs:
         path: ~/.ansible/collections
         key: >-
           ansible-galaxy-${{ runner.os }}-${{
-            hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
+            hashFiles('ansible/requirements.yml', 'ansible/roles/molecule_helpers/requirements.yml', 'ansible/roles/molecule_helpers/role-requirements.yml')
           }}
 
     - name: Install Ansible Galaxy collections
@@ -157,7 +158,7 @@ runs:
 
     # cache-hit != 'true' skips a pointless re-upload when the restore
     # above already found this exact key — only a genuinely new key
-    # (i.e. a real requirements.yml/role-requirements.yml change) needs
+    # (i.e. a real change to one of the files hashed above) needs
     # saving at all.
     - name: Save Ansible Galaxy collections cache
       if: >-

@@ -33,3 +33,13 @@
   become: true
   roles:
     - qemu_guest_agent
+
+# Play 3 — Host hardening baseline (ADR 0043). Runs after the update play
+# so a failure here cannot block patching, and so the first run's manual
+# upgrade finishes before unattended-upgrades exists to contend for the
+# package manager's lock.
+- name: Apply the host hardening baseline
+  hosts: patched_hosts
+  become: true
+  roles:
+    - host_hardening

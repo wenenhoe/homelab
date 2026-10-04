@@ -1,2 +1,2 @@
 ---
-molecule_helpers_aws_cli_image: "amazon/aws-cli:2.37.7"
+molecule_helpers_aws_cli_image: "amazon/aws-cli:2.37.9"

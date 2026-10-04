@@ -59,6 +59,7 @@ narrow, short-lived token on demand instead.
   leaning answer (mTLS via step-ca, same pattern `step_ca_cert` already
   proves) and its response-wrapping answer for handing Stage 2's
   `cd_agent` AppRole `secret_id` over at provisioning time.
+- `controller`'s policy also grants `read` on `sys/storage/raft/snapshot`, which `snapshot-push.sh` is meant to use ([`openbao-backup-restore.md`](../topics/secrets/openbao-backup-restore.md)). Deleting the AppRole removes it, and neither CD-agent AppRole has it ([ADR 0020 revision 1](../decisions/0020-automation-identity-and-access-scope/revision-001.md)), so the snapshot push needs its own identity before this project deletes the AppRole.
 
 ## Closing checklist
 

@@ -54,7 +54,7 @@ See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revis
 ## Acceptance criteria
 
 - [ ] Each of the deploy, maintenance, rotation, and freshness jobs runs from its own timer, as its own user, from a clean checkout of `origin/main` it fetched itself.
-- [ ] Only `sshd` listens, and it refuses every address but the operator host's, verified by a probe from another host.
+- [ ] Only `sshd` listens, and it refuses every address but the operator host's, verified by a probe from another host in the same VLAN, since a probe from elsewhere can be stopped by OPNsense instead and prove nothing.
 - [ ] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
 - [ ] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
 - [ ] The role converges idempotently.
@@ -62,7 +62,7 @@ See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revis
 ## Open items
 
 - Poll interval, job schedules, token lifetime, and how a failed commit is retried are project decisions ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
-- The agent VM's VLAN, address, and sizing are not set; placement must give the coding-agent host no path to it ([ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)).
+- The agent VM goes in VLAN 30, the 3XX range, next to the operator host, with 2 to 4 GB of RAM, built after VM 401's retirement frees memory; its VMID and address are not assigned. The coding-agent host keeps no path to it ([ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)). Traffic between two hosts in one VLAN is switched without reaching OPNsense, so the `sshd` source restriction to the operator host is enforced on the agent itself, not at the firewall.
 - Each job's heartbeat depends on ADR 0072's mechanism ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), which is not built.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,
   and whether "rotation" means alert-only or full rotate-and-revoke,

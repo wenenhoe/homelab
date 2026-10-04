@@ -33,33 +33,38 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Retire `controller`'s standing AppRole | Not started | `controller` holds no standing Vault credential; admin and debug access mints a short-lived token on demand per ADR 0047 |
+| 1 | Retire `controller`'s standing AppRole | Not started | `controller` holds no AppRole `secret_id`; admin and debug access logs in with a CIDR-bound step-ca client certificate for a short-lived token, per ADR 0047 |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 1 — Retire `controller`'s AppRole
 
-Once the agent host and its AppRoles are live and proven, delete `controller`'s Era A
-AppRole outright, not narrow it. From that point `controller` holds no
-standing Vault credential — any admin/debug access mints a fresh,
-narrow, short-lived token on demand instead.
+Once the agent host and its AppRoles are live and proven, in this order:
+
+1. Remove the weekly `check-freshness` user timer from `controller`
+   (`tools/cloud_credentials/systemd/`). The same check now runs from
+   `cd-agent-freshness`, and the timer logs in with the AppRole being
+   deleted.
+2. Run the snapshot push from `cd-agent-snapshot` instead of
+   `snapshot-push.sh` on `controller`. `controller`'s policy grants the
+   `sys/storage/raft/snapshot` read it uses, and deleting the AppRole
+   removes it.
+3. Give `controller` a step-ca client certificate, issued once and
+   renewed over mTLS, and a `cert` role bound to its common name and fixed
+   address ([ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
+4. Delete `controller`'s Era A AppRole and its policy.
 
 ## Acceptance criteria
 
-- [ ] `controller` holds no standing Vault credential.
-- [ ] Admin and debug access mints a short-lived token on demand, per ADR 0047.
-- [ ] The AppRole and its policy are deleted.
+- [ ] `controller`'s AppRole, its `secret_id`, and its policy are deleted.
+- [ ] Admin and debug access logs in with a step-ca client certificate bound to `controller`'s common name and fixed address, and receives a short-lived token, per ADR 0047.
+- [ ] The `check-freshness` user timer is gone from `controller`, and the snapshot push runs from `cd-agent-snapshot`.
 
 ## Open items
 
-- Stage 3's "mints a fresh, narrow, short-lived token on demand
-  instead" doesn't specify how `controller` authenticates to do that
-  minting once its standing AppRole is retired — see
-  [`0047-first-credential-bootstrap-for-automated-processes/revision-000.md`](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)'s
-  leaning answer (mTLS via step-ca, same pattern `step_ca_cert` already
-  proves) and its response-wrapping answer for handing Stage 2's
-  `cd_agent` AppRole `secret_id` over at provisioning time.
-- `controller`'s policy grants `read` on `sys/storage/raft/snapshot`, which `snapshot-push.sh` uses ([`openbao-backup-restore.md`](../topics/secrets/openbao-backup-restore.md)). Deleting the AppRole removes it, so the snapshot push must run from `cd-agent-snapshot` ([ADR 0020 revision 1](../decisions/0020-automation-identity-and-access-scope/revision-001.md)) before this project deletes the AppRole.
+- Which step-ca provisioner issues `controller`'s certificate, and how its password is held, is open in [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md). `step_ca_cert` cannot be reused as it is.
+- The `cert` role's policy. The human-attended workflows that still need OpenBao from `controller` (generating and rotating secrets by hand, creating cloud leaf credentials the first time) decide it. It should be no wider than `controller.hcl` is today, minus what moved to `cd_agent`.
+- A client certificate and key on `controller` is itself a standing credential, renewable for as long as the renewal runs. ADR 0047 treats it as narrower than a `secret_id`, since it is bound to a name and an address and expires unless renewed. If the goal is no standing credential at all, this design does not meet it.
 
 ## Closing checklist
 

@@ -146,6 +146,16 @@ the theoretical ceiling above mTLS+wrapping, named for completeness —
 likely heavier operational weight than a handful of self-managed
 homelab hosts needs, not assumed as the target.
 
+**The `cd_agent` handoff is decided elsewhere.**
+[ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)
+has the operator host request each `secret_id` response-wrapped through
+`vault-bootstrap`. The wrapping token travels over the SSH session the
+operator host already has to `cd_agent` for provisioning, the only inbound
+path ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)),
+as the remote command's stdin and never as an argument another process
+could read. `bao unwrap` on `cd_agent` writes the value straight into the
+job user's `0400` file.
+
 ## Why this probably isn't a small addition to an existing draft
 
 Every other draft that touches a credential
@@ -180,22 +190,28 @@ repo's own hard gate on building against an open Assumption.
 
 ## Not yet done
 
-- Whether `step_ca_cert`'s existing provisioner-password pattern is
-  good enough to reuse as-is for issuing `controller`'s own client
-  cert, or needs its own enrollment flow.
-- The actual mechanics of the one-time `cd_agent` provisioning handoff
-  — what unwraps the wrapped `secret_id`, and over what channel (SSH,
-  a provisioning script, something else) — not designed yet, just
-  identified as the one remaining real gap.
-- Whether this design should be written back into
-  [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md)
-  directly (it currently just says "mints a fresh... token on
-  demand" with no mechanism) once the `cert`-auth-method check above
-  confirms it's viable.
+- Which step-ca provisioner issues client certificates. `step_ca_cert`
+  cannot be reused as it is: it issues server certificates inside an
+  app's Docker volume, with the provisioner password handed to it from
+  OpenBao (`step-ca-provisioner-password`, stored under `hosts/all/step-ca`),
+  and renews them with a `cert-renewer@` unit that runs the step CLI in a
+  container. The operator host needs a certificate on the host itself,
+  issued once with a typed password and renewed over mTLS
+  (`step ca renew --force`, which the check above showed working). The
+  sharper point is who can mint one. That password sits under `hosts/*`,
+  so `cd-agent-deploy` and today's `controller` can read it, and a single
+  JWK provisioner signs any common name (the check issued one for an
+  unrelated name with the same password). A holder of the deploy role
+  could mint a certificate for the operator's common name, and the `cert`
+  role's `token_bound_cidrs`, which the check showed enforced, would be
+  the only thing stopping that login. `cd_agent` and the operator host
+  share VLAN 30. The choice is between a second provisioner for these
+  certificates whose password is not stored in OpenBao, and relying on
+  the CIDR bind alone.
 - A hardening pass for whatever host actually receives a
-  Secret-Zero-minted credential first — not scoped here, and not
-  something this draft's design substitutes for. Response-wrapped
-  handoff protects the credential in transit; it says nothing about
-  the receiving host's own attack surface once it holds one, which
-  matters most exactly where this draft's scope just grew: an
-  offsite, low-spec cloud VM.
+  Secret-Zero-minted credential first. For on-prem hosts the baseline in
+  [ADR 0043](../0043-host-os-hardening-baseline/revision-000.md) now
+  covers this, one area at a time. It is still unscoped for an offsite,
+  low-spec cloud VM, where response-wrapped handoff protects the
+  credential in transit and says nothing about the receiving host's own
+  attack surface once it holds one.

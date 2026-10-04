@@ -2,9 +2,10 @@
 id: PROJ-cd-agent
 title: CD Agent Host
 type: project
-status: de-risking
+status: not-started
 blocked: false
 summary: A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs.
+decision: ADR-0044/0-c
 super_project: pull-based-cd
 track: agent
 ---
@@ -23,11 +24,11 @@ This is the first of three projects in the `pull-based-cd` initiative; [`cd-agen
 
 ## Scope
 
-The `cd_agent` host: a dedicated LAN box with a fixed IP and zero inbound ports, running the jobs that replace manual `ansible-playbook` deploys and rotation runs. Not in scope: its AppRoles ([`cd-agent-approles.md`](cd-agent-approles.md)) and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The `cd_agent` host: a dedicated LAN box with a fixed IP and no job-serving listener (SSH from the operator host only), running the jobs that replace manual `ansible-playbook` deploys and rotation runs. Not in scope: its AppRoles ([`cd-agent-approles.md`](cd-agent-approles.md)) and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
-No `decision:` is linked yet. This project implements [ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md), which has three competing candidates: [000-a](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md) (a pull-based agent driving `preloop`), [000-b](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md) (a private Gitea or Forgejo) and [000-c](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) (a pull-based agent running the repo's own playbooks as per-job systemd units). None is approved. Set `decision:` to the approved candidate before any production work; until then only throwaway spikes.
+Implements [ADR 0044, revision 0-c](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md), `approved`. Candidates [000-a](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md) and [000-b](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md) are abandoned.
 
 ## Execution plan
 
@@ -35,47 +36,34 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `cd_agent` host — dedicated LAN box, fixed IP, pollers for deploy/maintenance/rotation/freshness (mechanism per ADR 0044) | Not started | ADR 0044 is settled (one candidate approved) and `decision:` is set; the host runs the deploy, maintenance, rotation, and freshness jobs with zero inbound ports |
+| 1 | `cd_agent` host — dedicated LAN box, fixed IP, one timer and one unprivileged user per job for deploy/maintenance/rotation/freshness | Not started | The host runs the deploy, maintenance, rotation, and freshness jobs, each as its own user from a clean checkout of `origin/main`, with only `sshd` listening |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 1 — `cd_agent` host
 
-A dedicated LAN host, fixed IP, zero inbound ports, running
-systemd-timer pollers that invoke `preloop` against GitHub
-Actions-format workflow files for deploy/maintenance/rotation/
-freshness jobs. `preloop`'s CLI event-flag behavior beyond bare
-`pull_request` is unverified — needs a spike before this stage's
-deploy/rotation jobs are built on it. See the
-[working decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md)
-this stage implements.
-
-**Read before building this stage:**
-[`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md)
-is a still-open, unresolved alternative that proposes replacing this
-stage's mechanism entirely — a private, LAN-only Gitea *or Forgejo*
-instance with an `act_runner`/`forgejo-runner`, dispatch-triggered on
-push, instead of a `preloop` poller; which of Gitea or Forgejo is its
-own open question inside that draft. It's a live draft, not a rejected
-idea; the wording above shouldn't be read as having already decided
-against it.
+A dedicated LAN host with a fixed IP, in none of `managed_hosts`,
+`app_hosts`, or `patched_hosts`. One systemd timer per job; each job's
+unit runs as its own unprivileged user, fetches `origin/main`
+anonymously into its own state directory, checks out the commit as a
+clean tree, and runs the playbook or `tools/` entry point from it. The
+poll, decide and run step is `tools/` code with unit tests. The host's
+only inbound service is `sshd`, accepted from the operator host alone.
+See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) this stage implements.
 
 ## Acceptance criteria
 
-- [ ] ADR 0044 is settled and the host runs from the approved mechanism.
-- [ ] The host exposes zero inbound ports.
-- [ ] Deploy, maintenance, rotation, and freshness jobs run from it.
+- [ ] Each of the deploy, maintenance, rotation, and freshness jobs runs from its own timer, as its own user, from a clean checkout of `origin/main` it fetched itself.
+- [ ] Only `sshd` listens, and it refuses every address but the operator host's, verified by a probe from another host.
+- [ ] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
+- [ ] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
+- [ ] The role converges idempotently.
 
 ## Open items
 
-- Whether Stage 1 stays a `preloop` poller, gets replaced by
-  [`0044-prod-automation-trigger-and-execution/revision-000-b.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-b.md)'s
-  Gitea Actions approach, or runs the repo's own playbooks directly as
-  [`0044-prod-automation-trigger-and-execution/revision-000-c.md`](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)
-  proposes — a live, unresolved fork. Resolve this before Stage 1 is
-  actually built, not after.
-- `preloop`'s CLI event-flag behavior (Stage 1) — spike needed before
-  building on it.
+- Poll interval, job schedules, token lifetime, and how a failed commit is retried are project decisions ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
+- The agent VM's VLAN, address, and sizing are not set; placement must give the coding-agent host no path to it ([ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)).
+- Each job's heartbeat depends on ADR 0072's mechanism ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), which is not built.
 - Which cloud credentials beyond B2/R2/OCI get rotation automation,
   and whether "rotation" means alert-only or full rotate-and-revoke,
   isn't scoped yet.

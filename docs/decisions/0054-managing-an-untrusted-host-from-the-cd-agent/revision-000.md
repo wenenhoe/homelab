@@ -22,7 +22,7 @@ A host that runs untrusted code is built and patched by automation that also hol
 
 `managed_hosts` receives Docker, Caddy, and compose apps from `deploy.yaml`; `patched_hosts` receives `maintenance.yaml`. The `network_infra` group shows the pattern for a host that should receive neither deploys nor the general key.
 
-The CD agent ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md)) does not exist yet. Until it does, provisioning is run from the operator host ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)), which becomes the controller for every host.
+The CD agent ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)) does not exist yet. Until it does, provisioning is run from the operator host ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)), which becomes the controller for every host. The CD agent runs each job as its own unprivileged user holding only that job's credentials, so a job that holds only this host's key is possible.
 
 Converging in place does not remove an implant, and a controller running against a compromised host ingests its facts and task results. Provisioning a VM from the Tofu definition ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) is repeatable and starts from a known image.
 
@@ -33,7 +33,7 @@ Converging in place does not remove an implant, and a controller running against
 - **Rebuild first.** The host is replaced from the Tofu definition on a schedule and on suspicion of compromise. Between rebuilds it patches itself with unattended security updates, so Ansible reaches it only as part of a rebuild or a deliberate re-converge.
 - **Own inventory group.** The host is in none of `managed_hosts`, `app_hosts`, or `patched_hosts`, so no existing play or job reaches it with a shared key.
 - **Own key and account.** A dedicated SSH key for a management account named per the repo's `<x>admin` convention, overriding the `all.vars` key at group level. The account is root-equivalent on the host by design; the control is the direction of trust, not narrow sudo.
-- **Own execution identity.** The CD agent's job for this host runs under an identity holding only that key: no OpenBao token and no other host's key. Plays against it use no `fetch` or `synchronize`, and treat facts and registered results as untrusted input.
+- **Own execution identity.** The CD agent's job for this host runs as its own user holding only that key: no OpenBao token and no other host's key. Plays against it use no `fetch` or `synchronize`, and treat facts and registered results as untrusted input.
 - **Source-restricted.** The management account is accepted only from the CD agent's address, or the operator host's until the CD agent exists ([ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md)).
 
 ## Alternatives considered
@@ -41,12 +41,6 @@ Converging in place does not remove an implant, and a controller running against
 - **Periodic in-place convergence.** Cannot evict a persistent implant, and keeps a live privileged session into an untrusted host. Kept only for deliberate re-converges.
 - **`ansible-pull` on the host.** Runs repository content as root on the untrusted host itself. Rejected.
 - **Manual maintenance.** Drifts and does not scale to rebuild-first.
-
-## Assumptions
-
-- **Claim:** whichever [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md) candidate is approved can run a job under an execution identity separate from the CD agent's general deploy and rotation identities.
-  **Breaks if wrong:** the management key sits alongside the production credentials and the separation is lost.
-  **Checked by:** reading the approved candidate's execution model, or a spike.
 
 ## Consequences
 

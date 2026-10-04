@@ -7,7 +7,7 @@ title: Trigger and execution of prod-touching automation
 solution: A pull-based CD agent that runs the repo's own playbooks and tools directly, one sandboxed systemd unit per job under its own user
 summary: How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0020, ADR-0023, ADR-0043, ADR-0047, ADR-0050, ADR-0054, ADR-0058, ADR-0072]
 ---
 

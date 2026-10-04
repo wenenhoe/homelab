@@ -96,10 +96,9 @@ confirms each entry resolves to a real revision — it exists so
 [`project-planning.md`'s "Decisions awaiting a project"](../project-planning.md#decisions-awaiting-a-project)
 view can tell this ADR is covered without scanning every project's
 prose for a mention. Don't confuse this with a project that simply has
-no `decision:` yet because nothing is `approved` —
-[`cd-agent.md`](cd-agent.md) (ADR 0044, still competing candidates)
-is that separate case: no ADR is being carried out there, one just
-isn't chosen yet, and it has neither field set.
+no `decision:` yet because nothing is `approved`: no ADR is being
+carried out there, one just isn't chosen yet, and it has neither field
+set.
 
 ## Stop conditions
 
@@ -201,7 +200,7 @@ for the reasoning.
 | [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | De-risking | Two CIDR-bound AppRoles for the CD agent (deploy and rotation). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
-| [`cd-agent.md`](cd-agent.md) | De-risking | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
+| [`cd-agent.md`](cd-agent.md) | Not started | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
 | [`cloud-credentials-sdk-followups.md`](cloud-credentials-sdk-followups.md) | Not started | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
 | [`coderabbit-pr-review-pipeline.md`](coderabbit-pr-review-pipeline.md) | Not started | homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files. |
 | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |

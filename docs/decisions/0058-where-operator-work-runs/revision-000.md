@@ -24,7 +24,7 @@ The credentials to place: the file cache (`main-domain` and the AppRole pair), t
 
 The controller reaches managed hosts over SSH, OpenBao's API, Proxmox and OPNsense APIs, and the Tofu state bucket on `storage`. Its Internet destinations are package and release hosts, the cloud providers' APIs, and Telegram. Every one of these flows is outbound: Ansible pushes over SSH, and no host or service filters by the controller's address or calls back to it. The repo is public, so it pulls `main` without a credential. [`operator-host.md`](../../projects/operator-host.md) lists the flows.
 
-The CD agent absorbs deploy, maintenance, rotation, and freshness ([`cd-agent.md`](../../projects/cd-agent.md)) but not Tofu or break-glass access, and it has zero inbound ports ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md)).
+The CD agent absorbs deploy, maintenance, rotation, and freshness ([`cd-agent.md`](../../projects/cd-agent.md)) but not Tofu or break-glass access, and it accepts SSH only from the operator host ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 
 The 3XX range, VLAN 30, is reserved and unused ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)). The Tailscale subnet router advertises only VLAN 20 today, and the design already expects VLANs 30 and 40 routes to be added under Tailscale ACLs ([`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)). The tailnet's policy is the default allow-all grant, so every node reaches every advertised route. Tailscale denies by default once a policy lists specific grants, accepts a subnet CIDR as a destination, and rejects a policy save when a `tests` assertion fails. The controller AppRole is unbound by CIDR because the controller has had no fixed address ([`openbao-auth.md`](../../topics/secrets/openbao-auth.md)).
 
@@ -48,7 +48,7 @@ A small dedicated headless VM in VLAN 30 (VMID 301, sized like the default Ubunt
 - **WSL2 on the laptop.** Puts the infrastructure credentials on the maintainer's general-purpose machine. Rejected; the laptop holds only the hardware-backed key.
 - **A separate workstation, so the laptop holds no key to this host.** The earlier design: a workstation VM with no path here. Costs a VM's memory on a node with limited headroom and a remote-access path to reach it, and the laptop would still be the only device that can open this host. Rejected for the hardware-backed key.
 - **The CD agent.** Zero inbound ports and pollers only; interactive operator access does not fit. Rejected.
-- **Wait for the CD agent.** Does not cover Tofu or break-glass, and is blocked on [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-a.md). Rejected.
+- **Wait for the CD agent.** Does not cover Tofu or break-glass, and is blocked on [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md). Rejected.
 
 ## Assumptions
 

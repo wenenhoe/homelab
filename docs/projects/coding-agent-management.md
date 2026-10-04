@@ -27,7 +27,7 @@ The host's Tofu definition, its dedicated SSH key and inventory resolution, the 
 
 ## Decision
 
-Implements [ADR 0054](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), `working`. Its one assumption depends on the outcome of [ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-a.md).
+Implements [ADR 0054](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), `working`. The CD agent runs its management job as its own user ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 
 ## Execution plan
 

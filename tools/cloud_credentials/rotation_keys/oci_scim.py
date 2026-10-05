@@ -1,9 +1,10 @@
 """Shared OAuth2 client-credentials + Identity Domains SCIM plumbing for
-OCI, used by leaf_keys/oci.py, rotation_keys/oci_bootstrap.py, and
-check_freshness.py. See ADR 0016 - this is a second, unrelated auth
-model to oci_iam.py's classic Signature V1 signer, not a replacement
-for it: oci_iam.py stays in use for leaf-identity user/group/policy
-bootstrap, which SCIM has no equivalent for.
+OCI, used by leaf_keys/oci.py, rotation_keys/oci_bootstrap.py,
+check_freshness.py, and openbao_utils/audit.py. See ADR 0016 - this is
+a second, unrelated auth model to oci_iam.py's classic Signature V1
+signer, not a replacement for it: oci_iam.py stays in use for
+leaf-identity user/group/policy bootstrap, which SCIM has no equivalent
+for.
 """
 
 from __future__ import annotations
@@ -44,27 +45,6 @@ def oci_scim_access_token(domain_url: str, client_id: str, client_secret: str) -
     )
     resp.raise_for_status()
     return resp.json()["access_token"]
-
-
-def oci_scim_session() -> tuple[requests.Session, str]:
-    """A ready-to-use SCIM session (Bearer token already set) and the
-    domain_url to call it against. Fetches a fresh access token on
-    every call - these are short, one-shot scripts, not a long-running
-    service, and the token itself is never cached (see ADR 0016: only
-    the client ID + secret is the long-lived credential here).
-
-    Only check_freshness.py (GET by scim id) and openbao_utils/audit.py
-    (list by user) use this now - leaf_keys/oci.py and oci_bootstrap.py's
-    SCIM calls go through oci_identity_domains_client() below instead
-    (docs/decisions/0029-cloud-provider-api-client-library/revision-000.md).
-    Those two callers move over in
-    docs/projects/cloud-credentials-sdk-followups.md."""
-    domain_url, client_id, client_secret = oci_scim_domain_and_credentials()
-    token = oci_scim_access_token(domain_url, client_id, client_secret)
-    session = requests.Session()
-    session.headers["Authorization"] = f"Bearer {token}"
-    session.headers["Content-Type"] = "application/scim+json"
-    return session, domain_url
 
 
 class _BearerTokenSigner(requests.auth.AuthBase):
@@ -111,10 +91,11 @@ def identity_domains_client_for_token(domain_url: str, token: str) -> IdentityDo
 
 
 def oci_identity_domains_client() -> IdentityDomainsClient:
-    """A ready-to-use IdentityDomainsClient (SCIM), auth'd the same way
-    oci_scim_session() authenticates its requests.Session - a fresh
-    OAuth2 client-credentials token on every call, never cached (see
-    ADR 0016 and this module's docstring)."""
+    """A ready-to-use IdentityDomainsClient (SCIM), auth'd with a fresh
+    OAuth2 client-credentials token on every call - these are short,
+    one-shot scripts, not a long-running service, and the token itself
+    is never cached (see ADR 0016: only the client ID + secret is the
+    long-lived credential here)."""
     domain_url, client_id, client_secret = oci_scim_domain_and_credentials()
     token = oci_scim_access_token(domain_url, client_id, client_secret)
     return identity_domains_client_for_token(domain_url, token)

@@ -8,12 +8,15 @@ not real B2/OCI/Cloudflare behavior.
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
+from unittest.mock import call, patch
 
+import oci.exceptions
 import pytest
+import requests
 from _b2_objects import application_key, stubbed_b2_api
+from _oci_objects import customer_secret_key
+from _oci_objects import response as oci_response
 from _responses import response
-from _sessions import stubbed_session
 from cloud_credentials import check_freshness
 from cloud_credentials.expiry import URGENT_DAYS, WARNING_DAYS
 
@@ -115,26 +118,29 @@ class TestCheckB2:
         assert statuses["b2 write"] == check_freshness.URGENT
 
 
-def _scim_get_response(status_code: int, expires_on: str | None = None):
-    return response(status_code, {"expiresOn": expires_on} if expires_on is not None else {})
+def _secret_key_response(expires_on: str | None):
+    return oci_response(customer_secret_key("scim-id", "ACCESS", "SECRET", expires_on=expires_on))
+
+
+def _rfc3339_in(**delta) -> str:
+    return (datetime.now(UTC) + timedelta(**delta)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 @pytest.mark.usefixtures("fake_vault")
 class TestCheckOci:
-    @patch.object(check_freshness, "oci_scim_session", autospec=True)
-    def test_fresh_stale_and_missing_all_reported(self, mock_scim_session, vault):
+    @pytest.fixture(autouse=True)
+    def oci_client_factory(self, identity_domains_client):
+        with patch.object(check_freshness, "oci_identity_domains_client", return_value=identity_domains_client, autospec=True) as factory:
+            yield factory
+
+    def test_fresh_stale_and_missing_all_reported(self, identity_domains_client, vault):
         vault.seed("oci-write-scim-id", "scim-write-1")
         vault.seed("oci-read-scim-id", "scim-read-1")
         # rotation credential's -created-at deliberately not seeded
-
-        session = stubbed_session()
-        fresh_expires_on = (datetime.now(UTC) + timedelta(days=45)).strftime("%Y-%m-%dT%H:%M:%SZ")
-        stale_expires_on = (datetime.now(UTC) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
-        session.get.side_effect = [
-            _scim_get_response(200, fresh_expires_on),
-            _scim_get_response(200, stale_expires_on),
+        identity_domains_client.get_customer_secret_key.side_effect = [
+            _secret_key_response(_rfc3339_in(days=45)),
+            _secret_key_response(_rfc3339_in(days=-1)),
         ]
-        mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
 
         results = check_freshness.check_oci()
 
@@ -143,47 +149,92 @@ class TestCheckOci:
         assert statuses["oci read"] == check_freshness.STALE
         assert statuses["oci rotation credential"] == check_freshness.CHECK_FAILED
 
-    @patch.object(check_freshness, "oci_scim_session", autospec=True)
-    def test_each_leaf_is_fetched_by_its_stored_scim_id_with_a_timeout(self, mock_scim_session, vault):
+    def test_each_leaf_is_fetched_by_its_stored_scim_id(self, identity_domains_client, vault):
         vault.seed("oci-write-scim-id", "scim-write-1")
         vault.seed("oci-read-scim-id", "scim-read-1")
-        session = stubbed_session()
-        session.get.return_value = _scim_get_response(200, "2099-01-01T00:00:00Z")
-        mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
+        identity_domains_client.get_customer_secret_key.return_value = _secret_key_response("2099-01-01T00:00:00Z")
 
         check_freshness.check_oci()
 
-        urls = [call.args[0] for call in session.get.call_args_list]
-        assert urls == [
-            "https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-write-1",
-            "https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-read-1",
-        ]
-        assert all(has_a_timeout(call) for call in session.get.call_args_list)
+        assert identity_domains_client.get_customer_secret_key.call_args_list == [call("scim-write-1"), call("scim-read-1")]
 
-    @patch.object(check_freshness, "oci_scim_session", autospec=True)
-    def test_missing_scim_id_is_a_check_failure_not_a_crash(self, mock_scim_session):
+    def test_missing_scim_id_is_a_check_failure_not_a_crash(self, identity_domains_client):
         # oci-write-scim-id deliberately not seeded — a leaf key created
         # before the SCIM migration (ADR 0016) would have no such file.
-        session = stubbed_session()
-        mock_scim_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
-
         results = check_freshness.check_oci()
 
         statuses = {name: status for name, status, _ in results}
         assert statuses["oci write"] == check_freshness.CHECK_FAILED
-        session.get.assert_not_called()  # no scim_id, so no point calling out
+        identity_domains_client.get_customer_secret_key.assert_not_called()  # no scim_id, so no point calling out
 
-    @patch.object(check_freshness, "oci_scim_session", side_effect=SystemExit(1), autospec=True)
-    def test_auth_failure_fails_every_leaf_entry_but_not_the_rotation_credential_check(self, mock_scim_session, vault):
+    def test_key_without_an_expiry_is_a_check_failure(self, identity_domains_client, vault):
+        vault.seed("oci-write-scim-id", "scim-write-1")
+        identity_domains_client.get_customer_secret_key.return_value = _secret_key_response(None)
+
+        results = check_freshness.check_oci()
+
+        assert next((status, detail) for name, status, detail in results if name == "oci write") == (
+            check_freshness.CHECK_FAILED,
+            "key has no expiresOn - created before the SCIM migration (ADR 0016)?",
+        )
+
+    @pytest.mark.parametrize(
+        ("error", "detail"),
+        [
+            pytest.param(oci.exceptions.ServiceError(404, "NotAuthorizedOrNotFound", {}, "no such key"), "no such key", id="service-error"),
+            pytest.param(oci.exceptions.ConnectTimeout(Exception("timed out")), "timed out", id="connect-timeout"),
+            pytest.param(oci.exceptions.RequestException(Exception("connection reset")), "connection reset", id="transport-failure"),
+        ],
+    )
+    def test_an_sdk_error_fails_that_leaf_and_names_the_cause_without_stopping_the_next(self, identity_domains_client, vault, error, detail):
+        vault.seed("oci-write-scim-id", "scim-write-1")
+        vault.seed("oci-read-scim-id", "scim-read-1")
+        identity_domains_client.get_customer_secret_key.side_effect = [error, _secret_key_response("2099-01-01T00:00:00Z")]
+
+        results = check_freshness.check_oci()
+
+        by_name = {name: (status, text) for name, status, text in results}
+        assert by_name["oci write"][0] == check_freshness.CHECK_FAILED
+        assert "request failed: " in by_name["oci write"][1]
+        assert detail in by_name["oci write"][1]
+        assert by_name["oci read"] == (check_freshness.FRESH, "")
+
+    def test_rotation_credential_age_is_reported_alongside_healthy_leaf_keys(self, identity_domains_client, vault):
+        vault.seed("oci-write-scim-id", "scim-write-1")
+        vault.seed("oci-read-scim-id", "scim-read-1")
         vault.seed("_rotation-key-oci-created-at", datetime.now(UTC).isoformat(), category="rotation")
+        identity_domains_client.get_customer_secret_key.return_value = _secret_key_response(_rfc3339_in(days=45))
+
+        results = check_freshness.check_oci()
+
+        assert [(name, status) for name, status, _ in results] == [
+            ("oci write", check_freshness.FRESH),
+            ("oci read", check_freshness.FRESH),
+            ("oci rotation credential", check_freshness.FRESH),
+        ]
+
+    @pytest.mark.parametrize(
+        "error",
+        [
+            pytest.param(SystemExit(1), id="missing-cached-credential"),
+            pytest.param(requests.HTTPError("401 Client Error"), id="token-request-rejected"),
+            pytest.param(KeyError("access_token"), id="token-response-without-a-token"),
+        ],
+    )
+    def test_auth_failure_fails_every_leaf_entry_but_not_the_rotation_credential_check(self, oci_client_factory, vault, error):
+        vault.seed("_rotation-key-oci-created-at", datetime.now(UTC).isoformat(), category="rotation")
+        oci_client_factory.side_effect = error
 
         results = check_freshness.check_oci()
 
         statuses = {name: status for name, status, _ in results}
         assert statuses["oci write"] == check_freshness.CHECK_FAILED
         assert statuses["oci read"] == check_freshness.CHECK_FAILED
+        # What the alert shows for each leaf is the cause of the failure.
+        details = {name: detail for name, _, detail in results}
+        assert details["oci write"] == details["oci read"] == str(error)
         # The rotation credential's own check is self-tracked and
-        # doesn't depend on the SCIM session at all — an OAuth2 auth
+        # doesn't depend on the SCIM client at all — an OAuth2 auth
         # failure for the leaf checks shouldn't also break this one.
         assert statuses["oci rotation credential"] == check_freshness.FRESH
 

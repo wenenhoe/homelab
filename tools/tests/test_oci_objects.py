@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from _oci_objects import apps_response, customer_secret_key, response, stubbed_identity_domains_client
+from _oci_objects import apps_response, customer_secret_key, customer_secret_keys_response, response, stubbed_identity_domains_client
 from oci.identity_domains import IdentityDomainsClient
 
 
@@ -11,6 +11,24 @@ def test_a_customer_secret_key_carries_its_scim_id_and_both_halves():
     key = customer_secret_key("SCIM_ID", "ACCESS", "SECRET")
 
     assert (key.id, key.access_key, key.secret_key) == ("SCIM_ID", "ACCESS", "SECRET")
+
+
+def test_a_customer_secret_key_carries_its_expiry_status_and_creation_time_when_given():
+    key = customer_secret_key("SCIM_ID", "ACCESS", "SECRET", expires_on="2099-01-01T00:00:00Z", status="ACTIVE", created="2026-01-01T00:00:00Z")
+
+    assert (key.expires_on, key.status, key.meta.created) == ("2099-01-01T00:00:00Z", "ACTIVE", "2026-01-01T00:00:00Z")
+
+
+def test_a_customer_secret_key_has_none_of_them_otherwise():
+    key = customer_secret_key("SCIM_ID", "ACCESS", "SECRET")
+
+    assert (key.expires_on, key.status, key.meta) == (None, None, None)
+
+
+def test_a_customer_secret_keys_response_lists_the_given_keys_in_order():
+    resp = customer_secret_keys_response(customer_secret_key("A", "ACCESS-A", "SECRET"), customer_secret_key("B", "ACCESS-B", "SECRET"))
+
+    assert [key.id for key in resp.data.resources] == ["A", "B"]
 
 
 def test_a_response_serves_its_data_and_status():

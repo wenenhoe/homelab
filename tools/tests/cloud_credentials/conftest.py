@@ -3,12 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from _b2_objects import stubbed_b2_api
 from _fake_vault import FakeVault
-from _oci_objects import stubbed_identity_domains_client
-from b2sdk.v2 import B2Api
 from cloud_credentials import cache
-from oci.identity_domains import IdentityDomainsClient
 
 
 class CategoryVault:
@@ -49,15 +45,3 @@ def vault(fake_vault: FakeVault) -> CategoryVault:
 @pytest.fixture
 def rotation_vault(fake_vault: FakeVault) -> CategoryVault:
     return CategoryVault(fake_vault, "rotation")
-
-
-@pytest.fixture
-def b2_api() -> B2Api:
-    """A real `B2Api` over an in-memory account, its network calls stubbed (see `_b2_objects.py`)."""
-    return stubbed_b2_api()
-
-
-@pytest.fixture
-def identity_domains_client() -> IdentityDomainsClient:
-    """A real OCI `IdentityDomainsClient` with its service calls stubbed (see `_oci_objects.py`)."""
-    return stubbed_identity_domains_client()

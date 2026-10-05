@@ -19,7 +19,7 @@ from unittest.mock import create_autospec
 import oci
 from cloud_credentials.rotation_keys.oci_scim import identity_domains_client_for_token
 from oci.identity_domains import IdentityDomainsClient
-from oci.identity_domains.models import App, Apps, CustomerSecretKey
+from oci.identity_domains.models import App, Apps, CustomerSecretKey, CustomerSecretKeys, Meta
 
 _CLIENT_METHODS = ("list_apps", "create_customer_secret_key", "delete_customer_secret_key", "list_customer_secret_keys", "get_customer_secret_key")
 
@@ -40,8 +40,27 @@ def response(data: object, status: int = 200) -> oci.response.Response:
     return oci.response.Response(status, {}, data, None)
 
 
-def customer_secret_key(scim_id: str, access_key: str, secret_key: str) -> CustomerSecretKey:
-    return CustomerSecretKey(id=scim_id, access_key=access_key, secret_key=secret_key)
+def customer_secret_key(
+    scim_id: str,
+    access_key: str,
+    secret_key: str,
+    *,
+    expires_on: str | None = None,
+    status: str | None = None,
+    created: str | None = None,
+) -> CustomerSecretKey:
+    return CustomerSecretKey(
+        id=scim_id,
+        access_key=access_key,
+        secret_key=secret_key,
+        expires_on=expires_on,
+        status=status,
+        meta=Meta(created=created) if created else None,
+    )
+
+
+def customer_secret_keys_response(*keys: CustomerSecretKey) -> oci.response.Response:
+    return response(CustomerSecretKeys(resources=list(keys)))
 
 
 def apps_response(*app_ids: str) -> oci.response.Response:

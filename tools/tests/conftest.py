@@ -9,9 +9,13 @@ import hvac
 import paramiko
 import pytest
 import requests
+from _b2_objects import stubbed_b2_api
 from _hvac_clients import stubbed_hvac_client
+from _oci_objects import stubbed_identity_domains_client
 from _sessions import stubbed_session
 from _ssh_objects import stubbed_ssh_client
+from b2sdk.v2 import B2Api
+from oci.identity_domains import IdentityDomainsClient
 
 
 class SecretsDir:
@@ -60,3 +64,15 @@ def hvac_client() -> hvac.Client:
 def ssh_client() -> paramiko.SSHClient:
     """A real `paramiko.SSHClient` with its network and file calls stubbed (see `_ssh_objects.py`)."""
     return stubbed_ssh_client()
+
+
+@pytest.fixture
+def b2_api() -> B2Api:
+    """A real `B2Api` over an in-memory account, its network calls stubbed (see `_b2_objects.py`)."""
+    return stubbed_b2_api()
+
+
+@pytest.fixture
+def identity_domains_client() -> IdentityDomainsClient:
+    """A real OCI `IdentityDomainsClient` with its service calls stubbed (see `_oci_objects.py`)."""
+    return stubbed_identity_domains_client()

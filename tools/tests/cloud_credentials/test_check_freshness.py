@@ -199,6 +199,20 @@ class TestCheckOci:
         assert detail in by_name["oci write"][1]
         assert by_name["oci read"] == (check_freshness.FRESH, "")
 
+    def test_rotation_credential_age_is_reported_alongside_healthy_leaf_keys(self, identity_domains_client, vault):
+        vault.seed("oci-write-scim-id", "scim-write-1")
+        vault.seed("oci-read-scim-id", "scim-read-1")
+        vault.seed("_rotation-key-oci-created-at", datetime.now(UTC).isoformat(), category="rotation")
+        identity_domains_client.get_customer_secret_key.return_value = _secret_key_response(_rfc3339_in(days=45))
+
+        results = check_freshness.check_oci()
+
+        assert [(name, status) for name, status, _ in results] == [
+            ("oci write", check_freshness.FRESH),
+            ("oci read", check_freshness.FRESH),
+            ("oci rotation credential", check_freshness.FRESH),
+        ]
+
     @pytest.mark.parametrize(
         "error",
         [
@@ -216,6 +230,9 @@ class TestCheckOci:
         statuses = {name: status for name, status, _ in results}
         assert statuses["oci write"] == check_freshness.CHECK_FAILED
         assert statuses["oci read"] == check_freshness.CHECK_FAILED
+        # What the alert shows for each leaf is the cause of the failure.
+        details = {name: detail for name, _, detail in results}
+        assert details["oci write"] == details["oci read"] == str(error)
         # The rotation credential's own check is self-tracked and
         # doesn't depend on the SCIM client at all — an OAuth2 auth
         # failure for the leaf checks shouldn't also break this one.

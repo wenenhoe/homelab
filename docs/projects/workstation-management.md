@@ -30,7 +30,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | WSL2 under a memory cap, and the push credential on the laptop | Not started | A change is checked with `pre-commit`, `pytest`, and a Molecule scenario in WSL2, reviewed, and pushed from the laptop |
-| 2 | A hardware-backed key from each token registered on the operator host. Starts once [`operator-host.md`](operator-host.md) has built VM 301 | Not started | Both tokens log in to the operator host, and a login with no token present fails |
+| 2 | A hardware-backed key from each token registered on the operator host. Starts once [`operator-host.md`](operator-host.md) has built VM 302 | Not started | Both tokens log in to the operator host, and a login with no token present fails |
 | 3 | Audit as a repeatable script run on the laptop | Not started | A script over the Windows profile and the WSL2 home lists credential-shaped paths and fails on any beyond the push credential, the coding-agent host key, and the operator-host key's handle file |
 | 4 | Keep desktop assistants with local tool access off the laptop | Not started | None is installed in Windows or in WSL2 |
 

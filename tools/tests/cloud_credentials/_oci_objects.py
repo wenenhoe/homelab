@@ -40,8 +40,8 @@ def response(data: object, status: int = 200) -> oci.response.Response:
     return oci.response.Response(status, {}, data, None)
 
 
-def customer_secret_key(scim_id: str, access_key: str, secret_key: str) -> CustomerSecretKey:
-    return CustomerSecretKey(id=scim_id, access_key=access_key, secret_key=secret_key)
+def customer_secret_key(scim_id: str, access_key: str, secret_key: str, *, expires_on: str | None = None) -> CustomerSecretKey:
+    return CustomerSecretKey(id=scim_id, access_key=access_key, secret_key=secret_key, expires_on=expires_on)
 
 
 def apps_response(*app_ids: str) -> oci.response.Response:

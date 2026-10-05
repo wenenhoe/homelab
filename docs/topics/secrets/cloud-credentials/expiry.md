@@ -32,7 +32,7 @@ it; this script has no way to set one after the fact.
 **`check_freshness.py`** reads all 9 back — natively for B2
 (`b2_list_keys`), R2 (`GET .../tokens/{id}` for the leaf tokens,
 `GET /user/tokens/verify` for the rotation token — see below), and
-OCI's leaf keys (`GET /admin/v1/CustomerSecretKeys/{id}` via SCIM) —
+OCI's leaf keys (`IdentityDomainsClient.get_customer_secret_key`, SCIM's `GET /admin/v1/CustomerSecretKeys/{id}`) —
 from the self-tracked cache file for OCI's rotation credential only —
 and reports each as fresh, expiring soon (within `expiry.WARNING_DAYS`,
 30 days), expiring very soon (within `expiry.URGENT_DAYS`, 14 days),

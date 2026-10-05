@@ -38,18 +38,25 @@ from __future__ import annotations
 import sys
 from datetime import UTC, datetime, timedelta
 
+import oci.exceptions
 import requests
 from b2sdk.v2.exception import B2Error
+from oci.identity_domains import IdentityDomainsClient
 
 from cloud_credentials.cache import read_vault_path, scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_api
-from cloud_credentials.rotation_keys.oci_scim import oci_scim_session
+from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
 
 _leaf_cached, _leaf_read_cache, _, _ = scoped("leaf")
 _rotation_cached, _rotation_read_cache, _, _ = scoped("rotation")
 
 FRESH, WARNING, URGENT, STALE, CHECK_FAILED = "fresh", "expiring soon", "expiring very soon", "past its window", "check failed"
+
+# The oci SDK bundles its own copy of requests, so `requests.RequestException`
+# never matches what its client raises: a non-2xx is a ServiceError, a
+# timeout a ConnectTimeout, any other transport failure a RequestException.
+_OCI_SDK_ERRORS = (oci.exceptions.ServiceError, oci.exceptions.ConnectTimeout, oci.exceptions.RequestException)
 
 
 def _report(name: str, status: str, detail: str = "") -> str:
@@ -113,34 +120,28 @@ def check_oci() -> list[tuple[str, str, str]]:
     stays self-tracked, same mechanism as before ADR 0016 just for a
     different underlying credential."""
     try:
-        session, domain_url = oci_scim_session()
+        client = oci_identity_domains_client()
     except (requests.HTTPError, requests.RequestException, SystemExit, KeyError) as exc:
         results = [(f"oci {leaf}", CHECK_FAILED, str(exc)) for leaf in ("write", "read")]
         results.append(_oci_created_at_result("oci rotation credential", "_rotation-key-oci-created-at"))
         return results
 
-    results = [_oci_scim_key_result(f"oci {leaf}", session, domain_url, f"oci-{leaf}-scim-id") for leaf in ("write", "read")]
+    results = [_oci_scim_key_result(f"oci {leaf}", client, f"oci-{leaf}-scim-id") for leaf in ("write", "read")]
     results.append(_oci_created_at_result("oci rotation credential", "_rotation-key-oci-created-at"))
     return results
 
 
-def _oci_scim_key_result(label: str, session: requests.Session, domain_url: str, scim_id_cache_name: str) -> tuple[str, str, str]:
+def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_cache_name: str) -> tuple[str, str, str]:
     scim_id = _leaf_read_cache(scim_id_cache_name)
     if scim_id is None:
         return (label, CHECK_FAILED, f"no {scim_id_cache_name} cache file - created before the SCIM migration (ADR 0016)?")
     try:
-        resp = session.get(f"{domain_url}/admin/v1/CustomerSecretKeys/{scim_id}", timeout=45)
-    except requests.RequestException as exc:
+        key = client.get_customer_secret_key(scim_id).data
+    except _OCI_SDK_ERRORS as exc:
         return (label, CHECK_FAILED, f"request failed: {exc}")
-    if resp.status_code != 200:
-        return (label, CHECK_FAILED, f"{resp.status_code} {resp.text}")
-    try:
-        expires_on = resp.json().get("expiresOn")
-    except ValueError as exc:
-        return (label, CHECK_FAILED, f"couldn't parse response JSON: {exc}")
-    if expires_on is None:
+    if key.expires_on is None:
         return (label, CHECK_FAILED, "key has no expiresOn - created before the SCIM migration (ADR 0016)?")
-    status, detail = _classify(datetime.fromisoformat(expires_on.replace("Z", "+00:00")))
+    status, detail = _classify(datetime.fromisoformat(key.expires_on.replace("Z", "+00:00")))
     return (label, status, detail)
 
 

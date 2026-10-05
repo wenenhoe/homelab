@@ -53,11 +53,11 @@ def oci_scim_session() -> tuple[requests.Session, str]:
     service, and the token itself is never cached (see ADR 0016: only
     the client ID + secret is the long-lived credential here).
 
-    Only check_freshness.py (GET by scim id) and openbao_utils/audit.py
-    (list by user) use this now - leaf_keys/oci.py and oci_bootstrap.py's
+    Only openbao_utils/audit.py (list by user) uses this now -
+    check_freshness.py's, leaf_keys/oci.py's and oci_bootstrap.py's
     SCIM calls go through oci_identity_domains_client() below instead
     (docs/decisions/0029-cloud-provider-api-client-library/revision-000.md).
-    Those two callers move over in
+    audit.py moves over in
     docs/projects/cloud-credentials-sdk-followups.md."""
     domain_url, client_id, client_secret = oci_scim_domain_and_credentials()
     token = oci_scim_access_token(domain_url, client_id, client_secret)

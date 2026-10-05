@@ -42,7 +42,8 @@ type in the repo:
 - `uv_lock` — `pyproject.toml`/`uv.lock` changed.
 - `python_unit_tests` — `ansible/scripts/*.py`,
   `tools/cloud_credentials/**`,
-  `tools/openbao_utils/**`, `tools/utils/**`, `tools/ci/**`,
+  `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/utils/**`,
+  `tools/ci/**`,
   `tools/doc_scripts/**`,
   `ansible/molecule-coverage/molecule_cov/**`,
   `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,

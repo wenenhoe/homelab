@@ -17,6 +17,7 @@ Deploying apps: how the Ansible and Compose pipeline works and how to extend it.
 | [`volumes.md`](deploy/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
 | [`volume-maintenance.md`](deploy/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
 | [`cleanup.md`](deploy/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
+| [`cd-agent-runner.md`](deploy/cd-agent-runner.md) | The CD agent's per-job poll, decide and run step: what a run fetches, checks out, runs and records. |
 
 ## infra/
 

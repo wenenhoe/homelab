@@ -1,0 +1,26 @@
+---
+# Every case is rejected by the role's first tasks, before anything touches
+# the host: no systemd, no privileged mode.
+driver:
+  name: docker
+platforms:
+  - name: cd-agent-invalid-input-instance
+    image: geerlingguy/docker-ubuntu2604-ansible:latest
+    command: sleep infinity
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: prepare.yml
+    converge: converge.yml
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - destroy

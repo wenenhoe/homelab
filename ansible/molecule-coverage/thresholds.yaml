@@ -6,6 +6,7 @@ backup_agent: 100.0
 bind9: 94.4
 caddy: 100.0
 caddy_cert_expiry: 100.0
+cd_agent: 100.0
 cloud_sync: 100.0
 compose: 100.0
 compose_app: 100.0

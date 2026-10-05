@@ -1,0 +1,47 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    # Five levels up from this scenario directory is the repository root.
+    cd_agent_runner_source_dir: "{{ (playbook_dir ~ '/../../../../../tools/cd_agent') | realpath }}"
+    cd_agent_operator_address: 192.168.30.2
+    cd_agent_admin_users:
+      - cdadmin
+    # Three jobs covering both timer shapes. The commands write into the job's
+    # own state directory (the tree they run in is its `tree/` subdirectory)
+    # so verify.yml can read back what ran, as which user, on what.
+    cd_agent_jobs:
+      - name: deploy
+        poll_interval: 5min
+        on_change: true
+        command:
+          - /bin/sh
+          - -c
+          - echo "$(id -un) $(git rev-parse HEAD)" >> ../ran.log
+      - name: freshness
+        on_calendar: Mon *-*-* 04:00:00
+        command:
+          - /bin/sh
+          - -c
+          - cat /etc/cd-agent/credentials/freshness/secret_id > ../own.txt
+      # Tries what a compromised job would: write outside its state
+      # directory (its own credential directory, which its user owns, so
+      # only the sandbox stops it), read another job's credentials. Reads
+      # its own.
+      - name: rotation
+        on_calendar: monthly
+        command:
+          - /bin/sh
+          - -c
+          - |
+            {
+              touch /etc/cd-agent/credentials/rotation/probe 2>/dev/null && echo fs=writable || echo fs=readonly
+              cat /etc/cd-agent/credentials/freshness/secret_id >/dev/null 2>&1 && echo other=readable || echo other=denied
+              sed 's/^/own=/' /etc/cd-agent/credentials/rotation/secret_id
+              echo user=$(id -un)
+            } > ../probe.log
+  tasks:
+    - name: Include cd_agent role
+      ansible.builtin.include_role:
+        name: cd_agent

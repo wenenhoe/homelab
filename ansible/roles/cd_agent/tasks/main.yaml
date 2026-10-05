@@ -1,0 +1,253 @@
+---
+# The CD agent host (ADR 0044 revision 0-c, docs/projects/cd-agent.md): one
+# sandboxed systemd unit and timer per job, each as its own unprivileged user,
+# running tools/cd_agent/run_job.py (docs/topics/deploy/cd-agent-runner.md).
+# This role is the mechanism only. Which jobs exist, their commands and
+# schedules, are the cd_agent_jobs data a caller passes in.
+#
+# cd_agent_jobs entries:
+#   name           [a-z][a-z0-9-]{0,22}; the user, units and directories are cd-agent-<name>
+#   command        argv list, run from cwd inside the checkout
+#   cwd            optional, default "." (run_job.py's --cwd)
+#   on_change      optional, default false (run_job.py's --on-change)
+#   poll_interval  e.g. 5min: first run a minute after boot, then that long after each run ends
+#   on_calendar    a systemd calendar expression; exactly one of poll_interval and on_calendar
+#   timeout        optional systemd time span, default cd_agent_default_timeout
+#
+# The runner is copied from the controller's checkout, not fetched: the code
+# that decides what runs is never replaced by what it fetches.
+#
+# Not here: the credential files themselves (delivered into each job's
+# credential directory by the AppRoles work), failure alerts and heartbeats,
+# and removing a job that is dropped from cd_agent_jobs.
+
+- name: Check the required variables are set
+  ansible.builtin.assert:
+    that:
+      - cd_agent_runner_source_dir is defined
+      - cd_agent_operator_address is defined
+      - cd_agent_admin_users is defined
+      - cd_agent_jobs is defined
+    fail_msg: "cd_agent needs cd_agent_runner_source_dir, cd_agent_operator_address, cd_agent_admin_users and cd_agent_jobs."
+
+# Both values are written into sshd's configuration, so only a literal IPv4
+# address and plain user names are accepted: a pattern such as `*` would open
+# the Match block this role exists to close.
+- name: Check the operator address is a single IPv4 address
+  ansible.builtin.assert:
+    that:
+      - cd_agent_operator_address is string
+      - cd_agent_operator_address is regex('^[0-9]{1,3}(\.[0-9]{1,3}){3}$')
+      - cd_agent_operator_address.split('.') | map('int') | select('gt', 255) | list | length == 0
+    fail_msg: "cd_agent_operator_address must be one literal IPv4 address, got {{ cd_agent_operator_address | string }}."
+
+- name: Check the admin users are plain user names, none of them a job's user
+  ansible.builtin.assert:
+    that:
+      - cd_agent_admin_users is sequence
+      - cd_agent_admin_users is not string
+      - cd_agent_admin_users | length > 0
+      - cd_agent_admin_users | reject('regex', '^[a-z_][a-z0-9_-]*$') | list | length == 0
+      - cd_agent_admin_users | select('regex', '^cd-agent-') | list | length == 0
+    fail_msg: "cd_agent_admin_users must be a non-empty list of plain user names outside cd-agent-*, got {{ cd_agent_admin_users }}."
+
+- name: Check every job definition
+  ansible.builtin.assert:
+    that:
+      - cd_agent_job.name is regex('^[a-z][a-z0-9-]{0,22}$')
+      - cd_agent_job.command is sequence
+      - cd_agent_job.command is not string
+      - cd_agent_job.command | length > 0
+      - (cd_agent_job.poll_interval is defined) != (cd_agent_job.on_calendar is defined)
+      - cd_agent_job.poll_interval | default('1min') is regex('^[0-9]+(s|min|h)$')
+      - cd_agent_job.on_calendar | default('daily') is regex('^[A-Za-z0-9 :*,./~-]+$')
+      - cd_agent_job.cwd | default('.') is regex('^[A-Za-z0-9_./-]+$')
+      - cd_agent_job.timeout | default(cd_agent_default_timeout) is regex('^[0-9]+(s|min|h)$')
+    fail_msg: "Invalid cd_agent_jobs entry {{ cd_agent_job }}: see the header of roles/cd_agent/tasks/main.yaml for the fields."
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name | default('?') }}"
+
+- name: Check there is at least one job and the job names are unique
+  ansible.builtin.assert:
+    that:
+      - cd_agent_jobs | length > 0
+      - cd_agent_jobs | map(attribute='name') | unique | list | length == cd_agent_jobs | length
+    fail_msg: "cd_agent_jobs must hold at least one job, with unique names."
+
+- name: Install what the jobs and sshd need
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - git
+      - openssh-client
+      - openssh-server
+      - python3
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Apply the host hardening baseline
+  ansible.builtin.include_role:
+    name: host_hardening
+
+# --- The runner -----------------------------------------------------------
+
+- name: Create the runner and shared state directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop:
+    - "{{ cd_agent_opt_dir }}"
+    - "{{ cd_agent_lib_dir }}"
+    - "{{ cd_agent_lib_dir }}/cd_agent"
+    - "{{ cd_agent_etc_dir }}"
+    - "{{ cd_agent_state_root }}"
+
+# Mode 0711: a job user can reach its own directory by name but cannot list
+# the others.
+- name: Create the credentials root
+  ansible.builtin.file:
+    path: "{{ cd_agent_credentials_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0711"
+
+- name: Install the runner, root-owned so no job user can edit it
+  ansible.builtin.copy:
+    src: "{{ cd_agent_runner_source_dir }}/{{ item }}"
+    dest: "{{ cd_agent_lib_dir }}/cd_agent/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - __init__.py
+    - run_job.py
+
+# --- One user per job ---------------------------------------------------
+
+- name: Create each job's group
+  ansible.builtin.group:
+    name: "cd-agent-{{ cd_agent_job.name }}"
+    system: true
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"
+
+- name: Create each job's user
+  ansible.builtin.user:
+    name: "cd-agent-{{ cd_agent_job.name }}"
+    group: "cd-agent-{{ cd_agent_job.name }}"
+    system: true
+    shell: /usr/sbin/nologin
+    home: "{{ cd_agent_state_root }}/{{ cd_agent_job.name }}"
+    create_home: false
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"
+
+- name: Create each job's state directory
+  ansible.builtin.file:
+    path: "{{ cd_agent_state_root }}/{{ cd_agent_job.name }}"
+    state: directory
+    owner: "cd-agent-{{ cd_agent_job.name }}"
+    group: "cd-agent-{{ cd_agent_job.name }}"
+    mode: "0700"
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"
+
+# The directory, not each file, keeps another job's user out: whatever lands
+# inside is unreachable to every other user whatever its own mode.
+- name: Create each job's credential directory
+  ansible.builtin.file:
+    path: "{{ cd_agent_credentials_root }}/{{ cd_agent_job.name }}"
+    state: directory
+    owner: "cd-agent-{{ cd_agent_job.name }}"
+    group: "cd-agent-{{ cd_agent_job.name }}"
+    mode: "0700"
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"
+
+# --- sshd: the operator host only ---------------------------------------
+
+# sshd -t exits with "Missing privilege separation directory" unless this
+# exists, and ssh.service creates it only while it is running.
+- name: Ensure sshd's privilege-separation directory exists so its config can be validated
+  ansible.builtin.file:
+    path: /run/sshd
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+# 00-, so it is read before any other drop-in; DenyUsers beats an AllowUsers
+# a later file adds.
+- name: Restrict sshd to the admin users, and to the operator host's address
+  ansible.builtin.template:
+    src: sshd-cd-agent.conf.j2
+    dest: /etc/ssh/sshd_config.d/00-cd-agent.conf
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/sbin/sshd -t -f %s
+  notify: Reload sshd
+
+# --- Units --------------------------------------------------------------
+
+# The units below notify a handler that only exists once its role has
+# loaded; see systemd_reload/tasks/reload.yaml. reload.yaml itself reads the
+# results of the Telegram and Uptime Kuma roles, which this role does not
+# install, so the flush below stands in for it.
+- name: Load the shared Reload systemd handler
+  ansible.builtin.include_role:
+    name: systemd_reload
+
+- name: Install each job's systemd service
+  ansible.builtin.template:
+    src: cd-agent-job.service.j2
+    dest: "/etc/systemd/system/cd-agent-{{ cd_agent_job.name }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"
+
+- name: Install each job's systemd timer
+  ansible.builtin.template:
+    src: cd-agent-job.timer.j2
+    dest: "/etc/systemd/system/cd-agent-{{ cd_agent_job.name }}.timer"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"
+
+- name: Flush handlers so systemd has the current unit definitions
+  ansible.builtin.meta: flush_handlers
+
+- name: Enable and start each job's timer
+  ansible.builtin.systemd:
+    name: "cd-agent-{{ cd_agent_job.name }}.timer"
+    state: started
+    enabled: true
+  loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"

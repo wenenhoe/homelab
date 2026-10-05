@@ -1,0 +1,7 @@
+---
+# try-reload-or-restart, not `reload`: ssh.service is socket-activated on
+# Ubuntu, and `reload` fails on a unit that is not running. A socket-
+# activated sshd reads the drop-in at its next connection anyway.
+- name: Reload sshd  # noqa: command-instead-of-module
+  ansible.builtin.command: systemctl try-reload-or-restart ssh.service
+  changed_when: true

@@ -38,6 +38,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `caddy` | Renders Caddyfile, builds custom image, deploys. |
 | `caddy_cert_expiry` | Alerts if Caddy's live-serving cert is expiring/unreachable. |
 | `bind9` | Renders zone files, deploys, rewires host DNS. |
+| `cd_agent` | The CD agent host: one sandboxed unit, timer and user per job, and `sshd` limited to the operator host. See [`cd-agent-host.md`](cd-agent-host.md). |
 | `openbao` | Chowns openbao's data volume to its own non-root user before it first starts, deploys. |
 | `openbao_cli` | Installs/verifies a native `bao` CLI on `security`, version-matched to the running server. |
 | `seaweedfs_bucket` | Ensures the SeaweedFS backup bucket exists on `storage`. |

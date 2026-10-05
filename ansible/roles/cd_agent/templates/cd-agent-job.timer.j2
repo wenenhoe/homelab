@@ -1,0 +1,14 @@
+[Unit]
+Description=Timer for CD agent job {{ cd_agent_job.name }}
+
+[Timer]
+{% if cd_agent_job.poll_interval is defined %}
+OnBootSec=1min
+OnUnitInactiveSec={{ cd_agent_job.poll_interval }}
+{% else %}
+OnCalendar={{ cd_agent_job.on_calendar }}
+Persistent=true
+{% endif %}
+
+[Install]
+WantedBy=timers.target

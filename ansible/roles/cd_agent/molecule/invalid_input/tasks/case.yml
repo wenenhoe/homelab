@@ -1,0 +1,31 @@
+---
+- name: "Run the role with {{ cd_agent_case.name }}"
+  vars:
+    cd_agent_effective: "{{ cd_agent_valid | combine(cd_agent_case.override) }}"
+  block:
+    - name: Include cd_agent role
+      ansible.builtin.include_role:
+        name: cd_agent
+      vars:
+        cd_agent_runner_source_dir: "{{ cd_agent_effective.cd_agent_runner_source_dir }}"
+        cd_agent_operator_address: "{{ cd_agent_effective.cd_agent_operator_address }}"
+        cd_agent_admin_users: "{{ cd_agent_effective.cd_agent_admin_users }}"
+        cd_agent_jobs: "{{ cd_agent_effective.cd_agent_jobs }}"
+
+    - name: Fail, since the role accepted it
+      ansible.builtin.fail:
+        msg: "ACCEPTED: the role ran to the end with {{ cd_agent_case.name }}"
+  rescue:
+    - name: Confirm it was refused for the reason this case is about
+      ansible.builtin.assert:
+        that:
+          - cd_agent_case.expect in cd_agent_failure_text
+        fail_msg: >-
+          With {{ cd_agent_case.name }} the role failed, but not on the check
+          for it. Wanted {{ cd_agent_case.expect }}, got: {{ cd_agent_failure_text }}
+      # A failed loop reports "One or more items failed" at the top; the
+      # check's own message is on the failing item.
+      vars:
+        cd_agent_failure_text: >-
+          {{ ansible_failed_result.msg | default('') }}
+          {{ ansible_failed_result.results | default([]) | map(attribute='msg', default='') | join(' ') }}

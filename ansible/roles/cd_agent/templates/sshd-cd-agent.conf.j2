@@ -1,0 +1,5 @@
+# Managed by Ansible (roles/cd_agent). Only the operator host reaches this
+# host's sshd, and only these users log in; see docs/topics/deploy/cd-agent-host.md.
+AllowUsers {{ cd_agent_admin_users | join(' ') }}
+Match Address *,!{{ cd_agent_operator_address }}
+    DenyUsers *

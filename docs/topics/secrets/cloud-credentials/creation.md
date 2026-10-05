@@ -113,4 +113,12 @@ are in
 `openbao_utils/audit.py`'s B2 and OCI listings use the same SDKs
 (`b2sdk`'s `list_keys`, `IdentityDomainsClient.list_customer_secret_keys`).
 `check_freshness.py`'s Telegram `sendMessage` call stays on `requests`:
-it is one endpoint, with no SDK worth adding.
+it is one endpoint, with no SDK worth adding. So does `oci_scim.py`'s
+OAuth2 client-credentials token request, which produces the bearer token
+the SCIM client sends: the SDK has no bearer-token mode of its own.
+
+`create_leaf_keys.py` and `create_rotation_keys.py` each keep their own
+copy of the provider-error mapping (`_PROVIDER_ERRORS` and
+`_format_provider_error`), which turns `b2sdk`, `oci` and `requests`
+errors into a printed message and `SystemExit(1)`. Whether it becomes
+one shared helper is undecided.

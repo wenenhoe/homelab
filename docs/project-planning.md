@@ -58,7 +58,6 @@ set. It narrows where to look; it doesn't replace looking.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
-| [`cloud-credentials-sdk-followups.md`](projects/cloud-credentials-sdk-followups.md) | Building | Move check_freshness.py's OCI key lookup and openbao_utils/audit.py's B2 and OCI listings onto the SDKs ADR 0029 chose. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |

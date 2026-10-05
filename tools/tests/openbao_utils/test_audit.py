@@ -1,7 +1,8 @@
 """Unit tests for openbao_utils.audit's audit_oci/audit_local.
 
-Run via `uv run pytest tools/tests/ -v`. Every SCIM/Vault call is
-mocked; nothing here talks to a real tenancy or a real OpenBao.
+Run via `uv run pytest tools/tests/ -v`. Every provider/Vault call is
+mocked; nothing here talks to a real tenancy, a real B2 account or a
+real OpenBao.
 audit.py's cached() reads through cloud_credentials'
 own LEGACY_CACHE_KEYS-mapped modules (Vault-backed, since Track A
 stage 5) - AuditOciTests patches audit.cached directly rather
@@ -16,8 +17,12 @@ from types import SimpleNamespace
 from unittest.mock import create_autospec, patch
 
 import pytest
+from _oci_objects import customer_secret_key, customer_secret_keys_response
+from _oci_objects import response as oci_response
 from _responses import response
 from _sessions import stubbed_session
+from b2sdk.v2 import ApplicationKey
+from oci.identity_domains.models import CustomerSecretKeys
 from openbao_utils import audit
 
 
@@ -29,68 +34,70 @@ def cached_values(monkeypatch) -> dict[str, str]:
 
 
 class TestAuditOci:
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", side_effect=SystemExit(1), autospec=True)
-    def test_no_scim_credentials_stops_after_the_header(self, mock_session, cached_values, capsys):
+    @pytest.fixture(autouse=True)
+    def oci_client_factory(self, identity_domains_client):
+        with patch.object(audit, "oci_identity_domains_client", return_value=identity_domains_client, autospec=True) as factory:
+            yield factory
+
+    def test_no_scim_credentials_stops_after_the_header(self, oci_client_factory, identity_domains_client, cached_values, capsys):
+        oci_client_factory.side_effect = SystemExit(1)
+
         audit.audit_oci()
 
         assert capsys.readouterr().out.strip() == "== OCI customer secret keys (write + read leaves) =="
+        identity_domains_client.list_customer_secret_keys.assert_not_called()
 
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", autospec=True)
-    def test_leaf_without_cached_user_ocid_is_skipped(self, mock_session, cached_values):
+    def test_leaf_without_cached_user_ocid_is_skipped(self, identity_domains_client, cached_values, capsys):
         # Neither _oci-leaf-user-ocid-write nor -read seeded.
-        session = stubbed_session()
-        mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
+        audit.audit_oci()
 
-        with patch("sys.stdout", autospec=True) as mock_stdout:
-            audit.audit_oci()
+        printed = capsys.readouterr().out
+        assert "write: no cached user OCID, skipping" in printed
+        assert "read: no cached user OCID, skipping" in printed
+        identity_domains_client.list_customer_secret_keys.assert_not_called()
 
-        session.get.assert_not_called()
-        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
-        assert "no cached user OCID, skipping" in printed
-
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", autospec=True)
-    def test_active_key_matches_cached_scim_id_orphan_does_not(self, mock_session, cached_values):
+    def test_active_key_matches_cached_scim_id_orphan_does_not(self, identity_domains_client, cached_values, capsys):
         cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
         cached_values["oci-write-scim-id"] = "scim-active"
-        session = stubbed_session()
-
-        def get_side_effect(url, params=None):
-            if "user.ocid eq" in params.get("filter", ""):
-                return response(
-                    200,
-                    {
-                        "Resources": [
-                            {"id": "scim-active", "accessKey": "ACCESS-ACTIVE", "status": "ACTIVE", "meta": {"created": "2026-01-01T00:00:00Z"}},
-                            {"id": "scim-orphan", "accessKey": "ACCESS-ORPHAN", "status": "ACTIVE", "meta": {"created": "2025-01-01T00:00:00Z"}},
-                        ]
-                    },
-                )
-            return response(200, {"Resources": []})
-
-        session.get.side_effect = get_side_effect
-        mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
-
-        with patch("sys.stdout", autospec=True) as mock_stdout:
-            audit.audit_oci()
-
-        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
-        assert "scim_id=scim-active" in printed
-        assert "ACTIVE (matches cache)" in printed
-        assert "scim_id=scim-orphan" in printed
-        assert "ORPHAN" in printed
-        assert "DELETE https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-orphan" in printed
-
-    @patch("cloud_credentials.rotation_keys.oci_scim.oci_scim_session", autospec=True)
-    def test_filter_query_scoped_to_the_correct_leaf_user(self, mock_session, cached_values):
-        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
-        session = stubbed_session()
-        session.get.return_value = response(200, {"Resources": []})
-        mock_session.return_value = (session, "https://idcs-example.identity.oraclecloud.com")
+        identity_domains_client.list_customer_secret_keys.return_value = customer_secret_keys_response(
+            customer_secret_key("scim-active", "ACCESS-ACTIVE", "unused", status="ACTIVE", created="2026-01-01T00:00:00Z"),
+            customer_secret_key("scim-orphan", "ACCESS-ORPHAN", "unused", status="ACTIVE", created="2025-01-01T00:00:00Z"),
+        )
 
         audit.audit_oci()
 
-        sent_filter = session.get.call_args.kwargs["params"]["filter"]
-        assert "ocid1.user.oc1..writeleaf" in sent_filter
+        printed = capsys.readouterr().out
+        assert "write-leaf user has 2 customer secret key(s) (OCI allows max 2):" in printed
+        assert "scim_id=scim-active  accessKey=ACCESS-ACTIVE  created=2026-01-01T00:00:00Z  status=ACTIVE  [ACTIVE (matches cache)]" in printed
+        assert "scim_id=scim-orphan  accessKey=ACCESS-ORPHAN  created=2025-01-01T00:00:00Z  status=ACTIVE  [ORPHAN]" in printed
+        assert "DELETE https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-orphan" in printed
+        assert "CustomerSecretKeys/scim-active" not in printed
+
+    def test_filter_query_scoped_to_the_correct_leaf_user(self, identity_domains_client, cached_values):
+        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
+        identity_domains_client.list_customer_secret_keys.return_value = customer_secret_keys_response()
+
+        audit.audit_oci()
+
+        identity_domains_client.list_customer_secret_keys.assert_called_once_with(filter='user.ocid eq "ocid1.user.oc1..writeleaf"')
+
+    def test_key_without_creation_metadata_or_status_is_listed_as_unknown(self, identity_domains_client, cached_values, capsys):
+        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
+        identity_domains_client.list_customer_secret_keys.return_value = customer_secret_keys_response(
+            customer_secret_key("scim-bare", "ACCESS-BARE", "unused")
+        )
+
+        audit.audit_oci()
+
+        assert "scim_id=scim-bare  accessKey=ACCESS-BARE  created=unknown  status=unknown  [ORPHAN]" in capsys.readouterr().out
+
+    def test_response_without_a_resources_list_counts_as_no_keys(self, identity_domains_client, cached_values, capsys):
+        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
+        identity_domains_client.list_customer_secret_keys.return_value = oci_response(CustomerSecretKeys())
+
+        audit.audit_oci()
+
+        assert "write-leaf user has 0 customer secret key(s)" in capsys.readouterr().out
 
 
 class TestCachedDispatch:
@@ -202,12 +209,8 @@ class TestAuditLocal:
         assert "all belong to a permanent file-cache entry" in printed
 
 
-def _mock_b2_session(keys):
-    auth_resp = response(200, {"authorizationToken": "tok", "apiUrl": "https://api.example.com", "accountId": "acct"})
-    list_resp = response(200, {"keys": keys})
-    session = stubbed_session()
-    session.get.return_value = list_resp
-    return auth_resp, session
+def _b2_key(key_id: str, name: str = "some-key") -> ApplicationKey:
+    return ApplicationKey(name, key_id, [], "acct")
 
 
 class TestAuditB2:
@@ -222,48 +225,63 @@ class TestAuditB2:
         cached_values.update(
             {
                 "_rotation-key-backblaze-b2-key-id": "rotation-key-id",
-                "_rotation-key-backblaze-b2-application-key": "rotation-app-key",
                 "backblaze-b2-write-access-key": "write-key-id",
                 "backblaze-b2-read-access-key": "read-key-id",
                 "backblaze-b2-openbao-snapshot-write-access-key": "snapshot-write-key-id",
             }
         )
 
-    def test_openbao_snapshot_write_leaf_is_active_not_orphan(self):
-        auth_resp, session = _mock_b2_session([{"applicationKeyId": "snapshot-write-key-id", "keyName": "openbao-snapshot-write"}])
-        with (
-            patch("openbao_utils.audit.requests.get", return_value=auth_resp, autospec=True),
-            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
-            patch("sys.stdout", autospec=True) as mock_stdout,
-        ):
-            audit.audit_b2()
-        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
+    @pytest.fixture
+    def listed_keys(self, capsys):
+        """Runs audit_b2() against an account holding the given keys and returns what it printed."""
+
+        def run(*keys: ApplicationKey) -> str:
+            with (
+                patch.object(audit, "b2_rotation_api", autospec=True),
+                patch.object(audit, "b2_list_keys", return_value=list(keys), autospec=True),
+            ):
+                audit.audit_b2()
+            return capsys.readouterr().out
+
+        return run
+
+    def test_cached_leaf_and_rotation_keys_are_active(self, listed_keys):
+        printed = listed_keys(_b2_key("write-key-id"), _b2_key("read-key-id"), _b2_key("rotation-key-id"))
+
+        assert "3 key(s) on the account:" in printed
+        assert "write-key-id  name=some-key  [ACTIVE (write)]" in printed
+        assert "read-key-id  name=some-key  [ACTIVE (read)]" in printed
+        assert "rotation-key-id  name=some-key  [ACTIVE (rotation key)]" in printed
+        assert "ORPHAN" not in printed
+
+    def test_openbao_snapshot_write_leaf_is_active_not_orphan(self, listed_keys):
+        printed = listed_keys(_b2_key("snapshot-write-key-id", "openbao-snapshot-write"))
+
         assert "ACTIVE (openbao snapshot write leaf)" in printed
         assert "ORPHAN" not in printed
 
-    def test_openbao_snapshot_readonly_is_active_matched_by_name(self):
-        auth_resp, session = _mock_b2_session([{"applicationKeyId": "some-other-id", "keyName": "openbao-snapshot-readonly"}])
-        with (
-            patch("openbao_utils.audit.requests.get", return_value=auth_resp, autospec=True),
-            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
-            patch("sys.stdout", autospec=True) as mock_stdout,
-        ):
-            audit.audit_b2()
-        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
+    def test_openbao_snapshot_readonly_is_active_matched_by_name(self, listed_keys):
+        printed = listed_keys(_b2_key("some-other-id", "openbao-snapshot-readonly"))
+
         assert "ACTIVE (break-glass restore key" in printed
         assert "ORPHAN" not in printed
 
-    def test_genuinely_unknown_key_is_still_flagged_orphan(self):
-        auth_resp, session = _mock_b2_session([{"applicationKeyId": "mystery-id", "keyName": "some-leftover-key"}])
+    def test_genuinely_unknown_key_is_still_flagged_orphan(self, listed_keys):
+        printed = listed_keys(_b2_key("mystery-id", "some-leftover-key"))
+
+        assert "mystery-id  name=some-leftover-key  [ORPHAN]" in printed
+        assert "delete: b2_delete_key with applicationKeyId=mystery-id" in printed
+
+    def test_no_cached_rotation_key_stops_after_the_header_without_listing(self, capsys):
+        # b2_rotation_api() exits after printing what is missing when the rotation key isn't cached.
         with (
-            patch("openbao_utils.audit.requests.get", return_value=auth_resp, autospec=True),
-            patch("openbao_utils.audit.requests.Session", autospec=True, return_value=session),
-            patch("sys.stdout", autospec=True) as mock_stdout,
+            patch.object(audit, "b2_rotation_api", side_effect=SystemExit(1), autospec=True),
+            patch.object(audit, "b2_list_keys", autospec=True) as mock_list_keys,
         ):
             audit.audit_b2()
-        printed = "".join(call.args[0] for call in mock_stdout.write.call_args_list if call.args)
-        assert "mystery-id" in printed
-        assert "ORPHAN" in printed
+
+        assert capsys.readouterr().out.strip() == "== B2 application keys (via rotation key) =="
+        mock_list_keys.assert_not_called()
 
 
 def _run_r2_with_tokens(tokens):

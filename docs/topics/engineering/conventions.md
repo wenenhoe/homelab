@@ -98,7 +98,7 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   for a helper that cannot take a fixture); `session_class` also replaces
   `requests.Session` with a class that returns it. A test sets
   `.return_value` on the method it expects the code to call.
-  `b2_api` (`tools/tests/cloud_credentials/conftest.py`) is the same for
+  `b2_api` (`tools/tests/conftest.py`) is the same for
   b2sdk: a real `B2Api` over an in-memory account with its network calls
   stubbed, and `full_application_key()`, `application_key()` and
   `bucket()` in `_b2_objects.py` build the real key and bucket objects.
@@ -110,10 +110,12 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   with connect, exec_command and close stubbed and `known_hosts` never
   read; `exec_result()` and `pty_result()` in `_ssh_objects.py` build the
   three real streams `exec_command` returns. `identity_domains_client`
-  (`tools/tests/cloud_credentials/conftest.py`) is the real OCI
+  (`tools/tests/conftest.py`) is the real OCI
   `IdentityDomainsClient` the repo's own factory builds, every service
-  call stubbed; `customer_secret_key()`, `apps_response()` and
-  `response()` in `_oci_objects.py` build the SDK's own models. Its
+  call stubbed; `customer_secret_key()`, `customer_secret_keys_response()`,
+  `apps_response()` and `response()` in `_oci_objects.py` build the SDK's
+  own models. Both fixtures, like the other stubbed clients, serve every
+  test directory. Its
   service methods take `**kwargs`, so the test's assertion on the call
   pins what the code sends.
 - **Paths in error messages.** `tmp_path` embeds the test's own name in

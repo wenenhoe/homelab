@@ -44,6 +44,8 @@ import sys
 
 import requests
 from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
+from cloud_credentials.leaf_keys.b2 import b2_list_keys, b2_rotation_api
+from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
 from utils.repo import SECRETS_DIR
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
@@ -111,10 +113,9 @@ def audit_local() -> None:
 
 def audit_oci() -> None:
     print("\n== OCI customer secret keys (write + read leaves) ==")
-    from cloud_credentials.rotation_keys.oci_scim import oci_scim_session
 
     try:
-        session, domain_url = oci_scim_session()
+        client = oci_identity_domains_client()
     except SystemExit:
         # require_cache_file() already printed what's missing and why.
         return
@@ -125,16 +126,14 @@ def audit_oci() -> None:
         if not user_id:
             print(f"  {leaf}: no cached user OCID, skipping")
             continue
-        resp = session.get(f"{domain_url}/admin/v1/CustomerSecretKeys", params={"filter": f'user.ocid eq "{user_id}"'})
-        resp.raise_for_status()
-        keys = resp.json().get("Resources", [])
+        keys = client.list_customer_secret_keys(filter=f'user.ocid eq "{user_id}"').data.resources or []
         print(f"  {leaf}-leaf user has {len(keys)} customer secret key(s) (OCI allows max 2):")
         for key in keys:
-            marker = "ACTIVE (matches cache)" if key["id"] == active_scim_id else "ORPHAN"
-            created = key.get("meta", {}).get("created", "unknown")
-            print(f"    scim_id={key['id']}  accessKey={key.get('accessKey')}  created={created}  status={key.get('status', 'unknown')}  [{marker}]")
+            marker = "ACTIVE (matches cache)" if key.id == active_scim_id else "ORPHAN"
+            created = (key.meta.created if key.meta else None) or "unknown"
+            print(f"    scim_id={key.id}  accessKey={key.access_key}  created={created}  status={key.status or 'unknown'}  [{marker}]")
             if marker == "ORPHAN":
-                print(f"      delete: DELETE {domain_url}/admin/v1/CustomerSecretKeys/{key['id']}")
+                print(f"      delete: DELETE {client.base_client.endpoint}/admin/v1/CustomerSecretKeys/{key.id}")
                 print(f"      or Console: Identity & Security > Users > homelab-cloud-sync-{leaf} > Customer Secret Keys > Delete")
 
 
@@ -143,44 +142,25 @@ def audit_oci() -> None:
 
 def audit_b2() -> None:
     print("\n== B2 application keys (via rotation key) ==")
-    rotation_key_id = cached("_rotation-key-backblaze-b2-key-id")
-    rotation_key = cached("_rotation-key-backblaze-b2-application-key")
-    if not rotation_key_id or not rotation_key:
-        print("  no cached rotation key — run python3 -m cloud_credentials.create_rotation_keys --provider b2 first")
+    try:
+        keys = b2_list_keys(b2_rotation_api())
+    except SystemExit:
+        # require_cache_file() already printed what's missing and why.
         return
 
-    auth = requests.get("https://api.backblazeb2.com/b2api/v2/b2_authorize_account", auth=(rotation_key_id, rotation_key), timeout=45)
-    auth.raise_for_status()
-    auth = auth.json()
-    session = requests.Session()
-    session.headers["Authorization"] = auth["authorizationToken"]
-
-    # b2_list_keys is confirmed to exist on v3/v4 in Backblaze's own docs;
-    # this repo's create calls all use v2 elsewhere, and v2's list_keys
-    # shape isn't independently confirmed here — NEEDS LIVE VERIFICATION,
-    # falls back to v4 below if v2 404s.
-    for api_version in ("v2", "v4"):
-        resp = session.get(
-            f"{auth['apiUrl']}/b2api/{api_version}/b2_list_keys",
-            params={"accountId": auth["accountId"]},
-        )
-        if resp.status_code != 404:
-            break
-    resp.raise_for_status()
-    keys = resp.json()["keys"]
-
+    rotation_key_id = cached("_rotation-key-backblaze-b2-key-id")
     active = {
         cached("backblaze-b2-write-access-key"): "write",
         cached("backblaze-b2-read-access-key"): "read",
         cached("backblaze-b2-openbao-snapshot-write-access-key"): "openbao snapshot write leaf",
         rotation_key_id: "rotation key",
     }
-    print(f"  {len(keys)} key(s) on the account (API {api_version}):")
+    print(f"  {len(keys)} key(s) on the account:")
     for key in keys:
-        key_id = key["applicationKeyId"]
+        key_id = key.id_
         if key_id in active:
             marker = f"ACTIVE ({active[key_id]})"
-        elif key["keyName"] == "openbao-snapshot-readonly":
+        elif key.key_name == "openbao-snapshot-readonly":
             # ADR 0017: this credential is never cached anywhere by
             # design (create_snapshot_readonly_keys.py prints it once,
             # straight to the break-glass password-manager entry) - a
@@ -192,7 +172,7 @@ def audit_b2() -> None:
             marker = "ACTIVE (break-glass restore key, ADR 0017 - matched by name, not cache, since it's never cached)"
         else:
             marker = "ORPHAN"
-        print(f"    {key_id}  name={key['keyName']}  [{marker}]")
+        print(f"    {key_id}  name={key.key_name}  [{marker}]")
         if marker == "ORPHAN":
             print(f"      delete: b2_delete_key with applicationKeyId={key_id}")
             print("      or Console: App Keys > find this key ID > Delete")

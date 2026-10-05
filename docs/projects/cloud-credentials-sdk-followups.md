@@ -12,8 +12,18 @@ allowed_paths:
   - tools/tests/cloud_credentials/test_check_freshness.py
   - tools/tests/cloud_credentials/rotation_keys/test_oci_scim.py
   - tools/tests/cloud_credentials/_oci_objects.py
+  - tools/tests/cloud_credentials/test_oci_objects.py
+  - tools/tests/cloud_credentials/_b2_objects.py
+  - tools/tests/cloud_credentials/test_b2_objects.py
+  - tools/tests/cloud_credentials/conftest.py
+  - tools/tests/_oci_objects.py
+  - tools/tests/test_oci_objects.py
+  - tools/tests/_b2_objects.py
+  - tools/tests/test_b2_objects.py
+  - tools/tests/conftest.py
   - tools/tests/openbao_utils/test_audit.py
   - docs/topics/secrets/cloud-credentials/**
+  - docs/topics/engineering/conventions.md
 ---
 
 # Cloud Credential Scripts: Remaining SDK Call Sites

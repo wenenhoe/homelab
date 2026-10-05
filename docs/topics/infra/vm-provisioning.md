@@ -34,6 +34,8 @@ within a range, `vlan_id = (vmid // 100) * 10`, `host_octet = vmid % 100`
 never produces a `.0` host address to collide with. `.1` in every
 networked VLAN is reserved for OPNsense's own sub-interface (the
 gateway), independent of whether a VM literally holds the `X01` VMID.
+A VM other than OPNsense never takes an `X01` VMID, because its derived
+address would be the gateway's; every other VMID in a range starts at `X02`.
 
 Within each VLAN's `/24`, addresses are split so Tofu-managed static IPs
 and Kea's dynamic pool never collide:

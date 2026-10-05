@@ -32,7 +32,7 @@ The 3XX range, VLAN 30, is reserved and unused ([`vm-provisioning.md`](../../top
 
 ## Decision
 
-A small dedicated headless VM in VLAN 30 (VMID 301, sized like the default Ubuntu VM in [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) becomes the `controller`.
+A small dedicated headless VM in VLAN 30 (VMID 302, `192.168.30.2`, sized like the default Ubuntu VM in [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) becomes the `controller`.
 
 - **Access.** SSH only, from the maintainer's laptop, over a Tailscale route to VLAN 30. The laptop authenticates with a dedicated hardware-backed FIDO2 key (PIN and touch required) whose private half never leaves the token. The tailnet policy replaces its allow-all grant with explicit grants: the laptop reaches VLAN 30 on port 22, no other source has a grant for that route, existing access the maintainer needs is re-granted explicitly, and `tests` assert both. The coding-agent host has no path to it.
 - **Tokens.** Both of the maintainer's tokens have a key registered on the host, and one is kept offline as the spare. Losing both leaves recovery through the Proxmox node: the VM's console, or re-provisioning with a new key.

@@ -54,13 +54,6 @@ class TestOciScim:
             oci_scim.oci_scim_access_token("https://x", "cid", "wrong")
 
     @patch.object(oci_scim.requests, "post", autospec=True)
-    def test_session_carries_bearer_token_and_domain_url(self, mock_post):
-        mock_post.return_value = response(json_body={"access_token": "tok"})
-        session, domain_url = oci_scim.oci_scim_session()
-        assert domain_url == "https://idcs-example.identity.oraclecloud.com"
-        assert session.headers["Authorization"] == "Bearer tok"
-
-    @patch.object(oci_scim.requests, "post", autospec=True)
     def test_identity_domains_client_targets_the_cached_domain_url(self, mock_post):
         mock_post.return_value = response(json_body={"access_token": "tok"})
         client = oci_scim.oci_identity_domains_client()

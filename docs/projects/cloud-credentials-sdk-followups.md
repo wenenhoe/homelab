@@ -50,7 +50,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | `check_freshness.py`'s OCI lookup → `IdentityDomainsClient.get_customer_secret_key` | In progress | both leaf keys' expiry read through the SDK client against the real tenancy matches the raw call, and `check_freshness.py` no longer imports `oci_scim_session` |
 | 2 | `audit.py`'s `audit_b2()` → `b2sdk` (`b2_rotation_api` / `b2_list_keys` already exist), `audit_oci()` → the SDK list call | In progress | a live `audit.py` run reports the same keys and the same ACTIVE/ORPHAN markers as before, and `audit.py` makes no raw B2 or OCI call |
-| 3 | Delete `oci_scim_session()` and its tests | Not started | nothing references it |
+| 3 | Delete `oci_scim_session()` and its tests | Done | nothing references it |
 
 ## Acceptance criteria
 

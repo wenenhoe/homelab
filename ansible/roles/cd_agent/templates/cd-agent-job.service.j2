@@ -12,6 +12,7 @@ Type=oneshot
 User=cd-agent-{{ cd_agent_job.name }}
 Group=cd-agent-{{ cd_agent_job.name }}
 WorkingDirectory={{ cd_agent_state_root }}/{{ cd_agent_job.name }}
+Environment=PATH={{ cd_agent_opt_dir }}/bin:/usr/local/bin:/usr/bin:/bin
 Environment=PYTHONPATH={{ cd_agent_lib_dir }}
 Environment=PYTHONDONTWRITEBYTECODE=1
 ExecStart=/usr/bin/python3 -m cd_agent.run_job --repo-url {{ arg(cd_agent_repo_url) }} --state-dir {{ arg(cd_agent_state_root ~ '/' ~ cd_agent_job.name) }} --cwd {{ arg(cd_agent_job.cwd | default('.')) }}{% if cd_agent_job.on_change | default(false) %} --on-change{% endif %} --{% for part in cd_agent_job.command %} {{ arg(part) }}{% endfor %}

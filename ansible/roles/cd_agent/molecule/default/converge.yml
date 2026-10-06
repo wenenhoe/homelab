@@ -40,6 +40,8 @@
               cat /etc/cd-agent/credentials/freshness/secret_id >/dev/null 2>&1 && echo other=readable || echo other=denied
               sed 's/^/own=/' /etc/cd-agent/credentials/rotation/secret_id
               echo user=$(id -un)
+              echo state=$CD_AGENT_STATE_DIR
+              echo uv=$(command -v uv)
             } > ../probe.log
   tasks:
     - name: Include cd_agent role

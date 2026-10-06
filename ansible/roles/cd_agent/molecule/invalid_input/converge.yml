@@ -72,6 +72,15 @@
       - name: no jobs
         override: {cd_agent_jobs: []}
         expect: at least one job
+      - name: the machine Ansible is running on
+        override:
+          cd_agent_controller_machine_id: "{{ cd_agent_machine_id_raw.content | b64decode | trim }}"
+        expect: refuses to provision the machine Ansible is running on
+  pre_tasks:
+    - name: Read this host's machine id, for the case where it is also the controller's
+      ansible.builtin.slurp:
+        src: /etc/machine-id
+      register: cd_agent_machine_id_raw
   tasks:
     - name: Run the role once per bad input, expecting each to be refused
       ansible.builtin.include_tasks: tasks/case.yml

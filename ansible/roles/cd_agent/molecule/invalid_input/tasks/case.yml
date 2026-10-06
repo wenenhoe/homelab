@@ -2,6 +2,7 @@
 - name: "Run the role with {{ cd_agent_case.name }}"
   vars:
     cd_agent_effective: "{{ cd_agent_valid | combine(cd_agent_case.override) }}"
+    cd_agent_own_controller_id: "{{ lookup('ansible.builtin.file', '/etc/machine-id') | trim }}"
   block:
     - name: Include cd_agent role
       ansible.builtin.include_role:
@@ -11,6 +12,7 @@
         cd_agent_operator_address: "{{ cd_agent_effective.cd_agent_operator_address }}"
         cd_agent_admin_users: "{{ cd_agent_effective.cd_agent_admin_users }}"
         cd_agent_jobs: "{{ cd_agent_effective.cd_agent_jobs }}"
+        cd_agent_controller_machine_id: "{{ cd_agent_effective.cd_agent_controller_machine_id | default(cd_agent_own_controller_id) }}"
 
     - name: Fail, since the role accepted it
       ansible.builtin.fail:

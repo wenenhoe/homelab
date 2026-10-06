@@ -9,22 +9,46 @@
     cd_agent_verify_runner_source: "{{ (playbook_dir ~ '/../../../../../tools/cd_agent') | realpath }}"
   tasks:
     # --- The runner is the repository's, and no job can edit it ----------
-    - name: Read back the installed runner
+    - name: Read back the installed runner files
       ansible.builtin.slurp:
-        src: /opt/cd-agent/lib/cd_agent/run_job.py
+        src: "/opt/cd-agent/lib/cd_agent/{{ item }}"
+      loop: [__init__.py, run_job.py, toolchain.py]
       register: cd_agent_verify_runner
 
-    - name: Stat the installed runner
+    - name: Stat the installed runner files
       ansible.builtin.stat:
-        path: /opt/cd-agent/lib/cd_agent/run_job.py
+        path: "/opt/cd-agent/lib/cd_agent/{{ item }}"
+      loop: [__init__.py, run_job.py, toolchain.py]
       register: cd_agent_verify_runner_stat
 
-    - name: Confirm it matches tools/cd_agent/run_job.py and is root-owned and not group- or world-writable
+    - name: Confirm each matches tools/cd_agent/ and is root-owned and not group- or world-writable
       ansible.builtin.assert:
         that:
-          - (cd_agent_verify_runner.content | b64decode | trim) == (lookup('file', cd_agent_verify_runner_source ~ '/run_job.py') | trim)
-          - cd_agent_verify_runner_stat.stat.pw_name == 'root'
-          - cd_agent_verify_runner_stat.stat.mode == '0644'
+          - (item.0.content | b64decode | trim) == (lookup('file', cd_agent_verify_runner_source ~ '/' ~ item.0.item) | trim)
+          - item.1.stat.pw_name == 'root'
+          - item.1.stat.mode == '0644'
+      loop: "{{ cd_agent_verify_runner.results | zip(cd_agent_verify_runner_stat.results) | list }}"
+      loop_control:
+        label: "{{ item.0.item }}"
+
+    # --- uv: root-owned, and a job's user can run it ----------------------
+    - name: Stat the uv the jobs find on their PATH
+      ansible.builtin.stat:
+        path: /opt/cd-agent/bin/uv
+        follow: true
+      register: cd_agent_verify_uv_stat
+
+    - name: Run it as a job's user
+      ansible.builtin.command: runuser -u cd-agent-deploy -- /opt/cd-agent/bin/uv --version
+      register: cd_agent_verify_uv
+      changed_when: false
+
+    - name: Confirm it is root-owned, not writable by anyone else, and runs
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_uv_stat.stat.pw_name == 'root'
+          - cd_agent_verify_uv_stat.stat.mode == '0755'
+          - cd_agent_verify_uv.stdout is regex('^uv [0-9]+\.[0-9]+\.[0-9]+')
 
     # --- One distinct, unprivileged, non-login user per job --------------
     - name: Look up the passwd database
@@ -105,14 +129,32 @@
         fail_msg: "Readable by: {{ cd_agent_verify_reads.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list }}"
 
     # --- The jobs run for real: as their user, from a fetched checkout ----
-    # Starting a oneshot unit blocks until its run ends and fails if the run does.
-    - name: Run the deploy job twice
+    # Starting a oneshot unit blocks until its run ends and fails if the run
+    # does. What was already in ran.log is read first, so a host that has run
+    # this job before (a local re-run, with main moved on) is judged on what
+    # these two starts add.
+    - name: Read what the deploy job has run so far, if anything
+      ansible.builtin.slurp:
+        src: /var/lib/cd-agent/deploy/ran.log
+      register: cd_agent_verify_ran_before
+      failed_when: false
+
+    - name: Start the deploy job
       ansible.builtin.systemd:
         name: cd-agent-deploy.service
         state: started
-      loop: [first, second]
 
-    - name: Read what the deploy job recorded
+    - name: Read what it has run after the first start
+      ansible.builtin.slurp:
+        src: /var/lib/cd-agent/deploy/ran.log
+      register: cd_agent_verify_ran_first
+
+    - name: Start the deploy job again
+      ansible.builtin.systemd:
+        name: cd-agent-deploy.service
+        state: started
+
+    - name: Read what it has run after the second start, and its record
       ansible.builtin.slurp:
         src: "/var/lib/cd-agent/deploy/{{ item }}"
       loop: [ran.log, deployed]
@@ -129,21 +171,26 @@
       changed_when: false
 
     # `$$(id -un)` in the unit is `$(id -un)` to the shell: the command ran
-    # as its own user. Two starts, one run: the second found the commit
-    # already deployed.
-    - name: Confirm one run, as the job's user, on the commit now recorded as deployed
+    # as its own user. The second start found the commit already deployed.
+    - name: Confirm the second start ran nothing, and the last run was as the job's user on the commit recorded as deployed
       ansible.builtin.assert:
         that:
-          - cd_agent_verify_ran.splitlines() | length == 1
-          - cd_agent_verify_ran is regex('^cd-agent-deploy [0-9a-f]{40}$')
-          - cd_agent_verify_ran.split(' ')[1] == cd_agent_verify_recorded
+          - cd_agent_verify_lines_second == cd_agent_verify_lines_first
+          - cd_agent_verify_lines_first | int - cd_agent_verify_lines_before | int in [0, 1]
+          - cd_agent_verify_lines_first | int >= 1
+          - cd_agent_verify_last is regex('^cd-agent-deploy [0-9a-f]{40}$')
+          - cd_agent_verify_last.split(' ')[1] == cd_agent_verify_recorded
           - cd_agent_verify_deployed_stat.stat.pw_name == 'cd-agent-deploy'
           - "'already deployed; nothing to do' in cd_agent_verify_deploy_journal.stdout"
         fail_msg: >-
-          ran.log: {{ cd_agent_verify_ran }}
+          lines before/first/second: {{ cd_agent_verify_lines_before }}/{{ cd_agent_verify_lines_first }}/{{ cd_agent_verify_lines_second }}
+          last: {{ cd_agent_verify_last }}
           journal: {{ cd_agent_verify_deploy_journal.stdout }}
       vars:
-        cd_agent_verify_ran: "{{ cd_agent_verify_deploy_files.results[0].content | b64decode | trim }}"
+        cd_agent_verify_lines_before: "{{ (cd_agent_verify_ran_before.content | default('') | b64decode).splitlines() | length }}"
+        cd_agent_verify_lines_first: "{{ (cd_agent_verify_ran_first.content | b64decode).splitlines() | length }}"
+        cd_agent_verify_lines_second: "{{ (cd_agent_verify_deploy_files.results[0].content | b64decode).splitlines() | length }}"
+        cd_agent_verify_last: "{{ (cd_agent_verify_deploy_files.results[0].content | b64decode).splitlines() | last }}"
         cd_agent_verify_recorded: "{{ cd_agent_verify_deploy_files.results[1].content | b64decode | trim }}"
 
     - name: Run the freshness job
@@ -177,11 +224,19 @@
         src: /var/lib/cd-agent/rotation/probe.log
       register: cd_agent_verify_probe
 
-    - name: Confirm the sandbox kept the filesystem read-only outside the state directory and the other job's credential out of reach, and its own was readable
+    - name: Confirm the sandbox, credential isolation, uv and state directory were as expected inside the unit
       ansible.builtin.assert:
         that:
-          - (cd_agent_verify_probe.content | b64decode).splitlines() == ['fs=readonly', 'other=denied', 'own=secret-rotation', 'user=cd-agent-rotation']
+          - (cd_agent_verify_probe.content | b64decode).splitlines() == cd_agent_verify_probe_expected
         fail_msg: "probe.log: {{ cd_agent_verify_probe.content | b64decode }}"
+      vars:
+        cd_agent_verify_probe_expected:
+          - fs=readonly
+          - other=denied
+          - own=secret-rotation
+          - user=cd-agent-rotation
+          - state=/var/lib/cd-agent/rotation
+          - uv=/opt/cd-agent/bin/uv
 
     # --- Timers --------------------------------------------------------------
     - name: Read each timer's unit file  # noqa: command-instead-of-module

@@ -14,8 +14,9 @@
 #   on_calendar    a systemd calendar expression; exactly one of poll_interval and on_calendar
 #   timeout        optional systemd time span, default cd_agent_default_timeout
 #
-# The runner is copied from the controller's checkout, not fetched: the code
-# that decides what runs is never replaced by what it fetches.
+# The runner and toolchain step are copied from the controller's checkout, not
+# fetched: the code that decides what runs is never replaced by what it
+# fetches. uv, which the toolchain step uses, is a pinned, checksummed release.
 #
 # Not here: the credential files themselves (delivered into each job's
 # credential directory by the AppRoles work), failure alerts and heartbeats,
@@ -76,6 +77,19 @@
       - cd_agent_jobs | map(attribute='name') | unique | list | length == cd_agent_jobs | length
     fail_msg: "cd_agent_jobs must hold at least one job, with unique names."
 
+# The CD agent never provisions itself (ADR 0044). Machine ids, not hostnames or
+# addresses, so an SSH connection from this host to itself is caught too.
+- name: Read this host's machine id
+  ansible.builtin.slurp:
+    src: /etc/machine-id
+  register: cd_agent_target_machine_id
+
+- name: Refuse to provision the machine Ansible is running on
+  ansible.builtin.assert:
+    that:
+      - (cd_agent_target_machine_id.content | b64decode | trim) != cd_agent_controller_machine_id
+    fail_msg: "cd_agent refuses to provision the machine Ansible is running on: the CD agent never provisions itself. Run this from the operator host."
+
 - name: Install what the jobs and sshd need
   ansible.builtin.apt:
     name:
@@ -105,6 +119,9 @@
     - "{{ cd_agent_opt_dir }}"
     - "{{ cd_agent_lib_dir }}"
     - "{{ cd_agent_lib_dir }}/cd_agent"
+    - "{{ cd_agent_opt_dir }}/bin"
+    - "{{ cd_agent_opt_dir }}/uv"
+    - "{{ cd_agent_opt_dir }}/uv/{{ cd_agent_uv_version }}"
     - "{{ cd_agent_etc_dir }}"
     - "{{ cd_agent_state_root }}"
 
@@ -118,7 +135,7 @@
     group: root
     mode: "0711"
 
-- name: Install the runner, root-owned so no job user can edit it
+- name: Install the runner and toolchain step, root-owned so no job user can edit them
   ansible.builtin.copy:
     src: "{{ cd_agent_runner_source_dir }}/{{ item }}"
     dest: "{{ cd_agent_lib_dir }}/cd_agent/{{ item }}"
@@ -128,6 +145,47 @@
   loop:
     - __init__.py
     - run_job.py
+    - toolchain.py
+
+# --- uv: pinned, checksummed, root-owned ---------------------------------------
+
+- name: Check the host is the architecture the pinned uv release is built for
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['architecture'] == 'x86_64'
+    fail_msg: "The pinned uv release is x86_64 only, this host is {{ ansible_facts['architecture'] }}."
+
+- name: Download the pinned uv release
+  ansible.builtin.get_url:
+    url: "https://github.com/astral-sh/uv/releases/download/{{ cd_agent_uv_version }}/uv-x86_64-unknown-linux-gnu.tar.gz"
+    dest: "{{ cd_agent_opt_dir }}/uv/uv-{{ cd_agent_uv_version }}.tar.gz"
+    checksum: "sha256:{{ cd_agent_uv_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: cd_agent_uv_download
+  until: cd_agent_uv_download is succeeded
+  retries: 3
+  delay: 5
+
+- name: Unpack it
+  ansible.builtin.unarchive:
+    src: "{{ cd_agent_opt_dir }}/uv/uv-{{ cd_agent_uv_version }}.tar.gz"
+    dest: "{{ cd_agent_opt_dir }}/uv/{{ cd_agent_uv_version }}"
+    remote_src: true
+    extra_opts:
+      - --strip-components=1
+    owner: root
+    group: root
+    creates: "{{ cd_agent_opt_dir }}/uv/{{ cd_agent_uv_version }}/uv"
+
+- name: Point the jobs' PATH entry at that version
+  ansible.builtin.file:
+    src: "{{ cd_agent_opt_dir }}/uv/{{ cd_agent_uv_version }}/uv"
+    dest: "{{ cd_agent_opt_dir }}/bin/uv"
+    state: link
+    owner: root
+    group: root
 
 # --- One user per job ---------------------------------------------------
 

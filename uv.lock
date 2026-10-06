@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 resolution-markers = [
     "sys_platform == 'linux2'",
@@ -113,7 +113,7 @@ wheels = [
 
 [[package]]
 name = "ansible-core"
-version = "2.21.4"
+version = "2.21.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cryptography" },
@@ -122,9 +122,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "resolvelib" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/df/72/2152230f254bd9c6b892f95d6d291a96fd09b632ce01c6b406eda8c5cd75/ansible_core-2.21.4.tar.gz", hash = "sha256:81a9329f4f12cfa5008dcab5d1bf23ae69b7effc08c0f00048ab2461147ae95a", size = 3394492, upload-time = "2026-09-08T16:51:48.569Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/0b/27/d02c3f75e9f1468b5efbe49667574f68331b17e8a9f2bb99e1d18be70052/ansible_core-2.21.5.tar.gz", hash = "sha256:65bb3148c58ebb843cd5074004c805f404f152114d98476dd823324616c9c6cb", size = 3395026, upload-time = "2026-10-05T15:11:00.15Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a1/05/d4e28474dd027db4d60fef2422cf6bc80df100ab32e5fa5e7aad898ffd55/ansible_core-2.21.4-py3-none-any.whl", hash = "sha256:ebe74d9c8fadcb41ad2151e031bf1e785e3098aaa015019b4e19a0a96f0dcc4f", size = 2457154, upload-time = "2026-09-08T16:51:47.044Z" },
+    { url = "https://files.pythonhosted.org/packages/57/6f/7321059b2d1a5ea3c7e60807a5269942d93b2c11a2fc89ba8e4a3e827891/ansible_core-2.21.5-py3-none-any.whl", hash = "sha256:08886f9f3e23d129aa98a01271c4a47833516e1cb7c737a246788cb474f41222", size = 2457267, upload-time = "2026-10-05T15:10:58.444Z" },
 ]
 
 [[package]]
@@ -147,16 +147,16 @@ wheels = [
 
 [[package]]
 name = "b2sdk"
-version = "2.13.0"
+version = "2.13.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-types" },
     { name = "logfury" },
     { name = "requests" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/9c/63c08bc3d737893689f62a1fb7a6a61cd60f73cb0e9ac07c62de65dbe9a1/b2sdk-2.13.0.tar.gz", hash = "sha256:edb586be7698b4b868194506cd81d594364e445817461c7e7b43df47378f6827", size = 210181, upload-time = "2026-09-14T19:05:18.636Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/32/1d/18ad9b5ed6408b74d159a65544a786813149aaf34128e888c6c42ed49595/b2sdk-2.13.1.tar.gz", hash = "sha256:45f91907bb677f916c920e9ccc3d120fdbd2b11d0059ff2cd06360973c281e6f", size = 210410, upload-time = "2026-10-04T16:19:26.16Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/70/f1/d0dec920f2af7fc8a67640a08c5ec6397d92922db51b91ff488520915f7b/b2sdk-2.13.0-py3-none-any.whl", hash = "sha256:2063cd1c1c202f2dbc0fc517e9ad0c50980939355f565704e0183c4817f18524", size = 301298, upload-time = "2026-09-14T19:05:17.381Z" },
+    { url = "https://files.pythonhosted.org/packages/61/0c/5f3b9a75835f4dd897ee65b3a4d719700e7583989c38a01dba76280ca18e/b2sdk-2.13.1-py3-none-any.whl", hash = "sha256:ce6533be17f75785ce9511f063b9dd1142adbe71fa124417005b65bad69e8abe", size = 301509, upload-time = "2026-10-04T16:19:24.848Z" },
 ]
 
 [[package]]

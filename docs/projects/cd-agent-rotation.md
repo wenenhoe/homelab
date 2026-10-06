@@ -30,7 +30,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Chaining in the `cd_agent` role: successors, jobs with no timer, and chain validation | In progress | A role run builds a chain whose successor runs as its own user after its predecessor ends, after a success and after a failure, and refuses a cycle, a successor that is no job, and a job nothing starts |
+| 1 | Chaining in the `cd_agent` role: successors, jobs with no timer, and chain validation | Done | A role run builds a chain whose successor runs as its own user after its predecessor ends, after a success and after a failure, and refuses a cycle, a successor that is no job, and a job nothing starts |
 | 2 | The rotation job and `redeploy-storage`, defined in the agent's inventory | Not started | A rotation run replaces the six leaf credentials monthly, and `storage` is running the new write key before its next `cloud_sync`, without a manual deploy |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -51,7 +51,7 @@ Rotation covers the six leaf credentials only, as rotate-and-revoke: `create_lea
 
 ## Open items
 
-- Neither job can log in to OpenBao until a job can read its credential from where it is delivered; see [`cd-agent-approles.md`](cd-agent-approles.md)'s open items.
+- Neither job can log in to OpenBao until its credentials are in its credentials directory; delivering them is [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s.
 - `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'.
 
 ## Closing checklist

@@ -48,7 +48,7 @@ unit runs as its own unprivileged user, fetches `origin/main`
 anonymously into its own state directory, checks out the commit as a
 clean tree, and runs the playbook or `tools/` entry point from it. The
 poll, decide and run step is [`tools/cd_agent/run_job.py`](../../tools/cd_agent/run_job.py), unit-tested and described in [`cd-agent-runner.md`](../topics/deploy/cd-agent-runner.md). The host's
-only inbound service is `sshd`, accepted from the operator host alone. The `cd_agent` role ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)) builds the users, units and `sshd` restriction from a `cd_agent_jobs` list. The `cd_agent` inventory group, the three jobs' definitions in its group variables and `playbooks/cd-agent.yaml` apply it. Rotation is [`cd-agent-rotation.md`](cd-agent-rotation.md)'s.
+only inbound service is `sshd`, accepted from the operator host alone. The `cd_agent` role ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)) builds the users, units and `sshd` restriction from a `cd_agent_jobs` list. The `cd_agent` inventory group, the jobs' definitions in its group variables and `playbooks/cd-agent.yaml` apply it. Rotation is [`cd-agent-rotation.md`](cd-agent-rotation.md)'s.
 The freshness job replaces the weekly user timer on `controller` (`tools/cloud_credentials/systemd/`), running as a plain weekly timer on this always-on host. See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) this stage implements.
 
 ## Acceptance criteria

@@ -19,8 +19,10 @@ The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the 
 | `deploy` | A minute after boot, then 5 minutes after each run ends; acts only when `main` has a commit it has not deployed | `ansible-playbook playbooks/deploy.yaml` in `ansible/`, with `ansible/requirements.yml`'s collections |
 | `maintenance` | The 1st and 15th of each month at 03:00 | `ansible-playbook playbooks/maintenance.yaml` in `ansible/`, with the same collections |
 | `freshness` | Weekly, Monday at 00:00 | `python -m cloud_credentials.check_freshness` in `tools/` |
+| `rotation` | The 8th of each month at 02:00 | `python -m cloud_credentials.rotate_leaf_keys` in `tools/`, which rotates the six leaf credentials ([`rotation.md`](../secrets/cloud-credentials/rotation.md#rotation)) |
+| `redeploy-storage` | When `rotation` ends, however it ends; no timer | `ansible-playbook playbooks/deploy.yaml --limit storage,localhost` in `ansible/`, with the same collections, and without waiting for a new commit |
 
-Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). Rotation is not a job yet.
+Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). `storage` takes a rotated write key only when `deploy.yaml` next renders its `rclone.conf`, which is what `redeploy-storage` does. The 8th at 02:00 is clear of `maintenance` (the 1st and 15th) and leaves the redeploy finished before `cloud_sync`'s 06:00 run. `rotation` keeps the default timeout, which is also the lifetime of its AppRole token ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md#creating-the-roles)).
 
 ## Variables
 
@@ -72,7 +74,7 @@ A job's `successors` are the jobs systemd starts when it ends ([ADR 0074](../../
 
 A successor is an ordinary job with its own user, state directory and credentials, and its own fetch and clean checkout of `origin/main`. It never sees its predecessor's tree, state or environment, and only the fact that the predecessor ended reaches it. It must therefore be idempotent. A job that has no timer is started only as a successor: it gets a unit and no timer, and a job may have both.
 
-Before it installs anything the role refuses a successor that is no job, successors that are not a list of names, a cycle, and a job that has neither a timer nor a predecessor, so nothing would ever start it (`cd_agent_chain_errors`, in [`ansible/filter_plugins/cd_agent_chain.py`](../../../ansible/filter_plugins/cd_agent_chain.py)). The chain is the operator's data in `cd_agent_jobs`, applied when provisioning, and nothing read from a fetched commit can add or change one. No job uses a chain yet.
+Before it installs anything the role refuses a successor that is no job, successors that are not a list of names, a cycle, and a job that has neither a timer nor a predecessor, so nothing would ever start it (`cd_agent_chain_errors`, in [`ansible/filter_plugins/cd_agent_chain.py`](../../../ansible/filter_plugins/cd_agent_chain.py)). The chain is the operator's data in `cd_agent_jobs`, applied when provisioning, and nothing read from a fetched commit can add or change one. `rotation` is the one job with a successor, `redeploy-storage`. A unit test over the inventory ([`test_cd_agent_inventory.py`](../../../ansible/tests/test_cd_agent_inventory.py)) fails if that chain is invalid, if `redeploy-storage` gains a timer or `on_change`, or if its `--limit` is anything but `storage,localhost`.
 
 ## `sshd`
 

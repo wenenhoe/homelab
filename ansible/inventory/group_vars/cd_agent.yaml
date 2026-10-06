@@ -18,3 +18,22 @@ cd_agent_jobs:
     on_calendar: weekly
     cwd: tools
     command: [python3, -m, cd_agent.toolchain, --, python, -m, cloud_credentials.check_freshness]
+  - name: rotation
+    on_calendar: "*-*-08 02:00:00"
+    cwd: tools
+    command: [python3, -m, cd_agent.toolchain, --, python, -m, cloud_credentials.rotate_leaf_keys]
+    successors: [redeploy-storage]
+  # No timer: it follows rotation however that ends (ADR 0074). No on_change, since a rotation changes no commit.
+  - name: redeploy-storage
+    cwd: ansible
+    command:
+      - python3
+      - -m
+      - cd_agent.toolchain
+      - --collections
+      - requirements.yml
+      - --
+      - ansible-playbook
+      - playbooks/deploy.yaml
+      - --limit
+      - storage,localhost

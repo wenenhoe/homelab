@@ -58,7 +58,7 @@ Rotation covers the six leaf credentials only, monthly, as rotate-and-revoke: `c
 
 `storage` takes the write leaf only when `deploy.yaml` re-renders its `rclone.conf`, and the deploy job acts only on a changed commit, so a rotation needs a follow-on job, which [ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md) decides: `redeploy-storage` runs `deploy.yaml --limit storage,localhost` without `--on-change`, as its own user with its own `secret_id` for the deploy AppRole, started by systemd when the rotation job ends, whatever its result, because leaves rotate independently and a failed run can still have revoked a key. Rotation is scheduled for the 8th at 02:00, so the redeploy finishes before `cloud_sync`'s 06:00 run and clear of the maintenance runs. The runner also needs a native `rclone` at the version `cloud_sync` uses, since the verification follows production's request sequence.
 
-This stage cannot start until [ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md), `working`, is `approved`. A project links one decision, so this stage then moves to a project of its own.
+[ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md) is `approved`. A project links one decision, so this stage moves to a project of its own before it starts.
 
 ## Acceptance criteria
 

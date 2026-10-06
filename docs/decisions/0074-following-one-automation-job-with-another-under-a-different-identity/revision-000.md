@@ -6,7 +6,7 @@ title: Following one automation job with another under a different identity
 solution: A job may name successor jobs that systemd starts when it ends, each its own user and fetch, defined in the operator-applied inventory and carrying no data
 summary: How the end of one CD agent job starts a second job that needs credentials the first must not hold.
 topic: deployment-platform
-status: working
+status: approved
 narrows: ADR-0044
 related: [ADR-0020, ADR-0023, ADR-0072]
 ---
@@ -25,7 +25,11 @@ A leaf rotation creates a new key, verifies it, and revokes the old one at once 
 
 Leaves rotate independently. A run can rotate and revoke some leaves and then fail on another, so a failed run leaves `storage` stale just as a successful one does, and a run that rotated nothing leaves it correct. A deploy renders from the store's current values and is idempotent, so running one when nothing changed is harmless.
 
-systemd starts a named unit when another ends, through `OnSuccess=` and `OnFailure=` in the `[Unit]` section. Tested on systemd 255 with two oneshot units: the second ran as a different user after the first, on success and on failure, saw none of the first's environment, and needed no timer and no enablement.
+systemd starts a named unit when another ends, through `OnSuccess=` and `OnFailure=` in the `[Unit]` section. Tested on systemd 255 and on 259.5, the version Ubuntu 26.04 ships on the CD agent host, with two oneshot units carrying ADR 0044's sandbox options: the second ran as a different user after the first, on success and on failure, saw none of the first's environment, and needed no timer and no enablement.
+
+OpenBao's AppRole API generates a new secret ID on each call and lists them by accessor ([API](https://openbao.org/docs/api/auth/approle/)), so one role holds several independent secret IDs.
+
+The write leaf's redeploy is `deploy.yaml --limit storage,localhost`, confirmed live ([`secrets-rotation.md`](../../topics/secrets/secrets-rotation.md)). The limit confines a run to `storage` and the controller; which OpenBao paths the deploy identity may read is [ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)'s.
 
 **Threat model.** The adversary can write to `main`, or controls a managed host or the coding-agent host, as in ADR 0044. The assets are the credentials each job holds. If what follows what were defined in the fetched tree, a merge to `main` could add a follow-on under any identity. If data passed from one job to the next, the first job could steer the second.
 
@@ -44,18 +48,6 @@ systemd starts a named unit when another ends, through `OnSuccess=` and `OnFailu
 - **The deploy job also acting on a changed credential.** It puts OpenBao reads into the poll and decide step, which holds no credential and fetches anonymously.
 - **Following only a successful run.** A failed rotation can still have revoked a key.
 - **A person runs the deploy.** That is the manual step this removes.
-
-## Assumptions
-
-- **Claim:** A chain behaves as tested on the CD agent host's systemd, including between units that carry ADR 0044's sandbox options.
-  **Breaks if wrong:** The unit options or the start order change.
-  **Checked by:** The role's Molecule scenario, which runs a chain on that image.
-- **Claim:** OpenBao's AppRole holds several valid `secret_id`s for one role, so `redeploy-storage`'s credential is independent of the deploy job's.
-  **Breaks if wrong:** A fifth AppRole with the deploy policy is needed.
-  **Checked by:** Reading OpenBao's AppRole documentation for the deployed version, or the work that builds the AppRoles ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md)).
-- **Claim:** A deploy limited to `storage,localhost` re-renders the write leaf's `rclone.conf` without touching another host or reading the rotation tier.
-  **Breaks if wrong:** The follow-on needs a different limit or its own playbook.
-  **Checked by:** A check-mode run limited that way.
 
 ## Consequences
 

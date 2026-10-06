@@ -62,6 +62,10 @@ leaf.
 - [ ] `cd-agent-snapshot` can save a snapshot and read its six named leaf paths, and can read no other leaf path, verified.
 - [ ] Each `secret_id` is delivered response-wrapped over stdin and unwrapped once on `cd_agent` into the job user's `0400` file, and a second unwrap of the same token fails, verified.
 
+## Open items
+
+- Nothing consumes a credential where it is delivered. The `secrets` role (`ansible/roles/secrets/tasks/vault_login.yaml`) and `tools/utils/repo.py` read `openbao-controller-role-id` and `-secret-id` from `ansible/files/secrets/` in the checkout, which a CD agent job's clean tree does not have, and the delivery criterion above names no path. Each must take its credential file's path from the job's environment before a job can log in. No project's scope covers this yet: it needs a stage here or a project of its own.
+
 ## Closing checklist
 
 Copied from [`README.md`](README.md#when-a-project-finishes); run before

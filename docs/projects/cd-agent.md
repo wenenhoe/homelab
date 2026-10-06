@@ -56,9 +56,9 @@ The freshness job replaces the weekly user timer on `controller` (`tools/cloud_c
 
 Rotation covers the six leaf credentials only, monthly, as rotate-and-revoke: `create_leaf_keys --rotate both` per provider creates a new key, verifies it over rclone, and only then revokes the old one ([ADR 0023](../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md)). The three rotation-tier credentials stay human-attended, with the freshness check as the prompt: B2's is minted from a master key the code never stores, R2's needs a token minted in the Console first, and OCI's is a hard cutover with no rollback ([`rotation.md`](../topics/secrets/cloud-credentials/rotation.md)).
 
-`storage` takes the write leaf only when `deploy.yaml` re-renders its `rclone.conf`, and the deploy job acts only on a changed commit, so a rotation needs a follow-on job: `redeploy-storage` runs `deploy.yaml --limit storage,localhost`, as the deploy job's user, started by systemd from the rotation unit's success, not by a timer. It runs without `--on-change`. Rotation is scheduled for the 8th at 02:00, so the redeploy finishes before `cloud_sync`'s 06:00 run and clear of the maintenance runs. The runner also needs a native `rclone` at the version `cloud_sync` uses, since the verification follows production's request sequence.
+`storage` takes the write leaf only when `deploy.yaml` re-renders its `rclone.conf`, and the deploy job acts only on a changed commit, so a rotation needs a follow-on job, which [ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md) decides: `redeploy-storage` runs `deploy.yaml --limit storage,localhost` without `--on-change`, as its own user with its own `secret_id` for the deploy AppRole, started by systemd when the rotation job ends, whatever its result, because leaves rotate independently and a failed run can still have revoked a key. Rotation is scheduled for the 8th at 02:00, so the redeploy finishes before `cloud_sync`'s 06:00 run and clear of the maintenance runs. The runner also needs a native `rclone` at the version `cloud_sync` uses, since the verification follows production's request sequence.
 
-This stage cannot start until ADR 0044 is revised: it says each job has its own user and its own timer, and `redeploy-storage` has neither.
+This stage cannot start until [ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md), `working`, is `approved`. A project links one decision, so this stage then moves to a project of its own.
 
 ## Acceptance criteria
 
@@ -76,7 +76,7 @@ This stage cannot start until ADR 0044 is revised: it says each job has its own 
 - The `cd_agent` role does not remove a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 - The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists ([`cd-agent-approles.md`](cd-agent-approles.md)); it needs a native `rclone`, not Docker.
 - Each job's heartbeat depends on ADR 0072's mechanism ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), which is not built.
-- The deploy, maintenance and freshness jobs cannot log in to OpenBao yet: the `secrets` role and `tools/utils/repo.py` read the AppRole credential from `ansible/files/secrets/` in the checkout, which a job's clean tree does not have, and each job's AppRole is [`cd-agent-approles.md`](cd-agent-approles.md)'s. Applying the role before that is settled starts jobs that fail on every run.
+- The deploy, maintenance and freshness jobs cannot log in to OpenBao yet; what is missing is in [`cd-agent-approles.md`](cd-agent-approles.md)'s open items. Applying the role before that is settled starts jobs that fail on every run.
 - Nothing can apply the role until [`operator-host.md`](operator-host.md)'s Stage 3 builds VM 302, because `sshd` accepts `192.168.30.2` alone.
 - Whether `deploy.yaml`'s `localhost` plays run under the unit's sandbox, which makes the filesystem read-only outside the job's state directory, is not confirmed.
 - The shared SSH private key across every managed host (and possibly

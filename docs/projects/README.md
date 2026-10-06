@@ -202,7 +202,7 @@ for the reasoning.
 | Project | Status | Covers |
 | :--- | :--- | :--- |
 | [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started — ready | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
-| [`cd-agent-approles.md`](cd-agent-approles.md) | Not started — ready | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
+| [`cd-agent-approles.md`](cd-agent-approles.md) | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent-rotation.md`](cd-agent-rotation.md) | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
 | [`cd-agent.md`](cd-agent.md) | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |

@@ -2,7 +2,7 @@
 id: PROJ-cd-agent-approles
 title: CD Agent AppRoles
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot).
 decision: ADR-0020/1
@@ -31,7 +31,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-freshness` / `cd-agent-snapshot` AppRoles, CIDR-bound | Not started | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
+| 1 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-freshness` / `cd-agent-snapshot` AppRoles, CIDR-bound | In progress | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -51,6 +51,11 @@ to reach rotation-tier credentials, the freshness check shouldn't be able
 to write any, and the snapshot job shouldn't be able to read any other
 leaf.
 
+The four policies and the role-creation runbook are in
+[`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
+What remains needs the running host: creating the roles with `cd_agent`'s fixed
+address (`192.168.30.3`) as both CIDR binds, and delivering each `secret_id`.
+
 ## Acceptance criteria
 
 - [ ] All four AppRoles exist with the policies in ADR 0020 revision 001.
@@ -65,6 +70,8 @@ leaf.
 ## Open items
 
 - Nothing consumes a credential where it is delivered. The `secrets` role (`ansible/roles/secrets/tasks/vault_login.yaml`) and `tools/utils/repo.py` read `openbao-controller-role-id` and `-secret-id` from `ansible/files/secrets/` in the checkout, which a CD agent job's clean tree does not have, and the delivery criterion above names no path. Each must take its credential file's path from the job's environment before a job can log in. No project's scope covers this yet: it needs a stage here or a project of its own.
+
+- The `secret_id` rotation cadence ([ADR 0020 revision 1](../decisions/0020-automation-identity-and-access-scope/revision-001.md) leaves it to this project) is not decided.
 
 ## Closing checklist
 

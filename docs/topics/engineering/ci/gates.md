@@ -246,17 +246,13 @@ which hold a package-write token.
   match and the tag looks like a version. `check-pins` (the
   `check-image-pins` pre-commit hook, so it runs in `pre-commit-checks`
   on every PR) fails when a compose file pins a `ghcr.io/wenenhoe` tag
-  other than the one the Dockerfile will publish, a Molecule scenario
+  newer than the one the Dockerfile will publish, a Molecule scenario
   names an unpublished tag, an image has no entry, or a
-  `docker/<app>/Dockerfile` has none. A Renovate bump to a Dockerfile's
-  version therefore has to move the compose pin in the same change.
-  `.github/renovate.json5` does that: a regex manager reads each compose
-  pin as the same dependency as the Dockerfile's `FROM` and a group rule
-  puts the two in one PR, while the compose manager's own view of
-  `ghcr.io/wenenhoe/*` is disabled, because a new tag exists only after the
-  merge that publishes it. An image with a compose pin needs its own manager
-  there; `TestRenovateMovesComposePins` in
-  `tools/tests/ci/images/test_registry.py` fails until it has one.
+  `docker/<app>/Dockerfile` has none. A new tag exists only after the
+  merge that publishes it, so a Renovate bump to a Dockerfile's version
+  merges on its own and the compose pin follows in a second Renovate PR,
+  which the docker-compose manager opens once the tag is in `ghcr.io`.
+  Until then the pin lags the Dockerfile, which the check allows.
 - **`check-molecule-image-vars`** (`ci.images.molecule_vars check`, also a
   pre-commit hook, so it runs in `pre-commit-checks` on every PR) keeps
   Molecule playbooks on the shared image files under
@@ -304,7 +300,9 @@ which hold a package-write token.
 Not covered: Molecule scenarios that pull a published image
 (`caddy`'s scenarios pull `caddy-digitalocean`, and every DinD scenario
 pulls `molecule-dind:latest`) still run the published one, so a
-Dockerfile change reaches them only after merge and the next build.
+Dockerfile change reaches them only after merge and the next build. For
+`caddy` that is the compose pin's tag, so the PR that bumps the pin is
+the first to run the scenarios on the new version.
 `check-pins` reads the Dockerfile and compose text; it doesn't check the
 registry itself, so a pin that agrees with a tag that was never pushed
 passes it, and a PR can't tell either, since its boot test builds the

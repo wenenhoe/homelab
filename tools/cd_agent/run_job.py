@@ -5,7 +5,7 @@
 The run, in order: take the job's lock; fetch `main` anonymously over HTTPS;
 with `--on-change`, stop if that commit is the one last run successfully;
 check the commit out into a freshly created tree under DIR; run COMMAND there
-(from SUBDIR); with `--on-change`, record the commit only if COMMAND exited 0.
+(from SUBDIR, with CD_AGENT_STATE_DIR set to DIR); with `--on-change`, record the commit only if COMMAND exited 0.
 
 Standard library only: the agent host runs this with its own python3.
 The state-directory layout and exit codes are in
@@ -35,6 +35,7 @@ REPO_DIR = "repo.git"
 TREE_DIR = "tree"
 DEPLOYED_FILE = "deployed"
 LOCK_FILE = "lock"
+STATE_ENV = "CD_AGENT_STATE_DIR"
 EX_TEMPFAIL = 75
 
 _COMMIT = re.compile(r"[0-9a-f]{40}|[0-9a-f]{64}")
@@ -167,7 +168,7 @@ def run_job(job: Job) -> Outcome:
         checkout_clean(state / REPO_DIR, tree, commit)
         workdir = _workdir(tree, job.cwd)
         try:
-            result = subprocess.run(job.command, cwd=workdir, check=False)
+            result = subprocess.run(job.command, cwd=workdir, env={**os.environ, STATE_ENV: str(state)}, check=False)
         except OSError as exc:
             raise JobError(f"cannot start {job.command[0]!r}: {exc}") from exc
         if result.returncode != 0:

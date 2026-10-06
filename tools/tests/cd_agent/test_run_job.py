@@ -116,6 +116,16 @@ class TestActsOnOriginMainOnly:
         assert runs(log) == ["payload=on-main stray=False cwd=tree"]
 
 
+class TestCommandEnvironment:
+    def test_the_command_is_told_its_jobs_state_directory(self, origin, state_dir, log):
+        script = "import os, sys; open(os.environ['CD_AGENT_TEST_LOG'], 'a').write(os.environ['CD_AGENT_STATE_DIR'] + '\\n')"
+        origin.commit("root", files={"state.py": script})
+
+        run_job.run_job(make_job(origin, state_dir, sys.executable, "state.py"))
+
+        assert runs(log) == [str(state_dir.resolve())]
+
+
 class TestCleanTree:
     def test_a_second_run_starts_from_a_clean_tree(self, origin, state_dir, log, monkeypatch):
         origin.commit("pristine")

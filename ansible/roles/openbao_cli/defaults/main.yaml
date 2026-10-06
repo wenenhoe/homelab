@@ -1,8 +1,9 @@
 ---
 # Same tag as docker/openbao/compose.yaml.j2 / ansible/roles/openbao's
 # own pin — kept in sync by hand, same as those two already are with
-# each other. Bumping this also means bumping openbao_cli_deb_sha256
-# below, from that release's own checksums.txt.
+# each other. Bump this and openbao_cli_deb_sha256 below together: Renovate
+# (.github/renovate.json5) moves both, taking the hash from the digest GitHub
+# lists for the .deb.
 openbao_cli_version: "2.7.1"
 
 # Renamed upstream from the "bao_*" naming its predecessor project
@@ -12,8 +13,8 @@ openbao_cli_version: "2.7.1"
 openbao_cli_deb_name: "openbao_{{ openbao_cli_version }}_linux_amd64.deb"
 openbao_cli_deb_url: "https://github.com/openbao/openbao/releases/download/v{{ openbao_cli_version }}/{{ openbao_cli_deb_name }}"
 
-# From that release's own checksums.txt (GPG-signed as
+# The release's checksums.txt lists the same hash, GPG-signed as
 # checksums.txt.gpgsig, not independently verified here — this repo's
 # threat model already trusts GitHub-hosted release assets elsewhere,
-# e.g. docker/openbao's own pinned image digest-free tag).
+# e.g. docker/openbao's own pinned image digest-free tag.
 openbao_cli_deb_sha256: "aa5dd78f590a89256dffae7c7f8664b11e4380478da86454d8030020f6af0add"

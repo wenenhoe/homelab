@@ -96,7 +96,11 @@ B2's/OCI's — a deliberate, accepted trade-off, not parity.
   ```
   ansible-playbook playbooks/deploy.yaml --limit storage,localhost
   ```
-  same `,localhost` reasoning as every row in the table above.
+  same `,localhost` reasoning as every row in the table above. On the
+  CD agent the `rotation` job rotates all six leaves on the 8th of each
+  month and `redeploy-storage` then runs this
+  ([`cd-agent-host.md`](../deploy/cd-agent-host.md#applying-it)); a leaf
+  rotated by hand still needs it by hand.
 - **Read leaf** (`restore_discovery`): runs entirely on `hosts:
   controller` (your machine), rendered fresh from the current cache on
   every invocation — `restore_all.py` always does this for you before

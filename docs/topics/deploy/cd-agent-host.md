@@ -19,8 +19,10 @@ The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the 
 | `deploy` | A minute after boot, then 5 minutes after each run ends; acts only when `main` has a commit it has not deployed | `ansible-playbook playbooks/deploy.yaml` in `ansible/`, with `ansible/requirements.yml`'s collections |
 | `maintenance` | The 1st and 15th of each month at 03:00 | `ansible-playbook playbooks/maintenance.yaml` in `ansible/`, with the same collections |
 | `freshness` | Weekly, Monday at 00:00 | `python -m cloud_credentials.check_freshness` in `tools/` |
+| `rotation` | The 8th of each month at 02:00 | `python -m cloud_credentials.rotate_leaf_keys` in `tools/`, which rotates the six leaf credentials ([`rotation.md`](../secrets/cloud-credentials/rotation.md#rotation)) |
+| `redeploy-storage` | When `rotation` ends, however it ends; no timer | `ansible-playbook playbooks/deploy.yaml --limit storage,localhost` in `ansible/`, with the same collections, and without waiting for a new commit |
 
-Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). Rotation is not a job yet.
+Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). `storage` takes a rotated write key only when `deploy.yaml` next renders its `rclone.conf`, which is what `redeploy-storage` does. The 8th at 02:00 is clear of `maintenance` (the 1st and 15th) and leaves the redeploy finished before `cloud_sync`'s 06:00 run. `rotation` keeps the default timeout, which is also the lifetime of its AppRole token ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md#creating-the-roles)).
 
 ## Variables
 
@@ -35,7 +37,7 @@ These four have no default, and the role stops on the first check that finds one
 
 A job is `name` (`[a-z][a-z0-9-]{0,22}`), `command` (an argument list), at most one of `poll_interval` (`5min`: the first run is a minute after boot, then that long after each run ends) and `on_calendar` (a systemd calendar expression), and optionally `cwd`, `on_change`, `successors` ([below](#chains)) and `timeout` (default `cd_agent_default_timeout`, `1h`). `cwd` and `on_change` are the runner's `--cwd` and `--on-change`.
 
-`cd_agent_repo_url` defaults to this repository's HTTPS URL. `cd_agent_uv_version` and `cd_agent_uv_sha256` pin the `uv` release, which is downloaded only if its sha256 matches. Renovate opens the version bump, and its PR note reminds you that the sha256, published beside the release asset, has to be copied in by hand: bump them together. `cd_agent_controller_machine_id` defaults to the `/etc/machine-id` of the host running Ansible and is overridden only to test the guard below. The directory variables (`cd_agent_opt_dir`, `cd_agent_etc_dir`, `cd_agent_credentials_root`, `cd_agent_state_root`) default to the paths below.
+`cd_agent_repo_url` defaults to this repository's HTTPS URL. `cd_agent_uv_version` and `cd_agent_uv_sha256` pin the `uv` release, which is downloaded only if its sha256 matches. Renovate opens the version bump, and its PR note reminds you that the sha256, published beside the release asset, has to be copied in by hand: bump them together. `cd_agent_rclone_version` and `cd_agent_rclone_sha256` pin the `rclone` release the same way, the sha256 being the `linux-amd64.zip` line of the release's signed `SHA256SUMS`, and Renovate moves the version with the `rclone` images in `cloud_sync` and `backup_agent`. [`test_cd_agent_rclone_pin.py`](../../../ansible/tests/test_cd_agent_rclone_pin.py) fails when the version leaves the minor release `cloud_sync`'s image runs. `cd_agent_controller_machine_id` defaults to the `/etc/machine-id` of the host running Ansible and is overridden only to test the guard below. The directory variables (`cd_agent_opt_dir`, `cd_agent_etc_dir`, `cd_agent_credentials_root`, `cd_agent_state_root`) default to the paths below.
 
 ## What a job gets
 
@@ -52,7 +54,7 @@ For a job named `deploy`:
 
 The runner (`run_job.py`) and the toolchain step (`toolchain.py`) are installed under `/opt/cd-agent/lib/cd_agent/`, owned by root and mode `0644`. They are copied from the controller's checkout when the role runs, not fetched, so the code that decides what runs is never replaced by what it fetches. A change to `tools/cd_agent/` reaches the host the next time the role is applied.
 
-`uv` is unpacked under `/opt/cd-agent/uv/<version>/` and linked at `/opt/cd-agent/bin/uv`, root-owned and not writable by any job's user. Each unit's `PATH` starts with `/opt/cd-agent/bin`, so a job's command, and the toolchain step, find it. A job's environment lives in its own state directory, about 315 MB for this repository's lock.
+`uv` is unpacked under `/opt/cd-agent/uv/<version>/` and linked at `/opt/cd-agent/bin/uv`, root-owned and not writable by any job's user. Each unit's `PATH` starts with `/opt/cd-agent/bin`, so a job's command, and the toolchain step, find it. `rclone` is unpacked under `/opt/cd-agent/rclone/<version>/` and linked at `/opt/cd-agent/bin/rclone` the same way, so the leaf-key verification in [`rotation.md`](../secrets/cloud-credentials/rotation.md) finds the binary it runs. A job's environment lives in its own state directory, about 315 MB for this repository's lock.
 
 ## The unit
 
@@ -72,7 +74,7 @@ A job's `successors` are the jobs systemd starts when it ends ([ADR 0074](../../
 
 A successor is an ordinary job with its own user, state directory and credentials, and its own fetch and clean checkout of `origin/main`. It never sees its predecessor's tree, state or environment, and only the fact that the predecessor ended reaches it. It must therefore be idempotent. A job that has no timer is started only as a successor: it gets a unit and no timer, and a job may have both.
 
-Before it installs anything the role refuses a successor that is no job, successors that are not a list of names, a cycle, and a job that has neither a timer nor a predecessor, so nothing would ever start it (`cd_agent_chain_errors`, in [`ansible/filter_plugins/cd_agent_chain.py`](../../../ansible/filter_plugins/cd_agent_chain.py)). The chain is the operator's data in `cd_agent_jobs`, applied when provisioning, and nothing read from a fetched commit can add or change one. No job uses a chain yet.
+Before it installs anything the role refuses a successor that is no job, successors that are not a list of names, a cycle, and a job that has neither a timer nor a predecessor, so nothing would ever start it (`cd_agent_chain_errors`, in [`ansible/filter_plugins/cd_agent_chain.py`](../../../ansible/filter_plugins/cd_agent_chain.py)). The chain is the operator's data in `cd_agent_jobs`, applied when provisioning, and nothing read from a fetched commit can add or change one. `rotation` is the one job with a successor, `redeploy-storage`. A unit test over the inventory ([`test_cd_agent_inventory.py`](../../../ansible/tests/test_cd_agent_inventory.py)) fails if that chain is invalid, if `redeploy-storage` gains a timer or `on_change`, or if its `--limit` is anything but `storage,localhost`.
 
 ## `sshd`
 
@@ -98,7 +100,7 @@ Before anything else changes, the role reads `/etc/machine-id` on the host it is
 
 ## Also applied
 
-The role installs `git`, `python3`, `openssh-client`, `openssh-server` and the pinned `uv` (x86_64 only), and includes [`host_hardening`](../infra/host-hardening.md).
+The role installs `git`, `python3`, `unzip`, `openssh-client`, `openssh-server` and the pinned `uv` and `rclone` (x86_64 only), and includes [`host_hardening`](../infra/host-hardening.md).
 
 ## Not done by the role
 
@@ -108,4 +110,4 @@ The role installs `git`, `python3`, `openssh-client`, `openssh-server` and the p
 
 ## Testing
 
-The `default` Molecule scenario converges the role on a systemd container, then starts three fixture jobs for real against this repository over HTTPS: a poll job, and two calendar jobs. It asserts what ran and as whom: the commit recorded as deployed matches the one the job ran on, a second start did nothing, a successor ran as its own user in its own checkout, with no timer, after a predecessor that succeeded and after one that failed, a job could not write outside its state directory or read another job's credential and could read its own, found `uv` on its `PATH` and `CD_AGENT_STATE_DIR` set, and no job's user nor `nobody` could read another job's credential file. It also asserts the directory modes, the timers, the installed runner and toolchain step's contents and ownership, that `uv` is root-owned and runs as a job's user, and `sshd`'s effective configuration for the operator address and for others. `invalid_input` runs the role with 19 bad inputs, among them each way a chain can be wrong and the machine Ansible is running on, and requires each to be refused by the check that names it. The scenario does not run the toolchain step against this repository's lock, which needs Python 3.14 and PyPI; `tools/tests/cd_agent/` tests it against real `uv`. See [`molecule-testing.md`](../engineering/molecule-testing.md).
+The `default` Molecule scenario converges the role on a systemd container, then starts three fixture jobs for real against this repository over HTTPS: a poll job, and two calendar jobs. It asserts what ran and as whom: the commit recorded as deployed matches the one the job ran on, a second start did nothing, a successor ran as its own user in its own checkout, with no timer, with an environment naming its own credential and state directories and none of its predecessor's, after a predecessor that succeeded and after one that failed, a job could not write outside its state directory or read another job's credential and could read its own, found `uv` on its `PATH` and `CD_AGENT_STATE_DIR` set, and no job's user nor `nobody` could read another job's credential file. It also asserts the directory modes, the timers, the installed runner and toolchain step's contents and ownership, that `uv` and `rclone` are root-owned and run as a job's user, `rclone` at the version the role pins, and `sshd`'s effective configuration for the operator address and for others. `invalid_input` runs the role with 19 bad inputs, among them each way a chain can be wrong and the machine Ansible is running on, and requires each to be refused by the check that names it. The scenario does not run the toolchain step against this repository's lock, which needs Python 3.14 and PyPI; `tools/tests/cd_agent/` tests it against real `uv`. See [`molecule-testing.md`](../engineering/molecule-testing.md).

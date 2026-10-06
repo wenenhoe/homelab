@@ -20,3 +20,11 @@ cd_agent_controller_machine_id: "{{ lookup('ansible.builtin.file', '/etc/machine
 # (.github/renovate.json5) opens the version bump but cannot fetch the sha256.
 cd_agent_uv_version: "0.12.23"
 cd_agent_uv_sha256: "9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6"
+
+# The sha256 is the rclone-v<version>-linux-amd64.zip line of the release's
+# signed SHA256SUMS. Bump both together, as for uv. The version stays on the
+# major.minor of cloud_sync's rclone image, because leaf-key verification has to
+# follow the request sequence production's rclone makes
+# (ansible/tests/test_cd_agent_rclone_pin.py checks it).
+cd_agent_rclone_version: "1.75.1"
+cd_agent_rclone_sha256: "982b5aa772841168f8e380f139e9e787b2a105403e32b94da8676a0e1c0a13ab"

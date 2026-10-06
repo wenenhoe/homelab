@@ -18,7 +18,8 @@
 #
 # The runner and toolchain step are copied from the controller's checkout, not
 # fetched: the code that decides what runs is never replaced by what it
-# fetches. uv, which the toolchain step uses, is a pinned, checksummed release.
+# fetches. uv, which the toolchain step uses, and rclone, which leaf-key
+# verification runs, are pinned, checksummed releases.
 #
 # Not here: the credential files themselves (delivered into each job's
 # credential directory by the AppRoles work), failure alerts and heartbeats,
@@ -108,6 +109,7 @@
       - openssh-client
       - openssh-server
       - python3
+      - unzip
     state: present
     update_cache: true
     cache_valid_time: 3600
@@ -132,6 +134,8 @@
     - "{{ cd_agent_opt_dir }}/bin"
     - "{{ cd_agent_opt_dir }}/uv"
     - "{{ cd_agent_opt_dir }}/uv/{{ cd_agent_uv_version }}"
+    - "{{ cd_agent_opt_dir }}/rclone"
+    - "{{ cd_agent_opt_dir }}/rclone/{{ cd_agent_rclone_version }}"
     - "{{ cd_agent_etc_dir }}"
     - "{{ cd_agent_state_root }}"
 
@@ -159,11 +163,11 @@
 
 # --- uv: pinned, checksummed, root-owned ---------------------------------------
 
-- name: Check the host is the architecture the pinned uv release is built for
+- name: Check the host is the architecture the pinned uv and rclone releases are built for
   ansible.builtin.assert:
     that:
       - ansible_facts['architecture'] == 'x86_64'
-    fail_msg: "The pinned uv release is x86_64 only, this host is {{ ansible_facts['architecture'] }}."
+    fail_msg: "The pinned uv and rclone releases are x86_64 only, this host is {{ ansible_facts['architecture'] }}."
 
 - name: Download the pinned uv release
   ansible.builtin.get_url:
@@ -193,6 +197,45 @@
   ansible.builtin.file:
     src: "{{ cd_agent_opt_dir }}/uv/{{ cd_agent_uv_version }}/uv"
     dest: "{{ cd_agent_opt_dir }}/bin/uv"
+    state: link
+    owner: root
+    group: root
+
+# --- rclone: pinned, checksummed, root-owned -------------------------------------
+
+- name: Download the pinned rclone release
+  ansible.builtin.get_url:
+    url: "https://github.com/rclone/rclone/releases/download/v{{ cd_agent_rclone_version }}/rclone-v{{ cd_agent_rclone_version }}-linux-amd64.zip"
+    dest: "{{ cd_agent_opt_dir }}/rclone/rclone-{{ cd_agent_rclone_version }}.zip"
+    checksum: "sha256:{{ cd_agent_rclone_sha256 }}"
+    owner: root
+    group: root
+    mode: "0644"
+  register: cd_agent_rclone_download
+  until: cd_agent_rclone_download is succeeded
+  retries: 3
+  delay: 5
+
+- name: Unpack it
+  ansible.builtin.unarchive:
+    src: "{{ cd_agent_opt_dir }}/rclone/rclone-{{ cd_agent_rclone_version }}.zip"
+    dest: "{{ cd_agent_opt_dir }}/rclone/{{ cd_agent_rclone_version }}"
+    remote_src: true
+    owner: root
+    group: root
+    creates: "{{ cd_agent_opt_dir }}/rclone/{{ cd_agent_rclone_version }}/rclone-v{{ cd_agent_rclone_version }}-linux-amd64/rclone"
+
+- name: Make the binary executable and owned by root alone
+  ansible.builtin.file:
+    path: "{{ cd_agent_opt_dir }}/rclone/{{ cd_agent_rclone_version }}/rclone-v{{ cd_agent_rclone_version }}-linux-amd64/rclone"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Point the jobs' PATH entry at that version
+  ansible.builtin.file:
+    src: "{{ cd_agent_opt_dir }}/rclone/{{ cd_agent_rclone_version }}/rclone-v{{ cd_agent_rclone_version }}-linux-amd64/rclone"
+    dest: "{{ cd_agent_opt_dir }}/bin/rclone"
     state: link
     owner: root
     group: root

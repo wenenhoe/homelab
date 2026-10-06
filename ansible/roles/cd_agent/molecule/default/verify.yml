@@ -50,6 +50,28 @@
           - cd_agent_verify_uv_stat.stat.mode == '0755'
           - cd_agent_verify_uv.stdout is regex('^uv [0-9]+\.[0-9]+\.[0-9]+')
 
+    # --- rclone: root-owned, the pinned version, and a job's user can run it ---
+    - name: Stat the rclone the jobs find on their PATH
+      ansible.builtin.stat:
+        path: /opt/cd-agent/bin/rclone
+        follow: true
+      register: cd_agent_verify_rclone_stat
+
+    - name: Run it as a job's user
+      ansible.builtin.command: runuser -u cd-agent-deploy -- /opt/cd-agent/bin/rclone version
+      register: cd_agent_verify_rclone
+      changed_when: false
+
+    - name: Confirm it is root-owned, not writable by anyone else, and the version the role pins
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_rclone_stat.stat.pw_name == 'root'
+          - cd_agent_verify_rclone_stat.stat.mode == '0755'
+          - cd_agent_verify_rclone.stdout_lines[0] == 'rclone v' ~ cd_agent_verify_rclone_pinned
+        fail_msg: "rclone version printed: {{ cd_agent_verify_rclone.stdout_lines | first }}"
+      vars:
+        cd_agent_verify_rclone_pinned: "{{ (lookup('file', (playbook_dir ~ '/../../defaults/main.yaml') | realpath) | from_yaml).cd_agent_rclone_version }}"
+
     # --- One distinct, unprivileged, non-login user per job --------------
     - name: Look up the passwd database
       ansible.builtin.getent:
@@ -256,6 +278,31 @@
       until: cd_agent_verify_chain is succeeded
       retries: 30
       delay: 2
+
+    - name: Read the environment each successor ran with
+      ansible.builtin.slurp:
+        src: "/var/lib/cd-agent/{{ item }}/env.txt"
+      loop: [after-rotation, after-failure]
+      register: cd_agent_verify_successor_env
+      until: cd_agent_verify_successor_env is succeeded
+      retries: 30
+      delay: 2
+
+    # Each pair is a successor and its predecessor. A successor's variables name
+    # its own directories; a variable naming the predecessor's would be state
+    # that crossed the chain.
+    - name: Confirm each successor's environment names its own directories and none of its predecessor's
+      ansible.builtin.assert:
+        that:
+          - ('HOMELAB_SECRETS_DIR=/etc/cd-agent/credentials/' ~ item.0) in cd_agent_verify_env_lines
+          - ('CD_AGENT_STATE_DIR=/var/lib/cd-agent/' ~ item.0) in cd_agent_verify_env_lines
+          - cd_agent_verify_env_lines | select('regex', '/cd-agent/(credentials/)?' ~ item.1 ~ '($|[^a-z0-9-])') | list | length == 0
+        fail_msg: "{{ item.0 }} ran with: {{ cd_agent_verify_env_lines | select('regex', 'cd-agent') | list }}"
+      loop: "{{ ['after-rotation', 'after-failure'] | zip(['rotation', 'fails'], cd_agent_verify_successor_env.results) | list }}"
+      loop_control:
+        label: "{{ item.0 }}"
+      vars:
+        cd_agent_verify_env_lines: "{{ (item.2.content | b64decode).splitlines() }}"
 
     - name: Read the units the chains are built from  # noqa: command-instead-of-module
       ansible.builtin.command: "systemctl cat cd-agent-{{ item }}.service"

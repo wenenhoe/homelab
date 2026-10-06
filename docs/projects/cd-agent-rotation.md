@@ -30,8 +30,8 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Chaining in the `cd_agent` role: successors, jobs with no timer, and chain validation | In progress | A role run builds a chain whose successor runs as its own user after its predecessor ends, after a success and after a failure, and refuses a cycle, a successor that is no job, and a job nothing starts |
-| 2 | The rotation job and `redeploy-storage`, defined in the agent's inventory | Not started | A rotation run replaces the six leaf credentials monthly, and `storage` is running the new write key before its next `cloud_sync`, without a manual deploy |
+| 1 | Chaining in the `cd_agent` role: successors, jobs with no timer, and chain validation | Done | A role run builds a chain whose successor runs as its own user after its predecessor ends, after a success and after a failure, and refuses a cycle, a successor that is no job, and a job nothing starts |
+| 2 | The rotation job and `redeploy-storage`, defined in the agent's inventory | In progress | A rotation run replaces the six leaf credentials monthly, and `storage` is running the new write key before its next `cloud_sync`, without a manual deploy |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -41,7 +41,7 @@ Rotation covers the six leaf credentials only, as rotate-and-revoke: `create_lea
 
 `storage` takes the write leaf only when `deploy.yaml` re-renders its `rclone.conf`, and the deploy job acts only on a changed commit, so `redeploy-storage` follows the rotation job. It runs `deploy.yaml --limit storage,localhost` without `--on-change`, as its own user. Rotation is scheduled for the 8th at 02:00, so the redeploy finishes before `cloud_sync`'s 06:00 run and clear of the maintenance runs. The host needs a native `rclone` at the version `cloud_sync` uses, since the verification follows production's request sequence.
 
-`create_leaf_keys --rotate` takes one provider, and a job runs one command, so the rotation job needs a repo entry point that rotates each provider in turn. It has to carry on after one provider fails: a failure after a rotation still leaves `storage` stale, which is why the chain starts the redeploy however the rotation ends.
+The rotation job runs `python -m cloud_credentials.rotate_leaf_keys`, which rotates each provider in turn ([`rotation.md`](../topics/secrets/cloud-credentials/rotation.md#rotation)). The host has a native `rclone` at the version `cloud_sync` runs ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)); without one, verification cannot run, and each run leaves a new, unrevoked key at the provider. Both jobs are defined in the agent's inventory ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)). What is left of the stage is a real run, which needs the open items below settled and the role applied.
 
 ## Acceptance criteria
 
@@ -51,8 +51,8 @@ Rotation covers the six leaf credentials only, as rotate-and-revoke: `create_lea
 
 ## Open items
 
-- Neither job can log in to OpenBao until a job can read its credential from where it is delivered; see [`cd-agent-approles.md`](cd-agent-approles.md)'s open items.
-- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'.
+- Neither job can log in to OpenBao until its credentials are in its credentials directory; delivering them is [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s.
+- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'. The SSH key is not among [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s four files, and `ansible/inventory/inventory.yaml` reads the key from `~/.ssh/proxmox_vm_servers`. How a job gets a key, and how `storage` comes to accept it, is [ADR 0075](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md)'s, carried out by [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md).
 
 ## Closing checklist
 

@@ -9,8 +9,8 @@ collections:
   - name: community.hashi_vault
     version: "7.1.0"
   - name: community.crypto
-    version: "3.4.0"
+    version: "3.5.0"
   - name: konstruktoid.hardening
     version: "0.4.0"
   - name: community.general
-    version: "13.4.0"
+    version: "13.5.0"

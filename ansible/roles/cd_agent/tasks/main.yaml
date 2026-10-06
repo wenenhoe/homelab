@@ -11,7 +11,9 @@
 #   cwd            optional, default "." (run_job.py's --cwd)
 #   on_change      optional, default false (run_job.py's --on-change)
 #   poll_interval  e.g. 5min: first run a minute after boot, then that long after each run ends
-#   on_calendar    a systemd calendar expression; exactly one of poll_interval and on_calendar
+#   on_calendar    a systemd calendar expression; at most one of poll_interval and on_calendar
+#   successors     optional job names systemd starts when this job ends, whatever its result
+#                  (ADR 0074); a job with no timer must be some job's successor
 #   timeout        optional systemd time span, default cd_agent_default_timeout
 #
 # The runner and toolchain step are copied from the controller's checkout, not
@@ -59,7 +61,7 @@
       - cd_agent_job.command is sequence
       - cd_agent_job.command is not string
       - cd_agent_job.command | length > 0
-      - (cd_agent_job.poll_interval is defined) != (cd_agent_job.on_calendar is defined)
+      - not (cd_agent_job.poll_interval is defined and cd_agent_job.on_calendar is defined)
       - cd_agent_job.poll_interval | default('1min') is regex('^[0-9]+(s|min|h)$')
       - cd_agent_job.on_calendar | default('daily') is regex('^[A-Za-z0-9 :*,./~-]+$')
       - cd_agent_job.cwd | default('.') is regex('^[A-Za-z0-9_./-]+$')
@@ -76,6 +78,14 @@
       - cd_agent_jobs | length > 0
       - cd_agent_jobs | map(attribute='name') | unique | list | length == cd_agent_jobs | length
     fail_msg: "cd_agent_jobs must hold at least one job, with unique names."
+
+# What follows what is the operator's data, checked here before anything is installed: a cycle,
+# a successor that is no job, and a job nothing ever starts are all refused.
+- name: Check the jobs' chains
+  ansible.builtin.assert:
+    that:
+      - cd_agent_jobs | cd_agent_chain_errors | length == 0
+    fail_msg: "Invalid cd_agent_jobs chains: {{ cd_agent_jobs | cd_agent_chain_errors | join('; ') }}"
 
 # The CD agent never provisions itself (ADR 0044). Machine ids, not hostnames or
 # addresses, so an SSH connection from this host to itself is caught too.
@@ -292,7 +302,7 @@
     group: root
     mode: "0644"
   notify: Reload systemd
-  loop: "{{ cd_agent_jobs }}"
+  loop: "{{ cd_agent_timed_jobs }}"
   loop_control:
     loop_var: cd_agent_job
     label: "{{ cd_agent_job.name }}"
@@ -305,7 +315,7 @@
     name: "cd-agent-{{ cd_agent_job.name }}.timer"
     state: started
     enabled: true
-  loop: "{{ cd_agent_jobs }}"
+  loop: "{{ cd_agent_timed_jobs }}"
   loop_control:
     loop_var: cd_agent_job
     label: "{{ cd_agent_job.name }}"

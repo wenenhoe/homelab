@@ -44,7 +44,8 @@ set. It narrows where to look; it doesn't replace looking.
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | Building |
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | De-risking |
 | | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | Building |
+| `pull-based-cd` | `agent` | — | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | Building |
+| | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | Not started — ready |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `security-review-pipeline` | — | — | [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Not started — ready |
@@ -74,4 +75,3 @@ set. It narrows where to look; it doesn't replace looking.
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
 | [0059](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | **Where the tailnet policy is defined** — The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes. | Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048 settles where Tofu's own credentials live | Working |
-| [0074](decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md) | **Following one automation job with another under a different identity** — How the end of one CD agent job starts a second job that needs credentials the first must not hold. | A job may name successor jobs that systemd starts when it ends, each its own user and fetch, defined in the operator-applied inventory and carrying no data | Approved |

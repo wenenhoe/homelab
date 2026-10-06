@@ -1,0 +1,3 @@
+---
+# A chain-only job (ADR 0074) has no timer, so only these get one.
+cd_agent_timed_jobs: "{{ (cd_agent_jobs | selectattr('poll_interval', 'defined') | list) + (cd_agent_jobs | selectattr('on_calendar', 'defined') | list) }}"

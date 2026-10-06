@@ -31,6 +31,7 @@
       # its own.
       - name: rotation
         on_calendar: monthly
+        successors: [after-rotation]
         command:
           - /bin/sh
           - -c
@@ -43,6 +44,23 @@
               echo state=$CD_AGENT_STATE_DIR
               echo uv=$(command -v uv)
             } > ../probe.log
+      # Chain fixtures (ADR 0074). A successor has no timer and records who ran
+      # it and which state directory its own checkout is in. `fails` always
+      # fails, to show that its successor still runs.
+      - name: after-rotation
+        command:
+          - /bin/sh
+          - -c
+          - echo "$(id -un) $(basename "$(dirname "$PWD")")" > ../ran.txt
+      - name: fails
+        on_calendar: yearly
+        successors: [after-failure]
+        command: [/bin/false]
+      - name: after-failure
+        command:
+          - /bin/sh
+          - -c
+          - echo "$(id -un) $(basename "$(dirname "$PWD")")" > ../ran.txt
   tasks:
     - name: Include cd_agent role
       ansible.builtin.include_role:

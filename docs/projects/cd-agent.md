@@ -4,7 +4,7 @@ title: CD Agent Host
 type: project
 status: building
 blocked: false
-summary: A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs.
+summary: A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs.
 decision: ADR-0044/0-c
 super_project: pull-based-cd
 track: agent
@@ -37,7 +37,6 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | `cd_agent` host — dedicated LAN box, fixed IP, one timer and one unprivileged user per job for deploy/maintenance/freshness, and the hardening baseline's role | In progress | The host runs the deploy, maintenance, and freshness jobs, each as its own user from a clean checkout of `origin/main`, with only `sshd` listening |
-| 2 | The rotation job — monthly rotate-and-revoke of the six leaf credentials, and the `redeploy-storage` job that follows it | Not started | A rotation run replaces the six leaf credentials, and `storage` is running the new write key before its next `cloud_sync` without a manual deploy |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -49,16 +48,8 @@ unit runs as its own unprivileged user, fetches `origin/main`
 anonymously into its own state directory, checks out the commit as a
 clean tree, and runs the playbook or `tools/` entry point from it. The
 poll, decide and run step is [`tools/cd_agent/run_job.py`](../../tools/cd_agent/run_job.py), unit-tested and described in [`cd-agent-runner.md`](../topics/deploy/cd-agent-runner.md). The host's
-only inbound service is `sshd`, accepted from the operator host alone. The `cd_agent` role ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)) builds the users, units and `sshd` restriction from a `cd_agent_jobs` list. The `cd_agent` inventory group, the three jobs' definitions in its group variables and `playbooks/cd-agent.yaml` apply it.
+only inbound service is `sshd`, accepted from the operator host alone. The `cd_agent` role ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)) builds the users, units and `sshd` restriction from a `cd_agent_jobs` list. The `cd_agent` inventory group, the three jobs' definitions in its group variables and `playbooks/cd-agent.yaml` apply it. Rotation is [`cd-agent-rotation.md`](cd-agent-rotation.md)'s.
 The freshness job replaces the weekly user timer on `controller` (`tools/cloud_credentials/systemd/`), running as a plain weekly timer on this always-on host. See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) this stage implements.
-
-### Stage 2 — rotation
-
-Rotation covers the six leaf credentials only, monthly, as rotate-and-revoke: `create_leaf_keys --rotate both` per provider creates a new key, verifies it over rclone, and only then revokes the old one ([ADR 0023](../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md)). The three rotation-tier credentials stay human-attended, with the freshness check as the prompt: B2's is minted from a master key the code never stores, R2's needs a token minted in the Console first, and OCI's is a hard cutover with no rollback ([`rotation.md`](../topics/secrets/cloud-credentials/rotation.md)).
-
-`storage` takes the write leaf only when `deploy.yaml` re-renders its `rclone.conf`, and the deploy job acts only on a changed commit, so a rotation needs a follow-on job, which [ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md) decides: `redeploy-storage` runs `deploy.yaml --limit storage,localhost` without `--on-change`, as its own user with its own `secret_id` for the deploy AppRole, started by systemd when the rotation job ends, whatever its result, because leaves rotate independently and a failed run can still have revoked a key. Rotation is scheduled for the 8th at 02:00, so the redeploy finishes before `cloud_sync`'s 06:00 run and clear of the maintenance runs. The runner also needs a native `rclone` at the version `cloud_sync` uses, since the verification follows production's request sequence.
-
-[ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md) is `approved`. A project links one decision, so this stage moves to a project of its own before it starts.
 
 ## Acceptance criteria
 
@@ -67,7 +58,6 @@ Rotation covers the six leaf credentials only, monthly, as rotate-and-revoke: `c
 - [x] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
 - [x] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
 - [x] The role converges idempotently.
-- [ ] The rotation job replaces the six leaf credentials monthly, and `storage` is running the new write key before its next `cloud_sync` without a manual deploy.
 
 ## Open items
 

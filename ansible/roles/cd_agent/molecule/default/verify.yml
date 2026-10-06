@@ -238,6 +238,68 @@
           - state=/var/lib/cd-agent/rotation
           - uv=/opt/cd-agent/bin/uv
 
+    # --- Chains (ADR 0074): a successor starts when its predecessor ends -----
+    # The rotation job above has already run, successfully; this one fails.
+    # A successor starts asynchronously, so wait for what it writes.
+    - name: Start the job that always fails, whose successor must still run  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl start cd-agent-fails.service
+      register: cd_agent_verify_fails
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for each successor to have run
+      ansible.builtin.slurp:
+        src: "/var/lib/cd-agent/{{ item }}/ran.txt"
+      loop: [after-rotation, after-failure]
+      register: cd_agent_verify_chain
+      until: cd_agent_verify_chain is succeeded
+      retries: 30
+      delay: 2
+
+    - name: Read the units the chains are built from  # noqa: command-instead-of-module
+      ansible.builtin.command: "systemctl cat cd-agent-{{ item }}.service"
+      loop: [rotation, fails]
+      register: cd_agent_verify_chain_units
+      changed_when: false
+
+    - name: Stat a successor's timer and its checkout
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/systemd/system/cd-agent-after-rotation.timer
+        - /var/lib/cd-agent/after-rotation/tree
+        - /var/lib/cd-agent/after-rotation/repo.git
+      register: cd_agent_verify_successor_files
+
+    - name: Ask systemd how a successor is enabled, and try to enter its predecessor's state directory as it  # noqa: command-instead-of-module
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - systemctl is-enabled cd-agent-after-rotation.service
+        - runuser -u cd-agent-after-rotation -- ls /var/lib/cd-agent/rotation
+      register: cd_agent_verify_successor_probe
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm each successor ran as its own user in its own checkout, after a success and after a failure, with no timer
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_fails.rc != 0
+          - "'OnSuccess=cd-agent-after-rotation.service' in cd_agent_verify_chain_units.results[0].stdout"
+          - "'OnFailure=cd-agent-after-rotation.service' in cd_agent_verify_chain_units.results[0].stdout"
+          - "'OnSuccess=cd-agent-after-failure.service' in cd_agent_verify_chain_units.results[1].stdout"
+          - "'OnFailure=cd-agent-after-failure.service' in cd_agent_verify_chain_units.results[1].stdout"
+          - (cd_agent_verify_chain.results[0].content | b64decode | trim) == 'cd-agent-after-rotation after-rotation'
+          - (cd_agent_verify_chain.results[1].content | b64decode | trim) == 'cd-agent-after-failure after-failure'
+          - not cd_agent_verify_successor_files.results[0].stat.exists
+          - cd_agent_verify_successor_files.results[1].stat.isdir
+          - cd_agent_verify_successor_files.results[2].stat.isdir
+          - cd_agent_verify_successor_probe.results[0].stdout == 'static'
+          - cd_agent_verify_successor_probe.results[1].rc != 0
+        fail_msg: >-
+          fails rc {{ cd_agent_verify_fails.rc }};
+          ran: {{ cd_agent_verify_chain.results | map(attribute='content') | map('b64decode') | list }};
+          probe: {{ cd_agent_verify_successor_probe.results | map(attribute='stdout') | list }}
+
     # --- Timers --------------------------------------------------------------
     - name: Read each timer's unit file  # noqa: command-instead-of-module
       ansible.builtin.command: "systemctl cat cd-agent-{{ item }}.timer"

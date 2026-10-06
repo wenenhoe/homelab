@@ -38,11 +38,11 @@
           cd_agent_jobs:
             - {name: deploy, poll_interval: 5min, on_calendar: daily, command: [/bin/true]}
         expect: Invalid cd_agent_jobs entry
-      - name: neither a poll interval nor a calendar
+      - name: neither a timer nor a predecessor
         override:
           cd_agent_jobs:
             - {name: deploy, command: [/bin/true]}
-        expect: Invalid cd_agent_jobs entry
+        expect: no timer and no predecessor
       - name: an empty command
         override:
           cd_agent_jobs:
@@ -72,6 +72,27 @@
       - name: no jobs
         override: {cd_agent_jobs: []}
         expect: at least one job
+      - name: a successor that is not a job
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: [/bin/true], successors: [ghost]}
+        expect: which is not a job
+      - name: two jobs that follow each other
+        override:
+          cd_agent_jobs:
+            - {name: first, poll_interval: 5min, command: [/bin/true], successors: [second]}
+            - {name: second, poll_interval: 5min, command: [/bin/true], successors: [first]}
+        expect: "jobs form a cycle: first -> second -> first"
+      - name: a job that follows itself
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: [/bin/true], successors: [deploy]}
+        expect: "jobs form a cycle: deploy -> deploy"
+      - name: successors given as one string
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: [/bin/true], successors: after}
+        expect: must be a list of job names
       - name: the machine Ansible is running on
         override:
           cd_agent_controller_machine_id: "{{ cd_agent_machine_id_raw.content | b64decode | trim }}"

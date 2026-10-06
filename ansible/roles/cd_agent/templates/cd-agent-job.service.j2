@@ -6,6 +6,10 @@
 Description=CD agent job {{ cd_agent_job.name }}
 After=network-online.target
 Wants=network-online.target
+{% for successor in cd_agent_job.successors | default([]) %}
+OnSuccess=cd-agent-{{ successor }}.service
+OnFailure=cd-agent-{{ successor }}.service
+{% endfor %}
 
 [Service]
 Type=oneshot

@@ -11,14 +11,34 @@ docs/decisions/0031-where-repo-tooling-lives/revision-000.md.
 
 from __future__ import annotations
 
+import os
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 import paramiko
 import yaml
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-SECRETS_DIR = PROJECT_ROOT / "ansible/files/secrets"
+SECRETS_DIR_ENV = "HOMELAB_SECRETS_DIR"
+
+
+def secrets_dir_from(environ: Mapping[str, str]) -> Path:
+    """The file cache's directory: HOMELAB_SECRETS_DIR when set, else the
+    checkout's ansible/files/secrets. A CD agent job's clean checkout has
+    no such directory, so its unit names the job's credentials directory.
+    Relative would resolve against whatever directory a job runs in."""
+    value = environ.get(SECRETS_DIR_ENV)
+    if not value:
+        return PROJECT_ROOT / "ansible/files/secrets"
+    path = Path(value)
+    if not path.is_absolute():
+        print(f"{SECRETS_DIR_ENV} must be an absolute path, got {value!r}.", file=sys.stderr)
+        raise SystemExit(1)
+    return path
+
+
+SECRETS_DIR = secrets_dir_from(os.environ)
 INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/inventory.yaml"
 
 STEP_CA_CONTAINER = "step-ca"
@@ -38,6 +58,23 @@ def read_bootstrap_file(name: str) -> str | None:
     they unlock."""
     path = SECRETS_DIR / name
     return path.read_text().strip() if path.exists() else None
+
+
+ROOT_CERT_FILE = "step-ca-root.crt"
+
+
+def root_cert() -> str:
+    """step-ca's root certificate, for verifying OpenBao's TLS: the copy
+    delivered to the file cache when there is one, else fetched fresh
+    from security. A CD agent job holds no SSH key to security, so its
+    credentials directory carries the public root instead."""
+    delivered = read_bootstrap_file(ROOT_CERT_FILE)
+    if delivered is None:
+        return fetch_root_cert()
+    if "BEGIN CERTIFICATE" not in delivered:
+        print(f"{SECRETS_DIR / ROOT_CERT_FILE} isn't a PEM certificate - redeliver step-ca's root_ca.crt there.", file=sys.stderr)
+        raise SystemExit(1)
+    return delivered
 
 
 def main_domain() -> str:

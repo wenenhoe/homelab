@@ -25,6 +25,23 @@ def inventory_path(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     return path
 
 
+class TestSecretsDirFrom:
+    def test_defaults_to_the_checkouts_file_cache(self):
+        assert repo.secrets_dir_from({}) == repo.PROJECT_ROOT / "ansible/files/secrets"
+
+    def test_an_empty_value_is_unset(self):
+        assert repo.secrets_dir_from({repo.SECRETS_DIR_ENV: ""}) == repo.PROJECT_ROOT / "ansible/files/secrets"
+
+    def test_an_absolute_value_replaces_the_default(self):
+        assert repo.secrets_dir_from({repo.SECRETS_DIR_ENV: "/etc/cd-agent/credentials/deploy"}) == Path("/etc/cd-agent/credentials/deploy")
+
+    @pytest.mark.parametrize("value", ["credentials", "./credentials", "~/credentials"], ids=["bare", "dot", "tilde"])
+    def test_a_relative_value_is_refused(self, value, capsys):
+        with pytest.raises(SystemExit):
+            repo.secrets_dir_from({repo.SECRETS_DIR_ENV: value})
+        assert f"{repo.SECRETS_DIR_ENV} must be an absolute path, got {value!r}" in capsys.readouterr().err
+
+
 @pytest.mark.usefixtures("secrets_dir")
 class TestReadBootstrapFile:
     def test_returns_none_when_missing(self):
@@ -120,3 +137,28 @@ class TestFetchRootCert:
         with pytest.raises(SystemExit):
             repo.fetch_root_cert()
         ssh_client.close.assert_called_once()
+
+
+class TestRootCert:
+    @pytest.fixture
+    def fetch(self, monkeypatch):
+        mock = create_autospec(repo.fetch_root_cert, return_value="fetched-cert")
+        monkeypatch.setattr(repo, "fetch_root_cert", mock)
+        return mock
+
+    def test_fetches_from_security_when_nothing_was_delivered(self, secrets_dir, fetch):
+        assert repo.root_cert() == "fetched-cert"
+        fetch.assert_called_once_with()
+
+    def test_returns_the_delivered_copy_without_fetching(self, secrets_dir, fetch):
+        secrets_dir.seed(repo.ROOT_CERT_FILE, "-----BEGIN CERTIFICATE-----\ndelivered\n-----END CERTIFICATE-----\n")
+        assert repo.root_cert() == "-----BEGIN CERTIFICATE-----\ndelivered\n-----END CERTIFICATE-----"
+        fetch.assert_not_called()
+
+    @pytest.mark.parametrize("content", ["", "not a certificate"], ids=["blank", "text"])
+    def test_refuses_a_delivered_file_that_is_not_a_certificate(self, secrets_dir, fetch, capsys, content):
+        secrets_dir.seed(repo.ROOT_CERT_FILE, content)
+        with pytest.raises(SystemExit):
+            repo.root_cert()
+        assert str(secrets_dir.path / repo.ROOT_CERT_FILE) in capsys.readouterr().err
+        fetch.assert_not_called()

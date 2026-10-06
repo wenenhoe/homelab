@@ -58,6 +58,7 @@ OpenBao and the credentials around it.
 | [`cloud-credentials/expiry.md`](secrets/cloud-credentials/expiry.md) | The 90-day expiry of all 9 credentials, the weekly freshness check, and the Telegram warning ladder. |
 | [`openbao.md`](secrets/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
 | [`openbao-auth.md`](secrets/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
+| [`openbao-cd-agent-approles.md`](secrets/openbao-cd-agent-approles.md) | The four CIDR-bound AppRoles for `cd_agent` (deploy, rotation, freshness, snapshot): their policies, how to create them, and handing over a wrapped `secret_id`. |
 | [`openbao-vault-bootstrap.md`](secrets/openbao-vault-bootstrap.md) | The standing `vault-bootstrap` AppRole for minting new Vault policies/AppRoles, and its emergency-root mechanism. |
 | [`openbao-backup-restore.md`](secrets/openbao-backup-restore.md) | OpenBao's own raft-snapshot backup/restore mechanism and drill runbook. |
 | [`openbao-reinit-runbook.md`](secrets/openbao-reinit-runbook.md) | One-time procedure for discarding and rebuilding OpenBao's raft dataset from scratch (ADR 0025) — distinct from the restore drill. |

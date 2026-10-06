@@ -6,7 +6,7 @@ title: Keeping what production runs apart from work in progress
 solution: Three long-lived branches, where only main is deployed, Renovate and development each collect on their own branch, and each reaches main by a pull request that lists what to run
 summary: How dependency updates and long-running development can wait on branches of their own while main stays the exact state the CD agent deploys.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0037, ADR-0044, ADR-0050, ADR-0064]
 ---
 

@@ -2,7 +2,7 @@
 id: PROJ-production-and-work-in-progress-branches
 title: "Production and Work-in-Progress Branches"
 type: project
-status: de-risking
+status: building
 blocked: false
 summary: Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run.
 decision: ADR-0076/0
@@ -42,7 +42,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Close the open assumptions with throwaway spikes on a scratch repository, covering rulesets and force pushes, the Renovate token's push rights, Renovate after a base-branch rewrite and after a merge, cache restore across branches and a compose pin that precedes its image | Done | Each assumption's entry is deleted from the revision, its fact folded into Context or the Decision changed, with nothing from the spikes committed |
-| 2 | The revision is approved | Not started | The revision is `approved`, with no open assumption |
+| 2 | The revision is approved | Done | The revision is `approved`, with no open assumption |
 | 3 | Every check that runs on a pull request into `main` also runs on one into `maintenance` or `develop`, and caches warm on the branches the spikes showed need it | Not started | A test over the workflow triggers asserts it, and a pull request into each new branch runs the full set |
 | 4 | The promotion checklist: a tested path-to-command mapping and a workflow that writes it into the description of a pull request into `main` | Not started | The mapping's unit tests pass against diffs of the paths it names, and a pull request from `maintenance` shows the list between its markers with the maintainer's own text intact |
 | 5 | The Renovate workflow realigns `maintenance` before it runs, and Renovate targets it | Not started | The realignment's tests pass on temporary repositories (fast-forward, merge, conflict left unchanged and failing), and a Renovate run opens its pull requests into `maintenance` |

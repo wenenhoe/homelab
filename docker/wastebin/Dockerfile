@@ -1,7 +1,7 @@
 FROM busybox:1.38.0-musl AS data-dir
 RUN mkdir -p /data
 
-FROM quxfoo/wastebin:3.7.2
+FROM quxfoo/wastebin:3.8.0
 
 # quxfoo/wastebin is FROM scratch — no shell, no libc, nothing a
 # HEALTHCHECK can exec. busybox:musl's wget is a single statically

@@ -52,7 +52,7 @@ The rotation job runs `python -m cloud_credentials.rotate_leaf_keys`, which rota
 ## Open items
 
 - Neither job can log in to OpenBao until its credentials are in its credentials directory; delivering them is [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s.
-- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'. The SSH key is not among [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s four files, and `ansible/inventory/inventory.yaml` reads the key from `~/.ssh/proxmox_vm_servers`. How a job gets a key, and how `storage` comes to accept it, is not decided; [`cd-agent.md`](cd-agent.md) leaves the shared key unsplit.
+- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'. The SSH key is not among [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s four files, and `ansible/inventory/inventory.yaml` reads the key from `~/.ssh/proxmox_vm_servers`. How a job gets a key, and how `storage` comes to accept it, is [ADR 0075](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md)'s, carried out by [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md).
 
 ## Closing checklist
 

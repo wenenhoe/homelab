@@ -25,6 +25,23 @@ def inventory_path(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest
     return path
 
 
+class TestSecretsDirFrom:
+    def test_defaults_to_the_checkouts_file_cache(self):
+        assert repo.secrets_dir_from({}) == repo.PROJECT_ROOT / "ansible/files/secrets"
+
+    def test_an_empty_value_is_unset(self):
+        assert repo.secrets_dir_from({repo.SECRETS_DIR_ENV: ""}) == repo.PROJECT_ROOT / "ansible/files/secrets"
+
+    def test_an_absolute_value_replaces_the_default(self):
+        assert repo.secrets_dir_from({repo.SECRETS_DIR_ENV: "/etc/cd-agent/credentials/deploy"}) == Path("/etc/cd-agent/credentials/deploy")
+
+    @pytest.mark.parametrize("value", ["credentials", "./credentials", "~/credentials"], ids=["bare", "dot", "tilde"])
+    def test_a_relative_value_is_refused(self, value, capsys):
+        with pytest.raises(SystemExit):
+            repo.secrets_dir_from({repo.SECRETS_DIR_ENV: value})
+        assert f"{repo.SECRETS_DIR_ENV} must be an absolute path, got {value!r}" in capsys.readouterr().err
+
+
 @pytest.mark.usefixtures("secrets_dir")
 class TestReadBootstrapFile:
     def test_returns_none_when_missing(self):

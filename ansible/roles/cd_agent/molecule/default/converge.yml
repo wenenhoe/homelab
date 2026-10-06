@@ -42,6 +42,7 @@
               sed 's/^/own=/' /etc/cd-agent/credentials/rotation/secret_id
               echo user=$(id -un)
               echo state=$CD_AGENT_STATE_DIR
+              echo secrets=$HOMELAB_SECRETS_DIR
               echo uv=$(command -v uv)
             } > ../probe.log
       # Chain fixtures (ADR 0074). A successor has no timer and records who ran

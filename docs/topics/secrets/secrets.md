@@ -14,7 +14,9 @@ connection first.
 Every secret lives in OpenBao except three permanent exceptions that stay in the controller-side file cache instead:
 `main-domain` and the `openbao-controller-role-id`/`-secret-id` AppRole
 credential — because resolving any of them is a prerequisite for
-reaching Vault at all. Every catalog entry states its `store`
+reaching Vault at all. The cache is `ansible/files/secrets/` unless
+`HOMELAB_SECRETS_DIR` names another absolute directory, as a CD agent job's
+unit does. Every catalog entry states its `store`
 (`openbao` or `controller_file`), and every `store: openbao` entry's
 `scope` says where in Vault it lives, including every
 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entry

@@ -32,6 +32,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-freshness` / `cd-agent-snapshot` AppRoles, CIDR-bound | In progress | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
+| 2 | Jobs read their credential where it is delivered | In progress | a job's unit names its credentials directory, and `tools/` and the `secrets` role log in to OpenBao and resolve `main-domain` from it |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -56,6 +57,18 @@ The four policies and the role-creation runbook are in
 What remains needs the running host: creating the roles with `cd_agent`'s fixed
 address (`192.168.30.3`) as both CIDR binds, and delivering each `secret_id`.
 
+### Stage 2 — Credential location
+
+A CD agent job's clean checkout has no `ansible/files/secrets/`, where the
+`secrets` role and `tools/utils/repo.py` read `main-domain` and the
+controller AppRole's `role_id` and `secret_id`. `HOMELAB_SECRETS_DIR`, an
+absolute path set in the job's unit to its credentials directory
+(`/etc/cd-agent/credentials/<job>/`), moves that cache; unset, it stays in
+the checkout, so operator runs are unchanged. The delivered files keep the
+names the readers already use: `main-domain`, `openbao-controller-role-id`
+and `openbao-controller-secret-id`. See
+[`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
+
 ## Acceptance criteria
 
 - [ ] All four AppRoles exist with the policies in ADR 0020 revision 001.
@@ -65,11 +78,15 @@ address (`192.168.30.3`) as both CIDR binds, and delivering each `secret_id`.
 - [ ] `cd-agent-rotation` can read no `hosts/*` path, verified.
 - [ ] `cd-agent-freshness` can read the leaf, rotation and Telegram paths and write none of them, verified.
 - [ ] `cd-agent-snapshot` can save a snapshot and read its six named leaf paths, and can read no other leaf path, verified.
+- [ ] A job's unit sets `HOMELAB_SECRETS_DIR` to its credentials directory, verified.
+- [ ] With it set, `tools/` and the `secrets` role log in and resolve `main-domain` from that directory and not from the checkout, and a relative value is refused, verified.
 - [ ] Each `secret_id` is delivered response-wrapped over stdin and unwrapped once on `cd_agent` into the job user's `0400` file, and a second unwrap of the same token fails, verified.
 
 ## Open items
 
-- Nothing consumes a credential where it is delivered. The `secrets` role (`ansible/roles/secrets/tasks/vault_login.yaml`) and `tools/utils/repo.py` read `openbao-controller-role-id` and `-secret-id` from `ansible/files/secrets/` in the checkout, which a CD agent job's clean tree does not have, and the delivery criterion above names no path. Each must take its credential file's path from the job's environment before a job can log in. No project's scope covers this yet: it needs a stage here or a project of its own.
+- A job still lacks the secrets store's root certificate, so its login cannot verify OpenBao's TLS. A deploy run fetches it over SSH from the host that issues it ([ADR 0022](../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)), and the freshness and rotation jobs have no such key. How a job obtains it (delivered with the credentials, or fetched another way) needs a decision, and probably a revision of that ADR, before any job can log in.
+
+- Delivering the files (operator host to `cd_agent`, [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)) is not automated; a job fails on every run until its files are there.
 
 - The `secret_id` rotation cadence ([ADR 0020 revision 1](../decisions/0020-automation-identity-and-access-scope/revision-001.md) leaves it to this project) is not decided.
 

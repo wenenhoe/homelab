@@ -45,7 +45,7 @@ For a job named `deploy`:
 | :--- | :--- |
 | `cd-agent-deploy` (user and group) | A system user with `/usr/sbin/nologin` as its shell and its state directory as its home. |
 | `/var/lib/cd-agent/deploy` | The runner's state directory ([`cd-agent-runner.md`](cd-agent-runner.md#state-directory)), mode `0700`, owned by the job's user. |
-| `/etc/cd-agent/credentials/deploy` | Where the job's credential files go, mode `0700`, owned by the job's user. The directory keeps every other user out whatever a file's own mode. The role creates the directory and no files; delivery is the AppRoles work ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md)). |
+| `/etc/cd-agent/credentials/deploy` | Where the job's credential files go, mode `0700`, owned by the job's user. The directory keeps every other user out whatever a file's own mode. The role creates the directory and no files; delivery is the AppRoles work ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md)). The job's unit sets `HOMELAB_SECRETS_DIR` to it, so the job reads its OpenBao credential and `main-domain` from there ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)). |
 | `cd-agent-deploy.service`, `cd-agent-deploy.timer` | The job's units in `/etc/systemd/system`. |
 
 `/etc/cd-agent/credentials` is mode `0711`, so a job's user can reach its own directory but not list the others.
@@ -103,7 +103,7 @@ The role installs `git`, `python3`, `openssh-client`, `openssh-server` and the p
 ## Not done by the role
 
 - Credential files. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
-- OpenBao access for the jobs: the `secrets` role and `tools/utils/repo.py` read the AppRole credential from `ansible/files/secrets/` in the checkout, which a job's clean tree does not have, so a job that logs in to OpenBao fails until that location can be set per job.
+- OpenBao's TLS trust for the jobs: a login needs the secrets store's root certificate, which a job does not yet have ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md)).
 - Failure alerts and heartbeats, which depend on [ADR 0072](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 

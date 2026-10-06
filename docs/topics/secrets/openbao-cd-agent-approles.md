@@ -91,9 +91,20 @@ not a terminal) and it logs in from the bound address. A second unwrap of
 the same token fails with `wrapping token is not valid or does not exist`,
 so an intercepted token shows up as a failure, not a quietly reusable
 credential. The value lands in the job's credentials directory,
-`/etc/cd-agent/credentials/<job>/`, as a `0400` file owned by the job's
-user `cd-agent-<job>`; the role creates that directory and no file in it
-([`cd-agent-host.md`](../deploy/cd-agent-host.md)).
+`/etc/cd-agent/credentials/<job>/`, as `openbao-controller-secret-id`, a
+`0400` file owned by the job's user `cd-agent-<job>`; the role creates that
+directory and no file in it ([`cd-agent-host.md`](../deploy/cd-agent-host.md)).
+
+## What a job reads from its credentials directory
+
+The job's unit sets `HOMELAB_SECRETS_DIR` to its credentials directory, and
+the file cache the `secrets` role and `tools/utils/repo.py` read from moves
+there: a job logs in to OpenBao with `openbao-controller-role-id` and
+`openbao-controller-secret-id`, and resolves the OpenBao address from
+`main-domain`, all in that directory. The variable must be an absolute path;
+unset, the cache stays `ansible/files/secrets/` in the checkout, which is
+what an operator's own runs use. The role's `role_id` is not secret, but it
+sits beside the `secret_id` so one directory holds everything a login needs.
 
 A role holds any number of independent `secret_id`s, each unwrapped to its
 own file. `redeploy-storage`, the rotation job's successor

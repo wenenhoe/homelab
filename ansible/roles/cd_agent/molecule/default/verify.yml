@@ -224,7 +224,7 @@
         src: /var/lib/cd-agent/rotation/probe.log
       register: cd_agent_verify_probe
 
-    - name: Confirm the sandbox, credential isolation, uv and state directory were as expected inside the unit
+    - name: Confirm the sandbox, credential isolation, uv, state directory and secrets directory were as expected inside the unit
       ansible.builtin.assert:
         that:
           - (cd_agent_verify_probe.content | b64decode).splitlines() == cd_agent_verify_probe_expected
@@ -236,6 +236,7 @@
           - own=secret-rotation
           - user=cd-agent-rotation
           - state=/var/lib/cd-agent/rotation
+          - secrets=/etc/cd-agent/credentials/rotation
           - uv=/opt/cd-agent/bin/uv
 
     # --- Chains (ADR 0074): a successor starts when its predecessor ends -----

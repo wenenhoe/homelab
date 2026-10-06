@@ -104,20 +104,23 @@
     // GitHub lists a sha256 `digest` on every asset it stores, so these read
     // the release list and return the digest of the one pinned asset beside
     // each version, tag's "v" removed. A release whose asset has no digest
-    // is returned without one. The request needs the host rule that
-    // renovate.yml sets: a custom datasource is not given the platform token.
+    // (GitHub returns `null` for assets stored before it computed them) is
+    // returned without one: passing that null to $substringAfter fails the
+    // whole list, so no version resolves. The request needs the host rule
+    // that renovate.yml sets: a custom datasource is not given the platform
+    // token.
     "rclone-linux-amd64": {
       defaultRegistryUrlTemplate: "https://api.github.com/repos/rclone/rclone/releases?per_page=100",
       format: "json",
       transformTemplates: [
-        '{"sourceUrl": "https://github.com/rclone/rclone", "releases": $map($[draft = false and prerelease = false], function($r) { {"version": $substringAfter($r.tag_name, "v"), "releaseTimestamp": $r.published_at, "digest": $substringAfter($r.assets[name = "rclone-" & $r.tag_name & "-linux-amd64.zip"].digest, "sha256:")} })}',
+        '{"sourceUrl": "https://github.com/rclone/rclone", "releases": $map($[draft = false and prerelease = false], function($r) { {"version": $substringAfter($r.tag_name, "v"), "releaseTimestamp": $r.published_at, "digest": ($d := $r.assets[name = "rclone-" & $r.tag_name & "-linux-amd64.zip"].digest; $type($d) = "string" ? $substringAfter($d, "sha256:"))} })}',
       ],
     },
     "openbao-linux-amd64-deb": {
       defaultRegistryUrlTemplate: "https://api.github.com/repos/openbao/openbao/releases?per_page=100",
       format: "json",
       transformTemplates: [
-        '{"sourceUrl": "https://github.com/openbao/openbao", "releases": $map($[draft = false and prerelease = false], function($r) { {"version": $substringAfter($r.tag_name, "v"), "releaseTimestamp": $r.published_at, "digest": $substringAfter($r.assets[name = "openbao_" & $substringAfter($r.tag_name, "v") & "_linux_amd64.deb"].digest, "sha256:")} })}',
+        '{"sourceUrl": "https://github.com/openbao/openbao", "releases": $map($[draft = false and prerelease = false], function($r) { {"version": $substringAfter($r.tag_name, "v"), "releaseTimestamp": $r.published_at, "digest": ($d := $r.assets[name = "openbao_" & $substringAfter($r.tag_name, "v") & "_linux_amd64.deb"].digest; $type($d) = "string" ? $substringAfter($d, "sha256:"))} })}',
       ],
     },
   },

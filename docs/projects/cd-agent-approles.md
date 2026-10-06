@@ -57,7 +57,9 @@ leaf.
 The four policies and the role-creation runbook are in
 [`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
 What remains needs the running host: creating the roles with `cd_agent`'s fixed
-address (`192.168.30.3`) as both CIDR binds, and delivering each `secret_id`.
+address (`192.168.30.3`) as both CIDR binds. Delivering each job's files, and
+the `secret_id` rotation cadence, are
+[`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s.
 
 ### Stage 2 — Credential location
 
@@ -99,9 +101,7 @@ is set `accepted` in the PR that closes the project.
 
 ## Open items
 
-- Delivering the files (operator host to `cd_agent`, [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)) is not automated; a job fails on every run until its files are there.
-
-- The `secret_id` rotation cadence ([ADR 0020 revision 1](../decisions/0020-automation-identity-and-access-scope/revision-001.md) leaves it to this project) is not decided.
+None.
 
 ## Closing checklist
 

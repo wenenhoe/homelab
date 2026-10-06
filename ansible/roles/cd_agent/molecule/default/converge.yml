@@ -46,13 +46,15 @@
               echo uv=$(command -v uv)
             } > ../probe.log
       # Chain fixtures (ADR 0074). A successor has no timer and records who ran
-      # it and which state directory its own checkout is in. `fails` always
-      # fails, to show that its successor still runs.
+      # it, which state directory its own checkout is in, and its environment.
+      # `fails` always fails, to show that its successor still runs.
       - name: after-rotation
         command:
           - /bin/sh
           - -c
-          - echo "$(id -un) $(basename "$(dirname "$PWD")")" > ../ran.txt
+          - |
+            echo "$(id -un) $(basename "$(dirname "$PWD")")" > ../ran.txt
+            env > ../env.txt
       - name: fails
         on_calendar: yearly
         successors: [after-failure]
@@ -61,7 +63,9 @@
         command:
           - /bin/sh
           - -c
-          - echo "$(id -un) $(basename "$(dirname "$PWD")")" > ../ran.txt
+          - |
+            echo "$(id -un) $(basename "$(dirname "$PWD")")" > ../ran.txt
+            env > ../env.txt
   tasks:
     - name: Include cd_agent role
       ansible.builtin.include_role:

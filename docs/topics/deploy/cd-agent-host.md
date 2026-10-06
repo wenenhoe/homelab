@@ -1,6 +1,26 @@
 # CD Agent Host: The `cd_agent` Role
 
-`ansible/roles/cd_agent` builds the host side of [ADR 0044 revision 0-c](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md): one sandboxed systemd unit and timer per job, each running as its own unprivileged user, and `sshd` accepting only the operator host. Each unit runs the poll, decide and run step in [`cd-agent-runner.md`](cd-agent-runner.md), and the role installs the `uv` that the runner's [toolchain step](cd-agent-runner.md#toolchain) uses. The role is the mechanism only. The jobs themselves (names, commands, schedules) are the `cd_agent_jobs` data a caller passes in. No inventory group or playbook applies the role to a host yet; that is the rest of Stage 1 in [`cd-agent.md`](../../projects/cd-agent.md).
+`ansible/roles/cd_agent` builds the host side of [ADR 0044 revision 0-c](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md): one sandboxed systemd unit and timer per job, each running as its own unprivileged user, and `sshd` accepting only the operator host. Each unit runs the poll, decide and run step in [`cd-agent-runner.md`](cd-agent-runner.md), and the role installs the `uv` that the runner's [toolchain step](cd-agent-runner.md#toolchain) uses. The role is the mechanism only. The jobs themselves (names, commands, schedules) are the `cd_agent_jobs` data a caller passes in. The `cd_agent` inventory group (VM 303, `192.168.30.3`) and `playbooks/cd-agent.yaml` apply it.
+
+## Applying it
+
+From the operator host, in `ansible/`:
+
+```sh
+ansible-playbook playbooks/cd-agent.yaml
+```
+
+The VM must already exist with the `cdadmin` user, the operator host's key, and sudo; the role creates none of that. `host_key_checking` is on, so the operator host needs the VM's host key in its `known_hosts`. The play targets only the `cd_agent` group, which is in none of `managed_hosts`, `app_hosts` or `patched_hosts`, and it needs no secrets: the host is addressed by IP. Run from the agent itself it stops, as described under [the guard](#the-cd-agent-never-provisions-itself).
+
+The group's variables, in `ansible/inventory/group_vars/cd_agent.yaml`, set the operator address (`192.168.30.2`), the one admin user and these jobs:
+
+| Job | Runs | Command, from a checkout of `origin/main` |
+| :--- | :--- | :--- |
+| `deploy` | A minute after boot, then 5 minutes after each run ends; acts only when `main` has a commit it has not deployed | `ansible-playbook playbooks/deploy.yaml` in `ansible/`, with `ansible/requirements.yml`'s collections |
+| `maintenance` | The 1st and 15th of each month at 03:00 | `ansible-playbook playbooks/maintenance.yaml` in `ansible/`, with the same collections |
+| `freshness` | Weekly, Monday at 00:00 | `python -m cloud_credentials.check_freshness` in `tools/` |
+
+Each command runs through [`toolchain.py`](cd-agent-runner.md#toolchain). Rotation is not a job yet.
 
 ## Variables
 
@@ -75,6 +95,7 @@ The role installs `git`, `python3`, `openssh-client`, `openssh-server` and the p
 ## Not done by the role
 
 - Credential files. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
+- OpenBao access for the jobs: the `secrets` role and `tools/utils/repo.py` read the AppRole credential from `ansible/files/secrets/` in the checkout, which a job's clean tree does not have, so a job that logs in to OpenBao fails until that location can be set per job.
 - Failure alerts and heartbeats, which depend on [ADR 0072](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 

@@ -11,6 +11,7 @@ why every host is Ansible-managed rather than configured by hand.
 | Playbook File | Inventory | Description |
 | :--- | :--- | :--- |
 | `playbooks/deploy.yaml` | `inventory/inventory.yaml` | Master playbook — converges the entire infrastructure: Docker install, Caddy, BIND9, and every application. See [`deployment-flow.md`](deployment-flow.md). |
+| `playbooks/cd-agent.yaml` | `inventory/inventory.yaml` | Provisions the CD agent host (`cd_agent`) from the operator host: `cd_agent` role, which refuses to run on the agent itself. See [`cd-agent-host.md`](cd-agent-host.md). |
 | `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`cleanup.md`](cleanup.md). |
 | `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required (`patched_hosts`), plus `qemu_guest_agent` presence (`network_infra` only), then the `host_hardening` baseline on every `patched_hosts` member. |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
@@ -83,11 +84,12 @@ Separate inventories exist for different situations:
 
 | Inventory | Used by | Host addressing | Purpose |
 | :--- | :--- | :--- | :--- |
-| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) — same for `managed_hosts` and `network_infra` alike | Day-to-day operation once DNS is up |
+| `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) — same for `managed_hosts` and `network_infra` alike; `cd_agent` is addressed by its static IP | Day-to-day operation once DNS is up |
 | `inventory/sos-inventory.yaml` | `playbooks/reset-network.yaml` | Static IPs (see [`vm-provisioning.md`](../infra/vm-provisioning.md#vmid--vlan--ip-scheme) for the scheme) | Recovery path when DNS/network is down |
 
 `inventory/inventory.yaml` also defines groups the roles depend on directly:
 
 - **`app_hosts`** — every host that owns `compose_apps` / `dns_zones` / `caddy_domain`; the `bind9` role iterates this group's `hostvars` to build DNS zone files.
 - **`dns`** — the host (`services`) the `bind9` role actually runs on.
+- **`cd_agent`** — the CD agent host, in none of `managed_hosts`, `app_hosts` or `patched_hosts`; only `playbooks/cd-agent.yaml` targets it. See [`cd-agent-host.md`](cd-agent-host.md).
 - **`network_infra`** / **`patched_hosts`** — non-app infrastructure hosts and the managed_hosts+network_infra alias `maintenance.yaml` patches. See [`network-infra.md`](../infra/network-infra.md).

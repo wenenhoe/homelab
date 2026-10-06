@@ -1,0 +1,12 @@
+---
+# Provisions the CD agent host (docs/topics/deploy/cd-agent-host.md). Run from
+# the operator host, never from the agent itself: the cd_agent role refuses to
+# configure the machine Ansible is running on (ADR 0044).
+# Usage: ansible-playbook playbooks/cd-agent.yaml
+- name: Provision the CD agent host
+  hosts: cd_agent
+  become: true
+  tasks:
+    - name: Include cd_agent role
+      ansible.builtin.include_role:
+        name: cd_agent

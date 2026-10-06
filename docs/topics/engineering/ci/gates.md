@@ -250,6 +250,13 @@ which hold a package-write token.
   names an unpublished tag, an image has no entry, or a
   `docker/<app>/Dockerfile` has none. A Renovate bump to a Dockerfile's
   version therefore has to move the compose pin in the same change.
+  `.github/renovate.json5` does that: a regex manager reads each compose
+  pin as the same dependency as the Dockerfile's `FROM` and a group rule
+  puts the two in one PR, while the compose manager's own view of
+  `ghcr.io/wenenhoe/*` is disabled, because a new tag exists only after the
+  merge that publishes it. An image with a compose pin needs its own manager
+  there; `TestRenovateMovesComposePins` in
+  `tools/tests/ci/images/test_registry.py` fails until it has one.
 - **`check-molecule-image-vars`** (`ci.images.molecule_vars check`, also a
   pre-commit hook, so it runs in `pre-commit-checks` on every PR) keeps
   Molecule playbooks on the shared image files under

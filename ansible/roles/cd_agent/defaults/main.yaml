@@ -16,6 +16,7 @@ cd_agent_default_timeout: 1h
 cd_agent_controller_machine_id: "{{ lookup('ansible.builtin.file', '/etc/machine-id') | trim }}"
 
 # The sha256 is the one published beside the release asset,
-# uv-x86_64-unknown-linux-gnu.tar.gz.sha256. Bump both together.
+# uv-x86_64-unknown-linux-gnu.tar.gz.sha256. Bump both together: Renovate
+# (.github/renovate.json5) opens the version bump but cannot fetch the sha256.
 cd_agent_uv_version: "0.12.23"
 cd_agent_uv_sha256: "9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6"

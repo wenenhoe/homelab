@@ -15,7 +15,7 @@ These four have no default, and the role stops on the first check that finds one
 
 A job is `name` (`[a-z][a-z0-9-]{0,22}`), `command` (an argument list), exactly one of `poll_interval` (`5min`: the first run is a minute after boot, then that long after each run ends) and `on_calendar` (a systemd calendar expression), and optionally `cwd`, `on_change` and `timeout` (default `cd_agent_default_timeout`, `1h`). `cwd` and `on_change` are the runner's `--cwd` and `--on-change`.
 
-`cd_agent_repo_url` defaults to this repository's HTTPS URL. `cd_agent_uv_version` and `cd_agent_uv_sha256` pin the `uv` release, which is downloaded only if its sha256 matches; bump them together. `cd_agent_controller_machine_id` defaults to the `/etc/machine-id` of the host running Ansible and is overridden only to test the guard below. The directory variables (`cd_agent_opt_dir`, `cd_agent_etc_dir`, `cd_agent_credentials_root`, `cd_agent_state_root`) default to the paths below.
+`cd_agent_repo_url` defaults to this repository's HTTPS URL. `cd_agent_uv_version` and `cd_agent_uv_sha256` pin the `uv` release, which is downloaded only if its sha256 matches. Renovate opens the version bump, and its PR note reminds you that the sha256, published beside the release asset, has to be copied in by hand: bump them together. `cd_agent_controller_machine_id` defaults to the `/etc/machine-id` of the host running Ansible and is overridden only to test the guard below. The directory variables (`cd_agent_opt_dir`, `cd_agent_etc_dir`, `cd_agent_credentials_root`, `cd_agent_state_root`) default to the paths below.
 
 ## What a job gets
 
@@ -76,7 +76,6 @@ The role installs `git`, `python3`, `openssh-client`, `openssh-server` and the p
 
 - Credential files. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
 - Failure alerts and heartbeats, which depend on [ADR 0072](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
-- Tracking the `uv` pin: Renovate does not update `cd_agent_uv_version` or its sha256.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 
 ## Testing

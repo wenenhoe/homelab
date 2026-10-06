@@ -6,6 +6,7 @@ status: building
 blocked: false
 summary: Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot).
 decision: ADR-0020/1
+also_implements: [ADR-0022/1]
 super_project: pull-based-cd
 track: credentials
 ---
@@ -33,6 +34,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | `cd-agent-deploy` / `cd-agent-rotation` / `cd-agent-freshness` / `cd-agent-snapshot` AppRoles, CIDR-bound | In progress | both roles exist with the policies in ADR 0020 revision 001, each bound to `cd_agent`'s fixed IP |
 | 2 | Jobs read their credential where it is delivered | In progress | a job's unit names its credentials directory, and `tools/` and the `secrets` role log in to OpenBao and resolve `main-domain` from it |
+| 3 | Jobs verify OpenBao against a delivered root cert | In progress | `tools/` uses a `step-ca-root.crt` delivered to the credentials directory, and the `secrets` role fails when a delivered copy differs from the root it just fetched |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -69,6 +71,17 @@ names the readers already use: `main-domain`, `openbao-controller-role-id`
 and `openbao-controller-secret-id`. See
 [`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).
 
+### Stage 3 — Root cert trust
+
+A job has no SSH key to `security`, so it cannot fetch step-ca's root cert
+as [revision 0](../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
+does. [Revision 1](../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md)
+has the root, which is public, delivered to each job's credentials directory
+as `step-ca-root.crt`. `cloud_credentials` uses it when it exists, and a run of
+the `secrets` role that has both that file and a freshly fetched root fails
+when they differ. The project's `also_implements:` names that revision, which
+is set `accepted` in the PR that closes the project.
+
 ## Acceptance criteria
 
 - [ ] All four AppRoles exist with the policies in ADR 0020 revision 001.
@@ -80,11 +93,11 @@ and `openbao-controller-secret-id`. See
 - [ ] `cd-agent-snapshot` can save a snapshot and read its six named leaf paths, and can read no other leaf path, verified.
 - [ ] A job's unit sets `HOMELAB_SECRETS_DIR` to its credentials directory, verified.
 - [ ] With it set, `tools/` and the `secrets` role log in and resolve `main-domain` from that directory and not from the checkout, and a relative value is refused, verified.
+- [ ] With `step-ca-root.crt` in the credentials directory, `cloud_credentials` verifies OpenBao against it and does not fetch from `security`, and a file that is not a certificate is refused, verified.
+- [ ] A `secrets` role run that has a delivered copy equal to the fetched root passes, one with a different copy fails naming the file, and one with no copy is unchanged, verified.
 - [ ] Each `secret_id` is delivered response-wrapped over stdin and unwrapped once on `cd_agent` into the job user's `0400` file, and a second unwrap of the same token fails, verified.
 
 ## Open items
-
-- A job still lacks the secrets store's root certificate, so its login cannot verify OpenBao's TLS. A deploy run fetches it over SSH from the host that issues it ([ADR 0022](../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)), and the freshness and rotation jobs have no such key. How a job obtains it (delivered with the credentials, or fetched another way) needs a decision, and probably a revision of that ADR, before any job can log in.
 
 - Delivering the files (operator host to `cd_agent`, [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)) is not automated; a job fails on every run until its files are there.
 

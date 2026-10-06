@@ -137,3 +137,28 @@ class TestFetchRootCert:
         with pytest.raises(SystemExit):
             repo.fetch_root_cert()
         ssh_client.close.assert_called_once()
+
+
+class TestRootCert:
+    @pytest.fixture
+    def fetch(self, monkeypatch):
+        mock = create_autospec(repo.fetch_root_cert, return_value="fetched-cert")
+        monkeypatch.setattr(repo, "fetch_root_cert", mock)
+        return mock
+
+    def test_fetches_from_security_when_nothing_was_delivered(self, secrets_dir, fetch):
+        assert repo.root_cert() == "fetched-cert"
+        fetch.assert_called_once_with()
+
+    def test_returns_the_delivered_copy_without_fetching(self, secrets_dir, fetch):
+        secrets_dir.seed(repo.ROOT_CERT_FILE, "-----BEGIN CERTIFICATE-----\ndelivered\n-----END CERTIFICATE-----\n")
+        assert repo.root_cert() == "-----BEGIN CERTIFICATE-----\ndelivered\n-----END CERTIFICATE-----"
+        fetch.assert_not_called()
+
+    @pytest.mark.parametrize("content", ["", "not a certificate"], ids=["blank", "text"])
+    def test_refuses_a_delivered_file_that_is_not_a_certificate(self, secrets_dir, fetch, capsys, content):
+        secrets_dir.seed(repo.ROOT_CERT_FILE, content)
+        with pytest.raises(SystemExit):
+            repo.root_cert()
+        assert str(secrets_dir.path / repo.ROOT_CERT_FILE) in capsys.readouterr().err
+        fetch.assert_not_called()

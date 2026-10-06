@@ -120,7 +120,10 @@ reachable and the controller AppRole already provisioned
 do anything with them; it fetches step-ca's root cert fresh each run to
 validate OpenBao's TLS cert, the same mechanism
 [ADR 0022](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
-uses from Ansible. To set a file-cache-backed value without the script:
+uses from Ansible. A CD agent job, which has no SSH key to `security`, is
+delivered the root instead
+([`openbao-cd-agent-approles.md`](openbao-cd-agent-approles.md)). To set a
+file-cache-backed value without the script:
 
 ```sh
 printf '%s' '<value>' > ansible/files/secrets/<catalog-key>

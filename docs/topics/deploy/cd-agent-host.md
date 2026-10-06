@@ -102,8 +102,7 @@ The role installs `git`, `python3`, `openssh-client`, `openssh-server` and the p
 
 ## Not done by the role
 
-- Credential files. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
-- OpenBao's TLS trust for the jobs: a login needs the secrets store's root certificate, which a job does not yet have ([`cd-agent-approles.md`](../../projects/cd-agent-approles.md)).
+- Credential files, and the copy of step-ca's root certificate a job verifies OpenBao against. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
 - Failure alerts and heartbeats, which depend on [ADR 0072](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 

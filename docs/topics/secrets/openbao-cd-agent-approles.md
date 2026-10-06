@@ -106,6 +106,33 @@ unset, the cache stays `ansible/files/secrets/` in the checkout, which is
 what an operator's own runs use. The role's `role_id` is not secret, but it
 sits beside the `secret_id` so one directory holds everything a login needs.
 
+## The root cert a job verifies OpenBao against
+
+A job holds no SSH key to `security`, so it cannot fetch step-ca's root cert
+the way an operator's run does ([ADR 0022
+revision 1](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md)).
+The root is public, so it is delivered as a plain file, `step-ca-root.crt`,
+next to the AppRole files in each job's credentials directory, with the same
+owner and no wrapped handoff. Read it from `security`:
+
+```sh
+docker exec step-ca cat /home/step/certs/root_ca.crt
+```
+
+`cloud_credentials` verifies OpenBao against that file when it exists and
+fetches from `security` otherwise. A file that is not a PEM certificate stops
+the run with a message naming it, and nothing falls back to skipping
+verification.
+
+A run of the `secrets` role that has both a delivered copy and a root freshly
+fetched from `security` (the Ansible deploy path) fails, naming the file, when
+the two differ. Only a copy such a run holds is compared; the other jobs'
+copies are found stale only when their TLS verification fails.
+
+When step-ca's root changes, deliver the new `root_ca.crt` to every job's
+credentials directory, then run a job that can compare, which confirms the
+copies it holds match.
+
 A role holds any number of independent `secret_id`s, each unwrapped to its
 own file. `redeploy-storage`, the rotation job's successor
 ([ADR 0074](../../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),

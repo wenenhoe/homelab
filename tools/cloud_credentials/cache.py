@@ -34,7 +34,7 @@ from pathlib import Path
 import hvac
 from openbao_utils.client import openbao_base_url, vault_read, vault_write
 from openbao_utils.client import vault_login as _bare_vault_login
-from utils.repo import TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
+from utils.repo import TIMEOUT_SECONDS, read_bootstrap_file, root_cert
 
 _VALID_CATEGORIES = ("leaf", "rotation")
 
@@ -68,7 +68,7 @@ def _get_session() -> dict[str, hvac.Client | str]:
     if _session is None:
         fd, ca_path = tempfile.mkstemp(suffix="-openbao-root-ca")
         with open(fd, "w") as f:
-            f.write(fetch_root_cert())
+            f.write(root_cert())
         atexit.register(lambda: Path(ca_path).unlink(missing_ok=True))
         client = hvac.Client(url=openbao_base_url(), verify=ca_path, timeout=TIMEOUT_SECONDS)
         _vault_login(client)

@@ -4,7 +4,7 @@ Run via `uv run pytest tools/tests/ -v`. Every SSH/Vault call is
 mocked; nothing here touches a real `security` host or a real OpenBao.
 Only tests cache.py's own remaining logic (the leaf/rotation Vault-path
 taxonomy and scoped()'s session-caching convenience) - the generic
-primitives it calls into (fetch_root_cert, vault_login, vault_read,
+primitives it calls into (root_cert, vault_login, vault_read,
 vault_write) are tested once, directly, in
 tools/tests/openbao_utils/test_client.py.
 """
@@ -69,7 +69,7 @@ class TestGetSession:
         secrets_dir.seed("main-domain", "example.com")
         secrets_dir.seed("openbao-controller-role-id", "some-role-id")
         secrets_dir.seed("openbao-controller-secret-id", "some-secret-id")
-        monkeypatch.setattr(cache, "fetch_root_cert", create_autospec(cache.fetch_root_cert, return_value="fake-cert"))
+        monkeypatch.setattr(cache, "root_cert", create_autospec(cache.root_cert, return_value="fake-cert"))
 
     @patch("cloud_credentials.cache.hvac.Client", autospec=True)
     def test_logs_in_only_once_across_multiple_calls(self, mock_client_cls, hvac_client):

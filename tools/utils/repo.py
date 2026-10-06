@@ -60,6 +60,23 @@ def read_bootstrap_file(name: str) -> str | None:
     return path.read_text().strip() if path.exists() else None
 
 
+ROOT_CERT_FILE = "step-ca-root.crt"
+
+
+def root_cert() -> str:
+    """step-ca's root certificate, for verifying OpenBao's TLS: the copy
+    delivered to the file cache when there is one, else fetched fresh
+    from security. A CD agent job holds no SSH key to security, so its
+    credentials directory carries the public root instead."""
+    delivered = read_bootstrap_file(ROOT_CERT_FILE)
+    if delivered is None:
+        return fetch_root_cert()
+    if "BEGIN CERTIFICATE" not in delivered:
+        print(f"{SECRETS_DIR / ROOT_CERT_FILE} isn't a PEM certificate - redeliver step-ca's root_ca.crt there.", file=sys.stderr)
+        raise SystemExit(1)
+    return delivered
+
+
 def main_domain() -> str:
     domain = read_bootstrap_file("main-domain")
     if not domain:

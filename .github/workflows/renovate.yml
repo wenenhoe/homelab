@@ -55,6 +55,10 @@ jobs:
         env:
           RENOVATE_REPOSITORIES: ${{ github.repository }}
           RENOVATE_GIT_AUTHOR: "${{ github.repository_owner }} <${{ github.repository_owner_id }}+${{ github.repository_owner }}@users.noreply.github.com>"
+          # The custom datasources in renovate.json5 that read GitHub's release
+          # API are not given the platform token, and unauthenticated calls
+          # share GitHub's 60-an-hour limit with every other runner on the IP.
+          RENOVATE_HOST_RULES: ${{ format('[{{"matchHost":"api.github.com","token":"{0}"}}]', secrets.RENOVATE_TOKEN) }}
         with:
           renovate-version: "44.138.0"
           token: ${{ secrets.RENOVATE_TOKEN }}

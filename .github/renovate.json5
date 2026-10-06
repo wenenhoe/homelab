@@ -98,6 +98,28 @@
       defaultRegistryUrlTemplate: "https://cli.coderabbit.ai/releases/latest/VERSION",
       format: "plain",
     },
+
+    // rclone's and OpenBao's releases carry a "v" tag and a large asset per
+    // platform, which github-release-attachments would download whole to hash.
+    // GitHub lists a sha256 `digest` on every asset it stores, so these read
+    // the release list and return the digest of the one pinned asset beside
+    // each version, tag's "v" removed. A release whose asset has no digest
+    // is returned without one. The request needs the host rule that
+    // renovate.yml sets: a custom datasource is not given the platform token.
+    "rclone-linux-amd64": {
+      defaultRegistryUrlTemplate: "https://api.github.com/repos/rclone/rclone/releases?per_page=100",
+      format: "json",
+      transformTemplates: [
+        '{"sourceUrl": "https://github.com/rclone/rclone", "releases": $map($[draft = false and prerelease = false], function($r) { {"version": $substringAfter($r.tag_name, "v"), "releaseTimestamp": $r.published_at, "digest": $substringAfter($r.assets[name = "rclone-" & $r.tag_name & "-linux-amd64.zip"].digest, "sha256:")} })}',
+      ],
+    },
+    "openbao-linux-amd64-deb": {
+      defaultRegistryUrlTemplate: "https://api.github.com/repos/openbao/openbao/releases?per_page=100",
+      format: "json",
+      transformTemplates: [
+        '{"sourceUrl": "https://github.com/openbao/openbao", "releases": $map($[draft = false and prerelease = false], function($r) { {"version": $substringAfter($r.tag_name, "v"), "releaseTimestamp": $r.published_at, "digest": $substringAfter($r.assets[name = "openbao_" & $substringAfter($r.tag_name, "v") & "_linux_amd64.deb"].digest, "sha256:")} })}',
+      ],
+    },
   },
 
   customManagers: [
@@ -179,56 +201,43 @@
       matchStrings: ["step_ca_cert_chown_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
       datasourceTemplate: "docker",
     },
-    // openbao_cli's native-CLI version pin — a different flavor of the
-    // same blind spot as the three above, but a GitHub Releases tag
-    // (openbao/openbao's .deb asset), not a Docker Hub image, so it
-    // needs its own datasource/depName rather than reusing the "image:tag
-    // in one string" shape those share. Release tags are "v2.6.2"; this
-    // repo's own pin is bare "2.6.2" (matching how the URL template in
-    // that same file builds "v{{ openbao_cli_version }}") —
-    // extractVersionTemplate strips the "v" so the two compare equal.
-    // depNameTemplate deliberately matches the docker-datasourced
-    // "openbao/openbao" below so this joins the same group despite the
-    // different datasource (see that packageRule's own comment) — but
-    // openbao_cli_deb_sha256, right below the version in that same file,
-    // is NOT covered by this manager or by anything else here: Renovate's
-    // github-releases datasource resolves tags, not a per-asset checksum,
-    // so a version-bump PR still needs the new sha256 (from that
-    // release's own checksums.txt) added by hand before merging — see
-    // the prBodyNotes reminder on this dep below.
+    // openbao_cli's native-CLI version and the sha256 of its .deb, a GitHub
+    // release asset rather than a Docker Hub image, so it has its own
+    // datasource. The pin is bare ("2.7.1") and the tag "v2.7.1"; the datasource
+    // strips the "v". depNameTemplate matches the docker-datasourced
+    // "openbao/openbao" pins so this joins their group rule below. The two
+    // variables sit apart in the file, with the .deb's name and URL between.
     {
       customType: "regex",
-      description: "openbao_cli's native-CLI version pin, a GitHub release tag rather than a recognized image: key under a docker module",
+      description: "openbao_cli's native-CLI version and the sha256 of its .deb, a GitHub release asset rather than a recognized image: key under a docker module",
       managerFilePatterns: ["/^ansible/roles/openbao_cli/defaults/main\\.ya?ml$/"],
-      matchStrings: ["openbao_cli_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
-      datasourceTemplate: "github-releases",
+      matchStrings: ["openbao_cli_version:\\s*[\"'](?<currentValue>[^\"']+)[\"'][\\s\\S]*?openbao_cli_deb_sha256:\\s*[\"'](?<currentDigest>[a-f0-9]{64})[\"']"],
+      datasourceTemplate: "custom.openbao-linux-amd64-deb",
       depNameTemplate: "openbao/openbao",
-      extractVersionTemplate: "^v(?<version>.*)$",
     },
-    // The CD agent's uv pin: a GitHub release in a plain Ansible variable
-    // default. uv's release tags are bare ("0.12.23"), so no
-    // extractVersionTemplate. Its sha256 is not covered, see the prBodyNotes
-    // rule below.
+    // The CD agent's uv pin: a GitHub release asset, version and sha256 in two
+    // adjacent Ansible variable defaults. uv's release tags are bare
+    // ("0.12.23"), so no extractVersionTemplate. The attachments datasource
+    // finds the pinned tarball's hash in the release's small .sha256 asset
+    // and reads the same file from the new release, so one PR moves both.
     {
       customType: "regex",
-      description: "cd_agent's uv version pin, a GitHub release tag rather than a recognized image: key under a docker module",
+      description: "cd_agent's uv version and the sha256 of its release tarball, a GitHub release asset rather than a recognized image: key under a docker module",
       managerFilePatterns: ["/^ansible/roles/cd_agent/defaults/main\\.ya?ml$/"],
-      matchStrings: ["cd_agent_uv_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
-      datasourceTemplate: "github-releases",
+      matchStrings: ["cd_agent_uv_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']\\s+cd_agent_uv_sha256:\\s*[\"'](?<currentDigest>[a-f0-9]{64})[\"']"],
+      datasourceTemplate: "github-release-attachments",
       depNameTemplate: "astral-sh/uv",
     },
-    // The CD agent's native rclone pin, the same kind of pin as uv's. rclone's
-    // release tags carry a "v". Its depName is the image pins' own, so the
-    // group rule below moves it with them; its sha256 is not covered, see the
-    // prBodyNotes rule below.
+    // The CD agent's native rclone pin, the same kind of pin as uv's: version
+    // and the sha256 of linux-amd64.zip in adjacent variables. Its depName is
+    // the image pins' own, so the group rule below moves it with them.
     {
       customType: "regex",
-      description: "cd_agent's native rclone version pin, a GitHub release tag rather than a recognized image: key under a docker module",
+      description: "cd_agent's native rclone version and the sha256 of its release zip, a GitHub release asset rather than a recognized image: key under a docker module",
       managerFilePatterns: ["/^ansible/roles/cd_agent/defaults/main\\.ya?ml$/"],
-      matchStrings: ["cd_agent_rclone_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
-      datasourceTemplate: "github-releases",
+      matchStrings: ["cd_agent_rclone_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']\\s+cd_agent_rclone_sha256:\\s*[\"'](?<currentDigest>[a-f0-9]{64})[\"']"],
+      datasourceTemplate: "custom.rclone-linux-amd64",
       depNameTemplate: "rclone/rclone",
-      extractVersionTemplate: "^v(?<version>.*)$",
     },
     {
       customType: "regex",
@@ -415,54 +424,51 @@
       groupSlug: "openbao",
     },
 
-    // The one thing the group above doesn't cover: openbao_cli_deb_sha256
-    // (ansible/roles/openbao_cli/defaults/main.yaml, right below the
-    // version this rule matches) is a per-asset checksum, not a version —
-    // Renovate's github-releases datasource has no way to know or fetch
-    // it. Scoped to this datasource specifically so the reminder only
-    // fires on openbao_cli's own bump, not every compose/image-only
-    // change in the group above.
+    // openbao_cli_deb_sha256 is bumped by this PR from the digest GitHub lists
+    // for the .deb on the new release. That is GitHub's hash of the asset, not
+    // the publisher's signed one, so the note asks for the check Renovate
+    // cannot make. Scoped to this datasource so it fires only on openbao_cli's
+    // own bump, not on the group's image-only changes.
     {
-      matchDatasources: ["github-releases"],
+      matchDatasources: ["custom.openbao-linux-amd64-deb"],
       matchDepNames: ["openbao/openbao"],
       prBodyNotes: [
-        "⚠️ openbao_cli_deb_sha256 (ansible/roles/openbao_cli/defaults/main.yaml) is NOT updated by this PR — copy the new sha256 for openbao_<version>_linux_amd64.deb from that release's own checksums.txt before merging, or the role's get_url task fails its checksum check on the next deploy.",
+        "ℹ️ openbao_cli_deb_sha256 (ansible/roles/openbao_cli/defaults/main.yaml) is updated by this PR from the digest GitHub lists for openbao_<version>_linux_amd64.deb. Check it against that release's checksums.txt before merging; the file's own checksum is the same place the asset came from.",
       ],
     },
 
-    // Same gap as openbao_cli_deb_sha256 above: the custom datasource
-    // resolves a version, not the zip's hash, so CODERABBIT_SHA256 is left
-    // stale and the PR's build check fails at the checksum until it is
-    // replaced by hand.
+    // The CodeRabbit manifest lists hashes with no version, so no datasource
+    // can pair its hash with the version that VERSION returns: CODERABBIT_SHA256
+    // is left stale and this PR's build check fails at the checksum until it is
+    // replaced by hand. latest/SHA256SUMS is the manifest for the release
+    // VERSION names.
     {
       matchDatasources: ["custom.coderabbit-cli"],
       matchDepNames: ["coderabbit-cli"],
       prBodyNotes: [
-        "⚠️ CODERABBIT_SHA256 (tools/coderabbit-review/Dockerfile) is NOT updated by this PR — replace it with the coderabbit-linux-x64.zip entry from https://cli.coderabbit.ai/releases/<new version>/SHA256SUMS before merging; until then this PR's build check fails at the checksum step. See docs/topics/engineering/coderabbit-review.md.",
+        "⚠️ CODERABBIT_SHA256 (tools/coderabbit-review/Dockerfile) is NOT updated by this PR — replace it with the `./coderabbit-linux-x64.zip` line of https://cli.coderabbit.ai/releases/<new version>/SHA256SUMS (the same file as releases/latest/SHA256SUMS while this is the latest release) before merging; until then this PR's build check fails at the checksum step. See docs/topics/engineering/coderabbit-review.md.",
       ],
     },
 
-    // Same gap as openbao_cli_deb_sha256 above: the github-releases datasource
-    // resolves a tag, not an asset's hash, so cd_agent_uv_sha256 is left stale
-    // and the role's get_url task fails its checksum check on the next
-    // provisioning run until it is replaced by hand.
+    // cd_agent_uv_sha256 is bumped by this PR from the release's own .sha256
+    // asset, so the note asks for the one check Renovate cannot make: that
+    // the hash is the file's published checksum and uv still reads uv.lock.
     {
-      matchDatasources: ["github-releases"],
+      matchDatasources: ["github-release-attachments"],
       matchDepNames: ["astral-sh/uv"],
       prBodyNotes: [
-        "⚠️ cd_agent_uv_sha256 (ansible/roles/cd_agent/defaults/main.yaml) is NOT updated by this PR — copy the new sha256 from uv-x86_64-unknown-linux-gnu.tar.gz.sha256 on that release before merging, or the role's get_url task fails its checksum check on the next provisioning run. Also check that the new uv still reads the repository's uv.lock.",
+        "ℹ️ cd_agent_uv_sha256 (ansible/roles/cd_agent/defaults/main.yaml) is updated by this PR from uv-x86_64-unknown-linux-gnu.tar.gz.sha256 on the new release. Check it against that release page, and that the new uv still reads the repository's uv.lock.",
       ],
     },
 
-    // The github-releases datasource resolves a tag, not an asset's hash, so
-    // cd_agent_rclone_sha256 is left stale and the role's get_url task fails
-    // its checksum check on the next provisioning run until it is replaced by
-    // hand.
+    // cd_agent_rclone_sha256 is bumped by this PR from the digest GitHub lists
+    // for rclone-v<version>-linux-amd64.zip; the publisher's own hash is in the
+    // clearsigned SHA256SUMS.
     {
-      matchDatasources: ["github-releases"],
+      matchDatasources: ["custom.rclone-linux-amd64"],
       matchDepNames: ["rclone/rclone"],
       prBodyNotes: [
-        "⚠️ cd_agent_rclone_sha256 (ansible/roles/cd_agent/defaults/main.yaml) is NOT updated by this PR — copy the rclone-v<version>-linux-amd64.zip line from the release's SHA256SUMS (signed with the key at https://rclone.org/release_signing/) before merging, or the role's get_url task fails its checksum check on the next provisioning run.",
+        "ℹ️ cd_agent_rclone_sha256 (ansible/roles/cd_agent/defaults/main.yaml) is updated by this PR from the digest GitHub lists for rclone-v<version>-linux-amd64.zip. Check it against the line in the release's SHA256SUMS (signed with the key at https://rclone.org/release_signing/) before merging.",
       ],
     },
 

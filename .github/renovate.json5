@@ -217,6 +217,19 @@
       datasourceTemplate: "github-releases",
       depNameTemplate: "astral-sh/uv",
     },
+    // The CD agent's native rclone pin, the same kind of pin as uv's. rclone's
+    // release tags carry a "v". Its depName is the image pins' own, so the
+    // group rule below moves it with them; its sha256 is not covered, see the
+    // prBodyNotes rule below.
+    {
+      customType: "regex",
+      description: "cd_agent's native rclone version pin, a GitHub release tag rather than a recognized image: key under a docker module",
+      managerFilePatterns: ["/^ansible/roles/cd_agent/defaults/main\\.ya?ml$/"],
+      matchStrings: ["cd_agent_rclone_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "rclone/rclone",
+      extractVersionTemplate: "^v(?<version>.*)$",
+    },
     {
       customType: "regex",
       description: "The CodeRabbit CLI version pinned in the review image's Dockerfile; only the version, not its hash",
@@ -419,15 +432,29 @@
       ],
     },
 
+    // The github-releases datasource resolves a tag, not an asset's hash, so
+    // cd_agent_rclone_sha256 is left stale and the role's get_url task fails
+    // its checksum check on the next provisioning run until it is replaced by
+    // hand.
+    {
+      matchDatasources: ["github-releases"],
+      matchDepNames: ["rclone/rclone"],
+      prBodyNotes: [
+        "⚠️ cd_agent_rclone_sha256 (ansible/roles/cd_agent/defaults/main.yaml) is NOT updated by this PR — copy the rclone-v<version>-linux-amd64.zip line from the release's SHA256SUMS (signed with the key at https://rclone.org/release_signing/) before merging, or the role's get_url task fails its checksum check on the next provisioning run.",
+      ],
+    },
+
     // rclone/rclone is pinned independently in cloud_sync's ExecStart=
     // and backup_agent's freshness-check script (both need the custom
     // regex managers above, neither is a real compose/dockerfile image:
     // line) — aligned to the same version (1.72) as of this rule being
     // added; group them so they can't drift apart again the way they
-    // already had before this was noticed.
+    // already had before this was noticed. cd_agent's native rclone joins
+    // them: leaf-key verification has to follow the request sequence
+    // cloud_sync's rclone makes.
     {
       matchDepNames: ["rclone/rclone"],
-      groupName: "rclone (cloud_sync + backup_agent — must move together)",
+      groupName: "rclone (cloud_sync + backup_agent + cd_agent — must move together)",
       groupSlug: "rclone",
     },
 

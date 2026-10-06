@@ -64,7 +64,7 @@ The freshness job replaces the weekly user timer on `controller` (`tools/cloud_c
 - Token lifetime is a project decision ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 - The agent VM goes in VLAN 30, the 3XX range, next to the operator host, with 2 to 4 GB of RAM, built after VM 401's retirement frees memory. It is VM 303, `192.168.30.3`. The coding-agent host keeps no path to it ([ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)). Traffic between two hosts in one VLAN is switched without reaching OPNsense, so the `sshd` source restriction to the operator host is enforced on the agent itself, not at the firewall.
 - The `cd_agent` role does not remove a job dropped from `cd_agent_jobs`: its user, units and directories stay.
-- The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists ([`cd-agent-approles.md`](cd-agent-approles.md)); it needs a native `rclone`, not Docker.
+- The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists ([`cd-agent-approles.md`](cd-agent-approles.md)); it needs a native `rclone`, not Docker, which the role installs ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)).
 - Each job's heartbeat depends on ADR 0072's mechanism ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), which is not built.
 - The deploy, maintenance and freshness jobs cannot log in to OpenBao yet; what is missing is in [`cd-agent-approles.md`](cd-agent-approles.md)'s open items. Applying the role before that is settled starts jobs that fail on every run.
 - Nothing can apply the role until [`operator-host.md`](operator-host.md)'s Stage 3 builds VM 302, because `sshd` accepts `192.168.30.2` alone.

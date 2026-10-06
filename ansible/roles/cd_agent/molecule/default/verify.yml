@@ -50,6 +50,28 @@
           - cd_agent_verify_uv_stat.stat.mode == '0755'
           - cd_agent_verify_uv.stdout is regex('^uv [0-9]+\.[0-9]+\.[0-9]+')
 
+    # --- rclone: root-owned, the pinned version, and a job's user can run it ---
+    - name: Stat the rclone the jobs find on their PATH
+      ansible.builtin.stat:
+        path: /opt/cd-agent/bin/rclone
+        follow: true
+      register: cd_agent_verify_rclone_stat
+
+    - name: Run it as a job's user
+      ansible.builtin.command: runuser -u cd-agent-deploy -- /opt/cd-agent/bin/rclone version
+      register: cd_agent_verify_rclone
+      changed_when: false
+
+    - name: Confirm it is root-owned, not writable by anyone else, and the version the role pins
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_rclone_stat.stat.pw_name == 'root'
+          - cd_agent_verify_rclone_stat.stat.mode == '0755'
+          - cd_agent_verify_rclone.stdout_lines[0] == 'rclone v' ~ cd_agent_verify_rclone_pinned
+        fail_msg: "rclone version printed: {{ cd_agent_verify_rclone.stdout_lines | first }}"
+      vars:
+        cd_agent_verify_rclone_pinned: "{{ (lookup('file', (playbook_dir ~ '/../../defaults/main.yaml') | realpath) | from_yaml).cd_agent_rclone_version }}"
+
     # --- One distinct, unprivileged, non-login user per job --------------
     - name: Look up the passwd database
       ansible.builtin.getent:

@@ -41,7 +41,7 @@ Rotation covers the six leaf credentials only, as rotate-and-revoke: `create_lea
 
 `storage` takes the write leaf only when `deploy.yaml` re-renders its `rclone.conf`, and the deploy job acts only on a changed commit, so `redeploy-storage` follows the rotation job. It runs `deploy.yaml --limit storage,localhost` without `--on-change`, as its own user. Rotation is scheduled for the 8th at 02:00, so the redeploy finishes before `cloud_sync`'s 06:00 run and clear of the maintenance runs. The host needs a native `rclone` at the version `cloud_sync` uses, since the verification follows production's request sequence.
 
-The rotation job runs `python -m cloud_credentials.rotate_leaf_keys`, which rotates each provider in turn ([`rotation.md`](../topics/secrets/cloud-credentials/rotation.md#rotation)). What is left of the stage is the native `rclone` and the two jobs in the inventory. The rotation job joins the inventory in the same change as the `rclone`, or after it: without one, verification cannot run, and each run leaves a new, unrevoked key at the provider.
+The rotation job runs `python -m cloud_credentials.rotate_leaf_keys`, which rotates each provider in turn ([`rotation.md`](../topics/secrets/cloud-credentials/rotation.md#rotation)). The host has a native `rclone` at the version `cloud_sync` runs ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)); without one, verification cannot run, and each run leaves a new, unrevoked key at the provider. What is left of the stage is the two jobs in the inventory.
 
 ## Acceptance criteria
 

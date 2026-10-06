@@ -7,13 +7,14 @@ Dockerfile themselves, the CI build and boot-test steps look images up
 here, and `check-pins` fails when anything that names one disagrees:
 
 - a compose file pinning `ghcr.io/wenenhoe/<name>:<tag>` where the tag is
-  not the one the build workflow will publish from the Dockerfile;
+  newer than the one the build workflow will publish from the Dockerfile;
 - a Molecule scenario's `image:` naming a tag that isn't published;
 - an image no entry here describes, or an entry with no Dockerfile, or a
   `docker/<app>/Dockerfile` with no entry.
 
-A tag is read from the Dockerfile, so a Renovate bump to it is what
-changes it: the compose pin must move in the same change.
+A tag is read from the Dockerfile and published only after the merge that
+changes it, so a compose pin follows in a later change, once the tag
+exists: it may fall behind the Dockerfile's version, never run ahead.
 
 Subcommands (from tools/: python -m ci.images.registry ...):
   tags <image>   writes version=<tag> and tags=<comma-separated refs>
@@ -47,6 +48,20 @@ class ImageError(Exception):
 
 # Dockerfile text -> version tag.
 TagSource = Callable[[str], str]
+
+
+def _is_published_by(tag: str | None, version: str) -> bool:
+    """Whether a build of `version` publishes `tag` or has already published it: the same tag, or an older X.Y[.Z]."""
+    if tag == version:
+        return True
+    if tag is None or not _VERSION.match(tag) or not _VERSION.match(version):
+        return False
+    return _version_key(tag) < _version_key(version)
+
+
+def _version_key(version: str) -> tuple[int, int, int]:
+    major, minor, *patch = (int(part) for part in version.split("."))
+    return major, minor, patch[0] if patch else 0
 
 
 def _split_ref(ref: str) -> tuple[str, str | None]:
@@ -184,8 +199,8 @@ def check_pins(root: Path) -> list[str]:
                 errors.append(f"{where}: pins {REGISTRY}/{name}, which no image entry publishes")
             elif name in published:
                 version = resolve_version(root, by_name[name])
-                if tag != version:
-                    errors.append(f"{where}: pins {REGISTRY}/{name}:{tag or '(no tag)'}, but the Dockerfile publishes {version}")
+                if not _is_published_by(tag, version):
+                    errors.append(f"{where}: pins {REGISTRY}/{name}:{tag or '(no tag)'}, but the Dockerfile publishes {version}: a pin can't be newer")
 
     for molecule in sorted((root / "ansible/roles").glob("*/molecule/*/molecule.yml")):
         for name, tag in _MOLECULE_IMAGE.findall(molecule.read_text()):

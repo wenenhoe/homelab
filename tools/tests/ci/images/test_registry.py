@@ -13,7 +13,6 @@ import re
 from pathlib import Path
 
 import pytest
-from ci import json5
 from ci.images import registry as reg
 
 
@@ -159,13 +158,16 @@ class TestCheckPins:
         ("path", "content", "fragment"),
         [
             pytest.param(
-                "docker/caddy/Dockerfile",
-                "FROM caddy:2.12.0-builder AS builder\nFROM caddy:2.12.0\n",
-                "docker/caddy/compose.yaml: pins ghcr.io/wenenhoe/caddy-digitalocean:2.11.4, but the Dockerfile publishes 2.12.0",
-                id="compose-pin-behind-the-dockerfile",
+                "docker/caddy/compose.yaml",
+                "    image: ghcr.io/wenenhoe/caddy-digitalocean:2.12.0\n",
+                "docker/caddy/compose.yaml: pins ghcr.io/wenenhoe/caddy-digitalocean:2.12.0, but the Dockerfile publishes 2.11.4",
+                id="compose-pin-ahead-of-the-dockerfile",
             ),
-            pytest.param("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:3.7.1\n", "compose.yaml.j2", id="templated-compose-file"),
+            pytest.param("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:3.8.0\n", "compose.yaml.j2", id="templated-compose-file"),
             pytest.param("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin\n", "(no tag)", id="compose-pin-with-no-tag"),
+            pytest.param(
+                "docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:latest\n", "wastebin:latest", id="compose-pin-on-a-non-version-tag"
+            ),
             pytest.param(
                 "docker/wastebin/compose.yaml.j2",
                 "    image: ghcr.io/wenenhoe/mystery:1.0.0\n",
@@ -193,8 +195,28 @@ class TestCheckPins:
         (error,) = reg.check_pins(tree.root)
         assert fragment in error
 
+    def test_a_compose_pin_may_lag_the_dockerfile_until_its_tag_is_published(self, tree):
+        tree.write("docker/caddy/Dockerfile", "FROM caddy:2.12.0-builder AS builder\nFROM caddy:2.12.0\n")
+        assert reg.check_pins(tree.root) == []
+
+    @pytest.mark.parametrize(
+        ("pin", "dockerfile", "ahead"),
+        [
+            pytest.param("2.9.0", "2.10.0", False, id="minor-compared-as-a-number-not-text"),
+            pytest.param("2.10.0", "2.9.0", True, id="two-digit-minor-is-ahead-of-a-one-digit-one"),
+            pytest.param("2.11.3", "2.11.4", False, id="patch-behind"),
+            pytest.param("2.11.5", "2.11.4", True, id="patch-ahead"),
+            pytest.param("2.11", "2.11.1", False, id="two-part-pin-behind-a-three-part-version"),
+            pytest.param("2.11.1", "2.11", True, id="three-part-pin-ahead-of-a-two-part-version"),
+        ],
+    )
+    def test_versions_are_compared_by_their_numbers(self, tree, pin, dockerfile, ahead):
+        tree.write("docker/wastebin/Dockerfile", f"FROM busybox:1.38.0 AS d\nFROM quxfoo/wastebin:{dockerfile}\n")
+        tree.write("docker/wastebin/compose.yaml.j2", f"    image: ghcr.io/wenenhoe/wastebin:{pin}\n")
+        assert bool(reg.check_pins(tree.root)) is ahead
+
     def test_a_quoted_image_is_still_read(self, tree):
-        tree.write("docker/wastebin/compose.yaml.j2", "    image: 'ghcr.io/wenenhoe/wastebin:1.0.0'\n")
+        tree.write("docker/wastebin/compose.yaml.j2", "    image: 'ghcr.io/wenenhoe/wastebin:9.0.0'\n")
         assert len(reg.check_pins(tree.root)) == 1
 
     def test_a_commented_out_pin_is_ignored(self, tree):
@@ -211,8 +233,8 @@ class TestCheckPins:
         assert "molecule-dind: docker/molecule-dind/Dockerfile doesn't exist" in error
 
     def test_every_disagreement_is_reported_not_just_the_first(self, tree):
-        tree.write("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:1.0.0\n")
-        tree.write("docker/caddy/compose.yaml", "    image: ghcr.io/wenenhoe/caddy-digitalocean:1.0.0\n")
+        tree.write("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:9.0.0\n")
+        tree.write("docker/caddy/compose.yaml", "    image: ghcr.io/wenenhoe/caddy-digitalocean:9.0.0\n")
         assert len(reg.check_pins(tree.root)) == 2
 
 
@@ -243,7 +265,7 @@ class TestCli:
 
     def test_check_pins_exit_codes(self, tree, run_main):
         assert run_main("check-pins")[0] == 0
-        tree.write("docker/caddy/compose.yaml", "    image: ghcr.io/wenenhoe/caddy-digitalocean:0.0.1\n")
+        tree.write("docker/caddy/compose.yaml", "    image: ghcr.io/wenenhoe/caddy-digitalocean:9.9.9\n")
         assert run_main("check-pins")[0] == 1
 
 
@@ -272,59 +294,3 @@ class TestRealTree:
     def test_the_coderabbit_arg_is_read_from_the_dockerfile(self):
         text = reg.IMAGES["coderabbit-review"].dockerfile(reg.REPO_ROOT).read_text()
         assert f"ARG CODERABBIT_VERSION={reg.resolve_version(reg.REPO_ROOT, reg.IMAGES['coderabbit-review'])}\n" in text
-
-
-class TestRenovateMovesComposePins:
-    """A bump to a Dockerfile's FROM has to reach the compose pin of the image built from it in the same Renovate PR."""
-
-    @pytest.fixture
-    def config(self) -> dict:
-        return json5.loads((reg.REPO_ROOT / ".github/renovate.json5").read_text())
-
-    @staticmethod
-    def pins() -> list[tuple[Path, str, str]]:
-        found = []
-        for compose in sorted((reg.REPO_ROOT / "docker").glob("*/compose.yaml*")):
-            found += [(compose, name, tag) for name, tag in reg._COMPOSE_IMAGE.findall(compose.read_text())]
-        return found
-
-    @staticmethod
-    def matches(pattern: str, text: str) -> bool:
-        return bool(re.search(pattern[1:-1], text)) if pattern.startswith("/") and pattern.endswith("/") else pattern == text
-
-    def test_every_compose_pin_is_tracked_as_its_dockerfiles_upstream_image(self, config, subtests):
-        by_name = {image.name: image for image in reg.IMAGES.values()}
-        for compose, name, tag in self.pins():
-            rel = compose.relative_to(reg.REPO_ROOT).as_posix()
-            with subtests.test(pin=f"{rel} {name}"):
-                managers = [
-                    manager
-                    for manager in config["customManagers"]
-                    if manager.get("datasourceTemplate") == "docker" and any(self.matches(p, rel) for p in manager["managerFilePatterns"])
-                ]
-                assert managers, f"no custom manager reads {rel}, so a bump to {name}'s Dockerfile leaves its pin behind"
-                upstream = {image for image, from_tag in reg._from_images(by_name[name].dockerfile(reg.REPO_ROOT).read_text()) if from_tag == tag}
-                tracked = set()
-                for manager in managers:
-                    for expression in manager["matchStrings"]:
-                        found = re.search(expression.replace("(?<", "(?P<"), compose.read_text())
-                        if found:
-                            assert found.group("currentValue") == tag
-                            tracked.add(found.groupdict().get("depName") or manager["depNameTemplate"])
-                assert tracked
-                assert tracked <= upstream, f"{rel} is tracked as {sorted(tracked)}, not as an image its Dockerfile has at {tag}: {sorted(upstream)}"
-
-    def test_every_compose_pin_is_grouped_with_its_dockerfile(self, config, subtests):
-        by_name = {image.name: image for image in reg.IMAGES.values()}
-        for _compose, name, tag in self.pins():
-            with subtests.test(image=name):
-                upstream = {image for image, from_tag in reg._from_images(by_name[name].dockerfile(reg.REPO_ROOT).read_text()) if from_tag == tag}
-                assert any(rule.get("groupName") and upstream & set(rule.get("matchDepNames", [])) for rule in config["packageRules"]), (
-                    f"no group rule names {sorted(upstream)}, so the Dockerfile and compose bumps become separate PRs"
-                )
-
-    def test_the_compose_manager_leaves_images_built_here_to_the_custom_managers(self, config, subtests):
-        disabled = [rule for rule in config["packageRules"] if rule.get("enabled") is False and "docker-compose" in rule.get("matchManagers", [])]
-        for _compose, name, _tag in self.pins():
-            with subtests.test(image=name):
-                assert any(self.matches(pattern, f"{reg.REGISTRY}/{name}") for rule in disabled for pattern in rule["matchDepNames"])

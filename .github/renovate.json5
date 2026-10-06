@@ -247,28 +247,6 @@
       datasourceTemplate: "custom.coderabbit-cli",
       depNameTemplate: "coderabbit-cli",
     },
-
-    // A compose pin of an image this repo builds is the upstream version its
-    // Dockerfile builds on (ci.images.registry), so it is tracked as that
-    // upstream dependency: the group rules below then move it with the
-    // Dockerfile's FROM in one PR, which check-image-pins requires. The
-    // compose manager's own view of these pins is disabled below.
-    {
-      customType: "regex",
-      description: "docker/caddy/compose.yaml's pin of the image built from docker/caddy/Dockerfile, tracked as the Caddy version that Dockerfile builds on",
-      managerFilePatterns: ["/^docker/caddy/compose\\.ya?ml$/"],
-      matchStrings: ["image:\\s*ghcr\\.io/wenenhoe/caddy-digitalocean:(?<currentValue>[0-9.]+)"],
-      datasourceTemplate: "docker",
-      depNameTemplate: "caddy",
-    },
-    {
-      customType: "regex",
-      description: "docker/wastebin/compose.yaml's pin of the image built from docker/wastebin/Dockerfile, tracked as the wastebin version that Dockerfile builds on",
-      managerFilePatterns: ["/^docker/wastebin/compose\\.ya?ml$/"],
-      matchStrings: ["image:\\s*ghcr\\.io/wenenhoe/wastebin:(?<currentValue>[0-9.]+)"],
-      datasourceTemplate: "docker",
-      depNameTemplate: "quxfoo/wastebin",
-    },
   ],
 
   packageRules: [
@@ -518,29 +496,6 @@
       matchDepNames: ["smallstep/step-ca", "smallstep/step-cli"],
       groupName: "smallstep step-ca + step-cli (prod, CI fixture, molecule target — must move together)",
       groupSlug: "smallstep",
-    },
-
-    // A tag of an image this repo builds exists in ghcr.io only after the
-    // merge that publishes it, so the compose manager can never propose one
-    // that is ready: the custom managers above own these pins.
-    {
-      matchManagers: ["docker-compose"],
-      matchDepNames: ["/^ghcr\\.io\\/wenenhoe\\//"],
-      enabled: false,
-    },
-
-    // The Dockerfile's FROM and the compose pin of the image built from it,
-    // one dependency each. Placed after "docker images (minor/patch)" so
-    // these groups win for every update type.
-    {
-      matchDepNames: ["caddy"],
-      groupName: "caddy (Dockerfile + compose pin — must move together)",
-      groupSlug: "caddy",
-    },
-    {
-      matchDepNames: ["quxfoo/wastebin"],
-      groupName: "wastebin (Dockerfile + compose pin — must move together)",
-      groupSlug: "wastebin",
     },
 
     // Every other ansible-galaxy collection bump, lumped into one PR —

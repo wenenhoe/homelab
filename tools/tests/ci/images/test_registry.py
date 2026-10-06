@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 import pytest
+from ci import json5
 from ci.images import registry as reg
 
 
@@ -271,3 +272,59 @@ class TestRealTree:
     def test_the_coderabbit_arg_is_read_from_the_dockerfile(self):
         text = reg.IMAGES["coderabbit-review"].dockerfile(reg.REPO_ROOT).read_text()
         assert f"ARG CODERABBIT_VERSION={reg.resolve_version(reg.REPO_ROOT, reg.IMAGES['coderabbit-review'])}\n" in text
+
+
+class TestRenovateMovesComposePins:
+    """A bump to a Dockerfile's FROM has to reach the compose pin of the image built from it in the same Renovate PR."""
+
+    @pytest.fixture
+    def config(self) -> dict:
+        return json5.loads((reg.REPO_ROOT / ".github/renovate.json5").read_text())
+
+    @staticmethod
+    def pins() -> list[tuple[Path, str, str]]:
+        found = []
+        for compose in sorted((reg.REPO_ROOT / "docker").glob("*/compose.yaml*")):
+            found += [(compose, name, tag) for name, tag in reg._COMPOSE_IMAGE.findall(compose.read_text())]
+        return found
+
+    @staticmethod
+    def matches(pattern: str, text: str) -> bool:
+        return bool(re.search(pattern[1:-1], text)) if pattern.startswith("/") and pattern.endswith("/") else pattern == text
+
+    def test_every_compose_pin_is_tracked_as_its_dockerfiles_upstream_image(self, config, subtests):
+        by_name = {image.name: image for image in reg.IMAGES.values()}
+        for compose, name, tag in self.pins():
+            rel = compose.relative_to(reg.REPO_ROOT).as_posix()
+            with subtests.test(pin=f"{rel} {name}"):
+                managers = [
+                    manager
+                    for manager in config["customManagers"]
+                    if manager.get("datasourceTemplate") == "docker" and any(self.matches(p, rel) for p in manager["managerFilePatterns"])
+                ]
+                assert managers, f"no custom manager reads {rel}, so a bump to {name}'s Dockerfile leaves its pin behind"
+                upstream = {image for image, from_tag in reg._from_images(by_name[name].dockerfile(reg.REPO_ROOT).read_text()) if from_tag == tag}
+                tracked = set()
+                for manager in managers:
+                    for expression in manager["matchStrings"]:
+                        found = re.search(expression.replace("(?<", "(?P<"), compose.read_text())
+                        if found:
+                            assert found.group("currentValue") == tag
+                            tracked.add(found.groupdict().get("depName") or manager["depNameTemplate"])
+                assert tracked
+                assert tracked <= upstream, f"{rel} is tracked as {sorted(tracked)}, not as an image its Dockerfile has at {tag}: {sorted(upstream)}"
+
+    def test_every_compose_pin_is_grouped_with_its_dockerfile(self, config, subtests):
+        by_name = {image.name: image for image in reg.IMAGES.values()}
+        for _compose, name, tag in self.pins():
+            with subtests.test(image=name):
+                upstream = {image for image, from_tag in reg._from_images(by_name[name].dockerfile(reg.REPO_ROOT).read_text()) if from_tag == tag}
+                assert any(rule.get("groupName") and upstream & set(rule.get("matchDepNames", [])) for rule in config["packageRules"]), (
+                    f"no group rule names {sorted(upstream)}, so the Dockerfile and compose bumps become separate PRs"
+                )
+
+    def test_the_compose_manager_leaves_images_built_here_to_the_custom_managers(self, config, subtests):
+        disabled = [rule for rule in config["packageRules"] if rule.get("enabled") is False and "docker-compose" in rule.get("matchManagers", [])]
+        for _compose, name, _tag in self.pins():
+            with subtests.test(image=name):
+                assert any(self.matches(pattern, f"{reg.REGISTRY}/{name}") for rule in disabled for pattern in rule["matchDepNames"])

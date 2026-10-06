@@ -1,0 +1,111 @@
+---
+# Each case is the role run with one thing wrong; it must fail on the check
+# that names that thing. A bare `rescue:` could not tell the expected
+# failure from an unrelated one (see restore/molecule/validation_failure).
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    cd_agent_valid:
+      cd_agent_runner_source_dir: "{{ (playbook_dir ~ '/../../../../../tools/cd_agent') | realpath }}"
+      cd_agent_operator_address: 192.168.30.2
+      cd_agent_admin_users: [cdadmin]
+      cd_agent_jobs:
+        - name: deploy
+          poll_interval: 5min
+          command: [/bin/true]
+    cd_agent_cases:
+      - name: a wildcard operator address
+        override: {cd_agent_operator_address: "*"}
+        expect: must be one literal IPv4 address
+      - name: an operator address with an octet over 255
+        override: {cd_agent_operator_address: 192.168.30.256}
+        expect: must be one literal IPv4 address
+      - name: a CIDR range as the operator address
+        override: {cd_agent_operator_address: 192.168.30.0/24}
+        expect: must be one literal IPv4 address
+      - name: an admin user name carrying a space
+        override: {cd_agent_admin_users: ["cdadmin root"]}
+        expect: must be a non-empty list of plain user names
+      - name: no admin users
+        override: {cd_agent_admin_users: []}
+        expect: must be a non-empty list of plain user names
+      - name: a job user among the admin users
+        override: {cd_agent_admin_users: [cd-agent-deploy]}
+        expect: outside cd-agent-*
+      - name: both a poll interval and a calendar
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, on_calendar: daily, command: [/bin/true]}
+        expect: Invalid cd_agent_jobs entry
+      - name: neither a timer nor a predecessor
+        override:
+          cd_agent_jobs:
+            - {name: deploy, command: [/bin/true]}
+        expect: no timer and no predecessor
+      - name: an empty command
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: []}
+        expect: Invalid cd_agent_jobs entry
+      - name: an upper-case job name
+        override:
+          cd_agent_jobs:
+            - {name: Deploy, poll_interval: 5min, command: [/bin/true]}
+        expect: Invalid cd_agent_jobs entry
+      - name: a job name too long for a user name
+        override:
+          cd_agent_jobs:
+            - {name: abcdefghijklmnopqrstuvwx, poll_interval: 5min, command: [/bin/true]}
+        expect: Invalid cd_agent_jobs entry
+      - name: a command given as one string
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: /bin/true}
+        expect: Invalid cd_agent_jobs entry
+      - name: two jobs with one name
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: [/bin/true]}
+            - {name: deploy, on_calendar: daily, command: [/bin/true]}
+        expect: unique names
+      - name: no jobs
+        override: {cd_agent_jobs: []}
+        expect: at least one job
+      - name: a successor that is not a job
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: [/bin/true], successors: [ghost]}
+        expect: which is not a job
+      - name: two jobs that follow each other
+        override:
+          cd_agent_jobs:
+            - {name: first, poll_interval: 5min, command: [/bin/true], successors: [second]}
+            - {name: second, poll_interval: 5min, command: [/bin/true], successors: [first]}
+        expect: "jobs form a cycle: first -> second -> first"
+      - name: a job that follows itself
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: [/bin/true], successors: [deploy]}
+        expect: "jobs form a cycle: deploy -> deploy"
+      - name: successors given as one string
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, command: [/bin/true], successors: after}
+        expect: must be a list of job names
+      - name: the machine Ansible is running on
+        override:
+          cd_agent_controller_machine_id: "{{ cd_agent_machine_id_raw.content | b64decode | trim }}"
+        expect: refuses to provision the machine Ansible is running on
+  pre_tasks:
+    - name: Read this host's machine id, for the case where it is also the controller's
+      ansible.builtin.slurp:
+        src: /etc/machine-id
+      register: cd_agent_machine_id_raw
+  tasks:
+    - name: Run the role once per bad input, expecting each to be refused
+      ansible.builtin.include_tasks: tasks/case.yml
+      loop: "{{ cd_agent_cases }}"
+      loop_control:
+        loop_var: cd_agent_case
+        label: "{{ cd_agent_case.name }}"

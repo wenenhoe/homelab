@@ -1,0 +1,348 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  gather_facts: true
+  vars:
+    cd_agent_verify_jobs: [deploy, freshness, rotation]
+    cd_agent_verify_users: "{{ cd_agent_verify_jobs | map('regex_replace', '^', 'cd-agent-') | list }}"
+    cd_agent_verify_runner_source: "{{ (playbook_dir ~ '/../../../../../tools/cd_agent') | realpath }}"
+  tasks:
+    # --- The runner is the repository's, and no job can edit it ----------
+    - name: Read back the installed runner files
+      ansible.builtin.slurp:
+        src: "/opt/cd-agent/lib/cd_agent/{{ item }}"
+      loop: [__init__.py, run_job.py, toolchain.py]
+      register: cd_agent_verify_runner
+
+    - name: Stat the installed runner files
+      ansible.builtin.stat:
+        path: "/opt/cd-agent/lib/cd_agent/{{ item }}"
+      loop: [__init__.py, run_job.py, toolchain.py]
+      register: cd_agent_verify_runner_stat
+
+    - name: Confirm each matches tools/cd_agent/ and is root-owned and not group- or world-writable
+      ansible.builtin.assert:
+        that:
+          - (item.0.content | b64decode | trim) == (lookup('file', cd_agent_verify_runner_source ~ '/' ~ item.0.item) | trim)
+          - item.1.stat.pw_name == 'root'
+          - item.1.stat.mode == '0644'
+      loop: "{{ cd_agent_verify_runner.results | zip(cd_agent_verify_runner_stat.results) | list }}"
+      loop_control:
+        label: "{{ item.0.item }}"
+
+    # --- uv: root-owned, and a job's user can run it ----------------------
+    - name: Stat the uv the jobs find on their PATH
+      ansible.builtin.stat:
+        path: /opt/cd-agent/bin/uv
+        follow: true
+      register: cd_agent_verify_uv_stat
+
+    - name: Run it as a job's user
+      ansible.builtin.command: runuser -u cd-agent-deploy -- /opt/cd-agent/bin/uv --version
+      register: cd_agent_verify_uv
+      changed_when: false
+
+    - name: Confirm it is root-owned, not writable by anyone else, and runs
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_uv_stat.stat.pw_name == 'root'
+          - cd_agent_verify_uv_stat.stat.mode == '0755'
+          - cd_agent_verify_uv.stdout is regex('^uv [0-9]+\.[0-9]+\.[0-9]+')
+
+    # --- One distinct, unprivileged, non-login user per job --------------
+    - name: Look up the passwd database
+      ansible.builtin.getent:
+        database: passwd
+
+    - name: Confirm each job has its own system user with no login shell and its state directory as home
+      ansible.builtin.assert:
+        that:
+          - getent_passwd[item] is defined
+          - getent_passwd[item][1] | int < 1000
+          - getent_passwd[item][4] == '/var/lib/cd-agent/' ~ item | regex_replace('^cd-agent-', '')
+          - getent_passwd[item][5] == '/usr/sbin/nologin'
+      loop: "{{ cd_agent_verify_users }}"
+
+    - name: Confirm the users do not share a uid
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_users | map('extract', getent_passwd, 1) | unique | list | length == cd_agent_verify_jobs | length
+
+    - name: Stat each job's state directory
+      ansible.builtin.stat:
+        path: "/var/lib/cd-agent/{{ item }}"
+      loop: "{{ cd_agent_verify_jobs }}"
+      register: cd_agent_verify_state_dirs
+
+    - name: Stat each job's credential directory
+      ansible.builtin.stat:
+        path: "/etc/cd-agent/credentials/{{ item }}"
+      loop: "{{ cd_agent_verify_jobs }}"
+      register: cd_agent_verify_credential_dirs
+
+    - name: Stat the credentials root
+      ansible.builtin.stat:
+        path: /etc/cd-agent/credentials
+      register: cd_agent_verify_credentials_root
+
+    - name: Confirm every directory belongs to its own job's user, mode 0700, and the root lets no one list the others
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_state_dirs.results | map(attribute='stat.pw_name') | list == cd_agent_verify_users
+          - cd_agent_verify_state_dirs.results | map(attribute='stat.mode') | unique | list == ['0700']
+          - cd_agent_verify_credential_dirs.results | map(attribute='stat.pw_name') | list == cd_agent_verify_users
+          - cd_agent_verify_credential_dirs.results | map(attribute='stat.mode') | unique | list == ['0700']
+          - cd_agent_verify_credentials_root.stat.pw_name == 'root'
+          - cd_agent_verify_credentials_root.stat.mode == '0711'
+
+    # --- No job's user can read another job's credentials ------------------
+    - name: Deliver a credential file into each job's directory, as the AppRole delivery will
+      ansible.builtin.copy:
+        content: "secret-{{ item }}\n"
+        dest: "/etc/cd-agent/credentials/{{ item }}/secret_id"
+        owner: "cd-agent-{{ item }}"
+        group: "cd-agent-{{ item }}"
+        mode: "0400"
+      loop: "{{ cd_agent_verify_jobs }}"
+
+    # runuser, not become_user: Ansible cannot hand its temporary files to
+    # an unprivileged user without ACL tooling this image does not carry.
+    - name: Read every credential file as every job's user, and as nobody
+      ansible.builtin.command: "runuser -u {{ item.1 }} -- cat /etc/cd-agent/credentials/{{ item.0 }}/secret_id"
+      loop: "{{ cd_agent_verify_jobs | product(cd_agent_verify_users + ['nobody']) | list }}"
+      loop_control:
+        label: "{{ item.1 }} reads {{ item.0 }}"
+      register: cd_agent_verify_reads
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm only a job's own user could read its credential file
+      ansible.builtin.assert:
+        that:
+          - >-
+            cd_agent_verify_reads.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | map('join', ':') | list
+            == cd_agent_verify_jobs | zip(cd_agent_verify_users) | map('join', ':') | list
+          - >-
+            cd_agent_verify_reads.results | selectattr('rc', 'equalto', 0) | map(attribute='stdout') | list
+            == cd_agent_verify_jobs | map('regex_replace', '^', 'secret-') | list
+        fail_msg: "Readable by: {{ cd_agent_verify_reads.results | selectattr('rc', 'equalto', 0) | map(attribute='item') | list }}"
+
+    # --- The jobs run for real: as their user, from a fetched checkout ----
+    # Starting a oneshot unit blocks until its run ends and fails if the run
+    # does. What was already in ran.log is read first, so a host that has run
+    # this job before (a local re-run, with main moved on) is judged on what
+    # these two starts add.
+    - name: Read what the deploy job has run so far, if anything
+      ansible.builtin.slurp:
+        src: /var/lib/cd-agent/deploy/ran.log
+      register: cd_agent_verify_ran_before
+      failed_when: false
+
+    - name: Start the deploy job
+      ansible.builtin.systemd:
+        name: cd-agent-deploy.service
+        state: started
+
+    - name: Read what it has run after the first start
+      ansible.builtin.slurp:
+        src: /var/lib/cd-agent/deploy/ran.log
+      register: cd_agent_verify_ran_first
+
+    - name: Start the deploy job again
+      ansible.builtin.systemd:
+        name: cd-agent-deploy.service
+        state: started
+
+    - name: Read what it has run after the second start, and its record
+      ansible.builtin.slurp:
+        src: "/var/lib/cd-agent/deploy/{{ item }}"
+      loop: [ran.log, deployed]
+      register: cd_agent_verify_deploy_files
+
+    - name: Stat the deploy job's record
+      ansible.builtin.stat:
+        path: /var/lib/cd-agent/deploy/deployed
+      register: cd_agent_verify_deployed_stat
+
+    - name: Read the deploy job's journal
+      ansible.builtin.command: journalctl -u cd-agent-deploy.service --no-pager -o cat
+      register: cd_agent_verify_deploy_journal
+      changed_when: false
+
+    # `$$(id -un)` in the unit is `$(id -un)` to the shell: the command ran
+    # as its own user. The second start found the commit already deployed.
+    - name: Confirm the second start ran nothing, and the last run was as the job's user on the commit recorded as deployed
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_lines_second == cd_agent_verify_lines_first
+          - cd_agent_verify_lines_first | int - cd_agent_verify_lines_before | int in [0, 1]
+          - cd_agent_verify_lines_first | int >= 1
+          - cd_agent_verify_last is regex('^cd-agent-deploy [0-9a-f]{40}$')
+          - cd_agent_verify_last.split(' ')[1] == cd_agent_verify_recorded
+          - cd_agent_verify_deployed_stat.stat.pw_name == 'cd-agent-deploy'
+          - "'already deployed; nothing to do' in cd_agent_verify_deploy_journal.stdout"
+        fail_msg: >-
+          lines before/first/second: {{ cd_agent_verify_lines_before }}/{{ cd_agent_verify_lines_first }}/{{ cd_agent_verify_lines_second }}
+          last: {{ cd_agent_verify_last }}
+          journal: {{ cd_agent_verify_deploy_journal.stdout }}
+      vars:
+        cd_agent_verify_lines_before: "{{ (cd_agent_verify_ran_before.content | default('') | b64decode).splitlines() | length }}"
+        cd_agent_verify_lines_first: "{{ (cd_agent_verify_ran_first.content | b64decode).splitlines() | length }}"
+        cd_agent_verify_lines_second: "{{ (cd_agent_verify_deploy_files.results[0].content | b64decode).splitlines() | length }}"
+        cd_agent_verify_last: "{{ (cd_agent_verify_deploy_files.results[0].content | b64decode).splitlines() | last }}"
+        cd_agent_verify_recorded: "{{ cd_agent_verify_deploy_files.results[1].content | b64decode | trim }}"
+
+    - name: Run the freshness job
+      ansible.builtin.systemd:
+        name: cd-agent-freshness.service
+        state: started
+
+    - name: Read what the freshness job copied from its own credential file
+      ansible.builtin.slurp:
+        src: /var/lib/cd-agent/freshness/own.txt
+      register: cd_agent_verify_freshness_own
+
+    - name: Stat a record the freshness job must not have written
+      ansible.builtin.stat:
+        path: /var/lib/cd-agent/freshness/deployed
+      register: cd_agent_verify_freshness_deployed
+
+    - name: Confirm the unit read its own credential, and without --on-change recorded nothing
+      ansible.builtin.assert:
+        that:
+          - (cd_agent_verify_freshness_own.content | b64decode | trim) == 'secret-freshness'
+          - not cd_agent_verify_freshness_deployed.stat.exists
+
+    - name: Run the job that tries to write outside its state directory and to read another job's credentials
+      ansible.builtin.systemd:
+        name: cd-agent-rotation.service
+        state: started
+
+    - name: Read the probe's report
+      ansible.builtin.slurp:
+        src: /var/lib/cd-agent/rotation/probe.log
+      register: cd_agent_verify_probe
+
+    - name: Confirm the sandbox, credential isolation, uv and state directory were as expected inside the unit
+      ansible.builtin.assert:
+        that:
+          - (cd_agent_verify_probe.content | b64decode).splitlines() == cd_agent_verify_probe_expected
+        fail_msg: "probe.log: {{ cd_agent_verify_probe.content | b64decode }}"
+      vars:
+        cd_agent_verify_probe_expected:
+          - fs=readonly
+          - other=denied
+          - own=secret-rotation
+          - user=cd-agent-rotation
+          - state=/var/lib/cd-agent/rotation
+          - uv=/opt/cd-agent/bin/uv
+
+    # --- Chains (ADR 0074): a successor starts when its predecessor ends -----
+    # The rotation job above has already run, successfully; this one fails.
+    # A successor starts asynchronously, so wait for what it writes.
+    - name: Start the job that always fails, whose successor must still run  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl start cd-agent-fails.service
+      register: cd_agent_verify_fails
+      changed_when: false
+      failed_when: false
+
+    - name: Wait for each successor to have run
+      ansible.builtin.slurp:
+        src: "/var/lib/cd-agent/{{ item }}/ran.txt"
+      loop: [after-rotation, after-failure]
+      register: cd_agent_verify_chain
+      until: cd_agent_verify_chain is succeeded
+      retries: 30
+      delay: 2
+
+    - name: Read the units the chains are built from  # noqa: command-instead-of-module
+      ansible.builtin.command: "systemctl cat cd-agent-{{ item }}.service"
+      loop: [rotation, fails]
+      register: cd_agent_verify_chain_units
+      changed_when: false
+
+    - name: Stat a successor's timer and its checkout
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop:
+        - /etc/systemd/system/cd-agent-after-rotation.timer
+        - /var/lib/cd-agent/after-rotation/tree
+        - /var/lib/cd-agent/after-rotation/repo.git
+      register: cd_agent_verify_successor_files
+
+    - name: Ask systemd how a successor is enabled, and try to enter its predecessor's state directory as it  # noqa: command-instead-of-module
+      ansible.builtin.command: "{{ item }}"
+      loop:
+        - systemctl is-enabled cd-agent-after-rotation.service
+        - runuser -u cd-agent-after-rotation -- ls /var/lib/cd-agent/rotation
+      register: cd_agent_verify_successor_probe
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm each successor ran as its own user in its own checkout, after a success and after a failure, with no timer
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_fails.rc != 0
+          - "'OnSuccess=cd-agent-after-rotation.service' in cd_agent_verify_chain_units.results[0].stdout"
+          - "'OnFailure=cd-agent-after-rotation.service' in cd_agent_verify_chain_units.results[0].stdout"
+          - "'OnSuccess=cd-agent-after-failure.service' in cd_agent_verify_chain_units.results[1].stdout"
+          - "'OnFailure=cd-agent-after-failure.service' in cd_agent_verify_chain_units.results[1].stdout"
+          - (cd_agent_verify_chain.results[0].content | b64decode | trim) == 'cd-agent-after-rotation after-rotation'
+          - (cd_agent_verify_chain.results[1].content | b64decode | trim) == 'cd-agent-after-failure after-failure'
+          - not cd_agent_verify_successor_files.results[0].stat.exists
+          - cd_agent_verify_successor_files.results[1].stat.isdir
+          - cd_agent_verify_successor_files.results[2].stat.isdir
+          - cd_agent_verify_successor_probe.results[0].stdout == 'static'
+          - cd_agent_verify_successor_probe.results[1].rc != 0
+        fail_msg: >-
+          fails rc {{ cd_agent_verify_fails.rc }};
+          ran: {{ cd_agent_verify_chain.results | map(attribute='content') | map('b64decode') | list }};
+          probe: {{ cd_agent_verify_successor_probe.results | map(attribute='stdout') | list }}
+
+    # --- Timers --------------------------------------------------------------
+    - name: Read each timer's unit file  # noqa: command-instead-of-module
+      ansible.builtin.command: "systemctl cat cd-agent-{{ item }}.timer"
+      loop: "{{ cd_agent_verify_jobs }}"
+      register: cd_agent_verify_timer_units
+      changed_when: false
+
+    - name: Confirm the poll job is a poll and the others are on their calendar
+      ansible.builtin.assert:
+        that:
+          - "'OnUnitInactiveSec=5min' in cd_agent_verify_timer_units.results[0].stdout"
+          - "'OnCalendar' not in cd_agent_verify_timer_units.results[0].stdout"
+          - "'OnCalendar=Mon *-*-* 04:00:00' in cd_agent_verify_timer_units.results[1].stdout"
+          - "'OnCalendar=monthly' in cd_agent_verify_timer_units.results[2].stdout"
+
+    # daemon_reload: false is the module's required-but-inert parameter for a
+    # read-only status query; see cloud_sync/molecule/default/verify.yml.
+    - name: Query each timer
+      ansible.builtin.systemd:
+        name: "cd-agent-{{ item }}.timer"
+        daemon_reload: false
+      loop: "{{ cd_agent_verify_jobs }}"
+      register: cd_agent_verify_timers
+
+    - name: Confirm every timer is enabled and active
+      ansible.builtin.assert:
+        that:
+          - cd_agent_verify_timers.results | map(attribute='status.ActiveState') | unique | list == ['active']
+          - cd_agent_verify_timers.results | map(attribute='status.UnitFileState') | unique | list == ['enabled']
+
+    # --- sshd: the operator host only ------------------------------------------
+    # -T -C evaluates the Match blocks for a connection from the given address.
+    - name: Evaluate sshd's effective configuration for the operator host, another host and loopback
+      ansible.builtin.command: "/usr/sbin/sshd -T -C user=cdadmin,addr={{ item }},host=probe,laddr=192.168.30.3,lport=22"
+      loop: [192.168.30.2, 192.168.30.9, 127.0.0.1]
+      register: cd_agent_verify_sshd
+      changed_when: false
+
+    - name: Confirm only cdadmin is allowed, and every address but the operator host's is denied outright
+      ansible.builtin.assert:
+        that:
+          - "'allowusers cdadmin' in cd_agent_verify_sshd.results[0].stdout_lines"
+          - "'denyusers *' not in cd_agent_verify_sshd.results[0].stdout_lines"
+          - "'allowusers cdadmin' in cd_agent_verify_sshd.results[1].stdout_lines"
+          - "'denyusers *' in cd_agent_verify_sshd.results[1].stdout_lines"
+          - "'denyusers *' in cd_agent_verify_sshd.results[2].stdout_lines"

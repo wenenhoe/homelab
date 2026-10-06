@@ -84,6 +84,17 @@ all:
       hosts:
         services:
 
+    # The CD agent (docs/projects/cd-agent.md, docs/topics/deploy/cd-agent-host.md):
+    # VM 303 in VLAN 30. In none of managed_hosts, app_hosts or patched_hosts, so
+    # no deploy or maintenance play ever targets it; only playbooks/cd-agent.yaml
+    # does, run from the operator host. Addressed by IP: it owns no DNS zone and
+    # resolves nothing through secrets_generated.
+    cd_agent:
+      hosts:
+        cd-agent:
+          ansible_host: 192.168.30.3
+          ansible_user: cdadmin
+
     # The Ansible controller itself — declared explicitly (rather than
     # relying on Ansible's implicit, undeclared localhost) so it's a
     # stable, predictable inventory member --limit patterns can target by

@@ -1,0 +1,52 @@
+{#- ExecStart is one line, and systemd expands % and $ in it: an argument is quoted, both are doubled, and a newline is written as \n. -#}
+{% macro arg(value) -%}
+"{{ value | string | replace('\\', '\\\\') | replace('"', '\\"') | replace('%', '%%') | replace('$', '$$') | replace('\n', '\\n') | replace('\r', '\\r') }}"
+{%- endmacro -%}
+[Unit]
+Description=CD agent job {{ cd_agent_job.name }}
+After=network-online.target
+Wants=network-online.target
+{% for successor in cd_agent_job.successors | default([]) %}
+OnSuccess=cd-agent-{{ successor }}.service
+OnFailure=cd-agent-{{ successor }}.service
+{% endfor %}
+
+[Service]
+Type=oneshot
+User=cd-agent-{{ cd_agent_job.name }}
+Group=cd-agent-{{ cd_agent_job.name }}
+WorkingDirectory={{ cd_agent_state_root }}/{{ cd_agent_job.name }}
+Environment=PATH={{ cd_agent_opt_dir }}/bin:/usr/local/bin:/usr/bin:/bin
+Environment=PYTHONPATH={{ cd_agent_lib_dir }}
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/usr/bin/python3 -m cd_agent.run_job --repo-url {{ arg(cd_agent_repo_url) }} --state-dir {{ arg(cd_agent_state_root ~ '/' ~ cd_agent_job.name) }} --cwd {{ arg(cd_agent_job.cwd | default('.')) }}{% if cd_agent_job.on_change | default(false) %} --on-change{% endif %} --{% for part in cd_agent_job.command %} {{ arg(part) }}{% endfor %}
+
+# run_job.py exits 75 when another run holds the job's lock: not a failure.
+SuccessExitStatus=75
+TimeoutStartSec={{ cd_agent_job.timeout | default(cd_agent_default_timeout) }}
+
+# Sandbox: the job writes only its own state directory and reads only its own
+# credentials (the directory modes keep the others out).
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectSystem=strict
+ProtectHome=yes
+ReadWritePaths={{ cd_agent_state_root }}/{{ cd_agent_job.name }}
+ProtectProc=invisible
+ProcSubset=pid
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectKernelLogs=yes
+ProtectControlGroups=yes
+ProtectClock=yes
+ProtectHostname=yes
+RestrictNamespaces=yes
+RestrictRealtime=yes
+RestrictSUIDSGID=yes
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+LockPersonality=yes
+CapabilityBoundingSet=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service

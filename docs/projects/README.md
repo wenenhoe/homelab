@@ -204,7 +204,8 @@ for the reasoning.
 | [`agent-full-repo-audit.md`](agent-full-repo-audit.md) | Not started — ready | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | Not started — ready | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's Era A AppRole; admin access mints short-lived tokens on demand. |
-| [`cd-agent.md`](cd-agent.md) | Not started — ready | A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs. |
+| [`cd-agent-rotation.md`](cd-agent-rotation.md) | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
+| [`cd-agent.md`](cd-agent.md) | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`coderabbit-pr-review-pipeline.md`](coderabbit-pr-review-pipeline.md) | Not started — ready | homelab-security's CI polls this repo for new PRs, runs CodeRabbit against each diff, and writes findings as files. |
 | [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
 | [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |

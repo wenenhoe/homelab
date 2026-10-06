@@ -205,6 +205,18 @@
       depNameTemplate: "openbao/openbao",
       extractVersionTemplate: "^v(?<version>.*)$",
     },
+    // The CD agent's uv pin: a GitHub release in a plain Ansible variable
+    // default. uv's release tags are bare ("0.12.23"), so no
+    // extractVersionTemplate. Its sha256 is not covered, see the prBodyNotes
+    // rule below.
+    {
+      customType: "regex",
+      description: "cd_agent's uv version pin, a GitHub release tag rather than a recognized image: key under a docker module",
+      managerFilePatterns: ["/^ansible/roles/cd_agent/defaults/main\\.ya?ml$/"],
+      matchStrings: ["cd_agent_uv_version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
+      datasourceTemplate: "github-releases",
+      depNameTemplate: "astral-sh/uv",
+    },
     {
       customType: "regex",
       description: "The CodeRabbit CLI version pinned in the review image's Dockerfile; only the version, not its hash",
@@ -392,6 +404,18 @@
       matchDepNames: ["coderabbit-cli"],
       prBodyNotes: [
         "⚠️ CODERABBIT_SHA256 (tools/coderabbit-review/Dockerfile) is NOT updated by this PR — replace it with the coderabbit-linux-x64.zip entry from https://cli.coderabbit.ai/releases/<new version>/SHA256SUMS before merging; until then this PR's build check fails at the checksum step. See docs/topics/engineering/coderabbit-review.md.",
+      ],
+    },
+
+    // Same gap as openbao_cli_deb_sha256 above: the github-releases datasource
+    // resolves a tag, not an asset's hash, so cd_agent_uv_sha256 is left stale
+    // and the role's get_url task fails its checksum check on the next
+    // provisioning run until it is replaced by hand.
+    {
+      matchDatasources: ["github-releases"],
+      matchDepNames: ["astral-sh/uv"],
+      prBodyNotes: [
+        "⚠️ cd_agent_uv_sha256 (ansible/roles/cd_agent/defaults/main.yaml) is NOT updated by this PR — copy the new sha256 from uv-x86_64-unknown-linux-gnu.tar.gz.sha256 on that release before merging, or the role's get_url task fails its checksum check on the next provisioning run. Also check that the new uv still reads the repository's uv.lock.",
       ],
     },
 

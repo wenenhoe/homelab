@@ -33,7 +33,7 @@ cannot block patching. `maintenance.yaml` is the one playbook that
 reaches both `managed_hosts` and `network_infra`; see
 [`network-infra.md`](network-infra.md).
 
-Hosts outside `patched_hosts` include the role from their own builds.
+Hosts outside `patched_hosts` include the role from their own builds; the `cd_agent` role does ([`cd-agent-host.md`](../deploy/cd-agent-host.md)).
 
 ## Verifying a host
 

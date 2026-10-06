@@ -1,0 +1,20 @@
+---
+# The CD agent's jobs and who may reach it; fields in docs/topics/deploy/cd-agent-host.md.
+cd_agent_runner_source_dir: "{{ playbook_dir }}/../../tools/cd_agent"
+cd_agent_operator_address: 192.168.30.2
+cd_agent_admin_users:
+  - cdadmin
+cd_agent_jobs:
+  - name: deploy
+    poll_interval: 5min
+    on_change: true
+    cwd: ansible
+    command: [python3, -m, cd_agent.toolchain, --collections, requirements.yml, --, ansible-playbook, playbooks/deploy.yaml]
+  - name: maintenance
+    on_calendar: "*-*-01,15 03:00:00"
+    cwd: ansible
+    command: [python3, -m, cd_agent.toolchain, --collections, requirements.yml, --, ansible-playbook, playbooks/maintenance.yaml]
+  - name: freshness
+    on_calendar: weekly
+    cwd: tools
+    command: [python3, -m, cd_agent.toolchain, --, python, -m, cloud_credentials.check_freshness]

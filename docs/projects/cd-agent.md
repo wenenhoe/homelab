@@ -2,9 +2,9 @@
 id: PROJ-cd-agent
 title: CD Agent Host
 type: project
-status: not-started
+status: building
 blocked: false
-summary: A dedicated, pull-based automation host that runs deploy, maintenance, rotation, and freshness jobs.
+summary: A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs.
 decision: ADR-0044/0-c
 super_project: pull-based-cd
 track: agent
@@ -36,7 +36,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `cd_agent` host — dedicated LAN box, fixed IP, one timer and one unprivileged user per job for deploy/maintenance/rotation/freshness, and the hardening baseline's role | Not started | The host runs the deploy, maintenance, rotation, and freshness jobs, each as its own user from a clean checkout of `origin/main`, with only `sshd` listening |
+| 1 | `cd_agent` host — dedicated LAN box, fixed IP, one timer and one unprivileged user per job for deploy/maintenance/freshness, and the hardening baseline's role | In progress | The host runs the deploy, maintenance, and freshness jobs, each as its own user from a clean checkout of `origin/main`, with only `sshd` listening |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -47,27 +47,28 @@ A dedicated LAN host with a fixed IP, in none of `managed_hosts`,
 unit runs as its own unprivileged user, fetches `origin/main`
 anonymously into its own state directory, checks out the commit as a
 clean tree, and runs the playbook or `tools/` entry point from it. The
-poll, decide and run step is `tools/` code with unit tests. The host's
-only inbound service is `sshd`, accepted from the operator host alone.
+poll, decide and run step is [`tools/cd_agent/run_job.py`](../../tools/cd_agent/run_job.py), unit-tested and described in [`cd-agent-runner.md`](../topics/deploy/cd-agent-runner.md). The host's
+only inbound service is `sshd`, accepted from the operator host alone. The `cd_agent` role ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)) builds the users, units and `sshd` restriction from a `cd_agent_jobs` list. The `cd_agent` inventory group, the three jobs' definitions in its group variables and `playbooks/cd-agent.yaml` apply it. Rotation is [`cd-agent-rotation.md`](cd-agent-rotation.md)'s.
 The freshness job replaces the weekly user timer on `controller` (`tools/cloud_credentials/systemd/`), running as a plain weekly timer on this always-on host. See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) this stage implements.
 
 ## Acceptance criteria
 
-- [ ] Each of the deploy, maintenance, rotation, and freshness jobs runs from its own timer, as its own user, from a clean checkout of `origin/main` it fetched itself.
+- [ ] Each of the deploy, maintenance, and freshness jobs runs from its own timer, as its own user, from a clean checkout of `origin/main` it fetched itself.
 - [ ] Only `sshd` listens, and it refuses every address but the operator host's, verified by a probe from another host in the same VLAN, since a probe from elsewhere can be stopped by OPNsense instead and prove nothing.
-- [ ] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
-- [ ] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
-- [ ] The role converges idempotently.
+- [x] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
+- [x] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
+- [x] The role converges idempotently.
 
 ## Open items
 
-- Poll interval, job schedules, token lifetime, and how a failed commit is retried are project decisions ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
+- Token lifetime is a project decision ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 - The agent VM goes in VLAN 30, the 3XX range, next to the operator host, with 2 to 4 GB of RAM, built after VM 401's retirement frees memory. It is VM 303, `192.168.30.3`. The coding-agent host keeps no path to it ([ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)). Traffic between two hosts in one VLAN is switched without reaching OPNsense, so the `sshd` source restriction to the operator host is enforced on the agent itself, not at the firewall.
+- The `cd_agent` role does not remove a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 - The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists ([`cd-agent-approles.md`](cd-agent-approles.md)); it needs a native `rclone`, not Docker.
 - Each job's heartbeat depends on ADR 0072's mechanism ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), which is not built.
-- Which cloud credentials beyond B2/R2/OCI get rotation automation,
-  and whether "rotation" means alert-only or full rotate-and-revoke,
-  isn't scoped yet.
+- The deploy, maintenance and freshness jobs cannot log in to OpenBao yet; what is missing is in [`cd-agent-approles.md`](cd-agent-approles.md)'s open items. Applying the role before that is settled starts jobs that fail on every run.
+- Nothing can apply the role until [`operator-host.md`](operator-host.md)'s Stage 3 builds VM 302, because `sshd` accepts `192.168.30.2` alone.
+- Whether `deploy.yaml`'s `localhost` plays run under the unit's sandbox, which makes the filesystem read-only outside the job's state directory, is not confirmed.
 - The shared SSH private key across every managed host (and possibly
   the maintainer's laptop) hasn't been split into a `cd_agent`-only
   key.

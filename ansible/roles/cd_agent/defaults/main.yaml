@@ -1,0 +1,22 @@
+---
+# Required, no default (tasks/main.yaml asserts them):
+#   cd_agent_runner_source_dir  controller path of tools/cd_agent/
+#   cd_agent_operator_address   the one IPv4 address sshd accepts
+#   cd_agent_admin_users        the only users sshd lets in
+#   cd_agent_jobs               one entry per job, see tasks/main.yaml
+# Optional: cd_agent_controller_machine_id, the machine id of the host running Ansible,
+# read from its /etc/machine-id; set it only to override that.
+cd_agent_repo_url: https://github.com/wenenhoe/homelab.git
+cd_agent_opt_dir: /opt/cd-agent
+cd_agent_lib_dir: "{{ cd_agent_opt_dir }}/lib"
+cd_agent_etc_dir: /etc/cd-agent
+cd_agent_credentials_root: "{{ cd_agent_etc_dir }}/credentials"
+cd_agent_state_root: /var/lib/cd-agent
+cd_agent_default_timeout: 1h
+cd_agent_controller_machine_id: "{{ lookup('ansible.builtin.file', '/etc/machine-id') | trim }}"
+
+# The sha256 is the one published beside the release asset,
+# uv-x86_64-unknown-linux-gnu.tar.gz.sha256. Bump both together: Renovate
+# (.github/renovate.json5) opens the version bump but cannot fetch the sha256.
+cd_agent_uv_version: "0.12.23"
+cd_agent_uv_sha256: "9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6"

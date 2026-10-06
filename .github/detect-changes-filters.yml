@@ -60,6 +60,7 @@ python_unit_tests:
   - 'ansible/scripts/*.py'
   - 'tools/cloud_credentials/**'
   - 'tools/openbao_utils/**'
+  - 'tools/cd_agent/**'
   - 'tools/utils/**'
   # CI logic that detect-changes and the other workflows run (see
   # docs/topics/engineering/ci/change-scoping.md#molecule-watch-sets), so a change to it is tested here.

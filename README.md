@@ -79,7 +79,7 @@ CI keeps the docs in step with the code — see
 ├── ansible/                 # All automation: playbooks, inventory, roles
 ├── docker/                  # One directory per application
 ├── docs/                    # Topic docs, decisions, projects, diagrams
-├── tools/                   # Controller-side Python: cloud-credential minting, OpenBao/Vault utilities
+├── tools/                   # Python run from the repo: cloud-credential minting, OpenBao/Vault utilities, the CD agent's job runner
 ├── AGENTS.md                # Where an agent starts: the doc workflow's rules and stop conditions
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)
 ```
@@ -195,7 +195,7 @@ The scenario matrix and how to add one are in
 [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md).
 
 Plain controller-side Python (`tools/cloud_credentials/`,
-`tools/openbao_utils/`, `ansible/molecule-coverage/molecule_cov/`, the R2
+`tools/openbao_utils/`, `tools/cd_agent/`, `ansible/molecule-coverage/molecule_cov/`, the R2
 read-watcher) is tested separately with [pytest](https://docs.pytest.org/),
 from the repo root. Every provider HTTP call and `rclone` invocation is
 mocked, so no network access or real cloud credentials are needed:

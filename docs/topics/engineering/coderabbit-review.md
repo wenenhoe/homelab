@@ -87,6 +87,14 @@ read-only, since a review only reads the tree to compute a diff.
 | `auth` | Interactive login. |
 | `usage` | `cr usage` — billing-period review count/spend/reset date, not an hourly-remaining counter. |
 
+## When to run it
+
+Before pushing a branch that changes code or config, with the work
+committed. Run the script from inside this repo: it reviews the repository
+it is run in, so running it from another checkout reviews that one by
+mistake. The output stays in your terminal. Don't redirect it into this
+repo's working tree, where a `git add` could publish it.
+
 ## Why output stays off this repo's surfaces
 
 This repo is public, so a review's findings must not appear on any surface
@@ -98,8 +106,8 @@ therefore keeps automated review out of this repo's workflows, and
 [`README.md`](../../README.md#public-repo) is the rule this protects. For
 this tool that means the only workflow here builds the image, which holds
 no findings, and a local run prints to your terminal and nowhere else.
-A result worth tracking is filed by hand in the private tracker
-([`security-findings.md`](security-findings.md)).
+A result worth tracking goes to the private tracker by a pipe, never a
+saved file ([`security-findings.md`](security-findings.md)).
 
 ## Credit
 

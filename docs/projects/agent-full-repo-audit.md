@@ -49,10 +49,18 @@ revision reaches `approved`.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | De-risking spike: mint a token once with `claude setup-token` (it needs a browser approval, so it can't run unattended), store it as a `homelab-security` secret, then run `claude` unattended from a throwaway Actions run against a scratch clone | Not started | Resolves both of ADR 0062's open assumptions (reliability of the plain-CLI OAuth-token path; whether a dedicated account is warranted over the personal one) |
+| 1 | De-risking spike: mint a token once with `claude setup-token` (it needs a browser approval, so it can't run unattended), store it as a `homelab-security` secret, then run `claude` unattended from a throwaway Actions run against a scratch clone | In progress | Resolves both of ADR 0062's open assumptions (reliability of the plain-CLI OAuth-token path; whether a dedicated account is warranted over the personal one) |
 | 2 | Design the audit prompt and output schema: what the agent reads, what it checks for, how it writes into `homelab-security` | Not started | A dry-run against a real (non-scratch) clone produces a report a human would accept as useful, distinguishing new findings from ADR-covered behavior |
 | 3 | First scheduled run | Not started | A full run completes unattended; every finding is human-reviewed in full before any of it is trusted |
 | 4 | Steady-state cadence | Not started | Running weekly (or more often, once usage headroom against personal use is confirmed) with no manual intervention required per run |
+
+Stage 1 so far: a throwaway run called `claude` 2.1.285 unattended from a
+plain Actions step, on the minted token, with read-only tools against a
+scratch clone. It completed successfully on a prompt that needed
+`docs/decisions/` and the source tree read together (15 turns, about 20
+seconds). That answers the OAuth-token reliability assumption for one
+run. It cannot answer the account assumption: whether the audit competes
+with personal use shows only across repeated scheduled runs.
 
 ## Acceptance criteria
 
@@ -76,11 +84,12 @@ grow past reading-and-reporting into anything that writes to this repo.
 ## Risks
 
 - Subscription usage headroom competing with personal, interactive use of the same account (see ADR 0062's open assumptions).
-- OAuth-token reliability in a plain CI step, unproven until stage 1's spike.
+- OAuth-token reliability in a plain CI step: one unattended run has succeeded; behavior across repeated runs and over the token's life is unobserved.
 
 ## Open items
 
 - ADR 0062 must reach `approved` before stage 2 begins.
+- Whether stage 1 closes on the one successful run plus a decision on the account question (reuse the personal token and accept shared headroom, or measure it across scheduled runs), or needs more spike runs. Either way changes ADR 0062's assumptions, so it is a human call.
 - Exact audit cadence beyond the initial weekly starting point.
 
 ## Closing checklist

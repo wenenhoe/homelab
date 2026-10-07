@@ -7,13 +7,12 @@ blocked: false
 summary: "A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI."
 decision: ADR-0061/0
 also_implements: [ADR-0062/0]
-super_project: security-review-pipeline
 ---
 
 # Agent-Based Full-Repo Audit
 
-The half of [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
-that covers what CodeRabbit's per-directory chunking structurally
+The audit [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+decides, which covers what CodeRabbit's per-directory chunking structurally
 can't: a coding agent, given the whole repo and its `docs/decisions/`
 tree, distinguishing a real finding from one already reasoned through
 and accepted (the shape of gap a sampled CodeRabbit finding on

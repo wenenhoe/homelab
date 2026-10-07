@@ -3,7 +3,7 @@ id: ADR-0062
 revision: 0
 type: adr
 title: "Automation identity for the agent-based reviewer"
-solution: "Leaning: CLAUDE_CODE_OAUTH_TOKEN from a Claude Pro/Max subscription, dedicated to automation rather than the personal daily-driver account"
+solution: "CLAUDE_CODE_OAUTH_TOKEN from the maintainer's personal Claude Pro/Max subscription, used only by the unmodified claude CLI in a private repository's CI"
 summary: "Which credential the periodic full-repo audit agent authenticates with, and whose usage it draws from."
 topic: security-hardening
 status: working
@@ -37,14 +37,21 @@ volume involved is modest — comfortably inside what a single Pro/Max
 subscription's usage allowance should absorb, though this hasn't been
 measured against the account's own personal, interactive usage yet.
 
+The plain-CLI path has been exercised: a throwaway run of the unmodified
+`claude` CLI in an ordinary GitHub Actions step, on a token minted this
+way and with read-only tools, completed a task that needed the decisions
+tree and the source read together. The subscription's usage limits are
+shared across Claude and Claude Code, so the audit draws from the same
+pool as interactive use.
+
 ## Decision
 
-Leaning toward `CLAUDE_CODE_OAUTH_TOKEN`, minted via `claude setup-token`
-and stored as a `homelab-security` secret, matching
+Use `CLAUDE_CODE_OAUTH_TOKEN`, minted via `claude setup-token` from the
+maintainer's existing personal Pro/Max subscription and stored as a
+`homelab-security` secret, matching
 [ADR 0020](../0020-automation-identity-and-access-scope/revision-000.md)'s
-per-consumer scoped-identity pattern. Whether it's minted from the
-existing personal Pro/Max subscription or a second, dedicated Anthropic
-account is left open — see Assumptions.
+per-consumer scoped-identity pattern. Sharing the subscription's usage
+headroom with interactive use is accepted.
 
 ## Alternatives considered
 
@@ -55,31 +62,21 @@ account is left open — see Assumptions.
 - **OpenAI Codex via a ChatGPT Plus/Pro subscription.** A real
   equivalent path, not rejected outright — kept as the fallback if the
   Claude OAuth-token path proves unreliable in practice (see
-  Assumptions).
-
-## Assumptions
-
-- **Claim:** a dedicated second Anthropic account's subscription cost is
-  worth the isolation from personal usage headroom, rather than reusing
-  the existing personal account's token.
-  **Breaks if wrong:** reuse the personal account's token instead,
-  accepting shared usage headroom with interactive daily use.
-  **Checked by:** running the weekly audit against the personal
-  account's token for a few cycles and observing whether it visibly
-  competes with personal use.
-- **Claim:** `CLAUDE_CODE_OAUTH_TOKEN` is reliable enough when the
-  `claude` CLI is called directly in a plain GitHub Actions step (not
-  through a third-party wrapper action).
-  **Breaks if wrong:** fall back to the Codex/ChatGPT-subscription
-  equivalent path.
-  **Checked by:** the de-risking spike in the
-  [agent-full-repo-audit](../../projects/agent-full-repo-audit.md) project.
+  Reconsideration triggers).
+- **A second, dedicated Anthropic account.** Rejected for now: it adds a
+  second subscription fee to isolate the audit from personal usage
+  headroom, and at this volume the shared pool is expected to absorb
+  both. Revisited if the audit visibly competes with interactive use.
 
 ## Consequences
 
 The token is valid for roughly a year and has no automated renewal path
 (the flow it's generated from is browser-mediated) — regeneration is a
 manual, calendar-driven task.
+
+The audit and interactive use draw from one usage allowance, so a heavy
+audit cycle can leave less of it for interactive work until the limits
+reset.
 
 ## Invariants
 
@@ -88,6 +85,9 @@ The credential used for the audit agent authenticates only into
 reachable from this repo (see
 [ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)'s
 invariants, which this narrows to the specific credential in question).
+The workflow that uses it runs only in the maintainer's own private
+repository, which nobody else can trigger, and calls the unmodified
+`claude` binary; the token is never used on anyone else's behalf.
 
 ## Non-goals
 
@@ -97,6 +97,7 @@ settled here.
 
 ## Reconsideration triggers
 
-The de-risking spike shows the OAuth-token path is unreliable in plain
-CI use. Anthropic or OpenAI changes subscription terms around automated
-or CI use in a way that puts this out of policy.
+The OAuth-token path proves unreliable in plain CI use. The audit
+visibly competes with interactive use of the same account. Anthropic or
+OpenAI changes subscription terms around automated or CI use in a way
+that puts this out of policy.

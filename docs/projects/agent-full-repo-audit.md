@@ -2,7 +2,7 @@
 id: PROJ-agent-full-repo-audit
 title: "Agent-Based Full-Repo Audit"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI."
 decision: ADR-0061/0
@@ -17,8 +17,7 @@ that covers what CodeRabbit's per-directory chunking structurally
 can't: a coding agent, given the whole repo and its `docs/decisions/`
 tree, distinguishing a real finding from one already reasoned through
 and accepted (the shape of gap a sampled CodeRabbit finding on
-`vault-bootstrap.hcl` demonstrated directly). Currently paused pending
-this project's own de-risking.
+`vault-bootstrap.hcl` demonstrated directly).
 
 ## Scope
 
@@ -42,15 +41,14 @@ writing anything to this repo — barred outright by
 Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md),
 `approved`. Also implements
 [ADR 0062](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md),
-currently `working` — this project cannot leave de-risking until that
-revision reaches `approved`.
+`approved`.
 
 ## Execution plan
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | De-risking spike: mint a token once with `claude setup-token` (it needs a browser approval, so it can't run unattended), store it as a `homelab-security` secret, then run `claude` unattended from a throwaway Actions run against a scratch clone | Done | Resolves both of ADR 0062's open assumptions (reliability of the plain-CLI OAuth-token path; whether a dedicated account is warranted over the personal one) |
-| 2 | Design the audit prompt and output schema: what the agent reads, what it checks for, how it writes into `homelab-security` | Not started | A dry-run against a real (non-scratch) clone produces a report a human would accept as useful, distinguishing new findings from ADR-covered behavior |
+| 2 | Design the audit prompt and output schema: what the agent reads, what it checks for, how it writes into `homelab-security` | In progress | A dry-run against a real (non-scratch) clone produces a report a human would accept as useful, distinguishing new findings from ADR-covered behavior |
 | 3 | First scheduled run | Not started | A full run completes unattended; every finding is human-reviewed in full before any of it is trusted |
 | 4 | Steady-state cadence | Not started | Running weekly (or more often, once usage headroom against personal use is confirmed) with no manual intervention required per run |
 
@@ -58,7 +56,7 @@ revision reaches `approved`.
 
 - [ ] A scheduled run distinguishes findings already covered by an existing ADR from genuinely new ones.
 - [ ] The agent never writes to this repo — no commit, no PR, no comment.
-- [ ] ADR 0062 is `approved` before this project leaves de-risking.
+- [x] ADR 0062 is `approved` before this project leaves de-risking.
 
 ## Agent handoff
 
@@ -80,7 +78,6 @@ grow past reading-and-reporting into anything that writes to this repo.
 
 ## Open items
 
-- ADR 0062 must reach `approved` before stage 2 begins.
 - Exact audit cadence beyond the initial weekly starting point.
 
 ## Closing checklist

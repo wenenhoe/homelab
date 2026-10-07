@@ -2,7 +2,7 @@ name: wastebin
 
 services:
   wastebin:
-    image: ghcr.io/wenenhoe/wastebin:3.7.2
+    image: ghcr.io/wenenhoe/wastebin:3.8.0
     container_name: wastebin
     volumes:
       - data:/data

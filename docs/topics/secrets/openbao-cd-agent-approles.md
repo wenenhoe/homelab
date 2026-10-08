@@ -21,7 +21,7 @@ in Ansible creates them.
 | `cd-agent-snapshot` | [`cd-agent-snapshot.hcl`](../../../docker/openbao/policies/cd-agent-snapshot.hcl) | Save a raft snapshot; read the six leaf paths `snapshot-push.sh` reads. | Read any other leaf, any rotation-tier path, or anything under `hosts/*`; write any path. |
 
 All paths are KV v2 data paths under `secret/data/`. Every `Cannot` above
-was confirmed against a real OpenBao 2.7.0 with these exact policy files.
+was confirmed against a real OpenBao instance with these exact policy files.
 
 ## Creating the roles
 

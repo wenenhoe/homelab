@@ -1,10 +1,10 @@
 # Cloud Credential Expiry — R2/B2/OCI
 
-How the 9 cloud credentials expire and how `check_freshness.py` warns before they do: the 90-day lifetime, the weekly check, the Telegram warning ladder and the systemd timer. Creation is in [`creation.md`](creation.md); rotation is in [`rotation.md`](rotation.md).
+How the cloud credentials expire and how `check_freshness.py` warns before they do: the 90-day lifetime, the weekly check, the Telegram warning ladder and the systemd timer. Creation is in [`creation.md`](creation.md); rotation is in [`rotation.md`](rotation.md).
 
 ## Credential expiry
 
-All 9 credentials (6 leaf, 3 rotation) expire after 90 days now — see
+Every credential (leaf and rotation) expires after 90 days now — see
 [ADR 0015 (Cloud credential expiry)](../../../decisions/0015-cloud-credential-expiry/revision-000.md)
 for B2/R2's native provider-side expiry, and
 [ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)
@@ -29,7 +29,7 @@ it beyond `check_freshness.py`'s own alert.
 section](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)) — set an expiration date on it there when you create
 it; this script has no way to set one after the fact.
 
-**`check_freshness.py`** reads all 9 back — natively for B2
+**`check_freshness.py`** reads every credential back — natively for B2
 (`b2_list_keys`), R2 (`GET .../tokens/{id}` for the leaf tokens,
 `GET /user/tokens/verify` for the rotation token — see below), and
 OCI's leaf keys (`IdentityDomainsClient.get_customer_secret_key`, SCIM's `GET /admin/v1/CustomerSecretKeys/{id}`) —

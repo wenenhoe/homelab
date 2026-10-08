@@ -211,7 +211,7 @@ changes.
 it didn't restart), and confirms — via a raw `openssl s_client` TLS
 handshake, not `bao status` — that the listener is actually serving the
 renewed cert's serial afterwards, not just that the file on disk
-changed (100.0%, in `ansible/molecule-coverage/thresholds.yaml`'s
+changed (task coverage is held by `ansible/molecule-coverage/thresholds.yaml`'s
 `step_ca_cert` entry). A real forced renewal on
 `security` itself has since confirmed the same thing outside Molecule:
 `bao status` before and after showed an identical `Active Since`

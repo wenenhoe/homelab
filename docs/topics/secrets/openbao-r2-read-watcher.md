@@ -143,7 +143,7 @@ consecutive failures to flip to Down —
 `900 + (6 − 1) × 360 = 2700s` (45 minutes) is Kuma's own real
 time-to-alert (confirmed against upstream's retry-handling logic,
 [louislam/uptime-kuma#4476](https://github.com/louislam/uptime-kuma/pull/4476);
-not watched live against this repo's pinned `2.5.3` specifically).
+not watched live against this repo's pinned version specifically).
 Half of that is 22.5 minutes; the first `r2-read-watcher-heartbeat.timer`
 tick past it is the 3rd consecutive miss (30 minutes) — the coarsest
 this check can be without changing that timer's own 10-minute

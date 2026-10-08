@@ -37,7 +37,7 @@ unpacks it; a wrong hash fails the build. The version
 (`CODERABBIT_VERSION`) and the hash (`CODERABBIT_SHA256`) are both
 declared there ([ADR 0063 (Review image build)](../../decisions/0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md)).
 
-Each build pushes two tags: `:<cli-version>` (for example `:0.8.0`) and
+Each build pushes two tags: `:<cli-version>` and
 `:latest`. A pull request that changes the `Dockerfile` builds the image
 without pushing it and smoke-tests it, in the same `dockerfile-build-check`
 as the other images ([Dockerfile changes](ci/gates.md#dockerfile-changes)),

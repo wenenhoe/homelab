@@ -37,7 +37,7 @@ The scripts:
   way to fill them in.
 - **`tools/cloud_credentials/rotate_leaf_keys.py`** — run routinely, in
   place of three `create_leaf_keys.py --rotate both` runs. It rotates
-  all 6 leaf credentials, provider by provider, and carries on when one
+  every leaf credential, provider by provider, and carries on when one
   provider fails; see [`rotation.md`](rotation.md#rotation).
 - **`openbao_utils/audit.py`** — run whenever, read-only. `--local`
   diffs `ansible/files/secrets/` against `secret_catalog.yaml` to

@@ -10,7 +10,7 @@ Two levels of "does this actually work," proving different things:
 
 - **`ansible/roles/restore_discovery/molecule/{default,discovery_and_restore}`** —
   automated, runs in CI/dev like any other Molecule scenario, and
-  currently passing with 100% task coverage on both. `default` renders
+  held to the task-coverage floors in `ansible/molecule-coverage/thresholds.yaml`. `default` renders
   the manifest/rclone.conf against synthetic fixtures and asserts on
   their content (scope derivation, step-ca ordering, cloud-target
   fan-out). `discovery_and_restore` runs the real role against a real

@@ -43,8 +43,8 @@ Read directly off the host, not assumed:
 
 | Field | Value |
 | :--- | :--- |
-| OS | Ubuntu 26.04 LTS (`resolute`), kernel `7.0.0-28-generic` |
-| Tailscale | `1.102.3`, installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
+| OS | Ubuntu LTS (`resolute`) |
+| Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
 | DDNS name | `tailscale.{{ ddns_domain }}` — same `<host>.{{ ddns_domain }}` structure as every `managed_hosts` member; this is what `inventory.yaml`'s `ansible_host` actually uses |
 | LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |

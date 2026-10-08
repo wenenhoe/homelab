@@ -51,13 +51,13 @@ to distinguish it from a genuine policy denial, so the retry gate
 matches broadly on HTTP status alone (`StatusCode: 403` or
 `StatusCode: 401`) rather than specific error text — accepted
 deliberately: a real policy problem now takes the full retry window
-(~885s / 14m45s) to surface as a failure instead of failing instantly,
+to surface as a failure instead of failing instantly,
 but the alternative (no retry) means every manual re-run of a failed
 `--rotate` mints and orphans a fresh provider-side key while waiting
-out propagation by hand. Measured windows vary a lot by provider: OCI
-60s–507s, B2 up to ~4 minutes, R2 15–30s — all comfortably inside the
-current ceiling. Widen `_run_rclone_with_retry`'s `retries`/`delay` if
-a real rotation ever exhausts it. A hung rclone call (past its `--timeout`) is not a propagation
+out propagation by hand. Propagation windows differ a lot by provider (OCI the longest, R2 the
+shortest), all inside the current ceiling. Widen
+`_run_rclone_with_retry`'s `retries`/`delay` if a real rotation ever
+exhausts it. A hung rclone call (past its `--timeout`) is not a propagation
 denial: it fails verification like any other non-retryable error
 instead of being retried through the window. A first success doesn't mean the key
 has reached every node: on OCI, later requests from fresh connections

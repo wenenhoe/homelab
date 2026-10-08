@@ -151,8 +151,8 @@ real remote host), builds the app's `Dockerfile` if it has one (see
 a healthy state (or that it stayed running, if no healthcheck is
 defined), dumps logs on failure, then tears down. The wait is
 [`tools/ci/gates/compose_health.py`](../../../../tools/ci/gates/compose_health.py):
-per service, in order, it polls a defined healthcheck (30 checks, 2s
-apart; `unhealthy` fails at once) or, with none, waits a 10s grace period
+per service, in order, it polls a defined healthcheck (a fixed number of
+polls, a fixed interval apart; `unhealthy` fails at once) or, with none, waits a 10s grace period
 and requires the container still be running. Every failure prints that
 container's logs, and each container of a scaled service is checked.
 `tools/tests/ci/gates/` drives it against a fake `docker`.
@@ -313,7 +313,7 @@ asks every registry about every pinned image.
 
 ## Image tag existence check
 
-`check-image-tags.yml` runs once a week (Sunday, 02:23 UTC) and on demand.
+`check-image-tags.yml` runs once a week and on demand.
 Renovate only ever proposes tags that exist, so a tag an upstream later
 removes or renames goes unnoticed until a deploy fails to pull it;
 [`tools/ci/images/remote.py`](../../../../tools/ci/images/remote.py) asks each
@@ -348,8 +348,8 @@ own 401 challenge. A HEAD request doesn't download the image.
 
 - one request at a time, with a half-second pause between requests. Each
   image costs at most two HEADs plus, once per repository, a token request:
-  43 images in 37 repositories on two registries (`ghcr.io` and Docker Hub) is
-  at most about 120 requests, a minute or so, once a week;
+  the images across the two registries (`ghcr.io` and Docker Hub) come to a
+  few requests each, once a week;
 - a token cached per repository, and reused across its tags;
 - a 429 or 5xx is retried up to five times, waiting as long as `Retry-After`
   says (capped at a minute) or backing off 2, 4, 8, 16 seconds;
@@ -408,7 +408,7 @@ file. The decision is
 [ADR 0077 (Pinned checksum verification)](../../../decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md).
 It runs in two places: the `release-checksums` job of `pr-checks.yml`, when a
 PR changes the verifier and its keys or one of the files holding a pin, and
-`check-release-checksums.yml`, once a week (Sunday, 03:41 UTC) and on demand,
+`check-release-checksums.yml`, once a week and on demand,
 so a publisher's key rotation or moved manifest shows up even when no pin
 changed. Both run `python3 -m ci.checksums.verify` from `tools/`, which is
 standard-library only apart from the `gpg` and `gh` the runner image provides,

@@ -55,7 +55,7 @@ OpenBao and the credentials around it.
 | [`cloud-credentials/creation.md`](secrets/cloud-credentials/creation.md) | The scripts that mint, audit and verify the R2/B2/OCI credentials, and how to run them. |
 | [`cloud-credentials/scoping.md`](secrets/cloud-credentials/scoping.md) | What each provider's master credential can be narrowed to, and what the rotation and leaf credentials are scoped to. |
 | [`cloud-credentials/rotation.md`](secrets/cloud-credentials/rotation.md) | How the leaf and rotation credentials rotate, per provider: the `--rotate` flow, its verification, and rotating the rotation credential itself. |
-| [`cloud-credentials/expiry.md`](secrets/cloud-credentials/expiry.md) | The 90-day expiry of all 9 credentials, the weekly freshness check, and the Telegram warning ladder. |
+| [`cloud-credentials/expiry.md`](secrets/cloud-credentials/expiry.md) | The 90-day credential expiry, the weekly freshness check, and the Telegram warning ladder. |
 | [`openbao.md`](secrets/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
 | [`openbao-auth.md`](secrets/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
 | [`openbao-cd-agent-approles.md`](secrets/openbao-cd-agent-approles.md) | The four CIDR-bound AppRoles for `cd_agent` (deploy, rotation, freshness, snapshot): their policies, how to create them, and handing over a wrapped `secret_id`. |

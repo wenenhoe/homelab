@@ -35,11 +35,11 @@ never listed. An app's list replaces the default rather than adding to
 it; the default is `backup_defaults.cloud_targets`
 (`group_vars/all/main.yaml`, currently `[r2, b2]`). Each name must be a
 key of `cloud_sync_targets` (`host_vars/storage.yaml`), which alone
-holds the credentials. Minecraft overrides to `[oci]` alone: its ~1.8GB/night
-archive at 7-day retention (~13GB) would eat most of a single 10GB
-R2/B2 free tier, so it gets OCI's 20GB allowance to itself instead.
+holds the credentials. Minecraft overrides to `[oci]` alone: its nightly
+archive at 7-day retention would eat most of a single R2/B2 free tier, so it
+gets OCI's larger allowance to itself instead.
 
-**Mechanism:** a systemd timer (`cloud-sync.timer`, daily, offset ~90min
+**Mechanism:** a systemd timer (`cloud-sync.timer`, daily, scheduled
 after `backup_defaults.cron` to give every backup host's own nightly run
 room to land in SeaweedFS first) triggers `cloud-sync.service`
 (`Type=oneshot`), which runs one container per firing — `rclone/rclone`,

@@ -219,7 +219,7 @@ so there is no same-key race to split writers over). Its triggers:
   inputs already live in `setup-uv-ansible`'s `hashFiles(...)` calls,
   and a second copy of that list here could drift from it. On a hit
   the run restores and does no-op installs.
-- `schedule` (Sunday and Wednesday, 20:00 UTC) — GitHub evicts entries
+- `schedule` (Sunday and Wednesday) — GitHub evicts entries
   not accessed in 7 days, and the longest gap between runs is 4 days.
   A restore hit counts as access, so the run keeps entries alive
   without re-saving them.

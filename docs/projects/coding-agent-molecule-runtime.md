@@ -73,3 +73,4 @@ deleting this doc.
 - [ ] Every open item is resolved and promoted, or moved where it belongs.
 - [ ] Other projects' `depends_on` entries naming this one are removed,
       and every cross-reference into this doc is updated or deleted.
+- [ ] No code comment, message or topic doc still names this project's stages, phases or tracks.

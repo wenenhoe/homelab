@@ -54,3 +54,17 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - Until the CD agent exists, rebuilds are run from the operator host, which holds the host's key ([ADR 0058 (Operator work host)](../decisions/0058-where-operator-work-runs/revision-000.md)).
 - Each start needs an interactive Claude login and loses work not fetched before it.
+
+## Closing checklist
+
+Copied from [`README.md`](README.md#when-a-project-finishes); run before
+deleting this doc.
+
+- [ ] Every acceptance criterion is met, and its required check passed.
+- [ ] Every bullet of the linked revision's Decision is implemented, or named by a successor project.
+- [ ] The linked revision is `accepted`, another project still names it, or there is no decision to settle.
+- [ ] Every resulting behavior is described in a topic doc.
+- [ ] Every open item is resolved and promoted, or moved where it belongs.
+- [ ] Other projects' `depends_on` entries naming this one are removed,
+      and every cross-reference into this doc is updated or deleted.
+- [ ] No code comment, message or topic doc still names this project's stages, phases or tracks.

@@ -15,6 +15,12 @@
 # 'default' found. Exiting."). Running per-role avoids this, since each
 # invocation only sees one role's own already-unique scenario names.
 #
+# Without -s each scenario runs as its own `molecule test -s <name>`, in
+# name order and stopping at a role's first failure like --all does, so
+# the run can time every scenario. The timings print as a table and, when
+# GITHUB_STEP_SUMMARY is set, land in the job summary: they show which
+# roles are worth splitting across runners.
+#
 # Usage (run from ansible/):
 #   ./scripts/molecule-test-all.sh                     # every scenario, every role
 #   ./scripts/molecule-test-all.sh compose              # every scenario, one role
@@ -62,11 +68,6 @@ if [ "${#roles[@]}" -eq 0 ]; then
     done
 fi
 
-molecule_args=(test --all)
-if [ -n "$scenario" ]; then
-    molecule_args=(test -s "$scenario")
-fi
-
 # Molecule auto-discovers .config/molecule/config.yml (sets
 # ANSIBLE_ROLES_PATH, without which molecule_helpers isn't found) by
 # walking up from cwd for a directory literally named .git/.hg/.svn. A
@@ -74,16 +75,44 @@ fi
 # that walk finds nothing there. --base-config sidesteps it entirely;
 # git rev-parse resolves correctly for both plain clones and worktrees.
 molecule_base_config="$(git rev-parse --show-toplevel)/.config/molecule/config.yml"
-molecule_args=(--base-config "$molecule_base_config" "${molecule_args[@]}")
 
 failed=()
+timings=()
 for role in "${roles[@]}"; do
     echo
     echo "=== $role${scenario:+ ($scenario)} ==="
-    if ! (cd "roles/$role" && molecule "${molecule_args[@]}"); then
-        failed+=("$role")
+    if [ -n "$scenario" ]; then
+        scenarios=("$scenario")
+    else
+        scenarios=()
+        for dir in "roles/$role"/molecule/*/; do
+            [ -f "${dir}molecule.yml" ] || continue
+            scenarios+=("$(basename "$dir")")
+        done
     fi
+    for name in "${scenarios[@]}"; do
+        echo "--- $role: $name ---"
+        started=$SECONDS
+        result=passed
+        if ! (cd "roles/$role" && molecule --base-config "$molecule_base_config" test -s "$name"); then
+            result=FAILED
+            failed+=("$role")
+        fi
+        timings+=("$role|$name|$((SECONDS - started))|$result")
+        [ "$result" = passed ] || break
+    done
 done
+
+table="| Role | Scenario | Seconds | Result |"$'\n'"| :--- | :--- | ---: | :--- |"
+for row in "${timings[@]}"; do
+    IFS='|' read -r t_role t_scenario t_seconds t_result <<<"$row"
+    table+=$'\n'"| $t_role | $t_scenario | $t_seconds | $t_result |"
+done
+echo
+echo "$table"
+if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+    printf '### Molecule scenario timings\n\n%s\n' "$table" >>"$GITHUB_STEP_SUMMARY"
+fi
 
 echo
 if [ "${#failed[@]}" -eq 0 ]; then

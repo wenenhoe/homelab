@@ -39,7 +39,7 @@ INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), 
 DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
 PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
 REPO_FILE_LINK_RE = re.compile(r"\]\((\.{1,2}/[\w./-]+\.(?:yaml|yml|hcl|sh|py|j2|json|toml))(?:#[^)]*)?\)")
-ADR_LINK_NAME_RE = re.compile(r"\[ADR (\d{4})(?: revision [\w-]+)? \(([^()\]]+)\)\]")
+ADR_LINK_NAME_RE = re.compile(r"\[ADR\s+(\d{4})(?:\s+revision\s+[\w-]+)?\s+\(([^()\]]+)\)\]")
 
 
 def fail(msg: str) -> None:
@@ -338,7 +338,7 @@ def check_adr_link_names() -> None:
             expected = shorts.get(f"ADR-{number}")
             if expected is None:
                 fail(f"{rel_f}: links ADR {number}, which isn't a lineage")
-            elif name != expected:
+            elif (name := " ".join(name.split())) != expected:
                 fail(f"{rel_f}: links ADR {number} as '{name}', but its short name is '{expected}'")
 
 

@@ -153,6 +153,7 @@ class TestAdrLinkNames:
             pytest.param("[ADR 0020 (Automation identity scope)](x.md)", id="number and name"),
             pytest.param("[ADR 0020 revision 1 (Automation identity scope)](x.md)", id="revision and name"),
             pytest.param("[ADR 0020](x.md)", id="number only"),
+            pytest.param("[ADR 0020\nrevision 1 (Automation\nidentity scope)](x.md)", id="text wrapped across lines"),
             pytest.param("ADR 0020 (a different name) in running text", id="not a link"),
         ],
     )
@@ -166,6 +167,7 @@ class TestAdrLinkNames:
         [
             pytest.param("[ADR 0020 (Old name)](x.md)", ("'Old name'", "'Automation identity scope'"), id="stale name"),
             pytest.param("[ADR 0020 revision 1 (Old name)](x.md)", ("'Old name'", "'Automation identity scope'"), id="stale name on a revision link"),
+            pytest.param("[ADR 0020\nrevision 1 (Old\nname)](x.md)", ("'Old name'", "'Automation identity scope'"), id="stale name wrapped across lines"),
             pytest.param("[ADR 0099 (Anything)](x.md)", ("ADR 0099", "isn't a lineage"), id="no such lineage"),
         ],
     )

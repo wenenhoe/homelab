@@ -63,7 +63,11 @@ curl -fsSL https://cli.coderabbit.ai/releases/<version>/SHA256SUMS | grep -F ' .
 ```
 
 The manifest comes from the same bucket as the zip, so the hash catches a
-swapped artifact but does not prove a new release was good.
+swapped artifact but does not prove a new release was good. Nothing signs or
+attests this CLI's releases, so the
+[release checksum check](ci/gates.md#release-checksum-check) can only confirm
+that the pinned hash is the one the manifest lists: it catches a hash copied
+wrongly, not a bucket that served a bad artifact.
 
 **Backing out.** Revert the bump; the rebuild republishes the previous CLI
 as `:latest`. To back out on one machine at once, retag an older version

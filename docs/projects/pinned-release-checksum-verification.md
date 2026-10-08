@@ -42,11 +42,11 @@ Update at the start and end of each PR that works a stage.
 | 2 | The revision is approved | Done | The revision is `approved`, with no open assumption |
 | 3 | The registry, the verifier and the committed keys, unit-tested | Done | The unit tests in the revision's Validation pass, including the one asserting every checksum pin has a registry entry |
 | 4 | The check runs on a pull request that changes a pin or the registry, and weekly | In progress | Both runs pass against the real publishers, and a pin changed to a wrong hash fails the pull request run |
-| 5 | The docs and comments state each pin's tier | Not started | No file says a signed artifact is unverified, and a topic doc names the tiers and where the registry is |
+| 5 | The docs and comments state each pin's tier | Done | No file says a signed artifact is unverified, and a topic doc names the tiers and where the registry is |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-Stages 1 to 3 are done, and the project is `building`. Stage 4's workflows are written and unit-tested; its exit condition is met by their first runs on GitHub, since the publishers can't be reached from the sandbox that built them.
+Stages 1 to 3 and 5 are done, and the project is `building`. Stage 4's workflows are written and unit-tested; its exit condition is met by their first runs on GitHub, since the publishers can't be reached from the sandbox that built them.
 
 ## Acceptance criteria
 

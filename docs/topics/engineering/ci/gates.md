@@ -423,6 +423,24 @@ the registry of pins, with the files that hold each one and the address of its
 publisher's manifest or artifact. A test fails when a pin in the repository has
 no entry, so a new pin means a new entry.
 
+### Tiers
+
+An entry's tier says how far its pin can be checked, and the registry is
+where each one is set:
+
+| Tier | What the check does | Pins today |
+| :--- | :--- | :--- |
+| Signed | Fetches the publisher's manifest and its signature, verifies them with `gpg` in a throwaway keyring holding only the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys/), and requires the pin to equal the manifest's line for the artifact. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`) |
+| Attested | Downloads the artifact, requires it to hash to the pin, then requires `gh attestation verify` to pass for the publisher's repository. | uv |
+| Listed | Requires the pin to equal the publisher's manifest line. The manifest is unsigned, so this catches a hash copied wrongly, not a publisher that served a bad artifact. | the CodeRabbit CLI |
+| None | The entry says why nothing can be checked. | none |
+
+No key is fetched when the check runs: `gpg` runs with its network helper off,
+the keyring is built from the committed file, and a key file must hold exactly
+the fingerprint its entry names. A signature by an expired or revoked key, or
+by any other key, fails. A publisher that rotates its key fails the weekly run
+until the new key is reviewed and committed.
+
 Failures are per entry and the run reports every entry before it exits
 non-zero, with each failure as an `::error::` annotation. A publisher that
 can't be reached after three attempts (429, 5xx or a network error are

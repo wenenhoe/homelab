@@ -16,5 +16,5 @@ openbao_cli_deb_url: "https://github.com/openbao/openbao/releases/download/v{{ o
 # The release's checksums.txt lists the same hash, GPG-signed as
 # checksums.txt.gpgsig. CI checks this pin against that signed file with the
 # key committed under tools/ci/checksums/keys/ — see
-# docs/topics/engineering/ci/gates.md#release-checksum-check.
+# docs/topics/engineering/ci/release-checksum-check.md.
 openbao_cli_deb_sha256: "aa5dd78f590a89256dffae7c7f8664b11e4380478da86454d8030020f6af0add"

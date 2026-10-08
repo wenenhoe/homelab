@@ -34,7 +34,7 @@ correctness/linting jobs in [CI: PR Checks](pipeline.md#jobs) — see
 asking each publisher again whether the pinned release hashes are theirs. It
 is the same check the `release-checksums` PR job runs when a pin changes; what
 it verifies and how it fails is in
-[CI Gates](gates.md#release-checksum-check). GitHub emails a failed scheduled
+[CI Release Checksum Check](release-checksum-check.md). GitHub emails a failed scheduled
 run to the person who last changed the schedule.
 
 ## Image vulnerability assessment

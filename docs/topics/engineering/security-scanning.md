@@ -88,7 +88,7 @@ here.
 
 - **Inventory.** The job reads this repo by a plain clone and runs
   `python -m ci.images.remote list --json`
-  ([the contract](ci/gates.md#image-inventory-json)). An image pinned in a
+  ([the contract](ci/image-tag-check.md#image-inventory-json)). An image pinned in a
   compose file, an Ansible role or a script is **deployed** and scanned. A
   Dockerfile base is covered through the image built from it. An image used
   only by Molecule or CI is listed and not scanned.

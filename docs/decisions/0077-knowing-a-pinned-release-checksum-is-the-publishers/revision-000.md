@@ -76,7 +76,7 @@ flowchart TD
 
 ## Consequences
 
-- CI makes network calls to publishers, as [`check-image-tags.yml`](../../topics/engineering/ci/gates.md#image-tag-existence-check) already does to registries.
+- CI makes network calls to publishers, as [`check-image-tags.yml`](../../topics/engineering/ci/image-tag-check.md) already does to registries.
 - The committed keys are a trust anchor that needs review when it changes, and a publisher's key rotation fails the check until it is reviewed.
 - The check needs `gh` and `gpg` on the runner, and downloads the uv tarball to verify its attestation.
 - A bump to a uv release without an attestation fails the check, which holds that pull request until the maintainer decides.

@@ -3,7 +3,7 @@ name: Check release checksums
 # Once a week, and on demand. A pinned hash is checked when its pin changes
 # (pr-checks.yml's release-checksums job); this asks each publisher again, so
 # a key that rotated or a manifest that moved is noticed even when no pin did.
-# See docs/topics/engineering/ci/gates.md#release-checksum-check.
+# See docs/topics/engineering/ci/release-checksum-check.md.
 #
 # The minute is off the hour to stay clear of the top-of-the-hour crowd on
 # GitHub's scheduler, and Sunday is when Renovate (Mon/Thu window, see

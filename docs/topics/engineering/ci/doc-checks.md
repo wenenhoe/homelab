@@ -1,6 +1,6 @@
 # CI Doc Checks
 
-The hooks and jobs that keep docs and project records consistent: index generation, the drift check, and the project scope and close checks. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
+The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, and the Mermaid render check. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Doc index generation
 
@@ -166,3 +166,31 @@ Two PRs that each leave the other's project in place can both pass and
 together leave a revision `approved` with no project. The generated
 [Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project)
 view lists it, so the gap is visible but not blocked.
+
+## Mermaid render check
+
+[`tools/doc_scripts/check_mermaid.py`](../../../../tools/doc_scripts/check_mermaid.py) renders
+every Mermaid diagram in the repo's markdown, which none of the checks above does: they read
+a diagram as text, so a block that does not render passes them all
+([ADR 0078 (Diagram render check)](../../../decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md)).
+It finds each fenced `mermaid` block in the tracked `.md` files, leaving out one quoted inside a
+longer fence, and runs the pinned `mermaid-cli` container image on it: the block on stdin, no
+network, no capabilities. The image tag is the module's `MERMAID_CLI_IMAGE`; Renovate bumps it
+there, and the [weekly image tag check](image-tag-check.md) reads it there.
+
+It runs in CI only, as the `mermaid-check` job, when `detect-changes` reports a markdown file or
+the module itself changed. It checks every block in the repo, not only the changed ones, so a bump
+of the image is tried against every existing diagram. It runs on the runner's own `python3` and
+Docker, and it is not a matrix job, so it can be required directly (see
+[Requiring checks before merge](pipeline.md#requiring-checks-before-merge)).
+
+There is no pre-commit hook for it: `pre-commit-checks` runs every hook over every file on every
+PR, so a hook would pull the image and start a browser per diagram on PRs that touch no docs. To
+check before pushing, run `python3 -m doc_scripts.check_mermaid` from `tools/`; it needs Docker and
+nothing else.
+
+For every block that does not render, it prints the file, the line the block starts on and the
+renderer's first error message, not only the first failure. Exit status 2, not 1, means Docker
+could not run the image, so no block was judged. A pass shows that a block renders, not that it
+reads well, and GitHub draws with its own Mermaid version, so a new or changed diagram still gets a
+look in a rendered view.

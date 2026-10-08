@@ -248,6 +248,13 @@
       datasourceTemplate: "custom.coderabbit-cli",
       depNameTemplate: "coderabbit-cli",
     },
+    {
+      customType: "regex",
+      description: "The mermaid-cli image check_mermaid.py renders diagrams with, a Python constant rather than a recognized image: key",
+      managerFilePatterns: ["/^tools/doc_scripts/check_mermaid\\.py$/"],
+      matchStrings: ["MERMAID_CLI_IMAGE = \"(?<depName>[^:\"]+):(?<currentValue>[^\"]+)\""],
+      datasourceTemplate: "docker",
+    },
   ],
 
   packageRules: [

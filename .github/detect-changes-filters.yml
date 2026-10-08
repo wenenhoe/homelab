@@ -93,3 +93,10 @@ release_checksums:
   - 'ansible/roles/cd_agent/defaults/main.yaml'
   - 'ansible/roles/openbao_cli/defaults/main.yaml'
   - 'tools/coderabbit-review/Dockerfile'
+# Gates mermaid-check: any markdown file, and the check itself, whose file
+# holds the pinned image, so a bump of it is tried against every diagram — see
+# docs/topics/engineering/ci/doc-checks.md#mermaid-render-check. Not narrowed by
+# ci.scope.effective_changes: a doc change is never a no-op.
+mermaid_check:
+  - '**/*.md'
+  - 'tools/doc_scripts/check_mermaid.py'

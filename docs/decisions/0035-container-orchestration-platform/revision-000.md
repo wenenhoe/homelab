@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0005]
 ---
 
-# 0035. Not adopting Kubernetes on current hardware
-
-**Status:** Accepted
+# 0035. Container orchestration platform
 
 ## Context
 

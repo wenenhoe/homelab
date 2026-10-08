@@ -11,7 +11,7 @@ status: working
 related: [ADR-0010, ADR-0042, ADR-0047, ADR-0073]
 ---
 
-# Off-site monitoring on a GCP e2-micro, reached over the existing Tailscale subnet route
+# 0049. Monitoring that survives loss of the site
 
 ## Context
 

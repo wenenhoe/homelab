@@ -11,7 +11,7 @@ status: accepted
 related: [ADR-0014]
 ---
 
-# 0015. Native expiry where providers offer it, self-tracked timestamps where they don't, checked by a controller-hosted timer
+# 0015. Cloud credential expiry
 
 **Status:** Accepted (OCI's self-tracked approach superseded by [0016](../0016-oci-credential-creation-and-expiry/revision-000.md); B2/R2 unaffected)
 

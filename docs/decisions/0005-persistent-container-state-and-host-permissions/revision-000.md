@@ -10,9 +10,7 @@ topic: deployment-platform
 status: accepted
 ---
 
-# 0005. Docker named volumes instead of bind mounts
-
-**Status:** Accepted
+# 0005. Persistent container state and host permissions
 
 ## Context
 

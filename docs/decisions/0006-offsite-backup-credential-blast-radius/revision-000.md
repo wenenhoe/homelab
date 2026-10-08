@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0010]
 ---
 
-# 0006. Threat model: scope credentials so a compromised app host can't reach the offsite backup
-
-**Status:** Accepted
+# 0006. Offsite backup credential blast radius
 
 ## Context
 

@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0014, ADR-0023, ADR-0020]
 ---
 
-# 0024. Move Cloudflare R2's admin token into OpenBao
-
-**Status:** Accepted
+# 0024. R2 admin token custody
 
 ## Context
 

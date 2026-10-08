@@ -12,9 +12,7 @@ narrows: ADR-0019
 related: [ADR-0033, ADR-0022, ADR-0030]
 ---
 
-# 0034. Native bao CLI on security/controller, not docker exec or a throwaway docker run
-
-**Status:** Accepted
+# 0034. Operator access to the OpenBao CLI
 
 Revises one specific passage of already-accepted
 [ADR 0019 (OpenBao offsite snapshot)](../0019-openbao-offsite-snapshot-path/revision-000.md) - not its

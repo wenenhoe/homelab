@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0001]
 ---
 
-# 0002. Use Caddy, not Nginx Proxy Manager
-
-**Status:** Accepted
+# 0002. Reverse-proxy configuration reproducible from the repo
 
 ## Context
 

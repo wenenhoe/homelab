@@ -14,8 +14,6 @@ former_ids: [ADR-0027]
 
 # 0013. Adopt OpenBao, not a continued file cache or git-committed encrypted secrets
 
-**Status:** Accepted
-
 ## Context
 
 [0013](revision-000.md)

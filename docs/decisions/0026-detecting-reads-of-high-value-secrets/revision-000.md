@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0020, ADR-0024]
 ---
 
-# 0026. Permanent stdout audit device, plus a dedicated watcher, for the R2 admin-token per-read alert
-
-**Status:** Accepted
+# 0026. Detecting reads of high-value secrets
 
 ## Context
 

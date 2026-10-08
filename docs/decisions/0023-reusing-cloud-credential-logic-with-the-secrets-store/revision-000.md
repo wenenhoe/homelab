@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0016, ADR-0014]
 ---
 
-# 0023. Repoint existing credential scripts at OpenBao KV v2, defer a native plugin
-
-**Status:** Accepted
+# 0023. Reusing cloud-credential logic with the secrets store
 
 ## Context
 

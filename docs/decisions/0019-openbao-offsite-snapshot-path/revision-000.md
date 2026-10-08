@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0017]
 ---
 
-# 0019. OpenBao snapshot push stays standalone, not routed through `backup_agent`/`cloud_sync`
-
-**Status:** Accepted
+# 0019. OpenBao offsite snapshot path
 
 ## Context
 

@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0020]
 ---
 
-# 0021. Vault path convention: `hosts/<host>/*` mirrors `host_vars`, `hosts/all/<concern>/*` mirrors `group_vars/all`
-
-**Status:** Accepted
+# 0021. Secret path layout for secrets with no host owner
 
 ## Context
 

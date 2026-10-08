@@ -10,7 +10,7 @@ topic: deployment-platform
 status: working
 ---
 
-# A dedicated BIND9 on `security` for Tofu-provisioned VM DNS
+# 0040. DNS for Tofu-provisioned VMs
 
 ## Context
 

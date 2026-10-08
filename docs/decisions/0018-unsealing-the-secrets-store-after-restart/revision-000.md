@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0017]
 ---
 
-# 0018. Manual Shamir unseal, not cloud auto-unseal
-
-**Status:** Accepted
+# 0018. Unsealing the secrets store after restart
 
 ## Context
 

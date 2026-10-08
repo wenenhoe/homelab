@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0007]
 ---
 
-# 0009. Issue lldap's LDAPS cert from the internal step-ca, not certbot + DNS-01
-
-**Status:** Accepted
+# 0009. Internal service certificate issuance and renewal
 
 ## Context
 

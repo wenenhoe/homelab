@@ -11,7 +11,7 @@ status: accepted
 related: [ADR-0007]
 ---
 
-# 0008. step-ca cert duration set to 720h, not step-ca's own 24h default
+# 0008. Internal certificate lifetime
 
 **Status:** Accepted — see
 [`0008-internal-certificate-lifetime/revision-001.md`](revision-001.md)

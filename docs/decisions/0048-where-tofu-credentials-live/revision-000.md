@@ -11,7 +11,7 @@ status: working
 related: [ADR-0013, ADR-0018, ADR-0020, ADR-0026]
 ---
 
-# Where Tofu's own secrets and state-backend credential live
+# 0048. Where Tofu's own credentials live
 
 ## Context
 

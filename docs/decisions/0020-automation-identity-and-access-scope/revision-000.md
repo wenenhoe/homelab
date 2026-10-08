@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0017, ADR-0023]
 ---
 
-# 0020. One broad AppRole for `controller`, not split per secret family or by consumer
-
-**Status:** Accepted
+# 0020. Automation identity and access scope
 
 ## Context
 

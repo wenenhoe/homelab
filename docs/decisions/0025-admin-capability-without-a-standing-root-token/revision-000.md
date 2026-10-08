@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0026]
 ---
 
-# 0025. Re-init OpenBao now, with a standing narrow `vault-bootstrap` AppRole, instead of deferring to the eventual full cutover
-
-**Status:** Accepted
+# 0025. Admin capability without a standing root token
 
 ## Context
 

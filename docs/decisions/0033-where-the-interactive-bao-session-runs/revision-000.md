@@ -11,9 +11,7 @@ status: accepted
 narrows: ADR-0034
 ---
 
-# 0033. bao_session.py stays local to controller, drops the never-working security path
-
-**Status:** Accepted
+# 0033. Where the interactive bao session runs
 
 ## Context
 

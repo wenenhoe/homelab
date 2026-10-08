@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0009]
 ---
 
-# 0004. Docker-socket-proxy sidecar, never the raw socket, for anything needing the Docker API
-
-**Status:** Accepted
+# 0004. Container access to the Docker API
 
 ## Context
 

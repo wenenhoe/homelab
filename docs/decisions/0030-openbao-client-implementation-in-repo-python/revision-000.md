@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0029]
 ---
 
-# 0030. Adopt hvac + paramiko for every internal OpenBao/SSH client, not just cloud_credentials
-
-**Status:** Accepted
+# 0030. OpenBao client implementation in repo Python
 
 ## Context
 

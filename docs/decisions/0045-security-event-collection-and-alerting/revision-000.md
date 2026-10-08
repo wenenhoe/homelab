@@ -11,7 +11,7 @@ status: working
 narrows: ADR-0026
 ---
 
-# Replace r2_read_watcher.py with a proper audit pipeline (e.g. Wazuh)?
+# 0045. Security event collection and alerting
 
 ## Context
 

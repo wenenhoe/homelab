@@ -10,9 +10,7 @@ topic: secrets-store
 status: accepted
 ---
 
-# 0022. Controller trusts OpenBao's TLS cert via a per-run-fetched root cert, not a committed copy or skip-verify
-
-**Status:** Accepted
+# 0022. Controller trust in the secrets store's TLS certificate
 
 ## Context
 

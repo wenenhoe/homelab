@@ -17,7 +17,7 @@ related: [ADR-0026]
 
 ## Context
 
-[ADR 0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md) requires
+[ADR 0026 (High-value secret read alerts)](../0026-detecting-reads-of-high-value-secrets/revision-000.md) requires
 a fourth Vault identity (the R2 per-read watcher's own AppRole).
 Creating any new AppRole needs a token with `create`/`update` on
 `sys/policies/acl/*` and `auth/approle/role/*`. `controller`'s policy
@@ -137,7 +137,7 @@ admin-capable credential again.
   > replacement, covering the same `LEGACY_CACHE_KEYS` convention)
   > didn't exist yet at this ADR's decision time. Both tools later
   > moved into one *file* -
-  > [ADR 0032](../0032-where-openbao-utility-scripts-live/revision-000.md) -
+  > [ADR 0032 (OpenBao utility scripts)](../0032-where-openbao-utility-scripts-live/revision-000.md) -
   > but the two source-of-truth conventions this bullet actually
   > reasons about stay fully distinct internally, as two separate
   > phases with two separate access patterns. That's a narrower kind

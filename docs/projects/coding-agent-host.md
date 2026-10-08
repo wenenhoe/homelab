@@ -24,7 +24,7 @@ The VM (VMID 601, in the 6XX range), a `coding_agent` role, an inventory group o
 
 ## Decision
 
-Implements [ADR 0051](../decisions/0051-coding-agent-execution-isolation/revision-000.md), `working`. The project stays `not-started` while it waits on the network project, and moves to `de-risking` once Stage 1 begins.
+Implements [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md), `working`. The project stays `not-started` while it waits on the network project, and moves to `de-risking` once Stage 1 begins.
 
 ## Execution plan
 
@@ -56,7 +56,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- The guest shares the node with every other VM, so a hypervisor escape is outside this project's control ([ADR 0051](../decisions/0051-coding-agent-execution-isolation/revision-000.md)).
+- The guest shares the node with every other VM, so a hypervisor escape is outside this project's control ([ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md)).
 - Sizing competes with other planned VMs for the node's remaining headroom.
 
 ## Open items

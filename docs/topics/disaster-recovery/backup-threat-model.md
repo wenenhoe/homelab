@@ -2,7 +2,7 @@
 
 The backup design assumes one adversary: a compromised app host (`services`, `security`, or `play`). A compromised `storage` host and a network-level attacker are out of scope. The asset is the offsite copy, which exists to survive the loss of the host it protects — so a credential that host holds is exactly as dangerous as the access it grants. Every app host's `backup_agent` holds a live, write-capable S3 credential by necessity, which makes that credential's reach the thing to bound.
 
-The reasoning and the alternatives considered are in [ADR 0006](../../decisions/0006-offsite-backup-credential-blast-radius/revision-000.md) (credential scope) and [ADR 0010](../../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) (deletion propagation). This page states what holds today. The mechanism itself is in [`backup.md`](backup.md) and [`cloud-sync.md`](cloud-sync.md).
+The reasoning and the alternatives considered are in [ADR 0006 (Offsite backup credentials)](../../decisions/0006-offsite-backup-credential-blast-radius/revision-000.md) (credential scope) and [ADR 0010 (Offsite copy deletion)](../../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) (deletion propagation). This page states what holds today. The mechanism itself is in [`backup.md`](backup.md) and [`cloud-sync.md`](cloud-sync.md).
 
 ## Constraints
 

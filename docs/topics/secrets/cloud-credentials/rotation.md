@@ -7,7 +7,7 @@ How the leaf and rotation credentials are rotated, per provider: the `--rotate` 
 **Leftover pre-Vault cache files:** `openbao_utils/audit.py --local` flags anything under
 `ansible/files/secrets/` that doesn't match current config, whatever its vintage. It has no
 visibility into Console-side IAM objects, so the cleanup from the OCI SCIM migration
-([ADR 0016](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)) stays manual if you
+([ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)) stays manual if you
 never did it: delete the unused `homelab-key-rotation` identity — its API signing key first, then the policy,
 then the group membership, then the user itself.
 
@@ -70,7 +70,7 @@ follow production's request sequence. boto3 sends a different one (no
 HEAD around the write, a v2 listing) and needs different settings per
 provider, so a key could pass a boto3 check and still fail under rclone.
 The comparison is in
-[ADR 0046](../../../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md).
+[ADR 0046 (S3 client)](../../../decisions/0046-python-client-for-s3-compatible-storage/revision-000.md).
 
 **rclone config requirements verification depends on, each confirmed
 against a real failure, not assumed:**
@@ -153,7 +153,7 @@ operation.
 
 **R2** has no verify-then-revoke equivalent — Cloudflare's API
 structurally can't mint a delegate credential for this at all (see
-[ADR 0014](../../../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)) —
+[ADR 0014 (R2 rotation credential)](../../../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)) —
 but it does have the same `--rotate` entry point now, closing a real
 gap: create a new Custom Token in the Console first, then
 

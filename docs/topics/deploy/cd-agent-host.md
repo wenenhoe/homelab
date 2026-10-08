@@ -1,6 +1,6 @@
 # CD Agent Host: The `cd_agent` Role
 
-`ansible/roles/cd_agent` builds the host side of [ADR 0044 revision 0-c](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md): one sandboxed systemd unit and timer per job, each running as its own unprivileged user, and `sshd` accepting only the operator host. Each unit runs the poll, decide and run step in [`cd-agent-runner.md`](cd-agent-runner.md), and the role installs the `uv` that the runner's [toolchain step](cd-agent-runner.md#toolchain) uses. The role is the mechanism only. The jobs themselves (names, commands, schedules) are the `cd_agent_jobs` data a caller passes in. The `cd_agent` inventory group (VM 303, `192.168.30.3`) and `playbooks/cd-agent.yaml` apply it.
+`ansible/roles/cd_agent` builds the host side of [ADR 0044 revision 0-c (CD agent trigger)](../../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md): one sandboxed systemd unit and timer per job, each running as its own unprivileged user, and `sshd` accepting only the operator host. Each unit runs the poll, decide and run step in [`cd-agent-runner.md`](cd-agent-runner.md), and the role installs the `uv` that the runner's [toolchain step](cd-agent-runner.md#toolchain) uses. The role is the mechanism only. The jobs themselves (names, commands, schedules) are the `cd_agent_jobs` data a caller passes in. The `cd_agent` inventory group (VM 303, `192.168.30.3`) and `playbooks/cd-agent.yaml` apply it.
 
 ## Applying it
 
@@ -70,7 +70,7 @@ Each service is `Type=oneshot` and runs the runner as the job's user, with the j
 
 ## Chains
 
-A job's `successors` are the jobs systemd starts when it ends ([ADR 0074](../../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)). The role writes `OnSuccess=` and `OnFailure=` for each into the job's unit, so a successor follows however the predecessor ends: a run can have revoked a credential and then failed.
+A job's `successors` are the jobs systemd starts when it ends ([ADR 0074 (Job chaining)](../../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)). The role writes `OnSuccess=` and `OnFailure=` for each into the job's unit, so a successor follows however the predecessor ends: a run can have revoked a credential and then failed.
 
 A successor is an ordinary job with its own user, state directory and credentials, and its own fetch and clean checkout of `origin/main`. It never sees its predecessor's tree, state or environment, and only the fact that the predecessor ended reaches it. It must therefore be idempotent. A job that has no timer is started only as a successor: it gets a unit and no timer, and a job may have both.
 
@@ -105,7 +105,7 @@ The role installs `git`, `python3`, `unzip`, `openssh-client`, `openssh-server` 
 ## Not done by the role
 
 - Credential files, and the copy of step-ca's root certificate a job verifies OpenBao against. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
-- Failure alerts and heartbeats, which depend on [ADR 0072](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
+- Failure alerts and heartbeats, which depend on [ADR 0072 (Job heartbeats)](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 
 ## Testing

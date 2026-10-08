@@ -177,7 +177,7 @@ needs its own `seaweedfs-s3-*-<host>` secret pair (`secret_catalog.yaml`) and
 without them the deploy fails on the missing variable. `backup_agent` reads its
 own host's `backup_plan`, `cloud_sync` and `restore_discovery` read every backup
 host's. See
-[ADR 0068](../../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md).
+[ADR 0068 (Backup defaults)](../../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md).
 
 See [`adding-an-app.md`](adding-an-app.md) for a worked example.
 

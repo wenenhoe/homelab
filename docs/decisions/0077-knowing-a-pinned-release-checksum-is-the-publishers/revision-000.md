@@ -23,9 +23,9 @@ What has to be true: for every pinned release artifact, the hash in the reposito
 
 Four pins are checksummed release downloads:
 
-- `cd_agent_uv_sha256` and `cd_agent_rclone_sha256`, for the `uv` and `rclone` the CD agent host installs. That host holds the deploy job's credentials ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), and `uv` and `rclone` run on it.
+- `cd_agent_uv_sha256` and `cd_agent_rclone_sha256`, for the `uv` and `rclone` the CD agent host installs. That host holds the deploy job's credentials ([ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), and `uv` and `rclone` run on it.
 - `openbao_cli_deb_sha256`, for the OpenBao CLI `.deb` installed on `security`.
-- `CODERABBIT_SHA256`, for the CLI zip unpacked in the review image ([ADR 0063](../0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md)).
+- `CODERABBIT_SHA256`, for the CLI zip unpacked in the review image ([ADR 0063 (Review image build)](../0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md)).
 
 Each install verifies the file against the pin: `get_url` with `checksum:` in the roles, `sha256sum -c` in the Dockerfile. Renovate bumps the version in each, and the hash is bumped by a pull request note asking for a copy by hand, except `uv`, whose hash Renovate moves with its version from the release's `.sha256` asset. Whichever way the hash gets in, nothing compares it with anything the publisher signed.
 
@@ -59,7 +59,7 @@ flowchart TD
     CH -->|"no manifest"| NM["The entry says so"]
 ```
 
-- **The check.** A stdlib-only Python check under `tools/ci`, unit-tested ([ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)), reads a registry that holds one entry per pinned artifact: where its pin lives, the file name its manifest lists, the manifest's address for the pinned version, its tier, and for a signed artifact the signing key's fingerprint, and for an attested one the repository that must have built it.
+- **The check.** A stdlib-only Python check under `tools/ci`, unit-tested ([ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)), reads a registry that holds one entry per pinned artifact: where its pin lives, the file name its manifest lists, the manifest's address for the pinned version, its tier, and for a signed artifact the signing key's fingerprint, and for an attested one the repository that must have built it.
 - **Tiers.** A *signed* artifact's manifest and signature are fetched, the signature is verified with `gpg` in a throwaway keyring that holds only the key committed for that entry, and the pinned hash must equal the manifest's line for the file. An *attested* artifact is downloaded, must hash to the pinned value, and must pass `gh attestation verify` for the repository its entry names. A *listed* artifact has a manifest and no signature: the pinned hash must equal its line, which catches a hash copied from the wrong place and a typo, and no more. An artifact with *no* manifest says so in its entry. The registry is the one place a pin's tier is written down.
 - **Keys.** The public key for a signed entry is committed in the repository with its fingerprint in the entry. The check accepts a signature only from that fingerprint and never fetches a key from a keyserver or a web page. A change of key is a reviewed diff.
 - **When it runs.** On a pull request that changes a pinned file or the registry, and weekly, so a manifest or key that changes upstream is noticed without a pin changing. A failure on either fails the run.
@@ -94,7 +94,7 @@ flowchart TD
 
 - Container image signatures and digests.
 - OS packages installed by the package manager.
-- Verifying that a publisher's release is free of vulnerabilities ([ADR 0071](../0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md)).
+- Verifying that a publisher's release is free of vulnerabilities ([ADR 0071 (Image vulnerability assessment)](../0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md)).
 - Signature checks on the repository's own commits, which ADR 0044 leaves unverified.
 
 ## Validation

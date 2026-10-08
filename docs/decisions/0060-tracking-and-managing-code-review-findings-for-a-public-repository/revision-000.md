@@ -26,7 +26,7 @@ is exactly that shape of content.
 
 A manual review of a produced CodeRabbit report confirmed this isn't
 hypothetical: the findings were real and actionable, and exactly what
-[ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+[ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
 keeps off this repo's own PR comments. Their severity, file, and
 description stay out of this repository.
 
@@ -92,7 +92,7 @@ or Actions run logs.
 ## Non-goals
 
 Where the review computation itself runs, and what credential drives it
-([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
+([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
 `homelab-security`'s finding schema, file layout and status vocabulary
 (a project concern, not an architectural one).
 

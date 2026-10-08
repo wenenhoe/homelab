@@ -19,7 +19,7 @@ related: [ADR-0061]
 A project's `decision:` names the one revision it implements, and the
 lifecycle requires that revision to be `accepted` before the project is
 `done` and its doc is deleted. That assumes one project per decision.
-[ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+[ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
 broke the assumption: one threat model, implemented by three separate
 pieces of work, each with its own project. The first to finish cannot
 satisfy the closing checklist, because `check-doc-drift.py` rightly

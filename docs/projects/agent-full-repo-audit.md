@@ -11,7 +11,7 @@ also_implements: [ADR-0062/0]
 
 # Agent-Based Full-Repo Audit
 
-The audit [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+The audit [ADR 0061 (Automated code review)](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
 decides, which covers what CodeRabbit's per-directory chunking structurally
 can't: a coding agent, given the whole repo and its `docs/decisions/`
 tree, distinguishing a real finding from one already reasoned through
@@ -22,7 +22,7 @@ and accepted (the shape of gap a sampled CodeRabbit finding on
 
 A periodic (twice a week) `homelab-security` workflow: clone this
 repo fresh, run a coding agent (leaning Claude Code, per
-[ADR 0062](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md))
+[ADR 0062 (Reviewer identity)](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md))
 with access to the full clone plus `docs/decisions/` and
 `docs/projects/`, instructed to read across files and docs as needed —
 not confined to a fixed directory split — and to flag findings only
@@ -30,19 +30,19 @@ after checking whether an existing ADR already covers the behavior in
 question. Each run audits one group of the repo's paths, so a run is
 small enough to read in full, and the groups take turns until the whole
 repo has been covered. Output is written into `homelab-security`
-([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md))
+([ADR 0060 (Review findings tracker)](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md))
 as a pull request the maintainer reviews, distinguishing "new,
 actionable" from "already covered by ADR NNNN."
 
 Explicitly not in scope: implementing fixes, opening pull requests, or
 writing anything to this repo — barred outright by
-[ADR 0061](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md).
+[ADR 0061 (Automated code review)](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md).
 
 ## Decision
 
-Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md),
+Implements [ADR 0061 (Automated code review)](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md),
 `approved`. Also implements
-[ADR 0062](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md),
+[ADR 0062 (Reviewer identity)](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md),
 `approved`.
 
 ## Execution plan

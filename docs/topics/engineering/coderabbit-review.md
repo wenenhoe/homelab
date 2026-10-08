@@ -7,7 +7,7 @@ so nothing needs installing on the host. It reviews one thing: the diff
 between the current branch and a base branch. The maintainer runs it by
 hand before a push. It is not run from CI: unattended use needs a headless
 Agentic API key, which the plan in use does not issue
-([ADR 0061](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md#alternatives-considered)).
+([ADR 0061 (Automated code review)](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md#alternatives-considered)).
 Nothing in this repo's own workflows runs a review or uses GitHub's
 CodeRabbit App — see [Why output stays off this repo's surfaces](#why-output-stays-off-this-repos-surfaces).
 
@@ -35,7 +35,7 @@ The CLI is not installed with upstream's `install.sh`. The
 release's `linux-x64` zip, checks it against a pinned sha256, and only then
 unpacks it; a wrong hash fails the build. The version
 (`CODERABBIT_VERSION`) and the hash (`CODERABBIT_SHA256`) are both
-declared there ([ADR 0063](../../decisions/0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md)).
+declared there ([ADR 0063 (Review image build)](../../decisions/0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md)).
 
 Each build pushes two tags: `:<cli-version>` (for example `:0.8.0`) and
 `:latest`. A pull request that changes the `Dockerfile` builds the image
@@ -106,7 +106,7 @@ This repo is public, so a review's findings must not appear on any surface
 it controls before a human has seen them: a PR comment, a commit, or a
 GitHub Actions run log. The GitHub App would post findings as PR comments
 the moment a PR opens, and a review run from this repo's own workflows
-would log them publicly. [ADR 0061](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+would log them publicly. [ADR 0061 (Automated code review)](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
 therefore keeps automated review out of this repo's workflows, and
 [`README.md`](../../README.md#public-repo) is the rule this protects. For
 this tool that means the only workflow here builds the image, which holds

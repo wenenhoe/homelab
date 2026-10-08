@@ -17,7 +17,7 @@ depends_on:
 
 # Host Hardening on the Remaining Hosts
 
-The remainder of [ADR 0043](../decisions/0043-host-os-hardening-baseline/revision-000.md)'s Decision: its scope names three hosts that are in none of `patched_hosts`' groups and include the `host_hardening` role from their own builds. Each build adds the role to its own stage ([`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md)); this project confirms each host ends up with the baseline and then settles the revision.
+The remainder of [ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md)'s Decision: its scope names three hosts that are in none of `patched_hosts`' groups and include the `host_hardening` role from their own builds. Each build adds the role to its own stage ([`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md)); this project confirms each host ends up with the baseline and then settles the revision.
 
 ## Scope
 
@@ -25,7 +25,7 @@ Confirming the three hosts' effective apt configuration, and setting the revisio
 
 ## Decision
 
-Implements [ADR 0043](../decisions/0043-host-os-hardening-baseline/revision-000.md), `approved`. The role, the first area, and its application to `patched_hosts` are built and described in [`host-hardening.md`](../topics/infra/host-hardening.md).
+Implements [ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md), `approved`. The role, the first area, and its application to `patched_hosts` are built and described in [`host-hardening.md`](../topics/infra/host-hardening.md).
 
 ## Execution plan
 
@@ -42,7 +42,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Acceptance criteria
 
 - [ ] Each of the three hosts has security-only unattended updates with no automatic reboot.
-- [ ] [ADR 0043](../decisions/0043-host-os-hardening-baseline/revision-000.md)'s revision 0 is `accepted`, set in the PR that deletes this doc.
+- [ ] [ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md)'s revision 0 is `accepted`, set in the PR that deletes this doc.
 
 ## Agent handoff
 

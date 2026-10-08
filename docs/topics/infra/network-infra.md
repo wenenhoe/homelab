@@ -73,7 +73,7 @@ Per-node Tailscale ACL tags: none found (`tailscale status --self
 — what any node, tagged or not, is actually allowed to reach — is the
 default allow-all grant (ADR 0058's Context), held only in the
 Tailscale admin console; see
-[ADR 0059](../../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)
+[ADR 0059 (Tailnet policy)](../../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)
 for where it goes from here.
 
 Re-authenticating this node after a rebuild ([`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md))

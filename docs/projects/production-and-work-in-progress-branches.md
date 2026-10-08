@@ -23,7 +23,7 @@ allowed_paths:
 
 # Production and Work-in-Progress Branches
 
-Carries out [ADR 0076](../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md): `main` stays what the CD agent deploys, while dependency updates and development collect on `maintenance` and `develop`. It is staged so the branches exist only once the checks already run on them.
+Carries out [ADR 0076 (Branch separation)](../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md): `main` stays what the CD agent deploys, while dependency updates and development collect on `maintenance` and `develop`. It is staged so the branches exist only once the checks already run on them.
 
 ## Scope
 
@@ -33,7 +33,7 @@ Not in: the CD agent, which keeps fetching `main` only ([`tools/cd_agent/run_job
 
 ## Decision
 
-Implements [ADR 0076](../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md), revision 0.
+Implements [ADR 0076 (Branch separation)](../decisions/0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md), revision 0.
 
 ## Execution plan
 
@@ -66,7 +66,7 @@ Stage 1 is the only stage that runs while the revision is `working`. Stages 3 to
 
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced.
 - **Must not change:** the revision's Decision except as stage 1 and the stop conditions in [`README.md#stop-conditions`](README.md#stop-conditions) permit; the CD agent and the jobs it runs; any ruleset, which is the maintainer's to set.
-- **Relevant files and interfaces:** `BRANCH = "main"` in `tools/cd_agent/run_job.py`; the `main` triggers in `pr-checks.yml`, `warm-caches.yml` and the `build-*-image.yml` workflows; `baseBranchPatterns` in `.github/renovate.json5`. The code lives where [ADR 0064](../decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) puts CI code, stdlib-only.
+- **Relevant files and interfaces:** `BRANCH = "main"` in `tools/cd_agent/run_job.py`; the `main` triggers in `pr-checks.yml`, `warm-caches.yml` and the `build-*-image.yml` workflows; `baseBranchPatterns` in `.github/renovate.json5`. The code lives where [ADR 0064 (CI and doc check code)](../decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) puts CI code, stdlib-only.
 - **Required checks:** `pre-commit run --all-files`; `uv run pytest tools/tests/ -v`.
 
 ## Risks

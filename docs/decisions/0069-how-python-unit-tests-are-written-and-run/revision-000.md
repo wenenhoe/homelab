@@ -19,7 +19,7 @@ The Python unit tests need one style: one way to share setup, one way to write a
 
 ## Context
 
-[ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) requires the code that decides a check's outcome to be unit-tested, with tests in `tools/tests/` and `ansible/tests/`. `pytest` is the only runner (`pr-checks.yml` runs `uv run pytest ansible/tests/ tools/tests/`, locked at 9.1.1), but the tests are written against `unittest`. Measured on `main` when this was written:
+[ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) requires the code that decides a check's outcome to be unit-tested, with tests in `tools/tests/` and `ansible/tests/`. `pytest` is the only runner (`pr-checks.yml` runs `uv run pytest ansible/tests/ tools/tests/`, locked at 9.1.1), but the tests are written against `unittest`. Measured on `main` when this was written:
 
 - 229 test-file class definitions, about 1,560 `self.assert*` calls against about 170 bare `assert` statements, 86 `setUp`/`tearDown` and 80 `addCleanup` calls, and shared setup held in `TestCase` base classes.
 - 103 `self.subTest` uses and 20 `parametrize` uses.

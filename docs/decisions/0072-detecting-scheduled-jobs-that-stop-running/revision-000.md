@@ -21,7 +21,7 @@ What has to be true, independent of the tool:
 
 - Each job has its own heartbeat, its own expected interval, and its own credential, so one leaked or rotated credential affects one job.
 - Intervals range from hours to about three weeks (the `cert-renewer@` cadence in [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md#wiring-a-job-to-its-push-monitor)).
-- An alert lands in the Telegram topic that already owns that kind of event ([ADR 0011](../0011-alert-routing-and-noise/revision-000.md)).
+- An alert lands in the Telegram topic that already owns that kind of event ([ADR 0011 (Alert routing)](../0011-alert-routing-and-noise/revision-000.md)).
 - The jobs push; the monitor never needs to reach into a host.
 - Rebuilding the monitor from the repo reproduces every monitor and every credential, with no step done by hand in a UI.
 - The dashboard is gated, while the push path stays reachable from machine clients that cannot do a browser login.
@@ -71,12 +71,12 @@ flowchart LR
 ```
 
 - **One external endpoint per job**, generated from the repo, not created in a UI. The endpoint list is rendered from the same definitions that install the push units, so a job and its monitor cannot drift apart.
-- **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)), and passed to Gatus as environment, never written into a world-readable file.
+- **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067 (Vault-backed secret module)](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)), and passed to Gatus as environment, never written into a world-readable file.
 - **One regular self-probe endpoint** besides the external ones: a `GET` of Gatus's own `/health` on localhost, with no alerts, to satisfy the config rule above. It probes nothing else.
 - **A thin image built in this repo**, following the wastebin pattern: the pinned upstream image plus a static `wget` for the healthcheck and an empty data directory owned by the non-root user the container runs as.
 - **The `cert-renewer@` heartbeat is a daily liveness push, not a push per renewal.** A renewal happens about every 480 hours, and with detection taking up to two intervals a dead renewer could be noticed after the certificate's 720-hour lifetime has ended. Instead a small per-instance timer pushes once a day, only when `step certificate needs-renewal --expires-in <margin>` exits 1, meaning the certificate still has more than the margin left; exit 0, 2 or 255 does not push. Pushes continue while the renewer keeps up and stop once the certificate is inside the margin, so the alert follows within two daily intervals, while the certificate is still valid. The margin must exceed those two intervals; the project chooses it. A failed renewal still reports through its own `OnFailure=`, as today.
 - **Alert settings fixed per endpoint:** `failure-threshold: 1`, `success-threshold: 1`, `send-on-resolved: true`.
-- **Heartbeat interval** per endpoint is the job's period plus the slack the repo already derives for it (`cron_period_hours` and `backup_freshness_buffer_hours`, [ADR 0068](../0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)). Because detection takes up to two intervals, a job whose failure matters sooner than that gets a more frequent liveness push instead of a longer interval.
+- **Heartbeat interval** per endpoint is the job's period plus the slack the repo already derives for it (`cron_period_hours` and `backup_freshness_buffer_hours`, [ADR 0068 (Backup defaults)](../0068-where-per-app-backup-settings-get-their-defaults/revision-000.md)). Because detection takes up to two intervals, a job whose failure matters sooner than that gets a more frequent liveness push instead of a longer interval.
 - **Telegram routing by group**: one group per existing topic, each an `overrides` entry carrying that topic's `topic-id`.
 - **Persistence:** `storage.type: sqlite` on a named volume, so history and open incidents survive a restart.
 - **Dashboard gated** by Gatus's own `security` setting. The Caddy route keeps `auth: false`, as Kuma's does, because the push path must bypass forward-auth.
@@ -92,7 +92,7 @@ flowchart LR
 
 ## Consequences
 
-Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. A second repo-built image joins the build and bump pipeline: an entry in `tools/ci/images/registry.py`, a Dockerfile, a build workflow and a smoke test for the image, as wastebin has, with Renovate bumping the Dockerfile's `FROM`. The registry accepts only tags like `5.37.0`, and Gatus's tags carry a leading `v`, so its tag rule needs a source that strips the `v`, with its unit tests. The `cert-renewer@` monitor changes from a push on renewal to a daily liveness push, which replaces the `OnSuccess=` link on that unit. [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md), [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
+Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. A second repo-built image joins the build and bump pipeline: an entry in `tools/ci/images/registry.py`, a Dockerfile, a build workflow and a smoke test for the image, as wastebin has, with Renovate bumping the Dockerfile's `FROM`. The registry accepts only tags like `5.37.0`, and Gatus's tags carry a leading `v`, so its tag rule needs a source that strips the `v`, with its unit tests. The `cert-renewer@` monitor changes from a push on renewal to a daily liveness push, which replaces the `OnSuccess=` link on that unit. [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md), [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
 
 ## Invariants
 
@@ -103,4 +103,4 @@ Every producer's push call changes. Existing Kuma push URLs and their secrets ar
 
 ## Non-goals
 
-Active probing of services beyond the one self-probe (Gatus can do it; this record does not adopt it), replacing Beszel, and where the monitor runs ([ADR 0042](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)).
+Active probing of services beyond the one self-probe (Gatus can do it; this record does not adopt it), replacing Beszel, and where the monitor runs ([ADR 0042 (Monitoring host loss)](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)).

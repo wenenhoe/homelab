@@ -27,14 +27,14 @@ and hasn't been renamed to match the rest of `playbooks/`.
 `secret/data/hosts/<hostname>/<concern>/<name>` mirrors
 `host_vars/<hostname>.yaml`; `secret/data/hosts/all/<concern>/<name>`
 mirrors `group_vars/all/*.yaml` — see
-[ADR 0021](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
+[ADR 0021 (Ownerless secret paths)](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
 for why the split follows the inventory structure. Cloud provider
 credentials are the one exception, on their own top-level
 `secret/data/cloud_credentials/{leaf,rotation}/*` family instead of
 under any host, since they anticipate a consumer split
 (deploy-only vs. rotation-only identity) that `hosts/*` has no reason
-to model — see [ADR 0021](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
-and [ADR 0023](../../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md).
+to model — see [ADR 0021 (Ownerless secret paths)](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
+and [ADR 0023 (Cloud credential logic reuse)](../../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md).
 
 ## systemd units
 
@@ -56,7 +56,7 @@ handler exists (see
 One Telegram topic per concern, shared across whichever apps alert
 into it (`diun`, Beszel, backups, cert-renewal all route through the
 same scheme) rather than one topic per app — see
-[ADR 0011](../../decisions/0011-alert-routing-and-noise/revision-000.md) and
+[ADR 0011 (Alert routing)](../../decisions/0011-alert-routing-and-noise/revision-000.md) and
 [`telegram-notifications.md`](../monitoring/telegram-notifications.md) for the
 concern → topic mapping itself.
 
@@ -64,7 +64,7 @@ concern → topic mapping itself.
 
 Tests under `ansible/tests/` and `tools/tests/` are written pytest-native
 and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
-[ADR 0069](../../decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md).
+[ADR 0069 (Python test style)](../../decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md).
 
 - **Style.** Plain functions or `Test*` classes, plain `assert`, and
   `pytest.raises(..., match=)`. Setup and cleanup are fixtures
@@ -124,7 +124,7 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
   so a `match=` regex can't pass on the path instead of the message.
 - **Test doubles.** A test chooses a double in this
   order, from
-  [ADR 0070](../../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md).
+  [ADR 0070 (Test doubles binding)](../../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md).
   The real object when it builds without I/O (a `requests.Response`, a
   `subprocess.CompletedProcess`, an SDK model object). When the object
   also does I/O (a session, a client, a channel), the real one with only

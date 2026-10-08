@@ -41,7 +41,7 @@ to end is [`fire-drill.md`](fire-drill.md).
   uptime, even though every app's schedules share one container.
   `docker-socket-proxy` (`CONTAINERS=1 POST=1 INFO=1`) is only added to
   the compose file at all if at least one app on the host needs stopping.
-  See [ADR 0004](../../decisions/0004-container-access-to-the-docker-api/revision-000.md)
+  See [ADR 0004 (Docker API access)](../../decisions/0004-container-access-to-the-docker-api/revision-000.md)
   for why anything needing Docker API access gets a scoped proxy sidecar
   like this instead of the real socket.
 - `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the

@@ -102,7 +102,7 @@ address per user off it — one real mailbox you control, nothing fake.
 
 **Rotation credential (Identity Domains SCIM — replaces the old
 OCID+PEM keypair entirely; see
-[ADR 0016](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)):**
+[ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)):**
 register a Confidential Application by hand in Console (Identity &
 Security > Domains > your domain > Integrated Applications > Add >
 Confidential Application), named exactly `homelab-oci-scim-rotation`
@@ -186,7 +186,7 @@ caches to `_rotation-key-cloudflare-r2-token`, and every later call
 (including `--rotate`) reads the cache instead of re-prompting. This
 cached token is master-equivalent, not a narrower delegate like B2's/
 OCI's rotation keys — see
-[ADR 0014](../../../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
+[ADR 0014 (R2 rotation credential)](../../../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
 for why that's accepted rather than worked around.
 
 **Create the master token as a Custom Token, not the "Create
@@ -209,7 +209,7 @@ The leaf tokens themselves stay properly bucket-scoped (`Workers R2
 Storage Bucket Item Write`/`Read`, restricted to `homelab-backups`) and
 only ever hold R2-specific permissions, never `API Tokens Write` — so
 none of the above applies to them, only to the rotation token. See
-[ADR 0014](../../../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
+[ADR 0014 (R2 rotation credential)](../../../decisions/0014-r2-rotation-credential-cannot-be-narrowed/revision-000.md)
 for what actually carries R2's defense-in-depth instead (the leaf
 tokens' `copy`-vs-`sync` boundary, not IAM narrowing at the
 rotation-token level).

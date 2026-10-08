@@ -59,7 +59,7 @@ Not in: moving the monitor to another host or off-site ([`monitoring-host-isolat
 
 ## Decision
 
-Implements [ADR 0072](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md), `approved`; this doc tracks build status only.
+Implements [ADR 0072 (Job heartbeats)](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md), `approved`; this doc tracks build status only.
 
 ## Execution plan
 
@@ -105,7 +105,7 @@ Two things make the parallel run safe. Kuma's push monitors keep their own inter
 
 ## Open items
 
-- **Backup of Gatus's sqlite volume.** It holds history and open-incident state, not secrets or configuration. Whether it is backed up follows the per-app defaults in [ADR 0068](../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md); decide in stage 2.
+- **Backup of Gatus's sqlite volume.** It holds history and open-incident state, not secrets or configuration. Whether it is backed up follows the per-app defaults in [ADR 0068 (Backup defaults)](../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md); decide in stage 2.
 - **The `cert-renewer@` margin.** It must exceed two daily intervals, about 52 hours with slack; stage 4 picks the value.
 - **Older ADRs that name Kuma.** ADRs 0012, 0026, 0042, 0045, 0047, 0049 and 0068 describe Kuma as it was when each was decided. Whether any gets a new revision is a decision for a human, outside this project's paths.
 - **Where Gatus runs.** It lands on `security`, beside Kuma, as that is where the monitor runs today. Moving it is the other two monitoring projects' work, and stage 6 updates their text to say Gatus.

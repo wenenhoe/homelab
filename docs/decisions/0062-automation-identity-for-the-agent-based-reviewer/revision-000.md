@@ -16,7 +16,7 @@ related: [ADR-0020, ADR-0061]
 ## Problem
 
 The periodic full-repository audit
-([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md))
+([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md))
 needs a standing, unattended credential to call a coding agent from
 `homelab-security`'s CI. Deciding which one, and whose usage allowance it
 draws from.
@@ -28,7 +28,7 @@ long-lived token generated once, interactively, by `claude setup-token`
 — specifically for *"CI pipelines and scripts where browser login isn't
 available,"* drawing from a Claude Pro/Max subscription rather than
 metered API billing. OpenAI's Codex CLI has an equivalent subscription
-login. [ADR 0020](../0020-automation-identity-and-access-scope/revision-000.md)
+login. [ADR 0020 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-000.md)
 already establishes this repo's standing pattern: a scoped identity per
 automated consumer, not a shared one.
 
@@ -50,7 +50,7 @@ pool as interactive use.
 Use `CLAUDE_CODE_OAUTH_TOKEN`, minted via `claude setup-token` from the
 maintainer's existing personal Pro/Max subscription and stored as a
 `homelab-security` secret, matching
-[ADR 0020](../0020-automation-identity-and-access-scope/revision-000.md)'s
+[ADR 0020 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-000.md)'s
 per-consumer scoped-identity pattern. Sharing the subscription's usage
 headroom with interactive use is accepted.
 
@@ -84,7 +84,7 @@ reset.
 The credential used for the audit agent authenticates only into
 `homelab-security`'s workflow context; it is never exposed to or
 reachable from this repo (see
-[ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)'s
+[ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)'s
 invariants, which this narrows to the specific credential in question).
 The workflow that uses it runs only in the maintainer's own private
 repository, which nobody else can trigger, and calls the unmodified

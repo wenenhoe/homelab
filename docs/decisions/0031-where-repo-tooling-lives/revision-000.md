@@ -91,7 +91,7 @@ instead move into `ansible/scripts/` is a separate, later decision,
 not reopened here.
 
 > **Revised by**
-> [ADR 0032](../0032-where-openbao-utility-scripts-live/revision-000.md):
+> [ADR 0032 (OpenBao utility scripts)](../0032-where-openbao-utility-scripts-live/revision-000.md):
 > the lifecycle-gating test above turned out too coarse
 > (`cloud_credentials` scripts are also lifecycle-sequenced and
 > correctly live in `tools/` anyway) - that decision moved three of
@@ -124,7 +124,7 @@ misplaced generic code.
 - `PROJECT_ROOT`'s four independent redefinitions are resolved:
   `bootstrap.py` imports it from `tools/utils/repo.py` directly, and
   `audit.py`/`dump.py` do too once
-  [ADR 0032](../0032-where-openbao-utility-scripts-live/revision-000.md) moved them
+  [ADR 0032 (OpenBao utility scripts)](../0032-where-openbao-utility-scripts-live/revision-000.md) moved them
   there. `cache.py` turned out not to need it at all once `dump.py`
   was its only reason to re-export it - removed entirely. `restore_all.py`
   keeps its own local

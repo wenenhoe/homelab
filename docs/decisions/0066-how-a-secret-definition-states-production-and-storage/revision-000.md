@@ -59,7 +59,7 @@ from something else.
 ## Decision
 
 - The registry is renamed `secret_catalog` (variable and file). "Catalog"
-  matches `app_catalog` in [ADR 0065](../0065-where-app-defaults-and-host-intent-are-merged/revision-000.md)
+  matches `app_catalog` in [ADR 0065 (App defaults merge)](../0065-where-app-defaults-and-host-intent-are-merged/revision-000.md)
   for the same kind of data: read-only definitions keyed by name.
 - Each entry states its production and storage with flat fields:
 
@@ -78,7 +78,7 @@ from something else.
   - `manual` requires `description`. `allow_blank` and `sensitive` are
     valid only on `manual`.
 - Every reader gets the catalog from one loader under `tools/`, per
-  [ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md),
+  [ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md),
   and a validator that runs in pre-commit and CI enforces the rules. Ansible
   reads the variable directly.
 - `store` is stated on every entry. It has no default, so the three
@@ -121,7 +121,7 @@ from something else.
 
 - Secret values, generation algorithms, or rotation policy.
 - The OpenBao path layout, which
-  [ADR 0021](../0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
+  [ADR 0021 (Ownerless secret paths)](../0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
   covers.
 - Adding a store other than `openbao` and `controller_file`.
 

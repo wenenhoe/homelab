@@ -25,7 +25,7 @@ Deleting `controller`'s Era A AppRole and its policy, and the on-demand token mi
 
 ## Decision
 
-Implements [ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md), `approved`: how `controller` authenticates to mint on-demand tokens once its standing AppRole is gone.
+Implements [ADR 0047 (First-credential bootstrap)](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md), `approved`: how `controller` authenticates to mint on-demand tokens once its standing AppRole is gone.
 
 ## Execution plan
 
@@ -54,7 +54,7 @@ Once the agent host and its AppRoles are live and proven, in this order:
    `controller`'s client certificate once with it, renew it over mTLS, and
    create a `cert` role bound to its common name, the organizational unit
    the template stamps, and its fixed address
-   ([ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
+   ([ADR 0047 (First-credential bootstrap)](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 4. Delete `controller`'s Era A AppRole and its policy.
 
 ## Acceptance criteria

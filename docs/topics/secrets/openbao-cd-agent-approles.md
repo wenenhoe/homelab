@@ -2,7 +2,7 @@
 
 Four AppRoles, one per category of unattended work on `cd_agent`, each
 bound to that host's fixed address. See
-[ADR 0020 revision 1](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)
+[ADR 0020 revision 1 (Automation identity scope)](../../decisions/0020-automation-identity-and-access-scope/revision-001.md)
 for why there are four and what each is meant to be unable to reach.
 
 The policies are checked in under
@@ -77,7 +77,7 @@ bao write -wrap-ttl=5m -f -field=wrapping_token \
 ```
 
 The wrapping token is sent to `cd_agent` as a remote command's stdin, never
-as an argument ([ADR 0047](../../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)),
+as an argument ([ADR 0047 (First-credential bootstrap)](../../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)),
 and unwrapped once there. `bao unwrap` with no token argument uses
 `BAO_TOKEN` as the wrapping token, so the token is read from stdin into a
 child shell's environment:
@@ -110,7 +110,7 @@ sits beside the `secret_id` so one directory holds everything a login needs.
 
 A job holds no SSH key to `security`, so it cannot fetch step-ca's root cert
 the way an operator's run does ([ADR 0022
-revision 1](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md)).
+revision 1 (Controller TLS trust)](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-001.md)).
 The root is public, so it is delivered as a plain file, `step-ca-root.crt`,
 next to the AppRole files in each job's credentials directory, with the same
 owner and no wrapped handoff. Read it from `security`:
@@ -135,7 +135,7 @@ copies it holds match.
 
 A role holds any number of independent `secret_id`s, each unwrapped to its
 own file. `redeploy-storage`, the rotation job's successor
-([ADR 0074](../../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),
+([ADR 0074 (Job chaining)](../../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),
 runs as its own user with a second `secret_id` of `cd-agent-deploy`, so
 that role needs no extra policy for it: request one more wrapped
 `secret_id` for it the same way.

@@ -54,7 +54,7 @@ The scripts:
   anything it finds is a separate, deliberate step.
 - **`tools/cloud_credentials/create_snapshot_readonly_keys.py`** —
   run rarely, by hand. Mints the read-only, bucket-scoped R2/B2
-  credentials [ADR 0017](../../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)
+  credentials [ADR 0017 (Secrets store recovery)](../../../decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)
   calls for — OpenBao's own break-glass snapshot-restore credential,
   not a `cloud_sync` leaf. Verifies each one via a real `rclone lsjson`
   against its actual bucket before printing it — same discipline
@@ -87,9 +87,9 @@ mocked — run via `uv run pytest ansible/tests/ -v` and wired into CI as
 
 Rotation keys/tokens (all three providers) are cached to OpenBao KV v2,
 at `secret/data/cloud_credentials/rotation/*` — see
-[ADR 0023](../../../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) for why
+[ADR 0023 (Cloud credential logic reuse)](../../../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) for why
 this repointed the existing per-provider Python rather than replacing
-it, and [ADR 0013](../../../decisions/0013-secret-storage/revision-000.md)
+it, and [ADR 0013 (Secret storage)](../../../decisions/0013-secret-storage/revision-000.md)
 for the earlier decision that started it in a file cache in the first
 place.
 
@@ -112,7 +112,7 @@ customer-secret-key and Apps-lookup calls (`AppClientSecretRegenerator`
 has no SDK method and stays on raw `requests` regardless). `b2sdk`
 covers B2's leaf/rotation key create/delete/list calls. The choices
 are in
-[ADR 0029](../../../decisions/0029-cloud-provider-api-client-library/revision-000.md).
+[ADR 0029 (Cloud API client library)](../../../decisions/0029-cloud-provider-api-client-library/revision-000.md).
 
 `openbao_utils/audit.py`'s B2 and OCI listings use the same SDKs
 (`b2sdk`'s `list_keys`, `IdentityDomainsClient.list_customer_secret_keys`).

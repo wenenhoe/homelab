@@ -2,7 +2,7 @@
 
 Mutation testing is run by hand, occasionally, with tooling that lives in the private security repo, not here. It is not part of CI and has no schedule. A result depends only on the code, the tests and the tool's version, so it changes only when one of them does, and a run is worth making when you have just changed them.
 
-[ADR 0069](../../decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md) and [ADR 0070](../../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md) left it out until a spike showed whether it adds signal. On the credential tooling it did: it found behaviours that review and the suite had both passed, and each became an ordinary test change. That is the use it is kept for.
+[ADR 0069 (Python test style)](../../decisions/0069-how-python-unit-tests-are-written-and-run/revision-000.md) and [ADR 0070 (Test doubles binding)](../../decisions/0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md) left it out until a spike showed whether it adds signal. On the credential tooling it did: it found behaviours that review and the suite had both passed, and each became an ordinary test change. That is the use it is kept for.
 
 ## When to run it
 

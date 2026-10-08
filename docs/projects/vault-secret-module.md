@@ -29,7 +29,7 @@ path).
 ## Decision
 
 Implements
-[ADR 0067](../decisions/0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md),
+[ADR 0067 (Vault-backed secret module)](../decisions/0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md),
 still `working`. The spike behind it is done; this project stays
 `not-started` until the revision is `approved`.
 

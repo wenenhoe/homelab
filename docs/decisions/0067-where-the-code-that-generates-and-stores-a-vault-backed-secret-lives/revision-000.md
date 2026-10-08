@@ -31,9 +31,9 @@ identically for every secret regardless of which role needs it.
   and order than the one before it.
 - `tools/openbao_utils/client.py` already wraps the same read and login
   operations with `hvac`, per
-  [ADR 0030](../0030-openbao-client-implementation-in-repo-python/revision-000.md).
+  [ADR 0030 (OpenBao Python client)](../0030-openbao-client-implementation-in-repo-python/revision-000.md).
   It is a `uv`-managed script under `tools/`, per
-  [ADR 0031](../0031-where-repo-tooling-lives/revision-000.md), imported
+  [ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md), imported
   as `tools.openbao_utils.client` by other scripts in that tree.
 - **Spike, confirmed live** against a real OpenBao v2.7.0 dev server and
   `ansible-core` 2.21.4:
@@ -71,7 +71,7 @@ identically for every secret regardless of which role needs it.
     `uri`-based tasks get this for free from `no_log: true` at the task
     level, which masks the whole result; a module's return path does not
     inherit that automatically.
-- [ADR 0066](../0066-how-a-secret-definition-states-production-and-storage/revision-000.md)
+- [ADR 0066 (Secret definitions)](../0066-how-a-secret-definition-states-production-and-storage/revision-000.md)
   gives every entry an explicit `source`, `store` and `scope`, which is
   what a module's input shape needs and did not have before that ADR.
 

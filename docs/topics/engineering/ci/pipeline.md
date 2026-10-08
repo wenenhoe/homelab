@@ -17,7 +17,7 @@ How a change picks which jobs run is in [CI Change Scoping](change-scoping.md); 
 Anything with a pass/fail rule or a decision in it is Python under
 `tools/`, unit-tested in `tools/tests/`, and workflows and pre-commit only
 call it as `python -m <package>.<module>` from `tools/`
-([ADR 0064](../../../decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)).
+([ADR 0064 (CI and doc check code)](../../../decisions/0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)).
 `tools/ci/` is what the workflows run:
 
 - `ci.scope` — what a PR's diff needs run: the Molecule watch sets,
@@ -41,7 +41,7 @@ pre-commit hook can import it. `tools/utils/app_catalog.py` does the same for
 `tools/utils/unique_key_yaml.py`.
 
 `tools/doc_scripts/` is the documentation-workflow checks and generators
-of [ADR 0037](../../../decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
+of [ADR 0037 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
 `generate_doc_indexes`, `check_doc_drift`, `check_project_scope` and
 `check_project_close`, with the helpers they share (`doc_frontmatter`,
 `doc_graph`, `doc_scope`, `doc_close`, `doc_git`). The pre-commit hooks run

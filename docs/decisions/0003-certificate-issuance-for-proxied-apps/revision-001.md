@@ -15,7 +15,7 @@ supersedes: 0
 
 ## Context
 
-[ADR 0003](revision-000.md) flags its own
+[ADR 0003 (Proxied-app certificates)](revision-000.md) flags its own
 `tinyauth` exception as "worth revisiting as a deliberate follow-up" —
 folding `tinyauth` into the same per-host wildcard vhost everything
 else uses, to close the one remaining CT-log exposure that ADR's

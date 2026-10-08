@@ -24,7 +24,7 @@ Comparing rootless Podman, rootless Docker, and a microVM-private daemon against
 
 ## Decision
 
-Implements [ADR 0052](../decisions/0052-molecule-runtime-without-host-privilege/revision-000.md), `working`.
+Implements [ADR 0052 (Molecule runtime)](../decisions/0052-molecule-runtime-without-host-privilege/revision-000.md), `working`.
 
 ## Execution plan
 
@@ -54,7 +54,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- If only the microVM-private candidate passes, [ADR 0051](../decisions/0051-coding-agent-execution-isolation/revision-000.md) reopens and nested virtualization returns to the table. That is a stop condition, not a stage.
+- If only the microVM-private candidate passes, [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md) reopens and nested virtualization returns to the table. That is a stop condition, not a stage.
 - Coverage on the host may be a subset of CI's.
 
 ## Open items

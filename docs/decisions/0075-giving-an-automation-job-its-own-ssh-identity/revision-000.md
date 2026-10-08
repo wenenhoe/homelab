@@ -19,11 +19,11 @@ A CD agent job that runs Ansible against managed hosts needs an SSH identity. To
 
 ## Context
 
-`ansible/inventory/inventory.yaml` sets one `ansible_ssh_private_key_file`, `~/.ssh/proxmox_vm_servers`, under `all.vars`, and every `managed_hosts` member trusts its public half ([`network-infra.md`](../../topics/infra/network-infra.md)). [`cd-agent.md`](../../projects/cd-agent.md) records that the key is shared and unsplit. [ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) already overrides it for one host group and gives that group's job only its own key.
+`ansible/inventory/inventory.yaml` sets one `ansible_ssh_private_key_file`, `~/.ssh/proxmox_vm_servers`, under `all.vars`, and every `managed_hosts` member trusts its public half ([`network-infra.md`](../../topics/infra/network-infra.md)). [`cd-agent.md`](../../projects/cd-agent.md) records that the key is shared and unsplit. [ADR 0054 (Untrusted host management)](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) already overrides it for one host group and gives that group's job only its own key.
 
 Each CD agent job runs as its own user with its own credentials directory, readable only by that user ([`cd-agent-host.md`](../../topics/deploy/cd-agent-host.md)). The job's home is its state directory, and its unit's filesystem is read-only outside it.
 
-[ADR 0074](../0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)'s `redeploy-storage` is the first job that must reach one host and no other: it runs `deploy.yaml --limit storage,localhost`. The `deploy` job, which reaches every managed host, is the second user of the same shared key.
+[ADR 0074 (Job chaining)](../0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)'s `redeploy-storage` is the first job that must reach one host and no other: it runs `deploy.yaml --limit storage,localhost`. The `deploy` job, which reaches every managed host, is the second user of the same shared key.
 
 The host account a key opens is root-equivalent through `sudo`, as ADR 0054 accepts for its own account. A key's reach is therefore the set of hosts that authorize it.
 

@@ -22,7 +22,7 @@ port needed" for the agent/push fleet. The real gap: both live
 entirely on `security` — if `security`, or the whole homelab's
 connectivity, goes down, nothing is left standing to notice or alert.
 That's structurally the same threat model
-[ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) already solved for
+[ADR 0010 (Offsite copy deletion)](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) already solved for
 backups, just never applied to monitoring.
 
 Tailscale isn't absent from the
@@ -33,7 +33,7 @@ real gap in its own right, the same category as the scattered OpenBao
 clients this repo has elsewhere: unmanaged-but-load-bearing
 infrastructure that breaks silently because nothing tracks it.
 
-This record covers a failure of `security` as a host or process. The case it can't solve, the whole site going dark, is [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md).
+This record covers a failure of `security` as a host or process. The case it can't solve, the whole site going dark, is [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md).
 
 ## Decision
 

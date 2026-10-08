@@ -21,7 +21,7 @@ down to the ones not part of any initiative.
 **Decisions awaiting a project** lists every ADR lineage with an open
 (`working`/`approved`) revision that appears in no project's
 `decision:` or `also_implements:` — see
-[ADR 0037 revision 1](decisions/0037-decision-and-project-documentation-workflow/revision-001.md)
+[ADR 0037 revision 1 (Decision and project workflow)](decisions/0037-decision-and-project-documentation-workflow/revision-001.md)
 for why those two fields specifically. A row here isn't automatically a
 gap: some are correctly undecided and can't have a project yet, some
 are single-PR-sized and don't need one, and this table can't see a

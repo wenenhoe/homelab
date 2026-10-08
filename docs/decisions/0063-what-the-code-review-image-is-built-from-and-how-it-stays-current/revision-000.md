@@ -46,7 +46,7 @@ version inside it so a bad release can be backed out.
   base, `fedora:43`, reaches end of life in late 2026; Fedora releases are
   supported for about 13 months.
 - **Consumers.** `coderabbit-review.sh` and, later, `homelab-security`'s
-  CI run the image ([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
+  CI run the image ([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
   The molecule image and the CI runners are Ubuntu 26.04 LTS, and the
   official `ubuntu:26.04` image exists. On it, with uutils `sha256sum -c`
   verifying the 0.8.0 zip before it is unpacked, the CLI starts

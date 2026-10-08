@@ -17,7 +17,7 @@ Creates the part of the off-site relocation that does not exist yet: a
 GCP project, a provisioning identity for it, and an OpenTofu definition
 of the e2-micro that [`off-site-monitoring.md`](off-site-monitoring.md)
 later configures and routes to. Staged because the identity question
-([ADR 0073](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md))
+([ADR 0073 (Off-site cloud auth)](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md))
 has to be answered by a throwaway spike before any Tofu code for it
 lands in this repo.
 
@@ -27,19 +27,19 @@ The GCP project, billing budget, provisioning identity, and the Tofu
 module that creates one e2-micro and its network rules. Not in scope:
 the monitoring stack and Tailscale route
 ([`off-site-monitoring.md`](off-site-monitoring.md)), the host hardening
-pass ([ADR 0043](../decisions/0043-host-os-hardening-baseline/revision-000.md)),
+pass ([ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-baseline/revision-000.md)),
 and credentials the host holds
-([ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
+([ADR 0047 (First-credential bootstrap)](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 
 This project runs standalone. It does not depend on
 [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md): its spike uses
 local state, and the in-repo layout and state backend follow
-[ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md)
+[ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)
 once that settles.
 
 ## Decision
 
-Implements [ADR 0073](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md),
+Implements [ADR 0073 (Off-site cloud auth)](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md),
 still `working`, so this project is `de-risking` and only throwaway
 spikes are allowed until its assumptions are resolved.
 
@@ -59,8 +59,8 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 The spike's code, state, and any credential live outside the repository
 checkout and are deleted afterwards; only facts go back into
-[ADR 0073](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md)
-and [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md).
+[ADR 0073 (Off-site cloud auth)](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md)
+and [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md).
 It also measures what ADR 0049 leaves open: the instance's resident
 memory with Beszel and Kuma running, and monthly egress.
 

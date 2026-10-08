@@ -101,7 +101,8 @@ return the revision to `working`; the project stops (see
 An agent may do exactly that — append an open assumption and set
 `approved` → `working` — and nothing else to an `approved` or `accepted`
 revision, except adding a diagram or table under
-[Diagrams and tables](#diagrams-and-tables).
+[Diagrams and tables](#diagrams-and-tables) and adding or correcting a
+short name in a link's text under [Citing a decision](#citing-a-decision).
 
 ## Editing a revision
 
@@ -156,8 +157,9 @@ The name is the lineage's `short:` field, which is the same in every
 revision and unique across lineages, and `check_doc_drift.py` fails a link
 that carries a different one. Renaming it is an editorial change in any
 state, made with the links that carry the old name. A link with only the
-number still passes: the name is for the reader, and links written before
-it existed stay as they are.
+number still passes: the name is for the reader. Adding or correcting the
+name in a link's text is editorial, so an agent may do it in an `approved`
+or `accepted` revision.
 
 ## Partial supersession
 

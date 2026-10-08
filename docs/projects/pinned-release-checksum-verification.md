@@ -10,6 +10,7 @@ allowed_paths:
   - tools/ci/checksums/**
   - tools/tests/ci/checksums/**
   - tools/tests/ci/test_stdlib_only.py
+  - .github/detect-changes-filters.yml
   - .github/workflows/pr-checks.yml
   - .github/workflows/check-release-checksums.yml
   - ansible/roles/openbao_cli/defaults/main.yaml

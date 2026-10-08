@@ -40,13 +40,13 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Close the open assumptions with throwaway spikes: OpenBao's signature, uv's attestation, and a run from a GitHub-hosted runner | Done | Each assumption's entry is deleted from the revision, its fact folded into Context or the Decision changed, with nothing from the spikes committed |
 | 2 | The revision is approved | Done | The revision is `approved`, with no open assumption |
-| 3 | The registry, the verifier and the committed keys, unit-tested | Not started | The unit tests in the revision's Validation pass, including the one asserting every checksum pin has a registry entry |
-| 4 | The check runs on a pull request that changes a pin or the registry, and weekly | Not started | Both runs pass against the real publishers, and a pin changed to a wrong hash fails the pull request run |
-| 5 | The docs and comments state each pin's tier | Not started | No file says a signed artifact is unverified, and a topic doc names the tiers and where the registry is |
+| 3 | The registry, the verifier and the committed keys, unit-tested | Done | The unit tests in the revision's Validation pass, including the one asserting every checksum pin has a registry entry |
+| 4 | The check runs on a pull request that changes a pin or the registry, and weekly | In progress | Both runs pass against the real publishers, and a pin changed to a wrong hash fails the pull request run |
+| 5 | The docs and comments state each pin's tier | Done | No file says a signed artifact is unverified, and a topic doc names the tiers and where the registry is |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-Stages 1 and 2 are done, and the project is `building`.
+Stages 1 to 3 and 5 are done, and the project is `building`. Stage 4's workflows are written and unit-tested; its exit condition is met by their first runs on GitHub, since the publishers can't be reached from the sandbox that built them.
 
 ## Acceptance criteria
 
@@ -75,7 +75,6 @@ Stages 1 and 2 are done, and the project is `building`.
 
 ## Open items
 
-- Whether a `listed` artifact's failure message should print the manifest's line for the pinned file, so the CodeRabbit pin, which Renovate cannot move, is fixed by copying it.
 - Whether the OpenBao, uv or CodeRabbit publishers offer an attestation that would make their pin `signed` ([ADR 0077](../decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md), alternatives considered).
 
 ## Closing checklist

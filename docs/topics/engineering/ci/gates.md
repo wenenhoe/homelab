@@ -1,6 +1,6 @@
 # CI Gates
 
-The regression checks and gates in `.github/workflows/pr-checks.yml` that look at one kind of change: deploy ordering, the secret and app catalogs, Molecule coverage, booting compose apps, Dockerfile builds and image tags. How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
+The regression checks and gates in `.github/workflows/pr-checks.yml` that look at one kind of change: deploy ordering, the secret and app catalogs, Molecule coverage, booting compose apps, Dockerfile builds, image tags and pinned release checksums. How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Deploy-ordering-check
 
@@ -400,3 +400,55 @@ depends on a tested shape instead of the text output.
   stdout stays empty, the error goes to stderr and the exit code is 1.
 - `version` changes when a key is removed or changes meaning. Adding a key
   doesn't change it.
+
+## Release checksum check
+
+Each downloaded release this repo pins by sha256 (uv, rclone, the OpenBao CLI
+and the CodeRabbit CLI) is checked against the publisher: the pinned hash must
+be the one the publisher signed, attested or lists, whoever copied it into the
+file. The decision is
+[ADR 0077](../../../decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md).
+It runs in two places: the `release-checksums` job of `pr-checks.yml`, when a
+PR changes the verifier and its keys or one of the files holding a pin, and
+`check-release-checksums.yml`, once a week (Sunday, 03:41 UTC) and on demand,
+so a publisher's key rotation or moved manifest shows up even when no pin
+changed. Both run `python3 -m ci.checksums.verify` from `tools/`, which is
+standard-library only apart from the `gpg` and `gh` the runner image provides,
+and which takes entry names to check just those. The job is not a matrix job,
+so it can be required directly; a PR that changes no pin reports it skipped.
+
+What is checked, per entry, is in
+[`tools/ci/checksums/registry.py`](../../../../tools/ci/checksums/registry.py),
+the registry of pins, with the files that hold each one and the address of its
+publisher's manifest or artifact. A test fails when a pin in the repository has
+no entry, so a new pin means a new entry.
+
+### Tiers
+
+An entry's tier says how far its pin can be checked, and the registry is
+where each one is set:
+
+| Tier | What the check does | Pins today |
+| :--- | :--- | :--- |
+| Signed | Fetches the publisher's manifest and its signature, verifies them with `gpg` in a throwaway keyring holding only the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys/), and requires the pin to equal the manifest's line for the artifact. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`) |
+| Attested | Downloads the artifact, requires it to hash to the pin, then requires `gh attestation verify` to pass for the publisher's repository. | uv |
+| Listed | Requires the pin to equal the publisher's manifest line. The manifest is unsigned, so this catches a hash copied wrongly, not a publisher that served a bad artifact. | the CodeRabbit CLI |
+| None | The entry says why nothing can be checked. | none |
+
+No key is fetched when the check runs: `gpg` runs with its network helper off,
+the keyring is built from the committed file, and a key file must hold exactly
+the fingerprint its entry names. A signature by an expired or revoked key, or
+by any other key, fails. A publisher that rotates its key fails the weekly run
+until the new key is reviewed and committed.
+
+Failures are per entry and the run reports every entry before it exits
+non-zero, with each failure as an `::error::` annotation. A publisher that
+can't be reached after three attempts (429, 5xx or a network error are
+retried) fails its entry: unlike the image tag check, a pin that couldn't be
+checked is not a pass. The weekly run's token is the workflow's own read-only
+`GITHUB_TOKEN`, used only by `gh attestation verify`.
+
+The tests speak to a local server and generate their own keys and signatures;
+they don't reach a publisher. The first run of each workflow is the live
+check, and a pinned hash changed to a wrong one is the way to see the PR run
+fail.

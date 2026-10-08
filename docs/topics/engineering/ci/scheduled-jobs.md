@@ -1,6 +1,6 @@
 # CI Scheduled Jobs
 
-Checks that run on a schedule: the Renovate window check, and the Trivy scans (which also run as a PR job). The PR pipeline is in [CI: PR Checks](pipeline.md). The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
+Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job) and the release checksum check (which does too). The PR pipeline is in [CI: PR Checks](pipeline.md). The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
 
 ## Renovate schedule window
 
@@ -27,6 +27,15 @@ failure. Cron fields support `*`, ranges, lists and steps; minutes must be
 Report-only Ansible-misconfig and secret scanning, separate from the
 correctness/linting jobs in [CI: PR Checks](pipeline.md#jobs) — see
 [`security-scanning.md`](../security-scanning.md).
+
+## Release checksum check
+
+`check-release-checksums.yml` runs weekly (Sunday, 03:41 UTC) and on demand,
+asking each publisher again whether the pinned release hashes are theirs. It
+is the same check the `release-checksums` PR job runs when a pin changes; what
+it verifies and how it fails is in
+[CI Gates](gates.md#release-checksum-check). GitHub emails a failed scheduled
+run to the person who last changed the schedule.
 
 ## Image vulnerability assessment
 

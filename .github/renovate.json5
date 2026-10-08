@@ -83,13 +83,11 @@
 
   // Tracks the renovate-version pin in .github/workflows/renovate.yml —
   // that string controls which ghcr.io/renovatebot/renovate image tag
-  // actually gets pulled and run with RENOVATE_TOKEN's write access, and
-  // the github-actions manager only tracks the `uses:` line, not an
-  // arbitrary `with:` input value. Deliberately NOT in the automerge
-  // packageRule below: this is Renovate updating its own execution
-  // engine, the one component with a real write credential — give every
-  // bump at least a glance rather than rubber-stamping it alongside
-  // routine lint-hook version bumps.
+  // actually gets pulled and run with RENOVATE_TOKEN's write access.
+  // Deliberately NOT in the automerge packageRule below: this is Renovate
+  // updating its own execution engine, the one component with a real
+  // write credential — give every bump at least a glance rather than
+  // rubber-stamping it alongside routine lint-hook version bumps.
   // The CodeRabbit CLI publishes no release list; releases/latest/VERSION is
   // its only version endpoint, a plain-text body holding the current release
   // (ADR 0063). format: plain reads that body as one release.
@@ -306,6 +304,20 @@
       matchUpdateTypes: ["minor", "patch"],
       groupName: "github actions (minor/patch)",
       groupSlug: "github-actions-minor-patch",
+    },
+
+    // The renovate-version input in renovate.yml is extracted by both the
+    // regex manager above and the github-actions manager (depType
+    // uses-with), from the same line — so each new tag opened two PRs,
+    // chore(deps) and chore(ci). The regex manager stays the only tracker
+    // because tools/ci/images/remote.py builds the image inventory from
+    // customManagers. The `uses: renovatebot/github-action@…` line is a
+    // different dep and stays tracked.
+    {
+      matchManagers: ["github-actions"],
+      matchDepTypes: ["uses-with"],
+      matchPackageNames: ["ghcr.io/renovatebot/renovate"],
+      enabled: false,
     },
 
     // Everything that actually touches deployed infra — compose files,

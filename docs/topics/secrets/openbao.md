@@ -157,9 +157,8 @@ docs for the sealed case: it's a "remote error", exit 2; the
 uninitialized case isn't separately documented there, but it's the
 same category of "server up, not yet able to serve" response, and
 `bao status`'s own output distinguishes `Initialized: false` the same
-way it reports `Sealed: true` — treating both as the same class of
-"unhealthy" here, not confirmed byte-for-byte against a live exit
-code). Since
+way it reports `Sealed: true` — both are treated as the same class of
+"unhealthy" here). Since
 [0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) means every restart
 leaves OpenBao sealed until a human runs the unseal command above
 (and a genuinely fresh deploy starts out uninitialized on top of

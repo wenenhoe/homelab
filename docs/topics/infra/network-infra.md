@@ -105,14 +105,11 @@ secrets):
    per-host) before the first run.
 4. **DDNS name** — confirm one actually exists (`<host>.{{ ddns_domain }}`)
    before assuming a new `network_infra` host needs the static-IP
-   fallback pattern instead — an earlier revision of `tailscale`'s own
-   entry assumed no DDNS name existed here and used a hardcoded LAN IP
-   until that assumption turned out to be wrong.
+   fallback pattern instead; `tailscale` has one and uses it.
 
 `tailscale` needed the first three — `tsadmin`'s sudo currently
-prompts for a password (confirmed live: `sudo -n true` fails with
-"interactive authentication is required") — and, as it turned out, not
-the fourth.
+prompts for a password (`sudo -n true` fails with
+"interactive authentication is required"), and not the fourth.
 
 ## Verifying
 

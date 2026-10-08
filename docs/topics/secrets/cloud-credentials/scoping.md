@@ -15,12 +15,12 @@ authorizes one `b2_create_key` call for a key scoped to `listKeys
 writeKeys deleteKeys listBuckets` — **not** restricted to
 `homelab-backups-b2`, or any bucket.
 
-**Confirmed, not a guess — B2 rejects the bucket restriction outright**
+**B2 rejects the bucket restriction outright**
 (`400 Invalid capability for bucket-level application key`).
 Backblaze's own docs on Application Keys enumerate every capability a
 bucket-restricted key is allowed to carry, and `listKeys`/`writeKeys`/
 `deleteKeys` aren't on that list — key management is inherently
-account-wide on B2, full stop. Same shape of limitation as OCI's
+account-wide on B2. Same shape of limitation as OCI's
 Confidential Application role (User Administrator, domain-wide — see
 the OCI section) and R2's `API Tokens Write` (account-wide) — none of
 the three providers let you scope a key-management credential down to
@@ -88,9 +88,8 @@ Oracle's own multipart-uploads documentation, which states this as a
 named requirement beyond what a normal write policy needs. Without it,
 `CreateMultipartUpload` 404s as `NoSuchBucket`, the same ambiguous
 not-found-or-unauthorized response this API gives for every other
-authorization gap — a single-part `PutObject` doesn't hit this, so it
-went unnoticed until an archive large enough to trigger rclone's
-multi-thread/multipart path (minecraft's) actually ran against OCI.
+authorization gap — a single-part `PutObject` doesn't hit this, only an archive large
+enough to trigger rclone's multi-thread/multipart path (minecraft's).
 `OBJECT_DELETE` is still excluded from both leaves.
 
 **Identity-Domain tenancies require an email per user, confirmed
@@ -203,7 +202,7 @@ Edit**, scoped to the account. Its own `permission_groups` lookup
 (used to find the R2-specific groups the leaf tokens actually get)
 matches by substring against known group names rather than exact
 match, and prints every available name if nothing matches — a
-mismatch here is a one-line fix, not another blind guess.
+mismatch here is a one-line fix.
 
 The leaf tokens themselves stay properly bucket-scoped (`Workers R2
 Storage Bucket Item Write`/`Read`, restricted to `homelab-backups`) and

@@ -163,17 +163,14 @@ can't fix.
 
    No `secret_id_bound_cidrs`/`token_bound_cidrs` set here - unlike
    `cd_agent`'s genuine cross-host LAN traffic, the watcher and OpenBao
-   both run on `security`, and whether that traffic presents as
-   `127.0.0.1` or `security`'s LAN IP to OpenBao's listener isn't
-   confirmed. Worth checking once the watcher's actual connection
-   method is built, not guessed here - add the bind then if it's
-   meaningful.
+   both run on `security`, and which source address that
+   traffic presents to OpenBao's listener (`127.0.0.1` or `security`'s
+   LAN IP) depends on the watcher's connection method. Add the bind
+   once that method is built, if it is meaningful.
 
-   Where the watcher's own `role_id`/`secret_id` get cached is part of
-   building the watcher's systemd unit itself (not done yet - this
-   step only provisions the identity it will use), matching
-   `uptime_kuma_push`'s own env-file convention rather than
-   `ansible/files/secrets/`.
+   Where the watcher caches its own `role_id`/`secret_id` is in
+   [`openbao-r2-read-watcher.md`](openbao-r2-read-watcher.md); this step
+   only provisions the identity.
 
 7. Revoke root, same as `openbao-auth.md`'s own last step.
 8. Confirm:

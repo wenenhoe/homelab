@@ -110,7 +110,7 @@ for what the report actually measures.
 
 A role with no entry in `thresholds.yaml` fails the check (exit 2, not a
 silent pass) - a new role needs a deliberate floor, not an inherited
-default. Every floor is hand-verified against a real run, not a guess -
+default. Every floor is taken from a real run;
 the below-100% floors are legitimate, understood gaps rather than
 untested code (see [`thresholds.yaml`](../../../../ansible/molecule-coverage/thresholds.yaml)
 for the current values):

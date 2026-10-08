@@ -167,14 +167,13 @@ archive. That's the existing, tested `restore` role's own behavior,
 unchanged here; if a real `minecraft` restore hits it, that's a
 `restore` role fix, not something `restore_all.py` should work around.
 
-**Needs live verification, not yet confirmed against a real endpoint:**
-whether `rclone lsjson` against a prefix with zero objects (bucket
-reachable, nothing backed up there yet) and against a genuinely
-unreachable endpoint are actually distinguishable by exit code the way
-`restore_all.py` assumes (nonzero exit → try the cloud fallback; zero
-exit + empty list → hard "no objects found" instead, so a real
-connectivity problem is never mistaken for "this app was just never
-backed up"). Check directly before relying on this in a real outage:
+**Exit-code assumption:** `restore_all.py` treats a nonzero
+`rclone lsjson` exit as unreachable and tries the cloud fallback, and a
+zero exit with an empty list as a hard "no objects found", so a
+connectivity problem is never mistaken for an app that was never backed
+up. This holds only if a prefix with zero objects (bucket reachable,
+nothing backed up) and an unreachable endpoint differ by exit code.
+Check directly:
 
 ```sh
 rclone lsjson --config ansible/files/restore/rclone.conf \

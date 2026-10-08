@@ -148,9 +148,8 @@ the observer-account bootstrap race below — not a new failure mode this
 PR introduces, the same shape as one this repo already tolerates, and
 exactly what `tinyauth_ca_trust`'s own scenario deliberately reproduces
 and asserts on (its own `docker logs` shows at least two real process
-starts — `RestartCount` itself turned out to be the wrong signal here,
-since a manual restart resets it rather than just leaving it
-unincremented) rather than routing around.
+starts; `RestartCount` is the wrong signal, since a manual restart
+resets it) rather than routing around.
 
 ## Bootstrapping the observer account
 

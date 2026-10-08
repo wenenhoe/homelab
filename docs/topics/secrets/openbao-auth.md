@@ -94,8 +94,7 @@ supplied explicitly (see
    ```
 
    No `secret_id_bound_cidrs`/`token_bound_cidrs` — `controller` has no
-   stable address to bind to (ADR 0020). Parameter choices, since 0022
-   leaves Era A's own values as a build question:
+   stable address to bind to (ADR 0020). Parameter choices:
 
    - `token_ttl`/`token_max_ttl` **1h, non-renewable.** Long enough for
      a full `deploy.yaml` run; short enough that a token leaked from

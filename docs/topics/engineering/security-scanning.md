@@ -34,8 +34,7 @@ the Security tab but never block a PR.
 alongside this repo's other tool configs — same documented-exception
 convention as `.github/compose-boot-test-exclusions.txt`.
 
-**Two confirmed Trivy Ansible-scanner quirks** (re-verify if a Trivy
-version bump ever changes this):
+**Two Trivy Ansible-scanner quirks** (a Trivy version bump may change them):
 
 - It never reads `ansible.cfg`'s `roles_path` (`resolveRolePath` only
   checks a `roles/` dir next to the playbook, or `DEFAULT_ROLES_PATH`).

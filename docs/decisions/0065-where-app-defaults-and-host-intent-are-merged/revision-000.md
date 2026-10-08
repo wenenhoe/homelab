@@ -63,6 +63,18 @@ Docker.
 
 ## Decision
 
+This diagram shows how an app's host intent and its catalog entry become what roles read, as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    CA["compose_apps: host intent, never reassigned"] --> RF
+    AC["app_catalog: read-only reference data keyed by app name"] --> RF
+    AC --> V["Catalog validator under tools/<br/>unique names, backup.volumes within volumes, each route names an upstream"]
+    RF["resolve_apps filter<br/>pure: no file, network or Ansible-state access"] --> RA["resolved_apps<br/>defined once in group_vars/all"]
+    MH["Molecule scenario: molecule_helpers sets it with the same expression"] -.-> RA
+    RA --> RO["Roles and playbooks<br/>read resolved_apps, never app_catalog"]
+```
+
 - `app_registry` is renamed `app_catalog`. "Registry" suggests entries
   register themselves at run time; this is read-only reference data keyed
   by app name. Its per-app `caddy:` key is renamed `routes:`. It is a dict

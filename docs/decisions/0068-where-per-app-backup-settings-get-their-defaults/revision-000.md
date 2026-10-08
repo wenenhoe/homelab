@@ -35,6 +35,17 @@ An app's backup settings (what to back up, when, how long to keep it, whether to
 
 ## Decision
 
+This diagram shows how an app's backup settings are resolved and which roles read them, as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    RA[resolved_apps] --> BP
+    BD["backup_defaults in group_vars/all"] --> BP
+    BP["backup_plan filter<br/>pure; the only place that decides an app is backed up and the only place a backup default is applied"] --> RR["backup_agent, cloud_sync and restore_discovery read backup_plan"]
+    BP --> BH["backup_hosts filter<br/>the hosts whose backup_plan is non-empty"]
+    BH --> SI["SeaweedFS identity template and cloud_sync read backup_hosts"]
+```
+
 - Shared defaults for backup settings live in one mapping, `backup_defaults`, in `group_vars/all`. Its keys are the keys of an app's `backup:` block: `cron`, `retention_days`, `compression`, `stop_during_backup` and `cloud_targets`. It replaces `offsite_backup_cron`, `offsite_backup_retention_days`, the literals in `backup_agent`, and `cloud_sync_default_targets`. The values do not change.
 - The catalog key `backup.extra_cloud_targets` is renamed `backup.cloud_targets`. An app's list replaces the default, as it does now.
 - `cloud_sync_targets` stays a `storage` host variable. Only target names move.

@@ -37,6 +37,15 @@ address.
 
 ## Decision
 
+This table shows what each of the four AppRoles reaches, as this revision decided it, not what runs now.
+
+| AppRole | Reaches | Does not reach |
+| :--- | :--- | :--- |
+| `cd-agent-deploy` | Read on `secret/data/hosts/*` and `secret/data/cloud_credentials/leaf/*`; `create` but not `update` on `secret/data/hosts/*` | `cloud_credentials/rotation/*` |
+| `cd-agent-rotation` | Create, update and read on `secret/data/cloud_credentials/leaf/*` and `secret/data/cloud_credentials/rotation/*` | `secret/data/hosts/*` |
+| `cd-agent-freshness` | Read on `secret/data/cloud_credentials/leaf/*`, `secret/data/cloud_credentials/rotation/*` and `secret/data/hosts/all/telegram/*` | Writing or rotating anything |
+| `cd-agent-snapshot` | Read on `sys/storage/raft/snapshot` and six named paths under `secret/data/cloud_credentials/leaf/` | The rest of `leaf/*` |
+
 Four AppRoles, all bound to `cd_agent`'s fixed LAN IP via
 `secret_id_bound_cidrs` and `token_bound_cidrs`:
 

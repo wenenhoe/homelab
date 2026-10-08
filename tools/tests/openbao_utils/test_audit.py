@@ -4,8 +4,7 @@ Run via `uv run pytest tools/tests/ -v`. Every provider/Vault call is
 mocked; nothing here talks to a real tenancy, a real B2 account or a
 real OpenBao.
 audit.py's cached() reads through cloud_credentials'
-own LEGACY_CACHE_KEYS-mapped modules (Vault-backed, since Track A
-stage 5) - AuditOciTests patches audit.cached directly rather
+own LEGACY_CACHE_KEYS-mapped modules (Vault-backed) - AuditOciTests patches audit.cached directly rather
 than seeding files, since there's no longer a local file it reads.
 audit_local() is a different concern (scanning SECRETS_DIR for orphan
 files left on disk), so AuditLocalTests still seeds real files there.
@@ -164,8 +163,7 @@ class TestAuditLocal:
 
     def test_vault_backed_entry_with_a_stray_local_file_is_flagged_separately_from_an_orphan(self, env, tmp_path_factory, monkeypatch):
         """Regression test: a controller that predates the entry's move
-        to Vault (Track A stage 4 for most entries, stage 5/6 for cloud
-        credentials) can have a stray, never-since-read local file for
+        to Vault can have a stray, never-since-read local file for
         a catalog entry that has `store: openbao`. That's a distinct
         finding from a genuine orphan - the name IS known, it's just
         the wrong mechanism now."""

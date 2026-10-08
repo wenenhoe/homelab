@@ -22,7 +22,7 @@ lands, and the S3 credential for its own state backend
 [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#state-backend--secrets)).
 The doc's original text assumed these stay outside OpenBao entirely,
 mirroring `openbao_utils/bootstrap.py`'s pre-OpenBao file-cache pattern —
-but that mechanism no longer exists in this repo. Track A
+but that mechanism no longer exists in this repo. The OpenBao migration
 ([0013](../0013-secret-storage/revision-000.md)
 through
 [0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md))

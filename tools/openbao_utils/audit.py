@@ -6,9 +6,7 @@ checks, run separately since they need different access:
 ansible/files/secrets/ against secret_catalog.yaml's declared keys.
 Two different findings, not one:
   - A file whose catalog entry has `store: openbao` is stale — Vault is
-    that entry's only real source since whichever stage moved it there
-    (Track A stage 4 for most, stage 5/6 for cloud credentials); the
-    file predates that move and nothing has read it since. Flagged
+    that entry's only real source; the file predates that move and nothing has read it since. Flagged
     separately from a genuine orphan because it isn't unreferenced by
     name, just unreferenced by mechanism — confirm Vault actually has
     the value (this check alone doesn't, deliberately: that needs a
@@ -56,9 +54,8 @@ _CACHE_MODULE_BY_NAME = dict(LEGACY_CACHE_KEYS)
 
 def cached(name: str) -> str | None:
     """Reads via cloud_credentials' own Vault-backed cache (cache.py's
-    scoped()) - the real store for every LEGACY_CACHE_KEYS name since
-    Track A stage 5, never the local file cache Track A stage 6
-    decommissioned. name must be one of LEGACY_CACHE_KEYS' own names -
+    scoped()) - the real store for every LEGACY_CACHE_KEYS name, never
+    the retired local file cache. name must be one of LEGACY_CACHE_KEYS' own names -
     a KeyError here means this script asked for a name that package
     doesn't own, not a runtime possibility to paper over."""
     return _CACHE_MODULE_BY_NAME[name].read_cache(name)

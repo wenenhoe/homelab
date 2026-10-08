@@ -18,7 +18,7 @@ former_ids: [ADR-0027]
 
 [0013](revision-000.md)
 deferred a real secrets manager, caching credentials in files instead
-as an interim stage-1 approach — and named its own limits at the time:
+as an interim approach — and named its own limits at the time:
 no audit trail of who/what accessed a given credential, no
 per-credential access control beyond file permissions. Two things
 made that untenable as the repo grew:

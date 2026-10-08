@@ -160,9 +160,9 @@ supplied explicitly (see
    inside it:
 
    ```sh
-   bao kv put -mount=secret hosts/_stage3-test probe=stage3   # succeeds
-   bao kv get -mount=secret hosts/_stage3-test                # succeeds
-   bao kv metadata delete -mount=secret hosts/_stage3-test    # denied
+   bao kv put -mount=secret hosts/_approle-test probe=approle   # succeeds
+   bao kv get -mount=secret hosts/_approle-test                # succeeds
+   bao kv metadata delete -mount=secret hosts/_approle-test    # denied
    exit                                                       # revokes the token
    ```
 
@@ -176,12 +176,12 @@ supplied explicitly (see
    shell revokes the token automatically — no `unset BAO_TOKEN` to
    remember.
 
-   That does leave the leftover `_stage3-test` key behind, since
+   That does leave the leftover `_approle-test` key behind, since
    `controller`'s token can't remove it. Clean it up with the
    still-active root token instead, back on `security`:
 
    ```sh
-   bao kv metadata delete -mount=secret hosts/_stage3-test
+   bao kv metadata delete -mount=secret hosts/_approle-test
    ```
 
 7. **Revoke the root token** — safe now that the AppRole is confirmed

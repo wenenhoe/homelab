@@ -15,7 +15,7 @@ related: [ADR-0020]
 
 ## Context
 
-[0020](../0020-automation-identity-and-access-scope/revision-000.md)'s Era A policy grants
+[0020](../0020-automation-identity-and-access-scope/revision-000.md)'s policy grants
 `controller` read/write on `secret/data/hosts/*`, describing it as
 "mirroring the `security`/`services`/`storage`/`play` `host_vars`
 split." But `secrets_registry.yaml` also holds secrets with no single
@@ -80,9 +80,9 @@ doesn't silently relocate a secret in Vault.
 
 ## Consequences
 
-- No `controller.hcl` change, no re-review of an Accepted stage-3
-  artifact — this stage's Vault writes fall entirely inside scope
-  already granted and proven working (`openbao-auth.md`'s stage-3
+- No `controller.hcl` change, no re-review of an Accepted
+  artifact — these Vault writes fall entirely inside scope
+  already granted and proven working (`openbao-auth.md`'s
   runbook, step 6).
 - If a global secret's consumer ever changes such that it needs
   `cd-agent-rotation`-style access (denied `hosts/*` by design) or any

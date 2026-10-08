@@ -3,7 +3,7 @@
 OpenBao's own raft-snapshot bucket, able to fetch a snapshot but nothing
 else, and — unlike every credential create_leaf_keys.py handles — never
 written to ansible/files/secrets/ at all. That cache is exactly the
-mechanism Track A stage 6 retired; a credential meant to survive
+mechanism the file cache removed; a credential meant to survive
 `security` being rebuilt from nothing can't depend on a file that
 (a) lives on the same class of host as the thing being rebuilt and
 (b) no longer exists at all, post-cutover. Instead this script prints
@@ -28,8 +28,7 @@ docs/topics/disaster-recovery/cloud-sync.md's Setup section) — this script doe
 only credentials. Authenticates using the same cached rotation
 credentials create_leaf_keys.py already uses (b2_rotation_session,
 r2_rotation_token) — Vault-backed via cache.py's own scoped("rotation")
-since Track A stage 5, so reusing them here doesn't create a new
-dependency on anything this migration retired.
+so reusing them here creates no dependency on the retired file cache.
 
 Verified the same way create_leaf_keys.py --rotate verifies a new leaf
 before trusting it: a real `rclone lsjson` against the actual bucket,

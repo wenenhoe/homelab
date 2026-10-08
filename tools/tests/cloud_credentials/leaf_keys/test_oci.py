@@ -77,7 +77,7 @@ class TestOciRotation:
     def test_revoke_failure_is_reported_not_raised(self, mock_client_factory, mock_verify, vault, identity_domains_client):
         # ServiceError, not requests.HTTPError - the SDK's own error
         # type, since delete_customer_secret_key goes through
-        # IdentityDomainsClient now (Stage 2).
+        # IdentityDomainsClient.
         client = mock_client_factory.return_value = identity_domains_client
         client.create_customer_secret_key.return_value = _scim_key_response()
         client.delete_customer_secret_key.side_effect = oci.oci.exceptions.ServiceError(409, "Conflict", {}, "already deleted")

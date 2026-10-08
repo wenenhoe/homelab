@@ -52,14 +52,11 @@ all:
     # from deploy.yaml entirely (see managed_hosts above) — only
     # patched_hosts below (maintenance.yaml) and whatever infra-specific
     # plays that file adds apply here. Addressed the same way as
-    # managed_hosts ("<host>.{{ ddns_domain }}") — confirmed this host
-    # follows the same DDNS convention as the rest of the fleet, not the
-    # static-LAN-IP fallback an earlier revision of this entry assumed.
-    # See docs/topics/infra/network-infra.md.
+    # managed_hosts ("<host>.{{ ddns_domain }}"), not the static-LAN-IP
+    # fallback. See docs/topics/infra/network-infra.md.
     network_infra:
       hosts:
         tailscale:
-          # management as Stage 1 of docs/projects/monitoring-host-isolation.md.
           # See docs/topics/infra/network-infra.md for why this entry is interim
           # (see that doc's "Future: superseded by Tofu" note) rather
           # than permanent.

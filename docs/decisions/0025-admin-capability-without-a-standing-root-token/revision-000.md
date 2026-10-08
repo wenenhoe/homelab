@@ -82,8 +82,8 @@ on that path either.
 ## Decision
 
 A genuine re-init now, combining options 2 and 3: fresh keys, plus a
-standing narrow AppRole this time instead of ending Era A with zero
-admin-capable credential again.
+standing narrow AppRole this time instead of ending again with zero
+admin-capable credential.
 
 1. Full backup first (`dump_vault_to_file_cache.py`) - already run.
 2. Fresh `bao operator init -key-shares=3 -key-threshold=2`

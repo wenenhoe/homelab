@@ -3,7 +3,7 @@
 Hosts that support the network itself rather than running Docker/
 compose apps — the `network_infra` inventory group. Currently one
 host: `tailscale` (VM 202), an existing Tailscale subnet router
-brought under Ansible management as Stage 1 of
+brought under Ansible management for
 [`monitoring-host-isolation.md`](../../projects/monitoring-host-isolation.md); see
 [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) for why (offsite
 monitoring's eventual off-site hop reuses this VM's existing route rather

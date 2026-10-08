@@ -5,7 +5,7 @@ and openbao_utils/bootstrap.py's own exclusion list, so none of them can
 drift against each other or against what cache.py's scoped() actually
 writes - duplicating this list per-consumer is what let
 secret_catalog.yaml's header comment and openbao_utils/bootstrap.py's own
-behavior disagree, pre-Track-A-stage-6.
+behavior disagree.
 
 Reusing each module's own bound functions (rather than reconstructing
 Vault paths by hand here) means this list can't drift from what the

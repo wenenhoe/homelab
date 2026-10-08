@@ -15,7 +15,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `playbooks/cleanup.yaml` | `inventory/inventory.yaml` | Tears down stacks that are deployed/running on a host but no longer listed in its `compose_apps`, with a keep/delete policy for their on-disk content and named Docker volumes. See [`cleanup.md`](cleanup.md). |
 | `playbooks/maintenance.yaml` | `inventory/inventory.yaml` | Server maintenance: `apt` upgrade + reboot-if-required, `fwupd` firmware updates + reboot-if-required (`patched_hosts`), plus `qemu_guest_agent` presence (`network_infra` only), then the `host_hardening` baseline on every `patched_hosts` member. |
 | `playbooks/reset-network.yaml` | `inventory/sos-inventory.yaml` | Re-applies `netplan` on every host; used when a host's network config needs a clean reset. |
-| `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted backup archive (stage 1 DR). See [`restore.md`](../disaster-recovery/restore.md). |
+| `playbooks/restore.yaml` | `inventory/inventory.yaml` | Restores one app's named volume(s) from a decrypted backup archive. See [`restore.md`](../disaster-recovery/restore.md). |
 | `playbooks/restore-discovery-setup.yaml` | `inventory/inventory.yaml` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` `restore_all.py` uses. See [`restore.md`](../disaster-recovery/restore.md). |
 | `playbooks/restore-minecraft-world.yaml` | `inventory/inventory.yaml` | Phase 2 of a minecraft restore: unpacks the newest backup tar into the live world. See [`restore.md`](../disaster-recovery/restore.md). |
 | `playbooks/volume-file-rm.yaml` | `inventory/inventory.yaml` | Removes specific, named file(s) from a volume that's staying deployed, without touching the rest of its content. See [`volume-maintenance.md`](volume-maintenance.md). |
@@ -52,7 +52,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `systemd_reload` | Shared library role: the one `Reload systemd` handler, plus the notifier reload and handler flush the timer roles run before enabling their timers. |
 | `tinyauth_ca_trust` | Builds the CA bundle tinyauth needs to trust step-ca-issued certs. |
 | `tinyauth` | Molecule-only: deploys tinyauth for real in its own scenario. |
-| `backup_agent` | Per-host backup aggregation into SeaweedFS (stage 1 DR). |
+| `backup_agent` | Per-host backup aggregation into SeaweedFS |
 | `cloud_sync` | Offsite replication of SeaweedFS archives to R2/B2/OCI. |
 | `restore` | Restores a decrypted backup archive back to a named volume. |
 | `restore_discovery` | Controller-only: renders the batch-restore manifest + read-only `rclone.conf` for `restore_all.py`. |

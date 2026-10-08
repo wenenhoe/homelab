@@ -2,7 +2,7 @@
 """Create the 6 cloud_sync credentials (write+read x R2/B2/OCI) via each
 provider's HTTP API instead of a console click-through, and cache them
 in OpenBao at the same `cloud_credentials/leaf/<catalog-key>` Vault
-paths `cache.py`'s `scoped("leaf")` always writes to (Track A stage 5).
+paths `cache.py`'s `scoped("leaf")` always writes to.
 Entries stay `source: manual` in secret_catalog.yaml — this script is
 just an automated way to fill them in; `openbao_utils/bootstrap.py` itself
 deliberately excludes these names from its own prompting (see that

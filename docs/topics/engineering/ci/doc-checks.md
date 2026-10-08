@@ -36,10 +36,9 @@ these narrow, structural things:
   `ansible/roles/*/`.
 - `docs/topics/engineering/molecule-testing.md`'s Scenario matrix table lists exactly the
   scenario directories that exist under `ansible/roles/*/molecule/*/`.
-- `docs/topics/deploy/deployment-flow.md` has one `## Play N` heading per play in
-  `deploy.yaml`, numbered sequentially — title *wording* isn't compared,
-  only count and sequence, so a heading paraphrasing a play's name isn't
-  flagged as drift.
+- `docs/topics/deploy/deployment-flow.md`'s Plays table has one row per play in
+  `deploy.yaml`, numbered sequentially from 0. Wording isn't compared, only
+  count and sequence, so a row paraphrasing a play's name isn't flagged as drift.
 - [`pipeline.md`](pipeline.md#jobs)'s Jobs table lists every `pr-checks.yml` job id, except
   `detect-changes` (internal plumbing) and `trivy-scan` (documented in
   [`security-scanning.md`](../security-scanning.md) instead).

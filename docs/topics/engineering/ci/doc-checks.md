@@ -114,7 +114,7 @@ documented thing no longer exists.
 [`docs/projects/README.md#scope`](../../../projects/README.md#scope) for what it means
 and why). It runs in two places:
 
-- **CI** — the `project-scope` job, on every pull request: the diff from
+- **CI** — the scope step of the `project-checks` job, on every pull request: the diff from
   the merge-base of the PR's base and head to its head. The merge-base,
   not the base tip, so a branch that is behind doesn't see main's newer
   commits as its own changes. The repo's other diff-based jobs diff
@@ -148,7 +148,7 @@ checked.
 It runs in the same two places as the scope check, with the same
 merge-base diff and the same staged-changes behavior:
 
-- **CI** — the `project-close` job, on every pull request, judging the
+- **CI** — the close step of the `project-checks` job, on every pull request, judging the
   PR's head.
 - **pre-commit** — the `check-project-close` hook, judging the index
   against `HEAD`. It is early feedback; CI is the authority. Under

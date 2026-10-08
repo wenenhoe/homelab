@@ -186,11 +186,10 @@ jobs:
           ZIZMOR_GITHUB_TOKEN: ${{ github.token }}
         run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit --show-diff-on-failure
 
-  # A PR that touches a project doc must stay inside that project's
-  # allowed_paths - see docs/topics/engineering/ci/doc-checks.md#project-scope-check. Diffs from the
-  # merge-base of the PR's base and head (not the base tip itself), so a
-  # branch that is behind doesn't see main's newer commits as its own.
-  project-scope:
+  # Both checks diff from the merge-base of the PR's base and head (not the
+  # base tip itself), so a branch that is behind doesn't see main's newer
+  # commits as its own.
+  project-checks:
     needs: warm-uv-cache
     runs-on: ubuntu-26.04
     timeout-minutes: 10
@@ -204,6 +203,8 @@ jobs:
       - name: Setup uv
         uses: ./.github/actions/setup-uv-ansible
 
+      # A PR that touches a project doc must stay inside that project's
+      # allowed_paths - see docs/topics/engineering/ci/doc-checks.md#project-scope-check.
       - name: Check the PR stays inside its project's allowed_paths
         run: >-
           uv run python -m doc_scripts.check_project_scope
@@ -211,24 +212,9 @@ jobs:
           --head "${{ github.event.pull_request.head.sha }}"
         working-directory: tools
 
-  # A PR that deletes a project doc must leave the revision its decision:
-  # names accepted or still named by another project - see
-  # docs/topics/engineering/ci/doc-checks.md#project-close-check. Diffs from the merge-base, like
-  # project-scope, so main's newer commits aren't read as this PR's own.
-  project-close:
-    needs: warm-uv-cache
-    runs-on: ubuntu-26.04
-    timeout-minutes: 10
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0 # the merge-base needs both histories
-          persist-credentials: false
-
-      - name: Setup uv
-        uses: ./.github/actions/setup-uv-ansible
-
+      # A PR that deletes a project doc must leave the revision its decision:
+      # names accepted or still named by another project - see
+      # docs/topics/engineering/ci/doc-checks.md#project-close-check.
       - name: Check the PR doesn't orphan a deleted project's decision
         run: >-
           uv run python -m doc_scripts.check_project_close

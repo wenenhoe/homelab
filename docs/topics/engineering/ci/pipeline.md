@@ -28,7 +28,7 @@ call it as `python -m <package>.<module>` from `tools/`
   [Secret catalog rules](gates.md#secret-catalog-rules) and
   [App catalog rules](gates.md#app-catalog-rules)).
 - `ci.images` — the image registry and the CI image builds.
-- `ci.scan` — setup for the security scans (the Trivy config).
+- `ci.scan` — setup for the security scans (the Trivy config, and the gitleaks run over a PR's commits).
 - `ci.fixtures` — data a job seeds before a real run, derived from the repo
   (the deploy-ordering check's secrets).
 
@@ -75,7 +75,7 @@ parse on an older Python than the repo's own. The rest run through
 | `warm-uv-cache` | always | Populates the shared uv package cache. See [Cache warming](#cache-warming). |
 | `warm-galaxy-cache` | always | Populates the shared Ansible Galaxy collections cache. See [Cache warming](#cache-warming). |
 | `warm-pre-commit-cache` | always | Populates the shared pre-commit hook-environment cache. See [Cache warming](#cache-warming). |
-| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
+| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file, then gitleaks over the PR's commits (the hook itself is skipped here: it only scans staged changes). |
 | `project-checks` | always | Two steps over the PR's merge-base diff. A PR that touches a project doc stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](doc-checks.md#project-scope-check). A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](doc-checks.md#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |

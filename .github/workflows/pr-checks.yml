@@ -171,6 +171,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          fetch-depth: 0 # gitleaks reads the PR's commits, not just the tree
           persist-credentials: false
 
       - name: Setup uv
@@ -181,10 +182,19 @@ jobs:
       - name: Run commit-stage hooks against all files
         # Without a token zizmor silently drops its audits that query
         # GitHub (impostor commits, known-vulnerable actions, stale pins)
-        # and prints one WARN line.
+        # and prints one WARN line. gitleaks only scans what is staged,
+        # which is nothing here, so the step below does its job.
         env:
+          SKIP: gitleaks
           ZIZMOR_GITHUB_TOKEN: ${{ github.token }}
         run: uv run pre-commit run -c .config/.pre-commit-config.yaml --all-files --hook-stage pre-commit --show-diff-on-failure
+
+      - name: Scan the PR's commits for secrets
+        run: >-
+          python3 -m ci.scan.gitleaks_range
+          "${{ github.event.pull_request.base.sha }}"
+          "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
 
   # Both checks diff from the merge-base of the PR's base and head (not the
   # base tip itself), so a branch that is behind doesn't see main's newer
@@ -509,7 +519,6 @@ jobs:
     uses: ./.github/workflows/_trivy-scan.yml
     with:
       run-ansible: ${{ needs.detect-changes.outputs.trivy_ansible == 'true' }}
-      run-secrets: true
 
   # Fixed-name required-check aggregator for the three matrix jobs above —
   # see docs/topics/engineering/ci/pipeline.md#requiring-checks-before-merge for why a matrix job

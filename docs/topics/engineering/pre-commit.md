@@ -37,7 +37,7 @@ commit, or `git am --abort`. Only the commit-time hooks run here;
 `.config/.pre-commit-config.yaml` wires up:
 
 - `check-yaml`, `end-of-file-fixer`, `trailing-whitespace` — general hygiene
-- [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning
+- [`gitleaks`](https://github.com/gitleaks/gitleaks) — secret scanning of what is staged; CI skips the hook and scans the PR's commits instead, see [Secret scanning on pull requests](security-scanning.md#secret-scanning-on-pull-requests)
 - [`yamllint`](https://github.com/adrienverge/yamllint) — strict YAML style checks (`.config/.yamllint`)
 - [`dclint`](https://github.com/docker-compose-linter/pre-commit-dclint) — lints/auto-fixes every `compose*.yaml`
 - [`hadolint`](https://github.com/hadolint/hadolint) — lints every `Dockerfile`, via its Docker-image variant

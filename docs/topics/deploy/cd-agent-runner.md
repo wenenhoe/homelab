@@ -8,6 +8,21 @@ cd tools && python3 -m cd_agent.run_job --repo-url URL --state-dir DIR [--cwd SU
 
 ## What a run does
 
+```mermaid
+flowchart TD
+    start(["timer fires"]) --> lock{"lock free?"}
+    lock -- "held" --> e75(["exit 75"])
+    lock -- "taken" --> fetch["fetch main, anonymously"]
+    fetch --> onchange{"--on-change and commit equals deployed?"}
+    onchange -- "yes" --> e0(["exit 0"])
+    onchange -- "no" --> tree["delete tree, check out commit"]
+    tree --> run["run COMMAND in tree/SUBDIR"]
+    run --> ok{"COMMAND exited 0?"}
+    ok -- "no" --> e1(["exit 1, nothing recorded"])
+    ok -- "yes" --> record["with --on-change, write commit to deployed"]
+    record --> e0b(["exit 0"])
+```
+
 In order:
 
 1. Takes an exclusive lock on `DIR/lock`. If another run of the job holds it, exits `75` without fetching or running anything.

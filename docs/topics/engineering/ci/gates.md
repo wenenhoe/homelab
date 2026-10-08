@@ -135,6 +135,18 @@ Shared logic lives in `_compose-boot-test.yml` (`workflow_call`), used
 by both `pr-checks.yml` (changed apps only) and `boot-test-all.yml`
 (every app, `workflow_dispatch` only — a manual "test everything" run).
 
+```mermaid
+flowchart LR
+    seed["seed via the compose role"] --> df{"has a Dockerfile?"}
+    df -- "yes" --> build["build it in place of the published image"]
+    df -- "no" --> up
+    build --> up["docker compose up"]
+    up --> health["compose_health waits"]
+    health -- "failed" --> logs["dump logs"]
+    health -- "healthy" --> down["tear down"]
+    logs --> down
+```
+
 Per app: seeds it via the real `compose` role
 (`ansible/playbooks/ci_boot_test.yaml`, against `ci-inventory/` rather
 than the real `inventory.yaml`, since the latter's `all:vars` assumes a

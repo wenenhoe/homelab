@@ -44,6 +44,21 @@ includes `r2_read_watcher.py`, the one file outside either tree that
 
 ### Molecule watch sets
 
+How a changed file becomes a queued Molecule role:
+
+```mermaid
+flowchart TD
+    file["changed file"] --> same{"parsed content identical<br/>in base and head?"}
+    same -- "yes" --> drop(["ignored: comments/formatting only"])
+    same -- "no" --> glob{"repo-wide path<br/>(base config, requirements, lock)?"}
+    glob -- "yes" --> all(["queue every role"])
+    glob -- "no" --> failsafe{"unreferenced molecule_helpers file<br/>or unreadable filter plugin?"}
+    failsafe -- "yes" --> all
+    failsafe -- "no" --> watch{"inside a role's watch set?"}
+    watch -- "yes" --> some(["queue those roles"])
+    watch -- "no" --> none(["queue no role"])
+```
+
 `tools/ci/scope/molecule_scope.py` (run by `detect-changes`, tested in
 `tools/tests/ci/scope/`) builds each role's watch set from what its
 scenarios actually reference, then queues a role when a changed file

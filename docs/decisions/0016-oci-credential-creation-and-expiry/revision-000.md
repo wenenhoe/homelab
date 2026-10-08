@@ -11,9 +11,7 @@ status: accepted
 narrows: ADR-0015
 ---
 
-# 0016. OCI credential expiry via Identity Domains SCIM, not self-tracked cache files
-
-**Status:** Accepted
+# 0016. OCI credential creation and expiry
 
 ## Context
 

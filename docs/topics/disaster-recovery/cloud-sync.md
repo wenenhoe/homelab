@@ -28,6 +28,8 @@ lock clears, but B2's fails outright rather than deferring, so closing
 that gap on B2 specifically would start producing failed lifecycle runs
 instead of merely-delayed ones.
 
+## Targets
+
 **Which clouds each app is relayed to:** `app_catalog.yaml`'s
 `backup.cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
 SeaweedFS only; SeaweedFS itself is implicit for every backed-up app,
@@ -35,11 +37,13 @@ never listed. An app's list replaces the default rather than adding to
 it; the default is `backup_defaults.cloud_targets`
 (`group_vars/all/main.yaml`, currently `[r2, b2]`). Each name must be a
 key of `cloud_sync_targets` (`host_vars/storage.yaml`), which alone
-holds the credentials. Minecraft overrides to `[oci]` alone: its ~1.8GB/night
-archive at 7-day retention (~13GB) would eat most of a single 10GB
-R2/B2 free tier, so it gets OCI's 20GB allowance to itself instead.
+holds the credentials. Minecraft overrides to `[oci]` alone: its nightly
+archive at 7-day retention would eat most of a single R2/B2 free tier, so it
+gets OCI's larger allowance to itself instead.
 
-**Mechanism:** a systemd timer (`cloud-sync.timer`, daily, offset ~90min
+## Mechanism
+
+A systemd timer (`cloud-sync.timer`, daily, scheduled
 after `backup_defaults.cron` to give every backup host's own nightly run
 room to land in SeaweedFS first) triggers `cloud-sync.service`
 (`Type=oneshot`), which runs one container per firing — `rclone/rclone`,
@@ -49,29 +53,25 @@ hosts' own plays to have run first in the same invocation). One `rclone
 copy` per (app, cloud target) pair; one job failing doesn't block the
 rest of that run.
 
-**Before first use:**
+## Before first use
 
 - Create a bucket by hand on each of R2/B2/OCI — `homelab-backups` for
   R2/OCI (account-scoped naming, so this is fine); B2 bucket names are
-  globally unique across *every* B2 account, not just yours, so
-  `homelab-backups` will likely already be taken — confirmed live, not
-  hypothetical, this repo's own real deploy needed `homelab-backups-b2`
-  instead, hence the `-b2` suffix already baked into
-  `cloud_sync_targets.b2.bucket` (`host_vars/storage.yaml`). None of
-  this is Ansible-managed (same as the earlier note for SeaweedFS being
-  the one exception) — a reasonable first OpenTofu project once that
-  expansion starts.
-- Fill in the sixteen `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
+  globally unique across *every* B2 account, so `homelab-backups` is
+  likely taken; B2 uses `homelab-backups-b2`
+  (`cloud_sync_targets.b2.bucket` in `host_vars/storage.yaml`). None of
+  this is Ansible-managed.
+- Fill in the `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
   in `secret_catalog.yaml` — a write and a read credential per
   provider, plus the three shared endpoint values (account ID, B2
   region, OCI namespace/region). For B2 and OCI, `tools/cloud_credentials/create_rotation_keys.py`
   followed by `tools/cloud_credentials/create_leaf_keys.py` does this via each
-  provider's HTTP API rather than console click-through; R2 has no
-  rotation-key step at all (Cloudflare structurally can't delegate
-  that capability — see `cloud-credentials/scoping.md`'s R2 section),
-  so `create_leaf_keys.py` alone handles it, prompting for the
-  master token each time it actually needs one. `openbao_utils/bootstrap.py`
-  remains the manual fallback for any of the sixteen if you'd rather
+  provider's HTTP API rather than console click-through; R2 can't
+  mint a delegate rotation key (see `cloud-credentials/scoping.md`'s R2
+  section), so `create_rotation_keys.py --provider r2` only caches the
+  Custom Token you create in the Console, and `create_leaf_keys.py`
+  does the rest. `openbao_utils/bootstrap.py`
+  remains the manual fallback for any of them if you'd rather
   paste in console-created values — both paths write to the same
   cache files; see
   [`cloud-credentials/scoping.md`](../secrets/cloud-credentials/scoping.md)
@@ -83,17 +83,12 @@ rest of that run.
   specifically (B2 Console > Buckets > Bucket Details) is the one value
   here B2 assigns rather than you choosing it — get the real one from
   your own bucket, not a copied example.
-- **Needs live verification, not yet confirmed:** every `rclone.conf`
-  endpoint is written with its scheme (`https://`) included, not a bare
-  hostname — the opposite convention from `docker-volume-backup`'s
-  minio-go client elsewhere in this repo. rclone's own documented
-  examples are inconsistent about this across providers; several
-  non-AWS ones explicitly require the scheme, which is why it's
-  included everywhere here, but this hasn't been confirmed against a
-  real rclone binary. Before trusting the nightly run, verify against
-  the exact image actually deployed — pulled live from
-  `cloud-sync.service.j2` rather than a hardcoded tag here, so this
-  command can't quietly drift from what's really running:
+- **Check each remote before trusting the nightly run.** Every
+  `rclone.conf` endpoint is written with its scheme (`https://`), not a bare
+  hostname, the opposite convention from `docker-volume-backup`'s minio-go
+  client elsewhere in this repo. List each remote with the image the unit
+  deploys; the tag comes from `cloud-sync.service.j2`, so the command
+  follows what is running:
   ```sh
   docker run --rm \
     -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
@@ -101,5 +96,4 @@ rest of that run.
       ansible/roles/cloud_sync/templates/cloud-sync.service.j2) \
     lsd <name>:
   ```
-  for each of the four remote names — confirm each one lists (or
-  reports an empty, error-free) result.
+  Each remote name should list, or report an empty result without an error.

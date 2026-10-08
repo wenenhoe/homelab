@@ -10,9 +10,7 @@ topic: monitoring-alerting
 status: accepted
 ---
 
-# 0036. Beszel notification URL has no env-var support — Telegram token stays hand-typed, DB-resident
-
-**Status:** Accepted
+# 0036. Beszel notification configuration
 
 ## Context
 

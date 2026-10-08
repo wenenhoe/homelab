@@ -90,67 +90,12 @@ self-run provisioning guard, the same not-yet-split SSH key.
 
 ## Assumptions
 
-- **Claim:** `act_runner`'s DinD mode gives job isolation, and real
-  outbound LAN/SSH reachability to `managed_hosts`, without extra host
-  networking configuration beyond what Docker-in-Docker sets up by
-  default.
-  **Breaks if wrong:** deploy/rotation jobs need direct LAN access
-  this design assumes is available inside the DinD job container; if
-  it isn't, either the runner mode changes (plain Docker or host mode,
-  trading isolation for reachability) or extra bridging is needed.
-  **Checked by:** a spike — register a DinD `act_runner` against a
-  private Gitea instance, run a job that attempts SSH to a real LAN
-  host, confirm it reaches it with no additional network config.
-- **Claim:** a private Gitea instance with a single write-access
-  account has no dispatch-trigger equivalent to GitHub's
-  approved-once-contributor risk.
-  **Breaks if wrong:** adding any second account or outside
-  collaborator reopens the same class of risk the rejected draft
-  rules out, and this decision needs revisiting before that happens,
-  not after.
-  **Checked by:** revisit at the point any second account is
-  proposed — not spike-able now, since it depends on a future decision
-  not yet made.
-- **Claim:** mirror-sync latency can be brought down to match the
-  rejected draft's "minutes, not hours" requirement, either via
-  `MIN_INTERVAL`'s 10-minute floor or an on-demand `mirror-sync` API
-  call triggered by something that already knows `main` changed.
-  **Breaks if wrong:** if neither path gives acceptable latency, the
-  latency requirement has to relax, or something must call
-  `mirror-sync` immediately after every push — which likely means a
-  GitHub webhook hitting Gitea, reintroducing an inbound-triggered
-  component the rejected draft avoided for a different reason (zero
-  inbound ports).
-  **Checked by:** a spike — measure actual mirror-sync latency at the
-  10-minute floor against a live private instance; separately confirm
-  whether an on-demand `mirror-sync` call can be made by `cd_agent`'s
-  own existing interval loop (staying outbound-only) instead of
-  needing an inbound webhook.
-- **Claim:** Forgejo's pull-mirror config keys and defaults
-  (`[mirror]` `DEFAULT_INTERVAL`/`MIN_INTERVAL`) match Gitea's exactly,
-  since Forgejo forked at a point after Gitea introduced these
-  settings under those names. Confirmed against Gitea's own commit
-  history (`DEFAULT_INTERVAL = 8h`, `MIN_INTERVAL = 10m`, "must be
-  > 1m") — not yet confirmed against a running Forgejo instance's own
-  current docs, which could have diverged since the fork.
-  **Breaks if wrong:** the mirror-sync-latency assumption above would
-  need re-checking specifically for Forgejo rather than assumed
-  inherited from Gitea.
-  **Checked by:** the same spike as the mirror-sync-latency entry
-  above, run once against whichever of the two is chosen.
-- **Claim:** choosing Gitea vs. Forgejo for this design doesn't turn
-  on the mechanism this draft is about (private instance, pull mirror,
-  outbound-only runner) — both satisfy it identically — so the choice
-  should be made on other grounds: project governance and release
-  cadence, Actions/runner maturity, and which one this repo's
-  maintainer would rather operate long-term.
-  **Breaks if wrong:** if the two turn out not to be functionally
-  interchangeable for this specific design (e.g. a Forgejo-only or
-  Gitea-only limitation surfaces during the DinD-reachability spike
-  above), this becomes a real fork of the Decision, not a footnote.
-  **Checked by:** not spike-able — a judgment call to make once ready
-  to build Stage 1, informed by whichever spikes above have run by
-  then.
+Never checked, because this candidate was abandoned:
+
+- `act_runner`'s DinD mode isolates jobs and still reaches `managed_hosts` over the LAN and SSH with no extra host networking.
+- A private Gitea instance with one write-access account has no dispatch-trigger risk like GitHub's approved-once contributor; a second account or outside collaborator would reopen it.
+- Mirror-sync latency can meet the "minutes, not hours" requirement through `MIN_INTERVAL`'s 10-minute floor or an on-demand `mirror-sync` call from `cd_agent`'s own interval loop, without an inbound webhook.
+- Forgejo's pull-mirror keys and defaults match Gitea's, so the Gitea-versus-Forgejo choice turns on governance, maturity and operability, not on this design.
 
 ## Consequences
 

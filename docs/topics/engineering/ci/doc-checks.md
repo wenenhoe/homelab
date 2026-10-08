@@ -36,11 +36,10 @@ these narrow, structural things:
   `ansible/roles/*/`.
 - `docs/topics/engineering/molecule-testing.md`'s Scenario matrix table lists exactly the
   scenario directories that exist under `ansible/roles/*/molecule/*/`.
-- `docs/topics/deploy/deployment-flow.md` has one `## Play N` heading per play in
-  `deploy.yaml`, numbered sequentially — title *wording* isn't compared,
-  only count and sequence, so a heading paraphrasing a play's name isn't
-  flagged as drift.
-- This file's own Jobs table lists every `pr-checks.yml` job id, except
+- `docs/topics/deploy/deployment-flow.md`'s Plays table has one row per play in
+  `deploy.yaml`, numbered sequentially from 0. Wording isn't compared, only
+  count and sequence, so a row paraphrasing a play's name isn't flagged as drift.
+- [`pipeline.md`](pipeline.md#jobs)'s Jobs table lists every `pr-checks.yml` job id, except
   `detect-changes` (internal plumbing) and `trivy-scan` (documented in
   [`security-scanning.md`](../security-scanning.md) instead).
 - Every cross-file `#anchor` reference anywhere in the repo (not just
@@ -78,6 +77,15 @@ these narrow, structural things:
   [`docs/decisions/README.md#assumptions`](../../../decisions/README.md#assumptions).
   Presence-of-a-bullet only, not whether the claim is genuinely
   resolved; that judgment call is still on whoever sets the status.
+- A decision revision's heading and state: an unlettered revision 0
+  opens with `# NNNN. <title>` (its lineage number and `title:`), and
+  no revision carries a `**Status:**` body line, since the frontmatter
+  `status` is the one record. Later and lettered revisions name their
+  own solution in their heading, so only revision 0 is checked.
+- Every project doc's `## Closing checklist` holds each item of
+  `docs/projects/TEMPLATE.md`, in the same words (wrapping aside), so an
+  item added to the template can't leave live projects without it. A
+  project may add items of its own.
 - A markdown link written `[ADR 0044 (CD agent trigger)]`, or with a
   revision after the number, carries that lineage's `short:` name
   exactly, so renaming a lineage can't leave links using the old name.

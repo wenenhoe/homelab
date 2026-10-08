@@ -11,9 +11,7 @@ status: accepted
 narrows: ADR-0031
 ---
 
-# 0032. Consolidate OpenBao utility scripts into tools/openbao_utils/, not ansible/scripts/
-
-**Status:** Accepted
+# 0032. Where OpenBao utility scripts live
 
 ## Context
 

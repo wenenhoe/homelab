@@ -111,8 +111,8 @@
   when: openbao_cli_native_version.stdout | trim != openbao_cli_server_version.stdout | trim
 
 # Proves real TLS verification against step-ca's root cert works end to
-# end, not BAO_SKIP_VERIFY — the same mechanics the Stage 1 spike
-# confirmed by hand (see ADR 0034's Context on -tls-server-name and
+# end, not BAO_SKIP_VERIFY — the same mechanics
+# ADR 0034's Context on -tls-server-name and
 # why the leaf cert has no IP SAN). -address dials loopback by IP;
 # -tls-server-name is one of the cert's real SANs, decoupling the two
 # per ADR 0034's Decision — step_ca_client_root_cert_path is the fact

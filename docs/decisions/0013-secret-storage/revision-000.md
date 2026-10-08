@@ -11,9 +11,7 @@ status: superseded
 superseded_by: 1
 ---
 
-# 0013. Cache cloud credentials to disk before adopting a secrets manager
-
-**Status:** Superseded by [revision 001](revision-001.md)
+# 0013. Secret storage
 
 ## Context
 

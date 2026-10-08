@@ -12,6 +12,8 @@ it under `--limit <group>`. For the same reason it can't
 `import_playbook` the secrets bootstrap; pass it as a separate file on
 the command line instead (see below).
 
+## Safety gates
+
 Two gates block the destructive steps, each covered by a
 [Molecule scenario](../engineering/molecule-testing.md) asserting the actual side effect
 (container `StartedAt`, volume content), not just exit code:
@@ -22,6 +24,8 @@ Two gates block the destructive steps, each covered by a
   three-state signal (undefined → real prompt; `true`/`false` → `-e`-only,
   deterministic) so automated runs without a tty fail closed by default.
 
+## Running a restore
+
 ```sh
 ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
   -i inventory/inventory.yaml --limit services,localhost \
@@ -30,7 +34,7 @@ ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
 
 All of `restore_app`/`restore_archive_local_path`/`restore_volumes` need
 to be **one JSON-object `-e` argument**, not separate `-e key=value`
-pairs. Confirmed live: `-e restore_volumes='["kms_data"]'` (the
+pairs: `-e restore_volumes='["kms_data"]'` (the
 `key=value` form) leaves `restore_volumes` as the literal string
 `["kms_data"]`, not a list — Ansible only parses `-e`'s value as JSON
 when the whole `-e` argument is itself a JSON object. The pause
@@ -45,7 +49,9 @@ Each archive holds exactly one app (one schedule = one app — see
 [Architecture in `backup.md`](backup.md#architecture)),
 so `restore_volumes` only ever needs to list that one app's own volumes.
 
-Manual steps before running it (private key never touches a homelab host):
+### Manual steps first
+
+The private key never touches a homelab host:
 
 1. Pull the object from the `homelab-backups` bucket — normally
    SeaweedFS (filer UI, or an S3 client against
@@ -61,7 +67,9 @@ Manual steps before running it (private key never touches a homelab host):
 2. `gpg --decrypt` it into a plain `.tar.gz`.
 3. Point `restore_archive_local_path` at that file.
 
-The playbook then runs through the restore itself in order:
+### What the playbook does
+
+In order:
 
 1. Copies the archive to the target host.
 2. Stops the app.
@@ -158,7 +166,9 @@ What it does, in order:
    and deletes the decrypted plaintext from its own scratch directory
    once that app's `restore.yaml` call has finished, success or not.
 
-**Known limitation carried over, not introduced here:** `minecraft`'s
+### Known limitations
+
+**Carried over from the `restore` role:** `minecraft`'s
 own backup uses `compression: none`
 ([`backup.md`](backup.md#whats-backed-up)) — the
 `restore` role's own extraction step assumes gzip (`tar -xzf`)
@@ -167,14 +177,13 @@ archive. That's the existing, tested `restore` role's own behavior,
 unchanged here; if a real `minecraft` restore hits it, that's a
 `restore` role fix, not something `restore_all.py` should work around.
 
-**Needs live verification, not yet confirmed against a real endpoint:**
-whether `rclone lsjson` against a prefix with zero objects (bucket
-reachable, nothing backed up there yet) and against a genuinely
-unreachable endpoint are actually distinguishable by exit code the way
-`restore_all.py` assumes (nonzero exit → try the cloud fallback; zero
-exit + empty list → hard "no objects found" instead, so a real
-connectivity problem is never mistaken for "this app was just never
-backed up"). Check directly before relying on this in a real outage:
+**Exit-code assumption:** `restore_all.py` treats a nonzero
+`rclone lsjson` exit as unreachable and tries the cloud fallback, and a
+zero exit with an empty list as a hard "no objects found", so a
+connectivity problem is never mistaken for an app that was never backed
+up. This holds only if a prefix with zero objects (bucket reachable,
+nothing backed up) and an unreachable endpoint differ by exit code.
+Check directly:
 
 ```sh
 rclone lsjson --config ansible/files/restore/rclone.conf \

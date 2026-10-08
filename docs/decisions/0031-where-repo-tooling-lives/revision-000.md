@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0030]
 ---
 
-# 0031. Split OpenBao/secrets tooling out of cloud_credentials, into tools/
-
-**Status:** Accepted
+# 0031. Where repo tooling lives
 
 ## Context
 

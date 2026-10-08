@@ -1,6 +1,4 @@
-# Single-node raft storage - see docs/openbao-migration-roadmap.md
-# (Track A only reaches multi-node if this homelab ever gets a second
-# host worth dedicating to it, not planned).
+# Single-node raft storage; multi-node is not planned.
 storage "raft" {
   path    = "/openbao/data"
   node_id = "openbao-security"

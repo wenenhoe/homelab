@@ -45,11 +45,11 @@ unlike Beszel's KEY/TOKEN, nothing outside Kuma itself needs to know it.
 
 ## Wiring a job to its push monitor
 
-**Done for `cloud_sync`, `cert-renewer@lldap`, `cert-expiry-check` (all 4
-hosts), and `backup_agent`.** Every one of them pushes on success only —
+**Done for `cloud_sync`, `cert-renewer@lldap`, `cert-expiry-check` (every
+app host), and `backup_agent`.** Every one of them pushes on success only —
 `OnFailure=` always stays exactly as it was before Kuma existed, going
 straight to `telegram-notify-*`, unchanged. Never pushing an explicit
-`status=down` is deliberate: on the deployed 2.5.3, that sits in Pending
+`status=down` is deliberate: on the deployed 2.x release, that sits in Pending
 rather than marking Down until a retry-grace window elapses (fixed
 upstream in 3.0.0 — [louislam/uptime-kuma#6406](https://github.com/louislam/uptime-kuma/issues/6406)),
 so Kuma's own missing-heartbeat detection is the real backstop for a job
@@ -90,8 +90,8 @@ the journal at trigger time — standard systemd dependency-resolution
 behavior, not a failure of the renewal itself.
 
 `cert-expiry-check` has no `ExecCondition` — every tick genuinely runs,
-so it pushes once per host per day like `cloud_sync`. It runs on all 4
-app_hosts, so its push URL (`uptime_kuma_push_url_cert_expiry`) is a
+so it pushes once per host per day like `cloud_sync`. It runs on every
+app host, so its push URL (`uptime_kuma_push_url_cert_expiry`) is a
 single `inventory_hostname`-keyed lookup in `group_vars/all/main.yaml`
 rather than 4 separate `host_vars` entries.
 
@@ -138,6 +138,6 @@ anywhere.
 
 | Compose file | Image | Network | Notes |
 | :--- | :--- | :--- | :--- |
-| `docker/uptime-kuma/compose.yaml` | `louislam/uptime-kuma:2.5.5-slim` | Joins `caddy-proxy`, exposes `3001` to Caddy | Persists `data` volume to `/app/data`; healthcheck is the image's own bundled `extra/healthcheck` script |
+| `docker/uptime-kuma/compose.yaml` | `louislam/uptime-kuma` (`-slim` variant) | Joins `caddy-proxy`, exposes `3001` to Caddy | Persists `data` volume to `/app/data`; healthcheck is the image's own bundled `extra/healthcheck` script |
 
 The `-slim` variant omits the bundled browser and the embedded MariaDB server. Push monitors need neither, but the database must be SQLite: choose it in the first-visit wizard, and confirm an existing instance's `data/db-config.json` says `sqlite` before moving to this tag.

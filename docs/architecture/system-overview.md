@@ -1,6 +1,7 @@
 # System Overview
 
-The current fleet, at a glance: four `managed_hosts` plus the
+The current fleet, at a glance: the app hosts (`managed_hosts`), the
+infrastructure hosts outside that group (`tailscale`, `cd-agent`), and the
 operator's own machine as `controller`. This is deliberately a 10,000-ft
 view — for the actual components on each host and how they talk to
 each other, see the low-level diagrams below.
@@ -14,6 +15,8 @@ flowchart TB
     play["play<br/>Minecraft"]
     security["security<br/>LLDAP, Tinyauth, step-ca,<br/>OpenBao, Beszel hub"]
     storage["storage<br/>SeaweedFS, cloud_sync"]
+    tailscale["tailscale<br/>subnet router<br/>(network_infra, patching only)"]
+    cdagent["cd-agent<br/>pull-based CD jobs<br/>(cd_agent)"]
 
     cloud[("Offsite cloud targets<br/>(R2 / B2 / OCI)")]
 
@@ -21,6 +24,8 @@ flowchart TB
     services & play & security -- "nightly, GPG-encrypted" --> storage
     storage -- "already-encrypted,<br/>relay onward" --> cloud
     controller -. "ansible-playbook<br/>(no manual host step)" .-> services & play & security & storage
+    controller -. "maintenance.yaml" .-> tailscale
+    controller -. "cd-agent.yaml" .-> cdagent
     controller -. "AppRole login,<br/>fetch secrets" .-> security
 ```
 

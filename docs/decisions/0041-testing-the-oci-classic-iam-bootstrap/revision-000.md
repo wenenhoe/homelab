@@ -11,7 +11,7 @@ status: working
 related: [ADR-0016]
 ---
 
-# floci-oci for OCI classic-IAM bootstrap tests; SCIM leaf tests stay hand-mocked
+# 0041. Testing the OCI classic-IAM bootstrap
 
 ## Context
 

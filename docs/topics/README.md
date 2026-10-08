@@ -55,7 +55,7 @@ OpenBao and the credentials around it.
 | [`cloud-credentials/creation.md`](secrets/cloud-credentials/creation.md) | The scripts that mint, audit and verify the R2/B2/OCI credentials, and how to run them. |
 | [`cloud-credentials/scoping.md`](secrets/cloud-credentials/scoping.md) | What each provider's master credential can be narrowed to, and what the rotation and leaf credentials are scoped to. |
 | [`cloud-credentials/rotation.md`](secrets/cloud-credentials/rotation.md) | How the leaf and rotation credentials rotate, per provider: the `--rotate` flow, its verification, and rotating the rotation credential itself. |
-| [`cloud-credentials/expiry.md`](secrets/cloud-credentials/expiry.md) | The 90-day expiry of all 9 credentials, the weekly freshness check, and the Telegram warning ladder. |
+| [`cloud-credentials/expiry.md`](secrets/cloud-credentials/expiry.md) | The 90-day credential expiry, the weekly freshness check, and the Telegram warning ladder. |
 | [`openbao.md`](secrets/openbao.md) | OpenBao deployment, TLS cert lifecycle, manual init/unseal runbook. |
 | [`openbao-auth.md`](secrets/openbao-auth.md) | `controller`'s AppRole/policy setup and revoking the initial root token. |
 | [`openbao-cd-agent-approles.md`](secrets/openbao-cd-agent-approles.md) | The four CIDR-bound AppRoles for `cd_agent` (deploy, rotation, freshness, snapshot): their policies, how to create them, and handing over a wrapped `secret_id`. |
@@ -96,7 +96,9 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`pre-commit.md`](engineering/pre-commit.md) | The pre-commit hooks and what each checks, which stage runs when, and where each tool's config lives. |
 | [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |
 | [`ci/change-scoping.md`](engineering/ci/change-scoping.md) | How a change decides which jobs run: the scoped outputs `detect-changes` produces, Molecule watch sets, and the comment-only and formatting-only changes that queue nothing. |
-| [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing, Dockerfile builds and image tags. |
+| [`ci/gates.md`](engineering/ci/gates.md) | The regression checks and gates over one kind of change: deploy ordering, secret and app catalog rules, Molecule coverage, compose boot-testing and Dockerfile builds. |
+| [`ci/image-tag-check.md`](engineering/ci/image-tag-check.md) | The weekly check that every pinned image tag still exists in its registry. |
+| [`ci/release-checksum-check.md`](engineering/ci/release-checksum-check.md) | The check that each pinned release hash is the one its publisher signed, attested or lists, on pull requests and weekly. |
 | [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |
 | [`mutation-testing.md`](engineering/mutation-testing.md) | When a mutation run is worth making on the credential tooling, how to read a survivor, and why its output stays off public surfaces. |

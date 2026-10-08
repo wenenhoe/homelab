@@ -34,8 +34,7 @@ the Security tab but never block a PR.
 alongside this repo's other tool configs — same documented-exception
 convention as `.github/compose-boot-test-exclusions.txt`.
 
-**Two confirmed Trivy Ansible-scanner quirks** (v0.73.0; re-verify if a
-version bump ever changes this):
+**Two Trivy Ansible-scanner quirks** (a Trivy version bump may change them):
 
 - It never reads `ansible.cfg`'s `roles_path` (`resolveRolePath` only
   checks a `roles/` dir next to the playbook, or `DEFAULT_ROLES_PATH`).
@@ -89,7 +88,7 @@ here.
 
 - **Inventory.** The job reads this repo by a plain clone and runs
   `python -m ci.images.remote list --json`
-  ([the contract](ci/gates.md#image-inventory-json)). An image pinned in a
+  ([the contract](ci/image-tag-check.md#image-inventory-json)). An image pinned in a
   compose file, an Ansible role or a script is **deployed** and scanned. A
   Dockerfile base is covered through the image built from it. An image used
   only by Molecule or CI is listed and not scanned.

@@ -4,7 +4,7 @@ title: Retire controller's Standing AppRole
 type: project
 status: not-started
 blocked: false
-summary: Delete controller's Era A AppRole; admin access mints short-lived tokens on demand.
+summary: Delete controller's AppRole; admin access mints short-lived tokens on demand.
 decision: ADR-0047/0
 super_project: pull-based-cd
 track: credentials
@@ -81,3 +81,4 @@ deleting this doc.
 - [ ] Every open item is resolved and promoted, or moved where it belongs.
 - [ ] Other projects' `depends_on` entries naming this one are removed,
       and every cross-reference into this doc is updated or deleted.
+- [ ] No code comment, message or topic doc still names this project's stages, phases or tracks.

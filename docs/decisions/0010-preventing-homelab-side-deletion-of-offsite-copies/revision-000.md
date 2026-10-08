@@ -10,9 +10,7 @@ topic: backup-recovery
 status: accepted
 ---
 
-# 0010. `cloud_sync` uses rclone `copy`, never `sync`
-
-**Status:** Accepted
+# 0010. Preventing homelab-side deletion of offsite copies
 
 ## Context
 

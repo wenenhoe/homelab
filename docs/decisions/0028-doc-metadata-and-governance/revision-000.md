@@ -10,9 +10,7 @@ topic: documentation-process
 status: accepted
 ---
 
-# 0028. Metadata-driven doc governance — adopt frontmatter and a narrow NIST subset
-
-**Status:** Accepted
+# 0028. Doc metadata and governance
 
 ## Context
 

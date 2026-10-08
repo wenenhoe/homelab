@@ -10,9 +10,7 @@ topic: monitoring-alerting
 status: accepted
 ---
 
-# 0011. Telegram group chat with Topics, not direct bot chat
-
-**Status:** Accepted
+# 0011. Alert routing and noise
 
 ## Context
 

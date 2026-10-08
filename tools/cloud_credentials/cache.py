@@ -4,7 +4,7 @@ Every leaf_keys/rotation_keys module, check_freshness.py, and the
 top-level create_*.py scripts read/write through the four functions
 scoped() returns - never a raw HTTP call of their own. Storage target
 is OpenBao KV v2, at secret/data/cloud_credentials/<category>/<name>
-(controller's Era A AppRole, ADR 0020, already grants read/write on
+(controller's AppRole, ADR 0020, already grants read/write on
 both leaf/* and rotation/*). read_vault_path() is the one exception:
 a direct read for the rare caller needing a Vault path outside that
 taxonomy (see its own docstring).
@@ -45,7 +45,7 @@ def _vault_login(client: hvac.Client) -> None:
     if not role_id or not secret_id:
         print(
             "openbao-controller-role-id/-secret-id aren't set yet - run "
-            "docs/topics/secrets/openbao-auth.md's runbook (Track A stage 3) before using "
+            "docs/topics/secrets/openbao-auth.md's runbook before using "
             "any part of cloud_credentials.",
             file=sys.stderr,
         )
@@ -96,7 +96,7 @@ def read_vault_path(full_path: str) -> str | None:
     covers - e.g. check_freshness.py's telegram-* reads, which live
     under the secrets role's own hosts/all/telegram/* convention
     (ADR 0021), a different top-level path this package doesn't own.
-    Controller's Era A AppRole already grants read/write on all of
+    Controller's AppRole already grants read/write on all of
     secret/data/hosts/* (ADR 0020), so no policy change is needed to
     use this from cloud_credentials.
     """
@@ -106,7 +106,7 @@ def read_vault_path(full_path: str) -> str | None:
 def write_vault_path(full_path: str, value: str) -> None:
     """Write an arbitrary Vault KV v2 path directly - read_vault_path's
     write counterpart, same rare-caller-outside-the-taxonomy case (e.g.
-    restoring hosts/* material after a re-init). Controller's Era A
+    restoring hosts/* material after a re-init). Controller's
     AppRole already grants create/update on all of secret/data/hosts/*
     (ADR 0020), so no policy change is needed to use this from
     cloud_credentials."""

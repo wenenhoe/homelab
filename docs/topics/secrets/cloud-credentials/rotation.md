@@ -4,14 +4,18 @@ How the leaf and rotation credentials are rotated, per provider: the `--rotate` 
 
 ## Rotation
 
-**Leftover pre-Vault cache files:** `openbao_utils/audit.py --local` flags anything under
+### Leftover pre-Vault cache files
+
+`openbao_utils/audit.py --local` flags anything under
 `ansible/files/secrets/` that doesn't match current config, whatever its vintage. It has no
 visibility into Console-side IAM objects, so the cleanup from the OCI SCIM migration
 ([ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)) stays manual if you
 never did it: delete the unused `homelab-key-rotation` identity — its API signing key first, then the policy,
 then the group membership, then the user itself.
 
-**`--rotate {write,read,both}`, all three providers now:**
+### Rotating leaf keys
+
+`--rotate {write,read,both}` works for all three providers:
 
 ```sh
 cd tools
@@ -42,6 +46,8 @@ so it can be investigated or deleted by hand; nothing is silently
 rolled back or retried. Each leaf is independent, so `--rotate write`
 never touches the read leaf's key or cache.
 
+### Verification
+
 **Verification retries through each provider's key-propagation
 window.** A brand-new leaf credential isn't always immediately usable by
 the provider's S3-compat API — the same request with an
@@ -51,13 +57,13 @@ to distinguish it from a genuine policy denial, so the retry gate
 matches broadly on HTTP status alone (`StatusCode: 403` or
 `StatusCode: 401`) rather than specific error text — accepted
 deliberately: a real policy problem now takes the full retry window
-(~885s / 14m45s) to surface as a failure instead of failing instantly,
+to surface as a failure instead of failing instantly,
 but the alternative (no retry) means every manual re-run of a failed
 `--rotate` mints and orphans a fresh provider-side key while waiting
-out propagation by hand. Measured windows vary a lot by provider: OCI
-60s–507s, B2 up to ~4 minutes, R2 15–30s — all comfortably inside the
-current ceiling. Widen `_run_rclone_with_retry`'s `retries`/`delay` if
-a real rotation ever exhausts it. A hung rclone call (past its `--timeout`) is not a propagation
+out propagation by hand. Propagation windows differ a lot by provider (OCI the longest, R2 the
+shortest), all inside the current ceiling. Widen
+`_run_rclone_with_retry`'s `retries`/`delay` if a real rotation ever
+exhausts it. A hung rclone call (past its `--timeout`) is not a propagation
 denial: it fails verification like any other non-retryable error
 instead of being retried through the window. A first success doesn't mean the key
 has reached every node: on OCI, later requests from fresh connections
@@ -112,7 +118,9 @@ below — `create_rotation_keys --provider r2 --rotate` — rather than
 deleting `_rotation-key-cloudflare-r2-token` by hand, though that still
 works too if you'd rather just fall back to prompting on next use.
 
-**Rotating the rotation credential itself:** low-frequency,
+### Rotating the rotation credential itself
+
+Low-frequency,
 human-attended, and none of the three auto-rotate on a schedule.
 
 ```sh

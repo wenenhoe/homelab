@@ -190,8 +190,7 @@ def _branch_signals_by_key(events: list[dict]) -> dict[TaskKey, dict[str, bool]]
     confirmed against this repo's own compose/tasks/cleanup.yaml); NOT
     excluding it risks an occasional false positive in the rarer
     "independently empty loop with a true when:" case. Chose to include
-    it, consistent with this tool's standing principle (stage 8, stage
-    9.1): missing real evidence is worse than occasionally over-crediting
+    it, consistent with this tool's standing principle: missing real evidence is worse than occasionally over-crediting
     an ambiguous case.
     """
     by_key: dict[TaskKey, dict[str, bool]] = {}

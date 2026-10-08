@@ -31,14 +31,22 @@ same PR as the change it reflects is more trustworthy here than one a
 separate tool infers after the fact. Revisit that choice if this ever
 grows past a few hosts or gains more than one active contributor.
 
+A diagram of the project dependency graph, drawn from `depends_on`, was
+tried and left out: the cross-initiative edges tangle it, and
+[`project-planning.md`](../project-planning.md) already lists what each
+project waits on. Don't add it without a reason that holds up against
+that.
+
 ## Index
 
 | Doc | Covers |
 | :--- | :--- |
-| [`system-overview.md`](system-overview.md) | High-level: the four hosts, controller, and cloud targets, at a glance. Links out to the low-level diagrams below. |
+| [`system-overview.md`](system-overview.md) | High-level: the hosts, controller, and cloud targets, at a glance. Links out to the low-level diagrams below. |
 | [`reverse-proxy-and-dns.md`](reverse-proxy-and-dns.md) | Low-level: how a hostname resolves and reaches the right host's Caddy, wildcard TLS via DNS-01. |
 | [`auth-flow.md`](auth-flow.md) | Low-level: Tinyauth forward-auth + LLDAP, and the one host that skips it. |
-| [`secrets-and-credentials-flow.md`](secrets-and-credentials-flow.md) | Low-level: `controller`'s day-to-day OpenBao secrets fetch, and cloud credential rotation plus the R2 per-read watcher. |
+| [`secrets-and-credentials-flow.md`](secrets-and-credentials-flow.md) | Low-level: `controller`'s day-to-day OpenBao secrets fetch, and cloud credential rotation, the R2 per-read watcher and the four CD agent AppRoles. |
+| [`internal-pki-flow.md`](internal-pki-flow.md) | Low-level: how step-ca issues an app's certificate once and how a systemd timer renews it, spanning `step-ca.md`, `lldap.md` and `openbao.md`. |
+| [`alerting-and-heartbeat-flow.md`](alerting-and-heartbeat-flow.md) | Low-level: which failure alerts and success heartbeats reach which Telegram topic, directly or through Uptime Kuma. |
 | [`backup-and-restore-data-flow.md`](backup-and-restore-data-flow.md) | Low-level: how a backup moves from an app host to SeaweedFS to the cloud targets, and how a restore reverses that path — spans `backup.md`, `cloud-sync.md`, and `restore.md`, none of which has this end-to-end view on its own. |
 
 ## Keeping these current

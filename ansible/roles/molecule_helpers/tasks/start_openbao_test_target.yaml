@@ -150,11 +150,9 @@
     path: "{{ molecule_helpers_openbao_cert_dir }}/fullchain.pem"
   register: molecule_helpers_openbao_existing_cert
 
-# community.docker.docker_container, not raw command: converted once
-# the collection's own source was actually read (module_utils/
-# _module_container/module.py, docker_container.py's log_driver doc)
-# rather than assumed unverified — see the project doc's Stage 4 for
-# what that reading found. Same dual-SAN shape production's
+# community.docker.docker_container, not raw command (see
+# module_utils/_module_container/module.py and docker_container.py's
+# log_driver doc in the collection). Same dual-SAN shape production's
 # step_ca_cert role uses too (a plain container-local name, plus the
 # full hostname whatever's actually connecting will request) — here
 # that's the control node, via molecule_helpers_openbao_extra_san, not

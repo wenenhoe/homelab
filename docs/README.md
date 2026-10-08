@@ -31,6 +31,12 @@ Docs are grouped by artifact type, one directory each:
   whole repo: projects with an initiative by build order, standalone
   projects, and the open ADRs no project covers yet.
 
+A doc states a figure once, where the file that owns it can be read: a
+count of plays, jobs or hosts, a pinned version, a cron period or a
+timeout is linked or derived (say what it comes from), not copied, since
+a copy goes stale without a check noticing. A figure that is itself the
+decision, such as a lifetime an ADR chose, stays in that ADR.
+
 **Every doc's source of truth is the code/config it describes, checked
 by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
 the handful of places that check mechanically (every directory's own

@@ -76,11 +76,11 @@ parse on an older Python than the repo's own. The rest run through
 | `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](doc-checks.md#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
-| `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/cd_agent/**`/`tools/utils/**`/`tools/ci/**`/`tools/doc_scripts/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/filter_plugins/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
-| `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`tools/utils/secret_catalog.py`/`pyproject.toml`/`uv.lock` changed | See below. |
+| `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
+| `deploy-ordering-check` | deploy inputs changed (the `deploy_ordering` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | Runs the real `deploy.yaml` and `restore.yaml` against a CI inventory and checks the `ansible_host` resolution chain. See [Deploy-ordering-check](gates.md#deploy-ordering-check). |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](gates.md#molecule-coverage-gate). See [`molecule-testing.md`](../molecule-testing.md). |
-| `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash (`cd_agent`'s and `openbao_cli`'s `defaults/main.yaml`, `tools/coderabbit-review/Dockerfile`), changed | Each pinned release checksum is the one its publisher signed, attested or lists — see [Release checksum check](gates.md#release-checksum-check). |
-| `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
+| `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash (`cd_agent`'s and `openbao_cli`'s `defaults/main.yaml`, `tools/coderabbit-review/Dockerfile`), changed | Each pinned release checksum is the one its publisher signed, attested or lists — see [Release checksum check](release-checksum-check.md). |
+| `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
 | `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
@@ -189,15 +189,10 @@ install-hooks`, never `pre-commit run` — building every hook's
 environment is the entire point, and it needs nothing (Docker
 included) that actually running a hook would.
 
-`warm-uv-cache` deliberately runs an unlocked `uv sync` (`locked` left
-at its default `"false"`), not `--locked`. This job exists only to
-populate the shared package cache — lockfile strictness is `uv-lock`'s
-job, separately, and needs to keep failing (or not) on its own merits.
-If `warm-uv-cache` used `--locked`, a genuinely stale lockfile would
-fail *this* job instead, and every job below it (`needs:
-warm-uv-cache`) would report `skipped` rather than run — burying
-`uv-lock`'s specific diagnostic under a wall of unrelated skips on the
-exact PRs (lockfile changes) where it matters most.
+`warm-uv-cache` runs an unlocked `uv sync` (`locked` left at its default
+`"false"`): it only populates the shared cache. A stale lockfile would
+otherwise fail this job and skip everything that `needs:` it, burying
+`uv-lock`'s own diagnostic.
 
 ### Base-branch warming
 
@@ -219,7 +214,7 @@ so there is no same-key race to split writers over). Its triggers:
   inputs already live in `setup-uv-ansible`'s `hashFiles(...)` calls,
   and a second copy of that list here could drift from it. On a hit
   the run restores and does no-op installs.
-- `schedule` (Sunday and Wednesday, 20:00 UTC) — GitHub evicts entries
+- `schedule` (Sunday and Wednesday) — GitHub evicts entries
   not accessed in 7 days, and the longest gap between runs is 4 days.
   A restore hit counts as access, so the run keeps entries alive
   without re-saving them.

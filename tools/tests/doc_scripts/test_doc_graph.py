@@ -347,3 +347,76 @@ class TestProjectErrors:
         for i, status in enumerate(("not-started", "de-risking", "building", "done")):
             project(root, f"p{i}", status=status)
         assert graph.project_errors(root) == []
+
+
+class TestHeadingErrors:
+    def test_revision_zero_opens_with_its_number_and_title(self, root):
+        revision(root, "0013-secret-storage", 0, body="# 0013. Secret storage\n\n## Context\n")
+        assert graph.heading_errors(root) == []
+
+    @pytest.mark.parametrize(
+        "heading",
+        [
+            pytest.param("# Secret storage", id="no-number"),
+            pytest.param("# 0013. Where secrets live", id="other-title"),
+            pytest.param("# 0014. Secret storage", id="other-number"),
+        ],
+    )
+    def test_revision_zero_with_another_heading_is_refused(self, root, heading):
+        revision(root, "0013-secret-storage", 0, body=f"{heading}\n")
+        assert_one_error(graph.heading_errors(root), "revision-000.md", "'# 0013. Secret storage'")
+
+    def test_a_later_or_lettered_revision_names_its_own_solution(self, root):
+        revision(root, "0013-secret-storage", 0, status="superseded", superseded_by=1, body="# 0013. Secret storage\n")
+        revision(root, "0013-secret-storage", 1, status="accepted", supersedes=0, body="# A different heading\n")
+        revision(root, "0014-other", 0, letter="a", body="# Pull-based agent, not a runner\n")
+        revision(root, "0014-other", 0, letter="b", body="# Gitea Actions instead\n")
+        assert graph.heading_errors(root) == []
+
+    def test_a_status_body_line_is_refused_in_any_revision(self, root):
+        revision(root, "0013-secret-storage", 0, body="# 0013. Secret storage\n\n**Status:** Accepted\n")
+        assert_one_error(graph.heading_errors(root), "revision-000.md", "'**Status:**' body line")
+
+    def test_status_wording_inside_prose_is_not_a_status_line(self, root):
+        revision(root, "0013-secret-storage", 0, body="# 0013. Secret storage\n\nThe **Status:** field is not repeated here.\n")
+        assert graph.heading_errors(root) == []
+
+
+class TestChecklistErrors:
+    ITEMS = ("Every criterion is met.", "Cross-references are updated or deleted.")
+
+    def _checklist(self, *items: str) -> str:
+        return "# Title\n\n## Closing checklist\n\nCopied from the template.\n\n" + "\n".join(f"- [ ] {item}" for item in items) + "\n"
+
+    def _write(self, root, name: str, body: str):
+        (root / "docs/projects").mkdir(parents=True, exist_ok=True)
+        (root / f"docs/projects/{name}").write_text(body, encoding="utf-8")
+
+    def test_a_project_with_the_template_items_passes(self, root):
+        self._write(root, "TEMPLATE.md", self._checklist(*self.ITEMS))
+        self._write(root, "alpha.md", self._checklist(*self.ITEMS, "An item of its own."))
+        assert graph.checklist_errors(root) == []
+
+    def test_wrapping_and_indentation_do_not_matter(self, root):
+        self._write(root, "TEMPLATE.md", self._checklist(*self.ITEMS))
+        self._write(root, "alpha.md", "## Closing checklist\n\n- [ ] Every criterion\n      is met.\n- [ ] Cross-references are updated\n      or deleted.\n")
+        assert graph.checklist_errors(root) == []
+
+    def test_an_item_added_to_the_template_is_required_everywhere(self, root):
+        self._write(root, "TEMPLATE.md", self._checklist(*self.ITEMS, "No stage labels remain."))
+        self._write(root, "alpha.md", self._checklist(*self.ITEMS))
+        assert_one_error(graph.checklist_errors(root), "alpha.md", "missing 'No stage labels remain.'")
+
+    def test_a_project_without_the_section_is_refused(self, root):
+        self._write(root, "TEMPLATE.md", self._checklist(*self.ITEMS))
+        self._write(root, "alpha.md", "# Title\n\n## Risks\n\n- none\n")
+        assert_one_error(graph.checklist_errors(root), "alpha.md", "no '## Closing checklist' section")
+
+    def test_the_readme_and_template_are_not_projects(self, root):
+        self._write(root, "TEMPLATE.md", self._checklist(*self.ITEMS))
+        self._write(root, "README.md", "# Projects\n")
+        assert graph.checklist_errors(root) == []
+
+    def test_without_a_template_there_is_nothing_to_compare(self, root):
+        self._write(root, "alpha.md", "# Title\n")
+        assert graph.checklist_errors(root) == []

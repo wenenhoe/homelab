@@ -271,3 +271,34 @@ class TestDocPathMention:
         repo.write("tools/tool.py", "# docs/decisions/0001-old-flat-name.md\n")
         drift.check_doc_path_mentions()
         assert len(drift.errors) == 1, drift.errors
+
+
+class TestDeployFlowTable:
+    PLAYBOOK = "- name: Play 0 - Secrets\n  hosts: localhost\n- name: System setup\n  hosts: all\n"
+
+    def _doc(self, *rows: str) -> str:
+        return "# Flow\n\n## Plays\n\n| Play | Hosts |\n| :-: | :--- |\n" + "\n".join(rows) + "\n\n## Next\n"
+
+    def _write(self, repo, doc: str) -> None:
+        repo.write("ansible/playbooks/deploy.yaml", self.PLAYBOOK)
+        repo.write("docs/topics/deploy/deployment-flow.md", doc)
+
+    def test_one_sequential_row_per_play_passes(self, repo):
+        self._write(repo, self._doc("| 0 | a |", "| 1 | b |"))
+        drift.check_deploy_flow()
+        assert drift.errors == []
+
+    def test_a_missing_row_fails(self, repo):
+        self._write(repo, self._doc("| 0 | a |"))
+        drift.check_deploy_flow()
+        assert_one_error(drift.errors, "1 rows vs 2 plays")
+
+    def test_rows_out_of_sequence_fail(self, repo):
+        self._write(repo, self._doc("| 0 | a |", "| 2 | b |"))
+        drift.check_deploy_flow()
+        assert_one_error(drift.errors, "aren't sequential")
+
+    def test_a_missing_table_fails(self, repo):
+        self._write(repo, "# Flow\n")
+        drift.check_deploy_flow()
+        assert_one_error(drift.errors, "couldn't find the ## Plays table")

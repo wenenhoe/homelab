@@ -79,7 +79,7 @@ pushes it to both R2 and B2, and revokes the token — all from one
 `mktemp -d` scratch directory removed when the script exits, nothing
 left behind on `controller` either way.
 
-Confirmed live against a real OpenBao 2.6.2 instance:
+Confirmed live against a real OpenBao instance:
 `bao write -field=token auth/approle/login role_id=<role_id>
 secret_id=@<file>` returns a 200 with the client token under the
 `token` field (no trailing newline) — the shape
@@ -93,23 +93,17 @@ environment — never written to a file, never passed as a command-line
 argument to anything it calls. `bao operator raft snapshot save`
 inherits it the same way any other native `bao` invocation does.
 
-**Version note — needs a pass:** `bao operator raft snapshot save`'s
-behavior (described below) was confirmed live against a real backup
-run, but against the `2.5.4` image that was pinned at the time —
-`docker/openbao/compose.yaml.j2` now pins `2.6.2`, and that confirmation
-has not been re-run since the pin moved. The restore-side behavior
-below (`-force`, the reseal, the old token going invalid) is still only
-confirmed against a v2.2.0 spike instance, never against either `2.5.4`
-or `2.6.2` directly — v2.5.4's release assets weren't reachable to test
-against outside `security` itself, and the same is true of `2.6.2`
-without repeating the exercise on a real host. This matters more than a
-version-number footnote: `2.6.2` is also where `generate-root`'s
-authenticated-endpoint behavior changed (see
+**Version note:** `bao operator raft snapshot save`'s behavior
+(described below) was confirmed live against a real backup run on an
+earlier pinned image, and the restore-side behavior (`-force`, the
+reseal, the old token going invalid) only against a v2.2.0 spike
+instance. Neither has been re-run against the image
+`docker/openbao/compose.yaml.j2` pins now. Newer releases can change
+behavior: `generate-root`'s authenticated-endpoint behavior changed
+(see
 [ADR 0025 (Admin without root token)](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
-Context), so a version this far off isn't guaranteed to behave like
-`2.5.4` did here either. Confirm both the snapshot-save and restore-side
-behavior against the real `2.6.2` image during the next restore drill,
-before trusting either paragraph below as still accurate.
+Context). Confirm both against the pinned image during the next restore
+drill.
 
 ## `bao` CLI behavior this script and the restore drill depend on
 

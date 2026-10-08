@@ -248,7 +248,7 @@ INVENTORY_VERSION = 1
 
 
 def inventory(collected: Collected) -> dict[str, object]:
-    """The document `list --json` prints; docs/topics/engineering/ci/gates.md defines its shape."""
+    """The document `list --json` prints; docs/topics/engineering/ci/image-tag-check.md defines its shape."""
     return {
         "version": INVENTORY_VERSION,
         "images": [{"ref": text, "sources": sorted(files)} for text, files in sorted(collected.images.items())],

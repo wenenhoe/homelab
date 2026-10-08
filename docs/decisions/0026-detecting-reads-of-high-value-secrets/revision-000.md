@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0020, ADR-0024]
 ---
 
-# 0026. Permanent stdout audit device, plus a dedicated watcher, for the R2 admin-token per-read alert
-
-**Status:** Accepted
+# 0026. Detecting reads of high-value secrets
 
 ## Context
 
@@ -106,7 +104,7 @@ forwarded.
 
 The watcher authenticates with its own new AppRole, read-only on
 `secret/data/hosts/all/telegram/*` alone — not controller's existing
-broad Era A AppRole. Its job and risk profile (a persistent process
+broad AppRole. Its job and risk profile (a persistent process
 with no need for anything controller can reach) don't match
 controller's, and reusing it would grow controller's blast radius for
 no reason.

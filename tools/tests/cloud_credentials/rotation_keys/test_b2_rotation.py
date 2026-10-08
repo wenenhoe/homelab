@@ -1,7 +1,7 @@
 """Unit tests for cloud_credentials.rotation_keys.b2.
 
 Run via `uv run pytest tools/tests/ -v`. Every B2 call is mocked at
-the b2sdk B2Api boundary (Stage 3); nothing here talks to a real
+the b2sdk B2Api boundary; nothing here talks to a real
 account.
 """
 

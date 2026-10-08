@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0013, ADR-0006]
 ---
 
-# 0017. Split secrets into recovery-critical and operational classes for OpenBao bootstrap
-
-**Status:** Accepted
+# 0017. Recovering the secrets store from total loss
 
 ## Context
 

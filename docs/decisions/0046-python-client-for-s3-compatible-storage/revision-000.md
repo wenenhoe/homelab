@@ -11,7 +11,7 @@ status: accepted
 related: [ADR-0010, ADR-0029]
 ---
 
-# 0046. Keep rclone as the one S3-compatible client
+# 0046. Python client for S3-compatible object storage
 
 ## Problem
 

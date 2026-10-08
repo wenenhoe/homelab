@@ -10,9 +10,7 @@ topic: ingress-tls-pki
 status: accepted
 ---
 
-# 0007. Custom step-ca entrypoint instead of `DOCKER_STEPCA_INIT_*`
-
-**Status:** Accepted
+# 0007. Internal CA initialization and identity persistence
 
 ## Context
 

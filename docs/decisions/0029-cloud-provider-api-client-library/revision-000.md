@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0016]
 ---
 
-# 0029. Adopt official SDKs in cloud_credentials selectively, not as a blanket swap
-
-**Status:** Accepted
+# 0029. Cloud-provider API client library
 
 ## Context
 

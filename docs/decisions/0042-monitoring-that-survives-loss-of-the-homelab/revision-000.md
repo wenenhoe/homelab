@@ -11,7 +11,7 @@ status: approved
 related: [ADR-0010, ADR-0049]
 ---
 
-# Monitoring host isolation — bring VM 202 under management, then a dedicated on-prem monitoring host
+# 0042. Monitoring that survives loss of the monitoring host
 
 ## Context
 

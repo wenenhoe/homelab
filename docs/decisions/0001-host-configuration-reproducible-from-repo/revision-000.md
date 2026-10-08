@@ -10,9 +10,7 @@ topic: deployment-platform
 status: accepted
 ---
 
-# 0001. Adopt Ansible instead of manual per-host deployment
-
-**Status:** Accepted
+# 0001. Host configuration reproducible from the repo
 
 ## Context
 

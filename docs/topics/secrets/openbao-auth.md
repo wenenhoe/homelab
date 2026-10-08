@@ -94,8 +94,7 @@ supplied explicitly (see
    ```
 
    No `secret_id_bound_cidrs`/`token_bound_cidrs` — `controller` has no
-   stable address to bind to (ADR 0020). Parameter choices, since 0022
-   leaves Era A's own values as a build question:
+   stable address to bind to (ADR 0020). Parameter choices:
 
    - `token_ttl`/`token_max_ttl` **1h, non-renewable.** Long enough for
      a full `deploy.yaml` run; short enough that a token leaked from
@@ -161,9 +160,9 @@ supplied explicitly (see
    inside it:
 
    ```sh
-   bao kv put -mount=secret hosts/_stage3-test probe=stage3   # succeeds
-   bao kv get -mount=secret hosts/_stage3-test                # succeeds
-   bao kv metadata delete -mount=secret hosts/_stage3-test    # denied
+   bao kv put -mount=secret hosts/_approle-test probe=approle   # succeeds
+   bao kv get -mount=secret hosts/_approle-test                # succeeds
+   bao kv metadata delete -mount=secret hosts/_approle-test    # denied
    exit                                                       # revokes the token
    ```
 
@@ -177,12 +176,12 @@ supplied explicitly (see
    shell revokes the token automatically — no `unset BAO_TOKEN` to
    remember.
 
-   That does leave the leftover `_stage3-test` key behind, since
+   That does leave the leftover `_approle-test` key behind, since
    `controller`'s token can't remove it. Clean it up with the
    still-active root token instead, back on `security`:
 
    ```sh
-   bao kv metadata delete -mount=secret hosts/_stage3-test
+   bao kv metadata delete -mount=secret hosts/_approle-test
    ```
 
 7. **Revoke the root token** — safe now that the AppRole is confirmed
@@ -200,11 +199,9 @@ supplied explicitly (see
 
 ## What this doesn't cover yet
 
-`snapshot-push.sh` still requires a human to export `BAO_TOKEN` by
-hand — see [`openbao-backup-restore.md`](openbao-backup-restore.md)'s
-"Open follow-ups". The policy above grants the capability; wiring the
-script to actually log in via this AppRole is separate, deliberately
-deferred work (that doc explains why).
+`snapshot-push.sh` logs in as this AppRole itself (the `role_id` as an
+argument, the `secret_id` at a hidden prompt) and is run by hand; see
+[`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 `ensure_secret.yaml` is what reads
 `openbao-controller-role-id`/`-secret-id` from Ansible's own secrets

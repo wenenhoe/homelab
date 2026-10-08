@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, load_lineages, read_frontmatter
-from doc_scripts.doc_graph import lineage_errors, open_assumption_errors, project_errors
+from doc_scripts.doc_graph import checklist_errors, heading_errors, lineage_errors, open_assumption_errors, project_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -171,19 +171,23 @@ def check_molecule_matrix() -> None:
 
 
 def check_deploy_flow() -> None:
-    """Count + sequence only, not title text: deploy.yaml's play names
-    and deployment-flow.md's headings are allowed to word the same play
-    differently (e.g. a shortened heading), that's not drift worth
-    flagging. What matters is a play being added, removed, or reordered
-    without the docs' numbering following it.
+    """Count + sequence only, not wording: deploy.yaml's play names and
+    deployment-flow.md's Plays table are allowed to describe the same play
+    differently. What matters is a play being added, removed, or reordered
+    without the table's numbering following it.
     """
     play_names = re.findall(r"^- name:\s*(.+)$", read(ROOT / "ansible/playbooks/deploy.yaml"), re.MULTILINE)
-    heading_nums = [int(n) for n in re.findall(r"^## Play (\d+)", read(ROOT / "docs/topics/deploy/deployment-flow.md"), re.MULTILINE)]
+    doc = read(ROOT / "docs/topics/deploy/deployment-flow.md")
+    section = re.search(r"## Plays\n\n(.*?)\n\n", doc, re.DOTALL)
+    if not section:
+        fail("deployment-flow.md: couldn't find the ## Plays table")
+        return
+    row_nums = [int(n) for n in re.findall(r"^\| (\d+) \|", section.group(1), re.MULTILINE)]
 
-    if len(heading_nums) != len(play_names):
-        fail(f"deployment-flow.md: {len(heading_nums)} 'Play N' headings vs {len(play_names)} plays in deploy.yaml — one was added/removed without the other")
-    elif heading_nums != list(range(len(heading_nums))):
-        fail(f"deployment-flow.md: 'Play N' headings aren't sequential from 0: {heading_nums}")
+    if len(row_nums) != len(play_names):
+        fail(f"deployment-flow.md: Plays table has {len(row_nums)} rows vs {len(play_names)} plays in deploy.yaml — one was added/removed without the other")
+    elif row_nums != list(range(len(row_nums))):
+        fail(f"deployment-flow.md: Plays table rows aren't sequential from 0: {row_nums}")
 
 
 def check_ci_jobs_table() -> None:
@@ -392,8 +396,10 @@ def main() -> int:
     check_adr_link_names()
     check_nist_alignment_currency()
     errors.extend(lineage_errors(ROOT))
+    errors.extend(heading_errors(ROOT))
     errors.extend(open_assumption_errors(ROOT))
     errors.extend(project_errors(ROOT))
+    errors.extend(checklist_errors(ROOT))
 
     if errors:
         for e in errors:

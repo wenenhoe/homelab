@@ -16,7 +16,7 @@ value instead of letting anything regenerate.
 Two phases, covering two Vault-path shapes that don't overlap:
   1. Every secret_catalog.yaml entry with `store: openbao` (every
      `hosts/*` key, plus the 20 cloud_credentials/leaf ones a catalog
-     entry exists for as of Track A stage 6) - via cache.py's
+     entry exists for) - via cache.py's
      read_vault_path()/write_vault_path() escape hatch.
   2. cloud_credentials' own internal bookkeeping keys with no
      secret_catalog.yaml entry of their own (_rotation-key-*,
@@ -24,8 +24,8 @@ Two phases, covering two Vault-path shapes that don't overlap:
      the ~10 LEGACY_CACHE_KEYS names phase 1 has no way to reach,
      via each key's own registered module.
 
-Replaces migrate_legacy_cache_to_vault.py (retired at Track A stage 6
-alongside the file cache it read from, ansible/files/secrets/) and the
+Replaces migrate_legacy_cache_to_vault.py (retired alongside the
+file cache it read from, ansible/files/secrets/) and the
 two separate scripts this file merges -
 restore_hosts_scope_from_backup.py and
 restore_cloud_credentials_from_backup.py - always run as one logical

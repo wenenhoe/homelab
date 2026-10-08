@@ -10,9 +10,7 @@ topic: backup-recovery
 status: accepted
 ---
 
-# 0012. Per-host backup freshness checks, not one centralized checker
-
-**Status:** Accepted
+# 0012. Verifying backups actually land
 
 ## Context
 

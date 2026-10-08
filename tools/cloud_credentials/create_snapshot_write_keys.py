@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Mint the standing write-leaf credential Track A stage 2's backup job
+"""Mint the standing write-leaf credential the raft snapshot backup job
 uses to push encrypted raft snapshots to R2/B2 — a separate credential
 from create_snapshot_readonly_keys.py's break-glass restore key, and
 deliberately not the same shape:
 
 - This one is cached to OpenBao, like every other leaf in
-  create_leaf_keys.py (Track A stage 5), since it's a routine, standing
+  create_leaf_keys.py, since it's a routine, standing
   credential a script reads on every backup run — not a one-time value
   copied into the break-glass password-manager entry.
 - It carries the same quarterly native expiry every other leaf gets

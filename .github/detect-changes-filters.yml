@@ -85,7 +85,7 @@ python_unit_tests:
   - 'uv.lock'
 # Gates release-checksums: the registry, the verifier and the committed keys,
 # and the files that hold the pins it checks — see
-# docs/topics/engineering/ci/gates.md#release-checksum-check. Not narrowed by
+# docs/topics/engineering/ci/release-checksum-check.md. Not narrowed by
 # ci.scope.effective_changes: the check reads no comments, but a pin file is
 # small and the run is cheap, so any change to one is worth a look.
 release_checksums:

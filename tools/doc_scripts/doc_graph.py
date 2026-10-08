@@ -139,6 +139,31 @@ def lineage_errors(root: Path = ROOT) -> list[str]:
     return errors
 
 
+_H1_RE = re.compile(r"^# (.+)$", re.MULTILINE)
+_STATUS_LINE_RE = re.compile(r"^\*\*Status:\*\*", re.MULTILINE)
+
+
+def heading_errors(root: Path = ROOT) -> list[str]:
+    """An unlettered revision 0 opens with `# NNNN. <title>`, the lineage's
+    number and frontmatter title. A later or lettered revision names its own
+    solution in its H1, so only revision 0 is checked. No revision repeats its
+    state as a `**Status:**` body line: the frontmatter `status` is the one record.
+    """
+    errors = []
+    for lineage in load_lineages(root):
+        for rev in lineage.revisions:
+            rel = rev.path.relative_to(root)
+            body = rev.path.read_text(encoding="utf-8").split("\n---\n", 1)[-1]
+            if rev.number == 0 and rev.candidate is None:
+                h1 = _H1_RE.search(body)
+                expected = f"{lineage.number}. {rev.fm['title']}"
+                if not h1 or h1.group(1) != expected:
+                    errors.append(f"{rel}: the first heading must be '# {expected}', got {h1.group(0) if h1 else 'none'}")
+            if _STATUS_LINE_RE.search(body):
+                errors.append(f"{rel}: has a '**Status:**' body line; the frontmatter status is the only record")
+    return errors
+
+
 def open_assumption_errors(root: Path = ROOT) -> list[str]:
     errors = []
     for lineage in load_lineages(root):
@@ -167,6 +192,37 @@ def _cycle_errors(graph: dict[str, list[str]]) -> list[str]:
     for node in graph:
         if node not in state:
             visit(node, [node])
+    return errors
+
+
+_CHECKLIST_RE = re.compile(r"^## Closing checklist\n(.*?)(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
+_CHECKLIST_ITEM_RE = re.compile(r"^- \[ \] (.*?)(?=\n- \[|\Z)", re.DOTALL | re.MULTILINE)
+
+
+def _checklist_items(text: str) -> list[str] | None:
+    m = _CHECKLIST_RE.search(text)
+    return None if m is None else [" ".join(item.split()) for item in _CHECKLIST_ITEM_RE.findall(m.group(1))]
+
+
+def checklist_errors(root: Path = ROOT) -> list[str]:
+    """Every project doc's `## Closing checklist` holds the items of
+    projects/TEMPLATE.md, in the same words, so a checklist item added to
+    the template can't leave existing projects without it. Wrapping and
+    indentation don't matter; a project may add items of its own after the
+    template's.
+    """
+    template = root / "docs/projects/TEMPLATE.md"
+    if not template.is_file():
+        return []
+    wanted = _checklist_items(template.read_text(encoding="utf-8")) or []
+    errors = []
+    for path in docs_in(root / "docs/projects"):
+        got = _checklist_items(path.read_text(encoding="utf-8"))
+        rel = path.relative_to(root)
+        if got is None:
+            errors.append(f"{rel}: has no '## Closing checklist' section (copy it from projects/TEMPLATE.md)")
+            continue
+        errors.extend(f"{rel}: closing checklist is missing '{item}'" for item in wanted if item not in got)
     return errors
 
 

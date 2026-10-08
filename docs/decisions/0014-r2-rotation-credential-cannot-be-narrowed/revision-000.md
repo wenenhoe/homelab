@@ -11,9 +11,7 @@ status: accepted
 related: [ADR-0010]
 ---
 
-# 0014. Accept Cloudflare R2's cached rotation token as master-equivalent
-
-**Status:** Accepted
+# 0014. R2 rotation credential that can't be narrowed
 
 ## Context
 

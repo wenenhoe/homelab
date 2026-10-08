@@ -11,7 +11,7 @@ status: working
 related: [ADR-0048]
 ---
 
-# Checkov for OpenTofu when it lands; Trivy stays for Ansible misconfig scanning until then
+# 0038. IaC misconfiguration scanning
 
 ## Context
 

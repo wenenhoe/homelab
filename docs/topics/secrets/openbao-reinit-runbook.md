@@ -15,6 +15,8 @@ emergency-root section), not another re-init. What's left here is
 narrower: genuine raft-data loss or corruption a snapshot restore
 can't fix.
 
+## Steps
+
 1. **Full backup first:**
    `cd tools && python3 -m openbao_utils.dump` - never skip
    this; it's the only copy of everything once step 2 runs.
@@ -35,40 +37,10 @@ can't fix.
    (`cd tools && python3 -m openbao_utils.init_unseal unseal`, once
    per share).
 
-3. Recreate `controller`'s AppRole (commands mirrored from
-   [`openbao-auth.md`](openbao-auth.md)'s Runbook section - canonical
-   for TTL/parameter reasoning and the exact values if the two ever
-   disagree):
-
-   ```sh
-   ssh security
-   export BAO_TOKEN=<fresh root token from step 2>
-   export BAO_ADDR=https://127.0.0.1:8200
-   export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
-   export BAO_CACERT=/etc/step-ca/root_ca.crt
-
-   bao secrets enable -path=secret kv-v2
-   bao auth enable approle
-
-   # from controller, first: scp docker/openbao/policies/controller.hcl security:/tmp/
-   bao policy write controller - < /tmp/controller.hcl
-
-   bao write auth/approle/role/controller \
-     token_policies="controller" \
-     token_ttl=1h \
-     token_max_ttl=1h \
-     secret_id_ttl=2160h \
-     secret_id_num_uses=0
-
-   bao read auth/approle/role/controller/role-id
-   bao write -f auth/approle/role/controller/secret-id
-   ```
-
-   Copy the resulting `role_id`/`secret_id` into
-   `ansible/files/secrets/openbao-controller-{role,secret}-id` on
-   `controller`, `chmod 600` both - then confirm the AppRole actually
-   works per `openbao-auth.md` step 6 before moving on, same reasoning
-   as this runbook's own scope-proof in step 4 below.
+3. Recreate `controller`'s AppRole: run steps 1-6 of
+   [`openbao-auth.md`](openbao-auth.md)'s Runbook with the fresh root
+   token from step 2. That doc owns the commands, TTLs and the
+   confirmation that the AppRole works.
 
 4. Create `vault-bootstrap`, using the fresh root token from step 2 -
    nothing else can create it yet:
@@ -122,7 +94,7 @@ can't fix.
    random values for every `hex`/`uuid4` secret in the catalog
    (ADR 0025's Context explains why). Restores two things in one pass:
    every `secret_catalog.yaml` entry with `store: openbao` (including
-   all 20 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` leaf credentials,
+   every `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` leaf credentials,
    each of which now has its own `scope` of
    `cloud_credentials/leaf`), and `cloud_credentials`' internal
    leaf/rotation bookkeeping keys with no catalog entry of their own
@@ -163,17 +135,14 @@ can't fix.
 
    No `secret_id_bound_cidrs`/`token_bound_cidrs` set here - unlike
    `cd_agent`'s genuine cross-host LAN traffic, the watcher and OpenBao
-   both run on `security`, and whether that traffic presents as
-   `127.0.0.1` or `security`'s LAN IP to OpenBao's listener isn't
-   confirmed. Worth checking once the watcher's actual connection
-   method is built, not guessed here - add the bind then if it's
-   meaningful.
+   both run on `security`, and which source address that
+   traffic presents to OpenBao's listener (`127.0.0.1` or `security`'s
+   LAN IP) depends on the watcher's connection method. Add the bind
+   once that method is built, if it is meaningful.
 
-   Where the watcher's own `role_id`/`secret_id` get cached is part of
-   building the watcher's systemd unit itself (not done yet - this
-   step only provisions the identity it will use), matching
-   `uptime_kuma_push`'s own env-file convention rather than
-   `ansible/files/secrets/`.
+   Where the watcher caches its own `role_id`/`secret_id` is in
+   [`openbao-r2-read-watcher.md`](openbao-r2-read-watcher.md); this step
+   only provisions the identity.
 
 7. Revoke root, same as `openbao-auth.md`'s own last step.
 8. Confirm:
@@ -191,6 +160,8 @@ can't fix.
    *file* in either dump (both always read from the correct
    `rotation/` path), so there's nothing that should legitimately
    differ here.
+
+## Downtime
 
 Every consumer of OpenBao is unusable for the duration - schedule this
 when nothing else needs `check_freshness.py`, `snapshot-push.sh`, or a

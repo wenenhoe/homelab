@@ -10,9 +10,7 @@ topic: ingress-tls-pki
 status: accepted
 ---
 
-# 0003. Route most apps through one wildcard cert per host, not one cert per app
-
-**Status:** Accepted, partially applied — see Consequences.
+# 0003. Certificate issuance for proxied apps
 
 ## Context
 

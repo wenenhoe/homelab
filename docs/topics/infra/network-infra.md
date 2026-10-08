@@ -3,7 +3,7 @@
 Hosts that support the network itself rather than running Docker/
 compose apps — the `network_infra` inventory group. Currently one
 host: `tailscale` (VM 202), an existing Tailscale subnet router
-brought under Ansible management as Stage 1 of
+brought under Ansible management for
 [`monitoring-host-isolation.md`](../../projects/monitoring-host-isolation.md); see
 [`off-site-monitoring.md`](../../projects/off-site-monitoring.md) for why (offsite
 monitoring's eventual off-site hop reuses this VM's existing route rather
@@ -21,21 +21,12 @@ exclusion. `network_infra` stays out of `deploy.yaml` entirely;
 pattern as `app_hosts`) is what `maintenance.yaml` targets instead —
 see [`ansible.md`](../deploy/ansible.md#inventory).
 
-## Future: superseded by Tofu, not duplicated alongside it
+## Future: superseded by Tofu
 
-This group's `tailscale` entry is interim, not permanent.
-[`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md) already
-plans to rebuild VM 202 as a Tofu-managed VM once its migration reaches
-that VMID (Migration Stage 2 / that project's Stage 6), at which point
-its Stage 4 inventory generator produces this host's Ansible entry
-instead. When that lands: remove `network_infra`'s hand-written
-`tailscale` block from `inventory.yaml` rather than leaving both
-in place — a generated entry and this manual one both resolving the
-same host is exactly the kind of silent-drift risk this doc exists to
-avoid. `patched_hosts`/`network_infra` themselves may still be useful
-as group *names* afterward (any future non-app infra host would want
-the same patching-without-Docker treatment); it's specifically this
-one host's manual entry that's temporary.
+The `tailscale` entry is interim: [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)
+rebuilds VM 202 as a Tofu-managed VM, and its inventory generator then
+produces this host's entry. Remove the hand-written block from
+`inventory.yaml` at that point rather than keeping both.
 
 ## `tailscale` (VM 202) — current state
 
@@ -43,8 +34,8 @@ Read directly off the host, not assumed:
 
 | Field | Value |
 | :--- | :--- |
-| OS | Ubuntu 26.04 LTS (`resolute`), kernel `7.0.0-28-generic` |
-| Tailscale | `1.102.3`, installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
+| OS | Ubuntu LTS (`resolute`) |
+| Tailscale | Installed from the official apt repo (`pkgs.tailscale.com/stable/ubuntu resolute`), `tailscaled.service` active |
 | Role | Subnet router — advertises `192.168.20.0/24` (`PrimaryRoutes` in `tailscale status --self --json`) |
 | DDNS name | `tailscale.{{ ddns_domain }}` — same `<host>.{{ ddns_domain }}` structure as every `managed_hosts` member; this is what `inventory.yaml`'s `ansible_host` actually uses |
 | LAN address | `192.168.20.2/24` on `ens18`, DHCP-obtained (`dynamic`, not netplan-static) — descriptive only, `ansible_host` doesn't hardcode this |
@@ -86,7 +77,7 @@ role's auth-key design is written.
 
 ## Bringing a new `network_infra` host under management
 
-Three manual, one-time prerequisites — none of these can be automated
+One-time prerequisites, none of which can be automated
 by the same Ansible run that depends on them (the same
 chicken-and-egg `bootstrap-secrets.yaml`'s own header describes for
 secrets):
@@ -105,14 +96,11 @@ secrets):
    per-host) before the first run.
 4. **DDNS name** — confirm one actually exists (`<host>.{{ ddns_domain }}`)
    before assuming a new `network_infra` host needs the static-IP
-   fallback pattern instead — an earlier revision of `tailscale`'s own
-   entry assumed no DDNS name existed here and used a hardcoded LAN IP
-   until that assumption turned out to be wrong.
+   fallback pattern instead; `tailscale` has one and uses it.
 
 `tailscale` needed the first three — `tsadmin`'s sudo currently
-prompts for a password (confirmed live: `sudo -n true` fails with
-"interactive authentication is required") — and, as it turned out, not
-the fourth.
+prompts for a password (`sudo -n true` fails with
+"interactive authentication is required"), and not the fourth.
 
 ## Verifying
 

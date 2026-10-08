@@ -1,6 +1,6 @@
 # CI Gates
 
-The regression checks and gates in `.github/workflows/pr-checks.yml` that look at one kind of change: deploy ordering, the secret and app catalogs, Molecule coverage, booting compose apps, Dockerfile builds, image tags and pinned release checksums. How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
+The regression checks and gates in `.github/workflows/pr-checks.yml` that look at one kind of change: deploy ordering, the secret and app catalogs, Molecule coverage, booting compose apps and Dockerfile builds. Image tags and pinned release checksums have their own pages, [`image-tag-check.md`](image-tag-check.md) and [`release-checksum-check.md`](release-checksum-check.md). How jobs are selected and wired into the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Deploy-ordering-check
 
@@ -110,23 +110,16 @@ for what the report actually measures.
 
 A role with no entry in `thresholds.yaml` fails the check (exit 2, not a
 silent pass) - a new role needs a deliberate floor, not an inherited
-default. Every floor is hand-verified against a real run, not a guess -
+default. Every floor is taken from a real run;
 the below-100% floors are legitimate, understood gaps rather than
 untested code (see [`thresholds.yaml`](../../../../ansible/molecule-coverage/thresholds.yaml)
 for the current values):
 
-- `apt` - the reboot-if-required task is untested by design, not just by
-  omission: `/var/run/reboot-required` never appears in the container
-  fixture used here (confirmed explicitly in that scenario's own
-  verify.yml, not left incidental), and a separate scenario that
-  actually triggers `ansible.builtin.reboot` isn't a safe way to close
-  that gap - a privileged container's `reboot` syscall isn't scoped to
-  the container, it reboots the underlying Docker host's own kernel
-  (confirmed against a real, reported case:
-  moby/moby issue #21929), a hazard to whoever runs
-  `molecule test` for it. Closing this properly needs isolation this
-  project's Docker-based Molecule tooling doesn't provide (a real VM,
-  say), which is out of scope here.
+- `apt` - the reboot-if-required task is untested by design:
+  `/var/run/reboot-required` never appears in the container fixture,
+  and a scenario that triggers `ansible.builtin.reboot` would reboot the
+  underlying Docker host's kernel (moby/moby#21929). Closing it needs
+  isolation Docker-based Molecule doesn't provide, such as a real VM.
 - `bind9` - the resolv.conf-upstream task needs a pre-existing
   non-upstream resolv.conf to be worth simulating.
 - `restore` - the interactive confirmation prompt is bypassed on
@@ -142,6 +135,18 @@ Shared logic lives in `_compose-boot-test.yml` (`workflow_call`), used
 by both `pr-checks.yml` (changed apps only) and `boot-test-all.yml`
 (every app, `workflow_dispatch` only — a manual "test everything" run).
 
+```mermaid
+flowchart LR
+    seed["seed via the compose role"] --> df{"has a Dockerfile?"}
+    df -- "yes" --> build["build it in place of the published image"]
+    df -- "no" --> up
+    build --> up["docker compose up"]
+    up --> health["compose_health waits"]
+    health -- "failed" --> logs["dump logs"]
+    health -- "healthy" --> down["tear down"]
+    logs --> down
+```
+
 Per app: seeds it via the real `compose` role
 (`ansible/playbooks/ci_boot_test.yaml`, against `ci-inventory/` rather
 than the real `inventory.yaml`, since the latter's `all:vars` assumes a
@@ -151,8 +156,8 @@ real remote host), builds the app's `Dockerfile` if it has one (see
 a healthy state (or that it stayed running, if no healthcheck is
 defined), dumps logs on failure, then tears down. The wait is
 [`tools/ci/gates/compose_health.py`](../../../../tools/ci/gates/compose_health.py):
-per service, in order, it polls a defined healthcheck (30 checks, 2s
-apart; `unhealthy` fails at once) or, with none, waits a 10s grace period
+per service, in order, it polls a defined healthcheck (a fixed number of
+polls, a fixed interval apart; `unhealthy` fails at once) or, with none, waits a 10s grace period
 and requires the container still be running. Every failure prints that
 container's logs, and each container of a scaled service is checked.
 `tools/tests/ci/gates/` drives it against a fake `docker`.
@@ -160,46 +165,28 @@ container's logs, and each container of a scaled service is checked.
 **Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
 workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
 
-- `bind9`, `seaweedfs`, `caddy` — covered by Molecule with stronger,
-  real-protocol assertions than a healthcheck poll would add:
-  `bind9`/`caddy` by their own role's scenario, `seaweedfs` by
-  `seaweedfs_bucket`'s and `backup_agent`'s (see
-  [`#molecule-watch-sets`](change-scoping.md#molecule-watch-sets)).
-- `tinyauth` — same category: `tinyauth/molecule/default` stands up a
-  real, throwaway lldap target, runs `lldap_bootstrap` against it (see
-  [`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then
-  deploys tinyauth pointed at it and confirms it reaches a healthy,
-  LDAP-bound state — the dependency chain compose-boot-test's per-app
-  isolation can never provide, since no `lldap` host exists to resolve
-  in that model.
-- `molecule-dind` — not a deployed compose app at all, so there's
-  nothing for `docker compose up` to run against: it's CI scaffolding,
-  a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for
-  Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no
-  `compose.yaml`/`.j2` of its own.
-- `openbao` — can't boot in isolation. Its data volume is chowned to the
-  image's non-root user by `roles/openbao` before the container starts, which
-  the boot-test seeding doesn't do, so the server dies opening `vault.db`; its
-  listener needs a leaf cert in the `certs` volume, and the workflow issues
-  one only for `lldap`; and its healthcheck, `bao status`, exits non-zero while
-  OpenBao is sealed or uninitialized (see the comment on it in
-  `docker/openbao/compose.yaml.j2`), which a fresh volume always is, so
-  `compose_health` would fail it even with the other two fixed. It is also a
-  self-managed app (`compose_self_managed_apps`). Unlike the others it has no
-  Molecule scenario, and `compose-syntax-check` skips its `compose.yaml.j2`, so
-  nothing in CI checks its compose file.
+| App | Why not boot-tested | Covered by |
+| :--- | :--- | :--- |
+| `bind9`, `caddy` | Molecule gives stronger real-protocol assertions than a healthcheck poll. | Their own role's scenario. |
+| `seaweedfs` | Same. | `seaweedfs_bucket`'s and `backup_agent`'s scenarios (see [`#molecule-watch-sets`](change-scoping.md#molecule-watch-sets)). |
+| `tinyauth` | Needs an `lldap` host to resolve, which per-app isolation can't provide. | `tinyauth/molecule/default`: a throwaway lldap target, `lldap_bootstrap` against it (see [`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then tinyauth reaching a healthy, LDAP-bound state. |
+| `molecule-dind` | Not a deployed compose app: a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no `compose.yaml`/`.j2`. | Nothing to run. |
+| `openbao` | Can't boot in isolation (below). | Nothing: no Molecule scenario, and `compose-syntax-check` skips its `compose.yaml.j2`, so CI doesn't check its compose file. |
 
-`lldap` is no longer in that list: `_compose-boot-test.yml` issues a real
-cert for it from a throwaway `smallstep/step-ca` container (the official
-image, driven by its own stock `DOCKER_STEPCA_INIT_*` auto-init — not
-`docker/step-ca`'s own compose stack, which this CA only needs to
-outlive a single job step, not persist), using the same `step ca
-certificate` call `step_ca_cert`'s real Ansible task runs — see
-[`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh). This
-exercises the real issuance path end to end rather than a parallel,
-independently-authored openssl fixture, and needs no real DigitalOcean
-credential or step-ca password — the throwaway CA and its password exist
-only for this job's lifetime.
+`openbao` fails in isolation for three reasons, each enough alone. Its data
+volume is chowned to the image's non-root user by `roles/openbao` before the
+container starts, which boot-test seeding doesn't do, so the server dies
+opening `vault.db`. Its listener needs a leaf cert in the `certs` volume, and
+the workflow issues one only for `lldap`. And its healthcheck, `bao status`,
+exits non-zero while OpenBao is sealed or uninitialized (see the comment on it
+in `docker/openbao/compose.yaml.j2`), which a fresh volume always is. It is
+also a self-managed app (`compose_self_managed_apps`).
+
+`lldap` is not excluded: `_compose-boot-test.yml` issues it a real cert from a
+throwaway `smallstep/step-ca` container (stock `DOCKER_STEPCA_INIT_*`
+auto-init) using the same `step ca certificate` call `step_ca_cert` runs; see
+[`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh).
+The CA and its password exist only for the job.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
@@ -221,15 +208,13 @@ excluded.
 The images built from `docker/<app>/Dockerfile` are published only after
 merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
 `build-molecule-dind-image.yml`), and compose files pin the published
-tag. Before this, a PR that changed a Dockerfile was never built, and
-`compose-boot-test` booted the published image regardless: a Dockerfile
-edit that kept the same tag tested the old image, and a version bump
-pinned a tag that doesn't exist in `ghcr.io` until after merge. The
+tag. A PR's boot test therefore builds a changed Dockerfile locally,
+since the published image would be the old one or not exist yet. The
 CodeRabbit review image, built from `tools/coderabbit-review/Dockerfile` and
 published by `build-coderabbit-review-image.yml`, is published the same way,
 though no compose file pins it.
 
-Three pieces close that gap. All of them are stdlib-only Python that
+Three pieces cover this. All of them are stdlib-only Python that
 runs on the runner's own `python3` (a test enforces that), so the jobs
 that use them install nothing — notably the `build-*-image.yml` jobs,
 which hold a package-write token.
@@ -308,165 +293,5 @@ registry itself, so a pin that agrees with a tag that was never pushed
 passes it, and a PR can't tell either, since its boot test builds the
 Dockerfile locally. Two checks do fail on a tag that isn't in the registry:
 the manual `boot-test-all.yml` sweep, which boots the published images, and
-the weekly [image tag existence check](#image-tag-existence-check), which
+the weekly [image tag check](image-tag-check.md), which
 asks every registry about every pinned image.
-
-## Image tag existence check
-
-`check-image-tags.yml` runs once a week (Sunday, 02:23 UTC) and on demand.
-Renovate only ever proposes tags that exist, so a tag an upstream later
-removes or renames goes unnoticed until a deploy fails to pull it;
-[`tools/ci/images/remote.py`](../../../../tools/ci/images/remote.py) asks each
-registry whether every image this repo pins is still there. Unlike
-`check-pins`, it covers **every** image, not only the ones built here.
-
-Nothing is listed by hand. It collects references from:
-
-- `image:` lines in compose files and in Ansible YAML and templates: the
-  `docker/` stacks, Molecule scenarios and fixtures, and task arguments;
-- `FROM` and `COPY --from=<image>` in Dockerfiles, skipping build stages;
-- every `customManagers` entry in `.github/renovate.json5` whose datasource is
-  `docker`, applied to the files it names. These are the pins Renovate
-  tracks outside compose: an rclone image in a systemd unit and a shell
-  script, step-cli and step-ca in variable defaults and a CI script, the
-  OpenBao image, the Renovate execution image, and the images the Molecule
-  playbooks run directly (`molecule_helpers/vars/images/*.yml`). A manager that no longer
-  matches any file, or a file that no longer matches its manager, fails the
-  run: the pin moved, and this check would otherwise stop seeing it silently.
-
-Skipped, and listed in the output: a reference containing a template or
-variable, `scratch`, and a `:local` tag (built on the host, never pushed;
-today that is `buildapp:local`). A test fails if the skip list changes, so a
-new one is a deliberate decision.
-
-It uses the standard registry API with the standard library, so Docker
-Hub, `ghcr.io` and any other v2 registry share one path: a HEAD request per
-distinct image, and the anonymous token endpoint taken from the registry's
-own 401 challenge. A HEAD request doesn't download the image.
-
-**Rate limiting** is the risk this is built around:
-
-- one request at a time, with a half-second pause between requests. Each
-  image costs at most two HEADs plus, once per repository, a token request:
-  43 images in 37 repositories on two registries (`ghcr.io` and Docker Hub) is
-  at most about 120 requests, a minute or so, once a week;
-- a token cached per repository, and reused across its tags;
-- a 429 or 5xx is retried up to five times, waiting as long as `Retry-After`
-  says (capped at a minute) or backing off 2, 4, 8, 16 seconds;
-- whatever is still unanswered gets one more pass after a minute's cooldown;
-- an image whose registry never answered is a **warning**, not a failure: it
-  shows in the log and the run summary as not checked this run. Only a tag
-  the registry says isn't there (a 404, or a 401/403 even with a token: gone,
-  renamed or private) fails the run. A registry outage doesn't turn a weekly
-  run red, and it can't hide a removed tag from the next week's.
-
-Docker Hub's anonymous pull limit counts manifest GETs, and to my knowledge a
-HEAD isn't one; I couldn't check that from here. If it ever were, the retry
-and warning paths above are what a limit would meet, and a weekly run this
-small is unlikely to reach one either way. The run needs no
-credentials and runs with read-only permissions. GitHub emails the
-workflow's failure to the person who last changed the schedule.
-
-The tests speak real HTTP to a local server that implements the token flow
-and can answer 429 and 5xx; **they don't reach a real registry**, so the
-first `workflow_dispatch` run against `ghcr.io` and Docker Hub is the live
-check. `python -m ci.images.remote list` (from `tools/`) prints every
-reference and the files naming it without making a request.
-
-### Image inventory JSON
-
-`python -m ci.images.remote list --json` (from `tools/`) prints the same
-collection as one JSON document on stdout, again without a request. It exists
-so a consumer outside this repo, the [image vulnerability
-assessment](../../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md),
-depends on a tested shape instead of the text output.
-
-```json
-{
-  "version": 1,
-  "images": [{ "ref": "redis:7", "sources": ["docker/a/compose.yaml"] }],
-  "skipped": [{ "ref": "buildapp:local", "reason": "built locally" }],
-  "problems": []
-}
-```
-
-- `images` has one entry per distinct reference, sorted by `ref`. `sources`
-  holds the repo-relative files that name it, sorted.
-- `skipped` is the list the text output prints, each with its reason.
-- `problems` is non-empty when a Renovate manager lost its file or its text.
-  The exit code is still 0, as for the text output, so a consumer treats a
-  non-empty `problems` as an inventory it can't trust.
-- When the inventory can't be built at all (an unreadable Renovate config),
-  stdout stays empty, the error goes to stderr and the exit code is 1.
-- `version` changes when a key is removed or changes meaning. Adding a key
-  doesn't change it.
-
-## Release checksum check
-
-Each downloaded release this repo pins by sha256 (uv, rclone, the OpenBao CLI
-and the CodeRabbit CLI) is checked against the publisher: the pinned hash must
-be the one the publisher signed, attested or lists, whoever copied it into the
-file. The decision is
-[ADR 0077 (Pinned checksum verification)](../../../decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md).
-It runs in two places: the `release-checksums` job of `pr-checks.yml`, when a
-PR changes the verifier and its keys or one of the files holding a pin, and
-`check-release-checksums.yml`, once a week (Sunday, 03:41 UTC) and on demand,
-so a publisher's key rotation or moved manifest shows up even when no pin
-changed. Both run `python3 -m ci.checksums.verify` from `tools/`, which is
-standard-library only apart from the `gpg` and `gh` the runner image provides,
-and which takes entry names to check just those. The job is not a matrix job,
-so it can be required directly; a PR that changes no pin reports it skipped.
-
-What is checked, per entry, is in
-[`tools/ci/checksums/registry.py`](../../../../tools/ci/checksums/registry.py),
-the registry of pins, with the files that hold each one and the address of its
-publisher's manifest or artifact. A test fails when a pin in the repository has
-no entry, so a new pin means a new entry.
-
-### Tiers
-
-An entry's tier says how far its pin can be checked, and the registry is
-where each one is set:
-
-| Tier | What the check does | Pins today |
-| :--- | :--- | :--- |
-| Signed | Fetches the publisher's manifest and its signature, verifies them with `gpg` in a throwaway keyring holding only the key committed under [`tools/ci/checksums/keys/`](../../../../tools/ci/checksums/keys/), and requires the pin to equal the manifest's line for the artifact. | rclone (clearsigned `SHA256SUMS`), the OpenBao CLI (`checksums.txt` and its detached `.gpgsig`) |
-| Attested | Downloads the artifact, requires it to hash to the pin, then requires `gh attestation verify` to pass for the publisher's repository. | uv |
-| Listed | Requires the pin to equal the publisher's manifest line. The manifest is unsigned, so this catches a hash copied wrongly, not a publisher that served a bad artifact. | the CodeRabbit CLI |
-| None | The entry says why nothing can be checked. | none |
-
-No key is fetched when the check runs: `gpg` runs with its network helper off,
-the keyring is built from the committed file, and a key file must hold exactly
-the fingerprint its entry names. A signature by an expired or revoked key, or
-by any other key, fails. A publisher that rotates its key fails the weekly run
-until the new key is reviewed and committed.
-
-### When a pin, a key or a manifest changes
-
-- **A new pin** needs a registry entry in the same change; a test fails for any
-  checksum pin the registry doesn't name. The entry sets its tier, and a signed
-  one also names the fingerprint and a key file under `tools/ci/checksums/keys/`.
-- **A bump** (Renovate or by hand) is checked by the `release-checksums` job.
-  A hash that differs from what the publisher signed, attested or lists fails
-  it, whatever produced the hash. A uv release without an attestation fails its
-  bump PR until the maintainer decides what to do about it.
-- **A publisher's key rotates:** the weekly run fails until the new key is
-  reviewed and committed, with the entry's fingerprint changed to match. The
-  key file must hold that one key and nothing else, which a test checks.
-- **A manifest moves:** the entry's address is stale and the run fails on it.
-  The check depends on each publisher keeping its manifest where it is.
-- **A publisher starts to sign**, or stops: the entry's tier changes in the
-  registry. The CodeRabbit CLI's release bucket publishes no signature file
-  beside its manifest or its archives, so its pin stays *listed*.
-
-Failures are per entry and the run reports every entry before it exits
-non-zero, with each failure as an `::error::` annotation. A publisher that
-can't be reached after three attempts (429, 5xx or a network error are
-retried) fails its entry: unlike the image tag check, a pin that couldn't be
-checked is not a pass. The weekly run's token is the workflow's own read-only
-`GITHUB_TOKEN`, used only by `gh attestation verify`.
-
-The tests speak to a local server and generate their own keys and signatures;
-they don't reach a publisher. The first run of each workflow is the live
-check, and a pinned hash changed to a wrong one is the way to see the PR run
-fail.

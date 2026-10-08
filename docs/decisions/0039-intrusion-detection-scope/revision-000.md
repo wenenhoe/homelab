@@ -10,7 +10,7 @@ topic: security-hardening
 status: working
 ---
 
-# CrowdSec: perimeter-only on OPNsense, or perimeter plus per-VM agents?
+# 0039. Intrusion detection scope
 
 ## Context
 

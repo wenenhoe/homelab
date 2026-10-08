@@ -19,6 +19,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CI = REPO_ROOT / "tools/ci"
+DOC_SCRIPTS = REPO_ROOT / "tools/doc_scripts"
 BARE_PYTHON = (
     "__init__.py",
     "json5.py",
@@ -41,6 +42,10 @@ BARE_PYTHON = (
     "scan/__init__.py",
     "scan/trivy_config.py",
 )
+
+
+# The doc_scripts modules a job runs on the runner's own python3, with no dependencies installed.
+BARE_DOC_SCRIPTS = ("check_mermaid.py",)
 
 
 def _imported_modules(tree: ast.AST) -> list[str]:
@@ -81,3 +86,12 @@ class TestStdlibOnly:
         text = (REPO_ROOT / ".github/workflows" / workflow).read_text()
         assert f"python3 -m {module}" in text
         assert f"uv run python -m {module}" not in text
+
+
+class TestDocScriptsStdlibOnly:
+    @pytest.mark.parametrize("name", BARE_DOC_SCRIPTS)
+    def test_imports_are_standard_library_only(self, name, subtests):
+        tree = ast.parse((DOC_SCRIPTS / name).read_text(), feature_version=(3, 10))
+        for module in _imported_modules(tree):
+            with subtests.test(module=module):
+                assert module.split(".")[0] in sys.stdlib_module_names, f"{name} imports {module}"

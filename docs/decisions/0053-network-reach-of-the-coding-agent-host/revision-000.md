@@ -31,6 +31,21 @@ Claude Code needs `api.anthropic.com`, `claude.ai` and `platform.claude.com` for
 
 ## Decision
 
+This diagram shows what can reach the coding-agent host and what it can reach as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    LAP[Maintainer laptop] -->|"SSH at home, from its own address"| H
+    LAP -->|"SSH away from home, over the tailnet: the policy grants the route to the laptop alone on tcp:22"| SR["Subnet router, VM 202"]
+    SR -->|"OPNsense admits port 22 only"| H
+    CD["CD agent, or the operator host until it exists"] -->|"SSH, for provisioning"| H
+    subgraph Z["Dedicated VLAN in the 6XX range, default-deny both ways at OPNsense"]
+        H["Coding-agent host, not on the tailnet"]
+    end
+    H -->|"the only egress"| PX["Domain-filtering forward proxy"]
+    H -->|"resolves through"| DNS["Resolver with no internal zones"]
+```
+
 - **Zone.** A dedicated VLAN in the 6XX range (VMID 601 gives VLAN 60, `192.168.60.0/24`), default-deny in both directions at OPNsense.
 - **Inbound.** SSH only, from two sources: the maintainer client ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)) and, for provisioning, the CD agent or, until it exists, the operator host ([ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), [ADR 0058](../0058-where-operator-work-runs/revision-000.md)). Each is source-restricted, with sshd enforcing the pairing per account. The maintainer client arrives from the laptop's own address at home and from the subnet router's address over the tailnet, so sshd's pairing cannot tell the laptop from another tailnet node; the tailnet policy carries that restriction.
 - **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied. The same proxy serves VLAN 30 under its own allowlist ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)).

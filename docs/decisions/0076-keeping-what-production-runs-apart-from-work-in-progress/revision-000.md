@@ -41,6 +41,20 @@ A deploy whose command fails is not recorded, so the CD agent runs it again on i
 
 ## Decision
 
+This diagram shows where changes land, how they are promoted and how the branches are realigned as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    R[Renovate] -->|opens pull requests| M[maintenance]
+    DEV[Development] -->|pull requests| D[develop]
+    FIX["A fix that cannot wait"] -->|"its own pull request"| P
+    M -->|"promotion pull request, merge commit"| P["main: production"]
+    D -->|"promotion pull request, merge commit"| P
+    P -->|"realigned by the Renovate workflow: fast-forward, or main merged in"| M
+    P -->|"realigned by the maintainer: fast-forward, or main merged in"| D
+    P -->|"fetched and deployed; no other ref is"| CD[CD agent]
+```
+
 - **Branches.** `main` is production. `maintenance` collects dependency updates. `develop` collects development. All three are long-lived. Only `main` is deployed: the CD agent, its jobs and ADR 0044 are unchanged, and no other ref is fetched by it.
 - **Where changes land.** Renovate targets `maintenance` (`baseBranchPatterns`). Development pull requests target `develop`. A fix that cannot wait goes to `main` in its own pull request, and both other branches are then realigned.
 - **Promotion.** A pull request from `maintenance` or `develop` into `main`, merged by the maintainer with a merge commit. The two promote independently, so a batch of dependency updates does not wait for development.

@@ -58,6 +58,19 @@ GitHub remote.
 
 ## Decision
 
+This diagram shows where the audit job and the local review run and where their output goes as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    PUB["This repo, public"] -->|"plain unauthenticated clone"| JOB
+    subgraph SEC[homelab-security]
+        JOB["Audit job, triggered by homelab-security's own Actions<br/>holds no credential that can write to this repo"] --> OUT["All output stays in homelab-security"]
+    end
+    subgraph MAINT["Maintainer's machine"]
+        CR["Local CodeRabbit review"] --> TERM["Prints to its terminal"]
+    end
+```
+
 - The audit job is defined and triggered from `homelab-security`'s own
   Actions, never from this repo's.
 - `homelab-security` reads this repo by a plain, unauthenticated clone.

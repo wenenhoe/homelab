@@ -30,6 +30,24 @@ The jobs are the ones [`cd-agent.md`](../../projects/cd-agent.md) lists: deploy 
 
 ## Decision
 
+This diagram shows the CD agent's connections and how one job runs as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    OP[Operator host] -->|"sshd, from its address alone: provisioning and break-glass"| CD
+    subgraph CD[CD agent]
+        T[systemd timer, one per job] --> U["Job unit: own unprivileged user, sandboxed"]
+        U --> F["Fetch into its own state directory"]
+        F --> C["Clean checkout of the exact commit"]
+        C --> R["Run the playbook or tool from that tree"]
+    end
+    CD -->|"git fetch of origin/main, anonymous HTTPS"| GH[GitHub]
+    CD -->|SSH| MH[Managed hosts]
+    CD -->|API| OB[OpenBao]
+    CD -->|API| CL[Cloud providers]
+    CD --> TG[Telegram]
+```
+
 - **Host.** A dedicated VM with a fixed address, the CD agent, that is in none of `managed_hosts`, `app_hosts`, or `patched_hosts` and is not the operator host ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)). The coding-agent host has no network path to it ([ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md)). Nothing that triggers or serves a job listens. The one inbound service is `sshd`, accepted from the operator host's address alone, for provisioning and break-glass; [`revision-000-a.md`](revision-000-a.md) says zero inbound ports with no exception, yet its provisioning guard presumes SSH. Job traffic is all outbound: `git fetch` from GitHub, SSH to managed hosts, OpenBao's API, the cloud providers' APIs, and Telegram.
 - **Trigger.** One systemd timer per job. The deploy job polls every few minutes: it fetches `origin/main` over anonymous HTTPS and acts only when the fetched commit differs from the last one it deployed successfully. Maintenance, rotation, and freshness run on their own schedules against the latest fetched `origin/main`. Nothing GitHub sends can start a job: no webhook, no dispatched workflow, no runner registered with GitHub.
 - **Execution.** A job's unit fetches into its own state directory, checks out the exact commit as a clean tree, and runs the playbook or tool from that tree directly. No execution engine sits between the poller and Ansible. A lock allows one run of a job at a time, and a commit counts as deployed only after its run succeeds. The poll, decide and run step is repo code under `tools/` with unit tests ([ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)), not shell in a unit file.

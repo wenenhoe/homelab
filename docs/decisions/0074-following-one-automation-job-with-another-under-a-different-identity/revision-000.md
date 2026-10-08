@@ -36,6 +36,15 @@ The write leaf's redeploy is `deploy.yaml --limit storage,localhost`, confirmed 
 
 ## Decision
 
+This diagram shows how one CD agent job starts another as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    TM[Timer] -->|starts| A[Job]
+    A -->|"ends, with any result: systemd starts the successor; nothing but the fact that it ended passes"| B["Successor job<br/>own unprivileged user, sandboxed unit, credentials, and its own fetch and clean checkout of origin/main"]
+    INV["Inventory the operator applies when provisioning the CD agent"] -.->|"holds the chain's edges"| A
+```
+
 - **Chaining.** A job may name successor jobs. When it ends, with any result, systemd starts each of them. A successor is a job under ADR 0044: its own unprivileged user, sandboxed unit, state directory and credentials readable only by that user, and its own fetch and clean checkout of `origin/main`. It never runs the predecessor's tree. A job has a timer, a predecessor, or both.
 - **No data crosses.** The successor learns only that the predecessor ended. No output, environment, file or credential passes. It derives what it needs from OpenBao, the repository and the hosts, which is why every successor must be idempotent.
 - **Defined in the inventory.** The chain's edges sit beside the jobs in the data the operator applies when provisioning the CD agent, never in anything read from a fetched commit. Provisioning rejects a cycle and a successor that names no job.

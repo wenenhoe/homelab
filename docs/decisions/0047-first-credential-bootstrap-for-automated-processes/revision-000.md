@@ -46,6 +46,27 @@ How the first credential reaches a process that needs it, without a human typing
 
 ## Decision
 
+This diagram shows how the operator host logs in and how an automation identity's `secret_id` reaches its target as this revision decided it, not what runs now.
+
+```mermaid
+sequenceDiagram
+    participant OH as Operator host
+    participant CA as step-ca
+    participant OB as OpenBao
+    participant T as Target host
+    Note over OH,CA: Second JWK provisioner, its password held offline and typed once
+    OH->>CA: Client certificate, OU openbao-operator
+    Note over OH,CA: Renewal is over mTLS with step ca renew --force
+    OH->>OB: cert login, bound to the common name, the unit and the host's fixed address
+    OB-->>OH: Short-lived token
+    OH->>OB: Request the secret_id through vault-bootstrap, response-wrapped
+    OB-->>OH: Wrapping token
+    OH->>T: Wrapping token over the existing SSH session, as the remote command's stdin
+    T->>OB: Unwrap, once
+    OB-->>T: secret_id, straight into the job user's 0400 file
+    Note over T,OB: A second unwrap fails
+```
+
 - **The operator host logs in with a client certificate.** It authenticates to OpenBao's `cert` method and receives a short-lived token, holding no AppRole `secret_id`. The certificate comes from a second step-ca JWK provisioner whose template stamps the organizational unit `openbao-operator` and the client-authentication usage. The `cert` role requires the common name, that unit, and the operator host's fixed address (`token_bound_cidrs`).
 - **That provisioner's password is never stored in OpenBao.** It is held offline like a break-glass credential, typed once to issue the first certificate, and not needed again: renewal is over mTLS with `step ca renew --force`. The provisioner is added to the CA by hand, once, with its template checked in, as the OpenBao policies are applied by hand elsewhere in this repo.
 - **An automation identity's `secret_id` is handed over response-wrapped.** The operator host requests it through `vault-bootstrap` ([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)). The wrapping token travels over the SSH session the operator host already has to the target for provisioning ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), as the remote command's stdin and never as an argument another process could read. It is unwrapped once, on the target, straight into the job user's `0400` file. A second unwrap fails, so an interception shows up as a failure instead of a quietly stolen, reusable credential.

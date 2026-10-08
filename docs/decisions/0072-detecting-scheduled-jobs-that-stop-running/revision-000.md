@@ -58,6 +58,18 @@ What has to be true, independent of the tool:
 
 Replace Kuma with Gatus for job heartbeats.
 
+This diagram shows how a job's heartbeat reaches Gatus and an alert reaches Telegram as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    U["Job's systemd unit"] -->|"POST with a bearer token, through a Caddy route with auth: false"| E
+    CR["cert-renewer@ timer<br/>a push daily, only while the certificate has more than the margin left"] -->|"same push"| E
+    subgraph GT[Gatus]
+        E["One external endpoint per job, generated from the repo<br/>interval: the job's period plus its slack"] --> A["Alert: failure-threshold 1, success-threshold 1, send-on-resolved"]
+    end
+    A -->|"routed by group: one per existing topic"| TG[Telegram]
+```
+
 - **One external endpoint per job**, generated from the repo, not created in a UI. The endpoint list is rendered from the same definitions that install the push units, so a job and its monitor cannot drift apart.
 - **One token per endpoint**, generated and stored by the existing vault-backed secret machinery ([ADR 0067](../0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md)), and passed to Gatus as environment, never written into a world-readable file.
 - **One regular self-probe endpoint** besides the external ones: a `GET` of Gatus's own `/health` on localhost, with no alerts, to satisfy the config rule above. It probes nothing else.

@@ -37,7 +37,15 @@ These four have no default, and the role stops on the first check that finds one
 
 A job is `name` (`[a-z][a-z0-9-]{0,22}`), `command` (an argument list), at most one of `poll_interval` (`5min`: the first run is a minute after boot, then that long after each run ends) and `on_calendar` (a systemd calendar expression), and optionally `cwd`, `on_change`, `successors` ([below](#chains)) and `timeout` (default `cd_agent_default_timeout`, `1h`). `cwd` and `on_change` are the runner's `--cwd` and `--on-change`.
 
-`cd_agent_repo_url` defaults to this repository's HTTPS URL. `cd_agent_uv_version` and `cd_agent_uv_sha256` pin the `uv` release, which is downloaded only if its sha256 matches. Renovate moves both in one PR, reading the sha256 from the file published beside the release asset; by hand, bump them together. `cd_agent_rclone_version` and `cd_agent_rclone_sha256` pin the `rclone` release the same way, the sha256 being the `linux-amd64.zip` line of the release's signed `SHA256SUMS`, and Renovate moves the version with the `rclone` images in `cloud_sync` and `backup_agent`, taking the sha256 from the digest GitHub lists for that zip. [`test_cd_agent_rclone_pin.py`](../../../ansible/tests/test_cd_agent_rclone_pin.py) fails when the version leaves the minor release `cloud_sync`'s image runs. `cd_agent_controller_machine_id` defaults to the `/etc/machine-id` of the host running Ansible and is overridden only to test the guard below. The directory variables (`cd_agent_opt_dir`, `cd_agent_etc_dir`, `cd_agent_credentials_root`, `cd_agent_state_root`) default to the paths below.
+Other variables:
+
+| Variable | Default and role |
+| :--- | :--- |
+| `cd_agent_repo_url` | This repository's HTTPS URL. |
+| `cd_agent_uv_version`, `cd_agent_uv_sha256` | Pin the `uv` release, downloaded only if its sha256 matches. Renovate moves both in one PR, reading the sha256 from the file published beside the release asset; by hand, bump them together. |
+| `cd_agent_rclone_version`, `cd_agent_rclone_sha256` | Pin the `rclone` release the same way. The sha256 is the `linux-amd64.zip` line of the release's signed `SHA256SUMS`. Renovate moves the version with the `rclone` images in `cloud_sync` and `backup_agent`, taking the sha256 from the digest GitHub lists for that zip. [`test_cd_agent_rclone_pin.py`](../../../ansible/tests/test_cd_agent_rclone_pin.py) fails when the version leaves the minor release `cloud_sync`'s image runs. |
+| `cd_agent_controller_machine_id` | The `/etc/machine-id` of the host running Ansible; overridden only to test the guard below. |
+| `cd_agent_opt_dir`, `cd_agent_etc_dir`, `cd_agent_credentials_root`, `cd_agent_state_root` | The directories described below. |
 
 ## What a job gets
 

@@ -8,52 +8,39 @@ How `detect-changes` decides which jobs a PR queues: the scoped outputs it feeds
 scoped input, so a docs-only PR doesn't trigger Molecule or boot-tests.
 `pre-commit-checks` is the exception — it runs unconditionally on every
 PR regardless of what changed, since its hooks span nearly every file
-type in the repo:
+type in the repo. The scoped outputs:
 
-- `roles` — each role with a `molecule/` scenario is queued when a
-  changed file sits in that role's *watch set*: its own directory, plus
-  everything its scenarios read from outside it. Derived from the tree
-  on every run, so it can't drift — see
-  [`#molecule-watch-sets`](#molecule-watch-sets). A few paths still map
-  to *every* role: `ansible/requirements.yml` (a Galaxy collection
-  bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core` version every
-  role's Molecule run actually executes under), `.config/molecule/`, and
-  everything that base config points every scenario at: `molecule_helpers/`'s
-  two requirements files, `ansible/ansible.cfg` and the coverage callback
-  plugin under `ansible/molecule-coverage/callback_plugins/`. The last
-  group is read from the config, not listed (see
-  [Molecule watch sets](#molecule-watch-sets)).
-- `compose_apps` — any `docker/<app>/compose.yaml` or `compose.yaml.j2`,
-  its `Dockerfile`, or any file under `docker/<app>/configs/` or
-  `docker/<app>/scripts/`, touched, minus the exclusion list.
-  A directory with no compose file isn't an app. All of it is
-  [`tools/ci/scope/compose_apps.py`](../../../../tools/ci/scope/compose_apps.py),
-  the one reader of the exclusion list (see
-  [Compose boot-test](gates.md#compose-boot-test)). The `compose` role renders and stages `configs/` and `scripts/` before
-  the stack boots, and `compose-boot-test` builds the `Dockerfile` in
-  place of the published image, so a change to any of them alters what
-  it actually exercises.
-- `dockerfiles` — any `docker/<app>/Dockerfile` touched, excluded apps
-  included. See [Dockerfile changes](gates.md#dockerfile-changes).
-- `deploy_ordering` — `ansible/inventory/**`, `ansible/playbooks/**`,
-  `ansible/roles/secrets/**`, `ansible/roles/restore/**`,
-  `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`,
-  `pyproject.toml`/`uv.lock`.
-- `uv_lock` — `pyproject.toml`/`uv.lock` changed.
-- `python_unit_tests` — `ansible/scripts/*.py`,
-  `tools/cloud_credentials/**`,
-  `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/utils/**`,
-  `tools/ci/**`,
-  `tools/doc_scripts/**`,
-  `ansible/molecule-coverage/molecule_cov/**`,
-  `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`,
-  `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`,
-  `pyproject.toml`/`uv.lock`. This is all plain controller-side Python,
-  not Ansible roles, so it's covered by `ansible/tests/`'s and
-  `tools/tests/`'s `pytest` suites instead of Molecule — including
-  `r2_read_watcher.py`, the one file outside either tree that
-  `ansible/tests/` imports directly, through the `pythonpath` in
-  `pyproject.toml`'s `[tool.pytest]`.
+| Output | Set when these change |
+| :--- | :--- |
+| `roles` | A file in a Molecule role's *watch set*: its own directory plus everything its scenarios read from outside it ([below](#molecule-watch-sets)). Some paths queue every role; see the note under the table. |
+| `compose_apps` | `docker/<app>/compose.yaml` or `compose.yaml.j2`, its `Dockerfile`, or a file under `docker/<app>/configs/` or `scripts/`, minus the exclusion list. A directory with no compose file isn't an app. |
+| `dockerfiles` | `docker/<app>/Dockerfile`, excluded apps included. See [Dockerfile changes](gates.md#dockerfile-changes). |
+| `deploy_ordering` | `ansible/inventory/**`, `ansible/playbooks/**`, `ansible/roles/secrets/**`, `ansible/roles/restore/**`, `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`, `pyproject.toml`/`uv.lock`. |
+| `uv_lock` | `pyproject.toml`/`uv.lock`. |
+| `python_unit_tests` | `ansible/scripts/*.py`, `tools/cloud_credentials/**`, `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/utils/**`, `tools/ci/**`, `tools/doc_scripts/**`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`, `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
+
+A few paths map to *every* role: `ansible/requirements.yml` (a Galaxy
+collection bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core`
+version every Molecule run executes under), `.config/molecule/`, and
+everything that base config points every scenario at: `molecule_helpers/`'s
+two requirements files, `ansible/ansible.cfg` and the coverage callback
+plugin under `ansible/molecule-coverage/callback_plugins/`. The last
+group is read from the config, not listed (see
+[Molecule watch sets](#molecule-watch-sets)).
+
+`compose_apps` is computed by
+[`tools/ci/scope/compose_apps.py`](../../../../tools/ci/scope/compose_apps.py),
+the one reader of the exclusion list (see
+[Compose boot-test](gates.md#compose-boot-test)). The `compose` role renders
+and stages `configs/` and `scripts/` before the stack boots, and
+`compose-boot-test` builds the `Dockerfile` in place of the published image,
+so a change to any of them alters what it exercises.
+
+`python_unit_tests` covers plain controller-side Python, not Ansible roles,
+through the `pytest` suites in `ansible/tests/` and `tools/tests/`. That
+includes `r2_read_watcher.py`, the one file outside either tree that
+`ansible/tests/` imports directly, through the `pythonpath` in
+`pyproject.toml`'s `[tool.pytest]`.
 
 ### Molecule watch sets
 

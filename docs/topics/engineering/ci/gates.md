@@ -153,34 +153,22 @@ container's logs, and each container of a scaled service is checked.
 **Excluded** (`.github/compose-boot-test-exclusions.txt`, shared by both
 workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
 
-- `bind9`, `seaweedfs`, `caddy` — covered by Molecule with stronger,
-  real-protocol assertions than a healthcheck poll would add:
-  `bind9`/`caddy` by their own role's scenario, `seaweedfs` by
-  `seaweedfs_bucket`'s and `backup_agent`'s (see
-  [`#molecule-watch-sets`](change-scoping.md#molecule-watch-sets)).
-- `tinyauth` — same category: `tinyauth/molecule/default` stands up a
-  real, throwaway lldap target, runs `lldap_bootstrap` against it (see
-  [`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then
-  deploys tinyauth pointed at it and confirms it reaches a healthy,
-  LDAP-bound state — the dependency chain compose-boot-test's per-app
-  isolation can never provide, since no `lldap` host exists to resolve
-  in that model.
-- `molecule-dind` — not a deployed compose app at all, so there's
-  nothing for `docker compose up` to run against: it's CI scaffolding,
-  a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for
-  Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no
-  `compose.yaml`/`.j2` of its own.
-- `openbao` — can't boot in isolation. Its data volume is chowned to the
-  image's non-root user by `roles/openbao` before the container starts, which
-  the boot-test seeding doesn't do, so the server dies opening `vault.db`; its
-  listener needs a leaf cert in the `certs` volume, and the workflow issues
-  one only for `lldap`; and its healthcheck, `bao status`, exits non-zero while
-  OpenBao is sealed or uninitialized (see the comment on it in
-  `docker/openbao/compose.yaml.j2`), which a fresh volume always is, so
-  `compose_health` would fail it even with the other two fixed. It is also a
-  self-managed app (`compose_self_managed_apps`). Unlike the others it has no
-  Molecule scenario, and `compose-syntax-check` skips its `compose.yaml.j2`, so
-  nothing in CI checks its compose file.
+| App | Why not boot-tested | Covered by |
+| :--- | :--- | :--- |
+| `bind9`, `caddy` | Molecule gives stronger real-protocol assertions than a healthcheck poll. | Their own role's scenario. |
+| `seaweedfs` | Same. | `seaweedfs_bucket`'s and `backup_agent`'s scenarios (see [`#molecule-watch-sets`](change-scoping.md#molecule-watch-sets)). |
+| `tinyauth` | Needs an `lldap` host to resolve, which per-app isolation can't provide. | `tinyauth/molecule/default`: a throwaway lldap target, `lldap_bootstrap` against it (see [`lldap.md`](../../services/lldap.md#bootstrapping-the-observer-account)), then tinyauth reaching a healthy, LDAP-bound state. |
+| `molecule-dind` | Not a deployed compose app: a Dockerfile built and pushed to `ghcr.io/wenenhoe/molecule-dind` for Molecule's DinD scenarios (`build-molecule-dind-image.yml`), with no `compose.yaml`/`.j2`. | Nothing to run. |
+| `openbao` | Can't boot in isolation (below). | Nothing: no Molecule scenario, and `compose-syntax-check` skips its `compose.yaml.j2`, so CI doesn't check its compose file. |
+
+`openbao` fails in isolation for three reasons, each enough alone. Its data
+volume is chowned to the image's non-root user by `roles/openbao` before the
+container starts, which boot-test seeding doesn't do, so the server dies
+opening `vault.db`. Its listener needs a leaf cert in the `certs` volume, and
+the workflow issues one only for `lldap`. And its healthcheck, `bao status`,
+exits non-zero while OpenBao is sealed or uninitialized (see the comment on it
+in `docker/openbao/compose.yaml.j2`), which a fresh volume always is. It is
+also a self-managed app (`compose_self_managed_apps`).
 
 `lldap` is not excluded: `_compose-boot-test.yml` issues it a real cert from a
 throwaway `smallstep/step-ca` container (stock `DOCKER_STEPCA_INIT_*`

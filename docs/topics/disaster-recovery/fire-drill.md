@@ -8,6 +8,11 @@ per-app and batch restore runbooks themselves, see
 
 Two levels of "does this actually work," proving different things:
 
+| Level | What it proves | Touches production |
+| :--- | :--- | :--- |
+| Molecule scenarios | Discovery, selection and decrypt logic against genuine S3 responses and a throwaway GPG key | No |
+| Real fire drill | The whole path: a real backup, the real offline GPG key, a scratch host | Reads the real backup; restores only into the scratch host |
+
 - **`ansible/roles/restore_discovery/molecule/{default,discovery_and_restore}`** —
   automated, runs in CI/dev like any other Molecule scenario, and
   held to the task-coverage floors in `ansible/molecule-coverage/thresholds.yaml`. `default` renders
@@ -53,21 +58,12 @@ Two levels of "does this actually work," proving different things:
      print('decrypted at:', result.decrypted_path)
      "
      ```
-  3. Stand up a scratch host. Two tiers, both legitimate:
-     - **Now**, before OpenTofu exists: any isolated segment/host you
-       can already stand up — doesn't need to be VLAN 50, just isolated
-       enough that nothing depends on it. Waiting for Tofu before
-       running this once doesn't reduce the risk it's meant to catch,
-       it just controls when you find out.
-     - **Once OpenTofu is up**: VLAN 50 (`192.168.50.0/24`), the block
-       [`vm-provisioning.md`](../infra/vm-provisioning.md) reserves for isolated
-       experimentation — the provisioning project's own Migration Stage
-       1.5 ([`tofu-migration-rehearsal.md`](../../projects/tofu-migration-rehearsal.md#stage-1--migration-stage-1--15))
-       is literally "first real run of `restore.yaml`" against a VM
-       there. Re-running the drill there afterward is a cheap
-       re-verification of the same thing, not the first real test of it.
+  3. Stand up a scratch host on an isolated segment where nothing
+     depends on it, such as VLAN 50 (`192.168.50.0/24`), the block
+     [`vm-provisioning.md`](../infra/vm-provisioning.md) reserves for
+     isolated experimentation.
 
-     Either way: give it its own throwaway name, on its own inventory
+     Give it its own throwaway name, on its own inventory
      file (a sibling of `inventory/inventory.yaml`, never committed) —
      never the real `inventory.yaml`, so there's no `--limit` typo that
      could reach a real host. In its `host_vars`, list only
@@ -87,8 +83,7 @@ Two levels of "does this actually work," proving different things:
      matters here, not just style.
      Leave `restore_confirm` unset — read the real `pause` prompt's
      "About to STOP wastebin on scratch-wastebin...", with
-     `wastebin_data` actually named once (not split into characters —
-     that would mean the fix above didn't take), before typing `yes`,
+     `wastebin_data` named once, before typing `yes`,
      as a last check that `-i`/`--limit` actually did what you expect.
   5. Confirm the app actually boots clean against the restored data —
      not just that Ansible reported success — then tear the scratch

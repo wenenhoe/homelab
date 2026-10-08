@@ -141,8 +141,8 @@ doesn't vary per host: directories, named volumes (see
 upstream/auth. `no_log: true` on a `configs` entry keeps a real secret
 out of `--diff` output (see [`secrets.md`](../secrets/secrets.md)).
 
-Each `host_vars/<host>.yaml` then only says which apps that host runs and,
-for routable apps, what hostname to expose:
+Each `host_vars/<host>.yaml` then only lists which apps that host runs
+and, for routable apps, the hostname to expose:
 
 ```yaml
 compose_apps:
@@ -152,26 +152,22 @@ compose_apps:
         host: dashy
 ```
 
-`resolved_apps` (`group_vars/all/main.yaml`) merges each host's short entry
+`resolved_apps` (`group_vars/all/main.yaml`) merges each host's entry
 with its `app_catalog` definition through the `resolve_apps` filter
-(`ansible/filter_plugins/resolve_apps.py`; dicts merge, lists are replaced).
-`compose_apps` stays the host's own short list and is never reassigned. Every
-downstream role reads only `resolved_apps`, so an app's routing/upstream/auth
-is defined once regardless of how many hosts run it, and any host's value is
-readable through `hostvars` without that host's play having run.
+(`ansible/filter_plugins/resolve_apps.py`; dicts merge, lists are
+replaced). Every downstream role reads only `resolved_apps`, and any
+host's value is readable through `hostvars` without that host's play
+having run.
 
-`backup_plan` (also `group_vars/all/main.yaml`) does the same for backups: the
-`backup_plan` filter (`ansible/filter_plugins/backup_plan.py`) lays each
-resolved app's `backup:` block over `backup_defaults` and returns one entry per
-app that has backup volumes, every setting resolved. `backup_hosts` lists the
-managed hosts whose plan is non-empty, in inventory order: the hosts that get
-their own path-scoped SeaweedFS identity (`docker/seaweedfs/configs/s3-identity.json.j2`)
-and whose apps `cloud_sync` relays. A host that gains its first backed-up app
-needs its own `seaweedfs-s3-*-<host>` secret pair (`secret_catalog.yaml`) and
-`seaweedfs_s3_access_key`/`seaweedfs_s3_secret_key` in its host_vars file;
-without them the deploy fails on the missing variable. `backup_agent` reads its
-own host's `backup_plan`, `cloud_sync` and `restore_discovery` read every backup
-host's. See
+`backup_plan` (also `group_vars/all/main.yaml`) does the same for
+backups: the `backup_plan` filter lays each resolved app's `backup:`
+block over `backup_defaults` and returns one fully resolved entry per
+app with backup volumes. `backup_hosts` lists the hosts whose plan is
+non-empty; each gets a path-scoped SeaweedFS identity
+(`docker/seaweedfs/configs/s3-identity.json.j2`) and needs its own
+`seaweedfs-s3-*-<host>` secret pair, or the deploy fails on the missing
+variable. `backup_agent` reads its own host's `backup_plan`;
+`cloud_sync` and `restore_discovery` read every backup host's. See
 [ADR 0068 (Backup defaults)](../../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md).
 
 See [`adding-an-app.md`](adding-an-app.md) for a worked example.

@@ -2,10 +2,20 @@
 
 What each provider's master credential can and can't be narrowed to, how scoped the resulting rotation key actually is, and what the leaf credentials are restricted to. How the credentials are created is in [`creation.md`](creation.md).
 
-## What "master credential" means per provider, and how scoped the resulting rotation key actually is
+## Per-provider scope
 
-The achievable floor is genuinely different per provider — none of
-this is a uniform "create/delete keys only" guarantee:
+The achievable floor differs per provider; none of it is a uniform
+"create/delete keys only" guarantee.
+
+| | Backblaze B2 | OCI | Cloudflare R2 |
+| :--- | :--- | :--- | :--- |
+| Master credential | The account master application key, entered at a prompt, never cached | Your admin identity via `~/.oci/config` (leaf users and policies only) | A human-created Custom Token, cached |
+| Rotation credential | A key with `listKeys writeKeys deleteKeys listBuckets` | The `homelab-oci-scim-rotation` Confidential Application (Identity Domains SCIM) | The cached master-equivalent token |
+| Rotation scope | Account-wide; holds no file capabilities | Domain-wide User Administrator app role | Account-wide `API Tokens Write` |
+| Leaf scope | Restricted to `homelab-backups-b2`; no `deleteFiles` | Bucket-scoped policy on `homelab-backups`; no `OBJECT_DELETE` | Restricted to `homelab-backups`; Item Write / Read |
+
+No provider lets a key-management credential be scoped down to one
+bucket or resource. Details per provider follow.
 
 ### Backblaze B2 — key-management can't be bucket-restricted, at all
 

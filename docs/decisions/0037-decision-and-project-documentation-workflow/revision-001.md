@@ -79,50 +79,6 @@ reverse-link check stays exactly where it is, in
   `decisions/`-side one. A dedicated doc avoids stretching either
   file's stated scope. Rejected.
 
-## Consequences
-
-- Four scripts change: `doc_frontmatter.py` (schema), `doc_graph.py`
-  (resolves `also_implements:` the way it already resolves `decision:`),
-  `generate-doc-indexes.py` (the new table, and `By initiative`'s new
-  home), and `check-doc-drift.py`'s index check now covers a fourth
-  generated file.
-- The new table can't detect a project that references an ADR only in
-  free prose, with neither field set — `cd-agent.md`/ADR 0044's
-  still-undecided case will keep appearing there until 0044 is
-  approved and `decision:` is set. That's a correct, if imprecise,
-  result: no *formal* link exists yet. Reading a listed ADR's own
-  `related:` lineages, or the project index by hand, remains a real
-  step this table doesn't remove.
-
-## Invariants
-
-- `also_implements:` never participates in `PROJECT_DECISION_GATE`;
-  only `decision:` gates a project's lifecycle status.
-- `docs/projects/README.md`'s `## Index` continues to link every
-  project doc by filename, independent of where `By initiative` lives.
-
-## Non-goals
-
-- Modeling a project gated on more than one ADR at once. No current
-  instance needs it; see Reconsideration triggers.
-- Fully automating the judgment an ADR is genuinely tracked somewhere
-  in prose without a formal field — the new table narrows where to
-  look, not the need to look.
-
-## Validation
-
-`pre-commit run --all-files` regenerates
-[`docs/project-planning.md`](../../project-planning.md), so it can't go
-stale silently. `check-doc-drift.py` fails a project doc whose
-`also_implements:` entry doesn't resolve to a real lineage revision,
-same as it already does for `decision:`.
-
-## Reconsideration triggers
-
-- A project genuinely needs to gate on more than one ADR simultaneously
-  — revisit whether `decision:` itself should become a list then,
-  rather than stretching `also_implements:` to do double duty.
-
 ## Revision notes
 
 Revision 1 adds `also_implements:` and the generated "needs a project"

@@ -28,6 +28,8 @@ BARE_PYTHON = (
     "checksums/registry.py",
     "checksums/pins.py",
     "checksums/manifest.py",
+    "checksums/gpg.py",
+    "checksums/verify.py",
     "images/__init__.py",
     "images/registry.py",
     "images/build.py",

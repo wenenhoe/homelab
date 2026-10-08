@@ -29,6 +29,7 @@ def revision(root: Path, lineage: str, number: int, body: str = "# Title\n", let
         "revision": number,
         "type": "adr",
         "title": "Secret storage",
+        "short": lineage,
         "solution": f"Solution {number}",
         "summary": "Where secrets live.",
         "topic": "secrets-store",

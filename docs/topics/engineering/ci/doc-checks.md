@@ -69,7 +69,8 @@ these narrow, structural things:
   and once one is `approved` or beyond the rest are `abandoned`; at most one revision is
   `accepted`; a `superseded` revision names a later `accepted` (or
   itself superseded) successor that declares `supersedes` back;
-  `title` and `topic` are identical across a lineage's revisions;
+  `title`, `short` and `topic` are identical across a lineage's revisions,
+  and `short` is unique across lineages (ignoring case);
   `narrows`, `related`, and `former_ids` reference real lineages, and a
   `former_ids` entry is never a live lineage. Each lineage directory is
   linked from `decisions/README.md`. An `approved` or `accepted`
@@ -77,6 +78,12 @@ these narrow, structural things:
   [`docs/decisions/README.md#assumptions`](../../../decisions/README.md#assumptions).
   Presence-of-a-bullet only, not whether the claim is genuinely
   resolved; that judgment call is still on whoever sets the status.
+- A markdown link written `[ADR 0044 (CD agent trigger)]`, or with a
+  revision after the number, carries that lineage's `short:` name
+  exactly, so renaming a lineage can't leave links using the old name.
+  A link with only the number is not checked: the name is never
+  required. See
+  [`docs/decisions/README.md#citing-a-decision`](../../../decisions/README.md#citing-a-decision).
 - A project's `decision:` revision must be in the state its status
   requires: `not-started` → `working` or `approved`, `de-risking` →
   `working`, `building` → `approved`, `done` → `accepted`. A revision
@@ -120,7 +127,7 @@ touches its project doc isn't bounded.
 ## Project close check
 
 [`tools/doc_scripts/check_project_close.py`](../../../../tools/doc_scripts/check_project_close.py) enforces the closing rule in
-[ADR 0037 revision 2](../../../decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
+[ADR 0037 revision 2 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
 deleting a finished project's doc must not leave the revision its
 `decision:` names `approved` with no project naming it. A deleted doc
 passes when that revision is `accepted` afterwards, or another project doc

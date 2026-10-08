@@ -3,6 +3,7 @@ id: ADR-0070
 revision: 0
 type: adr
 title: "What a unit test's doubles are bound to"
+short: Test doubles binding
 solution: "Use the real object with its I/O methods replaced by autospec'd stand-ins; bind every other double to the real interface with autospec; keep bare mocks for sentinels that have no interface"
 summary: "What a replaced collaborator in a unit test is bound to, so a test fails when the real interface and the code's use of it disagree."
 topic: repository-tooling
@@ -18,7 +19,7 @@ A unit test that replaces a collaborator (an HTTP response, a subprocess result,
 
 ## Context
 
-[ADR 0069](../0069-how-python-unit-tests-are-written-and-run/revision-000.md) fixed the suite's style and left test doubles out of scope. [ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) requires the code behind CI and cloud-credential tooling to be unit-tested, and much of that code talks to `requests`, `subprocess`, `hvac`, `paramiko`, B2 and OCI.
+[ADR 0069 (Python test style)](../0069-how-python-unit-tests-are-written-and-run/revision-000.md) fixed the suite's style and left test doubles out of scope. [ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) requires the code behind CI and cloud-credential tooling to be unit-tested, and much of that code talks to `requests`, `subprocess`, `hvac`, `paramiko`, B2 and OCI.
 
 Measured on `main` when this was written, across `ansible/tests/` and `tools/tests/`:
 
@@ -49,7 +50,7 @@ With every socket connection blocked, each stand-in the suite uses builds offlin
 
 The suite's other doubles are replacements for functions in this repo, which autospec binds without I/O, and a few opaque values handed through unchanged. OCI's `IdentityDomainsClient` methods take `**kwargs`, so autospec accepts any keyword there.
 
-[ADR 0041](../0041-testing-the-oci-classic-iam-bootstrap/revision-000.md), still `working`, covers a different slice: it asks how the OCI classic-IAM bootstrap is tested beyond hand-written mocks, and keeps the SCIM tests hand-mocked. This record governs what any hand-written double is bound to, including those.
+[ADR 0041 (OCI IAM bootstrap testing)](../0041-testing-the-oci-classic-iam-bootstrap/revision-000.md), still `working`, covers a different slice: it asks how the OCI classic-IAM bootstrap is tested beyond hand-written mocks, and keeps the SCIM tests hand-mocked. This record governs what any hand-written double is bound to, including those.
 
 ## Decision
 
@@ -69,9 +70,9 @@ Existing doubles are brought into line case by case, in separate changes on the 
 
 - **`autospec=True` on every `patch` in one change.** Mechanical and quick, but a test that fails afterwards cannot be told apart from collateral damage in a large diff, so each real mismatch is lost in it. It also cannot apply to the 23 `new=` or `new_callable` calls.
 - **`spec` or `spec_set` on every `Mock`.** Cheaper than a factory, but it hides fields set in `__init__` (above), so the double either lacks what the code reads or has it assigned by the test.
-- **A local emulator for every external service.** The closest stand-in for real behavior, and [ADR 0041](../0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) is evaluating it for one surface. As a rule for every collaborator it adds a service per SDK and moves the tests out of unit scope.
+- **A local emulator for every external service.** The closest stand-in for real behavior, and [ADR 0041 (OCI IAM bootstrap testing)](../0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) is evaluating it for one surface. As a rule for every collaborator it adds a service per SDK and moves the tests out of unit scope.
 - **Contract tests against the real services.** They need network access and credentials, so they are not unit tests and cannot run in `pr-checks.yml` without them.
-- **`pytest-mock`.** Rejected in [ADR 0069](../0069-how-python-unit-tests-are-written-and-run/revision-000.md): its `mocker` fixture adds a package and does nothing `monkeypatch` and `unittest.mock.patch` don't.
+- **`pytest-mock`.** Rejected in [ADR 0069 (Python test style)](../0069-how-python-unit-tests-are-written-and-run/revision-000.md): its `mocker` fixture adds a package and does nothing `monkeypatch` and `unittest.mock.patch` don't.
 
 ## Consequences
 
@@ -91,7 +92,7 @@ Existing doubles are brought into line case by case, in separate changes on the 
 - What a test must assert, and which tests are deleted or merged. Those rules go in `conventions.md` and stand independently of how a double is built.
 - Mutation testing; a spike answers whether it adds signal before any decision.
 - Which behaviors get a test, and Molecule scenarios, which [`molecule-testing.md`](../../topics/engineering/molecule-testing.md) covers.
-- Replacing hand-written doubles with an emulator for the OCI classic-IAM surface, which is [ADR 0041](../0041-testing-the-oci-classic-iam-bootstrap/revision-000.md).
+- Replacing hand-written doubles with an emulator for the OCI classic-IAM surface, which is [ADR 0041 (OCI IAM bootstrap testing)](../0041-testing-the-oci-classic-iam-bootstrap/revision-000.md).
 
 ## Reconsideration triggers
 

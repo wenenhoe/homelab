@@ -125,6 +125,16 @@ class TestLineageErrors:
         errors = graph.lineage_errors(root)
         assert len(errors) == 2, errors
 
+    def test_short_name_is_stable_across_revisions(self, root):
+        revision(root, "0001-a", 0, status="abandoned")
+        revision(root, "0001-a", 1, short="Another name")
+        assert_one_error(graph.lineage_errors(root), "'short' differs across revisions")
+
+    def test_short_name_is_unique_across_lineages_ignoring_case(self, root):
+        revision(root, "0001-a", 0, short="Secret storage")
+        revision(root, "0002-b", 0, short="secret STORAGE")
+        assert_one_error(graph.lineage_errors(root), "short name 'secret STORAGE' is already used by ADR-0001")
+
     def test_superseded_needs_an_accepted_successor(self, root):
         revision(root, "0001-a", 0, status="superseded", superseded_by=1)
         revision(root, "0001-a", 1, status="working", supersedes=0)

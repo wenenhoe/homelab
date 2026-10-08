@@ -3,6 +3,7 @@ id: ADR-0013
 revision: 1
 type: adr
 title: Secret storage
+short: Secret storage
 solution: OpenBao as a standing secrets store
 summary: Where the repo's secrets and credentials live, and who and what can read them.
 topic: secrets-store

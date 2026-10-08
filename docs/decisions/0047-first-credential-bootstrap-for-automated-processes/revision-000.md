@@ -3,6 +3,7 @@ id: ADR-0047
 revision: 0
 type: adr
 title: First-credential bootstrap for automated processes
+short: First-credential bootstrap
 solution: Client-certificate login for the operator host from a dedicated step-ca provisioner, response-wrapped one-time handoff for automation identities, and no OpenBao identity on any other host
 summary: How the first credential reaches a process that needs it, without a human typing it or a permanent orchestrator relaying secrets.
 topic: secrets-store
@@ -26,13 +27,13 @@ How the first credential reaches a process that needs it, without a human typing
 - `tools/openbao_utils/bao_session.py` and `snapshot-push.sh` read a `secret_id` from a hidden prompt into memory, never a file.
 - `rclone.conf` files holding real B2, R2 and OCI keys are rendered by `cloud_sync` and `restore_discovery`.
 - `tools/utils/repo.py`'s `fetch_root_cert()` uses an SSH key to reach `security`.
-- Beszel's KEY and TOKEN and [ADR 0036](../0036-beszel-notification-configuration/revision-000.md)'s Telegram webhook are typed into a web UI and live only in Beszel's own database.
+- Beszel's KEY and TOKEN and [ADR 0036 (Beszel notifications)](../0036-beszel-notification-configuration/revision-000.md)'s Telegram webhook are typed into a web UI and live only in Beszel's own database.
 
-[ADR 0046](../0046-python-client-for-s3-compatible-storage/revision-000.md) met the same problem from another side: swapping `rclone` for `boto3` and `hvac` relocates which secret sits on disk and does not remove one.
+[ADR 0046 (S3 client)](../0046-python-client-for-s3-compatible-storage/revision-000.md) met the same problem from another side: swapping `rclone` for `boto3` and `hvac` relocates which secret sits on disk and does not remove one.
 
-**What is planned.** The CD agent gets its own CIDR-bound AppRoles ([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)), and [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md) deletes `controller`'s standing AppRole. Neither says how the operator host then authenticates to mint a short-lived token.
+**What is planned.** The CD agent gets its own CIDR-bound AppRoles ([ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)), and [`cd-agent-controller-approle-retirement.md`](../../projects/cd-agent-controller-approle-retirement.md) deletes `controller`'s standing AppRole. Neither says how the operator host then authenticates to mint a short-lived token.
 
-**Off-site hosts.** [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s GCP host and [ADR 0045](../0045-security-event-collection-and-alerting/revision-000.md)'s OCI host run on a provider's hardware and have a route back into the lab over the tailnet. Each of those records is gated on this one being `approved` before any production credential goes onto its host, and [ADR 0073](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) names this record as the home for the credentials such a host holds.
+**Off-site hosts.** [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s GCP host and [ADR 0045 (Security event pipeline)](../0045-security-event-collection-and-alerting/revision-000.md)'s OCI host run on a provider's hardware and have a route back into the lab over the tailnet. Each of those records is gated on this one being `approved` before any production credential goes onto its host, and [ADR 0073 (Off-site cloud auth)](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) names this record as the home for the credentials such a host holds.
 
 **What a scratch run showed.** Against OpenBao 2.7.0 and step-ca 0.30.2, the versions pinned in `docker/openbao/compose.yaml.j2` and `docker/step-ca/compose.yaml.j2`, with the repo's listener stanza (only the certificate and key files set), a CA initialized as `docker/step-ca/scripts/entrypoint.sh` does, and the repo's own `vault-bootstrap.hcl` (31 checks, all passing):
 
@@ -45,9 +46,30 @@ How the first credential reaches a process that needs it, without a human typing
 
 ## Decision
 
+This diagram shows how the operator host logs in and how an automation identity's `secret_id` reaches its target as this revision decided it, not what runs now.
+
+```mermaid
+sequenceDiagram
+    participant OH as Operator host
+    participant CA as step-ca
+    participant OB as OpenBao
+    participant T as Target host
+    Note over OH,CA: Second JWK provisioner, its password held offline and typed once
+    OH->>CA: Client certificate, OU openbao-operator
+    Note over OH,CA: Renewal is over mTLS with step ca renew --force
+    OH->>OB: cert login, bound to the common name, the unit and the host's fixed address
+    OB-->>OH: Short-lived token
+    OH->>OB: Request the secret_id through vault-bootstrap, response-wrapped
+    OB-->>OH: Wrapping token
+    OH->>T: Wrapping token over the existing SSH session, as the remote command's stdin
+    T->>OB: Unwrap, once
+    OB-->>T: secret_id, straight into the job user's 0400 file
+    Note over T,OB: A second unwrap fails
+```
+
 - **The operator host logs in with a client certificate.** It authenticates to OpenBao's `cert` method and receives a short-lived token, holding no AppRole `secret_id`. The certificate comes from a second step-ca JWK provisioner whose template stamps the organizational unit `openbao-operator` and the client-authentication usage. The `cert` role requires the common name, that unit, and the operator host's fixed address (`token_bound_cidrs`).
 - **That provisioner's password is never stored in OpenBao.** It is held offline like a break-glass credential, typed once to issue the first certificate, and not needed again: renewal is over mTLS with `step ca renew --force`. The provisioner is added to the CA by hand, once, with its template checked in, as the OpenBao policies are applied by hand elsewhere in this repo.
-- **An automation identity's `secret_id` is handed over response-wrapped.** The operator host requests it through `vault-bootstrap` ([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)). The wrapping token travels over the SSH session the operator host already has to the target for provisioning ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), as the remote command's stdin and never as an argument another process could read. It is unwrapped once, on the target, straight into the job user's `0400` file. A second unwrap fails, so an interception shows up as a failure instead of a quietly stolen, reusable credential.
+- **An automation identity's `secret_id` is handed over response-wrapped.** The operator host requests it through `vault-bootstrap` ([ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)). The wrapping token travels over the SSH session the operator host already has to the target for provisioning ([ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)), as the remote command's stdin and never as an argument another process could read. It is unwrapped once, on the target, straight into the job user's `0400` file. A second unwrap fails, so an interception shows up as a failure instead of a quietly stolen, reusable credential.
 - **No other host holds an OpenBao identity.** A host that is not an automation identity receives the secrets in its own catalog scope, pushed by Ansible through the same `secrets` role and deploy path as an on-prem host.
 - **Off-site hosts follow the same rule.** They hold no OpenBao identity and receive only the secrets their own role needs. A compromised off-site host exposes those secrets and a tailnet route back into the lab.
 
@@ -79,9 +101,9 @@ How the first credential reaches a process that needs it, without a human typing
 
 ## Non-goals
 
-- How Tofu authenticates to the cloud account ([ADR 0073](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md)) and where Tofu's own credentials live ([ADR 0048](../0048-where-tofu-credentials-live/revision-000.md)).
-- What each AppRole may read ([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)).
-- Hardening any host. On-prem hosts are covered one area at a time by [ADR 0043](../0043-host-os-hardening-baseline/revision-000.md), and the off-site hosts' pass is a separate gate in ADR 0049 and ADR 0045.
+- How Tofu authenticates to the cloud account ([ADR 0073 (Off-site cloud auth)](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md)) and where Tofu's own credentials live ([ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md)).
+- What each AppRole may read ([ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)).
+- Hardening any host. On-prem hosts are covered one area at a time by [ADR 0043 (Host hardening baseline)](../0043-host-os-hardening-baseline/revision-000.md), and the off-site hosts' pass is a separate gate in ADR 0049 and ADR 0045.
 - The tailnet's access rules for off-site hosts.
 - Attestation-based issuance.
 

@@ -3,6 +3,7 @@ id: ADR-0028
 revision: 0
 type: adr
 title: Doc metadata and governance
+short: Doc metadata
 solution: YAML frontmatter, generated indexes, one narrative NIST alignment doc
 summary: How docs carry machine-readable metadata, how index tables stay current, and how NIST alignment is shown without stamping ADRs.
 topic: documentation-process
@@ -129,7 +130,7 @@ reading existing code, not necessarily a spike specifically, which is
 why the value isn't named after that one technique — and matches the
 same word `docs/projects/README.md` already uses for a stage in the
 same state; `decided` now requires every entry resolved first — see
-[ADR 0037 revision 0](../0037-decision-and-project-documentation-workflow/revision-000.md)
+[ADR 0037 revision 0 (Decision and project workflow)](../0037-decision-and-project-documentation-workflow/revision-000.md)
 for the model that replaced drafts.
 
 `summary` was added during Stage 1, for `type: project` only:

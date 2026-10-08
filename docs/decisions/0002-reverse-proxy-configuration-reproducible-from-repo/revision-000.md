@@ -3,6 +3,7 @@ id: ADR-0002
 revision: 0
 type: adr
 title: Reverse-proxy configuration reproducible from the repo
+short: Reverse-proxy config from repo
 solution: Caddy, configured by a checked-in Caddyfile
 summary: Proxy routes, TLS, and access rules live in a checked-in file, not a UI-backed database, so a rebuilt proxy needs no manual setup.
 topic: ingress-tls-pki

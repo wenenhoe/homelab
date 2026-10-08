@@ -23,7 +23,7 @@ Kea, VLAN, and static DNS for Tofu-provisioned VMs through OPNsense's own config
 
 ## Decision
 
-Implements [ADR 0040](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md) (DNS for Tofu-provisioned VMs), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved.
+Implements [ADR 0040 (Tofu VM DNS)](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md) (DNS for Tofu-provisioned VMs), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved.
 
 ## Execution plan
 

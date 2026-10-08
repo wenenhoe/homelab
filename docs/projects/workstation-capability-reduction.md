@@ -22,11 +22,11 @@ The clean cut: after this, VM 401 no longer exists and holds nothing that authen
 
 ## Scope
 
-Retiring VM 401's copies of the controller credentials and its push credential, then decommissioning the VM. Not in scope: the operator host ([`operator-host.md`](operator-host.md)), setting up the laptop ([`workstation-management.md`](workstation-management.md)), deleting the AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)), and Tofu credential custody ([ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md)).
+Retiring VM 401's copies of the controller credentials and its push credential, then decommissioning the VM. Not in scope: the operator host ([`operator-host.md`](operator-host.md)), setting up the laptop ([`workstation-management.md`](workstation-management.md)), deleting the AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)), and Tofu credential custody ([ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)).
 
 ## Decision
 
-Implements [ADR 0056](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md), `approved`, which [`workstation-management.md`](workstation-management.md) also implements.
+Implements [ADR 0056 (Workstation credentials)](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md), `approved`, which [`workstation-management.md`](workstation-management.md) also implements.
 
 ## Execution plan
 

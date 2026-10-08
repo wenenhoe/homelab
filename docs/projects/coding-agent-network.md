@@ -23,7 +23,7 @@ The VLAN and subnet, OPNsense interface and rules, the egress proxy and its allo
 
 ## Decision
 
-Implements [ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), `working`, so this project is `de-risking` until its three assumptions are resolved.
+Implements [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md), `working`, so this project is `de-risking` until its three assumptions are resolved.
 
 ## Execution plan
 
@@ -58,7 +58,7 @@ VM 202 advertises the VLAN's route, and the tailnet policy grants it to the lapt
 
 - Hand-maintained rules drift until [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) lands.
 - The allowlist needs upkeep as tooling changes.
-- The route's grant is tailnet policy edited by hand until [ADR 0059](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) lands, and a wrong edit can expose the VLAN's SSH port to other nodes or lock out access.
+- The route's grant is tailnet policy edited by hand until [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) lands, and a wrong edit can expose the VLAN's SSH port to other nodes or lock out access.
 - Docker Hub and other registries sit behind shared CDN addresses; a proxy that filters on host name only may still be broad.
 
 ## Open items

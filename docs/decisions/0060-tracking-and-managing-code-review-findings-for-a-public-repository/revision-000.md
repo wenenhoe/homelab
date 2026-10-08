@@ -3,6 +3,7 @@ id: ADR-0060
 revision: 0
 type: adr
 title: "Tracking and managing code-review findings for a public repository"
+short: Review findings tracker
 solution: "A private tracker repo (homelab-security) holding one structured file per finding, not a mirror of the public repo's code"
 summary: "Where automated code-review findings live, given the repo they describe is public."
 topic: security-hardening
@@ -25,7 +26,7 @@ is exactly that shape of content.
 
 A manual review of a produced CodeRabbit report confirmed this isn't
 hypothetical: the findings were real and actionable, and exactly what
-[ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+[ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
 keeps off this repo's own PR comments. Their severity, file, and
 description stay out of this repository.
 
@@ -91,7 +92,7 @@ or Actions run logs.
 ## Non-goals
 
 Where the review computation itself runs, and what credential drives it
-([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
+([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
 `homelab-security`'s finding schema, file layout and status vocabulary
 (a project concern, not an architectural one).
 

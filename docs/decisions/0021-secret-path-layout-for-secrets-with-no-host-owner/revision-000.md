@@ -3,6 +3,7 @@ id: ADR-0021
 revision: 0
 type: adr
 title: Secret path layout for secrets with no host owner
+short: Ownerless secret paths
 solution: '`hosts/all/<concern>/*` under the existing `hosts/` prefix'
 summary: Where secrets that no single host owns are stored, inside the existing access grant.
 topic: secrets-store

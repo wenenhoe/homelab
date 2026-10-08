@@ -25,7 +25,7 @@ The interface, rules, and egress-proxy configuration for the zone, expressed in 
 
 ## Decision
 
-No decision of its own. It carries out the last bullet of [ADR 0053](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)'s Decision. It links no `decision:` because that revision becomes `accepted` when the network project completes, while this one is still waiting.
+No decision of its own. It carries out the last bullet of [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)'s Decision. It links no `decision:` because that revision becomes `accepted` when the network project completes, while this one is still waiting.
 
 ## Execution plan
 

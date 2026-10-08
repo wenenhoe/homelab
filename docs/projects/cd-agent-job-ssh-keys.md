@@ -13,7 +13,7 @@ track: agent
 
 # CD Agent Job SSH Keys
 
-Carries out [ADR 0075](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md): a CD agent job that reaches hosts holds its own key instead of the shared infrastructure key. It is staged because the role generates the key first, and the hosts authorize it only once the agent exists to connect from.
+Carries out [ADR 0075 (Job SSH identity)](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md): a CD agent job that reaches hosts holds its own key instead of the shared infrastructure key. It is staged because the role generates the key first, and the hosts authorize it only once the agent exists to connect from.
 
 ## Scope
 
@@ -23,7 +23,7 @@ Not in: moving `deploy` off the shared key, an SSH certificate authority, delive
 
 ## Decision
 
-Implements [ADR 0075](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md), revision 0.
+Implements [ADR 0075 (Job SSH identity)](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md), revision 0.
 
 ## Execution plan
 

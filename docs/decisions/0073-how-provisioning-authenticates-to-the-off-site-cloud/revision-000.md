@@ -3,6 +3,7 @@ id: ADR-0073
 revision: 0
 type: adr
 title: How provisioning authenticates to the off-site cloud account
+short: Off-site cloud auth
 solution: 'Undecided: a service-account key, service-account impersonation, or workload identity federation'
 summary: How Tofu proves itself to the GCP account that hosts the off-site monitor, without a standing credential that outlives its use or reaches the host it creates.
 topic: cloud-credentials
@@ -22,7 +23,7 @@ created host holds.
 
 ## Context
 
-[ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)
+[ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)
 places the off-site monitor on a GCP e2-micro. Nothing in this repo
 reaches GCP yet: `tools/cloud_credentials` covers B2, R2, and OCI only,
 and those modules mint backup leaf keys, not a provisioning identity.
@@ -32,16 +33,16 @@ Two credentials are in play and only one is this record's:
 - **Provisioning credential** (this record): what Tofu uses to call the
   GCP API.
 - **Credentials the host holds** (Beszel's KEY/TOKEN, Telegram wiring,
-  Kuma state): [ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md).
+  Kuma state): [ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md).
 
-[ADR 0048](../0048-where-tofu-credentials-live/revision-000.md) decides
+[ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md) decides
 where Tofu's Proxmox, OPNsense, and state-backend credentials live. Its
 open fork is the bootstrap-order problem of rebuilding `security`, which
 does not apply here: nothing in GCP hosts the secrets store. What it
 shares with this record is the question of which machine holds a
 standing infrastructure credential, answered for the maintainer side by
-[ADR 0056](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md)
-and [ADR 0058](../0058-where-operator-work-runs/revision-000.md).
+[ADR 0056 (Workstation credentials)](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md)
+and [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md).
 
 **Threat model.** Asset: the GCP project, and through it the off-site
 host, which holds a live route back to the managed hosts over the
@@ -101,7 +102,7 @@ all, at the cost of running or borrowing an issuer GCP can verify.
 - **Claim:** the identity that owns the GCP account and its billing is
   recoverable after loss of the site.
   **Breaks if wrong:** the off-site monitor cannot be rebuilt in the
-  scenario [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)
+  scenario [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)
   exists for.
   **Checked by:** naming where the account's recovery factors live
   before this revision is approved.
@@ -110,7 +111,7 @@ all, at the cost of running or borrowing an issuer GCP can verify.
 
 Stage 2 of the project cannot be built in this repo until this revision
 is `approved`. Whichever option wins changes what
-[ADR 0048](../0048-where-tofu-credentials-live/revision-000.md)'s
+[ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md)'s
 Option A, B, or C has to hold for Tofu alongside the GCP identity.
 
 ## Invariants
@@ -122,8 +123,8 @@ Option A, B, or C has to hold for Tofu alongside the GCP identity.
 ## Non-goals
 
 - Credentials the monitoring host itself holds
-  ([ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
+  ([ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 - Hardening the created host
-  ([ADR 0043](../0043-host-os-hardening-baseline/revision-000.md)).
+  ([ADR 0043 (Host hardening baseline)](../0043-host-os-hardening-baseline/revision-000.md)).
 - Where Tofu state is stored after the spike
-  ([ADR 0048](../0048-where-tofu-credentials-live/revision-000.md)).
+  ([ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md)).

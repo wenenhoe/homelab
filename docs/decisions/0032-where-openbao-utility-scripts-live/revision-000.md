@@ -3,6 +3,7 @@ id: ADR-0032
 revision: 0
 type: adr
 title: Where OpenBao utility scripts live
+short: OpenBao utility scripts
 solution: Consolidated in tools/openbao_utils/
 summary: Whether OpenBao utility scripts belong with the deploy playbooks or with the standalone tools.
 topic: repository-tooling
@@ -17,7 +18,7 @@ narrows: ADR-0031
 ## Context
 
 Revises one specific passage of already-accepted
-[ADR 0031](../0031-where-repo-tooling-lives/revision-000.md) - not its structural
+[ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md) - not its structural
 decision (the `tools/` root, split by domain, stands unchanged), just
 its call that `bootstrap_secrets.py`, `audit_secrets.py`, and the two
 `restore_*_from_backup.py` scripts should stay in `ansible/` because

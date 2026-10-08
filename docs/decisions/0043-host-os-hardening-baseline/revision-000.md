@@ -3,6 +3,7 @@ id: ADR-0043
 revision: 0
 type: adr
 title: Host OS hardening baseline
+short: Host hardening baseline
 solution: Include the konstruktoid.hardening collection's roles one area at a time from a repo-owned role, each area behind its own Molecule coverage, with unattended security updates first
 summary: A deliberate host-level hardening pass (SSH, sysctl, auditd, mandatory access control), not only per-component least privilege.
 topic: security-hardening
@@ -18,7 +19,7 @@ A deliberate host-level hardening pass (SSH configuration, sysctl, kernel and au
 
 ## Context
 
-This repo has individually reasoned hardening choices, such as non-root containers, `docker-socket-proxy` scoping ([ADR 0004](../0004-container-access-to-the-docker-api/revision-000.md)), and least-privilege AppRoles ([ADR 0020](../0020-automation-identity-and-access-scope/revision-000.md), [ADR 0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md)). It has no host-level OS hardening role. The one OS-level setting its roles manage is the `bind9` role's edit of `/etc/systemd/resolved.conf`. No role configures unattended updates, yet [ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) and [ADR 0058](../0058-where-operator-work-runs/revision-000.md) both rely on hosts that patch themselves. `maintenance.yaml` upgrades packages through the `apt` role, reboots when `/var/run/reboot-required` exists, and runs `fwupd`.
+This repo has individually reasoned hardening choices, such as non-root containers, `docker-socket-proxy` scoping ([ADR 0004 (Docker API access)](../0004-container-access-to-the-docker-api/revision-000.md)), and least-privilege AppRoles ([ADR 0020 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-000.md), [ADR 0026 (High-value secret read alerts)](../0026-detecting-reads-of-high-value-secrets/revision-000.md)). It has no host-level OS hardening role. The one OS-level setting its roles manage is the `bind9` role's edit of `/etc/systemd/resolved.conf`. No role configures unattended updates, yet [ADR 0054 (Untrusted host management)](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) and [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) both rely on hosts that patch themselves. `maintenance.yaml` upgrades packages through the `apt` role, reboots when `/var/run/reboot-required` exists, and runs `fwupd`.
 
 **The candidate.** [`konstruktoid/ansible-role-hardening`](https://github.com/konstruktoid/ansible-role-hardening) is a single role that applies every area unless its `manage_*` switch is off. Its README now recommends the maintainer's collection form, [`konstruktoid.hardening`](https://github.com/konstruktoid/ansible-collection-hardening), for continued updates and support. At the [`v0.4.0` tag](https://github.com/konstruktoid/ansible-collection-hardening/tree/v0.4.0) (commit `aff6802`, Apache-2.0) the collection is 44 independent single-purpose roles, with no umbrella role and no top-level playbook; each is configured only through its own variables. It declares Ubuntu resolute (26.04) among its platforms and is pre-1.0. It needs `ansible-core` 2.18 or later, which this repo's lock exceeds, and `ansible.posix`, `community.crypto` and `community.general`; of these the repo pins the first two and not `community.general` (13.0.1 or later).
 
@@ -39,7 +40,7 @@ Each of these is a separate role, so none has to be included in order to include
 - **Shape.** A repo-owned role includes `konstruktoid.hardening.<area>` roles from an explicit allow-list. No area is included by default, and the collection is never applied whole.
 - **Adding an area.** One change per area. It includes the role, sets the variables this repo needs, adds or extends a Molecule scenario that asserts the area's effect and passes the idempotence check, and states what the area overrides of this repo's own roles. An area with a collision listed above is not added until the same change resolves it.
 - **First area: unattended security updates** (`automatic_updates`): security-only, no automatic reboot, on every host in scope. Reboots and firmware stay in `maintenance.yaml` (`apt` and `fwupd`).
-- **Scope.** Every on-prem host this repo configures, whether or not it is in `managed_hosts`: the managed hosts, `network_infra`, the operator host, the CD agent, and the coding-agent host. The off-site hosts get a separate profile later, after [ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md).
+- **Scope.** Every on-prem host this repo configures, whether or not it is in `managed_hosts`: the managed hosts, `network_infra`, the operator host, the CD agent, and the coding-agent host. The off-site hosts get a separate profile later, after [ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md).
 - **Later areas.** Which areas follow and in what order is a project decision.
 
 ## Alternatives considered
@@ -48,7 +49,7 @@ Each of these is a separate role, so none has to be included in order to include
 - **The collection applied whole, with overrides.** Each collision becomes an override that tracks someone else's defaults, and a release that changes a default changes every host silently.
 - **A hand-written subset in this repo.** Where the collection has a role for an area, writing it again duplicates upstream's maintenance. A hand-written area remains possible where no role fits, each as its own decision.
 - **The DevSec Linux Baseline.** Named earlier and not evaluated. The per-area shape answers the collision risk the comparison was for.
-- **The shell-script `konstruktoid/hardening`.** Host configuration here is Ansible-only ([ADR 0001](../0001-host-configuration-reproducible-from-repo/revision-000.md)).
+- **The shell-script `konstruktoid/hardening`.** Host configuration here is Ansible-only ([ADR 0001 (Host config from repo)](../0001-host-configuration-reproducible-from-repo/revision-000.md)).
 
 ## Consequences
 
@@ -67,7 +68,7 @@ Each of these is a separate role, so none has to be included in order to include
 ## Non-goals
 
 - The Proxmox node itself.
-- The off-site hosts' profile, and the resource cost of areas such as `auditd` and `aide` on the small off-site VM ([ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)); that is assessed when the profile is written.
+- The off-site hosts' profile, and the resource cost of areas such as `auditd` and `aide` on the small off-site VM ([ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md)); that is assessed when the profile is written.
 - Which areas follow the first, and their order.
 
 ## Validation

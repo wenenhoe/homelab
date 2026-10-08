@@ -1,7 +1,7 @@
 # Host Hardening Baseline
 
 OS-level hardening applied to hosts that already run this repo's own
-roles. [ADR 0043](../../decisions/0043-host-os-hardening-baseline/revision-000.md)
+roles. [ADR 0043 (Host hardening baseline)](../../decisions/0043-host-os-hardening-baseline/revision-000.md)
 holds the reasoning, the collisions with this repo's roles that set the
 order areas can be added in, and the rules for adding one.
 

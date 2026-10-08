@@ -3,6 +3,7 @@ id: ADR-0074
 revision: 0
 type: adr
 title: Following one automation job with another under a different identity
+short: Job chaining
 solution: A job may name successor jobs that systemd starts when it ends, each its own user and fetch, defined in the operator-applied inventory and carrying no data
 summary: How the end of one CD agent job starts a second job that needs credentials the first must not hold.
 topic: deployment-platform
@@ -19,7 +20,7 @@ Some work is a consequence of another job's work but needs authority the first j
 
 ## Context
 
-[ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md) starts the deploy job when `origin/main` has a commit it has not deployed, and starts every other job from its own timer. A rotation changes no commit.
+[ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md) starts the deploy job when `origin/main` has a commit it has not deployed, and starts every other job from its own timer. A rotation changes no commit.
 
 A leaf rotation creates a new key, verifies it, and revokes the old one at once ([`rotation.md`](../../topics/secrets/cloud-credentials/rotation.md)). The write leaf reaches `storage` only when `deploy.yaml` next renders its `rclone.conf`, and `cloud_sync` runs there daily. Until that deploy runs, `storage` holds a key that no longer works.
 
@@ -29,16 +30,25 @@ systemd starts a named unit when another ends, through `OnSuccess=` and `OnFailu
 
 OpenBao's AppRole API generates a new secret ID on each call and lists them by accessor ([API](https://openbao.org/docs/api/auth/approle/)), so one role holds several independent secret IDs.
 
-The write leaf's redeploy is `deploy.yaml --limit storage,localhost`, confirmed live ([`secrets-rotation.md`](../../topics/secrets/secrets-rotation.md)). The limit confines a run to `storage` and the controller; which OpenBao paths the deploy identity may read is [ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)'s.
+The write leaf's redeploy is `deploy.yaml --limit storage,localhost`, confirmed live ([`secrets-rotation.md`](../../topics/secrets/secrets-rotation.md)). The limit confines a run to `storage` and the controller; which OpenBao paths the deploy identity may read is [ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)'s.
 
 **Threat model.** The adversary can write to `main`, or controls a managed host or the coding-agent host, as in ADR 0044. The assets are the credentials each job holds. If what follows what were defined in the fetched tree, a merge to `main` could add a follow-on under any identity. If data passed from one job to the next, the first job could steer the second.
 
 ## Decision
 
+This diagram shows how one CD agent job starts another as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    TM[Timer] -->|starts| A[Job]
+    A -->|"ends, with any result: systemd starts the successor; nothing but the fact that it ended passes"| B["Successor job<br/>own unprivileged user, sandboxed unit, credentials, and its own fetch and clean checkout of origin/main"]
+    INV["Inventory the operator applies when provisioning the CD agent"] -.->|"holds the chain's edges"| A
+```
+
 - **Chaining.** A job may name successor jobs. When it ends, with any result, systemd starts each of them. A successor is a job under ADR 0044: its own unprivileged user, sandboxed unit, state directory and credentials readable only by that user, and its own fetch and clean checkout of `origin/main`. It never runs the predecessor's tree. A job has a timer, a predecessor, or both.
 - **No data crosses.** The successor learns only that the predecessor ended. No output, environment, file or credential passes. It derives what it needs from OpenBao, the repository and the hosts, which is why every successor must be idempotent.
 - **Defined in the inventory.** The chain's edges sit beside the jobs in the data the operator applies when provisioning the CD agent, never in anything read from a fetched commit. Provisioning rejects a cycle and a successor that names no job.
-- **First use.** The rotation job's successor is `redeploy-storage`, which runs `deploy.yaml --limit storage,localhost` without `--on-change`. It has its own user, SSH key and `secret_id`, a second valid `secret_id` for the `cd-agent-deploy` AppRole, so [ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)'s four AppRoles are unchanged.
+- **First use.** The rotation job's successor is `redeploy-storage`, which runs `deploy.yaml --limit storage,localhost` without `--on-change`. It has its own user, SSH key and `secret_id`, a second valid `secret_id` for the `cd-agent-deploy` AppRole, so [ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)'s four AppRoles are unchanged.
 
 ## Alternatives considered
 
@@ -53,7 +63,7 @@ The write leaf's redeploy is `deploy.yaml --limit storage,localhost`, confirmed 
 
 - Another user, `secret_id` and SSH key to deliver and keep, for a job that runs a few minutes a month.
 - A rotation run that fails before changing anything still starts a deploy, which does no harm.
-- A successor's failure alerts like any job's, through the mechanism of [ADR 0072](../0072-detecting-scheduled-jobs-that-stop-running/revision-000.md). A sealed OpenBao fails both jobs.
+- A successor's failure alerts like any job's, through the mechanism of [ADR 0072 (Job heartbeats)](../0072-detecting-scheduled-jobs-that-stop-running/revision-000.md). A sealed OpenBao fails both jobs.
 - The role that builds the host gains chain validation, and a job that has no timer.
 
 ## Invariants

@@ -3,6 +3,7 @@ id: ADR-0050
 revision: 0
 type: adr
 title: Agent-authored changes reaching production
+short: Agent changes to production
 solution: The coding-agent host holds no push credential; the maintainer fetches from it and pushes from the workstation
 summary: How changes written by an untrusted coding agent reach main without any credential in the agent's environment being able to alter what the CD agent deploys.
 topic: deployment-platform
@@ -18,7 +19,7 @@ Changes written by an untrusted coding agent reach `main` without any credential
 
 ## Context
 
-[ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md) reduces the deploy trust boundary to who can push to `main`: the CD agent acts on new commits there and holds OpenBao AppRoles and SSH access to the managed hosts. Network and credential separation around the coding-agent host is therefore only as strong as the path its commits take to `main`.
+[ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md) reduces the deploy trust boundary to who can push to `main`: the CD agent acts on new commits there and holds OpenBao AppRoles and SSH access to the managed hosts. Network and credential separation around the coding-agent host is therefore only as strong as the path its commits take to `main`.
 
 The repository is public, so cloning needs no credential. Only writing does.
 
@@ -27,6 +28,14 @@ The repository is public, so cloning needs no credential. Only writing does.
 ## Decision
 
 The coding-agent host holds no credential that can write to the repository's GitHub remote.
+
+This diagram shows how a change leaves the coding-agent host as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    H["Coding-agent host<br/>holds no credential that can write to the GitHub remote"] -->|"fetched over SSH as an additional git remote"| W["Maintainer workstation<br/>reads the diff before it is checked out anywhere that executes it"]
+    W -->|"push: push credentials exist only here"| O["origin, GitHub"]
+```
 
 The maintainer's workstation adds the host's repository as an additional git remote over SSH, fetches, reviews the diff, and pushes to origin. Push credentials exist only on the workstation.
 
@@ -40,7 +49,7 @@ Fetched content is read as a diff before it is checked out anywhere that execute
 
 ## Consequences
 
-- Work not yet fetched is lost when the host is rebuilt ([ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md)).
+- Work not yet fetched is lost when the host is rebuilt ([ADR 0054 (Untrusted host management)](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md)).
 - The agent cannot open pull requests or trigger GitHub-side workflows.
 - Review is a manual step on every change, which is also the point.
 
@@ -51,8 +60,8 @@ Fetched content is read as a diff before it is checked out anywhere that execute
 
 ## Non-goals
 
-- Verifying commit provenance in the CD agent. That concerns the trust of GitHub itself and belongs with [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md).
-- How the workstation connects to the host ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)).
+- Verifying commit provenance in the CD agent. That concerns the trust of GitHub itself and belongs with [ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md).
+- How the workstation connects to the host ([ADR 0055 (Coding-agent client access)](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)).
 
 ## Validation
 

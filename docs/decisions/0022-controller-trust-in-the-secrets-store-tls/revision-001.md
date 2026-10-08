@@ -3,6 +3,7 @@ id: ADR-0022
 revision: 1
 type: adr
 title: Controller trust in the secrets store's TLS certificate
+short: Controller TLS trust
 solution: The step-ca root fetched fresh where a host can reach security, and a delivered copy, checked against the live root, where it cannot
 summary: How the controller verifies OpenBao's TLS certificate without skip-verify or a committed copy of the CA.
 topic: secrets-store
@@ -19,10 +20,10 @@ related: [ADR-0020, ADR-0044, ADR-0047]
 SSH from `security` into a per-run temp file, so no CA copy is committed and
 nothing skips verification. That needs an SSH key to `security`.
 
-[ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md) runs
+[ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md) runs
 the freshness and rotation jobs on `cd_agent` as their own users, each holding
 only its own AppRole credential
-([ADR 0020 revision 1](../0020-automation-identity-and-access-scope/revision-001.md)).
+([ADR 0020 revision 1 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md)).
 Giving each of them a key to `security` would widen what a compromised job
 reaches on the host that holds the secrets store and the CA, which is the
 boundary this design keeps narrow. Without the root cert, though, a job cannot
@@ -39,7 +40,7 @@ for every call to OpenBao that run.
 
 A job that holds no such key gets a copy of the root in its credentials
 directory, as `step-ca-root.crt` beside the AppRole files, delivered with them
-([ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
+([ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 The tooling uses that file when it exists in the file cache and fetches
 otherwise, so an operator's checkout, which never has one, behaves as before.
 A delivered file that is not a PEM certificate stops the run with a message

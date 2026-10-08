@@ -3,6 +3,7 @@ id: ADR-0064
 revision: 0
 type: adr
 title: "Where the code behind CI and documentation checks lives"
+short: CI and doc check code
 solution: "Code that decides a check's outcome is unit-tested Python under tools/, one package per domain; .github/ keeps only what Actions reads and plain command sequences"
 summary: "Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows."
 topic: repository-tooling
@@ -22,14 +23,14 @@ place, not buried in workflow YAML.
 
 ## Context
 
-[ADR 0031](../0031-where-repo-tooling-lives/revision-000.md) put
+[ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md) put
 controller-side utilities under `tools/`, split by domain. It doesn't cover
 CI or the documentation checks, and those had grown up in three places:
 
 - inline `run:` blocks in workflows, with no way to test them;
 - bash and Python side by side in `.github/scripts/`;
 - the documentation-workflow scripts from
-  [ADR 0037](../0037-decision-and-project-documentation-workflow/revision-002.md),
+  [ADR 0037 (Decision and project workflow)](../0037-decision-and-project-documentation-workflow/revision-002.md),
   also in `.github/scripts/`, while their tests live in
   `tools/tests/doc_scripts/` and reach back across with a `sys.path` edit.
 
@@ -54,7 +55,7 @@ assumed:
   them widens what a compromised package could reach;
 - `tools/` shares one `sys.path` convention (a package under `tools/`, run
   from there as `python -m`), and a package named like a standard-library
-  module shadows it, as [ADR 0031](../0031-where-repo-tooling-lives/revision-000.md)
+  module shadows it, as [ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md)
   found for `secrets`.
 
 ## Decision
@@ -141,7 +142,7 @@ change that makes it.
 ## Non-goals
 
 - The Ansible-side controller scripts that
-  [ADR 0031](../0031-where-repo-tooling-lives/revision-000.md) and its
+  [ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md) and its
   successors placed. Those decisions stand.
 - Converting shell that only sequences commands.
 - Changing what any check enforces. The documentation scripts' rules are
@@ -159,7 +160,7 @@ tests by directory.
 ## Reconsideration triggers
 
 - CI moves off GitHub Actions, as
-  [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-b.md)'s
+  [ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-b.md)'s
   Gitea-or-Forgejo candidate would. `.github/` would change and `tools/`
   would not, which is the point of the split, but the invocation lines
   would need review.

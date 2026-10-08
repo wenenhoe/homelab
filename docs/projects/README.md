@@ -180,7 +180,7 @@ project for the remainder, which also means this one isn't the last.
 [`check_project_close.py`](../../tools/doc_scripts/check_project_close.py)
 fails a PR that deletes a project doc and does neither; see
 [`docs/topics/engineering/ci/doc-checks.md#project-close-check`](../topics/engineering/ci/doc-checks.md#project-close-check), and
-[ADR 0037 revision 2](../decisions/0037-decision-and-project-documentation-workflow/revision-002.md)
+[ADR 0037 revision 2 (Decision and project workflow)](../decisions/0037-decision-and-project-documentation-workflow/revision-002.md)
 for the reasoning.
 
 ### Closing checklist

@@ -3,6 +3,7 @@ id: ADR-0030
 revision: 0
 type: adr
 title: OpenBao client implementation in repo Python
+short: OpenBao Python client
 solution: hvac for Vault and paramiko for SSH
 summary: Internal Python that talks to OpenBao or over SSH shares one client approach instead of hand-rolled duplicates.
 topic: secrets-store
@@ -29,7 +30,7 @@ the other left the second stale.
 Two more files shared this surface: `openbao_utils/audit.py` read the same
 OpenBao KV v2 paths over its own `requests` calls (its B2/OCI
 provider-API calls are a separate concern, covered by
-[ADR 0029](../0029-cloud-provider-api-client-library/revision-000.md)),
+[ADR 0029 (Cloud API client library)](../0029-cloud-provider-api-client-library/revision-000.md)),
 and `docker/openbao/watcher/r2_read_watcher.py` - a standing,
 continuously-running watcher rather than a one-shot script - did the
 same over its own loopback `requests` calls (no SSH/root-cert fetch
@@ -39,7 +40,7 @@ Considered and rejected up front: `docker/openbao/scripts/`'s three
 shell scripts and `openbao_backup/snapshot-push.sh.j2` wrap the
 official `bao` CLI directly, not a hand-rolled HTTP reimplementation -
 a different kind of problem, decided separately in
-[ADR 0034](../0034-operator-access-to-the-openbao-cli/revision-000.md),
+[ADR 0034 (Operator bao CLI access)](../0034-operator-access-to-the-openbao-cli/revision-000.md),
 not folded into this decision.
 
 Whether the four Python clients above should also share code with
@@ -53,7 +54,7 @@ byte-identical across `cache.py`, `openbao_utils/bootstrap.py`, and
 be needed by consumers with nothing to do with cloud credentials
 (`docker/openbao/scripts/bao-*.sh`, `openbao_utils/restore.py`).
 Both facts fed into
-[ADR 0031](../0031-where-repo-tooling-lives/revision-000.md)'s
+[ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md)'s
 larger reorganization instead of being decided independently
 here - that decision's Option B already presupposed the shared client
 this decision's Context motivated.
@@ -89,7 +90,7 @@ the real host).
 
 Whether the four resulting clients also share an implementation with
 each other, and where that implementation lives, was
-[ADR 0031](../0031-where-repo-tooling-lives/revision-000.md)'s decision to make, not
+[ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md)'s decision to make, not
 this one's - this decision is limited to which libraries every
 internal client uses, independent of how much code they share.
 
@@ -107,7 +108,7 @@ internal client uses, independent of how much code they share.
   to silently flip later.
 - `cache.py` and `openbao_utils/bootstrap.py` no longer independently
   implement the same login/read/write bodies - resolved by
-  [ADR 0031](../0031-where-repo-tooling-lives/revision-000.md), which extracted the
+  [ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md), which extracted the
   shared implementation into `tools/utils/repo.py`/
   `tools/openbao_utils/client.py`. `r2_read_watcher.py` still keeps
   its own independent copy, deliberately, per that decision's own

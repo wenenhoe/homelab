@@ -3,6 +3,7 @@ id: ADR-0055
 revision: 0
 type: adr
 title: Maintainer client access to the coding-agent host
+short: Coding-agent client access
 solution: One workstation identity, terminal-only SSH to the host on a dedicated key, and review by git fetch and a local diff
 summary: How the maintainer drives the agent and reviews its work without the host gaining a path to the workstation's push credential.
 topic: security-hardening
@@ -18,21 +19,21 @@ The maintainer drives the agent and reviews its work from the workstation. The u
 
 ## Context
 
-The workstation is the maintainer's Windows 11 laptop. It holds the push credential ([ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md)) and, under [ADR 0056](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md), no readable infrastructure credential.
+The workstation is the maintainer's Windows 11 laptop. It holds the push credential ([ADR 0050 (Agent changes to production)](../0050-agent-authored-changes-reaching-production/revision-000.md)) and, under [ADR 0056 (Workstation credentials)](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md), no readable infrastructure credential.
 
-The firewall rule "the host may not initiate to the workstation" ([ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md)) does not cover the connection the workstation itself opens. A remote-editor session runs a server-side component on the host and renders what it returns on the client; SSH agent, port, and X11 forwarding are further client-side surfaces. Content the host produces can also be run by the maintainer later: git hooks, pre-commit configuration, editor task files, playbooks.
+The firewall rule "the host may not initiate to the workstation" ([ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md)) does not cover the connection the workstation itself opens. A remote-editor session runs a server-side component on the host and renders what it returns on the client; SSH agent, port, and X11 forwarding are further client-side surfaces. Content the host produces can also be run by the maintainer later: git hooks, pre-commit configuration, editor task files, playbooks.
 
 **Threat model.** The adversary controls the host. The asset is the push credential. The attack path is the maintainer's own client connection and the content they open from the host.
 
 ## Decision
 
-- **Driving** is a plain SSH terminal session to the host, authenticated by one key used for nothing else. The client configuration for that host disables agent, X11, and port forwarding. No remote-editor session runs against the host. Away from home the session reaches the host over the Tailscale route that [ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md) grants to the laptop alone.
-- **Review** is by git. The host's repository is a remote on the workstation; the maintainer fetches it and reads the diff in a local clone before checking anything out where it executes (hooks, pre-commit, Ansible, Molecule, editor tasks), with the editor's workspace trust restricted until then. Pushing follows [ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md).
+- **Driving** is a plain SSH terminal session to the host, authenticated by one key used for nothing else. The client configuration for that host disables agent, X11, and port forwarding. No remote-editor session runs against the host. Away from home the session reaches the host over the Tailscale route that [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md) grants to the laptop alone.
+- **Review** is by git. The host's repository is a remote on the workstation; the maintainer fetches it and reads the diff in a local clone before checking anything out where it executes (hooks, pre-commit, Ansible, Molecule, editor tasks), with the editor's workspace trust restricted until then. Pushing follows [ADR 0050 (Agent changes to production)](../0050-agent-authored-changes-reaching-production/revision-000.md).
 
 ## Alternatives considered
 
 - **Remote-editor sessions.** Convenient, but they run a component from the untrusted host inside the maintainer's workflow. Rejected.
-- **A separate account or profile for driving.** Costs a second identity to maintain, for a workstation that holds only the push credential once [ADR 0056](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md) lands. Rejected.
+- **A separate account or profile for driving.** Costs a second identity to maintain, for a workstation that holds only the push credential once [ADR 0056 (Workstation credentials)](../0056-credentials-held-by-the-maintainer-workstation/revision-000.md) lands. Rejected.
 - **A fetch-only key restricted on the host.** Limits what the key can do on a host that is untrusted anyway; the host can answer any request regardless. Rejected.
 - **A separate client VM.** The step up if the residual risk below becomes unacceptable.
 
@@ -49,8 +50,8 @@ The firewall rule "the host may not initiate to the workstation" ([ADR 0053](../
 
 ## Non-goals
 
-- What the host may reach ([ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md)).
-- Who holds the push credential ([ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md)).
+- What the host may reach ([ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md)).
+- Who holds the push credential ([ADR 0050 (Agent changes to production)](../0050-agent-authored-changes-reaching-production/revision-000.md)).
 
 ## Validation
 

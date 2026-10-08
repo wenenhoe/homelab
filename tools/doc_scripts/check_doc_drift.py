@@ -16,7 +16,7 @@ from pathlib import Path
 
 import yaml
 
-from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, read_frontmatter
+from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, load_lineages, read_frontmatter
 from doc_scripts.doc_graph import lineage_errors, open_assumption_errors, project_errors
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -39,6 +39,7 @@ INDEXED_DOC_DIRS = (("", False), ("decisions", False), ("architecture", False), 
 DOC_PATH_RE = re.compile(r"docs/(?:decisions|projects)/[\w./-]*\.md")
 PATH_MENTION_EXTS = ANCHOR_SCAN_EXTS | {".sh", ".toml", ".hcl", ".j2"}
 REPO_FILE_LINK_RE = re.compile(r"\]\((\.{1,2}/[\w./-]+\.(?:yaml|yml|hcl|sh|py|j2|json|toml))(?:#[^)]*)?\)")
+ADR_LINK_NAME_RE = re.compile(r"\[ADR\s+(\d{4})(?:\s+revision\s+[\w-]+)?\s+\(([^()\]]+)\)\]")
 
 
 def fail(msg: str) -> None:
@@ -321,6 +322,26 @@ def check_doc_path_mentions() -> None:
                 fail(f"{f.relative_to(ROOT)}: mentions {path}, which doesn't exist")
 
 
+def check_adr_link_names() -> None:
+    """A markdown link written `[ADR 0044 (CD agent trigger)]`, or with a
+    revision after the number, carries that lineage's `short:` name
+    exactly, so renaming a lineage can't leave links using the old name.
+    A bare `[ADR 0044]` passes: the name is for the reader and is never
+    required, and existing links stay as they are.
+    """
+    shorts = {lineage.id: lineage.revisions[0].fm["short"] for lineage in load_lineages(ROOT)}
+    for f in sorted(ROOT.rglob("*.md")):
+        rel_f = f.relative_to(ROOT)
+        if any(part in ANCHOR_SCAN_EXCLUDE_DIRS for part in f.parts) or rel_f.as_posix().startswith(ANCHOR_SCAN_EXCLUDE_PREFIXES):
+            continue
+        for number, name in ADR_LINK_NAME_RE.findall(read(f)):
+            expected = shorts.get(f"ADR-{number}")
+            if expected is None:
+                fail(f"{rel_f}: links ADR {number}, which isn't a lineage")
+            elif (name := " ".join(name.split())) != expected:
+                fail(f"{rel_f}: links ADR {number} as '{name}', but its short name is '{expected}'")
+
+
 def check_nist_alignment_currency() -> None:
     """docs/topics/engineering/nist-800-53-alignment.md links to specific ADRs as
     evidence for a control mapping; unlike a plain dead link, an ADR
@@ -368,6 +389,7 @@ def main() -> int:
     check_ci_jobs_table()
     check_no_stale_anchors()
     check_doc_path_mentions()
+    check_adr_link_names()
     check_nist_alignment_currency()
     errors.extend(lineage_errors(ROOT))
     errors.extend(open_assumption_errors(ROOT))

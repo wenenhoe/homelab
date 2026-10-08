@@ -3,6 +3,7 @@ id: ADR-0037
 revision: 1
 type: adr
 title: "Recording decisions, tracking execution, and keeping docs true"
+short: Decision and project workflow
 solution: "also_implements: as a validated, non-gating frontmatter field, plus a generated view of open ADRs no project covers"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended to close a visibility gap the original method left open."
 topic: documentation-process
@@ -26,7 +27,7 @@ hits turned out not to be gaps: a project can legitimately have no
 can complete a *different* lineage than the one it's gated on
 ([`coding-agent-access-path.md`](../../projects/coding-agent-access-path.md),
 `decision: ADR-0055/0`, whose Stage 2 also sets
-[ADR 0050](../0050-agent-authored-changes-reaching-production/revision-000.md)
+[ADR 0050 (Agent changes to production)](../0050-agent-authored-changes-reaching-production/revision-000.md)
 to `accepted`). Distinguishing these by hand each time doesn't scale,
 and the interim fix — asking a project to say so in free prose — has
 no fixed phrase to check for: an earlier patch cited both situations as

@@ -3,6 +3,7 @@ id: ADR-0016
 revision: 0
 type: adr
 title: OCI credential creation and expiry
+short: OCI credential creation
 solution: Identity Domains SCIM with a Confidential Application's OAuth2 client credentials
 summary: How OCI keys are minted and how their expiry is set and tracked, since the classic API has no expiry field.
 topic: cloud-credentials

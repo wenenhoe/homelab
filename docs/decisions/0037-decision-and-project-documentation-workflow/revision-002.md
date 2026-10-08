@@ -3,6 +3,7 @@ id: ADR-0037
 revision: 2
 type: adr
 title: "Recording decisions, tracking execution, and keeping docs true"
+short: Decision and project workflow
 solution: "Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended so one decision can be implemented by more than one project."
 topic: documentation-process
@@ -18,7 +19,7 @@ related: [ADR-0061]
 A project's `decision:` names the one revision it implements, and the
 lifecycle requires that revision to be `accepted` before the project is
 `done` and its doc is deleted. That assumes one project per decision.
-[ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+[ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
 broke the assumption: one threat model, implemented by three separate
 pieces of work, each with its own project. The first to finish cannot
 satisfy the closing checklist, because `check-doc-drift.py` rightly

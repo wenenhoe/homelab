@@ -83,7 +83,7 @@ below, over a complete inventory.
 A weekly job in the private `homelab-security` repo's own CI scans every image
 this repo deploys, ranks what it finds, and keeps the results there. It is
 decided in
-[ADR 0071](../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md).
+[ADR 0071 (Image vulnerability assessment)](../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md).
 This repo's part is the inventory it reads and the rule that no result lands
 here.
 

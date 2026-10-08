@@ -3,6 +3,7 @@ id: ADR-0020
 revision: 1
 type: adr
 title: Automation identity and access scope
+short: Automation identity scope
 solution: Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot), retiring controller's broad grant
 summary: Which identities may read and write which secret paths, once unattended prod-touching work has more than one category.
 topic: secrets-store
@@ -17,7 +18,7 @@ related: [ADR-0017, ADR-0023, ADR-0025, ADR-0044, ADR-0047]
 
 [0020](revision-000.md) gives `controller`
 one broad AppRole because it's the only automation identity that
-exists today. [ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)
+exists today. [ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)
 adds a dedicated automation host (`cd_agent`) that becomes the sole
 path to prod deploys and takes over the rotation/freshness jobs
 [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md) schedules.
@@ -35,6 +36,15 @@ AppRole API reference) — usable only for an identity with a stable
 address.
 
 ## Decision
+
+This table shows what each of the four AppRoles reaches, as this revision decided it, not what runs now.
+
+| AppRole | Reaches | Does not reach |
+| :--- | :--- | :--- |
+| `cd-agent-deploy` | Read on `secret/data/hosts/*` and `secret/data/cloud_credentials/leaf/*`; `create` but not `update` on `secret/data/hosts/*` | `cloud_credentials/rotation/*` |
+| `cd-agent-rotation` | Create, update and read on `secret/data/cloud_credentials/leaf/*` and `secret/data/cloud_credentials/rotation/*` | `secret/data/hosts/*` |
+| `cd-agent-freshness` | Read on `secret/data/cloud_credentials/leaf/*`, `secret/data/cloud_credentials/rotation/*` and `secret/data/hosts/all/telegram/*` | Writing or rotating anything |
+| `cd-agent-snapshot` | Read on `sys/storage/raft/snapshot` and six named paths under `secret/data/cloud_credentials/leaf/` | The rest of `leaf/*` |
 
 Four AppRoles, all bound to `cd_agent`'s fixed LAN IP via
 `secret_id_bound_cidrs` and `token_bound_cidrs`:
@@ -59,9 +69,9 @@ Four AppRoles, all bound to `cd_agent`'s fixed LAN IP via
   `secret/data/cloud_credentials/rotation/*` and
   `secret/data/hosts/all/telegram/*`. The freshness check reads the
   rotation-tier credentials to ask each provider when its keys expire,
-  and the Telegram credentials ([ADR 0021](../0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md))
+  and the Telegram credentials ([ADR 0021 (Ownerless secret paths)](../0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md))
   to send its alert, as the watcher in
-  [ADR 0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md)
+  [ADR 0026 (High-value secret read alerts)](../0026-detecting-reads-of-high-value-secrets/revision-000.md)
   already does. It can read what rotation holds but cannot write or
   rotate anything, and rotation never needs the Telegram path.
 - `cd-agent-snapshot` — read on `sys/storage/raft/snapshot` and on six
@@ -78,7 +88,7 @@ Four AppRoles, all bound to `cd_agent`'s fixed LAN IP via
 
 All four AppRoles live on the same host, so the CIDR bind separates
 `cd_agent` from everything else on the network, not the jobs from each
-other. Each job runs as its own Unix user ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)),
+other. Each job runs as its own Unix user ([ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)),
 so a compromised job process cannot read another job's `secret_id`. The
 AppRoles stay separate so the policies differ as well as the files;
 root on the host can read all of them.
@@ -97,11 +107,11 @@ Each `secret_id` is generated once during `cd_agent`'s own provisioning
 and delivered response-wrapped, unwrapped on `cd_agent` itself, so the
 raw value is only ever written to its `0400` file. Until the
 controller's AppRole is retired, the operator host requests the wrapped
-value through `vault-bootstrap` ([ADR 0025](../0025-admin-capability-without-a-standing-root-token/revision-000.md)),
+value through `vault-bootstrap` ([ADR 0025 (Admin without root token)](../0025-admin-capability-without-a-standing-root-token/revision-000.md)),
 the one identity whose policy grants `auth/approle/role/+/secret-id`
 and none of `secret/data/*`; `controller`'s own policy has no
 `auth/approle` capability. How the controller authenticates once its
-AppRole is gone is [ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)'s.
+AppRole is gone is [ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)'s.
 
 Once `cd-agent-deploy`/`cd-agent-rotation` are live and proven,
 `controller`'s AppRole is deleted outright, not narrowed. From that
@@ -124,9 +134,9 @@ drill), narrowly scoped and short-lived, never persisted to disk.
 - The snapshot job pushes with a native `rclone`, not the throwaway
   container the manual script uses. Access to the Docker socket is
   root-equivalent and would let its user read every other job's
-  credentials ([ADR 0044](../0044-prod-automation-trigger-and-execution/revision-000-c.md)).
+  credentials ([ADR 0044 (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 - Until the snapshot job exists, the manual script keeps using
-  `controller`'s AppRole ([ADR 0019](../0019-openbao-offsite-snapshot-path/revision-000.md)),
+  `controller`'s AppRole ([ADR 0019 (OpenBao offsite snapshot)](../0019-openbao-offsite-snapshot-path/revision-000.md)),
   so that AppRole cannot be deleted before this one is live.
 - Token lifetime (`token_ttl`) per `cd_agent` invocation is a project
   decision, bounded below by the longest job run and kept short enough

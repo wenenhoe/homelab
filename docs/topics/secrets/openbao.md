@@ -2,7 +2,7 @@
 
 `openbao` is this migration's replacement for the file-based secrets
 cache
-([ADR 0013](../../decisions/0013-secret-storage/revision-000.md)).
+([ADR 0013 (Secret storage)](../../decisions/0013-secret-storage/revision-000.md)).
 This doc covers deploying it, its TLS cert, and getting it initialized
 and unsealed. Auth and policies are covered in
 [`openbao-auth.md`](openbao-auth.md); the secrets role migration is
@@ -252,7 +252,7 @@ them, not work around them:
 
 Both subcommands keep driving `docker exec` against the live
 container, permanently, by necessity — see
-[ADR 0034](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md)'s
+[ADR 0034 (Operator bao CLI access)](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md)'s
 Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
 but the container crash-loops until `step_ca_cert` issues its leaf
 cert, so there's no trustworthy network path to it during that window.
@@ -260,7 +260,7 @@ This is the one place in the whole OpenBao CLI surface that stays
 `docker exec`-based — everywhere else now uses the native `bao`
 binary directly (`security` or `controller`, whichever you're on), or
 `bao_session.py` (`controller` only — see
-[ADR 0033](../../decisions/0033-where-the-interactive-bao-session-runs/revision-000.md))
+[ADR 0033 (Interactive bao session)](../../decisions/0033-where-the-interactive-bao-session-runs/revision-000.md))
 when starting from an AppRole login; see
 [`openbao-auth.md`](openbao-auth.md#runbook).
 
@@ -329,7 +329,7 @@ by Docker's own log driver — not the API/CLI route, which needs
 `unsafe_allow_api_audit_creation` and a privileged token neither of
 which this deployment has. `logging:` on the `openbao` compose service
 caps growth (`max-size`/`max-file`). See
-[ADR 0026](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
+[ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 for why, and its threat model for what this does and doesn't expose.
 
 ## Secrets

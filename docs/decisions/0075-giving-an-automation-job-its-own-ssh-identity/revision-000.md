@@ -3,6 +3,7 @@ id: ADR-0075
 revision: 0
 type: adr
 title: Giving an automation job its own SSH identity
+short: Job SSH identity
 solution: Each job that reaches hosts holds an ed25519 key generated on the CD agent and never copied off it, authorized on only the hosts it manages and only from the agent's address
 summary: How a CD agent job that connects to managed hosts gets an SSH key of its own instead of the shared infrastructure key.
 topic: deployment-platform
@@ -18,11 +19,11 @@ A CD agent job that runs Ansible against managed hosts needs an SSH identity. To
 
 ## Context
 
-`ansible/inventory/inventory.yaml` sets one `ansible_ssh_private_key_file`, `~/.ssh/proxmox_vm_servers`, under `all.vars`, and every `managed_hosts` member trusts its public half ([`network-infra.md`](../../topics/infra/network-infra.md)). [`cd-agent.md`](../../projects/cd-agent.md) records that the key is shared and unsplit. [ADR 0054](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) already overrides it for one host group and gives that group's job only its own key.
+`ansible/inventory/inventory.yaml` sets one `ansible_ssh_private_key_file`, `~/.ssh/proxmox_vm_servers`, under `all.vars`, and every `managed_hosts` member trusts its public half ([`network-infra.md`](../../topics/infra/network-infra.md)). [`cd-agent.md`](../../projects/cd-agent.md) records that the key is shared and unsplit. [ADR 0054 (Untrusted host management)](../0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md) already overrides it for one host group and gives that group's job only its own key.
 
 Each CD agent job runs as its own user with its own credentials directory, readable only by that user ([`cd-agent-host.md`](../../topics/deploy/cd-agent-host.md)). The job's home is its state directory, and its unit's filesystem is read-only outside it.
 
-[ADR 0074](../0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)'s `redeploy-storage` is the first job that must reach one host and no other: it runs `deploy.yaml --limit storage,localhost`. The `deploy` job, which reaches every managed host, is the second user of the same shared key.
+[ADR 0074 (Job chaining)](../0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)'s `redeploy-storage` is the first job that must reach one host and no other: it runs `deploy.yaml --limit storage,localhost`. The `deploy` job, which reaches every managed host, is the second user of the same shared key.
 
 The host account a key opens is root-equivalent through `sudo`, as ADR 0054 accepts for its own account. A key's reach is therefore the set of hosts that authorize it.
 
@@ -31,6 +32,19 @@ OpenSSH's `from=` option on an `authorized_keys` entry accepts the key only from
 **Threat model.** The adversary can write to `main`, or controls a job's code, as in ADR 0044. The asset is root on the hosts. The attack path is a job reading its own SSH key and using it from elsewhere, or a job reading another job's key.
 
 ## Decision
+
+This diagram shows where a job's SSH key is made, what leaves the agent and who authorizes it, as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    subgraph AG["CD agent"]
+        K["ed25519 key pair per job that declares it needs one<br/>private half 0400 in the job's credentials directory, never copied off the agent"]
+        J["Job<br/>ansible_ssh_private_key_file from an environment variable its unit sets, falling back to the shared key's path"]
+        K --> J
+    end
+    K -->|"public half only, as public values in the data the operator applies"| H["Hosts in the job's --limit<br/>authorize it for the management account, with from= the agent's address"]
+    J -->|SSH| H
+```
 
 - **Generated on the agent.** The `cd_agent` role creates an ed25519 key pair for each job that declares it needs one, in that job's credentials directory, owned by the job's user and mode `0400`, only when none exists. The private half is never copied off the agent, so no operator machine or repository holds it. The role never overwrites an existing key.
 - **Authorized per host group.** The public half is the only thing that leaves the agent. It is written into the data the operator applies, as public values, and the hosts the job manages authorize it for the management account with `from=` set to the agent's address. A host that is not in the job's `--limit` never authorizes it.

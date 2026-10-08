@@ -3,6 +3,7 @@ id: ADR-0036
 revision: 0
 type: adr
 title: Beszel notification configuration
+short: Beszel notifications
 solution: The token hand-typed into the web UI, DB-resident
 summary: How Beszel's Telegram channel is configured, given its notification URL supports no environment variables.
 topic: monitoring-alerting

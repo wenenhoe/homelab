@@ -23,7 +23,7 @@ unit does. Every catalog entry states its `store`
 (`scope: cloud_credentials/leaf`, the same top-level
 path `tools/cloud_credentials/*.py` itself writes to — see
 `cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secret_catalog.yaml`'s own header comment and
-[ADR 0021](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
+[ADR 0021 (Ownerless secret paths)](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
 for the full picture.
 
 No template should call `lookup('password', ...)` / `lookup('pipe', ...)`
@@ -33,7 +33,7 @@ any new secret or config value goes through the catalog instead:
 1. Add an entry to `secret_catalog.yaml`, with `store: openbao` and a `scope`
    (`hosts/<host>` if it's referenced from that host's own
    `host_vars/<host>.yaml`, `hosts/all/<concern>` if it's referenced
-   from `group_vars/all/main.yaml` — see [ADR 0021](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)):
+   from `group_vars/all/main.yaml` — see [ADR 0021 (Ownerless secret paths)](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)):
    ```yaml
    secret_catalog:
      my-new-thing:
@@ -95,7 +95,7 @@ A `scope` is `hosts/<host>` (`security`, `services`, `storage` or `play`),
 are always `store: openbao`, because Ansible can only generate into OpenBao.
 An entry's OpenBao path is `<scope>/<name>` under the `secret` mount, and it
 doesn't change unless a decision says so
-([ADR 0066](../../decisions/0066-how-a-secret-definition-states-production-and-storage/revision-000.md)).
+([ADR 0066 (Secret definitions)](../../decisions/0066-how-a-secret-definition-states-production-and-storage/revision-000.md)).
 
 Every reader other than Ansible loads the catalog through
 `tools/utils/secret_catalog.py`, which refuses a repeated secret name and an
@@ -119,7 +119,7 @@ reachable and the controller AppRole already provisioned
 ([`openbao-auth.md`](openbao-auth.md)'s runbook) before this script can
 do anything with them; it fetches step-ca's root cert fresh each run to
 validate OpenBao's TLS cert, the same mechanism
-[ADR 0022](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
+[ADR 0022 (Controller TLS trust)](../../decisions/0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
 uses from Ansible. A CD agent job, which has no SSH key to `security`, is
 delivered the root instead
 ([`openbao-cd-agent-approles.md`](openbao-cd-agent-approles.md)). To set a

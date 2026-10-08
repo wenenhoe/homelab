@@ -3,6 +3,7 @@ id: ADR-0005
 revision: 0
 type: adr
 title: Persistent container state and host permissions
+short: Persistent container state
 solution: Docker-managed named volumes, populated by Ansible
 summary: App state survives container replacement without UID/permission friction and can be backed up generically.
 topic: deployment-platform

@@ -3,6 +3,7 @@ id: ADR-0045
 revision: 0
 type: adr
 title: Security event collection and alerting
+short: Security event pipeline
 solution: 'Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts'
 summary: Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs.
 topic: security-hardening
@@ -30,7 +31,7 @@ session, just for alerting instead of secrets access.
 
 ## Evaluated: resource budget
 
-[ADR 0035](../0035-container-orchestration-platform/revision-000.md)'s
+[ADR 0035 (Container orchestration)](../0035-container-orchestration-platform/revision-000.md)'s
 research answers the first "not yet evaluated" item directly, so it's
 folded in here rather than left open:
 
@@ -47,14 +48,14 @@ folded in here rather than left open:
   supported starting in the 5.0-beta docs, so even with the OCPU/RAM
   budget this would need its own compatibility check, not assumed.
 - **The single Proxmox host doesn't have comfortable room either.**
-  [ADR 0035](../0035-container-orchestration-platform/revision-000.md)'s
+  [ADR 0035 (Container orchestration)](../0035-container-orchestration-platform/revision-000.md)'s
   hardware accounting (6-core i5-9400, 32 GB RAM, ~18 GB headroom
   after planned VM sizing) means an on-prem Wazuh VM would eat a large
   fraction of the host's remaining budget for one service.
 - **The single Proxmox host would actually clear Wazuh's documented
   minimum**, and is worth naming since it's the one option that
   doesn't require guessing: a dedicated 4 vCPU/8 GB/50 GB VM fits
-  inside the ~18 GB RAM headroom [ADR 0035](../0035-container-orchestration-platform/revision-000.md)
+  inside the ~18 GB RAM headroom [ADR 0035 (Container orchestration)](../0035-container-orchestration-platform/revision-000.md)
   already accounts for, on x86 (no ARM64 compatibility question), on
   1 TB of NVMe ([`../../../README.md#hardware`](../../../README.md#hardware)).
   The cost isn't resources
@@ -113,7 +114,7 @@ already depends on — not about site independence.
 
 If any log-shipping/aggregation tool — Wazuh or otherwise — is ever
 adopted, it collides with a named, load-bearing assumption in
-[ADR 0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md):
+[ADR 0026 (High-value secret read alerts)](../0026-detecting-reads-of-high-value-secrets/revision-000.md):
 that OpenBao's plaintext audit log stays contained to `security`
 specifically *because* "no compose service in this repo ships logs
 anywhere today." ADR 0026's Consequences section says this explicitly
@@ -176,7 +177,7 @@ wired up turn out to be narrower than that.
 This isn't a library swap like most of the drafts in this repo — it's
 a new piece of infrastructure with its own resource footprint,
 operational surface, and maintenance burden. It doesn't belong under
-[ADR 0030](../0030-openbao-client-implementation-in-repo-python/revision-000.md) (that's about
+[ADR 0030 (OpenBao Python client)](../0030-openbao-client-implementation-in-repo-python/revision-000.md) (that's about
 which Python client talks to OpenBao, not what watches for suspicious
 access) or
 `ansible-collections-audit.md` (that's about existing roles' task

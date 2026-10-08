@@ -3,6 +3,7 @@ id: ADR-0026
 revision: 0
 type: adr
 title: Detecting reads of high-value secrets
+short: High-value secret read alerts
 solution: A declarative stdout audit device plus a least-privilege watcher
 summary: Every read of the R2 admin token's path is visible and raises an alert.
 topic: secrets-store

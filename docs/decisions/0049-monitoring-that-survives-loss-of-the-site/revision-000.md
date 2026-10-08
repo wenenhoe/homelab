@@ -3,6 +3,7 @@ id: ADR-0049
 revision: 0
 type: adr
 title: Monitoring that survives loss of the site
+short: Site-loss monitoring
 solution: Relocate monitoring to a GCP e2-micro, reached by extending VM 202's Tailscale subnet route
 summary: Something outside the site notices when the whole homelab or its connectivity goes down.
 topic: monitoring-alerting
@@ -14,7 +15,7 @@ related: [ADR-0010, ADR-0042, ADR-0047, ADR-0073]
 
 ## Context
 
-[ADR 0042](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md) describes the gap (Beszel and Kuma both live entirely on `security`) and isolates monitoring from that host. It doesn't solve the whole homelab, or its connectivity, going down: structurally the same threat model [ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) already solved for backups.
+[ADR 0042 (Monitoring host loss)](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md) describes the gap (Beszel and Kuma both live entirely on `security`) and isolates monitoring from that host. It doesn't solve the whole homelab, or its connectivity, going down: structurally the same threat model [ADR 0010 (Offsite copy deletion)](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) already solved for backups.
 
 It also
 means the actual mechanism needed for an eventual cloud-hosted monitor
@@ -22,13 +23,13 @@ to reach the 4 managed hosts already exists — no new tunnel technology,
 just extending an existing Tailscale subnet route to a new node and
 bringing the router itself under management.
 
-[ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md) is approved, so the GCP host holds no OpenBao identity and receives only the secrets its own role needs, pushed by Ansible. A compromise of it exposes those secrets and a tailnet route back into the lab.
+[ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md) is approved, so the GCP host holds no OpenBao identity and receives only the secrets its own role needs, pushed by Ansible. A compromise of it exposes those secrets and a tailnet route back into the lab.
 
 ## Decision
 
 **Relocate to GCP's e2-micro Always Free instance**, reached by
 extending the same Tailscale subnet route VM 202 already provides
-(from [ADR 0042](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)'s Stage 1) to the new GCP node — this is the actual
+(from [ADR 0042 (Monitoring host loss)](../0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md)'s Stage 1) to the new GCP node — this is the actual
 site-independence win, and it costs no new tunnel technology, only
 the actual work of adding GCP as a route destination (VM 202
 doesn't reach it for free just because the mechanism already
@@ -64,6 +65,6 @@ sharing OCI with it.
 - **Claim:** the instance can reach Telegram and the tailnet through an ephemeral external address with all ingress denied, at no charge on the free tier.
   **Breaks if wrong:** an address or NAT charge applies, or the instance needs a reserved address, and the free-tier claim above no longer holds.
   **Checked by:** the billing view during the spike in [`gcp-e2-micro-provisioning.md`](../../projects/gcp-e2-micro-provisioning.md); Google's free-tier page states the e2-micro's external address is not charged, which the spike confirms rather than assumes.
-- **Claim:** the identity that provisions the instance is settled by [ADR 0073](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) before any provisioning code is built.
+- **Claim:** the identity that provisions the instance is settled by [ADR 0073 (Off-site cloud auth)](../0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md) before any provisioning code is built.
   **Breaks if wrong:** the first off-site build would fix a standing key or token on the maintainer side by default.
   **Checked by:** ADR 0073 reaching `approved`.

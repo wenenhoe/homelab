@@ -3,6 +3,7 @@ id: ADR-0008
 revision: 1
 type: adr
 title: Internal certificate lifetime
+short: Internal certificate lifetime
 solution: Shorten the default claim duration toward step-ca's own 24h now that renewal is automated
 summary: How long certificates from the internal CA live, given the renewal automation that now exists.
 topic: ingress-tls-pki
@@ -15,7 +16,7 @@ related: [ADR-0007]
 
 ## Context
 
-[ADR 0008](revision-000.md) set step-ca's default
+[ADR 0008 (Internal certificate lifetime)](revision-000.md) set step-ca's default
 provisioner claim duration to 720h instead of step-ca's own 24h
 default, because at the time nothing in this repo renewed certs
 automatically — a 24h cert would have expired unattended. That ADR
@@ -28,7 +29,7 @@ reconsidered afterward.
 
 The duration is set once, provisioner-wide
 (`step ca provisioner update --x509-default-dur`, per
-[ADR 0007](../0007-internal-ca-initialization-and-identity-persistence/revision-000.md)),
+[ADR 0007 (Internal CA initialization)](../0007-internal-ca-initialization-and-identity-persistence/revision-000.md)),
 so it applies identically to both of step-ca's real consumers — there's
 no per-service override to reason about separately.
 
@@ -82,7 +83,7 @@ established, with no change to `cert-renewer@`'s timer schedule —
 
 ## Consequences
 
-- Once decided, [ADR 0008](revision-000.md)'s
+- Once decided, [ADR 0008 (Internal certificate lifetime)](revision-000.md)'s
   "flagged for review" status line should be updated to point here
   rather than staying an open-ended flag with no tracked resolution.
 - No compose/role changes beyond the one `x509-default-dur` value and

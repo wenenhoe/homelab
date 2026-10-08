@@ -21,7 +21,7 @@ Bringing VM 202 under management, and a dedicated on-prem host for Beszel and Ku
 
 ## Decision
 
-Implements [ADR 0042](../decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), `approved`; this doc tracks build status only.
+Implements [ADR 0042 (Monitoring host loss)](../decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md), `approved`; this doc tracks build status only.
 
 ## Execution plan
 

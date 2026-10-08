@@ -3,6 +3,7 @@ id: ADR-0052
 revision: 0
 type: adr
 title: Molecule runtime without host privilege
+short: Molecule runtime
 solution: 'Undecided: rootless Podman, rootless Docker, or a microVM-private daemon, chosen by spike'
 summary: How this repo's privileged, systemd-based Molecule fixtures run on the coding-agent host without a container that has host-level root reach.
 topic: security-hardening
@@ -22,13 +23,13 @@ Nearly every scenario uses the Docker driver against `ghcr.io/wenenhoe/molecule-
 
 The `secrets` role's Vault-backed scenarios start sibling containers through the Molecule control node's own Docker daemon (`molecule_helpers/tasks/start_openbao_test_target.yaml`), so they need daemon access on the host that runs Molecule.
 
-A privileged container created by a daemon whose root is the host's root is root-equivalent on that host. [ADR 0004](../0004-container-access-to-the-docker-api/revision-000.md) already rules out handing raw daemon access to a consumer. Molecule needs a runtime where "privileged" is scoped to something the agent may already control.
+A privileged container created by a daemon whose root is the host's root is root-equivalent on that host. [ADR 0004 (Docker API access)](../0004-container-access-to-the-docker-api/revision-000.md) already rules out handing raw daemon access to a consumer. Molecule needs a runtime where "privileged" is scoped to something the agent may already control.
 
 Three candidates would provide that scoping:
 
 - **Rootless Podman** through its Docker-compatible socket.
 - **Rootless Docker**, where privileged is relative to a user namespace.
-- **A microVM-private daemon** (`sbx`), where privileged is relative to the microVM. This requires nested virtualization and reopens [ADR 0051](../0051-coding-agent-execution-isolation/revision-000.md).
+- **A microVM-private daemon** (`sbx`), where privileged is relative to the microVM. This requires nested virtualization and reopens [ADR 0051 (Coding-agent isolation)](../0051-coding-agent-execution-isolation/revision-000.md).
 
 ## Decision
 
@@ -37,7 +38,7 @@ Not yet. The candidates are compared by running the real fixtures, not by readin
 ## Assumptions
 
 - **Claim:** at least one candidate runs `compose/default` (systemd plus nested Docker) to a passing `molecule test`.
-  **Breaks if wrong:** the scenarios that cover the deploy path cannot run on the host, and the host either runs a reduced set or is reconsidered ([ADR 0051](../0051-coding-agent-execution-isolation/revision-000.md)).
+  **Breaks if wrong:** the scenarios that cover the deploy path cannot run on the host, and the host either runs a reduced set or is reconsidered ([ADR 0051 (Coding-agent isolation)](../0051-coding-agent-execution-isolation/revision-000.md)).
   **Checked by:** a time-boxed spike, one candidate at a time, discarded once answered.
 - **Claim:** the same candidate also runs `secrets/vault_backed`, whose sibling-container fixtures need daemon access from the Molecule control process.
   **Breaks if wrong:** the Vault-calling scenarios are excluded from the host and stay covered by CI only.

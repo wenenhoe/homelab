@@ -3,6 +3,7 @@ id: ADR-0003
 revision: 0
 type: adr
 title: Certificate issuance for proxied apps
+short: Proxied-app certificates
 solution: One wildcard certificate per host (tinyauth a deliberate exception)
 summary: How Caddy-proxied apps get TLS certificates, and whether each app hostname is exposed in public Certificate Transparency logs.
 topic: ingress-tls-pki

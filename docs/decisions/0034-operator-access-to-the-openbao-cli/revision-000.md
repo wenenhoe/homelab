@@ -3,6 +3,7 @@ id: ADR-0034
 revision: 0
 type: adr
 title: Operator access to the OpenBao CLI
+short: Operator bao CLI access
 solution: A native bao binary on security and controller
 summary: How operators reach the bao CLI, replacing four overlapping docker-exec and alias patterns.
 topic: repository-tooling
@@ -16,7 +17,7 @@ related: [ADR-0033, ADR-0022, ADR-0030]
 **Status:** Accepted
 
 Revises one specific passage of already-accepted
-[ADR 0019](../0019-openbao-offsite-snapshot-path/revision-000.md) - not its
+[ADR 0019 (OpenBao offsite snapshot)](../0019-openbao-offsite-snapshot-path/revision-000.md) - not its
 structural decision (`snapshot-push.sh` pushing directly to R2/B2,
 never through `backup_agent`/`cloud_sync`, stands unchanged) - just
 its claim that the push happens "directly from `security`" and that
@@ -25,7 +26,7 @@ true when 0019 was written. The Decision below moves the whole
 script - login, snapshot save, encrypt, push - onto `controller`
 instead, reading the same dedicated snapshot-write-scoped leaf via
 `controller`'s own already-broad AppRole grant
-([ADR 0020](../0020-automation-identity-and-access-scope/revision-000.md))
+([ADR 0020 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-000.md))
 rather than a `security`-only path - confirmed to need no new Vault
 policy grant, since that grant already covered this exact path.
 
@@ -48,7 +49,7 @@ documented as more correct than the others:
   `docker run --rm --entrypoint bao openbao/openbao:2.6.2 ...`
   container just to borrow a `bao` binary, with real TLS verification
   via a root cert fetched fresh over SSH each run (the pattern
-  [ADR 0022](../0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
+  [ADR 0022 (Controller TLS trust)](../0022-controller-trust-in-the-secrets-store-tls/revision-000.md)
   established, scoped specifically to `controller`).
 
 ADR 0022 documents every existing `BAO_SKIP_VERIFY=true` use as
@@ -189,7 +190,7 @@ routing it through `docker exec`.
 - **The SSH hop** anywhere one is needed (root-cert fetch, or driving
   `docker exec` for init/unseal orchestration) uses `paramiko`
   directly, matching
-  [ADR 0030](../0030-openbao-client-implementation-in-repo-python/revision-000.md)'s clients -
+  [ADR 0030 (OpenBao Python client)](../0030-openbao-client-implementation-in-repo-python/revision-000.md)'s clients -
   not the Docker SDK's own SSH transport, for the reasons in Context
   above.
 - **Init/unseal stays security-local and docker-exec-based**,

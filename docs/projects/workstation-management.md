@@ -13,7 +13,7 @@ phase: 1-management
 
 # Maintainer Laptop Setup
 
-Makes the maintainer's laptop work as the workstation under [ADR 0056](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md). The laptop is not provisioned or converged from the repo, so this project records what it must hold and how that is checked. Staged because the repo's checks must run on it before VM 401 is retired, the operator-host key needs the operator host to exist, and the audit and the assistant rule are separate changes.
+Makes the maintainer's laptop work as the workstation under [ADR 0056 (Workstation credentials)](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md). The laptop is not provisioned or converged from the repo, so this project records what it must hold and how that is checked. Staged because the repo's checks must run on it before VM 401 is retired, the operator-host key needs the operator host to exist, and the audit and the assistant rule are separate changes.
 
 ## Scope
 
@@ -21,7 +21,7 @@ The laptop's WSL2 instance under a memory cap running the repo's checks, the pus
 
 ## Decision
 
-Implements [ADR 0056](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md), `approved`, which [`workstation-capability-reduction.md`](workstation-capability-reduction.md) also implements. The operator-host key in Stage 2 relies on [ADR 0058](../decisions/0058-where-operator-work-runs/revision-000.md), `working`: Stage 2 does not start before that revision's key assumption is resolved.
+Implements [ADR 0056 (Workstation credentials)](../decisions/0056-credentials-held-by-the-maintainer-workstation/revision-000.md), `approved`, which [`workstation-capability-reduction.md`](workstation-capability-reduction.md) also implements. The operator-host key in Stage 2 relies on [ADR 0058 (Operator work host)](../decisions/0058-where-operator-work-runs/revision-000.md), `working`: Stage 2 does not start before that revision's key assumption is resolved.
 
 ## Execution plan
 
@@ -47,7 +47,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Risks
 
 - The laptop is not converged from the repo, so the audit and the no-assistant rule hold only when they are run and kept; nothing enforces them between runs.
-- A memory-capped WSL2 may not fit every Molecule scenario. The ones that do not run on the coding-agent host, and [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) and the sizing assumption in [ADR 0051](../decisions/0051-coding-agent-execution-isolation/revision-000.md) settle which.
+- A memory-capped WSL2 may not fit every Molecule scenario. The ones that do not run on the coding-agent host, and [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) and the sizing assumption in [ADR 0051 (Coding-agent isolation)](../decisions/0051-coding-agent-execution-isolation/revision-000.md) settle which.
 
 ## Open items
 

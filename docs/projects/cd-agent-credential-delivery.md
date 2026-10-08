@@ -31,12 +31,12 @@ command. Not in scope: the roles and their policies
 ## Decision
 
 Implements the `secret_id` handoff of
-[ADR 0047](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md),
+[ADR 0047 (First-credential bootstrap)](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md),
 `approved`: a response-wrapped value requested through `vault-bootstrap`,
 carried on SSH stdin and unwrapped once on `cd_agent`. The wrapping call
 needs the `vault-bootstrap` AppRole's `secret_id`, typed at a hidden prompt,
 so the command is run by a person and is not unattended. How
-[ADR 0020 revision 1](../decisions/0020-automation-identity-and-access-scope/revision-001.md)
+[ADR 0020 revision 1 (Automation identity scope)](../decisions/0020-automation-identity-and-access-scope/revision-001.md)
 leaves the rotation cadence to a project is settled in Stage 2.
 
 ## Execution plan
@@ -56,7 +56,7 @@ For one job: request a wrapped `secret_id` for its AppRole, send the
 wrapping token to `cd_agent` over SSH stdin, unwrap it there into the job's
 `0400` file, and write the other three files, which are not secret, beside
 it. A job's second `secret_id`, such as `cd-agent-deploy`'s for
-`redeploy-storage` ([ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),
+`redeploy-storage` ([ADR 0074 (Job chaining)](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md)),
 is the same command for another job's directory. The files and their names
 are in
 [`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).

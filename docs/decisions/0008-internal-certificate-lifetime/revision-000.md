@@ -3,6 +3,7 @@ id: ADR-0008
 revision: 0
 type: adr
 title: Internal certificate lifetime
+short: Internal certificate lifetime
 solution: 720h default provisioner claim duration
 summary: How long certificates from the internal CA live, given the renewal automation that exists.
 topic: ingress-tls-pki
@@ -28,7 +29,7 @@ reference setup's own renewal automation
 
 Set the default provisioner's claim duration to 720h via `step ca
 provisioner update --x509-default-dur` (see
-[ADR 0007](../0007-internal-ca-initialization-and-identity-persistence/revision-000.md)),
+[ADR 0007 (Internal CA initialization)](../0007-internal-ca-initialization-and-identity-persistence/revision-000.md)),
 rather than step-ca's own 24h default.
 
 ## Consequences

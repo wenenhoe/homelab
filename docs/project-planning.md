@@ -21,7 +21,7 @@ down to the ones not part of any initiative.
 **Decisions awaiting a project** lists every ADR lineage with an open
 (`working`/`approved`) revision that appears in no project's
 `decision:` or `also_implements:` — see
-[ADR 0037 revision 1](decisions/0037-decision-and-project-documentation-workflow/revision-001.md)
+[ADR 0037 revision 1 (Decision and project workflow)](decisions/0037-decision-and-project-documentation-workflow/revision-001.md)
 for why those two fields specifically. A row here isn't automatically a
 gap: some are correctly undecided and can't have a project yet, some
 are single-PR-sized and don't need one, and this table can't see a
@@ -77,3 +77,4 @@ set. It narrows where to look; it doesn't replace looking.
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
 | [0059](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | **Where the tailnet policy is defined** — The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes. | Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048 settles where Tofu's own credentials live | Working |
+| [0078](decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md) | **Checking that diagrams in docs render** — How a Mermaid diagram that does not parse is stopped before it merges, given that the docs checks read markdown as text and nothing in CI renders a diagram. | Leaning: a pre-commit hook that parses every Mermaid block with Mermaid's own parser in Node, with no browser, its outcome decided by unit-tested Python | Working |

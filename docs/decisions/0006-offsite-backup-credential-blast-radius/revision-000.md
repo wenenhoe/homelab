@@ -3,6 +3,7 @@ id: ADR-0006
 revision: 0
 type: adr
 title: Offsite backup credential blast radius
+short: Offsite backup credentials
 solution: Cloud credentials only on storage; per-host, prefix-scoped SeaweedFS identities
 summary: A compromised app host must never reach a cloud credential or another host's backup archives.
 topic: backup-recovery
@@ -55,7 +56,7 @@ host a write path to its own backup without that path being available
 to whatever's compromised on that host too.
 
 This holds because `cloud_sync`'s own relay is `copy`-only (see
-[ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)) — a compromised app host
+[ADR 0010 (Offsite copy deletion)](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md)) — a compromised app host
 tampering with its own SeaweedFS archives can't propagate that
 tampering to the cloud copy, since `cloud_sync` never deletes or
 overwrites there either.

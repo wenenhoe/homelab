@@ -100,12 +100,15 @@ return the revision to `working`; the project stops (see
 [`docs/projects/README.md#stop-conditions`](../projects/README.md#stop-conditions)).
 An agent may do exactly that — append an open assumption and set
 `approved` → `working` — and nothing else to an `approved` or `accepted`
-revision.
+revision, except adding a diagram or table under
+[Diagrams and tables](#diagrams-and-tables) and adding or correcting a
+short name in a link's text under [Citing a decision](#citing-a-decision).
 
 ## Editing a revision
 
-- **Editorial** (typos, a wrong fact that was wrong at the time, a link)
-  — any state.
+- **Editorial** (typos, a wrong fact that was wrong at the time, a link,
+  or a diagram or table that adds no claim — see
+  [Diagrams and tables](#diagrams-and-tables)) — any state.
 - **Metadata** (`status`, `supersedes`, `superseded_by`, `narrows`,
   `related`, `former_ids`) — any state; it records lifecycle, not
   reasoning.
@@ -113,6 +116,50 @@ revision.
   in place while `working` or `approved`; a new revision once `accepted`.
 
 If it is unclear which side a change falls on, treat it as material.
+
+## Diagrams and tables
+
+A revision may carry a Mermaid diagram or a table where structure reads
+better than prose: who promotes into what, the order of a handoff, which
+identity may reach what. One that only restates what the revision already
+says is an editorial change, so it may be added to a revision in any
+state, `accepted` and `superseded` included.
+
+- **It adds no claim.** It shows the Decision's mechanism and says
+  nothing the prose doesn't. Where the two disagree the prose is the
+  record and the visual is the one to fix. A visual that can't be drawn
+  without a new claim needs that claim in the prose first, which in an
+  `accepted` revision means a new revision.
+- **It says what it is.** One sentence before it states that it shows the
+  design as this revision decided it, not what runs now. What runs now is
+  in the topic docs and [`architecture/`](../architecture/README.md).
+- **It fits the content.** A `flowchart` for paths, promotion and
+  triggers; a `sequenceDiagram` for a handoff in order; a table for facts
+  that enumerate, such as a from-to move or identities against what each
+  may reach. Not in `## Alternatives considered`: each option's reason is
+  a sentence, which a table cell would turn into a paragraph.
+- **It is written by hand, in text.** Plain Mermaid in a fenced block, or
+  a markdown table — no images, which don't diff, and no generated
+  diagrams, for the reasons in
+  [`architecture/README.md`](../architecture/README.md).
+- **It renders.** Render a new or changed diagram with `mmdc` (the Mermaid
+  CLI) before merging. No check in CI does, and a syntax error shows only
+  as an error box where the diagram should be.
+
+## Citing a decision
+
+Link a lineage by its number and short name, so a reader sees what it is
+about without following the link:
+[ADR 0044 (CD agent trigger)](0044-prod-automation-trigger-and-execution/revision-000-c.md).
+Put a revision after the number when it matters:
+[ADR 0020 revision 1 (Automation identity scope)](0020-automation-identity-and-access-scope/revision-001.md).
+The name is the lineage's `short:` field, which is the same in every
+revision and unique across lineages, and `check_doc_drift.py` fails a link
+that carries a different one. Renaming it is an editorial change in any
+state, made with the links that carry the old name. A link with only the
+number still passes: the name is for the reader. Adding or correcting the
+name in a link's text is editorial, so an agent may do it in an `approved`
+or `accepted` revision.
 
 ## Partial supersession
 
@@ -222,7 +269,7 @@ docs. See
 | [0034](0034-operator-access-to-the-openbao-cli/revision-000.md) | **Operator access to the OpenBao CLI** — How operators reach the bao CLI, replacing four overlapping docker-exec and alias patterns. | A native bao binary on security and controller | Accepted | Narrowed by [0033](0033-where-the-interactive-bao-session-runs/revision-000.md); Related: [0022](0022-controller-trust-in-the-secrets-store-tls/revision-000.md), [0030](0030-openbao-client-implementation-in-repo-python/revision-000.md), [0033](0033-where-the-interactive-bao-session-runs/revision-000.md) |
 | [0041](0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working | Related: [0016](0016-oci-credential-creation-and-expiry/revision-000.md), [0070](0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md) |
 | [0063](0063-what-the-code-review-image-is-built-from-and-how-it-stays-current/revision-000.md) | **What the code-review image is built from, and how it stays current** — How the image that runs the CodeRabbit CLI is versioned, based, and kept up to date when upstream publishes no machine-readable release list. | Pin the CLI's version and the release zip's sha256, verify the zip before unpacking it, bump the version with Renovate from the release's VERSION file, use an Ubuntu LTS base, and tag every image with its CLI version | Accepted | Related: [0061](0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md), [0077](0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md) |
-| [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) | **Where the code behind CI and documentation checks lives** — Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows. | Code that decides a check's outcome is unit-tested Python under tools/, one package per domain; .github/ keeps only what Actions reads and plain command sequences | Accepted | Related: [0031](0031-where-repo-tooling-lives/revision-000.md), [0037](0037-decision-and-project-documentation-workflow/revision-002.md), [0065](0065-where-app-defaults-and-host-intent-are-merged/revision-000.md), [0066](0066-how-a-secret-definition-states-production-and-storage/revision-000.md), [0069](0069-how-python-unit-tests-are-written-and-run/revision-000.md), [0070](0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md), [0076](0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md), [0077](0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md) |
+| [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) | **Where the code behind CI and documentation checks lives** — Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows. | Code that decides a check's outcome is unit-tested Python under tools/, one package per domain; .github/ keeps only what Actions reads and plain command sequences | Accepted | Related: [0031](0031-where-repo-tooling-lives/revision-000.md), [0037](0037-decision-and-project-documentation-workflow/revision-002.md), [0065](0065-where-app-defaults-and-host-intent-are-merged/revision-000.md), [0066](0066-how-a-secret-definition-states-production-and-storage/revision-000.md), [0069](0069-how-python-unit-tests-are-written-and-run/revision-000.md), [0070](0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md), [0076](0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md), [0077](0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md), [0078](0078-checking-that-diagrams-in-docs-render/revision-000.md) |
 | [0069](0069-how-python-unit-tests-are-written-and-run/revision-000.md) | **How the repo's Python unit tests are written and run** — How Python unit tests are written and run so the suite has one style for setup, cases and assertions, and a failing case names its input. | pytest-native tests, with fixtures for setup and parametrize for variants; unittest-style tests are converted rather than left | Accepted | Related: [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md), [0070](0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md) |
 | [0070](0070-what-a-unit-tests-doubles-are-bound-to/revision-000.md) | **What a unit test's doubles are bound to** — What a replaced collaborator in a unit test is bound to, so a test fails when the real interface and the code's use of it disagree. | Use the real object with its I/O methods replaced by autospec'd stand-ins; bind every other double to the real interface with autospec; keep bare mocks for sentinels that have no interface | Accepted | Related: [0041](0041-testing-the-oci-classic-iam-bootstrap/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md), [0069](0069-how-python-unit-tests-are-written-and-run/revision-000.md) |
 
@@ -251,8 +298,9 @@ docs. See
 
 | ADR | Problem | Current solution | Status | Notes |
 | :--- | :--- | :--- | :--- | :--- |
-| [0028](0028-doc-metadata-and-governance/revision-000.md) | **Doc metadata and governance** — How docs carry machine-readable metadata, how index tables stay current, and how NIST alignment is shown without stamping ADRs. | YAML frontmatter, generated indexes, one narrative NIST alignment doc | Accepted | Narrowed by [0037](0037-decision-and-project-documentation-workflow/revision-002.md) |
+| [0028](0028-doc-metadata-and-governance/revision-000.md) | **Doc metadata and governance** — How docs carry machine-readable metadata, how index tables stay current, and how NIST alignment is shown without stamping ADRs. | YAML frontmatter, generated indexes, one narrative NIST alignment doc | Accepted | Narrowed by [0037](0037-decision-and-project-documentation-workflow/revision-002.md); Related: [0078](0078-checking-that-diagrams-in-docs-render/revision-000.md) |
 | [0037](0037-decision-and-project-documentation-workflow/revision-002.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, extended so one decision can be implemented by more than one project. | Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted | Accepted (revision 2) | Related: [0050](0050-agent-authored-changes-reaching-production/revision-000.md), [0055](0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), [0061](0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md), [0076](0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md) |
+| [0078](0078-checking-that-diagrams-in-docs-render/revision-000.md) | **Checking that diagrams in docs render** — How a Mermaid diagram that does not parse is stopped before it merges, given that the docs checks read markdown as text and nothing in CI renders a diagram. | Leaning: a pre-commit hook that parses every Mermaid block with Mermaid's own parser in Node, with no browser, its outcome decided by unit-tested Python | Working | Related: [0028](0028-doc-metadata-and-governance/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) |
 
 ## Other design records
 

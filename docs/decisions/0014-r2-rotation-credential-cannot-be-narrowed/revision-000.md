@@ -3,6 +3,7 @@ id: ADR-0014
 revision: 0
 type: adr
 title: R2 rotation credential that can't be narrowed
+short: R2 rotation credential
 solution: Cache the R2 admin token as the rotation credential, accepted as master-equivalent
 summary: Cloudflare can't mint a narrower delegate for R2's rotation credential, so its blast radius is accepted and contained.
 topic: cloud-credentials

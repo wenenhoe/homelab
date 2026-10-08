@@ -3,6 +3,7 @@ id: ADR-0011
 revision: 0
 type: adr
 title: Alert routing and noise
+short: Alert routing
 solution: A Telegram group chat with a topic per concern
 summary: Alerts for different concerns stay distinguishable, so a real failure isn't lost in routine notifications.
 topic: monitoring-alerting

@@ -37,9 +37,9 @@ the indexes, lints the markdown, and runs
   default-open path.
 - **Least privilege.** Non-root containers and scoped AppRoles are the
   standing pattern, not a per-component judgment call — see
-  [ADR 0004](docs/decisions/0004-container-access-to-the-docker-api/revision-000.md),
-  [ADR 0020](docs/decisions/0020-automation-identity-and-access-scope/revision-000.md),
-  and [ADR 0043](docs/decisions/0043-host-os-hardening-baseline/revision-000.md)
+  [ADR 0004 (Docker API access)](docs/decisions/0004-container-access-to-the-docker-api/revision-000.md),
+  [ADR 0020 (Automation identity scope)](docs/decisions/0020-automation-identity-and-access-scope/revision-000.md),
+  and [ADR 0043 (Host hardening baseline)](docs/decisions/0043-host-os-hardening-baseline/revision-000.md)
   for where it's reasoned through role by role.
 - **Idempotency.** Every Molecule scenario runs a real `idempotence`
   check — converge twice, second run reports no changes — except ones

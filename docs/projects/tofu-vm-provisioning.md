@@ -30,7 +30,7 @@ The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory g
 
 ## Decision
 
-Implements [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md) (where Tofu's own credentials live), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved. The rest of the design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
+Implements [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) (where Tofu's own credentials live), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved. The rest of the design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
 
 ## Environment (baseline, at project start)
 

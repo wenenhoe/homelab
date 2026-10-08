@@ -3,6 +3,7 @@ id: ADR-0046
 revision: 0
 type: adr
 title: Python client for S3-compatible object storage
+short: S3 client
 solution: rclone for every S3-compatible call, Python and bash alike; boto3 is not adopted
 summary: Which client Python code uses to talk to S3-compatible storage, and where rclone stays.
 topic: cloud-credentials
@@ -23,7 +24,7 @@ Python code in this repo exercises S3-compatible storage (B2, R2, OCI, SeaweedFS
 - **Bash, containerized, bulk copy:** `cloud_sync`'s `run.sh.j2` (`rclone copy seaweedfs:<bucket>/<path> <target>:<bucket>/<path>` per job in `/jobs.txt`), `openbao_backup`'s `snapshot-push.sh.j2`, and `backup_agent`'s `check-freshness.sh.j2`. All are POSIX `sh` running `rclone` inside a pinned `rclone/rclone` container via `docker run`.
 - **Python, single object:** `cloud_credentials/verify.py` (`lsjson` and `copyto` against a small marker object) and `restore_all.py` (`rclone_lsjson`/`copyto`, one `lsjson` per discovery attempt and one `copyto` per restored app). Both shell out via `subprocess`.
 
-**The bulk-copy sites are not a candidate for another client.** `cloud_sync`'s `rclone copy` is the control [ADR 0010](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) documents: a compromised on-prem host can't touch the offsite copy because `copy` never overwrites or deletes, not from IAM scoping alone. Reimplementing that with hand-written client calls means re-deriving and re-proving the property.
+**The bulk-copy sites are not a candidate for another client.** `cloud_sync`'s `rclone copy` is the control [ADR 0010 (Offsite copy deletion)](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) documents: a compromised on-prem host can't touch the offsite copy because `copy` never overwrites or deletes, not from IAM scoping alone. Reimplementing that with hand-written client calls means re-deriving and re-proving the property.
 
 **What `verify.py` is for.** `verify_leaf_via_rclone` proves that a freshly minted leaf key works over the path production uses, before the old key is revoked. The write leaf's need for `readFiles` on B2 is an example of what that catches: rclone sends a HEAD before every copy, and a check that sends no HEAD never exercises that permission.
 
@@ -59,7 +60,7 @@ What the swap would remove is small: one `subprocess` call and a short-lived `rc
 ## Consequences
 
 - `cloud_sync`, `snapshot-push.sh.j2`, and `check-freshness.sh.j2` stay on `rclone` regardless of future client choices. Re-raising boto3 for them should point back here.
-- Swapping rclone for boto3 plus `hvac` would not remove a secret from disk, only change which one: `rclone.conf` holds real access and secret keys today, and a boto3 path needs its own long-lived OpenBao credential unless it fetches one every run. That is the same problem one level up as [ADR 0047](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md), not something this record resolves.
+- Swapping rclone for boto3 plus `hvac` would not remove a secret from disk, only change which one: `rclone.conf` holds real access and secret keys today, and a boto3 path needs its own long-lived OpenBao credential unless it fetches one every run. That is the same problem one level up as [ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md), not something this record resolves.
 - `verify.py` keeps its status-string retry gate (`StatusCode: 401`/`403` in rclone's stderr) and its timeout handling.
 - Behavior is described in [`rotation.md`](../../topics/secrets/cloud-credentials/rotation.md) and [`scoping.md`](../../topics/secrets/cloud-credentials/scoping.md).
 

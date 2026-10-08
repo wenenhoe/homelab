@@ -24,7 +24,7 @@ The four AppRoles `cd-agent-deploy`, `cd-agent-rotation`, `cd-agent-freshness` a
 
 ## Decision
 
-Implements [ADR 0020, revision 001](../decisions/0020-automation-identity-and-access-scope/revision-001.md), `approved`.
+Implements [ADR 0020 revision 001 (Automation identity scope)](../decisions/0020-automation-identity-and-access-scope/revision-001.md), `approved`.
 
 ## Execution plan
 

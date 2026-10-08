@@ -12,17 +12,17 @@ track: agent
 
 # CD Agent Rotation
 
-Carries out [ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md): one CD agent job starting another that holds different credentials, and the first chain it exists for, a monthly leaf-credential rotation followed by a redeploy of `storage`. It is staged because the mechanism lands in the `cd_agent` role first, and the jobs that use it wait on credentials another project delivers.
+Carries out [ADR 0074 (Job chaining)](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md): one CD agent job starting another that holds different credentials, and the first chain it exists for, a monthly leaf-credential rotation followed by a redeploy of `storage`. It is staged because the mechanism lands in the `cd_agent` role first, and the jobs that use it wait on credentials another project delivers.
 
 ## Scope
 
 In: the chaining mechanism in the `cd_agent` role; the rotation job and `redeploy-storage` in the agent's inventory; a native `rclone` on the host.
 
-Not in: the AppRoles and their delivery ([`cd-agent-approles.md`](cd-agent-approles.md)); rotating the three rotation-tier credentials, which stays human-attended; failure alerts ([ADR 0072](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)).
+Not in: the AppRoles and their delivery ([`cd-agent-approles.md`](cd-agent-approles.md)); rotating the three rotation-tier credentials, which stays human-attended; failure alerts ([ADR 0072 (Job heartbeats)](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)).
 
 ## Decision
 
-Implements [ADR 0074](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md), revision 0.
+Implements [ADR 0074 (Job chaining)](../decisions/0074-following-one-automation-job-with-another-under-a-different-identity/revision-000.md), revision 0.
 
 ## Execution plan
 
@@ -37,7 +37,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 2 — rotation and `redeploy-storage`
 
-Rotation covers the six leaf credentials only, as rotate-and-revoke: `create_leaf_keys --rotate both` per provider creates a new key, verifies it over rclone, and only then revokes the old one ([ADR 0023](../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md)). The three rotation-tier credentials stay human-attended, with the freshness check as the prompt: B2's is minted from a master key the code never stores, R2's needs a token minted in the Console first, and OCI's is a hard cutover with no rollback ([`rotation.md`](../topics/secrets/cloud-credentials/rotation.md)).
+Rotation covers the six leaf credentials only, as rotate-and-revoke: `create_leaf_keys --rotate both` per provider creates a new key, verifies it over rclone, and only then revokes the old one ([ADR 0023 (Cloud credential logic reuse)](../decisions/0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md)). The three rotation-tier credentials stay human-attended, with the freshness check as the prompt: B2's is minted from a master key the code never stores, R2's needs a token minted in the Console first, and OCI's is a hard cutover with no rollback ([`rotation.md`](../topics/secrets/cloud-credentials/rotation.md)).
 
 `storage` takes the write leaf only when `deploy.yaml` re-renders its `rclone.conf`, and the deploy job acts only on a changed commit, so `redeploy-storage` follows the rotation job. It runs `deploy.yaml --limit storage,localhost` without `--on-change`, as its own user. Rotation is scheduled for the 8th at 02:00, so the redeploy finishes before `cloud_sync`'s 06:00 run and clear of the maintenance runs. The host needs a native `rclone` at the version `cloud_sync` uses, since the verification follows production's request sequence.
 
@@ -52,7 +52,7 @@ The rotation job runs `python -m cloud_credentials.rotate_leaf_keys`, which rota
 ## Open items
 
 - Neither job can log in to OpenBao until its credentials are in its credentials directory; delivering them is [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s.
-- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'. The SSH key is not among [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s four files, and `ansible/inventory/inventory.yaml` reads the key from `~/.ssh/proxmox_vm_servers`. How a job gets a key, and how `storage` comes to accept it, is [ADR 0075](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md)'s, carried out by [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md).
+- `redeploy-storage` needs its own user, SSH key and `secret_id`, a second valid `secret_id` of the `cd-agent-deploy` AppRole, delivered like the other jobs'. The SSH key is not among [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)'s four files, and `ansible/inventory/inventory.yaml` reads the key from `~/.ssh/proxmox_vm_servers`. How a job gets a key, and how `storage` comes to accept it, is [ADR 0075 (Job SSH identity)](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md)'s, carried out by [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md).
 
 ## Closing checklist
 

@@ -4,6 +4,7 @@ revision: 0
 candidate: b
 type: adr
 title: Trigger and execution of prod-touching automation
+short: CD agent trigger
 solution: A private, LAN-only Gitea or Forgejo instance with Actions and a runner on the agent host
 summary: How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host.
 topic: deployment-platform

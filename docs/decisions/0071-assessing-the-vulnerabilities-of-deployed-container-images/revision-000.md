@@ -3,6 +3,7 @@ id: ADR-0071
 revision: 0
 type: adr
 title: "Assessing the vulnerabilities of deployed container images"
+short: Image vulnerability assessment
 solution: "A scheduled scan run from homelab-security's own CI over the images this repo deploys, ranked by reachability and consequence, with every result kept in the private tracker"
 summary: "How known vulnerabilities in deployed images are found, ranked and tracked without publishing them, given most are upstream's to fix."
 topic: security-hardening
@@ -20,7 +21,7 @@ The images this repo deploys carry known vulnerabilities, and they change withou
 
 **Why a first attempt was dropped.** Image CVE scanning in this repo's CI, in several scopes and with an issue dashboard on top, was removed because most findings were third-party images waiting on an upstream rebuild, which nothing here can act on ([`security-scanning.md`](../../topics/engineering/security-scanning.md#why-no-image-cve-scanning)). That verdict was reached over a subset: the scan listed images with a `compose*.yaml` glob, which skips every templated compose file, and it ignored images pinned in Ansible variables and scripts. The conclusion is worth testing again over a complete inventory rather than assuming.
 
-**Where results can live.** A scan result names an image, a fixable vulnerability and, once ranked, how reachable that image is. That is the content [`docs/README.md#public-repo`](../../README.md#public-repo) keeps out of git history, and Actions logs on a public repository are public as well ([ADR 0060](../0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md), [ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)). The run therefore has to be defined in, and triggered from, `homelab-security`, which reads this repo by a plain clone.
+**Where results can live.** A scan result names an image, a fixable vulnerability and, once ranked, how reachable that image is. That is the content [`docs/README.md#public-repo`](../../README.md#public-repo) keeps out of git history, and Actions logs on a public repository are public as well ([ADR 0060 (Review findings tracker)](../0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md), [ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)). The run therefore has to be defined in, and triggered from, `homelab-security`, which reads this repo by a plain clone.
 
 **An inventory already exists.** [`tools/ci/images/remote.py`](../../../tools/ci/images/remote.py) collects every image reference the repo pins, wherever it pins it: `image:` lines in compose files and Ansible, `FROM` lines, and each Renovate `docker` custom manager's target. Each reference comes with the files that name it, which is enough to tell a deployed image from a Dockerfile base or a Molecule or CI image.
 
@@ -28,11 +29,23 @@ The images this repo deploys carry known vulnerabilities, and they change withou
 
 **What a run costs.** From a two-CPU hosted runner, anonymously and with no registry credential, a cold scan of all the deployed images took about two minutes: roughly 15 seconds to install Trivy, fetch the database and scan the first image, and 100 seconds for the rest. That covers the images this repo publishes and the Docker Hub ones, whose anonymous-pull counter did not move. Afterwards Trivy's cache directory held the vulnerability database (about 1.4 GB), the Java database (about 1.5 GB) and under 10 MB of layer analysis for every image together. Upstream replaces the database daily, so a copy kept from the previous week is stale on arrival. The tracker's `main` carries no branch protection, and its built-in token, with contents and pull-request write, can push a branch, open a pull request and merge it.
 
-**Threat model.** The adversary already holds a foothold inside the network: a LAN or tailnet peer such as a lost device or a compromised node, including the off-site monitoring host [ADR 0049](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) plans, or a stolen application credential. The open internet is not the baseline: the reverse proxy is reachable over the LAN and the tailnet only. The asset is the lab's hosts and what they hold. The attack path runs from the foothold to a route that skips the forward-auth check, or to the proxy and auth components that sit in front of every route; with a credential, to any authenticated app. A component whose compromise grants wide access (the Docker API, identity, secrets, backups) makes the same flaw worth more. A separate path, an upstream tag re-pointed at different contents, is not a CVE at all, but the digests recorded for this assessment make it visible.
+**Threat model.** The adversary already holds a foothold inside the network: a LAN or tailnet peer such as a lost device or a compromised node, including the off-site monitoring host [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) plans, or a stolen application credential. The open internet is not the baseline: the reverse proxy is reachable over the LAN and the tailnet only. The asset is the lab's hosts and what they hold. The attack path runs from the foothold to a route that skips the forward-auth check, or to the proxy and auth components that sit in front of every route; with a credential, to any authenticated app. A component whose compromise grants wide access (the Docker API, identity, secrets, backups) makes the same flaw worth more. A separate path, an upstream tag re-pointed at different contents, is not a CVE at all, but the digests recorded for this assessment make it visible.
 
 **Prior art.** The design borrows ideas from NIST SP 800-53's vulnerability monitoring and flaw remediation controls: scan coverage measured against an inventory, freshness of the scanner's own data, trend analysis, remediation targets set by risk. It claims no alignment; [`nist-800-53-alignment.md`](../../topics/engineering/nist-800-53-alignment.md) is revisited only if this lands.
 
 ## Decision
+
+This diagram shows the scan's jobs and where their results go as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    subgraph W["One scheduled homelab-security workflow"]
+        I["inventory<br/>read-only token; clones this repo anonymously; the only job that runs code taken from it"] --> S["scan<br/>read-only token; every deployed image from one job with one database fetch; images from the registry only"]
+        S --> P["publish<br/>holds the write token; consumes JSON as data, after validating every field"]
+    end
+    P -->|"a routine run commits its results quietly"| T["Tracker, outside findings/:<br/>append-only history, open fixable findings, policy file, accepted-risk records, dashboard"]
+    P -->|"only a defined trigger opens a pull request in the tracker, which is what notifies"| N["Notification"]
+```
 
 - **Scope.** Every image the repo deploys, taken from the existing inventory and classified by where it is pinned. A deployed image is scanned. A Dockerfile base is covered through the image built from it. An image used only by Molecule or CI is listed and not scanned. The inventory gains a `list --json` form so the consumer depends on a tested contract and not on parsing text.
 - **Where it runs.** One scheduled `homelab-security` workflow of three jobs. `inventory` holds a read-only token, clones this repo anonymously and is the only job that runs code taken from it. `scan` holds a read-only token and scans every deployed image from one job with one database fetch, taking the image from the registry only. `publish` holds the write token and consumes JSON as data, after validating every field. Image references are checked against a strict pattern before they reach a command line. Nothing from a run is cached except the pinned Trivy binary: every run scans cold.
@@ -59,7 +72,7 @@ A second job class runs from `homelab-security`'s CI, on its Actions minutes. Th
 
 ## Invariants
 
-- No credential held by this assessment can write to this repo's GitHub remote ([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
+- No credential held by this assessment can write to this repo's GitHub remote ([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
 - Code taken from this repo never runs in a job that holds a write token.
 - No result is written to a surface this repo's history, pull requests or Actions logs expose.
 - A failed scan or a failed database refresh is never recorded as a clean result.
@@ -68,14 +81,14 @@ A second job class runs from `homelab-security`'s CI, on its Actions minutes. Th
 
 ## Non-goals
 
-- Host operating-system package scanning. If [ADR 0045](../0045-security-event-collection-and-alerting/revision-000.md)'s pipeline is adopted it may cover this.
+- Host operating-system package scanning. If [ADR 0045 (Security event pipeline)](../0045-security-event-collection-and-alerting/revision-000.md)'s pipeline is adopted it may cover this.
 - Whether what runs on a host matches what `main` declares.
 - Testing whether a vulnerability is exploitable here.
 - Promoting results to code-review findings.
 - Per-pull-request assessment.
 - Remediation itself. Tag bumps stay with Renovate and the maintainer.
 - Whether a newer published tag already carries the fix for a finding. A fixed package version is the only fix signal.
-- Misconfiguration and secret scanning, which stay as [ADR 0038](../0038-iac-misconfiguration-scanning/revision-000.md) describes.
+- Misconfiguration and secret scanning, which stay as [ADR 0038 (IaC misconfiguration scanning)](../0038-iac-misconfiguration-scanning/revision-000.md) describes.
 
 ## Validation
 
@@ -84,6 +97,6 @@ A second job class runs from `homelab-security`'s CI, on its Actions minutes. Th
 ## Reconsideration triggers
 
 - A route becomes reachable from the internet, or the off-site host accepts any inbound connection from it.
-- This project starts accepting external pull requests ([ADR 0061](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)'s trigger).
+- This project starts accepting external pull requests ([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)'s trigger).
 - After a quarter of complete-inventory data, most findings are ones no published image fixes, whatever Trivy's fix flag says: the noise that ended the first attempt. Comparing against the newest published tag comes before dropping the assessment.
 - A host-level vulnerability pipeline is adopted and overlaps this one.

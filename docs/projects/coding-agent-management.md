@@ -27,7 +27,7 @@ The host's Tofu definition, its dedicated SSH key and inventory resolution, the 
 
 ## Decision
 
-Implements [ADR 0054](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), `approved`. The CD agent runs its management job as its own user ([ADR 0044](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
+Implements [ADR 0054 (Untrusted host management)](../decisions/0054-managing-an-untrusted-host-from-the-cd-agent/revision-000.md), `approved`. The CD agent runs its management job as its own user ([ADR 0044 (CD agent trigger)](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md)).
 
 ## Execution plan
 
@@ -52,5 +52,5 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- Until the CD agent exists, rebuilds are run from the operator host, which holds the host's key ([ADR 0058](../decisions/0058-where-operator-work-runs/revision-000.md)).
+- Until the CD agent exists, rebuilds are run from the operator host, which holds the host's key ([ADR 0058 (Operator work host)](../decisions/0058-where-operator-work-runs/revision-000.md)).
 - Each start needs an interactive Claude login and loses work not fetched before it.

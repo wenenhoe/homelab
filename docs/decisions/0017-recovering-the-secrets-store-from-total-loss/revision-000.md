@@ -3,6 +3,7 @@ id: ADR-0017
 revision: 0
 type: adr
 title: Recovering the secrets store from total loss
+short: Secrets store recovery
 solution: Recovery-critical secrets stay outside the store permanently
 summary: OpenBao can be rebuilt from nothing, so nothing needed to fetch its own backup lives only inside it.
 topic: secrets-store

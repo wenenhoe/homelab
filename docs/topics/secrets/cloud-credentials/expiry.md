@@ -5,9 +5,9 @@ How the 9 cloud credentials expire and how `check_freshness.py` warns before the
 ## Credential expiry
 
 All 9 credentials (6 leaf, 3 rotation) expire after 90 days now — see
-[ADR 0015](../../../decisions/0015-cloud-credential-expiry/revision-000.md)
+[ADR 0015 (Cloud credential expiry)](../../../decisions/0015-cloud-credential-expiry/revision-000.md)
 for B2/R2's native provider-side expiry, and
-[ADR 0016](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)
+[ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)
 for OCI's leaf keys, which are native too now (via SCIM `expiresOn`) —
 only OCI's rotation credential (the Confidential Application's client
 secret) stays self-tracked, since that specific resource has no native
@@ -62,7 +62,7 @@ Any non-fresh result posts a Telegram alert to the `Backups` topic
 [`telegram-notifications.md`](../../monitoring/telegram-notifications.md)), using the
 same `telegram-token`/`telegram-chat-id` every other consumer in this
 repo reads from Vault (`secret/data/hosts/all/telegram/*`, per
-[ADR 0021](../../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)).
+[ADR 0021 (Ownerless secret paths)](../../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)).
 Not routed through the
 `telegram_notify` Ansible role — that's templated and deployed to
 `managed_hosts`, and `controller` deliberately isn't one — so this

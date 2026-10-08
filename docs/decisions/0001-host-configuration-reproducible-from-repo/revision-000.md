@@ -3,6 +3,7 @@ id: ADR-0001
 revision: 0
 type: adr
 title: Host configuration reproducible from the repo
+short: Host config from repo
 solution: Ansible playbooks and roles as the only way any host is configured
 summary: Every host converges from what's checked into the repo, so a fresh host needs no manual setup.
 topic: deployment-platform
@@ -36,7 +37,7 @@ order. Adding a host is "declare it in inventory and run
 `ansible-playbook`," not "remember every command already run on the
 others and repeat them correctly." This is the same reproducibility
 motivation behind
-[ADR 0002](../0002-reverse-proxy-configuration-reproducible-from-repo/revision-000.md)'s move away from a
+[ADR 0002 (Reverse-proxy config from repo)](../0002-reverse-proxy-configuration-reproducible-from-repo/revision-000.md)'s move away from a
 UI-configured reverse proxy, applied to host configuration as a whole
 — see the main [`README.md`](../../../README.md)'s stated invariant that
 there's no manual step on a target host beyond running

@@ -3,6 +3,7 @@ id: ADR-0065
 revision: 0
 type: adr
 title: "Where app defaults and host intent are merged"
+short: App defaults merge
 solution: "A pure resolver filter computes resolved_apps from compose_apps and app_catalog; only the resolver reads the catalog"
 summary: "Which layer merges an app's host-independent definition with its host's intent, and what every other role and tool reads."
 topic: deployment-platform
@@ -61,6 +62,18 @@ Docker.
   identical for every app on every managed host in the inventory.
 
 ## Decision
+
+This diagram shows how an app's host intent and its catalog entry become what roles read, as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    CA["compose_apps: host intent, never reassigned"] --> RF
+    AC["app_catalog: read-only reference data keyed by app name"] --> RF
+    AC --> V["Catalog validator under tools/<br/>unique names, backup.volumes within volumes, each route names an upstream"]
+    RF["resolve_apps filter<br/>pure: no file, network or Ansible-state access"] --> RA["resolved_apps<br/>defined once in group_vars/all"]
+    MH["Molecule scenario: molecule_helpers sets it with the same expression"] -.-> RA
+    RA --> RO["Roles and playbooks<br/>read resolved_apps, never app_catalog"]
+```
 
 - `app_registry` is renamed `app_catalog`. "Registry" suggests entries
   register themselves at run time; this is read-only reference data keyed

@@ -3,6 +3,7 @@ id: ADR-0076
 revision: 0
 type: adr
 title: Keeping what production runs apart from work in progress
+short: Branch separation
 solution: Three long-lived branches, where only main is deployed, Renovate and development each collect on their own branch, and each reaches main by a pull request that lists what to run
 summary: How dependency updates and long-running development can wait on branches of their own while main stays the exact state the CD agent deploys.
 topic: deployment-platform
@@ -20,7 +21,7 @@ What has to be true: `main` moves only when the maintainer decides it should; a 
 
 ## Context
 
-[ADR 0044 revision 0-c](../0044-prod-automation-trigger-and-execution/revision-000-c.md)'s deploy job fetches `origin/main` every few minutes and runs when the commit differs from the last one it deployed. `tools/cd_agent/run_job.py` names the branch once, as `BRANCH = "main"`. Merging to `main` is therefore a deploy within the poll interval, and nothing else in the repository is deployed from any other ref.
+[ADR 0044 revision 0-c (CD agent trigger)](../0044-prod-automation-trigger-and-execution/revision-000-c.md)'s deploy job fetches `origin/main` every few minutes and runs when the commit differs from the last one it deployed. `tools/cd_agent/run_job.py` names the branch once, as `BRANCH = "main"`. Merging to `main` is therefore a deploy within the poll interval, and nothing else in the repository is deployed from any other ref.
 
 Renovate runs daily and opens pull requests against the default branch, in the Monday and Thursday window of `renovate.json5`'s `schedule`. A review of several is several merges.
 
@@ -40,13 +41,27 @@ A deploy whose command fails is not recorded, so the CD agent runs it again on i
 
 ## Decision
 
+This diagram shows where changes land, how they are promoted and how the branches are realigned as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    R[Renovate] -->|opens pull requests| M[maintenance]
+    DEV[Development] -->|pull requests| D[develop]
+    FIX["A fix that cannot wait"] -->|"its own pull request"| P
+    M -->|"promotion pull request, merge commit"| P["main: production"]
+    D -->|"promotion pull request, merge commit"| P
+    P -->|"realigned by the Renovate workflow: fast-forward, or main merged in"| M
+    P -->|"realigned by the maintainer: fast-forward, or main merged in"| D
+    P -->|"fetched and deployed; no other ref is"| CD[CD agent]
+```
+
 - **Branches.** `main` is production. `maintenance` collects dependency updates. `develop` collects development. All three are long-lived. Only `main` is deployed: the CD agent, its jobs and ADR 0044 are unchanged, and no other ref is fetched by it.
 - **Where changes land.** Renovate targets `maintenance` (`baseBranchPatterns`). Development pull requests target `develop`. A fix that cannot wait goes to `main` in its own pull request, and both other branches are then realigned.
 - **Promotion.** A pull request from `maintenance` or `develop` into `main`, merged by the maintainer with a merge commit. The two promote independently, so a batch of dependency updates does not wait for development.
 - **Realignment never rewrites a branch.** After `main` moves, a branch that is an ancestor of `main` is fast-forwarded to it, which a promotion by merge commit makes `maintenance` and `develop`. A branch with commits not yet promoted has `main` merged into it with a plain merge commit. Both are pushed without force. A merge that conflicts is aborted, leaving the branch as it was.
-- **`maintenance` is realigned before each Renovate run.** The first step of the Renovate workflow realigns `maintenance` as above, so Renovate reads the repository, its configuration included, as `main` has it plus the dependency updates still waiting. Renovate runs with `rebaseWhen: behind-base-branch` so its open branches follow. A merge that conflicts fails the workflow before Renovate runs. The logic is stdlib-only Python under `tools/ci` with unit tests ([ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)). `develop` is realigned by the maintainer, as it holds work in progress that nothing else may touch.
+- **`maintenance` is realigned before each Renovate run.** The first step of the Renovate workflow realigns `maintenance` as above, so Renovate reads the repository, its configuration included, as `main` has it plus the dependency updates still waiting. Renovate runs with `rebaseWhen: behind-base-branch` so its open branches follow. A merge that conflicts fails the workflow before Renovate runs. The logic is stdlib-only Python under `tools/ci` with unit tests ([ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)). `develop` is realigned by the maintainer, as it holds work in progress that nothing else may touch.
 - **Checks.** Every pull request runs the checks it runs today, whichever of the three branches it targets. A ruleset on each branch requires them; `main` accepts only pull requests and refuses force pushes; `maintenance` and `develop` accept pushes without a pull request from the maintainer alone, which includes the token the Renovate workflow runs with; no branch is force-pushed in normal use.
-- **Promotion checklist.** A workflow on pull requests into `main` computes, from the diff between `main` and the pull request's head, what has to be run once it merges, and writes it into the pull request description between markers, leaving the maintainer's own text alone. Each rule names a path pattern and the command it asks for. The mapping is stdlib-only Python under `tools/ci` with unit tests ([ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)). The checklist is advisory and never gates a merge.
+- **Promotion checklist.** A workflow on pull requests into `main` computes, from the diff between `main` and the pull request's head, what has to be run once it merges, and writes it into the pull request description between markers, leaving the maintainer's own text alone. Each rule names a path pattern and the command it asks for. The mapping is stdlib-only Python under `tools/ci` with unit tests ([ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)). The checklist is advisory and never gates a merge.
 - **Images.** Built and published from `main` only, as now.
 - **Docs.** A topic doc describes the branch it is on. The docs on `main` describe what runs.
 

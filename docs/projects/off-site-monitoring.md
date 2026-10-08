@@ -25,7 +25,7 @@ Relocating monitoring to a GCP e2-micro, and extending VM 202's Tailscale subnet
 
 ## Decision
 
-Implements [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md), still `working`, so this project is `de-risking` until its open assumptions are resolved. It is also `blocked`: it waits on a decision, the off-site host's hardening pass, which [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md) names as a gate, not on another project.
+Implements [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md), still `working`, so this project is `de-risking` until its open assumptions are resolved. It is also `blocked`: it waits on a decision, the off-site host's hardening pass, which [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md) names as a gate, not on another project.
 
 ## Execution plan
 
@@ -42,11 +42,11 @@ Stage status is `Not started`, `In progress`, or `Done`.
 The actual site-independence win. Reachable by extending VM 202's
 existing subnet route to the new node — no new tunnel technology,
 just a new route destination. OCI was the original target; it's now
-reserved for a dedicated Wazuh instance instead ([ADR 0045](../decisions/0045-security-event-collection-and-alerting/revision-000.md)), so
+reserved for a dedicated Wazuh instance instead ([ADR 0045 (Security event pipeline)](../decisions/0045-security-event-collection-and-alerting/revision-000.md)), so
 this stage moved to GCP's Always Free e2-micro tier. Still open:
 whether Beszel Hub + Uptime Kuma actually fit e2-micro's 1 GB RAM
 together, and whether this relocates the full stack or a minimal
-heartbeat-only monitor (see [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s alternatives and open assumptions).
+heartbeat-only monitor (see [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s alternatives and open assumptions).
 
 ## Acceptance criteria
 
@@ -59,7 +59,7 @@ heartbeat-only monitor (see [ADR 0049](../decisions/0049-monitoring-that-survive
 - The GCP project, provisioning identity, and Tofu definition of the e2-micro — [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md).
 - Tailscale route extension from VM 202 to the GCP node — not yet
   built.
-- The RAM fit, the full-stack-vs-minimal-heartbeat choice, the egress cap, and the credential and hardening gates are recorded as open assumptions in [ADR 0049](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md); building starts once they are resolved.
+- The RAM fit, the full-stack-vs-minimal-heartbeat choice, the egress cap, and the credential and hardening gates are recorded as open assumptions in [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md); building starts once they are resolved.
 
 ## Closing checklist
 

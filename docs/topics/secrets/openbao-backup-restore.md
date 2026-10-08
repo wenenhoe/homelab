@@ -105,7 +105,7 @@ against outside `security` itself, and the same is true of `2.6.2`
 without repeating the exercise on a real host. This matters more than a
 version-number footnote: `2.6.2` is also where `generate-root`'s
 authenticated-endpoint behavior changed (see
-[ADR 0025](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
+[ADR 0025 (Admin without root token)](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
 Context), so a version this far off isn't guaranteed to behave like
 `2.5.4` did here either. Confirm both the snapshot-save and restore-side
 behavior against the real `2.6.2` image during the next restore drill,

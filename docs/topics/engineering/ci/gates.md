@@ -441,6 +441,24 @@ the fingerprint its entry names. A signature by an expired or revoked key, or
 by any other key, fails. A publisher that rotates its key fails the weekly run
 until the new key is reviewed and committed.
 
+### When a pin, a key or a manifest changes
+
+- **A new pin** needs a registry entry in the same change; a test fails for any
+  checksum pin the registry doesn't name. The entry sets its tier, and a signed
+  one also names the fingerprint and a key file under `tools/ci/checksums/keys/`.
+- **A bump** (Renovate or by hand) is checked by the `release-checksums` job.
+  A hash that differs from what the publisher signed, attested or lists fails
+  it, whatever produced the hash. A uv release without an attestation fails its
+  bump PR until the maintainer decides what to do about it.
+- **A publisher's key rotates:** the weekly run fails until the new key is
+  reviewed and committed, with the entry's fingerprint changed to match. The
+  key file must hold that one key and nothing else, which a test checks.
+- **A manifest moves:** the entry's address is stale and the run fails on it.
+  The check depends on each publisher keeping its manifest where it is.
+- **A publisher starts to sign**, or stops: the entry's tier changes in the
+  registry. The CodeRabbit CLI's release bucket publishes no signature file
+  beside its manifest or its archives, so its pin stays *listed*.
+
 Failures are per entry and the run reports every entry before it exits
 non-zero, with each failure as an `::error::` annotation. A publisher that
 can't be reached after three attempts (429, 5xx or a network error are

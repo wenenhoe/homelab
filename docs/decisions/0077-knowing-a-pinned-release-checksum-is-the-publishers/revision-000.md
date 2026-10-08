@@ -6,7 +6,7 @@ title: Knowing a pinned release checksum is the publisher's
 solution: A CI check verifies each pinned release hash against the publisher's signed manifest or the file's build attestation, with a key or identity fixed in the repository, and runs on every change to a pin and weekly
 summary: How a sha256 pinned for a downloaded release binary is shown to be the hash its publisher signed, whoever or whatever copied it into the repository.
 topic: security-hardening
-status: approved
+status: accepted
 related: [ADR-0044, ADR-0063, ADR-0064]
 ---
 

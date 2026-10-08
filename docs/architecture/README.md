@@ -18,7 +18,10 @@ This is a different kind of artifact from [`docs/decisions/`](../decisions/READM
 a diagram says **what exists**; a decision record says **why**. Keep
 them separate rather than folding rationale into a diagram's labels —
 a diagram that tries to also explain itself stops being something you
-can glance at.
+can glance at. A decision record may carry a small diagram of the design
+it decided ([`docs/decisions/README.md#diagrams-and-tables`](../decisions/README.md#diagrams-and-tables));
+that one shows the design as decided, while the diagrams here show what
+runs now.
 
 Diagrams here are plain [Mermaid](https://mermaid.js.org/) in fenced
 code blocks — no separate modeling tool or generated build step. That's

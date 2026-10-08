@@ -32,6 +32,8 @@ how they were found. If the decision follows from a threat model
 
 The solution, stated plainly. This is the design implementation follows.
 
+<!-- Optional: a Mermaid diagram or table that restates the decision; see README.md#diagrams-and-tables. Delete this comment if unused. -->
+
 ## Alternatives considered
 
 Viable options and the decisive reason each lost.

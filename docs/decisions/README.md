@@ -100,12 +100,14 @@ return the revision to `working`; the project stops (see
 [`docs/projects/README.md#stop-conditions`](../projects/README.md#stop-conditions)).
 An agent may do exactly that — append an open assumption and set
 `approved` → `working` — and nothing else to an `approved` or `accepted`
-revision.
+revision, except adding a diagram or table under
+[Diagrams and tables](#diagrams-and-tables).
 
 ## Editing a revision
 
-- **Editorial** (typos, a wrong fact that was wrong at the time, a link)
-  — any state.
+- **Editorial** (typos, a wrong fact that was wrong at the time, a link,
+  or a diagram or table that adds no claim — see
+  [Diagrams and tables](#diagrams-and-tables)) — any state.
 - **Metadata** (`status`, `supersedes`, `superseded_by`, `narrows`,
   `related`, `former_ids`) — any state; it records lifecycle, not
   reasoning.
@@ -113,6 +115,35 @@ revision.
   in place while `working` or `approved`; a new revision once `accepted`.
 
 If it is unclear which side a change falls on, treat it as material.
+
+## Diagrams and tables
+
+A revision may carry a Mermaid diagram or a table where structure reads
+better than prose: who promotes into what, the order of a handoff, which
+identity may reach what. One that only restates what the revision already
+says is an editorial change, so it may be added to a revision in any
+state, `accepted` and `superseded` included.
+
+- **It adds no claim.** It shows the Decision's mechanism and says
+  nothing the prose doesn't. Where the two disagree the prose is the
+  record and the visual is the one to fix. A visual that can't be drawn
+  without a new claim needs that claim in the prose first, which in an
+  `accepted` revision means a new revision.
+- **It says what it is.** One sentence before it states that it shows the
+  design as this revision decided it, not what runs now. What runs now is
+  in the topic docs and [`architecture/`](../architecture/README.md).
+- **It fits the content.** A `flowchart` for paths, promotion and
+  triggers; a `sequenceDiagram` for a handoff in order; a table for facts
+  that enumerate, such as a from-to move or identities against what each
+  may reach. Not in `## Alternatives considered`: each option's reason is
+  a sentence, which a table cell would turn into a paragraph.
+- **It is written by hand, in text.** Plain Mermaid in a fenced block, or
+  a markdown table — no images, which don't diff, and no generated
+  diagrams, for the reasons in
+  [`architecture/README.md`](../architecture/README.md).
+- **It renders.** Render a new or changed diagram with `mmdc` (the Mermaid
+  CLI) before merging. No check in CI does, and a syntax error shows only
+  as an error box where the diagram should be.
 
 ## Partial supersession
 

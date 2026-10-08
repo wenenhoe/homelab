@@ -35,6 +35,23 @@ The host's configuration (agent and management accounts, Claude Code, sandbox se
 
 ## Decision
 
+This diagram shows who does what when the untrusted host is started, as this revision decided it, not what runs now.
+
+```mermaid
+sequenceDiagram
+    participant OP as Operator host
+    participant PX as Proxmox
+    participant H as Untrusted host
+    participant CD as CD agent
+    OP->>PX: Tofu replaces the VM from its definition, using only the Proxmox credentials
+    Note over OP,H: The operator host never opens a session to the host
+    H->>H: First boot: create the management account with its public key, restrict sshd to the CD agent's address
+    CD->>H: Management job, from its own timer: is the host reachable, and is there no converge marker?
+    CD->>H: If so, converge the host, then write the marker
+    Note over CD,H: A host that is not running is a quiet no-op
+    Note over CD: Until the CD agent exists, the operator host runs the converge
+```
+
 - **Rebuild first.** The host is replaced from the Tofu definition each time it is started, and on suspicion of compromise. While it runs it patches itself with unattended security updates ([ADR 0043](../0043-host-os-hardening-baseline/revision-000.md)'s first area), so Ansible reaches it only in the converge that follows a start, or a deliberate re-converge.
 - **Who does what at a start.** The operator host runs Tofu and nothing else: it replaces the VM, using only the Proxmox credentials, and never opens a session to it. The clone's first-boot configuration creates the management account with its public key and restricts `sshd` to the CD agent's address, and does nothing more. The CD agent's management job runs from its own timer and checks that the host is reachable and has no converge marker; if so it converges the host and writes the marker. The exit status of those checks is all it reads before converging. A host that is not running is a quiet no-op, since the host is meant to be off between sessions. Until the CD agent exists, the operator host runs the converge.
 - **Own inventory group.** The host is in none of `managed_hosts`, `app_hosts`, or `patched_hosts`, so no existing play or job reaches it with a shared key.

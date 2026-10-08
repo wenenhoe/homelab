@@ -46,6 +46,19 @@ Renovate 44.138.0 applies a `digest` that a custom datasource returns for a rele
 
 ## Decision
 
+This diagram shows how the check treats each tier of pinned artifact, as this revision decided it, not what runs now.
+
+```mermaid
+flowchart TD
+    W["Runs on a pull request that changes a pinned file or the registry, and weekly"] --> CH
+    REG["Registry: one entry per pinned artifact<br/>pin location, manifest file name and address, tier, signing key fingerprint or attesting repository"] --> CH
+    CH{"Tier of the entry"}
+    CH -->|signed| SG["Fetch manifest and signature; verify with gpg in a throwaway keyring holding only the committed key; the pinned hash must equal the manifest's line"]
+    CH -->|attested| AT["Download; must hash to the pinned value; must pass gh attestation verify for the repository the entry names"]
+    CH -->|listed| LS["The pinned hash must equal its manifest line: catches a hash copied from the wrong place and a typo, and no more"]
+    CH -->|"no manifest"| NM["The entry says so"]
+```
+
 - **The check.** A stdlib-only Python check under `tools/ci`, unit-tested ([ADR 0064](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)), reads a registry that holds one entry per pinned artifact: where its pin lives, the file name its manifest lists, the manifest's address for the pinned version, its tier, and for a signed artifact the signing key's fingerprint, and for an attested one the repository that must have built it.
 - **Tiers.** A *signed* artifact's manifest and signature are fetched, the signature is verified with `gpg` in a throwaway keyring that holds only the key committed for that entry, and the pinned hash must equal the manifest's line for the file. An *attested* artifact is downloaded, must hash to the pinned value, and must pass `gh attestation verify` for the repository its entry names. A *listed* artifact has a manifest and no signature: the pinned hash must equal its line, which catches a hash copied from the wrong place and a typo, and no more. An artifact with *no* manifest says so in its entry. The registry is the one place a pin's tier is written down.
 - **Keys.** The public key for a signed entry is committed in the repository with its fingerprint in the entry. The check accepts a signature only from that fingerprint and never fetches a key from a keyserver or a web page. A change of key is a reviewed diff.

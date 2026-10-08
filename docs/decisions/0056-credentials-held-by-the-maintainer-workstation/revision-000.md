@@ -35,6 +35,19 @@ The CD agent's own provisioning is deliberately outside its deploy loop ([ADR 00
 
 The workstation holds the GitHub push credential, the SSH key for the coding-agent host ([ADR 0055](../0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md)), and one hardware-backed SSH key for the operator host whose private half cannot be read from the laptop ([ADR 0058](../0058-where-operator-work-runs/revision-000.md)). It holds no other infrastructure credential: no shared SSH key, no OpenBao credential, no Tofu credential, no backup GPG key, no cached `main-domain`. Anything that needs one runs on the operator host.
 
+This table shows which credentials the workstation holds and which it does not, as this revision decided it, not what it holds now.
+
+| Credential | On the workstation |
+| :--- | :--- |
+| GitHub push credential | Held |
+| SSH key for the coding-agent host | Held |
+| Hardware-backed SSH key for the operator host | Held; its private half cannot be read from the laptop |
+| Shared SSH key | Not held |
+| OpenBao credential | Not held |
+| Tofu credential | Not held |
+| Backup GPG key | Not held |
+| Cached `main-domain` | Not held |
+
 Software that handles untrusted content with local tool access, such as a desktop assistant with file or tool access, does not run on the workstation, in Windows or in WSL2.
 
 The credentials move to the operator host, not into thin air, and retire there as automation takes over: the AppRole pair through the retirement project, the shared key when it is split.

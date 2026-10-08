@@ -33,6 +33,19 @@ OpenSSH's `from=` option on an `authorized_keys` entry accepts the key only from
 
 ## Decision
 
+This diagram shows where a job's SSH key is made, what leaves the agent and who authorizes it, as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    subgraph AG["CD agent"]
+        K["ed25519 key pair per job that declares it needs one<br/>private half 0400 in the job's credentials directory, never copied off the agent"]
+        J["Job<br/>ansible_ssh_private_key_file from an environment variable its unit sets, falling back to the shared key's path"]
+        K --> J
+    end
+    K -->|"public half only, as public values in the data the operator applies"| H["Hosts in the job's --limit<br/>authorize it for the management account, with from= the agent's address"]
+    J -->|SSH| H
+```
+
 - **Generated on the agent.** The `cd_agent` role creates an ed25519 key pair for each job that declares it needs one, in that job's credentials directory, owned by the job's user and mode `0400`, only when none exists. The private half is never copied off the agent, so no operator machine or repository holds it. The role never overwrites an existing key.
 - **Authorized per host group.** The public half is the only thing that leaves the agent. It is written into the data the operator applies, as public values, and the hosts the job manages authorize it for the management account with `from=` set to the agent's address. A host that is not in the job's `--limit` never authorizes it.
 - **Used through the inventory.** The job's `ansible_ssh_private_key_file` is read from an environment variable the unit sets to its own key, falling back to the shared key's path where the variable is unset. The shared key stays for the operator host and for jobs that do not declare one.

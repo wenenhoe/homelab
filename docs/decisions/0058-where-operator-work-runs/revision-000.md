@@ -35,6 +35,20 @@ The 3XX range, VLAN 30, is reserved and unused ([`vm-provisioning.md`](../../top
 
 A small dedicated headless VM in VLAN 30 (VMID 302, `192.168.30.2`, sized like the default Ubuntu VM in [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)) becomes the `controller`.
 
+This diagram shows how the operator host is reached and what it reaches, as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    LAP["Maintainer laptop<br/>FIDO2 key, PIN and touch, private half never leaves the token"] -->|"SSH only, over a Tailscale route; the laptop alone is granted port 22"| OP
+    CA["Coding-agent host<br/>no path to the operator host"]
+    subgraph V30["VLAN 30, default-deny outbound at OPNsense"]
+        OP["Operator host, the controller<br/>VMID 302, 192.168.30.2"]
+    end
+    OP -->|"internal destinations, by address and port"| INT["Internal hosts"]
+    OP -->|"Internet only through the domain-filtering proxy, under this VLAN's own allowlist"| PX["Forward proxy"]
+    GH["Reviewed commits on main"] -->|"pulled after the maintainer pushes them, by anonymous clone"| OP
+```
+
 - **Access.** SSH only, from the maintainer's laptop, over a Tailscale route to VLAN 30. The laptop authenticates with a dedicated hardware-backed FIDO2 key (PIN and touch required) whose private half never leaves the token. The tailnet policy replaces its allow-all grant with explicit grants: the laptop reaches VLAN 30 on port 22, no other source has a grant for that route, existing access the maintainer needs is re-granted explicitly, and `tests` assert both. The coding-agent host has no path to it.
 - **Tokens.** Both of the maintainer's tokens have a key registered on the host, and one is kept offline as the spare. Losing both leaves recovery through the Proxmox node: the VM's console, or re-provisioning with a new key.
 - **Outbound.** Default-deny at OPNsense. Internal destinations are allowed by address and port; Internet destinations only through the domain-filtering proxy of [ADR 0053](../0053-network-reach-of-the-coding-agent-host/revision-000.md), under an allowlist for this VLAN that is separate from the coding-agent VLAN's.

@@ -29,6 +29,14 @@ The repository is public, so cloning needs no credential. Only writing does.
 
 The coding-agent host holds no credential that can write to the repository's GitHub remote.
 
+This diagram shows how a change leaves the coding-agent host as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    H["Coding-agent host<br/>holds no credential that can write to the GitHub remote"] -->|"fetched over SSH as an additional git remote"| W["Maintainer workstation<br/>reads the diff before it is checked out anywhere that executes it"]
+    W -->|"push: push credentials exist only here"| O["origin, GitHub"]
+```
+
 The maintainer's workstation adds the host's repository as an additional git remote over SSH, fetches, reviews the diff, and pushes to origin. Push credentials exist only on the workstation.
 
 Fetched content is read as a diff before it is checked out anywhere that executes it (git hooks, pre-commit, Ansible, Molecule, editor tasks).

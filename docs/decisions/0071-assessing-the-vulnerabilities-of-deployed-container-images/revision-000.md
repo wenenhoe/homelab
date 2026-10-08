@@ -35,6 +35,18 @@ The images this repo deploys carry known vulnerabilities, and they change withou
 
 ## Decision
 
+This diagram shows the scan's jobs and where their results go as this revision decided it, not what runs now.
+
+```mermaid
+flowchart LR
+    subgraph W["One scheduled homelab-security workflow"]
+        I["inventory<br/>read-only token; clones this repo anonymously; the only job that runs code taken from it"] --> S["scan<br/>read-only token; every deployed image from one job with one database fetch; images from the registry only"]
+        S --> P["publish<br/>holds the write token; consumes JSON as data, after validating every field"]
+    end
+    P -->|"a routine run commits its results quietly"| T["Tracker, outside findings/:<br/>append-only history, open fixable findings, policy file, accepted-risk records, dashboard"]
+    P -->|"only a defined trigger opens a pull request in the tracker, which is what notifies"| N["Notification"]
+```
+
 - **Scope.** Every image the repo deploys, taken from the existing inventory and classified by where it is pinned. A deployed image is scanned. A Dockerfile base is covered through the image built from it. An image used only by Molecule or CI is listed and not scanned. The inventory gains a `list --json` form so the consumer depends on a tested contract and not on parsing text.
 - **Where it runs.** One scheduled `homelab-security` workflow of three jobs. `inventory` holds a read-only token, clones this repo anonymously and is the only job that runs code taken from it. `scan` holds a read-only token and scans every deployed image from one job with one database fetch, taking the image from the registry only. `publish` holds the write token and consumes JSON as data, after validating every field. Image references are checked against a strict pattern before they reach a command line. Nothing from a run is cached except the pinned Trivy binary: every run scans cold.
 - **What is recorded.** In the tracker, outside `findings/`: an append-only history with one line per run and image (digest, tag, created date, the vulnerability database's timestamp, scan status, counts by severity and by whether a fix exists, known-exploited count, and the classification used); the currently open fixable findings with the date each was first seen; a policy file; accepted-risk records; and a generated dashboard. The tracker's finding schema and validator are untouched, and the tracker gets its own validator for these files.

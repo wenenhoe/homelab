@@ -35,40 +35,10 @@ can't fix.
    (`cd tools && python3 -m openbao_utils.init_unseal unseal`, once
    per share).
 
-3. Recreate `controller`'s AppRole (commands mirrored from
-   [`openbao-auth.md`](openbao-auth.md)'s Runbook section - canonical
-   for TTL/parameter reasoning and the exact values if the two ever
-   disagree):
-
-   ```sh
-   ssh security
-   export BAO_TOKEN=<fresh root token from step 2>
-   export BAO_ADDR=https://127.0.0.1:8200
-   export BAO_TLS_SERVER_NAME=openbao.{{ caddy_domain }}
-   export BAO_CACERT=/etc/step-ca/root_ca.crt
-
-   bao secrets enable -path=secret kv-v2
-   bao auth enable approle
-
-   # from controller, first: scp docker/openbao/policies/controller.hcl security:/tmp/
-   bao policy write controller - < /tmp/controller.hcl
-
-   bao write auth/approle/role/controller \
-     token_policies="controller" \
-     token_ttl=1h \
-     token_max_ttl=1h \
-     secret_id_ttl=2160h \
-     secret_id_num_uses=0
-
-   bao read auth/approle/role/controller/role-id
-   bao write -f auth/approle/role/controller/secret-id
-   ```
-
-   Copy the resulting `role_id`/`secret_id` into
-   `ansible/files/secrets/openbao-controller-{role,secret}-id` on
-   `controller`, `chmod 600` both - then confirm the AppRole actually
-   works per `openbao-auth.md` step 6 before moving on, same reasoning
-   as this runbook's own scope-proof in step 4 below.
+3. Recreate `controller`'s AppRole: run steps 1-6 of
+   [`openbao-auth.md`](openbao-auth.md)'s Runbook with the fresh root
+   token from step 2. That doc owns the commands, TTLs and the
+   confirmation that the AppRole works.
 
 4. Create `vault-bootstrap`, using the fresh root token from step 2 -
    nothing else can create it yet:

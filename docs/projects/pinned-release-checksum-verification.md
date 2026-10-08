@@ -41,22 +41,22 @@ Update at the start and end of each PR that works a stage.
 | 1 | Close the open assumptions with throwaway spikes: OpenBao's signature, uv's attestation, and a run from a GitHub-hosted runner | Done | Each assumption's entry is deleted from the revision, its fact folded into Context or the Decision changed, with nothing from the spikes committed |
 | 2 | The revision is approved | Done | The revision is `approved`, with no open assumption |
 | 3 | The registry, the verifier and the committed keys, unit-tested | Done | The unit tests in the revision's Validation pass, including the one asserting every checksum pin has a registry entry |
-| 4 | The check runs on a pull request that changes a pin or the registry, and weekly | In progress | Both runs pass against the real publishers, and a pin changed to a wrong hash fails the pull request run |
+| 4 | The check runs on a pull request that changes a pin or the registry, and weekly | Done | Both runs pass against the real publishers, and a pin changed to a wrong hash fails the pull request run |
 | 5 | The docs and comments state each pin's tier | Done | No file says a signed artifact is unverified, and a topic doc names the tiers and where the registry is |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-Stages 1 to 3 and 5 are done, and the project is `building`. Stage 4's workflows are written and unit-tested; its exit condition is met by their first runs on GitHub, since the publishers can't be reached from the sandbox that built them.
+Stages 1 to 5 are done, and the project is `building`.
 
 ## Acceptance criteria
 
-- [ ] A signed artifact whose signature is missing, invalid or by another key fails the check, verified by unit tests with a generated key.
-- [ ] An attested artifact fails when `gh attestation verify` exits non-zero, including a run against the wrong repository, verified by a test double and once against the real tarball.
-- [ ] A pinned hash that is absent from its manifest, or differs from the manifest's line, fails the check, verified by unit tests.
-- [ ] Every checksum pin in the repository has a registry entry with a tier, verified by a test.
-- [ ] No key is fetched when the check runs, verified by a test that denies network access to the key step.
-- [ ] The weekly run reaches each publisher's manifest and passes on the current pins.
-- [ ] No host role gains `gpg` or a publisher address.
+- [x] A signed artifact whose signature is missing, invalid or by another key fails the check, verified by unit tests with a generated key.
+- [x] An attested artifact fails when `gh attestation verify` exits non-zero, including a run against the wrong repository, verified by a test double and once against the real tarball.
+- [x] A pinned hash that is absent from its manifest, or differs from the manifest's line, fails the check, verified by unit tests.
+- [x] Every checksum pin in the repository has a registry entry with a tier, verified by a test.
+- [x] No key is fetched when the check runs, verified by a test that denies network access to the key step.
+- [x] The weekly run reaches each publisher's manifest and passes on the current pins.
+- [x] No host role gains `gpg` or a publisher address.
 
 ## Agent handoff
 
@@ -67,7 +67,6 @@ Stages 1 to 3 and 5 are done, and the project is `building`. Stage 4's workflows
 
 ## Risks
 
-- A runner image with a newer GnuPG may refuse rclone's 1024-bit DSA key; it passed under 2.4.4 and 2.4.8.
 - A uv release without an attestation fails its bump pull request.
 - A publisher's key rotation fails the weekly run until the new key is reviewed and committed.
 - The check depends on each publisher's manifest address staying where it is.

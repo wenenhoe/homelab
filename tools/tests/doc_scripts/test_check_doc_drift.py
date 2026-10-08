@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from _doc_fixtures import revision
+from _doc_fixtures import assert_one_error, revision
 from doc_scripts import check_doc_drift as drift
 
 INDEX_DIRS = ("docs", "docs/decisions", "docs/architecture", "docs/projects", "docs/topics")
@@ -140,6 +140,45 @@ class TestRepoFileLink:
         repo.write("docs/decisions/TEMPLATE.md", "[x](../nowhere/file.yaml)\n")
         drift.check_no_stale_anchors()
         assert drift.errors == []
+
+
+class TestAdrLinkNames:
+    @pytest.fixture(autouse=True)
+    def _lineage(self, repo):
+        revision(repo.root, "0020-automation-identity", 0, short="Automation identity scope")
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            pytest.param("[ADR 0020 (Automation identity scope)](x.md)", id="number and name"),
+            pytest.param("[ADR 0020 revision 1 (Automation identity scope)](x.md)", id="revision and name"),
+            pytest.param("[ADR 0020](x.md)", id="number only"),
+            pytest.param("ADR 0020 (a different name) in running text", id="not a link"),
+        ],
+    )
+    def test_a_correct_or_nameless_link_passes(self, repo, text):
+        repo.write("docs/topics/a.md", f"{text}\n")
+        drift.check_adr_link_names()
+        assert drift.errors == []
+
+    @pytest.mark.parametrize(
+        ("text", "fragments"),
+        [
+            pytest.param("[ADR 0020 (Old name)](x.md)", ("'Old name'", "'Automation identity scope'"), id="stale name"),
+            pytest.param("[ADR 0020 revision 1 (Old name)](x.md)", ("'Old name'", "'Automation identity scope'"), id="stale name on a revision link"),
+            pytest.param("[ADR 0099 (Anything)](x.md)", ("ADR 0099", "isn't a lineage"), id="no such lineage"),
+        ],
+    )
+    def test_a_wrong_name_or_unknown_lineage_fails(self, repo, text, fragments):
+        repo.write("docs/topics/a.md", f"{text}\n")
+        drift.check_adr_link_names()
+        assert_one_error(drift.errors, *fragments)
+
+    @pytest.mark.parametrize("rel", ["README.md", "docs/topics/deploy/deep/a.md"])
+    def test_every_markdown_file_is_checked(self, repo, rel):
+        repo.write(rel, "[ADR 0020 (Old name)](x.md)\n")
+        drift.check_adr_link_names()
+        assert_one_error(drift.errors, rel)
 
 
 class TestNistAlignment:

@@ -3,6 +3,7 @@ id: ADR-0009
 revision: 0
 type: adr
 title: Internal service certificate issuance and renewal
+short: Internal service certificates
 solution: step-ca client roles with systemd renewal timers
 summary: How a service that terminates its own TLS (lldap's LDAPS, decided here) gets and renews a certificate from the internal CA, without an external ACME provider.
 topic: ingress-tls-pki

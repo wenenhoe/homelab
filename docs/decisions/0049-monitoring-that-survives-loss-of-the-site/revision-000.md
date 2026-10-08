@@ -3,6 +3,7 @@ id: ADR-0049
 revision: 0
 type: adr
 title: Monitoring that survives loss of the site
+short: Site-loss monitoring
 solution: Relocate monitoring to a GCP e2-micro, reached by extending VM 202's Tailscale subnet route
 summary: Something outside the site notices when the whole homelab or its connectivity goes down.
 topic: monitoring-alerting

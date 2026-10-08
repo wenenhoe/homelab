@@ -3,6 +3,7 @@ id: ADR-0030
 revision: 0
 type: adr
 title: OpenBao client implementation in repo Python
+short: OpenBao Python client
 solution: hvac for Vault and paramiko for SSH
 summary: Internal Python that talks to OpenBao or over SSH shares one client approach instead of hand-rolled duplicates.
 topic: secrets-store

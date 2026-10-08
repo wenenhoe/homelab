@@ -4,6 +4,7 @@ revision: 0
 candidate: a
 type: adr
 title: Trigger and execution of prod-touching automation
+short: CD agent trigger
 solution: A pull-based CD agent polling origin/main, not a GitHub-dispatched runner
 summary: How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host.
 topic: deployment-platform

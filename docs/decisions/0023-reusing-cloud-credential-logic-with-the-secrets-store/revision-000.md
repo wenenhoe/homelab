@@ -3,6 +3,7 @@ id: ADR-0023
 revision: 0
 type: adr
 title: Reusing cloud-credential logic with the secrets store
+short: Cloud credential logic reuse
 solution: Repoint the existing scripts at OpenBao KV v2; no native plugin
 summary: How the existing per-provider credential logic persists its output in OpenBao without being rebuilt.
 topic: cloud-credentials

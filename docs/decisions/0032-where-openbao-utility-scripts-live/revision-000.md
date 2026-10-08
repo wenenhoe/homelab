@@ -3,6 +3,7 @@ id: ADR-0032
 revision: 0
 type: adr
 title: Where OpenBao utility scripts live
+short: OpenBao utility scripts
 solution: Consolidated in tools/openbao_utils/
 summary: Whether OpenBao utility scripts belong with the deploy playbooks or with the standalone tools.
 topic: repository-tooling

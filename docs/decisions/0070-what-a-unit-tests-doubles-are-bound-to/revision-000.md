@@ -3,6 +3,7 @@ id: ADR-0070
 revision: 0
 type: adr
 title: "What a unit test's doubles are bound to"
+short: Test doubles binding
 solution: "Use the real object with its I/O methods replaced by autospec'd stand-ins; bind every other double to the real interface with autospec; keep bare mocks for sentinels that have no interface"
 summary: "What a replaced collaborator in a unit test is bound to, so a test fails when the real interface and the code's use of it disagree."
 topic: repository-tooling

@@ -3,6 +3,7 @@ id: ADR-0054
 revision: 0
 type: adr
 title: Managing an untrusted host from the CD agent
+short: Untrusted host management
 solution: Rebuild from the Tofu definition at each start, a dedicated key and inventory group, and a timer-driven management job with its own identity on the CD agent
 summary: How a host that runs untrusted code is built and kept patched by a controller holding production credentials, without either side inheriting the other's authority.
 topic: security-hardening

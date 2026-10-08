@@ -145,6 +145,20 @@ state, `accepted` and `superseded` included.
   CLI) before merging. No check in CI does, and a syntax error shows only
   as an error box where the diagram should be.
 
+## Citing a decision
+
+Link a lineage by its number and short name, so a reader sees what it is
+about without following the link:
+[ADR 0044 (CD agent trigger)](0044-prod-automation-trigger-and-execution/revision-000-c.md).
+Put a revision after the number when it matters:
+[ADR 0020 revision 1 (Automation identity scope)](0020-automation-identity-and-access-scope/revision-001.md).
+The name is the lineage's `short:` field, which is the same in every
+revision and unique across lineages, and `check_doc_drift.py` fails a link
+that carries a different one. Renaming it is an editorial change in any
+state, made with the links that carry the old name. A link with only the
+number still passes: the name is for the reader, and links written before
+it existed stay as they are.
+
 ## Partial supersession
 
 When a later solution replaces only part of an earlier revision's scope,

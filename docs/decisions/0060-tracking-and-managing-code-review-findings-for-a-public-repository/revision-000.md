@@ -3,6 +3,7 @@ id: ADR-0060
 revision: 0
 type: adr
 title: "Tracking and managing code-review findings for a public repository"
+short: Review findings tracker
 solution: "A private tracker repo (homelab-security) holding one structured file per finding, not a mirror of the public repo's code"
 summary: "Where automated code-review findings live, given the repo they describe is public."
 topic: security-hardening

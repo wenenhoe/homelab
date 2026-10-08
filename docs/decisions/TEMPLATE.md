@@ -4,6 +4,7 @@ revision: 0                  # the generation: 0 is the original solution; match
 # candidate: a               # only when competing solutions share this generation (revision-NNN-a.md)
 type: adr
 title: "The problem, stated without naming a solution"   # identical in every revision
+short: "The problem in a few words"   # identical in every revision; one line, at most 40 characters, unique across lineages; the name a link to this lineage carries
 solution: "This revision's answer, in one line"
 summary: "One line on what the problem covers; feeds the generated index"
 topic: secrets-store         # one of TOPICS in tools/doc_scripts/doc_frontmatter.py

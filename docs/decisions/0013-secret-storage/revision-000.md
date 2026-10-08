@@ -3,6 +3,7 @@ id: ADR-0013
 revision: 0
 type: adr
 title: Secret storage
+short: Secret storage
 solution: A flat-file cache under ansible/files/secrets/
 summary: Where the repo's secrets and credentials live, and who and what can read them.
 topic: secrets-store

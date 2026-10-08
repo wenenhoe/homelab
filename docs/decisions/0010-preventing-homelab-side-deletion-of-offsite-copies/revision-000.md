@@ -3,6 +3,7 @@ id: ADR-0010
 revision: 0
 type: adr
 title: Preventing homelab-side deletion of offsite copies
+short: Offsite copy deletion
 solution: rclone copy, never sync, plus provider-native retention
 summary: A compromised or misbehaving on-prem host must not be able to delete or overwrite the offsite backup copy.
 topic: backup-recovery

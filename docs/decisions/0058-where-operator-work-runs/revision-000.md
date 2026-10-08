@@ -3,6 +3,7 @@ id: ADR-0058
 revision: 0
 type: adr
 title: Where operator work runs
+short: Operator work host
 solution: A small headless VM in VLAN 30, reachable over SSH only from the maintainer's laptop with a hardware-backed key, that becomes the controller
 summary: Where Ansible, Tofu, the tools utilities, and break-glass access run, on a host that holds the infrastructure credentials and handles no untrusted content.
 topic: deployment-platform

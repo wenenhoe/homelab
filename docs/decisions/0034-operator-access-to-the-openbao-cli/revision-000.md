@@ -3,6 +3,7 @@ id: ADR-0034
 revision: 0
 type: adr
 title: Operator access to the OpenBao CLI
+short: Operator bao CLI access
 solution: A native bao binary on security and controller
 summary: How operators reach the bao CLI, replacing four overlapping docker-exec and alias patterns.
 topic: repository-tooling

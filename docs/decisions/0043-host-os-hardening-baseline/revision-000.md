@@ -3,6 +3,7 @@ id: ADR-0043
 revision: 0
 type: adr
 title: Host OS hardening baseline
+short: Host hardening baseline
 solution: Include the konstruktoid.hardening collection's roles one area at a time from a repo-owned role, each area behind its own Molecule coverage, with unattended security updates first
 summary: A deliberate host-level hardening pass (SSH, sysctl, auditd, mandatory access control), not only per-component least privilege.
 topic: security-hardening

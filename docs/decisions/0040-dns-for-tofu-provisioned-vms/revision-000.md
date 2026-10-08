@@ -3,6 +3,7 @@ id: ADR-0040
 revision: 0
 type: adr
 title: DNS for Tofu-provisioned VMs
+short: Tofu VM DNS
 solution: A second, dedicated BIND9 on security, fed by the Tofu-to-Ansible inventory generator
 summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
 topic: deployment-platform

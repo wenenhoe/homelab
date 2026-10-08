@@ -3,6 +3,7 @@ id: ADR-0020
 revision: 1
 type: adr
 title: Automation identity and access scope
+short: Automation identity scope
 solution: Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot), retiring controller's broad grant
 summary: Which identities may read and write which secret paths, once unattended prod-touching work has more than one category.
 topic: secrets-store

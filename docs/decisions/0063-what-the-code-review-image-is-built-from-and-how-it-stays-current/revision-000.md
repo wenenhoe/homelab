@@ -3,6 +3,7 @@ id: ADR-0063
 revision: 0
 type: adr
 title: "What the code-review image is built from, and how it stays current"
+short: Review image build
 solution: "Pin the CLI's version and the release zip's sha256, verify the zip before unpacking it, bump the version with Renovate from the release's VERSION file, use an Ubuntu LTS base, and tag every image with its CLI version"
 summary: "How the image that runs the CodeRabbit CLI is versioned, based, and kept up to date when upstream publishes no machine-readable release list."
 topic: repository-tooling

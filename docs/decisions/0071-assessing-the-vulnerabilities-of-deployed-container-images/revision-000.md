@@ -3,6 +3,7 @@ id: ADR-0071
 revision: 0
 type: adr
 title: "Assessing the vulnerabilities of deployed container images"
+short: Image vulnerability assessment
 solution: "A scheduled scan run from homelab-security's own CI over the images this repo deploys, ranked by reachability and consequence, with every result kept in the private tracker"
 summary: "How known vulnerabilities in deployed images are found, ranked and tracked without publishing them, given most are upstream's to fix."
 topic: security-hardening

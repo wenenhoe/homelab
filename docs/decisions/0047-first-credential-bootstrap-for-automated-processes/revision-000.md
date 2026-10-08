@@ -3,6 +3,7 @@ id: ADR-0047
 revision: 0
 type: adr
 title: First-credential bootstrap for automated processes
+short: First-credential bootstrap
 solution: Client-certificate login for the operator host from a dedicated step-ca provisioner, response-wrapped one-time handoff for automation identities, and no OpenBao identity on any other host
 summary: How the first credential reaches a process that needs it, without a human typing it or a permanent orchestrator relaying secrets.
 topic: secrets-store

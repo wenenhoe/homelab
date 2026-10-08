@@ -3,6 +3,7 @@ id: ADR-0019
 revision: 0
 type: adr
 title: OpenBao offsite snapshot path
+short: OpenBao offsite snapshot
 solution: A direct rclone push, outside backup_agent and cloud_sync
 summary: How OpenBao's encrypted raft snapshot reaches the offsite copy without depending on the app-backup pipeline.
 topic: backup-recovery

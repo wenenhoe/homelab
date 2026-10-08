@@ -3,6 +3,7 @@ id: ADR-0035
 revision: 0
 type: adr
 title: Container orchestration platform
+short: Container orchestration
 solution: Docker Compose with Ansible; no Kubernetes for now
 summary: Whether a single-host homelab runs an orchestrator, given the resource cost on 6 cores and 32 GB.
 topic: deployment-platform

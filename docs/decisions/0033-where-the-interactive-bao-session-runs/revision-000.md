@@ -3,6 +3,7 @@ id: ADR-0033
 revision: 0
 type: adr
 title: Where the interactive bao session runs
+short: Interactive bao session
 solution: controller only; the SSH relay to security dropped
 summary: Where bao_session.py runs, given a relay to security never had a working local half.
 topic: repository-tooling

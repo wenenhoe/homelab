@@ -3,6 +3,7 @@ id: ADR-0057
 revision: 0
 type: adr
 title: Managing the maintainer workstation from the repo
+short: Workstation management
 solution: Ansible configures it after a manual OS install, applied from the operator host over SSH, with a TLS remote desktop for access
 summary: How the maintainer workstation's configuration becomes reproducible from the repo though it is a desktop a person uses interactively.
 topic: deployment-platform

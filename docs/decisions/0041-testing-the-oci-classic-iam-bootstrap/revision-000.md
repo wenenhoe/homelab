@@ -3,6 +3,7 @@ id: ADR-0041
 revision: 0
 type: adr
 title: Testing the OCI classic-IAM bootstrap
+short: OCI IAM bootstrap testing
 solution: floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked
 summary: How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks.
 topic: repository-tooling

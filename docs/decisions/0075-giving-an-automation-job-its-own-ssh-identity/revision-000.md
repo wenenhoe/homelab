@@ -3,6 +3,7 @@ id: ADR-0075
 revision: 0
 type: adr
 title: Giving an automation job its own SSH identity
+short: Job SSH identity
 solution: Each job that reaches hosts holds an ed25519 key generated on the CD agent and never copied off it, authorized on only the hosts it manages and only from the agent's address
 summary: How a CD agent job that connects to managed hosts gets an SSH key of its own instead of the shared infrastructure key.
 topic: deployment-platform

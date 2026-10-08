@@ -3,6 +3,7 @@ id: ADR-0018
 revision: 0
 type: adr
 title: Unsealing the secrets store after restart
+short: Secrets store unsealing
 solution: Manual Shamir key shares
 summary: How OpenBao is unsealed after a restart without adding a second offline recovery credential.
 topic: secrets-store

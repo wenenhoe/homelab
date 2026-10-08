@@ -3,6 +3,7 @@ id: ADR-0001
 revision: 0
 type: adr
 title: Host configuration reproducible from the repo
+short: Host config from repo
 solution: Ansible playbooks and roles as the only way any host is configured
 summary: Every host converges from what's checked into the repo, so a fresh host needs no manual setup.
 topic: deployment-platform

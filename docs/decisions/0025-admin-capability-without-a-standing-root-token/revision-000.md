@@ -3,6 +3,7 @@ id: ADR-0025
 revision: 0
 type: adr
 title: Admin capability without a standing root token
+short: Admin without root token
 solution: Re-init with a standing narrow vault-bootstrap AppRole
 summary: New Vault policies and AppRoles can be created without keeping a permanent root token.
 topic: secrets-store

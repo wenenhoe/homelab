@@ -3,6 +3,7 @@ id: ADR-0061
 revision: 0
 type: adr
 title: "Where automated code review runs, and what it may write"
+short: Automated code review
 solution: "A periodic agent-driven full-repo audit runs from homelab-security's own CI and holds no credential that can write to this repo; CodeRabbit's PR-diff review stays a local run by the maintainer"
 summary: "How this repo gets automated code review without any of it becoming visible on this repo's own surfaces, or able to alter it unsupervised."
 topic: security-hardening

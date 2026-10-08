@@ -3,6 +3,7 @@ id: ADR-0004
 revision: 0
 type: adr
 title: Container access to the Docker API
+short: Docker API access
 solution: A per-consumer docker-socket-proxy sidecar, never the raw socket
 summary: Containers that need the Docker API get only the capabilities they use, never control of every container on the host.
 topic: deployment-platform

@@ -3,6 +3,7 @@ id: ADR-0042
 revision: 0
 type: adr
 title: Monitoring that survives loss of the monitoring host
+short: Monitoring host loss
 solution: Bring the Tailscale subnet router under management, then run monitoring on a dedicated on-prem host
 summary: Beszel and Kuma keep running, and alerting, when the host they run on fails.
 topic: monitoring-alerting

@@ -3,6 +3,7 @@ id: ADR-0012
 revision: 0
 type: adr
 title: Verifying backups actually land
+short: Backup verification
 solution: An hourly freshness check on every backup_agent host
 summary: Something verifies every app's backups actually reach SeaweedFS, not just that the schedule ran.
 topic: backup-recovery

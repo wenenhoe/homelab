@@ -3,6 +3,7 @@ id: ADR-0066
 revision: 0
 type: adr
 title: "How a secret definition states production and storage"
+short: Secret definitions
 solution: "Flat source, store and scope fields, read through one loader and checked by one validator"
 summary: "How a secret's definition says how its value is produced and where it is kept, so no tool has to infer either."
 topic: secrets-store

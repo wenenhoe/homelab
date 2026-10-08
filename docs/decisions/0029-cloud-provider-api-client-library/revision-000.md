@@ -3,6 +3,7 @@ id: ADR-0029
 revision: 0
 type: adr
 title: Cloud-provider API client library
+short: Cloud API client library
 solution: Official SDKs for OCI SCIM and B2; raw requests for R2 and OCI classic IAM
 summary: How tools/cloud_credentials calls B2, R2, and OCI, weighing hand-rolled requests against official SDKs.
 topic: cloud-credentials

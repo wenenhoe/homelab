@@ -45,6 +45,7 @@ REVISION_PATH_RE = re.compile(r"docs/decisions/(\d{4})-[a-z0-9-]+/revision-(\d{3
 LINEAGE_DIR_RE = re.compile(r"^\d{4}-[a-z0-9-]+$")
 REVISION_FILE_RE = re.compile(r"^revision-(\d{3})(?:-([a-z]))?\.md$")
 ADR_ID_RE = re.compile(r"^ADR-\d{4}$")
+SHORT_NAME_MAX = 40
 # A revision is named by its label: the generation number, plus a candidate
 # letter when several competing solutions share that generation ("0", "1-b").
 REVISION_LABEL = r"(?:0|[1-9]\d*)(?:-[a-z])?"
@@ -111,6 +112,9 @@ def _validate_revision(path: Path, data: dict) -> None:
         _fail(path, f"topic '{data.get('topic')}' isn't one of {sorted(TOPICS)}")
     _require_text(path, data, "solution")
     _require_text(path, data, "summary")
+    _require_text(path, data, "short")
+    if data["short"] != data["short"].strip() or "\n" in data["short"] or len(data["short"]) > SHORT_NAME_MAX:
+        _fail(path, f"'short' must be one line of at most {SHORT_NAME_MAX} characters, with no surrounding spaces")
     for field in ("supersedes", "superseded_by"):
         if field in data:
             label = ref_label(data[field])

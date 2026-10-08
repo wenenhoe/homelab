@@ -3,6 +3,7 @@ id: ADR-0056
 revision: 0
 type: adr
 title: Credentials held by the maintainer workstation
+short: Workstation credentials
 solution: The workstation, the maintainer's laptop, holds the push credential, the coding-agent host key and a hardware-backed key to the operator host, and no other readable infrastructure credential; the rest move to the operator host
 summary: Which credentials the maintainer workstation holds, so a compromised routine session finds no infrastructure credential to read.
 topic: security-hardening

@@ -3,6 +3,7 @@ id: ADR-0053
 revision: 0
 type: adr
 title: Network reach of the coding-agent host
+short: Coding-agent network reach
 solution: Its own VLAN, default-deny both ways at OPNsense, egress through a domain-filtering proxy, and a resolver with no internal zones
 summary: What the coding-agent host can reach and be reached from, enforced at the firewall rather than on the host.
 topic: security-hardening

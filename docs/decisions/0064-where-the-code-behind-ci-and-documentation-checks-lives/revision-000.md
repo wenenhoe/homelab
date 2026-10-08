@@ -3,6 +3,7 @@ id: ADR-0064
 revision: 0
 type: adr
 title: "Where the code behind CI and documentation checks lives"
+short: CI and doc check code
 solution: "Code that decides a check's outcome is unit-tested Python under tools/, one package per domain; .github/ keeps only what Actions reads and plain command sequences"
 summary: "Where the logic that decides what CI runs, whether a gate passes, and whether the docs are consistent lives, so it can be tested and isn't copied between workflows."
 topic: repository-tooling

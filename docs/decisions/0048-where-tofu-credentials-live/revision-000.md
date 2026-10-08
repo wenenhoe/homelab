@@ -3,6 +3,7 @@ id: ADR-0048
 revision: 0
 type: adr
 title: Where Tofu's own credentials live
+short: Tofu credentials
 solution: 'Undecided: the existing OpenBao, file-based separate secrets, or a dedicated OpenBao instance'
 summary: Where the Proxmox and OPNsense API credentials and Tofu's state-backend credential live, given the store may be what is being provisioned.
 topic: secrets-store

@@ -3,6 +3,7 @@ id: ADR-0039
 revision: 0
 type: adr
 title: Intrusion detection scope
+short: Intrusion detection scope
 solution: 'Undecided: CrowdSec at the perimeter only, or with per-VM agents'
 summary: Whether detection lives only on the OPNsense perimeter or also on each VM, without inspecting the lab's own TLS.
 topic: security-hardening

@@ -3,6 +3,7 @@ id: ADR-0015
 revision: 0
 type: adr
 title: Cloud credential expiry
+short: Cloud credential expiry
 solution: Native expiry where a provider has it, self-tracked timestamps where not
 summary: Every cloud leaf credential and rotation key expires, and something notices before it does.
 topic: cloud-credentials

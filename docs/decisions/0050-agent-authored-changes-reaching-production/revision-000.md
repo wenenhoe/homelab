@@ -3,6 +3,7 @@ id: ADR-0050
 revision: 0
 type: adr
 title: Agent-authored changes reaching production
+short: Agent changes to production
 solution: The coding-agent host holds no push credential; the maintainer fetches from it and pushes from the workstation
 summary: How changes written by an untrusted coding agent reach main without any credential in the agent's environment being able to alter what the CD agent deploys.
 topic: deployment-platform

@@ -3,6 +3,7 @@ id: ADR-0055
 revision: 0
 type: adr
 title: Maintainer client access to the coding-agent host
+short: Coding-agent client access
 solution: One workstation identity, terminal-only SSH to the host on a dedicated key, and review by git fetch and a local diff
 summary: How the maintainer drives the agent and reviews its work without the host gaining a path to the workstation's push credential.
 topic: security-hardening

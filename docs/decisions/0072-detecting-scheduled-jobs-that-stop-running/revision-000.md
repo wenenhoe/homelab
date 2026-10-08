@@ -3,6 +3,7 @@ id: ADR-0072
 revision: 0
 type: adr
 title: "Detecting scheduled jobs that stop running"
+short: Job heartbeats
 solution: "Gatus external endpoints in a thin repo-built image: one declaratively configured push endpoint per job, a per-job bearer token, and Telegram alerting routed by group"
 summary: "How a job that silently stops running is noticed, with per-job heartbeats, per-topic Telegram routing and no hand-created monitor state."
 topic: monitoring-alerting

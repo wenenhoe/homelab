@@ -3,6 +3,7 @@ id: ADR-0031
 revision: 0
 type: adr
 title: Where repo tooling lives
+short: Repo tooling location
 solution: A root tools/ directory split by domain
 summary: Controller-side utilities live where their domain says, not where they happened to be written.
 topic: repository-tooling

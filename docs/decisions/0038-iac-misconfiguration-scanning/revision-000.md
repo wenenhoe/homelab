@@ -3,6 +3,7 @@ id: ADR-0038
 revision: 0
 type: adr
 title: IaC misconfiguration scanning
+short: IaC misconfiguration scanning
 solution: Trivy for Ansible now; Checkov once OpenTofu code lands, then covering both
 summary: Which scanner checks Ansible and OpenTofu for misconfiguration, without a separate migration for each.
 topic: security-hardening

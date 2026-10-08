@@ -3,6 +3,7 @@ id: ADR-0008
 revision: 0
 type: adr
 title: Internal certificate lifetime
+short: Internal certificate lifetime
 solution: 720h default provisioner claim duration
 summary: How long certificates from the internal CA live, given the renewal automation that exists.
 topic: ingress-tls-pki

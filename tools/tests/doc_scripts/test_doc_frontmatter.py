@@ -75,6 +75,10 @@ class TestRevisionValidation:
             pytest.param({"revision": "1"}, id="revision is a string"),
             pytest.param({"topic": "misc"}, id="unknown topic"),
             pytest.param({"solution": "  "}, id="empty solution"),
+            pytest.param({"short": "  "}, id="empty short name"),
+            pytest.param({"short": "x" * (fm_mod.SHORT_NAME_MAX + 1)}, id="short name over the limit"),
+            pytest.param({"short": "two\nlines"}, id="short name on two lines"),
+            pytest.param({"short": " padded "}, id="short name with surrounding spaces"),
             pytest.param({"status": "superseded"}, id="superseded without superseded_by"),
             pytest.param({"status": "accepted", "superseded_by": 1}, id="superseded_by on a non-superseded revision"),
             pytest.param({"supersedes": 0}, id="supersedes itself"),
@@ -93,6 +97,16 @@ class TestRevisionValidation:
     def test_every_topic_is_accepted_including_security_hardening(self, root, topic):
         path = revision(root, "0001-x", 0, topic=topic)
         assert fm_mod.read_frontmatter(path)["topic"] == topic
+
+    def test_short_name_is_required(self, root):
+        path = revision(root, "0013-secret-storage", 0)
+        path.write_text(path.read_text(encoding="utf-8").replace("short: 0013-secret-storage\n", ""), encoding="utf-8")
+        with pytest.raises(SystemExit, match="'short'"):
+            fm_mod.read_frontmatter(path)
+
+    def test_short_name_at_the_limit_is_accepted(self, root):
+        name = "x" * fm_mod.SHORT_NAME_MAX
+        assert fm_mod.read_frontmatter(revision(root, "0013-secret-storage", 0, short=name))["short"] == name
 
     def test_security_hardening_has_its_display_name(self):
         assert fm_mod.TOPICS["security-hardening"] == "Security & hardening"

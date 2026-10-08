@@ -3,6 +3,7 @@ id: ADR-0020
 revision: 0
 type: adr
 title: Automation identity and access scope
+short: Automation identity scope
 solution: One broad AppRole for controller
 summary: Which identities may read and write which secret paths, given one automation consumer today.
 topic: secrets-store

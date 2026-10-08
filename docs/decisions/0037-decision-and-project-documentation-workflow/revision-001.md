@@ -3,6 +3,7 @@ id: ADR-0037
 revision: 1
 type: adr
 title: "Recording decisions, tracking execution, and keeping docs true"
+short: Decision and project workflow
 solution: "also_implements: as a validated, non-gating frontmatter field, plus a generated view of open ADRs no project covers"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended to close a visibility gap the original method left open."
 topic: documentation-process

@@ -3,6 +3,7 @@ id: ADR-0006
 revision: 0
 type: adr
 title: Offsite backup credential blast radius
+short: Offsite backup credentials
 solution: Cloud credentials only on storage; per-host, prefix-scoped SeaweedFS identities
 summary: A compromised app host must never reach a cloud credential or another host's backup archives.
 topic: backup-recovery

@@ -4,6 +4,7 @@ revision: 0
 candidate: c
 type: adr
 title: Trigger and execution of prod-touching automation
+short: CD agent trigger
 solution: A pull-based CD agent that runs the repo's own playbooks and tools directly, one sandboxed systemd unit per job under its own user
 summary: How deploys and rotations that touch prod are triggered and run, without GitHub dispatching a job to a prod-reaching host.
 topic: deployment-platform

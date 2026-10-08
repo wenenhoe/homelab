@@ -3,6 +3,7 @@ id: ADR-0022
 revision: 0
 type: adr
 title: Controller trust in the secrets store's TLS certificate
+short: Controller TLS trust
 solution: The step-ca root certificate fetched fresh on every run
 summary: How the controller verifies OpenBao's TLS certificate without skip-verify or a committed copy of the CA.
 topic: secrets-store

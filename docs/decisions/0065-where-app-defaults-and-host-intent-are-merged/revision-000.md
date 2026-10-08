@@ -3,6 +3,7 @@ id: ADR-0065
 revision: 0
 type: adr
 title: "Where app defaults and host intent are merged"
+short: App defaults merge
 solution: "A pure resolver filter computes resolved_apps from compose_apps and app_catalog; only the resolver reads the catalog"
 summary: "Which layer merges an app's host-independent definition with its host's intent, and what every other role and tool reads."
 topic: deployment-platform

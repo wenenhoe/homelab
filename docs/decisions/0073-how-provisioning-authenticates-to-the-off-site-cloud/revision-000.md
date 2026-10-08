@@ -3,6 +3,7 @@ id: ADR-0073
 revision: 0
 type: adr
 title: How provisioning authenticates to the off-site cloud account
+short: Off-site cloud auth
 solution: 'Undecided: a service-account key, service-account impersonation, or workload identity federation'
 summary: How Tofu proves itself to the GCP account that hosts the off-site monitor, without a standing credential that outlives its use or reaches the host it creates.
 topic: cloud-credentials

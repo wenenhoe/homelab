@@ -3,6 +3,7 @@ id: ADR-0074
 revision: 0
 type: adr
 title: Following one automation job with another under a different identity
+short: Job chaining
 solution: A job may name successor jobs that systemd starts when it ends, each its own user and fetch, defined in the operator-applied inventory and carrying no data
 summary: How the end of one CD agent job starts a second job that needs credentials the first must not hold.
 topic: deployment-platform

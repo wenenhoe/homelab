@@ -3,6 +3,7 @@ id: ADR-0008
 revision: 1
 type: adr
 title: Internal certificate lifetime
+short: Internal certificate lifetime
 solution: Shorten the default claim duration toward step-ca's own 24h now that renewal is automated
 summary: How long certificates from the internal CA live, given the renewal automation that now exists.
 topic: ingress-tls-pki

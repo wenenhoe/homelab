@@ -3,6 +3,7 @@ id: ADR-0052
 revision: 0
 type: adr
 title: Molecule runtime without host privilege
+short: Molecule runtime
 solution: 'Undecided: rootless Podman, rootless Docker, or a microVM-private daemon, chosen by spike'
 summary: How this repo's privileged, systemd-based Molecule fixtures run on the coding-agent host without a container that has host-level root reach.
 topic: security-hardening

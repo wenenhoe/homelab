@@ -3,6 +3,7 @@ id: ADR-0046
 revision: 0
 type: adr
 title: Python client for S3-compatible object storage
+short: S3 client
 solution: rclone for every S3-compatible call, Python and bash alike; boto3 is not adopted
 summary: Which client Python code uses to talk to S3-compatible storage, and where rclone stays.
 topic: cloud-credentials

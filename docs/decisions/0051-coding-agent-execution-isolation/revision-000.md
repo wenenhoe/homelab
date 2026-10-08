@@ -3,6 +3,7 @@ id: ADR-0051
 revision: 0
 type: adr
 title: Coding-agent execution isolation
+short: Coding-agent isolation
 solution: A dedicated Proxmox VM without nested virtualization, running the agent unprivileged under Claude Code's built-in sandbox
 summary: What isolates an autonomous coding agent's execution from the rest of the lab, given one Proxmox node shared by every VM.
 topic: security-hardening

@@ -3,6 +3,7 @@ id: ADR-0069
 revision: 0
 type: adr
 title: "How the repo's Python unit tests are written and run"
+short: Python test style
 solution: "pytest-native tests, with fixtures for setup and parametrize for variants; unittest-style tests are converted rather than left"
 summary: "How Python unit tests are written and run so the suite has one style for setup, cases and assertions, and a failing case names its input."
 topic: repository-tooling

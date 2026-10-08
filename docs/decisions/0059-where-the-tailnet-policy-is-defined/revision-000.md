@@ -3,6 +3,7 @@ id: ADR-0059
 revision: 0
 type: adr
 title: Where the tailnet policy is defined
+short: Tailnet policy
 solution: Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048 settles where Tofu's own credentials live
 summary: The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes.
 topic: security-hardening

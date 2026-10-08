@@ -106,13 +106,17 @@ def lineage_errors(root: Path = ROOT) -> list[str]:
         by_id[lineage.id] = lineage
 
     former_owner: dict[str, str] = {}
+    short_owner: dict[str, str] = {}
     for lineage in lineages:
         rel = lineage.dir.relative_to(root)
         errors.extend(_generation_errors(lineage, root))
+        short = lineage.revisions[0].fm["short"]
+        if short_owner.setdefault(short.casefold(), lineage.id) != lineage.id:
+            errors.append(f"{rel}: short name '{short}' is already used by {short_owner[short.casefold()]}")
         accepted = [r.label for r in lineage.revisions if r.status == "accepted"]
         if len(accepted) > 1:
             errors.append(f"{rel}: revisions {accepted} are all accepted — only one may be; supersede the older one")
-        for field in ("title", "topic"):
+        for field in ("title", "short", "topic"):
             values = {r.fm[field] for r in lineage.revisions}
             if len(values) > 1:
                 errors.append(f"{rel}: '{field}' differs across revisions ({sorted(values)}) — it names the problem, so it stays the same")

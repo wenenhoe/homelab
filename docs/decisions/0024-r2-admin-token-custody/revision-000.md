@@ -3,6 +3,7 @@ id: ADR-0024
 revision: 0
 type: adr
 title: R2 admin token custody
+short: R2 admin token custody
 solution: In OpenBao under one path, with a per-read alert
 summary: Where the R2 admin token lives and who hears about a read, given it can be cached but never minted automatically.
 topic: cloud-credentials

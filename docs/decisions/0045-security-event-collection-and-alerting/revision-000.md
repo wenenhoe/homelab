@@ -3,6 +3,7 @@ id: ADR-0045
 revision: 0
 type: adr
 title: Security event collection and alerting
+short: Security event pipeline
 solution: 'Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts'
 summary: Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs.
 topic: security-hardening

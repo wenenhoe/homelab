@@ -3,6 +3,7 @@ id: ADR-0007
 revision: 0
 type: adr
 title: Internal CA initialization and identity persistence
+short: Internal CA initialization
 solution: A custom entrypoint running step ca init, gated on the config existing
 summary: How step-ca is initialized idempotently, with independent CA and provisioner passwords, a settable claim duration, and its identity kept outside the image.
 topic: ingress-tls-pki

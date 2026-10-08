@@ -24,6 +24,7 @@ concurrency:
 jobs:
   list-apps:
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     outputs:
       apps: ${{ steps.list.outputs.apps }}
     steps:

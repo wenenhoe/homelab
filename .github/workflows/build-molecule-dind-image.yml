@@ -28,6 +28,7 @@ jobs:
   detect-changes:
     if: github.event_name == 'push'
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     outputs:
       relevant: ${{ steps.filter.outputs.relevant }}
     steps:
@@ -54,6 +55,7 @@ jobs:
       needs.detect-changes.result != 'cancelled' &&
       (github.event_name != 'push' || needs.detect-changes.outputs.relevant == 'true')
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write

@@ -90,6 +90,12 @@ parse on an older Python than the repo's own. The rest run through
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
 | `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
 
+Every job that runs steps sets `timeout-minutes`, so a hung step frees its
+runner after minutes instead of GitHub's six-hour default. A job that calls a
+reusable workflow can't set one; the called workflow's jobs carry theirs.
+[`test_workflow_timeouts.py`](../../../../tools/tests/ci/test_workflow_timeouts.py)
+fails a job that has none.
+
 ```mermaid
 flowchart TD
     detect["detect-changes<br/>(always runs first)"]

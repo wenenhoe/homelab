@@ -16,6 +16,7 @@ jobs:
   # see docs/topics/engineering/ci/change-scoping.md#change-scoped-not-a-full-sweep.
   detect-changes:
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     outputs:
       uv_lock: ${{ steps.effective.outputs.uv_lock }}
       any_compose: ${{ steps.filter.outputs.any_compose }}
@@ -100,6 +101,7 @@ jobs:
   # specific diagnostic under a wall of unrelated skips.
   warm-uv-cache:
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -121,6 +123,7 @@ jobs:
   # its "false" default here), which is cheaper than serializing the two.
   warm-galaxy-cache:
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -142,6 +145,7 @@ jobs:
   # nothing (Docker included) that only running the hooks would.
   warm-pre-commit-cache:
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -161,6 +165,7 @@ jobs:
   pre-commit-checks:
     needs: [warm-uv-cache, warm-pre-commit-cache]
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -187,6 +192,7 @@ jobs:
   project-scope:
     needs: warm-uv-cache
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -211,6 +217,7 @@ jobs:
   project-close:
     needs: warm-uv-cache
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -234,6 +241,7 @@ jobs:
     needs: [detect-changes, warm-uv-cache, warm-pre-commit-cache]
     if: needs.detect-changes.outputs.ansible_lint == 'true'
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -252,6 +260,7 @@ jobs:
     needs: [detect-changes, warm-uv-cache]
     if: needs.detect-changes.outputs.uv_lock == 'true'
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -275,6 +284,7 @@ jobs:
     needs: [detect-changes, warm-uv-cache]
     if: needs.detect-changes.outputs.python_unit_tests == 'true'
     runs-on: ubuntu-26.04
+    timeout-minutes: 15
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -295,6 +305,7 @@ jobs:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.deploy_ordering == 'true'
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -354,6 +365,7 @@ jobs:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.roles != '[]'
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
@@ -412,6 +424,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.dockerfiles != '[]'
     runs-on: ubuntu-26.04
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
@@ -482,6 +495,7 @@ jobs:
     needs: detect-changes
     if: needs.detect-changes.outputs.any_compose == 'true'
     runs-on: ubuntu-26.04
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -518,6 +532,7 @@ jobs:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, compose-boot-test, dockerfile-build-check]
     if: always()
     runs-on: ubuntu-26.04
+    timeout-minutes: 5
     steps:
       # Only tools/ci is needed, and only its stdlib — plain python3, no
       # uv. A checkout that fails fails the gate, which blocks the merge.

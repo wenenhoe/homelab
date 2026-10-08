@@ -37,6 +37,12 @@ unlettered or `a`). A revision is named in `supersedes`, `superseded_by`,
 and a project's `decision:` by its label: `0`, or `0-b` for a lettered
 candidate.
 
+An unlettered revision 0 opens with `# NNNN. <title>`, the lineage's
+number and its `title:`; a later or lettered revision opens with a
+heading that names its own solution. No revision repeats its state as a
+`**Status:**` line in the body: `status:` in the frontmatter is the only
+record. `check_doc_drift.py` fails both.
+
 Before creating a lineage, check that:
 
 1. the problem can be stated without naming a solution;
@@ -109,6 +115,11 @@ short name in a link's text under [Citing a decision](#citing-a-decision).
 - **Editorial** (typos, a wrong fact that was wrong at the time, a link,
   or a diagram or table that adds no claim — see
   [Diagrams and tables](#diagrams-and-tables)) — any state.
+- **Condensing** (removing narration, history, or text another doc
+  already holds, without changing what was decided or why) — editorial
+  in a `superseded` or `abandoned` revision, since it is a record of what
+  was tried and no reasoning is left to protect. In an `accepted`
+  revision it is material.
 - **Metadata** (`status`, `supersedes`, `superseded_by`, `narrows`,
   `related`, `former_ids`) — any state; it records lifecycle, not
   reasoning.
@@ -144,7 +155,9 @@ state, `accepted` and `superseded` included.
   [`architecture/README.md`](../architecture/README.md).
 - **It renders.** Render a new or changed diagram with `mmdc` (the Mermaid
   CLI) before merging. No check in CI does, and a syntax error shows only
-  as an error box where the diagram should be.
+  as an error box where the diagram should be. Write a numbered edge label
+  as `1 .`, not `1.`: a label that starts with `1.` is parsed as a
+  markdown list and renders as an error.
 
 ## Citing a decision
 

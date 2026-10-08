@@ -31,6 +31,12 @@ same PR as the change it reflects is more trustworthy here than one a
 separate tool infers after the fact. Revisit that choice if this ever
 grows past a few hosts or gains more than one active contributor.
 
+A diagram of the project dependency graph, drawn from `depends_on`, was
+tried and left out: the cross-initiative edges tangle it, and
+[`project-planning.md`](../project-planning.md) already lists what each
+project waits on. Don't add it without a reason that holds up against
+that.
+
 ## Index
 
 | Doc | Covers |

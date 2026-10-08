@@ -196,6 +196,8 @@ for the reasoning.
       project it belongs to next.
 - [ ] Other projects' `depends_on` entries naming this one are removed,
       and every cross-reference into this doc is updated or deleted.
+- [ ] No code comment, message or topic doc still names this project's
+      stages, phases or tracks.
 
 ## Index
 

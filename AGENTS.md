@@ -67,6 +67,12 @@ same rule [`docs/README.md`](docs/README.md) states for docs
 cross-referencing each other, applied to code comments pointing at
 docs.
 
+A comment, error message, docstring or topic doc describes what the code
+does now. It never names a project's stage, phase or track (a label like
+"Track A" or "stage 2") or the migration it came from: that vocabulary
+belongs to the project doc and is deleted with it, and a leftover reads
+as work still pending.
+
 ## Verification before writing it down
 
 - Quote a doc's or config's own line when its exact expected format

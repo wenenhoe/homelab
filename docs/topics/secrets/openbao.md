@@ -84,6 +84,26 @@ exist — the container is expected to fail to start and be retried by
 This is the same bootstrap race [`lldap.md`](../services/lldap.md) documents for
 tinyauth's first-ever deploy, and the same tolerated crash-loop.
 
+## First bring-up order
+
+```mermaid
+flowchart TD
+    A["Deploy: openbao starts, no cert yet"] --> B["Container crash-loops, restart: unless-stopped"]
+    B --> C["Play 6: step_ca_cert issues the leaf cert, container restarts"]
+    C --> D["Uninitialized and sealed"]
+    D --> E["init_unseal init: 3 shares, root token printed once"]
+    E --> F["init_unseal unseal, run twice"]
+    F --> G["openbao-auth runbook with the root token: KV v2, AppRole, policy, controller role"]
+    G --> H["Smoke test from controller: put and get succeed, metadata delete denied"]
+    H --> I["Revoke the root token"]
+    I --> J["openbao_utils.bootstrap fills manual Vault-backed secrets"]
+```
+
+Every restart afterwards returns to the sealed state and needs only the
+unseal step. The AppRole steps are in [`openbao-auth.md`](openbao-auth.md);
+the bootstrap script is covered in
+[`secrets.md`](secrets.md#bootstrapping-manual-secrets).
+
 ## Non-root user, and what it costs
 
 `openbao/openbao`'s Dockerfile creates a system user named `openbao`, `chown -R openbao:openbao

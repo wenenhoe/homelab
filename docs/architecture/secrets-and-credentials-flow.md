@@ -64,3 +64,35 @@ control, running its own least-privilege AppRole
 ([ADR 0026 (High-value secret read alerts)](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md))
 rather than reusing `controller`'s broader one — a compromised
 `controller` AppRole still can't read that path silently.
+
+## CD agent AppRoles
+
+```mermaid
+flowchart LR
+    subgraph cd["cd_agent (fixed address, CIDR-bound)"]
+        deploy["cd-agent-deploy"]
+        rotation["cd-agent-rotation"]
+        freshness["cd-agent-freshness"]
+        snapshot["cd-agent-snapshot"]
+    end
+
+    subgraph security["security: OpenBao KV v2"]
+        hosts[("hosts/*")]
+        telegram[("hosts/all/telegram/*")]
+        leaf[("cloud_credentials/leaf/*")]
+        rot[("cloud_credentials/rotation/*")]
+        snap[("raft snapshot,<br/>six leaf paths")]
+    end
+
+    deploy -- "read; create new only" --> hosts
+    deploy -- "read" --> leaf
+    rotation -- "read, create, update" --> leaf & rot
+    freshness -- "read" --> leaf & rot & telegram
+    snapshot -- "save snapshot,<br/>read" --> snap
+```
+
+Four roles, one per kind of unattended job, each bound to the host's
+address. A role can reach only the paths drawn: none of the four can
+delete, and only `cd-agent-rotation` can update. Policies and the
+creation steps are in
+[`openbao-cd-agent-approles.md`](../topics/secrets/openbao-cd-agent-approles.md).

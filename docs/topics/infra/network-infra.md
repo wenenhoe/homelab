@@ -86,7 +86,7 @@ role's auth-key design is written.
 
 ## Bringing a new `network_infra` host under management
 
-Three manual, one-time prerequisites — none of these can be automated
+One-time prerequisites, none of which can be automated
 by the same Ansible run that depends on them (the same
 chicken-and-egg `bootstrap-secrets.yaml`'s own header describes for
 secrets):

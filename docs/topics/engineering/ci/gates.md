@@ -360,11 +360,9 @@ own 401 challenge. A HEAD request doesn't download the image.
   renamed or private) fails the run. A registry outage doesn't turn a weekly
   run red, and it can't hide a removed tag from the next week's.
 
-Docker Hub's anonymous pull limit counts manifest GETs, and to my knowledge a
-HEAD isn't one; I couldn't check that from here. If it ever were, the retry
-and warning paths above are what a limit would meet, and a weekly run this
-small is unlikely to reach one either way. The run needs no
-credentials and runs with read-only permissions. GitHub emails the
+The check sends HEAD requests for manifests. A registry rate limit would meet
+the retry and warning paths above. The run needs no credentials and runs with
+read-only permissions. GitHub emails the
 workflow's failure to the person who last changed the schedule.
 
 The tests speak real HTTP to a local server that implements the token flow

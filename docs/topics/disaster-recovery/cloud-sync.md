@@ -58,9 +58,7 @@ rest of that run.
   hypothetical, this repo's own real deploy needed `homelab-backups-b2`
   instead, hence the `-b2` suffix already baked into
   `cloud_sync_targets.b2.bucket` (`host_vars/storage.yaml`). None of
-  this is Ansible-managed (same as the earlier note for SeaweedFS being
-  the one exception) — a reasonable first OpenTofu project once that
-  expansion starts.
+  this is Ansible-managed.
 - Fill in the sixteen `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
   in `secret_catalog.yaml` — a write and a read credential per
   provider, plus the three shared endpoint values (account ID, B2
@@ -83,17 +81,12 @@ rest of that run.
   specifically (B2 Console > Buckets > Bucket Details) is the one value
   here B2 assigns rather than you choosing it — get the real one from
   your own bucket, not a copied example.
-- **Needs live verification, not yet confirmed:** every `rclone.conf`
-  endpoint is written with its scheme (`https://`) included, not a bare
-  hostname — the opposite convention from `docker-volume-backup`'s
-  minio-go client elsewhere in this repo. rclone's own documented
-  examples are inconsistent about this across providers; several
-  non-AWS ones explicitly require the scheme, which is why it's
-  included everywhere here, but this hasn't been confirmed against a
-  real rclone binary. Before trusting the nightly run, verify against
-  the exact image actually deployed — pulled live from
-  `cloud-sync.service.j2` rather than a hardcoded tag here, so this
-  command can't quietly drift from what's really running:
+- **Check each remote before trusting the nightly run.** Every
+  `rclone.conf` endpoint is written with its scheme (`https://`), not a bare
+  hostname, the opposite convention from `docker-volume-backup`'s minio-go
+  client elsewhere in this repo. List each remote with the image the unit
+  deploys; the tag comes from `cloud-sync.service.j2`, so the command
+  follows what is running:
   ```sh
   docker run --rm \
     -v /opt/stacks/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
@@ -101,5 +94,4 @@ rest of that run.
       ansible/roles/cloud_sync/templates/cloud-sync.service.j2) \
     lsd <name>:
   ```
-  for each of the four remote names — confirm each one lists (or
-  reports an empty, error-free) result.
+  Each remote name should list, or report an empty result without an error.

@@ -200,11 +200,9 @@ supplied explicitly (see
 
 ## What this doesn't cover yet
 
-`snapshot-push.sh` still requires a human to export `BAO_TOKEN` by
-hand — see [`openbao-backup-restore.md`](openbao-backup-restore.md)'s
-"Open follow-ups". The policy above grants the capability; wiring the
-script to actually log in via this AppRole is separate, deliberately
-deferred work (that doc explains why).
+`snapshot-push.sh` logs in as this AppRole itself (the `role_id` as an
+argument, the `secret_id` at a hidden prompt) and is run by hand; see
+[`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 `ensure_secret.yaml` is what reads
 `openbao-controller-role-id`/`-secret-id` from Ansible's own secrets

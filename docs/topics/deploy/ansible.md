@@ -75,8 +75,8 @@ why every host is Ansible-managed rather than configured by hand.
   ansible-playbook playbooks/deploy.yaml --tags "infra"
   ```
 
-Both assume the host is already provisioned once (a full, untagged run
-first). See [Tags in `deployment-flow.md`](deployment-flow.md#tags).
+The `images` and `infra` commands assume the host is already provisioned
+once (a full, untagged run first). See [Tags in `deployment-flow.md`](deployment-flow.md#tags).
 
 ## Inventory
 

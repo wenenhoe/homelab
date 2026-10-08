@@ -40,7 +40,7 @@ these narrow, structural things:
   `deploy.yaml`, numbered sequentially — title *wording* isn't compared,
   only count and sequence, so a heading paraphrasing a play's name isn't
   flagged as drift.
-- This file's own Jobs table lists every `pr-checks.yml` job id, except
+- [`pipeline.md`](pipeline.md#jobs)'s Jobs table lists every `pr-checks.yml` job id, except
   `detect-changes` (internal plumbing) and `trivy-scan` (documented in
   [`security-scanning.md`](../security-scanning.md) instead).
 - Every cross-file `#anchor` reference anywhere in the repo (not just

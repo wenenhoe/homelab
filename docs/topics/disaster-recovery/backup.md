@@ -177,4 +177,3 @@ have fully qualified paths`). Scheme is the separate
   store — R2/B2/OCI hold independent app-level archives, not a mirror of
   SeaweedFS's bucket.
 - HA for SeaweedFS (single-node by design).
-- Alerting on silent backup-job failures.

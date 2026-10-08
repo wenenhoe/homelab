@@ -1,8 +1,7 @@
 # OpenBao: Secrets Store Bootstrap
 
-`openbao` is this migration's replacement for the file-based secrets
-cache
-([ADR 0013 (Secret storage)](../../decisions/0013-secret-storage/revision-000.md)).
+`openbao` is the repo's secrets store
+([ADR 0013 revision 1 (Secret storage)](../../decisions/0013-secret-storage/revision-001.md)).
 This doc covers deploying it, its TLS cert, and getting it initialized
 and unsealed. Auth and policies are covered in
 [`openbao-auth.md`](openbao-auth.md); the secrets role migration is

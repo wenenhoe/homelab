@@ -58,7 +58,7 @@ no Python, and `tools/tests/ci/test_layout.py` enforces that.
 
 The modules jobs run on the runner's own `python3` (`ci.images.*`, `ci.json5`,
 `ci.gates.compose_health`, `ci.gates.renovate_window`,
-`ci.gates.matrix_gate`, `ci.scan.*`, `ci.output`, `ci.proc`) are
+`ci.gates.matrix_gate`, `ci.checksums.*`, `ci.scan.*`, `ci.output`, `ci.proc`) are
 standard-library only, so those jobs install nothing;
 `tools/tests/ci/test_stdlib_only.py` enforces it, including that they still
 parse on an older Python than the repo's own. The rest run through
@@ -79,6 +79,7 @@ parse on an older Python than the repo's own. The rest run through
 | `python-unit-tests` | `tools/cloud_credentials/**`/`tools/openbao_utils/**`/`tools/cd_agent/**`/`tools/utils/**`/`tools/ci/**`/`tools/doc_scripts/**`/`ansible/molecule-coverage/molecule_cov/**`/`ansible/filter_plugins/**`/`ansible/tests/**`/`tools/tests/**`/`pyproject.toml`/`uv.lock` changed | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | inventory/playbooks/secrets/restore/`tools/ci/gates/deploy_ordering.py`/`tools/ci/fixtures/**`/`tools/utils/secret_catalog.py`/`pyproject.toml`/`uv.lock` changed | See below. |
 | `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](gates.md#molecule-coverage-gate). See [`molecule-testing.md`](../molecule-testing.md). |
+| `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash (`cd_agent`'s and `openbao_cli`'s `defaults/main.yaml`, `tools/coderabbit-review/Dockerfile`), changed | Each pinned release checksum is the one its publisher signed, attested or lists — see [Release checksum check](gates.md#release-checksum-check). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See below. |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
 | `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
@@ -98,13 +99,14 @@ flowchart TD
     uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
     pytest["python-unit-tests<br/>(controller-side Python changed)"]
     deployorder["deploy-ordering-check<br/>(inventory/playbooks/secrets/restore changed)"]
+    relchk["release-checksums<br/>(pinned release hash or its checker changed)"]
     molecule["molecule<br/>(any role touched — matrix)"]
     boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
     synchk["compose-syntax-check<br/>(any compose file touched, fallback)"]
     dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 
-    detect --> lint & uvlock & pytest & deployorder & molecule & boottest & synchk & dockerbuild
+    detect --> lint & uvlock & pytest & deployorder & relchk & molecule & boottest & synchk & dockerbuild
     detect --> trivy
     warmuv --> precommit & scope & close & lint & uvlock & pytest & deployorder & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
@@ -237,7 +239,7 @@ e.g. `PR checks / pre-commit-checks`).
 `warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
 `pre-commit-checks`, `project-scope`, `project-close`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
-`deploy-ordering-check`, and `compose-syntax-check` are all safe to
+`deploy-ordering-check`, `release-checksums` and `compose-syntax-check` are all safe to
 mark required directly: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required

@@ -22,6 +22,7 @@ jobs:
       deploy_ordering: ${{ steps.effective.outputs.deploy_ordering }}
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
+      release_checksums: ${{ steps.filter.outputs.release_checksums }}
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
@@ -52,7 +53,8 @@ jobs:
       # `[tool.ruff]`) — see docs/topics/engineering/ci/change-scoping.md#comments-and-formatting-dont-queue-molecule.
       # The job outputs above read this step, not `filter`. ansible_lint,
       # trivy_ansible and any_compose are deliberately not gated: they
-      # read comments (`# noqa`, `#trivy:ignore`).
+      # read comments (`# noqa`, `#trivy:ignore`). release_checksums isn't
+      # either: its run is cheap and a pin file is small.
       - name: Drop no-op changes from the gated filters
         id: effective
         run: >-
@@ -426,6 +428,30 @@ jobs:
           MATRIX_APP: ${{ matrix.app }}
         run: python3 -m ci.images.build build-check "$MATRIX_APP"
         working-directory: tools
+
+  # Shows that each pinned release checksum is the one its publisher signed or
+  # lists (ADR 0077) — see docs/topics/engineering/ci/gates.md#release-checksum-check.
+  # Not a matrix job, so it can be required directly: a PR that changes no pin
+  # reports it skipped.
+  release-checksums:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.release_checksums == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Stdlib-only, so plain python3 (no uv). gpg and gh come with the
+      # runner image; the read-only token is what `gh attestation verify`
+      # authenticates with.
+      - name: Check every pinned release checksum against its publisher
+        run: python3 -m ci.checksums.verify
+        working-directory: tools
+        env:
+          GH_TOKEN: ${{ github.token }}
 
   # Fallback for stacks the boot-test job deliberately excludes: only the
   # excluded apps are checked, since anything compose-boot-test covers gets

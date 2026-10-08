@@ -1,0 +1,42 @@
+name: Check release checksums
+
+# Once a week, and on demand. A pinned hash is checked when its pin changes
+# (pr-checks.yml's release-checksums job); this asks each publisher again, so
+# a key that rotated or a manifest that moved is noticed even when no pin did.
+# See docs/topics/engineering/ci/gates.md#release-checksum-check.
+#
+# The minute is off the hour to stay clear of the top-of-the-hour crowd on
+# GitHub's scheduler, and Sunday is when Renovate (Mon/Thu window, see
+# renovate.yml) is furthest away. check-image-tags.yml runs earlier that day.
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: "41 3 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-release-checksums
+  cancel-in-progress: false
+
+jobs:
+  check-release-checksums:
+    runs-on: ubuntu-26.04
+    # Bounds the retries and the one tarball download: a full run takes
+    # minutes at most when the publishers answer.
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Stdlib-only, so plain python3 (no uv, no dependencies). gpg and gh
+      # come with the runner image. The workflow's own read-only token is
+      # what `gh attestation verify` authenticates with; no other secret.
+      - name: Check every pinned release checksum against its publisher
+        run: python3 -m ci.checksums.verify
+        working-directory: tools
+        env:
+          GH_TOKEN: ${{ github.token }}

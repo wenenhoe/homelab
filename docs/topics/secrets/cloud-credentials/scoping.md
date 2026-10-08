@@ -34,37 +34,31 @@ that it holds zero file/bucket-data capabilities (no
 account-wide reach it can't touch backup contents itself, only mint
 and revoke other keys.
 
-**B2's leaf keys need `listAllBucketNames`, confirmed live.** Unlike the
-rotation key above, the write/read leaf keys *are* bucket-restricted (to
-`homelab-backups-b2`) — and Backblaze's own docs state plainly, across
-three separate pages, that a bucket-restricted key needs
+**B2's leaf keys need `listAllBucketNames`.** Unlike the rotation key,
+the write/read leaf keys *are* bucket-restricted (to
+`homelab-backups-b2`), and a bucket-restricted key needs
 `listAllBucketNames` for S3-compatible-API access to work at all,
-independent of whatever file capabilities it also holds. Missing it
-produces a blanket `403 Forbidden` on the S3-compatible API — not a
-capability-specific error, so it's easy to misdiagnose.
-`rclone/rclone#5020` documents the same symptom independently.
+whatever file capabilities it holds. Without it the API returns a
+blanket `403 Forbidden`, not a capability-specific error
+(`rclone/rclone#5020` shows the same symptom).
 
-**The write leaf needs `readFiles` too, confirmed live.** rclone's S3
-backend calls `HeadObject` on the destination before *every* `copy`,
-fresh object or not, to decide skip-vs-upload — not a listing,
-despite rclone's own prose docs ("testing by size and modification
-time") suggesting otherwise. B2 maps `HeadObject` to `readFiles`, not
-`listFiles`. A write leaf without `readFiles` fails outright on every
-copy attempt (`operation error S3: HeadObject ... 403`), not just on
-already-existing objects. So the write leaf can read backup contents,
-not just list and write them — the boundary this key actually holds is
-narrower than "read-only excluded": it's `deleteFiles` being absent,
-which is the property that matters for the threat model in
-[`backup-threat-model.md`](../../disaster-recovery/backup-threat-model.md), and it's untouched by this.
+**The write leaf needs `readFiles` too.** rclone's S3 backend calls
+`HeadObject` on the destination before *every* `copy`, fresh object or
+not, to decide skip-vs-upload, and B2 maps `HeadObject` to `readFiles`,
+not `listFiles`. A write leaf without it fails every copy
+(`operation error S3: HeadObject ... 403`). So the write leaf can read
+backup contents; the boundary it holds is `deleteFiles` being absent,
+which is the property the threat model in
+[`backup-threat-model.md`](../../disaster-recovery/backup-threat-model.md)
+relies on.
 
 Both leaf keys request `listBuckets listAllBucketNames listFiles
 readFiles writeFiles` (write) / `listBuckets listAllBucketNames
 listFiles readFiles` (read) — identical except for `writeFiles`. A
-generic `Forbidden` with no named operation is a strong signal of an
-outdated rclone binary (pre-1.75-ish); current versions name the
-actual failing S3 call (`HeadObject`/`PutObject`/`ListObjects`),
-which narrows down which capability is missing far faster than
-guessing from the error text alone.
+generic `Forbidden` with no named operation points to an outdated rclone
+binary; current versions name the failing S3 call
+(`HeadObject`/`PutObject`/`ListObjects`), which identifies the missing
+capability.
 
 ### OCI — two separate credentials, two separate auth models
 
@@ -83,17 +77,16 @@ The leaf users' policies: write gets `any
 request.permission='OBJECT_CREATE',
 request.permission='OBJECT_OVERWRITE'}`, read swaps in `OBJECT_READ`
 in place of the latter two. `OBJECT_OVERWRITE` is required alongside
-`OBJECT_CREATE` specifically for multipart uploads — confirmed in
-Oracle's own multipart-uploads documentation, which states this as a
-named requirement beyond what a normal write policy needs. Without it,
+`OBJECT_CREATE` specifically for multipart uploads — per Oracle's
+multipart-uploads documentation. Without it,
 `CreateMultipartUpload` 404s as `NoSuchBucket`, the same ambiguous
 not-found-or-unauthorized response this API gives for every other
 authorization gap — a single-part `PutObject` doesn't hit this, only an archive large
 enough to trigger rclone's multi-thread/multipart path (minecraft's).
 `OBJECT_DELETE` is still excluded from both leaves.
 
-**Identity-Domain tenancies require an email per user, confirmed
-live** (`400 IdcsConversionError` from `CreateUser` without one).
+**Identity-Domain tenancies require an email per user**
+(`400 IdcsConversionError` from `CreateUser` without one).
 Since these are three service identities, not people,
 `create_rotation_keys --provider oci` requires
 `--admin-email you@example.com` and derives a distinct `+`-tagged
@@ -120,15 +113,12 @@ exchange, looks up the app's own SCIM id, and caches all four
 alongside a self-tracked `_rotation-key-oci-created-at` (see
 [Credential expiry](expiry.md#credential-expiry) for why this one stays self-tracked).
 
-**User Administrator is confirmed sufficient for everything this repo
-needs from this app** — live-tested against a real tenancy for
-`POST /admin/v1/CustomerSecretKeys` (leaf key creation),
+**User Administrator is sufficient** for what this repo needs from the
+app: `POST /admin/v1/CustomerSecretKeys` (leaf key creation),
 `GET /admin/v1/Apps?filter=...` (finding the app's own id), and
-`POST /admin/v1/AppClientSecretRegenerator` (rotating the app's own
-secret). Oracle's own AppRole-to-endpoint tables list the latter two
-under Security Administrator instead, which made this worth confirming
-live rather than assuming the stricter table was the operative one —
-it wasn't.
+`POST /admin/v1/AppClientSecretRegenerator` (rotating its own secret).
+Oracle's AppRole tables list the latter two under Security
+Administrator, but User Administrator works.
 
 **The gap this replaces didn't fully close, it moved.** The old
 rotation identity's classic-IAM policy was tenancy-wide `manage users`
@@ -139,8 +129,7 @@ gone now (there's no more classic rotation identity at all), but User
 Administrator is a domain-wide app role, not scoped to two users
 either. Same shape of trade-off, different mechanism.
 
-**SCIM-specific things confirmed live, not inferred from the schema
-alone:**
+**SCIM specifics:**
 
 - `CustomerSecretKey.user` takes the leaf user's OCID in its `ocid`
   field, not `value` — `value` is a different, shorter SCIM-internal id
@@ -158,15 +147,14 @@ alone:**
 - The Confidential Application's own client secret has no native
   expiry field on the `App` resource itself, and OCI supports exactly
   one active secret per app — regenerating (`AppClientSecretRegenerator`)
-  is a hard cutover, not an overlap window (confirmed via Oracle's own
-  product-feedback forum, where multi-secret support is an open feature
+  is a hard cutover, not an overlap window (multi-secret support is an open Oracle feature
   request). There is no verify-then-revoke available for this specific
   credential the way there is for leaf keys — see [Rotation](rotation.md#rotation) for
   what that means in practice.
 - The classic API's `GET /20160918/users/{id}/customerSecretKeys` still
   sees keys created via SCIM, and SCIM's own
   `GET /admin/v1/CustomerSecretKeys?filter=user.ocid eq "..."` works too
-  — both confirmed live. `openbao_utils/audit.py --provider oci` uses the
+  — both work. `openbao_utils/audit.py --provider oci` uses the
   SCIM path, since it's the same credential everything else already
   authenticates with; nothing here depends on `~/.oci/config` for
   auditing.

@@ -189,15 +189,10 @@ install-hooks`, never `pre-commit run` — building every hook's
 environment is the entire point, and it needs nothing (Docker
 included) that actually running a hook would.
 
-`warm-uv-cache` deliberately runs an unlocked `uv sync` (`locked` left
-at its default `"false"`), not `--locked`. This job exists only to
-populate the shared package cache — lockfile strictness is `uv-lock`'s
-job, separately, and needs to keep failing (or not) on its own merits.
-If `warm-uv-cache` used `--locked`, a genuinely stale lockfile would
-fail *this* job instead, and every job below it (`needs:
-warm-uv-cache`) would report `skipped` rather than run — burying
-`uv-lock`'s specific diagnostic under a wall of unrelated skips on the
-exact PRs (lockfile changes) where it matters most.
+`warm-uv-cache` runs an unlocked `uv sync` (`locked` left at its default
+`"false"`): it only populates the shared cache. A stale lockfile would
+otherwise fail this job and skip everything that `needs:` it, burying
+`uv-lock`'s own diagnostic.
 
 ### Base-branch warming
 

@@ -115,18 +115,11 @@ the below-100% floors are legitimate, understood gaps rather than
 untested code (see [`thresholds.yaml`](../../../../ansible/molecule-coverage/thresholds.yaml)
 for the current values):
 
-- `apt` - the reboot-if-required task is untested by design, not just by
-  omission: `/var/run/reboot-required` never appears in the container
-  fixture used here (confirmed explicitly in that scenario's own
-  verify.yml, not left incidental), and a separate scenario that
-  actually triggers `ansible.builtin.reboot` isn't a safe way to close
-  that gap - a privileged container's `reboot` syscall isn't scoped to
-  the container, it reboots the underlying Docker host's own kernel
-  (confirmed against a real, reported case:
-  moby/moby issue #21929), a hazard to whoever runs
-  `molecule test` for it. Closing this properly needs isolation this
-  project's Docker-based Molecule tooling doesn't provide (a real VM,
-  say), which is out of scope here.
+- `apt` - the reboot-if-required task is untested by design:
+  `/var/run/reboot-required` never appears in the container fixture,
+  and a scenario that triggers `ansible.builtin.reboot` would reboot the
+  underlying Docker host's kernel (moby/moby#21929). Closing it needs
+  isolation Docker-based Molecule doesn't provide, such as a real VM.
 - `bind9` - the resolv.conf-upstream task needs a pre-existing
   non-upstream resolv.conf to be worth simulating.
 - `restore` - the interactive confirmation prompt is bypassed on
@@ -189,17 +182,11 @@ workflows and `pr-checks.yml`'s `compose-syntax-check` fallback):
   Molecule scenario, and `compose-syntax-check` skips its `compose.yaml.j2`, so
   nothing in CI checks its compose file.
 
-`lldap` is no longer in that list: `_compose-boot-test.yml` issues a real
-cert for it from a throwaway `smallstep/step-ca` container (the official
-image, driven by its own stock `DOCKER_STEPCA_INIT_*` auto-init — not
-`docker/step-ca`'s own compose stack, which this CA only needs to
-outlive a single job step, not persist), using the same `step ca
-certificate` call `step_ca_cert`'s real Ansible task runs — see
-[`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh). This
-exercises the real issuance path end to end rather than a parallel,
-independently-authored openssl fixture, and needs no real DigitalOcean
-credential or step-ca password — the throwaway CA and its password exist
-only for this job's lifetime.
+`lldap` is not excluded: `_compose-boot-test.yml` issues it a real cert from a
+throwaway `smallstep/step-ca` container (stock `DOCKER_STEPCA_INIT_*`
+auto-init) using the same `step ca certificate` call `step_ca_cert` runs; see
+[`seed-lldap-ci-cert.sh`](../../../../.github/scripts/seed-lldap-ci-cert.sh).
+The CA and its password exist only for the job.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
@@ -221,15 +208,13 @@ excluded.
 The images built from `docker/<app>/Dockerfile` are published only after
 merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
 `build-molecule-dind-image.yml`), and compose files pin the published
-tag. Before this, a PR that changed a Dockerfile was never built, and
-`compose-boot-test` booted the published image regardless: a Dockerfile
-edit that kept the same tag tested the old image, and a version bump
-pinned a tag that doesn't exist in `ghcr.io` until after merge. The
+tag. A PR's boot test therefore builds a changed Dockerfile locally,
+since the published image would be the old one or not exist yet. The
 CodeRabbit review image, built from `tools/coderabbit-review/Dockerfile` and
 published by `build-coderabbit-review-image.yml`, is published the same way,
 though no compose file pins it.
 
-Three pieces close that gap. All of them are stdlib-only Python that
+Three pieces cover this. All of them are stdlib-only Python that
 runs on the runner's own `python3` (a test enforces that), so the jobs
 that use them install nothing — notably the `build-*-image.yml` jobs,
 which hold a package-write token.

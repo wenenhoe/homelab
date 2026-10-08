@@ -13,16 +13,10 @@ current by two host-level Ansible roles rather than a sidecar container.
 | `step_ca_cert` | Role (`ansible/roles/step_ca_cert/`, `deploy.yaml`'s Play 6, called once for lldap and once for openbao — see [`openbao.md`](../secrets/openbao.md)) | For lldap's instance: issues the initial cert via `step ca certificate` (once, on a fresh `certs` volume) and installs a systemd `cert-renewer@lldap.timer` for every renewal after that. |
 | `step_ca_client` | Role (`ansible/roles/step_ca_client/`) | Shared prerequisite: caches step-ca's root cert on the host at `/etc/step-ca/root_ca.crt`, bind-mounted (read-only) into whichever `step` invocation needs it. Also used by `tinyauth_ca_trust` (below). |
 
-This replaces the previous `certbot`/`dockerproxy` sidecar pair
-entirely — `certbot`'s only job was DNS-01 issuance against
-DigitalOcean, and `dockerproxy` existed solely to give `certbot` a
-locked-down path to restart `lldap` after a renewal without mounting the
-real Docker socket into it. See
+Renewal runs on the host: `step_ca_cert`'s systemd unit runs as `root` and
+restarts the container via `docker compose`, with no Docker socket proxy. See
 [ADR 0009 (Internal service certificates)](../../decisions/0009-internal-service-certificate-issuance-and-renewal/revision-000.md)
-for why that design was replaced rather than patched. Neither problem
-exists once renewal moves to the host: `step_ca_cert`'s systemd unit
-runs as `root` directly and
-restarts the container via `docker compose`, no proxy needed.
+for why this replaced the old `certbot`/`dockerproxy` pair.
 
 ## Why renewal is a systemd timer, not an in-container daemon
 
@@ -45,16 +39,11 @@ just lldap — openbao's own instance already uses it (see
 [`openbao.md`](../secrets/openbao.md)), and every app in this repo already follows
 that layout (see [`adding-an-app.md`](../deploy/adding-an-app.md)).
 
-This directly replaces the shell loop the old `certbot` entrypoint ran
-(`while :; do certbot renew ...; sleep 12h; done`) — the compose file's
-own `NOTE: Need more investigation` comment on that service already
-flagged it as under-trusted — with `step`'s own renewal logic and a
-timer systemd itself supervises: a renewal failure now shows up as a
-failed systemd unit (`systemctl status cert-renewer@lldap.service`,
-`journalctl -u cert-renewer@lldap.service`), not a silently-swallowed
-exception inside a best-effort deploy hook — and pages a Telegram topic
-via `OnFailure=` rather than waiting for you to notice
-(see [`telegram-notifications.md`](../monitoring/telegram-notifications.md)).
+A renewal failure shows up as a failed systemd unit
+(`systemctl status cert-renewer@lldap.service`,
+`journalctl -u cert-renewer@lldap.service`) and pages a Telegram topic
+via `OnFailure=` (see
+[`telegram-notifications.md`](../monitoring/telegram-notifications.md)).
 
 ## `step` runs via its container image, not a host-installed binary
 
@@ -105,7 +94,7 @@ Once lldap's cert stops coming from a publicly-trusted CA, tinyauth's
 own `insecure: false` (already the default — see `config.yaml.j2`) just
 starts failing verification instead of silently doing nothing, unless
 tinyauth is told to trust step-ca's root. tinyauth's schema has no
-`caCert`/`caFile` option of its own (confirmed — only `insecure` and the
+`caCert`/`caFile` option of its own (only `insecure` and the
 unrelated `authCert`/`authKey` mTLS pair), so `tinyauth_ca_trust`
 (`ansible/roles/tinyauth_ca_trust/`, same Play 6) takes a different
 route: it concatenates the host's system CA bundle with step-ca's root
@@ -115,41 +104,23 @@ at `/data/ca-bundle.pem`, with `SSL_CERT_FILE` pointed at it
 non-macOS Unix honors that env var, extending the default trust store
 rather than replacing it with something narrower.
 
-**Confirmed via a live run**: `tinyauth_ca_trust`'s own Molecule scenario
+`tinyauth_ca_trust`'s Molecule scenario
 (`ansible/roles/tinyauth_ca_trust/molecule/default/`) deploys a real
-tinyauth pointed at a real step-ca-issued cert with
-`tinyauth_ldap_insecure: false` — the real production value, unlike
-`tinyauth/molecule/default`'s own scenario, which sets it `true` because
-its lldap target has no step-ca behind it at all. A real run of this
-scenario reached tinyauth's LDAP bind attempt with no TLS/certificate
-error at all — the only failure was `LDAP Result Code 49 "Invalid
-Credentials"`, an authentication-layer error that can only happen after
-the TLS handshake itself already succeeded. That's a genuine,
-live-observed confirmation that tinyauth's LDAP client does defer to
-Go's default system cert pool via `SSL_CERT_FILE`, not just a design
-intention that's never been run. (The `Invalid Credentials` itself
-traced to a real, separate gap in this scenario — it never ran
-`lldap_bootstrap` against its lldap target, so no `observer` account
-existed to bind as — now fixed, mirroring `tinyauth/molecule/default`'s
-own identical step.) If LDAPS verification against a step-ca-issued cert
-ever fails in production despite this, something else changed (a
-tinyauth version bump pinning its own `tls.Config`, most likely) — check
-there first, not the mechanism this run already confirmed works.
+tinyauth against a real step-ca-issued cert with
+`tinyauth_ldap_insecure: false`, the production value. The run reaches
+tinyauth's LDAP bind with no TLS error, so tinyauth's LDAP client does
+honor `SSL_CERT_FILE`. If LDAPS verification against a step-ca-issued
+cert fails in production, check for a tinyauth change that pins its own
+`tls.Config` before suspecting this mechanism.
 
-On a genuinely first-ever deploy, tinyauth's `SSL_CERT_FILE` points at a
-file that doesn't exist yet until `tinyauth_ca_trust` runs (Play 6,
-after tinyauth's own Play 4 deploy) — Go's documented behavior for a
-missing `SSL_CERT_FILE` is to silently contribute no roots from it
-rather than crash the process outright, but since tinyauth's own LDAP
-bind still runs at startup and exits on failure, it will crash-loop
-briefly regardless until Play 6 seeds the real bundle and restarts it.
-`restart: unless-stopped` absorbs this the same way it already absorbs
-the observer-account bootstrap race below — not a new failure mode this
-PR introduces, the same shape as one this repo already tolerates, and
-exactly what `tinyauth_ca_trust`'s own scenario deliberately reproduces
-and asserts on (its own `docker logs` shows at least two real process
-starts; `RestartCount` is the wrong signal, since a manual restart
-resets it) rather than routing around.
+On a first-ever deploy, `SSL_CERT_FILE` points at a file that doesn't
+exist until `tinyauth_ca_trust` runs (Play 6, after tinyauth's Play 4
+deploy). tinyauth's LDAP bind runs at startup and exits on failure, so
+it crash-loops briefly until Play 6 seeds the bundle and restarts it.
+`restart: unless-stopped` absorbs this, as it does the observer-account
+bootstrap race below. The scenario reproduces it and asserts on it
+(`docker logs` shows at least two process starts; `RestartCount` is the
+wrong signal, since a manual restart resets it).
 
 ## Bootstrapping the observer account
 

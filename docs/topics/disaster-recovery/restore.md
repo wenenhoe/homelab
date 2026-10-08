@@ -12,6 +12,8 @@ it under `--limit <group>`. For the same reason it can't
 `import_playbook` the secrets bootstrap; pass it as a separate file on
 the command line instead (see below).
 
+## Safety gates
+
 Two gates block the destructive steps, each covered by a
 [Molecule scenario](../engineering/molecule-testing.md) asserting the actual side effect
 (container `StartedAt`, volume content), not just exit code:
@@ -22,6 +24,8 @@ Two gates block the destructive steps, each covered by a
   three-state signal (undefined → real prompt; `true`/`false` → `-e`-only,
   deterministic) so automated runs without a tty fail closed by default.
 
+## Running a restore
+
 ```sh
 ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
   -i inventory/inventory.yaml --limit services,localhost \
@@ -30,7 +34,7 @@ ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
 
 All of `restore_app`/`restore_archive_local_path`/`restore_volumes` need
 to be **one JSON-object `-e` argument**, not separate `-e key=value`
-pairs. Confirmed live: `-e restore_volumes='["kms_data"]'` (the
+pairs: `-e restore_volumes='["kms_data"]'` (the
 `key=value` form) leaves `restore_volumes` as the literal string
 `["kms_data"]`, not a list — Ansible only parses `-e`'s value as JSON
 when the whole `-e` argument is itself a JSON object. The pause
@@ -45,7 +49,9 @@ Each archive holds exactly one app (one schedule = one app — see
 [Architecture in `backup.md`](backup.md#architecture)),
 so `restore_volumes` only ever needs to list that one app's own volumes.
 
-Manual steps before running it (private key never touches a homelab host):
+### Manual steps first
+
+The private key never touches a homelab host:
 
 1. Pull the object from the `homelab-backups` bucket — normally
    SeaweedFS (filer UI, or an S3 client against
@@ -61,7 +67,9 @@ Manual steps before running it (private key never touches a homelab host):
 2. `gpg --decrypt` it into a plain `.tar.gz`.
 3. Point `restore_archive_local_path` at that file.
 
-The playbook then runs through the restore itself in order:
+### What the playbook does
+
+In order:
 
 1. Copies the archive to the target host.
 2. Stops the app.
@@ -158,7 +166,9 @@ What it does, in order:
    and deletes the decrypted plaintext from its own scratch directory
    once that app's `restore.yaml` call has finished, success or not.
 
-**Known limitation carried over, not introduced here:** `minecraft`'s
+### Known limitations
+
+**Carried over from the `restore` role:** `minecraft`'s
 own backup uses `compression: none`
 ([`backup.md`](backup.md#whats-backed-up)) — the
 `restore` role's own extraction step assumes gzip (`tar -xzf`)

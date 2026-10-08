@@ -4,7 +4,7 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
 [`scoping.md`](scoping.md), how they rotate in [`rotation.md`](rotation.md), and how they expire in
 [`expiry.md`](expiry.md).
 
-The scripts:
+## Scripts
 
 - **`tools/cloud_credentials/create_rotation_keys.py`** — run rarely.
   For B2, takes the master credential in memory only (never written to
@@ -18,7 +18,7 @@ The scripts:
   unrelated to the Confidential Application, still needed, see
   [the OCI section](scoping.md#oci--two-separate-credentials-two-separate-auth-models) for why. For R2, there's nothing to mint either — Cloudflare
   has no way to create such a delegate credential via its API at all
-  (confirmed live, see [the R2 section](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)) — `--provider r2` here only
+  (see [the R2 section](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)) — `--provider r2` here only
   caches (or re-caches, via `--rotate`) the Custom Token a human
   creates in the Console. Whatever gets cached either way is what
   `create_leaf_keys.py` actually reads.
@@ -78,7 +78,9 @@ Restoring cloud_credentials' Vault state after a genuine OpenBao re-init is
 `openbao_utils/restore.py`'s job — see
 [`openbao-reinit-runbook.md`](../openbao-reinit-runbook.md).
 
-**Testing:** none of these are an Ansible role, so Molecule's per-host
+## Testing
+
+None of these are an Ansible role, so Molecule's per-host
 model (`docs/topics/engineering/molecule-testing.md`) doesn't apply. `ansible/tests/`
 holds pytest tests — every provider HTTP call and `rclone` invocation
 mocked — run via `uv run pytest ansible/tests/ -v` and wired into CI as

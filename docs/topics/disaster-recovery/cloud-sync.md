@@ -28,6 +28,8 @@ lock clears, but B2's fails outright rather than deferring, so closing
 that gap on B2 specifically would start producing failed lifecycle runs
 instead of merely-delayed ones.
 
+## Targets
+
 **Which clouds each app is relayed to:** `app_catalog.yaml`'s
 `backup.cloud_targets` (e.g. minecraft's `[oci]`) — clouds beyond
 SeaweedFS only; SeaweedFS itself is implicit for every backed-up app,
@@ -39,7 +41,9 @@ holds the credentials. Minecraft overrides to `[oci]` alone: its nightly
 archive at 7-day retention would eat most of a single R2/B2 free tier, so it
 gets OCI's larger allowance to itself instead.
 
-**Mechanism:** a systemd timer (`cloud-sync.timer`, daily, scheduled
+## Mechanism
+
+A systemd timer (`cloud-sync.timer`, daily, scheduled
 after `backup_defaults.cron` to give every backup host's own nightly run
 room to land in SeaweedFS first) triggers `cloud-sync.service`
 (`Type=oneshot`), which runs one container per firing — `rclone/rclone`,
@@ -49,27 +53,25 @@ hosts' own plays to have run first in the same invocation). One `rclone
 copy` per (app, cloud target) pair; one job failing doesn't block the
 rest of that run.
 
-**Before first use:**
+## Before first use
 
 - Create a bucket by hand on each of R2/B2/OCI — `homelab-backups` for
   R2/OCI (account-scoped naming, so this is fine); B2 bucket names are
-  globally unique across *every* B2 account, not just yours, so
-  `homelab-backups` will likely already be taken — confirmed live, not
-  hypothetical, this repo's own real deploy needed `homelab-backups-b2`
-  instead, hence the `-b2` suffix already baked into
-  `cloud_sync_targets.b2.bucket` (`host_vars/storage.yaml`). None of
+  globally unique across *every* B2 account, so `homelab-backups` is
+  likely taken; B2 uses `homelab-backups-b2`
+  (`cloud_sync_targets.b2.bucket` in `host_vars/storage.yaml`). None of
   this is Ansible-managed.
-- Fill in the sixteen `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
+- Fill in the `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entries
   in `secret_catalog.yaml` — a write and a read credential per
   provider, plus the three shared endpoint values (account ID, B2
   region, OCI namespace/region). For B2 and OCI, `tools/cloud_credentials/create_rotation_keys.py`
   followed by `tools/cloud_credentials/create_leaf_keys.py` does this via each
-  provider's HTTP API rather than console click-through; R2 has no
-  rotation-key step at all (Cloudflare structurally can't delegate
-  that capability — see `cloud-credentials/scoping.md`'s R2 section),
-  so `create_leaf_keys.py` alone handles it, prompting for the
-  master token each time it actually needs one. `openbao_utils/bootstrap.py`
-  remains the manual fallback for any of the sixteen if you'd rather
+  provider's HTTP API rather than console click-through; R2 can't
+  mint a delegate rotation key (see `cloud-credentials/scoping.md`'s R2
+  section), so `create_rotation_keys.py --provider r2` only caches the
+  Custom Token you create in the Console, and `create_leaf_keys.py`
+  does the rest. `openbao_utils/bootstrap.py`
+  remains the manual fallback for any of them if you'd rather
   paste in console-created values — both paths write to the same
   cache files; see
   [`cloud-credentials/scoping.md`](../secrets/cloud-credentials/scoping.md)

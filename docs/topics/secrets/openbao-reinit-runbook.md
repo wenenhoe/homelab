@@ -15,6 +15,8 @@ emergency-root section), not another re-init. What's left here is
 narrower: genuine raft-data loss or corruption a snapshot restore
 can't fix.
 
+## Steps
+
 1. **Full backup first:**
    `cd tools && python3 -m openbao_utils.dump` - never skip
    this; it's the only copy of everything once step 2 runs.
@@ -158,6 +160,8 @@ can't fix.
    *file* in either dump (both always read from the correct
    `rotation/` path), so there's nothing that should legitimately
    differ here.
+
+## Downtime
 
 Every consumer of OpenBao is unusable for the duration - schedule this
 when nothing else needs `check_freshness.py`, `snapshot-push.sh`, or a

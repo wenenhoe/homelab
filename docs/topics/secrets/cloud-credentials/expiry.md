@@ -29,6 +29,8 @@ it beyond `check_freshness.py`'s own alert.
 section](scoping.md#cloudflare-r2--rotation-key-exists-now-but-its-not-scoped-like-the-other-two)) — set an expiration date on it there when you create
 it; this script has no way to set one after the fact.
 
+## Freshness check
+
 **`check_freshness.py`** reads every credential back — natively for B2
 (`b2_list_keys`), R2 (`GET .../tokens/{id}` for the leaf tokens,
 `GET /user/tokens/verify` for the rotation token — see below), and
@@ -56,6 +58,8 @@ the Account-owned category and never see a User token no matter how
 they're queried. `/user/tokens/verify` needs no `account_id` at all:
 it verifies whichever token authenticated the request, scoped to the
 calling user, not a specific account.
+
+## Alerts
 
 Any non-fresh result posts a Telegram alert to the `Backups` topic
 (same one `telegram-notify-cloud-sync` already uses — see
@@ -99,7 +103,9 @@ cd tools
 python3 -m cloud_credentials.check_freshness
 ```
 
-Runs unattended via a systemd **user** timer on `controller` — the
+## Scheduling
+
+The CD agent also runs it weekly as its `freshness` job ([`cd-agent-host.md`](../../deploy/cd-agent-host.md)). Runs unattended via a systemd **user** timer on `controller` — the
 operator's own machine, where the cache already lives (see
 `docs/architecture/system-overview.md`) — not through any Ansible role,
 since `cloud_credentials` isn't one and doesn't deploy to any

@@ -4,14 +4,18 @@ How the leaf and rotation credentials are rotated, per provider: the `--rotate` 
 
 ## Rotation
 
-**Leftover pre-Vault cache files:** `openbao_utils/audit.py --local` flags anything under
+### Leftover pre-Vault cache files
+
+`openbao_utils/audit.py --local` flags anything under
 `ansible/files/secrets/` that doesn't match current config, whatever its vintage. It has no
 visibility into Console-side IAM objects, so the cleanup from the OCI SCIM migration
 ([ADR 0016 (OCI credential creation)](../../../decisions/0016-oci-credential-creation-and-expiry/revision-000.md)) stays manual if you
 never did it: delete the unused `homelab-key-rotation` identity — its API signing key first, then the policy,
 then the group membership, then the user itself.
 
-**`--rotate {write,read,both}`, all three providers now:**
+### Rotating leaf keys
+
+`--rotate {write,read,both}` works for all three providers:
 
 ```sh
 cd tools
@@ -41,6 +45,8 @@ old key keeps working, the new (unverified, unrevoked) key is reported
 so it can be investigated or deleted by hand; nothing is silently
 rolled back or retried. Each leaf is independent, so `--rotate write`
 never touches the read leaf's key or cache.
+
+### Verification
 
 **Verification retries through each provider's key-propagation
 window.** A brand-new leaf credential isn't always immediately usable by
@@ -112,7 +118,9 @@ below — `create_rotation_keys --provider r2 --rotate` — rather than
 deleting `_rotation-key-cloudflare-r2-token` by hand, though that still
 works too if you'd rather just fall back to prompting on next use.
 
-**Rotating the rotation credential itself:** low-frequency,
+### Rotating the rotation credential itself
+
+Low-frequency,
 human-attended, and none of the three auto-rotate on a schedule.
 
 ```sh

@@ -122,6 +122,10 @@ class TestKeyFile:
         with pytest.raises(gpg.SignatureError, match="not only"):
             gpg.verify_manifest(path, signer.fingerprint, signer.clearsign(MANIFEST), None)
 
+    def test_a_key_path_relative_to_where_the_caller_stands_is_read(self, signer, key, monkeypatch):
+        monkeypatch.chdir(key.parent)
+        assert gpg.verify_manifest(Path(key.name), signer.fingerprint, signer.clearsign(MANIFEST), None) == MANIFEST
+
     def test_the_fingerprint_is_compared_without_regard_to_case(self, signer, key):
         assert gpg.verify_manifest(key, signer.fingerprint.lower(), signer.clearsign(MANIFEST), None) == MANIFEST
 

@@ -68,7 +68,7 @@ def verify_manifest(key: Path, fingerprint: str, manifest: bytes, signature: byt
     # The keyring is only a directory of files; gpg also starts an agent for it that must be stopped before it goes.
     home = Path(tempfile.mkdtemp(prefix="gpg-"))
     try:
-        return _verify(home, key, fingerprint.upper(), manifest, signature, run)
+        return _verify(home, key.resolve(), fingerprint.upper(), manifest, signature, run)
     finally:
         with contextlib.suppress(FileNotFoundError):
             run(["gpgconf", "--homedir", str(home), "--kill", "all"], home, True)

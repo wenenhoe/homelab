@@ -2,7 +2,7 @@
 id: PROJ-agent-full-repo-audit
 title: "Agent-Based Full-Repo Audit"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI."
 decision: ADR-0061/0
@@ -17,21 +17,23 @@ that covers what CodeRabbit's per-directory chunking structurally
 can't: a coding agent, given the whole repo and its `docs/decisions/`
 tree, distinguishing a real finding from one already reasoned through
 and accepted (the shape of gap a sampled CodeRabbit finding on
-`vault-bootstrap.hcl` demonstrated directly). Currently paused pending
-this project's own de-risking.
+`vault-bootstrap.hcl` demonstrated directly).
 
 ## Scope
 
-A periodic (starting weekly) `homelab-security` workflow: clone this
+A periodic (twice a week) `homelab-security` workflow: clone this
 repo fresh, run a coding agent (leaning Claude Code, per
 [ADR 0062](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md))
 with access to the full clone plus `docs/decisions/` and
 `docs/projects/`, instructed to read across files and docs as needed —
 not confined to a fixed directory split — and to flag findings only
 after checking whether an existing ADR already covers the behavior in
-question. Output written into `homelab-security`
-([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md)),
-distinguishing "new, actionable" from "already covered by ADR NNNN."
+question. Each run audits one group of the repo's paths, so a run is
+small enough to read in full, and the groups take turns until the whole
+repo has been covered. Output is written into `homelab-security`
+([ADR 0060](../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md))
+as a pull request the maintainer reviews, distinguishing "new,
+actionable" from "already covered by ADR NNNN."
 
 Explicitly not in scope: implementing fixes, opening pull requests, or
 writing anything to this repo — barred outright by
@@ -42,23 +44,22 @@ writing anything to this repo — barred outright by
 Implements [ADR 0061](../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md),
 `approved`. Also implements
 [ADR 0062](../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md),
-currently `working` — this project cannot leave de-risking until that
-revision reaches `approved`.
+`approved`.
 
 ## Execution plan
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | De-risking spike: mint a token once with `claude setup-token` (it needs a browser approval, so it can't run unattended), store it as a `homelab-security` secret, then run `claude` unattended from a throwaway Actions run against a scratch clone | Not started | Resolves both of ADR 0062's open assumptions (reliability of the plain-CLI OAuth-token path; whether a dedicated account is warranted over the personal one) |
-| 2 | Design the audit prompt and output schema: what the agent reads, what it checks for, how it writes into `homelab-security` | Not started | A dry-run against a real (non-scratch) clone produces a report a human would accept as useful, distinguishing new findings from ADR-covered behavior |
-| 3 | First scheduled run | Not started | A full run completes unattended; every finding is human-reviewed in full before any of it is trusted |
+| 1 | De-risking spike: mint a token once with `claude setup-token` (it needs a browser approval, so it can't run unattended), store it as a `homelab-security` secret, then run `claude` unattended from a throwaway Actions run against a scratch clone | Done | Resolves both of ADR 0062's open assumptions (reliability of the plain-CLI OAuth-token path; whether a dedicated account is warranted over the personal one) |
+| 2 | Design the audit prompt and output schema: what the agent reads, what it checks for, how it writes into `homelab-security` | Done | A dry-run against a real (non-scratch) clone produces a report a human would accept as useful, distinguishing new findings from ADR-covered behavior |
+| 3 | First scheduled run | In progress | A full run completes unattended; every finding is human-reviewed in full before any of it is trusted |
 | 4 | Steady-state cadence | Not started | Running weekly (or more often, once usage headroom against personal use is confirmed) with no manual intervention required per run |
 
 ## Acceptance criteria
 
 - [ ] A scheduled run distinguishes findings already covered by an existing ADR from genuinely new ones.
 - [ ] The agent never writes to this repo — no commit, no PR, no comment.
-- [ ] ADR 0062 is `approved` before this project leaves de-risking.
+- [x] ADR 0062 is `approved` before this project leaves de-risking.
 
 ## Agent handoff
 
@@ -75,13 +76,13 @@ grow past reading-and-reporting into anything that writes to this repo.
 
 ## Risks
 
-- Subscription usage headroom competing with personal, interactive use of the same account (see ADR 0062's open assumptions).
-- OAuth-token reliability in a plain CI step, unproven until stage 1's spike.
+- Subscription usage headroom competing with personal, interactive use of the same account (accepted by ADR 0062; watch it from the first scheduled runs).
+- OAuth-token reliability in a plain CI step: unattended runs have succeeded repeatedly; behavior over the token's whole life is unobserved.
+- Run cost: a run costs a few dollars at most at API list prices, and a full cycle through the groups several times that; what it takes from the subscription's allowance is unmeasured.
 
 ## Open items
 
-- ADR 0062 must reach `approved` before stage 2 begins.
-- Exact audit cadence beyond the initial weekly starting point.
+None.
 
 ## Closing checklist
 

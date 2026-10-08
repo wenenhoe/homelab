@@ -77,6 +77,11 @@ these narrow, structural things:
   [`docs/decisions/README.md#assumptions`](../../../decisions/README.md#assumptions).
   Presence-of-a-bullet only, not whether the claim is genuinely
   resolved; that judgment call is still on whoever sets the status.
+- A decision revision's heading and state: an unlettered revision 0
+  opens with `# NNNN. <title>` (its lineage number and `title:`), and
+  no revision carries a `**Status:**` body line, since the frontmatter
+  `status` is the one record. Later and lettered revisions name their
+  own solution in their heading, so only revision 0 is checked.
 - A markdown link written `[ADR 0044 (CD agent trigger)]`, or with a
   revision after the number, carries that lineage's `short:` name
   exactly, so renaming a lineage can't leave links using the old name.

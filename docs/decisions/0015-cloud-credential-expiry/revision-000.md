@@ -13,7 +13,7 @@ related: [ADR-0014]
 
 # 0015. Cloud credential expiry
 
-**Status:** Accepted (OCI's self-tracked approach superseded by [0016](../0016-oci-credential-creation-and-expiry/revision-000.md); B2/R2 unaffected)
+OCI's self-tracked approach is superseded by [ADR 0016 (OCI credential creation)](../0016-oci-credential-creation-and-expiry/revision-000.md); B2/R2 are unaffected.
 
 ## Context
 

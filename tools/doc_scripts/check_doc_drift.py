@@ -17,7 +17,7 @@ from pathlib import Path
 import yaml
 
 from doc_scripts.doc_frontmatter import LINEAGE_DIR_RE, doc_kind, load_lineages, read_frontmatter
-from doc_scripts.doc_graph import lineage_errors, open_assumption_errors, project_errors
+from doc_scripts.doc_graph import heading_errors, lineage_errors, open_assumption_errors, project_errors
 
 ROOT = Path(__file__).resolve().parents[2]
 errors: list[str] = []
@@ -396,6 +396,7 @@ def main() -> int:
     check_adr_link_names()
     check_nist_alignment_currency()
     errors.extend(lineage_errors(ROOT))
+    errors.extend(heading_errors(ROOT))
     errors.extend(open_assumption_errors(ROOT))
     errors.extend(project_errors(ROOT))
 

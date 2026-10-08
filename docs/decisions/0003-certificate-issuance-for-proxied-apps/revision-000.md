@@ -12,8 +12,6 @@ status: accepted
 
 # 0003. Certificate issuance for proxied apps
 
-**Status:** Accepted, partially applied — see Consequences.
-
 ## Context
 
 The original Caddy setup issued a separate DNS-01 cert per app, each

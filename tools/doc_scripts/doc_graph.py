@@ -139,6 +139,31 @@ def lineage_errors(root: Path = ROOT) -> list[str]:
     return errors
 
 
+_H1_RE = re.compile(r"^# (.+)$", re.MULTILINE)
+_STATUS_LINE_RE = re.compile(r"^\*\*Status:\*\*", re.MULTILINE)
+
+
+def heading_errors(root: Path = ROOT) -> list[str]:
+    """An unlettered revision 0 opens with `# NNNN. <title>`, the lineage's
+    number and frontmatter title. A later or lettered revision names its own
+    solution in its H1, so only revision 0 is checked. No revision repeats its
+    state as a `**Status:**` body line: the frontmatter `status` is the one record.
+    """
+    errors = []
+    for lineage in load_lineages(root):
+        for rev in lineage.revisions:
+            rel = rev.path.relative_to(root)
+            body = rev.path.read_text(encoding="utf-8").split("\n---\n", 1)[-1]
+            if rev.number == 0 and rev.candidate is None:
+                h1 = _H1_RE.search(body)
+                expected = f"{lineage.number}. {rev.fm['title']}"
+                if not h1 or h1.group(1) != expected:
+                    errors.append(f"{rel}: the first heading must be '# {expected}', got {h1.group(0) if h1 else 'none'}")
+            if _STATUS_LINE_RE.search(body):
+                errors.append(f"{rel}: has a '**Status:**' body line; the frontmatter status is the only record")
+    return errors
+
+
 def open_assumption_errors(root: Path = ROOT) -> list[str]:
     errors = []
     for lineage in load_lineages(root):

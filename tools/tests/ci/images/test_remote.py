@@ -609,9 +609,16 @@ class TestRealTree:
                     with subtests.test(ref=ref):
                         assert ref in collected.images
 
-    def test_dockerfile_base_images_are_checked_too(self, collected):
-        assert "quxfoo/wastebin:3.7.2" in collected.images
-        assert any(t.startswith("caddy:") for t in collected.images)
+    @pytest.mark.parametrize(
+        ("repository", "dockerfile"),
+        [
+            pytest.param("quxfoo/wastebin", "docker/wastebin/Dockerfile", id="wastebin"),
+            pytest.param("caddy", "docker/caddy/Dockerfile", id="caddy"),
+        ],
+    )
+    def test_dockerfile_base_images_are_checked_too(self, collected, repository, dockerfile):
+        sources = {source for text, found in collected.images.items() if text.startswith(f"{repository}:") for source in found}
+        assert dockerfile in sources
 
     def test_the_json_inventory_is_the_collection_as_one_json_document(self, collected):
         document = rm.inventory(collected)

@@ -5,8 +5,8 @@ name: Check image tags exist
 # pull it. This asks each registry whether every image this repo pins is still
 # there — see docs/topics/engineering/ci/image-tag-check.md.
 #
-# Weekly on purpose: a couple of HEAD requests per image (43 images on
-# ghcr.io and Docker Hub today), spaced out and retried politely
+# Weekly on purpose: a couple of HEAD requests per image on ghcr.io and
+# Docker Hub, spaced out and retried politely
 # (tools/ci/images/remote.py), so rate limiting is not a concern at this
 # frequency. The minute is off the hour to stay clear of the
 # top-of-the-hour crowd on GitHub's scheduler; Sunday is the day Renovate

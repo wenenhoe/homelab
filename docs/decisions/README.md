@@ -153,11 +153,14 @@ state, `accepted` and `superseded` included.
   a markdown table — no images, which don't diff, and no generated
   diagrams, for the reasons in
   [`architecture/README.md`](../architecture/README.md).
-- **It renders.** Render a new or changed diagram with `mmdc` (the Mermaid
-  CLI) before merging. No check in CI does, and a syntax error shows only
-  as an error box where the diagram should be. Write a numbered edge label
-  as `1 .`, not `1.`: a label that starts with `1.` is parsed as a
-  markdown list and renders as an error.
+- **It renders.** The `mermaid-check` job renders every diagram on a pull
+  request that changes markdown, and `python3 -m doc_scripts.check_mermaid`
+  from `tools/` does the same by hand with Docker
+  ([Mermaid render check](../topics/engineering/ci/doc-checks.md#mermaid-render-check)).
+  It fails a diagram that does not render; it says nothing of layout or of
+  the Mermaid version GitHub draws with, so look at a new or changed diagram
+  rendered too. Write a numbered edge label as `1 .`, not `1.`: a label that
+  starts with `1.` is parsed as a markdown list and renders as an error.
 
 ## Citing a decision
 
@@ -313,7 +316,7 @@ docs. See
 | :--- | :--- | :--- | :--- | :--- |
 | [0028](0028-doc-metadata-and-governance/revision-000.md) | **Doc metadata and governance** — How docs carry machine-readable metadata, how index tables stay current, and how NIST alignment is shown without stamping ADRs. | YAML frontmatter, generated indexes, one narrative NIST alignment doc | Accepted | Narrowed by [0037](0037-decision-and-project-documentation-workflow/revision-002.md); Related: [0078](0078-checking-that-diagrams-in-docs-render/revision-000.md) |
 | [0037](0037-decision-and-project-documentation-workflow/revision-002.md) | **Recording decisions, tracking execution, and keeping docs true** — How why, what-remains, and what-is-true-now are kept apart, extended so one decision can be implemented by more than one project. | Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted | Accepted (revision 2) | Related: [0050](0050-agent-authored-changes-reaching-production/revision-000.md), [0055](0055-maintainer-client-access-to-the-coding-agent-host/revision-000.md), [0061](0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md), [0076](0076-keeping-what-production-runs-apart-from-work-in-progress/revision-000.md) |
-| [0078](0078-checking-that-diagrams-in-docs-render/revision-000.md) | **Checking that diagrams in docs render** — How a Mermaid diagram that does not render is stopped before it merges, given that the docs checks read markdown as text and nothing in CI renders a diagram. | Render every Mermaid block with the pinned mermaid-cli container image in a CI job that runs when markdown changes, its outcome decided by unit-tested Python | Approved | Related: [0028](0028-doc-metadata-and-governance/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) |
+| [0078](0078-checking-that-diagrams-in-docs-render/revision-000.md) | **Checking that diagrams in docs render** — How a Mermaid diagram that does not render is stopped before it merges, given that the docs checks read markdown as text and nothing in CI renders a diagram. | Render every Mermaid block with the pinned mermaid-cli container image in a CI job that runs when markdown changes, its outcome decided by unit-tested Python | Accepted | Related: [0028](0028-doc-metadata-and-governance/revision-000.md), [0064](0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md) |
 
 ## Other design records
 

@@ -7,7 +7,7 @@ short: Diagram render check
 solution: "Render every Mermaid block with the pinned mermaid-cli container image in a CI job that runs when markdown changes, its outcome decided by unit-tested Python"
 summary: How a Mermaid diagram that does not render is stopped before it merges, given that the docs checks read markdown as text and nothing in CI renders a diagram.
 topic: documentation-process
-status: approved
+status: accepted
 related: [ADR-0028, ADR-0064]
 ---
 
@@ -59,7 +59,7 @@ A `check_mermaid` module under `tools/doc_scripts/` and a `mermaid-check` job in
 - The image is a third party's, pinned by tag as the repo's other external images are, so a publisher that moves a tag changes what runs. It is given only the text of a block, with no network and no capabilities, and the job holds a read-only token.
 - A bump of the image can change what renders, and shows as a failing job on the bump's own pull request.
 - A diagram can pass the check and still be hard to read, or fail on GitHub's Mermaid version, so the manual look stays for layout.
-- The decisions README's rule about rendering changes when this is implemented, and [`doc-checks.md`](../../topics/engineering/ci/doc-checks.md) and [`pipeline.md`](../../topics/engineering/ci/pipeline.md) gain the check.
+- The decisions README's rule about rendering points to the check, which [`doc-checks.md`](../../topics/engineering/ci/doc-checks.md#mermaid-render-check) and [`pipeline.md`](../../topics/engineering/ci/pipeline.md#jobs) describe.
 
 ## Invariants
 

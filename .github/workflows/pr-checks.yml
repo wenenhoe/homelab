@@ -23,6 +23,7 @@ jobs:
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
       release_checksums: ${{ steps.filter.outputs.release_checksums }}
+      mermaid_check: ${{ steps.filter.outputs.mermaid_check }}
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
@@ -452,6 +453,27 @@ jobs:
         working-directory: tools
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Renders every Mermaid block in the repo's markdown with the pinned
+  # mermaid-cli image (ADR 0078) — see docs/topics/engineering/ci/doc-checks.md#mermaid-render-check.
+  # Not a matrix job, so it can be required directly: a PR that changes no
+  # markdown reports it skipped.
+  mermaid-check:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.mermaid_check == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Stdlib-only, so plain python3 (no uv). Docker comes with the runner
+      # image; the check pulls the mermaid-cli image itself.
+      - name: Render every Mermaid block
+        run: python3 -m doc_scripts.check_mermaid
+        working-directory: tools
 
   # Fallback for stacks the boot-test job deliberately excludes: only the
   # excluded apps are checked, since anything compose-boot-test covers gets

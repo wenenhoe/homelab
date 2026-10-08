@@ -33,7 +33,9 @@ Any workflow that writes findings follows one contract:
    the maintainer, and merging keeps the default branch current for the
    next run's check in step 1.
 
-Findings can also be written by hand from the tracker's template.
+Findings can also be written by hand from the tracker's template, or
+imported from a local review's output, which the tracker's own command
+parses and validates.
 Auto-merge is not used: it is unavailable on private repositories
 without a paid plan, and waits on required checks that a pull request
 opened with `GITHUB_TOKEN` starts only after someone approves the run.

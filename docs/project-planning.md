@@ -50,8 +50,6 @@ set. It narrows where to look; it doesn't replace looking.
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | | `credentials` | — | [`cd-agent-credential-delivery.md`](projects/cd-agent-credential-delivery.md) | Not started — waiting on [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `security-review-pipeline` | — | — | [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Building |
-| | — | — | [`coderabbit-pr-review-pipeline.md`](projects/coderabbit-pr-review-pipeline.md) | Not started — ready |
 | `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | De-risking |
 | | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
 | | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) |
@@ -61,6 +59,7 @@ set. It narrows where to look; it doesn't replace looking.
 
 | Project | Status | Covers |
 | :--- | :--- | :--- |
+| [`agent-full-repo-audit.md`](projects/agent-full-repo-audit.md) | Building | A periodic coding-agent audit of the whole repo, ADR-aware, run from homelab-security's CI. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`image-vulnerability-assessment.md`](projects/image-vulnerability-assessment.md) | Building | A scheduled homelab-security job that scans every deployed image, ranks findings by reachability and consequence, and keeps the results private. |

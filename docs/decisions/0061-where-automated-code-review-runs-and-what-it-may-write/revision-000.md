@@ -3,7 +3,7 @@ id: ADR-0061
 revision: 0
 type: adr
 title: "Where automated code review runs, and what it may write"
-solution: "Both CodeRabbit's PR-diff review and a periodic agent-driven full-repo audit run from homelab-security's own CI, and neither holds a credential that can write to this repo"
+solution: "A periodic agent-driven full-repo audit runs from homelab-security's own CI and holds no credential that can write to this repo; CodeRabbit's PR-diff review stays a local run by the maintainer"
 summary: "How this repo gets automated code review without any of it becoming visible on this repo's own surfaces, or able to alter it unsupervised."
 topic: security-hardening
 status: approved
@@ -28,11 +28,13 @@ final report — a GitHub Actions run defined in or triggered from this
 repo's own `.github/workflows/` is public the moment it runs, same as a
 PR comment.
 
-Two kinds of review are planned. CodeRabbit's CLI reviews each new pull
-request's diff — cheap, fast, and (per a sampled review) good at
-breadth: it independently caught the same bug in five separate files. A
-periodic full-repository audit by a coding agent covers what CodeRabbit
-structurally can't: it chunks a review by directory and file count, with
+Two kinds of review exist. CodeRabbit's CLI reviews a branch's diff —
+cheap, fast, and (per a sampled review) good at breadth: it independently
+caught the same bug in five separate files. The maintainer runs it by
+hand, which keeps its output on their terminal (see
+[Alternatives considered](#alternatives-considered)). A periodic
+full-repository audit by a coding agent, run from `homelab-security`'s
+CI, covers what CodeRabbit structurally can't: it chunks a review by directory and file count, with
 no visibility into `docs/decisions/` — a sampled finding flagged
 `vault-bootstrap.hcl` as root-equivalent without knowing
 [ADR 0025](../0025-admin-capability-without-a-standing-root-token/revision-000.md)
@@ -55,19 +57,17 @@ GitHub remote.
 
 ## Decision
 
-- Both review jobs are defined and triggered from `homelab-security`'s
-  own Actions, never from this repo's.
+- The audit job is defined and triggered from `homelab-security`'s own
+  Actions, never from this repo's.
 - `homelab-security` reads this repo by a plain, unauthenticated clone.
   Reading a public repo needs no credential, and none is granted.
-- Neither job holds a credential that can write to this repo's GitHub
+- The audit job holds no credential that can write to this repo's GitHub
   remote. All output goes only into `homelab-security`
   ([ADR 0060](../0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md)) —
   never a commit, comment, or check here.
-- `homelab-security` triggers a per-PR CodeRabbit review by polling this
-  repo's PR list on a schedule, not by a credential-bearing dispatch call
-  originating from a workflow in this repo — keeps every credential
-  capable of touching the private repo out of the public repo's secrets
-  entirely.
+- A local CodeRabbit review runs on the maintainer's machine and prints
+  to its terminal. Nothing from it is committed here or posted to a pull
+  request.
 - This is a distinct identity from
   [ADR 0051](../0051-coding-agent-execution-isolation/revision-000.md)'s
   coding-agent host. That host is interactive-only and deliberately
@@ -80,12 +80,11 @@ GitHub remote.
 
 ## Alternatives considered
 
-- **`repository_dispatch` from this repo, with a private-repo-scoped PAT
-  stored as this repo's secret.** Puts a credential capable of touching
-  `homelab-security` inside this repo's own secret store — a new
-  surface, for a project not currently accepting external pull requests,
-  bought only for lower review latency. Rejected as the default;
-  reconsider if latency becomes a real problem.
+- **Run CodeRabbit's per-PR review from `homelab-security`'s CI, polling
+  this repo's pull request list.** Unattended use needs a headless
+  Agentic API key, which the plan in use does not issue; the CLI's
+  interactive login does not work in a scheduled run. Rejected; the
+  maintainer runs the CLI by hand before a push instead.
 - **Run the audit agent on the coding-agent host.** Rejected — that host
   is deliberately built to hold no standing credential and require
   interactive login every session ([ADR 0051](../0051-coding-agent-execution-isolation/revision-000.md)).
@@ -94,15 +93,15 @@ GitHub remote.
 
 ## Consequences
 
-A new PR's review latency is bounded by `homelab-security`'s poll
-interval, not instant. The full-repo audit's chunking is decided by the
+A pull request's diff is reviewed by CodeRabbit only when the
+maintainer runs it. The full-repo audit's chunking is decided by the
 agent at runtime — reading whatever files and docs a given area actually
 needs — rather than fixed upfront by directory and file count, at the
 cost of needing its own judgment calls about what belongs together.
 
 ## Invariants
 
-No credential held by either review process can write to this repo's
+No credential held by the audit process can write to this repo's
 GitHub remote. Nothing about a finding's content is ever written to a
 surface this repo's own git history, PR comments, or Actions logs
 expose.
@@ -117,5 +116,5 @@ Which credential authenticates the audit agent
 
 This project starts accepting external pull requests — changes the
 fork/dispatch trust calculus behind the "no dispatch from this repo"
-default. Review latency becomes an operational problem worth trading a
-new secret for.
+default. Headless CodeRabbit access becomes available at no cost, which
+would let a per-PR review run from `homelab-security`'s CI again.

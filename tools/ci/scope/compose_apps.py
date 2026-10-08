@@ -14,8 +14,10 @@ before the stack boots). Excluded apps are never queued, and a directory
 with no compose file isn't an app.
 
 Subcommands (from tools/: python -m ci.scope.compose_apps ...):
-  changed <base> <head>       writes apps=<json> and dockerfiles=<json> (the
-                              latter also covers the registry's tool images)
+  changed <base> <head>       writes apps=<json>, dockerfiles=<json> (which also
+                              covers the registry's tool images) and
+                              excluded_compose=<json> (the compose files
+                              syntax-check would validate)
   all                         writes apps=<json>: every non-excluded compose app
   syntax-check <base> <head>  `docker compose config --quiet` on the changed
                               compose files of the excluded apps
@@ -166,9 +168,11 @@ def main(argv: list[str] | None = None, run: Runner = _run) -> int:
         elif args.command == "changed":
             changed = changed_files(REPO_ROOT, args.base, args.head)
             apps, dockerfiles = changed_apps(REPO_ROOT, changed), changed_dockerfiles(REPO_ROOT, changed)
-            print(f"Boot-testing: {apps}\nBuilding Dockerfiles: {dockerfiles}")
+            excluded = excluded_compose_files(REPO_ROOT, changed)
+            print(f"Boot-testing: {apps}\nBuilding Dockerfiles: {dockerfiles}\nSyntax-checking: {excluded}")
             write_output("apps", _dump(apps))
             write_output("dockerfiles", _dump(dockerfiles))
+            write_output("excluded_compose", _dump(excluded))
         else:
             files = excluded_compose_files(REPO_ROOT, changed_files(REPO_ROOT, args.base, args.head))
             if not files:

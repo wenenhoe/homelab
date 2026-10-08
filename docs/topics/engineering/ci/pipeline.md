@@ -87,7 +87,7 @@ parse on an older Python than the repo's own. The rest run through
 | `mermaid-check` | a markdown file, or `tools/doc_scripts/check_mermaid.py`, changed | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](doc-checks.md#mermaid-render-check). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
-| `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
+| `compose-syntax-check` | an excluded app's `compose*.yaml` touched (the `excluded_compose` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)), fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
 | `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
 
 Every job that runs steps sets `timeout-minutes`, so a hung step frees its
@@ -114,7 +114,7 @@ flowchart TD
     mermaid["mermaid-check<br/>(markdown or its check changed)"]
     molecule["molecule<br/>(any role touched — matrix)"]
     boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
-    synchk["compose-syntax-check<br/>(any compose file touched, fallback)"]
+    synchk["compose-syntax-check<br/>(excluded app's compose file touched, fallback)"]
     dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 

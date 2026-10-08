@@ -15,6 +15,7 @@ type in the repo. The scoped outputs:
 | `roles` | A file in a Molecule role's *watch set*: its own directory plus everything its scenarios read from outside it ([below](#molecule-watch-sets)). Some paths queue every role; see the note under the table. |
 | `compose_apps` | `docker/<app>/compose.yaml` or `compose.yaml.j2`, its `Dockerfile`, or a file under `docker/<app>/configs/` or `scripts/`, minus the exclusion list. A directory with no compose file isn't an app. |
 | `dockerfiles` | `docker/<app>/Dockerfile`, excluded apps included. See [Dockerfile changes](gates.md#dockerfile-changes). |
+| `excluded_compose` | A `compose*.yaml` (not a `.j2` template) of an excluded app that still exists. Gates `compose-syntax-check`; see [Compose boot-test](gates.md#compose-boot-test). |
 | `deploy_ordering` | `ansible/inventory/**`, `ansible/playbooks/**`, `ansible/roles/secrets/**`, `ansible/roles/restore/**`, `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`, `pyproject.toml`/`uv.lock`. |
 | `uv_lock` | `pyproject.toml`/`uv.lock`. |
 | `mermaid_check` | Any `.md` file, or `tools/doc_scripts/check_mermaid.py`, which holds the pinned image. Not narrowed by the comment-only rule below: a doc change is never a no-op. See [Mermaid render check](doc-checks.md#mermaid-render-check). |
@@ -123,10 +124,9 @@ and `python_unit_tests` are true only if at least one file the filter
 matched changed for real. The filter step lists its matched files
 (`list-files: json`), and the `effective` step checks each one. So a
 comment in a test, or an edit to `[tool.ruff]`, no longer starts
-`python-unit-tests`, `uv-lock` or `deploy-ordering-check`. `ansible_lint`,
-`trivy_ansible` and `any_compose` are never gated, and the script
-refuses to: ansible-lint honours `# noqa`, Trivy honours
-`#trivy:ignore`, and compose files are never a no-op.
+`python-unit-tests`, `uv-lock` or `deploy-ordering-check`. `ansible_lint`
+and `trivy_ansible` are never gated, and the script refuses to:
+ansible-lint honours `# noqa` and Trivy honours `#trivy:ignore`.
 
 It compares what the parser produces, not the text, so a `#` line
 inside a YAML block scalar (a script or config written into a file) is

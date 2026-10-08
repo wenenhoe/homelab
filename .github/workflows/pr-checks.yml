@@ -19,7 +19,6 @@ jobs:
     timeout-minutes: 10
     outputs:
       uv_lock: ${{ steps.effective.outputs.uv_lock }}
-      any_compose: ${{ steps.filter.outputs.any_compose }}
       deploy_ordering: ${{ steps.effective.outputs.deploy_ordering }}
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
@@ -29,6 +28,7 @@ jobs:
       roles: ${{ steps.roles.outputs.roles }}
       compose_apps: ${{ steps.compose.outputs.apps }}
       dockerfiles: ${{ steps.compose.outputs.dockerfiles }}
+      excluded_compose: ${{ steps.compose.outputs.excluded_compose }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -53,10 +53,10 @@ jobs:
       # uv_lock, deploy_ordering and python_unit_tests stay false when
       # every file that matched only changed a comment or formatting (or
       # `[tool.ruff]`) — see docs/topics/engineering/ci/change-scoping.md#comments-and-formatting-dont-queue-molecule.
-      # The job outputs above read this step, not `filter`. ansible_lint,
-      # trivy_ansible and any_compose are deliberately not gated: they
-      # read comments (`# noqa`, `#trivy:ignore`). release_checksums isn't
-      # either: its run is cheap and a pin file is small.
+      # The job outputs above read this step, not `filter`. ansible_lint
+      # and trivy_ansible are deliberately not gated: they read comments
+      # (`# noqa`, `#trivy:ignore`). release_checksums isn't either: its run
+      # is cheap and a pin file is small.
       - name: Drop no-op changes from the gated filters
         id: effective
         run: >-
@@ -75,10 +75,11 @@ jobs:
         run: uv run python -m ci.scope.molecule_scope "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
         working-directory: tools
 
-      # One step for both: compose apps to boot-test and Dockerfiles to
-      # build (tools/ci/scope/compose_apps.py; the exclusion list it reads
-      # is .github/compose-boot-test-exclusions.txt).
-      - name: Determine which compose stacks to boot-test and Dockerfiles to build
+      # One step for all three: compose apps to boot-test, Dockerfiles to
+      # build and excluded-app compose files to syntax-check
+      # (tools/ci/scope/compose_apps.py; the exclusion list it reads is
+      # .github/compose-boot-test-exclusions.txt).
+      - name: Determine which compose stacks to boot-test, Dockerfiles to build and compose files to syntax-check
         id: compose
         run: >-
           uv run python -m ci.scope.compose_apps changed
@@ -493,7 +494,7 @@ jobs:
   # a stronger check there. See docs/topics/engineering/ci/gates.md#compose-boot-test.
   compose-syntax-check:
     needs: detect-changes
-    if: needs.detect-changes.outputs.any_compose == 'true'
+    if: needs.detect-changes.outputs.excluded_compose != '[]'
     runs-on: ubuntu-26.04
     timeout-minutes: 10
     steps:

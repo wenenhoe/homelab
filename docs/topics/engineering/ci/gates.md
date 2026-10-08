@@ -190,7 +190,8 @@ The CA and its password exist only for the job.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
-unchecked. That job checks each changed `compose*.yaml` under an excluded
+unchecked. That job runs only when `detect-changes` reports one of their
+compose files (`excluded_compose`), and checks each changed `compose*.yaml` under an excluded
 app (not the `.j2` templates, which aren't valid compose until rendered),
 runs every file even after one fails, and stubs an empty `.env` where an
 explicit `env_file:` needs one.

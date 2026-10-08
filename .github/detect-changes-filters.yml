@@ -10,8 +10,6 @@
 uv_lock:
   - 'pyproject.toml'
   - 'uv.lock'
-any_compose:
-  - 'docker/**/compose*.yaml'
 # Gates deploy-ordering-check — see docs/topics/engineering/ci/gates.md#deploy-ordering-check
 # for what it catches and why each path below is in scope.
 deploy_ordering:

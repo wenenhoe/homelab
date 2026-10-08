@@ -212,7 +212,11 @@ tag. A PR's boot test therefore builds a changed Dockerfile locally,
 since the published image would be the old one or not exist yet. The
 CodeRabbit review image, built from `tools/coderabbit-review/Dockerfile` and
 published by `build-coderabbit-review-image.yml`, is published the same way,
-though no compose file pins it.
+though no compose file pins it. Each of these workflows runs on a push to
+`main` that changes its Dockerfile, weekly, and on demand. The push filter is
+`on.push.paths`, so a merge that touches no Dockerfile starts no run;
+`molecule-dind`'s also lists the `docker` role's tasks file its Dockerfile
+mirrors.
 
 Three pieces cover this. All of them are stdlib-only Python that
 runs on the runner's own `python3` (a test enforces that), so the jobs

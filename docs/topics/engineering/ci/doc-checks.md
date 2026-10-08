@@ -82,6 +82,10 @@ these narrow, structural things:
   no revision carries a `**Status:**` body line, since the frontmatter
   `status` is the one record. Later and lettered revisions name their
   own solution in their heading, so only revision 0 is checked.
+- Every project doc's `## Closing checklist` holds each item of
+  `docs/projects/TEMPLATE.md`, in the same words (wrapping aside), so an
+  item added to the template can't leave live projects without it. A
+  project may add items of its own.
 - A markdown link written `[ADR 0044 (CD agent trigger)]`, or with a
   revision after the number, carries that lineage's `short:` name
   exactly, so renaming a lineage can't leave links using the old name.

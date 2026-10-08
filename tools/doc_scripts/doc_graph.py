@@ -195,6 +195,37 @@ def _cycle_errors(graph: dict[str, list[str]]) -> list[str]:
     return errors
 
 
+_CHECKLIST_RE = re.compile(r"^## Closing checklist\n(.*?)(?=\n## |\Z)", re.DOTALL | re.MULTILINE)
+_CHECKLIST_ITEM_RE = re.compile(r"^- \[ \] (.*?)(?=\n- \[|\Z)", re.DOTALL | re.MULTILINE)
+
+
+def _checklist_items(text: str) -> list[str] | None:
+    m = _CHECKLIST_RE.search(text)
+    return None if m is None else [" ".join(item.split()) for item in _CHECKLIST_ITEM_RE.findall(m.group(1))]
+
+
+def checklist_errors(root: Path = ROOT) -> list[str]:
+    """Every project doc's `## Closing checklist` holds the items of
+    projects/TEMPLATE.md, in the same words, so a checklist item added to
+    the template can't leave existing projects without it. Wrapping and
+    indentation don't matter; a project may add items of its own after the
+    template's.
+    """
+    template = root / "docs/projects/TEMPLATE.md"
+    if not template.is_file():
+        return []
+    wanted = _checklist_items(template.read_text(encoding="utf-8")) or []
+    errors = []
+    for path in docs_in(root / "docs/projects"):
+        got = _checklist_items(path.read_text(encoding="utf-8"))
+        rel = path.relative_to(root)
+        if got is None:
+            errors.append(f"{rel}: has no '## Closing checklist' section (copy it from projects/TEMPLATE.md)")
+            continue
+        errors.extend(f"{rel}: closing checklist is missing '{item}'" for item in wanted if item not in got)
+    return errors
+
+
 def project_errors(root: Path = ROOT) -> list[str]:
     errors: list[str] = []
     projects: dict[str, tuple[Path, dict]] = {}

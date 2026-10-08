@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# `git am` never runs the pre-commit hook, so run it here, after the patch is applied and
+# before `git am` commits it. A non-zero exit stops `git am` with the patch still staged.
+set -euo pipefail
+
+hook="$(git rev-parse --git-path hooks)/pre-commit"
+if [ ! -x "$hook" ]; then
+  echo "pre-applypatch: the pre-commit hook is not installed; run 'pre-commit install'" >&2
+  exit 1
+fi
+exec "$hook"

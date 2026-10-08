@@ -14,6 +14,24 @@ lints the symlink itself, only real `.yaml` files). To run everything
 manually regardless of stage: `pre-commit run --all-files --hook-stage
 pre-commit` and `... --hook-stage pre-push`.
 
+## Applying patches with `git am`
+
+`git am` commits without running the `pre-commit` hook. Link
+[`.githooks/pre-applypatch`](../../../.githooks/pre-applypatch) into
+the hooks directory once, after `pre-commit install`, and it runs the
+installed `pre-commit` hook on each patch after it is applied and before
+it is committed:
+
+```sh
+ln -sf "$PWD/.githooks/pre-applypatch" "$(git rev-parse --git-path hooks)/pre-applypatch"
+```
+
+A failing hook stops `git am` with the patch staged. Hooks that fix
+files (`ruff`, `dclint`, `end-of-file-fixer`) leave the fix unstaged and
+also fail: review it, `git add -u && git am --continue` to keep it in the
+commit, or `git am --abort`. Only the commit-time hooks run here;
+`ansible-lint` stays a push-time hook.
+
 ## Hooks
 
 `.config/.pre-commit-config.yaml` wires up:

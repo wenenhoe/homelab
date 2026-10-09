@@ -146,7 +146,7 @@ The secrets play writes a generated secret with `cas=0`, which OpenBao
 authorizes as `create` only while the path does not exist. If another writer
 creates the same path first, the second write is an update, and
 `cd-agent-deploy` has no `update`: OpenBao answers **403**, not the 400 that
-[`process_vault_secrets.yaml`](../../../ansible/roles/secrets/tasks/process_vault_secrets.yaml)
+[`ensure_vault_secret`](../../../ansible/module_utils/openbao_kv.py)
 treats as "lost the race, re-read". The run fails; the next run reads the
 value that now exists and proceeds. Accepting 403 there would also swallow
 real permission errors, so the play is left as it is.

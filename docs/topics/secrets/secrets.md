@@ -75,7 +75,7 @@ Each entry's `source` says how its value is produced; its `store` says where it 
 
 | Source | Used for | Mechanism |
 | :--- | :--- | :--- |
-| `hex` | Most secrets | Vault-backed only: check-then-write against KV v2 with `cas=0`, value generated via `python3 -c "import secrets; ..."` — see `ensure_secret.yaml`/`generate_vault_value.yaml`. |
+| `hex` | Most secrets | Vault-backed only: read the secret from KV v2, or generate and write it with `cas=0` when nothing is there, in one `ensure_vault_secret` call per secret (see `ensure_secret.yaml`, [`ensure_vault_secret.py`](../../../ansible/roles/secrets/library/ensure_vault_secret.py) and [`openbao_kv.py`](../../../ansible/module_utils/openbao_kv.py)). |
 | `uuid4` | `shlink-api-key` only | Vault-backed only, same reasoning as `hex` above — this source always generates via `python3 -c "import uuid; print(uuid.uuid4())"`, since `lookup('password')`'s `chars=` can't produce a structurally valid UUID4. |
 | `manual` | Externally-issued credentials and plain config Ansible can't generate (e.g. the DigitalOcean API key, Beszel's post-boot key/token) | No generation step. Vault-backed entries (everything except the three permanent exceptions) are populated by `create_leaf_keys.py`/`create_rotation_keys.py` for cloud credentials, or `openbao_utils/bootstrap.py` for everything else, before they're first read; missing → the play fails loudly naming the OpenBao path and pointing at the right script. File-cache-backed entries (`main-domain`, the controller AppRole pair) work the same as before: missing cache file → same loud failure, naming the file to create by hand. Present-but-empty is valid (not an error) for entries marked `allow_blank: true`, which lets Beszel's two values start blank either way. |
 
@@ -179,6 +179,14 @@ the new value in plaintext on any task where content changes —
 including the first deploy, since a not-yet-existing file still counts
 as a diff. `no_log: true` suppresses this (including on task failure)
 while still reporting `changed: true`.
+
+The `secrets` role's `ensure_vault_secret` module returns the secret's
+value in plain text, because a module cannot both hide a value from the
+task's result and hand it to the playbook. Every task that calls it sets
+`no_log: true`, which hides the whole result at every verbosity while the
+registered value stays usable.
+[`test_secrets_module_no_log.py`](../../../ansible/tests/test_secrets_module_no_log.py)
+fails if one does not.
 
 ## `force: false`
 

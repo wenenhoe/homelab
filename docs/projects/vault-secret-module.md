@@ -20,6 +20,11 @@ allowed_paths:
   - pyproject.toml
   - docs/topics/secrets/secrets.md
   - docs/topics/engineering/molecule-testing.md
+  - .github/detect-changes-filters.yml
+  - tools/ci/scope/molecule_scope.py
+  - tools/tests/ci/scope/test_molecule_scope.py
+  - tools/tests/ci/test_layout.py
+  - docs/topics/engineering/ci/change-scoping.md
 ---
 
 # Vault Secret Module
@@ -37,8 +42,11 @@ the `secrets` role's `library/`, `ansible/ansible.cfg`'s `module_utils`
 setting, the role's `ensure_secret.yaml` and `process_vault_secrets.yaml`,
 the `vault_backed` Molecule scenario, the tests for the module and for
 `no_log` coverage under `ansible/tests/`, the test import roots in
-`pyproject.toml`, the `secrets` role's coverage threshold, and the two
-topic docs that describe the module and its test target. Not in scope: the manual/
+`pyproject.toml`, the `secrets` role's coverage threshold, the two
+topic docs that describe the module and its test target, and the CI change
+scoping that has to know where the module and its shared code live
+(`.github/detect-changes-filters.yml`, `tools/ci/scope/molecule_scope.py`,
+their tests and `change-scoping.md`). Not in scope: the manual/
 `controller_file` path, `vault_login.yaml`'s AppRole login,
 `tools/openbao_utils/client.py`, and `rotate-secret.yaml` (single-secret,
 update-not-create, a different operation from this module's create-only

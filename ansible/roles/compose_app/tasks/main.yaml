@@ -8,12 +8,10 @@
 # roles/openbao). Non-infra apps don't get their files/dirs provisioned
 # until here either — no reason to have them on disk any earlier than
 # right before they start.
-
-- name: Reset per-run deploy results
-  ansible.builtin.set_fact:
-    compose_app_results: []
-  tags:
-    - images
+#
+# Every app's result goes into compose_app_results, which is not reset here:
+# caddy and bind9 recorded theirs in Plays 2 and 3, and Play 10 of
+# deploy.yaml reports the whole list.
 
 # NOTE: --tags only reaches a dynamic include's contents if the include
 # itself carries a matching tag — an untagged wrapper is skipped outright.
@@ -28,27 +26,13 @@
   tags:
     - images
 
-- name: Report per-app deploy summary
-  ansible.builtin.debug:
-    msg:
-      ok: "{{ compose_app_results | selectattr('status', 'equalto', 'ok') | map(attribute='name') | list }}"
-      changed: "{{ compose_app_results | selectattr('status', 'equalto', 'changed') | map(attribute='name') | list }}"
-      failed: "{{ compose_app_results | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list }}"
-  # display_ok_hosts=no hides routine "ok" noise, including this debug —
-  # forcing changed_when routes it through the branch that's never hidden.
-  changed_when: true
-  # Always "changed" (see above) would otherwise look like a genuine
-  # idempotence bug to Molecule — this tag tells its idempotence check to
-  # disregard just this task.
-  tags:
-    - molecule-idempotence-notest
-    - images
-
+# Names the failed apps itself: when every host fails here the run stops
+# before the closing report in Play 10 can print.
 - name: Fail if any app failed to deploy
   ansible.builtin.fail:
     msg: >-
-      {{ compose_app_results | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list | length }}
-      app(s) failed to deploy: {{ compose_app_results | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list }}
-  when: compose_app_results | selectattr('status', 'equalto', 'failed') | list | length > 0
+      {{ compose_app_results | default([]) | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list | length }}
+      app(s) failed to deploy: {{ compose_app_results | default([]) | selectattr('status', 'equalto', 'failed') | map(attribute='name') | list }}
+  when: compose_app_results | default([]) | selectattr('status', 'equalto', 'failed') | list | length > 0
   tags:
     - images

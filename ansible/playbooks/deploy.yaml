@@ -224,3 +224,39 @@
         name: cloud_sync
       tags:
         - images
+
+# Play 10 — One report for the whole run: every host's apps by outcome,
+# caddy, bind9 and openbao included, read from the compose_app_results each
+# host accumulated since Play 2. Last, so it sees all of them; localhost,
+# so it prints once rather than once per host. A host that failed earlier
+# still has its results, and its apps with none are listed as unfinished.
+# When every host in a single play fails, Ansible ends the run there and
+# this play never starts — compose_app's own failure message names the
+# failed apps for that case.
+#
+# Tagged images and infra, like the tasks that record the results, and
+# not `always`: the CI ordering check runs this playbook with a tag that
+# matches nothing, and the report would have no results to read there.
+# Targets localhost like Play 0, so a --limit needs `localhost` too.
+- name: Report deploy results
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tasks:
+    - name: Group every host's apps by outcome
+      ansible.builtin.set_fact:
+        deploy_results_by_host: "{{ groups['managed_hosts'] | deploy_report(hostvars) }}"
+      tags:
+        - images
+        - infra
+
+    # display_ok_hosts=no hides routine "ok" results, this one included;
+    # changed_when routes it through the branch that's never hidden.
+    - name: Report every host's deploy results
+      ansible.builtin.debug:
+        msg: "{{ deploy_results_by_host }}"
+      changed_when: true
+      when: deploy_results_by_host | length > 0
+      tags:
+        - images
+        - infra

@@ -17,6 +17,7 @@ flowchart TD
     p7["Play 7 — Ensure lldap's<br/>observer account (security)"]
     p8["Play 8 — Deploy backup<br/>agent (managed_hosts)"]
     p9["Play 9 — Deploy cloud sync<br/>(storage)"]
+    p10["Play 10 — Report deploy<br/>results (localhost)"]
 
     p0 --> p1 --> p2 --> p3 --> p4
     p4 -- "SeaweedFS deployed" --> p5
@@ -25,14 +26,19 @@ flowchart TD
     p4 -- "each app's volumes created" --> p8
     p5 -- "bucket must exist first" --> p8
     p8 -.-> p9
+    p9 -.-> p10
 
     style p9 stroke-dasharray: 5 5
+    style p10 stroke-dasharray: 5 5
 ```
 
 `p8 -.-> p9` is drawn dashed because it is not a hard dependency: Play 9
 resolves every backup host's cloud targets via static `hostvars`, so it does
 not need Play 8 to have run. It sits after Play 8 as the next stage of the
-backup pipeline; see [Plays](#plays).
+backup pipeline; see [Plays](#plays). `p9 -.-> p10` is dashed for the same
+reason: Play 10 needs no play before it to have succeeded, only to run after
+them so that it can read what every host recorded; see
+[The deploy report](#the-deploy-report).
 
 ## Plays
 
@@ -48,6 +54,7 @@ backup pipeline; see [Plays](#plays).
 | 7 | `security` | Ensures lldap's `observer` account exists ([`lldap.md`](../services/lldap.md#bootstrapping-the-observer-account)). | After lldap deploys in Play 4; independent of Play 6, since it needs only lldap's web port. |
 | 8 | `managed_hosts` | Deploys the backup agent; each host's schedules come from its `backup_plan` ([`backup.md`](../disaster-recovery/backup.md)). | Last among `managed_hosts` plays: it mounts other apps' named volumes as `external: true`, which needs Play 4's volumes and Play 5's bucket. |
 | 9 | `storage` | Installs `cloud-sync.timer` and `cloud-sync.service`, which relay SeaweedFS archives to R2/B2/OCI ([`backup.md`](../disaster-recovery/backup.md)). | Not a hard dependency on Play 8: it reads every backup host's `backup_plan` through static `hostvars`. It sits after Play 8 as the next backup stage. |
+| 10 | `localhost` | Prints one report of every host's apps by outcome, `caddy`, `bind9` and `openbao` included; see [The deploy report](#the-deploy-report). | Last, so it reads what every host recorded; `localhost`, so it prints once rather than once per host. |
 
 ## Play 0 notes
 
@@ -66,6 +73,27 @@ always use `--limit managed_hosts,localhost`.
 `restore.yaml` can't import this play the same way (its role can't split
 across two plays); it takes `bootstrap-secrets.yaml` as a separate file
 on the same command line instead.
+
+## The deploy report
+
+Every app's outcome is appended to the host's `compose_app_results` as it
+finishes: `ok` or `changed` by `compose/tasks/deploy.yaml`, which `caddy`,
+`bind9`, `openbao` and the `compose_app` loop all go through, and `failed`
+by `compose_app` when `compose_app_continue_on_error` lets the batch carry
+on. Play 10 groups them per host with the `deploy_report` filter
+([`ansible/filter_plugins/deploy_report.py`](../../../ansible/filter_plugins/deploy_report.py))
+and prints the result once, in the order `failed`, `unfinished`, `changed`,
+`ok`, leaving out an outcome with no apps. An app a host resolved but never
+recorded is `unfinished`: the host stopped before it finished.
+
+The report does not print when:
+
+- no host recorded a result, as in a `--tags` run that deploys nothing;
+- every host in one play fails, since Ansible ends the run there. The
+  failed apps are still named by the `Fail if any app failed to deploy` task
+  in `compose_app`;
+- the run is limited without `localhost`, as for Play 0
+  ([notes](#play-0-notes)).
 
 ## Roles
 

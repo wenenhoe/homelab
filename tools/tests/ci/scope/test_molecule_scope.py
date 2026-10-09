@@ -594,6 +594,125 @@ class TestFilterPlugin:
         assert "ansible/filter_plugins/" not in ms.GLOBAL_PATHS
 
 
+class TestModuleUtils:
+    SHARED = "ansible/module_utils/shared.py"
+
+    def shared(self, fake, name: str = "shared", text: str = "VALUE = 1\n") -> str:
+        return str(fake.write(f"ansible/module_utils/{name}.py", text).relative_to(fake.root))
+
+    def imports(self, fake, role: str, text: str, where: str = "library/a_module.py") -> None:
+        fake.write(f"ansible/roles/{role}/{where}", text)
+
+    def test_a_change_queues_only_the_roles_whose_modules_import_it(self, fake):
+        shared = self.shared(fake)
+        for role in ("alpha", "beta", "gamma"):
+            fake.scenario(role)
+        self.imports(fake, "alpha", "from ansible.module_utils.shared import VALUE\n")
+        self.imports(fake, "beta", "import ansible.module_utils.shared\n")
+        self.imports(fake, "gamma", "from ansible.module_utils.basic import AnsibleModule\n")
+        assert fake.roles_for(shared) == ["alpha", "beta"]
+
+    @pytest.mark.parametrize(
+        "text",
+        [
+            pytest.param("from ansible.module_utils import shared\n", id="from-package"),
+            pytest.param("from ansible.module_utils import basic, shared\n", id="from-package-list"),
+            pytest.param("from ansible.module_utils import (\n    basic,\n    shared,\n)\n", id="from-package-parenthesised"),
+        ],
+    )
+    def test_importing_it_from_the_package_counts(self, fake, text):
+        shared = self.shared(fake)
+        fake.scenario("alpha")
+        fake.scenario("beta")
+        self.imports(fake, "alpha", text)
+        assert fake.roles_for(shared) == ["alpha"]
+
+    def test_a_module_in_an_included_role_queues_the_role_that_runs_it(self, fake):
+        shared = self.shared(fake)
+        for role in ("alpha", "beta", "gamma"):
+            fake.scenario(role)
+        fake.write("ansible/roles/alpha/tasks/main.yaml", "- ansible.builtin.include_role:\n    name: beta\n")
+        self.imports(fake, "beta", "from ansible.module_utils.shared import VALUE\n")
+        assert fake.roles_for(shared) == ["alpha", "beta"]
+
+    def test_shared_code_that_imports_other_shared_code_passes_the_watch_on(self, fake):
+        outer = self.shared(fake, "outer", "from ansible.module_utils.inner import VALUE\n")
+        inner = self.shared(fake, "inner")
+        fake.scenario("alpha")
+        fake.scenario("beta")
+        self.imports(fake, "alpha", "from ansible.module_utils.outer import VALUE\n")
+        assert fake.roles_for(inner) == ["alpha"]
+        assert fake.roles_for(outer) == ["alpha"]
+
+    def test_shared_code_that_imports_itself_does_not_loop(self, fake):
+        shared = self.shared(fake, text="from ansible.module_utils.shared import VALUE\n")
+        fake.scenario("alpha")
+        self.imports(fake, "alpha", "from ansible.module_utils.shared import VALUE\n")
+        assert fake.roles_for(shared) == ["alpha"]
+
+    def test_the_name_has_to_stand_alone(self, fake):
+        shared = self.shared(fake)
+        fake.scenario("alpha")
+        self.imports(
+            fake, "alpha", "import ansible.module_utils.shared_extra\nimport other.ansible.module_utils.shared\nfrom ansible.module_utils import shared_more\n"
+        )
+        assert fake.roles_for(shared) == []
+
+    def test_an_import_in_a_file_that_does_not_parse_still_counts(self, fake):
+        shared = self.shared(fake)
+        fake.scenario("alpha")
+        self.imports(fake, "alpha", "from ansible.module_utils.shared import (\n")
+        assert fake.roles_for(shared) == ["alpha"]
+
+    def test_shared_code_no_role_imports_queues_nothing_and_says_so(self, fake):
+        shared = self.shared(fake)
+        fake.scenario("alpha")
+        roles, log = ms.roles_to_test(fake.root, [shared])
+        assert roles == []
+        assert f"{shared}: no role's Molecule run imports it -> nothing to run" in log
+
+    def test_the_watch_set_says_which_import_and_which_file(self, fake):
+        shared = self.shared(fake)
+        fake.scenario("alpha")
+        self.imports(fake, "alpha", "from ansible.module_utils.shared import VALUE\n")
+        assert ms.watch_set(fake.root, "alpha")[shared] == ["imports ansible.module_utils.shared (ansible/roles/alpha/library/a_module.py)"]
+
+    def test_a_comment_only_change_queues_nothing(self, fake):
+        shared = self.shared(fake)
+        fake.scenario("alpha")
+        self.imports(fake, "alpha", "from ansible.module_utils.shared import VALUE\n")
+        roles, log = ms.roles_to_test(fake.root, [shared], is_noop=lambda path: True)
+        assert roles == []
+        assert f"{shared}: comments/formatting only -> ignored" in log
+
+    @pytest.mark.parametrize(
+        "path",
+        [
+            pytest.param("ansible/module_utils/gone.py", id="deleted"),
+            pytest.param("ansible/module_utils/sub/nested.py", id="nested"),
+            pytest.param("ansible/module_utils/README.md", id="non-python"),
+        ],
+    )
+    def test_a_deleted_nested_or_non_python_file_queues_every_role(self, fake, path):
+        self.shared(fake)
+        fake.write("ansible/module_utils/sub/nested.py", "x = 1\n")
+        fake.write("ansible/module_utils/README.md", "notes\n")
+        fake.scenario("alpha")
+        fake.scenario("beta")
+        roles, log = ms.roles_to_test(fake.root, [path])
+        assert roles == ["alpha", "beta"]
+        assert f"{path}: under ansible/module_utils/ but not a top-level shared module that exists -> every role" in log
+
+    def test_a_role_without_a_scenario_is_never_queued(self, fake):
+        shared = self.shared(fake)
+        fake.scenario("alpha")
+        self.imports(fake, "untested", "from ansible.module_utils.shared import VALUE\n")
+        assert fake.roles_for(shared) == []
+
+    def test_shared_code_is_not_a_repo_wide_path(self):
+        assert "ansible/module_utils/" not in ms.GLOBAL_PATHS
+
+
 class TestCli:
     def test_main_writes_roles_output_from_a_real_diff(self, fake, monkeypatch):
         fake.scenario("alpha")
@@ -734,6 +853,18 @@ class TestRealTree:
         for plugin, names in plugins.items():
             with subtests.test(plugin=plugin):
                 assert names, f"{plugin}: FilterModule.filters() must return a dict literal of string keys"
+
+    def test_editing_shared_module_code_queues_the_roles_whose_modules_import_it_not_every_role(self):
+        queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/module_utils/openbao_kv.py"])[0]
+        assert queued == ["secrets"]
+
+    def test_every_real_shared_module_is_a_top_level_python_file(self, subtests):
+        # Anything else under ansible/module_utils/ would queue every role whenever it changed.
+        base = ms.REPO_ROOT / ms.MODULE_UTILS_DIR
+        for path in sorted(p for p in base.rglob("*") if p.is_file() and "__pycache__" not in p.parts):
+            with subtests.test(path=path.name):
+                assert path.parent == base
+                assert path.suffix == ".py"
 
     def test_helper_change_json_is_compact_and_sorted(self):
         queued = ms.roles_to_test(ms.REPO_ROOT, ["ansible/roles/apt/tasks/main.yaml"])[0]

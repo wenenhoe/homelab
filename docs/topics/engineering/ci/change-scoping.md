@@ -19,7 +19,7 @@ type in the repo. The scoped outputs:
 | `deploy_ordering` | `ansible/inventory/**`, `ansible/playbooks/**`, `ansible/roles/secrets/**`, `ansible/roles/restore/**`, `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`, `pyproject.toml`/`uv.lock`. |
 | `uv_lock` | `pyproject.toml`/`uv.lock`. |
 | `mermaid_check` | Any `.md` file, or `tools/doc_scripts/check_mermaid.py`, which holds the pinned image. Not narrowed by the comment-only rule below: a doc change is never a no-op. See [Mermaid render check](doc-checks.md#mermaid-render-check). |
-| `python_unit_tests` | `ansible/scripts/*.py`, `tools/cloud_credentials/**`, `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/utils/**`, `tools/ci/**`, `.github/molecule-shards.yml`, `tools/doc_scripts/**`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`, `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
+| `python_unit_tests` | `ansible/scripts/*.py`, `tools/cloud_credentials/**`, `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/utils/**`, `tools/ci/**`, `.github/molecule-shards.yml`, `tools/doc_scripts/**`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/module_utils/**`, `ansible/roles/*/library/**`, `ansible/tests/**`, `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
 
 A few paths map to *every* role: `ansible/requirements.yml` (a Galaxy
 collection bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core`
@@ -42,7 +42,9 @@ so a change to any of them alters what it exercises.
 through the `pytest` suites in `ansible/tests/` and `tools/tests/`. That
 includes `r2_read_watcher.py`, the one file outside either tree that
 `ansible/tests/` imports directly, through the `pythonpath` in
-`pyproject.toml`'s `[tool.pytest]`.
+`pyproject.toml`'s `[tool.pytest]`, and the shared module code in
+`ansible/module_utils/` and the modules in a role's `library/`, which
+`ansible/tests/` imports the same way.
 
 ### Molecule watch sets
 
@@ -81,6 +83,13 @@ falls inside it:
   that call it and not every role. The names are read from the dict literal
   `FilterModule.filters()` returns, without importing the plugin, and must
   stand alone: `compose_app_deploy_plan` is not a use of `app_deploy_plan`;
+- each shared module in `ansible/module_utils/` that a Python file already
+  in the watch set imports, as `ansible.module_utils.<name>` or
+  `from ansible.module_utils import <name>`. A role's own `library/` modules
+  are in its directory, so what they import is what ties the role to shared
+  code; a shared module that imports another passes the watch on, so editing
+  `openbao_kv.py` queues the roles whose modules use it and not every role.
+  The files are read as text, not imported;
 - each `molecule_helpers` task file a scenario pulls in with
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   through the helper playbooks and task files that include further
@@ -166,7 +175,10 @@ change is in a scenario file that changed with it); a changed file under
 `ansible/filter_plugins/` whose filter names can't be read (deleted, a helper
 module, a plugin that builds `filters()` any way but a dict literal, or
 anything nested or not `.py`) queues every role, since there is no telling who
-called it, while a readable plugin no role calls queues nothing; and so does
+called it, while a readable plugin no role calls queues nothing; a changed
+file under `ansible/module_utils/` that is not a top-level `.py` file that
+exists (deleted, nested, anything else) queues every role for the same reason,
+while a shared module no role imports queues nothing; and so does
 any repo-wide path: `GLOBAL_PATHS`
 plus every path in `.config/molecule/config.yml`, the base config deep-merged
 into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those

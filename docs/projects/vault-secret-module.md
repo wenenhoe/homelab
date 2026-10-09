@@ -2,10 +2,29 @@
 id: PROJ-vault-secret-module
 title: "Vault Secret Module"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module."
 decision: ADR-0067/0
+allowed_paths:
+  - ansible/ansible.cfg
+  - ansible/module_utils/openbao_kv.py
+  - ansible/roles/secrets/library/ensure_vault_secret.py
+  - ansible/roles/secrets/tasks/ensure_secret.yaml
+  - ansible/roles/secrets/tasks/process_vault_secrets.yaml
+  - ansible/roles/secrets/molecule/vault_backed/**
+  - ansible/molecule-coverage/thresholds.yaml
+  - ansible/tests/test_openbao_kv.py
+  - ansible/tests/test_ensure_vault_secret.py
+  - ansible/tests/test_secrets_module_no_log.py
+  - pyproject.toml
+  - docs/topics/secrets/secrets.md
+  - docs/topics/engineering/molecule-testing.md
+  - .github/detect-changes-filters.yml
+  - tools/ci/scope/molecule_scope.py
+  - tools/tests/ci/scope/test_molecule_scope.py
+  - tools/tests/ci/test_layout.py
+  - docs/topics/engineering/ci/change-scoping.md
 ---
 
 # Vault Secret Module
@@ -18,9 +37,16 @@ shared client code are proven against a real OpenBao target before
 
 ## Scope
 
-`ansible/module_utils/openbao_kv.py`, the `ensure_vault_secret` module, the
-`secrets` role's `ensure_secret.yaml` and `process_vault_secrets.yaml`, and
-the `vault_backed` Molecule scenario. Not in scope: the manual/
+`ansible/module_utils/openbao_kv.py`, the `ensure_vault_secret` module in
+the `secrets` role's `library/`, `ansible/ansible.cfg`'s `module_utils`
+setting, the role's `ensure_secret.yaml` and `process_vault_secrets.yaml`,
+the `vault_backed` Molecule scenario, the tests for the module and for
+`no_log` coverage under `ansible/tests/`, the test import roots in
+`pyproject.toml`, the `secrets` role's coverage threshold, the two
+topic docs that describe the module and its test target, and the CI change
+scoping that has to know where the module and its shared code live
+(`.github/detect-changes-filters.yml`, `tools/ci/scope/molecule_scope.py`,
+their tests and `change-scoping.md`). Not in scope: the manual/
 `controller_file` path, `vault_login.yaml`'s AppRole login,
 `tools/openbao_utils/client.py`, and `rotate-secret.yaml` (single-secret,
 update-not-create, a different operation from this module's create-only
@@ -30,8 +56,7 @@ path).
 
 Implements
 [ADR 0067 (Vault-backed secret module)](../decisions/0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md),
-still `working`. The spike behind it is done; this project stays
-`not-started` until the revision is `approved`.
+`approved`. The spike behind it is done.
 
 ## Execution plan
 
@@ -39,9 +64,9 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `ansible/module_utils/openbao_kv.py` and the `ensure_vault_secret` module, with unit tests | Not started | Unit tests cover read-existing, generate-hex, generate-uuid4, and the `InvalidRequest` conflict-and-reread path against a mocked `hvac.Client`; every returned value is confirmed present in `module.no_log_values` |
-| 2 | `vault_backed` Molecule scenario: add a create-race case | Not started | Two concurrent `ensure_vault_secret` calls for the same not-yet-existing secret against a real OpenBao test target resolve to the same value, one `changed: true` and one not |
-| 3 | Cut `process_vault_secrets.yaml` over to the module | Not started | `ensure_secret.yaml`'s Vault-backed branch calls `ensure_vault_secret` once per secret in a loop; `process_vault_secrets.yaml` is deleted; every existing `secrets` Molecule scenario passes unchanged |
+| 1 | `ansible/module_utils/openbao_kv.py` and the `ensure_vault_secret` module, with unit tests | Done | Unit tests cover read-existing, generate-hex, generate-uuid4, and the `InvalidRequest` conflict-and-reread path against a mocked `hvac.Client`; the returned value is the real one, not a redaction marker, and `vault_token` is declared `no_log` |
+| 2 | `vault_backed` Molecule scenario: add a create-race case | Not started | Two concurrent `ensure_vault_secret` calls for the same not-yet-existing secret against a real OpenBao test target resolve to the same value, one `changed: true` and one not; a call in a `no_log: true` task under `-vvv` prints neither the generated nor the reused value, and its registered value is the real one |
+| 3 | Cut `process_vault_secrets.yaml` over to the module | Not started | `ensure_secret.yaml`'s Vault-backed branch calls `ensure_vault_secret` once per secret in a loop; every `manual`, `store: openbao` secret is read by looped tasks in `ensure_secret.yaml`, with no `include_tasks` that runs once per secret; a test asserts every task in the `secrets` role calling the module sets `no_log: true`; `process_vault_secrets.yaml` is deleted; every existing `secrets` Molecule scenario passes unchanged |
 | 4 | Diff real output against the previous implementation | Not started | Every `store: openbao`, generated secret in `secret_catalog.yaml` resolves to the same value it held before the cutover, checked against a snapshot taken before stage 3 merges |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -50,7 +75,10 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - [ ] `process_vault_secrets.yaml` no longer exists.
 - [ ] No secret value appears in plaintext under `-vvv`, confirmed by a
-      test asserting `no_log_values` coverage, not by manual inspection.
+      test that runs the module in a `no_log: true` task and asserts the
+      output lacks the value, not by manual inspection.
+- [ ] The `secrets` role's output does not grow per secret: a steady-state
+      run prints no per-secret TASK banner or `included:` line.
 - [ ] The `vault_backed` scenario's create-race case passes.
 - [ ] No generated secret's value changed as a result of the cutover.
 

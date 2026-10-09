@@ -36,30 +36,13 @@ volumes:
     name: dashy_data
 ```
 
-If a volume's on-disk directory name doesn't match its catalog name (e.g. `lldap`'s `letsencrypt/conf` mapping to a `letsencrypt_conf` volume), add `legacy_path`:
+## Volume creation (`ensure_volume.yaml`)
 
-```yaml
-volumes:
-  - name: letsencrypt_conf
-    legacy_path: letsencrypt/conf
-```
-
-## One-time migration (`ensure_volume.yaml`)
-
-For each declared volume, `roles/compose/tasks/ensure_volume.yaml` runs
-once per deploy:
-
-1. Create the volume (`community.docker.docker_volume`, `state: present`),
-   labelled `homelab.app`/`homelab.volume` — lets `cleanup.yaml` find and
-   remove it later even after the `app_catalog` entry is gone. See
-   [`cleanup.md`](cleanup.md).
-2. Check whether a legacy bind-mount directory still exists at
-   `legacy_path` (defaults to the volume's own name).
-3. If it does, copy its contents into the volume via a throwaway `alpine`
-   container, then rename the old directory to `<path>.migrated` — its
-   absence is the idempotency check for the next run.
-
-A fresh app with nothing at the legacy path just gets an empty volume.
+For each declared volume, `roles/compose/tasks/ensure_volume.yaml` creates
+the volume on every deploy (`community.docker.docker_volume`,
+`state: present`), labelled `homelab.app`/`homelab.volume`. The labels let
+`cleanup.yaml` find and remove it later even after the `app_catalog` entry is
+gone; see [`cleanup.md`](cleanup.md). A new app starts with an empty volume.
 
 ## Ansible-managed content: staging and seeding
 

@@ -1,6 +1,6 @@
 ---
 # Covers the paths the default scenario skips: ensure_volume.yaml (named
-# volume creation + legacy bind-mount migration), seed_volume.yaml
+# volume creation), seed_volume.yaml
 # (volume-seeded configs), and cleanup.yaml (full stack teardown).
 driver:
   name: docker

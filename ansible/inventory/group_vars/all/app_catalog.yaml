@@ -219,11 +219,8 @@ app_catalog:
       - name: data
       - name: backups
       - name: bluemap_config
-        legacy_path: bluemap/config
       - name: bluemap_web
-        legacy_path: bluemap/web
       - name: bluemap_data
-        legacy_path: bluemap/data
       - name: extras
     scripts:
       - run_upgrade.sh

@@ -14,18 +14,6 @@
       register: compose_file
       failed_when: not compose_file.stat.exists
 
-    - name: Confirm the legacy directory was migrated away
-      ansible.builtin.stat:
-        path: "{{ compose_deploy_dir }}/volapp/data.migrated"
-      register: compose_migrated_dir
-      failed_when: not compose_migrated_dir.stat.exists
-
-    - name: Confirm nothing remains at the original legacy path
-      ansible.builtin.stat:
-        path: "{{ compose_deploy_dir }}/volapp/data"
-      register: compose_old_dir
-      failed_when: compose_old_dir.stat.exists
-
     - name: Confirm the named volume exists and carries the expected labels
       community.docker.docker_volume_info:
         name: volapp_data
@@ -35,17 +23,15 @@
         or compose_volume_inspect.volume.Labels['homelab.app'] != 'volapp'
         or compose_volume_inspect.volume.Labels['homelab.volume'] != 'data'
 
-    - name: Confirm both the migrated legacy content and the seeded config landed in the volume
+    - name: Confirm the seeded config landed in the volume
       # Reads content stored inside a Docker named volume - a throwaway
       # container is the only way to read that back.
       ansible.builtin.command: >-
         docker run --rm -v volapp_data:/data {{ molecule_helpers_alpine_image }}
-        sh -c "cat /data/legacy-file.txt && cat /data/seeded.txt"  # noqa: command-instead-of-module
+        sh -c "cat /data/seeded.txt"  # noqa: command-instead-of-module
       register: compose_volume_contents
       changed_when: false
-      failed_when: >-
-        ('legacy content predating the named volume' not in compose_volume_contents.stdout)
-        or ('seeded-hello-from-volapp' not in compose_volume_contents.stdout)
+      failed_when: "'seeded-hello-from-volapp' not in compose_volume_contents.stdout"
 
     # --- Exercise cleanup.yaml ---------------------------------------------
     # Doesn't need to survive a second run the way converge.yml does —

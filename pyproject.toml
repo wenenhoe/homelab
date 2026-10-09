@@ -74,6 +74,7 @@ pythonpath = [
     "tools",
     "ansible/filter_plugins",
     "ansible/module_utils",
+    "ansible/roles/secrets/library",
     "ansible/molecule-coverage",
     "ansible/molecule-coverage/callback_plugins",
     "ansible/scripts",

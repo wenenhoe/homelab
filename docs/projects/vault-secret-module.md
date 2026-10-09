@@ -64,7 +64,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `ansible/module_utils/openbao_kv.py` and the `ensure_vault_secret` module, with unit tests | In progress | Unit tests cover read-existing, generate-hex, generate-uuid4, and the `InvalidRequest` conflict-and-reread path against a mocked `hvac.Client`; the returned value is the real one, not a redaction marker, and `vault_token` is declared `no_log` |
+| 1 | `ansible/module_utils/openbao_kv.py` and the `ensure_vault_secret` module, with unit tests | Done | Unit tests cover read-existing, generate-hex, generate-uuid4, and the `InvalidRequest` conflict-and-reread path against a mocked `hvac.Client`; the returned value is the real one, not a redaction marker, and `vault_token` is declared `no_log` |
 | 2 | `vault_backed` Molecule scenario: add a create-race case | Not started | Two concurrent `ensure_vault_secret` calls for the same not-yet-existing secret against a real OpenBao test target resolve to the same value, one `changed: true` and one not; a call in a `no_log: true` task under `-vvv` prints neither the generated nor the reused value, and its registered value is the real one |
 | 3 | Cut `process_vault_secrets.yaml` over to the module | Not started | `ensure_secret.yaml`'s Vault-backed branch calls `ensure_vault_secret` once per secret in a loop; every `manual`, `store: openbao` secret is read by looped tasks in `ensure_secret.yaml`, with no `include_tasks` that runs once per secret; a test asserts every task in the `secrets` role calling the module sets `no_log: true`; `process_vault_secrets.yaml` is deleted; every existing `secrets` Molecule scenario passes unchanged |
 | 4 | Diff real output against the previous implementation | Not started | Every `store: openbao`, generated secret in `secret_catalog.yaml` resolves to the same value it held before the cutover, checked against a snapshot taken before stage 3 merges |
@@ -90,6 +90,14 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - `tools/openbao_utils/client.py` and the new module now implement the
   same `hvac` calls twice, by design (ADR 0067's Non-goals). A future
   change to OpenBao's KV v2 behavior needs updating in both places.
+- CI's change scoping does not know `ansible/module_utils/` or a role's
+  `library/`. `python_unit_tests` in `.github/detect-changes-filters.yml`
+  lists `ansible/filter_plugins/**` but neither, and the Molecule watch
+  sets in `tools/ci/scope/molecule_scope.py` do not map a `module_utils`
+  file to the roles whose modules import it, so a change to only those
+  files can skip pytest and every Molecule role. Both files are outside
+  `allowed_paths`; widen the scope in its own change before the `secrets`
+  role starts calling the module.
 
 ## Closing checklist
 

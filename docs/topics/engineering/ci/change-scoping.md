@@ -19,7 +19,7 @@ type in the repo. The scoped outputs:
 | `deploy_ordering` | `ansible/inventory/**`, `ansible/playbooks/**`, `ansible/roles/secrets/**`, `ansible/roles/restore/**`, `tools/ci/gates/deploy_ordering.py`, `tools/ci/fixtures/**`, `pyproject.toml`/`uv.lock`. |
 | `uv_lock` | `pyproject.toml`/`uv.lock`. |
 | `mermaid_check` | Any `.md` file, or `tools/doc_scripts/check_mermaid.py`, which holds the pinned image. Not narrowed by the comment-only rule below: a doc change is never a no-op. See [Mermaid render check](doc-checks.md#mermaid-render-check). |
-| `python_unit_tests` | `ansible/scripts/*.py`, `tools/cloud_credentials/**`, `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/utils/**`, `tools/ci/**`, `.github/molecule-shards.yml`, `tools/doc_scripts/**`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/tests/**`, `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
+| `python_unit_tests` | `ansible/scripts/*.py`, `tools/cloud_credentials/**`, `tools/openbao_utils/**`, `tools/cd_agent/**`, `tools/utils/**`, `tools/ci/**`, `.github/molecule-shards.yml`, `tools/doc_scripts/**`, `ansible/molecule-coverage/molecule_cov/**`, `ansible/molecule-coverage/callback_plugins/**`, `ansible/module_utils/**`, `ansible/roles/*/library/**`, `ansible/tests/**`, `tools/tests/**`, `docker/openbao/watcher/r2_read_watcher.py`, `pyproject.toml`/`uv.lock`. |
 
 A few paths map to *every* role: `ansible/requirements.yml` (a Galaxy
 collection bump), `pyproject.toml`/`uv.lock` (pins the `ansible-core`
@@ -42,7 +42,9 @@ so a change to any of them alters what it exercises.
 through the `pytest` suites in `ansible/tests/` and `tools/tests/`. That
 includes `r2_read_watcher.py`, the one file outside either tree that
 `ansible/tests/` imports directly, through the `pythonpath` in
-`pyproject.toml`'s `[tool.pytest]`.
+`pyproject.toml`'s `[tool.pytest]`, and the shared module code in
+`ansible/module_utils/` and the modules in a role's `library/`, which
+`ansible/tests/` imports the same way.
 
 ### Molecule watch sets
 

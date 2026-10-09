@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import re
 import sys
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 import yaml
@@ -51,6 +51,12 @@ class TestLayout:
     def test_every_package_under_tools_triggers_the_unit_tests(self, package):
         filters = yaml.safe_load((GITHUB / "detect-changes-filters.yml").read_text())["python_unit_tests"]
         assert f"tools/{package}/**" in filters
+
+    @pytest.mark.parametrize("path", ["ansible/module_utils/shared.py", "ansible/roles/secrets/library/a_module.py"])
+    def test_ansible_module_code_triggers_the_unit_tests(self, path):
+        # What ansible/tests/ imports through pyproject.toml's pythonpath, outside any role's Molecule run.
+        globs = yaml.safe_load((GITHUB / "detect-changes-filters.yml").read_text())["python_unit_tests"]
+        assert any(PurePosixPath(path).full_match(glob) for glob in globs)
 
     @pytest.mark.parametrize("package", PACKAGES)
     def test_package_names_do_not_shadow_the_standard_library(self, package):

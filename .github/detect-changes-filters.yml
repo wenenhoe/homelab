@@ -72,6 +72,10 @@ python_unit_tests:
   # The filters ansible/ansible.cfg loads for every play; their tests are
   # in ansible/tests/, already a trigger below.
   - 'ansible/filter_plugins/**'
+  # Shared module code and the modules in a role's library/; their tests are
+  # in ansible/tests/, which pyproject.toml's pythonpath lets import them.
+  - 'ansible/module_utils/**'
+  - 'ansible/roles/*/library/**'
   - 'ansible/tests/**'
   - 'tools/tests/**'
   # The documentation-workflow checks (ADR 0037); tools/tests/doc_scripts/

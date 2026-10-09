@@ -155,11 +155,7 @@ can't fix.
      ~/secrets-backup-pre-reinit-<this-run's-timestamp>
    ```
 
-   Expect `IDENTICAL`, no exceptions - the `leaf/`-side
-   `_oci-leaf-user-ocid-*` duplicate from step 5 was never a second
-   *file* in either dump (both always read from the correct
-   `rotation/` path), so there's nothing that should legitimately
-   differ here.
+   Expect `IDENTICAL`, no exceptions.
 
 ## Downtime
 

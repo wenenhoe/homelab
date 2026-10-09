@@ -13,34 +13,24 @@ invalidating already-deployed services that still expect the old value
 currently authenticate with, etc.). This restores the exact prior
 value instead of letting anything regenerate.
 
-Two phases, covering two Vault-path shapes that don't overlap:
+Two phases:
   1. Every secret_catalog.yaml entry with `store: openbao` (every
-     `hosts/*` key, plus the 20 cloud_credentials/leaf ones a catalog
+     `hosts/*` secret, plus the cloud_credentials/leaf ones a catalog
      entry exists for) - via cache.py's
      read_vault_path()/write_vault_path() escape hatch.
-  2. cloud_credentials' own internal bookkeeping keys with no
+  2. cloud_credentials' own internal bookkeeping names, which have no
      secret_catalog.yaml entry of their own (_rotation-key-*,
-     _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values) -
-     the ~10 SECRET_OWNERS names phase 1 has no way to reach,
-     via each key's own registered module.
+     _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values)
+     and which phase 1 has no way to reach - via each name's owning
+     module in SECRET_OWNERS.
 
-Replaces migrate_legacy_cache_to_vault.py (retired alongside the
-file cache it read from, ansible/files/secrets/) and the
-two separate scripts this file merges -
-restore_hosts_scope_from_backup.py and
-restore_cloud_credentials_from_backup.py - always run as one logical
-operation against the same backup directory (openbao-reinit-runbook.md's
-old steps 5/6, now one step).
-
-Pure copy, no regeneration, no prompting. Idempotent - skips any key
+Pure copy, no regeneration, no prompting. Idempotent - skips any value
 already present in Vault, so it's safe to re-run if interrupted
 partway through. Every backup file is restored byte-for-byte, never
 stripped: openbao_utils/dump.py writes the raw Vault value with
 no added whitespace, so stripping on the way back in would silently
 rewrite any value that legitimately has meaningful leading/trailing
-whitespace - a real discrepancy between the two scripts this one
-replaces, resolved in favor of the non-stripping, byte-for-byte
-behavior on merge.
+whitespace.
 
 Usage:
     cd tools && python3 -m openbao_utils.restore ~/secrets-backup-pre-reinit-<timestamp>/

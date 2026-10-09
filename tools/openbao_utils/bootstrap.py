@@ -55,10 +55,8 @@ from openbao_utils.client import openbao_base_url, vault_read, vault_write
 from openbao_utils.client import vault_login as _bare_vault_login
 
 # Names create_leaf_keys.py/create_rotation_keys.py own (see this
-# module's own docstring) - reusing cloud_credentials' own canonical
-# list rather than a second, hand-maintained one here, so the two can't
-# drift the way secret_catalog.yaml's header comment and this script's
-# actual behavior once did.
+# module's own docstring), taken from cloud_credentials' SECRET_OWNERS
+# rather than a second list kept here.
 #
 # SECRET_OWNERS also tracks operator-provided values (region/
 # namespace/account-id) that live in the same Vault-backed cache but

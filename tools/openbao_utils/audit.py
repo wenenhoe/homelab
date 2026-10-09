@@ -55,7 +55,7 @@ _OWNER_BY_NAME = dict(SECRET_OWNERS)
 def cached(name: str) -> str | None:
     """Reads via cloud_credentials' own Vault-backed cache (cache.py's
     scoped()) - the real store for every SECRET_OWNERS name, never
-    the retired local file cache. name must be one of SECRET_OWNERS' own names -
+    the controller-side file cache. name must be one of SECRET_OWNERS' own names -
     a KeyError here means this script asked for a name that package
     doesn't own, not a runtime possibility to paper over."""
     return _OWNER_BY_NAME[name].read_cache(name)
@@ -68,11 +68,10 @@ def audit_local() -> None:
     print("== Local secrets cache vs. secret_catalog.yaml ==")
     catalog = load_catalog(CATALOG_PATH)
     vault_backed_scope = openbao_scopes(catalog)
-    # cloud_credentials' own internal bookkeeping keys (_rotation-key-*,
+    # cloud_credentials' own internal bookkeeping names (_rotation-key-*,
     # _oci-leaf-user-ocid-*, the two scim-ids) have no secret_catalog.yaml
-    # entry of their own - reusing SECRET_OWNERS' own name list here,
-    # instead of a second hand-maintained one, is what keeps this from
-    # drifting the way this script's own cached() helper once did.
+    # entry of their own, so SECRET_OWNERS' name list is what makes them
+    # known here.
     known = set(catalog) | {name for name, _module in SECRET_OWNERS}
 
     if not SECRETS_DIR.exists():

@@ -2,9 +2,9 @@
 
 Run via `uv run pytest tools/tests/ -v`. Fake Vault reads/writes, a
 real tmp filesystem for the backup dir and catalog file - no real
-Vault. Covers both phases this script merges: catalog-scoped restore
+Vault. Covers both phases: catalog-scoped restore
 (via read_vault_path/write_vault_path) and SECRET_OWNERS restore
-(via each key's own module double). Each phase's own tests neutralize
+(via each name's own module double). Each phase's own tests neutralize
 the *other* phase (an empty SECRET_OWNERS list, or an empty
 catalog) rather than mocking it away - main() runs both phases
 unconditionally, so leaving the other phase's real dependencies

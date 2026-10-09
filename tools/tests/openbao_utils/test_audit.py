@@ -5,7 +5,7 @@ mocked; nothing here talks to a real tenancy, a real B2 account or a
 real OpenBao.
 audit.py's cached() reads through cloud_credentials'
 own SECRET_OWNERS-mapped modules (Vault-backed) - AuditOciTests patches audit.cached directly rather
-than seeding files, since there's no longer a local file it reads.
+than seeding files, since it reads Vault, not a local file.
 audit_local() is a different concern (scanning SECRETS_DIR for orphan
 files left on disk), so AuditLocalTests still seeds real files there.
 """

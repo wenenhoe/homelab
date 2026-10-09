@@ -9,8 +9,8 @@ Vault's data; docs/topics/secrets/openbao-reinit-runbook.md is the
 consumer of what it produces.
 
 Covers:
-  - Every cloud_credentials leaf/rotation key (secret_owners.py's
-    SECRET_OWNERS), read via each key's own registered category.
+  - Every cloud_credentials leaf/rotation secret (secret_owners.py's
+    SECRET_OWNERS), read via each name's own registered category.
   - Every secret_catalog.yaml entry with `store: openbao` (the secrets
     role's hosts/* material, ADR 0021).
 

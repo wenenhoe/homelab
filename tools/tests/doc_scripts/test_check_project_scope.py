@@ -15,11 +15,28 @@ from doc_scripts import check_project_scope as cli
 PROJECT = "docs/projects/p.md"
 
 
-def project_doc(paths: list[str], decision: str | None = None) -> str:
+def project_doc(paths: list[str], decision: str | None = None, stage: str = "Not started", note: str = "") -> str:
     lines = ["---", "id: PROJ-p", "title: p", "type: project", "status: building", "summary: s", "allowed_paths:", *[f"  - '{p}'" for p in paths]]
     if decision:
         lines.append(f"decision: {decision}")
-    return "\n".join([*lines, "---", "", "# p", ""])
+    return "\n".join(
+        [
+            *lines,
+            "---",
+            "",
+            "# p",
+            "",
+            "## Execution plan",
+            "",
+            "| # | Stage | Status | Exit condition |",
+            "| :-: | :--- | :--- | :--- |",
+            f"| 1 | First | {stage} | done {note} |",
+            "",
+            "## Risks",
+            "",
+            "Prose.",
+        ]
+    )
 
 
 @pytest.fixture
@@ -38,7 +55,7 @@ class TestPullRequestMode:
     def test_a_change_inside_the_scope_passes(self, repo):
         repo.branch()
         repo.write("src/a.py", "a = 2\n")
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, stage 1 started"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.commit("work")
         code, out = repo.pr()
         assert code == 0, out
@@ -46,7 +63,7 @@ class TestPullRequestMode:
     def test_a_change_outside_the_scope_fails_and_names_the_file(self, repo):
         repo.branch()
         repo.write("other/b.py", "b = 2\n")
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, stage 1 started"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.commit("stray")
         code, out = repo.pr()
         assert code == 1
@@ -80,7 +97,7 @@ class TestPullRequestMode:
     def test_a_branch_that_is_behind_is_not_blamed_for_mains_newer_commits(self, repo):
         repo.branch()
         repo.write("src/a.py", "a = 2\n")
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, started"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.commit("work")
         repo.git("checkout", "-q", "main")
         repo.write("other/c.py", "c = 1\n")  # main moves on, outside the scope
@@ -99,7 +116,7 @@ class TestPullRequestMode:
     def test_renames_and_deletions_count_as_touching_both_paths(self, repo):
         repo.branch()
         repo.git("mv", "src/a.py", "other/a.py")  # leaves the scope
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, moved"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.commit("move out")
         code, out = repo.pr()
         assert code == 1
@@ -108,7 +125,7 @@ class TestPullRequestMode:
         repo.git("branch", "-q", "-D", "feature")
         repo.branch()
         repo.git("rm", "-q", "other/b.py")
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, deleted"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.commit("delete outside")
         code, out = repo.pr()
         assert code == 1
@@ -117,7 +134,7 @@ class TestPullRequestMode:
     def test_moving_a_file_into_the_scope_still_counts_as_touching_where_it_came_from(self, repo):
         repo.branch()
         repo.git("mv", "other/b.py", "src/b.py")  # rename detection would show only the in-scope destination
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, moved in"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.commit("move in")
         code, out = repo.pr()
         assert code == 1, out
@@ -126,7 +143,7 @@ class TestPullRequestMode:
     def test_paths_with_spaces_and_unicode_are_reported_intact(self, repo):
         repo.branch()
         repo.write("other/we ird é.py", "x = 1\n")
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, odd"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.commit("odd name")
         code, out = repo.pr()
         assert code == 1
@@ -139,18 +156,48 @@ class TestPullRequestMode:
         repo.commit("link a decision")
         repo.branch()
         repo.write("docs/decisions/0001-x/revision-000.md", "adr, edited\n")
-        repo.write(PROJECT, project_doc(["src/**"], decision="ADR-0001/0").replace("# p", "# p, x"))
+        repo.write(PROJECT, project_doc(["src/**"], decision="ADR-0001/0", stage="In progress"))
         repo.commit("the permitted ADR edit")
         assert repo.pr()[0] == 0
         repo.write("docs/decisions/0001-x/revision-001.md", "adr, edited\n")
         repo.commit("a neighbour, not the linked one")
         assert repo.pr()[0] == 1
 
+    def test_editing_a_project_docs_prose_does_not_bind_the_change_to_it(self, repo):
+        repo.branch()
+        repo.write("other/b.py", "b = 2\n")
+        repo.write(PROJECT, project_doc(["src/**"], note="reworded exit condition"))  # the link-sweep case
+        repo.commit("sweep")
+        code, out = repo.pr()
+        assert code == 0, out
+        assert "nothing to scope" in out
+
+    def test_changing_a_stage_status_binds_the_change(self, repo):
+        repo.branch()
+        repo.write("other/b.py", "b = 2\n")
+        repo.write(PROJECT, project_doc(["src/**"], stage="Done"))
+        repo.commit("work")
+        assert repo.pr()[0] == 1
+
+    def test_changing_the_frontmatter_binds_the_change(self, repo):
+        repo.branch()
+        repo.write("other/b.py", "b = 2\n")
+        repo.write(PROJECT, project_doc(["src/**"]).replace("status: building", "status: blocked"))
+        repo.commit("work")
+        assert repo.pr()[0] == 1
+
+    def test_deleting_a_project_doc_binds_the_change(self, repo):
+        repo.branch()
+        repo.git("rm", "-q", PROJECT)
+        repo.write("other/b.py", "b = 2\n")
+        repo.commit("close the project")
+        assert repo.pr()[0] == 1
+
 
 class TestStagedMode:
     def test_staged_changes_outside_the_scope_fail(self, repo):
         repo.write("other/b.py", "b = 2\n")
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, started"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.git("add", "-A")
         code, out = repo.run_cli("--staged")
         assert code == 1
@@ -158,12 +205,12 @@ class TestStagedMode:
 
     def test_staged_changes_inside_the_scope_pass(self, repo):
         repo.write("src/a.py", "a = 2\n")
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, started"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.git("add", "-A")
         assert repo.run_cli("--staged")[0] == 0
 
     def test_unstaged_changes_are_ignored(self, repo):
-        repo.write(PROJECT, project_doc(["src/**"]).replace("# p", "# p, started"))
+        repo.write(PROJECT, project_doc(["src/**"], stage="In progress"))
         repo.git("add", "-A")
         repo.write("other/b.py", "b = 2\n")  # edited but not staged: not part of this commit
         assert repo.run_cli("--staged")[0] == 0
@@ -180,3 +227,9 @@ class TestStagedMode:
         subprocess.run(["git", "-C", str(fresh), "add", "-A"], check=True)
         code, out = GitRepo(fresh, cli).run_cli("--staged")
         assert code == 0, out
+
+    def test_staged_prose_edit_to_a_project_doc_does_not_bind(self, repo):
+        repo.write("other/b.py", "b = 2\n")
+        repo.write(PROJECT, project_doc(["src/**"], note="reworded"))
+        repo.git("add", "-A")
+        assert repo.run_cli("--staged")[0] == 0

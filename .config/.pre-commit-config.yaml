@@ -183,7 +183,7 @@ repos:
       - id: check-project-scope
         name: check-project-scope
         description: >-
-          A commit that touches a project doc stays inside that project's
+          A commit that works a project doc (frontmatter or a stage status) stays inside that project's
           allowed_paths, read from HEAD - see
           tools/doc_scripts/check_project_scope.py. Looks only at what is
           staged, so it passes trivially under `--all-files` in CI, where

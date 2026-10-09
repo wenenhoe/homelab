@@ -127,10 +127,15 @@ and why). It runs in two places:
 
 In both, a project's scope is read from the doc **as it stands on the
 base**, so a change can't widen its own scope and then use it. A project
+binds a change only if the change *works* its doc: its frontmatter or a
+stage's number or status in the Execution plan table differs from the base,
+or the doc is deleted. A prose or link edit to the doc, such as a sweep
+across every project doc, binds nothing, so a repo-wide docs cleanup
+isn't held to the scope of whichever projects it happened to edit. A project
 doc that is new in the change has no scope yet. Renames and deletions
 count as touching both paths. Path-level only: it can't tell whether an
 edit inside an allowed file is the permitted one, and a change that never
-touches its project doc isn't bounded.
+works its project doc isn't bounded.
 
 ## Project close check
 

@@ -73,6 +73,7 @@ testpaths = ["ansible/tests", "tools/tests"]
 pythonpath = [
     "tools",
     "ansible/filter_plugins",
+    "ansible/module_utils",
     "ansible/molecule-coverage",
     "ansible/molecule-coverage/callback_plugins",
     "ansible/scripts",

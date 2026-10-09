@@ -21,6 +21,11 @@ scenarios actually reference:
   the bare name in `map('...')`), so editing a filter re-runs the roles
   that call it, not every role. The names come from the dict literal
   `FilterModule.filters()` returns, read from the code, never imported;
+- every module under `ansible/module_utils/` that a Python file already in
+  the watch set imports as `ansible.module_utils.<name>` (a role's `library/`
+  modules are in its directory), followed through the shared modules that
+  import further ones, so editing shared module code re-runs the roles whose
+  modules use it, not every role;
 - every `${MOLECULE_PROJECT_DIRECTORY}/...` path in a scenario's
   molecule.yml (the shared `prepare` playbooks);
 - the resolved target of every symlink under `molecule/` (scenarios
@@ -42,7 +47,9 @@ role (unless the file was deleted: nothing left can read it); a changed
 file under `ansible/filter_plugins/` whose filter names can't be read
 (deleted, a helper module, a plugin that builds its `filters()` dict any
 way but a literal, anything nested or not `.py`) queues every role, since
-there is no telling who called it; and so does a repo-wide path: one in GLOBAL_PATHS, or one the base
+there is no telling who called it; so does a changed file under
+`ansible/module_utils/` that is not a top-level `.py` file that exists
+(deleted, nested, anything else), for the same reason; and so does a repo-wide path: one in GLOBAL_PATHS, or one the base
 config (.config/molecule/config.yml, deep-merged into every scenario)
 points every scenario at through `${MOLECULE_PROJECT_DIRECTORY}` (the
 Galaxy requirements files, ansible.cfg, the coverage callback plugin), which
@@ -90,6 +97,8 @@ ROLES_DIR = "ansible/roles"
 HELPERS_ROLE = "molecule_helpers"
 HELPERS_DIR = f"{ROLES_DIR}/{HELPERS_ROLE}"
 FILTER_DIR = "ansible/filter_plugins"
+MODULE_UTILS_DIR = "ansible/module_utils"
+MODULE_UTILS_IMPORT = "ansible.module_utils"
 MAX_SCANNED_BYTES = 1_000_000
 PROJECT_DIR_TOKEN = "${MOLECULE_PROJECT_DIRECTORY}"  # noqa: S105 - Molecule's env var name, not a credential
 YAML_SUFFIXES = (".yml", ".yaml")
@@ -393,6 +402,56 @@ def filter_index(root: Path) -> dict[str, list[str]]:
     return index
 
 
+def module_utils_files(root: Path) -> dict[str, str]:
+    """Each top-level shared module name under ansible/module_utils/ -> its repo-relative path."""
+    base = root / MODULE_UTILS_DIR
+    if not base.is_dir():
+        return {}
+    return {path.stem: _relative(root, path) for path in sorted(base.glob("*.py"))}
+
+
+_FROM_IMPORT = re.compile(rf"from\s+{re.escape(MODULE_UTILS_IMPORT)}\s+import\s+(\([^)]*\)|[^\n]*)")
+
+
+def _imported_module_utils(path: Path, names: frozenset[str], cache: dict[Path, frozenset[str]]) -> frozenset[str]:
+    """The shared modules among `names` that the Python file imports, as `ansible.module_utils.<name>` or `from ansible.module_utils import <name>`.
+
+    Read as text, not parsed, so a file that doesn't parse still counts; a name
+    that only appears in a comment inside an import list counts too, which can
+    only queue more roles.
+    """
+    if path not in cache:
+        try:
+            text = path.read_text() if path.stat().st_size <= MAX_SCANNED_BYTES else ""
+        except UnicodeDecodeError, OSError:
+            text = ""
+        alternatives = "|".join(re.escape(name) for name in sorted(names, key=len, reverse=True))
+        found = set(re.findall(rf"(?<![\w.]){re.escape(MODULE_UTILS_IMPORT)}\.({alternatives})(?!\w)", text)) if names else set()
+        for imported in _FROM_IMPORT.findall(text):
+            found.update(name for name in re.findall(r"\w+", imported) if name in names)
+        cache[path] = frozenset(found)
+    return cache[path]
+
+
+def _watch_module_utils(root: Path, watched: dict[str, list[str]], utils: dict[str, str], cache: dict[Path, frozenset[str]]) -> None:
+    """Watch each shared module that a Python file already in the watch set imports.
+
+    A shared module that imports another one passes the watch on to it.
+    """
+    if not utils:
+        return
+    names = frozenset(utils)
+    pending = [(file, _relative(root, file)) for watched_path in list(watched) for file in _scannable_files(root, watched_path) if file.suffix == ".py"]
+    used: dict[str, str] = {}
+    while pending:
+        file, where = pending.pop()
+        for name in sorted(_imported_module_utils(file, names, cache) - used.keys()):
+            used[name] = where
+            pending.append((root / utils[name], utils[name]))
+    for name, where in sorted(used.items()):
+        watched.setdefault(utils[name], []).append(f"imports {MODULE_UTILS_IMPORT}.{name} ({where})")
+
+
 def _scannable_files(root: Path, watched_path: str):
     path = root / watched_path
     if watched_path.endswith("/"):
@@ -431,7 +490,14 @@ def _watch_filter_plugins(root: Path, watched: dict[str, list[str]], filters: di
             watched.setdefault(plugin, []).append(f"uses filter {name} ({where})")
 
 
-def watch_set(root: Path, role: str, filters: dict[str, list[str]] | None = None, scan_cache: dict[Path, frozenset[str]] | None = None) -> dict[str, list[str]]:
+def watch_set(
+    root: Path,
+    role: str,
+    filters: dict[str, list[str]] | None = None,
+    scan_cache: dict[Path, frozenset[str]] | None = None,
+    utils: dict[str, str] | None = None,
+    import_cache: dict[Path, frozenset[str]] | None = None,
+) -> dict[str, list[str]]:
     """Watched path -> why it's watched. Paths ending `/` are directory prefixes."""
     role_dir = root / ROLES_DIR / role
     molecule_dir = role_dir / "molecule"
@@ -484,6 +550,7 @@ def watch_set(root: Path, role: str, filters: dict[str, list[str]] | None = None
             watch(f"{ROLES_DIR}/{included}/", f"runs role {included} ({label})")
             pending.extend((prod, _relative(root, prod)) for prod in _role_production_yaml(root / ROLES_DIR / included))
     _watch_filter_plugins(root, watched, filter_index(root) if filters is None else filters, {} if scan_cache is None else scan_cache)
+    _watch_module_utils(root, watched, module_utils_files(root) if utils is None else utils, {} if import_cache is None else import_cache)
     return watched
 
 
@@ -519,8 +586,14 @@ def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool]
             log.append(f"{path}: under {FILTER_DIR}/ but not a plugin whose filter names can be read -> every role")
             return roles, log
 
-    filters, scan_cache = filter_index(root), {}
-    watches = {role: watch_set(root, role, filters, scan_cache) for role in roles}
+    utils = module_utils_files(root)
+    for path in effective:
+        if path.startswith(f"{MODULE_UTILS_DIR}/") and path not in utils.values():
+            log.append(f"{path}: under {MODULE_UTILS_DIR}/ but not a top-level shared module that exists -> every role")
+            return roles, log
+
+    filters, scan_cache, import_cache = filter_index(root), {}, {}
+    watches = {role: watch_set(root, role, filters, scan_cache, utils, import_cache) for role in roles}
     queued: set[str] = set()
     for path in effective:
         hit = False
@@ -533,6 +606,9 @@ def roles_to_test(root: Path, changed: list[str], is_noop: Callable[[str], bool]
                     break
         if not hit and path in plugins:
             log.append(f"{path}: no role's Molecule run uses its filters -> nothing to run")
+            continue
+        if not hit and path in utils.values():
+            log.append(f"{path}: no role's Molecule run imports it -> nothing to run")
             continue
         if not hit and path.startswith(f"{HELPERS_DIR}/"):
             if not (root / path).exists():

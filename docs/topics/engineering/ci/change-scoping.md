@@ -83,6 +83,13 @@ falls inside it:
   that call it and not every role. The names are read from the dict literal
   `FilterModule.filters()` returns, without importing the plugin, and must
   stand alone: `compose_app_deploy_plan` is not a use of `app_deploy_plan`;
+- each shared module in `ansible/module_utils/` that a Python file already
+  in the watch set imports, as `ansible.module_utils.<name>` or
+  `from ansible.module_utils import <name>`. A role's own `library/` modules
+  are in its directory, so what they import is what ties the role to shared
+  code; a shared module that imports another passes the watch on, so editing
+  `openbao_kv.py` queues the roles whose modules use it and not every role.
+  The files are read as text, not imported;
 - each `molecule_helpers` task file a scenario pulls in with
   `include_role: {name: molecule_helpers, tasks_from: ...}`, followed
   through the helper playbooks and task files that include further
@@ -168,7 +175,10 @@ change is in a scenario file that changed with it); a changed file under
 `ansible/filter_plugins/` whose filter names can't be read (deleted, a helper
 module, a plugin that builds `filters()` any way but a dict literal, or
 anything nested or not `.py`) queues every role, since there is no telling who
-called it, while a readable plugin no role calls queues nothing; and so does
+called it, while a readable plugin no role calls queues nothing; a changed
+file under `ansible/module_utils/` that is not a top-level `.py` file that
+exists (deleted, nested, anything else) queues every role for the same reason,
+while a shared module no role imports queues nothing; and so does
 any repo-wide path: `GLOBAL_PATHS`
 plus every path in `.config/molecule/config.yml`, the base config deep-merged
 into every scenario, written as `${MOLECULE_PROJECT_DIRECTORY}/...`. Those

@@ -90,14 +90,6 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - `tools/openbao_utils/client.py` and the new module now implement the
   same `hvac` calls twice, by design (ADR 0067's Non-goals). A future
   change to OpenBao's KV v2 behavior needs updating in both places.
-- CI's change scoping does not know `ansible/module_utils/` or a role's
-  `library/`. `python_unit_tests` in `.github/detect-changes-filters.yml`
-  lists `ansible/filter_plugins/**` but neither, and the Molecule watch
-  sets in `tools/ci/scope/molecule_scope.py` do not map a `module_utils`
-  file to the roles whose modules import it, so a change to only those
-  files can skip pytest and every Molecule role. Both files are outside
-  `allowed_paths`; widen the scope in its own change before the `secrets`
-  role starts calling the module.
 
 ## Closing checklist
 

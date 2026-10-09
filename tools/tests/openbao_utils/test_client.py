@@ -3,8 +3,8 @@ primitives (KV v2 read/write, AppRole login, the OpenBao URL itself).
 
 Run via `uv run pytest tools/tests/ -v`. Every Vault call is mocked;
 nothing here touches a real OpenBao. The generic repo-navigation
-helpers this module used to also include (main_domain, fetch_root_cert,
-etc.) are tested once, directly, in tools/tests/utils/test_repo.py.
+helpers (main_domain, fetch_root_cert, etc.) live in utils/repo.py and
+are tested once, directly, in tools/tests/utils/test_repo.py.
 """
 
 from __future__ import annotations

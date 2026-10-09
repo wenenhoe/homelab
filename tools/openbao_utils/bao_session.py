@@ -1,23 +1,17 @@
 #!/usr/bin/env python3
 """Log in to OpenBao and hand off to a real interactive shell with the
-native `bao` CLI already wired up, on `controller`. Replaces
-docker/openbao/scripts/bao-login.sh, bao-login-from-controller.sh, and
-bao-from-controller.sh (three scripts, two of them
-docker-exec/docker-run based) with one script that talks to the
-native `bao` binary `controller` has. See
+native `bao` CLI already wired up, on `controller`, which has the native
+`bao` binary. See
 docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md's
 Decision for the full reasoning this module implements, and
 docs/decisions/0033-where-the-interactive-bao-session-runs/revision-000.md
-for why this only ever runs on `controller` - a `security`-local mode
-was drafted and never actually worked (the repo isn't checked out
-there).
+for why this only ever runs on `controller`: the repo isn't checked out
+on `security`.
 
 Authenticates via openbao_utils.client.vault_login() (hvac) rather
 than shelling out to `bao write auth/approle/login`: secret_id is read
 with getpass straight into memory and passed as a function argument,
-never a file on disk or a subprocess argument - the temp-file dance
-bao-login.sh/bao-login-from-controller.sh both used is gone entirely,
-not just hidden better.
+never a file on disk or a subprocess argument.
 
 Once logged in, this spawns a real interactive child shell (inheriting
 the terminal) with BAO_ADDR/BAO_CACERT/BAO_TLS_SERVER_NAME/BAO_TOKEN

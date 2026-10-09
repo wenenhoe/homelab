@@ -44,9 +44,7 @@ INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/inventory.yaml"
 STEP_CA_CONTAINER = "step-ca"
 # Bounds both the SSH root-cert fetch and every Vault HTTP call built
 # on top of it - one number to reason about, not a fresh one per
-# caller. The SSH fetch previously had no timeout at all in either of
-# openbao_utils.client's two original callers (the bug
-# docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md fixed).
+# caller.
 TIMEOUT_SECONDS = 10
 
 

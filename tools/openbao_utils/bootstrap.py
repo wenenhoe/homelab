@@ -108,9 +108,9 @@ def prompt_for_value(name: str, spec: dict) -> str:
 
 
 # --- Vault plumbing --------------------------------------------------------
-# fetch_root_cert/vault_read/vault_write come from openbao_utils.client -
-# shared with cloud_credentials/cache.py, no longer duplicated between
-# them. Only the login wrapper stays here: it reads this script's own
+# vault_read/vault_write come from openbao_utils.client, shared with
+# cloud_credentials/cache.py; fetch_root_cert comes from utils.repo. Only
+# the login wrapper lives here: it reads this script's own
 # role_id/secret_id before calling the shared bare login.
 
 

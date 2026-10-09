@@ -2,11 +2,10 @@
 """Mint the read-only cloud credential ADR 0017 calls for: scoped to
 OpenBao's own raft-snapshot bucket, able to fetch a snapshot but nothing
 else, and — unlike every credential create_leaf_keys.py handles — never
-written to ansible/files/secrets/ at all. That cache is exactly the
-mechanism the file cache removed; a credential meant to survive
-`security` being rebuilt from nothing can't depend on a file that
-(a) lives on the same class of host as the thing being rebuilt and
-(b) no longer exists at all, post-cutover. Instead this script prints
+stored in Vault or ansible/files/secrets/ at all. OpenBao runs on
+`security`, so a credential meant to survive `security` being rebuilt
+from nothing can't live in it, and the file cache holds only the
+controller's own bootstrap secrets. Instead this script prints
 the credential once and exits — the operator copies it straight into
 the password manager entry that already holds the Shamir unseal shares
 (see docs/topics/secrets/openbao.md), same offline handling this repo already gives
@@ -27,8 +26,8 @@ Create the bucket by hand first, same as homelab-backups/-b2 (see
 docs/topics/disaster-recovery/cloud-sync.md's Setup section) — this script doesn't create buckets,
 only credentials. Authenticates using the same cached rotation
 credentials create_leaf_keys.py already uses (b2_rotation_session,
-r2_rotation_token) — Vault-backed via cache.py's own scoped("rotation")
-so reusing them here creates no dependency on the retired file cache.
+r2_rotation_token) — Vault-backed via cache.py's own scoped("rotation"),
+so reusing them here reads them from Vault, not from a per-credential file.
 
 Verified the same way create_leaf_keys.py --rotate verifies a new leaf
 before trusting it: a real `rclone lsjson` against the actual bucket,

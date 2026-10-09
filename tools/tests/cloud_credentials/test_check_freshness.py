@@ -386,10 +386,9 @@ class TestTelegramAlert:
     @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
     @patch.object(check_freshness.requests, "post", autospec=True)
     def test_warning_alone_still_sends_a_telegram_alert(self, mock_post, mock_b2, mock_oci, mock_r2, fake_vault):
-        # This is the actual point of adding WARNING — a checked-fine
-        # "past its window" result used to not even alert; a "expiring
-        # soon" result must, since it's the only outcome that gives any
-        # lead time before B2/R2 actually reject the credential.
+        # A WARNING ("expiring soon") must alert: it's the only outcome
+        # that gives any lead time before B2/R2 actually reject the
+        # credential.
         seed_telegram(fake_vault, "telegram-topic-id-backups", "42")
         mock_post.return_value = response()
 

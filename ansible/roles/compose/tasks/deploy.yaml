@@ -9,7 +9,10 @@
 # file changed — e.g. Caddyfile, named.conf/zones — so the container
 # should restart even though docker_compose_v2 sees no diff).
 #
-# Sets compose_app_deploy_changed, read by compose_app's batch summary.
+# Appends this app's result to compose_app_results, which the deploy_report
+# filter turns into the end-of-run report (Play 10 of deploy.yaml). Every
+# caller reaches it, so caddy, bind9 and openbao are reported alongside the
+# apps compose_app loops over.
 
 - name: Pull latest Docker images ({{ compose_app_item.name }})
   community.docker.docker_compose_v2_pull:
@@ -48,13 +51,18 @@
   tags:
     - infra
 
-- name: Record whether this app changed, for the batch summary
+- name: Record this app's result, for the end-of-run report
   ansible.builtin.set_fact:
-    compose_app_deploy_changed: >-
+    compose_app_results: >-
       {{
-        (compose_app_deploy_up_result.changed | default(false))
-        or (compose_app_deploy_restart_result.changed | default(false))
-        or (compose_app_extra_changed | default(false))
+        compose_app_results | default([]) + [{
+          'name': compose_app_item.name,
+          'status': (
+            (compose_app_deploy_up_result.changed | default(false))
+            or (compose_app_deploy_restart_result.changed | default(false))
+            or (compose_app_extra_changed | default(false))
+          ) | ternary('changed', 'ok')
+        }]
       }}
   tags:
     - images

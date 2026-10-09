@@ -16,30 +16,14 @@
 # defeat a narrowly-scoped --tags images run.
 - name: "Init and deploy [block / rescue]: {{ compose_app_target.name }}"
   block:
-    - name: "Reset per-app changed flag ({{ compose_app_target.name }})"
-      ansible.builtin.set_fact:
-        compose_app_deploy_changed: false
-      tags:
-        - images
-
+    # compose/tasks/deploy.yaml records the app's ok/changed result itself;
+    # only a failure has to be recorded here.
     - name: "Init and deploy ({{ compose_app_target.name }})"
       ansible.builtin.include_role:
         name: compose
         tasks_from: main
       vars:
         compose_app_item: "{{ compose_app_target }}"
-      tags:
-        - images
-
-    - name: "Record result ({{ compose_app_target.name }})"
-      ansible.builtin.set_fact:
-        compose_app_results: >-
-          {{
-            compose_app_results | default([]) + [{
-              'name': compose_app_target.name,
-              'status': (compose_app_deploy_changed | default(false)) | ternary('changed', 'ok')
-            }]
-          }}
       tags:
         - images
   rescue:

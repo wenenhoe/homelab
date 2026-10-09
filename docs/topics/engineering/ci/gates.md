@@ -98,11 +98,16 @@ It runs as the `check-app-catalog` pre-commit hook, so `pre-commit-checks` runs 
 
 ## Molecule coverage gate
 
-Each `molecule` matrix job regenerates that role's task inventory
+Each `molecule` leg packs the coverage data its scenarios wrote and uploads
+it. The `molecule-coverage` job then unpacks every leg's data into one
+directory, regenerates each tested role's task inventory
 (`molecule_cov.cli inventory` - its output is gitignored, tied to the
 checkout's absolute paths, so not committed) and runs
-`molecule_cov.cli report --thresholds-file thresholds.yaml`, both against
-the coverage data that role's own `molecule test` run just produced.
+`molecule_cov.cli report --thresholds-file thresholds.yaml` for each. A sharded
+role's legs write different scenarios' files, so unpacking them together gives
+the report the whole role's data. The paths are the same on the legs and in
+that job because both check the repository out at the same workspace path;
+the data joins on the absolute task path.
 Per-role, not one global number, since roles aren't structurally
 comparable - see
 [`molecule-coverage/README.md`](../../../../ansible/molecule-coverage/README.md)

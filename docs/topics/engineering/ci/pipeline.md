@@ -21,7 +21,8 @@ call it as `python -m <package>.<module>` from `tools/`
 `tools/ci/` is what the workflows run:
 
 - `ci.scope` — what a PR's diff needs run: the Molecule watch sets,
-  no-op filtering, the compose-app and Dockerfile lists.
+  the legs those roles split into, no-op filtering, the compose-app and
+  Dockerfile lists.
 - `ci.gates` — checks with their own verdicts: the deploy-ordering
   regression check, the compose health wait, the Renovate window,
   `matrix-jobs-gate`, and the secret-catalog and app-catalog rules checks (see
@@ -81,13 +82,14 @@ parse on an older Python than the repo's own. The rest run through
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | deploy inputs changed (the `deploy_ordering` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | Runs the real `deploy.yaml` and `restore.yaml` against a CI inventory and checks the `ansible_host` resolution chain. See [Deploy-ordering-check](gates.md#deploy-ordering-check). |
-| `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](gates.md#molecule-coverage-gate), and writes each scenario's run time to the job summary. See [`molecule-testing.md`](../molecule-testing.md). |
+| `molecule` | any role touched | One matrix job per changed role, or per shard for the roles `.github/molecule-shards.yml` splits (see [Sharded roles](#sharded-roles)), running `./scripts/molecule-test-all.sh <role> [-s <scenario>...]`. Uploads the leg's coverage data and writes each scenario's run time to the job summary. See [`molecule-testing.md`](../molecule-testing.md). |
+| `molecule-coverage` | always | Merges every `molecule` leg's coverage data and gates each tested role's [coverage report](gates.md#molecule-coverage-gate) against its floor. Its steps do nothing when no role was tested. |
 | `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash (`cd_agent`'s and `openbao_cli`'s `defaults/main.yaml`, `tools/coderabbit-review/Dockerfile`), changed | Each pinned release checksum is the one its publisher signed, attested or lists — see [Release checksum check](release-checksum-check.md). |
 | `mermaid-check` | a markdown file, or `tools/doc_scripts/check_mermaid.py`, changed | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](doc-checks.md#mermaid-render-check). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
 | `compose-syntax-check` | an excluded app's `compose*.yaml` touched (the `excluded_compose` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)), fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
-| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
+| `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes`, the cache-warming jobs and `molecule-coverage` to succeed, into one fixed check name — see below. |
 
 Every job that runs steps sets `timeout-minutes`, so a hung step frees its
 runner after minutes instead of GitHub's six-hour default. A job that calls a
@@ -111,6 +113,7 @@ flowchart TD
     relchk["release-checksums<br/>(pinned release hash or its checker changed)"]
     mermaid["mermaid-check<br/>(markdown or its check changed)"]
     molecule["molecule<br/>(any role touched — matrix)"]
+    molcov["molecule-coverage<br/>(always)"]
     boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
     synchk["compose-syntax-check<br/>(excluded app's compose file touched, fallback)"]
     dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
@@ -121,12 +124,17 @@ flowchart TD
     warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
     warmprecommit --> precommit & lint
+    detect --> molcov
+    warmuv --> molcov
+    molecule --> molcov
     molecule --> gate
+    molcov --> gate
     boottest --> gate
     dockerbuild --> gate
 
     style precommit stroke-dasharray: 5 5
     style projectchecks stroke-dasharray: 5 5
+    style molcov stroke-dasharray: 5 5
     style trivy stroke-dasharray: 5 5
     style warmuv stroke-dasharray: 5 5
     style warmgalaxy stroke-dasharray: 5 5
@@ -143,6 +151,33 @@ internally whether to run its Ansible-misconfig sub-check — see
 same reason: unconditional, independent of `detect-changes`, so a cold
 or evicted cache self-heals on any PR rather than only ones the diff
 happens to flag. See [Cache warming](#cache-warming).
+
+## Sharded roles
+
+A run takes as long as its slowest `molecule` leg, and a few roles have many
+or slow scenarios. [`.github/molecule-shards.yml`](../../../../.github/molecule-shards.yml)
+splits those roles into shards, each a list of scenarios, and `detect-changes`
+turns the queued roles into legs with
+[`ci.scope.molecule_shards`](../../../../tools/ci/scope/molecule_shards.py): a
+split role becomes one leg per shard (`secrets-1`, `secrets-2`, ...), any other
+role one leg running every scenario. Split roles come first, so their long
+legs are the first to start when more legs are queued than the plan's
+concurrent-job limit allows.
+
+The table must cover each scenario of a split role exactly once. A scenario in
+no shard would never run, so `detect-changes` fails the run when a queued split
+role disagrees with the scenarios on disk, and
+`tools/tests/ci/scope/test_molecule_shards.py` checks the real table, which
+`python_unit_tests` runs when the table changes. Adding a scenario to a split
+role therefore means adding it to a shard in the same PR.
+
+Shards were balanced on measured scenario times, longest first. A role is worth
+splitting when its leg is the longest in a typical run and its scenarios are
+spread evenly enough for the split to shorten it: a role dominated by one
+scenario can't get faster than that scenario. Each extra leg costs about 15
+seconds of checkout and setup. Coverage still gates per role: every leg uploads
+its data, and `molecule-coverage` merges it (see
+[Molecule coverage gate](gates.md#molecule-coverage-gate)).
 
 ## Cache warming
 
@@ -257,7 +292,7 @@ leaves the check permanently "Pending" instead of reporting `skipped`.
 exception** — don't require them directly. All three use a matrix (one
 entry per changed role/app/Dockerfile), and
 when the matrix actually runs, each entry posts its own check name (e.g.
-`molecule (apt)`), which varies by PR. There's no single name that's
+`molecule (apt)` or `molecule (secrets-1)`), which varies by PR. There's no single name that's
 guaranteed to post for every PR: the base job name (`molecule`) only
 appears when the job is skipped entirely, never when it actually ran.
 Require `matrix-jobs-gate` instead — it depends on all three, runs

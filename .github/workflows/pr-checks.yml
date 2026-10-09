@@ -26,6 +26,7 @@ jobs:
       mermaid_check: ${{ steps.filter.outputs.mermaid_check }}
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
+      shards: ${{ steps.shards.outputs.shards }}
       compose_apps: ${{ steps.compose.outputs.apps }}
       dockerfiles: ${{ steps.compose.outputs.dockerfiles }}
       excluded_compose: ${{ steps.compose.outputs.excluded_compose }}
@@ -73,6 +74,16 @@ jobs:
       - name: Determine which ansible roles to test
         id: roles
         run: uv run python -m ci.scope.molecule_scope "${{ github.event.pull_request.base.sha }}" "${{ github.event.pull_request.head.sha }}"
+        working-directory: tools
+
+      # The roles above, with the large ones split into the shards
+      # .github/molecule-shards.yml lists; fails if that table disagrees
+      # with the scenarios on disk.
+      - name: Split the roles into molecule legs
+        id: shards
+        env:
+          ROLES: ${{ steps.roles.outputs.roles }}
+        run: uv run python -m ci.scope.molecule_shards
         working-directory: tools
 
       # One step for all three: compose apps to boot-test, Dockerfiles to
@@ -361,12 +372,13 @@ jobs:
   molecule:
     needs: [detect-changes, warm-uv-cache, warm-galaxy-cache]
     if: needs.detect-changes.outputs.roles != '[]'
+    name: molecule (${{ matrix.shard.name }})
     runs-on: ubuntu-26.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        role: ${{ fromJson(needs.detect-changes.outputs.roles) }}
+        shard: ${{ fromJson(needs.detect-changes.outputs.shards) }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -381,28 +393,86 @@ jobs:
         with:
           install-galaxy-collections: "true"
 
-      - name: Run molecule test — ${{ matrix.role }}
+      # An empty scenarios list runs every scenario of the role.
+      - name: Run molecule test — ${{ matrix.shard.name }}
         env:
-          MATRIX_ROLE: ${{ matrix.role }}
-        run: uv run ./scripts/molecule-test-all.sh "$MATRIX_ROLE"
+          MATRIX_ROLE: ${{ matrix.shard.role }}
+          MATRIX_SCENARIOS: ${{ matrix.shard.scenarios }}
+        run: |
+          args=()
+          for scenario in $MATRIX_SCENARIOS; do args+=(-s "$scenario"); done
+          uv run ./scripts/molecule-test-all.sh "$MATRIX_ROLE" "${args[@]}"
         working-directory: ansible
 
       # if: always() - partial coverage from a mid-run failure is still
-      # worth reporting. set -o pipefail is required here specifically:
-      # this runner's default shell is `bash -e`, not `-eo pipefail`, so
-      # without it a failure upstream of `| tee` is masked by tee's exit 0.
-      - name: Coverage report + gate — ${{ matrix.role }}
+      # worth reporting. The molecule-coverage job merges every leg's data.
+      - name: Pack coverage data
         if: always()
         env:
-          MATRIX_ROLE: ${{ matrix.role }}
+          SHARD: ${{ matrix.shard.name }}
+        run: |
+          mkdir -p ansible/molecule-coverage/.data
+          tar -czf "$RUNNER_TEMP/coverage-$SHARD.tar.gz" -C ansible/molecule-coverage/.data .
+
+      - name: Upload coverage data
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-${{ matrix.shard.name }}
+          path: ${{ runner.temp }}/coverage-${{ matrix.shard.name }}.tar.gz
+          retention-days: 1
+
+  # Not a matrix job, so it can be required through matrix-jobs-gate like any
+  # other: it always runs, and its steps do nothing when no role was queued.
+  # Merges the coverage data of every molecule leg and gates each tested role
+  # against its floor in thresholds.yaml.
+  molecule-coverage:
+    needs: [detect-changes, warm-uv-cache, molecule]
+    if: always()
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        if: needs.detect-changes.outputs.roles != '[]'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup uv
+        if: needs.detect-changes.outputs.roles != '[]'
+        uses: ./.github/actions/setup-uv-ansible
+
+      - name: Download coverage data
+        if: needs.detect-changes.outputs.roles != '[]'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: coverage-*
+          path: ${{ runner.temp }}/coverage
+          merge-multiple: true
+
+      # A role's shards each hold different scenarios' JSONL, so extracting
+      # them into one directory is the union the report computes over.
+      # set -o pipefail is required: this runner's default shell is
+      # `bash -e`, not `-eo pipefail`, so without it a failure upstream of
+      # `| tee` is masked by tee's exit 0. Every role is reported before the
+      # step fails, so one low role doesn't hide another.
+      - name: Coverage report + gate
+        if: needs.detect-changes.outputs.roles != '[]'
+        env:
+          ROLES: ${{ needs.detect-changes.outputs.roles }}
         run: |
           set -o pipefail
-          uv run python3 -m molecule_cov.cli inventory "../roles/$MATRIX_ROLE" \
-            --coverage-dir .data
-          uv run python3 -m molecule_cov.cli report \
-            --coverage-dir .data --role "$MATRIX_ROLE" \
-            --thresholds-file thresholds.yaml \
-            | tee -a "$GITHUB_STEP_SUMMARY"
+          mkdir -p .data
+          for archive in "$RUNNER_TEMP"/coverage/*.tar.gz; do tar -xzf "$archive" -C .data; done
+          status=0
+          for role in $(jq -r '.[]' <<<"$ROLES"); do
+            uv run python3 -m molecule_cov.cli inventory "../roles/$role" --coverage-dir .data
+            uv run python3 -m molecule_cov.cli report \
+              --coverage-dir .data --role "$role" \
+              --thresholds-file thresholds.yaml \
+              | tee -a "$GITHUB_STEP_SUMMARY" || status=1
+          done
+          exit "$status"
         working-directory: ansible/molecule-coverage
 
   # Shared logic — see docs/topics/engineering/ci/gates.md#compose-boot-test.
@@ -525,7 +595,7 @@ jobs:
   # can't be marked required directly. if: always() so a skipped
   # upstream job doesn't skip this one too.
   matrix-jobs-gate:
-    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, compose-boot-test, dockerfile-build-check]
+    needs: [detect-changes, warm-uv-cache, warm-galaxy-cache, molecule, molecule-coverage, compose-boot-test, dockerfile-build-check]
     if: always()
     runs-on: ubuntu-26.04
     timeout-minutes: 5

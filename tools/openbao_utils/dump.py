@@ -78,9 +78,14 @@ def main() -> int:
     cc_written, cc_blank = _dump_cloud_credentials(dest)
     hosts_written, hosts_blank = _dump_hosts_scope(dest)
 
-    print(f"Backed up {len(cc_written) + len(hosts_written)} secrets to {dest}")
-    print(f"  cloud_credentials: {len(cc_written)} written, {len(cc_blank)} blank/missing (expected for allow_blank entries)")
-    print(f"  hosts/* (secrets role): {len(hosts_written)} written, {len(hosts_blank)} blank/missing")
+    # A key in both lists (the catalog's cloud_credentials/leaf entries) is the
+    # same Vault value and the same file, so it counts once.
+    shared = set(cc_written) & set(hosts_written)
+    print(f"Backed up {len(set(cc_written) | set(hosts_written))} distinct secrets to {dest}")
+    print(f"  cloud_credentials: {len(cc_written)} read, {len(cc_blank)} blank/missing (expected for allow_blank entries)")
+    print(f"  hosts/* (secrets role): {len(hosts_written)} read, {len(hosts_blank)} blank/missing")
+    if shared:
+        print(f"  {len(shared)} keys are listed in both and written once")
     if cc_blank:
         print("\ncloud_credentials blank/missing:")
         for name in cc_blank:

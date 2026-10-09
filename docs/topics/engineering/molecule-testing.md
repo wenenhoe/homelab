@@ -120,6 +120,12 @@ One scenario of one role, without `cd`-ing into it:
 ./scripts/molecule-test-all.sh compose -s volumes
 ```
 
+Repeat `-s` to run several scenarios of the one role:
+
+```sh
+./scripts/molecule-test-all.sh compose -s reset -s build
+```
+
 `molecule test --all` doesn't work from `ansible/` directly — Molecule's
 scenario glob doesn't recurse into `roles/*/molecule/*/`, and many
 scenarios across different roles share the name `default`, which a

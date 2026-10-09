@@ -32,8 +32,8 @@ def make_cache(cache: Path, rows: list[tuple[str, str, str]]) -> None:
     conn.close()
 
 
-def make_binary(repo_dir: Path) -> Path:
-    path = repo_dir / gr.BINARY
+def make_binary(repo_dir: Path, env: str = "system") -> Path:
+    path = repo_dir / f"golangenv-{env}/bin/gitleaks"
     path.parent.mkdir(parents=True)
     path.write_text("")
     return path
@@ -68,6 +68,12 @@ class TestBinary:
         make_cache(root / "cache", [(gr.GITLEAKS_REPO, "v8.29.0", str(old)), (gr.GITLEAKS_REPO, "v8.30.1", str(new))])
         assert gr.binary(root / "cache", "v8.30.1") == expected
 
+    @pytest.mark.parametrize("env", ["system", "default"])
+    def test_finds_the_binary_whichever_go_pre_commit_used(self, root, env):
+        expected = make_binary(root / "repo", env)
+        make_cache(root / "cache", [(gr.GITLEAKS_REPO, "v8.30.1", str(root / "repo"))])
+        assert gr.binary(root / "cache", "v8.30.1") == expected
+
     def test_no_cache_is_an_error(self, root):
         with pytest.raises(gr.GitleaksUnavailableError, match="no pre-commit cache"):
             gr.binary(root / "cache", "v8.30.1")
@@ -79,7 +85,7 @@ class TestBinary:
 
     def test_an_installed_repo_without_the_binary_is_an_error(self, root):
         make_cache(root / "cache", [(gr.GITLEAKS_REPO, "v8.30.1", str(root / "repo"))])
-        with pytest.raises(gr.GitleaksUnavailableError, match="is missing"):
+        with pytest.raises(gr.GitleaksUnavailableError, match="no gitleaks binary"):
             gr.binary(root / "cache", "v8.30.1")
 
 

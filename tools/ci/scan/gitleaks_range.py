@@ -26,7 +26,8 @@ from ci.proc import Runner, run
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG = ".config/.pre-commit-config.yaml"
 GITLEAKS_REPO = "https://github.com/gitleaks/gitleaks"
-BINARY = Path("golangenv-default/bin/gitleaks")
+# pre-commit names the environment after the Go it uses: "system" when the runner has Go on PATH, "default" when it downloads one.
+BINARY_GLOB = "golangenv-*/bin/gitleaks"
 REV = re.compile(rf"repo:\s*{re.escape(GITLEAKS_REPO)}\s*\n\s*rev:\s*(\S+)")
 
 
@@ -56,10 +57,10 @@ def binary(cache: Path, rev: str) -> Path:
         row = conn.execute("SELECT path FROM repos WHERE repo = ? AND ref = ?", (GITLEAKS_REPO, rev)).fetchone()
     if not row:
         raise GitleaksUnavailableError(f"gitleaks {rev} is not in the pre-commit cache; install the hook environments first")
-    path = Path(row[0]) / BINARY
-    if not path.is_file():
-        raise GitleaksUnavailableError(f"{path} is missing")
-    return path
+    found = sorted(path for path in Path(row[0]).glob(BINARY_GLOB) if path.is_file())
+    if not found:
+        raise GitleaksUnavailableError(f"no gitleaks binary under {row[0]}/{BINARY_GLOB}")
+    return found[0]
 
 
 def command(path: Path, base: str, head: str) -> list[str]:

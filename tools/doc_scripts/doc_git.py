@@ -16,11 +16,18 @@ def git(root: Path, *args: str) -> str:
     return subprocess.run(["git", "-C", str(root), *args], check=True, capture_output=True, text=True).stdout
 
 
+def file_at(root: Path, ref: str, path: str) -> str | None:
+    """The file's text at `ref` (`""` is the index), or None if it doesn't exist there."""
+    try:
+        return git(root, "show", f"{ref}:{path}")
+    except subprocess.CalledProcessError:
+        return None
+
+
 def base_project_loader(root: Path, ref: str):
     def load(path: str) -> dict | None:
-        try:
-            text = git(root, "show", f"{ref}:{path}")
-        except subprocess.CalledProcessError:
+        text = file_at(root, ref, path)
+        if text is None:
             return None  # the doc didn't exist on the base
         m = re.match(r"^---\n(.*?)\n---\n", text, re.DOTALL)
         if not m:

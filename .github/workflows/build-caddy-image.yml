@@ -3,6 +3,9 @@ name: Build & push Caddy image
 on:  # yamllint disable-line rule:truthy
   push:
     branches: [main]
+    # Filters the push trigger only; schedule and workflow_dispatch runs always build.
+    paths:
+      - 'docker/caddy/Dockerfile'
   schedule:
     # Weekly, same time-of-day as renovate.yml's daily cron (20:00 UTC =
     # 04:00 Asia/Singapore). Catches upstream `caddy:2.11.4`/`apk add curl`
@@ -19,39 +22,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Only meaningful for the push trigger — schedule/workflow_dispatch runs
-  # always rebuild regardless of what changed. Same dorny/paths-filter
-  # pattern as pr-checks.yml's detect-changes job; unset `base:` on a push
-  # trigger defaults to comparing against the most recent commit on the
-  # same branch before the push, which is what we want here.
-  detect-changes:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-26.04
-    outputs:
-      dockerfile: ${{ steps.filter.outputs.dockerfile }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Detect Dockerfile changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            dockerfile:
-              - 'docker/caddy/Dockerfile'
-
   build-and-push:
-    needs: detect-changes
-    if: >-
-      always() &&
-      needs.detect-changes.result != 'failure' &&
-      needs.detect-changes.result != 'cancelled' &&
-      (github.event_name != 'push' || needs.detect-changes.outputs.dockerfile == 'true')
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write

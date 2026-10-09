@@ -251,19 +251,24 @@ def repo(tree, monkeypatch):
 
 
 class TestCli:
-    def test_changed_writes_apps_and_dockerfiles(self, repo):
+    def test_changed_writes_apps_dockerfiles_and_excluded_compose_files(self, repo):
         repo.write("docker/lldap/configs/env.j2", "changed\n")
         repo.write("docker/caddy/Dockerfile", "changed\n")
         repo.write("docker/wastebin/Dockerfile", "changed\n")
+        repo.write("docker/caddy/compose.yaml", "changed\n")
         head = repo.commit("change")
         assert repo.main("changed", repo.base, head) == 0
-        assert repo.out.read_text().splitlines() == ['apps=["lldap","wastebin"]', 'dockerfiles=["caddy","wastebin"]']
+        assert repo.out.read_text().splitlines() == [
+            'apps=["lldap","wastebin"]',
+            'dockerfiles=["caddy","wastebin"]',
+            'excluded_compose=["docker/caddy/compose.yaml"]',
+        ]
 
     def test_changed_with_nothing_relevant_writes_empty_arrays(self, repo):
         repo.write("docs/topics/engineering/ci/pipeline.md", "changed\n")
         head = repo.commit("change")
         assert repo.main("changed", repo.base, head) == 0
-        assert repo.out.read_text().splitlines() == ["apps=[]", "dockerfiles=[]"]
+        assert repo.out.read_text().splitlines() == ["apps=[]", "dockerfiles=[]", "excluded_compose=[]"]
 
     def test_all_writes_every_app(self, repo):
         assert repo.main("all") == 0

@@ -134,3 +134,41 @@ class TestScopeErrors:
         # to include other/**, the scope in force is still src/**.
         doc = scoped(paths=["src/**"])
         assert len(errors([doc, "other/b.py"])) == 1
+
+
+PLAN = (
+    "## Execution plan\n\n| # | Stage | Status | Exit condition |\n| :-: | :--- | :--- | :--- |\n"
+    "| 1 | First | {status} | {exit} |\n{more}\n## Risks\n\n{prose}\n"
+)
+
+
+def doc(status: str = "Not started", exit: str = "built", prose: str = "none", front: str = "id: PROJ-a", more: str = "") -> str:
+    return f"---\n{front}\n---\n\n# A\n\n" + PLAN.format(status=status, exit=exit, prose=prose, more=more)
+
+
+class TestIsWorked:
+    def test_prose_and_exit_condition_wording_are_not_work(self):
+        assert not scope.is_worked(doc(), doc(prose="reworded", exit="built, linked"))
+
+    def test_a_stage_status_change_is_work(self):
+        assert scope.is_worked(doc(), doc(status="In progress"))
+
+    def test_a_frontmatter_change_is_work(self):
+        assert scope.is_worked(doc(), doc(front="id: PROJ-a\nstatus: building"))
+
+    def test_a_new_stage_row_is_work(self):
+        assert scope.is_worked(doc(), doc(more="| 2 | Second | Not started | x |\n"))
+
+    def test_a_deleted_doc_is_work(self):
+        assert scope.is_worked(doc(), None)
+
+    def test_a_doc_with_no_plan_table_compares_on_frontmatter_alone(self):
+        assert not scope.is_worked("---\nid: PROJ-a\n---\n\nbody\n", "---\nid: PROJ-a\n---\n\nbody, edited\n")
+
+
+class TestWorkedGatesScope:
+    def test_a_touched_but_unworked_project_binds_nothing(self, root):
+        base = {"docs/projects/a.md": {"id": "PROJ-a", "allowed_paths": ["src/**"]}}
+        changed = ["docs/projects/a.md", "elsewhere/x.py"]
+        assert scope.scope_errors(changed, base.get, root, worked=lambda path: False) == []
+        assert scope.scope_errors(changed, base.get, root, worked=lambda path: True) != []

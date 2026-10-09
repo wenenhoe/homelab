@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fails a change that touches a project doc but strays outside that project's
+"""Fails a change that works a project doc but strays outside that project's
 `allowed_paths` — see doc_scope.py for the rule and the projects README for why.
 
 Two modes, both read the scope from the project docs as they stood on the base:
@@ -8,6 +8,10 @@ Two modes, both read the scope from the project docs as they stood on the base:
   --base REF        a pull request: the diff from the merge-base of REF and --head
   [--head REF]      (default HEAD) to --head. The merge-base, not REF itself, so a
                     branch that is behind doesn't see main's newer commits as its own.
+
+A project binds a change only if the change works its doc (its frontmatter or
+execution-plan table changes, or it is deleted), not when it merely edits the
+doc's prose or links.
 """
 
 from __future__ import annotations
@@ -17,8 +21,8 @@ import sys
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT
-from doc_scripts.doc_git import base_project_loader, git
-from doc_scripts.doc_scope import PROJECT_DOC_RE, scope_errors
+from doc_scripts.doc_git import base_project_loader, file_at, git
+from doc_scripts.doc_scope import PROJECT_DOC_RE, is_worked, scope_errors
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -31,24 +35,25 @@ def main(argv: list[str] | None = None) -> int:
     args = ap.parse_args(argv)
 
     if args.staged:
-        base = "HEAD"
+        base, head = "HEAD", ""  # the index
         changed = git(args.root, "diff", "--cached", "--name-only", "--no-renames", "-z").split("\0")
     else:
-        base = git(args.root, "merge-base", args.base, args.head).strip()
+        base, head = git(args.root, "merge-base", args.base, args.head).strip(), args.head
         changed = git(args.root, "diff", "--name-only", "--no-renames", "-z", base, args.head).split("\0")
     changed = [c for c in changed if c]
 
-    errors = scope_errors(changed, base_project_loader(args.root, base), args.root)
+    worked = lambda path: is_worked(file_at(args.root, base, path), file_at(args.root, head, path))  # noqa: E731
+    errors = scope_errors(changed, base_project_loader(args.root, base), args.root, worked)
     if errors:
         for e in errors:
             print(f"::error::{e}")
         print(f"\n{len(errors)} file(s) outside the project's allowed_paths.", file=sys.stderr)
         return 1
-    touched = [c for c in changed if PROJECT_DOC_RE.fullmatch(c)]
+    worked_docs = [c for c in changed if PROJECT_DOC_RE.fullmatch(c) and worked(c)]
     print(
-        "No project doc touched; nothing to scope."
-        if not touched
-        else "Every changed file is within the touched project's scope, or none of them declares one."
+        "No project doc worked; nothing to scope."
+        if not worked_docs
+        else "Every changed file is within the worked project's scope, or none of them declares one."
     )
     return 0
 

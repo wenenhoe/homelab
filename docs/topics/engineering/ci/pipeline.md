@@ -28,7 +28,7 @@ call it as `python -m <package>.<module>` from `tools/`
   [Secret catalog rules](gates.md#secret-catalog-rules) and
   [App catalog rules](gates.md#app-catalog-rules)).
 - `ci.images` — the image registry and the CI image builds.
-- `ci.scan` — setup for the security scans (the Trivy config).
+- `ci.scan` — setup for the security scans (the Trivy config, and the gitleaks run over a PR's commits).
 - `ci.fixtures` — data a job seeds before a real run, derived from the repo
   (the deploy-ordering check's secrets).
 
@@ -46,8 +46,8 @@ of [ADR 0037 (Decision and project workflow)](../../../decisions/0037-decision-a
 `check_project_close`, with the helpers they share (`doc_frontmatter`,
 `doc_graph`, `doc_scope`, `doc_close`, `doc_git`). The pre-commit hooks run
 them as `bash -c 'cd tools && python3 -m doc_scripts.<module>'`, in the
-hook's own environment with PyYAML, and the `project-scope` and
-`project-close` jobs run them through `uv run`. They read `docs/` from the
+hook's own environment with PyYAML, and the `project-checks` job runs
+them through `uv run`. They read `docs/` from the
 repository root, not the working directory. `check_mermaid`, the
 [Mermaid render check](doc-checks.md#mermaid-render-check) of
 [ADR 0078 (Diagram render check)](../../../decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md),
@@ -75,20 +75,25 @@ parse on an older Python than the repo's own. The rest run through
 | `warm-uv-cache` | always | Populates the shared uv package cache. See [Cache warming](#cache-warming). |
 | `warm-galaxy-cache` | always | Populates the shared Ansible Galaxy collections cache. See [Cache warming](#cache-warming). |
 | `warm-pre-commit-cache` | always | Populates the shared pre-commit hook-environment cache. See [Cache warming](#cache-warming). |
-| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file. |
-| `project-scope` | always | A PR that touches a project doc stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](doc-checks.md#project-scope-check). |
-| `project-close` | always | A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](doc-checks.md#project-close-check). |
+| `pre-commit-checks` | always | Every commit-stage hook (all of `.config/.pre-commit-config.yaml` except `ansible-lint`) against every file, then gitleaks over the PR's commits (the hook itself is skipped here: it only scans staged changes). |
+| `project-checks` | always | Two steps over the PR's merge-base diff. A PR that works a project doc (its frontmatter or a stage status, not a prose edit) stays inside that project's `allowed_paths`, read from the base branch — see [Project scope check](doc-checks.md#project-scope-check). A PR that deletes a project doc leaves its `decision:` revision `accepted` or still named by another project — see [Project close check](doc-checks.md#project-close-check). |
 | `ansible-lint` | `ansible/**`/`.config/.ansible-lint`/`.config/.pre-commit-config.yaml` changed | The one push-stage hook — always lints the whole `ansible/` tree when it runs, not just what changed, so it's pinned to push time and scoped to this same file set locally too, via `.config/.pre-commit-config.yaml`'s own `files:`/`always_run: false` override (needed since upstream's manifest defaults to `always_run: true`). |
 | `uv-lock` | `pyproject.toml`/`uv.lock` changed | `uv sync --locked` — catches an unregenerated lockfile or a resolvable-but-broken dependency combination. |
 | `python-unit-tests` | controller-side Python changed (the `python_unit_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | `pytest` over `ansible/tests/` and `tools/tests/` — every provider HTTP call and `rclone` invocation mocked; `tools/tests/doc_scripts/` covers the doc-index generator and drift checker. |
 | `deploy-ordering-check` | deploy inputs changed (the `deploy_ordering` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)) | Runs the real `deploy.yaml` and `restore.yaml` against a CI inventory and checks the `ansible_host` resolution chain. See [Deploy-ordering-check](gates.md#deploy-ordering-check). |
-| `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](gates.md#molecule-coverage-gate). See [`molecule-testing.md`](../molecule-testing.md). |
+| `molecule` | any role touched | One matrix job per changed role, running `./scripts/molecule-test-all.sh <role>`. Also generates and gates on that role's [coverage report](gates.md#molecule-coverage-gate), and writes each scenario's run time to the job summary. See [`molecule-testing.md`](../molecule-testing.md). |
 | `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash (`cd_agent`'s and `openbao_cli`'s `defaults/main.yaml`, `tools/coderabbit-review/Dockerfile`), changed | Each pinned release checksum is the one its publisher signed, attested or lists — see [Release checksum check](release-checksum-check.md). |
 | `mermaid-check` | a markdown file, or `tools/doc_scripts/check_mermaid.py`, changed | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](doc-checks.md#mermaid-render-check). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
-| `compose-syntax-check` | any compose file touched, fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
+| `compose-syntax-check` | an excluded app's `compose*.yaml` touched (the `excluded_compose` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)), fallback | `docker compose config --quiet` on whatever `compose-boot-test` excludes. |
 | `matrix-jobs-gate` | always | Aggregates `molecule`/`compose-boot-test`/`dockerfile-build-check`'s results, and requires `detect-changes` and the cache-warming jobs to succeed, into one fixed check name — see below. |
+
+Every job that runs steps sets `timeout-minutes`, so a hung step frees its
+runner after minutes instead of GitHub's six-hour default. A job that calls a
+reusable workflow can't set one; the called workflow's jobs carry theirs.
+[`test_workflow_timeouts.py`](../../../../tools/tests/ci/test_workflow_timeouts.py)
+fails a job that has none.
 
 ```mermaid
 flowchart TD
@@ -97,8 +102,7 @@ flowchart TD
     warmgalaxy["warm-galaxy-cache<br/>(always)"]
     warmprecommit["warm-pre-commit-cache<br/>(always)"]
     precommit["pre-commit-checks<br/>(always)"]
-    scope["project-scope<br/>(always)"]
-    close["project-close<br/>(always)"]
+    projectchecks["project-checks<br/>(always)"]
     trivy["trivy-scan<br/>(always — internally<br/>gates its own Ansible check)"]
     lint["ansible-lint<br/>(ansible/** or lint config changed)"]
     uvlock["uv-lock<br/>(pyproject.toml/uv.lock changed)"]
@@ -108,13 +112,13 @@ flowchart TD
     mermaid["mermaid-check<br/>(markdown or its check changed)"]
     molecule["molecule<br/>(any role touched — matrix)"]
     boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
-    synchk["compose-syntax-check<br/>(any compose file touched, fallback)"]
+    synchk["compose-syntax-check<br/>(excluded app's compose file touched, fallback)"]
     dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 
     detect --> lint & uvlock & pytest & deployorder & relchk & mermaid & molecule & boottest & synchk & dockerbuild
     detect --> trivy
-    warmuv --> precommit & scope & close & lint & uvlock & pytest & deployorder & molecule & boottest
+    warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
     warmprecommit --> precommit & lint
     molecule --> gate
@@ -122,15 +126,14 @@ flowchart TD
     dockerbuild --> gate
 
     style precommit stroke-dasharray: 5 5
-    style scope stroke-dasharray: 5 5
-    style close stroke-dasharray: 5 5
+    style projectchecks stroke-dasharray: 5 5
     style trivy stroke-dasharray: 5 5
     style warmuv stroke-dasharray: 5 5
     style warmgalaxy stroke-dasharray: 5 5
     style warmprecommit stroke-dasharray: 5 5
 ```
 
-`pre-commit-checks`, `project-scope`, and `project-close` run unconditionally and independently of
+`pre-commit-checks` and `project-checks` run unconditionally and independently of
 `detect-changes` (dashed above) — its hooks span nearly every file
 type in the repo, so scoping it would defeat the point. `trivy-scan`
 also always runs as a job, but reads `detect-changes`' output to decide
@@ -238,7 +241,7 @@ reference jobs by their check-run name (`<workflow name> / <job name>`,
 e.g. `PR checks / pre-commit-checks`).
 
 `warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
-`pre-commit-checks`, `project-scope`, `project-close`,
+`pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
 `deploy-ordering-check`, `release-checksums`, `mermaid-check` and `compose-syntax-check` are all safe to
 mark required directly: each

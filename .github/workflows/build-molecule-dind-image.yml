@@ -3,6 +3,13 @@ name: Build & push Molecule DinD image
 on:  # yamllint disable-line rule:truthy
   push:
     branches: [main]
+    # ansible/roles/docker/tasks/main.yaml is included too: it's what this
+    # Dockerfile is meant to mirror (see the Dockerfile's own top comment),
+    # so a change there should at least force a rebuild even though nothing
+    # re-checks the two stayed in sync. Filters the push trigger only.
+    paths:
+      - 'docker/molecule-dind/Dockerfile'
+      - 'ansible/roles/docker/tasks/main.yaml'
   schedule:
     # Weekly, same slot as build-caddy-image.yml's schedule trigger — see
     # that workflow for why a schedule is needed alongside the push
@@ -20,40 +27,9 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # Same reasoning and pattern as build-caddy-image.yml's detect-changes.
-  # ansible/roles/docker/tasks/main.yaml is included too: it's what this
-  # Dockerfile is meant to mirror (see the Dockerfile's own top comment),
-  # so a change there should at least force a rebuild even though nothing
-  # re-checks the two stayed in sync.
-  detect-changes:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-26.04
-    outputs:
-      relevant: ${{ steps.filter.outputs.relevant }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-
-      - name: Detect Dockerfile or mirrored-role changes
-        id: filter
-        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
-        with:
-          filters: |
-            relevant:
-              - 'docker/molecule-dind/Dockerfile'
-              - 'ansible/roles/docker/tasks/main.yaml'
-
   build-and-push:
-    needs: detect-changes
-    if: >-
-      always() &&
-      needs.detect-changes.result != 'failure' &&
-      needs.detect-changes.result != 'cancelled' &&
-      (github.event_name != 'push' || needs.detect-changes.outputs.relevant == 'true')
     runs-on: ubuntu-26.04
+    timeout-minutes: 30
     permissions:
       contents: read
       packages: write

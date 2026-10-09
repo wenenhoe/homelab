@@ -4,7 +4,8 @@ name: Trivy scheduled scan
 # docs/topics/engineering/security-scanning.md#trivy-security-scans) so a new misconfig check added to
 # Trivy itself still gets caught even when nothing in this repo
 # changed — pr-checks.yml's trivy-scan job only runs the Ansible check
-# when a PR actually touches ansible/.
+# when a PR actually touches ansible/, and not the secret scan at all
+# (gitleaks covers pull requests).
 
 on:  # yamllint disable-line rule:truthy
   workflow_dispatch: {}

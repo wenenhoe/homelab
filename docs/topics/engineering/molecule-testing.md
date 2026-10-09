@@ -124,8 +124,12 @@ One scenario of one role, without `cd`-ing into it:
 scenario glob doesn't recurse into `roles/*/molecule/*/`, and many
 scenarios across different roles share the name `default`, which a
 recursive glob would reject as a collision. `molecule-test-all.sh` runs
-`molecule test --all` once per role directory instead, so each
-invocation only sees that role's own unique scenario names.
+from each role directory instead, one `molecule test -s <scenario>` per
+scenario in name order, so each invocation only sees that role's own
+unique scenario names. A role stops at its first failing scenario, as
+`--all` does. Every scenario is timed: the script prints a table of
+seconds per scenario and, in CI, appends it to the job summary, which is
+the data for deciding whether a role is worth splitting across runners.
 
 `molecule_helpers`'s shared scaffolding — the reference table of its
 task files, and how the DinD test containers it prepares actually

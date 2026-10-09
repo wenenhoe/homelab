@@ -34,7 +34,7 @@ from ci.scope import semantic_diff
 REPO_ROOT = Path(__file__).resolve().parents[3]
 
 # Filters that must never be gated: see the module docstring.
-NEVER_GATED = {"ansible_lint": "ansible-lint honours # noqa", "trivy_ansible": "Trivy honours #trivy:ignore", "any_compose": "compose files are never a no-op"}
+NEVER_GATED = {"ansible_lint": "ansible-lint honours # noqa", "trivy_ansible": "Trivy honours #trivy:ignore"}
 
 
 class FilterError(Exception):

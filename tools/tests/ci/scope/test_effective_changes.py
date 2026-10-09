@@ -95,7 +95,7 @@ class TestEffectiveChanges:
         (repo.root / PY).unlink()
         assert evaluate(python_unit_tests=[PY])["python_unit_tests"]
 
-    @pytest.mark.parametrize("name", ["ansible_lint", "trivy_ansible", "any_compose"])
+    @pytest.mark.parametrize("name", ["ansible_lint", "trivy_ansible"])
     def test_gated_filters_never_include_the_ones_that_read_comments(self, repo, monkeypatch, name):
         monkeypatch.setenv(f"{name.upper()}_FILES", "[]")
         with pytest.raises(ec.FilterError, match="can't be gated"):

@@ -114,7 +114,7 @@ documented thing no longer exists.
 [`docs/projects/README.md#scope`](../../../projects/README.md#scope) for what it means
 and why). It runs in two places:
 
-- **CI** — the `project-scope` job, on every pull request: the diff from
+- **CI** — the scope step of the `project-checks` job, on every pull request: the diff from
   the merge-base of the PR's base and head to its head. The merge-base,
   not the base tip, so a branch that is behind doesn't see main's newer
   commits as its own changes. The repo's other diff-based jobs diff
@@ -127,10 +127,15 @@ and why). It runs in two places:
 
 In both, a project's scope is read from the doc **as it stands on the
 base**, so a change can't widen its own scope and then use it. A project
+binds a change only if the change *works* its doc: its frontmatter or a
+stage's number or status in the Execution plan table differs from the base,
+or the doc is deleted. A prose or link edit to the doc, such as a sweep
+across every project doc, binds nothing, so a repo-wide docs cleanup
+isn't held to the scope of whichever projects it happened to edit. A project
 doc that is new in the change has no scope yet. Renames and deletions
 count as touching both paths. Path-level only: it can't tell whether an
 edit inside an allowed file is the permitted one, and a change that never
-touches its project doc isn't bounded.
+works its project doc isn't bounded.
 
 ## Project close check
 
@@ -148,7 +153,7 @@ checked.
 It runs in the same two places as the scope check, with the same
 merge-base diff and the same staged-changes behavior:
 
-- **CI** — the `project-close` job, on every pull request, judging the
+- **CI** — the close step of the `project-checks` job, on every pull request, judging the
   PR's head.
 - **pre-commit** — the `check-project-close` hook, judging the index
   against `HEAD`. It is early feedback; CI is the authority. Under

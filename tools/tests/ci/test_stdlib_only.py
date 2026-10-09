@@ -41,6 +41,7 @@ BARE_PYTHON = (
     "gates/matrix_gate.py",
     "scan/__init__.py",
     "scan/trivy_config.py",
+    "scan/gitleaks_range.py",
 )
 
 
@@ -80,6 +81,7 @@ class TestStdlibOnly:
             pytest.param("check-image-tags.yml", "ci.images.remote", id="remote"),
             pytest.param("pr-checks.yml", "ci.gates.matrix_gate", id="matrix_gate"),
             pytest.param("_trivy-scan.yml", "ci.scan.trivy_config", id="trivy_config"),
+            pytest.param("pr-checks.yml", "ci.scan.gitleaks_range", id="gitleaks_range"),
         ],
     )
     def test_the_workflows_run_these_modules_with_plain_python3(self, workflow, module):

@@ -12,23 +12,37 @@ Two checks, defined once in
 same sharing pattern as `_compose-boot-test.yml`) and run from two
 places:
 
-- `pr-checks.yml`'s `trivy-scan` job — Ansible misconfig scoped via
-  `detect-changes` (`trivy_ansible`); the secret scan runs
-  unconditionally on every PR, the same reasoning as `pre-commit-checks`
-  (a leaked secret can land in any file) — a second, independent
-  backstop alongside `gitleaks`, which `pre-commit-checks` already runs
-  unconditionally.
+- `pr-checks.yml`'s `trivy-scan` job — Ansible misconfig only, scoped
+  via `detect-changes` (`trivy_ansible`). Secrets are covered on every
+  PR by `gitleaks` in `pre-commit-checks`, which blocks the merge: see
+  [Secret scanning on pull requests](#secret-scanning-on-pull-requests).
 - `trivy-scheduled.yml` — both, weekly, unscoped, so a new misconfig
   check added to Trivy itself still gets caught even when nothing in
-  this repo changed.
+  this repo changed, and the secret scan keeps running as a second,
+  independent look at the whole tree.
 
 | Check | Target | Notes |
 | :--- | :--- | :--- |
 | Ansible misconfig | `ansible/` (Trivy's ansible scanner auto-detects the project root via `ansible.cfg`, `roles/`, `playbooks/`, etc.) | `--misconfig-scanners ansible` only, via an inline `trivy.yaml` (`misconfiguration.scanners`) — trivy-action has no first-class input for this flag |
-| Secrets | Whole repo (`trivy fs --scanners secret`) | Second, independent backstop alongside `gitleaks` (already unconditional in `pre-commit-checks`) |
+| Secrets | Whole repo (`trivy fs --scanners secret`) | Weekly only; a second, independent look alongside `gitleaks`, which blocks PRs in `pre-commit-checks` |
 
 **Report-only**: both jobs set `exit-code: '0'` — findings surface in
 the Security tab but never block a PR.
+
+## Secret scanning on pull requests
+
+The `gitleaks` pre-commit hook scans only what is staged, so it runs at
+commit time on a developer's machine and finds nothing under
+`pre-commit run --all-files`, which is how `pre-commit-checks` invokes the
+hooks. That job therefore skips the hook (`SKIP: gitleaks`) and runs
+[`ci.scan.gitleaks_range`](../../../tools/ci/scan/gitleaks_range.py) as its
+own step: the same gitleaks build the hook uses, over every commit from the
+PR's base to its head, with matches redacted in the log. It runs on the
+build pre-commit already compiled for the rev pinned in
+`.config/.pre-commit-config.yaml`, so a Renovate bump of that rev moves both,
+and the job checks out full history for it. The step fails the job, and
+`pre-commit-checks` is a required check, so a secret anywhere in the PR's
+commits blocks the merge even when a later commit removes it from the tree.
 
 **Accepted-risk findings**: [`.config/.trivyignore`](../../../.config/.trivyignore),
 alongside this repo's other tool configs — same documented-exception

@@ -82,6 +82,9 @@ from ci.output import write_output
 from ci.scope import semantic_diff
 from ci.scope.diff import DiffError, changed_files
 
+# libyaml's loader parses several times faster; a PyYAML built without libyaml has no CSafeLoader.
+_YAML_LOADER = getattr(yaml, "CSafeLoader", yaml.SafeLoader)
+
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ROLES_DIR = "ansible/roles"
 HELPERS_ROLE = "molecule_helpers"
@@ -158,7 +161,7 @@ def _relative(root: Path, path: Path) -> str:
 
 def _load_yaml(path: Path) -> list:
     try:
-        return [d for d in yaml.safe_load_all(path.read_text()) if d is not None]
+        return [d for d in yaml.load_all(path.read_text(), Loader=_YAML_LOADER) if d is not None]
     except yaml.YAMLError as exc:
         raise ScopeError(f"{path}: not parseable as YAML: {exc}") from exc
 

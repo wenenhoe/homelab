@@ -190,7 +190,8 @@ The CA and its password exist only for the job.
 
 Excluded apps still get `compose-syntax-check`'s weaker
 `docker compose config --quiet` validation, so nothing goes fully
-unchecked. That job checks each changed `compose*.yaml` under an excluded
+unchecked. That job runs only when `detect-changes` reports one of their
+compose files (`excluded_compose`), and checks each changed `compose*.yaml` under an excluded
 app (not the `.j2` templates, which aren't valid compose until rendered),
 runs every file even after one fails, and stubs an empty `.env` where an
 explicit `env_file:` needs one.
@@ -212,7 +213,11 @@ tag. A PR's boot test therefore builds a changed Dockerfile locally,
 since the published image would be the old one or not exist yet. The
 CodeRabbit review image, built from `tools/coderabbit-review/Dockerfile` and
 published by `build-coderabbit-review-image.yml`, is published the same way,
-though no compose file pins it.
+though no compose file pins it. Each of these workflows runs on a push to
+`main` that changes its Dockerfile, weekly, and on demand. The push filter is
+`on.push.paths`, so a merge that touches no Dockerfile starts no run;
+`molecule-dind`'s also lists the `docker` role's tasks file its Dockerfile
+mirrors.
 
 Three pieces cover this. All of them are stdlib-only Python that
 runs on the runner's own `python3` (a test enforces that), so the jobs

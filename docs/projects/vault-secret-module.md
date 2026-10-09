@@ -25,6 +25,9 @@ allowed_paths:
   - tools/tests/ci/scope/test_molecule_scope.py
   - tools/tests/ci/test_layout.py
   - docs/topics/engineering/ci/change-scoping.md
+  - ansible/roles/secrets/tasks/read_vault_kv.yaml
+  - ansible/roles/secrets/tasks/generate_vault_value.yaml
+  - docs/topics/secrets/openbao-cd-agent-approles.md
 ---
 
 # Vault Secret Module
@@ -46,7 +49,10 @@ the `vault_backed` Molecule scenario, the tests for the module and for
 topic docs that describe the module and its test target, and the CI change
 scoping that has to know where the module and its shared code live
 (`.github/detect-changes-filters.yml`, `tools/ci/scope/molecule_scope.py`,
-their tests and `change-scoping.md`). Not in scope: the manual/
+their tests and `change-scoping.md`), and the files that name the code this
+project deletes or changes the callers of: the two task files `rotate-secret.yaml`
+shares with `ensure_secret.yaml` (comments only) and the CD agent's AppRole doc.
+Not in scope: the manual/
 `controller_file` path, `vault_login.yaml`'s AppRole login,
 `tools/openbao_utils/client.py`, and `rotate-secret.yaml` (single-secret,
 update-not-create, a different operation from this module's create-only

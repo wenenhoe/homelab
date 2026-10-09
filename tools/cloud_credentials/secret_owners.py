@@ -1,5 +1,5 @@
 """Every secret name cloud_credentials stores in Vault, paired with the module
-whose cached/read_cache/write_cache owns it.
+whose has_secret/read_secret/write_secret owns it.
 
 Shared by openbao_utils' dump, restore, audit and bootstrap, so none of them
 keeps a second list that can drift from what cache.py's scoped() writes.

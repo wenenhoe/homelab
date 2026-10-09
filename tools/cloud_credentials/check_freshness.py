@@ -48,8 +48,8 @@ from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_api
 from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
 
-_leaf_cached, _leaf_read_cache, _, _ = scoped("leaf")
-_rotation_cached, _rotation_read_cache, _, _ = scoped("rotation")
+_leaf_has_secret, _leaf_read_secret, _, _ = scoped("leaf")
+_rotation_has_secret, _rotation_read_secret, _, _ = scoped("rotation")
 
 FRESH, WARNING, URGENT, STALE, CHECK_FAILED = "fresh", "expiring soon", "expiring very soon", "past its window", "check failed"
 
@@ -96,9 +96,9 @@ def check_b2() -> list[tuple[str, str, str]]:
 
     results = []
     for leaf in B2_LEAF_CAPABILITIES:
-        key_id = _leaf_read_cache(f"backblaze-b2-{leaf}-access-key")
+        key_id = _leaf_read_secret(f"backblaze-b2-{leaf}-access-key")
         results.append(_b2_key_result(f"b2 {leaf}", keys_by_id.get(key_id)))
-    rotation_key_id = _rotation_read_cache("_rotation-key-backblaze-b2-key-id")
+    rotation_key_id = _rotation_read_secret("_rotation-key-backblaze-b2-key-id")
     results.append(_b2_key_result("b2 rotation key", keys_by_id.get(rotation_key_id)))
     return results
 
@@ -132,7 +132,7 @@ def check_oci() -> list[tuple[str, str, str]]:
 
 
 def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_cache_name: str) -> tuple[str, str, str]:
-    scim_id = _leaf_read_cache(scim_id_cache_name)
+    scim_id = _leaf_read_secret(scim_id_cache_name)
     if scim_id is None:
         return (label, CHECK_FAILED, f"no {scim_id_cache_name} cache file - created before the SCIM migration (ADR 0016)?")
     try:
@@ -146,16 +146,16 @@ def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_cach
 
 
 def _oci_created_at_result(label: str, cache_name: str) -> tuple[str, str, str]:
-    if not _rotation_cached(cache_name):
+    if not _rotation_has_secret(cache_name):
         return (label, CHECK_FAILED, f"no {cache_name} cache file - created before this thread's tracking was added?")
-    created_at = datetime.fromisoformat(_rotation_read_cache(cache_name))
+    created_at = datetime.fromisoformat(_rotation_read_secret(cache_name))
     status, detail = _classify(created_at + timedelta(days=QUARTERLY_DAYS))
     return (label, status, detail)
 
 
 def check_r2() -> list[tuple[str, str, str]]:
-    token = _rotation_read_cache("_rotation-key-cloudflare-r2-token")
-    account_id = _leaf_read_cache("cloudflare-r2-account-id")
+    token = _rotation_read_secret("_rotation-key-cloudflare-r2-token")
+    account_id = _leaf_read_secret("cloudflare-r2-account-id")
     if token is None or account_id is None:
         missing = "rotation token" if token is None else "account id"
         detail = f"no cached {missing} - can't query Cloudflare without prompting"
@@ -166,7 +166,7 @@ def check_r2() -> list[tuple[str, str, str]]:
 
     results = []
     for leaf in ("write", "read"):
-        token_id = _leaf_read_cache(f"cloudflare-r2-{leaf}-access-key")
+        token_id = _leaf_read_secret(f"cloudflare-r2-{leaf}-access-key")
         results.append(_r2_get_token_result(f"r2 {leaf}", session, account_id, token_id))
 
     results.append(_r2_rotation_token_result(session))

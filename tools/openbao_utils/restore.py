@@ -87,10 +87,10 @@ def main() -> int:
         if not backup_file.exists():
             no_backup_file.append(name)
             continue
-        if module.cached(name):
+        if module.has_secret(name):
             already_in_vault.append(name)
             continue
-        module.write_cache(name, backup_file.read_text())
+        module.write_secret(name, backup_file.read_text())
         restored.append(name)
 
     print(f"Restored to Vault ({len(restored)}):")

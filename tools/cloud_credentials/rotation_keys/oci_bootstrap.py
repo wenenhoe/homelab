@@ -22,7 +22,7 @@ from cloud_credentials.rotation_keys.oci_iam import (
 )
 from cloud_credentials.rotation_keys.oci_scim import identity_domains_client_for_token, oci_scim_access_token, oci_scim_domain_and_credentials
 
-cached, read_cache, write_cache, require_cache_file = scoped("rotation")
+has_secret, read_secret, write_secret, require_secret = scoped("rotation")
 
 # Must match leaf_keys/oci.py's OCI_BUCKET exactly - both flows operate
 # on the same bucket, one scoping IAM policies to it, the other reading/
@@ -59,8 +59,8 @@ def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: s
     cache_key = f"_oci-leaf-user-ocid-{leaf}"
     name = f"homelab-cloud-sync-{leaf}"
 
-    if cached(cache_key):
-        user_id = read_cache(cache_key)
+    if has_secret(cache_key):
+        user_id = read_secret(cache_key)
         group = oci_lookup_one(session, endpoint, tenancy, "groups", name)
     else:
         user = oci_get_or_create_user(
@@ -100,7 +100,7 @@ def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: s
         existing = oci_lookup_one(session, endpoint, tenancy, "policies", name)
         put(f"/20160918/policies/{existing['id']}", {"statements": [statement]})
 
-    write_cache(cache_key, user_id)
+    write_secret(cache_key, user_id)
     return user_id
 
 
@@ -139,7 +139,7 @@ def _oci_ensure_scim_app_credentials() -> None:
     before caching anything, so a typo doesn't silently get cached as
     if it were good."""
     cache_keys = ["_rotation-key-oci-domain-url", "_rotation-key-oci-client-id", "_rotation-key-oci-client-secret", "_rotation-key-oci-app-id"]
-    if all(cached(k) for k in cache_keys):
+    if all(has_secret(k) for k in cache_keys):
         print("oci: SCIM app credentials already cached, skipping")
         return
 
@@ -148,13 +148,13 @@ def _oci_ensure_scim_app_credentials() -> None:
     client = identity_domains_client_for_token(domain_url, token)
     app_id = _find_app_id(client, OCI_SCIM_APP_DISPLAY_NAME)
 
-    write_cache("_rotation-key-oci-domain-url", domain_url)
-    write_cache("_rotation-key-oci-client-id", client_id)
-    write_cache("_rotation-key-oci-client-secret", client_secret)
-    write_cache("_rotation-key-oci-app-id", app_id)
+    write_secret("_rotation-key-oci-domain-url", domain_url)
+    write_secret("_rotation-key-oci-client-id", client_id)
+    write_secret("_rotation-key-oci-client-secret", client_secret)
+    write_secret("_rotation-key-oci-app-id", app_id)
     # Self-tracked, not native (see ADR 0016's Context: the App
     # resource has no expires_on field of its own).
-    write_cache("_rotation-key-oci-created-at", utcnow_iso())
+    write_secret("_rotation-key-oci-created-at", utcnow_iso())
     print("oci: SCIM app credentials verified and cached")
 
 
@@ -240,7 +240,7 @@ def rotate_oci_rotation_key(admin_email: str) -> bool:
     oci_ensure_leaf_identity(session, endpoint, post, put, tenancy, "read", ["OBJECT_INSPECT", "OBJECT_READ"], admin_email)
 
     domain_url, client_id, old_secret = oci_scim_domain_and_credentials()
-    app_id = require_cache_file("_rotation-key-oci-app-id", "Run: python3 -m cloud_credentials.create_rotation_keys --provider oci")
+    app_id = require_secret("_rotation-key-oci-app-id", "Run: python3 -m cloud_credentials.create_rotation_keys --provider oci")
 
     try:
         old_token = oci_scim_access_token(domain_url, client_id, old_secret)
@@ -278,8 +278,8 @@ def rotate_oci_rotation_key(admin_email: str) -> bool:
         )
         return False
 
-    write_cache("_rotation-key-oci-client-secret", new_secret)
-    write_cache("_rotation-key-oci-created-at", utcnow_iso())
+    write_secret("_rotation-key-oci-client-secret", new_secret)
+    write_secret("_rotation-key-oci-created-at", utcnow_iso())
 
     try:
         oci_scim_access_token(domain_url, client_id, new_secret)

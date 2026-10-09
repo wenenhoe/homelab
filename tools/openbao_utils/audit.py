@@ -52,13 +52,13 @@ B2_BUCKET = "homelab-backups-b2"
 _OWNER_BY_NAME = dict(SECRET_OWNERS)
 
 
-def cached(name: str) -> str | None:
+def read_secret(name: str) -> str | None:
     """Reads via cloud_credentials' own Vault-backed cache (cache.py's
     scoped()) - the real store for every SECRET_OWNERS name, never
     the controller-side file cache. name must be one of SECRET_OWNERS' own names -
     a KeyError here means this script asked for a name that package
     doesn't own, not a runtime possibility to paper over."""
-    return _OWNER_BY_NAME[name].read_cache(name)
+    return _OWNER_BY_NAME[name].read_secret(name)
 
 
 # --- Local cache diff ----------------------------------------------------
@@ -113,12 +113,12 @@ def audit_oci() -> None:
     try:
         client = oci_identity_domains_client()
     except SystemExit:
-        # require_cache_file() already printed what's missing and why.
+        # require_secret() already printed what's missing and why.
         return
 
     for leaf in ("write", "read"):
-        user_id = cached(f"_oci-leaf-user-ocid-{leaf}")
-        active_scim_id = cached(f"oci-{leaf}-scim-id")
+        user_id = read_secret(f"_oci-leaf-user-ocid-{leaf}")
+        active_scim_id = read_secret(f"oci-{leaf}-scim-id")
         if not user_id:
             print(f"  {leaf}: no cached user OCID, skipping")
             continue
@@ -141,14 +141,14 @@ def audit_b2() -> None:
     try:
         keys = b2_list_keys(b2_rotation_api())
     except SystemExit:
-        # require_cache_file() already printed what's missing and why.
+        # require_secret() already printed what's missing and why.
         return
 
-    rotation_key_id = cached("_rotation-key-backblaze-b2-key-id")
+    rotation_key_id = read_secret("_rotation-key-backblaze-b2-key-id")
     active = {
-        cached("backblaze-b2-write-access-key"): "write",
-        cached("backblaze-b2-read-access-key"): "read",
-        cached("backblaze-b2-openbao-snapshot-write-access-key"): "openbao snapshot write leaf",
+        read_secret("backblaze-b2-write-access-key"): "write",
+        read_secret("backblaze-b2-read-access-key"): "read",
+        read_secret("backblaze-b2-openbao-snapshot-write-access-key"): "openbao snapshot write leaf",
         rotation_key_id: "rotation key",
     }
     print(f"  {len(keys)} key(s) on the account:")
@@ -179,7 +179,7 @@ def audit_b2() -> None:
 
 def audit_r2() -> None:
     print("\n== Cloudflare R2 account-owned API tokens ==")
-    account_id = cached("cloudflare-r2-account-id")
+    account_id = read_secret("cloudflare-r2-account-id")
     if not account_id:
         print("  no cached cloudflare-r2-account-id, skipping")
         return
@@ -195,9 +195,9 @@ def audit_r2() -> None:
         return
 
     active = {
-        cached("cloudflare-r2-write-access-key"): "write",
-        cached("cloudflare-r2-read-access-key"): "read",
-        cached("cloudflare-r2-openbao-snapshot-write-access-key"): "openbao snapshot write leaf",
+        read_secret("cloudflare-r2-write-access-key"): "write",
+        read_secret("cloudflare-r2-read-access-key"): "read",
+        read_secret("cloudflare-r2-openbao-snapshot-write-access-key"): "openbao snapshot write leaf",
     }
     # Both openbao-snapshot tokens (write and the break-glass readonly)
     # use their own fixed names, not the "homelab-cloud-sync-r2-<leaf>"

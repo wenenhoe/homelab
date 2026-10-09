@@ -14,12 +14,12 @@ from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.verify import verify_leaf_via_rclone
 
-cached, read_cache, write_cache, require_cache_file = scoped("leaf")
+has_secret, read_secret, write_secret, require_secret = scoped("leaf")
 # b2_rotation_api() below reads the rotation-tier session credential
 # rotation_keys/b2.py writes - a second, differently-scoped binding,
 # since this module's own leaf keys and that session live under
 # different top-level Vault paths (ADR 0020).
-_, _, _, _rotation_require_cache_file = scoped("rotation")
+_, _, _, _rotation_require_secret = scoped("rotation")
 
 B2_BUCKET = "homelab-backups-b2"
 
@@ -53,11 +53,11 @@ def b2_rotation_api() -> B2Api:
     not SqliteAccountInfo, since nothing here runs long enough to
     benefit from b2sdk's own on-disk auth cache and this repo already
     has its own cache (Vault, via cache.py)."""
-    rotation_key_id = _rotation_require_cache_file(
+    rotation_key_id = _rotation_require_secret(
         "_rotation-key-backblaze-b2-key-id",
         "Run: python3 -m cloud_credentials.create_rotation_keys --provider b2",
     )
-    rotation_key = _rotation_require_cache_file(
+    rotation_key = _rotation_require_secret(
         "_rotation-key-backblaze-b2-application-key",
         "Run: python3 -m cloud_credentials.create_rotation_keys --provider b2",
     )
@@ -102,8 +102,8 @@ def b2_list_keys(api: B2Api):
 
 
 def create_b2() -> None:
-    write_done = cached("backblaze-b2-write-access-key") and cached("backblaze-b2-write-secret-key")
-    read_done = cached("backblaze-b2-read-access-key") and cached("backblaze-b2-read-secret-key")
+    write_done = has_secret("backblaze-b2-write-access-key") and has_secret("backblaze-b2-write-secret-key")
+    read_done = has_secret("backblaze-b2-read-access-key") and has_secret("backblaze-b2-read-secret-key")
     if write_done and read_done:
         print("b2: both credentials already cached, skipping")
         return
@@ -115,20 +115,20 @@ def create_b2() -> None:
         if done:
             continue
         key = b2_create_leaf_key(api, bucket_id, leaf)
-        write_cache(f"backblaze-b2-{leaf}-access-key", key.id_)
-        write_cache(f"backblaze-b2-{leaf}-secret-key", key.application_key)
+        write_secret(f"backblaze-b2-{leaf}-access-key", key.id_)
+        write_secret(f"backblaze-b2-{leaf}-secret-key", key.application_key)
         print(f"b2 {leaf}: cached")
 
 
 def rotate_b2(leaves: list[str]) -> bool:
     api = b2_rotation_api()
     bucket_id = b2_lookup_bucket_id(api)
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value storage.yaml's rclone.conf uses.")
+    region = require_secret("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value storage.yaml's rclone.conf uses.")
     endpoint = f"https://s3.{region}.backblazeb2.com"
 
     all_ok = True
     for leaf in leaves:
-        old_key_id = read_cache(f"backblaze-b2-{leaf}-access-key")
+        old_key_id = read_secret(f"backblaze-b2-{leaf}-access-key")
 
         new_key = b2_create_leaf_key(api, bucket_id, leaf)
         new_access_key, new_secret_key = new_key.id_, new_key.application_key
@@ -145,8 +145,8 @@ def rotate_b2(leaves: list[str]) -> bool:
             all_ok = False
             continue
 
-        write_cache(f"backblaze-b2-{leaf}-access-key", new_access_key)
-        write_cache(f"backblaze-b2-{leaf}-secret-key", new_secret_key)
+        write_secret(f"backblaze-b2-{leaf}-access-key", new_access_key)
+        write_secret(f"backblaze-b2-{leaf}-secret-key", new_secret_key)
 
         if old_key_id:
             try:

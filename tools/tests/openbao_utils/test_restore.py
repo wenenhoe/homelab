@@ -34,10 +34,10 @@ class _FakeModule:
     def __init__(self):
         self.store: dict[str, str] = {}
 
-    def cached(self, name: str) -> bool:
+    def has_secret(self, name: str) -> bool:
         return name in self.store
 
-    def write_cache(self, name: str, value: str) -> None:
+    def write_secret(self, name: str, value: str) -> None:
         self.store[name] = value
 
 
@@ -52,10 +52,10 @@ class _VaultModule:
     def _path(self, name: str) -> str:
         return f"cloud_credentials/{self._category}/{name}"
 
-    def cached(self, name: str) -> bool:
+    def has_secret(self, name: str) -> bool:
         return self._path(name) in self._vault
 
-    def write_cache(self, name: str, value: str) -> None:
+    def write_secret(self, name: str, value: str) -> None:
         self._vault[self._path(name)] = value
 
 

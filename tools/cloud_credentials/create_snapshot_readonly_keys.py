@@ -77,12 +77,12 @@ SNAPSHOT_BUCKET_B2 = "openbao-snapshots"
 # (cloudflare-r2-account-id, backblaze-b2-region) - this script mints a
 # credential that's never itself cached (see module docstring), so it
 # has no leaf/rotation keys of its own to declare.
-_, _, _, require_cache_file = scoped("leaf")
+_, _, _, require_secret = scoped("leaf")
 
 
 def mint_r2() -> bool:
     token = r2_rotation_token()
-    account_id = require_cache_file(
+    account_id = require_secret(
         "cloudflare-r2-account-id",
         "Already required for cloud-sync.md's endpoint — same file, no new step.",
     )
@@ -140,7 +140,7 @@ def mint_b2() -> bool:
     # the same cache file cloud_sync's own rclone.conf uses (storage.yaml),
     # not guessed, since a wrong region is a silent SignatureDoesNotMatch
     # on B2/S3-compat, not an obviously-wrong-looking error.
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value storage.yaml's rclone.conf uses.")
+    region = require_secret("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value storage.yaml's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "read")
     print("\n--- B2: openbao-snapshot-readonly ---")
     print(f"  bucket:       {SNAPSHOT_BUCKET_B2}")

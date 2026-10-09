@@ -57,7 +57,7 @@ class TestMintR2:
 
     def test_fails_loudly_without_the_r2_admin_token_cached(self, vault):
         # setUp seeded the token; a fresh instance without it must not
-        # silently prompt or proceed — require_cache_file's own exit(1)
+        # silently prompt or proceed — require_secret's own exit(1)
         # is exercised via r2_rotation_token's underlying getpass path,
         # covered by test_r2.py already. This asserts the account-id
         # guard specifically, since mint_r2 needs both.

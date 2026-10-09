@@ -1,4 +1,4 @@
-"""Vault-backed cache for cloud_credentials' leaf and rotation credentials.
+"""Vault-backed store for cloud_credentials' leaf and rotation credentials.
 
 Every leaf_keys/rotation_keys module, check_freshness.py, and the
 top-level create_*.py scripts read/write through the four functions
@@ -57,8 +57,8 @@ _session: dict[str, hvac.Client | str] | None = None
 
 
 def _get_session() -> dict[str, hvac.Client | str]:
-    """Logs in once per process, on first use - every cached()/
-    read_cache()/write_cache()/require_cache_file() call for the rest of
+    """Logs in once per process, on first use - every has_secret()/
+    read_secret()/write_secret()/require_secret() call for the rest of
     this run reuses the same hvac.Client/ca_path. Cleaned up at process
     exit (atexit), not after each call: unlike openbao_utils/bootstrap.py's
     single try/finally around one run, cloud_credentials scripts make
@@ -122,26 +122,26 @@ def _vault_write(category: str, name: str, value: str) -> None:
 
 
 def scoped(category: str):
-    """Returns (cached, read_cache, write_cache, require_cache_file) bound
+    """Returns (has_secret, read_secret, write_secret, require_secret) bound
     to one Vault category - "leaf" or "rotation", ADR 0020's two
     top-level cloud_credentials paths. Each leaf_keys/rotation_keys
     module calls this once, at import time, with its own category: which
-    path a key lives under is a property of which module writes it, not
-    inferred from the key's name.
+    path a secret lives under is a property of which module writes it, not
+    inferred from the secret's name.
     """
     if category not in _VALID_CATEGORIES:
         raise ValueError(f"unknown cloud_credentials Vault category: {category!r}")
 
-    def cached(name: str) -> bool:
+    def has_secret(name: str) -> bool:
         return _vault_read(category, name) is not None
 
-    def read_cache(name: str) -> str | None:
+    def read_secret(name: str) -> str | None:
         return _vault_read(category, name)
 
-    def write_cache(name: str, value: str) -> None:
+    def write_secret(name: str, value: str) -> None:
         _vault_write(category, name, value)
 
-    def require_cache_file(name: str, how_to_get_it: str) -> str:
+    def require_secret(name: str, how_to_get_it: str) -> str:
         value = _vault_read(category, name)
         if value is None:
             print(f"Missing required secret: {_vault_path(category, name)}", file=sys.stderr)
@@ -149,4 +149,4 @@ def scoped(category: str):
             sys.exit(1)
         return value
 
-    return cached, read_cache, write_cache, require_cache_file
+    return has_secret, read_secret, write_secret, require_secret

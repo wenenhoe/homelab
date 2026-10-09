@@ -16,7 +16,7 @@ from oci.identity_domains import IdentityDomainsClient
 
 from cloud_credentials.cache import scoped
 
-_, _, _, require_cache_file = scoped("rotation")
+_, _, _, require_secret = scoped("rotation")
 
 SCIM_CUSTOMER_SECRET_KEY_SCHEMA = "urn:ietf:params:scim:schemas:oracle:idcs:customerSecretKey"  # noqa: S105 - a schema URN, not a credential
 
@@ -24,9 +24,9 @@ how_to_get_it_oci_scim = "Run: python3 -m cloud_credentials.create_rotation_keys
 
 
 def oci_scim_domain_and_credentials() -> tuple[str, str, str]:
-    domain_url = require_cache_file("_rotation-key-oci-domain-url", how_to_get_it_oci_scim).rstrip("/")
-    client_id = require_cache_file("_rotation-key-oci-client-id", how_to_get_it_oci_scim)
-    client_secret = require_cache_file("_rotation-key-oci-client-secret", how_to_get_it_oci_scim)
+    domain_url = require_secret("_rotation-key-oci-domain-url", how_to_get_it_oci_scim).rstrip("/")
+    client_id = require_secret("_rotation-key-oci-client-id", how_to_get_it_oci_scim)
+    client_secret = require_secret("_rotation-key-oci-client-secret", how_to_get_it_oci_scim)
     return domain_url, client_id, client_secret
 
 

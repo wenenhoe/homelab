@@ -49,7 +49,7 @@ def _write(dest: Path, name: str, value: str) -> None:
 def _dump_cloud_credentials(dest: Path) -> tuple[list[str], list[str]]:
     written, blank = [], []
     for name, module in SECRET_OWNERS:
-        value = module.read_cache(name)
+        value = module.read_secret(name)
         if value is None:
             blank.append(name)
             continue

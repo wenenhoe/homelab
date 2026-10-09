@@ -13,16 +13,16 @@ def test_an_unseeded_read_returns_none_without_opening_a_vault_session(fake_vaul
 @pytest.mark.parametrize("category", ["leaf", "rotation"])
 def test_a_seeded_value_is_read_back_through_the_category_scoped_cache(fake_vault, category):
     fake_vault.seed(category, "some-key", "sentinel-7f3a")
-    _, read_cache, _, _ = cache.scoped(category)
+    _, read_secret, _, _ = cache.scoped(category)
 
-    assert read_cache("some-key") == "sentinel-7f3a"
+    assert read_secret("some-key") == "sentinel-7f3a"
 
 
 @pytest.mark.parametrize("category", ["leaf", "rotation"])
 def test_a_write_through_the_scoped_cache_lands_under_the_categorys_vault_path(fake_vault, category):
-    _, _, write_cache, _ = cache.scoped(category)
+    _, _, write_secret, _ = cache.scoped(category)
 
-    write_cache("some-key", "written-value")
+    write_secret("some-key", "written-value")
 
     assert fake_vault.store == {f"cloud_credentials/{category}/some-key": "written-value"}
     assert fake_vault.get(category, "some-key") == "written-value"

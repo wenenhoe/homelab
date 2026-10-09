@@ -4,12 +4,12 @@ Run via `uv run pytest tools/tests/ -v`. Every other test for
 openbao_utils/restore.py/openbao_utils/audit.py exercises
 their own logic against a fake module double (see those tests' own
 comments for why) - which means neither one ever actually calls
-cached()/read_cache()/write_cache() on the real leaf_keys/
+has_secret()/read_secret()/write_secret() on the real leaf_keys/
 rotation_keys modules SECRET_OWNERS pairs each name with. This test
 exists specifically to close that gap: a module bound via
 scoped()'s `_, _, _, _ = scoped(...)` pattern that discards one of the
 three names those scripts need imports fine and passes every other test,
-but breaks the first time openbao_utils/audit.py's cached() actually
+but breaks the first time openbao_utils/audit.py's has_secret() actually
 dispatches to it.
 
 No real Vault or file I/O here - purely checks that each paired module
@@ -29,16 +29,16 @@ from cloud_credentials.rotation_keys import r2 as rotation_r2
 from cloud_credentials.secret_owners import SECRET_OWNERS
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
-_REQUIRED_ATTRS = ("cached", "read_cache", "write_cache")
+_REQUIRED_ATTRS = ("has_secret", "read_secret", "write_secret")
 
 # Every secret name a leaf_keys module reads via its OWN second,
 # rotation-scoped binding (e.g. leaf_keys/oci.py's
-# _rotation_require_cache_file) - confirmed by hand against each
+# _rotation_require_secret) - confirmed by hand against each
 # module's actual source, not inferred. SECRET_OWNERS must pair
 # every one of these with the rotation module, never the leaf module -
 # e.g. _oci-leaf-user-ocid-{write,read} pair with rotation_oci, because
 # leaf_keys/oci.py's own oci_leaf_user_id() reads it via
-# _rotation_require_cache_file.
+# _rotation_require_secret.
 _CROSS_CATEGORY_ROTATION_NAMES = {
     "_rotation-key-backblaze-b2-key-id": rotation_b2,
     "_rotation-key-backblaze-b2-application-key": rotation_b2,
@@ -49,7 +49,7 @@ _CROSS_CATEGORY_ROTATION_NAMES = {
 
 
 class TestSecretOwnersInterface:
-    def test_every_paired_module_exposes_cached_read_cache_write_cache(self):
+    def test_every_paired_module_exposes_has_secret_read_secret_write_secret(self):
         missing: list[str] = []
         for name, module in SECRET_OWNERS:
             for attr in _REQUIRED_ATTRS:
@@ -76,5 +76,5 @@ class TestSecretOwnersInterface:
             if name not in scopes:
                 continue
             with subtests.test(name=name):
-                module.write_cache(name, "value")
+                module.write_secret(name, "value")
                 assert fake_vault.get_path(f"{scopes[name]}/{name}") == "value"

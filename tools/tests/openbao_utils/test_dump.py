@@ -18,7 +18,7 @@ class _FakeModule:
     def __init__(self, value: str | None):
         self._value = value
 
-    def read_cache(self, name: str) -> str | None:
+    def read_secret(self, name: str) -> str | None:
         return self._value
 
 

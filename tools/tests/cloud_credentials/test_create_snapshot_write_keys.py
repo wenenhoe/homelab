@@ -41,7 +41,7 @@ class TestMintR2:
             snap.SNAPSHOT_BUCKET_R2,
             "write",
         )
-        assert snap.read_cache(snap.VAULT_NAME_R2_ACCESS) == "TOKEN_ID"
+        assert snap.read_secret(snap.VAULT_NAME_R2_ACCESS) == "TOKEN_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"), autospec=True)
     @patch.object(snap, "r2_permission_group_ids", return_value={"Workers R2 Storage Bucket Item Write": "grp-write"}, autospec=True)
@@ -52,7 +52,7 @@ class TestMintR2:
         ok = snap.mint_r2()
 
         assert not ok
-        assert snap.read_cache(snap.VAULT_NAME_R2_ACCESS) is None, "a credential that fails its own rclone check must never be cached"
+        assert snap.read_secret(snap.VAULT_NAME_R2_ACCESS) is None, "a credential that fails its own rclone check must never be cached"
 
     def test_skips_if_already_cached(self, vault):
         vault.seed(snap.VAULT_NAME_R2_ACCESS, "existing-id")
@@ -96,7 +96,7 @@ class TestMintB2:
             snap.SNAPSHOT_BUCKET_B2,
             "write",
         )
-        assert snap.read_cache(snap.VAULT_NAME_B2_ACCESS) == "KEY_ID"
+        assert snap.read_secret(snap.VAULT_NAME_B2_ACCESS) == "KEY_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "rclone lsjson (PutObject) failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
@@ -108,7 +108,7 @@ class TestMintB2:
         ok = snap.mint_b2()
 
         assert not ok
-        assert snap.read_cache(snap.VAULT_NAME_B2_ACCESS) is None
+        assert snap.read_secret(snap.VAULT_NAME_B2_ACCESS) is None
 
     def test_skips_if_already_cached(self, vault):
         vault.seed(snap.VAULT_NAME_B2_ACCESS, "existing-id")
@@ -139,7 +139,7 @@ class TestRotateB2:
 
         assert ok
         api.session.delete_key.assert_called_once_with("OLD_KEY_ID")
-        assert snap.read_cache(snap.VAULT_NAME_B2_ACCESS) == "NEW_KEY_ID"
+        assert snap.read_secret(snap.VAULT_NAME_B2_ACCESS) == "NEW_KEY_ID"
 
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
     @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
@@ -152,7 +152,7 @@ class TestRotateB2:
 
         assert not ok
         api.session.delete_key.assert_not_called()
-        assert snap.read_cache(snap.VAULT_NAME_B2_ACCESS) == "OLD_KEY_ID", "old credential must stay live and cached until a new one actually verifies"
+        assert snap.read_secret(snap.VAULT_NAME_B2_ACCESS) == "OLD_KEY_ID", "old credential must stay live and cached until a new one actually verifies"
 
 
 class TestRotateR2:
@@ -174,7 +174,7 @@ class TestRotateR2:
 
         assert ok
         mock_delete.assert_called_once_with(session, "acct123", "OLD_TOKEN_ID")
-        assert snap.read_cache(snap.VAULT_NAME_R2_ACCESS) == "NEW_TOKEN_ID"
+        assert snap.read_secret(snap.VAULT_NAME_R2_ACCESS) == "NEW_TOKEN_ID"
 
     @patch.object(snap, "r2_delete_token", autospec=True)
     @patch.object(snap, "verify_leaf_via_rclone", return_value=(False, "PutObject failed: AccessDenied"), autospec=True)
@@ -187,4 +187,4 @@ class TestRotateR2:
 
         assert not ok
         mock_delete.assert_not_called()
-        assert snap.read_cache(snap.VAULT_NAME_R2_ACCESS) == "OLD_TOKEN_ID", "old credential must stay live and cached until a new one actually verifies"
+        assert snap.read_secret(snap.VAULT_NAME_R2_ACCESS) == "OLD_TOKEN_ID", "old credential must stay live and cached until a new one actually verifies"

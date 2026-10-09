@@ -50,7 +50,7 @@ from cloud_credentials.verify import verify_leaf_via_rclone
 # cloud_sync leaves leaf_keys/{b2,r2}.py already declare - see
 # cache.py's own scoped() docstring for why the category lives with the
 # module that writes the secret, not a central table.
-cached, read_cache, write_cache, require_cache_file = scoped("leaf")
+has_secret, read_secret, write_secret, require_secret = scoped("leaf")
 
 VAULT_NAME_R2_ACCESS = "cloudflare-r2-openbao-snapshot-write-access-key"
 VAULT_NAME_R2_SECRET = "cloudflare-r2-openbao-snapshot-write-secret-key"  # noqa: S105 - Vault secret name, not secret value
@@ -63,7 +63,7 @@ KEY_NAME_B2 = "openbao-snapshot-write"
 
 def _r2_session_and_groups() -> tuple[requests.Session, str, dict]:
     token = r2_rotation_token()
-    account_id = require_cache_file(
+    account_id = require_secret(
         "cloudflare-r2-account-id",
         "Already required for cloud-sync.md's endpoint — same file, no new step.",
     )
@@ -73,7 +73,7 @@ def _r2_session_and_groups() -> tuple[requests.Session, str, dict]:
 
 
 def mint_r2() -> bool:
-    if cached(VAULT_NAME_R2_ACCESS) and cached(VAULT_NAME_R2_SECRET):
+    if has_secret(VAULT_NAME_R2_ACCESS) and has_secret(VAULT_NAME_R2_SECRET):
         print("r2 openbao-snapshot-write: already cached, skipping")
         return True
 
@@ -87,15 +87,15 @@ def mint_r2() -> bool:
             f"r2 openbao-snapshot-write: verification FAILED ({detail}) — not cached. Revoke {access_key} by hand in the Cloudflare dashboard.", file=sys.stderr
         )
         return False
-    write_cache(VAULT_NAME_R2_ACCESS, access_key)
-    write_cache(VAULT_NAME_R2_SECRET, secret_key)
+    write_secret(VAULT_NAME_R2_ACCESS, access_key)
+    write_secret(VAULT_NAME_R2_SECRET, secret_key)
     print(f"r2 openbao-snapshot-write: cached, verified ({detail})")
     return True
 
 
 def rotate_r2() -> bool:
     session, account_id, group_by_name = _r2_session_and_groups()
-    old_token_id = read_cache(VAULT_NAME_R2_ACCESS)
+    old_token_id = read_secret(VAULT_NAME_R2_ACCESS)
 
     result = r2_create_leaf_token(session, account_id, group_by_name, "write", bucket=SNAPSHOT_BUCKET_R2, token_name=TOKEN_NAME_R2)
     new_token_id, new_secret_key = result["id"], hashlib.sha256(result["value"].encode()).hexdigest()
@@ -110,8 +110,8 @@ def rotate_r2() -> bool:
         )
         return False
 
-    write_cache(VAULT_NAME_R2_ACCESS, new_token_id)
-    write_cache(VAULT_NAME_R2_SECRET, new_secret_key)
+    write_secret(VAULT_NAME_R2_ACCESS, new_token_id)
+    write_secret(VAULT_NAME_R2_SECRET, new_secret_key)
 
     if old_token_id:
         try:
@@ -128,7 +128,7 @@ def rotate_r2() -> bool:
 
 
 def mint_b2() -> bool:
-    if cached(VAULT_NAME_B2_ACCESS) and cached(VAULT_NAME_B2_SECRET):
+    if has_secret(VAULT_NAME_B2_ACCESS) and has_secret(VAULT_NAME_B2_SECRET):
         print("b2 openbao-snapshot-write: already cached, skipping")
         return True
 
@@ -138,13 +138,13 @@ def mint_b2() -> bool:
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
     access_key, secret_key = key.id_, key.application_key
 
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value cloud-sync.md's rclone.conf uses.")
+    region = require_secret("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value cloud-sync.md's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "write")
     if not ok:
         print(f"b2 openbao-snapshot-write: verification FAILED ({detail}) — not cached. Revoke {access_key} by hand in the B2 Console.", file=sys.stderr)
         return False
-    write_cache(VAULT_NAME_B2_ACCESS, access_key)
-    write_cache(VAULT_NAME_B2_SECRET, secret_key)
+    write_secret(VAULT_NAME_B2_ACCESS, access_key)
+    write_secret(VAULT_NAME_B2_SECRET, secret_key)
     print(f"b2 openbao-snapshot-write: cached, verified ({detail})")
     return True
 
@@ -152,13 +152,13 @@ def mint_b2() -> bool:
 def rotate_b2() -> bool:
     api = b2_rotation_api()
     bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
-    old_key_id = read_cache(VAULT_NAME_B2_ACCESS)
+    old_key_id = read_secret(VAULT_NAME_B2_ACCESS)
 
     # Read back via .id_, not .application_key_id - see leaf_keys/b2.py's b2_create_leaf_key.
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
     new_key_id, new_app_key = key.id_, key.application_key
 
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value cloud-sync.md's rclone.conf uses.")
+    region = require_secret("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value cloud-sync.md's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(new_key_id, new_app_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "write")
     if not ok:
         print(
@@ -169,8 +169,8 @@ def rotate_b2() -> bool:
         )
         return False
 
-    write_cache(VAULT_NAME_B2_ACCESS, new_key_id)
-    write_cache(VAULT_NAME_B2_SECRET, new_app_key)
+    write_secret(VAULT_NAME_B2_ACCESS, new_key_id)
+    write_secret(VAULT_NAME_B2_SECRET, new_app_key)
 
     if old_key_id:
         try:

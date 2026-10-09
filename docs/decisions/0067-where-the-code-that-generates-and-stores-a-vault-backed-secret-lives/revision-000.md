@@ -7,7 +7,7 @@ short: Vault-backed secret module
 solution: "A custom Ansible module under ansible/module_utils/ + a role's library/, calling hvac directly, replacing the task-based read/generate/write/reread sequence"
 summary: "Where the logic that generates, reads and CAS-writes a Vault-backed secret lives, replacing five correlated uri tasks with one module."
 topic: secrets-store
-status: working
+status: approved
 related: [ADR-0021, ADR-0030, ADR-0031, ADR-0066]
 ---
 
@@ -106,6 +106,8 @@ identically for every secret regardless of which role needs it.
   named in `ansible.cfg`'s `module_utils` setting, mirroring the existing
   `filter_plugins` convention. The module imports it as
   `ansible.module_utils.openbao_kv`.
+- The module lives in the `secrets` role's `library/`, the only role that
+  calls it; Ansible finds a role's `library/` without a setting.
 - The module calls `hvac` directly. It does not import
   `tools/openbao_utils/client.py`; the spike showed that reuse needs an
   unsupported mechanism. `tools/openbao_utils/client.py` is unchanged and
@@ -156,9 +158,9 @@ assumption.
 
 ## Consequences
 
-- `ansible/module_utils/` and a `library/` become new top-level
-  directories, alongside `filter_plugins/`; `ansible.cfg` gains a
-  `module_utils` line.
+- `ansible/module_utils/` becomes a new top-level directory, alongside
+  `filter_plugins/`, and `ansible.cfg` gains a `module_utils` line. The
+  module sits in `ansible/roles/secrets/library/`.
 - `secrets`'s existing `vault_backed` Molecule scenario, which already runs
   against a real OpenBao test target, needs a create-race case added so
   the module's `InvalidRequest`-catching branch is exercised the same way

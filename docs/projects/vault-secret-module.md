@@ -2,10 +2,24 @@
 id: PROJ-vault-secret-module
 title: "Vault Secret Module"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Replace process_vault_secrets.yaml's five-stage, index-correlated task sequence with one ensure_vault_secret module."
 decision: ADR-0067/0
+allowed_paths:
+  - ansible/ansible.cfg
+  - ansible/module_utils/openbao_kv.py
+  - ansible/roles/secrets/library/ensure_vault_secret.py
+  - ansible/roles/secrets/tasks/ensure_secret.yaml
+  - ansible/roles/secrets/tasks/process_vault_secrets.yaml
+  - ansible/roles/secrets/molecule/vault_backed/**
+  - ansible/molecule-coverage/thresholds.yaml
+  - ansible/tests/test_openbao_kv.py
+  - ansible/tests/test_ensure_vault_secret.py
+  - ansible/tests/test_secrets_module_no_log.py
+  - pyproject.toml
+  - docs/topics/secrets/secrets.md
+  - docs/topics/engineering/molecule-testing.md
 ---
 
 # Vault Secret Module
@@ -18,11 +32,13 @@ shared client code are proven against a real OpenBao target before
 
 ## Scope
 
-`ansible/module_utils/openbao_kv.py`, the `ensure_vault_secret` module,
-`ansible/ansible.cfg`'s `module_utils` setting, the `secrets` role's
-`ensure_secret.yaml` and `process_vault_secrets.yaml`, the `vault_backed`
-Molecule scenario, and the tests for the module and for `no_log` coverage
-under `ansible/tests/`. Not in scope: the manual/
+`ansible/module_utils/openbao_kv.py`, the `ensure_vault_secret` module in
+the `secrets` role's `library/`, `ansible/ansible.cfg`'s `module_utils`
+setting, the role's `ensure_secret.yaml` and `process_vault_secrets.yaml`,
+the `vault_backed` Molecule scenario, the tests for the module and for
+`no_log` coverage under `ansible/tests/`, the test import roots in
+`pyproject.toml`, the `secrets` role's coverage threshold, and the two
+topic docs that describe the module and its test target. Not in scope: the manual/
 `controller_file` path, `vault_login.yaml`'s AppRole login,
 `tools/openbao_utils/client.py`, and `rotate-secret.yaml` (single-secret,
 update-not-create, a different operation from this module's create-only
@@ -32,8 +48,7 @@ path).
 
 Implements
 [ADR 0067 (Vault-backed secret module)](../decisions/0067-where-the-code-that-generates-and-stores-a-vault-backed-secret-lives/revision-000.md),
-still `working`. The spike behind it is done; this project stays
-`not-started` until the revision is `approved`.
+`approved`. The spike behind it is done.
 
 ## Execution plan
 

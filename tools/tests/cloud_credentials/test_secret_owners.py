@@ -15,6 +15,10 @@ dispatches to it.
 No real Vault or file I/O here - purely checks that each paired module
 exposes the three callables both scripts call, before either script
 ever gets the chance to fail on a live controller.
+
+It also pins that a name with a secret_catalog.yaml entry is stored at
+that entry's scope, which openbao_utils/restore.py relies on to restore
+it once, in its catalog phase, and not again through its owning module.
 """
 
 from __future__ import annotations
@@ -23,6 +27,7 @@ from cloud_credentials.rotation_keys import b2 as rotation_b2
 from cloud_credentials.rotation_keys import oci_bootstrap as rotation_oci
 from cloud_credentials.rotation_keys import r2 as rotation_r2
 from cloud_credentials.secret_owners import SECRET_OWNERS
+from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 _REQUIRED_ATTRS = ("cached", "read_cache", "write_cache")
 
@@ -64,3 +69,12 @@ class TestSecretOwnersInterface:
             if actual_module is not expected_module:
                 wrong.append(f"{name}: paired with {getattr(actual_module, '__name__', actual_module)}, expected {expected_module.__name__}")
         assert wrong == [], f"cross-category names paired with the wrong module: {wrong}"
+
+    def test_a_name_with_a_catalog_entry_is_stored_at_the_entrys_scope(self, fake_vault, subtests):
+        scopes = openbao_scopes(load_catalog(CATALOG_PATH))
+        for name, module in SECRET_OWNERS:
+            if name not in scopes:
+                continue
+            with subtests.test(name=name):
+                module.write_cache(name, "value")
+                assert fake_vault.get_path(f"{scopes[name]}/{name}") == "value"

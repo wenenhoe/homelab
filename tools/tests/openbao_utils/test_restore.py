@@ -41,6 +41,36 @@ class _FakeModule:
         self.store[name] = value
 
 
+class _VaultModule:
+    """Like _FakeModule, but its store is a Vault dict shared with the test,
+    at the cloud_credentials/<category>/<name> path scoped() would use."""
+
+    def __init__(self, vault: dict[str, str], category: str):
+        self._vault = vault
+        self._category = category
+
+    def _path(self, name: str) -> str:
+        return f"cloud_credentials/{self._category}/{name}"
+
+    def cached(self, name: str) -> bool:
+        return self._path(name) in self._vault
+
+    def write_cache(self, name: str, value: str) -> None:
+        self._vault[self._path(name)] = value
+
+
+def _summary(out: str) -> dict[str, list[str]]:
+    """main()'s printed summary: each heading line -> the names listed under it."""
+    sections: dict[str, list[str]] = {}
+    names: list[str] = []
+    for line in out.splitlines():
+        if line.startswith("  "):
+            names.append(line.strip())
+        elif line.strip():
+            names = sections.setdefault(line, [])
+    return sections
+
+
 @pytest.fixture
 def tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
     return tmp_path_factory.mktemp("restore")
@@ -198,3 +228,57 @@ class TestSecretOwnersRestore:
         with patch.object(restore, "SECRET_OWNERS", [("padded-key", mod)]):
             _run(tmp)
         assert mod.store["padded-key"] == "  has padding  \n"
+
+
+class TestBothPhases:
+    """A name with a catalog entry that SECRET_OWNERS also lists is one secret in
+    one Vault path, so the summary reports it once, under the outcome it had."""
+
+    @pytest.fixture
+    def env(self, tmp, monkeypatch) -> SimpleNamespace:
+        catalog_file = tmp / "catalog.yaml"
+        catalog_file.write_text("secret_catalog:\n  shared-name:\n    source: manual\n    store: openbao\n    scope: cloud_credentials/leaf\n")
+        backup_dir = tmp / "backup"
+        backup_dir.mkdir()
+        vault: dict[str, str] = {}
+        monkeypatch.setattr(restore, "CATALOG_PATH", catalog_file)
+        monkeypatch.setattr(
+            restore,
+            "SECRET_OWNERS",
+            [("shared-name", _VaultModule(vault, "leaf")), ("bookkeeping-name", _VaultModule(vault, "rotation"))],
+        )
+        return SimpleNamespace(backup_dir=backup_dir, vault=vault)
+
+    @pytest.mark.parametrize(
+        ("in_backup", "in_vault", "expected"),
+        [
+            pytest.param(True, False, {"Restored to Vault (2):": ["shared-name", "bookkeeping-name"]}, id="restored"),
+            pytest.param(
+                True,
+                True,
+                {"Restored to Vault (1):": ["bookkeeping-name"], "Already in Vault, left untouched (1):": ["shared-name"]},
+                id="already-in-vault",
+            ),
+            pytest.param(
+                False,
+                False,
+                {"Restored to Vault (1):": ["bookkeeping-name"], "No backup file found, nothing to restore (1):": ["shared-name"]},
+                id="no-backup-file",
+            ),
+        ],
+    )
+    def test_a_shared_name_is_reported_once(self, env, capsys, in_backup, in_vault, expected):
+        (env.backup_dir / "bookkeeping-name").write_text("bookkeeping-value")
+        if in_backup:
+            (env.backup_dir / "shared-name").write_text("backup-value")
+        if in_vault:
+            env.vault["cloud_credentials/leaf/shared-name"] = "vault-value"
+
+        with (
+            patch.object(restore, "read_vault_path", side_effect=env.vault.get, autospec=True),
+            patch.object(restore, "write_vault_path", side_effect=env.vault.__setitem__, autospec=True),
+        ):
+            rc = _run(env.backup_dir)
+
+        assert rc == 0
+        assert _summary(capsys.readouterr().out) == expected

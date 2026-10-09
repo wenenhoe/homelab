@@ -22,7 +22,8 @@ Two phases:
      secret_catalog.yaml entry of their own (_rotation-key-*,
      _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values)
      and which phase 1 has no way to reach - via each name's owning
-     module in SECRET_OWNERS.
+     module in SECRET_OWNERS. A SECRET_OWNERS name that does have a
+     catalog entry is left to phase 1.
 
 Pure copy, no regeneration, no prompting. Idempotent - skips any value
 already present in Vault, so it's safe to re-run if interrupted
@@ -64,7 +65,9 @@ def main() -> int:
     already_in_vault: list[str] = []
     no_backup_file: list[str] = []
 
-    for name, scope in _scoped_catalog_entries().items():
+    scoped = _scoped_catalog_entries()
+
+    for name, scope in scoped.items():
         backup_file = backup_dir / name
         if not backup_file.exists():
             no_backup_file.append(name)
@@ -76,6 +79,10 @@ def main() -> int:
         restored.append(name)
 
     for name, module in SECRET_OWNERS:
+        # Phase 1 restored it at its catalog scope, the same Vault path as its
+        # module's; test_secret_owners.py pins that.
+        if name in scoped:
+            continue
         backup_file = backup_dir / name
         if not backup_file.exists():
             no_backup_file.append(name)

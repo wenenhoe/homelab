@@ -9,7 +9,8 @@ Any mismatch is an error here instead.
 
 Each leg is {name, role, scenarios}: `scenarios` is the space-separated list a
 shard runs, empty for a whole role. Legs of split roles come first, in table
-order, so the longest jobs are the first to start.
+order. Actions doesn't promise to start matrix jobs in that order, so it only
+makes the output stable.
 
 Usage (from tools/): ROLES='["compose","apt"]' python -m ci.scope.molecule_shards
 Writes shards=<json array> to $GITHUB_OUTPUT (stdout if unset).

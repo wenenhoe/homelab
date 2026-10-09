@@ -186,11 +186,27 @@ fails a PR that deletes a project doc and does neither; see
 [ADR 0037 revision 2 (Decision and project workflow)](../decisions/0037-decision-and-project-documentation-workflow/revision-002.md)
 for the reasoning.
 
+That PR condenses the revision first, while it is still `approved` and can
+be edited in place: it removes narration, history and text a topic doc now
+holds, without changing what was decided or why. A revision left heavy with
+detail that mattered only while building keeps it for good, because once
+the revision is `accepted` the same condensing is a material change that
+needs a new revision
+([Editing a revision](../decisions/README.md#editing-a-revision)).
+Nothing checks that it was done, so it is on the closing checklist.
+
 ### Closing checklist
+
+This is the only copy: each project doc's `## Closing checklist` points
+here.
 
 - [ ] Every acceptance criterion is met, and its required check passed.
 - [ ] Every bullet of the linked revision's Decision is implemented, or
       named by a successor project.
+- [ ] If this PR sets the linked revision `accepted`, condense it first:
+      remove narration, history and text a topic doc now holds, without
+      changing what was decided or why. Once `accepted`, condensing is a
+      material change.
 - [ ] The linked revision is `accepted` (set in the PR that closes the
       last project naming it), another project still names it, or there
       is no decision to settle.

@@ -160,9 +160,10 @@ splits those roles into shards, each a list of scenarios, and `detect-changes`
 turns the queued roles into legs with
 [`ci.scope.molecule_shards`](../../../../tools/ci/scope/molecule_shards.py): a
 split role becomes one leg per shard (`secrets-1`, `secrets-2`, ...), any other
-role one leg running every scenario. Split roles come first, so their long
-legs are the first to start when more legs are queued than the plan's
-concurrent-job limit allows.
+role one leg running every scenario. Split roles are listed first, but
+Actions doesn't start matrix jobs in list order: when more jobs are queued than
+the plan's concurrent-job limit allows, a long leg can wait behind short ones.
+A run that queues every role is limited by that cap, not by its longest leg.
 
 The table must cover each scenario of a split role exactly once. A scenario in
 no shard would never run, so `detect-changes` fails the run when a queued split

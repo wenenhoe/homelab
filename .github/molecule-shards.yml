@@ -2,8 +2,9 @@
 # listed scenarios. A role absent here runs as one job with every scenario.
 # Every scenario of a listed role must appear in exactly one shard: detect-changes
 # fails the run, and tools/tests/ci/scope/test_molecule_shards.py fails, otherwise.
-# Shards are balanced on measured scenario times, heaviest shard first, and the
-# roles run longest first so their jobs start before the short ones queue.
+# Shards are balanced on measured scenario times, heaviest shard first. Listed
+# order is only the order legs are handed to Actions, which doesn't promise to
+# start them in it.
 secrets:
   - [vault_backed, delivered_root_cert, vault_approle_files_missing]
   - [rotate_secret, default, manual_missing]

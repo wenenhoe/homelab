@@ -17,31 +17,6 @@
     compose_apps:
       - name: volapp
   tasks:
-    # Plants a legacy bind-mount directory with pre-existing content, so
-    # ensure_volume.yaml's migration branch has something to do. Guarded
-    # on the ".migrated" marker to stay idempotent across the
-    # converge-twice idempotence check: first run creates and migrates
-    # it, second run sees the marker and does nothing — matching what
-    # ensure_volume.yaml itself finds in production.
-    - name: Check whether the legacy migration has already happened
-      ansible.builtin.stat:
-        path: "{{ compose_deploy_dir }}/volapp/data.migrated"
-      register: compose_legacy_already_migrated
-
-    - name: Ensure the legacy bind-mount dir exists
-      ansible.builtin.file:
-        path: "{{ compose_deploy_dir }}/volapp/data"
-        state: directory
-        mode: "0755"
-      when: not compose_legacy_already_migrated.stat.exists
-
-    - name: Simulate a pre-existing legacy bind-mounted file
-      ansible.builtin.copy:
-        dest: "{{ compose_deploy_dir }}/volapp/data/legacy-file.txt"
-        content: "legacy content predating the named volume\n"
-        mode: "0644"
-      when: not compose_legacy_already_migrated.stat.exists
-
     - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers

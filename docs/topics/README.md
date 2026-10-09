@@ -14,7 +14,7 @@ Deploying apps: how the Ansible and Compose pipeline works and how to extend it.
 | [`deployment-flow.md`](deploy/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_catalog`. |
 | [`adding-an-app.md`](deploy/adding-an-app.md) | Wiring a new Compose app into the catalog. |
 | [`host-vars.md`](deploy/host-vars.md) | `host_vars/<host>.yaml` field reference. |
-| [`volumes.md`](deploy/volumes.md) | Named-volume storage: bind-mount migration, config seeding. |
+| [`volumes.md`](deploy/volumes.md) | Named-volume storage: creation, config seeding. |
 | [`volume-maintenance.md`](deploy/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |
 | [`cleanup.md`](deploy/cleanup.md) | Removing stacks orphaned from `compose_apps`. |
 | [`cd-agent-host.md`](deploy/cd-agent-host.md) | The `cd_agent` role: per-job users, sandboxed units and timers, and the `sshd` restriction to the operator host. |

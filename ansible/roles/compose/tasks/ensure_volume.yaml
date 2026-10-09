@@ -1,21 +1,14 @@
 ---
 # Reusable single-volume initializer, included once per entry in
-# compose_app_item.volumes (see init.yaml). compose_volume_item.legacy_path
-# is the old bind-mount subpath if it doesn't match `name` (e.g. lldap's
-# "letsencrypt/conf" for the letsencrypt_conf volume) — defaults to `name`.
+# compose_app_item.volumes (see init.yaml).
 #
 # Ensures the external volume "<app>_<volume>" exists, labelled so it can
 # be found later without the app still being in the catalog (see
-# cleanup.yaml). If a legacy bind-mount directory still exists at the
-# expected path, copies its contents in once via a throwaway container,
-# then renames the old directory to "<path>.migrated" so it isn't picked
-# up again — the rename itself is the only idempotency check needed.
+# cleanup.yaml).
 
 - name: "Set volume facts ({{ [compose_app_item.name, compose_volume_item.name] | path_join }})"
   ansible.builtin.set_fact:
     compose_volume_full_name: "{{ compose_app_item.name }}_{{ compose_volume_item.name }}"
-    compose_volume_legacy_path: >-
-      {{ compose_deploy_dir }}/{{ compose_app_item.name }}/{{ compose_volume_item.legacy_path | default(compose_volume_item.name) }}
 
 - name: "Ensure volume exists ({{ compose_volume_full_name }})"
   community.docker.docker_volume:
@@ -24,27 +17,3 @@
     labels:
       homelab.app: "{{ compose_app_item.name }}"
       homelab.volume: "{{ compose_volume_item.name }}"
-
-- name: "Check for legacy bind-mount directory ({{ compose_volume_full_name }})"
-  ansible.builtin.stat:
-    path: "{{ compose_volume_legacy_path }}"
-  register: compose_volume_legacy_stat
-
-- name: "Migrate legacy bind-mount data into volume, once ({{ compose_volume_full_name }})"
-  community.docker.docker_container:
-    name: "{{ compose_app_item.name }}-{{ compose_volume_item.name }}-migrate"
-    image: alpine:3.24
-    command: ["sh", "-c", "cp -a /old/. /new/"]
-    volumes:
-      - "{{ compose_volume_legacy_path }}:/old:ro"
-      - "{{ compose_volume_full_name }}:/new"
-    detach: false
-    cleanup: true
-    state: started
-  when: compose_volume_legacy_stat.stat.exists
-
-- name: "Mark legacy directory as migrated ({{ compose_volume_full_name }})"
-  ansible.builtin.command:
-    cmd: "mv {{ compose_volume_legacy_path }} {{ compose_volume_legacy_path }}.migrated"
-  when: compose_volume_legacy_stat.stat.exists
-  changed_when: true

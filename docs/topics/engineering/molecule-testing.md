@@ -19,7 +19,7 @@ result, then re-converges to check idempotence — mirroring what
 | | `invalid_input` | Nineteen bad inputs (a wildcard, CIDR or out-of-range operator address, a bad or job-user admin name, a job with both schedules, a job nothing starts, a successor that is no job or not a list, a cycle, a job that follows itself, a bad name, an empty or string command, duplicate names, no jobs, and the machine Ansible is running on), each refused by the check that names it, before anything touches the host. No systemd, no privileged mode. |
 | `qemu_guest_agent` | `default` | Package installs; shipped unit still matches the udev-activated shape the role relies on (no `[Install]`/`WantedBy=`). No systemd start/enable path — see [`qemu-guest-agent.md`](../infra/qemu-guest-agent.md). |
 | `compose` | `default` | Main init/deploy happy path. |
-| | `volumes` | Named-volume creation, legacy bind-mount migration, config seeding, teardown. |
+| | `volumes` | Named-volume creation, config seeding, teardown. |
 | | `scripts` | The two script-deployment paths in `init.yaml` (direct copy vs. volume-seeded). |
 | | `build` | The `build: true` branch of `deploy.yaml`. |
 | | `cleanup` | `cleanup.yaml` dry-run, keep-content path, and label-fallback teardown. |

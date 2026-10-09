@@ -82,11 +82,6 @@
 - name: "Recreate the volume empty ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
   ansible.builtin.include_tasks: ensure_volume.yaml
 
-# ensure_volume.yaml's legacy-migration check above is a no-op here: the
-# legacy path (if this app ever had one) was already renamed to
-# ".migrated" on its first-ever deploy, so there's nothing left to
-# re-copy in - the volume comes back genuinely empty.
-
 - name: "Check whether this volume has Ansible-seeded content ({{ compose_app_item.name ~ '/' ~ compose_volume_item.name }})"
   ansible.builtin.stat:
     path: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ compose_volume_item.name }}"

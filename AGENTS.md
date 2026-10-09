@@ -19,6 +19,10 @@ pointed to instead.
 Before implementing a project, open its `decision:` revision.
 `approved` means proceed; anything else means stop and ask.
 
+Before deleting a finished project doc, work through the closing
+checklist in
+[`docs/projects/README.md#closing-checklist`](docs/projects/README.md#closing-checklist).
+
 A change that touches a project doc may only change that project's
 `allowed_paths` (plus the project docs, the generated decisions index
 and project-planning view, and its own decision revision). Work that needs a file outside them

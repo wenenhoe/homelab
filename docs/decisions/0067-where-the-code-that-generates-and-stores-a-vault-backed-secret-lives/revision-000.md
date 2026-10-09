@@ -66,11 +66,30 @@ identically for every secret regardless of which role needs it.
     placed in the module's own return dict is not masked by that alone —
     confirmed live: a generated secret returned as a plain field leaked in
     full under `-vvv` even with the module's token argument correctly
-    hidden. `AnsibleModule.no_log_values.add(value)` does redact it,
-    confirmed live (`VALUE_SPECIFIED_IN_NO_LOG_PARAMETER`). The current
-    `uri`-based tasks get this for free from `no_log: true` at the task
-    level, which masks the whole result; a module's return path does not
-    inherit that automatically.
+    hidden. `AnsibleModule.no_log_values.add(value)` does redact it, but
+    in the result the controller receives: the playbook's registered
+    variable then holds `VALUE_SPECIFIED_IN_NO_LOG_PARAMETER` instead of
+    the secret, so a module cannot both return a value and have it
+    redacted.
+  - A module cannot censor its own result any other way. A
+    `_ansible_no_log` key in the result is removed with a warning ("Removed
+    reserved key '_ansible_no_log' from module result") and censors
+    nothing. `no_log: true` on the calling task is the one mechanism that
+    hides the whole result at every verbosity, `-vvv` and every loop item
+    included, while the registered variable keeps the real value — which
+    is what the current `uri`-based tasks rely on. Confirmed live against
+    `ansible-core` 2.21.5 with a looped call.
+- Most `store: openbao` entries in `secret_catalog.yaml` are `manual`,
+  read and never generated, so they need the read `process_vault_secrets.yaml`
+  gives them today. `read_vault_kv.yaml` serves one secret per include
+  (`secrets_item_name`). `ansible.cfg` sets `display_ok_hosts = no` and
+  `display_skipped_hosts = no`, which hide ok and skipped results but not
+  the TASK banner and `included:` line each `include_tasks` prints. With
+  the catalog's real proportions, routing the manual reads through a
+  per-secret include printed about eight times today's lines on a
+  steady-state run (44 TASK banners and 83 `included:` lines against 5 and
+  5), the cost looped tasks in `ensure_secret.yaml` avoid. Confirmed live
+  against `ansible-core` 2.21.5.
 - [ADR 0066 (Secret definitions)](../0066-how-a-secret-definition-states-production-and-storage/revision-000.md)
   gives every entry an explicit `source`, `store` and `scope`, which is
   what a module's input shape needs and did not have before that ADR.
@@ -94,17 +113,22 @@ identically for every secret regardless of which role needs it.
 - The module catches `hvac.exceptions.InvalidRequest` on the `cas=0`
   write specifically, not a generic exception, and re-reads on that path
   only. Any other exception fails the task.
-- Every value the module places in its return dict is registered with
-  `module.no_log_values.add(...)` before `exit_json`. The calling task
-  keeps `no_log: true` as well, matching the current pattern, rather than
-  relying on either alone.
+- The module returns the resolved value as a plain field and does not add
+  it to `no_log_values`, which would hand the playbook the redaction
+  marker in place of the secret. Every task that calls the module sets
+  `no_log: true`, which is what keeps the value out of `-v` and `-vvv`
+  output, matching the current pattern. The module's `vault_token`
+  argument is `no_log=True`.
 - `secrets/tasks/process_vault_secrets.yaml`'s five-stage, index-correlated
   sequence is replaced by one loop over `ensure_vault_secret`, one call per
   secret. The manual/`controller_file` branch in `ensure_secret.yaml` is
-  unchanged; this covers only `store: openbao` secrets with a `hex` or
-  `uuid4` source, which is what `process_vault_secrets.yaml` generates —
-  a `manual` secret stored in OpenBao is read, never generated, so it
-  stays on the existing single-read path.
+  unchanged. The module covers only `store: openbao` secrets with a `hex`
+  or `uuid4` source, which is what `process_vault_secrets.yaml` generates.
+- A `manual` secret stored in OpenBao is read, never generated.
+  `ensure_secret.yaml` reads every one in the call with looped tasks (one
+  read, one missing-secret check and one store, each a single task over
+  the call's list), the shape its `controller_file` branch already has. It
+  does not include a task file per secret.
 - `supports_check_mode=False`, matching today's behavior: nothing here is
   meaningfully previewable, since generation only happens when a read
   finds nothing.
@@ -126,8 +150,9 @@ identically for every secret regardless of which role needs it.
 ## Assumptions
 
 None remaining that the spike could resolve. What is left to prove is
-behavioral equivalence on the real catalog, which is Stage 2 of the
-implementing project, not a design assumption.
+behavioral equivalence on the real catalog, which the implementing
+project checks against a snapshot taken before the cutover, not a design
+assumption.
 
 ## Consequences
 
@@ -140,14 +165,17 @@ implementing project, not a design assumption.
   `process_vault_secrets.yaml`'s reread-on-conflict branch is today.
 - `docs/topics/secrets/secrets.md` and `docs/topics/engineering/molecule-testing.md` describe the new module
   and its test target once implemented.
+- A caller that omits `no_log: true` leaks every value the module returns,
+  because the module cannot censor its own result. The tests under
+  Validation are what catch that.
 
 ## Invariants
 
 - A `cas=0` write conflict is handled by catching
   `hvac.exceptions.InvalidRequest`, never by a status-code check on an
   `hvac` call.
-- Every value a module returns is added to `no_log_values` before
-  `exit_json`, in addition to task-level `no_log: true`.
+- Every task that calls `ensure_vault_secret` sets `no_log: true`, and the
+  module never adds a value it returns to `no_log_values`.
 - `tools/openbao_utils/client.py` and `ansible/module_utils/openbao_kv.py`
   stay two independent implementations of the same `hvac` calls; a future
   change to one does not imply the other must change.
@@ -163,5 +191,8 @@ implementing project, not a design assumption.
 ## Validation
 
 A Molecule scenario against a real OpenBao test target exercises the
-create-race and reuse paths; a module-level test confirms
-`no_log_values` contains every value the module could return.
+create-race and reuse paths. A test runs the real call under `-vvv` in a
+task with `no_log: true` and asserts that neither a generated nor a reused
+value appears in the output, and that the registered value is the real
+one. A second test asserts that every task in the `secrets` role calling
+the module sets `no_log: true`.

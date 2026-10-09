@@ -73,7 +73,7 @@ Update at the start and end of each PR that works a stage.
 | 1 | `ansible/module_utils/openbao_kv.py` and the `ensure_vault_secret` module, with unit tests | Done | Unit tests cover read-existing, generate-hex, generate-uuid4, and the `InvalidRequest` conflict-and-reread path against a mocked `hvac.Client`; the returned value is the real one, not a redaction marker, and `vault_token` is declared `no_log` |
 | 2 | `vault_backed` Molecule scenario: add a create-race case | Done | Two concurrent `ensure_vault_secret` calls for the same not-yet-existing secret against a real OpenBao test target resolve to the same value, one `changed: true` and one not; a call in a `no_log: true` task under `-vvv` prints neither the generated nor the reused value, and its registered value is the real one |
 | 3 | Cut `process_vault_secrets.yaml` over to the module | Done | `ensure_secret.yaml`'s Vault-backed branch calls `ensure_vault_secret` once per secret in a loop; every `manual`, `store: openbao` secret is read by looped tasks in `ensure_secret.yaml`, with no `include_tasks` that runs once per secret; a test asserts every task in the `secrets` role calling the module sets `no_log: true`; `process_vault_secrets.yaml` is deleted; every existing `secrets` Molecule scenario passes unchanged |
-| 4 | Diff real output against the previous implementation | Not started | Every `store: openbao`, generated secret in `secret_catalog.yaml` resolves to the same value it held before the cutover, checked against a snapshot taken before stage 3 merges |
+| 4 | Diff real output against the previous implementation | Done | Every `store: openbao`, generated secret in `secret_catalog.yaml` resolves to the same value it held before the cutover, checked against a snapshot taken before stage 3 merges |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -86,7 +86,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [x] The `secrets` role's output does not grow per secret: a steady-state
       run prints no per-secret TASK banner or `included:` line.
 - [x] The `vault_backed` scenario's create-race case passes.
-- [ ] No generated secret's value changed as a result of the cutover.
+- [x] No generated secret's value changed as a result of the cutover.
 
 ## Risks
 

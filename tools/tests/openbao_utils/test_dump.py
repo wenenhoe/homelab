@@ -93,6 +93,26 @@ class TestMain:
         assert len(backups) == 1
         assert backups[0].stat().st_mode & 0o777 == 0o700
 
+    def test_counts_a_key_present_in_both_sources_once(self, tmp, capsys):
+        catalog_file = tmp / "catalog.yaml"
+        catalog_file.write_text(
+            "secret_catalog:\n"
+            "  shared-key:\n    source: manual\n    store: openbao\n    scope: cloud_credentials/leaf\n"
+            "  hosts-key:\n    source: manual\n    store: openbao\n    scope: hosts/all/x\n"
+        )
+        with (
+            patch.object(dump, "CATALOG_PATH", catalog_file),
+            patch.object(dump, "LEGACY_CACHE_KEYS", [("shared-key", _FakeModule("v1")), ("cc-key", _FakeModule("v2"))]),
+            patch.object(dump, "read_vault_path", return_value="v1", autospec=True),
+            patch.object(Path, "home", return_value=tmp, autospec=True),
+        ):
+            dump.main()
+        out = capsys.readouterr().out
+        (backup,) = [p for p in tmp.iterdir() if p.name.startswith("secrets-backup-pre-reinit-")]
+        assert len(list(backup.iterdir())) == 3
+        assert "Backed up 3 distinct secrets" in out
+        assert "1 keys are listed in both and written once" in out
+
     def test_refuses_to_clobber_an_existing_backup_directory(self, tmp):
         # _backup_dir() is timestamped, but exist_ok=False is the actual
         # guarantee - assert the real failure mode, not just that two

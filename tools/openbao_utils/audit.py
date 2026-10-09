@@ -13,7 +13,7 @@ Two different findings, not one:
     live Vault session, and this mode's whole point is not needing
     one) before deleting.
   - A name matching neither a catalog entry nor cloud_credentials'
-    own internal bookkeeping (LEGACY_CACHE_KEYS) is a genuine orphan —
+    own internal bookkeeping (SECRET_OWNERS) is a genuine orphan —
     a stray manual test file, a leftover from a naming change, or
     similar.
 Neither category is deleted by this script.
@@ -41,24 +41,24 @@ import getpass
 import sys
 
 import requests
-from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.leaf_keys.b2 import b2_list_keys, b2_rotation_api
 from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
+from cloud_credentials.secret_owners import SECRET_OWNERS
 from utils.repo import SECRETS_DIR
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 B2_BUCKET = "homelab-backups-b2"
 
-_CACHE_MODULE_BY_NAME = dict(LEGACY_CACHE_KEYS)
+_OWNER_BY_NAME = dict(SECRET_OWNERS)
 
 
 def cached(name: str) -> str | None:
     """Reads via cloud_credentials' own Vault-backed cache (cache.py's
-    scoped()) - the real store for every LEGACY_CACHE_KEYS name, never
-    the retired local file cache. name must be one of LEGACY_CACHE_KEYS' own names -
+    scoped()) - the real store for every SECRET_OWNERS name, never
+    the retired local file cache. name must be one of SECRET_OWNERS' own names -
     a KeyError here means this script asked for a name that package
     doesn't own, not a runtime possibility to paper over."""
-    return _CACHE_MODULE_BY_NAME[name].read_cache(name)
+    return _OWNER_BY_NAME[name].read_cache(name)
 
 
 # --- Local cache diff ----------------------------------------------------
@@ -70,10 +70,10 @@ def audit_local() -> None:
     vault_backed_scope = openbao_scopes(catalog)
     # cloud_credentials' own internal bookkeeping keys (_rotation-key-*,
     # _oci-leaf-user-ocid-*, the two scim-ids) have no secret_catalog.yaml
-    # entry of their own - reusing LEGACY_CACHE_KEYS' own name list here,
+    # entry of their own - reusing SECRET_OWNERS' own name list here,
     # instead of a second hand-maintained one, is what keeps this from
     # drifting the way this script's own cached() helper once did.
-    known = set(catalog) | {name for name, _module in LEGACY_CACHE_KEYS}
+    known = set(catalog) | {name for name, _module in SECRET_OWNERS}
 
     if not SECRETS_DIR.exists():
         print(f"  {SECRETS_DIR} doesn't exist here — nothing to check")

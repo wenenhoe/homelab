@@ -47,7 +47,7 @@ import tempfile
 from pathlib import Path
 
 import hvac
-from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
+from cloud_credentials.secret_owners import SECRET_OWNERS
 from utils.repo import SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
 from utils.secret_catalog import CATALOG_PATH, file_cache_entries, load_catalog
 
@@ -60,7 +60,7 @@ from openbao_utils.client import vault_login as _bare_vault_login
 # drift the way secret_catalog.yaml's header comment and this script's
 # actual behavior once did.
 #
-# LEGACY_CACHE_KEYS also tracks operator-provided values (region/
+# SECRET_OWNERS also tracks operator-provided values (region/
 # namespace/account-id) that live in the same Vault-backed cache but
 # have no automated writer at all - create_leaf_keys.py never mints
 # them, it only reads them. Excluding those too would mean nothing in
@@ -73,7 +73,7 @@ _OPERATOR_PROVIDED_NAMES = frozenset(
         "cloudflare-r2-account-id",
     }
 )
-_CLOUD_CREDENTIAL_OWNED_NAMES = frozenset(name for name, _module in LEGACY_CACHE_KEYS) - _OPERATOR_PROVIDED_NAMES
+_CLOUD_CREDENTIAL_OWNED_NAMES = frozenset(name for name, _module in SECRET_OWNERS) - _OPERATOR_PROVIDED_NAMES
 
 
 def load_manual_entries(catalog: dict) -> dict[str, dict]:

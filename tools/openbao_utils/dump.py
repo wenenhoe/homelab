@@ -9,8 +9,8 @@ Vault's data; docs/topics/secrets/openbao-reinit-runbook.md is the
 consumer of what it produces.
 
 Covers:
-  - Every cloud_credentials leaf/rotation key (_legacy_cache_keys.py's
-    LEGACY_CACHE_KEYS), read via each key's own registered category.
+  - Every cloud_credentials leaf/rotation key (secret_owners.py's
+    SECRET_OWNERS), read via each key's own registered category.
   - Every secret_catalog.yaml entry with `store: openbao` (the secrets
     role's hosts/* material, ADR 0021).
 
@@ -30,8 +30,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path
+from cloud_credentials.secret_owners import SECRET_OWNERS
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 
@@ -48,7 +48,7 @@ def _write(dest: Path, name: str, value: str) -> None:
 
 def _dump_cloud_credentials(dest: Path) -> tuple[list[str], list[str]]:
     written, blank = [], []
-    for name, module in LEGACY_CACHE_KEYS:
+    for name, module in SECRET_OWNERS:
         value = module.read_cache(name)
         if value is None:
             blank.append(name)

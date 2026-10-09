@@ -3,9 +3,9 @@
 Run via `uv run pytest tools/tests/ -v`. Fake Vault reads/writes, a
 real tmp filesystem for the backup dir and catalog file - no real
 Vault. Covers both phases this script merges: catalog-scoped restore
-(via read_vault_path/write_vault_path) and LEGACY_CACHE_KEYS restore
+(via read_vault_path/write_vault_path) and SECRET_OWNERS restore
 (via each key's own module double). Each phase's own tests neutralize
-the *other* phase (an empty LEGACY_CACHE_KEYS list, or an empty
+the *other* phase (an empty SECRET_OWNERS list, or an empty
 catalog) rather than mocking it away - main() runs both phases
 unconditionally, so leaving the other phase's real dependencies
 wired up would mean an unmocked real Vault session gets built.
@@ -70,7 +70,7 @@ class TestCatalogScopedRestore:
         monkeypatch.setattr(restore, "CATALOG_PATH", catalog_file)
         # Neutralizes the other phase - an empty list means its for
         # loop never iterates, never touching a real Vault session.
-        monkeypatch.setattr(restore, "LEGACY_CACHE_KEYS", [])
+        monkeypatch.setattr(restore, "SECRET_OWNERS", [])
         return SimpleNamespace(catalog_file=catalog_file, backup_dir=backup_dir)
 
     def test_restores_a_value_present_in_the_backup_but_not_in_vault(self, env):
@@ -126,7 +126,7 @@ class TestCatalogScopedRestore:
         fake_write.assert_not_called()
 
     def test_restores_backup_content_byte_for_byte_not_stripped(self, env):
-        # The other phase (LEGACY_CACHE_KEYS) must not strip() backup
+        # The other phase (SECRET_OWNERS) must not strip() backup
         # content before this merge - openbao_utils/dump.py writes the raw
         # value with no added whitespace, so stripping on the way back
         # in would silently corrupt a value with meaningful
@@ -144,7 +144,7 @@ class TestCatalogScopedRestore:
         assert written["hosts/services/padded-value"] == "  has padding  \n"
 
 
-class TestLegacyCacheKeysRestore:
+class TestSecretOwnersRestore:
     @pytest.fixture(autouse=True)
     def _empty_catalog(self, tmp, monkeypatch):
         catalog_file = tmp / "catalog.yaml"
@@ -161,7 +161,7 @@ class TestLegacyCacheKeysRestore:
     def test_restores_a_key_present_in_backup_but_not_vault(self, tmp):
         mod = _FakeModule()
         self.seed_backup_file(tmp, "some-key", "the-value")
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("some-key", mod)]):
             rc = _run(tmp)
         assert rc == 0
         assert mod.store["some-key"] == "the-value"
@@ -170,13 +170,13 @@ class TestLegacyCacheKeysRestore:
         mod = _FakeModule()
         mod.store["some-key"] = "vault-value"
         self.seed_backup_file(tmp, "some-key", "backup-value")
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("some-key", mod)]):
             _run(tmp)
         assert mod.store["some-key"] == "vault-value"
 
     def test_key_with_no_backup_file_is_left_alone(self, tmp):
         mod = _FakeModule()
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("some-key", mod)]):
             rc = _run(tmp)
         assert rc == 0
         assert "some-key" not in mod.store
@@ -185,7 +185,7 @@ class TestLegacyCacheKeysRestore:
         mod_a, mod_b = _FakeModule(), _FakeModule()
         self.seed_backup_file(tmp, "key-a", "value-a")
         # key-b deliberately has no backup file.
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("key-a", mod_a), ("key-b", mod_b)]):
+        with patch.object(restore, "SECRET_OWNERS", [("key-a", mod_a), ("key-b", mod_b)]):
             _run(tmp)
         assert mod_a.store.get("key-a") == "value-a"
         assert "key-b" not in mod_b.store
@@ -195,6 +195,6 @@ class TestLegacyCacheKeysRestore:
         # full explanation.
         mod = _FakeModule()
         self.seed_backup_file(tmp, "padded-key", "  has padding  \n")
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("padded-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("padded-key", mod)]):
             _run(tmp)
         assert mod.store["padded-key"] == "  has padding  \n"

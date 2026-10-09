@@ -21,7 +21,7 @@ Two phases, covering two Vault-path shapes that don't overlap:
   2. cloud_credentials' own internal bookkeeping keys with no
      secret_catalog.yaml entry of their own (_rotation-key-*,
      _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values) -
-     the ~10 LEGACY_CACHE_KEYS names phase 1 has no way to reach,
+     the ~10 SECRET_OWNERS names phase 1 has no way to reach,
      via each key's own registered module.
 
 Replaces migrate_legacy_cache_to_vault.py (retired alongside the
@@ -51,8 +51,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
 from cloud_credentials.cache import read_vault_path, write_vault_path
+from cloud_credentials.secret_owners import SECRET_OWNERS
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 
@@ -85,7 +85,7 @@ def main() -> int:
         write_vault_path(f"{scope}/{name}", backup_file.read_text())
         restored.append(name)
 
-    for name, module in LEGACY_CACHE_KEYS:
+    for name, module in SECRET_OWNERS:
         backup_file = backup_dir / name
         if not backup_file.exists():
             no_backup_file.append(name)

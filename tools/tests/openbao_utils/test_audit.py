@@ -4,7 +4,7 @@ Run via `uv run pytest tools/tests/ -v`. Every provider/Vault call is
 mocked; nothing here talks to a real tenancy, a real B2 account or a
 real OpenBao.
 audit.py's cached() reads through cloud_credentials'
-own LEGACY_CACHE_KEYS-mapped modules (Vault-backed) - AuditOciTests patches audit.cached directly rather
+own SECRET_OWNERS-mapped modules (Vault-backed) - AuditOciTests patches audit.cached directly rather
 than seeding files, since there's no longer a local file it reads.
 audit_local() is a different concern (scanning SECRETS_DIR for orphan
 files left on disk), so AuditLocalTests still seeds real files there.
@@ -101,10 +101,10 @@ class TestAuditOci:
 
 class TestCachedDispatch:
     """cached() itself: confirms it reads through the correct
-    LEGACY_CACHE_KEYS-mapped module rather than any local file."""
+    SECRET_OWNERS-mapped module rather than any local file."""
 
     def test_reads_via_the_names_own_module(self):
-        with patch.object(audit._CACHE_MODULE_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123", autospec=True) as mock_read:
+        with patch.object(audit._OWNER_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123", autospec=True) as mock_read:
             assert audit.cached("cloudflare-r2-account-id") == "acct-123"
         mock_read.assert_called_once_with("cloudflare-r2-account-id")
 

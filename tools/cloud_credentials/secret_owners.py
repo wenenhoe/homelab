@@ -1,16 +1,14 @@
-"""Every cache key name cloud_credentials has ever written to Vault,
-paired with the module whose write_cache/cached/read_cache owns it.
-Shared by openbao_utils/restore.py, openbao_utils/audit.py,
-and openbao_utils/bootstrap.py's own exclusion list, so none of them can
-drift against each other or against what cache.py's scoped() actually
-writes - duplicating this list per-consumer is what let
-secret_catalog.yaml's header comment and openbao_utils/bootstrap.py's own
-behavior disagree.
+"""Every secret name cloud_credentials stores in Vault, paired with the module
+whose cached/read_cache/write_cache owns it.
 
-Reusing each module's own bound functions (rather than reconstructing
-Vault paths by hand here) means this list can't drift from what the
-real code actually classifies each key as either - see cache.py's
-scoped() docstring.
+Shared by openbao_utils' dump, restore, audit and bootstrap, so none of them
+keeps a second list that can drift from what cache.py's scoped() writes.
+Pairing each name with its owning module, instead of rebuilding Vault paths by
+hand here, also keeps every consumer on the category (leaf or rotation) that
+module actually binds - see cache.py's scoped() docstring.
+
+Names with a secret_catalog.yaml entry are listed too; the rest are
+bookkeeping values written by rotation code, which only this list knows about.
 """
 
 from __future__ import annotations
@@ -23,7 +21,7 @@ from cloud_credentials.rotation_keys import b2 as rotation_b2
 from cloud_credentials.rotation_keys import oci_bootstrap as rotation_oci
 from cloud_credentials.rotation_keys import r2 as rotation_r2
 
-LEGACY_CACHE_KEYS = [
+SECRET_OWNERS = [
     ("backblaze-b2-write-access-key", leaf_b2),
     ("backblaze-b2-write-secret-key", leaf_b2),
     ("backblaze-b2-read-access-key", leaf_b2),

@@ -162,10 +162,16 @@ class TestRealWorkflow:
     def test_every_other_needed_job_is_one_that_always_runs_and_must_succeed(self, workflow, gate, step, subtests):
         matrix_jobs = set(step["env"]["MATRIX_JOBS"].split())
         upstream = set(gate["needs"]) - matrix_jobs
-        assert upstream == {"detect-changes", "warm-uv-cache", "warm-galaxy-cache"}
+        assert upstream == {"detect-changes", "warm-uv-cache", "warm-galaxy-cache", "molecule-coverage"}
         for name in upstream:
             with subtests.test(job=name):
-                assert "if" not in workflow["jobs"][name]
+                assert workflow["jobs"][name].get("if", "always()") == "always()"
+
+    def test_molecule_coverage_runs_every_time_so_the_gate_can_require_its_success(self, workflow):
+        """Skipped when nothing was tested would fail the gate, so it always runs and its steps decide."""
+        job = workflow["jobs"]["molecule-coverage"]
+        assert job["if"] == "always()"
+        assert all(step.get("if") == "needs.detect-changes.outputs.roles != '[]'" for step in job["steps"])
 
     def test_the_gate_runs_even_when_its_needs_are_skipped_or_failed(self, gate):
         assert gate["if"] == "always()"

@@ -2,8 +2,9 @@
 # Runs `molecule test` for every role with molecule scenarios, one role
 # at a time, so it can be invoked from ansible/ instead of `cd`-ing into
 # each role directory. Defaults to every scenario (`--all`); `-s` scopes
-# to one named scenario, which only makes sense against a single role -
-# scenario names aren't unique across roles (most reuse "default").
+# to the named scenarios (repeat it for several), which only makes sense
+# against a single role - scenario names aren't unique across roles (most
+# reuse "default"). A CI shard of a large role runs this way.
 #
 # Why not `molecule test --all` directly: Molecule's scenario-discovery
 # glob is relative to cwd and doesn't recurse into
@@ -26,6 +27,7 @@
 #   ./scripts/molecule-test-all.sh compose              # every scenario, one role
 #   ./scripts/molecule-test-all.sh compose caddy        # every scenario, several roles
 #   ./scripts/molecule-test-all.sh compose -s volumes   # one scenario, one role only
+#   ./scripts/molecule-test-all.sh compose -s reset -s build   # several scenarios of one role
 set -euo pipefail
 # One level up from this script's own new location (ansible/scripts/)
 # to ansible/ itself - every roles/* path below is relative to that,
@@ -33,18 +35,18 @@ set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 usage() {
-    echo "Usage: $0 [role...] [-s scenario]" >&2
+    echo "Usage: $0 [role...] [-s scenario]..." >&2
     echo "-s requires exactly one role - a scenario name is role-specific." >&2
     exit 2
 }
 
-scenario=""
+selected=()
 roles=()
 while [ "$#" -gt 0 ]; do
     case "$1" in
         -s)
             [ "$#" -ge 2 ] || usage
-            scenario="$2"
+            selected+=("$2")
             shift 2
             ;;
         -h | --help)
@@ -57,7 +59,7 @@ while [ "$#" -gt 0 ]; do
     esac
 done
 
-if [ -n "$scenario" ] && [ "${#roles[@]}" -ne 1 ]; then
+if [ "${#selected[@]}" -gt 0 ] && [ "${#roles[@]}" -ne 1 ]; then
     usage
 fi
 
@@ -80,9 +82,9 @@ failed=()
 timings=()
 for role in "${roles[@]}"; do
     echo
-    echo "=== $role${scenario:+ ($scenario)} ==="
-    if [ -n "$scenario" ]; then
-        scenarios=("$scenario")
+    echo "=== $role${selected[*]:+ (${selected[*]})} ==="
+    if [ "${#selected[@]}" -gt 0 ]; then
+        scenarios=("${selected[@]}")
     else
         scenarios=()
         for dir in "roles/$role"/molecule/*/; do

@@ -22,6 +22,10 @@
 # GITHUB_STEP_SUMMARY is set, land in the job summary: they show which
 # roles are worth splitting across runners.
 #
+# MOLECULE_TRACE_DIR, when set, also writes each scenario's full output
+# to <dir>/<role>/<scenario>.log with an epoch timestamp on every line,
+# so a later step can split a scenario's time into Molecule's phases.
+#
 # Usage (run from ansible/):
 #   ./scripts/molecule-test-all.sh                     # every scenario, every role
 #   ./scripts/molecule-test-all.sh compose              # every scenario, one role
@@ -78,6 +82,26 @@ fi
 # git rev-parse resolves correctly for both plain clones and worktrees.
 molecule_base_config="$(git rev-parse --show-toplevel)/.config/molecule/config.yml"
 
+# EPOCHREALTIME is a bash variable, so stamping a line forks nothing.
+timestamp_lines() {
+    local trace=$1 line
+    while IFS= read -r line; do
+        printf '%s\n' "$line"
+        printf '%s\t%s\n' "$EPOCHREALTIME" "$line" >&3
+    done 3>>"$trace"
+}
+
+run_scenario() {
+    local role=$1 name=$2
+    if [ -z "${MOLECULE_TRACE_DIR:-}" ]; then
+        (cd "roles/$role" && molecule --base-config "$molecule_base_config" test -s "$name")
+        return
+    fi
+    mkdir -p "$MOLECULE_TRACE_DIR/$role"
+    (cd "roles/$role" && molecule --base-config "$molecule_base_config" test -s "$name" 2>&1) |
+        timestamp_lines "$MOLECULE_TRACE_DIR/$role/$name.log"
+}
+
 failed=()
 timings=()
 for role in "${roles[@]}"; do
@@ -96,7 +120,7 @@ for role in "${roles[@]}"; do
         echo "--- $role: $name ---"
         started=$SECONDS
         result=passed
-        if ! (cd "roles/$role" && molecule --base-config "$molecule_base_config" test -s "$name"); then
+        if ! run_scenario "$role" "$name"; then
             result=FAILED
             failed+=("$role")
         fi
@@ -112,6 +136,11 @@ for row in "${timings[@]}"; do
 done
 echo
 echo "$table"
+if [ -n "${MOLECULE_TIMINGS_FILE:-}" ]; then
+    for row in "${timings[@]}"; do
+        printf '%s\n' "${row//|/$'\t'}" >>"$MOLECULE_TIMINGS_FILE"
+    done
+fi
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
     printf '### Molecule scenario timings\n\n%s\n' "$table" >>"$GITHUB_STEP_SUMMARY"
 fi

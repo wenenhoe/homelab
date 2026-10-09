@@ -29,6 +29,6 @@ provisioner:
   env:
     ANSIBLE_ROLES_PATH: ${MOLECULE_PROJECT_DIRECTORY}/../
     ANSIBLE_CONFIG: ${MOLECULE_PROJECT_DIRECTORY}/../../ansible.cfg
-    ANSIBLE_CALLBACKS_ENABLED: molecule_coverage
+    ANSIBLE_CALLBACKS_ENABLED: molecule_coverage,ansible.posix.profile_tasks # SPIKE: was molecule_coverage
     ANSIBLE_CALLBACK_PLUGINS: ${MOLECULE_PROJECT_DIRECTORY}/../../molecule-coverage/callback_plugins
     MOLECULE_COVERAGE_DIR: ${MOLECULE_PROJECT_DIRECTORY}/../../molecule-coverage/.data

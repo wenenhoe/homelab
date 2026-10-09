@@ -25,7 +25,7 @@ jobs:
       release_checksums: ${{ steps.filter.outputs.release_checksums }}
       mermaid_check: ${{ steps.filter.outputs.mermaid_check }}
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
-      roles: ${{ steps.roles.outputs.roles }}
+      roles: ${{ steps.spike_roles.outputs.roles }} # SPIKE: was steps.roles.outputs.roles
       shards: ${{ steps.shards.outputs.shards }}
       compose_apps: ${{ steps.compose.outputs.apps }}
       dockerfiles: ${{ steps.compose.outputs.dockerfiles }}
@@ -79,10 +79,17 @@ jobs:
       # The roles above, with the large ones split into the shards
       # .github/molecule-shards.yml lists; fails if that table disagrees
       # with the scenarios on disk.
+      # SPIKE: run every role that has a Molecule scenario, whatever the PR touched.
+      - name: Spike - force every role
+        id: spike_roles
+        run: |
+          roles=$(printf '%s\n' ansible/roles/*/molecule | cut -d/ -f3 | jq -R . | jq -sc .)
+          echo "roles=$roles" >> "$GITHUB_OUTPUT"
+
       - name: Split the roles into molecule legs
         id: shards
         env:
-          ROLES: ${{ steps.roles.outputs.roles }}
+          ROLES: ${{ steps.spike_roles.outputs.roles }} # SPIKE
         run: uv run python -m ci.scope.molecule_shards
         working-directory: tools
 
@@ -398,6 +405,8 @@ jobs:
         env:
           MATRIX_ROLE: ${{ matrix.shard.role }}
           MATRIX_SCENARIOS: ${{ matrix.shard.scenarios }}
+          MOLECULE_TIMINGS_FILE: ${{ runner.temp }}/timings-${{ matrix.shard.name }}.tsv # SPIKE
+          MOLECULE_TRACE_DIR: ${{ runner.temp }}/trace-${{ matrix.shard.name }} # SPIKE
         run: |
           args=()
           for scenario in $MATRIX_SCENARIOS; do args+=(-s "$scenario"); done
@@ -413,6 +422,25 @@ jobs:
         run: |
           mkdir -p ansible/molecule-coverage/.data
           tar -czf "$RUNNER_TEMP/coverage-$SHARD.tar.gz" -C ansible/molecule-coverage/.data .
+
+      # SPIKE: hand this leg's per-scenario seconds to the spike-timings job.
+      - name: Spike - upload scenario timings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: timings-${{ matrix.shard.name }}
+          path: ${{ runner.temp }}/timings-${{ matrix.shard.name }}.tsv
+          if-no-files-found: ignore
+
+      # SPIKE: hand this leg's timestamped scenario output to the spike-timings job.
+      - name: Spike - upload scenario traces
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: trace-${{ matrix.shard.name }}
+          path: ${{ runner.temp }}/trace-${{ matrix.shard.name }}
+          retention-days: 1
+          if-no-files-found: ignore
 
       - name: Upload coverage data
         if: always()
@@ -589,6 +617,60 @@ jobs:
     uses: ./.github/workflows/_trivy-scan.yml
     with:
       run-ansible: ${{ needs.detect-changes.outputs.trivy_ansible == 'true' }}
+
+  # SPIKE: reads the finished run and reports where the time went. Not for merging.
+  spike-timings:
+    needs:
+      - detect-changes
+      - warm-uv-cache
+      - warm-galaxy-cache
+      - warm-pre-commit-cache
+      - pre-commit-checks
+      - project-checks
+      - ansible-lint
+      - uv-lock
+      - python-unit-tests
+      - deploy-ordering-check
+      - molecule
+      - molecule-coverage
+      - compose-boot-test
+      - dockerfile-build-check
+      - release-checksums
+      - mermaid-check
+      - compose-syntax-check
+      - trivy-scan
+    if: always()
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: tools/ci
+          persist-credentials: false
+
+      - name: Download scenario timings
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: timings-*
+          path: timings
+          merge-multiple: true
+
+      - name: Download scenario traces
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: trace-*
+          path: traces
+          merge-multiple: true
+
+      - name: Report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 -m ci.spike.molecule_timings "$GITHUB_WORKSPACE/timings" "$GITHUB_WORKSPACE/traces"
+        working-directory: tools
 
   # Fixed-name required-check aggregator for the three matrix jobs above —
   # see docs/topics/engineering/ci/pipeline.md#requiring-checks-before-merge for why a matrix job

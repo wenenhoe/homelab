@@ -1,25 +1,18 @@
 #!/usr/bin/env python3
-"""One-time, read-only safety net: pull every current Vault value this
-repo knows about into a fresh timestamped backup directory, for use
-before a destructive OpenBao re-init (see
-docs/openbao-migration-roadmap.md's Open items - root-token recovery).
+"""Read-only safety net: pull every current Vault value this repo knows
+about into a fresh timestamped backup directory, for use before a
+destructive OpenBao re-init.
 
-Opposite direction from openbao_utils/restore.py (Vault -> file here,
-file/backup ->
-Vault there); this one is meant to be re-run before any operation that
-could lose Vault's data, not just once ever - this repo's own restore
-runbook (docs/topics/secrets/openbao-reinit-runbook.md) is the actual consumer of what
-it produces.
+Opposite direction from openbao_utils/restore.py (Vault -> files here,
+backup -> Vault there). Re-run it before any operation that could lose
+Vault's data; docs/topics/secrets/openbao-reinit-runbook.md is the
+consumer of what it produces.
 
 Covers:
   - Every cloud_credentials leaf/rotation key (_legacy_cache_keys.py's
     LEGACY_CACHE_KEYS), read via each key's own registered category.
   - Every secret_catalog.yaml entry with `store: openbao` (the secrets
     role's hosts/* material, ADR 0021).
-  - A live cross-check for _oci-leaf-user-ocid-{read,write}: reads both
-    the leaf/ and rotation/ paths, not just the one LEGACY_CACHE_KEYS
-    says is correct - a suspected migration mis-file, confirmed here
-    rather than assumed.
 
 Does NOT cover main-domain/openbao-controller-role-id/-secret-id -
 these never enter Vault at all (cache.py's own docstring), so
@@ -78,26 +71,6 @@ def _dump_hosts_scope(dest: Path) -> tuple[list[str], list[str]]:
     return written, blank
 
 
-def _check_oci_leaf_user_ocid_misfile() -> str:
-    """_oci-leaf-user-ocid-{read,write} are rotation-scoped in current
-    code (oci_bootstrap.py's write_cache, leaf_keys/oci.py's own read -
-    both bound to scoped("rotation")) and in _legacy_cache_keys.py's own
-    migration table. Suspected: an earlier migration run wrote these
-    under cloud_credentials/leaf/ instead. Reads both candidate paths
-    directly rather than assuming either is empty."""
-    lines = []
-    for leaf in ("read", "write"):
-        name = f"_oci-leaf-user-ocid-{leaf}"
-        at_rotation = read_vault_path(f"cloud_credentials/rotation/{name}")
-        at_leaf = read_vault_path(f"cloud_credentials/leaf/{name}")
-        lines.append(f"  {name}:")
-        lines.append(f"    rotation/ (expected): {'present' if at_rotation is not None else 'MISSING'}")
-        lines.append(f"    leaf/     (suspect):  {'present' if at_leaf is not None else 'absent'}")
-        if at_rotation is not None and at_leaf is not None:
-            lines.append(f"    -> both present, values {'match' if at_rotation == at_leaf else 'DIFFER'}")
-    return "\n".join(lines)
-
-
 def main() -> int:
     dest = _backup_dir()
     dest.mkdir(mode=0o700, parents=True, exist_ok=False)
@@ -116,9 +89,6 @@ def main() -> int:
         print("\nhosts/* blank/missing:")
         for name in hosts_blank:
             print(f"  {name}")
-
-    print("\n_oci-leaf-user-ocid-{read,write} location check:")
-    print(_check_oci_leaf_user_ocid_misfile())
 
     print(
         "\nNot backed up - these never enter Vault at all, see cache.py's own docstring: main-domain, openbao-controller-role-id, openbao-controller-secret-id."

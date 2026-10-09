@@ -77,27 +77,6 @@ class TestDumpHostsScope:
         assert (dest / "telegram-token").read_text() == "the-token"
 
 
-class TestOciMisfileCheck:
-    def test_flags_a_value_present_only_under_the_wrong_category(self):
-        def fake_read(path: str) -> str | None:
-            return "user-ocid-value" if path.startswith("cloud_credentials/leaf/") else None
-
-        with patch.object(dump, "read_vault_path", side_effect=fake_read, autospec=True):
-            report = dump._check_oci_leaf_user_ocid_misfile()
-
-        assert "rotation/ (expected): MISSING" in report
-        assert "leaf/     (suspect):  present" in report
-
-    def test_never_prints_the_actual_secret_value(self):
-        def fake_read(path: str) -> str | None:
-            return "super-secret-ocid" if path.startswith("cloud_credentials/leaf/") else None
-
-        with patch.object(dump, "read_vault_path", side_effect=fake_read, autospec=True):
-            report = dump._check_oci_leaf_user_ocid_misfile()
-
-        assert "super-secret-ocid" not in report
-
-
 class TestMain:
     def test_creates_a_fresh_owner_only_directory_each_run(self, tmp):
         catalog_file = tmp / "catalog.yaml"

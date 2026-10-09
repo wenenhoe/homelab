@@ -30,6 +30,12 @@
       DOCKER_STEPCA_INIT_NAME: "Molecule Throwaway CA"
       DOCKER_STEPCA_INIT_DNS_NAMES: "step-ca-test"
       DOCKER_STEPCA_INIT_PASSWORD: "{{ molecule_helpers_step_ca_password }}"
+    # The image's HEALTHCHECK sets no interval, so the daemon's 30s default
+    # delays the first "healthy" by 30s. test_cli_compatible keeps the
+    # image's own check: without it, omitting `test` disables the check.
+    healthcheck:
+      test_cli_compatible: true
+      interval: 2s
     networks:
       - name: "{{ molecule_helpers_step_ca_network_name }}"
     state: started

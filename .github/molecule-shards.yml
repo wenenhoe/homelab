@@ -1,0 +1,21 @@
+# Roles whose Molecule run is split across several CI jobs, each running the
+# listed scenarios. A role absent here runs as one job with every scenario.
+# Every scenario of a listed role must appear in exactly one shard: detect-changes
+# fails the run, and tools/tests/ci/scope/test_molecule_shards.py fails, otherwise.
+# Shards are balanced on measured scenario times, heaviest shard first, and the
+# roles run longest first so their jobs start before the short ones queue.
+secrets:
+  - [vault_backed, delivered_root_cert, vault_approle_files_missing]
+  - [rotate_secret, default, manual_missing]
+  - [vault_manual_missing, cache_dir_env, vault_approle_missing]
+step_ca_cert:
+  - [signal_chown, san_drift]
+  - [default, not_running]
+  - [renewal_timing]
+compose:
+  - [reset, default]
+  - [cleanup, build]
+  - [volumes, scripts]
+backup_agent:
+  - [default]
+  - [no_stop_apps, varying_cron]

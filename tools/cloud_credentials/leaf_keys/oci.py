@@ -81,8 +81,8 @@ def create_oci() -> None:
         write_secret(f"oci-{leaf}-secret-key", key.secret_key)
         # The SCIM resource id, not the access key itself — needed
         # later to GET/DELETE this exact key (rotation, freshness
-        # checks). expiresOn is native now, so unlike before there's
-        # no companion -created-at cache file to write. See ADR 0016.
+        # checks). expiresOn is native, so there is no companion
+        # -created-at secret to write. See ADR 0016.
         write_secret(f"oci-{leaf}-scim-id", key.id)
         print(f"oci {leaf}: cached")
 

@@ -137,7 +137,7 @@ def mint_b2() -> bool:
     access_key, secret_key = key.id_, key.application_key
 
     # Same reasoning as mint_r2's own verification — region comes from
-    # the same cache file cloud_sync's own rclone.conf uses (storage.yaml),
+    # the same secret cloud_sync's own rclone.conf uses (storage.yaml),
     # not guessed, since a wrong region is a silent SignatureDoesNotMatch
     # on B2/S3-compat, not an obviously-wrong-looking error.
     region = require_secret("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value storage.yaml's rclone.conf uses.")

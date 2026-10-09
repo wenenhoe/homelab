@@ -50,17 +50,17 @@ def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: s
     """Create the leaf's IAM user/group if missing, and always (re-)verify its
     policy statement matches `permissions`; return its user OCID.
 
-    The user/group/membership steps are skipped once `cache_key` exists —
+    The user/group/membership steps are skipped once `secret_name` exists —
     those never change after creation. The policy step is NOT gated by that
     cache: it 409-and-updates every run, so a permissions-list change here
     (e.g. adding OBJECT_OVERWRITE) actually reaches an already-bootstrapped
     tenancy on the next run, instead of being silently skipped forever.
     """
-    cache_key = f"_oci-leaf-user-ocid-{leaf}"
+    secret_name = f"_oci-leaf-user-ocid-{leaf}"
     name = f"homelab-cloud-sync-{leaf}"
 
-    if has_secret(cache_key):
-        user_id = read_secret(cache_key)
+    if has_secret(secret_name):
+        user_id = read_secret(secret_name)
         group = oci_lookup_one(session, endpoint, tenancy, "groups", name)
     else:
         user = oci_get_or_create_user(
@@ -100,7 +100,7 @@ def oci_ensure_leaf_identity(session, endpoint, post, put, tenancy: str, leaf: s
         existing = oci_lookup_one(session, endpoint, tenancy, "policies", name)
         put(f"/20160918/policies/{existing['id']}", {"statements": [statement]})
 
-    write_secret(cache_key, user_id)
+    write_secret(secret_name, user_id)
     return user_id
 
 
@@ -134,12 +134,12 @@ def _find_app_id(client, display_name: str) -> str:
 
 
 def _oci_ensure_scim_app_credentials() -> None:
-    """Idempotent: skips prompting entirely once all four cache files
-    exist. Verifies the credentials actually work (a token exchange)
+    """Idempotent: skips prompting entirely once all four secrets
+    are in Vault. Verifies the credentials actually work (a token exchange)
     before caching anything, so a typo doesn't silently get cached as
     if it were good."""
-    cache_keys = ["_rotation-key-oci-domain-url", "_rotation-key-oci-client-id", "_rotation-key-oci-client-secret", "_rotation-key-oci-app-id"]
-    if all(has_secret(k) for k in cache_keys):
+    secret_names = ["_rotation-key-oci-domain-url", "_rotation-key-oci-client-id", "_rotation-key-oci-client-secret", "_rotation-key-oci-app-id"]
+    if all(has_secret(name) for name in secret_names):
         print("oci: SCIM app credentials already cached, skipping")
         return
 

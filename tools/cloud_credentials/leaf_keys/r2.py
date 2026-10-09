@@ -68,12 +68,12 @@ def r2_rotation_token() -> str:
     --provider r2. This function's own inline prompt is a fallback for
     first-time use, not the intended everyday path anymore.
     """
-    cache_key = "_rotation-key-cloudflare-r2-token"
-    cached_value = _rotation_read_secret(cache_key)
-    if cached_value is not None:
-        return cached_value
+    secret_name = "_rotation-key-cloudflare-r2-token"  # noqa: S105 - Vault secret name, not secret value
+    stored_token = _rotation_read_secret(secret_name)
+    if stored_token is not None:
+        return stored_token
     token = _prompt_r2_admin_token()
-    _rotation_write_secret(cache_key, token)
+    _rotation_write_secret(secret_name, token)
     return token
 
 
@@ -126,7 +126,7 @@ def r2_create_leaf_token(
         # Native, confirmed against Cloudflare's own Create Token
         # reference (top-level `expires_on`, RFC 3339, on the same
         # POST /accounts/{account_id}/tokens this already calls) -
-        # unlike OCI, no self-tracked cache file needed here.
+        # unlike OCI, no self-tracked secret needed here.
         # check_freshness.py reads this back live via Get Token
         # rather than trusting a local clock.
         policy["expires_on"] = rfc3339_in(QUARTERLY_DAYS)

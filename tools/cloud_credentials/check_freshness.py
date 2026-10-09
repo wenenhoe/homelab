@@ -26,7 +26,7 @@ expiry the same way it flags a broken check.
 
 Deliberately never prompts (see r2_rotation_token's own interactive
 path in leaf_keys/r2.py) - this runs from a systemd timer with no TTY,
-so a missing R2 rotation-token cache file is reported as a check
+so an R2 rotation token missing from Vault is reported as a check
 failure for R2's two entries, not a hang.
 
 Usage (run from tools/):
@@ -131,10 +131,10 @@ def check_oci() -> list[tuple[str, str, str]]:
     return results
 
 
-def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_cache_name: str) -> tuple[str, str, str]:
-    scim_id = _leaf_read_secret(scim_id_cache_name)
+def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_name: str) -> tuple[str, str, str]:
+    scim_id = _leaf_read_secret(scim_id_name)
     if scim_id is None:
-        return (label, CHECK_FAILED, f"no {scim_id_cache_name} cache file - created before the SCIM migration (ADR 0016)?")
+        return (label, CHECK_FAILED, f"no {scim_id_name} in Vault - created before the SCIM migration (ADR 0016)?")
     try:
         key = client.get_customer_secret_key(scim_id).data
     except _OCI_SDK_ERRORS as exc:
@@ -145,10 +145,10 @@ def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_cach
     return (label, status, detail)
 
 
-def _oci_created_at_result(label: str, cache_name: str) -> tuple[str, str, str]:
-    if not _rotation_has_secret(cache_name):
-        return (label, CHECK_FAILED, f"no {cache_name} cache file - created before this thread's tracking was added?")
-    created_at = datetime.fromisoformat(_rotation_read_secret(cache_name))
+def _oci_created_at_result(label: str, secret_name: str) -> tuple[str, str, str]:
+    if not _rotation_has_secret(secret_name):
+        return (label, CHECK_FAILED, f"no {secret_name} in Vault - created before this thread's tracking was added?")
+    created_at = datetime.fromisoformat(_rotation_read_secret(secret_name))
     status, detail = _classify(created_at + timedelta(days=QUARTERLY_DAYS))
     return (label, status, detail)
 

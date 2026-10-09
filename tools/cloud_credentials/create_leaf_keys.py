@@ -12,7 +12,7 @@ exact grant each leaf gets, provider-by-provider.
 B2 and OCI authenticate using a rotation-key credential — narrower
 than the account's master credential, created once by
 create_rotation_keys.py — never the raw master key itself. If a
-rotation-key cache file is missing for either, this script tells you
+rotation key is missing from Vault for either, this script tells you
 which `create_rotation_keys --provider <x>` to run first.
 
 R2 caches its admin token too (r2_rotation_token), but it's a
@@ -28,13 +28,13 @@ docs/topics/secrets/cloud-credentials/scoping.md's R2 section for the trade-off 
 what's expected to narrow it later (a secrets-manager migration, not
 this script).
 
-Safe to re-run: a credential whose both cache files already exist is
+Safe to re-run: a credential whose secrets are already in Vault is
 left untouched, same convention as openbao_utils/bootstrap.py.
 
 To rotate a leaf key with verify-before-revoke of the old one (the new
 key must actually pass a live read/write check over the same rclone
 S3-compatible path production uses before the old key is touched), use
---rotate instead of deleting cache files for all three providers now —
+--rotate instead of deleting a leaf's secrets from Vault —
 see docs/topics/secrets/cloud-credentials/rotation.md's Rotation section.
 
 Usage (run from tools/):

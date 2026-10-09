@@ -21,7 +21,7 @@ guarantee).
 
 Without --rotate: idempotent bootstrap. Re-verifies/repairs IAM
 policies (OCI) against an already-cached keypair every run, but never
-regenerates the keypair itself if its cache files already exist (or,
+regenerates the keypair itself if its secrets are already in Vault (or,
 for R2, never re-prompts if a token is already cached) — safe to
 re-run at any time, including against a rotation key that's already
 expiring, without accidentally reissuing it. --provider r2 is never

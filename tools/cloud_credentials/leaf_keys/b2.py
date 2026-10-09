@@ -97,7 +97,7 @@ def b2_list_keys(api: B2Api):
     """Every key on the account, native `expiration_timestamp_millis`
     included when the key was created with valid_duration_seconds.
     Used by check_freshness.py instead of self-tracking B2's expiry -
-    B2 already reports it, no separate cache file needed."""
+    B2 already reports it, no separate secret needed."""
     return list(api.list_keys())
 
 

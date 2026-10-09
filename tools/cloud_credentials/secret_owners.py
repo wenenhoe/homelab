@@ -50,8 +50,8 @@ SECRET_OWNERS = [
     ("cloudflare-r2-read-access-key", leaf_r2),
     ("cloudflare-r2-read-secret-key", leaf_r2),
     ("_rotation-key-cloudflare-r2-token", rotation_r2),
-    (snap.CACHE_B2_ACCESS, snap),
-    (snap.CACHE_B2_SECRET, snap),
-    (snap.CACHE_R2_ACCESS, snap),
-    (snap.CACHE_R2_SECRET, snap),
+    (snap.VAULT_NAME_B2_ACCESS, snap),
+    (snap.VAULT_NAME_B2_SECRET, snap),
+    (snap.VAULT_NAME_R2_ACCESS, snap),
+    (snap.VAULT_NAME_R2_SECRET, snap),
 ]

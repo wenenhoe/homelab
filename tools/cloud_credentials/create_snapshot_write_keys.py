@@ -46,16 +46,16 @@ from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucke
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_delete_token, r2_permission_group_ids, r2_rotation_token
 from cloud_credentials.verify import verify_leaf_via_rclone
 
-# This script's own leaf-tier cache keys, alongside the general
+# This script's own leaf-category secrets, alongside the general
 # cloud_sync leaves leaf_keys/{b2,r2}.py already declare - see
 # cache.py's own scoped() docstring for why the category lives with the
-# module that writes the key, not a central table.
+# module that writes the secret, not a central table.
 cached, read_cache, write_cache, require_cache_file = scoped("leaf")
 
-CACHE_R2_ACCESS = "cloudflare-r2-openbao-snapshot-write-access-key"
-CACHE_R2_SECRET = "cloudflare-r2-openbao-snapshot-write-secret-key"  # noqa: S105 - cache filename, not secret value
-CACHE_B2_ACCESS = "backblaze-b2-openbao-snapshot-write-access-key"
-CACHE_B2_SECRET = "backblaze-b2-openbao-snapshot-write-secret-key"  # noqa: S105 - cache filename, not secret value
+VAULT_NAME_R2_ACCESS = "cloudflare-r2-openbao-snapshot-write-access-key"
+VAULT_NAME_R2_SECRET = "cloudflare-r2-openbao-snapshot-write-secret-key"  # noqa: S105 - Vault secret name, not secret value
+VAULT_NAME_B2_ACCESS = "backblaze-b2-openbao-snapshot-write-access-key"
+VAULT_NAME_B2_SECRET = "backblaze-b2-openbao-snapshot-write-secret-key"  # noqa: S105 - Vault secret name, not secret value
 
 TOKEN_NAME_R2 = "openbao-snapshot-write"  # noqa: S105 - display label for token, not token value
 KEY_NAME_B2 = "openbao-snapshot-write"
@@ -73,7 +73,7 @@ def _r2_session_and_groups() -> tuple[requests.Session, str, dict]:
 
 
 def mint_r2() -> bool:
-    if cached(CACHE_R2_ACCESS) and cached(CACHE_R2_SECRET):
+    if cached(VAULT_NAME_R2_ACCESS) and cached(VAULT_NAME_R2_SECRET):
         print("r2 openbao-snapshot-write: already cached, skipping")
         return True
 
@@ -87,15 +87,15 @@ def mint_r2() -> bool:
             f"r2 openbao-snapshot-write: verification FAILED ({detail}) — not cached. Revoke {access_key} by hand in the Cloudflare dashboard.", file=sys.stderr
         )
         return False
-    write_cache(CACHE_R2_ACCESS, access_key)
-    write_cache(CACHE_R2_SECRET, secret_key)
+    write_cache(VAULT_NAME_R2_ACCESS, access_key)
+    write_cache(VAULT_NAME_R2_SECRET, secret_key)
     print(f"r2 openbao-snapshot-write: cached, verified ({detail})")
     return True
 
 
 def rotate_r2() -> bool:
     session, account_id, group_by_name = _r2_session_and_groups()
-    old_token_id = read_cache(CACHE_R2_ACCESS)
+    old_token_id = read_cache(VAULT_NAME_R2_ACCESS)
 
     result = r2_create_leaf_token(session, account_id, group_by_name, "write", bucket=SNAPSHOT_BUCKET_R2, token_name=TOKEN_NAME_R2)
     new_token_id, new_secret_key = result["id"], hashlib.sha256(result["value"].encode()).hexdigest()
@@ -110,8 +110,8 @@ def rotate_r2() -> bool:
         )
         return False
 
-    write_cache(CACHE_R2_ACCESS, new_token_id)
-    write_cache(CACHE_R2_SECRET, new_secret_key)
+    write_cache(VAULT_NAME_R2_ACCESS, new_token_id)
+    write_cache(VAULT_NAME_R2_SECRET, new_secret_key)
 
     if old_token_id:
         try:
@@ -128,7 +128,7 @@ def rotate_r2() -> bool:
 
 
 def mint_b2() -> bool:
-    if cached(CACHE_B2_ACCESS) and cached(CACHE_B2_SECRET):
+    if cached(VAULT_NAME_B2_ACCESS) and cached(VAULT_NAME_B2_SECRET):
         print("b2 openbao-snapshot-write: already cached, skipping")
         return True
 
@@ -143,8 +143,8 @@ def mint_b2() -> bool:
     if not ok:
         print(f"b2 openbao-snapshot-write: verification FAILED ({detail}) — not cached. Revoke {access_key} by hand in the B2 Console.", file=sys.stderr)
         return False
-    write_cache(CACHE_B2_ACCESS, access_key)
-    write_cache(CACHE_B2_SECRET, secret_key)
+    write_cache(VAULT_NAME_B2_ACCESS, access_key)
+    write_cache(VAULT_NAME_B2_SECRET, secret_key)
     print(f"b2 openbao-snapshot-write: cached, verified ({detail})")
     return True
 
@@ -152,7 +152,7 @@ def mint_b2() -> bool:
 def rotate_b2() -> bool:
     api = b2_rotation_api()
     bucket_id = b2_lookup_bucket_id(api, bucket_name=SNAPSHOT_BUCKET_B2)
-    old_key_id = read_cache(CACHE_B2_ACCESS)
+    old_key_id = read_cache(VAULT_NAME_B2_ACCESS)
 
     # Read back via .id_, not .application_key_id - see leaf_keys/b2.py's b2_create_leaf_key.
     key = api.create_key(capabilities=B2_LEAF_CAPABILITIES["write"], key_name=KEY_NAME_B2, bucket_id=bucket_id, valid_duration_seconds=QUARTERLY_SECONDS)
@@ -169,8 +169,8 @@ def rotate_b2() -> bool:
         )
         return False
 
-    write_cache(CACHE_B2_ACCESS, new_key_id)
-    write_cache(CACHE_B2_SECRET, new_app_key)
+    write_cache(VAULT_NAME_B2_ACCESS, new_key_id)
+    write_cache(VAULT_NAME_B2_SECRET, new_app_key)
 
     if old_key_id:
         try:

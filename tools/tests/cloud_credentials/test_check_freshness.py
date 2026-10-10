@@ -159,8 +159,7 @@ class TestCheckOci:
         assert identity_domains_client.get_customer_secret_key.call_args_list == [call("scim-write-1"), call("scim-read-1")]
 
     def test_missing_scim_id_is_a_check_failure_not_a_crash(self, identity_domains_client):
-        # oci-write-scim-id deliberately not seeded — a leaf key created
-        # before the SCIM migration (ADR 0016) would have no such file.
+        # oci-write-scim-id deliberately not seeded.
         results = check_freshness.check_oci()
 
         statuses = {name: status for name, status, _ in results}
@@ -175,7 +174,7 @@ class TestCheckOci:
 
         assert next((status, detail) for name, status, detail in results if name == "oci write") == (
             check_freshness.CHECK_FAILED,
-            "key has no expiresOn - created before the SCIM migration (ADR 0016)?",
+            "key has no expiresOn",
         )
 
     @pytest.mark.parametrize(

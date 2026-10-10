@@ -108,7 +108,7 @@ def _b2_key_result(label: str, key) -> tuple[str, str, str]:
         return (label, CHECK_FAILED, "no matching key found on the account")
     expiration_ms = key.expiration_timestamp_millis
     if expiration_ms is None:
-        return (label, CHECK_FAILED, "key has no expiration_timestamp_millis - was it created before this rotated in?")
+        return (label, CHECK_FAILED, "key has no expiration_timestamp_millis")
     status, detail = _classify(datetime.fromtimestamp(expiration_ms / 1000, tz=UTC))
     return (label, status, detail)
 
@@ -134,20 +134,20 @@ def check_oci() -> list[tuple[str, str, str]]:
 def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_name: str) -> tuple[str, str, str]:
     scim_id = _leaf_read_secret(scim_id_name)
     if scim_id is None:
-        return (label, CHECK_FAILED, f"no {scim_id_name} in Vault - created before the SCIM migration (ADR 0016)?")
+        return (label, CHECK_FAILED, f"no {scim_id_name} in Vault")
     try:
         key = client.get_customer_secret_key(scim_id).data
     except _OCI_SDK_ERRORS as exc:
         return (label, CHECK_FAILED, f"request failed: {exc}")
     if key.expires_on is None:
-        return (label, CHECK_FAILED, "key has no expiresOn - created before the SCIM migration (ADR 0016)?")
+        return (label, CHECK_FAILED, "key has no expiresOn")
     status, detail = _classify(datetime.fromisoformat(key.expires_on.replace("Z", "+00:00")))
     return (label, status, detail)
 
 
 def _oci_created_at_result(label: str, secret_name: str) -> tuple[str, str, str]:
     if not _rotation_has_secret(secret_name):
-        return (label, CHECK_FAILED, f"no {secret_name} in Vault - created before this thread's tracking was added?")
+        return (label, CHECK_FAILED, f"no {secret_name} in Vault")
     created_at = datetime.fromisoformat(_rotation_read_secret(secret_name))
     status, detail = _classify(created_at + timedelta(days=QUARTERLY_DAYS))
     return (label, status, detail)
@@ -213,7 +213,7 @@ def _r2_get_token_result(label: str, session: requests.Session, account_id: str,
 
 def _r2_expires_on_result(label: str, expires_on: str | None) -> tuple[str, str, str]:
     if expires_on is None:
-        return (label, CHECK_FAILED, "token has no expires_on - created before this thread's expiry was added?")
+        return (label, CHECK_FAILED, "token has no expires_on")
     status, detail = _classify(datetime.fromisoformat(expires_on.replace("Z", "+00:00")))
     return (label, status, detail)
 

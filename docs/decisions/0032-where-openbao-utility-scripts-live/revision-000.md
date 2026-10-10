@@ -78,8 +78,8 @@ carries the "OpenBao" context:
 Each moved script imports in-process whatever it actually needs,
 matching `cloud_credentials`'s own pattern rather than a uniform one:
 `bootstrap.py`/`audit.py` use `client.py`'s bare primitives directly;
-`restore.py`/`dump.py` go through `cloud_credentials.cache`'s
-higher-level API plus `LEGACY_CACHE_KEYS`, never touching `client.py`;
+`restore.py`/`dump.py` go through `cloud_credentials.cache`'s (renamed: `cloud_credentials.secret_store`)
+higher-level API plus `LEGACY_CACHE_KEYS` (renamed: `SECRET_OWNERS`), never touching `client.py`;
 `diff.py` needs neither. `restore_all.py` kept its own local
 `PROJECT_ROOT` rather than importing `tools/utils/repo.py`'s - it has
 zero other dependency on `tools/`, and importing one just for this

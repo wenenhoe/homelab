@@ -17,7 +17,7 @@ related: [ADR-0030]
 
 `ansible/cloud_credentials/`'s name and stated purpose
 (`cloud-credentials/creation.md`) is B2/OCI/R2 credential minting — but
-`cache.py`, its OpenBao/Vault client, was a different domain entirely
+`cache.py` (renamed: `secret_store.py`), its OpenBao/Vault client, was a different domain entirely
 that happened to live there because leaf/rotation credentials were
 what it stored. The OpenBao/secrets domain was already scattered
 further: `ansible/bootstrap_secrets.py` and `ansible/audit_secrets.py`

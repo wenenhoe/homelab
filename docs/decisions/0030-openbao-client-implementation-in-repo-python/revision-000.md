@@ -15,7 +15,7 @@ related: [ADR-0029]
 
 ## Context
 
-`cache.py` (`tools/cloud_credentials`) and `openbao_utils/bootstrap.py`
+`cache.py` (renamed: `secret_store.py`, in `tools/cloud_credentials`) and `openbao_utils/bootstrap.py`
 each independently hand-rolled an OpenBao AppRole login + KV v2
 read/write over raw `requests`, and each independently fetched
 step-ca's root cert via `ssh ... docker exec step-ca cat

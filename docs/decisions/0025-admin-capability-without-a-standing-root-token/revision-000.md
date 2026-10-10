@@ -127,7 +127,7 @@ admin-capable credential.
   (`restore_hosts_scope_from_backup.py`), deliberately separate from
   `migrate_legacy_cache_to_vault.py` - different source-of-truth
   convention (`secrets_registry.yaml`'s `vault_scope` vs.
-  `_legacy_cache_keys.py`'s `LEGACY_CACHE_KEYS`), not worth merging
+  `_legacy_cache_keys.py`'s `LEGACY_CACHE_KEYS` (renamed: `secret_owners.py`'s `SECRET_OWNERS`)), not worth merging
   into one.
 
   > **Note:** this reasoning compares against `migrate_legacy_cache_to_vault.py`,

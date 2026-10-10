@@ -20,7 +20,7 @@
   loop_control:
     label: "{{ compose_app_item.name }}/{{ item }}"
 
-- name: Ensure volumes exist and migrate legacy data ({{ compose_app_item.name }})
+- name: Ensure volumes exist ({{ compose_app_item.name }})
   ansible.builtin.include_tasks: ensure_volume.yaml
   loop: "{{ compose_app_item.volumes | default([]) }}"
   loop_control:

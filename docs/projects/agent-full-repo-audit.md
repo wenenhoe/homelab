@@ -52,7 +52,7 @@ Implements [ADR 0061 (Automated code review)](../decisions/0061-where-automated-
 | 1 | De-risking spike: mint a token once with `claude setup-token` (it needs a browser approval, so it can't run unattended), store it as a `homelab-security` secret, then run `claude` unattended from a throwaway Actions run against a scratch clone | Done | Resolves both of ADR 0062's open assumptions (reliability of the plain-CLI OAuth-token path; whether a dedicated account is warranted over the personal one) |
 | 2 | Design the audit prompt and output schema: what the agent reads, what it checks for, how it writes into `homelab-security` | Done | A dry-run against a real (non-scratch) clone produces a report a human would accept as useful, distinguishing new findings from ADR-covered behavior |
 | 3 | First scheduled run | In progress | A full run completes unattended; every finding is human-reviewed in full before any of it is trusted |
-| 4 | Steady-state cadence | Not started | Running weekly (or more often, once usage headroom against personal use is confirmed) with no manual intervention required per run |
+| 4 | Steady-state cadence | Not started | Running twice a week with every group coming round in turn (more often once usage headroom against personal use is confirmed), with no manual intervention required per run |
 
 ## Acceptance criteria
 

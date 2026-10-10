@@ -33,9 +33,7 @@ def oci_scim_domain_and_credentials() -> tuple[str, str, str]:
 def oci_scim_access_token(domain_url: str, client_id: str, client_secret: str) -> str:
     # grant_type=client_credentials, scope=urn:opc:idm:__myscopes__ -
     # confirmed against Oracle's own REST API and IAM getting-started
-    # docs, and live against this tenancy - see
-    # cloud_credentials/spikes/oci_scim_oauth_check.py, which this
-    # mirrors exactly.
+    # docs, and live against this tenancy.
     basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
     resp = requests.post(
         f"{domain_url}/oauth2/v1/token",

@@ -2,9 +2,8 @@
 """Which docker/<app> stacks a run should boot-test, build, or syntax-check.
 
 One reader for `.github/compose-boot-test-exclusions.txt` and one rule for
-what makes a directory under docker/ a compose app, where pr-checks.yml's
-detect-changes, its compose-syntax-check job and boot-test-all.yml's
-list-apps each used to parse the exclusion list themselves.
+what makes a directory under docker/ a compose app, shared by pr-checks.yml's
+detect-changes and compose-syntax-check jobs and boot-test-all.yml's list-apps.
 
 An app is queued for a boot test when its `compose.yaml`/`compose.yaml.j2`
 changes, its `Dockerfile` does (the boot test builds it in place of the

@@ -21,7 +21,7 @@ Python code in this repo exercises S3-compatible storage (B2, R2, OCI, SeaweedFS
 
 `rclone` appears at five call sites, in two shapes:
 
-- **Bash, containerized, bulk copy:** `cloud_sync`'s `run.sh.j2` (`rclone copy seaweedfs:<bucket>/<path> <target>:<bucket>/<path>` per job in `/jobs.txt`), `openbao_backup`'s `snapshot-push.sh.j2`, and `backup_agent`'s `check-freshness.sh.j2`. All are POSIX `sh` running `rclone` inside a pinned `rclone/rclone` container via `docker run`.
+- **Bash, containerized, bulk copy:** `cloud_sync`'s `run.sh.j2` (`rclone copy seaweedfs:<bucket>/<path> <target>:<bucket>/<path>` per job in `/jobs.txt`), `openbao_backup`'s `snapshot-push.sh.j2` (removed; replaced by: `snapshot-push.sh`), and `backup_agent`'s `check-freshness.sh.j2`. All are POSIX `sh` running `rclone` inside a pinned `rclone/rclone` container via `docker run`.
 - **Python, single object:** `cloud_credentials/verify.py` (`lsjson` and `copyto` against a small marker object) and `restore_all.py` (`rclone_lsjson`/`copyto`, one `lsjson` per discovery attempt and one `copyto` per restored app). Both shell out via `subprocess`.
 
 **The bulk-copy sites are not a candidate for another client.** `cloud_sync`'s `rclone copy` is the control [ADR 0010 (Offsite copy deletion)](../0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) documents: a compromised on-prem host can't touch the offsite copy because `copy` never overwrites or deletes, not from IAM scoping alone. Reimplementing that with hand-written client calls means re-deriving and re-proving the property.

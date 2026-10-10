@@ -79,7 +79,7 @@ frontmatter adoption and its NIST alignment decision stand.
   [`projects/README.md`](../../projects/README.md).
 - **Topic docs describe `main`** at every commit; git and the PRs hold
   implementation history.
-- **Checks enforce it.** `check-doc-drift.py` fails on a broken
+- **Checks enforce it.** `check-doc-drift.py` (renamed: `check_doc_drift.py`) fails on a broken
   invariant; the indexes are generated from frontmatter.
 - **Agents** may append an open assumption and set `approved` to
   `working` on an ADR revision, and nothing else. They stop at the stop

@@ -20,7 +20,7 @@ related: [ADR-0030]
 `cache.py` (renamed: `secret_store.py`), its OpenBao/Vault client, was a different domain entirely
 that happened to live there because leaf/rotation credentials were
 what it stored. The OpenBao/secrets domain was already scattered
-further: `ansible/bootstrap_secrets.py` and `ansible/audit_secrets.py`
+further: `ansible/bootstrap_secrets.py` (renamed: `bootstrap.py`) and `ansible/audit_secrets.py` (renamed: `audit.py`)
 sat at `ansible/`'s top level (not in any package), independently
 duplicating `cache.py`'s Vault-client logic, and
 `docker/openbao/watcher/r2_read_watcher.py` was a third, separate
@@ -30,7 +30,7 @@ without anyone noticing the duplication
 ([0030](../0030-openbao-client-implementation-in-repo-python/revision-000.md)) — a structural
 symptom, not just a naming complaint. Concrete evidence beyond that:
 `docker/openbao/scripts/bao-*.sh` and
-`restore_hosts_scope_from_backup.py` were already reaching sideways
+`restore_hosts_scope_from_backup.py` (renamed: `restore.py`) were already reaching sideways
 into `cloud_credentials.cache` for generic `_security_ssh_target`/
 `_main_domain`/`read_vault_path` helpers that had nothing to do with
 cloud credentials at all.
@@ -77,7 +77,7 @@ only what's genuinely OpenBao-specific: `VAULT_KV_MOUNT`,
 `openbao_base_url()`, `vault_login()`, `vault_read()`, `vault_write()`.
 
 `ansible/bootstrap_secrets.py`, `restore_hosts_scope_from_backup.py`,
-`restore_cloud_credentials_from_backup.py`, and `restore_all.py` stay
+`restore_cloud_credentials_from_backup.py` (removed; replaced by: `restore.py`), and `restore_all.py` stay
 in `ansible/` despite importing from `tools/` — considered and
 rejected moving them too, since all four are explicitly gated to the
 `ansible-playbook deploy.yaml` lifecycle (`restore_all.py` shells out
@@ -98,8 +98,8 @@ not reopened here.
 > This paragraph is left as written for the historical record; it's
 > no longer this repo's current design.
 
-`docker/openbao/scripts/bao-login-from-controller.sh`/
-`bao-from-controller.sh` and `restore_hosts_scope_from_backup.py` -
+`docker/openbao/scripts/bao-login-from-controller.sh` (removed; replaced by: `bao_session.py`)/
+`bao-from-controller.sh` (removed; replaced by: `bao_session.py`) and `restore_hosts_scope_from_backup.py` -
 the concrete evidence this split was needed - now import
 `security_ssh_target`/`main_domain`/`PROJECT_ROOT` from `tools/utils/repo.py`
 directly. `read_vault_path`/`write_vault_path` stay `cache.py`'s own
@@ -131,6 +131,6 @@ misplaced generic code.
   importing one just for this single constant would work against the
   same reasoning that keeps the file itself out of `tools/` in the
   first place.
-- Every stage's build status lived in `tools-secrets-package-split.md`
+- Every stage's build status lived in `tools-secrets-package-split.md` (removed)
   while in progress; that project has now closed per its own closing
   checklist, this ADR is the permanent record.

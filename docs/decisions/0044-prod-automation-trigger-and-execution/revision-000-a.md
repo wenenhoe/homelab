@@ -169,5 +169,5 @@ CD agent instead of a CD *runner*:
   automated rotate-and-revoke for each, isn't fully scoped yet —
   [0023](../0023-reusing-cloud-credential-logic-with-the-secrets-store/revision-000.md)/[0024](../0024-r2-admin-token-custody/revision-000.md)
   cover B2/R2/OCI specifically; any other credential in
-  `secrets_registry.yaml` needs the same scoping before it's assumed
+  `secrets_registry.yaml` (renamed: `secret_catalog.yaml`) needs the same scoping before it's assumed
   to follow the same pattern.

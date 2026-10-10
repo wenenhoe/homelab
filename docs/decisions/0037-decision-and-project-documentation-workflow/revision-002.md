@@ -22,7 +22,7 @@ lifecycle requires that revision to be `accepted` before the project is
 [ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
 broke the assumption: one threat model, implemented by three separate
 pieces of work, each with its own project. The first to finish cannot
-satisfy the closing checklist, because `check-doc-drift.py` rightly
+satisfy the closing checklist, because `check-doc-drift.py` (renamed: `check_doc_drift.py`) rightly
 refuses to let a revision be `accepted` while a project that still needs
 it `approved` (`not-started` or `building`) names it.
 
@@ -48,7 +48,7 @@ field is needed.
   project for the remainder, which also makes the closing project not the
   last.
 - **Enforcement.** A check reads the base the way
-  `check-project-scope.py` does. A PR that deletes a project doc fails
+  `check-project-scope.py` (renamed: `check_project_scope.py`) does. A PR that deletes a project doc fails
   unless that doc's `decision:` revision is `accepted` afterwards or is
   still named by a project doc in the PR's result. `also_implements:`
   doesn't count as naming, since it gates nothing.

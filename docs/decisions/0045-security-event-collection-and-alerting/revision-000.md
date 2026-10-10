@@ -180,6 +180,6 @@ operational surface, and maintenance burden. It doesn't belong under
 [ADR 0030 (OpenBao Python client)](../0030-openbao-client-implementation-in-repo-python/revision-000.md) (that's about
 which Python client talks to OpenBao, not what watches for suspicious
 access) or
-`ansible-collections-audit.md` (that's about existing roles' task
+`ansible-collections-audit.md` (removed) (that's about existing roles' task
 shape, not new infrastructure). Needs its own scoping pass before it's
 more than a name on a list.

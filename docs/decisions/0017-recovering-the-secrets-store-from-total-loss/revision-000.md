@@ -61,7 +61,7 @@ Split secrets into two classes:
   never committed, never only on a host.
 - **Operational** — everything else: day-to-day cloud write/read
   credentials, app secrets, everything currently driven by
-  `secrets_registry.yaml`. Fine to live only in Vault once it's up.
+  `secrets_registry.yaml` (renamed: `secret_catalog.yaml`). Fine to live only in Vault once it's up.
 
 Bootstrap/restore order: offline break-glass bundle → bare host with
 OpenBao installed → fetch the raft snapshot using the scoped read-only

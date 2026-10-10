@@ -33,7 +33,7 @@ replaced by a flat array — the "Breaks if wrong"/"Checked by" nuance
 doesn't compress into a YAML list without losing information density.
 
 One concrete, already-demonstrated cost worth designing around:
-`check-doc-drift.py`'s regex-based checks are already fragile around
+`check-doc-drift.py`'s (renamed: `check_doc_drift.py`) regex-based checks are already fragile around
 Mermaid content — this exact failure mode has already occurred once (a
 stray `+` at a line start got misread as a list marker), and the
 system's own standing guidance calls out "a Mermaid block right after

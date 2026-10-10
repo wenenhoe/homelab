@@ -85,7 +85,7 @@ A genuine re-init now, combining options 2 and 3: fresh keys, plus a
 standing narrow AppRole this time instead of ending again with zero
 admin-capable credential.
 
-1. Full backup first (`dump_vault_to_file_cache.py`) - already run.
+1. Full backup first (`dump_vault_to_file_cache.py` (renamed: `dump.py`)) - already run.
 2. Fresh `bao operator init -key-shares=3 -key-threshold=2`
    ([`openbao.md`](../../topics/secrets/openbao.md)'s existing convention) on `security`,
    discarding the old raft dataset. New Shamir shares and root token,
@@ -101,13 +101,13 @@ admin-capable credential.
    `sys/generate-root-token/*`. Cached with the same offline handling
    as the Shamir shares, never in `ansible/files/secrets/`.
 5. Restore every `hosts/*`-scoped secret from the backup
-   (`restore_hosts_scope_from_backup.py`) **before** any `deploy.yaml`
+   (`restore_hosts_scope_from_backup.py` (renamed: `restore.py`)) **before** any `deploy.yaml`
    run against the fresh Vault - the step that prevents the hex/uuid4
    regeneration problem above.
 6. Restore `cloud_credentials` leaf/rotation material: copy the
    backup's cloud_credentials-covered files over the stale copies in
    `ansible/files/secrets/`, then re-run the existing
-   `migrate_legacy_cache_to_vault.py` unmodified. The
+   `migrate_legacy_cache_to_vault.py` (removed) unmodified. The
    `_oci-leaf-user-ocid-*` duplicate at `leaf/` is not recreated - it
    was never read from there, so nothing regresses by leaving it
    behind.
@@ -126,12 +126,12 @@ admin-capable credential.
 - A second one-time restore tool now exists
   (`restore_hosts_scope_from_backup.py`), deliberately separate from
   `migrate_legacy_cache_to_vault.py` - different source-of-truth
-  convention (`secrets_registry.yaml`'s `vault_scope` vs.
+  convention (`secrets_registry.yaml`'s (renamed: `secret_catalog.yaml`) `vault_scope` vs.
   `_legacy_cache_keys.py`'s `LEGACY_CACHE_KEYS` (renamed: `secret_owners.py`'s `SECRET_OWNERS`)), not worth merging
   into one.
 
   > **Note:** this reasoning compares against `migrate_legacy_cache_to_vault.py`,
-  > since retired - `restore_cloud_credentials_from_backup.py` (its
+  > since retired - `restore_cloud_credentials_from_backup.py` (removed; replaced by: `restore.py`) (its
   > replacement, covering the same `LEGACY_CACHE_KEYS` convention)
   > didn't exist yet at this ADR's decision time. Both tools later
   > moved into one *file* -

@@ -41,7 +41,7 @@ Needs no new credential — reuses each host's own already-scoped
 SeaweedFS write key (read is strictly less access than that). A future
 app added to an *existing* host needs zero new config for this; only a
 genuinely new host running `backup_agent` needs a new
-`secrets_registry.yaml` entry and `host_vars` key.
+`secrets_registry.yaml` (renamed: `secret_catalog.yaml`) entry and `host_vars` key.
 
 The cost: one stale app suppresses that whole host's push, and *which*
 app is stale is only visible in that unit's own journal, not from

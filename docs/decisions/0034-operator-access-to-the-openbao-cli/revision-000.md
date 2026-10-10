@@ -86,7 +86,7 @@ Facts established on `security` against the pinned `2.6.2` image:
   HTTPS API. It writes where the *calling process* runs, never server-side, so
   nothing requires `security`-local execution once a native `bao` with network
   access exists. The `docker exec`/`docker cp` in the old
-  `openbao_backup/snapshot-push.sh.j2` was a side effect of routing through
+  `openbao_backup/snapshot-push.sh.j2` (removed; replaced by: `snapshot-push.sh`) was a side effect of routing through
   `docker exec`.
 
 ## Decision

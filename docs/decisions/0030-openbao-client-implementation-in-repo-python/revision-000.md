@@ -35,7 +35,7 @@ same over its own loopback `requests` calls (no SSH/root-cert fetch
 there; it runs on `security` itself).
 
 Considered and rejected up front: `docker/openbao/scripts/`'s three
-shell scripts and `openbao_backup/snapshot-push.sh.j2` wrap the
+shell scripts and `openbao_backup/snapshot-push.sh.j2` (removed; replaced by: `snapshot-push.sh`) wrap the
 official `bao` CLI directly, not a hand-rolled HTTP reimplementation -
 a different kind of problem, decided separately in
 [ADR 0034 (Operator bao CLI access)](../0034-operator-access-to-the-openbao-cli/revision-000.md),

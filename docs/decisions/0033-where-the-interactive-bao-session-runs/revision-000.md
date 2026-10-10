@@ -40,7 +40,7 @@ actually been verified, invalidated the relay's premise entirely:
 - **`security` doesn't have this repo checked out.** `bao_session.py`
   is a module inside the `tools/` package (imports `utils.repo`,
   `openbao_utils.client`), not a standalone script the way the old
-  `bao-login.sh` was. Every doc claiming it already runs "from either
+  `bao-login.sh` (removed; replaced by: `bao_session.py`) was. Every doc claiming it already runs "from either
   `controller` or `security`" (`openbao-reinit-runbook.md`,
   `openbao-vault-bootstrap.md`) was describing a code path that never
   functioned - inherited from `bao-login.sh`'s era, when that really

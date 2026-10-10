@@ -18,7 +18,7 @@ related: [ADR-0020]
 [0020](../0020-automation-identity-and-access-scope/revision-000.md)'s policy grants
 `controller` read/write on `secret/data/hosts/*`, describing it as
 "mirroring the `security`/`services`/`storage`/`play` `host_vars`
-split." But `secrets_registry.yaml` also holds secrets with no single
+split." But `secrets_registry.yaml` (renamed: `secret_catalog.yaml`) also holds secrets with no single
 host owner — `step-ca-provisioner-password`, `digitalocean-api-key`,
 the `telegram-*` family, `beszel-hub-key`/`beszel-agent-token` — every
 one referenced from `group_vars/all/main.yaml`, not any `host_vars/*.yaml`

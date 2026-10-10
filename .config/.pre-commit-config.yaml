@@ -193,6 +193,17 @@ repos:
         additional_dependencies: [pyyaml]
         pass_filenames: false
         always_run: true
+      - id: check-moved-files
+        name: check-moved-files
+        description: >-
+          No tracked file names a file that git history shows was renamed or
+          removed, except a decision revision's noted first mention - see
+          tools/doc_scripts/check_moved_files.py. Reads the whole history, so
+          it skips itself in a shallow clone.
+        entry: bash -c 'cd tools && python3 -m doc_scripts.check_moved_files' --
+        language: python
+        pass_filenames: false
+        always_run: true
       - id: check-project-close
         name: check-project-close
         description: >-

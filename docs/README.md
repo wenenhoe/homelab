@@ -37,6 +37,11 @@ timeout is linked or derived (say what it comes from), not copied, since
 a copy goes stale without a check noticing. A figure that is itself the
 decision, such as a lifetime an ADR chose, stays in that ADR.
 
+A doc names a file by its current name. Only a decision revision keeps an
+old one, with the note that
+[`decisions/README.md#editing-a-revision`](decisions/README.md#editing-a-revision)
+describes.
+
 **Every doc's source of truth is the code/config it describes, checked
 by [`check_doc_drift.py`](../tools/doc_scripts/check_doc_drift.py)** for
 the handful of places that check mechanically (every directory's own

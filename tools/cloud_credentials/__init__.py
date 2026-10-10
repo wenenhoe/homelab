@@ -8,5 +8,5 @@ Credential hierarchy (see docs/topics/secrets/cloud-credentials/scoping.md):
 - leaf_keys/ + create_leaf_keys.py: routine create/rotate of the actual
   write/read credentials cloud_sync and restore_discovery use, run with
   the cached rotation key.
-- cache.py / verify.py: shared plumbing used by both.
+- secret_store.py / verify.py: shared plumbing used by both.
 """

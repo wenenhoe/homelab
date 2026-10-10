@@ -47,7 +47,7 @@ Path B work this ADR is deferring.
 
 **Path A:** keep every existing Python provider module as-is —
 `leaf_keys/{b2,oci,r2}.py`, `rotation_keys/{b2,oci_bootstrap,oci_iam}.py`,
-and the shared `cache.py`/`verify.py`/`expiry.py`/`check_freshness.py` —
+and the shared `cache.py` (renamed: `secret_store.py`)/`verify.py`/`expiry.py`/`check_freshness.py` —
 and repoint only their storage target from
 `ansible/files/secrets/`/local cache files to OpenBao's KV v2 API.
 Rotation and expiry logic don't get rebuilt, only where they persist

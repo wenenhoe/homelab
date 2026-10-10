@@ -9,13 +9,13 @@ Vault's data; docs/topics/secrets/openbao-reinit-runbook.md is the
 consumer of what it produces.
 
 Covers:
-  - Every cloud_credentials leaf/rotation key (_legacy_cache_keys.py's
-    LEGACY_CACHE_KEYS), read via each key's own registered category.
+  - Every cloud_credentials leaf/rotation secret (secret_owners.py's
+    SECRET_OWNERS), read via each name's own registered category.
   - Every secret_catalog.yaml entry with `store: openbao` (the secrets
     role's hosts/* material, ADR 0021).
 
 Does NOT cover main-domain/openbao-controller-role-id/-secret-id -
-these never enter Vault at all (cache.py's own docstring), so
+these never enter Vault at all (secret_store.py's own docstring), so
 ansible/files/secrets/ is already their only copy.
 
 Never overwrites an existing backup: every run gets its own
@@ -30,8 +30,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from cloud_credentials.cache import read_vault_path
+from cloud_credentials.secret_owners import SECRET_OWNERS
+from cloud_credentials.secret_store import read_vault_path
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 
@@ -48,8 +48,8 @@ def _write(dest: Path, name: str, value: str) -> None:
 
 def _dump_cloud_credentials(dest: Path) -> tuple[list[str], list[str]]:
     written, blank = [], []
-    for name, module in LEGACY_CACHE_KEYS:
-        value = module.read_cache(name)
+    for name, module in SECRET_OWNERS:
+        value = module.read_secret(name)
         if value is None:
             blank.append(name)
             continue
@@ -96,7 +96,8 @@ def main() -> int:
             print(f"  {name}")
 
     print(
-        "\nNot backed up - these never enter Vault at all, see cache.py's own docstring: main-domain, openbao-controller-role-id, openbao-controller-secret-id."
+        "\nNot backed up - these never enter Vault at all, see secret_store.py's own docstring: "
+        "main-domain, openbao-controller-role-id, openbao-controller-secret-id."
     )
     return 0
 

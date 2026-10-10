@@ -26,7 +26,7 @@ expiry the same way it flags a broken check.
 
 Deliberately never prompts (see r2_rotation_token's own interactive
 path in leaf_keys/r2.py) - this runs from a systemd timer with no TTY,
-so a missing R2 rotation-token cache file is reported as a check
+so an R2 rotation token missing from Vault is reported as a check
 failure for R2's two entries, not a hang.
 
 Usage (run from tools/):
@@ -43,13 +43,13 @@ import requests
 from b2sdk.v2.exception import B2Error
 from oci.identity_domains import IdentityDomainsClient
 
-from cloud_credentials.cache import read_vault_path, scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_api
 from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
+from cloud_credentials.secret_store import read_vault_path, scoped
 
-_leaf_cached, _leaf_read_cache, _, _ = scoped("leaf")
-_rotation_cached, _rotation_read_cache, _, _ = scoped("rotation")
+_leaf_has_secret, _leaf_read_secret, _, _ = scoped("leaf")
+_rotation_has_secret, _rotation_read_secret, _, _ = scoped("rotation")
 
 FRESH, WARNING, URGENT, STALE, CHECK_FAILED = "fresh", "expiring soon", "expiring very soon", "past its window", "check failed"
 
@@ -96,9 +96,9 @@ def check_b2() -> list[tuple[str, str, str]]:
 
     results = []
     for leaf in B2_LEAF_CAPABILITIES:
-        key_id = _leaf_read_cache(f"backblaze-b2-{leaf}-access-key")
+        key_id = _leaf_read_secret(f"backblaze-b2-{leaf}-access-key")
         results.append(_b2_key_result(f"b2 {leaf}", keys_by_id.get(key_id)))
-    rotation_key_id = _rotation_read_cache("_rotation-key-backblaze-b2-key-id")
+    rotation_key_id = _rotation_read_secret("_rotation-key-backblaze-b2-key-id")
     results.append(_b2_key_result("b2 rotation key", keys_by_id.get(rotation_key_id)))
     return results
 
@@ -108,7 +108,7 @@ def _b2_key_result(label: str, key) -> tuple[str, str, str]:
         return (label, CHECK_FAILED, "no matching key found on the account")
     expiration_ms = key.expiration_timestamp_millis
     if expiration_ms is None:
-        return (label, CHECK_FAILED, "key has no expiration_timestamp_millis - was it created before this rotated in?")
+        return (label, CHECK_FAILED, "key has no expiration_timestamp_millis")
     status, detail = _classify(datetime.fromtimestamp(expiration_ms / 1000, tz=UTC))
     return (label, status, detail)
 
@@ -131,31 +131,31 @@ def check_oci() -> list[tuple[str, str, str]]:
     return results
 
 
-def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_cache_name: str) -> tuple[str, str, str]:
-    scim_id = _leaf_read_cache(scim_id_cache_name)
+def _oci_scim_key_result(label: str, client: IdentityDomainsClient, scim_id_name: str) -> tuple[str, str, str]:
+    scim_id = _leaf_read_secret(scim_id_name)
     if scim_id is None:
-        return (label, CHECK_FAILED, f"no {scim_id_cache_name} cache file - created before the SCIM migration (ADR 0016)?")
+        return (label, CHECK_FAILED, f"no {scim_id_name} in Vault")
     try:
         key = client.get_customer_secret_key(scim_id).data
     except _OCI_SDK_ERRORS as exc:
         return (label, CHECK_FAILED, f"request failed: {exc}")
     if key.expires_on is None:
-        return (label, CHECK_FAILED, "key has no expiresOn - created before the SCIM migration (ADR 0016)?")
+        return (label, CHECK_FAILED, "key has no expiresOn")
     status, detail = _classify(datetime.fromisoformat(key.expires_on.replace("Z", "+00:00")))
     return (label, status, detail)
 
 
-def _oci_created_at_result(label: str, cache_name: str) -> tuple[str, str, str]:
-    if not _rotation_cached(cache_name):
-        return (label, CHECK_FAILED, f"no {cache_name} cache file - created before this thread's tracking was added?")
-    created_at = datetime.fromisoformat(_rotation_read_cache(cache_name))
+def _oci_created_at_result(label: str, secret_name: str) -> tuple[str, str, str]:
+    if not _rotation_has_secret(secret_name):
+        return (label, CHECK_FAILED, f"no {secret_name} in Vault")
+    created_at = datetime.fromisoformat(_rotation_read_secret(secret_name))
     status, detail = _classify(created_at + timedelta(days=QUARTERLY_DAYS))
     return (label, status, detail)
 
 
 def check_r2() -> list[tuple[str, str, str]]:
-    token = _rotation_read_cache("_rotation-key-cloudflare-r2-token")
-    account_id = _leaf_read_cache("cloudflare-r2-account-id")
+    token = _rotation_read_secret("_rotation-key-cloudflare-r2-token")
+    account_id = _leaf_read_secret("cloudflare-r2-account-id")
     if token is None or account_id is None:
         missing = "rotation token" if token is None else "account id"
         detail = f"no cached {missing} - can't query Cloudflare without prompting"
@@ -166,7 +166,7 @@ def check_r2() -> list[tuple[str, str, str]]:
 
     results = []
     for leaf in ("write", "read"):
-        token_id = _leaf_read_cache(f"cloudflare-r2-{leaf}-access-key")
+        token_id = _leaf_read_secret(f"cloudflare-r2-{leaf}-access-key")
         results.append(_r2_get_token_result(f"r2 {leaf}", session, account_id, token_id))
 
     results.append(_r2_rotation_token_result(session))
@@ -213,7 +213,7 @@ def _r2_get_token_result(label: str, session: requests.Session, account_id: str,
 
 def _r2_expires_on_result(label: str, expires_on: str | None) -> tuple[str, str, str]:
     if expires_on is None:
-        return (label, CHECK_FAILED, "token has no expires_on - created before this thread's expiry was added?")
+        return (label, CHECK_FAILED, "token has no expires_on")
     status, detail = _classify(datetime.fromisoformat(expires_on.replace("Z", "+00:00")))
     return (label, status, detail)
 

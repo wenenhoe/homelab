@@ -47,7 +47,7 @@ import tempfile
 from pathlib import Path
 
 import hvac
-from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
+from cloud_credentials.secret_owners import SECRET_OWNERS
 from utils.repo import SECRETS_DIR, TIMEOUT_SECONDS, fetch_root_cert, read_bootstrap_file
 from utils.secret_catalog import CATALOG_PATH, file_cache_entries, load_catalog
 
@@ -55,12 +55,10 @@ from openbao_utils.client import openbao_base_url, vault_read, vault_write
 from openbao_utils.client import vault_login as _bare_vault_login
 
 # Names create_leaf_keys.py/create_rotation_keys.py own (see this
-# module's own docstring) - reusing cloud_credentials' own canonical
-# list rather than a second, hand-maintained one here, so the two can't
-# drift the way secret_catalog.yaml's header comment and this script's
-# actual behavior once did.
+# module's own docstring), taken from cloud_credentials' SECRET_OWNERS
+# rather than a second list kept here.
 #
-# LEGACY_CACHE_KEYS also tracks operator-provided values (region/
+# SECRET_OWNERS also tracks operator-provided values (region/
 # namespace/account-id) that live in the same Vault-backed cache but
 # have no automated writer at all - create_leaf_keys.py never mints
 # them, it only reads them. Excluding those too would mean nothing in
@@ -73,7 +71,7 @@ _OPERATOR_PROVIDED_NAMES = frozenset(
         "cloudflare-r2-account-id",
     }
 )
-_CLOUD_CREDENTIAL_OWNED_NAMES = frozenset(name for name, _module in LEGACY_CACHE_KEYS) - _OPERATOR_PROVIDED_NAMES
+_CLOUD_CREDENTIAL_OWNED_NAMES = frozenset(name for name, _module in SECRET_OWNERS) - _OPERATOR_PROVIDED_NAMES
 
 
 def load_manual_entries(catalog: dict) -> dict[str, dict]:
@@ -110,9 +108,9 @@ def prompt_for_value(name: str, spec: dict) -> str:
 
 
 # --- Vault plumbing --------------------------------------------------------
-# fetch_root_cert/vault_read/vault_write come from openbao_utils.client -
-# shared with cloud_credentials/cache.py, no longer duplicated between
-# them. Only the login wrapper stays here: it reads this script's own
+# vault_read/vault_write come from openbao_utils.client, shared with
+# cloud_credentials/secret_store.py; fetch_root_cert comes from utils.repo. Only
+# the login wrapper lives here: it reads this script's own
 # role_id/secret_id before calling the shared bare login.
 
 

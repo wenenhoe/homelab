@@ -95,15 +95,14 @@ can't fix.
    (ADR 0025's Context explains why). Restores two things in one pass:
    every `secret_catalog.yaml` entry with `store: openbao` (including
    every `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` leaf credentials,
-   each of which now has its own `scope` of
+   each with its own `scope` of
    `cloud_credentials/leaf`), and `cloud_credentials`' internal
-   leaf/rotation bookkeeping keys with no catalog entry of their own
+   leaf/rotation bookkeeping values with no catalog entry of their own
    (`_rotation-key-*`, `_oci-leaf-user-ocid-*`, the two
    `oci-{write,read}-scim-id` values). The `_oci-leaf-user-ocid-*`
    duplicate under `cloud_credentials/leaf/` (see ADR 0025's Context)
-   is not recreated - this script, like the retired
-   `migrate_legacy_cache_to_vault.py` before it, only ever writes to
-   each key's own registered category.
+   is not recreated - this script only ever writes to each
+   name's own registered category.
 6. Provision the R2 watcher's AppRole (ADR 0026) using
    `vault-bootstrap`:
 

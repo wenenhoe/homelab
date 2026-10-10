@@ -3,8 +3,8 @@ primitives (KV v2 read/write, AppRole login, the OpenBao URL itself).
 
 Run via `uv run pytest tools/tests/ -v`. Every Vault call is mocked;
 nothing here touches a real OpenBao. The generic repo-navigation
-helpers this module used to also include (main_domain, fetch_root_cert,
-etc.) are tested once, directly, in tools/tests/utils/test_repo.py.
+helpers (main_domain, fetch_root_cert, etc.) live in utils/repo.py and
+are tested once, directly, in tools/tests/utils/test_repo.py.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ class TestOpenbaoBaseUrl:
 
 class TestVaultLogin:
     """Bare login only - no file-reading/validation here, that's each
-    caller's own job (see cache.py's/openbao_utils/bootstrap.py's own
+    caller's own job (see secret_store.py's/openbao_utils/bootstrap.py's own
     VaultLoginTests for the wrapper behavior)."""
 
     def test_logs_in_with_the_given_role_and_secret_id(self, hvac_client):

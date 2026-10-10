@@ -84,7 +84,7 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
 - **Fixtures.** `secrets_dir` (`tools/tests/conftest.py`) points
   `utils.repo.SECRETS_DIR` at an empty directory.
   `fake_vault` (`tools/tests/cloud_credentials/conftest.py`) stands in
-  for Vault I/O at the layer `cache.py` reads and writes through;
+  for Vault I/O at the layer `secret_store.py` reads and writes through;
   `vault` and `rotation_vault` wrap it with `seed()`/`get()`/`delete()`
   defaulting to the `leaf` or `rotation` category.
   `root` is an empty directory standing in for a repository root, defined

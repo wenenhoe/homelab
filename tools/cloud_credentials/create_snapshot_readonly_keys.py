@@ -2,11 +2,10 @@
 """Mint the read-only cloud credential ADR 0017 calls for: scoped to
 OpenBao's own raft-snapshot bucket, able to fetch a snapshot but nothing
 else, and — unlike every credential create_leaf_keys.py handles — never
-written to ansible/files/secrets/ at all. That cache is exactly the
-mechanism the file cache removed; a credential meant to survive
-`security` being rebuilt from nothing can't depend on a file that
-(a) lives on the same class of host as the thing being rebuilt and
-(b) no longer exists at all, post-cutover. Instead this script prints
+stored in Vault or ansible/files/secrets/ at all. OpenBao runs on
+`security`, so a credential meant to survive `security` being rebuilt
+from nothing can't live in it, and the file cache holds only the
+controller's own bootstrap secrets. Instead this script prints
 the credential once and exits — the operator copies it straight into
 the password manager entry that already holds the Shamir unseal shares
 (see docs/topics/secrets/openbao.md), same offline handling this repo already gives
@@ -27,8 +26,8 @@ Create the bucket by hand first, same as homelab-backups/-b2 (see
 docs/topics/disaster-recovery/cloud-sync.md's Setup section) — this script doesn't create buckets,
 only credentials. Authenticates using the same cached rotation
 credentials create_leaf_keys.py already uses (b2_rotation_session,
-r2_rotation_token) — Vault-backed via cache.py's own scoped("rotation")
-so reusing them here creates no dependency on the retired file cache.
+r2_rotation_token) — Vault-backed via secret_store.py's own scoped("rotation"),
+so reusing them here reads them from Vault, not from a per-credential file.
 
 Verified the same way create_leaf_keys.py --rotate verifies a new leaf
 before trusting it: a real `rclone lsjson` against the actual bucket,
@@ -59,9 +58,9 @@ import sys
 import requests
 from b2sdk.v2.exception import B2Error
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_api
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_permission_group_ids, r2_rotation_token
+from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 SNAPSHOT_BUCKET_R2 = "openbao-snapshots"
@@ -77,12 +76,12 @@ SNAPSHOT_BUCKET_B2 = "openbao-snapshots"
 # (cloudflare-r2-account-id, backblaze-b2-region) - this script mints a
 # credential that's never itself cached (see module docstring), so it
 # has no leaf/rotation keys of its own to declare.
-_, _, _, require_cache_file = scoped("leaf")
+_, _, _, require_secret = scoped("leaf")
 
 
 def mint_r2() -> bool:
     token = r2_rotation_token()
-    account_id = require_cache_file(
+    account_id = require_secret(
         "cloudflare-r2-account-id",
         "Already required for cloud-sync.md's endpoint — same file, no new step.",
     )
@@ -137,10 +136,10 @@ def mint_b2() -> bool:
     access_key, secret_key = key.id_, key.application_key
 
     # Same reasoning as mint_r2's own verification — region comes from
-    # the same cache file cloud_sync's own rclone.conf uses (storage.yaml),
+    # the same secret cloud_sync's own rclone.conf uses (storage.yaml),
     # not guessed, since a wrong region is a silent SignatureDoesNotMatch
     # on B2/S3-compat, not an obviously-wrong-looking error.
-    region = require_cache_file("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value storage.yaml's rclone.conf uses.")
+    region = require_secret("backblaze-b2-region", "Set via bootstrap.py / secret_catalog.yaml — same value storage.yaml's rclone.conf uses.")
     ok, detail = verify_leaf_via_rclone(access_key, secret_key, f"https://s3.{region}.backblazeb2.com", region, SNAPSHOT_BUCKET_B2, "read")
     print("\n--- B2: openbao-snapshot-readonly ---")
     print(f"  bucket:       {SNAPSHOT_BUCKET_B2}")

@@ -3,9 +3,9 @@
 Run via `uv run pytest tools/tests/ -v`. Every provider/Vault call is
 mocked; nothing here talks to a real tenancy, a real B2 account or a
 real OpenBao.
-audit.py's cached() reads through cloud_credentials'
-own LEGACY_CACHE_KEYS-mapped modules (Vault-backed) - AuditOciTests patches audit.cached directly rather
-than seeding files, since there's no longer a local file it reads.
+audit.py's read_secret() reads through cloud_credentials'
+own SECRET_OWNERS-mapped modules (Vault-backed) - AuditOciTests patches audit.read_secret directly rather
+than seeding files, since it reads Vault, not a local file.
 audit_local() is a different concern (scanning SECRETS_DIR for orphan
 files left on disk), so AuditLocalTests still seeds real files there.
 """
@@ -26,9 +26,9 @@ from openbao_utils import audit
 
 
 @pytest.fixture
-def cached_values(monkeypatch) -> dict[str, str]:
+def secret_values(monkeypatch) -> dict[str, str]:
     values: dict[str, str] = {}
-    monkeypatch.setattr(audit, "cached", create_autospec(audit.cached, side_effect=lambda name: values.get(name)))
+    monkeypatch.setattr(audit, "read_secret", create_autospec(audit.read_secret, side_effect=lambda name: values.get(name)))
     return values
 
 
@@ -38,7 +38,7 @@ class TestAuditOci:
         with patch.object(audit, "oci_identity_domains_client", return_value=identity_domains_client, autospec=True) as factory:
             yield factory
 
-    def test_no_scim_credentials_stops_after_the_header(self, oci_client_factory, identity_domains_client, cached_values, capsys):
+    def test_no_scim_credentials_stops_after_the_header(self, oci_client_factory, identity_domains_client, secret_values, capsys):
         oci_client_factory.side_effect = SystemExit(1)
 
         audit.audit_oci()
@@ -46,7 +46,7 @@ class TestAuditOci:
         assert capsys.readouterr().out.strip() == "== OCI customer secret keys (write + read leaves) =="
         identity_domains_client.list_customer_secret_keys.assert_not_called()
 
-    def test_leaf_without_cached_user_ocid_is_skipped(self, identity_domains_client, cached_values, capsys):
+    def test_leaf_without_cached_user_ocid_is_skipped(self, identity_domains_client, secret_values, capsys):
         # Neither _oci-leaf-user-ocid-write nor -read seeded.
         audit.audit_oci()
 
@@ -55,9 +55,9 @@ class TestAuditOci:
         assert "read: no cached user OCID, skipping" in printed
         identity_domains_client.list_customer_secret_keys.assert_not_called()
 
-    def test_active_key_matches_cached_scim_id_orphan_does_not(self, identity_domains_client, cached_values, capsys):
-        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
-        cached_values["oci-write-scim-id"] = "scim-active"
+    def test_active_key_matches_cached_scim_id_orphan_does_not(self, identity_domains_client, secret_values, capsys):
+        secret_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
+        secret_values["oci-write-scim-id"] = "scim-active"
         identity_domains_client.list_customer_secret_keys.return_value = customer_secret_keys_response(
             customer_secret_key("scim-active", "ACCESS-ACTIVE", "unused", status="ACTIVE", created="2026-01-01T00:00:00Z"),
             customer_secret_key("scim-orphan", "ACCESS-ORPHAN", "unused", status="ACTIVE", created="2025-01-01T00:00:00Z"),
@@ -72,16 +72,16 @@ class TestAuditOci:
         assert "DELETE https://idcs-example.identity.oraclecloud.com/admin/v1/CustomerSecretKeys/scim-orphan" in printed
         assert "CustomerSecretKeys/scim-active" not in printed
 
-    def test_filter_query_scoped_to_the_correct_leaf_user(self, identity_domains_client, cached_values):
-        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
+    def test_filter_query_scoped_to_the_correct_leaf_user(self, identity_domains_client, secret_values):
+        secret_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
         identity_domains_client.list_customer_secret_keys.return_value = customer_secret_keys_response()
 
         audit.audit_oci()
 
         identity_domains_client.list_customer_secret_keys.assert_called_once_with(filter='user.ocid eq "ocid1.user.oc1..writeleaf"')
 
-    def test_key_without_creation_metadata_or_status_is_listed_as_unknown(self, identity_domains_client, cached_values, capsys):
-        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
+    def test_key_without_creation_metadata_or_status_is_listed_as_unknown(self, identity_domains_client, secret_values, capsys):
+        secret_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
         identity_domains_client.list_customer_secret_keys.return_value = customer_secret_keys_response(
             customer_secret_key("scim-bare", "ACCESS-BARE", "unused")
         )
@@ -90,8 +90,8 @@ class TestAuditOci:
 
         assert "scim_id=scim-bare  accessKey=ACCESS-BARE  created=unknown  status=unknown  [ORPHAN]" in capsys.readouterr().out
 
-    def test_response_without_a_resources_list_counts_as_no_keys(self, identity_domains_client, cached_values, capsys):
-        cached_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
+    def test_response_without_a_resources_list_counts_as_no_keys(self, identity_domains_client, secret_values, capsys):
+        secret_values["_oci-leaf-user-ocid-write"] = "ocid1.user.oc1..writeleaf"
         identity_domains_client.list_customer_secret_keys.return_value = oci_response(CustomerSecretKeys())
 
         audit.audit_oci()
@@ -100,17 +100,17 @@ class TestAuditOci:
 
 
 class TestCachedDispatch:
-    """cached() itself: confirms it reads through the correct
-    LEGACY_CACHE_KEYS-mapped module rather than any local file."""
+    """read_secret() itself: confirms it reads through the correct
+    SECRET_OWNERS-mapped module rather than any local file."""
 
     def test_reads_via_the_names_own_module(self):
-        with patch.object(audit._CACHE_MODULE_BY_NAME["cloudflare-r2-account-id"], "read_cache", return_value="acct-123", autospec=True) as mock_read:
-            assert audit.cached("cloudflare-r2-account-id") == "acct-123"
+        with patch.object(audit._OWNER_BY_NAME["cloudflare-r2-account-id"], "read_secret", return_value="acct-123", autospec=True) as mock_read:
+            assert audit.read_secret("cloudflare-r2-account-id") == "acct-123"
         mock_read.assert_called_once_with("cloudflare-r2-account-id")
 
     def test_unknown_name_raises_instead_of_silently_returning_none(self):
         with pytest.raises(KeyError):
-            audit.cached("not-a-real-cloud-credentials-name")
+            audit.read_secret("not-a-real-cloud-credentials-name")
 
 
 class TestAuditLocal:
@@ -133,11 +133,10 @@ class TestAuditLocal:
         return SimpleNamespace(secrets=secrets, seed=lambda name, value: (secrets / name).write_text(value))
 
     def test_r2_rotation_token_is_not_flagged_as_an_orphan(self, env):
-        """Regression test: _rotation-key-cloudflare-r2-token was
-        missing from KNOWN_INTERNAL_PATTERNS despite being a real,
-        actively-used cache file (r2_rotation_token() reads it,
-        cache_r2_rotation_token()/rotate_r2_rotation_token() write it) -
-        a false-positive orphan that predates the OCI SCIM migration."""
+        """A file in the file cache named for a cloud_credentials secret with no
+        catalog entry, here the R2 rotation token (held in Vault), is a known
+        name, not an orphan: audit_local() counts every SECRET_OWNERS name as
+        known."""
         env.seed("_rotation-key-cloudflare-r2-token", "shh")
         env.seed("cloudflare-r2-write-access-key", "abc")
         env.seed("cloudflare-r2-write-secret-key", "def")
@@ -219,8 +218,8 @@ class TestAuditB2:
     anywhere by design."""
 
     @pytest.fixture(autouse=True)
-    def _cached(self, cached_values):
-        cached_values.update(
+    def _stub_read_secret(self, secret_values):
+        secret_values.update(
             {
                 "_rotation-key-backblaze-b2-key-id": "rotation-key-id",
                 "backblaze-b2-write-access-key": "write-key-id",
@@ -303,8 +302,8 @@ class TestAuditR2:
     at all, orphan or not."""
 
     @pytest.fixture(autouse=True)
-    def _cached(self, cached_values):
-        cached_values.update(
+    def _stub_read_secret(self, secret_values):
+        secret_values.update(
             {
                 "cloudflare-r2-account-id": "acct-123",
                 "cloudflare-r2-write-access-key": "write-token-id",

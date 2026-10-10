@@ -56,7 +56,7 @@ class TestOciRotation:
         assert vault.get("oci-read-secret-key") == "NEW_SECRET"
         assert vault.get("oci-read-scim-id") == "NEW_SCIM_ID"
         # expiresOn is native now (see ADR 0016) - no self-tracked
-        # -created-at cache file should exist for a SCIM-created key.
+        # -created-at secret should exist for a SCIM-created key.
         assert vault.get("oci-read-created-at") is None
 
     @patch.object(oci, "verify_leaf_via_rclone", return_value=(False, "permission denied"), autospec=True)

@@ -11,10 +11,10 @@ revoked; there is nothing left to verify before revoking.
 
 from __future__ import annotations
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.leaf_keys.r2 import _prompt_r2_admin_token
+from cloud_credentials.secret_store import scoped
 
-cached, read_cache, write_cache, _ = scoped("rotation")
+has_secret, read_secret, write_secret, _ = scoped("rotation")
 
 _CACHE_KEY = "_rotation-key-cloudflare-r2-token"
 
@@ -23,10 +23,10 @@ def cache_r2_rotation_token() -> None:
     """Idempotent, matching create_b2_rotation_key/create_oci_rotation_key's
     shape — skips if a token is already cached, so this is safe to run
     unconditionally as part of a routine bootstrap pass."""
-    if cached(_CACHE_KEY):
+    if has_secret(_CACHE_KEY):
         print("r2: rotation token already cached, skipping")
         return
-    write_cache(_CACHE_KEY, _prompt_r2_admin_token())
+    write_secret(_CACHE_KEY, _prompt_r2_admin_token())
     print("r2: rotation token cached")
 
 
@@ -38,8 +38,8 @@ def rotate_r2_rotation_token() -> bool:
     the cached value is already dead by the time this runs regardless
     of what it currently says, so there's no "old key kept working"
     guarantee to offer the way B2/OCI's --rotate does."""
-    if cached(_CACHE_KEY):
+    if has_secret(_CACHE_KEY):
         print("r2: overwriting cached rotation token — the old value is not verified or revoked here, only replaced")
-    write_cache(_CACHE_KEY, _prompt_r2_admin_token())
+    write_secret(_CACHE_KEY, _prompt_r2_admin_token())
     print("r2: rotation token cached")
     return True

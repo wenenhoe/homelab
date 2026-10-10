@@ -18,7 +18,7 @@ class _FakeModule:
     def __init__(self, value: str | None):
         self._value = value
 
-    def read_cache(self, name: str) -> str | None:
+    def read_secret(self, name: str) -> str | None:
         return self._value
 
 
@@ -29,7 +29,7 @@ def tmp(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 class TestDumpCloudCredentials:
     def test_writes_present_values_with_owner_only_permissions(self, tmp):
-        with patch.object(dump, "LEGACY_CACHE_KEYS", [("k", _FakeModule("secret-value"))]):
+        with patch.object(dump, "SECRET_OWNERS", [("k", _FakeModule("secret-value"))]):
             written, blank = dump._dump_cloud_credentials(tmp)
         assert written == ["k"]
         assert blank == []
@@ -38,7 +38,7 @@ class TestDumpCloudCredentials:
         assert dest.stat().st_mode & 0o777 == 0o600
 
     def test_reports_missing_value_as_blank_not_an_error(self, tmp):
-        with patch.object(dump, "LEGACY_CACHE_KEYS", [("k", _FakeModule(None))]):
+        with patch.object(dump, "SECRET_OWNERS", [("k", _FakeModule(None))]):
             written, blank = dump._dump_cloud_credentials(tmp)
         assert written == []
         assert blank == ["k"]
@@ -83,7 +83,7 @@ class TestMain:
         catalog_file.write_text("secret_catalog:\n  no-scope-key:\n    source: manual\n    store: controller_file\n")
         with (
             patch.object(dump, "CATALOG_PATH", catalog_file),
-            patch.object(dump, "LEGACY_CACHE_KEYS", []),
+            patch.object(dump, "SECRET_OWNERS", []),
             patch.object(dump, "read_vault_path", return_value=None, autospec=True),
             patch.object(Path, "home", return_value=tmp, autospec=True),
         ):
@@ -102,7 +102,7 @@ class TestMain:
         )
         with (
             patch.object(dump, "CATALOG_PATH", catalog_file),
-            patch.object(dump, "LEGACY_CACHE_KEYS", [("shared-key", _FakeModule("v1")), ("cc-key", _FakeModule("v2"))]),
+            patch.object(dump, "SECRET_OWNERS", [("shared-key", _FakeModule("v1")), ("cc-key", _FakeModule("v2"))]),
             patch.object(dump, "read_vault_path", return_value="v1", autospec=True),
             patch.object(Path, "home", return_value=tmp, autospec=True),
         ):
@@ -123,7 +123,7 @@ class TestMain:
             catalog_file.write_text("secret_catalog: {}\n")
             with (
                 patch.object(dump, "CATALOG_PATH", catalog_file),
-                patch.object(dump, "LEGACY_CACHE_KEYS", []),
+                patch.object(dump, "SECRET_OWNERS", []),
                 pytest.raises(FileExistsError),
             ):
                 dump.main()

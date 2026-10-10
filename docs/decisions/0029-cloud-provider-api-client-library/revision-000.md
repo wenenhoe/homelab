@@ -41,7 +41,7 @@ package already in use (its `identity_domains.IdentityDomainsClient` +
 SCIM flow above), `Backblaze/b2sdk` for B2 key management, and
 Cloudflare's official Python SDK for R2's account API-token calls.
 
-`cache.py`'s OpenBao KV v2 client (`hvac`) and its `_fetch_root_cert`
+`cache.py`'s (renamed: `secret_store.py`) OpenBao KV v2 client (`hvac`) and its `_fetch_root_cert`
 SSH call (`paramiko`) are **not** decided here — the same gap exists
 independently in `bootstrap_secrets.py`, `audit_secrets.py`, and
 `docker/openbao/watcher/r2_read_watcher.py`, so that question is scoped

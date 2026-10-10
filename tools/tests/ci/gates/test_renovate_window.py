@@ -2,7 +2,7 @@
 
 Cron parsing and the window rule run on fixed instants; config reading runs
 on scratch renovate.json5 text; the last class holds the real config to the
-truth table the workflow's old inline shell check implemented.
+truth table: a miss on Monday and Thursday from 06:00 Singapore, a pass otherwise.
 
 Run via `uv run pytest tools/tests/ -v`.
 """
@@ -198,7 +198,7 @@ class TestRealConfig:
         assert zone == "Asia/Singapore"
         assert schedules
 
-    def test_the_truth_table_the_inline_shell_check_implemented(self, subtests):
+    def test_monday_and_thursday_from_0600_singapore_miss_and_everything_else_passes(self, subtests):
         """Monday or Thursday from 06:00 Singapore is a miss; everything else passes."""
         misses = 0
         start = epoch(2026, 9, 28, 0)

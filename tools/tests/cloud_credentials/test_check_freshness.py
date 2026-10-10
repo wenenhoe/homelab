@@ -159,8 +159,7 @@ class TestCheckOci:
         assert identity_domains_client.get_customer_secret_key.call_args_list == [call("scim-write-1"), call("scim-read-1")]
 
     def test_missing_scim_id_is_a_check_failure_not_a_crash(self, identity_domains_client):
-        # oci-write-scim-id deliberately not seeded — a leaf key created
-        # before the SCIM migration (ADR 0016) would have no such file.
+        # oci-write-scim-id deliberately not seeded.
         results = check_freshness.check_oci()
 
         statuses = {name: status for name, status, _ in results}
@@ -175,7 +174,7 @@ class TestCheckOci:
 
         assert next((status, detail) for name, status, detail in results if name == "oci write") == (
             check_freshness.CHECK_FAILED,
-            "key has no expiresOn - created before the SCIM migration (ADR 0016)?",
+            "key has no expiresOn",
         )
 
     @pytest.mark.parametrize(
@@ -386,10 +385,9 @@ class TestTelegramAlert:
     @patch.object(check_freshness, "check_b2", return_value=[("b2 write", check_freshness.FRESH, "")], autospec=True)
     @patch.object(check_freshness.requests, "post", autospec=True)
     def test_warning_alone_still_sends_a_telegram_alert(self, mock_post, mock_b2, mock_oci, mock_r2, fake_vault):
-        # This is the actual point of adding WARNING — a checked-fine
-        # "past its window" result used to not even alert; a "expiring
-        # soon" result must, since it's the only outcome that gives any
-        # lead time before B2/R2 actually reject the credential.
+        # A WARNING ("expiring soon") must alert: it's the only outcome
+        # that gives any lead time before B2/R2 actually reject the
+        # credential.
         seed_telegram(fake_vault, "telegram-topic-id-backups", "42")
         mock_post.return_value = response()
 

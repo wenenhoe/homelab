@@ -12,10 +12,10 @@ import sys
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 from b2sdk.v2.exception import B2Error
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
+from cloud_credentials.secret_store import scoped
 
-cached, read_cache, write_cache, _ = scoped("rotation")
+has_secret, read_secret, write_secret, _ = scoped("rotation")
 
 
 def _prompt_master_credentials() -> tuple[str, str]:
@@ -67,14 +67,14 @@ def _verify_rotation_key(key_id: str, app_key: str) -> tuple[bool, str]:
 
 
 def create_b2_rotation_key() -> None:
-    if cached("_rotation-key-backblaze-b2-key-id") and cached("_rotation-key-backblaze-b2-application-key"):
+    if has_secret("_rotation-key-backblaze-b2-key-id") and has_secret("_rotation-key-backblaze-b2-application-key"):
         print("b2: rotation key already cached, skipping")
         return
 
     master_key_id, master_key = _prompt_master_credentials()
     minted = _mint_rotation_key(master_key_id, master_key)
-    write_cache("_rotation-key-backblaze-b2-key-id", minted["key_id"])
-    write_cache("_rotation-key-backblaze-b2-application-key", minted["app_key"])
+    write_secret("_rotation-key-backblaze-b2-key-id", minted["key_id"])
+    write_secret("_rotation-key-backblaze-b2-application-key", minted["app_key"])
     print("b2: rotation key cached")
 
 
@@ -86,7 +86,7 @@ def rotate_b2_rotation_key() -> bool:
     master credential every time, same as create_b2_rotation_key —
     B2 has no way to mint an account-management key from another
     account-management key, only from the master."""
-    old_key_id = read_cache("_rotation-key-backblaze-b2-key-id")
+    old_key_id = read_secret("_rotation-key-backblaze-b2-key-id")
 
     master_key_id, master_key = _prompt_master_credentials()
     minted = _mint_rotation_key(master_key_id, master_key)
@@ -103,8 +103,8 @@ def rotate_b2_rotation_key() -> bool:
         )
         return False
 
-    write_cache("_rotation-key-backblaze-b2-key-id", new_key_id)
-    write_cache("_rotation-key-backblaze-b2-application-key", new_app_key)
+    write_secret("_rotation-key-backblaze-b2-key-id", new_key_id)
+    write_secret("_rotation-key-backblaze-b2-application-key", new_app_key)
 
     if old_key_id:
         try:

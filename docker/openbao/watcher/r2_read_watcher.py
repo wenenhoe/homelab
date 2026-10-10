@@ -34,7 +34,7 @@ earlier versions.
 
 Uses hvac for the OpenBao client - see
 docs/decisions/0030-openbao-client-implementation-in-repo-python/revision-000.md. No
-paramiko/SSH involved here, unlike cache.py/openbao_utils/bootstrap.py:
+paramiko/SSH involved here, unlike secret_store.py/openbao_utils/bootstrap.py:
 this runs directly on `security` itself (see OPENBAO_BASE_URL below),
 so there's no remote root-cert fetch to make - `verify=False` is the
 loopback TLS trust, not a paramiko host-key one. Also no reconnect/
@@ -65,7 +65,7 @@ SECRET_ID_PATH = "/etc/r2-read-watcher/secret_id"  # noqa: S105 - file path, not
 TELEGRAM_VAULT_SCOPE = "hosts/all/telegram"  # ADR 0021
 VAULT_KV_MOUNT = "secret"
 STATE_PATH = "/var/lib/r2-read-watcher/state.json"
-# Bounds the hvac.Client - see cloud_credentials/cache.py's identical
+# Bounds the hvac.Client - see cloud_credentials/secret_store.py's identical
 # constant/comment.
 _TIMEOUT_SECONDS = 10
 
@@ -135,7 +135,7 @@ def _read_vault_secret(client: hvac.Client, name: str) -> str | None:
         resp = client.secrets.kv.v2.read_secret_version(
             path=f"{TELEGRAM_VAULT_SCOPE}/{name}",
             mount_point=VAULT_KV_MOUNT,
-            # See cloud_credentials/cache.py's identical call/comment -
+            # See cloud_credentials/secret_store.py's identical call/comment -
             # preserves current behavior, silences hvac's v3.0.0
             # default-change warning.
             raise_on_deleted_version=True,

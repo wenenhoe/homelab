@@ -2,10 +2,10 @@
 
 Run via `uv run pytest tools/tests/ -v`. Fake Vault reads/writes, a
 real tmp filesystem for the backup dir and catalog file - no real
-Vault. Covers both phases this script merges: catalog-scoped restore
-(via read_vault_path/write_vault_path) and LEGACY_CACHE_KEYS restore
-(via each key's own module double). Each phase's own tests neutralize
-the *other* phase (an empty LEGACY_CACHE_KEYS list, or an empty
+Vault. Covers both phases: catalog-scoped restore
+(via read_vault_path/write_vault_path) and SECRET_OWNERS restore
+(via each name's own module double). Each phase's own tests neutralize
+the *other* phase (an empty SECRET_OWNERS list, or an empty
 catalog) rather than mocking it away - main() runs both phases
 unconditionally, so leaving the other phase's real dependencies
 wired up would mean an unmocked real Vault session gets built.
@@ -34,11 +34,41 @@ class _FakeModule:
     def __init__(self):
         self.store: dict[str, str] = {}
 
-    def cached(self, name: str) -> bool:
+    def has_secret(self, name: str) -> bool:
         return name in self.store
 
-    def write_cache(self, name: str, value: str) -> None:
+    def write_secret(self, name: str, value: str) -> None:
         self.store[name] = value
+
+
+class _VaultModule:
+    """Like _FakeModule, but its store is a Vault dict shared with the test,
+    at the cloud_credentials/<category>/<name> path scoped() would use."""
+
+    def __init__(self, vault: dict[str, str], category: str):
+        self._vault = vault
+        self._category = category
+
+    def _path(self, name: str) -> str:
+        return f"cloud_credentials/{self._category}/{name}"
+
+    def has_secret(self, name: str) -> bool:
+        return self._path(name) in self._vault
+
+    def write_secret(self, name: str, value: str) -> None:
+        self._vault[self._path(name)] = value
+
+
+def _summary(out: str) -> dict[str, list[str]]:
+    """main()'s printed summary: each heading line -> the names listed under it."""
+    sections: dict[str, list[str]] = {}
+    names: list[str] = []
+    for line in out.splitlines():
+        if line.startswith("  "):
+            names.append(line.strip())
+        elif line.strip():
+            names = sections.setdefault(line, [])
+    return sections
 
 
 @pytest.fixture
@@ -70,7 +100,7 @@ class TestCatalogScopedRestore:
         monkeypatch.setattr(restore, "CATALOG_PATH", catalog_file)
         # Neutralizes the other phase - an empty list means its for
         # loop never iterates, never touching a real Vault session.
-        monkeypatch.setattr(restore, "LEGACY_CACHE_KEYS", [])
+        monkeypatch.setattr(restore, "SECRET_OWNERS", [])
         return SimpleNamespace(catalog_file=catalog_file, backup_dir=backup_dir)
 
     def test_restores_a_value_present_in_the_backup_but_not_in_vault(self, env):
@@ -126,7 +156,7 @@ class TestCatalogScopedRestore:
         fake_write.assert_not_called()
 
     def test_restores_backup_content_byte_for_byte_not_stripped(self, env):
-        # The other phase (LEGACY_CACHE_KEYS) must not strip() backup
+        # The other phase (SECRET_OWNERS) must not strip() backup
         # content before this merge - openbao_utils/dump.py writes the raw
         # value with no added whitespace, so stripping on the way back
         # in would silently corrupt a value with meaningful
@@ -144,7 +174,7 @@ class TestCatalogScopedRestore:
         assert written["hosts/services/padded-value"] == "  has padding  \n"
 
 
-class TestLegacyCacheKeysRestore:
+class TestSecretOwnersRestore:
     @pytest.fixture(autouse=True)
     def _empty_catalog(self, tmp, monkeypatch):
         catalog_file = tmp / "catalog.yaml"
@@ -161,7 +191,7 @@ class TestLegacyCacheKeysRestore:
     def test_restores_a_key_present_in_backup_but_not_vault(self, tmp):
         mod = _FakeModule()
         self.seed_backup_file(tmp, "some-key", "the-value")
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("some-key", mod)]):
             rc = _run(tmp)
         assert rc == 0
         assert mod.store["some-key"] == "the-value"
@@ -170,13 +200,13 @@ class TestLegacyCacheKeysRestore:
         mod = _FakeModule()
         mod.store["some-key"] = "vault-value"
         self.seed_backup_file(tmp, "some-key", "backup-value")
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("some-key", mod)]):
             _run(tmp)
         assert mod.store["some-key"] == "vault-value"
 
     def test_key_with_no_backup_file_is_left_alone(self, tmp):
         mod = _FakeModule()
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("some-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("some-key", mod)]):
             rc = _run(tmp)
         assert rc == 0
         assert "some-key" not in mod.store
@@ -185,7 +215,7 @@ class TestLegacyCacheKeysRestore:
         mod_a, mod_b = _FakeModule(), _FakeModule()
         self.seed_backup_file(tmp, "key-a", "value-a")
         # key-b deliberately has no backup file.
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("key-a", mod_a), ("key-b", mod_b)]):
+        with patch.object(restore, "SECRET_OWNERS", [("key-a", mod_a), ("key-b", mod_b)]):
             _run(tmp)
         assert mod_a.store.get("key-a") == "value-a"
         assert "key-b" not in mod_b.store
@@ -195,6 +225,60 @@ class TestLegacyCacheKeysRestore:
         # full explanation.
         mod = _FakeModule()
         self.seed_backup_file(tmp, "padded-key", "  has padding  \n")
-        with patch.object(restore, "LEGACY_CACHE_KEYS", [("padded-key", mod)]):
+        with patch.object(restore, "SECRET_OWNERS", [("padded-key", mod)]):
             _run(tmp)
         assert mod.store["padded-key"] == "  has padding  \n"
+
+
+class TestBothPhases:
+    """A name with a catalog entry that SECRET_OWNERS also lists is one secret in
+    one Vault path, so the summary reports it once, under the outcome it had."""
+
+    @pytest.fixture
+    def env(self, tmp, monkeypatch) -> SimpleNamespace:
+        catalog_file = tmp / "catalog.yaml"
+        catalog_file.write_text("secret_catalog:\n  shared-name:\n    source: manual\n    store: openbao\n    scope: cloud_credentials/leaf\n")
+        backup_dir = tmp / "backup"
+        backup_dir.mkdir()
+        vault: dict[str, str] = {}
+        monkeypatch.setattr(restore, "CATALOG_PATH", catalog_file)
+        monkeypatch.setattr(
+            restore,
+            "SECRET_OWNERS",
+            [("shared-name", _VaultModule(vault, "leaf")), ("bookkeeping-name", _VaultModule(vault, "rotation"))],
+        )
+        return SimpleNamespace(backup_dir=backup_dir, vault=vault)
+
+    @pytest.mark.parametrize(
+        ("in_backup", "in_vault", "expected"),
+        [
+            pytest.param(True, False, {"Restored to Vault (2):": ["shared-name", "bookkeeping-name"]}, id="restored"),
+            pytest.param(
+                True,
+                True,
+                {"Restored to Vault (1):": ["bookkeeping-name"], "Already in Vault, left untouched (1):": ["shared-name"]},
+                id="already-in-vault",
+            ),
+            pytest.param(
+                False,
+                False,
+                {"Restored to Vault (1):": ["bookkeeping-name"], "No backup file found, nothing to restore (1):": ["shared-name"]},
+                id="no-backup-file",
+            ),
+        ],
+    )
+    def test_a_shared_name_is_reported_once(self, env, capsys, in_backup, in_vault, expected):
+        (env.backup_dir / "bookkeeping-name").write_text("bookkeeping-value")
+        if in_backup:
+            (env.backup_dir / "shared-name").write_text("backup-value")
+        if in_vault:
+            env.vault["cloud_credentials/leaf/shared-name"] = "vault-value"
+
+        with (
+            patch.object(restore, "read_vault_path", side_effect=env.vault.get, autospec=True),
+            patch.object(restore, "write_vault_path", side_effect=env.vault.__setitem__, autospec=True),
+        ):
+            rc = _run(env.backup_dir)
+
+        assert rc == 0
+        assert _summary(capsys.readouterr().out) == expected

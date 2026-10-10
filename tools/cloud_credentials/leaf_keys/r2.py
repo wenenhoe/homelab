@@ -8,15 +8,15 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
+from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
-cached, read_cache, write_cache, require_cache_file = scoped("leaf")
+has_secret, read_secret, write_secret, require_secret = scoped("leaf")
 # r2_rotation_token() below reads/writes the rotation-tier admin token
 # rotation_keys/r2.py also caches - a second, differently-scoped
 # binding, same reasoning as leaf_keys/b2.py's own rotation-session read.
-_, _rotation_read_cache, _rotation_write_cache, _ = scoped("rotation")
+_, _rotation_read_secret, _rotation_write_secret, _ = scoped("rotation")
 
 R2_BUCKET = "homelab-backups"
 
@@ -68,12 +68,12 @@ def r2_rotation_token() -> str:
     --provider r2. This function's own inline prompt is a fallback for
     first-time use, not the intended everyday path anymore.
     """
-    cache_key = "_rotation-key-cloudflare-r2-token"
-    cached_value = _rotation_read_cache(cache_key)
-    if cached_value is not None:
-        return cached_value
+    secret_name = "_rotation-key-cloudflare-r2-token"  # noqa: S105 - Vault secret name, not secret value
+    stored_token = _rotation_read_secret(secret_name)
+    if stored_token is not None:
+        return stored_token
     token = _prompt_r2_admin_token()
-    _rotation_write_cache(cache_key, token)
+    _rotation_write_secret(secret_name, token)
     return token
 
 
@@ -126,7 +126,7 @@ def r2_create_leaf_token(
         # Native, confirmed against Cloudflare's own Create Token
         # reference (top-level `expires_on`, RFC 3339, on the same
         # POST /accounts/{account_id}/tokens this already calls) -
-        # unlike OCI, no self-tracked cache file needed here.
+        # unlike OCI, no self-tracked secret needed here.
         # check_freshness.py reads this back live via Get Token
         # rather than trusting a local clock.
         policy["expires_on"] = rfc3339_in(QUARTERLY_DAYS)
@@ -147,14 +147,14 @@ def r2_delete_token(session, account_id: str, token_id: str) -> None:
 
 
 def create_r2() -> None:
-    write_done = cached("cloudflare-r2-write-access-key") and cached("cloudflare-r2-write-secret-key")
-    read_done = cached("cloudflare-r2-read-access-key") and cached("cloudflare-r2-read-secret-key")
+    write_done = has_secret("cloudflare-r2-write-access-key") and has_secret("cloudflare-r2-write-secret-key")
+    read_done = has_secret("cloudflare-r2-read-access-key") and has_secret("cloudflare-r2-read-secret-key")
     if write_done and read_done:
         print("r2: both credentials already cached, skipping")
         return
 
     token = r2_rotation_token()
-    account_id = require_cache_file(
+    account_id = require_secret(
         "cloudflare-r2-account-id",
         "Already required for cloud-sync.md's endpoint — same file, no new step.",
     )
@@ -170,14 +170,14 @@ def create_r2() -> None:
         # token value, computed locally — the raw token value itself is
         # never the S3 secret key. https://developers.cloudflare.com/r2/api/tokens/
         secret_key = hashlib.sha256(result["value"].encode()).hexdigest()
-        write_cache(f"cloudflare-r2-{leaf}-access-key", result["id"])
-        write_cache(f"cloudflare-r2-{leaf}-secret-key", secret_key)
+        write_secret(f"cloudflare-r2-{leaf}-access-key", result["id"])
+        write_secret(f"cloudflare-r2-{leaf}-secret-key", secret_key)
         print(f"r2 {leaf}: cached")
 
 
 def rotate_r2(leaves: list[str]) -> bool:
     token = r2_rotation_token()
-    account_id = require_cache_file(
+    account_id = require_secret(
         "cloudflare-r2-account-id",
         "Already required for cloud-sync.md's endpoint — same file, no new step.",
     )
@@ -194,7 +194,7 @@ def rotate_r2(leaves: list[str]) -> bool:
 
     all_ok = True
     for leaf in leaves:
-        old_token_id = read_cache(f"cloudflare-r2-{leaf}-access-key")
+        old_token_id = read_secret(f"cloudflare-r2-{leaf}-access-key")
 
         result = r2_create_leaf_token(session, account_id, group_by_name, leaf)
         new_token_id = result["id"]
@@ -212,8 +212,8 @@ def rotate_r2(leaves: list[str]) -> bool:
             all_ok = False
             continue
 
-        write_cache(f"cloudflare-r2-{leaf}-access-key", new_token_id)
-        write_cache(f"cloudflare-r2-{leaf}-secret-key", new_secret_key)
+        write_secret(f"cloudflare-r2-{leaf}-access-key", new_token_id)
+        write_secret(f"cloudflare-r2-{leaf}-secret-key", new_secret_key)
 
         if old_token_id:
             try:

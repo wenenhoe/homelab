@@ -796,7 +796,7 @@ class TestRealTree:
         assert ms.roles_to_test(ms.REPO_ROOT, [path])[0] == []
 
     def test_no_role_watches_the_whole_helpers_directory(self, subtests):
-        # backup_agent used to, through the definition of its project_root variable.
+        # backup_agent's project_root variable points into the helpers directory, which must not make the role watch all of it.
         for role in ms.role_names(ms.REPO_ROOT):
             with subtests.test(role=role):
                 assert f"{ms.HELPERS_DIR}/" not in ms.watch_set(ms.REPO_ROOT, role)

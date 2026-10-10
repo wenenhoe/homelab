@@ -13,22 +13,22 @@ import sys
 import oci.exceptions
 from oci.identity_domains.models import CustomerSecretKey, CustomerSecretKeyUser
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
 from cloud_credentials.rotation_keys.oci_scim import SCIM_CUSTOMER_SECRET_KEY_SCHEMA, oci_identity_domains_client
+from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
-cached, read_cache, write_cache, require_cache_file = scoped("leaf")
+has_secret, read_secret, write_secret, require_secret = scoped("leaf")
 # oci_leaf_user_id() below reads the rotation-tier IAM user OCID
 # rotation_keys/oci_bootstrap.py writes during rotation-key bootstrap -
 # a second, differently-scoped binding, same reasoning as leaf_keys/b2.py's.
-_, _, _, _rotation_require_cache_file = scoped("rotation")
+_, _, _, _rotation_require_secret = scoped("rotation")
 
 OCI_BUCKET = "homelab-backups"
 
 
 def oci_leaf_user_id(leaf: str) -> str:
-    return _rotation_require_cache_file(
+    return _rotation_require_secret(
         f"_oci-leaf-user-ocid-{leaf}",
         f"Missing the {leaf}-leaf IAM user's OCID — run: python3 -m cloud_credentials.create_rotation_keys --provider oci",
     )
@@ -58,8 +58,8 @@ def create_oci() -> None:
     # gap that made a genuinely-in-use key show up as an ORPHAN in
     # openbao_utils/audit.py, since that comparison has nothing to match
     # against without it.
-    write_done = cached("oci-write-access-key") and cached("oci-write-secret-key") and cached("oci-write-scim-id")
-    read_done = cached("oci-read-access-key") and cached("oci-read-secret-key") and cached("oci-read-scim-id")
+    write_done = has_secret("oci-write-access-key") and has_secret("oci-write-secret-key") and has_secret("oci-write-scim-id")
+    read_done = has_secret("oci-read-access-key") and has_secret("oci-read-secret-key") and has_secret("oci-read-scim-id")
     if write_done and read_done:
         print("oci: both credentials already cached, skipping")
         return
@@ -75,28 +75,28 @@ def create_oci() -> None:
         if done:
             continue
         key = _create_customer_secret_key(client, leaf)
-        write_cache(f"oci-{leaf}-access-key", key.access_key)
+        write_secret(f"oci-{leaf}-access-key", key.access_key)
         # The secret is only ever returned on this create call — same
         # one-time disclosure as the classic API's own `key` field.
-        write_cache(f"oci-{leaf}-secret-key", key.secret_key)
+        write_secret(f"oci-{leaf}-secret-key", key.secret_key)
         # The SCIM resource id, not the access key itself — needed
         # later to GET/DELETE this exact key (rotation, freshness
-        # checks). expiresOn is native now, so unlike before there's
-        # no companion -created-at cache file to write. See ADR 0016.
-        write_cache(f"oci-{leaf}-scim-id", key.id)
+        # checks). expiresOn is native, so there is no companion
+        # -created-at secret to write. See ADR 0016.
+        write_secret(f"oci-{leaf}-scim-id", key.id)
         print(f"oci {leaf}: cached")
 
 
 def rotate_oci(leaves: list[str]) -> bool:
     client = oci_identity_domains_client()
 
-    namespace = require_cache_file("oci-namespace", "Set via openbao_utils/bootstrap.py / secret_catalog.yaml.")
-    region = require_cache_file("oci-region", "Set via openbao_utils/bootstrap.py / secret_catalog.yaml.")
+    namespace = require_secret("oci-namespace", "Set via openbao_utils/bootstrap.py / secret_catalog.yaml.")
+    region = require_secret("oci-region", "Set via openbao_utils/bootstrap.py / secret_catalog.yaml.")
     api_endpoint = f"https://{namespace}.compat.objectstorage.{region}.oraclecloud.com"
 
     all_ok = True
     for leaf in leaves:
-        old_scim_id = read_cache(f"oci-{leaf}-scim-id")
+        old_scim_id = read_secret(f"oci-{leaf}-scim-id")
 
         new_key = _create_customer_secret_key(client, leaf)
         new_access_key, new_secret_key = new_key.access_key, new_key.secret_key
@@ -113,9 +113,9 @@ def rotate_oci(leaves: list[str]) -> bool:
             all_ok = False
             continue
 
-        write_cache(f"oci-{leaf}-access-key", new_access_key)
-        write_cache(f"oci-{leaf}-secret-key", new_secret_key)
-        write_cache(f"oci-{leaf}-scim-id", new_key.id)
+        write_secret(f"oci-{leaf}-access-key", new_access_key)
+        write_secret(f"oci-{leaf}-secret-key", new_secret_key)
+        write_secret(f"oci-{leaf}-scim-id", new_key.id)
 
         if old_scim_id:
             try:

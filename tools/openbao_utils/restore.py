@@ -13,34 +13,25 @@ invalidating already-deployed services that still expect the old value
 currently authenticate with, etc.). This restores the exact prior
 value instead of letting anything regenerate.
 
-Two phases, covering two Vault-path shapes that don't overlap:
+Two phases:
   1. Every secret_catalog.yaml entry with `store: openbao` (every
-     `hosts/*` key, plus the 20 cloud_credentials/leaf ones a catalog
-     entry exists for) - via cache.py's
+     `hosts/*` secret, plus the cloud_credentials/leaf ones a catalog
+     entry exists for) - via secret_store.py's
      read_vault_path()/write_vault_path() escape hatch.
-  2. cloud_credentials' own internal bookkeeping keys with no
+  2. cloud_credentials' own internal bookkeeping names, which have no
      secret_catalog.yaml entry of their own (_rotation-key-*,
-     _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values) -
-     the ~10 LEGACY_CACHE_KEYS names phase 1 has no way to reach,
-     via each key's own registered module.
+     _oci-leaf-user-ocid-*, the two oci-{write,read}-scim-id values)
+     and which phase 1 has no way to reach - via each name's owning
+     module in SECRET_OWNERS. A SECRET_OWNERS name that does have a
+     catalog entry is left to phase 1.
 
-Replaces migrate_legacy_cache_to_vault.py (retired alongside the
-file cache it read from, ansible/files/secrets/) and the
-two separate scripts this file merges -
-restore_hosts_scope_from_backup.py and
-restore_cloud_credentials_from_backup.py - always run as one logical
-operation against the same backup directory (openbao-reinit-runbook.md's
-old steps 5/6, now one step).
-
-Pure copy, no regeneration, no prompting. Idempotent - skips any key
+Pure copy, no regeneration, no prompting. Idempotent - skips any value
 already present in Vault, so it's safe to re-run if interrupted
 partway through. Every backup file is restored byte-for-byte, never
 stripped: openbao_utils/dump.py writes the raw Vault value with
 no added whitespace, so stripping on the way back in would silently
 rewrite any value that legitimately has meaningful leading/trailing
-whitespace - a real discrepancy between the two scripts this one
-replaces, resolved in favor of the non-stripping, byte-for-byte
-behavior on merge.
+whitespace.
 
 Usage:
     cd tools && python3 -m openbao_utils.restore ~/secrets-backup-pre-reinit-<timestamp>/
@@ -51,8 +42,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from cloud_credentials._legacy_cache_keys import LEGACY_CACHE_KEYS
-from cloud_credentials.cache import read_vault_path, write_vault_path
+from cloud_credentials.secret_owners import SECRET_OWNERS
+from cloud_credentials.secret_store import read_vault_path, write_vault_path
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 
@@ -74,7 +65,9 @@ def main() -> int:
     already_in_vault: list[str] = []
     no_backup_file: list[str] = []
 
-    for name, scope in _scoped_catalog_entries().items():
+    scoped = _scoped_catalog_entries()
+
+    for name, scope in scoped.items():
         backup_file = backup_dir / name
         if not backup_file.exists():
             no_backup_file.append(name)
@@ -85,15 +78,19 @@ def main() -> int:
         write_vault_path(f"{scope}/{name}", backup_file.read_text())
         restored.append(name)
 
-    for name, module in LEGACY_CACHE_KEYS:
+    for name, module in SECRET_OWNERS:
+        # Phase 1 restored it at its catalog scope, the same Vault path as its
+        # module's; test_secret_owners.py pins that.
+        if name in scoped:
+            continue
         backup_file = backup_dir / name
         if not backup_file.exists():
             no_backup_file.append(name)
             continue
-        if module.cached(name):
+        if module.has_secret(name):
             already_in_vault.append(name)
             continue
-        module.write_cache(name, backup_file.read_text())
+        module.write_secret(name, backup_file.read_text())
         restored.append(name)
 
     print(f"Restored to Vault ({len(restored)}):")

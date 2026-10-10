@@ -58,7 +58,7 @@ class TestCatalogLoading:
         assert list(manual.keys()) == ["main-domain"]
 
     def test_load_manual_entries_excludes_cloud_credential_owned_names(self, catalog_path):
-        # cloudflare-r2-write-access-key is a real LEGACY_CACHE_KEYS name
+        # cloudflare-r2-write-access-key is a real SECRET_OWNERS name
         # (create_leaf_keys.py/create_rotation_keys.py's own concern, per
         # this script's module docstring) — even with source: manual and
         # store: openbao, it must never reach this script's prompt-and-write

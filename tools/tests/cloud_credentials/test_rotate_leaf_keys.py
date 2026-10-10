@@ -52,7 +52,7 @@ def test_a_failed_verification_does_not_stop_the_providers_after_it(rotators, ca
 @pytest.mark.parametrize(
     ("raised", "reported"),
     [
-        # cache.py and the leaf modules sys.exit after printing what is missing
+        # secret_store.py and the leaf modules sys.exit after printing what is missing
         pytest.param(SystemExit(1), "oci: stopped before finishing", id="exits-after-reporting-a-missing-secret"),
         # R2's fallback prompt for its admin token, where a job has no input to give it
         pytest.param(EOFError(), "oci: rotation failed: EOFError", id="prompt-with-no-input"),

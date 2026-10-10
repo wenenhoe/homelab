@@ -21,7 +21,7 @@ Neither category is deleted by this script.
 --provider {oci,b2,r2,all} (needs the same credentials
 create_rotation_keys/create_leaf_keys use): reads currently-active
 values from OpenBao (the same Vault-backed cache those scripts write
-to - cache.py's scoped()), lists what actually exists on each
+to - secret_store.py's scoped()), lists what actually exists on each
 provider's console for the write/read leaves, and flags anything not
 matching the currently cached access key as an apparent orphan — e.g. a
 key from a rotation that was interrupted or retried, never cleaned up
@@ -53,7 +53,7 @@ _OWNER_BY_NAME = dict(SECRET_OWNERS)
 
 
 def read_secret(name: str) -> str | None:
-    """Reads via cloud_credentials' own Vault-backed cache (cache.py's
+    """Reads via cloud_credentials' own Vault-backed cache (secret_store.py's
     scoped()) - the real store for every SECRET_OWNERS name, never
     the controller-side file cache. name must be one of SECRET_OWNERS' own names -
     a KeyError here means this script asked for a name that package

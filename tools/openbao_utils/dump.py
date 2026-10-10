@@ -15,7 +15,7 @@ Covers:
     role's hosts/* material, ADR 0021).
 
 Does NOT cover main-domain/openbao-controller-role-id/-secret-id -
-these never enter Vault at all (cache.py's own docstring), so
+these never enter Vault at all (secret_store.py's own docstring), so
 ansible/files/secrets/ is already their only copy.
 
 Never overwrites an existing backup: every run gets its own
@@ -30,8 +30,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from pathlib import Path
 
-from cloud_credentials.cache import read_vault_path
 from cloud_credentials.secret_owners import SECRET_OWNERS
+from cloud_credentials.secret_store import read_vault_path
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 
@@ -96,7 +96,8 @@ def main() -> int:
             print(f"  {name}")
 
     print(
-        "\nNot backed up - these never enter Vault at all, see cache.py's own docstring: main-domain, openbao-controller-role-id, openbao-controller-secret-id."
+        "\nNot backed up - these never enter Vault at all, see secret_store.py's own docstring: "
+        "main-domain, openbao-controller-role-id, openbao-controller-secret-id."
     )
     return 0
 

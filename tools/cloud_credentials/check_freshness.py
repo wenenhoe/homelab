@@ -43,10 +43,10 @@ import requests
 from b2sdk.v2.exception import B2Error
 from oci.identity_domains import IdentityDomainsClient
 
-from cloud_credentials.cache import read_vault_path, scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, URGENT_DAYS, WARNING_DAYS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_list_keys, b2_rotation_api
 from cloud_credentials.rotation_keys.oci_scim import oci_identity_domains_client
+from cloud_credentials.secret_store import read_vault_path, scoped
 
 _leaf_has_secret, _leaf_read_secret, _, _ = scoped("leaf")
 _rotation_has_secret, _rotation_read_secret, _, _ = scoped("rotation")

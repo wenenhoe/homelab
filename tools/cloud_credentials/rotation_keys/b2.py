@@ -12,8 +12,8 @@ import sys
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 from b2sdk.v2.exception import B2Error
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
+from cloud_credentials.secret_store import scoped
 
 has_secret, read_secret, write_secret, _ = scoped("rotation")
 

@@ -16,7 +16,7 @@ value instead of letting anything regenerate.
 Two phases:
   1. Every secret_catalog.yaml entry with `store: openbao` (every
      `hosts/*` secret, plus the cloud_credentials/leaf ones a catalog
-     entry exists for) - via cache.py's
+     entry exists for) - via secret_store.py's
      read_vault_path()/write_vault_path() escape hatch.
   2. cloud_credentials' own internal bookkeeping names, which have no
      secret_catalog.yaml entry of their own (_rotation-key-*,
@@ -42,8 +42,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from cloud_credentials.cache import read_vault_path, write_vault_path
 from cloud_credentials.secret_owners import SECRET_OWNERS
+from cloud_credentials.secret_store import read_vault_path, write_vault_path
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 

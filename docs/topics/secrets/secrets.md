@@ -22,7 +22,7 @@ unit does. Every catalog entry states its `store`
 `cloudflare-r2-*`/`backblaze-b2-*`/`oci-*` entry
 (`scope: cloud_credentials/leaf`, the same top-level
 path `tools/cloud_credentials/*.py` itself writes to — see
-`cache.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secret_catalog.yaml`'s own header comment and
+`secret_store.py`'s own `scoped()`, not a `hosts/*`-scoped path). See `secret_catalog.yaml`'s own header comment and
 [ADR 0021 (Ownerless secret paths)](../../decisions/0021-secret-path-layout-for-secrets-with-no-host-owner/revision-000.md)
 for the full picture.
 

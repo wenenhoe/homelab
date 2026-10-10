@@ -2,10 +2,10 @@
 whose has_secret/read_secret/write_secret owns it.
 
 Shared by openbao_utils' dump, restore, audit and bootstrap, so none of them
-keeps a second list that can drift from what cache.py's scoped() writes.
+keeps a second list that can drift from what secret_store.py's scoped() writes.
 Pairing each name with its owning module, instead of rebuilding Vault paths by
 hand here, also keeps every consumer on the category (leaf or rotation) that
-module actually binds - see cache.py's scoped() docstring.
+module actually binds - see secret_store.py's scoped() docstring.
 
 Names with a secret_catalog.yaml entry are listed too; the rest are
 bookkeeping values written by rotation code, which only this list knows about.

@@ -10,8 +10,8 @@ import sys
 from b2sdk.v2 import B2Api, InMemoryAccountInfo
 from b2sdk.v2.exception import B2Error, NonExistentBucket
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_SECONDS
+from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 has_secret, read_secret, write_secret, require_secret = scoped("leaf")
@@ -52,7 +52,7 @@ def b2_rotation_api() -> B2Api:
     """A B2Api authorized with the cached rotation key - InMemoryAccountInfo,
     not SqliteAccountInfo, since nothing here runs long enough to
     benefit from b2sdk's own on-disk auth cache and this repo already
-    has its own cache (Vault, via cache.py)."""
+    has its own cache (Vault, via secret_store.py)."""
     rotation_key_id = _rotation_require_secret(
         "_rotation-key-backblaze-b2-key-id",
         "Run: python3 -m cloud_credentials.create_rotation_keys --provider b2",

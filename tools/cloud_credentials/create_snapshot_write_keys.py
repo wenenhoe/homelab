@@ -39,16 +39,16 @@ import sys
 import requests
 from b2sdk.v2.exception import B2Error
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.create_snapshot_readonly_keys import SNAPSHOT_BUCKET_B2, SNAPSHOT_BUCKET_R2
 from cloud_credentials.expiry import QUARTERLY_SECONDS
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_api
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_delete_token, r2_permission_group_ids, r2_rotation_token
+from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 # This script's own leaf-category secrets, alongside the general
 # cloud_sync leaves leaf_keys/{b2,r2}.py already declare - see
-# cache.py's own scoped() docstring for why the category lives with the
+# secret_store.py's own scoped() docstring for why the category lives with the
 # module that writes the secret, not a central table.
 has_secret, read_secret, write_secret, require_secret = scoped("leaf")
 

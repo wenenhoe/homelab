@@ -11,8 +11,8 @@ revoked; there is nothing left to verify before revoking.
 
 from __future__ import annotations
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.leaf_keys.r2 import _prompt_r2_admin_token
+from cloud_credentials.secret_store import scoped
 
 has_secret, read_secret, write_secret, _ = scoped("rotation")
 

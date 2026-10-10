@@ -1,10 +1,10 @@
 """OpenBao/Vault-specific client primitives: KV v2 read/write and
 AppRole login. Shared by every internal Python client that needs
-them: cloud_credentials/cache.py (its own session-caching layer sits
+them: cloud_credentials/secret_store.py (its own session-caching layer sits
 on top of this) and openbao_utils/bootstrap.py.
 
 None of this is cloud-credential business, so it lives here rather than
-in cloud_credentials/cache.py. The generic repo-navigation and
+in cloud_credentials/secret_store.py. The generic repo-navigation and
 SSH/root-cert-fetching helpers live in tools/utils/repo.py instead:
 they aren't OpenBao-specific either. See
 docs/decisions/0031-where-repo-tooling-lives/revision-000.md.

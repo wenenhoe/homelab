@@ -12,7 +12,6 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import utcnow_iso
 from cloud_credentials.rotation_keys.oci_iam import (
     oci_get_or_create_group,
@@ -21,6 +20,7 @@ from cloud_credentials.rotation_keys.oci_iam import (
     oci_master_auth_and_endpoint,
 )
 from cloud_credentials.rotation_keys.oci_scim import identity_domains_client_for_token, oci_scim_access_token, oci_scim_domain_and_credentials
+from cloud_credentials.secret_store import scoped
 
 has_secret, read_secret, write_secret, require_secret = scoped("rotation")
 

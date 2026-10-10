@@ -26,7 +26,7 @@ Create the bucket by hand first, same as homelab-backups/-b2 (see
 docs/topics/disaster-recovery/cloud-sync.md's Setup section) — this script doesn't create buckets,
 only credentials. Authenticates using the same cached rotation
 credentials create_leaf_keys.py already uses (b2_rotation_session,
-r2_rotation_token) — Vault-backed via cache.py's own scoped("rotation"),
+r2_rotation_token) — Vault-backed via secret_store.py's own scoped("rotation"),
 so reusing them here reads them from Vault, not from a per-credential file.
 
 Verified the same way create_leaf_keys.py --rotate verifies a new leaf
@@ -58,9 +58,9 @@ import sys
 import requests
 from b2sdk.v2.exception import B2Error
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.leaf_keys.b2 import B2_LEAF_CAPABILITIES, b2_lookup_bucket_id, b2_rotation_api
 from cloud_credentials.leaf_keys.r2 import r2_create_leaf_token, r2_permission_group_ids, r2_rotation_token
+from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 SNAPSHOT_BUCKET_R2 = "openbao-snapshots"

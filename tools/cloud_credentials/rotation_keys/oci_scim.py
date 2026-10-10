@@ -14,7 +14,7 @@ import base64
 import requests
 from oci.identity_domains import IdentityDomainsClient
 
-from cloud_credentials.cache import scoped
+from cloud_credentials.secret_store import scoped
 
 _, _, _, require_secret = scoped("rotation")
 

@@ -8,8 +8,8 @@ import sys
 
 import requests
 
-from cloud_credentials.cache import scoped
 from cloud_credentials.expiry import QUARTERLY_DAYS, rfc3339_in
+from cloud_credentials.secret_store import scoped
 from cloud_credentials.verify import verify_leaf_via_rclone
 
 has_secret, read_secret, write_secret, require_secret = scoped("leaf")

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from _fake_vault import FakeVault
-from cloud_credentials import cache
+from cloud_credentials import secret_store
 
 
 class CategoryVault:
@@ -32,8 +32,8 @@ class CategoryVault:
 @pytest.fixture
 def fake_vault(monkeypatch: pytest.MonkeyPatch) -> FakeVault:
     vault = FakeVault()
-    monkeypatch.setattr(cache, "_vault_read_at", vault.store.get)
-    monkeypatch.setattr(cache, "_vault_write_at", vault.write)
+    monkeypatch.setattr(secret_store, "_vault_read_at", vault.store.get)
+    monkeypatch.setattr(secret_store, "_vault_write_at", vault.write)
     return vault
 
 

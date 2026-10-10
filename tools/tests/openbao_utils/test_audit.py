@@ -133,11 +133,10 @@ class TestAuditLocal:
         return SimpleNamespace(secrets=secrets, seed=lambda name, value: (secrets / name).write_text(value))
 
     def test_r2_rotation_token_is_not_flagged_as_an_orphan(self, env):
-        """Regression test: _rotation-key-cloudflare-r2-token was
-        missing from KNOWN_INTERNAL_PATTERNS despite being a real,
-        actively-used cache file (r2_rotation_token() reads it,
-        cache_r2_rotation_token()/rotate_r2_rotation_token() write it) -
-        a false-positive orphan that predates the OCI SCIM migration."""
+        """A file in the file cache named for a cloud_credentials secret with no
+        catalog entry, here the R2 rotation token (held in Vault), is a known
+        name, not an orphan: audit_local() counts every SECRET_OWNERS name as
+        known."""
         env.seed("_rotation-key-cloudflare-r2-token", "shh")
         env.seed("cloudflare-r2-write-access-key", "abc")
         env.seed("cloudflare-r2-write-secret-key", "def")

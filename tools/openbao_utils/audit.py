@@ -20,10 +20,10 @@ Neither category is deleted by this script.
 
 --provider {oci,b2,r2,all} (needs the same credentials
 create_rotation_keys/create_leaf_keys use): reads currently-active
-values from OpenBao (the same Vault-backed cache those scripts write
+values from OpenBao (the same Vault store those scripts write
 to - secret_store.py's scoped()), lists what actually exists on each
 provider's console for the write/read leaves, and flags anything not
-matching the currently cached access key as an apparent orphan — e.g. a
+matching the access key currently in Vault as an apparent orphan — e.g. a
 key from a rotation that was interrupted or retried, never cleaned up
 on the provider's side afterward. Read-only: lists and flags, never
 deletes. Delete the flagged ones yourself once you've confirmed they're
@@ -53,7 +53,7 @@ _OWNER_BY_NAME = dict(SECRET_OWNERS)
 
 
 def read_secret(name: str) -> str | None:
-    """Reads via cloud_credentials' own Vault-backed cache (secret_store.py's
+    """Reads via cloud_credentials' own Vault-backed store (secret_store.py's
     scoped()) - the real store for every SECRET_OWNERS name, never
     the controller-side file cache. name must be one of SECRET_OWNERS' own names -
     a KeyError here means this script asked for a name that package
@@ -61,11 +61,11 @@ def read_secret(name: str) -> str | None:
     return _OWNER_BY_NAME[name].read_secret(name)
 
 
-# --- Local cache diff ----------------------------------------------------
+# --- Controller file cache diff -------------------------------------------
 
 
 def audit_local() -> None:
-    print("== Local secrets cache vs. secret_catalog.yaml ==")
+    print("== Controller file cache vs. secret_catalog.yaml ==")
     catalog = load_catalog(CATALOG_PATH)
     vault_backed_scope = openbao_scopes(catalog)
     # cloud_credentials' own internal bookkeeping names (_rotation-key-*,
@@ -226,7 +226,7 @@ def audit_r2() -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--local", action="store_true", help="audit local cache files only (default if no --provider)")
+    parser.add_argument("--local", action="store_true", help="audit only the controller-side file cache, ansible/files/secrets/ (default if no --provider)")
     parser.add_argument("--provider", choices=["oci", "b2", "r2", "all"], help="audit a provider's console side")
     args = parser.parse_args()
 

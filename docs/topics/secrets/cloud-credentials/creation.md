@@ -40,12 +40,12 @@ Scripts for minting, auditing, and verifying R2/B2/OCI credentials. What each cr
   every leaf credential, provider by provider, and carries on when one
   provider fails; see [`rotation.md`](rotation.md#rotation).
 - **`openbao_utils/audit.py`** — run whenever, read-only. `--local`
-  diffs `ansible/files/secrets/` against `secret_catalog.yaml` to
-  flag cache files nothing currently references (e.g. leftover from a
+  diffs the controller-side file cache (`ansible/files/secrets/`) against `secret_catalog.yaml` to
+  flag files nothing currently references (e.g. leftover from a
   naming change). `--provider {oci,b2,r2,all}` lists each provider's
   actual write/read-leaf credentials — including the standing
   `openbao-snapshot-write` leaf — and flags any not matching the
-  current Vault-backed cache as an orphan — e.g. a key from an
+  access key currently in Vault as an orphan — e.g. a key from an
   interrupted rotation never cleaned up on the provider's side. The one
   exception: ADR 0017's break-glass `openbao-snapshot-readonly`
   credential is never cached anywhere by design, so it's matched by its

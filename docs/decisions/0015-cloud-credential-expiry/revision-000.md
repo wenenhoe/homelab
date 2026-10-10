@@ -36,7 +36,7 @@ through the Identity Domain's own SCIM endpoint), not on the classic
 calls. Confirmed against Oracle's own SDK model for that endpoint's
 request body: `CreateCustomerSecretKeyDetails` has exactly one
 attribute, `display_name`. Confirmed live too
-(`cloud_credentials/spikes/oci_scim_auth_check.py`): the rotation
+(`cloud_credentials/spikes/oci_scim_auth_check.py` (removed)): the rotation
 identity's `OCISigner` gets `401 error.common.common.accessDenied`
 from the SCIM endpoint — rejected outright, not under-permissioned.
 Identity Domains authenticates SCIM calls via OAuth2 client-credentials

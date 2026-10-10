@@ -54,8 +54,8 @@ picks up from there.
    ```
 
 3. Install `hvac` for the system Python this runs under - apt, not
-   pip, matching `ansible-collections-audit.md`'s `boto3`-on-`storage`
-   convention rather than fighting PEP 668's externally-managed-
+   pip, as the `seaweedfs_bucket` role does for `boto3` on `storage`,
+   rather than fighting PEP 668's externally-managed-
    environment guard. Confirmed on 26.04 (`resolute`): `python3-hvac`
    is 2.3.0, satisfying `pyproject.toml`'s `hvac>=2.3` floor and
    already including `raise_on_deleted_version` (this script's own

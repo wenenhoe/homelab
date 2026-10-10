@@ -2,27 +2,23 @@
 # Save an OpenBao raft snapshot, encrypt it, and push it to R2 and B2 -
 # one process on `controller`, over the network, using the native
 # `bao` CLI (ADR 0034 - decisions/0034-operator-access-to-the-openbao-cli/revision-000.md).
-# Replaces
-# ansible/roles/openbao_backup's rendered snapshot-push.sh:
 # `bao operator raft snapshot save` is a plain client-side download
 # (confirmed live - see
 # docs/decisions/0034-operator-access-to-the-openbao-cli/revision-000.md's
-# Context), so the old docker-exec/docker-cp/`security`-local/manual
-# mint-on-controller-paste-on-security handoff is gone. rclone still
-# runs as a throwaway container (`rclone/rclone:1.75`, same pin as
+# Context), so nothing runs inside the OpenBao container or on `security`.
+# rclone runs as a throwaway container (`rclone/rclone:1.75`, same pin as
 # every other rclone caller in this repo), not a native binary -
 # nothing else here needed that dependency added.
 #
-# Login mirrors docker/openbao/scripts/bao-login.sh's shape (role_id
-# argument, secret_id via hidden prompt, never a file or subprocess
-# argument) but calls the native `bao` binary directly instead of
-# `docker exec`, and fetches step-ca's root cert fresh over SSH the
-# same way bao-login-from-controller.sh did (ADR 0022's mechanism).
+# Login takes the role_id as an argument and the secret_id via hidden
+# prompt, never a file or subprocess argument; it calls the native `bao`
+# binary directly and fetches step-ca's root cert fresh over SSH
+# (ADR 0022's mechanism).
+#
 # Everything this run creates - root cert, secret_id, rclone.conf, the
 # snapshot itself - lives under one `mktemp -d` scratch dir, removed in
 # the same trap that revokes the token; nothing is left behind on
-# `controller` afterward, unlike the old script's persistent staging
-# directory.
+# `controller` afterward.
 #
 # Usage, from the repo root on `controller`:
 #   tools/openbao_utils/scripts/snapshot-push.sh <role_id>

@@ -15,7 +15,7 @@ status: accepted
 ## Context
 
 Every existing `BAO_SKIP_VERIFY=true` use in this repo
-(`openbao-auth.md`'s runbook, `snapshot-push.sh.j2`) is documented as
+(`openbao-auth.md`'s runbook, `snapshot-push.sh.j2` (removed; replaced by: `snapshot-push.sh`)) is documented as
 loopback-only, against the container's own self-signed-from-our-CA
 cert — "there's no real trust decision being loosened here" per
 [`openbao.md`](../../topics/secrets/openbao.md)'s healthcheck section. Migrating the

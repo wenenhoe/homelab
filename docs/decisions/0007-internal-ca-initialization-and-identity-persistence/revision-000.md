@@ -44,7 +44,7 @@ update --x509-default-dur` call to set the claim duration explicitly.
 ## Consequences
 
 `step-ca-password` and `step-ca-provisioner-password`
-(`secrets_registry.yaml`) stay genuinely independent — matching
+(`secrets_registry.yaml` (renamed: `secret_catalog.yaml`)) stay genuinely independent — matching
 Smallstep's own production-considerations guide, which recommends
 exactly this. A restart with an already-initialized `data` volume
 skips straight to `exec step-ca`, same idempotency guarantee as the

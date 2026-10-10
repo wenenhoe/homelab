@@ -23,7 +23,7 @@ from something else.
 
 ## Context
 
-- Each entry in `secrets_registry.yaml` carries `format` (`hex`, `uuid4` or
+- Each entry in `secrets_registry.yaml` (renamed: `secret_catalog.yaml`) carries `format` (`hex`, `uuid4` or
   `manual`), which says how the value is produced. Where it is stored is
   implied by whether `vault_scope` is present: present means OpenBao at
   `<scope>/<name>`, absent means the controller-side file cache.
@@ -34,15 +34,15 @@ from something else.
 - The absence-means-file-cache reading is re-derived separately in
   `tools/openbao_utils/` (`bootstrap.py`, `dump.py`, `restore.py`,
   `audit.py`), in `roles/secrets/tasks/` (`main.yaml`, `ensure_secret.yaml`,
-  `process_vault_secrets.yaml`), and in `playbooks/rotate-secret.yaml`. The
+  `process_vault_secrets.yaml` (removed)), and in `playbooks/rotate-secret.yaml`. The
   CI fixture that emulates the file cache does it by deleting
-  `vault_scope` from every entry (`tools/ci/fixtures/strip_vault_scope.py`).
+  `vault_scope` from every entry (`tools/ci/fixtures/strip_vault_scope.py` (removed)).
 - The rules the entries follow are written as a comment of about 70 lines at the top
   of the registry, not checked by anything before a deploy. `rotate-secret`
   asserts that a generated secret has a scope only when someone rotates it.
 - Four modules under `tools/openbao_utils/` each load the registry with
   their own `yaml.safe_load(...)["secrets_registry"]`, and
-  `tools/ci/fixtures/secrets_registry.py` is a fifth loader.
+  `tools/ci/fixtures/secrets_registry.py` (removed) is a fifth loader.
 - Converting all 60 entries to the fields below leaves every OpenBao path
   as it is today: 57 distinct `<scope>/<n>` paths under the same mount,
   and no entry that has a scope without being stored in OpenBao or the

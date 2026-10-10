@@ -18,7 +18,7 @@ narrows: ADR-0031
 Revises one specific passage of already-accepted
 [ADR 0031 (Repo tooling location)](../0031-where-repo-tooling-lives/revision-000.md) - not its structural
 decision (the `tools/` root, split by domain, stands unchanged), just
-its call that `bootstrap_secrets.py`, `audit_secrets.py`, and the two
+its call that `bootstrap_secrets.py` (renamed: `bootstrap.py`), `audit_secrets.py` (renamed: `audit.py`), and the two
 `restore_*_from_backup.py` scripts should stay in `ansible/` because
 they're "gated to the `ansible-playbook deploy.yaml` lifecycle."
 That reasoning doesn't actually hold up: `cloud_credentials` scripts
@@ -40,9 +40,9 @@ these five scripts are independent of each other, not a bundle.
 
 Two more files turned out to belong in the same bucket, found by
 reading their own docstrings rather than trusting their package name:
-`dump_vault_to_file_cache.py` explicitly covers both `cloud_credentials`
-keys and `secrets_registry.yaml`'s `hosts/*` material - not
-cloud-credential-specific at all - and `diff_vault_backups.py` had
+`dump_vault_to_file_cache.py` (renamed: `dump.py`) explicitly covers both `cloud_credentials`
+keys and `secrets_registry.yaml`'s (renamed: `secret_catalog.yaml`) `hosts/*` material - not
+cloud-credential-specific at all - and `diff_vault_backups.py` (renamed: `diff.py`) had
 zero `cloud_credentials`-touching code, pure file comparison. Same
 generic-thing-in-a-narrowly-named-package pattern ADR 0031 exists to
 fix, one level down.
@@ -87,7 +87,7 @@ constant would work against the reasoning that keeps the file itself
 out of `tools/`. This closes ADR 0031's last open `PROJECT_ROOT` item:
 `bootstrap.py`, `audit.py`, `dump.py`, and `restore.py` all import it
 from `tools/utils/repo.py` now instead of each redefining it locally;
-`cache.py` turned out not to need it at all once `dump.py` was its
+`cache.py` (renamed: `secret_store.py`) turned out not to need it at all once `dump.py` was its
 only reason to re-export it - removed entirely, confirmed dead by
 grepping every remaining importer first. `restore_all.py`'s staying
 local is the one deliberate exception, not an oversight.

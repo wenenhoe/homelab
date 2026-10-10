@@ -22,8 +22,8 @@ no expiry field at all, and scoped a SCIM-based alternative out as a
 second, unrelated auth integration not worth building speculatively.
 
 That integration has been built and confirmed live against this
-tenancy (`cloud_credentials/spikes/oci_scim_oauth_check.py` and
-`oci_scim_app_secret_check.py`), then implemented as the real
+tenancy (`cloud_credentials/spikes/oci_scim_oauth_check.py` (removed) and
+`oci_scim_app_secret_check.py` (removed)), then implemented as the real
 `leaf_keys/oci.py` and `rotation_keys/oci_bootstrap.py`, confirming
 what 0015 could only note as theoretically possible:
 
@@ -98,7 +98,7 @@ neither has native expiry. This supersedes only the OCI portion of
   caches the new secret immediately once returned, before attempting
   to verify it, since the old one is already gone regardless of that
   outcome.
-- `audit_secrets.py --provider oci` also moved to SCIM
+- `audit_secrets.py --provider oci` (renamed: `audit.py`) also moved to SCIM
   (`GET /admin/v1/CustomerSecretKeys?filter=user.ocid eq "..."`,
   confirmed to work live) — the last place this repo's OCI tooling
   still touched `~/.oci/config` for anything customer-secret-key

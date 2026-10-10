@@ -72,9 +72,9 @@ a package named for its domain, and nothing else in the repo decides it.
   hyphenated script names become importable modules, and the shared
   helpers they import as top-level modules become package imports.
 - `tools/ci/fixtures/` holds the two deploy-ordering fixture helpers,
-  `preseed-manual-secrets-for-ci.py` and `strip-vault-scope-for-ci.py`,
+  `preseed-manual-secrets-for-ci.py` (renamed: `preseed_manual_secrets.py`) and `strip-vault-scope-for-ci.py` (removed),
   which have no tests today. They move as `preseed_manual_secrets.py` and
-  `strip_vault_scope.py`: the package name already says they are for CI, so
+  `strip_vault_scope.py` (removed): the package name already says they are for CI, so
   the `-for-ci` suffix goes, and underscores make them importable. They gain
   tests when they move.
 - Tests live in `tools/tests/`, mirroring the package layout. A change under

@@ -168,6 +168,29 @@ together leave a revision `approved` with no project. The generated
 [Decisions awaiting a project](../../../project-planning.md#decisions-awaiting-a-project)
 view lists it, so the gap is visible but not blocked.
 
+## Moved-file check
+
+[`tools/doc_scripts/check_moved_files.py`](../../../../tools/doc_scripts/check_moved_files.py), a local pre-commit hook like the
+drift check. It takes every file that `git log` shows was renamed or deleted
+and is no longer anywhere in the tree (a name another tracked file still
+has, a name with no extension, and `conf.yaml`/`conf.yml`, which containers
+create at run time, are left out), then looks for those names in every
+tracked or new text file except `tools/tests/`.
+
+- Outside `docs/decisions/`, any mention fails, and the error gives the
+  path the file moved to, or says it was removed.
+- In a decision revision the old name stays, and its first mention needs a
+  note after it: `old (renamed: new)`, `old (removed)` or
+  `old (removed; replaced by: new)`. A link to the file as it is now stands
+  in for the note, and a table row needs none. The rule is in
+  [`docs/decisions/README.md#editing-a-revision`](../../../decisions/README.md#editing-a-revision).
+
+It checks the whole tree against the whole history on every run, not only
+the files a change touches, so a reference that went stale outside a PR is
+caught by the next one and no scheduled sweep is needed. That needs history:
+`pre-commit-checks` fetches it (`fetch-depth: 0`), and in a shallow clone
+the check says so and passes, so a local `--depth` clone is not blocked.
+
 ## Mermaid render check
 
 [`tools/doc_scripts/check_mermaid.py`](../../../../tools/doc_scripts/check_mermaid.py) renders

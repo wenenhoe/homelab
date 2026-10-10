@@ -77,6 +77,12 @@ does now. It never names a project's stage, phase or track (a label like
 belongs to the project doc and is deleted with it, and a leftover reads
 as work still pending.
 
+A comment, topic doc or config names a file by its current name, and a
+file that was renamed or removed isn't mentioned by its old one. Only a
+decision revision keeps an old name, with the note
+[`docs/decisions/README.md#editing-a-revision`](docs/decisions/README.md#editing-a-revision)
+describes.
+
 ## Verification before writing it down
 
 - Quote a doc's or config's own line when its exact expected format

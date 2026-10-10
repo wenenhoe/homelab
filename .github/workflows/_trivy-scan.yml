@@ -5,13 +5,11 @@ name: Trivy scan (reusable)
 # _compose-boot-test.yml, one copy of the scan steps instead of two
 # drifting by hand. See docs/topics/engineering/security-scanning.md#trivy-security-scans.
 #
-# Image CVE scanning and the Vulnerability Dashboard (_trivy-dashboard.yml)
-# that aggregated it used to live here too, in a few different forms —
-# scoped to compose changes, diff-aware, then ungated on every PR —
-# before being dropped entirely. Nearly all of that fleet's findings
-# were third-party CVEs pending an upstream rebuild, not something this
-# repo could act on regardless of where the scan ran, how often, or how
-# results were displayed. Ansible misconfig and secrets stay because a
+# Image CVE scanning and a Vulnerability Dashboard are deliberately not
+# here: nearly all of an image fleet's findings are third-party CVEs
+# pending an upstream rebuild, not something this repo could act on
+# regardless of where the scan ran, how often, or how results were
+# displayed. Ansible misconfig and secrets are scanned because a
 # finding in either is something this repo actually controls and would
 # fix. See docs/topics/engineering/security-scanning.md#trivy-security-scans for the full reasoning.
 

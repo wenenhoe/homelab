@@ -120,6 +120,13 @@ short name in a link's text under [Citing a decision](#citing-a-decision).
   in a `superseded` or `abandoned` revision, since it is a record of what
   was tried and no reasoning is left to protect. In an `accepted`
   revision it is material.
+- **A moved file** (a note after a file's first mention in the revision
+  that it was renamed or removed: `old (renamed: new)`, `old (removed)`
+  or `old (removed; replaced by: new)`) — editorial in any state,
+  `accepted` included. It only inserts: the sentence keeps the old name,
+  which is what was true when it was written, and the note adds where
+  the file went. A table row pairing the old name with the new one needs
+  none.
 - **Metadata** (`status`, `supersedes`, `superseded_by`, `narrows`,
   `related`, `former_ids`) — any state; it records lifecycle, not
   reasoning.

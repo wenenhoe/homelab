@@ -43,7 +43,7 @@ Cloudflare's official Python SDK for R2's account API-token calls.
 
 `cache.py`'s (renamed: `secret_store.py`) OpenBao KV v2 client (`hvac`) and its `_fetch_root_cert`
 SSH call (`paramiko`) are **not** decided here — the same gap exists
-independently in `bootstrap_secrets.py`, `audit_secrets.py`, and
+independently in `bootstrap_secrets.py` (renamed: `bootstrap.py`), `audit_secrets.py` (renamed: `audit.py`), and
 `docker/openbao/watcher/r2_read_watcher.py`, so that question is scoped
 across all four in
 [`../0030-openbao-client-implementation-in-repo-python/revision-000.md`](../0030-openbao-client-implementation-in-repo-python/revision-000.md)

@@ -41,7 +41,7 @@ script can rely on.
 Add `also_implements:` to a project doc's frontmatter: a list of
 revision references in the same format as `decision:` (`ADR-0050/0`),
 naming a lineage this project's stages complete as a side effect,
-distinct from the one it's gated on. `check-doc-drift.py` validates
+distinct from the one it's gated on. `check-doc-drift.py` (renamed: `check_doc_drift.py`) validates
 each entry resolves to a real lineage revision, the same check
 `decision:` already gets — but `also_implements:` never enters
 `PROJECT_DECISION_GATE`; it records a fact, and gates nothing.
@@ -54,8 +54,8 @@ too — a planning/build-order view, not a rule, and it doesn't belong in
 [`docs/projects/README.md`](../../projects/README.md) any more than the
 new table would.
 
-`generate-doc-indexes.py` grows a fourth target file; the `## Index`
-table an agent may need to reference for `check-project-scope.py`'s
+`generate-doc-indexes.py` (renamed: `generate_doc_indexes.py`) grows a fourth target file; the `## Index`
+table an agent may need to reference for `check-project-scope.py`'s (renamed: `check_project_scope.py`)
 reverse-link check stays exactly where it is, in
 `docs/projects/README.md`.
 

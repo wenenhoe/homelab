@@ -115,8 +115,8 @@ Facts established on `security` against the pinned `2.6.2` image:
   over a paramiko channel with `get_pty=True`, each share entered at the masked
   prompt, never as an argument.
 - **One merged login+session script** (`tools/openbao_utils/bao_session.py`)
-  replaces `bao-login.sh`, `bao-login-from-controller.sh` and
-  `bao-from-controller.sh`, usable from `security` or `controller`. It
+  replaces `bao-login.sh` (removed), `bao-login-from-controller.sh` (removed) and
+  `bao-from-controller.sh` (removed), usable from `security` or `controller`. It
   authenticates through the module's existing `vault_login()` (`hvac`), with
   `secret_id` read by `getpass` into memory: never a file, never a subprocess
   argument. `hvac` is used only for the AppRole exchange, not to reimplement

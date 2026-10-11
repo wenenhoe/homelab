@@ -27,5 +27,5 @@ cd_agent_uv_sha256: "9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471f
 # stays on the major.minor of cloud_sync's rclone image, because leaf-key
 # verification has to follow the request sequence production's rclone makes
 # (ansible/tests/test_cd_agent_rclone_pin.py checks it).
-cd_agent_rclone_version: "1.75.1"
-cd_agent_rclone_sha256: "982b5aa772841168f8e380f139e9e787b2a105403e32b94da8676a0e1c0a13ab"
+cd_agent_rclone_version: "1.75.2"
+cd_agent_rclone_sha256: "349ac8fba6ff65d6247043f1750cdcb518ec5d500ef91463a10d37c0ccdf3702"

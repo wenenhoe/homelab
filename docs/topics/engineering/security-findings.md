@@ -4,7 +4,7 @@ Code-review findings about this repo live in a separate private
 repository, `homelab-security`, never here. This is a tracker, not a
 mirror: it holds no code from this repo, and this repo holds no finding.
 The reasoning is in
-[ADR 0060 (Review findings tracker)](../../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-000.md);
+[ADR 0060 (Review findings tracker)](../../decisions/0060-tracking-and-managing-code-review-findings-for-a-public-repository/revision-001.md);
 where the review itself runs, and what it may write, is
 [ADR 0061 (Automated code review)](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md).
 The rule that keeps findings out of this repo is
@@ -29,9 +29,13 @@ Any workflow that writes findings follows one contract:
    as it is, whatever its status, so a triaged finding does not return.
 2. Write new findings on a branch, adding files only.
 3. Run the validator; on failure, push nothing.
-4. Open a pull request and merge it at once. Opening it is what notifies
-   the maintainer, and merging keeps the default branch current for the
-   next run's check in step 1.
+4. Open a pull request and leave it for the maintainer to review.
+   Opening it is what notifies the maintainer, who merges what to keep
+   and closes the rest: a file is not trusted for having been written by
+   a workflow. A workflow files nothing while an earlier one's pull
+   request is open, so findings are never added faster than they are
+   read, and the default branch the next run's check in step 1 reads
+   holds everything already filed.
 
 Findings can also be written by hand from the tracker's template, or
 imported from a local review's output, which the tracker's own command

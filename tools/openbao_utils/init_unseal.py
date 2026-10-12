@@ -1,61 +1,31 @@
 #!/usr/bin/env python3
-"""Init/unseal orchestration for OpenBao on `security`, over paramiko
-rather than a human SSHing in directly to run docker exec by hand.
+"""Init and unseal OpenBao on `security` over SSH (paramiko), so the
+operator never types `docker exec` by hand.
 
-The remote command stays docker-exec-against-the-live-container for
-both subcommands, permanently - the one place this repo's OpenBao CLI
-surface keeps that pattern by necessity, not convention:
-compose.yaml.j2 publishes OpenBao's port directly, but the container
-crash-loops until step_ca_cert issues its leaf cert, so there's no
-trustworthy network path to it during that window - docker exec
-bypasses the network/TLS chain entirely, which is why it's the one
-thing that works here. See ADR 0034's Context/Decision for the full
-reasoning.
+Both subcommands run `docker exec` against the live `openbao` container.
+It is the one OpenBao CLI path that cannot use the native `bao` client: the
+container crash-loops until `step_ca_cert` issues its leaf cert, so there is
+no trustworthy network path to it yet, and `docker exec` skips the network
+and TLS chain entirely (ADR 0034).
 
-`init` needs no PTY: it takes no interactive input and prints its
-output (three unseal key shares, the initial root token) directly -
-confirmed against the real CLI's own usage text (bao operator init -h),
-which shows no prompt of any kind. Its remote command is plain
-`docker exec <container> ...`, no `-i`/`-t` - the same non-interactive
-shape utils.repo.fetch_root_cert already uses successfully for a
-different docker exec call, not a new untested pattern.
+`init` takes no input, so it runs a plain `docker exec` with no PTY.
 
-`unseal` does need one: bao operator unseal's own masked-input prompt
-refuses a bare, non-PTY pipe outright ("file descriptor 0 is not a
-terminal", confirmed live during ADR 0034's own de-risking spike), so
-its channel is opened with get_pty=True and its remote command keeps
-the
-`-it` a human would type by hand (`docker exec -t` needs to allocate a
-pty *inside the container* for bao's own isatty() check to pass -
-independent of, but only reachable because of, the pty already present
-on the outer SSH channel). This exact shape - get_pty=True driving
-`docker exec -it ... bao operator unseal` - is what that spike already
-confirmed live, unsealing a real 3-share/2-threshold throwaway
-instance this way; this module is a mechanical translation of that
-result into something reusable, not new de-risking. A share is only
-ever written to the channel's own stdin after being read locally via
-getpass - never as a positional argument, so it never touches this
-process's argv or appears in `ps` on either end.
+`unseal` needs a PTY: bao's masked key prompt refuses a non-terminal stdin.
+The channel is opened with `get_pty=True` and the command keeps `-it`, since
+`-t` makes docker allocate the second pty inside the container that bao's own
+`isatty()` check needs. The share is read locally with `getpass` and written
+only to the channel's stdin, never as an argument, so it is not in argv or
+`ps` on either end.
 
-Both subcommands print the remote output directly to this process's own
-stdout as it arrives - nothing here captures, logs, or stores it
-anywhere, for the same reason docs/topics/secrets/openbao.md's own runbook has never
-been an Ansible task: init's output includes the initial root token and
-raw unseal key shares, and the only safe place for that to land is the
-operator's own eyes and the password manager entry they copy it into by
-hand.
+Remote output goes straight to this process's stdout. Nothing is captured,
+logged or stored: `init` prints the initial root token and the unseal key
+shares, which belong only on the operator's screen and in their password
+manager (docs/topics/secrets/openbao.md, First init).
 
-`unseal`'s own exit status is checked, not printed-and-ignored: confirmed
-live (a real 3-share/2-threshold instance) that submitting one share of
-two - still sealed afterward, `Unseal Progress 1/2` - exits 0, same as
-a share that completes the unseal. `bao operator unseal` evidently
-doesn't follow `bao status`'s own sealed=2 convention at all; its exit
-code tracks whether the command itself ran, not the resulting seal
-state. A nonzero exit here is therefore a genuine failure (bad share,
-connection lost, container not running), not partial progress, and
-`unseal` fails loudly on one - see the module for the exact live
-transcript this rests on if it's ever worth re-checking against a
-different OpenBao version.
+`bao operator unseal` exits 0 even when a share leaves OpenBao still sealed
+(`Unseal Progress 1/2`), so its exit status tracks whether the command ran,
+not the seal state. A nonzero exit is a real failure (bad share, lost
+connection, container not running), and `unseal` fails on it.
 
 Usage:
     cd tools && python3 -m openbao_utils.init_unseal init
@@ -192,10 +162,8 @@ def run_unseal_share() -> int:
     finally:
         client.close()
 
-    # Not a partial-progress false alarm: confirmed live that a share
-    # accepted but not yet meeting the threshold ("Unseal Progress 1/2",
-    # still sealed) exits 0, same as a share that completes the unseal -
-    # see the module docstring. A nonzero exit here is a real failure.
+    # A share short of the threshold exits 0 too (see the module docstring),
+    # so a nonzero exit is a real failure, not partial progress.
     if exit_status != 0:
         print(f"\nunseal failed (exit {exit_status}) - see output above.", file=sys.stderr)
         return 1

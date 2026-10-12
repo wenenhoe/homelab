@@ -67,14 +67,29 @@ picks up from there.
    ssh security 'sudo apt install python3-hvac'
    ```
 
-4. Cache the AppRole credentials (role_id/secret_id from step 6 of the
-   reinit runbook):
+4. Cache the AppRole credentials. From a `vault-bootstrap` session on
+   `controller`, each value goes straight into its file on `security`
+   without appearing on the terminal or in a command line:
 
    ```sh
-   printf '%s' '<role_id>'   | sudo tee /etc/r2-read-watcher/role_id > /dev/null
-   printf '%s' '<secret_id>' | sudo tee /etc/r2-read-watcher/secret_id > /dev/null
-   sudo chmod 600 /etc/r2-read-watcher/role_id /etc/r2-read-watcher/secret_id
+   cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
+
+   bao read -field=role_id auth/approle/role/r2-read-watcher/role-id \
+     | ssh security 'sudo tee /etc/r2-read-watcher/role_id > /dev/null'
+
+   new=$(bao write -f -field=secret_id auth/approle/role/r2-read-watcher/secret-id) \
+     && [ -n "$new" ] \
+     && printf '%s' "$new" | ssh security 'sudo tee /etc/r2-read-watcher/secret_id > /dev/null' \
+     && echo "secret_id written"
+   unset new
+   exit
+
+   ssh security 'sudo chmod 600 /etc/r2-read-watcher/role_id /etc/r2-read-watcher/secret_id'
    ```
+
+   The `[ -n "$new" ]` check stops a failed mint from overwriting the file
+   with an empty value. Minting again issues another `secret_id` and leaves
+   the earlier one valid, so re-run this step only to replace a lost file.
 
 5. Create the heartbeat's push monitor in Kuma's own UI (same one-time
    step every `uptime_kuma_push` consumer needs — see

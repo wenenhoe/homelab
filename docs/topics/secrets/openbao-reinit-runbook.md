@@ -118,8 +118,6 @@ can't fix.
      secret_id_ttl=0 \
      secret_id_num_uses=0
 
-   bao read auth/approle/role/r2-read-watcher/role-id
-   bao write -f auth/approle/role/r2-read-watcher/secret-id
    exit
    ```
 
@@ -140,9 +138,9 @@ can't fix.
    LAN IP) depends on the watcher's connection method. Add the bind
    once that method is built, if it is meaningful.
 
-   Where the watcher caches its own `role_id`/`secret_id` is in
-   [`openbao-r2-read-watcher.md`](openbao-r2-read-watcher.md); this step
-   only provisions the identity.
+   This step only provisions the identity. The watcher's install steps
+   in [`openbao-r2-read-watcher.md`](openbao-r2-read-watcher.md) mint its
+   `secret_id` and write it, with the `role_id`, to the files on `security`.
 
 7. Revoke root, same as `openbao-auth.md`'s own last step.
 8. Confirm:

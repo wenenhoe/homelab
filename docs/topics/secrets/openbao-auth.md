@@ -54,9 +54,8 @@ export BAO_CACERT=/etc/step-ca/root_ca.crt
 ```
 
 Native `bao` (`ansible/roles/openbao_cli`), real TLS against step-ca's
-root cert — not `BAO_SKIP_VERIFY`/the old `docker exec` alias, the same
-replacement [`openbao.md`](openbao.md) uses for everything except
-init/unseal itself. `-tls-server-name` is required:
+root cert; [`openbao.md`](openbao.md) covers init and unseal, the one
+place that doesn't use it. `-tls-server-name` is required:
 the leaf cert has no IP SAN, so dialing `127.0.0.1` needs the real SAN
 supplied explicitly (see
 [ADR 0034 (Operator bao CLI access)](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md#context)).
@@ -109,8 +108,9 @@ supplied explicitly (see
      rather than cd_agent's never-expire shape — that shape is
      justified for an always-on box logging in every 2 minutes
      (0022); `controller` is a laptop with no fixed cadence, and
-     re-running this runbook by hand every quarter costs nothing extra
-     over the credential rotation this repo already does by habit.
+     [re-issuing the secret ID](#re-issuing-the-secret-id) by hand every
+     quarter costs nothing extra over the credential rotation this repo
+     already does by habit.
      `secret_id_num_uses` isn't capped separately, since the number of
      `ansible-playbook` runs in 90 days isn't something to predict or
      constrain.
@@ -184,18 +184,93 @@ supplied explicitly (see
    bao kv metadata delete -mount=secret hosts/_approle-test
    ```
 
-7. **Revoke the root token** — safe now that the AppRole is confirmed
-   working end-to-end:
+7. **Revoke the root token** — safe once the AppRole is confirmed
+   working end-to-end and `vault-bootstrap` exists
+   ([`openbao-reinit-runbook.md`](openbao-reinit-runbook.md) step 4
+   creates it): after the revoke it is the only way to write another
+   policy or AppRole.
 
    ```sh
    bao token revoke -self
    ```
 
    From this point, the root token from `openbao.md`'s Init runbook no
-   longer exists. Any future admin/debug access mints a fresh,
-   narrowly-scoped, short-lived token the same way
-   [`openbao-backup-restore.md`](openbao-backup-restore.md)'s restore
-   drill already does — never a standing root credential.
+   longer exists. Later admin access goes through `vault-bootstrap` in a
+   `bao_session` ([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)),
+   never a standing root credential.
+
+## Re-issuing the secret ID
+
+The cached `secret_id` stops working once its `secret_id_ttl` (90 days)
+has passed; `stat -c %y ansible/files/secrets/openbao-controller-secret-id`
+shows when the file was last written. The `role_id` doesn't change, so
+only the `secret_id` file is replaced.
+
+A failed login reports `invalid role or secret ID` for an expired
+`secret_id`, an unknown `secret_id`, a `role_id` that no longer matches
+and a missing role alike, so the first step below is what tells them
+apart.
+
+The root token from the runbook above no longer exists, so this goes
+through the `vault-bootstrap` AppRole
+([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)), from
+`controller`. Its `secret_id` is typed at `bao_session`'s hidden prompt:
+
+```sh
+cd tools
+printf 'vault-bootstrap role_id: '; read -r rid
+python3 -m openbao_utils.bao_session "$rid"; unset rid
+```
+
+In the shell it spawns:
+
+1. **Confirm the role is intact and the cached `role_id` still matches:**
+
+   ```sh
+   secrets=../ansible/files/secrets
+
+   bao read auth/approle/role/controller
+   [ "$(bao read -field=role_id auth/approle/role/controller/role-id)" = "$(cat "$secrets/openbao-controller-role-id")" ] \
+     && echo "role_id MATCH" || echo "role_id MISMATCH"
+   ```
+
+   A missing role or a `role_id` mismatch means the AppRole was rebuilt,
+   not that the `secret_id` expired; stop here and follow
+   [`openbao-reinit-runbook.md`](openbao-reinit-runbook.md) step 3
+   instead. `vault-bootstrap` cannot list a role's `secret_id`
+   accessors, so a matching `role_id` plus a failing login is what
+   points at the `secret_id`.
+
+2. **Issue the new `secret_id` straight into the cache file**, so it is
+   never shown on the terminal:
+
+   ```sh
+   umask 077
+   new=$(bao write -f -field=secret_id auth/approle/role/controller/secret-id) \
+     && [ -n "$new" ] \
+     && printf '%s' "$new" > "$secrets/openbao-controller-secret-id" \
+     && chmod 600 "$secrets/openbao-controller-secret-id" \
+     && echo "secret_id written"
+   unset new
+   ```
+
+   The file is only overwritten when `bao` succeeded.
+
+3. **Confirm the pair logs in, then leave the session:**
+
+   ```sh
+   t=$(bao write -field=token auth/approle/login \
+         role_id=@"$secrets/openbao-controller-role-id" \
+         secret_id=@"$secrets/openbao-controller-secret-id") \
+     && echo "controller login OK" && BAO_TOKEN="$t" bao token revoke -self
+   unset t
+
+   exit
+   ```
+
+   A login response's client token is the `token` field, the same form
+   `snapshot-push.sh` logs in with; `-field=client_token` finds nothing.
+   `exit` revokes the `vault-bootstrap` token.
 
 ## What this doesn't cover yet
 

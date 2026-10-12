@@ -109,9 +109,7 @@ can't fix.
    ```sh
    cd tools && python3 -m openbao_utils.bao_session "<vault-bootstrap role_id>"
 
-   # from controller, copy the checked-in policy over first:
-   #   scp docker/openbao/policies/r2-read-watcher.hcl security:/tmp/
-   bao policy write r2-read-watcher - < /tmp/r2-read-watcher.hcl
+   bao policy write r2-read-watcher - < ../docker/openbao/policies/r2-read-watcher.hcl
 
    bao write auth/approle/role/r2-read-watcher \
      token_policies="r2-read-watcher" \
@@ -124,6 +122,9 @@ can't fix.
    bao write -f auth/approle/role/r2-read-watcher/secret-id
    exit
    ```
+
+   The session's shell is on `controller`, starting in `tools/`, so the
+   policy is read from the checkout rather than copied to `security`.
 
    `secret_id_ttl=0` (never expires), unlike `controller`'s 90-day
    cycle: this identity lives permanently on `security` itself, not on

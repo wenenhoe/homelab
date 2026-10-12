@@ -67,7 +67,7 @@ picks up from there.
    ssh security 'sudo apt install python3-hvac'
    ```
 
-4. Cache the AppRole credentials (role_id/secret_id from step 7 of the
+4. Cache the AppRole credentials (role_id/secret_id from step 6 of the
    reinit runbook):
 
    ```sh

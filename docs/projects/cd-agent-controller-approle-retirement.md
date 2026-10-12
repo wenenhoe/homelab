@@ -55,7 +55,13 @@ Once the agent host and its AppRoles are live and proven, in this order:
    create a `cert` role bound to its common name, the organizational unit
    the template stamps, and its fixed address
    ([ADR 0047 (First-credential bootstrap)](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
-4. Delete `controller`'s Era A AppRole and its policy.
+4. Delete `controller`'s Era A AppRole and its policy, and its `role_id`
+   and `secret_id` files with them, as ADR 0047 states. The topic docs
+   that describe the AppRole go in the same PR:
+   [`openbao-auth.md`](../topics/secrets/openbao-auth.md), including its
+   "Re-issuing the secret ID" section, and the
+   `openbao-controller-role-id` and `openbao-controller-secret-id`
+   entries in `secret_catalog.yaml`.
 
 ## Acceptance criteria
 
@@ -63,6 +69,7 @@ Once the agent host and its AppRoles are live and proven, in this order:
 - [ ] Admin and debug access logs in with a step-ca client certificate from the second provisioner, bound to `controller`'s common name, organizational unit and fixed address, and receives a short-lived token, per ADR 0047.
 - [ ] The `cert` role refuses the same common name when the original provisioner signs it, verified.
 - [ ] The `check-freshness` user timer is gone from `controller`, and the snapshot push runs from `cd-agent-snapshot`.
+- [ ] No topic doc or catalog entry still describes `controller`'s AppRole or how to re-issue its `secret_id`.
 
 ## Open items
 

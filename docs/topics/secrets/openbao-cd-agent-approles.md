@@ -27,13 +27,14 @@ was confirmed against a real OpenBao instance with these exact policy files.
 
 `cd_agent` needs its fixed address first: it is the value of both CIDR
 binds. From a `vault-bootstrap` session
-([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)), with the four
-`.hcl` files copied to `/tmp` on `security` first:
+([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)), which starts
+in `tools/` on `controller` and reads the four checked-in `.hcl` files from
+the checkout:
 
 ```sh
 cd_agent_ip=<cd_agent's fixed LAN IP>
 for job in deploy rotation freshness snapshot; do
-  bao policy write "cd-agent-$job" - < "/tmp/cd-agent-$job.hcl"
+  bao policy write "cd-agent-$job" - < "../docker/openbao/policies/cd-agent-$job.hcl"
   bao write "auth/approle/role/cd-agent-$job" \
     token_policies="cd-agent-$job" \
     token_ttl=1h token_max_ttl=1h \

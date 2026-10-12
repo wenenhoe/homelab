@@ -40,7 +40,7 @@ interactive shell with `BAO_ADDR`/`BAO_CACERT`/
 below is plain native `bao`:
 
 ```sh
-bao policy write <new-role-name> - < /tmp/<new-role-name>.hcl
+bao policy write <new-role-name> - < ../docker/openbao/policies/<new-role-name>.hcl
 bao write auth/approle/role/<new-role-name> \
   token_policies="<new-role-name>" \
   token_ttl=<...> token_max_ttl=<...> \
@@ -49,6 +49,11 @@ bao read auth/approle/role/<new-role-name>/role-id
 bao write -f auth/approle/role/<new-role-name>/secret-id
 exit   # revokes the vault-bootstrap token
 ```
+
+The shell starts in `tools/` on `controller`, so the policy is read from
+the checkout, where every policy is checked in under
+[`docker/openbao/policies/`](../../../docker/openbao/policies/), not
+copied to `security`.
 
 Same parameter-choice discipline as `openbao-auth.md`'s `controller`
 role: pick TTLs/CIDR-binds appropriate to the new identity's own job,

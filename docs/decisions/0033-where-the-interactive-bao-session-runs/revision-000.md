@@ -5,7 +5,7 @@ type: adr
 title: Where the interactive bao session runs
 short: Interactive bao session
 solution: controller only; the SSH relay to security dropped
-summary: Where bao_session.py runs, given a relay to security never had a working local half.
+summary: Which host runs the interactive bao session script, given a relay to security never had a working local half.
 topic: repository-tooling
 status: accepted
 narrows: ADR-0034
@@ -15,7 +15,7 @@ narrows: ADR-0034
 
 ## Context
 
-This started as a different draft: relay `bao_session.py`'s interactive
+This started as a different draft: relay `bao_session.py`'s (renamed: `shell.py`) interactive
 session to `security` over `ssh -t` instead of `controller` keeping
 its own native `bao`, on the reasoning that `security` already has
 everything the session needs and `controller`'s copy was just a second

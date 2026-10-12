@@ -28,13 +28,13 @@ functionally, this repo's root-recovery mechanism now.
 ## Day-to-day use: minting a new AppRole
 
 ```sh
-cd tools && python3 -m openbao_utils.bao_session <vault-bootstrap role_id>
+cd tools && python3 -m openbao_utils.shell <vault-bootstrap role_id>
 ```
 
 Paste `secret_id` when prompted (from the password manager — see
 "What it can and can't do" above, never `ansible/files/secrets/`).
 Runs from `controller`, fetching step-ca's root cert fresh over SSH
-each time (`bao_session.py`'s own docstring). Drops into an
+each time (`shell.py`'s own docstring). Drops into an
 interactive shell with `BAO_ADDR`/`BAO_CACERT`/
 `BAO_TLS_SERVER_NAME`/`BAO_TOKEN` already exported — every command
 below is plain native `bao`:
@@ -67,7 +67,7 @@ re-init - the same self-escalation property above, deliberately used
 on purpose this one time:
 
 1. Log in with `vault-bootstrap`
-   (`cd tools && python3 -m openbao_utils.bao_session <vault-bootstrap role_id>`) —
+   (`cd tools && python3 -m openbao_utils.shell <vault-bootstrap role_id>`) —
    the spawned shell is fully interactive, so step 4's unseal-key
    submissions need no special handling.
 2. `bao policy write vault-bootstrap-emergency -`: a copy of
@@ -78,7 +78,7 @@ on purpose this one time:
    them, confirmed live.
 3. `bao write auth/approle/role/vault-bootstrap token_policies="vault-bootstrap-emergency"`,
    then exit and log in again
-   (same `bao_session.py` command as step 1) — a token's policies are
+   (same `shell.py` command as step 1) — a token's policies are
    fixed at login time, so the updated role only takes effect on the
    next login. AppRole role writes on this backend merge into the
    stored role rather than replacing it — `pathRoleCreateUpdate` loads

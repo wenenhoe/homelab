@@ -60,7 +60,7 @@ Sequence:
    `value=-` reads from stdin instead of the command line, which a
    shell's own history file and process listing (`ps`) can both expose:
    ```sh
-   cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
    read -rs KEY; bao kv put -mount=secret hosts/all/beszel/beszel-hub-key value=- <<< "$KEY"; unset KEY
    read -rs TOKEN; bao kv put -mount=secret hosts/all/beszel/beszel-agent-token value=- <<< "$TOKEN"; unset TOKEN
    exit

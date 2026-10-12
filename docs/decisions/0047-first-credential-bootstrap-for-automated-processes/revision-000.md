@@ -24,7 +24,7 @@ How the first credential reaches a process that needs it, without a human typing
 **How the first credential reaches those identities today.** Each answer was reasoned for its own script, and none is a single deliberate one:
 
 - `controller`'s AppRole `role_id` and `secret_id` are files in `SECRETS_DIR` on the operator host (`read_bootstrap_file` in `tools/utils/repo.py`), kept outside OpenBao because they cannot live in the thing they unlock.
-- `tools/openbao_utils/bao_session.py` and `snapshot-push.sh` read a `secret_id` from a hidden prompt into memory, never a file.
+- `tools/openbao_utils/bao_session.py` (renamed: `shell.py`) and `snapshot-push.sh` read a `secret_id` from a hidden prompt into memory, never a file.
 - `rclone.conf` files holding real B2, R2 and OCI keys are rendered by `cloud_sync` and `restore_discovery`.
 - `tools/utils/repo.py`'s `fetch_root_cert()` uses an SSH key to reach `security`.
 - Beszel's KEY and TOKEN and [ADR 0036 (Beszel notifications)](../0036-beszel-notification-configuration/revision-000.md)'s Telegram webhook are typed into a web UI and live only in Beszel's own database.

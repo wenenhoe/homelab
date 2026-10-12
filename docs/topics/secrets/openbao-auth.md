@@ -258,19 +258,18 @@ In the shell it spawns:
 3. **Confirm the pair logs in, then leave the session:**
 
    ```sh
-   t=$(bao write -format=json auth/approle/login \
+   t=$(bao write -field=token auth/approle/login \
          role_id=@"$secrets/openbao-controller-role-id" \
-         secret_id=@"$secrets/openbao-controller-secret-id" \
-       | python3 -c 'import sys, json; print(json.load(sys.stdin)["auth"]["client_token"])') \
+         secret_id=@"$secrets/openbao-controller-secret-id") \
      && echo "controller login OK" && BAO_TOKEN="$t" bao token revoke -self
    unset t
 
    exit
    ```
 
-   The token comes out of the JSON because `-field=` only reads a
-   response's `data`, and a login response carries the token under
-   `auth`. `exit` revokes the `vault-bootstrap` token.
+   A login response's client token is the `token` field, the same form
+   `snapshot-push.sh` logs in with; `-field=client_token` finds nothing.
+   `exit` revokes the `vault-bootstrap` token.
 
 ## What this doesn't cover yet
 

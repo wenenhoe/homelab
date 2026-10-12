@@ -1,0 +1,119 @@
+---
+id: ADR-0060
+revision: 1
+type: adr
+title: "Tracking and managing code-review findings for a public repository"
+short: Review findings tracker
+solution: "A private tracker repo (homelab-security) holding one structured file per finding, not a mirror of the public repo's code, filed by a pull request the maintainer reviews"
+summary: "Where automated code-review findings live, given the repo they describe is public."
+topic: security-hardening
+status: accepted
+supersedes: 0
+related: [ADR-0061]
+---
+
+# A private tracker of finding files, filed by a pull request the maintainer reviews
+
+## Problem
+
+Findings from automated code review of this repo (a severity, a file, a
+description of what's wrong) need somewhere to live that isn't this
+repo. [`docs/README.md`'s public-repo rule](../../README.md#public-repo)
+already forbids recording a live vulnerability, incident, or exposure
+window anywhere that reaches this repo's git history — a review finding
+is exactly that shape of content.
+
+## Context
+
+A manual review of a produced CodeRabbit report confirmed this isn't
+hypothetical: the findings were real and actionable, and exactly what
+[ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)
+keeps off this repo's own PR comments. Their severity, file, and
+description stay out of this repository.
+
+That reasoning extends past PR comments: GitHub Actions run logs on a
+public repository are public by default too, so any review computation
+triggered from or defined in this repo's own `.github/workflows/` leaks
+the same way, regardless of whether the output ever becomes a PR
+comment.
+
+## Decision
+
+A private GitHub repository, `homelab-security`, tracks findings as
+files — one structured file per finding, named by a stable identifier,
+each recording the finding's severity, file, description, triage status,
+and this repo's commit SHA at review time. It is a tracker, not a
+mirror: no copy of this repo's code lives there, and nothing about its
+own existence needs to stay secret.
+
+## Alternatives considered
+
+- **Private-main repo with periodic sync to this public one.** A
+  filtering or squash pipeline that must never leak, running forever, on
+  top of — not instead of — the single-repo discipline that already
+  works. Doubles the CI surface for one operator. Solves a
+  findings-tracking problem with a version-control-architecture-sized
+  change. Rejected.
+- **GitHub Issues in the private repo, one per finding.** Built-in
+  triage, comments and notifications, and no storage design to own.
+  Rejected because a finding's state lives in labels and free-text
+  bodies: deduplicating across two producers means searching bodies for
+  a marker, and dashboards over findings — the kind
+  [`project-planning.md`](../../project-planning.md) is for projects —
+  would have to go through the API rather than read files in a
+  checkout. Files trade Issues' built-in triage and notifications for
+  structured, greppable, versioned state.
+- **GitHub repository security advisories on this repo directly.** A
+  real, native fit for anything that reaches genuine vulnerability
+  severity — a temporary private fork to build the fix, CI explicitly
+  excluded from it. Kept as a complementary path for that tier, not the
+  primary mechanism for the routine flow of findings.
+- **No private venue; leave the PR-review App disabled and track
+  nothing systematically.** Leaves real findings (see Context)
+  undiscovered rather than merely undisclosed. Rejected.
+
+## Consequences
+
+A second repository to maintain — a finding schema and template — but
+no sync tooling and no second copy of this repo's code to keep
+consistent with the first. Deduplication is a file-exists check on the
+finding's identifier: a finding whose file exists is skipped and left as
+it is, whatever its status, and triage is an edit to the file's status.
+Each producer run commits its new findings on a branch, validates them,
+and opens a pull request that the maintainer reviews: the pull request is
+what notifies the maintainer, and `main` holds what the maintainer kept,
+so the next run's deduplication reads only that. A run files nothing
+while an earlier run's pull request is open, so findings are never added
+faster than they are read. A new finding is a new file, so writers never
+conflict on content.
+
+## Invariants
+
+No finding's severity, file, or description is committed, commented, or
+logged anywhere reachable from this repo's own git history, PR comments,
+or Actions run logs.
+
+## Non-goals
+
+Where the review computation itself runs, and what credential drives it
+([ADR 0061 (Automated code review)](../0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md)).
+`homelab-security`'s finding schema, file layout and status vocabulary
+(a project concern, not an architectural one).
+
+## Reconsideration triggers
+
+`homelab-security` needs to hold real code, not just tracking data — at
+that point, re-evaluate a mirror on its actual, demonstrated merits
+rather than pre-emptively. Per-finding discussion outweighs scripted
+views of findings — at that point, re-evaluate Issues. Reading each filed
+file stops being worth the maintainer's time — at that point, re-evaluate
+merging a run's pull request without review.
+
+## Revision notes
+
+Revision 0 had each producer run merge its own pull request at once. A
+finding is text a reviewing agent wrote, so it is not trusted for having
+been written by a workflow: the maintainer reads each file before keeping
+it. A run's pull request is therefore left open, one at a time, and a
+finding that already exists is skipped rather than treated as an error.
+The problem, context, decision and invariants are unchanged.

@@ -7,7 +7,8 @@ short: Review findings tracker
 solution: "A private tracker repo (homelab-security) holding one structured file per finding, not a mirror of the public repo's code"
 summary: "Where automated code-review findings live, given the repo they describe is public."
 topic: security-hardening
-status: accepted
+status: superseded
+superseded_by: 1
 related: [ADR-0061]
 ---
 

@@ -67,10 +67,11 @@ tools/openbao_utils/scripts/snapshot-push.sh "$(cat ansible/files/secrets/openba
 ```
 
 From `controller`, using the same `controller` AppRole `role_id`
-cached per [`openbao-auth.md`](openbao-auth.md)'s runbook. Prompts for
-`secret_id` (hidden input, read
-`ansible/files/secrets/openbao-controller-secret-id` yourself and
-paste it when asked — the script never takes it as an argument). One
+cached per [`openbao-auth.md`](openbao-auth.md)'s runbook. It reads
+`secret_id` from the cached `openbao-controller-secret-id` file in the
+secrets directory (`HOMELAB_SECRETS_DIR`, else `ansible/files/secrets`),
+and falls back to a hidden prompt when that file is missing or empty. The
+script never takes it as an argument. One
 process end to end: logs in over real TLS, saves the snapshot,
 GPG-encrypts it (same public key as
 [`backup.md`](../disaster-recovery/backup.md)'s

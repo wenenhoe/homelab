@@ -52,7 +52,7 @@ actually been verified, invalidated the relay's premise entirely:
   kv get`, `bao operator raft snapshot save` - dialing OpenBao's API
   over the network from `controller` itself, entirely independent of
   `bao_session.py`. Checked directly: it's the only other caller of a
-  *local* `bao` binary in this repo: `init_unseal.py`'s two `bao
+  *local* `bao` binary in this repo: `init_unseal.py` (removed; replaced by: `init.py` and `unseal.py`)'s two `bao
   operator` calls both go through `docker exec` on `security` over
   paramiko, no local binary involved. So the relay's stated
   benefit - "`controller` sheds an install step and a version pin

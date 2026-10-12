@@ -27,14 +27,14 @@ can't fix.
    the exact command if the two ever disagree):
 
    ```sh
-   cd tools && python3 -m openbao_utils.init_unseal init
+   cd tools && python3 -m openbao_utils.init
    ```
 
    Copy the 3 unseal shares and root token into the password manager
    entry plus one offline physical copy, same as the original bundle -
    this one fully supersedes it, replace rather than keep both.
    Unseal with 2 of the 3 shares
-   (`cd tools && python3 -m openbao_utils.init_unseal unseal`, once
+   (`cd tools && python3 -m openbao_utils.unseal`, once
    per share).
 
 3. Recreate `controller`'s AppRole: run steps 1-6 of

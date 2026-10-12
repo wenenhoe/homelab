@@ -85,6 +85,27 @@ class TestSecurityCredentialsSshTarget:
         assert key_path == str(Path("~/.ssh/some_key").expanduser())
 
 
+class TestConnectSsh:
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_connects_with_the_given_target_and_a_timeout(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        client = repo.connect_ssh("secadmin", "security.internal.example.com", "/home/x/.ssh/key")
+        assert client is ssh_client
+        args, kwargs = ssh_client.connect.call_args
+        assert args[0] == "security.internal.example.com"
+        assert kwargs["username"] == "secadmin"
+        assert kwargs["key_filename"] == "/home/x/.ssh/key"
+        assert kwargs["timeout"] == repo.TIMEOUT_SECONDS
+
+    @patch("utils.repo.paramiko.SSHClient", autospec=True)
+    def test_closes_the_client_and_reraises_when_the_connection_fails(self, mock_ssh_client_cls, ssh_client):
+        mock_ssh_client_cls.return_value = ssh_client
+        ssh_client.connect.side_effect = OSError("unreachable")
+        with pytest.raises(OSError, match="unreachable"):
+            repo.connect_ssh("secadmin", "security.internal.example.com", "/home/x/.ssh/key")
+        ssh_client.close.assert_called_once()
+
+
 class TestFetchRootCert:
     @pytest.fixture(autouse=True)
     def _main_domain_and_ssh_target(self, secrets_dir, monkeypatch):

@@ -68,9 +68,8 @@ on purpose this one time:
 
 1. Log in with `vault-bootstrap`
    (`cd tools && python3 -m openbao_utils.bao_session <vault-bootstrap role_id>`) —
-   the spawned shell is already fully interactive, so step 4's
-   unseal-key submission below needs no special handling the way a
-   `docker exec -it` alias once did.
+   the spawned shell is fully interactive, so step 4's unseal-key
+   submissions need no special handling.
 2. `bao policy write vault-bootstrap-emergency -`: a copy of
    `vault-bootstrap.hcl` plus one added stanza:
    `path "sys/generate-root-token/*" { capabilities = ["sudo", "create", "read", "update", "delete"] }`.

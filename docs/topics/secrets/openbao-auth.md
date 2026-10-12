@@ -54,9 +54,8 @@ export BAO_CACERT=/etc/step-ca/root_ca.crt
 ```
 
 Native `bao` (`ansible/roles/openbao_cli`), real TLS against step-ca's
-root cert — not `BAO_SKIP_VERIFY`/the old `docker exec` alias, the same
-replacement [`openbao.md`](openbao.md) uses for everything except
-init/unseal itself. `-tls-server-name` is required:
+root cert; [`openbao.md`](openbao.md) covers init and unseal, the one
+place that doesn't use it. `-tls-server-name` is required:
 the leaf cert has no IP SAN, so dialing `127.0.0.1` needs the real SAN
 supplied explicitly (see
 [ADR 0034 (Operator bao CLI access)](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md#context)).
@@ -185,18 +184,20 @@ supplied explicitly (see
    bao kv metadata delete -mount=secret hosts/_approle-test
    ```
 
-7. **Revoke the root token** — safe now that the AppRole is confirmed
-   working end-to-end:
+7. **Revoke the root token** — safe once the AppRole is confirmed
+   working end-to-end and `vault-bootstrap` exists
+   ([`openbao-reinit-runbook.md`](openbao-reinit-runbook.md) step 4
+   creates it): after the revoke it is the only way to write another
+   policy or AppRole.
 
    ```sh
    bao token revoke -self
    ```
 
    From this point, the root token from `openbao.md`'s Init runbook no
-   longer exists. Any future admin/debug access mints a fresh,
-   narrowly-scoped, short-lived token the same way
-   [`openbao-backup-restore.md`](openbao-backup-restore.md)'s restore
-   drill already does — never a standing root credential.
+   longer exists. Later admin access goes through `vault-bootstrap` in a
+   `bao_session` ([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)),
+   never a standing root credential.
 
 ## Re-issuing the secret ID
 

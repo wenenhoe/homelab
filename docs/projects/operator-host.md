@@ -49,7 +49,7 @@ Read from the playbooks, `tools/`, `restore_all.py`, and the docs. All are outbo
 | :--- | :-: | :--- |
 | Managed hosts, `tailscale` (VM 202), and later the coding-agent host and CD agent | 22 | Ansible, restore, provisioning; `sos-inventory.yaml` also reaches VLAN 20 hosts by static IP |
 | `security` | 8200 | OpenBao API (Ansible, `hvac`, `bao`) |
-| `security` | 22 | Reading step-ca's root cert; `init_unseal.py` over paramiko |
+| `security` | 22 | Reading step-ca's root cert; `init.py` and `unseal.py` over paramiko |
 | `storage` | 443, 8333 | S3 through Caddy for `restore_all.py`'s rclone; Tofu state |
 | Proxmox node | 8006 | Tofu |
 | OPNsense | HTTPS | Tofu day-2, later |

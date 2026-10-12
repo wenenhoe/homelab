@@ -42,6 +42,7 @@ SECRETS_DIR = secrets_dir_from(os.environ)
 INVENTORY_PATH = PROJECT_ROOT / "ansible/inventory/inventory.yaml"
 
 STEP_CA_CONTAINER = "step-ca"
+OPENBAO_CONTAINER = "openbao"
 # Bounds both the SSH root-cert fetch and every Vault HTTP call built
 # on top of it - one number to reason about, not a fresh one per
 # caller.
@@ -101,8 +102,7 @@ def security_ssh_target() -> tuple[str, str, str]:
     return user, host, str(key_path)
 
 
-def fetch_root_cert() -> str:
-    user, host, key_path = security_ssh_target()
+def connect_ssh(user: str, host: str, key_path: str) -> paramiko.SSHClient:
     client = paramiko.SSHClient()
     client.load_system_host_keys()
     # Trust-on-first-use, same as the previous StrictHostKeyChecking=
@@ -114,6 +114,16 @@ def fetch_root_cert() -> str:
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     try:
         client.connect(host, username=user, key_filename=key_path, timeout=TIMEOUT_SECONDS)
+    except BaseException:
+        client.close()
+        raise
+    return client
+
+
+def fetch_root_cert() -> str:
+    user, host, key_path = security_ssh_target()
+    client = connect_ssh(user, host, key_path)
+    try:
         _stdin, stdout, stderr = client.exec_command(
             f"docker exec {STEP_CA_CONTAINER} cat /home/step/certs/root_ca.crt",
             timeout=TIMEOUT_SECONDS,

@@ -91,8 +91,8 @@ flowchart TD
     A["Deploy: openbao starts, no cert yet"] --> B["Container crash-loops, restart: unless-stopped"]
     B --> C["Play 6: step_ca_cert issues the leaf cert, container restarts"]
     C --> D["Uninitialized and sealed"]
-    D --> E["init_unseal init: 3 shares, root token printed once"]
-    E --> F["init_unseal unseal, run twice"]
+    D --> E["init: 3 shares, root token printed once"]
+    E --> F["unseal, run twice"]
     F --> G["openbao-auth runbook with the root token: KV v2, AppRole, policy, controller role"]
     G --> H["Smoke test from controller: put and get succeed, metadata delete denied"]
     H --> I["Revoke the root token"]
@@ -204,12 +204,12 @@ command, confirms `StartedAt` doesn't change (no restart), and
 confirms via a raw `openssl s_client` handshake that the listener
 serves the renewed cert's serial afterwards.
 
-## Init and unseal — manual, via `init_unseal.py`
+## Init and unseal — manual, via `init.py` and `unseal.py`
 
 [0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) chose manual Shamir
 unseal over cloud auto-unseal specifically because a human is already
 at the keyboard for every reboot `security` has ever had. Run from
-`controller` via `tools/openbao_utils/init_unseal.py` (paramiko,
+`controller` via `tools/openbao_utils/init.py` and `unseal.py` (paramiko,
 driving `docker exec` on `security` remotely) rather than SSHing in
 and typing the command by hand - but the same constraints that kept
 this out of Ansible still hold, and the wrapper is built to respect
@@ -217,8 +217,8 @@ them, not work around them:
 
 - `bao operator init`'s *output* — the unseal key shares and initial
   root token — is the sensitive part, and it only exists at the moment
-  the command runs. `init_unseal.py` doesn't capture, log, or write it
-  anywhere; both subcommands print the remote output straight to the
+  the command runs. `init.py` and `unseal.py` do not capture, log, or write it
+  anywhere; both scripts print the remote output straight to the
   operator's own terminal as it arrives, the same as typing the
   command by hand would.
 - `bao operator unseal`'s prompt for each key share is masked input:
@@ -233,7 +233,7 @@ them, not work around them:
   needs to transcribe it. This is why it's a standalone script an
   operator runs directly, never an `ansible-playbook` task.
 
-Both subcommands keep driving `docker exec` against the live
+Both scripts keep driving `docker exec` against the live
 container, permanently, by necessity — see
 [ADR 0034 (Operator bao CLI access)](../../decisions/0034-operator-access-to-the-openbao-cli/revision-000.md)'s
 Context for why: `compose.yaml.j2` publishes OpenBao's port directly,
@@ -252,7 +252,7 @@ when starting from an AppRole login; see
 From `controller`:
 
 ```sh
-cd tools && python3 -m openbao_utils.init_unseal init
+cd tools && python3 -m openbao_utils.init
 ```
 
 3 shares / 2 threshold (baked into the script, not a flag) — not the
@@ -293,7 +293,7 @@ it standing indefinitely after.
 From `controller`, once per share:
 
 ```sh
-cd tools && python3 -m openbao_utils.init_unseal unseal
+cd tools && python3 -m openbao_utils.unseal
 ```
 
 Run it 2 times (the threshold above). Each run asks for one of the 3

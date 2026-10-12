@@ -1,4 +1,4 @@
-"""Unit tests for openbao_utils.init_unseal.
+"""Unit tests for openbao_utils.unseal.
 
 Run via `uv run pytest tools/tests/ -v`. Every SSH call is mocked;
 nothing here touches a real `security` host or a real OpenBao/docker.
@@ -10,86 +10,50 @@ not a mock of time itself.
 
 from __future__ import annotations
 
-import sys
 import time
 from unittest.mock import create_autospec, patch
 
 import pytest
-from _ssh_objects import exec_result, pty_result
-from openbao_utils import init_unseal
+from _ssh_objects import pty_result
+from openbao_utils import unseal
 
 
 @pytest.fixture
 def connected_client(monkeypatch, ssh_client):
-    monkeypatch.setattr(init_unseal, "_connect", create_autospec(init_unseal._connect, return_value=ssh_client))
+    monkeypatch.setattr(
+        unseal,
+        "security_ssh_target",
+        create_autospec(unseal.security_ssh_target, return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key")),
+    )
+    monkeypatch.setattr(unseal, "connect_ssh", create_autospec(unseal.connect_ssh, return_value=ssh_client))
     return ssh_client
 
 
-class TestConnect:
-    @patch("openbao_utils.init_unseal.paramiko.SSHClient", autospec=True)
-    @patch.object(init_unseal, "security_ssh_target", return_value=("secadmin", "security.internal.example.com", "/home/x/.ssh/key"), autospec=True)
-    def test_connects_with_the_target_from_utils_repo(self, _mock_target, mock_ssh_client_cls, ssh_client):
-        mock_ssh_client_cls.return_value = ssh_client
-        init_unseal._connect()
-        args, kwargs = ssh_client.connect.call_args
-        assert args[0] == "security.internal.example.com"
-        assert kwargs["username"] == "secadmin"
-        assert kwargs["key_filename"] == "/home/x/.ssh/key"
-        assert kwargs["timeout"] == init_unseal.TIMEOUT_SECONDS
-
-
-class TestRunInit:
-    def test_runs_a_plain_non_interactive_docker_exec_no_it_flags(self, connected_client):
-        connected_client.exec_command.return_value = exec_result(exit_status=0, stdout=b"Unseal Key 1: abc")
-        init_unseal.run_init()
-        command = connected_client.exec_command.call_args.args[0]
-        assert f"docker exec {init_unseal.OPENBAO_CONTAINER} bao operator init" in command
-        assert "-i" not in command.split()
-        assert "-it" not in command
-        # Not requested at all for this command - see the module
-        # docstring on why init needs no pty.
-        assert "get_pty" not in connected_client.exec_command.call_args.kwargs
-
-    def test_prints_output_and_succeeds_on_a_clean_exit(self, connected_client):
-        connected_client.exec_command.return_value = exec_result(exit_status=0, stdout=b"Unseal Key 1: abc\nInitial Root Token: xyz\n")
-        with patch("sys.stdout", autospec=True) as mock_stdout:
-            result = init_unseal.run_init()
-        assert result == 0
-        written = "".join(c.args[0] for c in mock_stdout.write.call_args_list if c.args)
-        assert "Unseal Key 1: abc" in written
-        assert "Initial Root Token: xyz" in written
-        assert "password manager" in written
-
-    def test_fails_loudly_on_a_nonzero_exit(self, connected_client):
-        connected_client.exec_command.return_value = exec_result(exit_status=2, stderr=b"Error initializing: ...")
-        result = init_unseal.run_init()
-        assert result == 1
-
-    def test_closes_the_client_even_on_failure(self, connected_client):
-        connected_client.exec_command.return_value = exec_result(exit_status=1, stderr=b"boom")
-        assert init_unseal.run_init() == 1
-        connected_client.close.assert_called_once()
-
-
-class TestRunUnsealShare:
+class TestMain:
     @pytest.fixture(autouse=True)
     def _short_drain(self, monkeypatch):
-        monkeypatch.setattr(init_unseal, "_DRAIN_IDLE_SECONDS", 0.01)
-        monkeypatch.setattr(init_unseal, "_DRAIN_SETTLE_SECONDS", 0.01)
+        monkeypatch.setattr(unseal, "_DRAIN_IDLE_SECONDS", 0.01)
+        monkeypatch.setattr(unseal, "_DRAIN_SETTLE_SECONDS", 0.01)
+
+    def test_connects_with_the_target_from_utils_repo(self, connected_client):
+        connected_client.exec_command.return_value = pty_result()
+        with patch("getpass.getpass", return_value="fake-share", autospec=True):
+            unseal.main()
+        unseal.connect_ssh.assert_called_once_with("secadmin", "security.internal.example.com", "/home/x/.ssh/key")
 
     def test_requests_a_pty_and_keeps_the_manual_it_command(self, connected_client):
         connected_client.exec_command.return_value = pty_result()
         with patch("getpass.getpass", return_value="fake-share", autospec=True):
-            init_unseal.run_unseal_share()
+            unseal.main()
         args, kwargs = connected_client.exec_command.call_args
-        assert f"docker exec -it {init_unseal.OPENBAO_CONTAINER} bao operator unseal" in args[0]
+        assert f"docker exec -it {unseal.OPENBAO_CONTAINER} bao operator unseal" in args[0]
         assert kwargs["get_pty"]
 
     def test_writes_the_share_from_getpass_to_stdin_never_argv(self, connected_client):
         stdin, stdout_stream, stderr_stream = pty_result()
         connected_client.exec_command.return_value = (stdin, stdout_stream, stderr_stream)
         with patch("getpass.getpass", return_value="fake-unseal-share", autospec=True) as mock_getpass:
-            init_unseal.run_unseal_share()
+            unseal.main()
         mock_getpass.assert_called_once()
         stdin.write.assert_called_once_with("fake-unseal-share\n")
         stdin.flush.assert_called_once()
@@ -103,7 +67,7 @@ class TestRunUnsealShare:
         # docstring. A nonzero exit here is a real failure to surface.
         connected_client.exec_command.return_value = pty_result(exit_status=1)
         with patch("getpass.getpass", return_value="fake-share", autospec=True):
-            result = init_unseal.run_unseal_share()
+            result = unseal.main()
         assert result == 1
 
     def test_succeeds_on_a_clean_exit_even_mid_threshold(self, connected_client):
@@ -112,22 +76,22 @@ class TestRunUnsealShare:
         # module docstring. Either way this function reports success.
         connected_client.exec_command.return_value = pty_result(exit_status=0)
         with patch("getpass.getpass", return_value="fake-share", autospec=True):
-            result = init_unseal.run_unseal_share()
+            result = unseal.main()
         assert result == 0
 
     def test_reads_the_share_before_connecting(self, connected_client):
         calls: list[str] = []
-        init_unseal._connect.side_effect = lambda: calls.append("connect") or connected_client
+        unseal.connect_ssh.side_effect = lambda *_args: calls.append("connect") or connected_client
         connected_client.exec_command.return_value = pty_result()
         with patch("getpass.getpass", side_effect=lambda _prompt="": calls.append("getpass") or "fake-share", autospec=True):
-            init_unseal.run_unseal_share()
+            unseal.main()
         assert calls == ["getpass", "connect"]
 
     def test_sends_nothing_and_fails_on_an_empty_share(self, connected_client, capsys):
         with patch("getpass.getpass", return_value="", autospec=True):
-            result = init_unseal.run_unseal_share()
+            result = unseal.main()
         assert result == 1
-        init_unseal._connect.assert_not_called()
+        unseal.connect_ssh.assert_not_called()
         assert "nothing sent" in capsys.readouterr().err
 
     def test_waits_for_the_remote_prompt_before_writing_the_share(self, connected_client):
@@ -137,71 +101,51 @@ class TestRunUnsealShare:
         reads_when_written: list[int] = []
         stdin.write.side_effect = lambda _data: reads_when_written.append(recv.call_count)
         with patch("getpass.getpass", return_value="fake-share", autospec=True):
-            init_unseal.run_unseal_share()
+            unseal.main()
         assert reads_when_written == [1]
 
     def test_does_not_show_the_remote_prompt_after_the_share_was_read_locally(self, connected_client, capsys):
         connected_client.exec_command.return_value = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
         with patch("getpass.getpass", return_value="fake-share", autospec=True):
-            init_unseal.run_unseal_share()
+            unseal.main()
         assert "Unseal Key" not in capsys.readouterr().out
 
     def test_still_shows_other_output_that_arrives_before_the_share_is_sent(self, connected_client, capsys):
         connected_client.exec_command.return_value = pty_result(chunks=(b"Error response from daemon: No such container: openbao\r\n",))
         with patch("getpass.getpass", return_value="fake-share", autospec=True):
-            init_unseal.run_unseal_share()
+            unseal.main()
         assert "No such container: openbao" in capsys.readouterr().out
 
     def test_closes_the_client_even_if_something_raises(self, connected_client):
         connected_client.exec_command.side_effect = RuntimeError("boom")
         with patch("getpass.getpass", return_value="fake-share", autospec=True), pytest.raises(RuntimeError):
-            init_unseal.run_unseal_share()
+            unseal.main()
         connected_client.close.assert_called_once()
 
 
 class TestDrain:
     @pytest.fixture(autouse=True)
     def _long_idle_short_settle(self, monkeypatch):
-        monkeypatch.setattr(init_unseal, "_DRAIN_IDLE_SECONDS", 30)
-        monkeypatch.setattr(init_unseal, "_DRAIN_SETTLE_SECONDS", 0.01)
+        monkeypatch.setattr(unseal, "_DRAIN_IDLE_SECONDS", 30)
+        monkeypatch.setattr(unseal, "_DRAIN_SETTLE_SECONDS", 0.01)
 
     def test_returns_once_output_goes_quiet_instead_of_waiting_out_the_idle_bound(self, capsys):
         _stdin, stdout_stream, _stderr = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
         channel = stdout_stream.channel
         channel.exit_status_ready.return_value = False
         started = time.monotonic()
-        init_unseal._drain(channel)
+        unseal._drain(channel)
         assert time.monotonic() - started < 5
         assert capsys.readouterr().out == "Unseal Key (will be hidden): "
 
     def test_collects_the_output_without_printing_it_when_echo_is_off(self, capsys):
         _stdin, stdout_stream, _stderr = pty_result(chunks=(b"Unseal Key (will be hidden): ",))
-        collected = init_unseal._drain(stdout_stream.channel, echo=False)
+        collected = unseal._drain(stdout_stream.channel, echo=False)
         assert collected == "Unseal Key (will be hidden): "
         assert capsys.readouterr().out == ""
 
     def test_returns_at_once_when_the_command_has_exited_with_nothing_to_read(self):
         _stdin, stdout_stream, _stderr = pty_result()
         started = time.monotonic()
-        init_unseal._drain(stdout_stream.channel)
+        unseal._drain(stdout_stream.channel)
         assert time.monotonic() - started < 5
-
-
-class TestMain:
-    def test_dispatches_init_and_returns_its_result(self):
-        with patch.object(init_unseal, "run_init", return_value=3, autospec=True) as mock_run_init, patch.object(sys, "argv", ["prog", "init"]):
-            assert init_unseal.main() == 3
-        mock_run_init.assert_called_once()
-
-    def test_dispatches_unseal_and_returns_its_result(self):
-        with patch.object(init_unseal, "run_unseal_share", return_value=4, autospec=True) as mock_run_unseal, patch.object(sys, "argv", ["prog", "unseal"]):
-            assert init_unseal.main() == 4
-        mock_run_unseal.assert_called_once()
-
-    def test_rejects_an_unknown_action(self):
-        with patch.object(sys, "argv", ["prog", "reinit"]):
-            assert init_unseal.main() == 1
-
-    def test_rejects_no_action(self):
-        with patch.object(sys, "argv", ["prog"]):
-            assert init_unseal.main() == 1

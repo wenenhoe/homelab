@@ -13,6 +13,24 @@ A small fleet of Ubuntu hosts running Dockerized services, fully converged by An
 
 OpenTofu/Proxmox provisioning is in progress — see [`docs/projects/`](docs/projects/README.md).
 
+## Reviewing this repo
+
+Short on time? Each row is a claim this repo makes, the document that explains it, and the test or check that holds it up. [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md) has the fleet on one page first.
+
+| Claim | Read | Held up by |
+| :--- | :--- | :--- |
+| A compromised app host has a bounded blast radius | [`backup-threat-model.md`](docs/topics/disaster-recovery/backup-threat-model.md) · [ADR 0010](docs/decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) | Molecule scenario [`identity_scoping`](ansible/roles/seaweedfs_bucket/molecule/identity_scoping) asserts that a cross-prefix write is denied |
+| Secrets are generated and rotated with no standing root token | [`openbao.md`](docs/topics/secrets/openbao.md) · [ADR 0025](docs/decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md) | Scenarios [`vault_backed`](ansible/roles/secrets/molecule/vault_backed) and [`rotate_secret`](ansible/roles/secrets/molecule/rotate_secret) run against a real OpenBao and check the stored version, not just that a task exited zero |
+| Roles converge idempotently | [`molecule-testing.md`](docs/topics/engineering/molecule-testing.md) | Each Molecule scenario converges twice and expects no change the second time; the exceptions, and roles that cannot be containerized, are documented there |
+| Backups can be restored | [`fire-drill.md`](docs/topics/disaster-recovery/fire-drill.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) | Automated scenarios against a throwaway SeaweedFS and GPG key; the end-to-end drill is a documented manual procedure |
+| CI runs what a change needs, and no more | [`change-scoping.md`](docs/topics/engineering/ci/change-scoping.md) · [`pipeline.md`](docs/topics/engineering/ci/pipeline.md) | The scoping and gate logic is Python under [`tools/ci/`](tools/ci), unit-tested in [`tools/tests/ci/`](tools/tests/ci) |
+| A pinned download is the publisher's, not just a hash someone copied | [`release-checksum-check.md`](docs/topics/engineering/ci/release-checksum-check.md) · [ADR 0077](docs/decisions/0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md) | The `release-checksums` job in [`pr-checks.yml`](.github/workflows/pr-checks.yml) and a weekly run |
+| Docs cannot drift silently from the code | [`doc-checks.md`](docs/topics/engineering/ci/doc-checks.md) | [`check_doc_drift.py`](tools/doc_scripts/check_doc_drift.py) runs in pre-commit and CI |
+| Design choices have recorded reasoning | [`docs/decisions/`](docs/decisions/README.md) | A decision follows a [template](docs/decisions/TEMPLATE.md) with problem, alternatives considered, assumptions and reconsideration triggers; an accepted decision's reasoning stays fixed, and a changed decision is a new revision |
+| Controls are described without overclaiming | [`SECURITY.md`](SECURITY.md) · [`nist-800-53-alignment.md`](docs/topics/engineering/nist-800-53-alignment.md) | Each states what is not covered, including a control that was checked and left unmapped |
+
+What is not here yet is stated rather than implied: the OpenTofu/Proxmox work above, and the intrusion-detection and security-event decisions, are open (see [`project-planning.md`](docs/project-planning.md)).
+
 ## Architecture
 
 The lab is organized as a small group of hosts, each owning a subdomain of `lan.{{ main_domain }}` and running its own Caddy instance:
@@ -68,6 +86,7 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 | Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
 | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
 | Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
+| Report a vulnerability, or see the security model | [`SECURITY.md`](SECURITY.md) |
 | Find any other topic | [`docs/topics/README.md`](docs/topics/README.md) |
 | Know why a design was chosen | [decisions](docs/decisions/README.md) |
 | See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |

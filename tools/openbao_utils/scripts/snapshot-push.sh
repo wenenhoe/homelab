@@ -10,9 +10,10 @@
 # every other rclone caller in this repo), not a native binary -
 # nothing else here needed that dependency added.
 #
-# Login takes the role_id as an argument and the secret_id via hidden
-# prompt, never a file or subprocess argument; it calls the native `bao`
-# binary directly and fetches step-ca's root cert fresh over SSH
+# Login takes the role_id as an argument. The secret_id comes from the
+# cached `openbao-controller-secret-id` file in the secrets directory when
+# it exists, else a hidden prompt; never a subprocess argument. It calls the
+# native `bao` binary directly and fetches step-ca's root cert fresh over SSH
 # (ADR 0022's mechanism).
 #
 # Everything this run creates - root cert, secret_id, rclone.conf, the
@@ -29,17 +30,19 @@ role_id="${1:?usage: snapshot-push.sh <role_id>}"
 repo_root=$(cd "$(dirname "$0")/../../.." && pwd)
 
 ssh_info=$(cd "$repo_root/tools" && python3 -c "
-from utils.repo import security_ssh_target, main_domain
+from utils.repo import SECRETS_DIR, security_ssh_target, main_domain
 user, host, key_path = security_ssh_target()
 print(user)
 print(host)
 print(key_path)
 print(main_domain())
+print(SECRETS_DIR)
 ")
 ssh_user=$(printf '%s' "$ssh_info" | sed -n '1p')
 ssh_host=$(printf '%s' "$ssh_info" | sed -n '2p')
 ssh_key=$(printf '%s' "$ssh_info" | sed -n '3p')
 main_domain=$(printf '%s' "$ssh_info" | sed -n '4p')
+secrets_dir=$(printf '%s' "$ssh_info" | sed -n '5p')
 
 work_dir=$(mktemp -d)
 chmod 700 "$work_dir"
@@ -63,13 +66,20 @@ export BAO_ADDR="https://openbao.sec.lan.$main_domain:8200"
 export BAO_CACERT="$work_dir/root_ca.crt"
 export BAO_TLS_SERVER_NAME="openbao.sec.lan.$main_domain"
 
-stty -echo 2>/dev/null || true
-printf 'secret_id: ' >&2
-read -r secret_id
-stty echo 2>/dev/null || true
-printf '\n' >&2
-printf '%s' "$secret_id" > "$work_dir/secret_id"
-chmod 600 "$work_dir/secret_id"
+cached_secret_id="$secrets_dir/openbao-controller-secret-id"
+if [ -s "$cached_secret_id" ]; then
+  echo "Using the cached secret_id in $cached_secret_id"
+  # The scratch copy drops any trailing newline the cached file carries.
+  (umask 077; tr -d '\r\n' < "$cached_secret_id" > "$work_dir/secret_id")
+else
+  stty -echo 2>/dev/null || true
+  printf 'secret_id: ' >&2
+  read -r secret_id
+  stty echo 2>/dev/null || true
+  printf '\n' >&2
+  printf '%s' "$secret_id" > "$work_dir/secret_id"
+  chmod 600 "$work_dir/secret_id"
+fi
 
 token=$(bao write -field=token auth/approle/login role_id="$role_id" secret_id=@"$work_dir/secret_id")
 rm -f "$work_dir/secret_id"

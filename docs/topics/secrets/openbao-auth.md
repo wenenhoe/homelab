@@ -275,7 +275,7 @@ In the shell it spawns:
 ## What this doesn't cover yet
 
 `snapshot-push.sh` logs in as this AppRole itself (the `role_id` as an
-argument, the `secret_id` at a hidden prompt) and is run by hand; see
+argument, the `secret_id` from the cached file, else a hidden prompt) and is run by hand; see
 [`openbao-backup-restore.md`](openbao-backup-restore.md).
 
 `ensure_secret.yaml` is what reads

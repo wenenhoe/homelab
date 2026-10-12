@@ -100,7 +100,7 @@ picks up from there.
 
    ```sh
    sudo journalctl -u r2-read-watcher -f &
-   cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
    bao kv get -mount=secret cloud_credentials/rotation/_rotation-key-cloudflare-r2-token
    exit
    ```

@@ -1,10 +1,10 @@
-"""Unit tests for openbao_utils.bao_session.
+"""Unit tests for openbao_utils.shell.
 
 Run via `uv run pytest tools/tests/ -v`. Every subprocess/SSH/Vault
 call is mocked; nothing here spawns a real shell, touches a real
 `security` host, or a real OpenBao. fetch_root_cert/vault_login come
 from utils.repo/openbao_utils.client - tested once, directly, in their
-own test files. This file only tests bao_session.py's own remaining
+own test files. This file only tests shell.py's own remaining
 logic: the version check, session spawning, main()'s wiring, and
 SIGHUP-triggered cleanup (ADR 0033).
 """
@@ -20,34 +20,34 @@ from unittest.mock import create_autospec, patch
 
 import pytest
 from _responses import response
-from openbao_utils import bao_session
+from openbao_utils import shell
 
 
 class TestLocalBaoVersion:
-    @patch("openbao_utils.bao_session.subprocess.run", autospec=True)
+    @patch("openbao_utils.shell.subprocess.run", autospec=True)
     def test_extracts_the_dotted_version(self, mock_run):
         mock_run.return_value = subprocess.CompletedProcess([], returncode=0, stdout=b"OpenBao v2.6.2 (dd9c19c37a878cf4a81b18efb8d6f0599c7da923)")
-        assert bao_session.local_bao_version() == "2.6.2"
+        assert shell.local_bao_version() == "2.6.2"
 
-    @patch("openbao_utils.bao_session.subprocess.run", autospec=True)
+    @patch("openbao_utils.shell.subprocess.run", autospec=True)
     def test_returns_none_on_unparseable_output(self, mock_run):
         mock_run.return_value = subprocess.CompletedProcess([], returncode=0, stdout=b"not a version string")
-        assert bao_session.local_bao_version() is None
+        assert shell.local_bao_version() is None
 
-    @patch("openbao_utils.bao_session.subprocess.run", autospec=True)
+    @patch("openbao_utils.shell.subprocess.run", autospec=True)
     def test_returns_none_on_nonzero_exit(self, mock_run):
         mock_run.return_value = subprocess.CompletedProcess([], returncode=127, stdout=b"")
-        assert bao_session.local_bao_version() is None
+        assert shell.local_bao_version() is None
 
-    @patch("openbao_utils.bao_session.subprocess.run", side_effect=FileNotFoundError, autospec=True)
+    @patch("openbao_utils.shell.subprocess.run", side_effect=FileNotFoundError, autospec=True)
     def test_returns_none_when_bao_isnt_installed(self, mock_run):
-        assert bao_session.local_bao_version() is None
+        assert shell.local_bao_version() is None
 
 
 class TestServerVersion:
     def test_returns_the_version_field_from_a_dict_response(self, hvac_client):
         hvac_client.sys.read_health_status.return_value = {"initialized": True, "sealed": False, "version": "2.6.2"}
-        assert bao_session.server_version(hvac_client) == "2.6.2"
+        assert shell.server_version(hvac_client) == "2.6.2"
 
     def test_returns_none_for_a_non_dict_response(self, hvac_client):
         # hvac's JSONAdapter only decodes a 200 into a dict - a sealed
@@ -55,53 +55,53 @@ class TestServerVersion:
         # requests.Response instead, per openbao.org's own /sys/health
         # docs. Treated the same as any other read failure here.
         hvac_client.sys.read_health_status.return_value = response(503)
-        assert bao_session.server_version(hvac_client) is None
+        assert shell.server_version(hvac_client) is None
 
     def test_returns_none_on_any_exception(self, hvac_client):
         hvac_client.sys.read_health_status.side_effect = RuntimeError("boom")
-        assert bao_session.server_version(hvac_client) is None
+        assert shell.server_version(hvac_client) is None
 
 
 class TestWarnOnVersionMismatch:
-    @patch.object(bao_session, "server_version", return_value="2.6.1", autospec=True)
-    @patch.object(bao_session, "local_bao_version", return_value="2.6.2", autospec=True)
+    @patch.object(shell, "server_version", return_value="2.6.1", autospec=True)
+    @patch.object(shell, "local_bao_version", return_value="2.6.2", autospec=True)
     def test_warns_on_mismatch(self, _mock_local, _mock_remote, hvac_client):
         with patch("sys.stderr", autospec=True) as mock_stderr:
-            bao_session.warn_on_version_mismatch(hvac_client)
+            shell.warn_on_version_mismatch(hvac_client)
         written = "".join(c.args[0] for c in mock_stderr.write.call_args_list if c.args)
         assert "2.6.2" in written
         assert "2.6.1" in written
 
-    @patch.object(bao_session, "server_version", return_value="2.6.2", autospec=True)
-    @patch.object(bao_session, "local_bao_version", return_value="2.6.2", autospec=True)
+    @patch.object(shell, "server_version", return_value="2.6.2", autospec=True)
+    @patch.object(shell, "local_bao_version", return_value="2.6.2", autospec=True)
     def test_silent_on_match(self, _mock_local, _mock_remote, hvac_client):
         with patch("sys.stderr", autospec=True) as mock_stderr:
-            bao_session.warn_on_version_mismatch(hvac_client)
+            shell.warn_on_version_mismatch(hvac_client)
         mock_stderr.write.assert_not_called()
 
-    @patch.object(bao_session, "server_version", return_value=None, autospec=True)
-    @patch.object(bao_session, "local_bao_version", return_value="2.6.2", autospec=True)
+    @patch.object(shell, "server_version", return_value=None, autospec=True)
+    @patch.object(shell, "local_bao_version", return_value="2.6.2", autospec=True)
     def test_silent_when_either_side_is_unknown(self, _mock_local, _mock_remote, hvac_client):
         with patch("sys.stderr", autospec=True) as mock_stderr:
-            bao_session.warn_on_version_mismatch(hvac_client)
+            shell.warn_on_version_mismatch(hvac_client)
         mock_stderr.write.assert_not_called()
 
 
 class TestSpawnSession:
-    @patch("openbao_utils.bao_session.subprocess.call", return_value=7, autospec=True)
+    @patch("openbao_utils.shell.subprocess.call", return_value=7, autospec=True)
     def test_spawns_the_env_shell_and_returns_its_exit_code(self, mock_call):
         env = {"SHELL": "/bin/zsh", "BAO_TOKEN": "x"}
-        assert bao_session.spawn_session(env) == 7
+        assert shell.spawn_session(env) == 7
         mock_call.assert_called_once_with(["/bin/zsh"], env=env)
 
-    @patch("openbao_utils.bao_session.subprocess.call", autospec=True)
+    @patch("openbao_utils.shell.subprocess.call", autospec=True)
     def test_defaults_to_bin_sh_when_shell_isnt_set(self, mock_call):
-        bao_session.spawn_session({})
+        shell.spawn_session({})
         mock_call.assert_called_once_with(["/bin/sh"], env={})
 
-    @patch("openbao_utils.bao_session.subprocess.call", side_effect=KeyboardInterrupt, autospec=True)
+    @patch("openbao_utils.shell.subprocess.call", side_effect=KeyboardInterrupt, autospec=True)
     def test_ctrl_c_returns_130_instead_of_raising(self, mock_call):
-        assert bao_session.spawn_session({"SHELL": "/bin/sh"}) == 130
+        assert shell.spawn_session({"SHELL": "/bin/sh"}) == 130
 
 
 class TestRevoke:
@@ -111,17 +111,17 @@ class TestRevoke:
 
     def test_clears_the_token_after_revoking(self, hvac_client):
         hvac_client.token = "fake-token"
-        bao_session._revoke(hvac_client)
+        shell._revoke(hvac_client)
         hvac_client.auth.token.revoke_self.assert_called_once()
         assert hvac_client.token is None
 
     def test_a_second_call_is_a_silent_no_op(self, hvac_client):
         hvac_client.token = None  # as if _revoke already ran once
-        bao_session._revoke(hvac_client)
+        shell._revoke(hvac_client)
         hvac_client.auth.token.revoke_self.assert_not_called()
 
     def test_a_client_that_never_logged_in_is_a_no_op(self, capsys):
-        assert bao_session._revoke(None) is None
+        assert shell._revoke(None) is None
         assert capsys.readouterr().err == ""
 
 
@@ -134,29 +134,29 @@ def logged_in_client(hvac_client):
 @pytest.fixture
 def mocks(logged_in_client, monkeypatch):
     mocks = {
-        "hvac_client_cls": create_autospec(bao_session.hvac.Client, return_value=logged_in_client),
-        "vault_login": create_autospec(bao_session.vault_login),
-        "fetch_root_cert": create_autospec(bao_session.fetch_root_cert, return_value="fake-root-ca-pem"),
-        "warn": create_autospec(bao_session.warn_on_version_mismatch),
-        "spawn": create_autospec(bao_session.spawn_session, return_value=0),
-        "getpass": create_autospec(bao_session.getpass.getpass, return_value="fake-secret-id"),
-        "base_url": create_autospec(bao_session.openbao_base_url, return_value="https://openbao.example.com:8200"),
-        "hostname": create_autospec(bao_session.openbao_hostname, return_value="openbao.example.com"),
+        "hvac_client_cls": create_autospec(shell.hvac.Client, return_value=logged_in_client),
+        "vault_login": create_autospec(shell.vault_login),
+        "fetch_root_cert": create_autospec(shell.fetch_root_cert, return_value="fake-root-ca-pem"),
+        "warn": create_autospec(shell.warn_on_version_mismatch),
+        "spawn": create_autospec(shell.spawn_session, return_value=0),
+        "getpass": create_autospec(shell.getpass.getpass, return_value="fake-secret-id"),
+        "base_url": create_autospec(shell.openbao_base_url, return_value="https://openbao.example.com:8200"),
+        "hostname": create_autospec(shell.openbao_hostname, return_value="openbao.example.com"),
     }
-    monkeypatch.setattr(bao_session.hvac, "Client", mocks["hvac_client_cls"])
-    monkeypatch.setattr(bao_session, "vault_login", mocks["vault_login"])
-    monkeypatch.setattr(bao_session, "fetch_root_cert", mocks["fetch_root_cert"])
-    monkeypatch.setattr(bao_session, "warn_on_version_mismatch", mocks["warn"])
-    monkeypatch.setattr(bao_session, "spawn_session", mocks["spawn"])
-    monkeypatch.setattr(bao_session.getpass, "getpass", mocks["getpass"])
-    monkeypatch.setattr(bao_session, "openbao_base_url", mocks["base_url"])
-    monkeypatch.setattr(bao_session, "openbao_hostname", mocks["hostname"])
+    monkeypatch.setattr(shell.hvac, "Client", mocks["hvac_client_cls"])
+    monkeypatch.setattr(shell, "vault_login", mocks["vault_login"])
+    monkeypatch.setattr(shell, "fetch_root_cert", mocks["fetch_root_cert"])
+    monkeypatch.setattr(shell, "warn_on_version_mismatch", mocks["warn"])
+    monkeypatch.setattr(shell, "spawn_session", mocks["spawn"])
+    monkeypatch.setattr(shell.getpass, "getpass", mocks["getpass"])
+    monkeypatch.setattr(shell, "openbao_base_url", mocks["base_url"])
+    monkeypatch.setattr(shell, "openbao_hostname", mocks["hostname"])
     return mocks
 
 
 def run_main(argv):
     with patch.object(sys, "argv", argv):
-        return bao_session.main()
+        return shell.main()
 
 
 @pytest.mark.usefixtures("mocks")
@@ -167,7 +167,7 @@ class TestMain:
     runs."""
 
     def test_logs_in_with_the_given_role_id_and_prompted_secret_id(self, mocks, logged_in_client):
-        run_main(["bao_session.py", "some-role-id"])
+        run_main(["shell.py", "some-role-id"])
         mocks["vault_login"].assert_called_once_with(logged_in_client, "some-role-id", "fake-secret-id")
 
     def test_fetches_the_root_cert_fresh_over_ssh(self, mocks):
@@ -180,7 +180,7 @@ class TestMain:
             return 0
 
         mocks["spawn"].side_effect = spy
-        run_main(["bao_session.py", "some-role-id"])
+        run_main(["shell.py", "some-role-id"])
 
         mocks["fetch_root_cert"].assert_called_once()
         assert trusted == ["fake-root-ca-pem"]
@@ -196,7 +196,7 @@ class TestMain:
             return 0
 
         mocks["spawn"].side_effect = spy
-        run_main(["bao_session.py", "some-role-id"])
+        run_main(["shell.py", "some-role-id"])
         assert captured_env["BAO_ADDR"] == "https://openbao.example.com:8200"
         assert captured_env["BAO_TLS_SERVER_NAME"] == "openbao.example.com"
         assert captured_env["BAO_TOKEN"] == "fake-token"
@@ -204,7 +204,7 @@ class TestMain:
 
     def test_returns_the_spawned_shells_exit_code(self, mocks):
         mocks["spawn"].return_value = 7
-        assert run_main(["bao_session.py", "some-role-id"]) == 7
+        assert run_main(["shell.py", "some-role-id"]) == 7
 
     def test_revokes_the_token_after_the_session_ends(self, mocks, logged_in_client):
         revoked_during_session = []
@@ -214,7 +214,7 @@ class TestMain:
             return 0
 
         mocks["spawn"].side_effect = spy
-        run_main(["bao_session.py", "some-role-id"])
+        run_main(["shell.py", "some-role-id"])
 
         assert revoked_during_session == [False]
         logged_in_client.auth.token.revoke_self.assert_called_once()
@@ -227,7 +227,7 @@ class TestMain:
             return 0
 
         mocks["spawn"].side_effect = spy
-        run_main(["bao_session.py", "some-role-id"])
+        run_main(["shell.py", "some-role-id"])
         assert not Path(captured_paths[0]).exists()
 
     def test_does_not_revoke_when_login_itself_fails(self, mocks, hvac_client):
@@ -238,20 +238,20 @@ class TestMain:
         hvac_client.token = None
         mocks["vault_login"].side_effect = RuntimeError("bad credentials")
         with pytest.raises(RuntimeError):
-            run_main(["bao_session.py", "some-role-id"])
+            run_main(["shell.py", "some-role-id"])
         hvac_client.auth.token.revoke_self.assert_not_called()
 
     def test_still_deletes_the_temp_ca_file_when_login_itself_fails(self, mocks, hvac_client):
         hvac_client.token = None
         mocks["vault_login"].side_effect = RuntimeError("bad credentials")
-        with patch("openbao_utils.bao_session.Path", autospec=True) as mock_path_cls, pytest.raises(RuntimeError):
-            run_main(["bao_session.py", "some-role-id"])
+        with patch("openbao_utils.shell.Path", autospec=True) as mock_path_cls, pytest.raises(RuntimeError):
+            run_main(["shell.py", "some-role-id"])
         mock_path_cls.return_value.unlink.assert_called_once_with(missing_ok=True)
 
     def test_revoke_failure_doesnt_prevent_the_session_from_completing(self, hvac_client):
         hvac_client.auth.token.revoke_self.side_effect = RuntimeError("network blip")
         with patch("sys.stderr", autospec=True):
-            result = run_main(["bao_session.py", "some-role-id"])
+            result = run_main(["shell.py", "some-role-id"])
         assert result == 0
 
     def test_sighup_mid_session_still_revokes_and_removes_the_ca_file(self, mocks, hvac_client):
@@ -269,7 +269,7 @@ class TestMain:
 
         mocks["spawn"].side_effect = spy
         with pytest.raises(SystemExit) as excinfo:
-            run_main(["bao_session.py", "some-role-id"])
+            run_main(["shell.py", "some-role-id"])
         assert excinfo.value.code == 1
         hvac_client.auth.token.revoke_self.assert_called_once()
         assert not Path(captured["ca_path"]).exists()

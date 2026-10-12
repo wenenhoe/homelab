@@ -128,7 +128,7 @@ reproducible dependency set.
    ln -sf "$PWD/.githooks/pre-applypatch" "$(git rev-parse --git-path hooks)/pre-applypatch"
    ```
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
-- Install a native `bao` CLI (needed for `tools/openbao_utils/bao_session.py` and anything else that talks to OpenBao from here) - a personal, one-time step, not Ansible-managed, since this machine's own OS can't be assumed the way a `managed_hosts` member's can:
+- Install a native `bao` CLI (needed for `tools/openbao_utils/shell.py` and anything else that talks to OpenBao from here) - a personal, one-time step, not Ansible-managed, since this machine's own OS can't be assumed the way a `managed_hosts` member's can:
    ```sh
    version=$(python3 -c "import yaml; print(yaml.safe_load(open('ansible/roles/openbao_cli/defaults/main.yaml'))['openbao_cli_version'])")
    sha256=$(python3 -c "import yaml; print(yaml.safe_load(open('ansible/roles/openbao_cli/defaults/main.yaml'))['openbao_cli_deb_sha256'])")

@@ -78,7 +78,7 @@ can't fix.
    prompted:
 
    ```sh
-   cd tools && python3 -m openbao_utils.bao_session "<role_id from above>"
+   cd tools && python3 -m openbao_utils.shell "<role_id from above>"
    bao policy write _stage-test-policy - <<< 'path "sys/health" { capabilities = ["read"] }'   # succeeds
    bao kv get -mount=secret hosts/security/lldap-jwt-secret                                    # denied
    exit
@@ -107,7 +107,7 @@ can't fix.
    `vault-bootstrap`:
 
    ```sh
-   cd tools && python3 -m openbao_utils.bao_session "<vault-bootstrap role_id>"
+   cd tools && python3 -m openbao_utils.shell "<vault-bootstrap role_id>"
 
    bao policy write r2-read-watcher - < ../docker/openbao/policies/r2-read-watcher.hcl
 

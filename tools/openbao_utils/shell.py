@@ -27,7 +27,7 @@ step-ca's root cert is always fetched fresh over SSH
 has no local step-ca container to borrow it from directly.
 
 Usage:
-    cd tools && python3 -m openbao_utils.bao_session <role_id>
+    cd tools && python3 -m openbao_utils.shell <role_id>
 """
 
 from __future__ import annotations

@@ -145,10 +145,10 @@ supplied explicitly (see
    reading/writing Vault) depends on. From `controller`, using the
    `role_id` cached in step 5 (paste `secret_id` from
    `ansible/files/secrets/openbao-controller-secret-id` when prompted —
-   `bao_session.py` never takes it as an argument):
+   `shell.py` never takes it as an argument):
 
    ```sh
-   cd tools && python3 -m openbao_utils.bao_session "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
+   cd tools && python3 -m openbao_utils.shell "$(cat ../ansible/files/secrets/openbao-controller-role-id)"
    ```
 
    This logs in over real TLS (`controller` always fetches step-ca's
@@ -195,8 +195,8 @@ supplied explicitly (see
    ```
 
    From this point, the root token from `openbao.md`'s Init runbook no
-   longer exists. Later admin access goes through `vault-bootstrap` in a
-   `bao_session` ([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)),
+   longer exists. Later admin access goes through `vault-bootstrap` in an
+   `openbao_utils.shell` session ([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)),
    never a standing root credential.
 
 ## Re-issuing the secret ID
@@ -214,12 +214,12 @@ apart.
 The root token from the runbook above no longer exists, so this goes
 through the `vault-bootstrap` AppRole
 ([`openbao-vault-bootstrap.md`](openbao-vault-bootstrap.md)), from
-`controller`. Its `secret_id` is typed at `bao_session`'s hidden prompt:
+`controller`. Its `secret_id` is typed at `openbao_utils.shell`'s hidden prompt:
 
 ```sh
 cd tools
 printf 'vault-bootstrap role_id: '; read -r rid
-python3 -m openbao_utils.bao_session "$rid"; unset rid
+python3 -m openbao_utils.shell "$rid"; unset rid
 ```
 
 In the shell it spawns:

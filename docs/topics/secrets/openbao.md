@@ -242,7 +242,7 @@ cert, so there's no trustworthy network path to it during that window.
 This is the one place in the whole OpenBao CLI surface that stays
 `docker exec`-based — everywhere else now uses the native `bao`
 binary directly (`security` or `controller`, whichever you're on), or
-`bao_session.py` (`controller` only — see
+`shell.py` (`controller` only — see
 [ADR 0033 (Interactive bao session)](../../decisions/0033-where-the-interactive-bao-session-runs/revision-000.md))
 when starting from an AppRole login; see
 [`openbao-auth.md`](openbao-auth.md#runbook).

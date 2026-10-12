@@ -98,7 +98,7 @@ not reopened here.
 > This paragraph is left as written for the historical record; it's
 > no longer this repo's current design.
 
-`docker/openbao/scripts/bao-login-from-controller.sh` (removed; replaced by: `bao_session.py`)/
+`docker/openbao/scripts/bao-login-from-controller.sh` (removed; replaced by: `bao_session.py` (renamed: `shell.py`))/
 `bao-from-controller.sh` (removed; replaced by: `bao_session.py`) and `restore_hosts_scope_from_backup.py` -
 the concrete evidence this split was needed - now import
 `security_ssh_target`/`main_domain`/`PROJECT_ROOT` from `tools/utils/repo.py`

@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-MERMAID_CLI_IMAGE = "ghcr.io/mermaid-js/mermaid-cli/mermaid-cli:12.0.0"
+MERMAID_CLI_IMAGE = "ghcr.io/mermaid-js/mermaid-cli/mermaid-cli:12.0.1"
 # Each container starts a browser, so this bounds memory as well as time.
 WORKERS = 4
 BLOCK_TIMEOUT = 120

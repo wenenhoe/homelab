@@ -30,6 +30,7 @@ allowed_paths:
   - ansible/roles/step_ca_cert/**
   - ansible/roles/cloud_sync/**
   - ansible/roles/caddy_cert_expiry/**
+  - ansible/roles/cd_agent/tasks/main.yaml
   - ansible/roles/backup_agent/**
   - ansible/roles/systemd_reload/**
   - docs/topics/monitoring/**
@@ -44,6 +45,9 @@ allowed_paths:
   - docs/topics/secrets/openbao.md
   - docs/topics/secrets/openbao-r2-read-watcher.md
   - docs/topics/secrets/openbao-reinit-runbook.md
+  - docs/architecture/README.md
+  - docs/architecture/alerting-and-heartbeat-flow.md
+  - docs/architecture/internal-pki-flow.md
   - docs/architecture/secrets-and-credentials-flow.md
 ---
 

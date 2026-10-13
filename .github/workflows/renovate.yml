@@ -25,9 +25,9 @@ on:  # yamllint disable-line rule:truthy
     - cron: "37 17 * * *"
 
 # Least privilege: Renovate authenticates to GitHub separately via
-# RENOVATE_TOKEN (a PAT — see docs/renovate-setup.md for scopes), so the
-# ambient GITHUB_TOKEN this run gets only needs to check the repo out. It
-# never opens PRs, writes branches, or touches anything itself.
+# RENOVATE_TOKEN (a PAT — see docs/topics/engineering/ci/renovate.md for its
+# permissions), so the ambient GITHUB_TOKEN this run gets only needs to check
+# the repo out. It never opens PRs, writes branches, or touches anything itself.
 permissions:
   contents: read
 

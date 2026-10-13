@@ -42,10 +42,16 @@ findings rather than the tools' general reputations:
   (`mirror.gcr.io/aquasec/trivy-checks`). With that host unreachable,
   Trivy fell back to embedded-only checks and reported zero
   misconfigurations across a correctly-parsed 331-task role graph —
-  not an error, a silent "clean" result. Whether this repo's actual CI
-  runners reach that host successfully (GitHub-hosted runners have
-  normal internet access, unlike the sandbox this was tested in) is
-  unconfirmed from the workflow's own run logs.
+  not an error, a silent "clean" result. This repo's CI does not hit
+  that case: a recent `ansible-misconfig-scan` run logged `[checks-client]
+  Using existing checks from cache` with the path
+  `.cache/trivy/policy/content` and no "Falling back to embedded checks"
+  line. The embedded set has no Ansible checks, so a cache directory of
+  downloaded checks exists only after a download succeeded.
+  The job restores that cache by date with an older-key fallback, so on a
+  day the registry is unreachable the scan can still run on the bundle
+  from an earlier day. A "Falling back to embedded checks" line in an
+  `ansible-misconfig-scan` log means that day's scan covered nothing.
 - Checkov ran fully self-contained, no runtime network dependency,
   ~6s cold on this repo's `ansible/` tree. It surfaced 23 findings
   across only two check IDs: `CKV2_ANSIBLE_1` ("HTTPS url used with
@@ -102,23 +108,11 @@ scoped to the ansible misconfig scanner only.
   scheme instead of stock config.
   **Checked by:** a spike at migration time against this repo's actual
   fixture layout and templated-URL patterns.
-- **Claim:** this repo's live CI actually reaches
-  `mirror.gcr.io` and Trivy's ansible scan is producing real findings
-  today, not silently falling back to a checks-less "clean" result.
-  **Breaks if wrong:** the status quo this decision holds onto isn't
-  actually providing coverage, independent of the Checkov question.
-  **Checked by:** manually checking a recent `ansible-misconfig-scan`
-  run's logs for a successful "Downloading checks bundle" versus a
-  "Falling back to embedded checks" message — a separate, immediate
-  task, not gated on this decision.
 
 ## Consequences
 
 - No CI change from this decision; `_trivy-scan.yml` and
   `security-scanning.md` stay as-is.
-- The `mirror.gcr.io` reachability question above is real and
-  independent of Checkov, but tracked here rather than acted on —
-  worth raising as its own task regardless of how this draft resolves.
 - Whoever picks up Stage 1 should re-run this comparison fresh rather
   than trust these numbers as still current — tool versions and rule
   sets will have moved on by then.

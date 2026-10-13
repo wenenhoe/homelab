@@ -94,14 +94,12 @@ environment — never written to a file, never passed as a command-line
 argument to anything it calls. `bao operator raft snapshot save`
 inherits it the same way any other native `bao` invocation does.
 
-**Version note:** `bao operator raft snapshot save`'s behavior
-(described below) was confirmed live against a real backup run on an
-earlier pinned image. The restore-side behavior (`-force`, the reseal,
-the old token going invalid) was first confirmed on a v2.2.0 spike
-instance; the `snapshot_restore` Molecule scenario
-([`molecule-testing.md`](../engineering/molecule-testing.md)) now runs
-it on whatever image the Molecule helper pins, on every bump of that
-pin. Newer releases can change behavior: `generate-root`'s
+**Version note:** the behavior described below was confirmed live
+on `openbao/openbao:2.7.1`, the image `docker/openbao/compose.yaml.j2`
+pins, by running the drill end to end. The `snapshot_restore` Molecule
+scenario ([`molecule-testing.md`](../engineering/molecule-testing.md))
+runs it again on whatever image the Molecule helper pins, on every bump
+of that pin. Newer releases can change behavior: `generate-root`'s
 authenticated-endpoint behavior changed (see
 [ADR 0025 (Admin without root token)](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
 Context). When that scenario fails, this section and the drill below
@@ -113,10 +111,11 @@ Confirmed against a real running instance, not inferred from docs:
 
 - `bao operator raft snapshot save <path>` takes a plain positional
   path, prints nothing on success, and produces a gzip-compressed
-  file.
-- Plain `bao operator raft snapshot restore <path>` **fails** —
-  `could not verify hash file, possibly the snapshot is using a
-  different set of unseal keys` — on any target whose keyring doesn't
+  file readable only by the user the server runs as.
+- Plain `bao operator raft snapshot restore <path>` **fails** (HTTP
+  400, CLI exit 2) — `could not verify hash file, possibly the snapshot
+  is using a different set of unseal keys; use the snapshot-force API
+  to bypass this check` — on any target whose keyring doesn't
   already match the snapshot's. This is not an edge case for the drill
   below: a freshly-initialized throwaway host *always* has different
   keys, so the plain restore path never works for real disaster

@@ -19,6 +19,10 @@ services:
       # kms-app and kms-gui carry it since backup stops the whole app.
       - docker-volume-backup.stop-during-backup=kms
     user: 1000:1000
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
   kms-gui:
     image: ghcr.io/11notes/kms-gui:1.0.3
     container_name: kms-gui
@@ -37,8 +41,12 @@ services:
     labels:
       - docker-volume-backup.stop-during-backup=kms
     user: 1000:1000
+    cap_drop:
+      - ALL
     expose:
       - '3000'
+    security_opt:
+      - no-new-privileges:true
 networks:
   frontend: {}
   caddy-proxy:

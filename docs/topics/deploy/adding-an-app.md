@@ -51,23 +51,39 @@ docker/<app>/
 
 ### Container hardening
 
-A service that runs as a non-root user from its first process sets
-`cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]`. For such a
-process the first removes only the capabilities a child could gain through
-`exec`, and the second stops it gaining any through a setuid binary or a
-file capability, so both change nothing for an app that uses neither.
+A service sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]`
+when nothing in it needs a capability. `cap_drop` removes every capability
+from the container's bounding set, and `no-new-privileges` stops `exec`
+granting any through a setuid binary or a file capability. A process that
+runs as a non-root user from its first instruction holds no capability to
+begin with, so for it the pair changes nothing unless the image relies on
+`exec` granting one. A service that runs as root and only reads and writes
+files its own root-owned volume holds (`beszel-hub`, `diun`) loses nothing it
+used.
 
-Before adding them, read the image's Dockerfile (and its entrypoint) for
-`setcap`, `chmod u+s`, `sudo` or `su-exec`. An image that has any of these
-leaves the pair off. `dashy`'s image is one: it gives `ping` the
-`cap_net_raw` file capability so a non-root user can run it, which both
-settings would take away.
+Before adding them, read the image's Dockerfile and entrypoint for `setcap`,
+`chmod u+s`, `sudo`, `su-exec`, `gosu` and `setpriv`. An image that has any of
+these leaves the pair off or adds back what they need. Two images here set a
+file capability:
 
-Services that start as root (the `docker-socket-proxy` sidecars, `caddy`,
-`lldap` and others) and `openbao`, which is non-root and gets `IPC_LOCK`
-through `cap_add`, are not covered by this rule. Each needs its own check of
-what the process does after it starts. Search for `no-new-privileges` under
-`docker/` to see which services have it today.
+- `dashy` gives `ping` `cap_net_raw`, so a non-root user can run it.
+- `step-ca` gives its `step-ca` binary `cap_net_bind_service` with the
+  effective bit set. For such a file the kernel refuses the `exec` outright
+  when the process cannot get every capability the file names
+  (`capabilities(7)`, "Safety checking for capability-dumb binaries"), so
+  the container would not start.
+
+An entrypoint that starts as root to `chown` a volume and then drops to
+another user (`lldap`, `seaweedfs` and `minecraft` do) needs `CHOWN`, `SETUID`
+and `SETGID` back, or to start as that user. The `docker-socket-proxy`
+sidecars and `openbao`, which is non-root and gets `IPC_LOCK` through
+`cap_add`, each need their own check of what the process does after it starts.
+
+CI boot-tests every changed app that is not excluded, which catches a container
+that no longer starts or stays healthy; see
+[`gates.md`](../engineering/ci/gates.md#compose-boot-test) for which apps it
+skips. It does not exercise what an app does once running. Search for
+`no-new-privileges` under `docker/` to see which services have the pair today.
 
 ## 2. Register it in `app_catalog`
 

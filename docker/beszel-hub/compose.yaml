@@ -21,8 +21,12 @@ services:
       # Value must match this app's name in app_catalog.yaml exactly —
       # ansible/roles/backup_agent keys each app's stop label on it.
       - docker-volume-backup.stop-during-backup=beszel-hub
+    cap_drop:
+      - ALL
     expose:
       - '8090'
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

@@ -49,6 +49,26 @@ docker/<app>/
   where the value is a real secret and needs `configs`' `no_log:`/`mode`
   handling regardless of whether it's a single value.
 
+### Container hardening
+
+A service that runs as a non-root user from its first process sets
+`cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]`. For such a
+process the first removes only the capabilities a child could gain through
+`exec`, and the second stops it gaining any through a setuid binary or a
+file capability, so both change nothing for an app that uses neither.
+
+Before adding them, read the image's Dockerfile (and its entrypoint) for
+`setcap`, `chmod u+s`, `sudo` or `su-exec`. An image that has any of these
+leaves the pair off. `dashy`'s image is one: it gives `ping` the
+`cap_net_raw` file capability so a non-root user can run it, which both
+settings would take away.
+
+Services that start as root (the `docker-socket-proxy` sidecars, `caddy`,
+`lldap` and others) and `openbao`, which is non-root and gets `IPC_LOCK`
+through `cap_add`, are not covered by this rule. Each needs its own check of
+what the process does after it starts. Search for `no-new-privileges` under
+`docker/` to see which services have it today.
+
 ## 2. Register it in `app_catalog`
 
 In `ansible/inventory/group_vars/all/app_catalog.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:

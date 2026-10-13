@@ -54,13 +54,18 @@ class TestMintR2:
         assert not ok
         assert snap.read_secret(snap.VAULT_NAME_R2_ACCESS) is None, "a credential that fails its own rclone check must never be cached"
 
-    def test_skips_if_already_cached(self, vault):
+    @patch.object(snap, "verify_leaf_via_rclone", autospec=True)
+    def test_skips_if_already_cached(self, mock_verify, vault, session_class):
         vault.seed(snap.VAULT_NAME_R2_ACCESS, "existing-id")
         vault.seed(snap.VAULT_NAME_R2_SECRET, "existing-secret")
 
         ok = snap.mint_r2()
 
         assert ok
+        session_class.return_value.post.assert_not_called()
+        mock_verify.assert_not_called()
+        assert snap.read_secret(snap.VAULT_NAME_R2_ACCESS) == "existing-id"
+        assert snap.read_secret(snap.VAULT_NAME_R2_SECRET) == "existing-secret"
 
 
 class TestMintB2:
@@ -110,13 +115,20 @@ class TestMintB2:
         assert not ok
         assert snap.read_secret(snap.VAULT_NAME_B2_ACCESS) is None
 
-    def test_skips_if_already_cached(self, vault):
+    @patch.object(snap, "verify_leaf_via_rclone", autospec=True)
+    @patch("cloud_credentials.leaf_keys.b2.B2Api", autospec=True)
+    def test_skips_if_already_cached(self, mock_api_cls, mock_verify, vault, b2_api):
+        api = mock_api_cls.return_value = b2_api
         vault.seed(snap.VAULT_NAME_B2_ACCESS, "existing-id")
         vault.seed(snap.VAULT_NAME_B2_SECRET, "existing-secret")
 
         ok = snap.mint_b2()
 
         assert ok
+        api.create_key.assert_not_called()
+        mock_verify.assert_not_called()
+        assert snap.read_secret(snap.VAULT_NAME_B2_ACCESS) == "existing-id"
+        assert snap.read_secret(snap.VAULT_NAME_B2_SECRET) == "existing-secret"
 
 
 class TestRotateB2:

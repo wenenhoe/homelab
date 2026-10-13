@@ -94,22 +94,30 @@ class TestRotateOciRotationKey:
     def test_reverifies_leaf_identities_before_touching_the_secret(self, mock_token, mock_ensure_leaf, mock_auth, session_class):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
         mock_token.side_effect = ["old-tok", "new-tok"]
+        order: list[str] = []
+        mock_ensure_leaf.side_effect = lambda *args, **kwargs: order.append("ensure_leaf")
         session = session_class.return_value
-        session.post.return_value = response(201, {"clientSecret": "NEW_SECRET"})
+
+        def regenerate(*args, **kwargs):
+            order.append("regenerate")
+            return response(201, {"clientSecret": "NEW_SECRET"})
+
+        session.post.side_effect = regenerate
 
         oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
-        assert mock_ensure_leaf.call_count == 2
+        assert order == ["ensure_leaf", "ensure_leaf", "regenerate"]
 
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint", autospec=True)
     @patch.object(oci_bootstrap, "oci_ensure_leaf_identity", autospec=True)
     @patch.object(oci_bootstrap, "oci_scim_access_token", side_effect=oci_bootstrap.requests.HTTPError("401 invalid_client"), autospec=True)
-    def test_old_secret_auth_failure_stops_before_any_regenerate_call(self, mock_token, mock_ensure_leaf, mock_auth, rotation_vault):
+    def test_old_secret_auth_failure_stops_before_any_regenerate_call(self, mock_token, mock_ensure_leaf, mock_auth, rotation_vault, session_class):
         mock_auth.return_value = (MagicMock(), "https://identity.example", "ocid1.tenancy.oc1..t", "us-ashburn-1")
 
         ok = oci_bootstrap.rotate_oci_rotation_key(admin_email="you@example.com")
 
         assert not ok
+        session_class.return_value.post.assert_not_called()
         assert rotation_vault.get("_rotation-key-oci-client-secret") == "OLD_SECRET"
 
     @patch.object(oci_bootstrap, "oci_master_auth_and_endpoint", autospec=True)

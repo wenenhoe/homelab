@@ -1,0 +1,50 @@
+---
+- name: Converge
+  hosts: all
+  become: true
+  vars:
+    ansible_user: root
+  vars_files:
+    - "{{ playbook_dir }}/../../../molecule_helpers/vars/images/alpine.yml"
+  tasks:
+    # A plain container stands in for the app, so the role's first guard
+    # passes. The step-cli image is then pointed at a registry that cannot
+    # resolve, so the probe container never starts and leaves no exit
+    # status: the case that must stop the role, not read as "no cert".
+    - name: Start a stand-in for the app
+      community.docker.docker_container:
+        name: widget-test
+        image: "{{ molecule_helpers_alpine_image }}"
+        command: [sleep, infinity]
+        state: started
+
+    - name: "Run step_ca_cert [block / rescue] (the certificate probe cannot run, failure is deliberate and expected)"
+      block:
+        - name: Run step_ca_cert with a step-cli image that cannot be pulled
+          ansible.builtin.include_role:
+            name: step_ca_cert
+          vars:
+            step_ca_cert_app_name: widget
+            step_ca_cert_common_name: widget
+            step_ca_cert_container_name: widget-test
+            step_ca_cert_step_cli_image: probe-fails.invalid/step-cli:none
+      rescue:
+        # A bare rescue accepts ANY failure inside the block, so assert on
+        # the exact task before trusting the "expected" label at all.
+        - name: Confirm the failure came from the probe guard itself
+          ansible.builtin.assert:
+            that:
+              - 'ansible_failed_task.name == "Fail loudly if the certificate probe could not run: widget"'
+              - "'Could not check whether widget already has a cert' in ansible_failed_result.msg"
+              - "'Nothing was changed' in ansible_failed_result.msg"
+            fail_msg: >-
+              step_ca_cert failed, but not for the reason this scenario
+              exists to test. Expected the probe guard to fail; got task
+              "{{ ansible_failed_task.name | default('unknown') }}" with
+              message: {{ ansible_failed_result.msg | default('(no msg)') }}
+
+        - name: Leave a marker proving the guard caught the unrunnable probe
+          ansible.builtin.copy:
+            dest: /tmp/step_ca_cert_probe_fails_halt_marker
+            content: "unrunnable probe caught as expected\n"
+            mode: "0644"

@@ -25,25 +25,14 @@
       own compose deploy (see deploy.yaml's Play ordering).
   when: not step_ca_cert_container_info.exists
 
-# Checked inside the already-running container itself rather than
-# resolving the volume's host path - avoids needing that resolution at
-# all now that issuance itself mounts the volume directly by name
-# (below), not by host path.
-- name: Check whether a cert has already been issued
-  community.docker.docker_container_exec:
-    container: "{{ step_ca_cert_container_name }}"
-    command: "test -f {{ step_ca_cert_container_cert_dir }}/fullchain.pem"
-  register: step_ca_cert_existing_cert
-  changed_when: false
-  failed_when: false
-
-# Issuance below only runs when no cert exists, so a change to the
-# requested names never reaches a cert that's already there. Read the
-# issued cert's names and fail on any difference instead of leaving the
-# old cert in place under the new configuration. Nothing is reissued
-# here: a reissue restarts the app, which the operator should choose.
-# Same read-only root mount as the renewal unit's ExecCondition.
-- name: "Read the names on the already-issued cert: {{ step_ca_cert_app_name }}"
+# Reads the cert straight from the certs volume, read-only, rather than
+# exec'ing into the app: an app that crash-loops until its first cert exists
+# (lldap's cold start) cannot be exec'd into, and that is the normal state
+# on a first deploy, not a failure. The container's exit status is the
+# answer: 0 means a readable cert is there, anything else means there is
+# none (or none worth keeping), and issuance below replaces it. Same
+# read-only root mount as the renewal unit's ExecCondition.
+- name: "Read the already-issued cert, if any: {{ step_ca_cert_app_name }}"
   community.docker.docker_container:
     name: "step-ca-cert-inspect-{{ step_ca_cert_app_name }}"
     image: "{{ step_ca_cert_step_cli_image }}"
@@ -64,9 +53,27 @@
     log_driver: json-file
   register: step_ca_cert_inspect_result
   changed_when: false
+  failed_when: false
   check_mode: false
-  when: step_ca_cert_existing_cert.rc | default(1) == 0
 
+# `failed_when: false` above hides a probe that never ran (the Docker API
+# refused, the image would not pull) as well as one that exited non-zero, and
+# only the first leaves no exit status. Reading that as "no cert" would reissue
+# over a valid one and restart the app.
+- name: "Fail loudly if the certificate probe could not run: {{ step_ca_cert_app_name }}"
+  ansible.builtin.fail:
+    msg: >-
+      Could not check whether {{ step_ca_cert_app_name }} already has a cert
+      in the "{{ step_ca_cert_certs_volume_name }}" volume:
+      {{ step_ca_cert_inspect_result.msg | default('no result') }}.
+      Nothing was changed.
+  when: step_ca_cert_inspect_result.status is not defined
+
+# Issuance below only runs when no cert exists, so a change to the
+# requested names never reaches a cert that's already there. Fail on any
+# difference between the issued and requested names instead of leaving the
+# old cert in place under the new configuration. Nothing is reissued here: a
+# reissue restarts the app, which the operator should choose.
 # step's `names` is the cert's DNS and IP SANs (the CN only if it's
 # also a SAN; emails aren't included). Must match the two --san values
 # passed to `step ca certificate` in the issuance block below.
@@ -74,7 +81,7 @@
   ansible.builtin.set_fact:
     step_ca_cert_issued_names: "{{ (step_ca_cert_inspect_result.container.Output | from_json).names | sort }}"
     step_ca_cert_requested_names: "{{ [step_ca_cert_common_name, step_ca_cert_common_name ~ '.' ~ caddy_domain] | sort }}"
-  when: step_ca_cert_existing_cert.rc | default(1) == 0
+  when: step_ca_cert_inspect_result.status == 0
 
 - name: "Fail loudly if the issued cert's names differ from the requested ones: {{ step_ca_cert_app_name }}"
   ansible.builtin.fail:
@@ -99,14 +106,14 @@
       leaves it sealed, see docs/topics/secrets/openbao.md). If the requested names are the
       mistake, revert the change instead.
   when:
-    - step_ca_cert_existing_cert.rc | default(1) == 0
+    - step_ca_cert_inspect_result.status == 0
     - step_ca_cert_issued_names != step_ca_cert_requested_names
 
 # Ongoing renewal is the systemd timer's job from here on (installed
 # unconditionally below, regardless of this block) - this only ever
 # runs once, on a genuinely empty certs volume.
 - name: "Issue the initial cert [block / always] for: {{ step_ca_cert_app_name }}"
-  when: step_ca_cert_existing_cert.rc | default(1) != 0
+  when: step_ca_cert_inspect_result.status != 0
   block:
     - name: Render the provisioner password to a scratch file
       ansible.builtin.copy:

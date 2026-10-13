@@ -302,3 +302,211 @@ class TestDeployFlowTable:
         self._write(repo, "# Flow\n")
         drift.check_deploy_flow()
         assert_one_error(drift.errors, "couldn't find the ## Plays table")
+
+
+class TestAnsibleReference:
+    PLAYBOOKS = (
+        "# Ansible\n\n## Playbooks\n\n| Playbook | Does |\n| :--- | :--- |\n{rows}\n\n## Roles\n\n| Role | Does |\n| :--- | :--- |\n{roles}\n\n## Next\n"
+    )
+
+    def _write(self, repo, playbook_rows: list[str], role_rows: list[str], *, playbooks=("deploy.yaml",), roles=("caddy",)) -> None:
+        repo.write("docs/topics/deploy/ansible.md", self.PLAYBOOKS.format(rows="\n".join(playbook_rows), roles="\n".join(role_rows)))
+        for name in playbooks:
+            repo.write(f"ansible/playbooks/{name}", "---\n")
+        for name in roles:
+            repo.write(f"ansible/roles/{name}/tasks/main.yaml", "---\n")
+
+    def test_every_playbook_and_role_documented_passes(self, repo):
+        self._write(repo, ["| `playbooks/deploy.yaml` | x |"], ["| `caddy` | x |"])
+        drift.check_ansible_reference()
+        assert drift.errors == []
+
+    def test_a_playbook_without_a_row_fails(self, repo):
+        self._write(repo, ["| `playbooks/deploy.yaml` | x |"], ["| `caddy` | x |"], playbooks=("deploy.yaml", "restore.yaml"))
+        drift.check_ansible_reference()
+        assert_one_error(drift.errors, "missing a row for ansible/playbooks/restore.yaml")
+
+    def test_a_row_for_a_missing_playbook_fails(self, repo):
+        self._write(repo, ["| `playbooks/deploy.yaml` | x |", "| `playbooks/gone.yaml` | x |"], ["| `caddy` | x |"])
+        drift.check_ansible_reference()
+        assert_one_error(drift.errors, "documents playbooks/gone.yaml, which doesn't exist")
+
+    def test_a_role_without_a_row_fails(self, repo):
+        self._write(repo, ["| `playbooks/deploy.yaml` | x |"], ["| `caddy` | x |"], roles=("caddy", "bind9"))
+        drift.check_ansible_reference()
+        assert_one_error(drift.errors, "missing a row for ansible/roles/bind9/")
+
+    def test_a_row_for_a_missing_role_fails(self, repo):
+        self._write(repo, ["| `playbooks/deploy.yaml` | x |"], ["| `caddy` | x |", "| `gone` | x |"])
+        drift.check_ansible_reference()
+        assert_one_error(drift.errors, "documents role 'gone', which doesn't exist")
+
+    @pytest.mark.parametrize(
+        ("heading", "expected"),
+        [("## Playbooks", "couldn't find the ## Playbooks table"), ("## Roles", "couldn't find the ## Roles table")],
+        ids=["playbooks", "roles"],
+    )
+    def test_a_missing_table_fails(self, repo, heading, expected):
+        self._write(repo, ["| `playbooks/deploy.yaml` | x |"], ["| `caddy` | x |"])
+        doc = repo.root / "docs/topics/deploy/ansible.md"
+        doc.write_text(doc.read_text(encoding="utf-8").replace(heading, "## Renamed"), encoding="utf-8")
+        drift.check_ansible_reference()
+        assert any(expected in e for e in drift.errors), drift.errors
+
+
+class TestMoleculeMatrix:
+    def _write(self, repo, rows: list[str], scenarios: dict[str, list[str]]) -> None:
+        repo.write(
+            "docs/topics/engineering/molecule-testing.md",
+            "# Molecule\n\n## Scenario matrix\n\n| Role | Scenario |\n| :--- | :--- |\n" + "\n".join(rows) + "\n\n## Next\n",
+        )
+        for role, names in scenarios.items():
+            repo.write(f"ansible/roles/{role}/tasks/main.yaml", "---\n")
+            for name in names:
+                repo.write(f"ansible/roles/{role}/molecule/{name}/molecule.yml", "---\n")
+
+    def test_every_scenario_listed_passes(self, repo):
+        self._write(repo, ["| `caddy` | `default` |", "| | `renewal` |", "| `bind9` | *(none)* |"], {"caddy": ["default", "renewal"], "bind9": []})
+        drift.check_molecule_matrix()
+        assert drift.errors == []
+
+    def test_a_scenario_missing_from_the_table_fails(self, repo):
+        self._write(repo, ["| `caddy` | `default` |"], {"caddy": ["default", "renewal"]})
+        drift.check_molecule_matrix()
+        assert_one_error(drift.errors, "caddy's scenario 'renewal' isn't in the Scenario matrix table")
+
+    def test_a_listed_scenario_that_does_not_exist_fails(self, repo):
+        self._write(repo, ["| `caddy` | `default` |", "| | `gone` |"], {"caddy": ["default"]})
+        drift.check_molecule_matrix()
+        assert_one_error(drift.errors, "lists caddy/gone, which doesn't exist")
+
+    def test_a_role_without_any_row_fails(self, repo):
+        self._write(repo, ["| `caddy` | `default` |"], {"caddy": ["default"], "bind9": ["default"]})
+        drift.check_molecule_matrix()
+        assert_one_error(drift.errors, "role 'bind9' has no Scenario matrix row at all")
+
+    def test_a_role_without_scenarios_must_be_marked_none(self, repo):
+        self._write(repo, ["| `caddy` | `default` |"], {"caddy": ["default"], "bind9": []})
+        drift.check_molecule_matrix()
+        assert_one_error(drift.errors, "role 'bind9' has no Scenario matrix row at all")
+
+    def test_a_none_row_for_a_role_that_has_scenarios_fails(self, repo):
+        self._write(repo, ["| `caddy` | *(none)* |"], {"caddy": ["default"]})
+        drift.check_molecule_matrix()
+        assert len(drift.errors) == 2, drift.errors
+        assert any("caddy's scenario 'default' isn't in the Scenario matrix table" in e for e in drift.errors)
+        assert any("lists caddy/*(none)*, which doesn't exist" in e for e in drift.errors)
+
+    def test_the_shared_helpers_role_needs_no_row(self, repo):
+        self._write(repo, ["| `caddy` | `default` |"], {"caddy": ["default"], "molecule_helpers": []})
+        drift.check_molecule_matrix()
+        assert drift.errors == []
+
+
+class TestCiJobsTable:
+    def _write(self, repo, rows: list[str], jobs: list[str]) -> None:
+        repo.write(".github/workflows/pr-checks.yml", "jobs:\n" + "".join(f"  {job}:\n    runs-on: ubuntu-latest\n" for job in jobs))
+        repo.write("docs/topics/engineering/ci/pipeline.md", "# Pipeline\n\n## Jobs\n\n| Job | Does |\n| :--- | :--- |\n" + "\n".join(rows) + "\n\n## Next\n")
+
+    def test_every_job_documented_passes(self, repo):
+        self._write(repo, ["| `lint` | x |", "| `molecule-test` | x |"], ["lint", "molecule-test"])
+        drift.check_ci_jobs_table()
+        assert drift.errors == []
+
+    def test_a_job_without_a_row_fails(self, repo):
+        self._write(repo, ["| `lint` | x |"], ["lint", "molecule-test"])
+        drift.check_ci_jobs_table()
+        assert_one_error(drift.errors, "missing a row for pr-checks.yml's 'molecule-test' job")
+
+    def test_a_row_for_a_missing_job_fails(self, repo):
+        self._write(repo, ["| `lint` | x |", "| `gone` | x |"], ["lint"])
+        drift.check_ci_jobs_table()
+        assert_one_error(drift.errors, "documents 'gone', which isn't a job in pr-checks.yml")
+
+    @pytest.mark.parametrize("job", ["detect-changes", "trivy-scan"])
+    def test_plumbing_and_separately_documented_jobs_need_no_row(self, repo, job):
+        self._write(repo, ["| `lint` | x |"], ["lint", job])
+        drift.check_ci_jobs_table()
+        assert drift.errors == []
+
+    def test_a_missing_table_fails(self, repo):
+        self._write(repo, [], ["lint"])
+        doc = repo.root / "docs/topics/engineering/ci/pipeline.md"
+        doc.write_text("# Pipeline\n", encoding="utf-8")
+        drift.check_ci_jobs_table()
+        assert_one_error(drift.errors, "couldn't find the ## Jobs table")
+
+
+class TestHeadingSlugs:
+    @pytest.mark.parametrize(
+        ("heading", "slug"),
+        [
+            ("Plain Heading", "plain-heading"),
+            ("What's new?", "whats-new"),
+            ("A `code` span", "a-code-span"),
+            ("Two  spaces", "two--spaces"),
+            ("Dash - kept", "dash---kept"),
+        ],
+        ids=["lowercased", "punctuation-dropped", "backticks-dropped", "each-space-hyphenated", "hyphen-kept"],
+    )
+    def test_slug_follows_the_github_algorithm(self, heading, slug):
+        assert drift._slugify(heading) == slug
+
+    def test_repeated_headings_get_numbered_suffixes_and_non_headings_are_ignored(self, repo):
+        doc = repo.write("docs/topics/a.md", "# Intro\n\ntext\n\n## Intro\n\n### Intro\n\n#Not a heading\n")
+        assert drift._heading_slugs(doc) == {"intro", "intro-1", "intro-2"}
+
+
+class TestSameFileAnchor:
+    def test_an_anchor_matching_a_heading_in_the_file_passes(self, repo):
+        repo.write("docs/topics/a.md", "# A\n\nSee [below](#later-part).\n\n## Later part\n")
+        drift.check_no_stale_anchors()
+        assert drift.errors == []
+
+    def test_an_anchor_without_a_matching_heading_fails(self, repo):
+        repo.write("docs/topics/a.md", "# A\n\nSee [below](#missing).\n")
+        drift.check_no_stale_anchors()
+        assert_one_error(drift.errors, "references #missing (same-file)")
+
+
+class TestMainRunsEveryCheck:
+    CHECKS = (
+        "check_doc_indexes",
+        "check_ansible_reference",
+        "check_molecule_matrix",
+        "check_deploy_flow",
+        "check_ci_jobs_table",
+        "check_no_stale_anchors",
+        "check_doc_path_mentions",
+        "check_adr_link_names",
+        "check_nist_alignment_currency",
+    )
+    GRAPH_CHECKS = ("lineage_errors", "heading_errors", "open_assumption_errors", "project_errors")
+
+    @pytest.fixture
+    def called(self, repo, monkeypatch):
+        calls: list[str] = []
+        for name in self.CHECKS:
+            monkeypatch.setattr(drift, name, lambda name=name: calls.append(name))
+        for name in self.GRAPH_CHECKS:
+            monkeypatch.setattr(drift, name, lambda root, name=name: calls.append(name) or [])
+        return calls
+
+    def test_each_check_runs_and_a_clean_run_exits_zero(self, called, capsys):
+        assert drift.main() == 0
+        assert sorted(called) == sorted(self.CHECKS + self.GRAPH_CHECKS)
+        assert "Docs match the files/config they describe." in capsys.readouterr().out
+
+    def test_a_failing_check_exits_one_and_is_reported(self, called, capsys):
+        drift.fail("boom")
+        # main() runs after the errors list was filled by an earlier check; a check that
+        # fails during main() is reported the same way.
+        assert drift.main() == 1
+        captured = capsys.readouterr()
+        assert "::error::boom" in captured.out
+        assert "1 doc-drift issue(s) found." in captured.err
+
+    def test_errors_from_the_graph_checks_fail_the_run(self, called, monkeypatch, capsys):
+        monkeypatch.setattr(drift, "project_errors", lambda root: ["a project rule broke"])
+        assert drift.main() == 1
+        assert "::error::a project rule broke" in capsys.readouterr().out

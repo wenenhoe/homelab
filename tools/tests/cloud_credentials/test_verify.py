@@ -7,9 +7,13 @@ real provider.
 
 from __future__ import annotations
 
+import configparser
+import stat
 import subprocess
+from pathlib import Path
 from unittest.mock import patch
 
+import pytest
 from cloud_credentials import verify
 
 
@@ -128,3 +132,108 @@ class TestRunRcloneWithRetry:
         assert result is failed
         assert mock_run.call_count == 3
         assert mock_sleep.call_count == 2  # sleeps between attempts, not after the last
+
+
+class TestVerifyLeafViaRclone:
+    """The gate that decides whether an old, working credential is revoked.
+
+    The rclone config holds the key in plaintext and lives in a temporary
+    directory the function deletes, so each test reads it from inside the
+    stubbed rclone call, the only moment it exists.
+    """
+
+    ARGS = ("ACCESS", "SECRET", "https://s3.example.test", "region-1", "the-bucket")
+
+    def _completed(self, returncode: int, stderr: str = "") -> subprocess.CompletedProcess[str]:
+        return subprocess.CompletedProcess(args=[], returncode=returncode, stdout="", stderr=stderr)
+
+    @pytest.fixture
+    def rclone_calls(self):
+        """What each stubbed rclone call was given, read while its files still exist."""
+        calls: list[dict] = []
+        outcome = {"result": self._completed(0)}
+
+        def run(cmd, timeout):
+            conf_path = Path(cmd[cmd.index("--config") + 1])
+            conf = configparser.ConfigParser()
+            conf.read(conf_path)
+            call = {
+                "cmd": cmd,
+                "timeout": timeout,
+                "conf": dict(conf["verify"]),
+                "conf_path": conf_path,
+                "conf_mode": stat.S_IMODE(conf_path.stat().st_mode),
+            }
+            if "copyto" in cmd:
+                call["uploaded_text"] = Path(cmd[cmd.index("copyto") + 1]).read_text()
+            calls.append(call)
+            return outcome["result"]
+
+        with patch.object(verify, "_run_rclone_with_retry", autospec=True, side_effect=run):
+            yield calls, outcome
+
+    def test_read_leaf_lists_the_bucket_through_a_config_built_from_its_arguments(self, rclone_calls):
+        calls, _ = rclone_calls
+
+        ok, detail = verify.verify_leaf_via_rclone(*self.ARGS, "read")
+
+        assert (ok, detail) == (True, "ListObjects succeeded")
+        (call,) = calls
+        assert call["cmd"][call["cmd"].index("lsjson") :] == ["lsjson", "verify:the-bucket", "--max-depth", "1"]
+        assert call["conf"] == {
+            "type": "s3",
+            "provider": "Other",
+            "access_key_id": "ACCESS",
+            "secret_access_key": "SECRET",
+            "endpoint": "https://s3.example.test",
+            "region": "region-1",
+            "force_path_style": "true",
+            "no_check_bucket": "true",
+        }
+
+    def test_write_leaf_uploads_a_fresh_marker_under_the_reserved_prefix(self, rclone_calls):
+        calls, _ = rclone_calls
+
+        ok, detail = verify.verify_leaf_via_rclone(*self.ARGS, "write")
+
+        assert (ok, detail) == (True, "PutObject succeeded")
+        (call,) = calls
+        destination = call["cmd"][-1]
+        assert destination.startswith("verify:the-bucket/_rotation-verify/write-")
+        assert call["uploaded_text"] == "homelab rotation-verify marker for the write leaf\n"
+
+    def test_the_config_holding_the_key_is_private_and_removed_afterwards(self, rclone_calls):
+        calls, _ = rclone_calls
+
+        verify.verify_leaf_via_rclone(*self.ARGS, "read")
+
+        (call,) = calls
+        assert call["conf_mode"] == 0o600
+        assert not call["conf_path"].exists()
+
+    def test_the_timeout_reaches_both_rclone_and_the_retry_loop(self, rclone_calls):
+        calls, _ = rclone_calls
+
+        verify.verify_leaf_via_rclone(*self.ARGS, "read", timeout=7)
+
+        (call,) = calls
+        assert call["timeout"] == 7
+        assert call["cmd"][call["cmd"].index("--timeout") + 1] == "7s"
+
+    def test_a_failed_listing_is_reported_with_rclone_s_message(self, rclone_calls):
+        _, outcome = rclone_calls
+        outcome["result"] = self._completed(1, "  AccessDenied\n")
+
+        ok, detail = verify.verify_leaf_via_rclone(*self.ARGS, "read")
+
+        assert not ok
+        assert detail == "rclone lsjson (ListObjects) failed: AccessDenied"
+
+    def test_a_failed_upload_is_reported_with_rclone_s_message(self, rclone_calls):
+        _, outcome = rclone_calls
+        outcome["result"] = self._completed(1, "  Forbidden\n")
+
+        ok, detail = verify.verify_leaf_via_rclone(*self.ARGS, "write")
+
+        assert not ok
+        assert detail == "rclone copyto (PutObject) failed: Forbidden"

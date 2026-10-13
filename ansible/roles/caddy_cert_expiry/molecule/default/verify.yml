@@ -146,6 +146,41 @@
           CI with a blank push URL), 'not-found' or 'masked' would mean
           the unit itself is broken.
 
+    # --- Behavioral, alert branch: a threshold the live cert cannot meet ---
+    # The scenario's 0-day threshold can never alert against Caddy's ~12h
+    # internal cert, so raise it past any lifetime to reach the branch that
+    # exits 1 with "Below the N-day threshold" - distinct from the
+    # unreadable-certificate exit below, which never gets as far as the
+    # comparison.
+    - name: Raise the deployed check script's threshold above the live cert's remaining life
+      ansible.builtin.replace:
+        path: "{{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+        regexp: 'THRESHOLD_DAYS=0'
+        replace: 'THRESHOLD_DAYS=3650'
+
+    - name: Run the check script directly, expecting the below-threshold alert
+      ansible.builtin.command: "sh {{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+      register: caddy_cert_expiry_verify_below_threshold
+      changed_when: false
+      failed_when: false
+
+    - name: Confirm it read the live certificate and exited 1 because of the threshold
+      ansible.builtin.assert:
+        that:
+          - caddy_cert_expiry_verify_below_threshold.rc == 1
+          - "'bentopdf.apps.localhost: certificate expires' in caddy_cert_expiry_verify_below_threshold.stdout"
+          - "'Below the 3650-day threshold' in caddy_cert_expiry_verify_below_threshold.stderr"
+        fail_msg: >-
+          rc={{ caddy_cert_expiry_verify_below_threshold.rc }}
+          stdout={{ caddy_cert_expiry_verify_below_threshold.stdout }}
+          stderr={{ caddy_cert_expiry_verify_below_threshold.stderr }}
+
+    - name: Restore the threshold, so the failure below is attributable to the certificate alone
+      ansible.builtin.replace:
+        path: "{{ compose_deploy_dir }}/caddy/_cert_expiry/check.sh"
+        regexp: 'THRESHOLD_DAYS=3650'
+        replace: 'THRESHOLD_DAYS=0'
+
     # --- Behavioral, failure path: SNI matching no configured site --------
     # HOST now only drives -servername (see check.sh.j2's own comment on
     # why it connects to 127.0.0.1 instead). A hostname under

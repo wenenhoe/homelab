@@ -38,5 +38,15 @@ app_catalog: >-
      | from_yaml).app_catalog
   }}
 
+# The image deploy.yaml passes for openbao's cert post-issuance chown, read
+# from it rather than copied, so a Renovate bump of production moves this
+# scenario with it (see docs/topics/engineering/molecule-fixtures.md).
+step_ca_cert_chown_image: >-
+  {{
+    lookup('file', playbook_dir ~ '/../../../../playbooks/deploy.yaml')
+    | regex_search('step_ca_cert_chown_image:\s*"([^"]+)"', '\1')
+    | first
+  }}
+
 compose_apps:
   - name: openbao

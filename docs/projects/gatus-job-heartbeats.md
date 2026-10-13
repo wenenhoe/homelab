@@ -30,7 +30,8 @@ allowed_paths:
   - ansible/roles/step_ca_cert/**
   - ansible/roles/cloud_sync/**
   - ansible/roles/caddy_cert_expiry/**
-  - ansible/roles/cd_agent/tasks/main.yaml
+  - ansible/roles/cd_agent/**
+  - ansible/inventory/group_vars/cd_agent.yaml
   - ansible/roles/backup_agent/**
   - ansible/roles/systemd_reload/**
   - docs/topics/monitoring/**
@@ -57,7 +58,7 @@ Replaces the Uptime Kuma push monitors with Gatus external endpoints, so every j
 
 ## Scope
 
-In: a repo-built Gatus image; the `gatus` app on `security`, where Kuma runs; one external endpoint and generated token per job (the three `backup_agent` hosts, the four `cert-expiry-check` hosts, `cloud_sync`, the two `cert-renewer@` instances, and the `r2-read-watcher` heartbeat); the daily `cert-renewer@` liveness push; a parallel run; removing Kuma.
+In: a repo-built Gatus image; the `gatus` app on `security`, where Kuma runs; one external endpoint and generated token per job (the three `backup_agent` hosts, the four `cert-expiry-check` hosts, `cloud_sync`, the two `cert-renewer@` instances, the `r2-read-watcher` heartbeat, and the CD agent's `freshness` job); the daily `cert-renewer@` liveness push; a parallel run; removing Kuma.
 
 Not in: moving the monitor to another host or off-site ([`monitoring-host-isolation.md`](monitoring-host-isolation.md), [`off-site-monitoring.md`](off-site-monitoring.md)); active probing beyond the one self-probe; replacing Beszel; changing any `OnFailure=` route, which stays as it is.
 
@@ -73,7 +74,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Thin Gatus image and its pipeline | Not started | The image builds and pushes from CI as non-root with a working healthcheck, its smoke test passes, Renovate bumps its `FROM`, and the registry accepts the upstream `v`-prefixed tag and publishes it without the `v`, with unit tests |
 | 2 | Gatus app on `security` beside Kuma | Not started | Gatus runs with the self-probe, per-group Telegram overrides and a gated dashboard; its route skips forward-auth; one endpoint per job is rendered from the repo with a generated token; `gatus.md` describes it |
-| 3 | Producers push to Gatus as well as Kuma | Not started | `cloud_sync`, `cert-expiry-check`, the backup freshness check and the `r2-read-watcher` heartbeat each send the `POST` with a bearer header to their Gatus endpoint besides their Kuma push, and every such endpoint has a result |
+| 3 | Producers push to Gatus as well as Kuma | Not started | `cloud_sync`, `cert-expiry-check`, the backup freshness check and the `r2-read-watcher` heartbeat each send the `POST` with a bearer header to their Gatus endpoint besides their Kuma push, the CD agent's `freshness` job sends one on success only, and every such endpoint has a result |
 | 4 | `cert-renewer@` daily liveness push | Not started | Each instance's timer pushes once a day only when `step certificate needs-renewal --expires-in <margin>` exits 1, with the margin chosen, and a test covers each exit code; the `OnSuccess=` link is gone |
 | 5 | Parallel run | Not started | Over one full cycle of the longest endpoint interval, no endpoint false-alerts; one job per Telegram topic is stopped on purpose and alerts in its own topic within two intervals, and the next push resolves it |
 | 6 | Remove Kuma | Not started | Nothing pushes to Kuma; its app, route, dashboard link, secrets entries, role code and doc are gone; the push role has a neutral name; the two monitoring project docs name Gatus |
@@ -89,6 +90,7 @@ Two things make the parallel run safe. Kuma's push monitors keep their own inter
 - [ ] Every job that pushed to Kuma has a Gatus external endpoint declared from the repo with its own generated token, and no monitor, token or notification setting exists only inside a running instance.
 - [ ] A job that stops pushing alerts in its own Telegram topic within two of its intervals, and the next push resolves the alert.
 - [ ] A certificate that stops being renewed raises an alert while it is still valid.
+- [ ] The CD agent's weekly `freshness` job pushes on success only, so a run that fails, including one that cannot log in to OpenBao, alerts as a missed heartbeat without needing OpenBao to send it.
 - [ ] The dashboard requires login, and the push path does not go through forward-auth.
 - [ ] The image is built in this repo, runs non-root with a passing healthcheck, and its compose pin equals the registry's tag.
 - [ ] Kuma, its role code, its secrets entries, its route and its doc are gone, and no file outside ADR history names it.

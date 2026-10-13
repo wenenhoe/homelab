@@ -44,7 +44,10 @@ Once the agent host and its AppRoles are live and proven, in this order:
 1. Remove the weekly `check-freshness` user timer from `controller`
    (`tools/cloud_credentials/systemd/`). The same check now runs from
    `cd-agent-freshness`, and the timer logs in with the AppRole being
-   deleted.
+   deleted. The agent's `freshness` job pushes a heartbeat on success
+   ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), so a run that
+   fails, or cannot reach OpenBao, is reported as a missed heartbeat; the
+   timer on `controller` has no such alert.
 2. Run the snapshot push from `cd-agent-snapshot` instead of
    `snapshot-push.sh` on `controller`. `controller`'s policy grants the
    `sys/storage/raft/snapshot` read it uses, and deleting the AppRole
@@ -69,6 +72,7 @@ Once the agent host and its AppRoles are live and proven, in this order:
 - [ ] Admin and debug access logs in with a step-ca client certificate from the second provisioner, bound to `controller`'s common name, organizational unit and fixed address, and receives a short-lived token, per ADR 0047.
 - [ ] The `cert` role refuses the same common name when the original provisioner signs it, verified.
 - [ ] The `check-freshness` user timer is gone from `controller`, and the snapshot push runs from `cd-agent-snapshot`.
+- [ ] A `freshness` run on the CD agent that fails, with OpenBao sealed or unreachable, alerts as a missed heartbeat.
 - [ ] No topic doc or catalog entry still describes `controller`'s AppRole or how to re-issue its `secret_id`.
 
 ## Open items

@@ -86,7 +86,7 @@ Everything above runs on one Proxmox host: 6-core i5-9400, 32GB RAM, an NVMe boo
 | Understand or restore a backup | [`backup.md`](docs/topics/disaster-recovery/backup.md) · [`restore.md`](docs/topics/disaster-recovery/restore.md) |
 | Work with secrets | [`secrets.md`](docs/topics/secrets/secrets.md) · [`secrets-rotation.md`](docs/topics/secrets/secrets-rotation.md) |
 | Understand CI | [`ci/pipeline.md`](docs/topics/engineering/ci/pipeline.md) |
-| Report a vulnerability, or see the security model | [`SECURITY.md`](SECURITY.md) |
+| See the security model and its limits | [`SECURITY.md`](SECURITY.md) |
 | Find any other topic | [`docs/topics/README.md`](docs/topics/README.md) |
 | Know why a design was chosen | [decisions](docs/decisions/README.md) |
 | See what is planned or in flight | [`project-planning.md`](docs/project-planning.md) · [projects](docs/projects/README.md) |

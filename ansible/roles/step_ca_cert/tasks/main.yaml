@@ -37,6 +37,22 @@
   changed_when: false
   failed_when: false
 
+# A probe that exits non-zero means there is no cert. A probe that could not
+# run at all (the container restarting or paused) returns no rc, which
+# `failed_when: false` hides, and reading that as "no cert" would reissue
+# over a valid one and restart the app. The module is skipped in check mode,
+# which is a plan and not a failure.
+- name: "Fail loudly if the certificate probe could not run: {{ step_ca_cert_app_name }}"
+  ansible.builtin.fail:
+    msg: >-
+      Could not check whether {{ step_ca_cert_app_name }} already has a cert
+      in the "{{ step_ca_cert_container_name }}" container:
+      {{ step_ca_cert_existing_cert.msg | default('no result') }}.
+      Nothing was changed.
+  when:
+    - step_ca_cert_existing_cert.rc is not defined
+    - not (step_ca_cert_existing_cert.skipped | default(false))
+
 # Issuance below only runs when no cert exists, so a change to the
 # requested names never reaches a cert that's already there. Read the
 # issued cert's names and fail on any difference instead of leaving the

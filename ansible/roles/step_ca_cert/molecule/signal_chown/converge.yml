@@ -62,5 +62,4 @@
         step_ca_cert_container_cert_dir: /openbao/certs
         step_ca_cert_step_ca_url: https://step-ca-test:9000
         step_ca_cert_renew_action: signal
-        step_ca_cert_chown_image: "openbao/openbao:2.6.2"
         step_ca_cert_chown_user: openbao

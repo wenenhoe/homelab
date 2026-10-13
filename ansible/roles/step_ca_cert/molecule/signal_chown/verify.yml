@@ -122,7 +122,7 @@
       ansible.builtin.assert:
         that:
           - "'RENEW_ACTION=signal' in (step_ca_cert_verify_env_raw.content | b64decode)"
-          - "'CHOWN_IMAGE=openbao/openbao:2.6.2' in (step_ca_cert_verify_env_raw.content | b64decode)"
+          - "('CHOWN_IMAGE=' ~ step_ca_cert_chown_image) in (step_ca_cert_verify_env_raw.content | b64decode)"
           - "'CHOWN_USER=openbao' in (step_ca_cert_verify_env_raw.content | b64decode)"
         fail_msg: "Rendered env: {{ step_ca_cert_verify_env_raw.content | b64decode }}"
 

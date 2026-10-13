@@ -39,7 +39,8 @@ run to the person who last changed the schedule.
 
 ## Image vulnerability assessment
 
-Runs weekly from the private `homelab-security` repo, not from a workflow in this
-repo, and writes nothing here. What it reads from this repo, how it ranks images
+Runs once a week from the private `homelab-security` repo (its schedule ticks daily
+and the first tick of each week runs), not from a workflow in this repo, and writes
+nothing here. What it reads from this repo, how it ranks images
 and what it doesn't cover are in
 [`security-scanning.md`](../security-scanning.md#image-vulnerability-assessment).

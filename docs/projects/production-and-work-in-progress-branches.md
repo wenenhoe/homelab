@@ -27,7 +27,7 @@ Carries out [ADR 0076 (Branch separation)](../decisions/0076-keeping-what-produc
 
 ## Scope
 
-In: running the existing checks on pull requests into `maintenance` and `develop`, pointing Renovate at `maintenance`, the promotion checklist, the realignment step before each Renovate run, and the topic doc for the maintainer's flow.
+In: running the existing checks on pull requests into `maintenance` and `develop`, pointing Renovate at `maintenance` under its own app identity, the promotion checklist, the realignment step before each Renovate run, and the topic doc for the maintainer's flow.
 
 Not in: the CD agent, which keeps fetching `main` only ([`tools/cd_agent/run_job.py`](../../tools/cd_agent/run_job.py) is not changed), a second environment, automated realignment of `develop`, and publishing images from any branch but `main`. Creating the branches and their rulesets is done by the maintainer in GitHub settings, and the stage that needs them says so.
 
@@ -46,16 +46,18 @@ Update at the start and end of each PR that works a stage.
 | 3 | Every check that runs on a pull request into `main` also runs on one into `maintenance` or `develop`, and caches warm on the branches the spikes showed need it | Not started | A test over the workflow triggers asserts it, and a pull request into each new branch runs the full set |
 | 4 | The promotion checklist: a tested path-to-command mapping and a workflow that writes it into the description of a pull request into `main` | Not started | The mapping's unit tests pass against diffs of the paths it names, and a pull request from `maintenance` shows the list between its markers with the maintainer's own text intact |
 | 5 | The Renovate workflow realigns `maintenance` before it runs, and Renovate targets it | Not started | The realignment's tests pass on temporary repositories (fast-forward, merge, conflict left unchanged and failing), and a Renovate run opens its pull requests into `maintenance` |
-| 6 | The maintainer's flow is documented, and the CI topic docs describe the new triggers | Not started | A topic doc covers promotion, realignment of `develop` and a fix straight to `main`, and `pipeline.md` and `gates.md` match the workflows |
+| 6 | The Renovate workflow authenticates as its own GitHub App, minting an installation token on each run | Not started | A Renovate run opens its pull requests and pushes the realigned `maintenance` as the app, and `docs/topics/engineering/ci/renovate.md` describes the app in place of the personal token |
+| 7 | The maintainer's flow is documented, and the CI topic docs describe the new triggers | Not started | A topic doc covers promotion, realignment of `develop` and a fix straight to `main`, and `pipeline.md` and `gates.md` match the workflows |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-Stage 1 is the only stage that runs while the revision is `working`. Stages 3 to 6 start after stage 2, and the project then moves to `building`. The maintainer creates `maintenance`, `develop` and their rulesets before stage 3's exit check, and sets the ruleset on `main` before the first promotion.
+Stage 1 is the only stage that runs while the revision is `working`. Stages 3 to 7 start after stage 2, and the project then moves to `building`. The maintainer creates `maintenance`, `develop` and their rulesets before stage 3's exit check, and sets the ruleset on `main` before the first promotion.
 
 ## Acceptance criteria
 
 - [ ] The CD agent fetches `main` and no other ref, verified by the existing agent tests being unchanged and passing.
-- [ ] A force push to `main` is refused and a push to `maintenance` or `develop` without a pull request is accepted for the maintainer's token, verified by attempting each.
+- [ ] A force push to `main` is refused, and a push to `maintenance` or `develop` without a pull request is accepted for the app and the maintainer, verified by attempting each.
+- [ ] The app can neither merge a pull request into `main` nor push to it, and the maintainer cannot push to it directly but can merge their own promotion, verified by attempting each.
 - [ ] A pull request into any of the three branches runs the same required checks, verified by a test over the workflow triggers.
 - [ ] No workflow publishes an image from a branch other than `main`, verified by a test over the build workflows' triggers.
 - [ ] The checklist names the command for each rule's path pattern and never fails a merge, verified by unit tests and one real pull request.

@@ -55,15 +55,13 @@ class TestMintR2:
 
         assert not ok, "a credential that fails its own rclone check must not be reported as ready to use"
 
-    def test_fails_loudly_without_the_r2_admin_token_cached(self, vault):
-        # setUp seeded the token; a fresh instance without it must not
-        # silently prompt or proceed — require_secret's own exit(1)
-        # is exercised via r2_rotation_token's underlying getpass path,
-        # covered by test_r2.py already. This asserts the account-id
-        # guard specifically, since mint_r2 needs both.
+    def test_fails_loudly_without_the_r2_account_id_cached(self, vault, session_class):
+        # The admin token stays seeded: a missing token prompts instead
+        # (covered by test_r2.py), so this isolates the account-id guard.
         vault.delete("cloudflare-r2-account-id")
         with pytest.raises(SystemExit):
             snap.mint_r2()
+        session_class.assert_not_called()
 
 
 class TestMintB2:

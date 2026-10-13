@@ -7,7 +7,7 @@ short: Automated code review
 solution: "A periodic agent-driven full-repo audit runs from homelab-security's own CI and holds no credential that can write to this repo; CodeRabbit's PR-diff review stays a local run by the maintainer"
 summary: "How this repo gets automated code review without any of it becoming visible on this repo's own surfaces, or able to alter it unsupervised."
 topic: security-hardening
-status: approved
+status: accepted
 related: [ADR-0020, ADR-0044, ADR-0050, ADR-0051, ADR-0060]
 ---
 
@@ -29,15 +29,15 @@ final report — a GitHub Actions run defined in or triggered from this
 repo's own `.github/workflows/` is public the moment it runs, same as a
 PR comment.
 
-Two kinds of review exist. CodeRabbit's CLI reviews a branch's diff —
-cheap, fast, and (per a sampled review) good at breadth: it independently
-caught the same bug in five separate files. The maintainer runs it by
-hand, which keeps its output on their terminal (see
+Two kinds of review exist. CodeRabbit's CLI reviews a branch's diff:
+cheap, fast and good at breadth. The maintainer runs it by hand, which
+keeps its output on their terminal (see
 [Alternatives considered](#alternatives-considered)). A periodic
 full-repository audit by a coding agent, run from `homelab-security`'s
-CI, covers what CodeRabbit structurally can't: it chunks a review by directory and file count, with
-no visibility into `docs/decisions/` — a sampled finding flagged
-`vault-bootstrap.hcl` as root-equivalent without knowing
+CI, covers what CodeRabbit structurally can't: CodeRabbit chunks a
+review by directory and file count, with no visibility into
+`docs/decisions/`, so it flagged `vault-bootstrap.hcl` as
+root-equivalent without knowing
 [ADR 0025 (Admin without root token)](../0025-admin-capability-without-a-standing-root-token/revision-000.md)
 already reasons through and accepts exactly that property. An agent
 reading the whole repo, including its ADRs, doesn't have that blind

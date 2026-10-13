@@ -11,7 +11,7 @@ secrets:
   - [vault_manual_missing, cache_dir_env, vault_approle_missing]
 step_ca_cert:
   - [signal_chown, san_drift]
-  - [default, not_running]
+  - [default, not_running, probe_fails]
   - [renewal_timing]
 compose:
   - [reset, default]

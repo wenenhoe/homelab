@@ -1,0 +1,22 @@
+---
+- name: Verify
+  hosts: all
+  become: true
+  tasks:
+    - name: Confirm the probe guard was actually caught as expected
+      ansible.builtin.stat:
+        path: /tmp/step_ca_cert_probe_fails_halt_marker
+      register: step_ca_cert_probe_fails_marker
+      failed_when: not step_ca_cert_probe_fails_marker.stat.exists
+
+    - name: Confirm nothing was issued
+      community.docker.docker_container_info:
+        name: step-ca-cert-issue-widget
+      register: step_ca_cert_probe_fails_issue
+      failed_when: step_ca_cert_probe_fails_issue.exists
+
+    - name: Confirm step_ca_cert never got as far as installing any renewal unit
+      ansible.builtin.stat:
+        path: /etc/systemd/system/cert-renewer@.service
+      register: step_ca_cert_probe_fails_unit
+      failed_when: step_ca_cert_probe_fails_unit.stat.exists

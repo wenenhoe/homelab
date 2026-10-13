@@ -2,6 +2,8 @@
 name = "homelab"
 version = "0.1.0"
 description = "Ansible automation for the homelab"
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.14"
 dependencies = [
     "ansible-core>=2.20",

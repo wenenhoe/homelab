@@ -7,7 +7,7 @@ short: High-value secret read alerts
 solution: Match request lines and watch every secret-bearing rotation credential, not only R2's
 summary: Every read of a rotation credential that can mint or revoke other credentials is visible and raises an alert.
 topic: secrets-store
-status: working
+status: approved
 supersedes: 0
 related: [ADR-0014, ADR-0020, ADR-0024]
 ---

@@ -93,7 +93,8 @@ below, over a complete inventory.
 
 ## Image vulnerability assessment
 
-A weekly job in the private `homelab-security` repo's own CI scans every image
+A weekly job in the private `homelab-security` repo's own CI (it ticks daily, and
+the first tick of each week runs it) scans every image
 this repo deploys, ranks what it finds, and keeps the results there. It is
 decided in
 [ADR 0071 (Image vulnerability assessment)](../../decisions/0071-assessing-the-vulnerabilities-of-deployed-container-images/revision-000.md).
@@ -114,13 +115,17 @@ here.
   a Tinyauth-protected route makes it reachable after. Consequence is a judgment
   kept in the private repo's policy file, where an image nobody has classified
   ranks as high.
-- **Where it runs.** Three jobs. The one that runs code from this repo and the
-  one that scans hold read-only tokens; only the job that records results can
-  write. Results, the policy and accepted-risk records stay in the private repo,
-  which notifies by pull request when something needs attention.
+- **Where it runs.** Four jobs. One reads only the history and decides whether
+  this tick runs; the one that runs code from this repo and the one that scans
+  hold read-only tokens; only the job that records results can write. Results,
+  the policy and accepted-risk records stay in the private repo, which notifies
+  by pull request when something needs attention. A run that comes more than a
+  set number of days after the previous one notifies too.
 - **Coupled to this repo's shape.** Classification reads each app's `routes`
   (`upstream`, `auth`) in `app_catalog.yaml` and each compose service's `ports`,
-  `network_mode` and `container_name`. A change to those shapes shows up there
+  `network_mode` and `container_name`. The hosts an image runs on, and so its
+  zone (on-prem unless the policy lists a host as off-site), come from each
+  `host_vars` file's `compose_apps` names. A change to those shapes shows up there
   as images it can't classify, which rank top band, not as silence.
 - **Not covered.** Host operating-system packages, whether what runs matches
   what `main` declares, and whether a vulnerability is exploitable here. A fixed

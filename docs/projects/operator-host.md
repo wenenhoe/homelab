@@ -38,7 +38,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 2 — tailnet policy
 
-The tailnet's policy is the default allow-all grant. Replace it with explicit grants: the laptop reaches VLAN 30 on `tcp:22`, no other source has a grant for that route, and everything the maintainer uses today is re-granted. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is tailnet-wide, so an edit that tightens access can lock out existing access; "Reset to default" restores the allow-all grant. The policy is hand-edited in the console now and coded later — see
+The tailnet's policy is the default allow-all grant, unless [`coding-agent-network.md`](coding-agent-network.md)'s tailnet route stage has already replaced it, in which case add this grant to that policy. Replace it with explicit grants: the laptop reaches VLAN 30 on `tcp:22`, no other source has a grant for that route, and everything the maintainer uses today is re-granted. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is tailnet-wide, so an edit that tightens access can lock out existing access; "Reset to default" restores the allow-all grant. The policy is hand-edited in the console now and coded later — see
 [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md).
 
 ### Stage 2 — required flows

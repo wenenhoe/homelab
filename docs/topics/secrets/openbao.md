@@ -53,11 +53,9 @@ which this deliberately isn't, so it needed the same manual treatment
 consumers are Ansible and, once the
 [CD agent project](../../projects/cd-agent.md) lands, the CD agent — not a
 human clicking through a browser. A human who needs to look inside
-Vault directly can still do it from the CLI (native `bao` on
-`security`, real TLS — see
-[`openbao-auth.md`](openbao-auth.md#runbook)) or `ssh -L
-8200:localhost:8200` for a one-off UI session; there's no standing
-need to expose it.
+Vault directly does it from the CLI (native `bao` on `security`, real
+TLS — see [`openbao-auth.md`](openbao-auth.md#runbook)). No UI is served,
+so a port forward to 8200 reaches the API and nothing else.
 
 ## TLS
 

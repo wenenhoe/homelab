@@ -3,7 +3,7 @@
 [![Renovate enabled](https://img.shields.io/badge/renovate-enabled-brightgreen.svg)](https://renovatebot.com)
 [![Trivy scheduled scan](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml/badge.svg)](https://github.com/wenenhoe/homelab/actions/workflows/trivy-scheduled.yml)
 
-A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. There is no manual step on a target host beyond running `ansible-playbook`.
+A small fleet of Ubuntu hosts running Dockerized services, fully converged by Ansible — package installs, DNS zones, TLS routes, and every app's config are generated on every run. Apart from the few secrets listed below that stay manual, there is no manual step on a target host beyond running `ansible-playbook`.
 
 | Concern | Stack |
 | :--- | :--- |
@@ -36,9 +36,16 @@ Telegram on updates. Every host runs a `backup_agent` pushing
 GPG-encrypted archives of its own apps' named volumes to **SeaweedFS** on
 `storage` nightly, relayed further offsite by `cloud_sync` to R2/B2/OCI
 — see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md).
-Every secret in this repo is generated, cached, and rotated through
-**OpenBao** on `security` — see
-[`docs/topics/secrets/openbao.md`](docs/topics/secrets/openbao.md).
+Nearly every secret in this repo is generated, cached, and rotated
+through **OpenBao** on `security` — see
+[`docs/topics/secrets/openbao.md`](docs/topics/secrets/openbao.md). A few
+stay outside it by design: the Shamir unseal shares and the read-only
+snapshot credentials
+([ADR 0017](docs/decisions/0017-recovering-the-secrets-store-from-total-loss/revision-000.md)),
+the controller's `main-domain` and AppRole pair
+([`secret_catalog.yaml`](ansible/inventory/group_vars/all/secret_catalog.yaml)),
+and Beszel's key and token, typed into its web UI
+([ADR 0047](docs/decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 
 The rest of `docker/` is independently deployable Compose stacks
 (dashboards, media-download tools, Minecraft, a link shortener, a

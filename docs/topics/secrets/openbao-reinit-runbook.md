@@ -154,6 +154,10 @@ can't fix.
    ```
 
    Expect `IDENTICAL`, no exceptions.
+9. Delete the two dump directories from steps 1 and 8 with `rm -r` once
+   step 8 reports `IDENTICAL`. Each holds every Vault value as a plaintext
+   file, and the file modes only keep other local users out. If step 8
+   reports a difference, keep both until it is explained.
 
 ## Downtime
 

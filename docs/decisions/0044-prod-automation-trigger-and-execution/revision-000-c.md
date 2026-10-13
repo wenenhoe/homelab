@@ -85,7 +85,7 @@ flowchart LR
 - How the agent's first credential arrives ([ADR 0047 (First-credential bootstrap)](../0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 - The host's OS hardening baseline ([ADR 0043 (Host hardening baseline)](../0043-host-os-hardening-baseline/revision-000.md)), which it inherits.
 - Tofu and break-glass access ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)).
-- Splitting the shared SSH key, tracked in [`cd-agent.md`](../../projects/cd-agent.md).
+- Splitting the shared SSH key, which [ADR 0075 (Job SSH identity)](../0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md) decides and [`cd-agent-job-ssh-keys.md`](../../projects/cd-agent-job-ssh-keys.md) tracks.
 - Verifying commit signatures (see Alternatives considered).
 
 ## Validation

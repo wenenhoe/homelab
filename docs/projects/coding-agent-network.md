@@ -44,7 +44,7 @@ Throwaway, time-boxed, on a scratch VLAN and VM, discarded once answered. The qu
 
 ### Stage 2 — tailnet route
 
-VM 202 advertises the VLAN's route, and the tailnet policy grants it to the laptop on `tcp:22` only, with `tests` asserting that no other node has it. The edit follows the handling in [`operator-host.md`](operator-host.md)'s Stage 2 policy change: copy the current policy first and use the console's preview before saving.
+VM 202 advertises the VLAN's route, and the tailnet policy grants it to the laptop on `tcp:22` only, with `tests` asserting that no other node has it. The edit follows the handling in [`operator-host.md`](operator-host.md)'s Stage 2 policy change: copy the current policy first and use the console's preview before saving. Whichever of the two stages edits the policy first replaces the allow-all grant and re-grants everything the maintainer uses today; the other adds its grant. Advertise or approve the route only after the saved policy grants it to the laptop alone, since while allow-all is in force every tailnet node would reach the VLAN.
 
 ## Acceptance criteria
 

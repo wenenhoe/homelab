@@ -44,6 +44,35 @@ Auto-merge is not used: it is unavailable on private repositories
 without a paid plan, and waits on required checks that a pull request
 opened with `GITHUB_TOKEN` starts only after someone approves the run.
 
+## The agent audit
+
+A scheduled `homelab-security` workflow audits this repo with a coding
+agent ([ADR 0061 (Automated code review)](../../decisions/0061-where-automated-code-review-runs-and-what-it-may-write/revision-000.md);
+the agent's credential is
+[ADR 0062 (Reviewer identity)](../../decisions/0062-automation-identity-for-the-agent-based-reviewer/revision-000.md)).
+It runs twice a week. Each run audits one group of the repo's paths, so a
+run is small enough to read in full, and the groups take turns until the
+whole repo has been covered.
+
+The job clones this repo without a credential and gives the agent the
+clone, including `docs/decisions/` and `docs/projects/`. The agent reads
+across files and docs as it needs to, not within a fixed directory split,
+and flags a finding only after checking whether an existing decision or
+project already covers the behavior. Its report separates new findings
+from behavior already covered (with what that record leaves uncovered),
+possible duplicates of existing findings, findings already tracked, and
+any finding the checks withheld. It also lists every file the agent did
+not read, so a partial run is visible. New findings are written under the
+contract in [Writing findings](#writing-findings).
+
+Nothing in the job can write to this repo. The workflow's `GITHUB_TOKEN`
+is scoped to `homelab-security` and cannot perform cross-repo writes, and
+the workflow uses no personal access token. The agent authenticates with
+`CLAUDE_CODE_OAUTH_TOKEN`, held as a `homelab-security` secret. It has no
+automated renewal: the token comes from a browser-mediated
+`claude setup-token` flow, so regenerating it before it expires is a
+manual, calendar-driven task.
+
 ## Triage
 
 Triage happens outside CI. The maintainer bundles the open findings and

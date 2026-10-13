@@ -7,7 +7,7 @@ short: Reviewer identity
 solution: "CLAUDE_CODE_OAUTH_TOKEN from the maintainer's personal Claude Pro/Max subscription, used only by the unmodified claude CLI in a private repository's CI"
 summary: "Which credential the periodic full-repo audit agent authenticates with, and whose usage it draws from."
 topic: security-hardening
-status: approved
+status: accepted
 related: [ADR-0020, ADR-0061]
 ---
 

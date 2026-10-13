@@ -3,8 +3,7 @@ id: PROJ-cd-agent-job-ssh-keys
 title: CD Agent Job SSH Keys
 type: project
 status: not-started
-blocked: true
-blocked_reason: "ADR 0075 revision 0 is not approved."
+blocked: false
 summary: A per-job SSH key generated on the CD agent and authorized only on the hosts that job manages.
 decision: ADR-0075/0
 super_project: pull-based-cd

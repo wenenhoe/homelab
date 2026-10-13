@@ -1,29 +1,10 @@
 # Security policy
 
-This repository is the source for a personal homelab: Ansible roles, Docker Compose stacks, and the Python tooling around them. It describes private infrastructure. It is not a hosted service, and there is nothing here to attack remotely.
+This is a personal homelab repository: Ansible roles, Docker Compose stacks, and the Python tooling around them. It describes private infrastructure and is not a hosted service. It is provided as-is.
 
-## Reporting a vulnerability
+## Reporting
 
-Report privately through GitHub: open this repository's **Security** tab and choose **Report a vulnerability**. Please do not open a public issue or pull request for a suspected vulnerability, and do not paste a secret's value into a report. Say where it is and the maintainer will rotate it.
-
-A useful report names the file, role or workflow, how to reproduce the problem or reason to it, and what an attacker would gain. This is a one-person project: there is no response-time commitment and no bounty, but a valid report is triaged and fixed on `main`, and the reporter is credited on request.
-
-## Supported versions
-
-The repository has no releases or tags. Only `main` is maintained, and a fix lands there as an ordinary commit.
-
-## Scope
-
-In scope:
-
-- A flaw in the repository's own code or configuration (an Ansible role or playbook, a Compose template, the Python under `tools/`, a CI workflow) that would weaken the protections listed under [Security model](#security-model) for anyone who copies or deploys it.
-- A credential, key or token committed anywhere in git history.
-
-Out of scope:
-
-- Vulnerabilities in third-party software or container images this repository deploys. Report those upstream.
-- Testing, scanning or probing any host, address or service this repository configures. They are private; describe the concern in a report instead.
-- A weakness that needs an already-compromised host, unless it crosses a boundary the [backup threat model](docs/topics/disaster-recovery/backup-threat-model.md) says holds.
+This repository does not run a vulnerability disclosure program. Security reports are not actively monitored or accepted, there is no private reporting channel, and no response, fix or credit is promised. The repository has no releases or tags, and only `main` is maintained.
 
 ## Security model
 

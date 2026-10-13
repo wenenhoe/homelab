@@ -96,15 +96,16 @@ inherits it the same way any other native `bao` invocation does.
 
 **Version note:** `bao operator raft snapshot save`'s behavior
 (described below) was confirmed live against a real backup run on an
-earlier pinned image, and the restore-side behavior (`-force`, the
-reseal, the old token going invalid) only against a v2.2.0 spike
-instance. Neither has been re-run against the image
-`docker/openbao/compose.yaml.j2` pins now. Newer releases can change
-behavior: `generate-root`'s authenticated-endpoint behavior changed
-(see
+earlier pinned image. The restore-side behavior (`-force`, the reseal,
+the old token going invalid) was first confirmed on a v2.2.0 spike
+instance; the `snapshot_restore` Molecule scenario
+([`molecule-testing.md`](../engineering/molecule-testing.md)) now runs
+it on whatever image the Molecule helper pins, on every bump of that
+pin. Newer releases can change behavior: `generate-root`'s
+authenticated-endpoint behavior changed (see
 [ADR 0025 (Admin without root token)](../../decisions/0025-admin-capability-without-a-standing-root-token/revision-000.md)'s
-Context). Confirm both against the pinned image during the next restore
-drill.
+Context). When that scenario fails, this section and the drill below
+are what to revisit.
 
 ## `bao` CLI behavior this script and the restore drill depend on
 

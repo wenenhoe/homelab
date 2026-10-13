@@ -73,6 +73,11 @@
 #     openbao-controller-role-id/-secret-id resolve to for this
 #     scenario's project_root)
 #
+# Leaves behind, in the certs directory (/tmp/molecule-openbao-test-certs):
+#   unseal-key — the 1-of-1 unseal key, written once at initialization.
+#     Only a scenario that restores a snapshot of this instance onto a
+#     second node reads it (that node unseals with these shares).
+#
 # Optional:
 #   molecule_helpers_openbao_step_ca_container_name (default:
 #     step-ca-test — must already be running, e.g. via
@@ -355,6 +360,19 @@
         container: openbao-test
         command: "bao operator unseal -address=https://127.0.0.1:8200 {{ molecule_helpers_openbao_unseal_key }}"
       changed_when: true
+      no_log: true
+
+    # Kept for a scenario that restores a snapshot of this instance
+    # elsewhere: a restored node unseals with the SOURCE's shares, and
+    # this is the only moment they exist. Written unconditionally (a
+    # `when:` here would show as skipped in every other scenario) to a
+    # path nothing reads unless it asks. A 1-of-1 key for a throwaway
+    # instance, in the same /tmp directory as its throwaway cert key.
+    - name: Keep the unseal key next to the certs, for a scenario that restores a snapshot elsewhere
+      ansible.builtin.copy:
+        dest: "{{ molecule_helpers_openbao_cert_dir }}/unseal-key"
+        content: "{{ molecule_helpers_openbao_unseal_key }}"
+        mode: "0600"
       no_log: true
 
     # community.docker.docker_container_exec's env: parameter, not raw

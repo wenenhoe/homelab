@@ -25,6 +25,10 @@ services:
       # Value must match this app's name in app_catalog.yaml exactly —
       # ansible/roles/backup_agent keys each app's stop label on it.
       - docker-volume-backup.stop-during-backup=tinyauth
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

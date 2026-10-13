@@ -76,6 +76,11 @@ uses them switched off. Two images here set a file capability:
   (`capabilities(7)`, "Safety checking for capability-dumb binaries"), so
   the container would not start.
 
+Where the capability is one the container is meant to hold, keep it and drop
+the rest: Caddy's base image sets `cap_net_bind_service` on its binary and the
+process runs as root, so `caddy` sets `cap_add: [NET_BIND_SERVICE]` after
+`cap_drop: [ALL]`.
+
 An entrypoint that starts as root to `chown` a volume and then drops to
 another user (`lldap`, `seaweedfs` and `minecraft` do) needs `CHOWN`, `SETUID`
 and `SETGID` back, or to start as that user. The `docker-socket-proxy`

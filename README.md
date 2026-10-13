@@ -245,3 +245,7 @@ Most hooks run at commit time; `ansible-lint` runs at push time.
 enforces the same checks on every PR whether or not hooks are installed
 locally. The hook list, what runs when, and where each tool's config
 lives are in [`pre-commit.md`](docs/topics/engineering/pre-commit.md).
+
+## License
+
+Released under the [MIT License](LICENSE).

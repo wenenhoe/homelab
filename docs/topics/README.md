@@ -101,6 +101,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/release-checksum-check.md`](engineering/ci/release-checksum-check.md) | The check that each pinned release hash is the one its publisher signed, attested or lists, on pull requests and weekly. |
 | [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |
+| [`ci/renovate.md`](engineering/ci/renovate.md) | How self-hosted Renovate runs, its schedule, and the `RENOVATE_TOKEN` it authenticates with: permissions, creation, rotation and checking a run. |
 | [`mutation-testing.md`](engineering/mutation-testing.md) | When a mutation run is worth making on the credential tooling, how to read a survivor, and why its output stays off public surfaces. |
 | [`molecule-testing.md`](engineering/molecule-testing.md) | Molecule scenario matrix and how to add one. |
 | [`molecule-fixtures.md`](engineering/molecule-fixtures.md) | How fixtures avoid duplicating prod compose files, `app_catalog` entries, and placeholder shapes; `molecule_helpers`' shared task files and DinD test-container internals. |

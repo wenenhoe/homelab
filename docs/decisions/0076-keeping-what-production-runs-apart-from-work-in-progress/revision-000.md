@@ -33,11 +33,11 @@ An image this repository builds is published only after the merge that publishes
 
 A Renovate branch is cut on top of the commits `maintenance` holds that `main` does not. Renovate marks a pull request edited when any commit between its base branch and its branch has an author or committer other than its own, and then neither rebases nor updates it, whatever `rebaseWhen` says. Rewriting `maintenance` therefore leaves old copies of those commits in every open Renovate branch, committed by whoever ran the rewrite, and blocks every one of those pull requests. Merging `main` into `maintenance` leaves them as they are: Renovate rebases its own branches onto the merged tip under `rebaseWhen: behind-base-branch`, without marking them edited. A plain `git rebase` also drops merge commits, so a replayed branch can lose the promotions on it.
 
-A ruleset can require a pull request and passing checks on a branch and still let a named actor push to it, listing the bypassed rules in the push output; that actor can be allowed to force-push `maintenance` and `develop` and refused on `main`. The job token a workflow gets by default is refused on all three, so the Renovate workflow pushes with the maintainer's token. Caches saved on `main` restore in pull requests into the other branches.
+A ruleset can require a pull request and passing checks on a branch and still let a named actor push to it, listing the bypassed rules in the push output; that actor can be allowed to force-push `maintenance` and `develop` and refused on `main`. The job token a workflow gets by default is refused on all three, so the Renovate workflow needs a credential of its own to push. A ruleset can require a number of approving reviews on a branch; an approval from the pull request's author does not count towards it, and the bypass list can be limited to pull requests, so a bypassing actor still cannot push to the branch directly. A GitHub App installation token acts as the app, a bot identity separate from the maintainer's account. Caches saved on `main` restore in pull requests into the other branches.
 
 A deploy whose command fails is not recorded, so the CD agent runs it again on its next poll. A compose pin that reaches `main` before its image is published therefore fails and retries until the image exists.
 
-**Threat model.** The adversary can merge or push to a branch other than `main`, or is a dependency source that sends a malicious update. The asset is what the CD agent deploys. If any ref but `main` could be deployed, a merge there would act on production as a merge to `main` does now, with none of the promotion review. If images were published from branches other than `main`, an unpromoted Dockerfile change could replace the image behind a version tag that production pulls.
+**Threat model.** The adversary can merge or push to a branch other than `main`, holds the credential the Renovate workflow uses, or is a dependency source that sends a malicious update. The asset is what the CD agent deploys. A credential that can write to `maintenance` can also open a pull request into `main`, so if that credential could also merge one, it would deploy without the maintainer having looked at it. If any ref but `main` could be deployed, a merge there would act on production as a merge to `main` does now, with none of the promotion review. If images were published from branches other than `main`, an unpromoted Dockerfile change could replace the image behind a version tag that production pulls.
 
 ## Decision
 
@@ -60,7 +60,8 @@ flowchart LR
 - **Promotion.** A pull request from `maintenance` or `develop` into `main`, merged by the maintainer with a merge commit. The two promote independently, so a batch of dependency updates does not wait for development.
 - **Realignment never rewrites a branch.** After `main` moves, a branch that is an ancestor of `main` is fast-forwarded to it, which a promotion by merge commit makes `maintenance` and `develop`. A branch with commits not yet promoted has `main` merged into it with a plain merge commit. Both are pushed without force. A merge that conflicts is aborted, leaving the branch as it was.
 - **`maintenance` is realigned before each Renovate run.** The first step of the Renovate workflow realigns `maintenance` as above, so Renovate reads the repository, its configuration included, as `main` has it plus the dependency updates still waiting. Renovate runs with `rebaseWhen: behind-base-branch` so its open branches follow. A merge that conflicts fails the workflow before Renovate runs. The logic is stdlib-only Python under `tools/ci` with unit tests ([ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)). `develop` is realigned by the maintainer, as it holds work in progress that nothing else may touch.
-- **Checks.** Every pull request runs the checks it runs today, whichever of the three branches it targets. A ruleset on each branch requires them; `main` accepts only pull requests and refuses force pushes; `maintenance` and `develop` accept pushes without a pull request from the maintainer alone, which includes the token the Renovate workflow runs with; no branch is force-pushed in normal use.
+- **Checks.** Every pull request runs the checks it runs today, whichever of the three branches it targets. A ruleset on each branch requires them; `main` accepts only pull requests, requires one approving review and refuses force pushes; no branch is force-pushed in normal use.
+- **Who can push.** The Renovate workflow authenticates as a GitHub App installed on this repository alone, an identity used for nothing else. The app may push to `maintenance` and open pull requests, and is not on the bypass list of `main`, so it can neither merge into `main` nor approve for it. `maintenance` and `develop` accept pushes without a pull request from the maintainer and the app. The maintainer is on the bypass list of `main` for pull requests only, which lets them merge a promotion they opened themselves, and still refuses them a direct push.
 - **Promotion checklist.** A workflow on pull requests into `main` computes, from the diff between `main` and the pull request's head, what has to be run once it merges, and writes it into the pull request description between markers, leaving the maintainer's own text alone. Each rule names a path pattern and the command it asks for. The mapping is stdlib-only Python under `tools/ci` with unit tests ([ADR 0064 (CI and doc check code)](../0064-where-the-code-behind-ci-and-documentation-checks-lives/revision-000.md)). The checklist is advisory and never gates a merge.
 - **Images.** Built and published from `main` only, as now.
 - **Docs.** A topic doc describes the branch it is on. The docs on `main` describe what runs.
@@ -80,6 +81,8 @@ flowchart LR
 - `develop` is realigned by hand after every promotion and fix to `main`. `maintenance` is realigned by the Renovate workflow.
 - Each realignment of a branch with unpromoted commits leaves a merge commit on it.
 - A merge that conflicts holds back that day's Renovate run until the maintainer resolves it.
+- The Renovate credential becomes an app installation token the workflow mints on each run, in place of a long-lived personal one.
+- A promotion pull request opened by the maintainer is merged by the maintainer through the bypass; the approval requirement is what stops any other identity doing so.
 - Renovate rebases its own open pull requests onto the realigned `maintenance`. A pull request closed unmerged is not reopened for the same version.
 - A pull request into `develop` needs no rebase after a realignment, since the branch is never rewritten.
 - A dependency update reaches production only when the maintainer promotes `maintenance`, so a security update waits for a promotion, or goes straight to `main`.
@@ -91,6 +94,7 @@ flowchart LR
 - The CD agent fetches `main` and no other ref.
 - No change reaches `main` without a pull request that passed the checks.
 - No force push reaches `main`.
+- No credential that can push to `maintenance` or `develop` can also merge into `main`.
 - No image is published from a branch other than `main`.
 - No branch is rewritten, and no realignment pushes with force.
 - A realignment never changes `main`.
@@ -99,18 +103,22 @@ flowchart LR
 ## Non-goals
 
 - A second environment, or a deploy from `maintenance` or `develop`.
+- A second reviewer. The approval requirement exists so a credential cannot merge; the maintainer's bypass keeps promotions a one-person flow.
 - Automating the realignment of `develop`.
 - A promotion checklist that applies changes.
 - Changing how Renovate groups or schedules its pull requests.
+- Restricting which files the app may change on `maintenance`.
 
 ## Validation
 
 - The checklist rules are unit-tested against diffs of the paths they name.
 - Realignment is tested on temporary repositories: a branch that is an ancestor of `main` is fast-forwarded, one with extra commits gets `main` merged in with those commits intact, and a conflicting one is left unchanged with a failure.
 - A test over the workflow triggers asserts that the checks which run on a pull request into `main` also run on one into `maintenance` or `develop`.
+- Once the ruleset is set, the maintainer attempts, as the app, to merge a pull request into `main` and to push to it, and as themselves to push to `main` directly; all three are refused. A pull request from `maintenance` is merged by the maintainer.
 
 ## Reconsideration triggers
 
 - A second environment to deploy to.
+- A second maintainer, which makes a real review of promotions possible.
 - Promotions routinely needing both branches at once.
 - The CD agent applying every kind of change itself, which retires the checklist.

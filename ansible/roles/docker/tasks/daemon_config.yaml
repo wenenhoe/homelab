@@ -1,0 +1,46 @@
+---
+# Merges docker_daemon_defaults into /etc/docker/daemon.json rather than
+# overwriting the file: the bind9 role merges its own "dns" key into the
+# same file (bind9/tasks/network_conf.yaml), and each role has to leave the
+# other's keys alone.
+#
+# The content must stay byte-identical to what bind9 writes for the same
+# keys (`to_nice_json` of the merged dict, no trailing newline, mode 0644).
+# A different format makes each role rewrite the other's output, so both
+# report changed on every run and restart Docker twice per deploy.
+
+- name: Ensure /etc/docker exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    mode: "0755"
+
+- name: Check whether /etc/docker/daemon.json already exists
+  ansible.builtin.stat:
+    path: /etc/docker/daemon.json
+  register: docker_daemon_json_stat
+
+- name: Read the existing /etc/docker/daemon.json, if present
+  ansible.builtin.slurp:
+    path: /etc/docker/daemon.json
+  register: docker_daemon_json_read
+  when: docker_daemon_json_stat.stat.exists
+
+# dockerd refuses to start on a key it does not recognise, which would take
+# every container on the host down at the next restart. `validate` runs
+# before the file is replaced, so a bad key fails here instead.
+- name: Merge the daemon defaults into /etc/docker/daemon.json
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    content: >-
+      {{
+        (
+          (docker_daemon_json_read.content | b64decode | from_json)
+          if docker_daemon_json_stat.stat.exists
+          else {}
+        ) | combine(docker_daemon_defaults)
+        | to_nice_json
+      }}
+    mode: "0644"
+    validate: /usr/bin/dockerd --validate --config-file %s
+  notify: Restart docker

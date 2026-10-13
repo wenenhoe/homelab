@@ -12,6 +12,7 @@ Deploying apps: how the Ansible and Compose pipeline works and how to extend it.
 | :--- | :--- |
 | [`ansible.md`](deploy/ansible.md) | Playbook, role, and inventory reference tables. |
 | [`deployment-flow.md`](deploy/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_catalog`. |
+| [`docker-daemon.md`](deploy/docker-daemon.md) | `/etc/docker/daemon.json`: the defaults the `docker` role merges in, how it shares the file with `bind9`, and why `live-restore` is off. |
 | [`adding-an-app.md`](deploy/adding-an-app.md) | Wiring a new Compose app into the catalog. |
 | [`host-vars.md`](deploy/host-vars.md) | `host_vars/<host>.yaml` field reference. |
 | [`volumes.md`](deploy/volumes.md) | Named-volume storage: creation, config seeding. |

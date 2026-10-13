@@ -9,6 +9,7 @@ secrets:
   - [vault_backed, delivered_root_cert, vault_approle_files_missing]
   - [rotate_secret, default, manual_missing]
   - [vault_manual_missing, cache_dir_env, vault_approle_missing]
+  - [snapshot_restore]
 step_ca_cert:
   - [signal_chown, san_drift]
   - [default, not_running, probe_fails]

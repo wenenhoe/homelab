@@ -77,6 +77,11 @@ explicitly (Play 5 in `deploy.yaml`, `storage` only, after SeaweedFS
 deploys and before `backup_agent` runs). Kept out of `backup_agent` itself
 since bucket creation is a one-time storage-side concern.
 
+The role leaves the bucket's versioning suspended. Each agent prunes by
+retention (see "What's backed up") with a plain delete, which on a versioned
+bucket only adds a delete marker and keeps the archive stored; suspended, the
+delete frees the data. A pruned archive still leaves a zero-byte delete marker.
+
 ## Encryption
 
 Archives are GPG-encrypted (`GPG_PUBLIC_KEY_RING_FILE`) with an asymmetric

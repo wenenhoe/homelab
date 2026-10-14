@@ -43,3 +43,9 @@ AWS-0093 exp:2026-12-22
 # PutBucketLogging as not implemented at all. Same three-month `exp:`
 # as the entries above, for the same reason.
 AWS-0089 exp:2026-12-22
+
+# The same task leaves versioning suspended on purpose: on an enabled
+# bucket the retention prune only adds delete markers and never frees the
+# archives (see the comment above that task's `versioning:` line). Same
+# three-month `exp:` as the entries above, so it comes back for a re-check.
+AWS-0090 exp:2026-12-22

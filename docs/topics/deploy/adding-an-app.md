@@ -63,10 +63,13 @@ used.
 
 Before adding them, read the image's Dockerfile and entrypoint for `setcap`,
 `chmod u+s`, `sudo`, `su-exec`, `gosu` and `setpriv`. An image that has any of
-these leaves the pair off or adds back what they need. Two images here set a
-file capability:
+these leaves the pair off, adds back what they need, or has the feature that
+uses them switched off. Two images here set a file capability:
 
-- `dashy` gives `ping` `cap_net_raw`, so a non-root user can run it.
+- `dashy` gives `ping` `cap_net_raw`, so a non-root user can run it. Only its
+  ICMP ping check runs `ping`. The HTTP status checks this repo configures
+  do not, so `dashy` takes the pair, and a ping check added to its config
+  would stop working.
 - `step-ca` gives its `step-ca` binary `cap_net_bind_service` with the
   effective bit set. For such a file the kernel refuses the `exec` outright
   when the process cannot get every capability the file names

@@ -12,9 +12,9 @@
 # tracking justifications elsewhere.
 #
 # ansible/roles/seaweedfs_bucket/tasks/main.yaml's amazon.aws.s3_bucket
-# task sets public_access to satisfy these, targeting SeaweedFS (pinned
-# ghcr.io/chrislusf/seaweedfs:4.47, see docker/seaweedfs/compose.yaml.j2)
-# via endpoint_url. Confirmed live against that exact pinned image: a
+# task sets public_access to satisfy these, targeting SeaweedFS (the image
+# pinned in docker/seaweedfs/compose.yaml.j2) via endpoint_url. Confirmed
+# live against that exact pinned image: a
 # PutPublicAccessBlock call returns "NotImplemented: A header you
 # provided implies functionality that is not implemented" — there's no
 # working API on this version to set these against, so adding the

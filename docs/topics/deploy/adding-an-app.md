@@ -61,6 +61,11 @@ begin with, so for it the pair changes nothing unless the image relies on
 files its own root-owned volume holds (`beszel-hub`, `diun`) loses nothing it
 used.
 
+The daemon already sets `no-new-privileges` for every container
+([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps
+it on where the service is defined, whatever the daemon is set to, and
+`cap_drop` has no daemon-wide default.
+
 Before adding them, read the image's Dockerfile and entrypoint for `setcap`,
 `chmod u+s`, `sudo`, `su-exec`, `gosu` and `setpriv`. An image that has any of
 these leaves the pair off, adds back what they need, or has the feature that

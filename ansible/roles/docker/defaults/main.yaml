@@ -2,7 +2,10 @@
 # Merged into /etc/docker/daemon.json by tasks/daemon_config.yaml. A daemon
 # default applies to containers created after Docker restarts; a container
 # keeps the logging it was created with until it is recreated.
+# `no-new-privileges` is the only privilege default dockerd accepts; there is
+# no daemon-wide cap_drop.
 docker_daemon_defaults:
+  no-new-privileges: true
   log-driver: json-file
   log-opts:
     max-size: 10m

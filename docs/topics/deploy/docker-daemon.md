@@ -9,6 +9,7 @@ in Play 1 of `deploy.yaml`; see [`deployment-flow.md`](deployment-flow.md).
 
 | Setting | Effect |
 | :--- | :--- |
+| `no-new-privileges` | Every container starts with the kernel's `no_new_privs` flag set, so `exec` cannot grant it a privilege through a setuid binary. A service opts out with `security_opt: [no-new-privileges=false]`. Existing containers keep what they were created with until they are recreated. `cap_drop` has no daemon-wide default (`dockerd` rejects `default-cap-drop`), so it stays per service; see [Container hardening](adding-an-app.md#container-hardening). |
 | `log-driver`, `log-opts` | Every container's `json-file` log rotates at the size and file count in `docker_daemon_defaults`, so one noisy container cannot fill the VM disk. A container's own `logging:` block in its compose file overrides the daemon default. |
 
 A daemon default applies to containers created after Docker restarts. A
@@ -49,7 +50,12 @@ reattach to the running containers, and they must be stopped by hand.
 ```sh
 sudo cat /etc/docker/daemon.json
 docker inspect --format '{{json .HostConfig.LogConfig}}' <container>
+docker info --format '{{.SecurityOptions}}'
 ```
+
+`docker info` lists `name=no-new-privileges` once the default is on.
+`docker inspect` does not show it in a container's `SecurityOpt`; read
+`NoNewPrivs` in `/proc/<pid>/status` on the host instead.
 
 The file holds the role's keys alongside `dns` on the DNS host. A container
 created after the restart shows the default `Config`; one created before it

@@ -28,8 +28,9 @@ Docs are grouped by artifact type, one directory each:
   bound what its work may change (`allowed_paths`); see
   [`projects/README.md#scope`](projects/README.md#scope). The generated
   [`project-planning.md`](project-planning.md) orders them across the
-  whole repo: projects with an initiative by build order, standalone
-  projects, and the open ADRs no project covers yet.
+  whole repo: what can be started now, projects with an initiative by
+  build order, standalone projects, and the open ADRs no project covers
+  yet.
 
 A doc states a figure once, where the file that owns it can be read: a
 count of plays, jobs or hosts, a pinned version, a cron period or a

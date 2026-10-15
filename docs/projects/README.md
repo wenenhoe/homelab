@@ -73,9 +73,18 @@ service). Waiting on a project is derived from `depends_on`, and so is
 "ready": the index marks a `not-started` project ready when its decision
 revision is `approved` (or it has no `decision:`), it is not blocked, and
 no project it depends on remains. Neither is a status, so neither needs
-an edit when it changes. A risk —
+an edit when it changes. A `not-started` project that is not blocked and
+waits on no project, but whose decision revision is not yet `approved`,
+reads "waiting on" that revision, derived the same way. A risk —
 something that could cause rework but blocks nothing now — goes in the
 doc's Risks list instead.
+
+The generated views derive two more things from the same fields.
+**Unblocks** is the number of existing projects that wait on a project,
+directly or through a chain of `depends_on`. [Next up](../project-planning.md#next-up)
+lists what can be started now, ordered by status and then by Unblocks.
+Neither is stored, and no field carries a priority
+([ADR 0082 (Choosing the next project)](../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)).
 
 ## What goes in one
 
@@ -220,30 +229,30 @@ here.
 
 ## Index
 
-| Project | Status | Covers |
-| :--- | :--- | :--- |
-| [`cd-agent-approles.md`](cd-agent-approles.md) | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
-| [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
-| [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md) | Not started — waiting on [`cd-agent-approles.md`](cd-agent-approles.md) | One operator-host command that delivers each CD agent job's credentials, and the secret_id rotation that reuses it. |
-| [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md) | Not started | A per-job SSH key generated on the CD agent and authorized only on the hosts that job manages. |
-| [`cd-agent-rotation.md`](cd-agent-rotation.md) | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
-| [`cd-agent.md`](cd-agent.md) | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
-| [`coding-agent-access-path.md`](coding-agent-access-path.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
-| [`coding-agent-host.md`](coding-agent-host.md) | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
-| [`coding-agent-management.md`](coding-agent-management.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else. |
-| [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
-| [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) | Not started — waiting on [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md), [`coding-agent-network.md`](coding-agent-network.md) | Move the coding-agent VLAN, firewall rules, and proxy configuration from hand-maintained OPNsense state into Tofu. |
-| [`coding-agent-network.md`](coding-agent-network.md) | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
-| [`gatus-job-heartbeats.md`](gatus-job-heartbeats.md) | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
-| [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
-| [`host-hardening-remaining-hosts.md`](host-hardening-remaining-hosts.md) | Not started — waiting on [`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
-| [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
-| [`off-site-monitoring.md`](off-site-monitoring.md) | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
-| [`operator-host.md`](operator-host.md) | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials. |
-| [`production-and-work-in-progress-branches.md`](production-and-work-in-progress-branches.md) | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
-| [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Not started — waiting on [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Rebuild on the real VMID ranges, cut over, and decommission the old VMs. |
-| [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | Build the isolated 5XX block and run the first restore.yaml against it. |
-| [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) | De-risking — waiting on [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Kea, VLAN, and static DNS configured through OPNsense's API. |
-| [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | De-risking | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
-| [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | Not started — waiting on [`operator-host.md`](operator-host.md), [`workstation-management.md`](workstation-management.md) | Remove every infrastructure credential and the controller tooling from VM 401, then retire it, once the operator host runs the controller and the laptop works as the workstation. |
-| [`workstation-management.md`](workstation-management.md) | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access. |
+| Project | Unblocks | Status | Covers |
+| :--- | ---: | :--- | :--- |
+| [`cd-agent-approles.md`](cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
+| [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
+| [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md) | — | Not started — waiting on [`cd-agent-approles.md`](cd-agent-approles.md) | One operator-host command that delivers each CD agent job's credentials, and the secret_id rotation that reuses it. |
+| [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md) | — | Not started — waiting on [ADR-0075/0](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md) | A per-job SSH key generated on the CD agent and authorized only on the hosts that job manages. |
+| [`cd-agent-rotation.md`](cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
+| [`cd-agent.md`](cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
+| [`coding-agent-access-path.md`](coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |
+| [`coding-agent-host.md`](coding-agent-host.md) | 4 | Not started — waiting on [`coding-agent-network.md`](coding-agent-network.md) | The dedicated VM, Ansible role, and inventory group that run Claude Code unprivileged under its built-in sandbox. |
+| [`coding-agent-management.md`](coding-agent-management.md) | — | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Rebuild-first management of the coding-agent host from the Tofu definition at each start, with a dedicated key and a CD-agent job that holds nothing else. |
+| [`coding-agent-molecule-runtime.md`](coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Choose and adopt a container runtime that runs the repo's privileged, systemd-based Molecule scenarios without host-level root on the coding-agent host. |
+| [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) | — | Not started — waiting on [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md), [`coding-agent-network.md`](coding-agent-network.md) | Move the coding-agent VLAN, firewall rules, and proxy configuration from hand-maintained OPNsense state into Tofu. |
+| [`coding-agent-network.md`](coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
+| [`gatus-job-heartbeats.md`](gatus-job-heartbeats.md) | — | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
+| [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
+| [`host-hardening-remaining-hosts.md`](host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](operator-host.md), [`cd-agent.md`](cd-agent.md), [`coding-agent-host.md`](coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
+| [`monitoring-host-isolation.md`](monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
+| [`off-site-monitoring.md`](off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](gcp-e2-micro-provisioning.md) | Relocate monitoring to a GCP e2-micro so it survives loss of the whole site. |
+| [`operator-host.md`](operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials. |
+| [`production-and-work-in-progress-branches.md`](production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
+| [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | 2 | Not started — waiting on [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | Rebuild on the real VMID ranges, cut over, and decommission the old VMs. |
+| [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md) | 3 | Not started — waiting on [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | Build the isolated 5XX block and run the first restore.yaml against it. |
+| [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) | 1 | De-risking — waiting on [`tofu-migration-cutover.md`](tofu-migration-cutover.md) | Kea, VLAN, and static DNS configured through OPNsense's API. |
+| [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) | 5 | De-risking | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
+| [`workstation-capability-reduction.md`](workstation-capability-reduction.md) | — | Not started — waiting on [`operator-host.md`](operator-host.md), [`workstation-management.md`](workstation-management.md) | Remove every infrastructure credential and the controller tooling from VM 401, then retire it, once the operator host runs the controller and the laptop works as the workstation. |
+| [`workstation-management.md`](workstation-management.md) | 1 | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access. |

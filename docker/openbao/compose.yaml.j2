@@ -66,6 +66,10 @@ services:
         max-file: "5"
     cap_add:
       - IPC_LOCK # mlock, so secrets never get swapped to disk
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

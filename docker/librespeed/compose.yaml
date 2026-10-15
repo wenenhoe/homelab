@@ -16,6 +16,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    cap_drop:
+      - ALL
     expose:
       - '8080'
     security_opt:

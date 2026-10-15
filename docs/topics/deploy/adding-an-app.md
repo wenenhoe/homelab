@@ -69,7 +69,7 @@ it on where the service is defined, whatever the daemon is set to, and
 Before adding them, read the image's Dockerfile and entrypoint for `setcap`,
 `chmod u+s`, `sudo`, `su-exec`, `gosu` and `setpriv`. An image that has any of
 these leaves the pair off, adds back what they need, or has the feature that
-uses them switched off. Two images here set a file capability:
+uses them switched off. These images set a file capability:
 
 - `dashy` gives `ping` `cap_net_raw`, so a non-root user can run it. Only its
   ICMP ping check runs `ping`. The HTTP status checks this repo configures
@@ -79,7 +79,11 @@ uses them switched off. Two images here set a file capability:
   effective bit set. For such a file the kernel refuses the `exec` outright
   when the process cannot get every capability the file names
   (`capabilities(7)`, "Safety checking for capability-dumb binaries"), so
-  the container would not start.
+  after `cap_drop: [ALL]` the container would not start without
+  `cap_add: [NET_BIND_SERVICE]`.
+- `uptime-kuma` gives `ping` `cap_net_raw` the same way, so it keeps
+  `NET_RAW` and its ping monitors still run. It also keeps `DAC_OVERRIDE` and
+  `FOWNER`; without them it failed to write its database.
 
 Where the capability is one the container is meant to hold, keep it and drop
 the rest: Caddy's base image sets `cap_net_bind_service` on its binary and the
@@ -88,10 +92,11 @@ process runs as root, so `caddy` sets `cap_add: [NET_BIND_SERVICE]` after
 
 An entrypoint that starts as root to `chown` a volume and then drops to
 another user needs `CHOWN`, `SETUID` and `SETGID` back, or to start as that
-user. `lldap` and the `minecraft` server and backup services take them back
-with `cap_add`; `lldap` also keeps `DAC_OVERRIDE`, which its entrypoint's
-write check on `/data` needs. The `docker-socket-proxy` sidecars and `openbao`, which is non-root and gets `IPC_LOCK` through
-`cap_add`, each need their own check of what the process does after it starts.
+user. `lldap`, `seaweedfs`, `librespeed` and the `minecraft` server and backup
+services take them back with `cap_add`; `lldap` also keeps `DAC_OVERRIDE`,
+which its entrypoint's write check on `/data` needs. `openbao` runs as a
+non-root user and keeps only `IPC_LOCK`. The `docker-socket-proxy` sidecars
+each need their own check of what the process does after it starts.
 
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see

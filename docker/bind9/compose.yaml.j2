@@ -23,6 +23,10 @@ services:
       retries: 3
       start_period: 10s
     user: bind:bind
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 volumes:
   config:
     external: true

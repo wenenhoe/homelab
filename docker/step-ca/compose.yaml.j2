@@ -25,8 +25,14 @@ services:
       - caddy-proxy
     entrypoint: /scripts/entrypoint.sh
     restart: unless-stopped
+    cap_add:
+      - NET_BIND_SERVICE
+    cap_drop:
+      - ALL
     expose:
       - '9000'
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

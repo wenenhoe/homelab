@@ -1,2 +1,2 @@
 ---
-molecule_helpers_curl_image: "curlimages/curl:8.22.0"
+molecule_helpers_curl_image: "curlimages/curl:8.23.0"

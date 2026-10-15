@@ -109,7 +109,7 @@
     - name: Confirm the observer account actually binds with the expected password
       community.docker.docker_container:
         name: lldap-bootstrap-verify-bind
-        image: curlimages/curl:8.22.0
+        image: curlimages/curl:8.23.0
         # No entrypoint override: the image's own /entrypoint.sh already
         # auto-prepends `curl` whenever argv[0] starts with "-" (read the
         # actual script — github.com/curl/curl-docker's alpine
@@ -154,7 +154,7 @@
     - name: Confirm the observer account actually landed in lldap_strict_readonly
       community.docker.docker_container:
         name: lldap-bootstrap-verify-group
-        image: curlimages/curl:8.22.0
+        image: curlimages/curl:8.23.0
         entrypoint:
           - /bin/sh
           - -c

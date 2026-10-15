@@ -66,6 +66,24 @@ flags and the same identity shapes as production:
   count, left versions still under a lock untouched, and removed a delete marker
   that had nothing behind it. The job runs once a day by default and can be run
   on demand through the admin API.
+- The day-based rule removes what it should and no earlier. On a bucket with a
+  one-day compliance default and a one-day noncurrent rule, with the clock moved
+  forward in steps, a run at the start and a run twelve hours on removed nothing.
+  At twenty-five hours a version superseded at the start, and a version behind a
+  delete marker, were removed, and an incomplete multipart upload was aborted. A
+  version superseded at twelve hours was still there at twenty-five and gone at
+  thirty-seven. The delete marker left alone by that removal went on the next run
+  and a current version was never touched.
+- The clients behave as they do without a lock. A multipart upload from the
+  minio Python SDK as the backup identity took the default retention. A bulk
+  delete of the oldest archive left a marker, after which a listing, `rclone lsf
+  --max-age`, `rclone lsjson` and `rclone copy` 1.75.0 showed only the remaining
+  archives, and the same name could be written again.
+- The admin binds its HTTP and gRPC ports to loopback only. A worker started
+  with `-jobType=s3_lifecycle,vacuum` in the same network namespace as the
+  server connected over loopback and registered those two jobs. A peer namespace
+  on the same subnet reached the S3, filer and master ports and was refused on
+  the admin's two.
 - With a worker connected, the master's own vacuum sweep is switched off and the
   worker's `vacuum` job takes over; the master's sweep comes back about half a
   minute after the worker disconnects. A worker started with only
@@ -100,11 +118,13 @@ flags and the same identity shapes as production:
   nothing behind it, and abort an incomplete multipart upload after one day. The
   lifecycle job skips a version whose lock has not ended, so an archive is
   removed only after both its prune and its lock are over. Stored data is
-  therefore about the retention window plus two days.
+  therefore about the retention window plus two days; the marker's own removal
+  takes one more daily run and frees nothing.
 - **Run the jobs beside SeaweedFS.** An admin server and a worker restricted to
   `s3_lifecycle,vacuum` run next to the all-in-one server in the SeaweedFS
-  stack. The admin API is never routed through Caddy and is not reachable from
-  outside the stack. The worker's vacuum job replaces the master's sweep.
+  stack, in its network namespace (`network_mode: service:seaweedfs`), so the
+  admin's loopback listener is the boundary. The admin API is never routed
+  through Caddy and is not reachable from outside the stack. The worker's vacuum job replaces the master's sweep.
 - **Convert once, then declare.** The existing bucket is converted in place by
   one runbook step through the S3 API: versioning back on, then the lock and the
   default retention. A rebuilt `storage` host takes the module's create path.
@@ -136,29 +156,21 @@ flags and the same identity shapes as production:
 
 ## Assumptions
 
-- **Claim:** the lifecycle job's time-based rule removes a version once it has
-  been noncurrent for the configured days and its lock has ended, in the daily
-  pass.
-  **Breaks if wrong:** superseded archives are never removed and the bucket grows
-  by every archive, as it did before versioning was suspended.
-  **Checked by:** observing one noncurrent version removed after its days on a
-  throwaway or on `storage`. The check so far covered the count-based and
-  orphaned-marker parts of the job, because the time-based part cannot be seen in
-  less than a day.
-- **Claim:** the admin and the worker can run beside the all-in-one server and
-  reach its master and filer without exposing the admin API beyond the stack.
+- **Claim:** the compose wiring works under Docker: the admin and worker start
+  in the server's network namespace, reach its master and filer on localhost,
+  and no container on `caddy-proxy` reaches the admin.
   **Breaks if wrong:** the worker cannot connect, so there is no lifecycle and no
   vacuum, or the admin needs a published port.
-  **Checked by:** a spike with the compose change on a Molecule target.
-- **Claim:** `docker-volume-backup`'s upload and prune, the freshness check, the
-  restore listing and `cloud_sync` all work unchanged against a versioned bucket
-  with a default retention.
+  **Checked by:** a Molecule scenario on the SeaweedFS target. The listener and
+  reachability behaviour is checked in a bare namespace; `network_mode` itself
+  and the pinned image under Docker are not.
+- **Claim:** `docker-volume-backup`'s Go minio client uploads and prunes against
+  a versioned bucket with a default retention as the Python SDK did, and the
+  restore listing and `cloud_sync` work on the result.
   **Breaks if wrong:** a backup fails to upload, or a pruned archive still shows
   in a listing and is restored or relayed.
   **Checked by:** the `backup_agent` and `cloud_sync` Molecule scenarios run
-  against a target created the way production will be. The upload, listing and
-  delete paths so far were exercised with boto3, not with the minio client
-  `docker-volume-backup` uses or with rclone.
+  against a target created the way production will be.
 - **Claim:** a stopped or failing worker is noticed before the disk fills.
   **Breaks if wrong:** lifecycle stops silently and the bucket grows.
   **Checked by:** naming the signal before approval, such as a check that fails
@@ -221,6 +233,8 @@ flags and the same identity shapes as production:
 - A Molecule scenario drives the lifecycle job on demand through the admin API
   against a target with a short explicit retention, and asserts that an expired
   superseded version and an orphaned marker are removed and a locked one is not.
+  A count-based rule stands in for the day count there, since a day cannot
+  elapse in a test.
 - A unit test over `backup_plan` fails when an app's retention is below the lock
   window.
 - The operational signal for a stopped worker, once named.

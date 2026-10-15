@@ -7,7 +7,7 @@ short: Choosing the next project
 solution: "Derive the order from what the docs already record: an Unblocks count, a generated Next up view, and approved decisions listed first; store no priority"
 summary: How the repo shows which project or decision to take up next across initiatives, when status and dependencies are recorded but a preferred order between unrelated projects is not.
 topic: documentation-process
-status: approved
+status: accepted
 related: [ADR-0028, ADR-0037]
 ---
 

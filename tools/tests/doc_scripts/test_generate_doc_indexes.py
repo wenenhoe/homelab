@@ -62,11 +62,11 @@ class TestReadyLabel:
     def test_a_working_decision_is_not_ready(self, root, rows):
         revision(root, "0013-secret-storage", 0, status="working")
         project(root, "a", decision="ADR-0013/0")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | a summary |"]
+        assert rows() == ["| [`a.md`](a.md) | — | Not started — waiting on [ADR-0013/0](../decisions/0013-secret-storage/revision-000.md) | a summary |"]
 
     def test_a_decision_that_does_not_resolve_is_not_ready(self, root, rows):
         project(root, "a", decision="ADR-0099/0")
-        assert rows() == ["| [`a.md`](a.md) | — | Not started | a summary |"]
+        assert rows() == ["| [`a.md`](a.md) | — | Not started — waiting on ADR-0099/0 | a summary |"]
 
     def test_a_lettered_candidate_is_resolved_by_its_label(self, root, rows):
         revision(root, "0013-secret-storage", 0, letter="a", status="abandoned")
@@ -95,6 +95,7 @@ class TestReadyLabel:
         assert "— ready" in rows()[0]
         path.write_text(path.read_text(encoding="utf-8").replace("status: approved", "status: working"), encoding="utf-8")
         assert "— ready" not in rows()[0]
+        assert "— waiting on [ADR-0013/0]" in rows()[0]
 
     def test_every_view_that_renders_a_status_shows_it(self, root):
         revision(root, "0013-secret-storage", 0, status="approved")
@@ -104,6 +105,54 @@ class TestReadyLabel:
             initiatives = gen.render_initiatives_table(root)
         assert initiatives.splitlines()[2].endswith("| Not started — ready |")
         assert gen.render_standalone_projects_table(root).splitlines()[2] == "| [`b.md`](projects/b.md) | — | Not started — ready | b summary |"
+
+
+class TestWaitingOnADecisionLabel:
+    """A not-started project whose decision is not approved says which revision it waits on."""
+
+    @pytest.mark.parametrize(
+        ("render", "fields", "link"),
+        [
+            pytest.param(gen.render_projects_table, {}, "../decisions/0013-secret-storage/revision-000.md", id="index"),
+            pytest.param(gen.render_standalone_projects_table, {}, "decisions/0013-secret-storage/revision-000.md", id="projects-view"),
+            pytest.param(gen.render_initiatives_table, {"super_project": "s"}, "decisions/0013-secret-storage/revision-000.md", id="super-projects-view"),
+        ],
+    )
+    def test_the_link_is_relative_to_the_file_the_view_renders_into(self, root, render, fields, link):
+        revision(root, "0013-secret-storage", 0, status="working")
+        project(root, "a", decision="ADR-0013/0", **fields)
+        project(root, "b", **fields)
+        assert f"| Not started — waiting on [ADR-0013/0]({link}) |" in render(root)
+
+    def test_a_lettered_candidate_is_linked_by_its_label(self, root):
+        revision(root, "0013-secret-storage", 0, letter="a", status="abandoned")
+        revision(root, "0013-secret-storage", 0, letter="b", status="working")
+        project(root, "a", decision="ADR-0013/0-b")
+        assert "| Not started — waiting on [ADR-0013/0-b](../decisions/0013-secret-storage/revision-000-b.md) |" in gen.render_projects_table(root)
+
+    @pytest.mark.parametrize(
+        ("fields", "expected"),
+        [
+            pytest.param({"status": "de-risking", "decision": "ADR-0013/0"}, "De-risking", id="started"),
+            pytest.param(
+                {"blocked": True, "blocked_reason": "needs new hardware", "decision": "ADR-0013/0"},
+                "Not started — blocked: needs new hardware",
+                id="blocked",
+            ),
+            pytest.param(
+                {"depends_on": [{"project": "PROJ-base", "reason": "needs its output"}], "decision": "ADR-0013/0"},
+                "Not started — waiting on [`base.md`](base.md)",
+                id="waiting-on-a-project",
+            ),
+            pytest.param({}, "Not started — ready", id="no-decision"),
+        ],
+    )
+    def test_only_the_case_nothing_else_explains_is_labelled(self, root, fields, expected):
+        revision(root, "0013-secret-storage", 0, status="working")
+        project(root, "base", status="building")
+        project(root, "left-out", **fields)
+        status = gen.render_projects_table(root).splitlines()[-1].split("|")[3].strip()
+        assert status == expected
 
 
 class TestInitiativesTable:

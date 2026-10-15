@@ -34,10 +34,12 @@ STATUS_DISPLAY = {
 }
 
 
-def project_status_text(fm: dict, waiting_on: list[str], decision_status: str | None = None) -> str:
+def project_status_text(fm: dict, waiting_on: list[str], decision_status: str | None = None, decision_link: str | None = None) -> str:
     """The status cell. `decision_status` is the state of the revision the
     project's `decision:` names, or None when it has none or it doesn't
-    resolve (check_doc_drift.py reports the latter)."""
+    resolve (check_doc_drift.py reports the latter). `decision_link` is that
+    revision as a markdown link, or None when it doesn't resolve, in which
+    case the bare reference is shown."""
     text = STATUS_DISPLAY[fm["status"]]
     if fm.get("blocked"):
         text += f" — blocked: {fm['blocked_reason']}"
@@ -45,7 +47,17 @@ def project_status_text(fm: dict, waiting_on: list[str], decision_status: str | 
         text += " — waiting on " + ", ".join(waiting_on)
     elif _is_ready(fm, decision_status):
         text += " — ready"
+    elif _awaits_decision(fm, decision_status):
+        text += f" — waiting on {decision_link or fm['decision']}"
     return text
+
+
+def _awaits_decision(fm: dict, decision_status: str | None) -> bool:
+    """A not-started project that is not blocked and whose decision revision is
+    not approved: the state `_is_ready` rejects that neither a blocker nor a
+    predecessor explains. Derived like `_is_ready`, so approving the revision
+    changes the label with no edit to the project."""
+    return fm["status"] == "not-started" and not fm.get("blocked") and "decision" in fm and decision_status != "approved"
 
 
 def _is_ready(fm: dict, decision_status: str | None) -> bool:
@@ -63,6 +75,11 @@ def _decision_statuses(root: Path) -> dict[str, str]:
     return {f"{lineage.id}/{rev.label}": rev.status for lineage in load_lineages(root) for rev in lineage.revisions}
 
 
+def _decision_paths(root: Path) -> dict[str, str]:
+    """`ADR-NNNN/label` -> the revision's path under docs/decisions/."""
+    return {f"{lineage.id}/{rev.label}": f"{lineage.dir.name}/{rev.path.name}" for lineage in load_lineages(root) for rev in lineage.revisions}
+
+
 def _load_projects(root: Path) -> dict[str, tuple[Path, dict]]:
     projects = {}
     for path in docs_in(root / "docs/projects"):
@@ -78,6 +95,22 @@ def _waiting_on(fm: dict, projects: dict[str, tuple[Path, dict]], prefix: str = 
     docs/projects/ (docs/project-planning.md, not docs/projects/README.md).
     """
     return [f"[`{projects[d['project']][0].name}`]({prefix}{projects[d['project']][0].name})" for d in fm.get("depends_on", []) if d["project"] in projects]
+
+
+def _status_cell(
+    fm: dict,
+    projects: dict[str, tuple[Path, dict]],
+    decisions: dict[str, str],
+    decision_paths: dict[str, str],
+    *,
+    project_prefix: str,
+    decision_prefix: str,
+) -> str:
+    """The status cell for a view. The prefixes are the paths from the file the
+    view renders into to docs/projects/ and to docs/decisions/."""
+    ref = fm.get("decision")
+    link = f"[{ref}]({decision_prefix}{decision_paths[ref]})" if ref in decision_paths else None
+    return project_status_text(fm, _waiting_on(fm, projects, project_prefix), decisions.get(ref), link)
 
 
 def _unblocks(projects: dict[str, tuple[Path, dict]]) -> dict[str, int]:
@@ -111,10 +144,11 @@ def _unblocks_cell(count: int) -> str:
 def render_projects_table(root: Path = ROOT) -> str:
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
+    decision_paths = _decision_paths(root)
     unblocks = _unblocks(projects)
     rows = []
     for pid, (path, fm) in projects.items():
-        status = project_status_text(fm, _waiting_on(fm, projects), decisions.get(fm.get("decision")))
+        status = _status_cell(fm, projects, decisions, decision_paths, project_prefix="", decision_prefix="../decisions/")
         rows.append(f"| [`{path.name}`]({path.name}) | {_unblocks_cell(unblocks[pid])} | {status} | {fm['summary']} |")
     header = "| Project | Unblocks | Status | Covers |\n| :--- | ---: | :--- | :--- |"
     return "\n".join([header, *rows])
@@ -129,10 +163,11 @@ def render_standalone_projects_table(root: Path = ROOT) -> str:
     """
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
+    decision_paths = _decision_paths(root)
     unblocks = _unblocks(projects)
     rows = [
         f"| [`{path.name}`](projects/{path.name}) | {_unblocks_cell(unblocks[pid])} "
-        f"| {project_status_text(fm, _waiting_on(fm, projects, prefix='projects/'), decisions.get(fm.get('decision')))} | {fm['summary']} |"
+        f"| {_status_cell(fm, projects, decisions, decision_paths, project_prefix='projects/', decision_prefix='decisions/')} | {fm['summary']} |"
         for pid, (path, fm) in projects.items()
         if "super_project" not in fm
     ]
@@ -200,6 +235,7 @@ def render_initiatives_table(root: Path = ROOT) -> str:
     then by dependency depth, then by filename."""
     projects = _load_projects(root)
     decisions = _decision_statuses(root)
+    decision_paths = _decision_paths(root)
     depths = _dependency_depths(projects)
     unblocks = _unblocks(projects)
     entries = [
@@ -236,7 +272,7 @@ def render_initiatives_table(root: Path = ROOT) -> str:
         rows.append(
             f"|{initiative_cell}| {f'`{track}`' if track else '—'} | {f'`{phase}`' if phase else '—'} | [`{name}`](projects/{name}) "
             f"| {_unblocks_cell(unblocks[fm['id']])} "
-            f"| {project_status_text(fm, _waiting_on(fm, projects, prefix='projects/'), decisions.get(fm.get('decision')))} |"
+            f"| {_status_cell(fm, projects, decisions, decision_paths, project_prefix='projects/', decision_prefix='decisions/')} |"
         )
     header = "| Initiative | Track | Phase | Project | Unblocks | Status |\n| :--- | :--- | :--- | :--- | ---: | :--- |"
     return "\n".join([header, *rows])

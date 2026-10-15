@@ -73,7 +73,9 @@ service). Waiting on a project is derived from `depends_on`, and so is
 "ready": the index marks a `not-started` project ready when its decision
 revision is `approved` (or it has no `decision:`), it is not blocked, and
 no project it depends on remains. Neither is a status, so neither needs
-an edit when it changes. A risk —
+an edit when it changes. A `not-started` project that is not blocked and
+waits on no project, but whose decision revision is not yet `approved`,
+reads "waiting on" that revision, derived the same way. A risk —
 something that could cause rework but blocks nothing now — goes in the
 doc's Risks list instead.
 
@@ -232,7 +234,7 @@ here.
 | [`cd-agent-approles.md`](cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md) | — | Not started — waiting on [`cd-agent-approles.md`](cd-agent-approles.md) | One operator-host command that delivers each CD agent job's credentials, and the secret_id rotation that reuses it. |
-| [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md) | — | Not started | A per-job SSH key generated on the CD agent and authorized only on the hosts that job manages. |
+| [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md) | — | Not started — waiting on [ADR-0075/0](../decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md) | A per-job SSH key generated on the CD agent and authorized only on the hosts that job manages. |
 | [`cd-agent-rotation.md`](cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
 | [`cd-agent.md`](cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`coding-agent-access-path.md`](coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](coding-agent-host.md) | Terminal-only access to the coding-agent host and the fetch-review-push workflow, so the host never holds or reaches a push credential. |

@@ -14,7 +14,8 @@ what can be started and ranks nothing by importance: no field stores a
 priority, per
 [ADR 0082 (Choosing the next project)](decisions/0082-choosing-which-project-to-take-up-next/revision-000.md).
 A not-started project whose decision is still being worked out is not
-listed, since it is not ready.
+listed, since it is not ready; in the other tables its status names the
+decision revision it is waiting on.
 
 **Unblocks**, in every table of projects, is the number of existing
 projects that wait on that one, directly or through a chain of
@@ -78,7 +79,7 @@ calls for a project, while a working one still has to be settled.
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building |
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking |
 | | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Not started |
+| `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Not started — waiting on [ADR-0075/0](decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md) |
 | | `agent` | — | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building |
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 2 | Building |

@@ -894,7 +894,7 @@ wheels = [
 
 [[package]]
 name = "molecule"
-version = "26.9.0"
+version = "26.10.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ansible-compat" },
@@ -909,21 +909,21 @@ dependencies = [
     { name = "rich" },
     { name = "wcmatch" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/87/eb/ef1f1a0eba6e2fac4e59001c539109bc65c4dcd1b8a9d2b93c9097241d71/molecule-26.9.0.tar.gz", hash = "sha256:1c44254eb173d0a3a48217b874d19bfa436614fb0c6faa75d9b192a843360188", size = 4757309, upload-time = "2026-09-22T17:07:07.35Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/ea/86/6f3b9af840bea4296746db9ebfe6809f7848bb68e0dac7ac639879b72d6a/molecule-26.10.0.tar.gz", hash = "sha256:32533aaba78c29eed80bcaab5d03ff63fe48b8f43071cf77953f391e0732d439", size = 4753214, upload-time = "2026-10-12T09:11:19.381Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/4e/b7/4041d1b53467e12a4fd72ae7e0bb8ccc2909e126e2bb0cf2babcae82cc41/molecule-26.9.0-py3-none-any.whl", hash = "sha256:ad8f468c01f35a27cd12858e24c86ad27344dc1076845f03d78fdb563fb69f82", size = 163709, upload-time = "2026-09-22T17:07:05.163Z" },
+    { url = "https://files.pythonhosted.org/packages/6e/da/7bef0163484b9dc1bdce6883eb4898aebaf8e559cbea0df7db065e308e9f/molecule-26.10.0-py3-none-any.whl", hash = "sha256:deb351b11f1b329ae3b3c856d5b1c1d9a9d8f8d40ba717c77e54b1778b4557d2", size = 163735, upload-time = "2026-10-12T09:11:17.85Z" },
 ]
 
 [[package]]
 name = "molecule-plugins"
-version = "26.9.28"
+version = "26.10.12"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "molecule" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/28/56/ad3cdeccce8329532f1bdee1ddfce5c01eda24a454e2ca3b4b74f2ef6bba/molecule_plugins-26.9.28.tar.gz", hash = "sha256:bef4549c2a9d342c206cea4b6733c67282346b628cfce8d9a1500a9de0f8fc15", size = 283299, upload-time = "2026-09-28T07:12:26.425Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/9d/a9/0e69e39a9e65a673b0d5f4fc1ea810a2f6fab671162b21b157a0cf124f71/molecule_plugins-26.10.12.tar.gz", hash = "sha256:03f79df9f7d6d6107ad9507f6c58724bbd18c21afb6f020fc532361b343ea333", size = 276741, upload-time = "2026-10-12T21:47:46.334Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/07/81/50b82b82209f1bf1c5519c77aa6da53c77bfab16ea78e36b798ea34a3c95/molecule_plugins-26.9.28-py3-none-any.whl", hash = "sha256:15a3317d2a054af1fabefd6acc5a1de91de25586bbb7ed5684395caab508ac77", size = 96295, upload-time = "2026-09-28T07:12:24.733Z" },
+    { url = "https://files.pythonhosted.org/packages/07/79/192c2de4e0d25472182d45ca84bbe4eb9c646396f212c616554c71aec51d/molecule_plugins-26.10.12-py3-none-any.whl", hash = "sha256:a618b60016eac397d8e279eeb5c494a9cee6d33103dbe5222891df81657759f1", size = 88940, upload-time = "2026-10-12T21:47:44.832Z" },
 ]
 
 [package.optional-dependencies]
@@ -1039,7 +1039,7 @@ wheels = [
 
 [[package]]
 name = "oci"
-version = "2.187.2"
+version = "2.188.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "aiohttp" },
@@ -1054,9 +1054,9 @@ dependencies = [
     { name = "pytz" },
     { name = "urllib3" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/1a/f5/c70e3819018512a2557fb6d5b7041bb107292d8cfa74e0f8898ff425f3a2/oci-2.187.2.tar.gz", hash = "sha256:4c6285814754f4331cbdcbfb5cab0880f8820604f96262666921806e5b8bbcf4", size = 18344791, upload-time = "2026-10-06T05:12:32.937Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8e/09/69de33858a8574f6e7f7ebf3d027ac198986c95d3f0efd5c203a882be8d6/oci-2.188.0.tar.gz", hash = "sha256:a4ff307ed315112cf357d9dc0bd5091cb0bae77892870b51ffd0cf46175ba8b6", size = 18377765, upload-time = "2026-10-13T03:51:53.525Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9a/f3/51aff84b3ffcb3d8f6faaefb096ab7e62f46e0e22743baebeb19bbb2f268/oci-2.187.2-py3-none-any.whl", hash = "sha256:4633bc33f81eddb48225e7e647c3456ec00c28c2e6daec059383e4ea9951bf57", size = 37257650, upload-time = "2026-10-06T05:12:26.225Z" },
+    { url = "https://files.pythonhosted.org/packages/9d/1b/3138ece59f7ff4afbf4ad53c9d2f88ec7e693f8eae893ebac305e31b45f4/oci-2.188.0-py3-none-any.whl", hash = "sha256:97cf5a0253b45f758c22070c009b7c3197d605d0711a64c7bb060e3d67eda127", size = 37373455, upload-time = "2026-10-13T03:51:47.162Z" },
 ]
 
 [[package]]
@@ -1103,7 +1103,7 @@ wheels = [
 
 [[package]]
 name = "pre-commit"
-version = "4.6.2"
+version = "4.7.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cfgv" },
@@ -1112,9 +1112,9 @@ dependencies = [
     { name = "pyyaml" },
     { name = "virtualenv" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/74/89/1f3e8e1fc3e97de0fa963495832f581f025f29471602a309e48808244292/pre_commit-4.6.2.tar.gz", hash = "sha256:8f5d7bfb021ecdbcd9d49d89847082dd24172ccde534390081a679ad046e2441", size = 198670, upload-time = "2026-08-10T22:07:18.421Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/3a/c3/6965c2690ddce885ec75121572d065a5b94c5a5d8d3e657927ecda9fd715/pre_commit-4.7.0.tar.gz", hash = "sha256:1f3deee12b914c8fa184bd2b5953391c2e4f36763e403d4a23dc9983fa7c6e86", size = 198120, upload-time = "2026-10-12T20:45:40.32Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/45/e2/bbb7129c9e7999a6b8ee9cca3b66486c25c423ab5a75f34071798b74ce94/pre_commit-4.6.2-py2.py3-none-any.whl", hash = "sha256:e2dde9a75d3bce11bd3831c26d134df00a2803c1d818be6a0383c3dcda25dc4e", size = 226202, upload-time = "2026-08-10T22:07:16.942Z" },
+    { url = "https://files.pythonhosted.org/packages/eb/83/ce0a196e4f7b20b11ce3aa1fc72fb973f64b7628d51c1b8aebad37fb7f81/pre_commit-4.7.0-py2.py3-none-any.whl", hash = "sha256:2e229038ad3656081b70c27913157e4b636ef306f643f024a8a8e3f0f7b2f877", size = 226261, upload-time = "2026-10-12T20:45:38.858Z" },
 ]
 
 [[package]]

@@ -87,9 +87,10 @@ process runs as root, so `caddy` sets `cap_add: [NET_BIND_SERVICE]` after
 `cap_drop: [ALL]`.
 
 An entrypoint that starts as root to `chown` a volume and then drops to
-another user (`lldap`, `seaweedfs` and `minecraft` do) needs `CHOWN`, `SETUID`
-and `SETGID` back, or to start as that user. The `docker-socket-proxy`
-sidecars and `openbao`, which is non-root and gets `IPC_LOCK` through
+another user needs `CHOWN`, `SETUID` and `SETGID` back, or to start as that
+user. `lldap` and the `minecraft` server and backup services take them back
+with `cap_add`; `lldap` also keeps `DAC_OVERRIDE`, which its entrypoint's
+write check on `/data` needs. The `docker-socket-proxy` sidecars and `openbao`, which is non-root and gets `IPC_LOCK` through
 `cap_add`, each need their own check of what the process does after it starts.
 
 CI boot-tests every changed app that is not excluded, which catches a container

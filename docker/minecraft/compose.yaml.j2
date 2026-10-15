@@ -31,6 +31,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
   bluemap:
     image: ghcr.io/bluemap-minecraft/bluemap:v5
     container_name: minecraft-bluemap
@@ -58,8 +66,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    cap_drop:
+      - ALL
     expose:
       - '8100'
+    security_opt:
+      - no-new-privileges:true
   mc:
     image: ghcr.io/itzg/minecraft-server:java25
     container_name: minecraft-mc
@@ -84,8 +96,16 @@ services:
     ports:
       - '0.0.0.0:25565:25565'
     restart: unless-stopped
+    cap_add:
+      - CHOWN
+      - SETGID
+      - SETUID
+    cap_drop:
+      - ALL
     expose:
       - '25575' # RCON port
+    security_opt:
+      - no-new-privileges:true
     stdin_open: true
     tty: true
 networks:

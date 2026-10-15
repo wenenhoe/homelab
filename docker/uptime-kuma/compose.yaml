@@ -19,7 +19,6 @@ services:
       - docker-volume-backup.stop-during-backup=uptime-kuma
     cap_add:
       - DAC_OVERRIDE
-      - FOWNER
     cap_drop:
       - ALL
     expose:

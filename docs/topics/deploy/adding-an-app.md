@@ -83,8 +83,9 @@ uses them switched off. These images set a file capability:
   `cap_add: [NET_BIND_SERVICE]`.
 - `uptime-kuma` gives `ping` `cap_net_raw` the same way. This repo uses only
   push monitors, so `uptime-kuma` does not keep `NET_RAW`, and a ping monitor
-  added in the UI would stop working. It does keep `DAC_OVERRIDE` and
-  `FOWNER`; without them it failed to write its database.
+  added in the UI would stop working. It does keep `DAC_OVERRIDE`: the process
+  runs as root, and its `kuma.db` files can belong to another user, which root
+  can write only with that capability.
 
 Where the capability is one the container is meant to hold, keep it and drop
 the rest: Caddy's base image sets `cap_net_bind_service` on its binary and the

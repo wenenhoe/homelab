@@ -59,7 +59,8 @@ runs as a non-root user from its first instruction holds no capability to
 begin with, so for it the pair changes nothing unless the image relies on
 `exec` granting one. A service that runs as root and only reads and writes
 files its own root-owned volume holds (`beszel-hub`, `diun`) loses nothing it
-used.
+used. One that creates files in a directory another user owns needs
+`DAC_OVERRIDE` back (`bluemap`).
 
 The daemon already sets `no-new-privileges` for every container
 ([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps

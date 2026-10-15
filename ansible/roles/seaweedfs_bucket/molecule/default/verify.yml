@@ -57,3 +57,100 @@
       # present, not on the absence of a success one.
       failed_when: >-
         (seaweedfs_bucket_listing.container.Output | default('')) is search('(?i)nosuchbucket|accessdenied|access denied|error')
+
+    # backup_agent prunes by retention with a plain delete. On a versioned
+    # bucket that leaves the archive stored as a noncurrent version behind a
+    # delete marker, so the bucket would only ever grow. The probe object
+    # must therefore leave no version and no marker after one plain delete.
+    # The listing before the delete is the positive control: without it, a
+    # listing that errored would look the same as an empty one.
+    - name: Write a probe object into the bucket
+      community.docker.docker_container:
+        name: seaweedfs-bucket-verify-probe-put
+        image: "{{ molecule_helpers_aws_cli_image }}"
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        command: >-
+          --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333
+          s3api put-object --bucket {{ seaweedfs_s3_bucket }}
+          --key retention-probe/archive.bin --body /etc/hostname
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: seaweedfs_bucket_probe_put
+      changed_when: false
+
+    - name: List the probe's versions before the delete
+      community.docker.docker_container:
+        name: seaweedfs-bucket-verify-probe-list-before
+        image: "{{ molecule_helpers_aws_cli_image }}"
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        command: >-
+          --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333
+          s3api list-object-versions --bucket {{ seaweedfs_s3_bucket }}
+          --prefix retention-probe/
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: seaweedfs_bucket_probe_before
+      changed_when: false
+
+    - name: Confirm the probe is listed, so an empty listing afterwards means something
+      ansible.builtin.assert:
+        that:
+          - "'retention-probe/archive.bin' in (seaweedfs_bucket_probe_before.container.Output | default(''))"
+        fail_msg: >-
+          The probe object was not listed after being written, so the check
+          below could not tell a deleted object from a failed listing. put:
+          {{ seaweedfs_bucket_probe_put.container.Output | default('') }}
+          listing: {{ seaweedfs_bucket_probe_before.container.Output | default('') }}
+
+    - name: Delete the probe with a plain delete, as the retention prune does
+      community.docker.docker_container:
+        name: seaweedfs-bucket-verify-probe-delete
+        image: "{{ molecule_helpers_aws_cli_image }}"
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        command: >-
+          --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333
+          s3api delete-object --bucket {{ seaweedfs_s3_bucket }}
+          --key retention-probe/archive.bin
+        detach: false
+        cleanup: true
+        output_logs: true
+      changed_when: false
+
+    - name: List the probe's versions after the delete
+      community.docker.docker_container:
+        name: seaweedfs-bucket-verify-probe-list-after
+        image: "{{ molecule_helpers_aws_cli_image }}"
+        env:
+          AWS_ACCESS_KEY_ID: "{{ seaweedfs_admin_access_key }}"
+          AWS_SECRET_ACCESS_KEY: "{{ seaweedfs_admin_secret_key }}"
+          AWS_DEFAULT_REGION: us-east-1
+        command: >-
+          --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333
+          s3api list-object-versions --bucket {{ seaweedfs_s3_bucket }}
+          --prefix retention-probe/
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: seaweedfs_bucket_probe_after
+      changed_when: false
+
+    - name: Confirm the delete left neither a version nor a delete marker
+      ansible.builtin.assert:
+        that:
+          - "'\"Versions\"' not in (seaweedfs_bucket_probe_after.container.Output | default(''))"
+          - "'\"DeleteMarkers\"' not in (seaweedfs_bucket_probe_after.container.Output | default(''))"
+        fail_msg: >-
+          A plain delete left the probe stored, which is what a versioned
+          bucket does and what retention pruning must not meet. listing:
+          {{ seaweedfs_bucket_probe_after.container.Output | default('') }}

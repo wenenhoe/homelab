@@ -81,8 +81,9 @@ uses them switched off. These images set a file capability:
   (`capabilities(7)`, "Safety checking for capability-dumb binaries"), so
   after `cap_drop: [ALL]` the container would not start without
   `cap_add: [NET_BIND_SERVICE]`.
-- `uptime-kuma` gives `ping` `cap_net_raw` the same way, so it keeps
-  `NET_RAW` and its ping monitors still run. It also keeps `DAC_OVERRIDE` and
+- `uptime-kuma` gives `ping` `cap_net_raw` the same way. This repo uses only
+  push monitors, so `uptime-kuma` does not keep `NET_RAW`, and a ping monitor
+  added in the UI would stop working. It does keep `DAC_OVERRIDE` and
   `FOWNER`; without them it failed to write its database.
 
 Where the capability is one the container is meant to hold, keep it and drop

@@ -20,7 +20,6 @@ services:
     cap_add:
       - DAC_OVERRIDE
       - FOWNER
-      - NET_RAW
     cap_drop:
       - ALL
     expose:

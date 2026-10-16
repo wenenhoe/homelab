@@ -9,8 +9,20 @@ services:
     environment:
       UID: "1000"
       GID: "1000"
+    network_mode: none
     entrypoint: restore-tar-backup
     restart: no
+    # tar runs as root and restores owner and mode on every file. The image
+    # resets an empty /data to root, but a world wiped with `rm -rf data/*`
+    # leaves uid 1000's dotfiles, and then root needs DAC_OVERRIDE to write.
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 volumes:
   data:
     external: true

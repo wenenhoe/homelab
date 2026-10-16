@@ -71,6 +71,11 @@ schedule files belong to the deploy user, each volume to its app's user), so it
 keeps `DAC_READ_SEARCH`, the read-only counterpart of `DAC_OVERRIDE`, and
 nothing else. Without it the container stays up and healthy but cannot open
 what it archives. Its `backup-dockerproxy` sidecar does not take the pair.
+The minecraft `restore-backup` job runs `tar` as root over `/data`, restoring
+the owner and mode of every file, so it keeps `CHOWN`, `FOWNER` and
+`DAC_OVERRIDE` and runs with `network_mode: none`. `DAC_OVERRIDE` matters when
+`/data` was emptied with `rm -rf data/*`, which leaves uid 1000's dotfiles
+behind; the script treats that directory as empty and extracts into it.
 
 The daemon already sets `no-new-privileges` for every container
 ([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps

@@ -155,7 +155,10 @@ flowchart LR
 Per app: seeds it via the real `compose` role
 (`ansible/playbooks/ci_boot_test.yaml`, against `ci-inventory/` rather
 than the real `inventory.yaml`, since the latter's `all:vars` assumes a
-real remote host), builds the app's `Dockerfile` if it has one (see
+real remote host), first applying the `docker` role's daemon defaults
+to the runner's Docker (see [`docker-daemon.md`](../../deploy/docker-daemon.md)),
+so the container boots under the same `no-new-privileges` default as
+production, builds the app's `Dockerfile` if it has one (see
 [Dockerfile changes](#dockerfile-changes)), brings the stack up with
 `docker compose`, waits for
 a healthy state (or that it stayed running, if no healthcheck is

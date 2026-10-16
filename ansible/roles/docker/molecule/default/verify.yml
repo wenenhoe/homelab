@@ -30,3 +30,44 @@
         database: group
         key: docker
       failed_when: "'molecule_test_user' not in ansible_facts.getent_group['docker'][2].split(',')"
+
+    # prepare_dind.yml seeds daemon.json with the fuse-overlayfs storage
+    # driver before the role runs. The nested daemon keeps using it only if
+    # the role merged its defaults into that file instead of replacing it.
+    - name: Confirm the role kept a key it does not own
+      ansible.builtin.assert:
+        that:
+          - docker_info.host_info.Driver == 'fuse-overlayfs'
+        fail_msg: "The storage driver seeded in daemon.json did not survive the role: {{ docker_info.host_info.Driver }}"
+
+    - name: Assert the daemon runs with no-new-privileges by default
+      ansible.builtin.assert:
+        that:
+          - "'name=no-new-privileges' in docker_info.host_info.SecurityOptions"
+        fail_msg: "Daemon security options: {{ docker_info.host_info.SecurityOptions }}"
+
+    # What counts is what a new container is created with, not the file's
+    # contents. The probe is created and never started.
+    - name: Create a container that sets no logging options of its own
+      community.docker.docker_container:
+        name: molecule-daemon-defaults-probe
+        image: hello-world
+        state: present
+
+    - name: Read the probe container
+      community.docker.docker_container_info:
+        name: molecule-daemon-defaults-probe
+      register: daemon_defaults_probe
+
+    - name: Assert the daemon's log rotation defaults reached the new container
+      ansible.builtin.assert:
+        that:
+          - daemon_defaults_probe.container.HostConfig.LogConfig.Type == 'json-file'
+          - daemon_defaults_probe.container.HostConfig.LogConfig.Config['max-size'] == '10m'
+          - daemon_defaults_probe.container.HostConfig.LogConfig.Config['max-file'] == '3'
+        fail_msg: "Log config on a new container: {{ daemon_defaults_probe.container.HostConfig.LogConfig }}"
+
+    - name: Remove the probe container
+      community.docker.docker_container:
+        name: molecule-daemon-defaults-probe
+        state: absent

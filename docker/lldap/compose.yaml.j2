@@ -21,8 +21,17 @@ services:
     networks:
       - caddy-proxy
     restart: unless-stopped
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - SETGID
+      - SETUID
+    cap_drop:
+      - ALL
     expose:
       - '17170' # Web front-end
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

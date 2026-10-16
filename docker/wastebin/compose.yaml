@@ -21,8 +21,12 @@ services:
     # Matches the image's own USER (app:app, UID/GID 10001) — see
     # docker/wastebin/Dockerfile for why this has to match exactly.
     user: 10001:10001
+    cap_drop:
+      - ALL
     expose:
       - '8088'
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

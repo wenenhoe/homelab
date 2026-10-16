@@ -23,8 +23,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    cap_drop:
+      - ALL
     expose:
       - '8080'
+    security_opt:
+      - no-new-privileges:true
   shlink-web-client:
     image: ghcr.io/shlinkio/shlink-web-client:4.8.1
     container_name: shlink-web-client
@@ -40,8 +44,12 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    cap_drop:
+      - ALL
     expose:
       - '8080'
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

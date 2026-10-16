@@ -5,8 +5,10 @@
 #
 # Mirrors ansible/playbooks/deploy.yaml's Play 1 (preinit) + init.yaml,
 # with two deliberate differences:
-#   - No `docker` role include — the GitHub Actions runner already has
-#     Docker running natively, unlike deploy.yaml's real remote hosts.
+#   - No Docker install — the GitHub Actions runner already has Docker
+#     running natively, unlike deploy.yaml's real remote hosts. Only the
+#     `docker` role's daemon_config.yaml runs, so the runner's daemon gets
+#     the same defaults (no-new-privileges, log rotation) production does.
 #   - No deploy.yaml (the actual `docker compose up -d`) — the calling
 #     workflow does that itself, so it keeps its own healthcheck-wait loop
 #     unchanged regardless of which app is being tested.
@@ -76,6 +78,20 @@
     - name: Set ansible_user to whoever is actually running this playbook
       ansible.builtin.set_fact:
         ansible_user: "{{ ansible_facts.user_id }}"
+
+    # Restarts the runner's Docker, which stops every container on it
+    # (live-restore is off), so this must stay ahead of anything the
+    # workflow starts: the lldap step-ca container and `compose up` both
+    # come after this playbook.
+    - name: Apply the production daemon defaults to the runner's Docker
+      ansible.builtin.include_role:
+        name: docker
+        tasks_from: daemon_config.yaml
+        apply:
+          become: true
+
+    - name: Restart Docker now, not at the end of the play
+      ansible.builtin.meta: flush_handlers
 
     - name: Ensure the stacks directory exists
       ansible.builtin.include_role:

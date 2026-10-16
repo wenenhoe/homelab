@@ -1,6 +1,7 @@
 ---
 # Installs Docker Engine from Docker's official apt repo (DEB822 format,
 # GPG-verified). Run in deploy.yaml's Play 1, ahead of every other role.
+# Merges the daemon defaults into /etc/docker/daemon.json (daemon_config.yaml).
 # Also adds every account in `docker_users` (defaults to `ansible_user`)
 # to the `docker` group. Idempotent.
 
@@ -67,6 +68,9 @@
       - docker-compose-plugin
     state: present
     update_cache: true
+
+- name: Merge the daemon defaults into daemon.json
+  ansible.builtin.import_tasks: daemon_config.yaml
 
 - name: Enable and start Docker service
   ansible.builtin.systemd:

@@ -8,33 +8,12 @@ services:
       - data:/openbao/data
       - config:/openbao/config
       - certs:/openbao/certs
-    # No -config= flag: the entrypoint already scans /openbao/config by
-    # default (confirmed live - passing an explicit -config pointing at
-    # a file inside that same directory produced "ignoring duplicate
-    # configuration found in directory: /openbao/config/openbao.hcl",
-    # since both the default scan and the explicit flag loaded it).
-    command: ["server"]
     environment:
       TZ: "{{ server_timezone }}"
       # Loopback-only, self-signed-from-our-own-internal-CA healthcheck
       # - skipping verification here doesn't weaken anything external,
       # see the healthcheck comment below.
       BAO_SKIP_VERIFY: "true"
-    cap_add:
-      - IPC_LOCK   # mlock, so secrets never get swapped to disk
-    networks:
-      - caddy-proxy
-    restart: unless-stopped
-    # Caps disk growth from the audit device above (docs/topics/secrets/openbao.md's
-    # Audit logging section, ADR 0026) - every Vault operation writes a
-    # line here, not just app-level events like every other service's
-    # logs, so the default uncapped json-file driver bites here in a
-    # way it doesn't elsewhere in this repo.
-    logging:
-      driver: json-file
-      options:
-        max-size: "50m"
-        max-file: "5"
     # Published directly (not routed through Caddy), same as lldap's
     # LDAPS listener - see docs/topics/secrets/openbao.md. The certs volume starts
     # empty on a fresh deploy, so this crash-loops until step_ca_cert
@@ -46,7 +25,16 @@ services:
     # own comment for why a persistent compose service turned out to
     # be the wrong tool for that one-time fix.
     ports:
-      - "0.0.0.0:8200:8200"
+      - '0.0.0.0:8200:8200'
+    networks:
+      - caddy-proxy
+    # No -config= flag: the entrypoint already scans /openbao/config by
+    # default (confirmed live - passing an explicit -config pointing at
+    # a file inside that same directory produced "ignoring duplicate
+    # configuration found in directory: /openbao/config/openbao.hcl",
+    # since both the default scan and the explicit flag loaded it).
+    command: [ "server" ]
+    restart: unless-stopped
     # `bao status` exits non-zero whenever OpenBao is sealed or
     # uninitialized, not just when it's actually down (confirmed
     # against openbao.org's own exit code docs: sealed is a "remote
@@ -61,11 +49,27 @@ services:
     # self-signed-from-our-own-internal-CA - the healthcheck only needs
     # "is something answering on 8200", not a real chain-of-trust check.
     healthcheck:
-      test: ["CMD", "bao", "status", "-address=https://127.0.0.1:8200"]
+      test: [ "CMD", "bao", "status", "-address=https://127.0.0.1:8200" ]
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 10s
+    # Caps disk growth from the audit device above (docs/topics/secrets/openbao.md's
+    # Audit logging section, ADR 0026) - every Vault operation writes a
+    # line here, not just app-level events like every other service's
+    # logs, so the default uncapped json-file driver bites here in a
+    # way it doesn't elsewhere in this repo.
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "5"
+    cap_add:
+      - IPC_LOCK # mlock, so secrets never get swapped to disk
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

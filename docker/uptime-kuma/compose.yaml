@@ -17,8 +17,14 @@ services:
       start_period: 10s
     labels:
       - docker-volume-backup.stop-during-backup=uptime-kuma
+    cap_add:
+      - DAC_OVERRIDE
+    cap_drop:
+      - ALL
     expose:
       - '3001'
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

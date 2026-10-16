@@ -24,10 +24,14 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    cap_drop:
+      - ALL
     expose:
       - '9000'
     init: true
     read_only: true
+    security_opt:
+      - no-new-privileges:true
 networks:
   caddy-proxy:
     external: true

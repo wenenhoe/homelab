@@ -49,6 +49,70 @@ docker/<app>/
   where the value is a real secret and needs `configs`' `no_log:`/`mode`
   handling regardless of whether it's a single value.
 
+### Container hardening
+
+A service sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]`
+when nothing in it needs a capability. `cap_drop` removes every capability
+from the container's bounding set, and `no-new-privileges` stops `exec`
+granting any through a setuid binary or a file capability. A process that
+runs as a non-root user from its first instruction holds no capability to
+begin with, so for it the pair changes nothing unless the image relies on
+`exec` granting one. A service that runs as root and only reads and writes
+files its own root-owned volume holds (`beszel-hub`, `diun`) loses nothing it
+used. One that creates files in a directory another user owns needs
+`DAC_OVERRIDE` back (`bluemap`).
+
+The daemon already sets `no-new-privileges` for every container
+([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps
+it on where the service is defined, whatever the daemon is set to, and
+`cap_drop` has no daemon-wide default.
+
+Before adding them, read the image's Dockerfile and entrypoint for `setcap`,
+`chmod u+s`, `sudo`, `su-exec`, `gosu` and `setpriv`. An image that has any of
+these leaves the pair off, adds back what they need, or has the feature that
+uses them switched off. Scan the image before adding the pair:
+`python -m container_hardening.scan_image IMAGE`, run from `tools/`, lists
+its setuid files, file capabilities and shell-script privilege helpers
+([`scan_image.py`](../../../tools/container_hardening/scan_image.py)).
+It reads the image without running it, so a compiled entrypoint that drops
+privileges still needs a boot with the pair set. These images set a file
+capability:
+
+- `dashy` gives `ping` `cap_net_raw`, so a non-root user can run it. Only its
+  ICMP ping check runs `ping`. The HTTP status checks this repo configures
+  do not, so `dashy` takes the pair, and a ping check added to its config
+  would stop working.
+- `step-ca` gives its `step-ca` binary `cap_net_bind_service` with the
+  effective bit set. For such a file the kernel refuses the `exec` outright
+  when the process cannot get every capability the file names
+  (`capabilities(7)`, "Safety checking for capability-dumb binaries"), so
+  after `cap_drop: [ALL]` the container would not start without
+  `cap_add: [NET_BIND_SERVICE]`.
+- `uptime-kuma` gives `ping` `cap_net_raw` the same way. This repo uses only
+  push monitors, so `uptime-kuma` does not keep `NET_RAW`, and a ping monitor
+  added in the UI would stop working. It does keep `DAC_OVERRIDE`: the process
+  runs as root, and its `kuma.db` files can belong to another user, which root
+  can write only with that capability.
+
+Where the capability is one the container is meant to hold, keep it and drop
+the rest: Caddy's base image sets `cap_net_bind_service` on its binary and the
+process runs as root, so `caddy` sets `cap_add: [NET_BIND_SERVICE]` after
+`cap_drop: [ALL]`.
+
+An entrypoint that starts as root to `chown` a volume and then drops to
+another user needs `CHOWN`, `SETUID` and `SETGID` back, or to start as that
+user. `lldap`, `seaweedfs`, `librespeed` and the `minecraft` server and backup
+services take them back with `cap_add`; `lldap` also keeps `DAC_OVERRIDE`,
+which its entrypoint's write check on `/data` needs. `openbao` runs as a
+non-root user and keeps only `IPC_LOCK`. The `docker-socket-proxy` sidecars
+each need their own check of what the process does after it starts.
+
+CI boot-tests every changed app that is not excluded, which catches a container
+that no longer starts or stays healthy; see
+[`gates.md`](../engineering/ci/gates.md#compose-boot-test) for which apps it
+skips. It does not exercise what an app does once running. Search for
+`no-new-privileges` under `docker/` to see which services have the pair today.
+
 ## 2. Register it in `app_catalog`
 
 In `ansible/inventory/group_vars/all/app_catalog.yaml`, add an entry keyed by the app name. This is the single source of truth for everything about the app that doesn't vary per host:

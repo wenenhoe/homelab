@@ -15,6 +15,13 @@ services:
       MODRINTH_PROJECTS_DEFAULT_VERSION_TYPE: beta
       MODRINTH_MODPACK: simply-optimized-up-to-date
       MODRINTH_PROJECTS: "@/extras/modrinth-mods.txt"
+    # Starts as uid 1000, the user mc runs as, so the image never needs
+    # CHOWN, SETUID or SETGID to switch to it.
+    user: "1000:1000"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 volumes:
   extras:
     external: true

@@ -76,6 +76,8 @@ the owner and mode of every file, so it keeps `CHOWN`, `FOWNER` and
 `DAC_OVERRIDE` and runs with `network_mode: none`. `DAC_OVERRIDE` matters when
 `/data` was emptied with `rm -rf data/*`, which leaves uid 1000's dotfiles
 behind; the script treats that directory as empty and extracts into it.
+The `test-upgrade` dry run starts as uid 1000 instead of letting the image switch
+to it, so it needs no capability and takes the pair with nothing added back.
 
 The daemon already sets `no-new-privileges` for every container
 ([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps

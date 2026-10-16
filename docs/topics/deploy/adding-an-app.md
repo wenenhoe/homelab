@@ -71,11 +71,11 @@ schedule files belong to the deploy user, each volume to its app's user), so it
 keeps `DAC_READ_SEARCH`, the read-only counterpart of `DAC_OVERRIDE`, and
 nothing else. Without it the container stays up and healthy but cannot open
 what it archives. Its `backup-dockerproxy` sidecar does not take the pair.
-The minecraft `restore-backup` job runs `tar` as root over `/data`, restoring
-the owner and mode of every file, so it keeps `CHOWN`, `FOWNER` and
-`DAC_OVERRIDE` and runs with `network_mode: none`. `DAC_OVERRIDE` matters when
-`/data` was emptied with `rm -rf data/*`, which leaves uid 1000's dotfiles
-behind; the script treats that directory as empty and extracts into it.
+The minecraft `restore-backup` job runs as root. `run_restore.sh` uses it to
+delete everything in `/data`, which uid 1000 owns, and then to extract the
+newest backup with `tar`, which restores the owner and mode of every file. It
+keeps `DAC_OVERRIDE` for the delete and `CHOWN` and `FOWNER` for the extract,
+and runs with `network_mode: none`.
 The `test-upgrade` dry run starts as uid 1000 instead of letting the image switch
 to it, so it needs no capability and takes the pair with nothing added back.
 

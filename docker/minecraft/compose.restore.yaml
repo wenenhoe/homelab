@@ -12,9 +12,9 @@ services:
     network_mode: none
     entrypoint: restore-tar-backup
     restart: no
-    # tar runs as root and restores owner and mode on every file. The image
-    # resets an empty /data to root, but a world wiped with `rm -rf data/*`
-    # leaves uid 1000's dotfiles, and then root needs DAC_OVERRIDE to write.
+    # run_restore.sh first deletes everything in /data with this service, and
+    # uid 1000 owns those files, so root needs DAC_OVERRIDE. tar then restores
+    # owner and mode on every file it writes (CHOWN, FOWNER).
     cap_add:
       - CHOWN
       - DAC_OVERRIDE

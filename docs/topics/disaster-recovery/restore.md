@@ -208,6 +208,12 @@ step, deliberately kept out of Ansible:
 see `app_catalog.yaml`), runs directly on the `play` host. For the
 common case — undoing today's session from last night's on-host
 snapshot — that script alone is the whole restore, no backup archive
-or the `restore` role involved at all. Run it after this playbook only
+or the `restore` role involved at all. It checks that the newest tar
+reads cleanly, asks for a second confirmation (skipped by `-y`), stops
+the stack, deletes everything in `minecraft_data` and unpacks the tar
+into it. The delete is part of the restore: `restore-tar-backup` only
+extracts into an empty directory. If the restore fails after the delete,
+the stack stays stopped rather than starting an empty world; fix the cause
+and run the script again. Run it after this playbook only
 when `minecraft_backups` itself needed reconstituting first (host disk
 loss). See the script's own header for both usages.

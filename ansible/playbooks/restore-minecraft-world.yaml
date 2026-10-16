@@ -1,9 +1,9 @@
 ---
 # Phase 2 of a minecraft restore, after playbooks/restore.yaml has
 # reconstituted minecraft_backups (phase 1). Runs
-# docker/minecraft/scripts/run_restore.sh -y on `play`, which unpacks
-# the newest tar in ./backups into ./data via itzg/mc-backup's
-# restore-tar-backup entrypoint — deliberately kept out of the
+# docker/minecraft/scripts/run_restore.sh -y on `play`, which empties
+# ./data and unpacks the newest tar in ./backups into it via
+# itzg/mc-backup's restore-tar-backup entrypoint — deliberately kept out of the
 # `restore` role itself, see that script's own header and
 # docs/topics/disaster-recovery/restore.md.
 #

@@ -9,8 +9,20 @@ services:
     environment:
       UID: "1000"
       GID: "1000"
+    network_mode: none
     entrypoint: restore-tar-backup
     restart: no
+    # run_restore.sh first deletes everything in /data with this service, and
+    # uid 1000 owns those files, so root needs DAC_OVERRIDE. tar then restores
+    # owner and mode on every file it writes (CHOWN, FOWNER).
+    cap_add:
+      - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 volumes:
   data:
     external: true

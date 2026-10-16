@@ -124,6 +124,16 @@ which its entrypoint's write check on `/data` needs. `openbao` runs as a
 non-root user and keeps only `IPC_LOCK`. The `docker-socket-proxy` sidecars
 each need their own check of what the process does after it starts.
 
+A container Ansible starts for one job gets the same pair, no network, and
+only what the job does as root. The volume seed (`seed_volume.yaml`) keeps
+`CHOWN`, `FOWNER` and `DAC_OVERRIDE`: `cp -a` keeps each file's owner and mode
+and writes over files other users own. The restore role's two containers keep
+those three and `FSETID`, because `chmod` drops a setgid bit without it and the
+job still exits 0. `volume-file-rm.yaml` keeps `DAC_OVERRIDE` to delete inside
+directories another user owns, and the OpenBao data `chown` keeps `CHOWN` and
+`DAC_READ_SEARCH` to list directories the previous owner left at `0700`. The
+user-id lookup that precedes it needs nothing.
+
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see
 [`gates.md`](../engineering/ci/gates.md#compose-boot-test) for which apps it

@@ -49,6 +49,11 @@
         # `container.Output` below silently returns a placeholder
         # string instead of real command output on any other driver.
         log_driver: json-file
+        network_mode: none
+        cap_drop:
+          - ALL
+        security_opts:
+          - no-new-privileges:true
       register: openbao_read_uid
       changed_when: false
       check_mode: false
@@ -71,6 +76,16 @@
         volumes:
           - "{{ openbao_data_volume_name }}:/openbao/data"
         command: [chown, -R, "openbao:openbao", /openbao/data]
+        network_mode: none
+        cap_drop:
+          - ALL
+        # -R has to list directories the previous owner left at 0700, which
+        # root cannot do without DAC_READ_SEARCH.
+        capabilities:
+          - CHOWN
+          - DAC_READ_SEARCH
+        security_opts:
+          - no-new-privileges:true
         detach: false
         cleanup: true
       when: openbao_data_owner.stat.uid | string != openbao_read_uid.container.Output | trim

@@ -114,6 +114,19 @@
           - "{{ restore_app }}_restore_scratch:/scratch"
         command: >-
           sh -c "mkdir -p /scratch && tar -xzf /restore-archive.tar.gz -C /scratch"
+        network_mode: none
+        cap_drop:
+          - ALL
+        # Restoring each entry's owner, mode and setgid bit as root takes
+        # CHOWN, FOWNER and FSETID; without FSETID a setgid directory comes
+        # back without the bit and the job still exits 0.
+        capabilities:
+          - CHOWN
+          - DAC_OVERRIDE
+          - FOWNER
+          - FSETID
+        security_opts:
+          - no-new-privileges:true
         detach: false
         cleanup: true
 
@@ -134,6 +147,19 @@
           find /target -mindepth 1 -delete;
           cp -a \"$srcdir\"/. /target/
           "
+        network_mode: none
+        cap_drop:
+          - ALL
+        # The delete reaches into directories other users own
+        # (DAC_OVERRIDE); the copy restores owner, mode and setgid bit
+        # (CHOWN, FOWNER, FSETID).
+        capabilities:
+          - CHOWN
+          - DAC_OVERRIDE
+          - FOWNER
+          - FSETID
+        security_opts:
+          - no-new-privileges:true
         detach: false
         cleanup: true
       loop: "{{ restore_volumes }}"

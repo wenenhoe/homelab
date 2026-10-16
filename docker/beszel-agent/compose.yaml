@@ -18,6 +18,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
   dockerproxy:
     image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
     container_name: beszel-agent-dockerproxy

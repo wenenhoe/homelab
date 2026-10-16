@@ -70,7 +70,13 @@ it on where the service is defined, whatever the daemon is set to, and
 Before adding them, read the image's Dockerfile and entrypoint for `setcap`,
 `chmod u+s`, `sudo`, `su-exec`, `gosu` and `setpriv`. An image that has any of
 these leaves the pair off, adds back what they need, or has the feature that
-uses them switched off. These images set a file capability:
+uses them switched off. Scan the image before adding the pair:
+`python -m container_hardening.scan_image IMAGE`, run from `tools/`, lists
+its setuid files, file capabilities and shell-script privilege helpers
+([`scan_image.py`](../../../tools/container_hardening/scan_image.py)).
+It reads the image without running it, so a compiled entrypoint that drops
+privileges still needs a boot with the pair set. These images set a file
+capability:
 
 - `dashy` gives `ping` `cap_net_raw`, so a non-root user can run it. Only its
   ICMP ping check runs `ping`. The HTTP status checks this repo configures

@@ -25,6 +25,12 @@ services:
       # Value must match this app's name in app_catalog.yaml exactly —
       # ansible/roles/backup_agent keys each app's stop label on it.
       - docker-volume-backup.stop-during-backup=tinyauth
+    # Runs as root, and the volume seed leaves /data owned by the user it
+    # copies from, not root. Without DAC_OVERRIDE SQLite cannot create its
+    # journal next to tinyauth.db, so every login fails with a read-only
+    # database error.
+    cap_add:
+      - DAC_OVERRIDE
     cap_drop:
       - ALL
     security_opt:

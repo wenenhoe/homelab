@@ -152,6 +152,19 @@
       ansible.builtin.include_role:
         name: compose_app
 
+    # A backed-up volume can hold files another UID owns, and a root
+    # process without DAC_READ_SEARCH cannot open them. This directory
+    # and file are mode 0700/0600 under uid 1000 so verify can tell.
+    - name: Give happy_app_multivol's data volume a private directory owned by another user
+      community.docker.docker_container_exec:
+        container: happy_app_multivol
+        command: >-
+          sh -c 'umask 077
+          && mkdir -p /data/private
+          && printf "owned-by-uid-1000\n" > /data/private/secret.txt
+          && chown 1000:1000 /data/private /data/private/secret.txt'
+      changed_when: false
+
     # Seeded before the role's own first run, standing in for a
     # schedule left over from an app that used to exist but doesn't
     # anymore — the actual case the stale-file-removal task in

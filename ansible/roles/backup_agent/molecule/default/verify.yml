@@ -14,7 +14,7 @@
   # fixture setup (real cron-triggered backups, real S3 uploads) is too
   # expensive to duplicate across separate Molecule scenarios just for
   # organization, so the split happens here instead, within one
-  # converge/verify cycle. All four still share this single play's
+  # converge/verify cycle. All five still share this single play's
   # scope - a fact registered in one file (e.g. backup_agent_network_name
   # in verify_s3_and_gpg.yml) is still visible in files imported after
   # it, same as if this were still one file.
@@ -24,6 +24,9 @@
 
     - name: Behavioral — per-schedule stop-label isolation
       ansible.builtin.import_tasks: verify_backup_behavior.yml
+
+    - name: Volume read access — files another user owns are readable
+      ansible.builtin.import_tasks: verify_volume_read.yml
 
     - name: The actual point of all this — did every archive reach S3, encrypted?
       ansible.builtin.import_tasks: verify_s3_and_gpg.yml

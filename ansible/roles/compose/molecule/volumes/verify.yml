@@ -33,6 +33,72 @@
       changed_when: false
       failed_when: "'seeded-hello-from-volapp' not in compose_volume_contents.stdout"
 
+    # --- Seeding keeps another user's owner and mode, and can overwrite their file
+    # The seed runs as root. Keeping a file's owner and mode after the copy
+    # needs CHOWN and FOWNER, and writing over a 0600 file another user owns
+    # needs DAC_OVERRIDE.
+    - name: Read back the owner and mode of the staged file the first seed copied
+      community.docker.docker_container:
+        name: volapp-seed-owner-check
+        image: "{{ molecule_helpers_alpine_image }}"
+        volumes:
+          - volapp_data:/data:ro
+        command: "stat -c '%u:%g %a' /data/private/secret.txt"
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: compose_seed_first_stat
+      changed_when: false
+
+    - name: Confirm the seeded file kept its owner and mode
+      ansible.builtin.assert:
+        that:
+          - compose_seed_first_stat.container.Output | trim == '1000:1000 600'
+        fail_msg: >-
+          The seeded file is {{ compose_seed_first_stat.container.Output | trim }},
+          not 1000:1000 at 0600.
+
+    - name: Stage new content for that file, as a later deploy with changed content would
+      ansible.builtin.copy:
+        dest: "{{ compose_deploy_dir }}/volapp/_staging/data/private/secret.txt"
+        content: "reseeded-private-content\n"
+        owner: "1000"
+        group: "1000"
+        mode: "0600"
+
+    - name: Seed the volume again, over the file the first seed left owned by another user
+      ansible.builtin.include_role:
+        name: compose
+        tasks_from: seed_volume.yaml
+      vars:
+        compose_app_item:
+          name: volapp
+        compose_volume_item:
+          name: data
+
+    - name: Read back the file and its owner and mode after the second seed
+      community.docker.docker_container:
+        name: volapp-reseed-check
+        image: "{{ molecule_helpers_alpine_image }}"
+        volumes:
+          - volapp_data:/data:ro
+        command:
+          - sh
+          - -c
+          - "stat -c '%u:%g %a' /data/private/secret.txt; cat /data/private/secret.txt"
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: compose_seed_second_read
+      changed_when: false
+
+    - name: Confirm the second seed replaced the content and kept the owner and mode
+      ansible.builtin.assert:
+        that:
+          - compose_seed_second_read.container.Output.splitlines() == ['1000:1000 600', 'reseeded-private-content']
+        fail_msg: >-
+          After the second seed: {{ compose_seed_second_read.container.Output }}
+
     # --- Exercise cleanup.yaml ---------------------------------------------
     # Doesn't need to survive a second run the way converge.yml does —
     # verify.yml only runs once, after idempotence — so it's safe to do the

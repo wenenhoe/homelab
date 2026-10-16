@@ -104,6 +104,46 @@
           does not match the archive's original owner
           ({{ restore_default_owner_raw.content | b64decode }}).
 
+    # --- Did every entry keep its owner and mode, and did the old content go? ---
+    # The volume root takes the owner and mode of the archived directory it is
+    # copied from. The stale directory seeded in converge.yml belonged to
+    # another user at 0700, so it only goes if the role may delete there.
+    - name: Read back the owner and mode of each restored entry, and whether the stale directory survived
+      community.docker.docker_container:
+        name: restore-default-modes-check
+        image: "{{ molecule_helpers_alpine_image }}"
+        volumes:
+          - restore_target_data:/data:ro
+        command:
+          - sh
+          - -c
+          - >-
+            stat -c '%u:%g %a %n' /data /data/canary.txt /data/private
+            /data/private/secret.txt /data/shared /data/shared/note.txt;
+            if [ -e /data/stale-private ]; then echo stale-private-survived;
+            else echo stale-private-removed; fi
+        detach: false
+        cleanup: true
+        output_logs: true
+      register: restore_default_modes_check
+      changed_when: false
+
+    - name: Confirm the restore kept each owner and mode and left nothing of the old content
+      ansible.builtin.assert:
+        that:
+          - restore_default_modes_check.container.Output.splitlines() == [
+            '1000:1000 755 /data',
+            '1000:1000 644 /data/canary.txt',
+            '1000:1000 700 /data/private',
+            '1000:1000 600 /data/private/secret.txt',
+            '1000:1000 2775 /data/shared',
+            '1000:1000 664 /data/shared/note.txt',
+            'stale-private-removed']
+        fail_msg: >-
+          Restored entries differ from the archive's owner and mode, or the
+          stale directory survived:
+          {{ restore_default_modes_check.container.Output }}
+
     # --- Cleanup: did the role actually tear down its scratch state? -------
     - name: Confirm the scratch extraction volume was removed
       community.docker.docker_volume_info:

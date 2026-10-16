@@ -64,6 +64,8 @@ used. One that creates files in a directory another user owns needs
 `/data` the volume seed leaves owned by another user, and SQLite has to create
 its journal file beside `tinyauth.db`; without the capability the session
 insert at login fails with a read-only database error.
+`beszel-agent` runs as root on the host network and takes the pair too, with
+nothing added back; its `dockerproxy` sidecar does not.
 
 The daemon already sets `no-new-privileges` for every container
 ([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps

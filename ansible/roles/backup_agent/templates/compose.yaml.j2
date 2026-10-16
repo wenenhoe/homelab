@@ -48,6 +48,17 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # Runs as root over files other users own: the 0600 schedule files in
+    # conf.d belong to the deploy user and each backed-up volume keeps its
+    # app's UID. After cap_drop ALL, DAC_READ_SEARCH is the one capability
+    # that lets it open them (every mount is read-only); without it the
+    # container stays up and healthy but cannot read what it archives.
+    cap_add:
+      - DAC_READ_SEARCH
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 
 networks:
   backup-agent-net:

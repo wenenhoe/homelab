@@ -30,6 +30,15 @@
       happy_app_no_backup_data appeared despite declaring no backup: key
       — backup_plan isn't excluding it.
 
+- name: Confirm backup-agent drops every capability except DAC_READ_SEARCH and sets no-new-privileges
+  vars:
+    backup_agent_service: "{{ backup_agent_compose_parsed.services['backup-agent'] }}"
+  ansible.builtin.assert:
+    that:
+      - backup_agent_service.cap_drop == ['ALL']
+      - backup_agent_service.cap_add == ['DAC_READ_SEARCH']
+      - "'no-new-privileges:true' in backup_agent_service.security_opt"
+
 # --- One schedule per app, always SeaweedFS ------------------------
 - name: List the rendered conf.d schedule files
   ansible.builtin.find:

@@ -40,3 +40,22 @@
       that volume would be incomplete or fail while the container itself
       stays up and healthy. rc={{ backup_agent_fixture_read.rc }}
       stderr: {{ backup_agent_fixture_read.stderr }}
+
+# PID 1 is the backup process itself (see the healthcheck's comment in
+# the compose template). CapEff 0x4 is DAC_READ_SEARCH alone
+# (capabilities(7): capability number 2).
+- name: Read the capabilities of the backup process
+  community.docker.docker_container_exec:
+    container: backup-agent
+    command: grep -E '^(CapEff|NoNewPrivs):' /proc/1/status
+  register: backup_agent_proc_status
+  changed_when: false
+
+- name: Confirm the process holds DAC_READ_SEARCH alone and cannot gain privileges
+  ansible.builtin.assert:
+    that:
+      - backup_agent_proc_status.stdout is regex('(?m)^CapEff:\s+0000000000000004$')
+      - backup_agent_proc_status.stdout is regex('(?m)^NoNewPrivs:\s+1$')
+    fail_msg: >-
+      backup-agent's process does not hold exactly DAC_READ_SEARCH with
+      no-new-privileges set. Got: {{ backup_agent_proc_status.stdout }}

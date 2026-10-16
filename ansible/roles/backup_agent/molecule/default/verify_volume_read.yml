@@ -1,0 +1,61 @@
+---
+# --- backup-agent can read what it archives ---------------------------
+- name: Read the fixture's owner and mode as backup-agent sees them
+  community.docker.docker_container_exec:
+    container: backup-agent
+    command: >-
+      stat -c '%u:%g %a %n'
+      /backup/happy_app_multivol/happy_app_multivol_data/private
+      /backup/happy_app_multivol/happy_app_multivol_data/private/secret.txt
+  register: backup_agent_fixture_stat
+  changed_when: false
+
+- name: Confirm the fixture really is another user's private directory and file
+  ansible.builtin.assert:
+    that:
+      - >-
+        backup_agent_fixture_stat.stdout.splitlines() == [
+        '1000:1000 700 /backup/happy_app_multivol/happy_app_multivol_data/private',
+        '1000:1000 600 /backup/happy_app_multivol/happy_app_multivol_data/private/secret.txt']
+    fail_msg: >-
+      The fixture converge.yml creates is not uid 1000 with 0700/0600, so
+      the read below would pass for any process. Got:
+      {{ backup_agent_fixture_stat.stdout }}
+
+- name: Read the other user's file as the backup-agent container does (root, with the container's own capability set)
+  community.docker.docker_container_exec:
+    container: backup-agent
+    command: cat /backup/happy_app_multivol/happy_app_multivol_data/private/secret.txt
+  register: backup_agent_fixture_read
+  changed_when: false
+  failed_when: false
+
+- name: Confirm backup-agent can read it
+  ansible.builtin.assert:
+    that:
+      - backup_agent_fixture_read.rc == 0
+      - backup_agent_fixture_read.stdout | trim == 'owned-by-uid-1000'
+    fail_msg: >-
+      backup-agent cannot read a file another user owns, so an archive of
+      that volume would be incomplete or fail while the container itself
+      stays up and healthy. rc={{ backup_agent_fixture_read.rc }}
+      stderr: {{ backup_agent_fixture_read.stderr }}
+
+# PID 1 is the backup process itself (see the healthcheck's comment in
+# the compose template). CapEff 0x4 is DAC_READ_SEARCH alone
+# (capabilities(7): capability number 2).
+- name: Read the capabilities of the backup process
+  community.docker.docker_container_exec:
+    container: backup-agent
+    command: grep -E '^(CapEff|NoNewPrivs):' /proc/1/status
+  register: backup_agent_proc_status
+  changed_when: false
+
+- name: Confirm the process holds DAC_READ_SEARCH alone and cannot gain privileges
+  ansible.builtin.assert:
+    that:
+      - backup_agent_proc_status.stdout is regex('(?m)^CapEff:\s+0000000000000004$')
+      - backup_agent_proc_status.stdout is regex('(?m)^NoNewPrivs:\s+1$')
+    fail_msg: >-
+      backup-agent's process does not hold exactly DAC_READ_SEARCH with
+      no-new-privileges set. Got: {{ backup_agent_proc_status.stdout }}

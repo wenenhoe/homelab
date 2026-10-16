@@ -66,6 +66,11 @@ its journal file beside `tinyauth.db`; without the capability the session
 insert at login fails with a read-only database error.
 `beszel-agent` runs as root on the host network and takes the pair too, with
 nothing added back; its `dockerproxy` sidecar does not.
+`backup-agent` runs as root and only reads, over files other users own (its
+schedule files belong to the deploy user, each volume to its app's user), so it
+keeps `DAC_READ_SEARCH`, the read-only counterpart of `DAC_OVERRIDE`, and
+nothing else. Without it the container stays up and healthy but cannot open
+what it archives. Its `backup-dockerproxy` sidecar does not take the pair.
 
 The daemon already sets `no-new-privileges` for every container
 ([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps

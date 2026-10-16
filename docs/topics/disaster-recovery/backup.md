@@ -47,6 +47,13 @@ to end is [`fire-drill.md`](fire-drill.md).
 - `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the
   only templated compose file in this repo) since mounted volumes vary
   per host.
+- The container runs as root with every capability dropped except
+  `DAC_READ_SEARCH`, and `no-new-privileges` set. Every volume is mounted
+  read-only, so it only ever reads: the capability lets it open the schedule
+  files the deploy user owns and the files each app's own user owns, and
+  `DAC_OVERRIDE` is not needed. The `docker-socket-proxy` sidecar is not
+  hardened this way. See
+  [Container hardening](../deploy/adding-an-app.md#container-hardening).
 - No retention/cron conflict validation is needed — every schedule is
   independent, so there's nothing to conflict.
 

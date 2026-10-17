@@ -51,6 +51,10 @@ docker/<app>/
 
 ### Container hardening
 
+How to choose and verify a capability set is in
+[`container-hardening.md`](container-hardening.md); this section records what
+each app and helper keeps.
+
 A service sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]`
 when nothing in it needs a capability. `cap_drop` removes every capability
 from the container's bounding set, and `no-new-privileges` stops `exec`

@@ -14,6 +14,7 @@ Deploying apps: how the Ansible and Compose pipeline works and how to extend it.
 | [`deployment-flow.md`](deploy/deployment-flow.md) | The `deploy.yaml` play sequence, role responsibilities, `app_catalog`. |
 | [`docker-daemon.md`](deploy/docker-daemon.md) | `/etc/docker/daemon.json`: the defaults the `docker` role merges in, how it shares the file with `bind9`, and why `live-restore` is off. |
 | [`adding-an-app.md`](deploy/adding-an-app.md) | Wiring a new Compose app into the catalog. |
+| [`container-hardening.md`](deploy/container-hardening.md) | Choosing the capabilities a container keeps: what each one is for, what its absence looks like, and how to verify a set. |
 | [`host-vars.md`](deploy/host-vars.md) | `host_vars/<host>.yaml` field reference. |
 | [`volumes.md`](deploy/volumes.md) | Named-volume storage: creation, config seeding. |
 | [`volume-maintenance.md`](deploy/volume-maintenance.md) | Ad hoc in-place volume file removal/reset outside `cleanup.yaml`. |

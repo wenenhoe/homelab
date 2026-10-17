@@ -117,6 +117,30 @@ the already-proven `.container.State.*` shape from `docker_container_info`
 instead of trusting an unverified nested structure for something
 version-drift could silently break.
 
+## Fixtures for hardened containers
+
+A scenario that tests a container with dropped capabilities
+([`container-hardening.md`](../deploy/container-hardening.md)) only proves
+something if its fixture can fail the way production does:
+
+- **Derive the fixture from production config.** Run the same `cap_drop`,
+  `cap_add`, `read_only`, `user` and `tmpfs` the app or role sets, taken from
+  the real file rather than retyped.
+- **Give the fixture the owners production has.** Files owned by root prove
+  nothing about `CHOWN`, `FOWNER` or `DAC_OVERRIDE`, because root needs none
+  of them for its own files. Stage files owned by another uid and gid, with a
+  non-default mode, and a `2775` directory where the setgid bit matters.
+- **Assert owner, group and mode, as well as the exit code.** `cp -a` and
+  `tar` can exit 0 and leave the wrong metadata.
+- **Run the unit's own command.** For a systemd service, read the `docker
+  run` line back with `systemctl cat` and run it, rather than a copy typed
+  into the test.
+- **Test an empty volume and a populated one.** Docker resets an empty named
+  volume's top directory to the image's owner on mount, so set the owner after
+  putting a file in it.
+- **Restart once.** A scenario that boots a hardened service also restarts it
+  and asserts it is healthy with no restarts counted.
+
 ## `molecule_helpers`'s shared task files
 
 Scaffolding for scenarios, not a role under test:

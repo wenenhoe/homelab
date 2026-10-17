@@ -46,6 +46,16 @@
       - /certs/fullchain.pem
       - --format
       - json
+    network_mode: none
+    cap_drop:
+      - ALL
+    # The cert is mode 0600 and, once handed to the app's user, that user's.
+    # Without DAC_OVERRIDE the read fails, which this task takes for "no
+    # cert" and so reissues over a valid one.
+    capabilities:
+      - DAC_OVERRIDE
+    security_opts:
+      - no-new-privileges:true
     detach: false
     cleanup: true
     # `container.Output` below is a placeholder string on any driver
@@ -159,6 +169,15 @@
           - --root
           - /root_ca.crt
           - --force
+        cap_drop:
+          - ALL
+        # Reissuing after fullchain.pem is removed (see the names check above)
+        # rewrites privkey.pem in a directory the app's user owns, at mode
+        # 0600, which root cannot open or add a file to without DAC_OVERRIDE.
+        capabilities:
+          - DAC_OVERRIDE
+        security_opts:
+          - no-new-privileges:true
         detach: false
         cleanup: true
         # Docker's own default driver is json-file (confirmed in
@@ -198,6 +217,13 @@
           - -R
           - "{{ step_ca_cert_chown_user }}:{{ step_ca_cert_chown_user }}"
           - /certs
+        network_mode: none
+        cap_drop:
+          - ALL
+        capabilities:
+          - CHOWN
+        security_opts:
+          - no-new-privileges:true
         detach: false
         cleanup: true
       when: step_ca_cert_chown_image | length > 0

@@ -134,6 +134,15 @@ directories another user owns, and the OpenBao data `chown` keeps `CHOWN` and
 `DAC_OVERRIDE` to list directories the previous owner left at `0700`. It does
 not take `DAC_READ_SEARCH`, which Docker's default set lacks and which allows
 `open_by_handle_at`. The user-id lookup that precedes it needs nothing.
+The step-ca cert helpers (the three `docker run` lines in `cert-renewer@.service`
+and the `step_ca_cert` tasks) run as root over a `certs` volume whose files
+`step` writes at mode `0600` and the chown then hands to the app's own user.
+Reading, rewriting and reissuing those files takes `DAC_OVERRIDE`, which the
+`needs-renewal` check, the renew, the `inspect` read and the issue task keep;
+the two `chown` containers keep `CHOWN` alone. Only the renew and the issue
+reach the CA, so the rest run with no network. The `inspect` read matters
+most: a read that fails is taken for "no certificate" and reissues over a valid
+one.
 
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see

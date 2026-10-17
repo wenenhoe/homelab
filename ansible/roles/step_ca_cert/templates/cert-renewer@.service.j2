@@ -37,6 +37,13 @@ EnvironmentFile=/etc/cert-renewer/%i.env
 ; can read/traverse a freshly-created Docker volume's root directory
 ; but not write new files into it.
 ;
+; The three containers below drop every capability and set
+; no-new-privileges. step writes fullchain.pem and privkey.pem at mode 0600
+; and the chown hands them to the app's own user, so root reads and
+; rewrites them only with DAC_OVERRIDE (the needs-renewal mount is read-only,
+; so it only ever reads). The chown needs CHOWN alone. Only renew talks to
+; the CA, so the other two run with no network.
+;
 ; ExecCondition checks whether the certificate is actually due for
 ; renewal, based on the exit status of the command - a systemd-native
 ; skip (visible as such in `journalctl`) rather than a run that quietly
@@ -49,13 +56,13 @@ EnvironmentFile=/etc/cert-renewer/%i.env
 ; can't run the container. Only 0 and 1 may keep their meaning; anything
 ; else becomes 255 so a missing cert or a broken docker is a failure, not a
 ; quiet skip. $$ is systemd's escape for a literal $.
-ExecCondition=/bin/sh -c '/usr/bin/docker run --rm --user root -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem; rc=$$?; [ "$$rc" -le 1 ] && exit "$$rc"; exit 255'
+ExecCondition=/bin/sh -c '/usr/bin/docker run --rm --user root --network none --cap-drop ALL --cap-add DAC_OVERRIDE --security-opt no-new-privileges:true -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal /certs/fullchain.pem; rc=$$?; [ "$$rc" -le 1 ] && exit "$$rc"; exit 255'
 
 ; Renews via mTLS against the existing cert/key by default (step ca
 ; renew's own documented behavior) - no provisioner password needed
 ; here, only for the one-time initial issuance (see
 ; roles/step_ca_cert/tasks/main.yaml).
-ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} -v %i_certs:/certs -v ${ROOT_LOCATION}:/root_ca.crt:ro ${STEP_CLI_IMAGE} step ca renew --force --ca-url ${CA_URL} --root /root_ca.crt /certs/fullchain.pem /certs/privkey.pem
+ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} --cap-drop ALL --cap-add DAC_OVERRIDE --security-opt no-new-privileges:true -v %i_certs:/certs -v ${ROOT_LOCATION}:/root_ca.crt:ro ${STEP_CLI_IMAGE} step ca renew --force --ca-url ${CA_URL} --root /root_ca.crt /certs/fullchain.pem /certs/privkey.pem
 
 ; A renewed cert lands root-owned (the renewal above also runs --user
 ; root). CHOWN_IMAGE is blank for an app that manages its own UID/GID
@@ -64,7 +71,7 @@ ExecStart=/usr/bin/docker run --rm --user root --network ${NETWORK} -v %i_certs:
 ; read a root-owned, owner-only-mode private key) - see
 ; step_ca_cert/tasks/main.yaml's identical fix for the initial-issuance
 ; case.
-ExecStartPost=/bin/sh -c '[ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --user root -v %i_certs:/certs "${CHOWN_IMAGE}" chown -R "${CHOWN_USER}:${CHOWN_USER}" /certs'
+ExecStartPost=/bin/sh -c '[ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --user root --network none --cap-drop ALL --cap-add CHOWN --security-opt no-new-privileges:true -v %i_certs:/certs "${CHOWN_IMAGE}" chown -R "${CHOWN_USER}:${CHOWN_USER}" /certs'
 
 ; %i is assumed to be a compose_deploy_dir/<app>/compose.yaml app name
 ; with a same-named service inside it - true for every app in this repo

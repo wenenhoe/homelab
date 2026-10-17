@@ -72,6 +72,21 @@
 - name: Merge the daemon defaults into daemon.json
   ansible.builtin.import_tasks: daemon_config.yaml
 
+# The compose pull tasks use `policy: missing` (ADR 0083), which needs Docker
+# Compose 2.22. The plugin comes from Docker's own apt repository, so this
+# fails only on a host whose repository stopped updating.
+- name: Read the installed Docker Compose version
+  ansible.builtin.command: docker compose version --short
+  register: docker_compose_version
+  changed_when: false
+
+- name: Assert Docker Compose is new enough for pull policy `missing`
+  ansible.builtin.assert:
+    that:
+      - (docker_compose_version.stdout | trim | regex_replace('^v', '')) is version('2.22', '>=')
+    fail_msg: "Docker Compose {{ docker_compose_version.stdout | trim }} is older than 2.22, which `policy: missing` needs"
+    quiet: true
+
 - name: Enable and start Docker service
   ansible.builtin.systemd:
     name: docker

@@ -118,9 +118,12 @@
     label: "{{ item.filename }}"
   no_log: true
 
-- name: Pull backup-agent images
+# `missing`, not the default `always`: the compose file pins each image to a
+# digest (ADR 0083), so a reference already on the host is the one to run.
+- name: Pull backup-agent images the host does not have
   community.docker.docker_compose_v2_pull:
     project_src: "{{ backup_agent_deploy_dir }}"
+    policy: missing
   tags:
     - images
 

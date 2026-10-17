@@ -92,6 +92,7 @@
         volumes:
           - "{{ volume_rm_full_name }}:/vol"
         network_mode: none
+        read_only: true
         cap_drop:
           - ALL
         # Deleting a file takes write access to the directory holding it,

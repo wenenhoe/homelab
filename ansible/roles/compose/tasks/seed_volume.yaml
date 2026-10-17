@@ -24,6 +24,7 @@
       - "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ compose_volume_item.name }}:/src:ro"
       - "{{ compose_app_item.name }}_{{ compose_volume_item.name }}:/dest"
     network_mode: none
+    read_only: true
     cap_drop:
       - ALL
     # cp -a keeps each file's owner, mode and setgid bit and writes over

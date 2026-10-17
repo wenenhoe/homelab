@@ -115,6 +115,7 @@
         command: >-
           sh -c "mkdir -p /scratch && tar -xzf /restore-archive.tar.gz -C /scratch"
         network_mode: none
+        read_only: true
         cap_drop:
           - ALL
         # Restoring each entry's owner, mode and setgid bit as root takes
@@ -148,6 +149,7 @@
           cp -a \"$srcdir\"/. /target/
           "
         network_mode: none
+        read_only: true
         cap_drop:
           - ALL
         # The delete reaches into directories other users own

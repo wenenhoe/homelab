@@ -133,7 +133,9 @@ job still exits 0. `volume-file-rm.yaml` keeps `DAC_OVERRIDE` to delete inside
 directories another user owns, and the OpenBao data `chown` keeps `CHOWN` and
 `DAC_OVERRIDE` to list directories the previous owner left at `0700`. It does
 not take `DAC_READ_SEARCH`, which Docker's default set lacks and which allows
-`open_by_handle_at`. The user-id lookup that precedes it needs nothing.
+`open_by_handle_at`. The user-id lookup that precedes it needs nothing. Each of
+these also runs with a read-only root filesystem: they write only into the
+volumes they are given.
 The step-ca cert helpers (the three `docker run` lines in `cert-renewer@.service`
 and the `step_ca_cert` tasks) run as root over a `certs` volume whose files
 `step` writes at mode `0600` and the chown then hands to the app's own user.

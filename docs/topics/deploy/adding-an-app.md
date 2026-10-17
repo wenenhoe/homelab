@@ -119,8 +119,11 @@ process runs as root, so `caddy` sets `cap_add: [NET_BIND_SERVICE]` after
 An entrypoint that starts as root to `chown` a volume and then drops to
 another user needs `CHOWN`, `SETUID` and `SETGID` back, or to start as that
 user. `lldap`, `seaweedfs`, `librespeed` and the `minecraft` server and backup
-services take them back with `cap_add`; `lldap` also keeps `DAC_OVERRIDE`,
-which its entrypoint's write check on `/data` needs. `openbao` runs as a
+services take them back with `cap_add`. `librespeed` also keeps `DAC_OVERRIDE`
+and `FOWNER`: its entrypoint deletes and re-copies its web root on every start,
+and after the first start those files belong to `www-data` in a sticky
+directory. `lldap` also keeps `DAC_OVERRIDE`, which its entrypoint's write
+check on `/data` needs. `openbao` runs as a
 non-root user and keeps only `IPC_LOCK`. The `docker-socket-proxy` sidecars
 each need their own check of what the process does after it starts.
 
@@ -156,7 +159,10 @@ that runs `bootstrap.sh`; they keep the network, since they call lldap's API.
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see
 [`gates.md`](../engineering/ci/gates.md#compose-boot-test) for which apps it
-skips. It does not exercise what an app does once running. Search for
+skips. It does not exercise what an app does once running, or when its
+container restarts: an entrypoint that cleans up after its previous start
+fails only on the second one, so restart the container once when you add
+capabilities to an app like that. Search for
 `no-new-privileges` under `docker/` to see which services have the pair today.
 
 ## 2. Register it in `app_catalog`

@@ -125,10 +125,10 @@ non-root user and keeps only `IPC_LOCK`. The `docker-socket-proxy` sidecars
 each need their own check of what the process does after it starts.
 
 A container Ansible starts for one job gets the same pair, no network, and
-only what the job does as root. The volume seed (`seed_volume.yaml`) keeps
-`CHOWN`, `FOWNER` and `DAC_OVERRIDE`: `cp -a` keeps each file's owner and mode
-and writes over files other users own. The restore role's two containers keep
-those three and `FSETID`, because `chmod` drops a setgid bit without it and the
+only what the job does as root. The volume seed (`seed_volume.yaml`) and the
+restore role's two containers keep `CHOWN`, `FOWNER`, `DAC_OVERRIDE` and
+`FSETID`: `cp -a` and `tar` keep each file's owner and mode and write over
+files other users own, and `chmod` drops a setgid bit without `FSETID` while the
 job still exits 0. `volume-file-rm.yaml` keeps `DAC_OVERRIDE` to delete inside
 directories another user owns, and the OpenBao data `chown` keeps `CHOWN` and
 `DAC_OVERRIDE` to list directories the previous owner left at `0700`. It does

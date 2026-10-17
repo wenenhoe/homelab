@@ -26,12 +26,14 @@
     network_mode: none
     cap_drop:
       - ALL
-    # cp -a keeps each file's owner and mode and writes over files other
-    # users own, which root cannot do without all three.
+    # cp -a keeps each file's owner, mode and setgid bit and writes over
+    # files other users own, which root cannot do without all four; without
+    # FSETID a setgid directory comes back without the bit and cp exits 0.
     capabilities:
       - CHOWN
       - DAC_OVERRIDE
       - FOWNER
+      - FSETID
     security_opts:
       - no-new-privileges:true
     detach: false

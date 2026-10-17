@@ -35,8 +35,8 @@
 
     # --- Seeding keeps another user's owner and mode, and can overwrite their file
     # The seed runs as root. Keeping a file's owner and mode after the copy
-    # needs CHOWN and FOWNER, and writing over a 0600 file another user owns
-    # needs DAC_OVERRIDE.
+    # needs CHOWN and FOWNER, keeping a setgid directory's bit needs FSETID,
+    # and writing over a 0600 file another user owns needs DAC_OVERRIDE.
     - name: Read back the owner and mode of the staged file the first seed copied
       community.docker.docker_container:
         name: volapp-seed-owner-check
@@ -66,6 +66,16 @@
         group: "1000"
         mode: "0600"
 
+    # A setgid directory whose group root is not in: without FSETID the
+    # chmod after the chown drops the bit and cp still exits 0.
+    - name: Stage a setgid directory owned by another group
+      ansible.builtin.file:
+        path: "{{ compose_deploy_dir }}/volapp/_staging/data/shared"
+        state: directory
+        owner: "1000"
+        group: "1000"
+        mode: "2775"
+
     - name: Seed the volume again, over the file the first seed left owned by another user
       ansible.builtin.include_role:
         name: compose
@@ -85,7 +95,7 @@
         command:
           - sh
           - -c
-          - "stat -c '%u:%g %a' /data/private/secret.txt; cat /data/private/secret.txt"
+          - "stat -c '%u:%g %a' /data/private/secret.txt /data/shared; cat /data/private/secret.txt"
         detach: false
         cleanup: true
         output_logs: true
@@ -95,7 +105,7 @@
     - name: Confirm the second seed replaced the content and kept the owner and mode
       ansible.builtin.assert:
         that:
-          - compose_seed_second_read.container.Output.splitlines() == ['1000:1000 600', 'reseeded-private-content']
+          - compose_seed_second_read.container.Output.splitlines() == ['1000:1000 600', '1000:1000 2775', 'reseeded-private-content']
         fail_msg: >-
           After the second seed: {{ compose_seed_second_read.container.Output }}
 

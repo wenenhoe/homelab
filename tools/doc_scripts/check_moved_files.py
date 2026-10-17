@@ -110,6 +110,8 @@ def stale_mentions(root: Path, moved: dict[str, str | None]) -> list[str]:
             continue
         is_adr = bool(ADR_PATH_RE.fullmatch(rel))
         for name, pattern in names.items():
+            if name not in text:
+                continue
             matches = [m for m in pattern.finditer(text) if not (is_adr and _in_table(text, m.start()))]
             if not matches:
                 continue

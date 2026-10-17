@@ -3,6 +3,11 @@
   extends: [
     "config:recommended",
     "helpers:pinGitHubActionDigests",
+    // Pins every docker-datasource image to `name:tag@sha256:...` and moves the
+    // digest with the tag (ADR 0083). The regex managers below opt in with a
+    // `currentDigest` group and an `autoReplaceStringTemplate`; without both,
+    // Renovate can neither read the digest nor write one back.
+    "docker:pinDigests",
     // Age/Adoption/Passing/Confidence badges on PRs. Only covers the go,
     // npm, maven, pypi, nuget, packagist and rubygems datasources
     // (docs.renovatebot.com/merge-confidence) — of this repo's managers,
@@ -128,7 +133,8 @@
       customType: "regex",
       description: "Keep the pinned Renovate execution image (renovate-version input) current",
       managerFilePatterns: ["/^\\.github/workflows/renovate\\.ya?ml$/"],
-      matchStrings: ["renovate-version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"],
+      matchStrings: ["renovate-version:\\s*\"(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'renovate-version: "{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
       depNameTemplate: "ghcr.io/renovatebot/renovate",
       versioningTemplate: "docker",
@@ -144,7 +150,8 @@
       customType: "regex",
       description: "cloud_sync's pinned rclone image, embedded in a systemd ExecStart= line rather than a compose file",
       managerFilePatterns: ["/^ansible/roles/cloud_sync/templates/cloud-sync\\.service\\.j2$/"],
-      matchStrings: ["rclone/rclone:(?<currentValue>[0-9.]+)"],
+      matchStrings: ["rclone/rclone:(?<currentValue>[0-9.]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"],
+      autoReplaceStringTemplate: "rclone/rclone:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}",
       datasourceTemplate: "docker",
       depNameTemplate: "rclone/rclone",
     },
@@ -152,7 +159,8 @@
       customType: "regex",
       description: "backup_agent's pinned rclone image, embedded in a shell script's docker run line rather than a compose file",
       managerFilePatterns: ["/^ansible/roles/backup_agent/templates/check-freshness\\.sh\\.j2$/"],
-      matchStrings: ["rclone/rclone:(?<currentValue>[0-9.]+)"],
+      matchStrings: ["rclone/rclone:(?<currentValue>[0-9.]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"],
+      autoReplaceStringTemplate: "rclone/rclone:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}",
       datasourceTemplate: "docker",
       depNameTemplate: "rclone/rclone",
     },
@@ -160,46 +168,103 @@
       customType: "regex",
       description: "step_ca_cert's step-cli image, a plain Ansible variable default rather than a recognized image: key under a docker module",
       managerFilePatterns: ["/^ansible/roles/step_ca_cert/defaults/main\\.ya?ml$/"],
-      matchStrings: ["step_ca_cert_step_cli_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      matchStrings: ["step_ca_cert_step_cli_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'step_ca_cert_step_cli_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
     {
       customType: "regex",
-      description: "seed-lldap-ci-cert.sh's step-ca/step-cli/alpine images, shell variables rather than a recognized image: key",
+      description: "seed-lldap-ci-cert.sh's step-ca image, a shell variable rather than a recognized image: key",
       managerFilePatterns: ["/^\\.github/scripts/seed-lldap-ci-cert\\.sh$/"],
-      matchStrings: [
-        "step_ca_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
-        "step_cli_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
-        "alpine_image=[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']",
-      ],
+      matchStrings: ["step_ca_image=\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'step_ca_image="{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
+      datasourceTemplate: "docker",
+    },
+    // One manager per variable: a template can't name the variable it is
+    // rewriting, and RE2 has no lookaround to keep it out of the match.
+    {
+      customType: "regex",
+      description: "seed-lldap-ci-cert.sh's step-cli image, a shell variable rather than a recognized image: key",
+      managerFilePatterns: ["/^\\.github/scripts/seed-lldap-ci-cert\\.sh$/"],
+      matchStrings: ["step_cli_image=\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'step_cli_image="{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
     {
       customType: "regex",
-      description: "Images the Molecule playbooks run directly (molecule_helpers/vars/images/, one file per image), variable defaults rather than image: keys under tasks/",
-      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/[a-z_]+\\.ya?ml$/"],
-      matchStrings: ["molecule_helpers_[a-z_]+_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      description: "seed-lldap-ci-cert.sh's alpine image, a shell variable rather than a recognized image: key",
+      managerFilePatterns: ["/^\\.github/scripts/seed-lldap-ci-cert\\.sh$/"],
+      matchStrings: ["alpine_image=\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'alpine_image="{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
+      datasourceTemplate: "docker",
+    },
+    // Images the Molecule playbooks run directly: molecule_helpers/vars/images/,
+    // one file per image, each a variable default rather than an image: key
+    // under tasks/. One manager per file, because the template has to name the
+    // variable it rewrites (tools/ci/images/molecule_vars.py keeps the files
+    // and variables in step; a test checks each file has a manager here).
+    {
+      customType: "regex",
+      description: "molecule_helpers' alpine image (vars/images/alpine.yml)",
+      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/alpine\\.ya?ml$/"],
+      matchStrings: ["molecule_helpers_alpine_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'molecule_helpers_alpine_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "molecule_helpers' aws-cli image (vars/images/aws_cli.yml)",
+      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/aws_cli\\.ya?ml$/"],
+      matchStrings: ["molecule_helpers_aws_cli_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'molecule_helpers_aws_cli_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "molecule_helpers' curl image (vars/images/curl.yml)",
+      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/curl\\.ya?ml$/"],
+      matchStrings: ["molecule_helpers_curl_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'molecule_helpers_curl_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "molecule_helpers' lldap image (vars/images/lldap.yml)",
+      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/lldap\\.ya?ml$/"],
+      matchStrings: ["molecule_helpers_lldap_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'molecule_helpers_lldap_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
+      description: "molecule_helpers' step-cli image (vars/images/step_cli.yml)",
+      managerFilePatterns: ["/^ansible/roles/molecule_helpers/vars/images/step_cli\\.ya?ml$/"],
+      matchStrings: ["molecule_helpers_step_cli_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'molecule_helpers_step_cli_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
     {
       customType: "regex",
       description: "volume-file-rm.yaml's throwaway alpine image, a play variable rather than a tasks/ file the ansible manager reads",
       managerFilePatterns: ["/^ansible/playbooks/volume-file-rm\\.ya?ml$/"],
-      matchStrings: ["volume_rm_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      matchStrings: ["volume_rm_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'volume_rm_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
     {
       customType: "regex",
       description: "openbao's pinned image, a plain Ansible variable default rather than a recognized image: key under a docker module",
       managerFilePatterns: ["/^ansible/roles/openbao/defaults/main\\.ya?ml$/"],
-      matchStrings: ["openbao_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      matchStrings: ["openbao_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'openbao_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
     {
       customType: "regex",
       description: "openbao's chown-image pin for cert post-issuance/renewal, a plain Ansible variable passed at include_role rather than a recognized image: key under a docker module",
       managerFilePatterns: ["/^ansible/playbooks/deploy\\.yaml$/"],
-      matchStrings: ["step_ca_cert_chown_image:\\s*[\"'](?<depName>[^:\"']+):(?<currentValue>[^\"']+)[\"']"],
+      matchStrings: ["step_ca_cert_chown_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'step_ca_cert_chown_image: "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
     // openbao_cli's native-CLI version and the sha256 of its .deb, a GitHub
@@ -252,7 +317,8 @@
       customType: "regex",
       description: "The mermaid-cli image check_mermaid.py renders diagrams with, a Python constant rather than a recognized image: key",
       managerFilePatterns: ["/^tools/doc_scripts/check_mermaid\\.py$/"],
-      matchStrings: ["MERMAID_CLI_IMAGE = \"(?<depName>[^:\"]+):(?<currentValue>[^\"]+)\""],
+      matchStrings: ["MERMAID_CLI_IMAGE = \"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'MERMAID_CLI_IMAGE = "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
   ],
@@ -611,6 +677,27 @@
       matchDatasources: ["docker"],
       matchDepNames: ["louislam/dockge"],
       sourceUrl: "https://github.com/louislam/dockge",
+    },
+
+    // Digest pins (ADR 0083), placed after every per-image group above so they
+    // win: the first run turns every tag into tag@digest in one PR, and a tag
+    // its publisher rebuilt later moves only that digest. Neither is
+    // automerged. The initial digest is the one the registry serves when
+    // Renovate runs, which can differ from what a host is running now, so the
+    // pin PR is a real change to review, unlike the GitHub Actions pins above.
+    {
+      matchDatasources: ["docker"],
+      matchUpdateTypes: ["pin", "pinDigest"],
+      groupName: "docker image digest pins",
+      groupSlug: "docker-digest-pins",
+      automerge: false,
+    },
+    {
+      matchDatasources: ["docker"],
+      matchUpdateTypes: ["digest"],
+      groupName: "docker image digest refreshes (same tag, rebuilt)",
+      groupSlug: "docker-digest-refreshes",
+      automerge: false,
     },
 
     // caddy DOES carry a source label, but it points at

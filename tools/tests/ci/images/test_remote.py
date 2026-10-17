@@ -16,11 +16,13 @@ import contextlib
 import http.server
 import io
 import json
+import re
 import threading
 import urllib.request
 from pathlib import Path
 
 import pytest
+from ci import json5
 from ci.images import registry as reg
 from ci.images import remote as rm
 
@@ -211,6 +213,18 @@ class TestExists:
         assert client.check(fake_image(reference=digest))[0] == rm.Verdict.OK
         assert f"/manifests/{digest}" in fake.heads[0]
 
+    def test_a_missing_digest_is_reported_as_a_missing_digest_not_a_missing_tag(self, client):
+        verdict, detail = client.check(fake_image(reference="sha256:" + "d" * 64))
+        assert verdict == rm.Verdict.MISSING
+        assert "no manifest with that digest" in detail
+
+    def test_a_denied_digest_names_the_digest(self, fake, client):
+        digest = "sha256:" + "e" * 64
+        fake.manifests[("team/app", digest)] = 403
+        verdict, detail = client.check(fake_image(reference=digest))
+        assert verdict == rm.Verdict.MISSING
+        assert "the digest or repository is gone" in detail
+
 
 class TestRateLimit:
     def test_a_token_is_fetched_once_per_repository_and_reused_across_its_tags(self, fake, client):
@@ -360,6 +374,12 @@ class TestStandardRefs:
             "ghcr.io/wenenhoe/molecule-dind:latest",
         }
 
+    def test_a_digest_stays_on_the_reference(self, root):
+        digest = "sha256:" + "a" * 64
+        write(root, "docker/app/compose.yaml", f"    image: redis:7@{digest}\n")
+        write(root, "docker/app/Dockerfile", f"FROM caddy:2.11.4@{digest}\n")
+        assert set(found_refs(root)) == {f"redis:7@{digest}", f"caddy:2.11.4@{digest}"}
+
     def test_commented_out_and_non_image_lines_are_ignored(self, root):
         write(root, "docker/app/compose.yaml", "# image: old:1\n    build: .\n    container_name: image: x\n")
         assert found_refs(root) == {}
@@ -390,6 +410,23 @@ class TestStandardRefs:
         collected = rm.collect(root)
         assert collected.images == {"redis:7": ["docker/a/compose.yaml", "docker/b/compose.yaml"]}
 
+    def test_the_inventory_names_an_image_once_whether_or_not_it_is_pinned(self, root):
+        digest = "sha256:" + "a" * 64
+        write(root, "docker/a/compose.yaml", f"image: redis:7@{digest}\n")
+        write(root, "docker/b/compose.yaml", "image: redis:7\n")
+        renovate(root, "")
+        assert rm.inventory(rm.collect(root))["images"] == [
+            {"ref": "redis:7", "digests": [digest], "sources": ["docker/a/compose.yaml", "docker/b/compose.yaml"]},
+        ]
+
+    def test_the_inventory_lists_every_digest_an_image_is_pinned_to(self, root):
+        first, second = "sha256:" + "1" * 64, "sha256:" + "2" * 64
+        write(root, "docker/a/compose.yaml", f"image: redis:7@{second}\n")
+        write(root, "docker/b/compose.yaml", f"image: redis:7@{first}\n")
+        renovate(root, "")
+        (image,) = rm.inventory(rm.collect(root))["images"]
+        assert image["digests"] == [first, second]
+
     def test_skipped_references_are_reported_not_checked(self, root):
         write(root, "docker/a/compose.yaml", "image: buildapp:local\nimage: {{ x }}\nimage: redis:7\n")
         renovate(root, "")
@@ -414,6 +451,19 @@ class TestRenovateRefs:
         refs, problems = rm.renovate_refs(root)
         assert [(r.text, r.source) for r in refs] == [("rclone/rclone:1.75", "units/x.service")]
         assert problems == []
+
+    def test_a_current_digest_group_is_carried_onto_the_reference(self, root):
+        digest = "sha256:" + "b" * 64
+        renovate(root, self.MANAGER.replace("(?<currentValue>[0-9.]+)", "(?<currentValue>[0-9.]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"))
+        write(root, "units/x.service", f"ExecStart=docker run rclone/rclone:1.75@{digest} copy\n")
+        refs, problems = rm.renovate_refs(root)
+        assert [r.text for r in refs] == [f"rclone/rclone:1.75@{digest}"]
+        assert problems == []
+
+    def test_a_manager_with_a_digest_group_still_matches_an_unpinned_text(self, root):
+        renovate(root, self.MANAGER.replace("(?<currentValue>[0-9.]+)", "(?<currentValue>[0-9.]+)(?:@(?<currentDigest>sha256:[a-f0-9]+))?"))
+        write(root, "units/x.service", "ExecStart=docker run rclone/rclone:1.75 copy\n")
+        assert [r.text for r in rm.renovate_refs(root)[0]] == ["rclone/rclone:1.75"]
 
     def test_a_depname_group_is_used_over_the_template(self, root):
         renovate(
@@ -504,8 +554,8 @@ class TestMain:
         assert json.loads(out) == {
             "version": 1,
             "images": [
-                {"ref": "alpine:3.20", "sources": ["docker/a/compose.yaml"]},
-                {"ref": "redis:7", "sources": ["docker/b/compose.yaml"]},
+                {"ref": "alpine:3.20", "digests": [], "sources": ["docker/a/compose.yaml"]},
+                {"ref": "redis:7", "digests": [], "sources": ["docker/b/compose.yaml"]},
             ],
             "skipped": [{"ref": "${IMG}", "reason": "templated"}],
             "problems": [],
@@ -579,6 +629,30 @@ def collected():
     return rm.collect(REPO_ROOT)
 
 
+FAKE_DIGEST = "sha256:" + "f" * 64
+
+
+def docker_managers() -> list[dict]:
+    config = json5.loads((REPO_ROOT / rm.RENOVATE_CONFIG).read_text())
+    return [m for m in config["customManagers"] if m.get("customType") == "regex" and m.get("datasourceTemplate") == "docker"]
+
+
+def render(template: str, **values: str) -> str:
+    """The two handlebars forms the managers' autoReplaceStringTemplate uses: {{{x}}} and {{#if newDigest}}...{{/if}}."""
+    keep = values.get("newDigest")
+    text = re.sub(r"\{\{#if newDigest\}\}(.*?)\{\{/if\}\}", lambda m: m.group(1) if keep else "", template)
+    return re.sub(r"\{\{\{(\w+)\}\}\}", lambda m: values[m.group(1)], text)
+
+
+def manager_id(manager: dict) -> str:
+    return manager["description"][:60]
+
+
+@pytest.fixture(scope="module")
+def managers():
+    return docker_managers()
+
+
 class TestRealTree:
     def test_no_renovate_manager_has_lost_its_file(self, collected):
         assert collected.problems == []
@@ -624,7 +698,9 @@ class TestRealTree:
         document = rm.inventory(collected)
         assert json.loads(json.dumps(document)) == document
         assert set(document) == {"version", "images", "skipped", "problems"}
-        assert [i["ref"] for i in document["images"]] == sorted(collected.images)
+        assert [i["ref"] for i in document["images"]] == sorted({text.partition("@")[0] for text in collected.images})
+        assert all(set(i) == {"ref", "digests", "sources"} for i in document["images"])
+        assert not any("@" in i["ref"] for i in document["images"])
 
     def test_every_source_the_json_inventory_names_is_a_file_in_the_repo(self, collected, subtests):
         for image in rm.inventory(collected)["images"]:
@@ -632,6 +708,48 @@ class TestRealTree:
                 assert image["sources"]
                 for source in image["sources"]:
                     assert (REPO_ROOT / source).is_file()
+
+    def test_every_docker_manager_reads_and_writes_a_digest(self, managers, subtests):
+        for manager in managers:
+            with subtests.test(manager=manager_id(manager)):
+                assert all("(?<currentDigest>" in m for m in manager["matchStrings"])
+                assert "{{#if newDigest}}@{{{newDigest}}}{{/if}}" in manager["autoReplaceStringTemplate"]
+
+    def test_no_manager_pattern_uses_what_renovates_regex_engine_rejects(self, managers, subtests):
+        # Renovate compiles patterns with RE2 when it is installed: no lookaround, no backreferences.
+        banned = re.compile(r"\(\?<?[=!]|\\[1-9]|\(\?P?=")
+        for manager in managers:
+            for text in manager["matchStrings"]:
+                with subtests.test(manager=manager_id(manager)):
+                    assert not banned.search(text)
+
+    def test_a_manager_rewrites_what_it_matched_and_nothing_else(self, managers, subtests):
+        """The template, given the matched value, reproduces the matched text; given a digest, it adds exactly `@digest` after the tag."""
+        for manager in managers:
+            matchers = [rm._file_matcher(p) for p in manager["managerFilePatterns"]]
+            expressions = [re.compile(rm._JS_NAMED_GROUP.sub(r"(?P<\1>", s), re.MULTILINE) for s in manager["matchStrings"]]
+            for path in rm._walk(REPO_ROOT):
+                rel = path.relative_to(REPO_ROOT).as_posix()
+                if not any(m.search(rel) for m in matchers):
+                    continue
+                for expression in expressions:
+                    for match in expression.finditer(path.read_text()):
+                        with subtests.test(file=rel, manager=manager_id(manager)):
+                            groups = match.groupdict()
+                            values = {"depName": groups.get("depName") or manager["depNameTemplate"], "newValue": groups["currentValue"]}
+                            template = manager["autoReplaceStringTemplate"]
+                            assert render(template, **values) == match.group(0)
+                            cut = match.end("currentValue") - match.start()
+                            expected = match.group(0)[:cut] + f"@{FAKE_DIGEST}" + match.group(0)[cut:]
+                            assert render(template, **values, newDigest=FAKE_DIGEST) == expected
+
+    def test_every_molecule_image_file_has_a_manager(self, managers, subtests):
+        for path in sorted((REPO_ROOT / "ansible/roles/molecule_helpers/vars/images").glob("*.yml")):
+            rel = path.relative_to(REPO_ROOT).as_posix()
+            with subtests.test(file=rel):
+                owners = [m for m in managers if any(rm._file_matcher(p).search(rel) for p in m["managerFilePatterns"])]
+                assert len(owners) == 1
+                assert f"molecule_helpers_{path.stem}_image" in owners[0]["autoReplaceStringTemplate"]
 
     def test_the_list_is_the_size_of_a_real_repo(self, collected):
         assert len(collected.images) > 30

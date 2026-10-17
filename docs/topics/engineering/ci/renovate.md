@@ -9,6 +9,16 @@ Self-hosted [Renovate](https://docs.renovatebot.com) opens the dependency update
 - The job's own `GITHUB_TOKEN` is `contents: read`, enough to check the repository out. Renovate authenticates to GitHub with a separate token, the `RENOVATE_TOKEN` Actions secret, and the same token is passed as a host rule for `api.github.com` so the custom datasources that read release metadata do not share GitHub's unauthenticated limit.
 - One run at a time: the `renovate` concurrency group queues a second run behind the first and never cancels it.
 
+## Image digests
+
+Every docker image reference is pinned as `name:tag@sha256:digest` ([ADR 0083 (Images a deploy runs)](../../../decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)). The `docker:pinDigests` preset adds a digest where one is missing and moves it when a tag is rebuilt or a version changes.
+
+- The docker-compose, dockerfile and ansible managers handle the digest themselves. Each custom regex manager for a docker image needs two things: a `currentDigest` group, `(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?`, and an `autoReplaceStringTemplate` that ends in `{{#if newDigest}}@{{{newDigest}}}{{/if}}`. Without the group Renovate reads no digest; without the template it writes none, or drops the one a bump should keep.
+- A manager's tag group must not match `@`: `[^"@]+`, not `[^"]+`, or the tag swallows the digest.
+- Renovate compiles patterns with RE2 when it is installed, so a pattern has no lookahead, lookbehind or backreference. Extra named groups are not passed to the template, so it spells out whatever precedes the image (`openbao_image: "`), and a file holding several variables needs one manager per variable.
+- Pin and digest-refresh pull requests are two groups, `docker image digest pins` and `docker image digest refreshes (same tag, rebuilt)`. Neither automerges.
+- `tools/tests/ci/images/test_remote.py` runs every docker manager over the real tree and fails one that lacks the group or the template, or whose template would change anything but the pin.
+
 ## The token
 
 `RENOVATE_TOKEN` is a **fine-grained personal access token**, limited to this repository. Its repository permissions, and what each is for:

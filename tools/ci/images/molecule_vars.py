@@ -3,7 +3,8 @@
 
 Every image a converge, verify or cleanup playbook runs directly lives once,
 in ansible/roles/molecule_helpers/vars/images/<name>.yml, as
-`molecule_helpers_<name>_image: "<repo>:<tag>"`. Two things depend on that:
+`molecule_helpers_<name>_image: "<repo>:<tag>"`, with the tag's `@sha256:` digest
+after it once pinned. Two things depend on that:
 
 - Renovate's ansible manager only reads tasks/, so an image literal in a
   playbook is a pin nothing ever bumps; the regex manager in
@@ -15,7 +16,7 @@ in ansible/roles/molecule_helpers/vars/images/<name>.yml, as
 `check` fails on:
 
 - an image file that isn't exactly one `molecule_helpers_<name>_image:
-  "<repo>:<tag>"` line, with `<name>` the file's own name;
+  "<repo>:<tag>[@<digest>]"` line, with `<name>` the file's own name;
 - a literal `<repo>:<tag>` of one of those images in a scenario's YAML outside
   its files/ directory (fixture compose files can't use variables and keep
   their own pin);

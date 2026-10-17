@@ -168,6 +168,18 @@ repos:
         language: python
         pass_filenames: false
         always_run: true
+      - id: check-image-digests
+        name: check-image-digests
+        description: >-
+          Every image reference the repo names carries an @sha256 digest
+          unless it is listed, with a reason, in
+          tools/ci/images/digests.py, and one name:tag is never pinned to
+          two digests (ADR 0083). Stdlib-only, so it needs no extra
+          dependencies.
+        entry: bash -c 'cd tools && python3 -m ci.images.digests check' --
+        language: python
+        pass_filenames: false
+        always_run: true
       - id: check-molecule-image-vars
         name: check-molecule-image-vars
         description: >-

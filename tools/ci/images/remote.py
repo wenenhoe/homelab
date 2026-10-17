@@ -62,7 +62,10 @@ from ci import json5
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 RENOVATE_CONFIG = ".github/renovate.json5"
-SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
+# Directories the walk never enters: tooling caches and every directory .gitignore excludes, which hold
+# files that are not the repo's (`.ansible/` is where `ansible-galaxy` installs collections that carry their own test images).
+SKIP_DIRS = {".git", ".venv", ".ansible", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
+SKIP_PATHS = {"ansible/molecule-coverage/.data", "ansible/files/secrets", "ansible/files/restore", "ansible/files/telegram-pins"}
 MANIFEST_TYPES = ", ".join(
     (
         "application/vnd.oci.image.index.v1+json",
@@ -134,7 +137,8 @@ def skip_reason(text: str) -> str | None:
 
 def _walk(root: Path):
     for dirpath, dirnames, filenames in os.walk(root):
-        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
+        here = Path(dirpath).relative_to(root).as_posix()
+        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS and f"{here}/{d}" not in SKIP_PATHS)
         for name in sorted(filenames):
             yield Path(dirpath) / name
 

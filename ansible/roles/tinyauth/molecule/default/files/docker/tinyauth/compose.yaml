@@ -2,7 +2,7 @@ name: tinyauth
 
 services:
   tinyauth:
-    image: ghcr.io/tinyauthapp/tinyauth:v5
+    image: ghcr.io/tinyauthapp/tinyauth:v5@sha256:220aa235c76393a73fece831d7ba967b8698d3907fd8e3c4c952f699c7b142a5
     container_name: tinyauth
     volumes:
       - data:/data

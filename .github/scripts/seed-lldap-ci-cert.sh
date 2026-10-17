@@ -21,9 +21,9 @@ set -euo pipefail
 network="$1"
 lldap_fqdn="$2"
 ca_password="ci-dummy-step-ca-password"
-step_ca_image="smallstep/step-ca:0.30.2"
-step_cli_image="smallstep/step-cli:0.31.0"
-alpine_image="alpine:3.24"
+step_ca_image="smallstep/step-ca:0.30.2@sha256:a2b17872915c193259b75a5474c398326f41bd199f0842093e52cf4182bc8270"
+step_cli_image="smallstep/step-cli:0.31.0@sha256:107e8497646c0e7c06cc5b6fd6fa13b5d2001909df6d7da3706b8541ed42bddf"
+alpine_image="alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6"
 
 workdir=$(mktemp -d)
 # mktemp -d defaults to 0700 — smallstep/step-cli runs as a non-root uid

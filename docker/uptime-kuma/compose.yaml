@@ -2,7 +2,7 @@ name: uptime-kuma
 
 services:
   uptime-kuma:
-    image: louislam/uptime-kuma:2.5.6-slim
+    image: louislam/uptime-kuma:2.5.6-slim@sha256:5db97dbbef610276e1699f3ece586c3509c8fd35de75d45ff5109761a1b377dc
     container_name: uptime-kuma
     volumes:
       - data:/app/data

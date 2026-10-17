@@ -25,7 +25,7 @@
 - name: Run a throwaway step-ca instance for this scenario
   community.docker.docker_container:
     name: step-ca-test
-    image: smallstep/step-ca:0.30.2
+    image: smallstep/step-ca:0.30.2@sha256:a2b17872915c193259b75a5474c398326f41bd199f0842093e52cf4182bc8270
     env:
       DOCKER_STEPCA_INIT_NAME: "Molecule Throwaway CA"
       DOCKER_STEPCA_INIT_DNS_NAMES: "step-ca-test"

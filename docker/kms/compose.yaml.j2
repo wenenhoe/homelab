@@ -2,7 +2,7 @@ name: kms
 
 services:
   kms-app:
-    image: ghcr.io/11notes/kms:1.0.3
+    image: ghcr.io/11notes/kms:1.0.3@sha256:0eb71bab971959c8e609f280c0e7fe68968cafaab1c066274db12161ffc46674
     container_name: kms-app
     volumes:
       - data:/kms/var
@@ -24,7 +24,7 @@ services:
     security_opt:
       - no-new-privileges:true
   kms-gui:
-    image: ghcr.io/11notes/kms-gui:1.0.3
+    image: ghcr.io/11notes/kms-gui:1.0.3@sha256:f3d9365e634fb3f505b6b759c380ce09a6790e615e42a1587c37686fdf7ca1f7
     container_name: kms-gui
     depends_on:
       kms-app:

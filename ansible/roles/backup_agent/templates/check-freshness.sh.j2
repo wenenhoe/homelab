@@ -64,7 +64,7 @@ S3ENV
   # no write access and no root.
   output=$(docker run --rm --network {{ backup_agent_network_name }} --env-file "${s3_env_file}" \
     --cap-drop ALL --security-opt no-new-privileges:true --read-only --user 65534:65534 \
-    rclone/rclone:1.75 lsf \
+    rclone/rclone:1.75@sha256:2687085f718d3c628f7fdfb77c52a1d344332aed543110bb88088f2c70d43eb5 lsf \
     ":s3:{{ seaweedfs_s3_bucket }}/${s3_path}/" \
     --max-age "${max_age}" \
     --files-only 2>"${rclone_stderr}")

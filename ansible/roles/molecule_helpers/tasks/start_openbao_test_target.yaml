@@ -165,7 +165,7 @@
 - name: Issue OpenBao's leaf cert from step-ca-test
   community.docker.docker_container:
     name: openbao-test-cert-issue
-    image: smallstep/step-cli:0.31.0
+    image: smallstep/step-cli:0.31.0@sha256:107e8497646c0e7c06cc5b6fd6fa13b5d2001909df6d7da3706b8541ed42bddf
     networks:
       - name: "{{ molecule_helpers_openbao_network_name }}"
     volumes:
@@ -218,7 +218,7 @@
 - name: Make the leaf cert/key world-readable, as root inside a throwaway container (throwaway test key — no real security value)
   community.docker.docker_container:
     name: openbao-test-chmod-certs
-    image: alpine:3.24
+    image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     volumes:
       - /tmp:/tmp
     command:
@@ -271,7 +271,7 @@
 - name: Run the real OpenBao image as a throwaway test target
   community.docker.docker_container:
     name: openbao-test
-    image: openbao/openbao:2.7.1
+    image: openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf
     command: server
     networks:
       - name: "{{ molecule_helpers_openbao_network_name }}"

@@ -677,11 +677,12 @@ class TestRealTree:
         assert any(t.startswith("openbao/openbao:") for t in found)
 
     def test_every_self_built_image_the_registry_publishes_is_checked(self, collected, subtests):
+        named = {text.partition("@")[0] for text in collected.images}
         for image in reg.IMAGES.values():
             for ref in reg.refs(REPO_ROOT, image):
                 if image.key != "coderabbit-review":  # a tool image no compose file or scenario pins
                     with subtests.test(ref=ref):
-                        assert ref in collected.images
+                        assert ref in named
 
     @pytest.mark.parametrize(
         ("repository", "dockerfile"),
@@ -738,10 +739,15 @@ class TestRealTree:
                             groups = match.groupdict()
                             values = {"depName": groups.get("depName") or manager["depNameTemplate"], "newValue": groups["currentValue"]}
                             template = manager["autoReplaceStringTemplate"]
-                            assert render(template, **values) == match.group(0)
+                            text = match.group(0)
                             cut = match.end("currentValue") - match.start()
-                            expected = match.group(0)[:cut] + f"@{FAKE_DIGEST}" + match.group(0)[cut:]
-                            assert render(template, **values, newDigest=FAKE_DIGEST) == expected
+                            if pinned := groups.get("currentDigest"):  # the tree is pinned: the digest sits right after the tag
+                                assert text[cut:].startswith(f"@{pinned}")
+                                bare = text[:cut] + text[cut + 1 + len(pinned) :]
+                            else:
+                                bare = text
+                            assert render(template, **values) == bare
+                            assert render(template, **values, newDigest=FAKE_DIGEST) == bare[:cut] + f"@{FAKE_DIGEST}" + bare[cut:]
 
     def test_every_molecule_image_file_has_a_manager(self, managers, subtests):
         for path in sorted((REPO_ROOT / "ansible/roles/molecule_helpers/vars/images").glob("*.yml")):

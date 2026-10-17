@@ -131,8 +131,9 @@ and writes over files other users own. The restore role's two containers keep
 those three and `FSETID`, because `chmod` drops a setgid bit without it and the
 job still exits 0. `volume-file-rm.yaml` keeps `DAC_OVERRIDE` to delete inside
 directories another user owns, and the OpenBao data `chown` keeps `CHOWN` and
-`DAC_READ_SEARCH` to list directories the previous owner left at `0700`. The
-user-id lookup that precedes it needs nothing.
+`DAC_OVERRIDE` to list directories the previous owner left at `0700`. It does
+not take `DAC_READ_SEARCH`, which Docker's default set lacks and which allows
+`open_by_handle_at`. The user-id lookup that precedes it needs nothing.
 
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see

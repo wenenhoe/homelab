@@ -80,10 +80,12 @@
         cap_drop:
           - ALL
         # -R has to list directories the previous owner left at 0700, which
-        # root cannot do without DAC_READ_SEARCH.
+        # root cannot do without DAC_OVERRIDE. DAC_READ_SEARCH would also
+        # allow open_by_handle_at, which Docker's default seccomp profile
+        # blocks without it.
         capabilities:
           - CHOWN
-          - DAC_READ_SEARCH
+          - DAC_OVERRIDE
         security_opts:
           - no-new-privileges:true
         detach: false

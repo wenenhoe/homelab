@@ -45,6 +45,10 @@ the indexes, lints the markdown, and runs
   [ADR 0020 (Automation identity scope)](docs/decisions/0020-automation-identity-and-access-scope/revision-000.md),
   and [ADR 0043 (Host hardening baseline)](docs/decisions/0043-host-os-hardening-baseline/revision-000.md)
   for where it's reasoned through role by role.
+- **Container capabilities.** Every service and helper container sets
+  `cap_drop: [ALL]` and `no-new-privileges:true`, then adds back only what
+  its process does. Choose and verify the set with
+  [`docs/topics/deploy/container-hardening.md`](docs/topics/deploy/container-hardening.md).
 - **Idempotency.** Every Molecule scenario runs a real `idempotence`
   check — converge twice, second run reports no changes — except ones
   documented otherwise (rotation, one-shot jobs, timed renewal; see

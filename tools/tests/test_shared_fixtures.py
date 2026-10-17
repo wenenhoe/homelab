@@ -137,7 +137,11 @@ def test_a_stubbed_ssh_client_connects_and_closes_without_the_network():
 
 
 def test_a_stubbed_ssh_client_does_not_read_the_known_hosts_file():
-    stubbed_ssh_client().load_system_host_keys()
+    client = stubbed_ssh_client()
+
+    client.load_system_host_keys()
+
+    client.load_system_host_keys.assert_called_once_with()
 
 
 def test_a_stubbed_ssh_client_rejects_a_call_the_real_method_would():

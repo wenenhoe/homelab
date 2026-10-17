@@ -125,6 +125,14 @@ class TestRevoke:
         assert capsys.readouterr().err == ""
 
 
+@pytest.fixture(autouse=True)
+def restore_sighup_handler():
+    """main() installs a process-wide SIGHUP handler that closes over its own client; put the original back so it doesn't outlive the test."""
+    original = signal.getsignal(signal.SIGHUP)
+    yield
+    signal.signal(signal.SIGHUP, original)
+
+
 @pytest.fixture
 def logged_in_client(hvac_client):
     hvac_client.token = "fake-token"

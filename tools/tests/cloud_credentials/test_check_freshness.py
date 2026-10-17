@@ -13,7 +13,7 @@ from unittest.mock import call, patch
 import oci.exceptions
 import pytest
 import requests
-from _b2_objects import application_key, stubbed_b2_api
+from _b2_objects import application_key
 from _oci_objects import customer_secret_key
 from _oci_objects import response as oci_response
 from _responses import response
@@ -63,8 +63,9 @@ class TestClassify:
 @pytest.mark.usefixtures("fake_vault")
 class TestCheckB2:
     @patch.object(check_freshness, "b2_list_keys", autospec=True)
-    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api(), autospec=True)
-    def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_api, mock_list_keys, vault):
+    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    def test_fresh_and_stale_and_missing_keys_all_reported(self, mock_api, mock_list_keys, vault, b2_api):
+        mock_api.return_value = b2_api
         future_ms = (datetime.now(UTC) + timedelta(days=45)).timestamp() * 1000
         past_ms = (datetime.now(UTC) - timedelta(days=1)).timestamp() * 1000
         vault.seed("backblaze-b2-write-access-key", "key-write-1")
@@ -79,6 +80,7 @@ class TestCheckB2:
 
         results = check_freshness.check_b2()
 
+        mock_list_keys.assert_called_once_with(b2_api)
         statuses = {name: status for name, status, _ in results}
         assert statuses["b2 write"] == check_freshness.FRESH
         assert statuses["b2 read"] == check_freshness.STALE
@@ -91,8 +93,9 @@ class TestCheckB2:
         assert len(results) == 3
 
     @patch.object(check_freshness, "b2_list_keys", autospec=True)
-    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api(), autospec=True)
-    def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_api, mock_list_keys, vault):
+    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    def test_within_warning_window_is_expiring_soon_not_fresh_or_stale(self, mock_api, mock_list_keys, vault, b2_api):
+        mock_api.return_value = b2_api
         # This is the whole point of WARNING_DAYS: B2 enforces its own
         # expiry server-side, so this key still authenticates today,
         # but a plain fresh/stale split would say nothing until it's
@@ -105,8 +108,9 @@ class TestCheckB2:
         assert statuses["b2 write"] == check_freshness.WARNING
 
     @patch.object(check_freshness, "b2_list_keys", autospec=True)
-    @patch.object(check_freshness, "b2_rotation_api", return_value=stubbed_b2_api(), autospec=True)
-    def test_within_urgent_window_escalates_past_plain_warning(self, mock_api, mock_list_keys, vault):
+    @patch.object(check_freshness, "b2_rotation_api", autospec=True)
+    def test_within_urgent_window_escalates_past_plain_warning(self, mock_api, mock_list_keys, vault, b2_api):
+        mock_api.return_value = b2_api
         # The whole point of a second tier: 10 days out is a different
         # conversation than 25 days out, even though both are technically
         # "not fresh". A single WARNING would flatten that distinction.

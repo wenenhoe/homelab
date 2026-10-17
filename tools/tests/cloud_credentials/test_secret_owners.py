@@ -23,29 +23,61 @@ it once, in its catalog phase, and not again through its owning module.
 
 from __future__ import annotations
 
-from cloud_credentials.rotation_keys import b2 as rotation_b2
-from cloud_credentials.rotation_keys import oci_bootstrap as rotation_oci
-from cloud_credentials.rotation_keys import r2 as rotation_r2
+import ast
+import fnmatch
+from pathlib import Path
+
+import pytest
+from cloud_credentials.leaf_keys import b2 as leaf_b2
+from cloud_credentials.leaf_keys import oci as leaf_oci
+from cloud_credentials.leaf_keys import r2 as leaf_r2
 from cloud_credentials.secret_owners import SECRET_OWNERS
 from utils.secret_catalog import CATALOG_PATH, load_catalog, openbao_scopes
 
 _REQUIRED_ATTRS = ("has_secret", "read_secret", "write_secret")
 
-# Every secret name a leaf_keys module reads via its OWN second,
-# rotation-scoped binding (e.g. leaf_keys/oci.py's
-# _rotation_require_secret) - confirmed by hand against each
-# module's actual source, not inferred. SECRET_OWNERS must pair
-# every one of these with the rotation module, never the leaf module -
-# e.g. _oci-leaf-user-ocid-{write,read} pair with rotation_oci, because
-# leaf_keys/oci.py's own oci_leaf_user_id() reads it via
-# _rotation_require_secret.
-_CROSS_CATEGORY_ROTATION_NAMES = {
-    "_rotation-key-backblaze-b2-key-id": rotation_b2,
-    "_rotation-key-backblaze-b2-application-key": rotation_b2,
-    "_oci-leaf-user-ocid-write": rotation_oci,
-    "_oci-leaf-user-ocid-read": rotation_oci,
-    "_rotation-key-cloudflare-r2-token": rotation_r2,
-}
+_LEAF_MODULES = (leaf_b2, leaf_oci, leaf_r2)
+_ROTATION_MODULE_PREFIX = "cloud_credentials.rotation_keys."
+
+
+def _rotation_scoped_reads(module) -> list[str]:
+    """Glob patterns for every secret name `module` passes to a function it
+    bound from `scoped("rotation")` (e.g. leaf_keys/oci.py's
+    `_rotation_require_secret`). An f-string name becomes a pattern, and a
+    name held in a local constant is followed to its value. Any other
+    argument fails loudly instead of being skipped."""
+    tree = ast.parse(Path(module.__file__).read_text())
+    bound: set[str] = set()
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Assign)
+            and isinstance(node.value, ast.Call)
+            and getattr(node.value.func, "id", None) == "scoped"
+            and ast.literal_eval(node.value.args[0]) == "rotation"
+        ):
+            bound |= {target.id for target in node.targets[0].elts if target.id != "_"}
+
+    patterns: list[str] = []
+    for function in (n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)):
+        constants = {
+            node.targets[0].id: node.value.value
+            for node in ast.walk(function)
+            if isinstance(node, ast.Assign)
+            and isinstance(node.targets[0], ast.Name)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        }
+        for call in (n for n in ast.walk(function) if isinstance(n, ast.Call) and getattr(n.func, "id", None) in bound):
+            arg = call.args[0]
+            if isinstance(arg, ast.Constant):
+                patterns.append(arg.value)
+            elif isinstance(arg, ast.JoinedStr):
+                patterns.append("".join(part.value if isinstance(part, ast.Constant) else "*" for part in arg.values))
+            elif isinstance(arg, ast.Name) and arg.id in constants:
+                patterns.append(constants[arg.id])
+            else:
+                raise AssertionError(f"{module.__name__}:{call.lineno} passes a name this test can't resolve: {ast.unparse(arg)}")
+    return patterns
 
 
 class TestSecretOwnersInterface:
@@ -61,14 +93,19 @@ class TestSecretOwnersInterface:
         names = [name for name, _ in SECRET_OWNERS]
         assert len(names) == len(set(names)), "duplicate name in SECRET_OWNERS"
 
-    def test_cross_category_names_are_paired_with_the_rotation_module_not_the_leaf_module(self):
-        as_dict = dict(SECRET_OWNERS)
-        wrong: list[str] = []
-        for name, expected_module in _CROSS_CATEGORY_ROTATION_NAMES.items():
-            actual_module = as_dict.get(name)
-            if actual_module is not expected_module:
-                wrong.append(f"{name}: paired with {getattr(actual_module, '__name__', actual_module)}, expected {expected_module.__name__}")
-        assert wrong == [], f"cross-category names paired with the wrong module: {wrong}"
+    @pytest.mark.parametrize("leaf_module", _LEAF_MODULES, ids=lambda m: m.__name__)
+    def test_names_a_leaf_module_reads_through_a_rotation_binding_are_paired_with_a_rotation_module(self, leaf_module):
+        owners = dict(SECRET_OWNERS)
+        patterns = _rotation_scoped_reads(leaf_module)
+        assert patterns, f"{leaf_module.__name__} has no rotation-scoped read to check"
+
+        problems: list[str] = []
+        for pattern in patterns:
+            matches = fnmatch.filter(owners, pattern)
+            if not matches:
+                problems.append(f"{pattern}: not listed in SECRET_OWNERS")
+            problems += [f"{name}: paired with {owners[name].__name__}" for name in matches if not owners[name].__name__.startswith(_ROTATION_MODULE_PREFIX)]
+        assert problems == [], f"names read through a rotation binding but not owned by a rotation module: {problems}"
 
     def test_a_name_with_a_catalog_entry_is_stored_at_the_entrys_scope(self, fake_vault, subtests):
         scopes = openbao_scopes(load_catalog(CATALOG_PATH))

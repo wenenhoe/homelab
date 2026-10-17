@@ -38,18 +38,24 @@ def write(root: Path, rel: str, text: str = "x\n") -> None:
     path.write_text(text)
 
 
+DIGEST = "sha256:" + "a" * 64
+
+
 @pytest.fixture
 def wastebin_root(root):
     write(root, "docker/wastebin/Dockerfile")
+    write(root, "c.yaml")
     return root
 
 
 class TestShadowTag:
     def test_builds_the_context_tagged_as_the_pinned_ref(self, wastebin_root):
         runner = StubRunner("ghcr.io/wenenhoe/wastebin:3.7.2\nredis:7\n")
-        assert build.shadow_tag(wastebin_root, "wastebin", "/tmp/c/compose.yaml", runner) == 0
+        compose = wastebin_root / "deployed" / "compose.yaml"
+        write(wastebin_root, "deployed/compose.yaml")
+        assert build.shadow_tag(wastebin_root, "wastebin", str(compose), runner) == 0
         assert runner.commands == [
-            ["docker", "compose", "-f", "/tmp/c/compose.yaml", "config", "--images"],
+            ["docker", "compose", "-f", str(compose), "config", "--images"],
             ["docker", "build", "--tag", "ghcr.io/wenenhoe/wastebin:3.7.2", "docker/wastebin"],
         ]
         assert all(cwd == wastebin_root for _, cwd, _ in runner.calls)
@@ -81,6 +87,22 @@ class TestShadowTag:
         runner = StubRunner("ghcr.io/wenenhoe/molecule-dind:latest\nghcr.io/wenenhoe/wastebin:3.7.2\n")
         build.shadow_tag(wastebin_root, "wastebin", "c.yaml", runner)
         assert runner.commands[1] == ["docker", "build", "--tag", "ghcr.io/wenenhoe/wastebin:3.7.2", "docker/wastebin"]
+
+    def test_a_digest_is_not_part_of_the_tag_it_is_built_as(self, wastebin_root):
+        runner = StubRunner(f"ghcr.io/wenenhoe/wastebin:3.7.2@{DIGEST}\nghcr.io/wenenhoe/wastebin:3.7.2\n")
+        build.shadow_tag(wastebin_root, "wastebin", "c.yaml", runner)
+        assert runner.commands[1] == ["docker", "build", "--tag", "ghcr.io/wenenhoe/wastebin:3.7.2", "docker/wastebin"]
+
+    def test_the_digest_is_removed_from_the_deployed_compose_file_so_compose_runs_the_local_image(self, wastebin_root):
+        write(wastebin_root, "c.yaml", f"services:\n  w:\n    image: ghcr.io/wenenhoe/wastebin:3.7.2@{DIGEST}\n  r:\n    image: redis:7@{DIGEST}\n")
+        build.shadow_tag(wastebin_root, "wastebin", "c.yaml", StubRunner(f"ghcr.io/wenenhoe/wastebin:3.7.2@{DIGEST}\n"))
+        assert (wastebin_root / "c.yaml").read_text() == f"services:\n  w:\n    image: ghcr.io/wenenhoe/wastebin:3.7.2\n  r:\n    image: redis:7@{DIGEST}\n"
+
+    def test_the_compose_file_is_left_alone_when_the_build_fails(self, wastebin_root):
+        text = f"    image: ghcr.io/wenenhoe/wastebin:3.7.2@{DIGEST}\n"
+        write(wastebin_root, "c.yaml", text)
+        build.shadow_tag(wastebin_root, "wastebin", "c.yaml", StubRunner(f"ghcr.io/wenenhoe/wastebin:3.7.2@{DIGEST}\n", codes={"build": 1}))
+        assert (wastebin_root / "c.yaml").read_text() == text
 
     def test_the_context_comes_from_the_registry_not_the_app_name(self, wastebin_root):
         write(wastebin_root, "docker/caddy/Dockerfile")

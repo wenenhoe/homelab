@@ -9,6 +9,9 @@ docs/topics/engineering/ci/gates.md#dockerfile-changes.
 `ghcr.io/wenenhoe/<image>` reference its deployed compose file pins, so
 `docker compose up` runs it instead of pulling the published one (compose's
 default pull_policy, `missing`, uses a local image when the tag exists).
+A pin carries the published image's digest after the tag, which a build
+can't have and which would send compose back to the registry, so the tag is
+built without it and the digest is removed from the deployed compose file.
 The image name comes from ci.images.registry; the tag is whatever the
 compose file pins, which `check-pins` separately holds equal to the
 published one. An app with no Dockerfile, or a compose file pinning none of
@@ -27,6 +30,7 @@ Subcommands (from tools/: python -m ci.images.build ...):
 from __future__ import annotations
 
 import argparse
+import re
 import sys
 from pathlib import Path
 
@@ -47,13 +51,25 @@ def shadow_tag(root: Path, app: str, compose_file: str, runner: Runner = run) ->
         print(f"::error::docker compose config --images failed for {compose_file}")
         return listing.returncode
     prefix = f"{REGISTRY}/{image.name}:"
-    pinned = sorted({line.strip() for line in listing.stdout.splitlines() if line.strip().startswith(prefix)})
+    listed = sorted({line.strip() for line in listing.stdout.splitlines() if line.strip().startswith(prefix)})
+    pinned = sorted({ref.partition("@")[0] for ref in listed})
     if not pinned:
         print(f"::notice::docker/{app} has a Dockerfile but {compose_file} pins no {prefix}* image; nothing to shadow.")
         return 0
     print(f"Building {image.context}/Dockerfile as {', '.join(pinned)}")
     tags = [arg for ref in pinned for arg in ("--tag", ref)]
-    return runner(["docker", "build", *tags, image.context], root, False).returncode
+    code = runner(["docker", "build", *tags, image.context], root, False).returncode
+    if code == 0:
+        _drop_digests(root / compose_file, pinned)
+    return code
+
+
+def _drop_digests(compose_file: Path, refs: list[str]) -> None:
+    """Rewrite `ref@sha256:...` to `ref` in the deployed copy of the compose file, for each locally built ref."""
+    text = compose_file.read_text()
+    for ref in refs:
+        text = re.sub(rf"({re.escape(ref)})@sha256:[0-9a-f]{{64}}", r"\1", text)
+    compose_file.write_text(text)
 
 
 def build_check(root: Path, app: str, runner: Runner = run) -> int:

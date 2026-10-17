@@ -120,7 +120,7 @@ class TestFindBlocks:
 
 class TestImagePin:
     def test_the_image_is_pinned_to_a_release_tag(self):
-        assert re.fullmatch(r"ghcr\.io/mermaid-js/mermaid-cli/mermaid-cli:\d+\.\d+\.\d+", cli.MERMAID_CLI_IMAGE)
+        assert re.fullmatch(r"ghcr\.io/mermaid-js/mermaid-cli/mermaid-cli:\d+\.\d+\.\d+(@sha256:[0-9a-f]{64})?", cli.MERMAID_CLI_IMAGE)
 
 
 class TestRender:

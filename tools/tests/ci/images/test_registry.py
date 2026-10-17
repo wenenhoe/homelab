@@ -322,8 +322,8 @@ class TestRealTree:
     @pytest.mark.parametrize(
         ("key", "pattern"),
         [
-            pytest.param("caddy", r"^FROM caddy:([^-\s]+)$", id="caddy"),
-            pytest.param("wastebin", r"^FROM quxfoo/wastebin:(\S+)$", id="wastebin"),
+            pytest.param("caddy", r"^FROM caddy:([^-@\s]+)(?:@\S+)?$", id="caddy"),
+            pytest.param("wastebin", r"^FROM quxfoo/wastebin:([^@\s]+)(?:@\S+)?$", id="wastebin"),
         ],
     )
     def test_the_resolver_agrees_with_the_grep_the_workflows_used(self, key, pattern):

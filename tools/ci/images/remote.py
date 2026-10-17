@@ -6,7 +6,10 @@ repo builds. This is the other half, run weekly: it collects every image
 reference the repo pins, wherever it pins it, and asks the registry whether
 the tag is still there. Renovate only ever proposes tags that exist, so a tag
 an upstream later removes or renames is invisible to it; it shows up here
-instead of as a failed deploy.
+instead of as a failed deploy. A reference pinned to a digest
+(`name:tag@sha256:...`) is checked by that digest, which is what a host pulls:
+a registry that has since deleted the digest fails the run even though the
+tag still resolves.
 
 Where references come from (nothing is listed by hand):
 
@@ -15,9 +18,10 @@ Where references come from (nothing is listed by hand):
 - `FROM` and `COPY --from=<image>` in Dockerfiles, skipping build stages;
 - every Renovate `customManagers` entry with `datasourceTemplate: "docker"`
   in .github/renovate.json5, applied to the files it names: the pins that sit
-  in a systemd unit, a shell script or a variable default. If one of those
-  managers no longer matches any file or any text, the pin moved out from
-  under it and this check can't see it, so that is reported as a failure.
+  in a systemd unit, a shell script or a variable default; a manager's
+  `currentDigest` group carries the pinned digest into the reference. If one
+  of those managers no longer matches any file or any text, the pin moved out
+  from under it and this check can't see it, so that is reported as a failure.
 
 Skipped, and listed in the output: a reference with a template or variable in
 it, `scratch`, a build stage, and a `:local` tag (built on the host, never
@@ -216,7 +220,8 @@ def renovate_refs(root: Path) -> tuple[list[Ref], list[str]]:
                     value = groups.get("currentValue")
                     if not name or not value:
                         raise RemoteError(f"{RENOVATE_CONFIG}: a docker manager must yield a depName and currentValue: {label}")
-                    refs.append(Ref(f"{name}:{value}", rel))
+                    digest = groups.get("currentDigest")
+                    refs.append(Ref(f"{name}:{value}@{digest}" if digest else f"{name}:{value}", rel))
                     found += 1
             if not found:
                 problems.append(f"{rel}: no longer matches the Renovate manager that tracks it ({label})")
@@ -248,10 +253,21 @@ INVENTORY_VERSION = 1
 
 
 def inventory(collected: Collected) -> dict[str, object]:
-    """The document `list --json` prints; docs/topics/engineering/ci/image-tag-check.md defines its shape."""
+    """The document `list --json` prints; docs/topics/engineering/ci/image-tag-check.md defines its shape.
+
+    An image's `ref` is the reference without its digest, so it names the same image
+    whether or not a pin has been added; the digests it is pinned to are listed beside it.
+    """
+    merged: dict[str, tuple[set[str], set[str]]] = {}
+    for text, files in collected.images.items():
+        ref, _, digest = text.partition("@")
+        sources, digests = merged.setdefault(ref, (set(), set()))
+        sources.update(files)
+        if digest:
+            digests.add(digest)
     return {
         "version": INVENTORY_VERSION,
-        "images": [{"ref": text, "sources": sorted(files)} for text, files in sorted(collected.images.items())],
+        "images": [{"ref": ref, "digests": sorted(digests), "sources": sorted(sources)} for ref, (sources, digests) in sorted(merged.items())],
         "skipped": [{"ref": text, "reason": reason} for text, reason in sorted(collected.skipped.items())],
         "problems": list(collected.problems),
     }
@@ -376,10 +392,11 @@ class Registry:
             return Verdict.INCONCLUSIVE, f"no answer from {image.registry}: {exc}"
         if response.status == 200:
             return Verdict.OK, "found"
+        pinned = image.reference.startswith("sha256:")
         if response.status == 404:
-            return Verdict.MISSING, "the registry has no such tag"
+            return Verdict.MISSING, "the registry has no manifest with that digest" if pinned else "the registry has no such tag"
         if response.status in (401, 403):
-            return Verdict.MISSING, f"HTTP {response.status} anonymously: the tag or repository is gone, renamed or private"
+            return Verdict.MISSING, f"HTTP {response.status} anonymously: the {'digest' if pinned else 'tag'} or repository is gone, renamed or private"
         if response.status == 429 or response.status >= 500:
             return Verdict.INCONCLUSIVE, f"HTTP {response.status} from {image.registry} after {self.attempts} attempts"
         return Verdict.INCONCLUSIVE, f"unexpected HTTP {response.status} from {image.registry}"

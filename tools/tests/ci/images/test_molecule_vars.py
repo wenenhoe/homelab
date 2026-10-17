@@ -79,6 +79,10 @@ class TestImageFile:
         tree.write(f"{VARS}/alpine.yml", '---\nmolecule_helpers_alpine_image: "alpine:3.24"\nextra: 1\n')
         assert "must hold exactly one" in tree.errors()[0]
 
+    def test_a_digest_after_the_tag_is_allowed(self, tree):
+        tree.write(f"{VARS}/alpine.yml", f'---\nmolecule_helpers_alpine_image: "alpine:3.24@sha256:{"a" * 64}"\n')
+        assert tree.errors() == []
+
     def test_comments_and_the_document_marker_are_allowed(self, tree):
         tree.write(f"{VARS}/alpine.yml", '---\n# why\nmolecule_helpers_alpine_image: "alpine:3.24"\n')
         assert tree.errors() == []
@@ -100,6 +104,12 @@ class TestLiteral:
         )
         (error,) = tree.errors()
         assert "names amazon/aws-cli:2.20.0 literally" in error
+
+    def test_a_literal_is_still_found_when_the_shared_pin_has_a_digest(self, tree):
+        tree.write(f"{VARS}/alpine.yml", f'---\nmolecule_helpers_alpine_image: "alpine:3.24@sha256:{"a" * 64}"\n')
+        tree.write(f"{SCENARIO}/converge.yml", play("alpine", body=USES_ALPINE + "    - ansible.builtin.command: docker run --rm alpine:3.20 true\n"))
+        (error,) = tree.errors()
+        assert "names alpine:3.20 literally" in error
 
     def test_a_literal_in_a_task_file_is_an_error(self, tree):
         tree.write(f"{SCENARIO}/extra.yml", "- ansible.builtin.command: docker run alpine:3.24 true\n")

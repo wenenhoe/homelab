@@ -25,6 +25,11 @@ Nothing is listed by hand. It collects references from:
   matches any file, or a file that no longer matches its manager, fails the
   run: the pin moved, and this check would otherwise stop seeing it silently.
 
+A reference pinned as `name:tag@sha256:...` is asked for by its digest, which
+is what a host pulls. A registry that has deleted the digest fails the run
+even while the tag still resolves, and the message says it is the digest that
+is missing. The tag in a pinned reference is not requested.
+
 Skipped, and listed in the output: a reference containing a template or
 variable, `scratch`, and a `:local` tag (built on the host, never pushed;
 today that is `buildapp:local`). A test fails if the skip list changes, so a
@@ -73,14 +78,17 @@ depends on a tested shape instead of the text output.
 ```json
 {
   "version": 1,
-  "images": [{ "ref": "redis:7", "sources": ["docker/a/compose.yaml"] }],
+  "images": [{ "ref": "redis:7", "digests": ["sha256:..."], "sources": ["docker/a/compose.yaml"] }],
   "skipped": [{ "ref": "buildapp:local", "reason": "built locally" }],
   "problems": []
 }
 ```
 
-- `images` has one entry per distinct reference, sorted by `ref`. `sources`
-  holds the repo-relative files that name it, sorted.
+- `images` has one entry per distinct reference, sorted by `ref`. `ref` is the
+  reference without its digest, so an image keeps the same `ref` before and
+  after it is pinned. `digests` lists the `sha256:` digests it is pinned to,
+  sorted, and is empty while it is unpinned. `sources` holds the repo-relative
+  files that name it, sorted.
 - `skipped` is the list the text output prints, each with its reason.
 - `problems` is non-empty when a Renovate manager lost its file or its text.
   The exit code is still 0, as for the text output, so a consumer treats a
@@ -88,4 +96,5 @@ depends on a tested shape instead of the text output.
 - When the inventory can't be built at all (an unreadable Renovate config),
   stdout stays empty, the error goes to stderr and the exit code is 1.
 - `version` changes when a key is removed or changes meaning. Adding a key
-  doesn't change it.
+  doesn't change it: `digests` was added without a bump, and `ref` kept its
+  meaning.

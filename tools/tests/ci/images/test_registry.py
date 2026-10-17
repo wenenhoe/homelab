@@ -15,6 +15,8 @@ from pathlib import Path
 import pytest
 from ci.images import registry as reg
 
+DIGEST = "@sha256:" + "a" * 64
+
 
 class TestFinalFrom:
     SOURCE = staticmethod(reg.final_from("caddy"))
@@ -25,6 +27,7 @@ class TestFinalFrom:
             pytest.param("FROM caddy:2.11.4-builder AS builder\nRUN x\nFROM caddy:2.11.4\nCOPY a b\n", "2.11.4", id="last-from"),
             pytest.param("FROM --platform=linux/amd64 caddy:2.11 AS final\n", "2.11", id="as-alias-and-platform-flag"),
             pytest.param("from caddy:2.1.0 as x\n", "2.1.0", id="lowercase-keywords"),
+            pytest.param(f"FROM caddy:2.11.4-builder{DIGEST} AS builder\nFROM caddy:2.11.4{DIGEST}\n", "2.11.4", id="digest-pinned-froms"),
         ],
     )
     def test_takes_the_tag_of_the_final_from(self, text, tag):
@@ -57,12 +60,19 @@ class TestFinalFrom:
         with pytest.raises(reg.ImageError, match="must be a version"):
             reg.final_from("registry:5000/caddy")("FROM registry:5000/caddy\n")
 
+    def test_a_digest_is_not_mistaken_for_a_tag(self):
+        with pytest.raises(reg.ImageError, match="must be a version"):
+            self.SOURCE(f"FROM caddy{DIGEST}\n")
+
 
 class TestFromImage:
     SOURCE = staticmethod(reg.from_image("quxfoo/wastebin"))
 
     def test_finds_the_one_matching_from_among_others(self):
         assert self.SOURCE("FROM busybox:1.38.0-musl AS d\nFROM quxfoo/wastebin:3.7.2\nCOPY --from=busybox:1.38.0-musl /a /b\n") == "3.7.2"
+
+    def test_finds_it_when_every_from_is_pinned_to_a_digest(self):
+        assert self.SOURCE(f"FROM busybox:1.38.0-musl{DIGEST} AS d\nFROM quxfoo/wastebin:3.7.2{DIGEST}\n") == "3.7.2"
 
     @pytest.mark.parametrize(
         "text",
@@ -191,6 +201,37 @@ class TestCheckPins:
         ],
     )
     def test_one_drifting_file_is_one_error_naming_the_cause(self, tree, path, content, fragment):
+        tree.write(path, content)
+        (error,) = reg.check_pins(tree.root)
+        assert fragment in error
+
+    def test_a_digest_after_the_tag_is_not_part_of_it(self, tree):
+        tree.write("docker/caddy/compose.yaml", f"    image: ghcr.io/wenenhoe/caddy-digitalocean:2.11.4{DIGEST}\n")
+        tree.write("docker/wastebin/compose.yaml.j2", f'    image: "ghcr.io/wenenhoe/wastebin:3.7.2{DIGEST}"\n')
+        tree.write("ansible/roles/r/molecule/default/molecule.yml", f"    image: ghcr.io/wenenhoe/molecule-dind:latest{DIGEST}\n")
+        assert reg.check_pins(tree.root) == []
+
+    @pytest.mark.parametrize(
+        ("path", "content", "fragment"),
+        [
+            pytest.param(
+                "docker/caddy/compose.yaml",
+                f"    image: ghcr.io/wenenhoe/caddy-digitalocean:2.12.0{DIGEST}\n",
+                "pins ghcr.io/wenenhoe/caddy-digitalocean:2.12.0, but the Dockerfile publishes 2.11.4",
+                id="compose-pin-ahead-of-the-dockerfile",
+            ),
+            pytest.param(
+                "docker/wastebin/compose.yaml.j2", f"    image: ghcr.io/wenenhoe/wastebin{DIGEST}\n", "(no tag)", id="compose-pin-by-digest-alone-has-no-tag"
+            ),
+            pytest.param(
+                "ansible/roles/r/molecule/default/molecule.yml",
+                f"    image: ghcr.io/wenenhoe/molecule-dind:v2{DIGEST}\n",
+                "uses ghcr.io/wenenhoe/molecule-dind:v2, but the published tags are",
+                id="molecule-scenario-on-an-unpublished-tag",
+            ),
+        ],
+    )
+    def test_a_digest_pinned_pin_is_judged_by_its_tag(self, tree, path, content, fragment):
         tree.write(path, content)
         (error,) = reg.check_pins(tree.root)
         assert fragment in error

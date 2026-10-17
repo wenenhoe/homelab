@@ -14,7 +14,9 @@ here, and `check-pins` fails when anything that names one disagrees:
 
 A tag is read from the Dockerfile and published only after the merge that
 changes it, so a compose pin follows in a later change, once the tag
-exists: it may fall behind the Dockerfile's version, never run ahead.
+exists: it may fall behind the Dockerfile's version, never run ahead. A
+pin may carry the image's digest after the tag (`name:tag@sha256:...`); the
+tag is what these checks read, and the digest is Renovate's to move.
 
 Subcommands (from tools/: python -m ci.images.registry ...):
   tags <image>   writes version=<tag> and tags=<comma-separated refs>
@@ -38,8 +40,8 @@ REGISTRY = "ghcr.io/wenenhoe"
 _FROM = re.compile(r"^\s*FROM\s+(?:--\S+\s+)*(\S+)(?:\s+AS\s+\S+)?\s*$", re.IGNORECASE)
 _VERSION = re.compile(r"^\d+\.\d+(?:\.\d+)?$")
 _SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
-_COMPOSE_IMAGE = re.compile(rf"^\s*image:\s*[\"']?{re.escape(REGISTRY)}/([^\s:\"']+)(?::([^\s\"']+))?", re.MULTILINE)
-_MOLECULE_IMAGE = re.compile(rf"^\s*image:\s*{re.escape(REGISTRY)}/([^\s:]+):(\S+)\s*$", re.MULTILINE)
+_COMPOSE_IMAGE = re.compile(rf"^\s*image:\s*[\"']?{re.escape(REGISTRY)}/([^\s:@\"']+)(?::([^\s@\"']+))?", re.MULTILINE)
+_MOLECULE_IMAGE = re.compile(rf"^\s*image:\s*{re.escape(REGISTRY)}/([^\s:]+):([^\s@]+)(?:@\S+)?\s*$", re.MULTILINE)
 
 
 class ImageError(Exception):
@@ -65,11 +67,12 @@ def _version_key(version: str) -> tuple[int, int, int]:
 
 
 def _split_ref(ref: str) -> tuple[str, str | None]:
-    """`name[:tag]` -> (name, tag); a colon before the last `/` is a registry port, not a tag."""
-    head, sep, tail = ref.rpartition(":")
+    """`name[:tag][@digest]` -> (name, tag); a colon before the last `/` is a registry port, not a tag."""
+    name = ref.partition("@")[0]
+    head, sep, tail = name.rpartition(":")
     if sep and "/" not in tail:
         return head, tail
-    return ref, None
+    return name, None
 
 
 def _from_images(text: str) -> list[tuple[str, str | None]]:

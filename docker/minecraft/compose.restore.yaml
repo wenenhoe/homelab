@@ -2,7 +2,7 @@ name: minecraft
 
 services:
   restore-backup:
-    image: ghcr.io/itzg/mc-backup:2026.10.0
+    image: ghcr.io/itzg/mc-backup:2026.10.0@sha256:1943652c60b70036e9ec62fe76c90fea6a053851fb969daa275563f549492be1
     volumes:
       - data:/data
       - backups:/backups:ro

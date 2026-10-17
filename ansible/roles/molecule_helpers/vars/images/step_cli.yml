@@ -1,2 +1,2 @@
 ---
-molecule_helpers_step_cli_image: "smallstep/step-cli:0.31.0"
+molecule_helpers_step_cli_image: "smallstep/step-cli:0.31.0@sha256:107e8497646c0e7c06cc5b6fd6fa13b5d2001909df6d7da3706b8541ed42bddf"

@@ -117,7 +117,7 @@
     name: lldap-test
     # Pinned independently of docker/lldap/compose.yaml's own tag — see
     # that file if this ever needs bumping alongside it.
-    image: ghcr.io/lldap/lldap:2026-08-08-alpine
+    image: ghcr.io/lldap/lldap:2026-08-08-alpine@sha256:d75762d1afd7cc39a21134dfb0c4379b18093072a0a6b9e74c68a566c8985d3b
     env:
       LLDAP_LDAP_BASE_DN: "{{ molecule_helpers_lldap_base_dn }}"
       LLDAP_LDAP_USER_PASS: "{{ molecule_helpers_lldap_admin_password }}"

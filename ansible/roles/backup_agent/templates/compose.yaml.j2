@@ -3,7 +3,7 @@ name: backup-agent
 services:
 {% if backup_agent_any_stop_apps %}
   backup-dockerproxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: backup-agent-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -23,7 +23,7 @@ services:
 {% endif %}
 
   backup-agent:
-    image: ghcr.io/offen/docker-volume-backup:v2.49.1
+    image: ghcr.io/offen/docker-volume-backup:v2.49.1@sha256:e1da571e739d73f633f19e7a9f324007907089ffd80b3b7a1d71de5b87f80d77
     container_name: backup-agent
     volumes:
 {% for app in backup_plan %}

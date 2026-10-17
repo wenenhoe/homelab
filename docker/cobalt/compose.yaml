@@ -2,7 +2,7 @@ name: cobalt
 
 services:
   cobalt:
-    image: ghcr.io/imputnet/cobalt:11
+    image: ghcr.io/imputnet/cobalt:11@sha256:63186dd68afd57ce3bb1f62cc4c139f5fa95b9c3e87a3cf5c6e4c7a570523f62
     container_name: cobalt
     environment:
       # for tunneling functionality — API_URL is what the cobalt process

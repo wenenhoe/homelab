@@ -2,7 +2,7 @@ name: diun
 
 services:
   diun:
-    image: crazymax/diun:4
+    image: crazymax/diun:4@sha256:e324b793eb32dfb7f74d3a39421ebf090141caaadee69b8f78da63112408ee25
     container_name: diun
     depends_on:
       - dockerproxy
@@ -38,7 +38,7 @@ services:
     security_opt:
       - no-new-privileges:true
   dockerproxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0
+    image: ghcr.io/tecnativa/docker-socket-proxy:v0.5.0@sha256:1f5038b54f06c3e18422902cf00ba21803d1c97805aae032e5e6673d532d3459
     container_name: diun-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro

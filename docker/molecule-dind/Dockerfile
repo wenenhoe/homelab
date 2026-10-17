@@ -15,7 +15,7 @@
 # that installation from a clean image — baking Docker in here would make
 # that test tautological.
 # hadolint ignore=DL3007 # test scaffolding, not a deployed app — see top-of-file comment.
-FROM geerlingguy/docker-ubuntu2604-ansible:latest
+FROM geerlingguy/docker-ubuntu2604-ansible:latest@sha256:93834d97d0597ac0f4e8a2c499f805f36c0df3c09305ae8d7a08197368e70c2c
 
 # hadolint ignore=DL3008 # mirrors ansible/roles/docker's own unpinned apt installs — see top-of-file comment.
 RUN apt-get update \

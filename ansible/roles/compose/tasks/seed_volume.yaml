@@ -18,7 +18,7 @@
 - name: "Copy staged content into volume ({{ compose_app_item.name ~ '_' ~ compose_volume_item.name }})"
   community.docker.docker_container:
     name: "{{ compose_app_item.name }}-{{ compose_volume_item.name }}-seed"
-    image: alpine:3.24
+    image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     command: ["sh", "-c", "cp -a /src/. /dest/"]
     volumes:
       - "{{ compose_deploy_dir }}/{{ compose_app_item.name }}/_staging/{{ compose_volume_item.name }}:/src:ro"

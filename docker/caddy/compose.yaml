@@ -2,7 +2,7 @@ name: caddy
 
 services:
   caddy:
-    image: ghcr.io/wenenhoe/caddy-digitalocean:2.11.7
+    image: ghcr.io/wenenhoe/caddy-digitalocean:2.11.7@sha256:07b04ae9f793c97f7ddaab05d21fed484cfce13fd19ec58a86b095b442e7b78c
     container_name: caddy
     volumes:
       - type: volume

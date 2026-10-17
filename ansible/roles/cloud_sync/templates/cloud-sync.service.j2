@@ -20,7 +20,17 @@ User=root
 # --entrypoint sh, not the image's own rclone entrypoint — run.sh is the
 # actual command here, rclone itself is invoked repeatedly from inside
 # it, once per job in jobs.txt.
+#
+# DAC_OVERRIDE is the one capability kept: rclone.conf is 0600 and owned by
+# the deploy user, which root can't open without it (rclone then stops with
+# "Failed to load config file ... permission denied" and every job fails).
+# Every mount is read-only and rclone writes nothing locally, so the root
+# filesystem is read-only too; the network stays, that is the job.
 ExecStart=/usr/bin/docker run --rm \
+  --cap-drop ALL \
+  --cap-add DAC_OVERRIDE \
+  --security-opt no-new-privileges:true \
+  --read-only \
   -v {{ compose_deploy_dir }}/cloud-sync/rclone.conf:/config/rclone/rclone.conf:ro \
   -v {{ compose_deploy_dir }}/cloud-sync/jobs.txt:/jobs.txt:ro \
   -v {{ compose_deploy_dir }}/cloud-sync/run.sh:/run.sh:ro \

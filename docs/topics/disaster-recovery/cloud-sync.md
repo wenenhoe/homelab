@@ -53,6 +53,11 @@ hosts' own plays to have run first in the same invocation). One `rclone
 copy` per (app, cloud target) pair; one job failing doesn't block the
 rest of that run.
 
+The container runs with every capability dropped except `DAC_OVERRIDE`,
+`no-new-privileges` and a read-only root filesystem. `rclone.conf` is `0600`
+and owned by the deploy user, which root in the container can only open with
+that capability; without it every job fails with "Failed to load config file".
+
 ## Before first use
 
 - Create a bucket by hand on each of R2/B2/OCI — `homelab-backups` for

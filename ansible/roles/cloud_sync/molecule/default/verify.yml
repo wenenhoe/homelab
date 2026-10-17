@@ -100,6 +100,18 @@
           UnitFileState={{ cloud_sync_timer_status.status.UnitFileState }}
 
     # --- Behavioral: does triggering the real service actually move data? ---
+    # converge.yml runs as root, so the role leaves rclone.conf owned by root.
+    # Production leaves it 0600 and owned by the deploy user, which the
+    # unit's container (root with only DAC_OVERRIDE) can read only because it
+    # holds that capability. Hand the file to another uid so this run needs it
+    # too. A numeric owner needs no passwd entry.
+    - name: Hand rclone.conf to a non-root owner, as a deploy user's is in production
+      ansible.builtin.file:
+        path: "{{ compose_deploy_dir }}/cloud-sync/rclone.conf"
+        owner: "1000"
+        group: "1000"
+        mode: "0600"
+
     # cloud-sync.service is Type=oneshot with no RemainAfterExit —
     # `systemctl start` (and this module, which shells out to it)
     # blocks until the ExecStart itself completes, standard systemd

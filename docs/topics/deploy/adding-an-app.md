@@ -143,6 +143,11 @@ the two `chown` containers keep `CHOWN` alone. Only the renew and the issue
 reach the CA, so the rest run with no network. The `inspect` read matters
 most: a read that fails is taken for "no certificate" and reissues over a valid
 one.
+The rclone helpers keep the network, since they talk to S3, and nothing else.
+The `cloud-sync` unit keeps `DAC_OVERRIDE`, because `rclone.conf` is `0600` and
+owned by the deploy user, and runs with a read-only root filesystem. The
+`check-freshness` listing mounts nothing, so it has no capability, a read-only
+root and a non-root user.
 
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see

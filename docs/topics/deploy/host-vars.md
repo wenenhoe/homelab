@@ -22,7 +22,7 @@ The list of apps this host runs. Each entry needs only:
   optionally `auth: false`): the catalog defines *how* to reach the app,
   `host_vars` defines *what to call it* on this host.
 
-Apps with no `routes` block (e.g. `bind9`, `diun`) are non-routable.
+Apps with no `routes` block (e.g. `bind9`, `beszel-agent`) are non-routable.
 
 ```yaml
 compose_apps:

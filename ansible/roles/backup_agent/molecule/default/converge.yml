@@ -91,8 +91,8 @@
     # happy_app_stop on its own container and stop_during_backup: true
     # here — the pairing backup_agent's per-schedule stop label depends
     # on. happy_app_nostop carries neither. happy_app_no_backup declares
-    # no `backup:` key at all — mirrors real apps like caddy/beszel-agent/
-    # diun, which coexist with backed-up apps: confirms the
+    # no `backup:` key at all — mirrors real apps like caddy/beszel-agent,
+    # which coexist with backed-up apps: confirms the
     # backup_plan's skip of an app with no backup volumes actually
     # excludes it.
     app_catalog:

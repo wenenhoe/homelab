@@ -37,7 +37,7 @@ The lab is organized as a small group of hosts, each owning a subdomain of `lan.
 
 | Host | Role | Caddy domain |
 | :--- | :--- | :--- |
-| `services` | Core infra: DNS (BIND9), utility apps, DIUN update notifications | `svc.lan.{{ main_domain }}` |
+| `services` | Core infra: DNS (BIND9), utility apps | `svc.lan.{{ main_domain }}` |
 | `play` | Game server hosting (Minecraft) | `play.lan.{{ main_domain }}` |
 | `security` | Identity/SSO: LLDAP + Tinyauth forward-auth, Beszel monitoring hub, OpenBao secrets store | `sec.lan.{{ main_domain }}` |
 | `storage` | Backup target: SeaweedFS (self-hosted S3) receiving nightly `backup_agent` archives from every host, `cloud_sync` relay to R2/B2/OCI | `store.lan.{{ main_domain }}` |
@@ -49,8 +49,8 @@ instance, scraping every app host's declared DNS zones and serving
 CNAMEs back to each host's dynamic DNS target. Routes sit behind
 **Tinyauth** forward-auth, backed by **LLDAP** as the directory, unless
 a route sets `auth: false`. **Beszel** monitors host and container
-health lab-wide, and **DIUN** watches deployed images and notifies over
-Telegram on updates. Every host runs a `backup_agent` pushing
+health lab-wide. Every image is pinned by digest and **Renovate**
+proposes each change as a pull request ([ADR 0083](docs/decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)). Every host runs a `backup_agent` pushing
 GPG-encrypted archives of its own apps' named volumes to **SeaweedFS** on
 `storage` nightly, relayed further offsite by `cloud_sync` to R2/B2/OCI
 — see [`docs/topics/disaster-recovery/backup.md`](docs/topics/disaster-recovery/backup.md).
@@ -167,7 +167,7 @@ reproducible dependency set.
    ```
   Reads the version and checksum straight out of `ansible/roles/openbao_cli`'s own defaults - the same values that role installs on `security` - so there's no second, hand-copied pin here to drift out of sync when that role's own gets bumped. The last four commands undo the standalone-server scaffolding the `.deb`'s installer sets up unconditionally, which this machine has no use for (see that role's `tasks/main.yaml`'s own comment on why the removal runs on every install, not just the first).
 - Before your first `deploy.yaml` run, fill in every value Ansible can't
-  generate itself (DigitalOcean API key, Let's Encrypt email, Diun's
+  generate itself (DigitalOcean API key, Let's Encrypt email, the
   Telegram token/chat ID, and a few others):
    ```sh
   cd tools && python3 -m openbao_utils.bootstrap

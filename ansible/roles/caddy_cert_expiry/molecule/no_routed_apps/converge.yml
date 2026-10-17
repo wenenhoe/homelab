@@ -8,7 +8,7 @@
     caddy_domain: apps.localhost
     app_catalog:
       caddy: {}
-      diun: {}
+      beszel-agent: {}
     # Deliberately no app with a routes: key at all - that's the whole
     # point of this scenario, unlike default's. The guard this tests is
     # the first two tasks in caddy_cert_expiry/tasks/main.yaml, before
@@ -16,7 +16,7 @@
     # needed here either.
     compose_apps:
       - name: caddy
-      - name: diun
+      - name: beszel-agent
   tasks:
     - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:

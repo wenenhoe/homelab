@@ -11,7 +11,6 @@ alerts, just for different certs:
 
 | Concern | Sends via | Topic var |
 | :--- | :--- | :--- |
-| Image updates (diun) | diun's own Telegram notifier | `telegram_chatid_updates` |
 | Host/container monitoring (Beszel) | Beszel's built-in notifications | `telegram_chatid_monitoring` |
 | Backup job failures | `docker-volume-backup`'s notifier | `telegram_chatid_backups` |
 | Cloud-sync relay failures | `telegram-notify-cloud-sync` (systemd) | `telegram_chat_id` / `telegram_topic_id_backups` |
@@ -47,9 +46,9 @@ other Vault-backed manual secret:
 cd tools && python3 -m openbao_utils.bootstrap
 ```
 
-**Two different address formats, on purpose**: diun, `docker-volume-backup`,
-and Beszel all go through [shoutrrr](https://containrrr.dev/shoutrrr/v0.8/services/telegram/)
-(or diun's own equivalent), whose convenience syntax is a single
+**Two different address formats, on purpose**: `docker-volume-backup`
+and Beszel both go through [shoutrrr](https://containrrr.dev/shoutrrr/v0.8/services/telegram/),
+whose convenience syntax is a single
 `chat_id:topic_id` string — that's what `telegram_chatid_*` produces. The
 three systemd-based notifiers below call Telegram's Bot API directly
 instead, and the real API takes `chat_id` and `message_thread_id` as two
@@ -126,8 +125,6 @@ a placeholder that isn't shaped like one.
 
 ## Per-app notes
 
-- **diun**: `docker/diun/configs/env.j2` — `TELEGRAM_CHAT_ID` is
-  `telegram_chatid_updates`.
 - **Beszel**: not Ansible-managed — its notification channels live in the
   hub's own database, configured once by hand in Settings > Notifications
   (same category as the hub key/token bootstrap, see

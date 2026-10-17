@@ -20,7 +20,6 @@ compose_apps:
       default:
         host: bluemap
 
-  - name: diun
 
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config

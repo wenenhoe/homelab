@@ -139,15 +139,6 @@ app_catalog:
       default:
         upstream: "wastebin:8088"
 
-  diun:
-    volumes:
-      - name: data
-    configs:
-      - src: env.j2
-        dest: .env
-        mode: "0600"
-        no_log: true
-
   tinyauth:
     volumes:
       - name: data

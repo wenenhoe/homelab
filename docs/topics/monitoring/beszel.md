@@ -83,4 +83,4 @@ KEY/TOKEN above. Once logged in: **Settings → Notifications**, add
 `telegram://<telegram_token>@telegram?chats=<telegram_chatid_monitoring>`
 (both values from `ansible/inventory/group_vars/all/main.yaml`). See
 [`telegram-notifications.md`](telegram-notifications.md) for the full
-bot/topic scheme shared with diun and backups.
+bot/topic scheme shared with backups and the cert checks.

@@ -81,7 +81,6 @@ compose_apps:
       filer:
         host: filer
 
-  - name: diun
 
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config

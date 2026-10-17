@@ -141,6 +141,12 @@ DO_CLEANUP=false, so it only ever touches the `observer` account. Safe
 to re-run: `bootstrap.sh` updates the existing account in place instead
 of erroring.
 
+The role's three containers run with every capability dropped,
+`no-new-privileges` and a read-only root filesystem, and keep the network
+because they call lldap's API. The `bootstrap.sh` one also gets a `tmpfs` at
+`/tmp`, since the script makes a temporary directory before it creates the
+account. It stays root, which reads the `0600` config because it owns it.
+
 ## Runtime config
 
 `docker/lldap/configs/env.j2` sets `LLDAP_LDAP_BASE_DN` and

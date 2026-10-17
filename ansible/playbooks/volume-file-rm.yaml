@@ -91,6 +91,16 @@
           - "rm -fv {{ volume_rm_paths | map('regex_replace', '^', '/vol/') | map('quote') | join(' ') }}"
         volumes:
           - "{{ volume_rm_full_name }}:/vol"
+        network_mode: none
+        read_only: true
+        cap_drop:
+          - ALL
+        # Deleting a file takes write access to the directory holding it,
+        # which another user usually owns.
+        capabilities:
+          - DAC_OVERRIDE
+        security_opts:
+          - no-new-privileges:true
         detach: false
         cleanup: true
         state: started

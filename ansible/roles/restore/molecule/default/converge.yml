@@ -54,6 +54,20 @@
         command: "sh -c 'echo stale-content-should-be-overwritten > /data/canary.txt'"
       changed_when: false
 
+    # The restore empties the volume before it copies the archive in, and a
+    # root process without DAC_OVERRIDE cannot delete inside a 0700
+    # directory another user owns.
+    - name: Seed a private STALE directory owned by another user, to prove restore deletes it
+      community.docker.docker_container_exec:
+        container: "{{ restore_target_lookup.containers[0].Id }}"
+        command: >-
+          sh -c 'mkdir -p /data/stale-private
+          && echo stale > /data/stale-private/old.txt
+          && chown 2000:2000 /data/stale-private /data/stale-private/old.txt
+          && chmod 0700 /data/stale-private
+          && chmod 0600 /data/stale-private/old.txt'
+      changed_when: false
+
     - name: Capture restore_target's StartedAt BEFORE the restore
       community.docker.docker_container_info:
         name: "{{ restore_target_lookup.containers[0].Id }}"
@@ -98,31 +112,62 @@
       delegate_to: localhost
       become: false
 
-    # Whatever UID/GID actually owns this file on the controller (not a
-    # fixed value we assert — become: false means we can't chown to an
-    # arbitrary UID here) is what a real docker-volume-backup archive's
-    # tar entries would carry. restore's own extraction never runs as
-    # anyone but root with a plain `cp -a` (see the role's header), so
-    # this ownership must survive unchanged into the restored volume;
-    # verify.yml proves that rather than assuming it.
-    - name: Capture the staged canary's real ownership, for verify.yml to compare against
-      ansible.builtin.stat:
-        path: "{{ restore_staging_dir }}/offsite-source/restore_target_data/canary.txt"
-      register: restore_default_canary_source_stat
+    # A private directory and file, and a setgid directory, for the restore
+    # to carry back: owner and mode are only restored by a root process that
+    # may chown and chmod files it no longer owns, and the setgid bit is
+    # dropped by chmod unless the process holds FSETID.
+    - name: Stage a private directory for the archive to carry
+      ansible.builtin.file:
+        path: "{{ restore_staging_dir }}/offsite-source/restore_target_data/private"
+        state: directory
+        mode: "0700"
       delegate_to: localhost
       become: false
 
-    - name: Persist the source canary's owner for verify.yml to compare against
+    - name: Stage a private file inside it
+      ansible.builtin.copy:
+        dest: "{{ restore_staging_dir }}/offsite-source/restore_target_data/private/secret.txt"
+        content: "private-content-from-backup\n"
+        mode: "0600"
+      delegate_to: localhost
+      become: false
+
+    - name: Stage a setgid directory for the archive to carry
+      ansible.builtin.file:
+        path: "{{ restore_staging_dir }}/offsite-source/restore_target_data/shared"
+        state: directory
+        mode: "2775"
+      delegate_to: localhost
+      become: false
+
+    - name: Stage a file inside the setgid directory
+      ansible.builtin.copy:
+        dest: "{{ restore_staging_dir }}/offsite-source/restore_target_data/shared/note.txt"
+        content: "shared-content-from-backup\n"
+        mode: "0664"
+      delegate_to: localhost
+      become: false
+
+    # The archive records uid:gid 1000:1000 for every entry (--owner and
+    # --group in the tar command below), as a backup of a volume owned by the
+    # app's own user does. restore's own extraction never runs as anyone but
+    # root with a plain `cp -a` (see the role's header), so this ownership
+    # must survive unchanged into the restored volume; verify.yml proves that
+    # rather than assuming it. An archive of root-owned files would pass
+    # without any capability to chown.
+    - name: Persist the owner the archive records, for verify.yml to compare against
       ansible.builtin.copy:
         dest: "{{ restore_default_owner_marker }}"
-        content: "{{ restore_default_canary_source_stat.stat.uid }}:{{ restore_default_canary_source_stat.stat.gid }}"
+        content: "1000:1000"
         mode: "0644"
 
     - name: Build the plain .tar.gz — this is what a real operator hands the playbook after gpg --decrypt
       ansible.builtin.command: # noqa: command-instead-of-module — creating a tar.gz, not extracting one;
         # unarchive only extracts, and this project has no community.general dependency
         # (the only module that creates archives) declared in requirements.yml.
-        cmd: "tar -czf {{ restore_test_archive }} -C {{ restore_staging_dir }} offsite-source"
+        cmd: >-
+          tar -czf {{ restore_test_archive }} --owner=1000 --group=1000 --numeric-owner
+          -C {{ restore_staging_dir }} offsite-source
       changed_when: true
       delegate_to: localhost
       become: false

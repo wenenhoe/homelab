@@ -119,15 +119,50 @@ process runs as root, so `caddy` sets `cap_add: [NET_BIND_SERVICE]` after
 An entrypoint that starts as root to `chown` a volume and then drops to
 another user needs `CHOWN`, `SETUID` and `SETGID` back, or to start as that
 user. `lldap`, `seaweedfs`, `librespeed` and the `minecraft` server and backup
-services take them back with `cap_add`; `lldap` also keeps `DAC_OVERRIDE`,
-which its entrypoint's write check on `/data` needs. `openbao` runs as a
+services take them back with `cap_add`. `librespeed` also keeps `DAC_OVERRIDE`
+and `FOWNER`: its entrypoint deletes and re-copies its web root on every start,
+and after the first start those files belong to `www-data` in a sticky
+directory. `lldap` also keeps `DAC_OVERRIDE`, which its entrypoint's write
+check on `/data` needs. `openbao` runs as a
 non-root user and keeps only `IPC_LOCK`. The `docker-socket-proxy` sidecars
 each need their own check of what the process does after it starts.
+
+A container Ansible starts for one job gets the same pair, no network, and
+only what the job does as root. The volume seed (`seed_volume.yaml`) and the
+restore role's two containers keep `CHOWN`, `FOWNER`, `DAC_OVERRIDE` and
+`FSETID`: `cp -a` and `tar` keep each file's owner and mode and write over
+files other users own, and `chmod` drops a setgid bit without `FSETID` while the
+job still exits 0. `volume-file-rm.yaml` keeps `DAC_OVERRIDE` to delete inside
+directories another user owns, and the OpenBao data `chown` keeps `CHOWN` and
+`DAC_OVERRIDE` to list directories the previous owner left at `0700`. It does
+not take `DAC_READ_SEARCH`, which Docker's default set lacks and which allows
+`open_by_handle_at`. The user-id lookup that precedes it needs nothing. Each of
+these also runs with a read-only root filesystem: they write only into the
+volumes they are given.
+The step-ca cert helpers (the three `docker run` lines in `cert-renewer@.service`
+and the `step_ca_cert` tasks) run as root over a `certs` volume whose files
+`step` writes at mode `0600` and the chown then hands to the app's own user.
+Reading, rewriting and reissuing those files takes `DAC_OVERRIDE`, which the
+`needs-renewal` check, the renew, the `inspect` read and the issue task keep;
+the two `chown` containers keep `CHOWN` alone. Only the renew and the issue
+reach the CA, so the rest run with no network. The `inspect` read matters
+most: a read that fails is taken for "no certificate" and reissues over a valid
+one.
+The rclone helpers keep the network, since they talk to S3, and nothing else.
+The `cloud-sync` unit keeps `DAC_OVERRIDE`, because `rclone.conf` is `0600` and
+owned by the deploy user, and runs with a read-only root filesystem. The
+`check-freshness` listing mounts nothing, so it has no capability, a read-only
+root and a non-root user. The three `lldap_bootstrap` containers drop every
+capability and run with a read-only root, plus a `tmpfs` at `/tmp` for the one
+that runs `bootstrap.sh`; they keep the network, since they call lldap's API.
 
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see
 [`gates.md`](../engineering/ci/gates.md#compose-boot-test) for which apps it
-skips. It does not exercise what an app does once running. Search for
+skips. It does not exercise what an app does once running, or when its
+container restarts: an entrypoint that cleans up after its previous start
+fails only on the second one, so restart the container once when you add
+capabilities to an app like that. Search for
 `no-new-privileges` under `docker/` to see which services have the pair today.
 
 ## 2. Register it in `app_catalog`

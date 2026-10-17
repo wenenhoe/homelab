@@ -16,8 +16,15 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # The entrypoint runs `rm -rf /var/www/html/*` on every start, then copies
+    # the web root back and chowns it to www-data. When the container restarts
+    # those files belong to www-data in a sticky directory, so root needs
+    # FOWNER to remove the top level and DAC_OVERRIDE for the subdirectories;
+    # without them the entrypoint exits and the container restarts forever.
     cap_add:
       - CHOWN
+      - DAC_OVERRIDE
+      - FOWNER
       - SETGID
       - SETUID
     cap_drop:

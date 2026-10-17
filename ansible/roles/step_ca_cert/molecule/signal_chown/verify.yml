@@ -5,15 +5,6 @@
   vars:
     step_ca_cert_step_ca_url: https://step-ca-test:9000
   tasks:
-    # Single source of truth for the argv-embedded image reference below
-    # — loaded into a namespaced var (not shadowing the vars: block
-    # above) so this can't drift from ansible/roles/step_ca_cert/
-    # defaults/main.yaml the way a hardcoded literal here already had
-    - name: Load step_ca_cert's own role defaults
-      ansible.builtin.include_vars:
-        file: ../../defaults/main.yaml
-        name: step_ca_cert_role_defaults
-
     # --- shared setup: the openbao image's own non-root UID -------------
     # By name, not a hardcoded number — see roles/openbao's own
     # comment for why. Read from the real running container rather
@@ -127,40 +118,47 @@
         fail_msg: "Rendered env: {{ step_ca_cert_verify_env_raw.content | b64decode }}"
 
     # --- renewal side effects -------------------------------------------
-    # Same shape as default's own verify.yml: run the exact
-    # commands ExecStart/ExecStartPost would run, directly, rather than
-    # going through systemd's own ExecCondition gating (that's
-    # renewal_timing's job, not duplicated here).
+    # The unit's own ExecCondition=, ExecStart= and chown ExecStartPost=
+    # lines, read back from the rendered unit and run with the instance's
+    # real env file, so every `docker run` flag the unit carries is
+    # exercised here instead of a hand-typed copy of it. Run directly
+    # rather than through systemd's ExecCondition gating (that's
+    # renewal_timing's job, not duplicated here). %i is the instance name
+    # and $$ is systemd's escape for a literal $.
+    - name: Run the unit's own ExecCondition= line against the cert just issued
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -a
+        . /etc/cert-renewer/openbao.env
+        set +a
+        line=$(systemctl cat cert-renewer@openbao.service | sed -n 's/^ExecCondition=//p' | sed 's/%i/openbao/g; s/\$\$/$/g')
+        [ -n "$line" ] || exit 99
+        bash -c "$line"
+      args:
+        executable: /bin/bash
+      register: step_ca_cert_verify_exec_condition
+      changed_when: false
+      # A cert issued moments ago is not due, which the line reports as 1.
+      # The file is openbao's and mode 0600, so a container that cannot
+      # read it exits 255 instead.
+      failed_when: step_ca_cert_verify_exec_condition.rc != 1
+
     - name: Record the cert's serial number before a direct renewal
       ansible.builtin.command: openssl x509 -in {{ step_ca_cert_verify_certs_mountpoint }}/fullchain.pem -noout -serial
       register: step_ca_cert_verify_serial_before
       changed_when: false
 
-    - name: Run the exact renewal command ExecStart would run
-      ansible.builtin.command:
-        argv:
-          - docker
-          - run
-          - --rm
-          - --user
-          - root
-          - --network
-          - caddy-proxy
-          - -v
-          - openbao_certs:/certs
-          - -v
-          - /etc/step-ca/root_ca.crt:/root_ca.crt:ro
-          - "{{ step_ca_cert_role_defaults.step_ca_cert_step_cli_image }}"
-          - step
-          - ca
-          - renew
-          - --force
-          - --ca-url
-          - "{{ step_ca_cert_step_ca_url }}"
-          - --root
-          - /root_ca.crt
-          - /certs/fullchain.pem
-          - /certs/privkey.pem
+    - name: Run the unit's own ExecStart= line
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -a
+        . /etc/cert-renewer/openbao.env
+        set +a
+        line=$(systemctl cat cert-renewer@openbao.service | sed -n 's/^ExecStart=//p' | sed 's/%i/openbao/g')
+        [ -n "$line" ] || exit 99
+        bash -c "$line"
+      args:
+        executable: /bin/bash
       changed_when: true
 
     - name: Record the cert's serial number after
@@ -181,16 +179,17 @@
     # needed regardless (chowning an already-correct owner is a
     # harmless no-op).
 
-    # Runs the literal ExecStartPost= line from the rendered unit,
-    # sourcing openbao's actual /etc/cert-renewer/openbao.env the way
-    # systemd's own EnvironmentFile= would — not a hand-typed
-    # approximation of it.
-    - name: Run the real chown ExecStartPost= line for this instance
+    # Sourcing openbao's actual /etc/cert-renewer/openbao.env the way
+    # systemd's own EnvironmentFile= would.
+    - name: Run the unit's own chown ExecStartPost= line for this instance
       ansible.builtin.shell: |
+        set -o pipefail
         set -a
         . /etc/cert-renewer/openbao.env
         set +a
-        [ -z "${CHOWN_IMAGE}" ] || /usr/bin/docker run --rm --user root -v openbao_certs:/certs "${CHOWN_IMAGE}" chown -R "${CHOWN_USER}:${CHOWN_USER}" /certs
+        line=$(systemctl cat cert-renewer@openbao.service | sed -n 's/^ExecStartPost=//p' | grep -F 'CHOWN_IMAGE' | sed 's/%i/openbao/g')
+        [ -n "$line" ] || exit 99
+        bash -c "$line"
       args:
         executable: /bin/bash
       changed_when: true

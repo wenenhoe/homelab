@@ -120,6 +120,13 @@ class TestOutsideDecisions:
         repo.write("docs/topics/a.md", "`pre_old_name.py` and `old_name.pyc`.\n")
         assert repo.errors() == []
 
+    def test_a_name_with_capitals_is_matched_as_written(self, repo):
+        repo.write("tools/Mixed_Case.py")
+        repo.commit()
+        repo.remove("tools/Mixed_Case.py")
+        repo.write("docs/topics/a.md", "Run `Mixed_Case.py` first.\n")
+        assert repo.errors() == ["docs/topics/a.md:1: names Mixed_Case.py, which was removed; use the current name or drop the mention"]
+
     def test_a_test_fixture_may_name_it(self, repo):
         repo.write("tools/tests/test_x.py", "PATH = 'dead.py'\n")
         assert repo.errors() == []

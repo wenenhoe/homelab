@@ -149,7 +149,9 @@ The rclone helpers keep the network, since they talk to S3, and nothing else.
 The `cloud-sync` unit keeps `DAC_OVERRIDE`, because `rclone.conf` is `0600` and
 owned by the deploy user, and runs with a read-only root filesystem. The
 `check-freshness` listing mounts nothing, so it has no capability, a read-only
-root and a non-root user.
+root and a non-root user. The three `lldap_bootstrap` containers drop every
+capability and run with a read-only root, plus a `tmpfs` at `/tmp` for the one
+that runs `bootstrap.sh`; they keep the network, since they call lldap's API.
 
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see

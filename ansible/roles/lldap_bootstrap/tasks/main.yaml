@@ -91,6 +91,17 @@
           - /tmp/lldap-bootstrap-observer.json:/bootstrap/user-configs/observer.json:ro
         networks:
           - name: "{{ lldap_bootstrap_network_name }}"
+        cap_drop:
+          - ALL
+        security_opts:
+          - no-new-privileges:true
+        # bootstrap.sh runs `mktemp -d` before it creates the user and stops
+        # (set -e) if that fails, so a read-only root needs /tmp. Root with no
+        # capability still reads the 0600 config: this play runs with become,
+        # so root owns the file.
+        read_only: true
+        tmpfs:
+          - /tmp
         detach: false
         cleanup: true
       async: 180
@@ -129,6 +140,11 @@
           - "{{ {'username': 'observer', 'password': tinyauth_ldap_observer_password} | to_json }}"
         networks:
           - name: "{{ lldap_bootstrap_network_name }}"
+        cap_drop:
+          - ALL
+        security_opts:
+          - no-new-privileges:true
+        read_only: true
         detach: false
         cleanup: true
       register: lldap_bootstrap_bind_check
@@ -175,6 +191,11 @@
           ADMIN_PW: "{{ lldap_ldap_user_pass }}"
         networks:
           - name: "{{ lldap_bootstrap_network_name }}"
+        cap_drop:
+          - ALL
+        security_opts:
+          - no-new-privileges:true
+        read_only: true
         detach: false
         cleanup: true
       register: lldap_bootstrap_group_check

@@ -13,34 +13,26 @@ docker/<app>/
     └── env.j2
 ```
 
-- `compose.yaml` is rendered through Ansible's `template` module and
-  written to `{{ compose_deploy_dir }}/<app>/` on the target host — same
-  mechanism as `configs/`, just always on regardless of whether the file
-  actually contains any Jinja2. That means it can reference an Ansible
-  var directly (`TZ: "{{ server_timezone }}"`) for anything
-  **non-secret and domain-free**. Name the file `compose.yaml.j2` when
-  it does this — the `.j2` suffix is stripped back off at deploy time,
-  so it still lands as plain `compose.yaml` on the host, but it's a
-  visible marker in the repo for which apps actually template their
-  compose file. See `kms` or `bind9`'s `compose.yaml.j2` for the
-  pattern.
+- `compose.yaml` is rendered through Ansible's `template` module and written
+  to `{{ compose_deploy_dir }}/<app>/` on the target host, the same way as
+  `configs/`. It can reference an Ansible variable directly
+  (`TZ: "{{ server_timezone }}"`) for anything **non-secret and domain-free**.
+  Name the file `compose.yaml.j2` when it does; the suffix is stripped at
+  deploy time, so it still lands as `compose.yaml`, and it marks in the repo
+  which apps template their compose file. See `kms` or `bind9`.
 
-  **Never a real secret, and never anything that leaks the domain.**
-  This task deploys every app's `compose.yaml` in one shared loop at a
-  fixed `mode: "0644"`, world-readable, with no per-app `no_log:`
-  support — the opposite of what `configs` gives you (see below). A
-  real secret (API key, password, token) still belongs in a
-  `configs/*.j2` template with `no_log: true`, never inlined here — and
-  so does anything derived from `main_domain`/`lab_domain`/
-  `caddy_domain` (a routed URL, an LDAP base DN, a DNS name list — see
-  `cobalt`/`shlink`/`lldap`/`step-ca`'s `env.j2` for what stayed there).
-  The domain isn't a credential, but it's still the one piece of
-  identifying info that shouldn't sit in a world-readable file on the
-  host — `main-domain`'s own entry in `secret_catalog.yaml` routes it
-  through the same cached/gitignored mechanism as everything else in
-  `secrets.md` for that reason. A quick check before inlining anything:
-  if the value or anything it's built from ultimately traces back to
-  `main_domain`, it goes in `configs/*.j2` with `no_log: true`, not here.
+  Every app's `compose.yaml` is deployed in one shared loop at
+  `mode: "0644"`, world-readable, with no per-app `no_log:`. So what goes
+  where:
+
+  | Value | Goes in | Why |
+  | :--- | :--- | :--- |
+  | Non-secret, domain-free (timezone, a port) | `compose.yaml.j2` | Safe in a world-readable file. |
+  | A real secret (API key, password, token) | `configs/*.j2` with `no_log: true` | `configs` supports `no_log:` and a `mode`. |
+  | Anything built from `main_domain`, `lab_domain` or `caddy_domain` (a routed URL, an LDAP base DN, a DNS name list) | `configs/*.j2` with `no_log: true` | The domain is not a credential, but it is identifying and should not sit in a world-readable file. `secret_catalog.yaml` routes `main-domain` through the same cached, gitignored mechanism as every other secret ([`secrets.md`](../secrets/secrets.md)). See `cobalt`, `shlink`, `lldap` and `step-ca`'s `env.j2`. |
+
+  Before inlining a value, trace what it is built from: if any of it comes
+  from `main_domain`, it goes in `configs/*.j2`.
 - Anything in `configs/` is rendered through Ansible's `template` module
   (so it can reference any Ansible variable, e.g. `{{ server_timezone }}`)
   and written to whatever `dest` its `app_catalog` entry specifies —
@@ -51,110 +43,56 @@ docker/<app>/
 
 ### Container hardening
 
-A service sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]`
-when nothing in it needs a capability. `cap_drop` removes every capability
-from the container's bounding set, and `no-new-privileges` stops `exec`
-granting any through a setuid binary or a file capability. A process that
-runs as a non-root user from its first instruction holds no capability to
-begin with, so for it the pair changes nothing unless the image relies on
-`exec` granting one. A service that runs as root and only reads and writes
-files its own root-owned volume holds (`beszel-hub`, `diun`) loses nothing it
-used. One that creates files in a directory another user owns needs
-`DAC_OVERRIDE` back (`bluemap`, `tinyauth`). `tinyauth` runs as root over a
-`/data` the volume seed leaves owned by another user, and SQLite has to create
-its journal file beside `tinyauth.db`; without the capability the session
-insert at login fails with a read-only database error.
-`beszel-agent` runs as root on the host network and takes the pair too, with
-nothing added back; its `dockerproxy` sidecar does not.
-`backup-agent` runs as root and only reads, over files other users own (its
-schedule files belong to the deploy user, each volume to its app's user), so it
-keeps `DAC_READ_SEARCH`, the read-only counterpart of `DAC_OVERRIDE`, and
-nothing else. Without it the container stays up and healthy but cannot open
-what it archives. Its `backup-dockerproxy` sidecar does not take the pair.
-The minecraft `restore-backup` job runs as root. `run_restore.sh` uses it to
-delete everything in `/data`, which uid 1000 owns, and then to extract the
-newest backup with `tar`, which restores the owner and mode of every file. It
-keeps `DAC_OVERRIDE` for the delete and `CHOWN` and `FOWNER` for the extract,
-and runs with `network_mode: none`.
-The `test-upgrade` dry run starts as uid 1000 instead of letting the image switch
-to it, so it needs no capability and takes the pair with nothing added back.
-
-The daemon already sets `no-new-privileges` for every container
-([`docker-daemon.md`](docker-daemon.md)). The line in each compose file keeps
-it on where the service is defined, whatever the daemon is set to, and
-`cap_drop` has no daemon-wide default.
-
-Before adding them, read the image's Dockerfile and entrypoint for `setcap`,
-`chmod u+s`, `sudo`, `su-exec`, `gosu` and `setpriv`. An image that has any of
-these leaves the pair off, adds back what they need, or has the feature that
-uses them switched off. Scan the image before adding the pair:
-`python -m container_hardening.scan_image IMAGE`, run from `tools/`, lists
-its setuid files, file capabilities and shell-script privilege helpers
+Every service sets `cap_drop: [ALL]` and `security_opt: [no-new-privileges:true]`,
+then adds back only what its process does. How to choose, what each capability
+is for, and how to verify a set is in
+[`container-hardening.md`](container-hardening.md). Before adding the pair to a
+new app, scan its image: `python -m container_hardening.scan_image IMAGE`, run
+from `tools/`, lists the setuid files, file capabilities and shell-script
+privilege helpers it carries
 ([`scan_image.py`](../../../tools/container_hardening/scan_image.py)).
-It reads the image without running it, so a compiled entrypoint that drops
-privileges still needs a boot with the pair set. These images set a file
-capability:
 
-- `dashy` gives `ping` `cap_net_raw`, so a non-root user can run it. Only its
-  ICMP ping check runs `ping`. The HTTP status checks this repo configures
-  do not, so `dashy` takes the pair, and a ping check added to its config
-  would stop working.
-- `step-ca` gives its `step-ca` binary `cap_net_bind_service` with the
-  effective bit set. For such a file the kernel refuses the `exec` outright
-  when the process cannot get every capability the file names
-  (`capabilities(7)`, "Safety checking for capability-dumb binaries"), so
-  after `cap_drop: [ALL]` the container would not start without
-  `cap_add: [NET_BIND_SERVICE]`.
-- `uptime-kuma` gives `ping` `cap_net_raw` the same way. This repo uses only
-  push monitors, so `uptime-kuma` does not keep `NET_RAW`, and a ping monitor
-  added in the UI would stop working. It does keep `DAC_OVERRIDE`: the process
-  runs as root, and its `kuma.db` files can belong to another user, which root
-  can write only with that capability.
+Search for `no-new-privileges` under `docker/` to see which services have the
+pair today. What each one keeps, and why:
 
-Where the capability is one the container is meant to hold, keep it and drop
-the rest: Caddy's base image sets `cap_net_bind_service` on its binary and the
-process runs as root, so `caddy` sets `cap_add: [NET_BIND_SERVICE]` after
-`cap_drop: [ALL]`.
+| App | Keeps | Why |
+| :--- | :--- | :--- |
+| `beszel-hub`, `diun` | Nothing | Root, reading and writing only files its own root-owned volume holds. |
+| `beszel-agent` | Nothing | Root on the host network. Its `dockerproxy` sidecar does not take the pair. |
+| `dashy` | Nothing | Its image gives `ping` `cap_net_raw`, but only an ICMP ping check runs it. The HTTP status checks configured here do not, and a ping check added to its config would stop working. |
+| `uptime-kuma` | `DAC_OVERRIDE` | Root over `kuma.db` files another user can own. Its `ping` file capability is unused (push monitors only), so a ping monitor added in the UI would stop working. |
+| `bluemap` | `DAC_OVERRIDE` | Creates files in a directory another user owns. |
+| `tinyauth` | `DAC_OVERRIDE` | Root over a `/data` the volume seed leaves owned by another user. SQLite must create its journal beside `tinyauth.db`; without the capability the session insert at login fails with a read-only database error. |
+| `backup-agent` | `DAC_READ_SEARCH` | Root, only reading files other users own (schedule files belong to the deploy user, each volume to its app's user). Without it the container stays healthy but cannot open what it archives. Its `backup-dockerproxy` sidecar does not take the pair. |
+| `caddy` | `NET_BIND_SERVICE` | The base image sets `cap_net_bind_service` on the binary and the process runs as root. |
+| `step-ca` | `NET_BIND_SERVICE` | The binary carries the capability with the effective bit set, so the kernel refuses the `exec` without it (`capabilities(7)`, "Safety checking for capability-dumb binaries"). |
+| `lldap` | `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE` | The entrypoint chowns `/data`, drops to another user, and writes to `/data` as a check. |
+| `seaweedfs`, `minecraft` server and backup services | `CHOWN`, `SETUID`, `SETGID` | The entrypoint starts as root to chown a volume, then drops to another user. |
+| `librespeed` | `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE`, `FOWNER` | As above, and the entrypoint deletes and re-copies its web root on every start, whose files belong to `www-data` in a sticky directory after the first start. |
+| `openbao` | `IPC_LOCK` | Non-root; `mlock` only. |
+| `docker-socket-proxy` sidecars | Per sidecar | Each needs its own check of what the process does after it starts. |
+| `minecraft` `restore-backup` | `DAC_OVERRIDE`, `CHOWN`, `FOWNER` | Root: `run_restore.sh` deletes everything in `/data` (owned by uid 1000), then `tar` restores each file's owner and mode. Runs with `network_mode: none`. |
+| `test-upgrade` dry run | Nothing | Starts as uid 1000 instead of letting the image switch to it. |
 
-An entrypoint that starts as root to `chown` a volume and then drops to
-another user needs `CHOWN`, `SETUID` and `SETGID` back, or to start as that
-user. `lldap`, `seaweedfs`, `librespeed` and the `minecraft` server and backup
-services take them back with `cap_add`. `librespeed` also keeps `DAC_OVERRIDE`
-and `FOWNER`: its entrypoint deletes and re-copies its web root on every start,
-and after the first start those files belong to `www-data` in a sticky
-directory. `lldap` also keeps `DAC_OVERRIDE`, which its entrypoint's write
-check on `/data` needs. `openbao` runs as a
-non-root user and keeps only `IPC_LOCK`. The `docker-socket-proxy` sidecars
-each need their own check of what the process does after it starts.
+### Helper containers
 
-A container Ansible starts for one job gets the same pair, no network, and
-only what the job does as root. The volume seed (`seed_volume.yaml`) and the
-restore role's two containers keep `CHOWN`, `FOWNER`, `DAC_OVERRIDE` and
-`FSETID`: `cp -a` and `tar` keep each file's owner and mode and write over
-files other users own, and `chmod` drops a setgid bit without `FSETID` while the
-job still exits 0. `volume-file-rm.yaml` keeps `DAC_OVERRIDE` to delete inside
-directories another user owns, and the OpenBao data `chown` keeps `CHOWN` and
-`DAC_OVERRIDE` to list directories the previous owner left at `0700`. It does
-not take `DAC_READ_SEARCH`, which Docker's default set lacks and which allows
-`open_by_handle_at`. The user-id lookup that precedes it needs nothing. Each of
-these also runs with a read-only root filesystem: they write only into the
-volumes they are given.
-The step-ca cert helpers (the three `docker run` lines in `cert-renewer@.service`
-and the `step_ca_cert` tasks) run as root over a `certs` volume whose files
-`step` writes at mode `0600` and the chown then hands to the app's own user.
-Reading, rewriting and reissuing those files takes `DAC_OVERRIDE`, which the
-`needs-renewal` check, the renew, the `inspect` read and the issue task keep;
-the two `chown` containers keep `CHOWN` alone. Only the renew and the issue
-reach the CA, so the rest run with no network. The `inspect` read matters
-most: a read that fails is taken for "no certificate" and reissues over a valid
-one.
-The rclone helpers keep the network, since they talk to S3, and nothing else.
-The `cloud-sync` unit keeps `DAC_OVERRIDE`, because `rclone.conf` is `0600` and
-owned by the deploy user, and runs with a read-only root filesystem. The
-`check-freshness` listing mounts nothing, so it has no capability, a read-only
-root and a non-root user. The three `lldap_bootstrap` containers drop every
-capability and run with a read-only root, plus a `tmpfs` at `/tmp` for the one
-that runs `bootstrap.sh`; they keep the network, since they call lldap's API.
+A container Ansible or systemd starts for one job gets the same pair, no
+network unless it calls a service, and only what the job does as root. Where
+the job writes only into the volumes it is given, it also runs with
+`read_only: true`.
+
+| Helper | Keeps | Network | Why |
+| :--- | :--- | :--- | :--- |
+| Volume seed (`seed_volume.yaml`), restore role (both containers) | `CHOWN`, `FOWNER`, `DAC_OVERRIDE`, `FSETID` | None | `cp -a` and `tar` keep each file's owner and mode and write over other users' files. Without `FSETID`, `chmod` drops a setgid bit and the job still exits 0. |
+| `volume-file-rm.yaml` | `DAC_OVERRIDE` | None | Deletes inside directories another user owns. |
+| OpenBao data `chown` | `CHOWN`, `DAC_OVERRIDE` | None | Lists directories the previous owner left at `0700`. It does not take `DAC_READ_SEARCH`, which Docker's default set lacks and which allows `open_by_handle_at`. The user-id lookup before it needs nothing. |
+| step-ca cert helpers (`cert-renewer@.service`, `step_ca_cert` tasks): `needs-renewal`, renew, `inspect`, issue | `DAC_OVERRIDE` | Renew and issue only | `step` writes the files at `0600` and the chown hands them to the app's own user, so reading and rewriting them takes the capability. A failed `inspect` read is taken for "no certificate" and reissues over a valid one. |
+| step-ca cert helpers: the two `chown` containers | `CHOWN` | None | Hands the files to the app's user. |
+| `cloud-sync` unit | `DAC_OVERRIDE` | Yes (S3) | `rclone.conf` is `0600` and owned by the deploy user. |
+| `check-freshness` listing | Nothing | Yes (S3) | Mounts nothing; read-only root and a non-root user. |
+| `lldap_bootstrap` (three containers) | Nothing | Yes (lldap API) | Read-only root, plus a `tmpfs` at `/tmp` for the one that runs `bootstrap.sh`. |
+
+### What CI covers
 
 CI boot-tests every changed app that is not excluded, which catches a container
 that no longer starts or stays healthy; see
@@ -162,8 +100,7 @@ that no longer starts or stays healthy; see
 skips. It does not exercise what an app does once running, or when its
 container restarts: an entrypoint that cleans up after its previous start
 fails only on the second one, so restart the container once when you add
-capabilities to an app like that. Search for
-`no-new-privileges` under `docker/` to see which services have the pair today.
+capabilities to an app like that.
 
 ## 2. Register it in `app_catalog`
 
@@ -191,9 +128,22 @@ app_catalog:
 | `configs` | Templates to render. Defaults to `force: true` (overwrite on drift); add `force: false` only if the app writes back to the same file itself — no app in the catalog needs this today, so there's no worked example to point to yet. Set `no_log: true` if a config renders a real secret, or `--diff` prints it in plaintext (see [`secrets.md`](../secrets/secrets.md)). Secrets this repo can generate go in `secret_catalog.yaml`, not a raw `lookup('password', ...)` in the template. |
 | `scripts` | Helper scripts copied verbatim into `<app>/scripts/`. |
 | `routes` | Omit for apps with no HTTP frontend. Each key (`default`, or a name per route — see `shlink`'s `short`/`web` pattern) needs an `upstream` (`container:port`) and optionally `auth: false` to skip Tinyauth forward-auth. |
-| `backup` | Omit for an app with nothing to back up. `volumes` (required) lists the volumes to back up, each one declared in `volumes`. Everything else is optional and falls back to `backup_defaults` in `group_vars/all/main.yaml`: `cron`, `retention_days`, `compression` (`gz`, `zst` or `none`; `none` when the source is already compressed), `stop_during_backup` (stops the app's container while its volume is archived, which also needs the matching compose label — see [`backup.md`](../disaster-recovery/backup.md)), and `cloud_targets` (the clouds `cloud_sync` also relays it to; a list replaces the default list rather than adding to it, and each name must be a key of `cloud_sync_targets` on `storage`). A host that gains its first backed-up app also needs its own SeaweedFS secrets — see [`deployment-flow.md`](deployment-flow.md). |
+| `backup` | Omit for an app with nothing to back up. `volumes` (required) lists the volumes to back up, each declared in `volumes`. The other keys are optional and fall back to `backup_defaults` in `group_vars/all/main.yaml`; see [`backup` keys](#backup-keys). |
 
 The `check-app-catalog` pre-commit hook rejects a repeated app name, a route with no `upstream`, a `backup` block that names no volume or one its `volumes` doesn't declare, a backup setting of the wrong shape or a key that isn't one (here, in a host's own `backup:` override, or in `backup_defaults`), a cloud target `storage` doesn't define, and a host that would start backing up without its SeaweedFS secret pair and host variables. See [`ci/gates.md`](../engineering/ci/gates.md#app-catalog-rules).
+
+### `backup` keys
+
+| Key | Meaning |
+| :--- | :--- |
+| `cron` | Schedule; default from `backup_defaults`. |
+| `retention_days` | How long backups are kept; default from `backup_defaults`. |
+| `compression` | `gz`, `zst` or `none`. Use `none` when the source is already compressed. |
+| `stop_during_backup` | Stops the app's container while its volume is archived. Also needs the matching compose label; see [`backup.md`](../disaster-recovery/backup.md). |
+| `cloud_targets` | The clouds `cloud_sync` also relays the backup to. A list replaces the default list rather than adding to it, and each name must be a key of `cloud_sync_targets` on `storage`. |
+
+A host that gains its first backed-up app also needs its own SeaweedFS
+secrets; see [`deployment-flow.md`](deployment-flow.md).
 
 ## 3. Add it to a host's `compose_apps`
 

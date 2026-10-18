@@ -14,10 +14,13 @@ allowed_paths:
   - .github/workflows/build-gatus-image.yml
   - .github/image-smoke-tests/gatus.sh
   - .github/renovate.json5
+  - .github/compose-boot-test-exclusions.txt
   - tools/ci/images/registry.py
   - tools/ci/fixtures/preseed_manual_secrets.py
   - tools/ci/provenance/registry.py
+  - tools/tests/ci/provenance/test_provenance_registry.py
   - tools/tests/ci/images/**
+  - tools/tests/utils/test_secret_catalog.py
   - tools/tests/ci/scope/test_compose_apps.py
   - tools/tests/ci/scope/test_molecule_scope.py
   - tools/tests/shell/check_freshness.bats

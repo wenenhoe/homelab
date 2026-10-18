@@ -1,0 +1,210 @@
+---
+# --- The rules file, on the real proxy image, in front of a fake socket ---
+# The proxy backup-agent uses is in front of the real Docker socket, so the
+# rules are tried on a second copy of it started from the same image and the
+# deployed rules file, in front of a socket that only records what reaches it.
+# The fake is a plain process on this host, so no image is built or pulled for it.
+- name: Check the Docker API rules against the proxy image
+  vars:
+    backup_agent_api_dir: /run/fake-docker-api
+    backup_agent_api_python: "{{ ansible_facts['python']['executable'] }}"
+    backup_agent_api_proxy_image: "{{ backup_agent_compose_parsed.services['backup-dockerproxy'].image }}"
+    backup_agent_api_id: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    # The five calls docker-volume-backup makes, with and without an API version
+    # prefix and a query string, and the one the proxy's own healthcheck makes.
+    # The last encodes "json" as %6Ason: it decodes to the allowed path.
+    backup_agent_api_allowed:
+      - [HEAD, /_ping]
+      - [GET, /_ping]
+      - [GET, /info]
+      - [GET, /version]
+      - [GET, /containers/json]
+      - [GET, "/containers/json?filters=%7B%22label%22%3A%5B%22docker-volume-backup.archive-pre%22%5D%7D"]
+      - [GET, "/containers/json?all=1"]
+      - [HEAD, /v1.52/_ping]
+      - [GET, /v1.52/info]
+      - [GET, /v1.52/containers/json]
+      - [POST, "/containers/{{ backup_agent_api_id }}/stop"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/stop?t=10"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/start"]
+      - [POST, "/v1.52/containers/{{ backup_agent_api_id }}/stop"]
+      - [POST, "/v1.52/containers/{{ backup_agent_api_id }}/start"]
+      - [GET, "/containers/%6Ason"]
+    backup_agent_api_refused:
+      # Containers other than a start or stop by id
+      - [POST, /containers/create]
+      - [POST, "/containers/create?name=x"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/exec"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/kill"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/restart"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/update"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/pause"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/rename"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/attach"]
+      - [DELETE, "/containers/{{ backup_agent_api_id }}"]
+      - [GET, "/containers/{{ backup_agent_api_id }}/json"]
+      - [GET, "/containers/{{ backup_agent_api_id }}/logs"]
+      - [GET, "/containers/{{ backup_agent_api_id }}/archive"]
+      - [GET, "/containers/{{ backup_agent_api_id }}/export"]
+      - [PUT, "/containers/{{ backup_agent_api_id }}/archive"]
+      - [POST, /containers/prune]
+      # The right path with the wrong verb
+      - [GET, "/containers/{{ backup_agent_api_id }}/stop"]
+      - [GET, "/containers/{{ backup_agent_api_id }}/start"]
+      - [POST, /containers/json]
+      # Other endpoints
+      - [GET, /events]
+      - [GET, /images/json]
+      - [GET, /volumes]
+      - [GET, /networks]
+      - [GET, /system/df]
+      - [GET, /services]
+      - [POST, /build]
+      - [POST, /commit]
+      - [POST, /session]
+      - [POST, /exec/abc/start]
+      - [POST, "/images/create?fromImage=x"]
+      - [POST, /volumes/create]
+      # A start or stop whose id is not a full lower-case id
+      - [POST, /containers/web/stop]
+      - [POST, /containers/web/start]
+      - [POST, "/containers/{{ backup_agent_api_id[:63] }}/stop"]
+      - [POST, "/containers/{{ backup_agent_api_id }}0/stop"]
+      - [POST, "/containers/{{ backup_agent_api_id | upper }}/stop"]
+      # Paths that end, begin or climb out of the allowed ones
+      - [POST, "/containers/{{ backup_agent_api_id }}/stop/"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/stop/x"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/stopx"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/stop%3Fx"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/start%2F..%2Fkill"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/stop/../kill"]
+      - [POST, "/containers/{{ backup_agent_api_id }}/%73top/../exec"]
+      - [GET, "/containers/json/../{{ backup_agent_api_id }}/archive"]
+      - [GET, "/containers/%6Ason/../{{ backup_agent_api_id }}/archive"]
+      - [GET, /containers/json/]
+      - [GET, /containers/jsonx]
+      - [GET, //containers/json]
+      - [POST, "//containers/{{ backup_agent_api_id }}/stop"]
+      - [GET, /v1.52/../containers/json]
+      - [POST, "/v1.52/../containers/{{ backup_agent_api_id }}/stop"]
+      - [POST, "/vX/containers/{{ backup_agent_api_id }}/stop"]
+      - [GET, /_ping/x]
+      - [GET, /info/x]
+      - [GET, /_pingx]
+  block:
+    - name: Clear any fake socket left by an earlier run
+      ansible.builtin.command:
+        argv: [systemctl, stop, fake-docker-api]
+      changed_when: false
+      failed_when: false
+
+    - name: Create the fake socket's directory
+      ansible.builtin.file:
+        path: "{{ backup_agent_api_dir }}"
+        state: "{{ item }}"
+        mode: "0755"
+      loop: [absent, directory]
+
+    - name: Copy the fake socket and the checker
+      ansible.builtin.copy:
+        src: "{{ item }}"
+        dest: "{{ backup_agent_api_dir }}/{{ item }}"
+        mode: "0644"
+      loop:
+        - fake_docker_api.py
+        - check_docker_api_rules.py
+
+    - name: Write the calls to try
+      ansible.builtin.copy:
+        dest: "{{ backup_agent_api_dir }}/cases.json"
+        mode: "0644"
+        content: "{{ {'allowed': backup_agent_api_allowed, 'refused': backup_agent_api_refused} | to_json }}"
+
+    - name: Start the fake Docker socket
+      ansible.builtin.command:
+        argv:
+          - systemd-run
+          - --collect
+          - --unit=fake-docker-api
+          - "{{ backup_agent_api_python }}"
+          - "{{ backup_agent_api_dir }}/fake_docker_api.py"
+          - "{{ backup_agent_api_dir }}/docker.sock"
+          - "{{ backup_agent_api_dir }}/requests.log"
+      changed_when: true
+
+    - name: Wait for the fake socket to exist
+      ansible.builtin.wait_for:
+        path: "{{ backup_agent_api_dir }}/docker.sock"
+        timeout: 30
+
+    # Mounted as the real proxy mounts the real socket: a file, read-only. The
+    # environment is left empty, as the compose file leaves it.
+    - name: Start the proxy image on the deployed rules file, in front of the fake socket
+      community.docker.docker_container:
+        name: backup-agent-api-rules-check
+        image: "{{ backup_agent_api_proxy_image }}"
+        volumes:
+          - "{{ compose_deploy_dir }}/backup-agent/docker-api-rules.cfg:/usr/local/etc/haproxy/haproxy.cfg.template:ro"
+          - "{{ backup_agent_api_dir }}/docker.sock:/var/run/docker.sock:ro"
+        state: started
+        detach: true
+
+    - name: Find the proxy's address
+      community.docker.docker_container_info:
+        name: backup-agent-api-rules-check
+      register: backup_agent_api_proxy
+
+    - name: Wait until the proxy answers a ping
+      ansible.builtin.uri:
+        url: "http://{{ backup_agent_api_proxy.container.NetworkSettings.IPAddress }}:2375/_ping"
+      register: backup_agent_api_ping
+      until: backup_agent_api_ping.status == 200
+      retries: 30
+      delay: 1
+
+    - name: Send every call and compare what the proxy did with what the rules say
+      ansible.builtin.command:
+        argv:
+          - "{{ backup_agent_api_python }}"
+          - "{{ backup_agent_api_dir }}/check_docker_api_rules.py"
+          - "{{ backup_agent_api_proxy.container.NetworkSettings.IPAddress }}"
+          - "2375"
+          - "{{ backup_agent_api_dir }}/requests.log"
+          - "{{ backup_agent_api_dir }}/cases.json"
+      register: backup_agent_api_check
+      changed_when: false
+
+  rescue:
+    - name: Collect the proxy's own output
+      ansible.builtin.command:
+        argv: [docker, logs, backup-agent-api-rules-check]
+      register: backup_agent_api_proxy_logs
+      changed_when: false
+      failed_when: false
+
+    - name: Fail with what the proxy and the checker said
+      ansible.builtin.fail:
+        msg: >-
+          The Docker API rules did not hold. Checker output:
+          {{ (backup_agent_api_check | default({})).stdout | default('(it did not run)') }}
+          {{ (backup_agent_api_check | default({})).stderr | default('') }}
+          Proxy output: {{ backup_agent_api_proxy_logs.stdout | default('') }}
+          {{ backup_agent_api_proxy_logs.stderr | default('') }}
+
+  always:
+    - name: Remove the proxy copy
+      community.docker.docker_container:
+        name: backup-agent-api-rules-check
+        state: absent
+        force_kill: true
+
+    - name: Stop the fake socket
+      ansible.builtin.command:
+        argv: [systemctl, stop, fake-docker-api]
+      changed_when: false
+      failed_when: false
+
+    - name: Remove the fake socket's directory
+      ansible.builtin.file:
+        path: "{{ backup_agent_api_dir }}"
+        state: absent

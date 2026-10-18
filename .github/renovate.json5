@@ -245,6 +245,14 @@
     },
     {
       customType: "regex",
+      description: "the platform image a scenario's molecule.yml names: molecule-dind, or the geerlingguy base the other scenarios follow on purpose",
+      managerFilePatterns: ["/^ansible/roles/[^/]+/molecule/[^/]+/molecule\\.ya?ml$/"],
+      matchStrings: ["image:\\s*(?<depName>ghcr\\.io/wenenhoe/molecule-dind|geerlingguy/docker-ubuntu2604-ansible):(?<currentValue>[^@\\s]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"],
+      autoReplaceStringTemplate: "image: {{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}",
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
       description: "volume-file-rm.yaml's throwaway alpine image, a play variable rather than a tasks/ file the ansible manager reads",
       managerFilePatterns: ["/^ansible/playbooks/volume-file-rm\\.ya?ml$/"],
       matchStrings: ["volume_rm_image:\\s*\"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
@@ -312,6 +320,14 @@
       matchStrings: ["ARG CODERABBIT_VERSION=(?<currentValue>\\S+)"],
       datasourceTemplate: "custom.coderabbit-cli",
       depNameTemplate: "coderabbit-cli",
+    },
+    {
+      customType: "regex",
+      description: "The review image coderabbit-review.sh runs, a shell variable rather than a recognized image: key",
+      managerFilePatterns: ["/^tools/coderabbit-review/coderabbit-review\\.sh$/"],
+      matchStrings: ["IMAGE=(?<depName>ghcr\\.io/wenenhoe/coderabbit-review):(?<currentValue>[^@\\s]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"],
+      autoReplaceStringTemplate: "IMAGE={{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}",
+      datasourceTemplate: "docker",
     },
     {
       customType: "regex",
@@ -685,6 +701,15 @@
       matchDatasources: ["docker"],
       matchDepNames: ["louislam/dockge"],
       sourceUrl: "https://github.com/louislam/dockge",
+    },
+
+    // The molecule.yml manager above reads the geerlingguy base so that a
+    // scenario using it still matches its file pattern. That base is followed
+    // on purpose (ci.images.digests.FLOATING), so Renovate must not pin it.
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["geerlingguy/docker-ubuntu2604-ansible"],
+      enabled: false,
     },
 
     // Digest pins (ADR 0083), placed after every per-image group above so they

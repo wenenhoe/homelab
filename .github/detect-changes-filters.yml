@@ -106,6 +106,7 @@ image_provenance:
   - 'docker/**'
   - 'ansible/**'
   - 'tools/coderabbit-review/Dockerfile'
+  - 'tools/coderabbit-review/coderabbit-review.sh'
   - 'tools/doc_scripts/check_mermaid.py'
   - '.github/scripts/seed-lldap-ci-cert.sh'
   - '.github/workflows/renovate.yml'

@@ -268,8 +268,8 @@ which hold a package-write token.
   It reads the same references as the weekly
   [image tag check](image-tag-check.md), so compose files, Ansible YAML,
   Dockerfiles and the pins Renovate's regex managers track are all judged.
-  The Molecule platform images and the `hello-world` probe stay on floating
-  tags, each listed with its reason in `FLOATING` in
+  The `geerlingguy` Molecule platform image and the `hello-world` probe stay on
+  floating tags, each listed with its reason in `FLOATING` in
   `tools/ci/images/digests.py`; an entry nothing names, or one that has been
   pinned, fails too, so the list cannot go stale. A reference that cannot be
   pinned (a template, `scratch`, a `:local` build) is skipped.
@@ -309,7 +309,7 @@ which hold a package-write token.
 
 Not covered: Molecule scenarios that pull a published image
 (`caddy`'s scenarios pull `caddy-digitalocean`, and every DinD scenario
-pulls `molecule-dind:latest`) still run the published one, so a
+pulls `molecule-dind`) still run the published one, so a
 Dockerfile change reaches them only after merge and the next build. For
 `caddy` that is the compose pin's tag, so the PR that bumps the pin is
 the first to run the scenarios on the new version.

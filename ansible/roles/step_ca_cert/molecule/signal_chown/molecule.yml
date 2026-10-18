@@ -3,7 +3,7 @@ driver:
   name: docker
 platforms:
   - name: step-ca-cert-signal-chown-instance
-    image: ghcr.io/wenenhoe/molecule-dind:latest
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:36d341344d87dba89b0af2793ff5c5a294d87af7ac4273c5185dbc22c80d184c
     privileged: true
     cgroupns_mode: host
     volumes:

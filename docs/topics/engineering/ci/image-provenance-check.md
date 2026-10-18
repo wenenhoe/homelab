@@ -94,9 +94,13 @@ registry beside the image. Only the build job holds `id-token: write` and
 already had; the storage record the action can create is turned off, since it
 would need a further permission nothing here uses.
 
-A digest pinned before its image was first attested has no attestation, so an
-entry for one of these images stays *unsigned* until its pin names an attested
-digest. Verify a build by hand with `gh attestation verify
+The compose pins for `caddy-digitalocean` and `wastebin`, the platform image
+every DinD Molecule scenario names (`molecule-dind`), and the review image
+`coderabbit-review.sh` runs pin attested digests, so their entries are
+*attested* for `wenenhoe/homelab`. A pin that moves to a digest
+built before the workflow attested fails the check.
+
+Verify a build by hand with `gh attestation verify
 oci://ghcr.io/wenenhoe/<name>@<digest> --repo wenenhoe/homelab`.
 [`test_provenance_build_workflows.py`](../../../../tools/tests/ci/provenance/test_provenance_build_workflows.py)
 holds the permissions, the action's pin and the subject each workflow names.

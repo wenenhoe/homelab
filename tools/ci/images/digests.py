@@ -33,10 +33,6 @@ _DIGEST = re.compile(r"^sha256:[0-9a-f]{64}$")
 # Each reference that stays on a floating tag, and why. Test platforms only:
 # nothing here is deployed to a host.
 FLOATING: dict[str, str] = {
-    "ghcr.io/wenenhoe/molecule-dind:latest": (
-        "Molecule's platform container, built from docker/molecule-dind under one tag this repo's CI republishes; "
-        "a digest would need a pull request per rebuild of a test image"
-    ),
     "geerlingguy/docker-ubuntu2604-ansible:latest": (
         "Molecule's systemd-in-Docker Ubuntu 26.04 platform, followed on purpose so the scenarios run on the current base; it only boots, no host runs it"
     ),

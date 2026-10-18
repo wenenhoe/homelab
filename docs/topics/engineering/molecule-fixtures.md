@@ -241,6 +241,11 @@ every run. They use `prepare_dind_prebuilt.yml` (coverage reset only)
 and `converge.yml` installs nothing Docker-related, relying on the daemon
 systemd starts at container boot.
 
+Every scenario on this image names it as `:latest@sha256:…`, the digest of a build
+whose workflow attested it. A regex manager in `.github/renovate.json5` moves
+the digest in all the scenarios together after each weekly rebuild, and the
+[provenance check](ci/image-provenance-check.md) verifies it.
+
 `docker`'s own scenario is never migrated to this image — it tests that
 installation from a clean base, and baking Docker in would make that
 test tautological. `bind9` uses it too: its own storage-driver override

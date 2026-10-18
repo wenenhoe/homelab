@@ -58,19 +58,19 @@ pair today. What each one keeps, and why:
 | App | Keeps | Why |
 | :--- | :--- | :--- |
 | `beszel-hub` | Nothing | Root, reading and writing only files its own root-owned volume holds. |
-| `beszel-agent` | Nothing | Root on the host network. Its `dockerproxy` sidecar does not take the pair. |
+| `beszel-agent` | Nothing | Root on the host network. |
 | `dashy` | Nothing | Its image gives `ping` `cap_net_raw`, but only an ICMP ping check runs it. The HTTP status checks configured here do not, and a ping check added to its config would stop working. |
 | `uptime-kuma` | `DAC_OVERRIDE` | Root over `kuma.db` files another user can own. Its `ping` file capability is unused (push monitors only), so a ping monitor added in the UI would stop working. |
 | `bluemap` | `DAC_OVERRIDE` | Creates files in a directory another user owns. |
 | `tinyauth` | `DAC_OVERRIDE` | Root over a `/data` the volume seed leaves owned by another user. SQLite must create its journal beside `tinyauth.db`; without the capability the session insert at login fails with a read-only database error. |
-| `backup-agent` | `DAC_READ_SEARCH` | Root, only reading files other users own (schedule files belong to the deploy user, each volume to its app's user). Without it the container stays healthy but cannot open what it archives. Its `backup-dockerproxy` sidecar does not take the pair. |
+| `backup-agent` | `DAC_READ_SEARCH` | Root, only reading files other users own (schedule files belong to the deploy user, each volume to its app's user). Without it the container stays healthy but cannot open what it archives. |
 | `caddy` | `NET_BIND_SERVICE` | The base image sets `cap_net_bind_service` on the binary and the process runs as root. |
 | `step-ca` | `NET_BIND_SERVICE` | The binary carries the capability with the effective bit set, so the kernel refuses the `exec` without it (`capabilities(7)`, "Safety checking for capability-dumb binaries"). |
 | `lldap` | `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE` | The entrypoint chowns `/data`, drops to another user, and writes to `/data` as a check. |
 | `seaweedfs`, `minecraft` server and backup services | `CHOWN`, `SETUID`, `SETGID` | The entrypoint starts as root to chown a volume, then drops to another user. |
 | `librespeed` | `CHOWN`, `SETUID`, `SETGID`, `DAC_OVERRIDE`, `FOWNER` | As above, and the entrypoint deletes and re-copies its web root on every start, whose files belong to `www-data` in a sticky directory after the first start. |
 | `openbao` | `IPC_LOCK` | Non-root; `mlock` only. |
-| `docker-socket-proxy` sidecars | Per sidecar | Each needs its own check of what the process does after it starts. |
+| `docker-socket-proxy` sidecars (`beszel-agent`'s `dockerproxy`, `backup-agent`'s `backup-dockerproxy`) | Nothing | Root, as the image sets `USER root` and HAProxy does not drop to another user. It binds port 2375, above the privileged range, and connects to a Docker socket that root owns, so it needs no capability to reach it. |
 | `minecraft` `restore-backup` | `DAC_OVERRIDE`, `CHOWN`, `FOWNER` | Root: `run_restore.sh` deletes everything in `/data` (owned by uid 1000), then `tar` restores each file's owner and mode. Runs with `network_mode: none`. |
 | `test-upgrade` dry run | Nothing | Starts as uid 1000 instead of letting the image switch to it. |
 

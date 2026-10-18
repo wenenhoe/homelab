@@ -55,6 +55,16 @@
       - "'environment' not in backup_agent_proxy_service"
     fail_msg: "Proxy service rendered as: {{ backup_agent_proxy_service }}"
 
+- name: Confirm the proxy drops every capability, adds none back and sets no-new-privileges
+  vars:
+    backup_agent_proxy_service: "{{ backup_agent_compose_parsed.services['backup-dockerproxy'] }}"
+  ansible.builtin.assert:
+    that:
+      - backup_agent_proxy_service.cap_drop == ['ALL']
+      - "'cap_add' not in backup_agent_proxy_service"
+      - "'no-new-privileges:true' in backup_agent_proxy_service.security_opt"
+    fail_msg: "Proxy service rendered as: {{ backup_agent_proxy_service }}"
+
 - name: Confirm the proxy's label tracks the rules file's content, so an edit recreates the container
   ansible.builtin.assert:
     that:

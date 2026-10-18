@@ -59,8 +59,8 @@ to end is [`fire-drill.md`](fire-drill.md).
   `DAC_READ_SEARCH`, and `no-new-privileges` set. Every volume is mounted
   read-only, so it only ever reads: the capability lets it open the schedule
   files the deploy user owns and the files each app's own user owns, and
-  `DAC_OVERRIDE` is not needed. The `docker-socket-proxy` sidecar is not
-  hardened this way. See
+  `DAC_OVERRIDE` is not needed. The `docker-socket-proxy` sidecar drops every
+  capability as well and adds none back, and sets `no-new-privileges`. See
   [Container hardening](../deploy/adding-an-app.md#container-hardening).
 - No retention/cron conflict validation is needed — every schedule is
   independent, so there's nothing to conflict.

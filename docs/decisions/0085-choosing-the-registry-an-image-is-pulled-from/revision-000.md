@@ -7,7 +7,7 @@ short: Image registry choice
 solution: An image moves from Docker Hub to GHCR only when the move gives it a verifiable statement or a source label that its Hub copy lacks and configuration cannot supply, shown by reading both registries for that image, and none moves until that is shown
 summary: Which registry each deployed image is pulled from, so a move between Docker Hub and GHCR is made for something the image gains.
 topic: deployment-platform
-status: approved
+status: accepted
 related: [ADR-0083, ADR-0084]
 ---
 

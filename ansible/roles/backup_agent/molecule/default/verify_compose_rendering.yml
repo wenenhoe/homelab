@@ -16,6 +16,52 @@
       - "'backup-dockerproxy' in backup_agent_compose_parsed.services"
     fail_msg: "Expected services: {{ backup_agent_compose_parsed.services.keys() | list }}"
 
+# --- The proxy runs from the rules file, not capability flags ---------
+- name: Read back the deployed Docker API rules file
+  ansible.builtin.slurp:
+    path: "{{ compose_deploy_dir }}/backup-agent/docker-api-rules.cfg"
+  register: backup_agent_rules_raw
+
+- name: Confirm the deployed rules file matches the role's own files/docker-api-rules.cfg exactly
+  vars:
+    backup_agent_rules_deployed: "{{ backup_agent_rules_raw.content | b64decode }}"
+    backup_agent_rules_source: "{{ lookup('file', playbook_dir ~ '/../../files/docker-api-rules.cfg') }}"
+  ansible.builtin.assert:
+    that:
+      - backup_agent_rules_deployed.rstrip() == backup_agent_rules_source.rstrip()
+
+- name: Confirm the rules end in a deny, with no flag read anywhere
+  vars:
+    backup_agent_rules_text: "{{ backup_agent_rules_raw.content | b64decode }}"
+    backup_agent_rules_http_requests: "{{ backup_agent_rules_text | regex_findall('(?m)^ *http-request .*$') | map('trim') | list }}"
+  ansible.builtin.assert:
+    that:
+      - backup_agent_rules_http_requests | length > 0
+      - backup_agent_rules_http_requests | last == 'http-request deny'
+      - "'env(' not in backup_agent_rules_text"
+    fail_msg: >-
+      The rules file must end its http-request rules with a bare deny and
+      read no environment flag. Rules found: {{ backup_agent_rules_http_requests }}
+
+- name: Confirm the proxy mounts the rules file read-only over the image's template and sets no capability flag
+  vars:
+    backup_agent_proxy_service: "{{ backup_agent_compose_parsed.services['backup-dockerproxy'] }}"
+  ansible.builtin.assert:
+    that:
+      - >-
+        './docker-api-rules.cfg:/usr/local/etc/haproxy/haproxy.cfg.template:ro'
+        in backup_agent_proxy_service.volumes
+      - "'/var/run/docker.sock:/var/run/docker.sock:ro' in backup_agent_proxy_service.volumes"
+      - "'environment' not in backup_agent_proxy_service"
+    fail_msg: "Proxy service rendered as: {{ backup_agent_proxy_service }}"
+
+- name: Confirm the proxy's label tracks the rules file's content, so an edit recreates the container
+  ansible.builtin.assert:
+    that:
+      - >-
+        backup_agent_compose_parsed.services['backup-dockerproxy'].labels['docker-api-rules-sha256']
+        == (backup_agent_rules_raw.content | b64decode | hash('sha256'))
+
 - name: Confirm the one container mounts every backed-up app's volumes under its own per-app dir, not happy_app_no_backup's
   vars:
     backup_agent_mounted_volumes: "{{ backup_agent_compose_parsed.services['backup-agent'].volumes }}"

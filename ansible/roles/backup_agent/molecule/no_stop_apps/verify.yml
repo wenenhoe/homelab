@@ -34,6 +34,16 @@
           - "'DOCKER_HOST' not in (backup_agent_env_raw.content | b64decode)"
           - "'NOTIFICATION_URLS=telegram://123456789:molecule-dummy-token@telegram?chats=molecule-dummy-chat-id' in (backup_agent_env_raw.content | b64decode)"
 
+    - name: Confirm the Docker API rules file was not deployed — nothing here needs the proxy
+      ansible.builtin.stat:
+        path: "{{ compose_deploy_dir }}/backup-agent/docker-api-rules.cfg"
+      register: backup_agent_no_stop_rules_file
+
+    - name: Assert on it
+      ansible.builtin.assert:
+        that:
+          - not backup_agent_no_stop_rules_file.stat.exists
+
     - name: Confirm the one schedule carries no stop label
       ansible.builtin.slurp:
         path: "{{ compose_deploy_dir }}/backup-agent/conf.d/happy_app_solo_nostop.env"

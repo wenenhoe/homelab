@@ -53,6 +53,7 @@ calls for a project, while a working one still has to be settled.
 | :--- | ---: | :--- | :--- |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
+| [`backup-agent-docker-api-rules.md`](projects/backup-agent-docker-api-rules.md) | — | Building | Give the backup agent's Docker socket proxy a rules file that allows only the calls the agent makes, in place of capability flags. |
 | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
@@ -61,7 +62,6 @@ calls for a project, while a working one still has to be settled.
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
 | [`workstation-management.md`](projects/workstation-management.md) | 1 | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access. |
-| [`backup-agent-docker-api-rules.md`](projects/backup-agent-docker-api-rules.md) | — | Not started — ready | Give the backup agent's Docker socket proxy a rules file that allows only the calls the agent makes, in place of capability flags. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`shell-script-tests.md`](projects/shell-script-tests.md) | — | Not started — ready | Unit-test the branching and cleanup of the repo's shell scripts with Bats, from pinned clones of bats-core, bats-support and bats-assert, in a scoped CI job. |
 
@@ -96,7 +96,7 @@ calls for a project, while a working one still has to be settled.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
-| [`backup-agent-docker-api-rules.md`](projects/backup-agent-docker-api-rules.md) | — | Not started — ready | Give the backup agent's Docker socket proxy a rules file that allows only the calls the agent makes, in place of capability flags. |
+| [`backup-agent-docker-api-rules.md`](projects/backup-agent-docker-api-rules.md) | — | Building | Give the backup agent's Docker socket proxy a rules file that allows only the calls the agent makes, in place of capability flags. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |

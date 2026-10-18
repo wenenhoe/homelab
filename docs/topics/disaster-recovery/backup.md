@@ -39,11 +39,19 @@ to end is [`fire-drill.md`](fire-drill.md).
   to match. That match is scoped per schedule file, not once for the
   whole container: a schedule backing up app A never touches app B's
   uptime, even though every app's schedules share one container.
-  `docker-socket-proxy` (`CONTAINERS=1 POST=1 INFO=1`) is only added to
-  the compose file at all if at least one app on the host needs stopping.
-  See [ADR 0004 (Docker API access)](../../decisions/0004-container-access-to-the-docker-api/revision-000.md)
+  The agent reaches the Docker API through a `docker-socket-proxy` sidecar,
+  which is only added to the compose file at all if at least one app on the
+  host needs stopping. The sidecar runs the stock image with no capability
+  flags: the role's `docker-api-rules.cfg` is mounted read-only over the
+  image's `haproxy.cfg.template` and names the calls the agent makes. It
+  passes `GET` of `/_ping`, `/version`, `/info` and `/containers/json`, and a
+  `POST` to `/containers/{id}/start` or `/stop` for a full 64-character
+  lower-case id, with or without an API version prefix, and refuses every
+  other call with a 403. Editing the file recreates the container, through a
+  label that carries its hash. See
+  [ADR 0004 (Docker API access)](../../decisions/0004-container-access-to-the-docker-api/revision-001.md)
   for why anything needing Docker API access gets a scoped proxy sidecar
-  like this instead of the real socket.
+  like this instead of the real socket, and for the calls.
 - `backup_agent`'s `compose.yaml` is rendered from a Jinja template (the
   only templated compose file in this repo) since mounted volumes vary
   per host.
@@ -167,10 +175,12 @@ Harmless to leave; delete by hand if reclaiming the space matters.
 
 **Known limitation (single operator, trusted LAN):** `docker-socket-proxy`'s
 grant has no per-container ACL — it can start/stop any container on
-that host, not just ones with a matching `stop-during-backup` label. The
-label match on the `docker-volume-backup` side is what actually scopes
-each schedule to its own app (see Architecture above); the proxy itself
-is a broader grant than that.
+that host by id, and list every container with its labels, not just ones
+with a matching `stop-during-backup` label. The label match on the
+`docker-volume-backup` side is what actually scopes each schedule to its own
+app (see Architecture above); the proxy itself is a broader grant than that.
+It cannot create, exec into, kill, update or delete a container, read a
+container's environment, files or logs, or reach any other endpoint.
 
 ## S3 endpoint format
 

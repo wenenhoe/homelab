@@ -96,6 +96,19 @@ release_checksums:
   - 'ansible/roles/cd_agent/defaults/main.yaml'
   - 'ansible/roles/openbao_cli/defaults/main.yaml'
   - 'tools/coderabbit-review/Dockerfile'
+# Gates provenance: the checker and its registry and keys, and every file that
+# can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the
+# scripts, workflow and Python constant a Renovate manager tracks) — see
+# docs/topics/engineering/ci/image-provenance-check.md. Not narrowed by
+# ci.scope.effective_changes: the run is cheap, so any change to one is worth a look.
+image_provenance:
+  - 'tools/ci/provenance/**'
+  - 'docker/**'
+  - 'ansible/**'
+  - 'tools/coderabbit-review/Dockerfile'
+  - 'tools/doc_scripts/check_mermaid.py'
+  - '.github/scripts/seed-lldap-ci-cert.sh'
+  - '.github/workflows/renovate.yml'
 # Gates mermaid-check: any markdown file, and the check itself, whose file
 # holds the pinned image, so a bump of it is tried against every diagram — see
 # docs/topics/engineering/ci/doc-checks.md#mermaid-render-check. Not narrowed by

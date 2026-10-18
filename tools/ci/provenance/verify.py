@@ -16,8 +16,8 @@ no answer, and a digest that could not be verified has not been shown to be the
 publisher's. Each tool call is made up to three times, so a passing blip does
 not fail a run, and a failing statement fails all three.
 
-Needs `gh` with GH_TOKEN set for attested entries, and `cosign` for signed ones.
-Standard library only.
+Needs `gh` with GH_TOKEN set for attested entries, and `docker` for signed ones,
+which runs `cosign` as the image COSIGN_IMAGE names. Standard library only.
 
 Usage (from tools/): python -m ci.provenance.verify [IMAGE ...]
 """
@@ -39,6 +39,10 @@ from ci.provenance.registry import ENTRIES, Attested, Entry, Signed, validate
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 ATTEMPTS = 3
+# Version 3 or later: version 2 finds no signature on some images that version 3 verifies.
+COSIGN_IMAGE = "ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8"
+# Where a committed key is mounted inside the container.
+CONTAINER_KEY = "/key.pub"
 Sleep = Callable[[float], None]
 
 
@@ -75,21 +79,28 @@ def _attested(entry: Attested, pin: Pin, root: Path, run: proc.Runner, sleep: Sl
     return _verified("gh attestation verify", argv, root, run, sleep, attempts)
 
 
+def _cosign(root: Path, key: str | None) -> list[str]:
+    """`docker run` for the cosign image, ready for its arguments.
+
+    The image is distroless and runs as non-root, so the trust root it fetches
+    is cached under /tmp, as cosign's own release pipeline does when it runs this
+    image. It needs the network and nothing else: no capability, and only the one
+    key file, read-only, when the entry has one.
+    """
+    argv = ["docker", "run", "--rm", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--env", "TUF_ROOT=/tmp"]
+    if key:
+        argv += ["--volume", f"{root / key}:{CONTAINER_KEY}:ro"]
+    return [*argv, COSIGN_IMAGE]
+
+
 def _signed(entry: Signed, pin: Pin, root: Path, run: proc.Runner, sleep: Sleep, attempts: int) -> str | None:
+    base = [*_cosign(root, entry.key), "verify"]
     if entry.key:
-        argv = ["cosign", "verify", "--key", str(root / entry.key), pin.reference]
+        argv = [*base, "--key", CONTAINER_KEY, pin.reference]
     elif entry.identity:
-        argv = ["cosign", "verify", "--certificate-identity", entry.identity, "--certificate-oidc-issuer", entry.issuer or "", pin.reference]
+        argv = [*base, "--certificate-identity", entry.identity, "--certificate-oidc-issuer", entry.issuer or "", pin.reference]
     else:
-        argv = [
-            "cosign",
-            "verify",
-            "--certificate-identity-regexp",
-            entry.identity_regexp or "",
-            "--certificate-oidc-issuer",
-            entry.issuer or "",
-            pin.reference,
-        ]
+        argv = [*base, "--certificate-identity-regexp", entry.identity_regexp or "", "--certificate-oidc-issuer", entry.issuer or "", pin.reference]
     return _verified("cosign verify", argv, root, run, sleep, attempts)
 
 

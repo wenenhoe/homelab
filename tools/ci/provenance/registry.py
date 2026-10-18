@@ -186,6 +186,7 @@ ENTRIES: tuple[Entry, ...] = (
     Unsigned(image="ghcr.io/offen/docker-volume-backup", reason=_NO_STATEMENT),
     Unsigned(image="ghcr.io/renovatebot/renovate", reason=_NO_STATEMENT),
     Unsigned(image="ghcr.io/shlinkio/shlink", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/sigstore/cosign/cosign", reason="the identity its publisher signs it with is not recorded here"),
     Unsigned(image="ghcr.io/shlinkio/shlink-web-client", reason=_NO_STATEMENT),
     Unsigned(image="ghcr.io/tecnativa/docker-socket-proxy", reason=_NO_STATEMENT),
     Unsigned(image="ghcr.io/tinyauthapp/tinyauth", reason=_NO_STATEMENT),

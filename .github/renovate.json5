@@ -321,6 +321,14 @@
       autoReplaceStringTemplate: 'MERMAID_CLI_IMAGE = "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
       datasourceTemplate: "docker",
     },
+    {
+      customType: "regex",
+      description: "The cosign image ci.provenance.verify verifies signatures with, a Python constant rather than a recognized image: key",
+      managerFilePatterns: ["/^tools/ci/provenance/verify\\.py$/"],
+      matchStrings: ["COSIGN_IMAGE = \"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],
+      autoReplaceStringTemplate: 'COSIGN_IMAGE = "{{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}"',
+      datasourceTemplate: "docker",
+    },
   ],
 
   packageRules: [

@@ -1,6 +1,6 @@
 """Tests for ci.provenance.verify.
 
-`gh` and `cosign` run through doubles bound to ci.proc.run's signature, since the
+`gh` and `docker` (which runs `cosign`) run through doubles bound to ci.proc.run's signature, since the
 real ones need a registry and GitHub. The doubles that stand for a verifier
 exit 0 only for the repository, identity or issuer the real tool would accept,
 so an entry that names the wrong one must fail. Nothing here reaches a real
@@ -30,6 +30,8 @@ ISSUER = "https://token.actions.githubusercontent.com"
 IDENTITY = "https://github.com/owner/tool/.github/workflows/release.yml@refs/tags/v1.0.0"
 PATTERN = r"^https://github\.com/owner/tool/\.github/workflows/release\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$"
 KEY = f"{registry.KEYS}/tool.pub"
+DOCKER_RUN = ["docker", "run", "--rm", "--cap-drop", "ALL", "--security-opt", "no-new-privileges", "--env", "TUF_ROOT=/tmp"]
+COSIGN = [*DOCKER_RUN, verify.COSIGN_IMAGE, "verify"]
 
 
 def pin(digest: str = D1, repository: str = "owner/tool", registry_host: str = "ghcr.io") -> Pin:
@@ -138,16 +140,22 @@ class TestSignedWithAnIdentity:
     def test_an_identity_written_out_is_passed_to_cosign_with_its_issuer(self, root, check):
         run = tool()
         assert check(signed(identity=IDENTITY, issuer=ISSUER), [pin()], run).errors == []
-        run.assert_called_once_with(
-            ["cosign", "verify", "--certificate-identity", IDENTITY, "--certificate-oidc-issuer", ISSUER, f"ghcr.io/owner/tool@{D1}"], root, True
-        )
+        run.assert_called_once_with([*COSIGN, "--certificate-identity", IDENTITY, "--certificate-oidc-issuer", ISSUER, f"ghcr.io/owner/tool@{D1}"], root, True)
 
     def test_a_pattern_is_passed_to_cosign_as_a_pattern(self, root, check):
         run = tool()
         assert check(signed(identity_regexp=PATTERN, issuer=ISSUER), [pin()], run).errors == []
         run.assert_called_once_with(
-            ["cosign", "verify", "--certificate-identity-regexp", PATTERN, "--certificate-oidc-issuer", ISSUER, f"ghcr.io/owner/tool@{D1}"], root, True
+            [*COSIGN, "--certificate-identity-regexp", PATTERN, "--certificate-oidc-issuer", ISSUER, f"ghcr.io/owner/tool@{D1}"], root, True
         )
+
+    def test_cosign_runs_from_the_pinned_image_with_no_capability_and_no_file_of_the_tree(self, check):
+        run = tool()
+        check(signed(identity=IDENTITY, issuer=ISSUER), [pin()], run)
+        argv = run.call_args.args[0]
+        assert argv[: len(DOCKER_RUN)] == DOCKER_RUN
+        assert verify.COSIGN_IMAGE in argv
+        assert "--volume" not in argv
 
     def test_an_image_signed_by_an_identity_other_than_the_entrys_fails_and_the_right_one_passes(self, check):
         run = cosign_that_accepts(IDENTITY, ISSUER)
@@ -167,9 +175,9 @@ class TestSignedWithAnIdentity:
         ]
         assert (run.call_count, sleeps) == (3, [2.0, 4.0])
 
-    def test_a_missing_cosign_fails_the_digest_without_a_retry(self, check):
-        run = create_autospec(proc.run, side_effect=FileNotFoundError("cosign"))
-        assert check(signed(identity=IDENTITY, issuer=ISSUER), [pin()], run).errors == [f"ghcr.io/owner/tool@{D1} ({SOURCE}): cosign is not installed"]
+    def test_a_missing_docker_fails_the_digest_without_a_retry(self, check):
+        run = create_autospec(proc.run, side_effect=FileNotFoundError("docker"))
+        assert check(signed(identity=IDENTITY, issuer=ISSUER), [pin()], run).errors == [f"ghcr.io/owner/tool@{D1} ({SOURCE}): docker is not installed"]
         assert run.call_count == 1
 
     def test_every_pinned_digest_is_verified_at_its_own_digest(self, check):
@@ -185,11 +193,13 @@ class TestSignedWithAKey:
         path.write_text("-----BEGIN PUBLIC KEY-----\n-----END PUBLIC KEY-----\n")
         return path
 
-    def test_the_committed_key_is_passed_to_cosign_and_no_identity_is(self, root, check):
+    def test_the_committed_key_is_the_only_file_the_container_can_read_and_no_identity_is_passed(self, root, check):
         path = self.commit_key(root)
         run = tool()
         assert check(signed(key=KEY), [pin()], run).errors == []
-        run.assert_called_once_with(["cosign", "verify", "--key", str(path), f"ghcr.io/owner/tool@{D1}"], root, True)
+        run.assert_called_once_with(
+            [*DOCKER_RUN, "--volume", f"{path}:/key.pub:ro", verify.COSIGN_IMAGE, "verify", "--key", "/key.pub", f"ghcr.io/owner/tool@{D1}"], root, True
+        )
 
     def test_a_failing_exit_fails_the_digest(self, root, check):
         self.commit_key(root)

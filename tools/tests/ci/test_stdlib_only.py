@@ -84,6 +84,8 @@ class TestStdlibOnly:
             pytest.param("build-caddy-image.yml", "ci.images.registry", id="registry"),
             pytest.param("check-image-tags.yml", "ci.images.remote", id="remote"),
             pytest.param("pr-checks.yml", "ci.gates.matrix_gate", id="matrix_gate"),
+            pytest.param("pr-checks.yml", "ci.provenance.verify", id="provenance_pr"),
+            pytest.param("check-image-provenance.yml", "ci.provenance.verify", id="provenance_weekly"),
             pytest.param("_trivy-scan.yml", "ci.scan.trivy_config", id="trivy_config"),
             pytest.param("pr-checks.yml", "ci.scan.gitleaks_range", id="gitleaks_range"),
         ],

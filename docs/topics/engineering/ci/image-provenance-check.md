@@ -1,7 +1,8 @@
 # CI Image Provenance Check
 
 Check that each pinned image digest is one its publisher signed or attested.
-The scheduled-job overview is in [`scheduled-jobs.md`](scheduled-jobs.md).
+How it fits the pipeline is in [CI: PR Checks](pipeline.md); the scheduled-job
+overview is in [`scheduled-jobs.md`](scheduled-jobs.md).
 
 Every image this repo deploys is pinned as `name:tag@sha256:digest`, which
 shows an image is the one that was pinned and not that the digest is the one the
@@ -10,16 +11,34 @@ verifies each pinned digest against a statement its publisher made, with the
 signer fixed in this repository, so a pull request that moves a pin to someone
 else's image fails whatever opened it. The decision is
 [ADR 0084 (Image digest provenance)](../../../decisions/0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md).
-No workflow runs it yet; it is run by hand from `tools/`:
+It runs in two places: the `provenance` job of `pr-checks.yml`, when a PR changes
+the checker, its registry or keys, or a file that can hold a pinned image
+reference, and `check-image-provenance.yml`, once a week and on demand, so a
+signature or attestation that disappeared, or an identity that changed, shows up
+even when no pin did. Both run `python3 -m ci.provenance.verify` from `tools/`,
+and it can be run by hand the same way:
 
 ```bash
 cd tools && python3 -m ci.provenance.verify [IMAGE ...]
 ```
 
-It is standard-library only apart from the tools it calls: `gh` with `GH_TOKEN`
-set for attested entries, and `cosign` for signed ones. Naming an image, as its
-registry entry writes it, checks just that one. Hosts are unchanged: a host
-pulls the pinned digest, and none has `gh`, `cosign` or a path to a signer.
+It is standard-library only apart from the tools it calls: `gh`, which the runner
+image provides and which `GH_TOKEN` authenticates for attested entries, and
+`docker`, which runs `cosign` for signed ones. Naming an image, as its registry
+entry writes it, checks just that one. The job is not a matrix job, so it can be
+required directly; a PR that changes no image reference reports it skipped. The
+weekly run's token is the workflow's own read-only `GITHUB_TOKEN`, and no workflow
+installs a binary. Hosts are unchanged: a host pulls the pinned digest, and none
+has `gh`, `cosign` or a path to a signer.
+
+`cosign` runs as the image named by `COSIGN_IMAGE` in
+[`verify.py`](../../../../tools/ci/provenance/verify.py), pinned by digest, tracked
+by a Renovate manager and checked like any other pinned image by
+[`image-tag-check.md`](image-tag-check.md). It stays at version 3 or later: version
+2 finds no signature on some images that version 3 verifies. The container drops
+every capability, caches its trust root under `/tmp` because the image runs as
+non-root and distroless, and sees nothing of the tree except a signed entry's one
+key file, mounted read-only.
 
 What is checked, per image repository, is in
 [`tools/ci/provenance/registry.py`](../../../../tools/ci/provenance/registry.py):
@@ -36,7 +55,7 @@ entry.
 | Tier | What the check does |
 | :--- | :--- |
 | Attested | Runs `gh attestation verify` on each pinned digest for the GitHub repository the entry names. |
-| Signed | Runs `cosign verify` on each pinned digest, with the certificate identity and OIDC issuer the entry fixes, or with the public key committed for it under [`tools/ci/provenance/keys/`](../../../../tools/ci/provenance/keys/). |
+| Signed | Runs `cosign verify` in the container on each pinned digest, with the certificate identity and OIDC issuer the entry fixes, or with the public key committed for it under [`tools/ci/provenance/keys/`](../../../../tools/ci/provenance/keys/). |
 | Unsigned | Runs nothing and passes. The entry says why the publisher gives nothing to verify. |
 
 A BuildKit attestation or an SBOM that nothing ties to an identity the
@@ -59,6 +78,9 @@ verify` itself refuses an identity without an issuer in keyless mode.
 - **A publisher starts to sign**, or stops, or changes its signing identity: the
   entry's tier or identity changes in its own reviewed change, and the check
   fails until it does.
+- **A Renovate bump of the cosign image** is an ordinary digest refresh: the job
+  runs on it, since the file holding the pin is in the filter, and the image is a
+  registry entry like any other.
 - **A key-signing publisher rotates its key:** the new public key replaces the
   file under `tools/ci/provenance/keys/`, which holds exactly one key.
 

@@ -7,7 +7,7 @@ short: Docker API access
 solution: A proxy rules file per consumer that names the exact calls it makes, mounted into the stock docker-socket-proxy image
 summary: Containers that need the Docker API get only the calls they make, so a consumer that stops and starts containers cannot also create or run them.
 topic: deployment-platform
-status: approved
+status: accepted
 supersedes: 0
 related: [ADR-0009, ADR-0043, ADR-0083]
 ---
@@ -100,19 +100,18 @@ allowed reaches it. `/version` stays only because the sidecar's healthcheck
 requests it. The `CONTAINERS`, `POST` and `INFO` environment lines go, since
 the rules no longer read them.
 
-Tried against HAProxy 3.4.0 built with PCRE2, as the official image is, and a
-fake Docker socket that records what reaches it: the five calls above pass and
-arrive at the socket unchanged, with and without a `/v1.xx` prefix or a query
-string. Each of these is refused with a 403 and never reaches it: `POST
-/containers/create`, `/exec`, `/kill`, `/restart`, `/update`, `/pause`,
-`/rename`, `/attach`; `DELETE /containers/{id}`; `GET /containers/{id}/json`,
-`/logs`, `/archive`, `/export`; `GET /events`, `/images`, `/volumes`; `POST
-/exec/{id}/start` and `/build`; a `GET` of the stop or start path and a `POST`
-of `/containers/json`; a start or stop by container name, by a 63-character id
-or by an upper-case id; a path with a trailing segment or slash, a leading `//`,
-and `/containers/json/../{id}/archive` or `/v1.xx/../containers/json`. A
-URL-encoded `/containers/%6Ason` decodes to the allowed path and is passed on,
-which is the same resource.
+The five calls above pass and arrive at the socket unchanged, with and
+without a `/v1.xx` prefix or a query string. Everything else is refused with
+a 403 and never reaches it: the other container verbs (`create`, `exec`,
+`kill`, `restart`, `update`, `pause`, `rename`, `attach`, a `DELETE`), a
+container's `json`, `logs`, `archive` and `export`, `events`, `images`,
+`volumes`, `build` and `exec/{id}/start`, the right path with the wrong verb,
+a start or stop by name, by a 63-character id or by an upper-case id, and
+paths that end, begin or climb out of an allowed one. A URL-encoded
+`/containers/%6Ason` decodes to the allowed path and is passed on, which is
+the same resource. The list is asserted call by call on the real proxy image
+by the Molecule scenario in
+[`molecule-testing.md`](../../topics/engineering/molecule-testing.md).
 
 The consumer that only reads (`beszel-agent`) keeps its flags in this
 revision; see Consequences.
@@ -153,13 +152,15 @@ revision; see Consequences.
   agent ask for an exec, which the rules refuse, so every backup schedule on
   that host fails. The `archive-pre` step runs before anything is stopped, so
   nothing is left stopped. No app here sets one.
-- [`backup.md`](../../topics/disaster-recovery/backup.md) and revision 0's
-  consequences name `POST=1` as the grant. They change to describe the rules file
-  when it lands.
 - `beszel-agent` uses `CONTAINERS=1` with `POST=0`, so it cannot write, but the
   same flag admits reading a container's environment, files and logs. Its needs
   differ from `backup_agent`'s, so it is a separate change that applies this
-  mechanism with a file per consumer, not part of this revision.
+  mechanism with a file per consumer, not part of this revision. At Beszel
+  0.21.0 the agent reads a container's inspect data and logs, `/info` and an
+  image's inspect data, besides the list and stats, so a rules file would still
+  admit the inspect and log reads. It would stop `archive`, `export` and the
+  other read paths, and its call set moves with each Beszel release. Today's
+  flags already refuse `/info` and the image calls.
 
 ## Invariants
 
@@ -180,10 +181,6 @@ revision; see Consequences.
 - The `backup_agent` Molecule scenario, run against the real proxy image and the
   real agent image with a stop-during-backup schedule. It asserts the app
   stopped, was backed up and started.
-
-The file has been exercised only under HAProxy 3.4.0 and a fake socket, so these
-are its first runs on the pinned HAProxy 3.4.2 and the real agent: a failure in
-either is a new assumption and returns the revision to `working`.
 
 ## Reconsideration triggers
 

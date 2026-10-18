@@ -7,7 +7,8 @@ short: Docker API access
 solution: A per-consumer docker-socket-proxy sidecar, never the raw socket
 summary: Containers that need the Docker API get only the capabilities they use, never control of every container on the host.
 topic: deployment-platform
-status: accepted
+status: superseded
+superseded_by: 1
 related: [ADR-0009]
 ---
 

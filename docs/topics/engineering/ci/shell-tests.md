@@ -9,6 +9,9 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 | `run_restore.bats` | [`docker/minecraft/scripts/run_restore.sh`](../../../../docker/minecraft/scripts/run_restore.sh) |
 | `snapshot_push.bats` | [`tools/openbao_utils/scripts/snapshot-push.sh`](../../../../tools/openbao_utils/scripts/snapshot-push.sh) |
 | `molecule_test_all.bats` | [`ansible/scripts/molecule-test-all.sh`](../../../../ansible/scripts/molecule-test-all.sh) |
+| `run_upgrade.bats` | [`docker/minecraft/scripts/run_upgrade.sh`](../../../../docker/minecraft/scripts/run_upgrade.sh) |
+| `check_freshness.bats` | the template [`check-freshness.sh.j2`](../../../../ansible/roles/backup_agent/templates/check-freshness.sh.j2) |
+| `caddy_cert_expiry.bats` | the template [`check.sh.j2`](../../../../ansible/roles/caddy_cert_expiry/templates/check.sh.j2) of the `caddy_cert_expiry` role |
 | `harness.bats` | the harness itself |
 
 ## Running them
@@ -56,5 +59,9 @@ The commands a script runs that are not stubbed (`date`, `stat`, `tar`, `ls`, `f
 - **`run_restore.bats`**: the order of the restore's steps; that a failure after the data directory was emptied leaves the stack stopped and one before it starts the stack again; and that both prompts are honored, `-y` and `--yes` skip them, and the first wants `yes` and the second `delete`.
 - **`snapshot_push.bats`**: that the token is revoked and the scratch directory removed on every exit path that has one; that the `secret_id` reaches the login as a file without its newline and never as an argument, whether cached or prompted; that `rclone.conf` is mode 0600 and pairs each provider with its own credentials; and that R2 and B2 are both attempted when one push fails, with the failure named.
 - **`molecule_test_all.bats`**: that `-s` is refused unless exactly one role is named; that each scenario runs on its own in name order against the base config; that a role stops at its first failed scenario without stopping the other roles; and that the timings table is printed and appended to the job summary only when there is one.
+
+- **`run_upgrade.bats`**: that the version argument, or the default without one, reaches the compose run in the script's own directory; and that the compose run's exit status is reported and is the script's own.
+- **`check_freshness.bats`**: that one push is made when every app is fresh, none when one is stale (and the unit still succeeds), and none when `rclone` fails (and the unit fails, naming the app and the error); that with no push URL the apps are still checked; and that the credentials reach each container in a mode 0600 env file that is removed afterwards and never appear in an argument.
+- **`caddy_cert_expiry.bats`**: that a certificate passes with more than and with exactly the threshold of days left and fails with fewer, expired, or none on the wire; and that the connection goes to loopback with the real hostname as the SNI.
 
 A stub encodes the argument shape of the tool it replaces, so a change to a real tool's interface passes here and is caught only by Molecule or the boot test.

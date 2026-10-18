@@ -147,8 +147,8 @@ work — is covered in [`molecule-fixtures.md`](molecule-fixtures.md).
 
 1. Copy an existing scenario directory (e.g. `compose/molecule/default`
    for anything deployed via Compose).
-2. If it needs Docker-in-Docker, use `ghcr.io/wenenhoe/molecule-dind:latest`
-   as the platform `image:` and point `prepare` at
+2. If it needs Docker-in-Docker, use `ghcr.io/wenenhoe/molecule-dind:latest@sha256:…`
+   (copy the digest from an existing scenario) as the platform `image:` and point `prepare` at
    `molecule_helpers/playbooks/prepare_dind_prebuilt.yml` — that's what
    every scenario uses except `docker`'s own (tests installing Docker
    from a clean base) and `bind9`'s (its own tasks conflict with the

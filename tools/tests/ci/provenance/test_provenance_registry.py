@@ -178,6 +178,7 @@ class TestRealRegistry:
         assert {entry.image: entry.tier for entry in ENTRIES if entry.tier is not Tier.UNSIGNED} == {
             "ghcr.io/lissy93/dashy": Tier.ATTESTED,
             "ghcr.io/wenenhoe/caddy-digitalocean": Tier.ATTESTED,
+            "ghcr.io/wenenhoe/molecule-dind": Tier.ATTESTED,
             "ghcr.io/wenenhoe/wastebin": Tier.ATTESTED,
             "openbao/openbao": Tier.SIGNED,
             "smallstep/step-ca": Tier.SIGNED,
@@ -229,11 +230,7 @@ class TestRealRegistry:
     def test_the_images_the_repository_pins_by_digest_are_attested_for_this_repository(self, subtests):
         pinned = {pin.registry_key for pin in pins.pinned(remote.collect(remote.REPO_ROOT))[0]}
         own = [entry for entry in ENTRIES if entry.image.startswith("ghcr.io/wenenhoe/") and entry.registry_key in pinned]
-        assert len(own) == 2
+        assert len(own) == 3
         for entry in own:
             with subtests.test(image=entry.image):
                 assert (entry.tier, entry.repository) == (Tier.ATTESTED, "wenenhoe/homelab")
-
-    def test_the_repositorys_image_that_follows_a_floating_tag_is_unsigned_and_says_so(self):
-        (entry,) = [entry for entry in ENTRIES if entry.image == "ghcr.io/wenenhoe/molecule-dind"]
-        assert (entry.tier, "follow the :latest tag" in entry.reason) == (Tier.UNSIGNED, True)

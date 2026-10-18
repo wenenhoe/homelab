@@ -20,12 +20,14 @@ persists under `~/.coderabbit`):
 ./tools/coderabbit-review/coderabbit-review.sh auth
 ```
 
-There is no build step. Every command runs
-`ghcr.io/wenenhoe/coderabbit-review:latest`, which
+There is no build step. Every command runs the image the script's `IMAGE`
+line names, `ghcr.io/wenenhoe/coderabbit-review:<cli-version>@sha256:…`, which
 [`build-coderabbit-review-image.yml`](../../../.github/workflows/build-coderabbit-review-image.yml)
-rebuilds on a `Dockerfile` change and weekly, for base-OS patches. Docker pulls the image on first use;
-`docker pull ghcr.io/wenenhoe/coderabbit-review:latest` refreshes a local
-copy. The container runs as the invoking user (`docker run -u`), and the
+builds on a `Dockerfile` change and weekly, for base-OS patches, and attests.
+Docker pulls the pinned digest on first use. Renovate moves the tag and digest
+together once a newer build is published, and the
+[provenance check](ci/image-provenance-check.md) verifies the digest on the pull
+request. The container runs as the invoking user (`docker run -u`), and the
 script refuses to run as root.
 
 ## Image tags and the pinned CLI
@@ -70,16 +72,9 @@ manifest or the zip), so the
 that the pinned hash is the one the manifest lists: it catches a hash copied
 wrongly, not a bucket that served a bad artifact.
 
-**Backing out.** Revert the bump; the rebuild republishes the previous CLI
-as `:latest`. To back out on one machine at once, retag an older version
-locally, since `docker run` uses a local image without pulling:
-
-```bash
-docker pull ghcr.io/wenenhoe/coderabbit-review:<older-version>
-docker tag ghcr.io/wenenhoe/coderabbit-review:<older-version> ghcr.io/wenenhoe/coderabbit-review:latest
-```
-
-That holds until the next `docker pull` of `:latest`.
+**Backing out.** Revert the bump, or point the script's `IMAGE` line at an
+older `:<cli-version>` and its digest; a bare tag runs whatever digest a local
+copy already holds, so keep the digest in the line.
 
 ## Commands
 

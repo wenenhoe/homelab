@@ -165,6 +165,7 @@ ENTRIES: tuple[Entry, ...] = (
     Unsigned(image="ubuntu/bind9", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
     Unsigned(image="quxfoo/wastebin", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
     Attested(image="ghcr.io/wenenhoe/caddy-digitalocean", repository="wenenhoe/homelab"),
+    Attested(image="ghcr.io/wenenhoe/coderabbit-review", repository="wenenhoe/homelab"),
     Attested(image="ghcr.io/wenenhoe/molecule-dind", repository="wenenhoe/homelab"),
     Attested(image="ghcr.io/wenenhoe/wastebin", repository="wenenhoe/homelab"),
     Unsigned(image="alpine", reason=_NO_STATEMENT),

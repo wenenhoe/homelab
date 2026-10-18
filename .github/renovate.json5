@@ -323,6 +323,14 @@
     },
     {
       customType: "regex",
+      description: "The review image coderabbit-review.sh runs, a shell variable rather than a recognized image: key",
+      managerFilePatterns: ["/^tools/coderabbit-review/coderabbit-review\\.sh$/"],
+      matchStrings: ["IMAGE=(?<depName>ghcr\\.io/wenenhoe/coderabbit-review):(?<currentValue>[^@\\s]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?"],
+      autoReplaceStringTemplate: "IMAGE={{{depName}}}:{{{newValue}}}{{#if newDigest}}@{{{newDigest}}}{{/if}}",
+      datasourceTemplate: "docker",
+    },
+    {
+      customType: "regex",
       description: "The mermaid-cli image check_mermaid.py renders diagrams with, a Python constant rather than a recognized image: key",
       managerFilePatterns: ["/^tools/doc_scripts/check_mermaid\\.py$/"],
       matchStrings: ["MERMAID_CLI_IMAGE = \"(?<depName>[^:\"]+):(?<currentValue>[^\"@]+)(?:@(?<currentDigest>sha256:[a-f0-9]{64}))?\""],

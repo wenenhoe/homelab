@@ -34,6 +34,11 @@ tinyauth
 # compose.yaml/.j2, so there's nothing for `docker compose up` to run.
 molecule-dind
 
+# gatus: a Dockerfile for the repo-built image and no compose.yaml/.j2, so
+# there is nothing for `docker compose up` to run. Its smoke test
+# (.github/image-smoke-tests/gatus.sh) boots the image itself.
+gatus
+
 # openbao: can't boot in isolation, so a healthcheck poll can never pass for
 # it. Its data volume is chowned to the image's non-root user by roles/openbao
 # before the container starts, which the boot-test seeding doesn't do (the

@@ -6,6 +6,7 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 
 | Test file | Script |
 | :--- | :--- |
+| `run_restore.bats` | [`docker/minecraft/scripts/run_restore.sh`](../../../../docker/minecraft/scripts/run_restore.sh) |
 | `harness.bats` | the harness itself |
 
 ## Running them
@@ -31,5 +32,9 @@ BATS_LIB_PATH="$CLONES" "$CLONES/bats-core/bin/bats" tools/tests/shell
 The commands a script runs that are not stubbed (`date`, `stat`, `tar`, `ls`, `find`, `du`) run on the machine's own userland.
 
 `harness.bats` proves the stubs fail by default, that a test whose script swallows the failure still fails, and that a stubbed tool passes, by running a second Bats over a generated test file.
+
+## What each file asserts
+
+- **`run_restore.bats`**: the order of the restore's steps; that a failure after the data directory was emptied leaves the stack stopped and one before it starts the stack again; and that both prompts are honored, `-y` and `--yes` skip them, and the first wants `yes` and the second `delete`.
 
 A stub encodes the argument shape of the tool it replaces, so a change to a real tool's interface passes here and is caught only by Molecule or the boot test.

@@ -158,6 +158,45 @@ and run with `uv run pytest ansible/tests/ tools/tests/`; the choice is in
 - **Mutation testing.** It is run by hand, with tooling kept outside this repo, when a credential module's
   tests change, never in CI; see [`mutation-testing.md`](mutation-testing.md) for when and what stays private.
 
+## Shell tests
+
+Bats tests under `tools/tests/shell/` cover the shell scripts that decide an
+outcome worth protecting; the choice is
+[ADR 0086 (Shell script tests)](../../decisions/0086-testing-the-control-flow-of-shell-scripts/revision-000.md),
+and how to run them and what the harness does is in
+[`ci/shell-tests.md`](ci/shell-tests.md).
+
+- **Which scripts.** A script gets a test file when it has a branch that
+  decides an outcome worth protecting: a failure path, a cleanup guarantee,
+  a confirmation, an exit status others rely on. A script that only
+  assembles one `docker run` or `docker exec` invocation does not. One
+  `.bats` file per script, named for it with underscores
+  (`run_restore.sh` is `run_restore.bats`).
+- **Setup.** Setup stays in `setup`, never at file level: Bats evaluates a
+  test file more than once. `setup` loads `test_helper/harness`, calls
+  `harness_setup` and installs the script under test with `install_script`;
+  `teardown` calls `harness_teardown`, which fails a test that ran a tool it
+  did not stub.
+- **Stubs.** The harness stubs every external tool a script under test
+  calls so that it fails; a test replaces the ones it needs with `stub`,
+  and the body it gives decides the exit status. A tool a script starts to
+  call is added to `HARNESS_EXTERNAL_TOOLS`. A stub logs its arguments, so
+  a test that asserts on a call asserts the whole line, not that the call
+  happened. A test varies a stub's behaviour with an environment variable
+  set for one `run`, not with a second stub.
+- **Assertions.** A test ends in an assertion on an outcome the script
+  decides: an exit status (`run -N`), an output line, a file or directory
+  that exists or does not, or the order of calls in the stub log. A negated
+  check is `run !`, never a bare `!`, which does not fail a Bats test;
+  `shellcheck` flags it. A test for a side effect asserts the side effect
+  happened, as in the Python tests above.
+- **Isolation.** A test writes only under its own temporary directory.
+  The harness points `TMPDIR` and `HOME` there and copies the script under
+  test into it, so what the script finds relative to itself is the test's
+  directory.
+- **Lint.** The `shellcheck` hook reads the `.bats` files and the harness
+  as it reads the scripts; no other hook is involved.
+
 ## Not yet a convention
 
 AppRole naming has only two real instances so far (`controller`,

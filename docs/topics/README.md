@@ -94,7 +94,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 
 | Doc | Covers |
 | :--- | :--- |
-| [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style. |
+| [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style, shell test style. |
 | [`pre-commit.md`](engineering/pre-commit.md) | The pre-commit hooks and what each checks, which stage runs when, and where each tool's config lives. |
 | [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |
 | [`ci/change-scoping.md`](engineering/ci/change-scoping.md) | How a change decides which jobs run: the scoped outputs `detect-changes` produces, Molecule watch sets, and the comment-only and formatting-only changes that queue nothing. |

@@ -47,7 +47,7 @@ Shell tests are Bats files under `tools/tests/shell/`, one per script, beside th
 - **Which scripts.** A script gets a test file when it has a branch that decides an outcome worth protecting: a failure path, a cleanup guarantee, a confirmation, an exit status others rely on. A script that only assembles one `docker run` or `docker exec` invocation does not. The first set is `run_restore.sh`, `snapshot-push.sh`, `molecule-test-all.sh`, `run_upgrade.sh` and the two templated checks; the others are decided script by script.
 - **Install.** The runner and its two libraries are cloned from GitHub at full commit SHAs recorded in one committed file, each fetched by SHA and refused unless `HEAD` equals the pin. The pin file names a release tag beside each SHA. No image, npm package or distribution package is used, and no git submodule is added.
 - **Provenance.** `bats-core` and `bats-assert` are pinned to a commit their signed release tag points at, and a check verifies that tag against a public key committed in the repo with its fingerprint fixed in the pin entry, in the way [ADR 0077](../0077-knowing-a-pinned-release-checksum-is-the-publishers/revision-000.md) treats a signed manifest. `bats-support` has no signed tag; its entry says it is unsigned and is pinned by SHA only.
-- **Bumps.** Renovate proposes a new tag and SHA in a pull request; the check decides, as in ADR 0077 and ADR 0084.
+- **Bumps.** A regex manager in `renovate.json5` reads the pin file, where a tag and its SHA share one line. Renovate proposes a bump where its datasource supplies the SHA of the new tag, and a bump is otherwise made by hand. Either way the check decides, as in ADR 0077 and ADR 0084.
 - **Isolation.** The harness puts a directory of stubs first on `PATH`, and installs a stub that fails loudly for every external tool a script under test calls, before any test runs. A test replaces the stubs it needs. A test that forgets one therefore fails instead of running the real `docker`, `ssh` or `bao`. A stub appends its argv to a log and exits as the test directs. A test writes only under its own temporary directory.
 - **Templates.** A `.sh.j2` script is rendered by Jinja2 with strict undefined variables and the test's own variables, and the result is run. Molecule stays the authority on how Ansible renders it.
 - **Assertions.** A test ends in an assertion on an outcome the script decides: an exit status, an output line, a file or directory that exists or does not, or the order of calls in the stub log. A negated check is `run !`, never a bare `!`.
@@ -70,13 +70,11 @@ Shell tests are Bats files under `tools/tests/shell/`, one per script, beside th
 - **Claim:** The key that signs `bats-core`'s release tags, and the one that signs `bats-assert`'s, can be obtained and its fingerprint confirmed from a source other than the repositories (the tags name key ID `3561E98F5A6BCA770F8E13BEE49BC732E729C954`).
   **Breaks if wrong:** Neither entry can be *signed*; both fall to *unsigned*, pinned by SHA only, which catches a moved pin and nothing else.
   **Checked by:** Fetching the maintainer's published key, comparing its fingerprint with the tags' key ID, and running `git verify-tag` against a keyring that holds only that key.
-- **Claim:** A Renovate regex manager on the `github-tags` datasource can write a tag and its commit SHA together into the pin file.
-  **Breaks if wrong:** Bumps are made by hand, and a pin goes stale without a pull request to say so.
-  **Checked by:** A Renovate dry run on a branch that holds the pin file.
 
 ## Consequences
 
-- A second test runner, three pins and the Renovate pull requests that move them.
+- A second test runner, three pins and the pull requests that move them.
+- Where Renovate cannot supply a tag's SHA, nothing proposes a bump, and a pin stays where it is until someone moves it.
 - A stub encodes the argument shape of the tool it replaces. If the real tool's interface changes, the stub keeps passing; Molecule and the boot tests remain the checks against the real tools.
 - Bats evaluates a test file more than once, so setup stays in `setup`, not at file level. `bats-core` 1.14 makes `run` honor `set -e` in the functions it calls, and exits non-zero when it finds no tests, so the job's path filter has to keep it from starting on a change with no suite behind it.
 - The suite runs serially. A prototype of 30 tests across six scripts took about five seconds.

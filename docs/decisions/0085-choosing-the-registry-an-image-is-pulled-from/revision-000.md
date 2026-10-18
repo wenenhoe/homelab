@@ -7,7 +7,7 @@ short: Image registry choice
 solution: An image moves from Docker Hub to GHCR only when the move gives it a verifiable statement or a source label that its Hub copy lacks and configuration cannot supply, shown by reading both registries for that image, and none moves until that is shown
 summary: Which registry each deployed image is pulled from, so a move between Docker Hub and GHCR is made for something the image gains.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0083, ADR-0084]
 ---
 
@@ -22,7 +22,7 @@ What has to be true: each image's registry is chosen for a property it gains the
 ## Context
 
 - **Where images come from.** The images pulled from Docker Hub are `alpine`, `busybox`, `caddy` (and its `builder` tag), `amazon/aws-cli`, `curlimages/curl`, `louislam/uptime-kuma`, `openbao/openbao`, `quxfoo/wastebin`, `rclone/rclone`, `smallstep/step-ca`, `smallstep/step-cli` and `ubuntu/bind9`. The rest are on GHCR, among them the repository's own `ghcr.io/wenenhoe/*`.
-- **The changelog reason.** Renovate builds a changelog link from the image's `org.opencontainers.image.source` label. `.github/renovate.json5` already sets `sourceUrl` for `ubuntu/bind9`, `quxfoo/wastebin`, `amazon/aws-cli` and `caddy`, which have no usable label, so a missing label on those is already covered by configuration. The same file carries rules for `certbot/dns-digitalocean` and `louislam/dockge`, which no image reference in the tree matches.
+- **The changelog reason.** Renovate builds a changelog link from the image's `org.opencontainers.image.source` label. `.github/renovate.json5` already sets `sourceUrl` for `ubuntu/bind9`, `quxfoo/wastebin`, `amazon/aws-cli` and `caddy`, which have no usable label, so a missing label on those is already covered by configuration. Reading each pinned Docker Hub image's labels, `openbao/openbao`, `rclone/rclone`, `louislam/uptime-kuma` and `curlimages/curl` carry the label, `caddy`'s points at `caddyserver/caddy-docker`, which its rule corrects, and `alpine`, `busybox`, `amazon/aws-cli`, `quxfoo/wastebin`, `smallstep/step-ca`, `smallstep/step-cli` and `ubuntu/bind9` carry none. The file has no rule for `alpine`, `busybox`, `smallstep/step-ca` or `smallstep/step-cli`. It also carries rules for `certbot/dns-digitalocean` and `louislam/dockge`, which no image reference in the tree matches.
 - **The provenance reason.** [ADR 0084 (Image digest provenance)](../0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md) records what each publisher's workflow offers. A publisher that pushes one build to several registries and signs each tag at that digest gives every registry the same digest and the same signer, so the registry does not change what can be verified. Where the statement is verifiable, it follows the publisher's identity, and only for a publisher that signs differently per registry does the registry matter. One release each of `openbao/openbao`, `louislam/uptime-kuma`, `rclone/rclone` and `curlimages/curl` has the same digest on Docker Hub and on GHCR.
 - **What a move costs.** The reference changes in each file that names it: compose files, Dockerfiles, Ansible variables, Molecule image files and the scripts and units that pin one, along with the Renovate manager that reads it. Where the digest is the same on both registries the pin carries over. Where it is not, the first pin on the new registry is a reviewed change like any other ([ADR 0083 (Images a deploy runs)](../0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)).
 - **Whether a GHCR copy exists.** Read from each publisher's own workflow files, not from a registry, which this environment cannot reach:
@@ -30,7 +30,7 @@ What has to be true: each image's registry is chosen for a property it gains the
   | Image | Publisher's workflow pushes | Outcome |
   | :--- | :--- | :--- |
   | `openbao/openbao` | `docker.io`, `ghcr.io` and `quay.io` from one build, each tag signed at that digest; the build sets the source label | Stay. The Hub copy has the same digest and the same signature, and the label is set. |
-  | `smallstep/step-ca`, `smallstep/step-cli` | Docker Hub only, signed with cosign | Stay. There is no GHCR copy to move to. |
+  | `smallstep/step-ca`, `smallstep/step-cli` | Docker Hub only, signed with cosign | Stay. There is no GHCR copy to move to, and their missing source label is for a `sourceUrl` rule to supply. |
   | `rclone/rclone` | `ghcr.io` as well as Docker Hub, with `provenance: false` and no attestation | Stay. The two registries serve one digest for 1.75, and a GHCR copy would carry no statement the Hub copy lacks. Whether the Hub image's source label is set was not read. |
   | `ubuntu/bind9` | Canonical's public `bind9-rock` workflow uploads to `ghcr.io/canonical/bind9-rock`, and its `ci.yaml` names no other registry, so the Hub image is published by a process outside that repository; `9.20-26.04_edge` there is a different digest from the Hub `9.20-26.04_stable`, and the other candidate tags do not exist | Stay. The GHCR tag that exists is a different image, the Hub copy has no statement, and the changelog is already supplied by configuration. |
   | `curlimages/curl` | `docker.io` and `ghcr.io/curl/curl-container/curl-multi`, each signed with the publisher's key | Stay. The two registries serve one digest for 8.23.0, and it verifies against the publisher's key on both. |
@@ -54,17 +54,11 @@ What has to be true: each image's registry is chosen for a property it gains the
 - **Mirror the images to a registry of the repository's own.** A registry to run and keep current, answering a risk a pinned digest already narrows to a reviewed pull request.
 - **Leave the choice to Renovate's changelog output.** It reads a label; a registry with a better-looking changelog is not a registry with a better image.
 
-## Assumptions
-
-- **Claim:** The Hub images in the table have no source label only where a `sourceUrl` rule exists.
-  **Breaks if wrong:** An image has no changelog link, and the reason to move it becomes real.
-  **Checked by:** The spike's second round, which reads each pinned Docker Hub image's labels from its digest.
-
 ## Consequences
 
 - No reference changes, and the table records why a Hub image is where it is, so a later publisher change shows up as a reason to revisit one row.
 - Docker Hub stays a dependency of the deploy and of the weekly tag check for the images listed.
-- The two Renovate rules that match nothing in the tree are a separate cleanup, not part of this decision.
+- `alpine`, `busybox`, `smallstep/step-ca` and `smallstep/step-cli` carry no source label and `.github/renovate.json5` gives them none, so their update pull requests have no changelog link. The two Smallstep images have no GHCR copy, so a `sourceUrl` rule for each is how they get one. The two rules that match nothing in the tree are a separate cleanup. Neither is part of this decision.
 
 ## Invariants
 

@@ -7,7 +7,7 @@ short: Image digest provenance
 solution: A CI check verifies each pinned image digest against the publisher's cosign signature or GitHub attestation, with the signer's identity fixed in the repository, records an image with no verifiable statement as unsigned, and the repository's own images are attested by their build workflows
 summary: How a digest pinned for a container image is shown to be the one its publisher built, whoever or whatever copied it into the repository.
 topic: security-hardening
-status: working
+status: approved
 related: [ADR-0063, ADR-0077, ADR-0083]
 ---
 
@@ -29,9 +29,9 @@ What has to be true: for every pinned image, the digest is shown to be one its p
 
   | Image | Publisher's workflow shows |
   | :--- | :--- |
-  | `ghcr.io/11notes/kms` | A GitHub attestation of build provenance for the pushed digest, named after the Docker Hub image and kept in GitHub's API (`push-to-registry: false`), plus a BuildKit SBOM and `mode=max` provenance. Its `kms-gui` image was not examined. GitHub holds no attestation under `11notes/docker-kms` for the digest the repository pins. |
+  | `ghcr.io/11notes/kms` | A GitHub attestation of build provenance for the pushed digest, named after the Docker Hub image and kept in GitHub's API (`push-to-registry: false`), plus a BuildKit SBOM and `mode=max` provenance. Its `kms-gui` image was not examined. GitHub holds no attestation for the digest the repository pins, under `11notes/docker-kms` or under the `11notes` owner, and the Docker Hub tag is the same digest. |
   | `ghcr.io/lissy93/dashy` | GitHub attestations for the SBOM and for build provenance, pushed to GHCR. Two of its build steps set `provenance: false`. The pinned digest verifies with `gh attestation verify -R Lissy93/dashy`, with and without a registry login. |
-  | `openbao/openbao` | One build pushed to `docker.io`, `ghcr.io` and `quay.io`, and `cosign sign --yes` on every tag at that one digest. Its build sets `org.opencontainers.image.source`. The pinned digest has signatures that cosign 3.1.3 verifies; cosign 2.6.2 finds none on it, or on 2.7.0 or 2.6.4. |
+  | `openbao/openbao` | One build pushed to `docker.io`, `ghcr.io` and `quay.io`, and `cosign sign --yes` on every tag at that one digest. Its build sets `org.opencontainers.image.source`. The pinned digest has signatures that cosign 3.1.3 verifies; cosign 2.6.2 finds none on it, or on 2.7.0 or 2.6.4. The certificate identity is `https://github.com/openbao/openbao/.github/workflows/release-images.yml@refs/tags/v<version>`, from issuer `https://token.actions.githubusercontent.com`, on 2.7.1, 2.7.0 and 2.6.4: a pattern anchored to that workflow and a version tag matches all three, and a pattern for another repository, or for `release.yml`, matches none. |
   | `smallstep/step-ca`, `smallstep/step-cli` | A shared workflow that names no registry but Docker Hub and runs `cosign sign --yes` on the image at its digest. The certificate identity is `https://github.com/smallstep/workflows/.github/workflows/docker-buildx-push.yml@refs/heads/main`, from issuer `https://token.actions.githubusercontent.com`, the same on `step-ca` 0.30.1 and 0.30.2 and on `step-cli` 0.31.0, and cosign 2.6.2 and 3.1.3 both verify it. |
   | `curlimages/curl` | A release workflow that pushes the image to Docker Hub and to `ghcr.io/curl/curl-container`, and runs `cosign sign` with a private key on each. The public half, `cosign.pub`, is in the publisher's repository. The pinned Docker Hub digest and the `ghcr.io` 8.23.0 tag are one digest and verify against `cosign.pub` with cosign 3.1.3; cosign 2.6.2 finds no signature on either. |
   | `rclone/rclone`, `ghcr.io/itzg/minecraft-server` | `provenance: false` on the image build, and no attestation or signing step. The pinned `rclone/rclone` digest has no cosign signature and no attestation from its owner. |
@@ -63,12 +63,6 @@ What has to be true: for every pinned image, the digest is shown to be one its p
 - **Accept BuildKit provenance as the statement.** It is stored beside the image, so a party able to replace the image in a namespace can replace it too, unless something signs it with an identity the repository fixes.
 - **Require a signature for every image.** Most publishers offer none, so the check would fail on its first run and hold every pin until it was waived one by one. The tiers record what each publisher gives.
 - **Rebuild every image in the repository's own registry.** A build and a registry to keep current for each image, to answer a risk that a pinned digest already narrows to a reviewed pull request.
-
-## Assumptions
-
-- **Claim:** OpenBao's keyless certificate identity can be written as one anchored pattern that holds across its releases.
-  **Breaks if wrong:** Every release fails the check, or the pattern is wide enough to accept a signature from a workflow the publisher did not mean.
-  **Checked by:** The spike's second round, which tests the expected pattern on three releases against a wrong one that must fail.
 
 ## Consequences
 

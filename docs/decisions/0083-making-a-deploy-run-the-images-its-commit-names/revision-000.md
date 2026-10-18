@@ -8,7 +8,7 @@ solution: Every image reference carries its digest, Renovate moves the digest in
 summary: How a deploy is made to run exactly the container images the commit names, so an image changes only in a pull request that says so.
 topic: deployment-platform
 status: accepted
-related: [ADR-0004, ADR-0071, ADR-0076, ADR-0077, ADR-0084]
+related: [ADR-0004, ADR-0071, ADR-0076, ADR-0077, ADR-0084, ADR-0085]
 ---
 
 # 0083. Making a deploy run the images its commit names

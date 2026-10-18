@@ -20,7 +20,6 @@ Usage (from tools/): python -m ci.checksums.verify [ENTRY ...]
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import tempfile
 import time
@@ -36,6 +35,7 @@ from typing import IO, Any
 from ci import proc
 from ci.checksums import gpg, manifest, pins
 from ci.checksums.registry import ENTRIES, Attested, Entry, Listed, Signed, Unchecked
+from ci.output import write_summary
 from ci.verification import ATTEMPTS, Sleep, attestation, backoff
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -204,10 +204,7 @@ def main(
             outcomes.append(check_entry(root, entry, client.fetch, client.download, run, Path(workdir), sleep))
     lines, code = report(outcomes)
     print("\n".join(lines))
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
-        with open(summary, "a") as fh:
-            fh.write("### Release checksums\n\n" + "\n".join(f"- {line}" for line in lines) + "\n")
+    write_summary("Release checksums", lines)
     return code
 
 

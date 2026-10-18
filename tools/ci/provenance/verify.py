@@ -25,7 +25,6 @@ Usage (from tools/): python -m ci.provenance.verify [IMAGE ...]
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import time
 from dataclasses import dataclass
@@ -33,6 +32,7 @@ from pathlib import Path
 
 from ci import proc
 from ci.images.remote import RemoteError, collect
+from ci.output import write_summary
 from ci.provenance.pins import Pin, pinned
 from ci.provenance.registry import ENTRIES, Attested, Entry, Signed, validate
 from ci.verification import ATTEMPTS, Sleep, attestation, verified
@@ -144,10 +144,7 @@ def main(
     outcomes = [check_entry(root, entry, pins, run, sleep) for entry in entries if not args.images or entry.image in args.images]
     lines, code = report(outcomes, [*collected.problems, *problems])
     print("\n".join(lines))
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
-        with open(summary, "a") as fh:
-            fh.write("### Image provenance\n\n" + "\n".join(f"- {line}" for line in lines) + "\n")
+    write_summary("Image provenance", lines)
     return code
 
 

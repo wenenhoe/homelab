@@ -7,7 +7,7 @@ short: Docker API access
 solution: A proxy rules file per consumer that names the exact calls it makes, mounted into the stock docker-socket-proxy image
 summary: Containers that need the Docker API get only the calls they make, so a consumer that stops and starts containers cannot also create or run them.
 topic: deployment-platform
-status: working
+status: approved
 supersedes: 0
 related: [ADR-0009, ADR-0043, ADR-0083]
 ---
@@ -135,20 +135,6 @@ revision; see Consequences.
   stop and start out of the backup agent's schedule, which is the point of its
   per-schedule labels.
 
-## Assumptions
-
-- **Claim:** the pinned image, HAProxy 3.4.2 on Alpine, loads and applies this
-  file as HAProxy 3.4.0 built with PCRE2 did, and the real
-  `docker-volume-backup` v2.49.1 image completes a stop-during-backup run
-  through it.
-  **Breaks if wrong:** a stop-during-backup schedule fails against the real
-  image, or the agent gets a 403 for the `start` after stopping an app and
-  leaves it stopped.
-  **Checked by:** the `backup_agent` Molecule scenario, run against the real
-  proxy image and the real agent image with a stop-during-backup schedule, which
-  asserts the app stopped, was backed up and started, and that a `create` and an
-  `exec` through the proxy are refused.
-
 ## Consequences
 
 - A compromised `backup_agent` can still stop and start any container by id
@@ -159,8 +145,8 @@ revision; see Consequences.
 - The rules file is a copy of upstream's with one frontend replaced. A bump of
   the proxy image can change the parts copied, so a Renovate pull request for
   it is reviewed against upstream's `haproxy.cfg` at the new tag and run
-  through the Molecule scenario above, which is the check that the file still
-  loads.
+  through the Molecule scenario under Validation, which is the check that the
+  file still loads.
 - A new call by `docker-volume-backup` after a version bump fails with a 403.
   The same Molecule scenario runs on a bump of that image.
 - A container labelled `docker-volume-backup.<phase>-pre` or `-post` makes the
@@ -186,10 +172,18 @@ revision; see Consequences.
 
 ## Validation
 
-- A test that renders the rules file, runs HAProxy against a fake socket and
-  asserts the allowed calls arrive and each refused call from the list above
-  gets a 403, so the file is checked without Docker.
-- The `backup_agent` Molecule scenario above, on the real images.
+- A Molecule check that starts the real proxy image with the rules file in front
+  of a fake Docker socket that records what reaches it. It asserts each allowed
+  call arrives unchanged and each refused call from the list above gets a 403
+  and never reaches the socket. It runs on the pinned image, so it needs no
+  HAProxy on the CI runner.
+- The `backup_agent` Molecule scenario, run against the real proxy image and the
+  real agent image with a stop-during-backup schedule. It asserts the app
+  stopped, was backed up and started.
+
+The file has been exercised only under HAProxy 3.4.0 and a fake socket, so these
+are its first runs on the pinned HAProxy 3.4.2 and the real agent: a failure in
+either is a new assumption and returns the revision to `working`.
 
 ## Reconsideration triggers
 

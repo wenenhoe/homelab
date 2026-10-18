@@ -128,11 +128,15 @@ API that did not answer, so a digest that could not be verified fails its
 entry, as in [`release-checksum-check.md`](release-checksum-check.md) and
 unlike the image tag check, where a silent registry is a warning. Each call is
 made up to `ATTEMPTS` times (see
-[`verify.py`](../../../../tools/ci/provenance/verify.py)), pausing longer
+[`verification.py`](../../../../tools/ci/verification.py)), pausing longer
 between attempts, so a failure that passes on a second try does not fail a run
 and a statement that is missing fails every attempt. A tool that is not
 installed fails at once. A publisher that moves or rotates its signing identity
 fails the entry until a human reviews it.
+
+The same module makes the release checksum check's `gh attestation verify`
+call, so both checks retry it identically. That check's downloads are retried
+separately, on a 429, a 5xx or a network error, and use the same pauses.
 
 Failures are per digest and the run reports every entry before it exits
 non-zero, each as an `::error::` annotation naming the digest and the files that

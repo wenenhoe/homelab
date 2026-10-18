@@ -62,7 +62,9 @@ Failures are per entry and the run reports every entry before it exits
 non-zero, with each failure as an `::error::` annotation. A publisher that
 can't be reached after three attempts (429, 5xx or a network error are
 retried) fails its entry: unlike the image tag check, a pin that couldn't be
-checked is not a pass. The weekly run's token is the workflow's own read-only
+checked is not a pass. `gh attestation verify` is retried the way
+[`image-provenance-check.md`](image-provenance-check.md#a-call-that-gets-no-answer)
+describes. The weekly run's token is the workflow's own read-only
 `GITHUB_TOKEN`, used only by `gh attestation verify`.
 
 The tests speak to a local server and generate their own keys and signatures;

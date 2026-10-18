@@ -11,8 +11,8 @@ tampered release.
 A failure of any entry fails the run, an unreachable manifest included: a pin
 that could not be compared has not been shown to be the publisher's.
 
-Needs `gpg` for signed entries, and `gh` with GH_TOKEN set for attested ones.
-Standard library only.
+Needs `gpg` for signed entries, and `gh` with GH_TOKEN set for attested ones;
+`gh` is retried as ci.verification describes. Standard library only.
 
 Usage (from tools/): python -m ci.checksums.verify [ENTRY ...]
 """
@@ -20,7 +20,6 @@ Usage (from tools/): python -m ci.checksums.verify [ENTRY ...]
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 import tempfile
 import time
@@ -36,6 +35,8 @@ from typing import IO, Any
 from ci import proc
 from ci.checksums import gpg, manifest, pins
 from ci.checksums.registry import ENTRIES, Attested, Entry, Listed, Signed, Unchecked
+from ci.output import write_summary
+from ci.verification import ATTEMPTS, Sleep, attestation, backoff
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST_LIMIT = 1 << 20
@@ -57,7 +58,7 @@ class Http:
     Anything else, a 404 included, is final. `schemes` is widened only by tests, to reach a local server.
     """
 
-    def __init__(self, schemes: tuple[str, ...] = ("https",), attempts: int = 3, sleep: Callable[[float], None] = time.sleep) -> None:
+    def __init__(self, schemes: tuple[str, ...] = ("https",), attempts: int = ATTEMPTS, sleep: Sleep = time.sleep) -> None:
         self.schemes = schemes
         self.attempts = attempts
         self.sleep = sleep
@@ -78,7 +79,7 @@ class Http:
         last = ""
         for attempt in range(self.attempts):
             if attempt:
-                self.sleep(2.0**attempt)
+                self.sleep(backoff(attempt))
             try:
                 with self._opener.open(request, timeout=30) as reply:
                     return consume(reply)
@@ -137,29 +138,23 @@ def _check_listed(entry: Listed, version: str, pin: str, fetch: Fetch) -> list[s
     return [problem] if problem else []
 
 
-def _check_attested(entry: Attested, version: str, pin: str, download: Download, run: proc.Runner, workdir: Path) -> list[str]:
+def _check_attested(entry: Attested, version: str, pin: str, download: Download, run: proc.Runner, workdir: Path, sleep: Sleep) -> list[str]:
     url = entry.artifact_url.format(version=version)
     artifact = workdir / url.rsplit("/", 1)[-1]
     downloaded = download(url, artifact)
     if downloaded != pin:
         return [f"{artifact.name} hashes to {downloaded}, not the pin {pin}"]
-    try:
-        # gh prints nothing on success when it is not attached to a terminal, so the exit code is the whole answer.
-        verified = run(["gh", "attestation", "verify", str(artifact), "--repo", entry.repository], workdir, True)
-    except FileNotFoundError:
-        return ["gh is not installed"]
-    if verified.returncode != 0:
-        return [f"gh attestation verify exited {verified.returncode} for {artifact.name} against {entry.repository}"]
-    return []
+    problem = attestation(str(artifact), entry.repository, workdir, run, sleep)
+    return [f"{artifact.name}: {problem}"] if problem else []
 
 
-def check_entry(root: Path, entry: Entry, fetch: Fetch, download: Download, run: proc.Runner, workdir: Path) -> Outcome:
+def check_entry(root: Path, entry: Entry, fetch: Fetch, download: Download, run: proc.Runner, workdir: Path, sleep: Sleep = time.sleep) -> Outcome:
     try:
         version, pin = pins.read_pin(root, entry)
         if isinstance(entry, Signed):
             errors = _check_signed(root, entry, version, pin, fetch, run)
         elif isinstance(entry, Attested):
-            errors = _check_attested(entry, version, pin, download, run, workdir)
+            errors = _check_attested(entry, version, pin, download, run, workdir, sleep)
         elif isinstance(entry, Listed):
             errors = _check_listed(entry, version, pin, fetch)
         else:
@@ -193,6 +188,7 @@ def main(
     entries: tuple[Entry, ...] = ENTRIES,
     http: Http | None = None,
     run: proc.Runner = proc.run,
+    sleep: Sleep = time.sleep,
 ) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("names", nargs="*", metavar="ENTRY", help="check only these entries")
@@ -205,13 +201,10 @@ def main(
     outcomes = []
     for entry in chosen:
         with tempfile.TemporaryDirectory(prefix="checksum-") as workdir:
-            outcomes.append(check_entry(root, entry, client.fetch, client.download, run, Path(workdir)))
+            outcomes.append(check_entry(root, entry, client.fetch, client.download, run, Path(workdir), sleep))
     lines, code = report(outcomes)
     print("\n".join(lines))
-    summary = os.environ.get("GITHUB_STEP_SUMMARY")
-    if summary:
-        with open(summary, "a") as fh:
-            fh.write("### Release checksums\n\n" + "\n".join(f"- {line}" for line in lines) + "\n")
+    write_summary("Release checksums", lines)
     return code
 
 

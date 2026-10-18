@@ -25,6 +25,7 @@ BARE_PYTHON = (
     "json5.py",
     "output.py",
     "proc.py",
+    "verification.py",
     "checksums/__init__.py",
     "checksums/registry.py",
     "checksums/pins.py",

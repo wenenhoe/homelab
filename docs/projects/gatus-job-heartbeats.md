@@ -16,9 +16,12 @@ allowed_paths:
   - .github/renovate.json5
   - tools/ci/images/registry.py
   - tools/ci/fixtures/preseed_manual_secrets.py
+  - tools/ci/provenance/registry.py
   - tools/tests/ci/images/**
   - tools/tests/ci/scope/test_compose_apps.py
   - tools/tests/ci/scope/test_molecule_scope.py
+  - tools/tests/shell/check_freshness.bats
+  - tools/tests/doc_scripts/test_suggest_project_scope.py
   - ansible/inventory/group_vars/all/app_catalog.yaml
   - ansible/inventory/group_vars/all/main.yaml
   - ansible/inventory/group_vars/all/secret_catalog.yaml
@@ -37,6 +40,8 @@ allowed_paths:
   - docs/topics/monitoring/**
   - docs/topics/README.md
   - docs/topics/deploy/ansible.md
+  - docs/topics/deploy/adding-an-app.md
+  - docs/topics/deploy/container-hardening.md
   - docs/topics/disaster-recovery/backup.md
   - docs/topics/disaster-recovery/restore.md
   - docs/topics/engineering/ci/gates.md

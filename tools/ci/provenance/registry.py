@@ -132,7 +132,7 @@ Entry = Attested | Signed | Unsigned
 
 _ACTIONS = "https://token.actions.githubusercontent.com"
 _NO_STATEMENT = "no signature or attestation from the publisher was found that ties the image to an identity this repository can fix"
-_BUILT_HERE = "built by this repository's workflow, which does not attest the digest it pushes"
+_BUILT_HERE = "built by this repository's workflow, but the pinned digest was pushed before the workflow attested its builds"
 
 ENTRIES: tuple[Entry, ...] = (
     Attested(image="ghcr.io/lissy93/dashy", repository="Lissy93/dashy"),

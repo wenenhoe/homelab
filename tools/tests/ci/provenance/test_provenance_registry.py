@@ -224,8 +224,8 @@ class TestRealRegistry:
                 text = (remote.REPO_ROOT / registry.KEYS / name).read_text()
                 assert (text.count("-----BEGIN PUBLIC KEY-----"), text.count("-----END PUBLIC KEY-----")) == (1, 1)
 
-    def test_the_repositorys_own_images_are_unsigned_and_say_their_build_attests_nothing(self):
+    def test_the_repositorys_own_images_are_unsigned_and_say_their_pin_predates_attestation(self):
         own = [entry for entry in ENTRIES if entry.image.startswith("ghcr.io/wenenhoe/")]
         assert [entry.tier for entry in own] == [Tier.UNSIGNED] * len(own)
-        assert all("does not attest" in entry.reason for entry in own if isinstance(entry, Unsigned))
+        assert all("before the workflow attested" in entry.reason for entry in own if isinstance(entry, Unsigned))
         assert len(own) == 3

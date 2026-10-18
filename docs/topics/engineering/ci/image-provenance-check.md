@@ -84,6 +84,23 @@ verify` itself refuses an identity without an issuer in keyless mode.
 - **A key-signing publisher rotates its key:** the new public key replaces the
   file under `tools/ci/provenance/keys/`, which holds exactly one key.
 
+## The repository's own images
+
+Each `build-*-image.yml` attests the digest it pushes with `actions/attest`,
+pinned to a commit, naming the image without a tag and passing the digest
+`docker/build-push-action` reports. The attestation is also pushed to the
+registry beside the image. Only the build job holds `id-token: write` and
+`attestations: write`, on top of the `contents: read` and `packages: write` it
+already had; the storage record the action can create is turned off, since it
+would need a further permission nothing here uses.
+
+A digest pinned before its image was first attested has no attestation, so an
+entry for one of these images stays *unsigned* until its pin names an attested
+digest. Verify a build by hand with `gh attestation verify
+oci://ghcr.io/wenenhoe/<name>@<digest> --repo wenenhoe/homelab`.
+[`test_provenance_build_workflows.py`](../../../../tools/tests/ci/provenance/test_provenance_build_workflows.py)
+holds the permissions, the action's pin and the subject each workflow names.
+
 ## Which digests
 
 Every digest the tree pins for an entry's repository is verified, found the way

@@ -8,6 +8,7 @@ summary: "Give the backup agent's Docker socket proxy a rules file that allows o
 decision: ADR-0004/1
 allowed_paths:
   - ansible/roles/backup_agent/**
+  - docs/decisions/0004-container-access-to-the-docker-api/revision-000.md
   - docs/topics/disaster-recovery/backup.md
   - docs/topics/engineering/molecule-testing.md
 ---

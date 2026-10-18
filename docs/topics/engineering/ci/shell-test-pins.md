@@ -28,6 +28,8 @@ Every entry is at the *listed* tier of [ADR 0077 (Pinned checksum verification)]
 
 The `shell-tests` job of `pr-checks.yml` fetches the clones on every pull request it runs for ([CI Shell Tests](shell-tests.md#in-ci)), and checks the pins when the pin file or the tooling beside it changed.
 
+`check-shell-test-pins.yml` runs the same check once a week and on demand, so a tag the publisher moves or deletes is noticed when no pin changed ([scheduled jobs](scheduled-jobs.md#shell-test-pin-check)). It needs no token: the repositories are public and the workflow reads nothing else.
+
 ## Bumps
 
 A regex manager in [`renovate.json5`](../../../../.github/renovate.json5) reads every entry line of the pin file, tag and SHA together, and writes a bump back as one line. Where the `github-tags` datasource can't supply a new tag's SHA, nothing proposes a bump and one is made by hand: change the tag and the SHA on the line, and run the check. Either way the check decides.

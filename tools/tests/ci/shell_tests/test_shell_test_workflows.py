@@ -6,6 +6,7 @@ Run via `uv run pytest tools/tests/ -v`.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path, PurePosixPath
 
 import pytest
@@ -13,6 +14,7 @@ import yaml
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
 PR_CHECKS = REPO_ROOT / ".github/workflows/pr-checks.yml"
+WEEKLY = REPO_ROOT / ".github/workflows/check-shell-test-pins.yml"
 FILTERS = REPO_ROOT / ".github/detect-changes-filters.yml"
 SKIP_DIRS = {".git", ".venv", "node_modules", "__pycache__"}
 
@@ -25,6 +27,11 @@ def pr_checks():
 @pytest.fixture(scope="module")
 def filters():
     return yaml.safe_load(FILTERS.read_text())
+
+
+@pytest.fixture(scope="module")
+def weekly():
+    return yaml.safe_load(WEEKLY.read_text())
 
 
 @pytest.fixture(scope="module")
@@ -87,6 +94,43 @@ class TestJob:
 
     def test_no_secret_reaches_it(self):
         assert "secrets." not in PR_CHECKS.read_text().split("  shell-tests:")[1].split("  compose-syntax-check:")[0]
+
+
+class TestWeeklyRun:
+    def test_it_runs_once_a_week(self, weekly):
+        (entry,) = weekly[True]["schedule"]  # PyYAML reads the bare key `on` as True
+        _minute, hour, day_of_month, month, day_of_week = entry["cron"].split()
+        assert (day_of_month, month) == ("*", "*")
+        assert re.fullmatch(r"[0-6]", day_of_week)
+        assert re.fullmatch(r"\d+", hour)
+
+    def test_the_minute_is_not_the_top_of_the_hour(self, weekly):
+        assert re.fullmatch(r"[1-9]\d?", weekly[True]["schedule"][0]["cron"].split()[0])
+
+    def test_it_can_also_be_started_by_hand_and_nothing_else_triggers_it(self, weekly):
+        assert set(weekly[True]) == {"schedule", "workflow_dispatch"}
+
+    def test_it_has_read_access_only_and_needs_no_secret(self, weekly):
+        assert weekly["permissions"] == {"contents": "read"}
+        assert "secrets." not in WEEKLY.read_text()
+
+    def test_a_second_run_never_overlaps_or_cancels_the_first(self, weekly):
+        assert weekly["concurrency"] == {"group": "check-shell-test-pins", "cancel-in-progress": False}
+
+    def test_the_run_is_bounded(self, weekly):
+        assert weekly["jobs"]["check-shell-test-pins"]["timeout-minutes"] <= 15
+
+    def test_the_check_runs_with_plain_python3_from_tools(self, weekly):
+        step = step_running(weekly["jobs"]["check-shell-test-pins"], "python3")
+        assert (step["run"], step["working-directory"]) == ("python3 -m ci.shell_tests.pins check", "tools")
+
+    def test_the_checkout_keeps_no_credential(self, weekly):
+        (checkout,) = [step for step in weekly["jobs"]["check-shell-test-pins"]["steps"] if "uses" in step]
+        assert checkout["with"] == {"persist-credentials": False}
+
+    def test_it_runs_the_same_command_as_the_pull_request_job(self, weekly, job):
+        weekly_step = step_running(weekly["jobs"]["check-shell-test-pins"], "python3")
+        assert weekly_step["run"] == step_running(job, "python3 -m ci.shell_tests.pins")["run"]
 
 
 class TestSuiteLookup:

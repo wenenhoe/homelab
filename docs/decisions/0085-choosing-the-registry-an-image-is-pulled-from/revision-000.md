@@ -23,7 +23,7 @@ What has to be true: each image's registry is chosen for a property it gains the
 
 - **Where images come from.** The images pulled from Docker Hub are `alpine`, `busybox`, `caddy` (and its `builder` tag), `amazon/aws-cli`, `curlimages/curl`, `louislam/uptime-kuma`, `openbao/openbao`, `quxfoo/wastebin`, `rclone/rclone`, `smallstep/step-ca`, `smallstep/step-cli` and `ubuntu/bind9`. The rest are on GHCR, among them the repository's own `ghcr.io/wenenhoe/*`.
 - **The changelog reason.** Renovate builds a changelog link from the image's `org.opencontainers.image.source` label. `.github/renovate.json5` already sets `sourceUrl` for `ubuntu/bind9`, `quxfoo/wastebin`, `amazon/aws-cli` and `caddy`, which have no usable label, so a missing label on those is already covered by configuration. The same file carries rules for `certbot/dns-digitalocean` and `louislam/dockge`, which no image reference in the tree matches.
-- **The provenance reason.** [ADR 0084 (Image digest provenance)](../0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md) records what each publisher's workflow offers. A publisher that pushes one build to several registries and signs each tag at that digest gives every registry the same digest and the same signer, so the registry does not change what can be verified. Where the statement is verifiable, it follows the publisher's identity, and only for a publisher that signs differently per registry does the registry matter.
+- **The provenance reason.** [ADR 0084 (Image digest provenance)](../0084-knowing-a-pinned-image-digest-is-the-publishers/revision-000.md) records what each publisher's workflow offers. A publisher that pushes one build to several registries and signs each tag at that digest gives every registry the same digest and the same signer, so the registry does not change what can be verified. Where the statement is verifiable, it follows the publisher's identity, and only for a publisher that signs differently per registry does the registry matter. One release each of `openbao/openbao`, `louislam/uptime-kuma`, `rclone/rclone` and `curlimages/curl` has the same digest on Docker Hub and on GHCR.
 - **What a move costs.** The reference changes in each file that names it: compose files, Dockerfiles, Ansible variables, Molecule image files and the scripts and units that pin one, along with the Renovate manager that reads it. Where the digest is the same on both registries the pin carries over. Where it is not, the first pin on the new registry is a reviewed change like any other ([ADR 0083 (Images a deploy runs)](../0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)).
 - **Whether a GHCR copy exists.** Read from each publisher's own workflow files, not from a registry, which this environment cannot reach:
 
@@ -31,10 +31,10 @@ What has to be true: each image's registry is chosen for a property it gains the
   | :--- | :--- | :--- |
   | `openbao/openbao` | `docker.io`, `ghcr.io` and `quay.io` from one build, each tag signed at that digest; the build sets the source label | Stay. The Hub copy has the same digest and the same signature, and the label is set. |
   | `smallstep/step-ca`, `smallstep/step-cli` | Docker Hub only, signed with cosign | Stay. There is no GHCR copy to move to. |
-  | `rclone/rclone` | `ghcr.io` as well as Docker Hub, with `provenance: false` and no attestation | Stay. A GHCR copy would carry no statement the Hub copy lacks. Whether the Hub image's source label is set was not read. |
-  | `ubuntu/bind9` | Canonical's public `bind9-rock` workflow uploads to `ghcr.io/canonical/bind9-rock`, and its `ci.yaml` names no other registry, so the Hub image is published by a process outside that repository; whether the two are one build was not shown | Stay. No statement found on either, and the changelog is already supplied by configuration. |
-  | `curlimages/curl` | `docker.io` and `ghcr.io/curl/curl-container/curl-multi`, each signed with the publisher's key | Stay. The Hub image carries the same publisher's signature as the GHCR one. |
-  | `louislam/uptime-kuma` | `docker.io` and `ghcr.io` from one `docker buildx build --push` per image, which tags the build for both; no signing or attestation step | Stay. The same digest is on both registries and neither has a statement. Whether the Hub image's source label is set was not read. |
+  | `rclone/rclone` | `ghcr.io` as well as Docker Hub, with `provenance: false` and no attestation | Stay. The two registries serve one digest for 1.75, and a GHCR copy would carry no statement the Hub copy lacks. Whether the Hub image's source label is set was not read. |
+  | `ubuntu/bind9` | Canonical's public `bind9-rock` workflow uploads to `ghcr.io/canonical/bind9-rock`, and its `ci.yaml` names no other registry, so the Hub image is published by a process outside that repository; `9.20-26.04_edge` there is a different digest from the Hub `9.20-26.04_stable`, and the other candidate tags do not exist | Stay. The GHCR tag that exists is a different image, the Hub copy has no statement, and the changelog is already supplied by configuration. |
+  | `curlimages/curl` | `docker.io` and `ghcr.io/curl/curl-container/curl-multi`, each signed with the publisher's key | Stay. The two registries serve one digest for 8.23.0, and it verifies against the publisher's key on both. |
+  | `louislam/uptime-kuma` | `docker.io` and `ghcr.io` from one `docker buildx build --push` per image, which tags the build for both; no signing or attestation step | Stay. The same digest is on both registries and the Hub copy has no signature or attestation. Whether the Hub image's source label is set was not read. |
   | `quxfoo/wastebin` | None found: the source repository's workflows build no image, and its README names this Hub image | Stay. |
   | `amazon/aws-cli` | None found: the source repository's workflows build no image | Stay. |
   | `alpine`, `busybox`, `caddy` | Docker Official Images on Docker Hub; no other registry found | Stay. |
@@ -56,12 +56,9 @@ What has to be true: each image's registry is chosen for a property it gains the
 
 ## Assumptions
 
-- **Claim:** The `ubuntu/bind9` and `rclone/rclone` images each have the same digest on Docker Hub as on the GHCR repository their publisher's workflow pushes to, or neither registry carries a statement the other lacks.
-  **Breaks if wrong:** A statement exists on one registry only, and the *Stay* outcome for that image is wrong.
-  **Checked by:** The provenance spike's `parity` and `unsigned_baseline` sections.
 - **Claim:** The Hub images in the table have no source label only where a `sourceUrl` rule exists.
   **Breaks if wrong:** An image has no changelog link, and the reason to move it becomes real.
-  **Checked by:** The spike's `labels` section, which reads each pinned Docker Hub image's labels.
+  **Checked by:** The spike's second round, which reads each pinned Docker Hub image's labels from its digest.
 
 ## Consequences
 

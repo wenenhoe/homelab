@@ -130,7 +130,66 @@ class Unsigned(_Entry):
 
 Entry = Attested | Signed | Unsigned
 
-ENTRIES: tuple[Entry, ...] = ()
+_ACTIONS = "https://token.actions.githubusercontent.com"
+_NO_STATEMENT = "no signature or attestation from the publisher was found that ties the image to an identity this repository can fix"
+_BUILT_HERE = "built by this repository's workflow, which does not attest the digest it pushes"
+
+ENTRIES: tuple[Entry, ...] = (
+    Attested(image="ghcr.io/lissy93/dashy", repository="Lissy93/dashy"),
+    Signed(
+        image="openbao/openbao",
+        identity_regexp=r"^https://github\.com/openbao/openbao/\.github/workflows/release-images\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$",
+        issuer=_ACTIONS,
+    ),
+    # A reusable workflow at a branch: any commit to that branch of smallstep/workflows can sign, which is all the publisher offers.
+    Signed(
+        image="smallstep/step-ca", identity="https://github.com/smallstep/workflows/.github/workflows/docker-buildx-push.yml@refs/heads/main", issuer=_ACTIONS
+    ),
+    Signed(
+        image="smallstep/step-cli", identity="https://github.com/smallstep/workflows/.github/workflows/docker-buildx-push.yml@refs/heads/main", issuer=_ACTIONS
+    ),
+    Signed(image="curlimages/curl", key=f"{KEYS}/curl.pub"),
+    Unsigned(image="ghcr.io/11notes/kms", reason="its workflow requests an attestation and GitHub holds none for the pinned digest"),
+    Unsigned(image="ghcr.io/11notes/kms-gui", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/chrislusf/seaweedfs", reason="a comment in its workflow says a signature is attached, and no signing step is in the file it is in"),
+    Unsigned(
+        image="ghcr.io/henrygd/beszel/beszel", reason="it requests a BuildKit SBOM and provenance, which nothing ties to an identity, and has no signing step"
+    ),
+    Unsigned(
+        image="ghcr.io/henrygd/beszel/beszel-agent",
+        reason="it requests a BuildKit SBOM and provenance, which nothing ties to an identity, and has no signing step",
+    ),
+    Unsigned(image="ghcr.io/itzg/minecraft-server", reason="its build sets provenance off and has no attestation or signing step"),
+    Unsigned(image="rclone/rclone", reason="its build sets provenance off, and the pinned digest has no signature or attestation from its owner"),
+    Unsigned(
+        image="louislam/uptime-kuma", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"
+    ),
+    Unsigned(image="ubuntu/bind9", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
+    Unsigned(image="quxfoo/wastebin", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
+    Unsigned(image="ghcr.io/wenenhoe/caddy-digitalocean", reason=_BUILT_HERE),
+    Unsigned(image="ghcr.io/wenenhoe/molecule-dind", reason=_BUILT_HERE),
+    Unsigned(image="ghcr.io/wenenhoe/wastebin", reason=_BUILT_HERE),
+    Unsigned(image="alpine", reason=_NO_STATEMENT),
+    Unsigned(image="amazon/aws-cli", reason=_NO_STATEMENT),
+    Unsigned(image="busybox", reason=_NO_STATEMENT),
+    Unsigned(image="caddy", reason=_NO_STATEMENT),
+    Unsigned(image="geerlingguy/docker-ubuntu2604-ansible", reason=_NO_STATEMENT),
+    Unsigned(image="hello-world", reason=_NO_STATEMENT),
+    Unsigned(image="ubuntu", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/alam00000/bentopdf-simple", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/bluemap-minecraft/bluemap", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/imputnet/cobalt", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/itzg/mc-backup", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/librespeed/speedtest", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/lldap/lldap", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/mermaid-js/mermaid-cli/mermaid-cli", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/offen/docker-volume-backup", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/renovatebot/renovate", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/shlinkio/shlink", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/shlinkio/shlink-web-client", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/tecnativa/docker-socket-proxy", reason=_NO_STATEMENT),
+    Unsigned(image="ghcr.io/tinyauthapp/tinyauth", reason=_NO_STATEMENT),
+)
 
 
 def validate(entries: Iterable[Entry]) -> None:

@@ -27,15 +27,16 @@ one entry per repository, holding its tier and whatever that tier trusts.
 The repository, the certificate identity and the key come from the entry in the
 tree, never from the registry or the image being checked, so changing one is a
 reviewed diff. Two entries for one repository are refused, since a digest could
-then pass on either one's terms. The registry holds no entries yet, so a run
-reports no images.
+then pass on either one's terms. A test fails when a repository the tree names has
+no entry, or an entry names one the tree does not, so a new image means a new
+entry.
 
 ## Tiers
 
 | Tier | What the check does |
 | :--- | :--- |
 | Attested | Runs `gh attestation verify` on each pinned digest for the GitHub repository the entry names. |
-| Signed | Runs `cosign verify` on each pinned digest, with the certificate identity and OIDC issuer the entry fixes, or with the public key committed for it under `tools/ci/provenance/keys/`. |
+| Signed | Runs `cosign verify` on each pinned digest, with the certificate identity and OIDC issuer the entry fixes, or with the public key committed for it under [`tools/ci/provenance/keys/`](../../../../tools/ci/provenance/keys/). |
 | Unsigned | Runs nothing and passes. The entry says why the publisher gives nothing to verify. |
 
 A BuildKit attestation or an SBOM that nothing ties to an identity the
@@ -48,6 +49,18 @@ under it match an unanchored pattern anywhere in the certificate's identity, so
 an unanchored entry would accept any identity that merely contains it. An entry
 with neither an identity nor a key, or with both, cannot be built, and `cosign
 verify` itself refuses an identity without an issuer in keyless mode.
+
+## When an image or its publisher changes
+
+- **A new image** needs a registry entry in the same change, *unsigned* when its
+  publisher offers nothing to verify, with the reason written in the entry.
+- **A bump** is checked by whichever tier the entry sets. A digest the publisher
+  did not sign or attest fails, whatever produced it.
+- **A publisher starts to sign**, or stops, or changes its signing identity: the
+  entry's tier or identity changes in its own reviewed change, and the check
+  fails until it does.
+- **A key-signing publisher rotates its key:** the new public key replaces the
+  file under `tools/ci/provenance/keys/`, which holds exactly one key.
 
 ## Which digests
 

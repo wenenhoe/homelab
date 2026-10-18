@@ -5,9 +5,12 @@ Run via `uv run pytest tools/tests/ -v`.
 
 from __future__ import annotations
 
+import re
+
 import pytest
+from ci.images import remote
 from ci.provenance import registry
-from ci.provenance.registry import Attested, Signed, Tier, Unsigned
+from ci.provenance.registry import ENTRIES, Attested, Signed, Tier, Unsigned
 
 ISSUER = "https://token.actions.githubusercontent.com"
 IDENTITY = "https://github.com/owner/tool/.github/workflows/release.yml@refs/tags/v1.0.0"
@@ -150,3 +153,79 @@ class TestValidate:
         entries = (Unsigned(image="ghcr.io/owner/tool", reason="r"), Attested(image="ghcr.io/owner/tool", repository="owner/tool"))
         with pytest.raises(ValueError, match=r"ghcr\.io/owner/tool and ghcr\.io/owner/tool name the same image repository"):
             registry.validate(entries)
+
+
+SMALLSTEP = "https://github.com/smallstep/workflows/.github/workflows/docker-buildx-push.yml@refs/heads/main"
+
+
+class TestRealRegistry:
+    @staticmethod
+    def pinned_repositories() -> set[tuple[str, str]]:
+        """Every image repository the tree names, with or without a digest."""
+        parsed = (remote.parse_image(text) for text in remote.collect(remote.REPO_ROOT).images)
+        return {(image.registry, image.repository) for image in parsed}
+
+    def test_each_repository_has_one_entry(self):
+        assert len({entry.registry_key for entry in ENTRIES}) == len(ENTRIES)
+
+    def test_every_image_repository_the_tree_pins_has_an_entry(self):
+        assert self.pinned_repositories() - {entry.registry_key for entry in ENTRIES} == set()
+
+    def test_no_entry_names_a_repository_the_tree_does_not_pin(self):
+        assert {entry.registry_key for entry in ENTRIES} - self.pinned_repositories() == set()
+
+    def test_each_image_has_the_tier_its_publisher_offers(self):
+        assert {entry.image: entry.tier for entry in ENTRIES if entry.tier is not Tier.UNSIGNED} == {
+            "ghcr.io/lissy93/dashy": Tier.ATTESTED,
+            "openbao/openbao": Tier.SIGNED,
+            "smallstep/step-ca": Tier.SIGNED,
+            "smallstep/step-cli": Tier.SIGNED,
+            "curlimages/curl": Tier.SIGNED,
+        }
+
+    def test_the_attested_image_is_attested_for_the_repository_that_builds_it(self):
+        dashy = next(entry for entry in ENTRIES if entry.image == "ghcr.io/lissy93/dashy")
+        assert isinstance(dashy, Attested)
+        assert dashy.repository == "Lissy93/dashy"
+
+    def test_the_signed_images_fix_the_identity_their_publisher_signs_with(self):
+        signed = {entry.image: entry for entry in ENTRIES if isinstance(entry, Signed)}
+        assert {image: (entry.identity, entry.identity_regexp, entry.issuer, entry.key) for image, entry in signed.items()} == {
+            "openbao/openbao": (
+                None,
+                r"^https://github\.com/openbao/openbao/\.github/workflows/release-images\.yml@refs/tags/v[0-9]+\.[0-9]+\.[0-9]+$",
+                "https://token.actions.githubusercontent.com",
+                None,
+            ),
+            "smallstep/step-ca": (SMALLSTEP, None, "https://token.actions.githubusercontent.com", None),
+            "smallstep/step-cli": (SMALLSTEP, None, "https://token.actions.githubusercontent.com", None),
+            "curlimages/curl": (None, None, None, f"{registry.KEYS}/curl.pub"),
+        }
+
+    def test_the_openbao_pattern_matches_a_version_tag_of_its_release_workflow_and_nothing_else(self):
+        pattern = re.compile(next(entry.identity_regexp for entry in ENTRIES if entry.image == "openbao/openbao"))
+        workflow = "https://github.com/openbao/openbao/.github/workflows/release-images.yml"
+        assert [
+            bool(pattern.search(identity))
+            for identity in (
+                f"{workflow}@refs/tags/v2.7.1",
+                f"{workflow}@refs/heads/main",
+                f"{workflow}@refs/tags/v2.7.1-evil",
+                f"x{workflow}@refs/tags/v2.7.1",
+                workflow.replace("release-images", "release") + "@refs/tags/v2.7.1",
+            )
+        ] == [True, False, False, False, False]
+
+    def test_every_committed_key_is_exactly_one_public_key_and_every_signed_entry_names_one(self, subtests):
+        committed = sorted(path.name for path in (remote.REPO_ROOT / registry.KEYS).glob("*"))
+        assert committed == sorted(entry.key.rsplit("/", 1)[1] for entry in ENTRIES if isinstance(entry, Signed) and entry.key)
+        for name in committed:
+            with subtests.test(key=name):
+                text = (remote.REPO_ROOT / registry.KEYS / name).read_text()
+                assert (text.count("-----BEGIN PUBLIC KEY-----"), text.count("-----END PUBLIC KEY-----")) == (1, 1)
+
+    def test_the_repositorys_own_images_are_unsigned_and_say_their_build_attests_nothing(self):
+        own = [entry for entry in ENTRIES if entry.image.startswith("ghcr.io/wenenhoe/")]
+        assert [entry.tier for entry in own] == [Tier.UNSIGNED] * len(own)
+        assert all("does not attest" in entry.reason for entry in own if isinstance(entry, Unsigned))
+        assert len(own) == 3

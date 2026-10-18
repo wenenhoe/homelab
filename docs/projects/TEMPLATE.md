@@ -10,7 +10,7 @@ summary: "<one line; feeds the generated index>"
 # super_project: <slug>     # optional grouping; a track needs it, a phase needs a track
 # track: <slug>
 # phase: <slug>
-# allowed_paths:          # optional; the globs this work may change (see README.md#scope)
+# allowed_paths:          # optional; the globs this work may change (see README.md#choosing-the-scope)
 #   - path/to/thing/**
 # depends_on:
 #   - project: PROJ-other-project
@@ -23,7 +23,10 @@ What this project delivers and why it's staged rather than one PR.
 
 ## Scope
 
-What changes, and — in one line each — what deliberately doesn't.
+What changes, and — in one line each — what deliberately doesn't. Name
+what the project removes, renames or reshapes, and check it against the
+tree before setting `allowed_paths`
+([Choosing the scope](README.md#choosing-the-scope)).
 
 ## Decision
 

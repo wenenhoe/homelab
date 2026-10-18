@@ -174,6 +174,38 @@ and a change that never touches its project doc isn't bounded. How and
 where it runs is in
 [`docs/topics/engineering/ci/doc-checks.md#project-scope-check`](../topics/engineering/ci/doc-checks.md#project-scope-check).
 
+### Choosing the scope
+
+A project's scope is every file its pull requests edit, the one that
+closes it included. Widening it is its own change, so each file found
+late costs a pull request. Derive the scope from the project instead of
+from memory of where the work lives:
+
+1. **Name what each stage changes.** Every path in `allowed_paths` traces
+   to a stage's exit condition or an acceptance criterion, which names the
+   file, role or workflow it edits. A path that traces to neither is new
+   work: add the stage or criterion in the change that widens the scope, or
+   make it a separate project.
+2. **Search for what the project removes, renames or reshapes.** For each
+   such name (a product, a pin, a variable, a key), search the tree. A file
+   that mentions it is in scope, or is named under "Not in" with the
+   reason. Don't list the places you remember: the ones you forgot are the
+   ones that stop the work.
+3. **Walk the closing pull request.** It deletes the project doc, so every
+   file that names the doc changes too. The decision revisions it edits are
+   [exempt](#scope). The NIST alignment page is not: it changes when it
+   links the revision being superseded. Neither are the topic docs that
+   will describe the new behavior, nor a new topic doc's row in
+   `docs/topics/README.md`.
+4. **Shape the entries.** A directory glob for a component the project
+   changes, an exact file for anything peripheral. Never an exact file
+   inside a component the project already changes: the next file in that
+   directory is the next widening.
+
+[`suggest_project_scope`](../topics/engineering/ci/doc-checks.md#scope-suggestions)
+runs the searches behind steps 1 to 3 and prints the entries that are
+missing. What a hit means is still the author's call.
+
 ## Public repo
 
 Risks, blockers, and any evidence recorded here follow the rule in

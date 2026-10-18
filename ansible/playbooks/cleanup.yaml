@@ -56,6 +56,9 @@
     compose_cleanup_exclude:
       - backup-agent
       - cloud-sync
+      # Hand-placed on security (snapshot-push.sh, rclone.conf, GPG key);
+      # no compose file, see docs/topics/secrets/openbao-backup-restore.md.
+      - openbao-backup
   tasks:
     - name: Determine apps still wanted on this host
       ansible.builtin.set_fact:

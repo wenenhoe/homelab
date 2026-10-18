@@ -9,6 +9,9 @@
     backup_agent_api_dir: /run/fake-docker-api
     backup_agent_api_python: "{{ ansible_facts['python']['executable'] }}"
     backup_agent_api_proxy_image: "{{ backup_agent_compose_parsed.services['backup-dockerproxy'].image }}"
+    # The container is on the default bridge alone. The daemon in the Molecule
+    # instance reports an address per network and no top-level IPAddress.
+    backup_agent_api_proxy_ip: "{{ (backup_agent_api_proxy.container.NetworkSettings.Networks.values() | first).IPAddress }}"
     backup_agent_api_id: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
     # The five calls docker-volume-backup makes, with and without an API version
     # prefix and a query string, and the one the proxy's own healthcheck makes.
@@ -156,7 +159,7 @@
 
     - name: Wait until the proxy answers a ping
       ansible.builtin.uri:
-        url: "http://{{ backup_agent_api_proxy.container.NetworkSettings.IPAddress }}:2375/_ping"
+        url: "http://{{ backup_agent_api_proxy_ip }}:2375/_ping"
       register: backup_agent_api_ping
       until: backup_agent_api_ping.status == 200
       retries: 30
@@ -167,7 +170,7 @@
         argv:
           - "{{ backup_agent_api_python }}"
           - "{{ backup_agent_api_dir }}/check_docker_api_rules.py"
-          - "{{ backup_agent_api_proxy.container.NetworkSettings.IPAddress }}"
+          - "{{ backup_agent_api_proxy_ip }}"
           - "2375"
           - "{{ backup_agent_api_dir }}/requests.log"
           - "{{ backup_agent_api_dir }}/cases.json"

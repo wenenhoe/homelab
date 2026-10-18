@@ -11,6 +11,8 @@ allowed_paths:
   - tools/tests/ci/provenance/**
   - tools/tests/ci/test_stdlib_only.py
   - tools/tests/ci/test_workflow_timeouts.py
+  - docker/caddy/compose.yaml
+  - docker/wastebin/compose.yaml
   - .github/workflows/pr-checks.yml
   - .github/workflows/check-image-provenance.yml
   - .github/workflows/build-*-image.yml

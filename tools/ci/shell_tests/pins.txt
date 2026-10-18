@@ -1,0 +1,12 @@
+# The Bats runner and its two helper libraries, one entry per line:
+# repository, release tag, full commit SHA. `python3 -m ci.shell_tests.fetch`
+# clones each at its SHA and `python3 -m ci.shell_tests.pins check` requires
+# each tag to still point at it.
+#
+# Every entry is at the listed tier of ADR 0077: the check catches a SHA copied
+# wrongly and a tag that moved, not a commit the publisher did not intend. No
+# current key is published to verify the signed tags against, and
+# bats-support's tag is not signed.
+bats-core/bats-core v1.14.0 eb7f42f8d608ac693d7a4b67474f6714ea68cfc5
+bats-core/bats-support v0.3.0 24a72e14349690bcbf7c151b9d2d1cdd32d36eb1
+bats-core/bats-assert v2.2.4 f1e9280eaae8f86cbe278a687e6ba755bc802c1a

@@ -47,6 +47,9 @@ BARE_PYTHON = (
     "scan/__init__.py",
     "scan/trivy_config.py",
     "scan/gitleaks_range.py",
+    "shell_tests/__init__.py",
+    "shell_tests/pins.py",
+    "shell_tests/fetch.py",
 )
 
 

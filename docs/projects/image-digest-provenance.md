@@ -11,6 +11,14 @@ allowed_paths:
   - tools/tests/ci/provenance/**
   - tools/tests/ci/test_stdlib_only.py
   - tools/tests/ci/test_workflow_timeouts.py
+  - docker/caddy/compose.yaml
+  - docker/wastebin/compose.yaml
+  - ansible/roles/*/molecule/*/molecule.yml
+  - tools/ci/images/digests.py
+  - docs/topics/engineering/molecule-fixtures.md
+  - docs/topics/engineering/molecule-testing.md
+  - tools/coderabbit-review/coderabbit-review.sh
+  - docs/topics/engineering/coderabbit-review.md
   - .github/workflows/pr-checks.yml
   - .github/workflows/check-image-provenance.yml
   - .github/workflows/build-*-image.yml
@@ -30,7 +38,7 @@ Adds a CI check that each digest the repository pins for a container image is on
 
 In: a stdlib-only `tools/ci/provenance` package with unit tests; one registry entry per pinned image repository, in the *attested*, *signed* or *unsigned* tier; the cosign container image, pinned by digest and tracked by Renovate; a pull-request job and a weekly workflow; `id-token: write`, `attestations: write` and an `actions/attest` step in each `build-*-image.yml`; the topic doc and the pages that index the check.
 
-Not in: which registry an image comes from ([ADR 0085](../decisions/0085-choosing-the-registry-an-image-is-pulled-from/revision-000.md)); release binaries and their checksums ([`release-checksum-check.md`](../topics/engineering/ci/release-checksum-check.md)); anything a host does at deploy time, since no host gains `gh`, `cosign` or a signer's address; reading an SBOM or provenance document; a `sourceUrl` rule or any other change to `.github/renovate.json5` beyond the one image-pin manager.
+Not in: which registry an image comes from ([ADR 0085](../decisions/0085-choosing-the-registry-an-image-is-pulled-from/revision-000.md)); release binaries and their checksums ([`release-checksum-check.md`](../topics/engineering/ci/release-checksum-check.md)); anything a host does at deploy time, since no host gains `gh`, `cosign` or a signer's address; reading an SBOM or provenance document; a `sourceUrl` rule or any other change to `.github/renovate.json5` beyond the image-pin managers for the cosign image, the Molecule platform image and the review script's image, and the rule that keeps the floating base out of the pins.
 
 ## Decision
 

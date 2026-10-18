@@ -25,6 +25,8 @@ jobs:
       release_checksums: ${{ steps.filter.outputs.release_checksums }}
       image_provenance: ${{ steps.filter.outputs.image_provenance }}
       mermaid_check: ${{ steps.filter.outputs.mermaid_check }}
+      shell_tests: ${{ steps.filter.outputs.shell_tests }}
+      shell_test_pins: ${{ steps.filter.outputs.shell_test_pins }}
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
       shards: ${{ steps.shards.outputs.shards }}
@@ -579,6 +581,52 @@ jobs:
       - name: Render every Mermaid block
         run: python3 -m doc_scripts.check_mermaid
         working-directory: tools
+
+  # Runs the Bats tests for the repo's shell scripts on the pinned bats-core,
+  # bats-support and bats-assert clones (ADR 0086) — see
+  # docs/topics/engineering/ci/shell-tests.md. Not a matrix job, so it can be
+  # required directly: a PR that changes no shell script, shell test or pin
+  # reports it skipped.
+  shell-tests:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.shell_tests == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # bats-core 1.14 exits non-zero when it finds no test, and the path
+      # filter can't tell a change with no suite behind it from one with.
+      - name: Look for a suite to run
+        id: suite
+        run: |
+          if [ -n "$(find tools/tests/shell -name '*.bats' -print -quit)" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::tools/tests/shell holds no .bats file, so there is no suite to run"
+            echo "present=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Stdlib-only, so plain python3 (no uv); git and Bash come with the
+      # runner image. Only a change to the pin file or the tooling beside it
+      # is held to the tags: an unrelated shell change doesn't fail on a
+      # publisher's tag moving, which the weekly run reports.
+      - name: Check each pinned tag still points at its commit
+        if: needs.detect-changes.outputs.shell_test_pins == 'true'
+        run: python3 -m ci.shell_tests.pins check
+        working-directory: tools
+
+      - name: Fetch the pinned Bats clones
+        if: steps.suite.outputs.present == 'true'
+        run: python3 -m ci.shell_tests.fetch "$RUNNER_TEMP/bats"
+        working-directory: tools
+
+      - name: Run the shell tests
+        if: steps.suite.outputs.present == 'true'
+        run: BATS_LIB_PATH="$RUNNER_TEMP/bats" "$RUNNER_TEMP/bats/bats-core/bin/bats" --print-output-on-failure tools/tests/shell
 
   # Fallback for stacks the boot-test job deliberately excludes: only the
   # excluded apps are checked, since anything compose-boot-test covers gets

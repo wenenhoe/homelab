@@ -22,6 +22,19 @@ BATS_LIB_PATH="$CLONES" "$CLONES/bats-core/bin/bats" tools/tests/shell
 
 `CLONES` is any directory the fetch may fill. The runner is the fetched `bats-core`, and `BATS_LIB_PATH` is where `bats_load_library` finds `bats-support` and `bats-assert`. The suite needs Bash and GNU coreutils, as the hosts have, and no network once the clones exist.
 
+## In CI
+
+The `shell-tests` job of `pr-checks.yml` runs when a pull request changes a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py` (the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)). It runs on the runner's own Bash, GNU userland and `python3` and installs nothing. It is not a matrix job, so it can be required directly: a pull request that changes none of those paths reports it skipped.
+
+Its steps, in order:
+
+1. Look for a `.bats` file under `tools/tests/shell/`. `bats-core` 1.14 exits non-zero when it finds no test, and the path filter can't tell a change with no suite behind it from one with, so with no `.bats` file the job ends with a notice and the steps below are skipped.
+2. When the pin file or the tooling beside it changed, check each pinned tag with [`ci.shell_tests.pins`](shell-test-pins.md#checking-the-pins). A change to an unrelated script is not held to it, so a publisher moving a tag fails the weekly run rather than an unrelated pull request.
+3. Fetch the pinned clones into the runner's temp directory with `ci.shell_tests.fetch`.
+4. Run `bats` from the fetched `bats-core` over `tools/tests/shell` with `--print-output-on-failure`.
+
+Any matching change runs every test file, not only the one for the script that changed.
+
 ## The harness
 
 [`test_helper/harness.bash`](../../../../tools/tests/shell/test_helper/harness.bash) is loaded by every test file, which calls `harness_setup` from `setup` and `harness_teardown` from `teardown`.

@@ -7,7 +7,7 @@ short: Shell script tests
 solution: "Bats tests under tools/tests/shell, run by a CI job on bats-core, bats-support and bats-assert cloned at commits pinned in one file, with every external tool stubbed on PATH"
 summary: How the branching and failure handling of the repo's shell scripts is unit-tested, given that only a linter reads them today and Molecule exercises only some of them against real services.
 topic: repository-tooling
-status: approved
+status: accepted
 related: [ADR-0064, ADR-0069, ADR-0070, ADR-0077, ADR-0083, ADR-0084, ADR-0085]
 ---
 
@@ -25,7 +25,7 @@ The repo tracks 18 `.sh` or `.sh.j2` files. `shellcheck` reads all of them as te
 
 Most of a script's branches turn on the exit status of one external command (`docker`, `bao`, `rclone`, `ssh`, `openssl`) and on what the script then does. A test of such a branch needs the command to succeed or fail on demand and a record of what the script ran afterwards.
 
-Bats ([bats-core](https://github.com/bats-core/bats-core)) is a test runner written in Bash. A test is a function; `run` captures a command's status and output; each test gets its own temporary directory. `bats-assert` and `bats-support` supply the assertions. `bats-core` needs Bash 3.2 or newer, and runs tests serially unless GNU parallel is installed.
+Bats ([bats-core](https://github.com/bats-core/bats-core)) is a test runner written in Bash; `bats-assert` and `bats-support` supply the assertions. `bats-core` needs Bash 3.2 or newer.
 
 How the pieces are published, as read when this was written:
 
@@ -74,8 +74,8 @@ Shell tests are Bats files under `tools/tests/shell/`, one per script, beside th
 - Where Renovate cannot supply a tag's SHA, nothing proposes a bump, and a pin stays where it is until someone moves it.
 - A stub encodes the argument shape of the tool it replaces. If the real tool's interface changes, the stub keeps passing; Molecule and the boot tests remain the checks against the real tools.
 - Bats evaluates a test file more than once, so setup stays in `setup`, not at file level. `bats-core` 1.14 makes `run` honor `set -e` in the functions it calls, and exits non-zero when it finds no tests, so the job's path filter has to keep it from starting on a change with no suite behind it.
-- The suite runs serially. A prototype of 30 tests across six scripts took about five seconds.
-- The shell tests need Git and GitHub access to fetch the pins; the cloned trees are about 4 MB.
+- The suite runs serially.
+- The shell tests need Git and GitHub access to fetch the pins, and the project's locked Python environment to render templates; the cloned trees are about 4 MB.
 - A test runs the commands a script does not stub (`date`, `stat`, `tar`, `ls`, `find`, `du`) on the runner's userland, so a host on a different release from the runner can behave differently from the test.
 - A test of a templated script renders it outside Ansible, so a template change that only Ansible's own rendering would expose is caught by Molecule, not here.
 
@@ -93,6 +93,7 @@ Shell tests are Bats files under `tools/tests/shell/`, one per script, beside th
 - Python code, which stays under pytest.
 - Rewriting a script to make it easier to test.
 - A coverage threshold for shell.
+- A drift check that requires every tracked shell script to have a test file.
 
 ## Validation
 

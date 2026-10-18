@@ -7,7 +7,7 @@ short: Docker API access
 solution: A proxy rules file per consumer that names the exact calls it makes, mounted into the stock docker-socket-proxy image
 summary: Containers that need the Docker API get only the calls they make, so a consumer that stops and starts containers cannot also create or run them.
 topic: deployment-platform
-status: working
+status: approved
 supersedes: 0
 related: [ADR-0009, ADR-0043, ADR-0083]
 ---
@@ -48,13 +48,18 @@ around a snapshot, read from its source (`stop_restart.go`, `script.go`):
 | :--- | :--- |
 | `HEAD`/`GET /_ping` | API version negotiation when the client starts |
 | `GET /info` | whether the daemon is a swarm manager |
-| `GET /containers/json` | one list of all containers, filtered by label in the client |
+| `GET /containers/json` | the running containers: once for the stop labels, matched in the client, and once for each phase's `-pre` and `-post` exec label, matched by a `filters` query |
 | `POST /containers/{id}/stop` | stop each container the schedule's label names |
 | `POST /containers/{id}/start` | start it again afterwards |
 
-It calls `/exec` only for the `exec-*` labels, which no app here sets, and
-`/services` only on a swarm manager, which no host is. The client uses the
+It calls `/exec` only for a container carrying a
+`docker-volume-backup.<phase>-pre` or `-post` label, which no app here sets,
+and `/services` only on a swarm manager, which no host is. The client uses the
 container's full 64-character id from the list, never its name.
+
+A refused call can leave an app stopped only if it is the `start`. The
+`archive-pre` step runs before the stop, and the restart is deferred inside the
+archive step, so it runs on every error path and before `archive-post`.
 
 What the proxy still cannot do is limit *which* container is stopped. It
 has no per-container rule, and an id is not known ahead of time, so
@@ -95,15 +100,19 @@ allowed reaches it. `/version` stays only because the sidecar's healthcheck
 requests it. The `CONTAINERS`, `POST` and `INFO` environment lines go, since
 the rules no longer read them.
 
-Tried against HAProxy 2.8 with a fake Docker socket that records what reaches
-it: the five calls above pass and arrive at the socket unchanged. Each of these
-is refused with a 403 and never reaches it: `POST /containers/create`, `/exec`,
-`/kill`, `/restart`, `/update`; `DELETE /containers/{id}`; `GET
-/containers/{id}/json`, `/logs`, `/archive`, `/export`; `GET /events`, `/images`,
-`/volumes`; `POST /exec/{id}/start` and `/build`; a start or stop by container
-name, by a 63-character id or by an upper-case id; a path with a trailing
-segment, and `/containers/json/../{id}/archive`. A URL-encoded `/containers/%6Ason`
-decodes to the allowed path and is passed on, which is the same resource.
+Tried against HAProxy 3.4.0 built with PCRE2, as the official image is, and a
+fake Docker socket that records what reaches it: the five calls above pass and
+arrive at the socket unchanged, with and without a `/v1.xx` prefix or a query
+string. Each of these is refused with a 403 and never reaches it: `POST
+/containers/create`, `/exec`, `/kill`, `/restart`, `/update`, `/pause`,
+`/rename`, `/attach`; `DELETE /containers/{id}`; `GET /containers/{id}/json`,
+`/logs`, `/archive`, `/export`; `GET /events`, `/images`, `/volumes`; `POST
+/exec/{id}/start` and `/build`; a `GET` of the stop or start path and a `POST`
+of `/containers/json`; a start or stop by container name, by a 63-character id
+or by an upper-case id; a path with a trailing segment or slash, a leading `//`,
+and `/containers/json/../{id}/archive` or `/v1.xx/../containers/json`. A
+URL-encoded `/containers/%6Ason` decodes to the allowed path and is passed on,
+which is the same resource.
 
 The consumer that only reads (`beszel-agent`) keeps its flags in this
 revision; see Consequences.
@@ -126,19 +135,6 @@ revision; see Consequences.
   stop and start out of the backup agent's schedule, which is the point of its
   per-schedule labels.
 
-## Assumptions
-
-- **Claim:** the pinned image runs this file unchanged under HAProxy 3.4.2, and
-  `docker-volume-backup` v2.49.1 makes no call outside the table, including on
-  the path where it waits for a restarted container.
-  **Breaks if wrong:** a stop-during-backup schedule fails against the real
-  image, or the agent gets a 403 mid-backup after stopping an app and does not
-  start it again.
-  **Checked by:** the `backup_agent` Molecule scenario, run against the real
-  proxy image and the real agent image with a stop-during-backup schedule, which
-  asserts the app stopped, was backed up and started, and that a `create` and an
-  `exec` through the proxy are refused.
-
 ## Consequences
 
 - A compromised `backup_agent` can still stop and start any container by id
@@ -149,10 +145,14 @@ revision; see Consequences.
 - The rules file is a copy of upstream's with one frontend replaced. A bump of
   the proxy image can change the parts copied, so a Renovate pull request for
   it is reviewed against upstream's `haproxy.cfg` at the new tag and run
-  through the Molecule scenario above, which is the check that the file still
-  loads.
+  through the Molecule scenario under Validation, which is the check that the
+  file still loads.
 - A new call by `docker-volume-backup` after a version bump fails with a 403.
   The same Molecule scenario runs on a bump of that image.
+- A container labelled `docker-volume-backup.<phase>-pre` or `-post` makes the
+  agent ask for an exec, which the rules refuse, so every backup schedule on
+  that host fails. The `archive-pre` step runs before anything is stopped, so
+  nothing is left stopped. No app here sets one.
 - [`backup.md`](../../topics/disaster-recovery/backup.md) and revision 0's
   consequences name `POST=1` as the grant. They change to describe the rules file
   when it lands.
@@ -172,16 +172,25 @@ revision; see Consequences.
 
 ## Validation
 
-- A test that renders the rules file, runs HAProxy against a fake socket and
-  asserts the allowed calls arrive and each refused call from the list above
-  gets a 403, so the file is checked without Docker.
-- The `backup_agent` Molecule scenario above, on the real images.
+- A Molecule check that starts the real proxy image with the rules file in front
+  of a fake Docker socket that records what reaches it. It asserts each allowed
+  call arrives unchanged and each refused call from the list above gets a 403
+  and never reaches the socket. It runs on the pinned image, so it needs no
+  HAProxy on the CI runner.
+- The `backup_agent` Molecule scenario, run against the real proxy image and the
+  real agent image with a stop-during-backup schedule. It asserts the app
+  stopped, was backed up and started.
+
+The file has been exercised only under HAProxy 3.4.0 and a fake socket, so these
+are its first runs on the pinned HAProxy 3.4.2 and the real agent: a failure in
+either is a new assumption and returns the revision to `working`.
 
 ## Reconsideration triggers
 
 - A consumer needs a call a rules file cannot express, such as a per-container
   rule.
 - `docker-volume-backup` or the proxy image changes the calls or the file layout.
+- An app needs one of the agent's exec labels, which the rules refuse by design.
 
 ## Revision notes
 

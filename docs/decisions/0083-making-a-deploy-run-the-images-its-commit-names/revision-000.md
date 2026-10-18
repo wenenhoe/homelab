@@ -7,7 +7,7 @@ short: Images a deploy runs
 solution: Every image reference carries its digest, Renovate moves the digest in a reviewed pull request, and a deploy pulls an image only when it is absent from the host
 summary: How a deploy is made to run exactly the container images the commit names, so an image changes only in a pull request that says so.
 topic: deployment-platform
-status: approved
+status: accepted
 related: [ADR-0004, ADR-0071, ADR-0076, ADR-0077]
 ---
 
@@ -35,7 +35,7 @@ What has to be true: the image a host runs is a function of the commit deployed,
 - **Every reference is pinned.** Each image reference the repository deploys or runs in CI is written `name:tag@sha256:digest`: compose files, Dockerfile `FROM` lines, Ansible variables, Molecule image files and the pins in scripts and units. The tag stays for people and for Renovate's version comparison; the digest decides what runs.
 - **Renovate maintains the pins.** `docker:pinDigests` makes it open one pull request that pins everything, and then a pull request that moves a digest when a tag is rebuilt or a version changes. Every custom regex manager for a docker image reads and writes the digest. Pin and digest-refresh pull requests are grouped, run in the existing Monday and Thursday window, and are never automerged, because the first digest is the registry's at that moment, not necessarily what a host is running.
 - **A deploy pulls only what is absent.** Both compose pull tasks use `policy: missing`. A reference that changes in a pull request is a new reference and is pulled; one that does not change is never replaced. This needs Docker Compose 2.22 or later on every host, which the role asserts before pulling.
-- **Self-built images are pinned too.** A consumer of `ghcr.io/wenenhoe/*` pins the digest of the published image, and the scheduled same-tag rebuild reaches hosts as a Renovate digest-refresh pull request like any other. `ci.images.registry` reads the tag from a pinned reference and ignores the digest.
+- **Self-built images are pinned too.** A consumer of `ghcr.io/wenenhoe/*` pins the digest of the published image, and the scheduled same-tag rebuild reaches hosts as a Renovate digest-refresh pull request like any other. `ci.images.registry` reads the tag from a pinned reference and ignores the digest. The CI boot test builds a changed Dockerfile under the tag alone and removes the digest from its deployed copy of the compose file, so the stack runs the local build.
 - **An unpinned reference is a recorded exception.** A reference that has to float is listed in a committed allowlist with its reason, and a check fails any other reference without a digest.
 - **`diun` is retired.** A digest-refresh pull request tells the maintainer about a changed image before a host takes it, which was `diun`'s one job. Its container, its Docker API proxy, its volume and its secrets are removed.
 - **The weekly tag check follows the pin.** `check-image-tags` asks the registry for the digest a reference pins, so a registry that deleted it fails the run even if the tag still resolves. The image inventory it prints keeps `ref` free of the digest and lists the digests beside it.

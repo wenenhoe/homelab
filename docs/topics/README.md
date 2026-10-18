@@ -85,7 +85,7 @@ Observability and alerting.
 | Doc | Covers |
 | :--- | :--- |
 | [`beszel.md`](monitoring/beszel.md) | Hub/agent monitoring, KEY/TOKEN bootstrap. |
-| [`telegram-notifications.md`](monitoring/telegram-notifications.md) | Bot/topic scheme shared by diun, Beszel, backups, and cert-renewal alerts. |
+| [`telegram-notifications.md`](monitoring/telegram-notifications.md) | Bot/topic scheme shared by Beszel, backups, and cert-renewal alerts. |
 | [`uptime-kuma.md`](monitoring/uptime-kuma.md) | Push-monitor dead-man's-switch status per job, routed into the Telegram topics above. |
 
 ## engineering/

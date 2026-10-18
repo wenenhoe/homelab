@@ -14,9 +14,15 @@
 # caller reaches it, so caddy, bind9 and openbao are reported alongside the
 # apps compose_app loops over.
 
-- name: Pull latest Docker images ({{ compose_app_item.name }})
+# Every image reference in a compose file is pinned to a digest (ADR 0083), so
+# a reference that is already on the host is the image the commit names and a
+# changed digest is a reference the host does not have yet. `missing` pulls only
+# the latter; the default, `always`, would replace an image under an unchanged
+# reference and recreate its container on the next run.
+- name: Pull Docker images the host does not have ({{ compose_app_item.name }})
   community.docker.docker_compose_v2_pull:
     project_src: "{{ compose_deploy_dir }}/{{ compose_app_item.name }}"
+    policy: missing
   when: not (compose_app_item.build | default(false))
   tags:
     - images

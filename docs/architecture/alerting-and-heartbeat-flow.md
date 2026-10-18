@@ -9,7 +9,6 @@ a failure when one happens, and a push monitor reports silence when nothing runs
 ```mermaid
 flowchart LR
     subgraph sources["Failure alerts, sent when something fails"]
-        diun["diun<br/>image updates"]
         beszel["Beszel hub<br/>host and container state"]
         dvb["docker-volume-backup<br/>backup job failures"]
         sync["cloud-sync.service<br/>OnFailure"]
@@ -28,13 +27,11 @@ flowchart LR
     kuma["Uptime Kuma<br/>push monitors"]
 
     subgraph topics["Telegram topics"]
-        updates["Updates"]
         monitoring["Monitoring"]
         backups["Backups"]
         certs["Certs"]
     end
 
-    diun --> updates
     beszel --> monitoring
     dvb --> backups
     sync --> backups
@@ -50,7 +47,7 @@ flowchart LR
 ```
 
 A skipped `cert-renewer@` run (certificate not yet due) is neither a failure nor a success, so it sends nothing on
-either path; its heartbeat arrives about once per renewal. Shoutrrr senders (diun, Beszel,
+either path; its heartbeat arrives about once per renewal. Shoutrrr senders (Beszel,
 `docker-volume-backup`) take `chat_id:topic_id` in one string; the systemd notifiers call Telegram's API with
 separate `chat_id` and `message_thread_id`, as
 [`telegram-notifications.md`](../topics/monitoring/telegram-notifications.md) explains.

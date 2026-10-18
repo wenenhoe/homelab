@@ -456,9 +456,9 @@
     },
 
     // ghcr.io/tecnativa/docker-socket-proxy is the same security-sensitive
-    // sidecar pinned identically and independently in three compose files
-    // (beszel-agent, diun, lldap) — group so a version bump is reviewed and
-    // rolled out once, not as three near-identical PRs.
+    // sidecar pinned identically and independently in beszel-agent's compose
+    // file and backup_agent's compose template — group so a version bump is
+    // reviewed and rolled out once, not as two near-identical PRs.
     {
       matchDepNames: ["ghcr.io/tecnativa/docker-socket-proxy"],
       groupName: "docker-socket-proxy (all instances)",

@@ -261,6 +261,18 @@ which hold a package-write token.
   unused load reruns that role whenever the image is bumped), and on an
   image file no play loads. See
   [`molecule-fixtures.md`](../molecule-fixtures.md#shared-image-pins).
+- **`check-image-digests`** (`ci.images.digests check`, also a pre-commit hook,
+  so it runs in `pre-commit-checks` on every PR) fails on an image reference
+  with no `@sha256` digest, on one `name:tag` pinned to two digests, and on
+  a malformed digest ([ADR 0083 (Images a deploy runs)](../../../decisions/0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)).
+  It reads the same references as the weekly
+  [image tag check](image-tag-check.md), so compose files, Ansible YAML,
+  Dockerfiles and the pins Renovate's regex managers track are all judged.
+  The Molecule platform images and the `hello-world` probe stay on floating
+  tags, each listed with its reason in `FLOATING` in
+  `tools/ci/images/digests.py`; an entry nothing names, or one that has been
+  pinned, fails too, so the list cannot go stale. A reference that cannot be
+  pinned (a template, `scratch`, a `:local` build) is skipped.
 - **`dockerfile-build-check`** (`ci.images.build build-check`, keyed off
   `ci.scope.compose_apps`'s `dockerfiles` output) builds each changed
   Dockerfile with `docker build`, without pushing, tagged

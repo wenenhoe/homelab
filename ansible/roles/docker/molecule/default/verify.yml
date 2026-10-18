@@ -25,6 +25,17 @@
       changed_when: false
       failed_when: "'Hello from Docker!' not in hello_world.stdout"
 
+    - name: Read the Docker Compose version
+      ansible.builtin.command: docker compose version --short
+      register: docker_verify_compose_version
+      changed_when: false
+
+    - name: Assert the installed Compose supports pull policy `missing`
+      ansible.builtin.assert:
+        that:
+          - (docker_verify_compose_version.stdout | trim | regex_replace('^v', '')) is version('2.22', '>=')
+        fail_msg: "Docker Compose {{ docker_verify_compose_version.stdout | trim }} cannot pull with policy missing"
+
     - name: Confirm the test user was added to the docker group
       ansible.builtin.getent:
         database: group

@@ -57,7 +57,7 @@ pair today. What each one keeps, and why:
 
 | App | Keeps | Why |
 | :--- | :--- | :--- |
-| `beszel-hub`, `diun` | Nothing | Root, reading and writing only files its own root-owned volume holds. |
+| `beszel-hub` | Nothing | Root, reading and writing only files its own root-owned volume holds. |
 | `beszel-agent` | Nothing | Root on the host network. Its `dockerproxy` sidecar does not take the pair. |
 | `dashy` | Nothing | Its image gives `ping` `cap_net_raw`, but only an ICMP ping check runs it. The HTTP status checks configured here do not, and a ping check added to its config would stop working. |
 | `uptime-kuma` | `DAC_OVERRIDE` | Root over `kuma.db` files another user can own. Its `ping` file capability is unused (push monitors only), so a ping monitor added in the UI would stop working. |

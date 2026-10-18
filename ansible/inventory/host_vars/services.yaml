@@ -73,7 +73,6 @@ compose_apps:
       default:
         host: wastebin
 
-  - name: diun
 
 # ---------------------------------------------------------------------------
 # BIND9 — per-host zone config

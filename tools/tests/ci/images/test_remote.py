@@ -380,6 +380,25 @@ class TestStandardRefs:
         write(root, "docker/app/Dockerfile", f"FROM caddy:2.11.4@{digest}\n")
         assert set(found_refs(root)) == {f"redis:7@{digest}", f"caddy:2.11.4@{digest}"}
 
+    @pytest.mark.parametrize(
+        "directory",
+        [
+            pytest.param(".ansible", id="installed-collections"),
+            pytest.param("ansible/.ansible", id="nested-installed-collections"),
+            pytest.param(".venv", id="venv"),
+        ],
+    )
+    def test_skipped_directories_are_not_read(self, root, directory):
+        write(root, f"{directory}/collections/x/docker-compose.yml", "    image: postgres:9.6\n")
+        write(root, f"ansible/{directory}/x/tasks/main.yml", "    image: keycloak:1\n")
+        assert found_refs(root) == {}
+
+    @pytest.mark.parametrize("directory", sorted(rm.SKIP_PATHS))
+    def test_skipped_paths_are_not_read(self, root, directory):
+        write(root, f"{directory}/x.yml", "    image: postgres:9.6\n")
+        write(root, f"{directory}-other/x.yml", "    image: redis:7\n")
+        assert set(found_refs(root)) == {"redis:7"}
+
     def test_commented_out_and_non_image_lines_are_ignored(self, root):
         write(root, "docker/app/compose.yaml", "# image: old:1\n    build: .\n    container_name: image: x\n")
         assert found_refs(root) == {}
@@ -756,6 +775,16 @@ class TestRealTree:
                 owners = [m for m in managers if any(rm._file_matcher(p).search(rel) for p in m["managerFilePatterns"])]
                 assert len(owners) == 1
                 assert f"molecule_helpers_{path.stem}_image" in owners[0]["autoReplaceStringTemplate"]
+
+    def test_every_directory_gitignore_excludes_is_skipped(self, subtests):
+        """What .gitignore leaves out is not the repo's: a local checkout holds files CI never sees."""
+        for line in (REPO_ROOT / ".gitignore").read_text().splitlines():
+            entry = line.strip()
+            if not entry.endswith("/") or entry.startswith(("#", "!")):
+                continue
+            with subtests.test(entry=entry):
+                path = entry.removeprefix("**/").rstrip("/")
+                assert path in rm.SKIP_DIRS or path in rm.SKIP_PATHS
 
     def test_the_list_is_the_size_of_a_real_repo(self, collected):
         assert len(collected.images) > 30

@@ -54,7 +54,7 @@ handler exists (see
 ## Telegram topics
 
 One Telegram topic per concern, shared across whichever apps alert
-into it (`diun`, Beszel, backups, cert-renewal all route through the
+into it (Beszel, backups, cert-renewal all route through the
 same scheme) rather than one topic per app — see
 [ADR 0011 (Alert routing)](../../decisions/0011-alert-routing-and-noise/revision-000.md) and
 [`telegram-notifications.md`](../monitoring/telegram-notifications.md) for the

@@ -15,11 +15,6 @@
   gather_facts: false
   vars:
     telegram_topic_pins:
-      - key: updates
-        topic_id: "{{ telegram_topic_id_updates }}"
-        text: |-
-          📦 *Image Updates*
-          Diun alerts when a container image has a newer version available.
       - key: monitoring
         topic_id: "{{ telegram_topic_id_monitoring }}"
         text: |-

@@ -114,7 +114,7 @@ for subpath support.
 
 ## What stays a bind mount
 
-- **Host system resources** — the Docker socket (`backup_agent`/`diun`/`beszel-agent`'s
+- **Host system resources** — the Docker socket (`backup_agent`/`beszel-agent`'s
   `dockerproxy` sidecars).
 - **Anything not declared as a volume.**
 

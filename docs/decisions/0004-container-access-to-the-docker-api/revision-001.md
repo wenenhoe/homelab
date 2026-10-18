@@ -9,7 +9,7 @@ summary: Containers that need the Docker API get only the calls they make, so a 
 topic: deployment-platform
 status: working
 supersedes: 0
-related: [ADR-0009, ADR-0043]
+related: [ADR-0009, ADR-0043, ADR-0083]
 ---
 
 # 0004. Docker API access by the calls a consumer makes
@@ -105,7 +105,7 @@ name, by a 63-character id or by an upper-case id; a path with a trailing
 segment, and `/containers/json/../{id}/archive`. A URL-encoded `/containers/%6Ason`
 decodes to the allowed path and is passed on, which is the same resource.
 
-Consumers that only read (`diun`, `beszel-agent`) keep their flags in this
+The consumer that only reads (`beszel-agent`) keeps its flags in this
 revision; see Consequences.
 
 ## Alternatives considered
@@ -156,10 +156,10 @@ revision; see Consequences.
 - [`backup.md`](../../topics/disaster-recovery/backup.md) and revision 0's
   consequences name `POST=1` as the grant. They change to describe the rules file
   when it lands.
-- `diun` and `beszel-agent` use `CONTAINERS=1` with `POST=0`, so they cannot
-  write, but the same flag admits reading a container's environment, files and
-  logs. Their needs differ from `backup_agent`'s, so they are a separate change
-  that applies this mechanism with a file per consumer, not part of this revision.
+- `beszel-agent` uses `CONTAINERS=1` with `POST=0`, so it cannot write, but the
+  same flag admits reading a container's environment, files and logs. Its needs
+  differ from `backup_agent`'s, so it is a separate change that applies this
+  mechanism with a file per consumer, not part of this revision.
 
 ## Invariants
 
@@ -182,3 +182,10 @@ revision; see Consequences.
 - A consumer needs a call a rules file cannot express, such as a per-container
   rule.
 - `docker-volume-backup` or the proxy image changes the calls or the file layout.
+
+## Revision notes
+
+`diun` is removed from the consumers this revision leaves on capability flags:
+[ADR 0083 (Images a deploy runs)](../0083-making-a-deploy-run-the-images-its-commit-names/revision-000.md)
+retires it, and its proxy sidecar goes with it. Revision 0 still describes it as
+it was when that revision was written.

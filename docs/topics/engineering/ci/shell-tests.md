@@ -8,6 +8,7 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 | :--- | :--- |
 | `run_restore.bats` | [`docker/minecraft/scripts/run_restore.sh`](../../../../docker/minecraft/scripts/run_restore.sh) |
 | `snapshot_push.bats` | [`tools/openbao_utils/scripts/snapshot-push.sh`](../../../../tools/openbao_utils/scripts/snapshot-push.sh) |
+| `molecule_test_all.bats` | [`ansible/scripts/molecule-test-all.sh`](../../../../ansible/scripts/molecule-test-all.sh) |
 | `harness.bats` | the harness itself |
 
 ## Running them
@@ -38,5 +39,6 @@ The commands a script runs that are not stubbed (`date`, `stat`, `tar`, `ls`, `f
 
 - **`run_restore.bats`**: the order of the restore's steps; that a failure after the data directory was emptied leaves the stack stopped and one before it starts the stack again; and that both prompts are honored, `-y` and `--yes` skip them, and the first wants `yes` and the second `delete`.
 - **`snapshot_push.bats`**: that the token is revoked and the scratch directory removed on every exit path that has one; that the `secret_id` reaches the login as a file without its newline and never as an argument, whether cached or prompted; that `rclone.conf` is mode 0600 and pairs each provider with its own credentials; and that R2 and B2 are both attempted when one push fails, with the failure named.
+- **`molecule_test_all.bats`**: that `-s` is refused unless exactly one role is named; that each scenario runs on its own in name order against the base config; that a role stops at its first failed scenario without stopping the other roles; and that the timings table is printed and appended to the job summary only when there is one.
 
 A stub encodes the argument shape of the tool it replaces, so a change to a real tool's interface passes here and is caught only by Molecule or the boot test.

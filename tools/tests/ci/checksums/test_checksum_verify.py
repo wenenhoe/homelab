@@ -95,10 +95,14 @@ def failure(outcome: verify.Outcome) -> str:
     return outcome.errors[0]
 
 
-def check(root: Path, entry, publisher: Publisher, run: proc.Runner = proc.run) -> verify.Outcome:
+def no_wait(seconds: float) -> None:
+    """A pause that does not pause, for a check that retries."""
+
+
+def check(root: Path, entry, publisher: Publisher, run: proc.Runner = proc.run, sleep: Callable[[float], None] = no_wait) -> verify.Outcome:
     workdir = root / "work"
     workdir.mkdir(exist_ok=True)
-    return verify.check_entry(root, entry, publisher.fetch, publisher.download, run, workdir)
+    return verify.check_entry(root, entry, publisher.fetch, publisher.download, run, workdir, sleep)
 
 
 class TestSignedManifest:
@@ -236,9 +240,16 @@ class TestAttestedArtifact:
         assert check(tree(root, ARTIFACT_HASH), attested_entry(), Publisher({ARTIFACT_URL: ARTIFACT}), run).errors == []
         run.assert_called_once_with(["gh", "attestation", "verify", str(root / "work/tool.tar.gz"), "--repo", "owner/tool"], root / "work", True)
 
-    def test_a_failing_exit_from_gh_fails_the_entry(self, root):
-        outcome = check(tree(root, ARTIFACT_HASH), attested_entry(), Publisher({ARTIFACT_URL: ARTIFACT}), self.gh(returncode=1))
-        assert outcome.errors == ["gh attestation verify exited 1 for tool.tar.gz against owner/tool"]
+    def test_a_failing_exit_from_gh_fails_the_entry_after_every_attempt(self, root):
+        run, sleeps = self.gh(returncode=1), []
+        outcome = check(tree(root, ARTIFACT_HASH), attested_entry(), Publisher({ARTIFACT_URL: ARTIFACT}), run, sleeps.append)
+        assert outcome.errors == ["tool.tar.gz: gh attestation verify exited 1 after 3 attempts"]
+        assert (run.call_count, sleeps) == (3, [2.0, 4.0])
+
+    def test_a_gh_call_that_fails_once_and_then_passes_passes(self, root):
+        run = create_autospec(proc.run, side_effect=[subprocess.CompletedProcess([], 1, stdout=""), subprocess.CompletedProcess([], 0, stdout="")])
+        assert check(tree(root, ARTIFACT_HASH), attested_entry(), Publisher({ARTIFACT_URL: ARTIFACT}), run).errors == []
+        assert run.call_count == 2
 
     def test_a_download_that_does_not_hash_to_the_pin_fails_without_asking_gh(self, root):
         run = self.gh()
@@ -251,12 +262,13 @@ class TestAttestedArtifact:
         publisher = Publisher({ARTIFACT_URL: ARTIFACT})
         assert check(tree(root, ARTIFACT_HASH), attested_entry("owner/tool"), publisher, run).errors == []
         wrong = check(tree(root, ARTIFACT_HASH), attested_entry("someone/else"), publisher, run)
-        assert wrong.errors == ["gh attestation verify exited 1 for tool.tar.gz against someone/else"]
+        assert wrong.errors == ["tool.tar.gz: gh attestation verify exited 1 after 3 attempts"]
 
-    def test_a_missing_gh_fails_the_entry(self, root):
+    def test_a_missing_gh_fails_the_entry_without_a_retry(self, root):
         run = create_autospec(proc.run, side_effect=FileNotFoundError("gh"))
         outcome = check(tree(root, ARTIFACT_HASH), attested_entry(), Publisher({ARTIFACT_URL: ARTIFACT}), run)
-        assert outcome.errors == ["gh is not installed"]
+        assert outcome.errors == ["tool.tar.gz: gh is not installed"]
+        assert run.call_count == 1
 
     def test_an_artifact_that_cannot_be_downloaded_fails_the_entry(self, root):
         run = self.gh()

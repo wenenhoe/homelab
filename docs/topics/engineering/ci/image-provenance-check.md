@@ -134,6 +134,10 @@ and a statement that is missing fails every attempt. A tool that is not
 installed fails at once. A publisher that moves or rotates its signing identity
 fails the entry until a human reviews it.
 
+The same module makes the release checksum check's `gh attestation verify`
+call, so both checks retry it identically. That check's downloads are retried
+separately, on a 429, a 5xx or a network error, and use the same pauses.
+
 Failures are per digest and the run reports every entry before it exits
 non-zero, each as an `::error::` annotation naming the digest and the files that
 pin it, and writes the same lines to the job summary under `GITHUB_STEP_SUMMARY`

@@ -89,3 +89,15 @@ NESTED
   run diff "$REPO_ROOT/docker/minecraft/scripts/run_restore.sh" "$script"
   assert_success
 }
+
+@test "a template renders with the variables the test gives it" {
+  printf 'host={{ name }}\n{%% if on %%}yes\n{%% endif %%}' > "$TEST_ROOT/t.j2"
+  render_template "$TEST_ROOT/t.j2" '{"name":"h","on":true}' > "$TEST_ROOT/out"
+  assert_equal "$(cat "$TEST_ROOT/out")" $'host=h\nyes'
+}
+
+@test "a variable the test did not give fails the render" {
+  printf '{{ missing }}\n' > "$TEST_ROOT/t.j2"
+  run -1 render_template "$TEST_ROOT/t.j2" '{}'
+  assert_output --partial "'missing' is undefined"
+}

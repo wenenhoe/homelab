@@ -13,25 +13,27 @@ The tests are under [`tools/tests/shell/`](../../../../tools/tests/shell/), one 
 
 ## Running them
 
-From the repository root, fetch the pinned clones once and point Bats at them:
+From the repository root, install the locked environment, fetch the pinned clones once and point Bats at them:
 
 ```bash
+uv sync --group dev --locked
 (cd tools && python3 -m ci.shell_tests.fetch "$CLONES")
 BATS_LIB_PATH="$CLONES" "$CLONES/bats-core/bin/bats" tools/tests/shell
 ```
 
-`CLONES` is any directory the fetch may fill. The runner is the fetched `bats-core`, and `BATS_LIB_PATH` is where `bats_load_library` finds `bats-support` and `bats-assert`. The suite needs Bash and GNU coreutils, as the hosts have, and no network once the clones exist.
+`CLONES` is any directory the fetch may fill. The runner is the fetched `bats-core`, and `BATS_LIB_PATH` is where `bats_load_library` finds `bats-support` and `bats-assert`. The suite needs Bash, GNU coreutils and `uv`, as the hosts and the runner have, and no network once the clones and the environment exist.
 
 ## In CI
 
-The `shell-tests` job of `pr-checks.yml` runs when a pull request changes a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py` (the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)). It runs on the runner's own Bash, GNU userland and `python3` and installs nothing. It is not a matrix job, so it can be required directly: a pull request that changes none of those paths reports it skipped.
+The `shell-tests` job of `pr-checks.yml` runs when a pull request changes a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py` (the `shell_tests` output in [Change scoping](change-scoping.md#change-scoped-not-a-full-sweep)). It runs on the runner's own Bash and GNU userland, with the locked environment for the templates and `python3` for the fetch. It is not a matrix job, so it can be required directly: a pull request that changes none of those paths reports it skipped.
 
 Its steps, in order:
 
 1. Look for a `.bats` file under `tools/tests/shell/`. `bats-core` 1.14 exits non-zero when it finds no test, and the path filter can't tell a change with no suite behind it from one with, so with no `.bats` file the job ends with a notice and the steps below are skipped.
 2. When the pin file or the tooling beside it changed, check each pinned tag with [`ci.shell_tests.pins`](shell-test-pins.md#checking-the-pins). A change to an unrelated script is not held to it, so a publisher moving a tag fails the weekly run rather than an unrelated pull request.
-3. Fetch the pinned clones into the runner's temp directory with `ci.shell_tests.fetch`.
-4. Run `bats` from the fetched `bats-core` over `tools/tests/shell` with `--print-output-on-failure`.
+3. Install the locked environment with the `setup-uv-ansible` action, which restores the shared uv cache and never saves it. The tests render the `.sh.j2` templates with the Jinja2 in `uv.lock`, so the job waits for `warm-uv-cache` like the other jobs that restore it.
+4. Fetch the pinned clones into the runner's temp directory with `ci.shell_tests.fetch`.
+5. Run `bats` from the fetched `bats-core` over `tools/tests/shell` with `--print-output-on-failure`.
 
 Any matching change runs every test file, not only the one for the script that changed.
 
@@ -42,6 +44,7 @@ Any matching change runs every test file, not only the one for the script that c
 - **Fail-by-default stubs.** A directory of stubs comes first on `PATH`, with one for every external tool a script under test calls (`HARNESS_EXTERNAL_TOOLS`). Until a test replaces it with `stub`, a stub exits 127 and records the call, so a test that forgets one fails instead of running the real `docker`, `bao` or `ssh`. A script that swallows a failing command (`|| true`) would hide the forgotten stub from its exit status, so `harness_teardown` fails the test when any unstubbed call was recorded. A tool a script starts to call is added to the list.
 - **Stubs that record.** `stub NAME` writes an executable that appends its arguments, one line, to the call log and then runs the body the test gives it. `calls_to NAME` reads the log back. A test makes a stub fail or succeed by what the body does, usually from an environment variable the test sets for one `run`.
 - **The script is a copy.** `install_script PATH` copies a script from the repository into the test's own tree at the same relative path and prints the copy's path. The scripts find their files relative to themselves, so what they find is the test's directory and not the checkout.
+- **Templates.** `render_template TEMPLATE VARIABLES_JSON` prints a `.sh.j2` template rendered by the Jinja2 locked in `uv.lock`, run through `uv run --frozen`. A variable the template uses and the test leaves out fails the render instead of becoming an empty string, so a template that starts to use a new variable fails its test until the test supplies it. The test redirects the output into a file and makes it executable. Molecule stays the authority on how Ansible itself renders the template.
 - **Nothing outside the test directory.** `TMPDIR` and `HOME` point into the test's own directory, so a script's `mktemp -d` scratch directory lands there and is checked empty afterwards, and `GITHUB_STEP_SUMMARY` and `GITHUB_OUTPUT` are unset so a CI run's job summary is not appended to.
 
 The commands a script runs that are not stubbed (`date`, `stat`, `tar`, `ls`, `find`, `du`) run on the machine's own userland.

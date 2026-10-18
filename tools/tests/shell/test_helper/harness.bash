@@ -7,7 +7,7 @@
 # real tool. Add a tool to HARNESS_EXTERNAL_TOOLS when a script under test
 # starts to call it; the tools a script runs on the runner's own userland
 # (date, stat, tar, ls, find, du) are not listed.
-HARNESS_EXTERNAL_TOOLS=(bao docker git gpg molecule python3 ssh stty)
+HARNESS_EXTERNAL_TOOLS=(bao curl docker git gpg molecule openssl python3 ssh stty)
 
 harness_setup() {
   # `run` flags and `run !` need 1.5.0.
@@ -16,6 +16,9 @@ harness_setup() {
   bats_load_library bats-assert
 
   REPO_ROOT=$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)
+  # uv keeps its cache and interpreters under $HOME, which is redirected below.
+  RENDER_UV_CACHE_DIR=${UV_CACHE_DIR:-$(uv cache dir)}
+  RENDER_UV_PYTHON_DIR=${UV_PYTHON_INSTALL_DIR:-$(uv python dir)}
   TEST_ROOT="$BATS_TEST_TMPDIR/tree"
   STUB_BIN="$BATS_TEST_TMPDIR/stubs"
   CALLS="$BATS_TEST_TMPDIR/calls"
@@ -76,4 +79,17 @@ install_script() {
   mkdir -p "$TEST_ROOT/$(dirname "$1")"
   cp "$REPO_ROOT/$1" "$TEST_ROOT/$1"
   printf '%s\n' "$TEST_ROOT/$1"
+}
+
+# render_template TEMPLATE VARIABLES_JSON: renders a Jinja2 template from the
+# file with the Jinja2 locked in uv.lock, and prints the result. A variable the
+# template uses and the JSON lacks fails the render. To run the result,
+# redirect it into a file and make that executable.
+render_template() {
+  # uv leaves a lock file in TMPDIR; the script under test's scratch directory
+  # is checked empty afterwards, so the render gets one of its own.
+  mkdir -p "$BATS_TEST_TMPDIR/render-tmp"
+  TMPDIR="$BATS_TEST_TMPDIR/render-tmp" UV_CACHE_DIR="$RENDER_UV_CACHE_DIR" UV_PYTHON_INSTALL_DIR="$RENDER_UV_PYTHON_DIR" \
+    uv run --frozen --project "$REPO_ROOT" python -I \
+    "$REPO_ROOT/tools/tests/shell/test_helper/render_template.py" "$1" "$2"
 }

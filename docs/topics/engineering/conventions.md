@@ -190,6 +190,10 @@ and how to run them and what the harness does is in
   check is `run !`, never a bare `!`, which does not fail a Bats test;
   `shellcheck` flags it. A test for a side effect asserts the side effect
   happened, as in the Python tests above.
+- **Templates.** A `.sh.j2` template is rendered with `render_template`
+  and the variables the test gives it, and the rendered file is the script
+  under test. The render fails on a variable the test leaves out, so a test
+  gives every variable the template uses.
 - **Isolation.** A test writes only under its own temporary directory.
   The harness points `TMPDIR` and `HOME` there and copies the script under
   test into it, so what the script finds relative to itself is the test's

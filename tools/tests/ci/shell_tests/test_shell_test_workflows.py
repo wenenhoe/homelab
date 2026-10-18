@@ -54,7 +54,10 @@ def shell_scripts():
 
 class TestJob:
     def test_it_runs_only_when_the_filter_matched(self, job):
-        assert (job["needs"], job["if"]) == ("detect-changes", "needs.detect-changes.outputs.shell_tests == 'true'")
+        assert job["if"] == "needs.detect-changes.outputs.shell_tests == 'true'"
+
+    def test_it_waits_for_the_uv_cache_it_restores(self, job):
+        assert job["needs"] == ["detect-changes", "warm-uv-cache"]
 
     def test_detect_changes_passes_both_verdicts_on(self, pr_checks):
         outputs = pr_checks["jobs"]["detect-changes"]["outputs"]
@@ -69,11 +72,15 @@ class TestJob:
     def test_the_run_is_bounded(self, job):
         assert job["timeout-minutes"] <= 15
 
-    def test_it_installs_nothing_but_the_checkout(self, job):
-        assert [step["uses"].split("@")[0] for step in job["steps"] if "uses" in step] == ["actions/checkout"]
+    def test_it_installs_only_the_locked_environment_the_templates_are_rendered_in(self, job):
+        assert [step["uses"].split("@")[0] for step in job["steps"] if "uses" in step] == ["actions/checkout", "./.github/actions/setup-uv-ansible"]
+
+    def test_that_environment_is_the_locked_one_and_does_not_save_the_cache(self, job):
+        (step,) = [step for step in job["steps"] if step.get("uses") == "./.github/actions/setup-uv-ansible"]
+        assert step["with"] == {"locked": "true"}
 
     def test_the_checkout_keeps_no_credential(self, job):
-        (checkout,) = [step for step in job["steps"] if "uses" in step]
+        (checkout,) = [step for step in job["steps"] if step.get("uses", "").startswith("actions/checkout@")]
         assert checkout["with"] == {"persist-credentials": False}
 
     def test_the_clones_are_fetched_with_plain_python3_from_tools_into_the_runners_temp_directory(self, job):
@@ -84,9 +91,13 @@ class TestJob:
         run = step_running(job, 'BATS_LIB_PATH="$RUNNER_TEMP/bats"')["run"]
         assert run == 'BATS_LIB_PATH="$RUNNER_TEMP/bats" "$RUNNER_TEMP/bats/bats-core/bin/bats" --print-output-on-failure tools/tests/shell'
 
-    def test_the_run_and_the_fetch_wait_for_a_suite_to_exist(self, job):
-        steps = [step_running(job, "python3 -m ci.shell_tests.fetch"), step_running(job, 'BATS_LIB_PATH="$RUNNER_TEMP/bats"')]
-        assert [step["if"] for step in steps] == ["steps.suite.outputs.present == 'true'"] * 2
+    def test_the_install_the_fetch_and_the_run_wait_for_a_suite_to_exist(self, job):
+        steps = [
+            *[step for step in job["steps"] if step.get("uses") == "./.github/actions/setup-uv-ansible"],
+            step_running(job, "python3 -m ci.shell_tests.fetch"),
+            step_running(job, 'BATS_LIB_PATH="$RUNNER_TEMP/bats"'),
+        ]
+        assert [step["if"] for step in steps] == ["steps.suite.outputs.present == 'true'"] * 3
 
     def test_the_pin_check_runs_only_when_the_pins_or_their_tooling_changed(self, job):
         step = step_running(job, "python3 -m ci.shell_tests.pins check")

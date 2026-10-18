@@ -28,7 +28,6 @@ import argparse
 import os
 import sys
 import time
-from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -36,14 +35,13 @@ from ci import proc
 from ci.images.remote import RemoteError, collect
 from ci.provenance.pins import Pin, pinned
 from ci.provenance.registry import ENTRIES, Attested, Entry, Signed, validate
+from ci.verification import ATTEMPTS, Sleep, attestation, verified
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-ATTEMPTS = 3
 # Version 3 or later: version 2 finds no signature on some images that version 3 verifies.
 COSIGN_IMAGE = "ghcr.io/sigstore/cosign/cosign:v3.1.3@sha256:9e5c2f2edc34351160407ca3416c61855bdf9403c3c5936e0f0be7fc261611b8"
 # Where a committed key is mounted inside the container.
 CONTAINER_KEY = "/key.pub"
-Sleep = Callable[[float], None]
 
 
 @dataclass(frozen=True)
@@ -57,26 +55,8 @@ class Outcome:
         return not self.errors
 
 
-def _verified(command: str, argv: list[str], root: Path, run: proc.Runner, sleep: Sleep, attempts: int) -> str | None:
-    """None when the tool exits 0 within its attempts, else why not."""
-    code = 0
-    for attempt in range(attempts):
-        if attempt:
-            sleep(2.0**attempt)
-        try:
-            # Both tools print what they verified; the exit code is the whole answer.
-            done = run(argv, root, True)
-        except FileNotFoundError:
-            return f"{argv[0]} is not installed"
-        if done.returncode == 0:
-            return None
-        code = done.returncode
-    return f"{command} exited {code} after {attempts} attempts"
-
-
 def _attested(entry: Attested, pin: Pin, root: Path, run: proc.Runner, sleep: Sleep, attempts: int) -> str | None:
-    argv = ["gh", "attestation", "verify", f"oci://{pin.reference}", "--repo", entry.repository]
-    return _verified("gh attestation verify", argv, root, run, sleep, attempts)
+    return attestation(f"oci://{pin.reference}", entry.repository, root, run, sleep, attempts)
 
 
 def _cosign(root: Path, key: str | None) -> list[str]:
@@ -101,7 +81,7 @@ def _signed(entry: Signed, pin: Pin, root: Path, run: proc.Runner, sleep: Sleep,
         argv = [*base, "--certificate-identity", entry.identity, "--certificate-oidc-issuer", entry.issuer or "", pin.reference]
     else:
         argv = [*base, "--certificate-identity-regexp", entry.identity_regexp or "", "--certificate-oidc-issuer", entry.issuer or "", pin.reference]
-    return _verified("cosign verify", argv, root, run, sleep, attempts)
+    return verified("cosign verify", argv, root, run, sleep, attempts)
 
 
 def check_entry(root: Path, entry: Entry, pins: list[Pin], run: proc.Runner, sleep: Sleep = time.sleep, attempts: int = ATTEMPTS) -> Outcome:

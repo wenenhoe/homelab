@@ -36,6 +36,7 @@ from typing import IO, Any
 from ci import proc
 from ci.checksums import gpg, manifest, pins
 from ci.checksums.registry import ENTRIES, Attested, Entry, Listed, Signed, Unchecked
+from ci.verification import ATTEMPTS, backoff
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MANIFEST_LIMIT = 1 << 20
@@ -57,7 +58,7 @@ class Http:
     Anything else, a 404 included, is final. `schemes` is widened only by tests, to reach a local server.
     """
 
-    def __init__(self, schemes: tuple[str, ...] = ("https",), attempts: int = 3, sleep: Callable[[float], None] = time.sleep) -> None:
+    def __init__(self, schemes: tuple[str, ...] = ("https",), attempts: int = ATTEMPTS, sleep: Callable[[float], None] = time.sleep) -> None:
         self.schemes = schemes
         self.attempts = attempts
         self.sleep = sleep
@@ -78,7 +79,7 @@ class Http:
         last = ""
         for attempt in range(self.attempts):
             if attempt:
-                self.sleep(2.0**attempt)
+                self.sleep(backoff(attempt))
             try:
                 with self._opener.open(request, timeout=30) as reply:
                     return consume(reply)

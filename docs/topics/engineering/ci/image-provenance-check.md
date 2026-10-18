@@ -128,7 +128,7 @@ API that did not answer, so a digest that could not be verified fails its
 entry, as in [`release-checksum-check.md`](release-checksum-check.md) and
 unlike the image tag check, where a silent registry is a warning. Each call is
 made up to `ATTEMPTS` times (see
-[`verify.py`](../../../../tools/ci/provenance/verify.py)), pausing longer
+[`verification.py`](../../../../tools/ci/verification.py)), pausing longer
 between attempts, so a failure that passes on a second try does not fail a run
 and a statement that is missing fails every attempt. A tool that is not
 installed fails at once. A publisher that moves or rotates its signing identity

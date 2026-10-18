@@ -108,6 +108,9 @@ class TestFilter:
     def test_a_change_to_the_check_or_its_keys_matches(self, filters):
         assert "tools/ci/checksums/**" in filters
 
+    def test_a_change_to_the_verifier_calls_it_shares_with_the_provenance_check_matches(self, filters):
+        assert "tools/ci/verification.py" in filters
+
     @pytest.mark.parametrize("entry", ENTRIES, ids=lambda entry: entry.name)
     def test_a_change_to_the_file_holding_an_entrys_pin_matches(self, entry, filters):
         assert entry.pin.path in filters

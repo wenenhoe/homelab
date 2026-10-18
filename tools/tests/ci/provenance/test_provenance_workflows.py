@@ -119,6 +119,9 @@ class TestFilter:
     def test_a_change_to_the_check_its_registry_or_its_keys_matches(self, filters):
         assert "tools/ci/provenance/**" in filters
 
+    def test_a_change_to_the_verifier_calls_it_shares_with_the_checksum_check_matches(self, filters):
+        assert "tools/ci/verification.py" in filters
+
     def test_a_change_to_any_file_that_pins_an_image_matches(self, collected, filters, subtests):
         sources = sorted({source for files in collected.images.values() for source in files})
         assert sources

@@ -93,6 +93,7 @@ python_unit_tests:
 # small and the run is cheap, so any change to one is worth a look.
 release_checksums:
   - 'tools/ci/checksums/**'
+  - 'tools/ci/verification.py'
   - 'ansible/roles/cd_agent/defaults/main.yaml'
   - 'ansible/roles/openbao_cli/defaults/main.yaml'
   - 'tools/coderabbit-review/Dockerfile'
@@ -103,6 +104,7 @@ release_checksums:
 # ci.scope.effective_changes: the run is cheap, so any change to one is worth a look.
 image_provenance:
   - 'tools/ci/provenance/**'
+  - 'tools/ci/verification.py'
   - 'docker/**'
   - 'ansible/**'
   - 'tools/coderabbit-review/Dockerfile'

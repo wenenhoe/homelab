@@ -2,7 +2,7 @@
 id: PROJ-image-digest-provenance
 title: "Image Digest Provenance"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Check each pinned image digest against its publisher's signature or attestation, and have the repository's own image builds attest what they push."
 decision: ADR-0084/0
@@ -42,10 +42,10 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | The checker | Not started | `python3 -m ci.provenance.verify` reads a registry, takes every pinned digest of each listed image repository from the tree, and verifies it by its tier: `gh attestation verify` for *attested*, `cosign verify` with the entry's certificate identity and issuer or its committed public key for *signed*, nothing for *unsigned*. Unit tests with `gh` and `cosign` doubled cover a failing exit, an identity other than the entry's, a repository other than the entry's, an entry with no identity, and a negative control run against the wrong repository that must fail. `test_stdlib_only.py` lists the new modules |
-| 2 | Registry entries for the pinned images | Not started | Every image repository the tree pins has exactly one entry, and a test fails when one is missing or an entry matches nothing. Each third-party entry's tier and identity are the ones ADR 0084 records. The repository's own `ghcr.io/wenenhoe/*` images are *unsigned* with a reason that says they are not attested yet |
-| 3 | Run it in CI | Not started | The cosign version 3 container image is pinned by digest in the checker, tracked by a Renovate manager and covered by the image tag check. A `provenance` job in `pr-checks.yml` runs on a change to a pinned image reference or the registry, and `check-image-provenance.yml` runs weekly and on demand. Both use the runner's `gh` with the read-only token, and a failing entry fails the run. `docs/topics/engineering/ci/image-provenance-check.md` describes it, and the CI pages and the README and SECURITY control lists link it |
-| 4 | Self-built images are attested | Not started | Each of the four `build-*-image.yml` workflows attests the digest it pushes with `actions/attest`, pinned to a commit SHA, with `id-token: write` and `attestations: write` on the build job and nothing wider, and a workflow test asserts those permissions. After merge, a build of each image produces a digest that `gh attestation verify -R wenenhoe/homelab` passes |
+| 1 | The checker | Done | `python3 -m ci.provenance.verify` reads a registry, takes every pinned digest of each listed image repository from the tree, and verifies it by its tier: `gh attestation verify` for *attested*, `cosign verify` with the entry's certificate identity and issuer or its committed public key for *signed*, nothing for *unsigned*. Unit tests with `gh` and `cosign` doubled cover a failing exit, an identity other than the entry's, a repository other than the entry's, an entry with no identity, and a negative control run against the wrong repository that must fail. `test_stdlib_only.py` lists the new modules |
+| 2 | Registry entries for the pinned images | Done | Every image repository the tree pins has exactly one entry, and a test fails when one is missing or an entry matches nothing. Each third-party entry's tier and identity are the ones ADR 0084 records. The repository's own `ghcr.io/wenenhoe/*` images are *unsigned* with a reason that says they are not attested yet |
+| 3 | Run it in CI | Done | The cosign version 3 container image is pinned by digest in the checker, tracked by a Renovate manager and covered by the image tag check. A `provenance` job in `pr-checks.yml` runs on a change to a pinned image reference or the registry, and `check-image-provenance.yml` runs weekly and on demand. Both use the runner's `gh` with the read-only token, and a failing entry fails the run. `docs/topics/engineering/ci/image-provenance-check.md` describes it, and the CI pages and the README and SECURITY control lists link it |
+| 4 | Self-built images are attested | In progress | Each of the four `build-*-image.yml` workflows attests the digest it pushes with `actions/attest`, pinned to a commit SHA, with `id-token: write` and `attestations: write` on the build job and nothing wider, and a workflow test asserts those permissions. After merge, a build of each image produces a digest that `gh attestation verify -R wenenhoe/homelab` passes |
 | 5 | Own images become *attested* entries | Not started | Each `ghcr.io/wenenhoe/*` compose pin and Molecule image reference is an attested digest, each entry is *attested* naming this repository, and the check passes on the pull request that flips the last of them |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -77,12 +77,11 @@ Today's pins for the repository's own images were built before any attestation e
 - A signature or attestation that the registry shows is as good as the publisher's identity. Smallstep's is a reusable workflow at `refs/heads/main`, so the *signed* entry for its two images accepts any commit to that branch; the entry records what the publisher offers and no more.
 - A publisher that moves or rotates its signing identity fails the weekly run until a human reviews the entry. That is the intended behaviour, and it will recur.
 - cosign 2 finds no signature on the OpenBao and curl images that cosign 3 verifies, so the pinned cosign image must stay at version 3 or later; a Renovate bump that crossed back would fail those entries.
-- The weekly run depends on GitHub's attestations API and on three registries answering. A registry that never answers fails the run, as the Decision says, so stage 1 needs its retry behaviour to be deliberate.
+- The weekly run depends on GitHub's attestations API and on three registries answering. A registry that never answers fails the run after the checker's retries, so a weekly run can fail with nothing wrong in the tree; [`image-provenance-check.md`](../topics/engineering/ci/image-provenance-check.md) says how calls are retried.
 - The four build workflows hold a package-write token and gain `id-token: write`; nothing else in them may widen.
 
 ## Open items
 
-- **A call that gets no answer.** The Decision fails the run on a failed verification and does not say whether an unreachable registry or API counts. [`image-tag-check.md`](../topics/engineering/ci/image-tag-check.md) treats a silent registry as a warning; stage 1 decides, and writes the choice in the topic doc, without changing the Decision.
 - **An image published to both registries with different statements.** ADR 0085's reconsideration trigger covers a publisher that signs differently per registry. If the registry needs one entry per reference rather than per repository for such an image, that is a change to ADR 0084 to propose, not to improvise.
 - **`11notes/kms`.** Its workflow requests an attestation and GitHub holds none for the pinned digest, so it is *unsigned* today. If the publisher begins to attest, the entry changes tier in its own change.
 

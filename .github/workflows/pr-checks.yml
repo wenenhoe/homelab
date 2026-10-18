@@ -23,6 +23,7 @@ jobs:
       ansible_lint: ${{ steps.filter.outputs.ansible_lint }}
       trivy_ansible: ${{ steps.filter.outputs.trivy_ansible }}
       release_checksums: ${{ steps.filter.outputs.release_checksums }}
+      image_provenance: ${{ steps.filter.outputs.image_provenance }}
       mermaid_check: ${{ steps.filter.outputs.mermaid_check }}
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
       roles: ${{ steps.roles.outputs.roles }}
@@ -530,6 +531,30 @@ jobs:
       # authenticates with.
       - name: Check every pinned release checksum against its publisher
         run: python3 -m ci.checksums.verify
+        working-directory: tools
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  # Shows that each pinned image digest is one its publisher signed or attested
+  # (ADR 0084) — see docs/topics/engineering/ci/image-provenance-check.md.
+  # Not a matrix job, so it can be required directly: a PR that changes no
+  # image reference reports it skipped.
+  provenance:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.image_provenance == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Stdlib-only, so plain python3 (no uv). gh and docker come with the
+      # runner image, and docker runs the pinned cosign image. The read-only
+      # token is what `gh attestation verify` authenticates with.
+      - name: Check every pinned image digest against its publisher
+        run: python3 -m ci.provenance.verify
         working-directory: tools
         env:
           GH_TOKEN: ${{ github.token }}

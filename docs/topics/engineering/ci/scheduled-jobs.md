@@ -37,6 +37,14 @@ it verifies and how it fails is in
 [CI Release Checksum Check](release-checksum-check.md). GitHub emails a failed scheduled
 run to the person who last changed the schedule.
 
+## Image provenance check
+
+`check-image-provenance.yml` runs weekly and on demand, asking each publisher
+again whether the pinned image digests are theirs. It is the same check the
+`provenance` PR job runs when an image reference changes; what it verifies and how
+it fails is in [CI Image Provenance Check](image-provenance-check.md). GitHub
+emails a failed scheduled run to the person who last changed the schedule.
+
 ## Image vulnerability assessment
 
 Runs once a week from the private `homelab-security` repo (its schedule ticks daily

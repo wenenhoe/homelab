@@ -127,7 +127,12 @@ and why). It runs in two places:
   trivially.
 
 In both, a project's scope is read from the doc **as it stands on the
-base**, so a change can't widen its own scope and then use it. A project
+base**, so a change can't widen its own scope and then use it. The
+decision revisions a project's close edits need no entry: the one
+`decision:` names, each one in `also_implements:`, and the revision each
+supersedes. They come from the base project doc and from the `supersedes:`
+the base revision has, never from the change, so a change can't add one
+([`doc_scope.lifecycle_paths`](../../../../tools/doc_scripts/doc_scope.py)). A project
 binds a change only if the change *works* its doc: its frontmatter or a
 stage's number or status in the Execution plan table differs from the base,
 or the doc is deleted. A prose or link edit to the doc, such as a sweep

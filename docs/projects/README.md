@@ -108,7 +108,9 @@ Stage 2 sets ADR 0050 to `accepted`) is the existing example.
 confirms each entry resolves to a real revision — it exists so
 [`project-planning.md`'s "Decisions awaiting a project"](../project-planning.md#decisions-awaiting-a-project)
 view can tell this ADR is covered without scanning every project's
-prose for a mention. Don't confuse this with a project that simply has
+prose for a mention. It also exempts that revision, and the one it
+supersedes, from `allowed_paths` (see [Scope](#scope)). Don't confuse
+this with a project that simply has
 no `decision:` yet because nothing is `approved`: no ADR is being
 carried out there, one just isn't chosen yet, and it has neither field
 set.
@@ -151,8 +153,12 @@ the doc's prose or links, as a wording or link sweep across every doc
 does, doesn't tie the change to it. Every other file that change touches must
 match `allowed_paths`, apart from what the workflow itself produces:
 project docs, the generated decisions index and project-planning view
-(a status change regenerates both), and the revision the project's
-`decision:` names, so the permitted ADR edits stay possible. A
+(a status change regenerates both), and the decision revisions its
+close edits: the one `decision:` names, each one in `also_implements:`,
+and the revision each of those supersedes, since accepting a successor
+marks its predecessor `superseded`. The predecessor is the one named by
+the `supersedes:` the revision has on the base branch, so a change can't
+exempt a file by adding that field. A
 change that works no project doc isn't project work and isn't checked.
 One that touches several scoped projects gets the union of their scopes.
 

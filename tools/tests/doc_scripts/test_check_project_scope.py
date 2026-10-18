@@ -163,6 +163,33 @@ class TestPullRequestMode:
         repo.commit("a neighbour, not the linked one")
         assert repo.pr()[0] == 1
 
+    def test_closing_a_project_may_supersede_the_revision_its_decision_replaces(self, repo):
+        repo.write(PROJECT, project_doc(["src/**"], decision="ADR-0001/1"))
+        repo.write("docs/decisions/0001-x/revision-000.md", "adr\n")
+        repo.write("docs/decisions/0001-x/revision-001.md", "---\nsupersedes: 0\n---\nadr\n")
+        repo.commit("link a successor decision")
+        repo.branch()
+        repo.git("rm", "-q", PROJECT)
+        repo.write("docs/decisions/0001-x/revision-000.md", "adr, superseded\n")
+        repo.write("docs/decisions/0001-x/revision-001.md", "---\nsupersedes: 0\n---\nadr, accepted\n")
+        repo.commit("close the project")
+        code, out = repo.pr()
+        assert code == 0, out
+
+    def test_a_change_cannot_exempt_a_revision_by_adding_the_supersedes_that_names_it(self, repo):
+        repo.write(PROJECT, project_doc(["src/**"], decision="ADR-0001/1"))
+        repo.write("docs/decisions/0001-x/revision-000.md", "adr\n")
+        repo.write("docs/decisions/0001-x/revision-001.md", "adr\n")
+        repo.commit("link a decision that supersedes nothing yet")
+        repo.branch()
+        repo.write("docs/decisions/0001-x/revision-001.md", "---\nsupersedes: 0\n---\nadr\n")
+        repo.write("docs/decisions/0001-x/revision-000.md", "adr, edited\n")
+        repo.write(PROJECT, project_doc(["src/**"], decision="ADR-0001/1", stage="In progress"))
+        repo.commit("add the supersedes and use it in one change")
+        code, out = repo.pr()
+        assert code == 1, out
+        assert "revision-000.md" in out
+
     def test_editing_a_project_docs_prose_does_not_bind_the_change_to_it(self, repo):
         repo.branch()
         repo.write("other/b.py", "b = 2\n")

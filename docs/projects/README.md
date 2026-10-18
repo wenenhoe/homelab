@@ -231,6 +231,7 @@ here.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
+| [`backup-agent-docker-api-rules.md`](backup-agent-docker-api-rules.md) | — | Not started — ready | Give the backup agent's Docker socket proxy a rules file that allows only the calls the agent makes, in place of capability flags. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md) | — | Not started — waiting on [`cd-agent-approles.md`](cd-agent-approles.md) | One operator-host command that delivers each CD agent job's credentials, and the secret_id rotation that reuses it. |

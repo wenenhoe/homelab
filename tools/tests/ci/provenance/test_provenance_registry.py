@@ -9,7 +9,7 @@ import re
 
 import pytest
 from ci.images import remote
-from ci.provenance import registry
+from ci.provenance import pins, registry
 from ci.provenance.registry import ENTRIES, Attested, Signed, Tier, Unsigned
 
 ISSUER = "https://token.actions.githubusercontent.com"
@@ -177,6 +177,8 @@ class TestRealRegistry:
     def test_each_image_has_the_tier_its_publisher_offers(self):
         assert {entry.image: entry.tier for entry in ENTRIES if entry.tier is not Tier.UNSIGNED} == {
             "ghcr.io/lissy93/dashy": Tier.ATTESTED,
+            "ghcr.io/wenenhoe/caddy-digitalocean": Tier.ATTESTED,
+            "ghcr.io/wenenhoe/wastebin": Tier.ATTESTED,
             "openbao/openbao": Tier.SIGNED,
             "smallstep/step-ca": Tier.SIGNED,
             "smallstep/step-cli": Tier.SIGNED,
@@ -224,8 +226,14 @@ class TestRealRegistry:
                 text = (remote.REPO_ROOT / registry.KEYS / name).read_text()
                 assert (text.count("-----BEGIN PUBLIC KEY-----"), text.count("-----END PUBLIC KEY-----")) == (1, 1)
 
-    def test_the_repositorys_own_images_are_unsigned_and_say_their_pin_predates_attestation(self):
-        own = [entry for entry in ENTRIES if entry.image.startswith("ghcr.io/wenenhoe/")]
-        assert [entry.tier for entry in own] == [Tier.UNSIGNED] * len(own)
-        assert all("before the workflow attested" in entry.reason for entry in own if isinstance(entry, Unsigned))
-        assert len(own) == 3
+    def test_the_images_the_repository_pins_by_digest_are_attested_for_this_repository(self, subtests):
+        pinned = {pin.registry_key for pin in pins.pinned(remote.collect(remote.REPO_ROOT))[0]}
+        own = [entry for entry in ENTRIES if entry.image.startswith("ghcr.io/wenenhoe/") and entry.registry_key in pinned]
+        assert len(own) == 2
+        for entry in own:
+            with subtests.test(image=entry.image):
+                assert (entry.tier, entry.repository) == (Tier.ATTESTED, "wenenhoe/homelab")
+
+    def test_the_repositorys_image_that_follows_a_floating_tag_is_unsigned_and_says_so(self):
+        (entry,) = [entry for entry in ENTRIES if entry.image == "ghcr.io/wenenhoe/molecule-dind"]
+        assert (entry.tier, "follow the :latest tag" in entry.reason) == (Tier.UNSIGNED, True)

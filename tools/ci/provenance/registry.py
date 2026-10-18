@@ -132,7 +132,7 @@ Entry = Attested | Signed | Unsigned
 
 _ACTIONS = "https://token.actions.githubusercontent.com"
 _NO_STATEMENT = "no signature or attestation from the publisher was found that ties the image to an identity this repository can fix"
-_BUILT_HERE = "built by this repository's workflow, but the pinned digest was pushed before the workflow attested its builds"
+_FLOATING_TAG = "built and attested by this repository's workflow, but its references follow the :latest tag, so no digest is pinned to verify"
 
 ENTRIES: tuple[Entry, ...] = (
     Attested(image="ghcr.io/lissy93/dashy", repository="Lissy93/dashy"),
@@ -166,9 +166,9 @@ ENTRIES: tuple[Entry, ...] = (
     ),
     Unsigned(image="ubuntu/bind9", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
     Unsigned(image="quxfoo/wastebin", reason="no signing or attestation step was found, and the pinned digest has no signature or attestation from its owner"),
-    Unsigned(image="ghcr.io/wenenhoe/caddy-digitalocean", reason=_BUILT_HERE),
-    Unsigned(image="ghcr.io/wenenhoe/molecule-dind", reason=_BUILT_HERE),
-    Unsigned(image="ghcr.io/wenenhoe/wastebin", reason=_BUILT_HERE),
+    Attested(image="ghcr.io/wenenhoe/caddy-digitalocean", repository="wenenhoe/homelab"),
+    Unsigned(image="ghcr.io/wenenhoe/molecule-dind", reason=_FLOATING_TAG),
+    Attested(image="ghcr.io/wenenhoe/wastebin", repository="wenenhoe/homelab"),
     Unsigned(image="alpine", reason=_NO_STATEMENT),
     Unsigned(image="amazon/aws-cli", reason=_NO_STATEMENT),
     Unsigned(image="busybox", reason=_NO_STATEMENT),

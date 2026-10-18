@@ -1,0 +1,79 @@
+# Shared by every shell test file: `load test_helper/harness`, call
+# harness_setup from setup() and harness_teardown from teardown().
+#
+# Every external tool a script under test calls has a stub in a directory that
+# comes first on PATH. Until a test replaces it with `stub`, it fails and
+# records the call, so a test that forgets one fails instead of running the
+# real tool. Add a tool to HARNESS_EXTERNAL_TOOLS when a script under test
+# starts to call it; the tools a script runs on the runner's own userland
+# (date, stat, tar, ls, find, du) are not listed.
+HARNESS_EXTERNAL_TOOLS=(bao docker git gpg molecule python3 ssh stty)
+
+harness_setup() {
+  # `run` flags and `run !` need 1.5.0.
+  bats_require_minimum_version 1.5.0
+  bats_load_library bats-support
+  bats_load_library bats-assert
+
+  REPO_ROOT=$(cd "$BATS_TEST_DIRNAME/../../.." && pwd)
+  TEST_ROOT="$BATS_TEST_TMPDIR/tree"
+  STUB_BIN="$BATS_TEST_TMPDIR/stubs"
+  CALLS="$BATS_TEST_TMPDIR/calls"
+  UNSTUBBED="$BATS_TEST_TMPDIR/unstubbed"
+  mkdir -p "$TEST_ROOT" "$STUB_BIN" "$BATS_TEST_TMPDIR/tmp" "$BATS_TEST_TMPDIR/home"
+  : > "$CALLS"
+  : > "$UNSTUBBED"
+
+  # A script's scratch directories and anything it writes under $HOME land in
+  # the test's own directory, and a CI run's job summary and outputs are not
+  # appended to.
+  export CALLS UNSTUBBED TMPDIR="$BATS_TEST_TMPDIR/tmp" HOME="$BATS_TEST_TMPDIR/home"
+  unset GITHUB_STEP_SUMMARY GITHUB_OUTPUT
+
+  local tool
+  for tool in "${HARNESS_EXTERNAL_TOOLS[@]}"; do
+    cat > "$STUB_BIN/$tool" <<'BODY'
+#!/usr/bin/env bash
+printf '%s\n' "${0##*/}" >> "$UNSTUBBED"
+printf '%s: not stubbed by this test (called with: %s)\n' "${0##*/}" "$*" >&2
+exit 127
+BODY
+    chmod +x "$STUB_BIN/$tool"
+  done
+  PATH="$STUB_BIN:$PATH"
+}
+
+# A script that tolerates a failing command (`|| true`, `if ! ...`) would hide a
+# forgotten stub from its exit status, so the call record is checked here too.
+harness_teardown() {
+  if [ -s "$UNSTUBBED" ]; then
+    fail "external tools called without a stub: $(sort -u "$UNSTUBBED" | tr '\n' ' ')"
+  fi
+}
+
+# stub NAME <<'BODY' ... BODY: replaces NAME with an executable that appends
+# its argv, one line, to $CALLS and then runs BODY.
+stub() {
+  {
+    cat <<'HEAD'
+#!/usr/bin/env bash
+{ printf '%s' "${0##*/}"; printf ' %q' "$@"; printf '\n'; } >> "$CALLS"
+HEAD
+    cat
+  } > "$STUB_BIN/$1"
+  chmod +x "$STUB_BIN/$1"
+}
+
+# calls_to NAME: the lines $CALLS holds for NAME, in call order.
+calls_to() {
+  grep "^$1 " "$CALLS" || true
+}
+
+# install_script PATH: copies a script from the repository into the test's own
+# tree at the same relative path, so what it finds relative to itself is the
+# test's directory, and prints the copy's path.
+install_script() {
+  mkdir -p "$TEST_ROOT/$(dirname "$1")"
+  cp "$REPO_ROOT/$1" "$TEST_ROOT/$1"
+  printf '%s\n' "$TEST_ROOT/$1"
+}

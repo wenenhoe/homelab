@@ -102,6 +102,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/image-tag-check.md`](engineering/ci/image-tag-check.md) | The weekly check that every pinned image tag still exists in its registry. |
 | [`ci/release-checksum-check.md`](engineering/ci/release-checksum-check.md) | The check that each pinned release hash is the one its publisher signed, attested or lists, on pull requests and weekly. |
 | [`ci/image-provenance-check.md`](engineering/ci/image-provenance-check.md) | The check that each pinned image digest is one its publisher signed or attested, the signer fixed in the repository, on pull requests and weekly. |
+| [`ci/shell-tests.md`](engineering/ci/shell-tests.md) | The Bats tests for the repo's shell scripts: where they live, how to run them on the pinned clones, the harness that fails on any tool a test did not stub, and what each file asserts. |
 | [`ci/shell-test-pins.md`](engineering/ci/shell-test-pins.md) | The Bats runner and libraries the shell tests run on, pinned by commit: the pin file, fetching the clones, and the check that each pinned tag still points at its commit. |
 | [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |

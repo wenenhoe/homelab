@@ -15,7 +15,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 
-from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT
+from doc_scripts.doc_frontmatter import REVISION_REF_RE, ROOT, ref_label
 
 PROJECT_DOC_RE = re.compile(r"docs/projects/(?!(?:README|TEMPLATE)\.md$)[^/]+\.md")
 # Bookkeeping the workflow itself produces for any project change: every project doc,
@@ -77,9 +77,9 @@ def matches(pattern: str, path: str) -> bool:
     return glob_to_regex(pattern).match(path) is not None
 
 
-def decision_revision_path(fm: dict, root: Path) -> str | None:
-    """Repo-relative path of the revision a project's `decision:` names, if it exists."""
-    m = REVISION_REF_RE.match(fm.get("decision", ""))
+def revision_path(ref: object, root: Path) -> str | None:
+    """Repo-relative path of the revision a reference like `ADR-0004/1` names, if it exists."""
+    m = REVISION_REF_RE.match(ref) if isinstance(ref, str) else None
     if not m:
         return None
     number, _, letter = m.group(2).partition("-")
@@ -88,29 +88,57 @@ def decision_revision_path(fm: dict, root: Path) -> str | None:
     return found[0].relative_to(root).as_posix() if found else None
 
 
+def decision_revision_path(fm: dict, root: Path) -> str | None:
+    """Repo-relative path of the revision a project's `decision:` names, if it exists."""
+    return revision_path(fm.get("decision"), root)
+
+
+def lifecycle_paths(fm: dict, base_frontmatter: Callable[[str], dict | None], root: Path = ROOT) -> dict[str, str]:
+    """The decision revisions a project's close edits, which its `allowed_paths` never has to list: the
+    one `decision:` names, each one in `also_implements:` (a stage sets it `accepted`), and the revision
+    each of those supersedes (accepting a successor marks its predecessor `superseded`). Maps each path to
+    why it is exempt: `decision`, `also_implements` or `superseded`.
+
+    Every one is fixed by the project doc and by the `supersedes:` of a revision it names, as they stood on
+    the base, so a change can't add one by editing either."""
+    refs = [("decision", fm.get("decision")), *(("also_implements", ref) for ref in fm.get("also_implements") or [])]
+    paths: dict[str, str] = {}
+    for role, ref in refs:
+        path = revision_path(ref, root)
+        if path is None:
+            continue
+        paths.setdefault(path, role)
+        label = ref_label((base_frontmatter(path) or {}).get("supersedes"))
+        predecessor = revision_path(f"{ref.partition('/')[0]}/{label}", root) if label is not None else None
+        if predecessor:
+            paths.setdefault(predecessor, "superseded")
+    return paths
+
+
 def scope_errors(
     changed: list[str],
-    base_project: Callable[[str], dict | None],
+    base_frontmatter: Callable[[str], dict | None],
     root: Path = ROOT,
     worked: Callable[[str], bool] = lambda path: True,
 ) -> list[str]:
     """`changed` are repo-relative posix paths the change touches (a rename counts as
-    both paths). `base_project(path)` returns a project doc's frontmatter as it stood
-    on the base of the change, or None if it didn't exist. Scope is read from the base
-    so a change can't widen its own scope and then use it. `worked(path)` says whether
-    the change works that project doc (see is_worked); a doc it merely touches in
-    passing binds nothing."""
+    both paths). `base_frontmatter(path)` returns a doc's frontmatter as it stood on the
+    base of the change, or None if it didn't exist: a project doc's, and a decision
+    revision's when looking up what it supersedes. Scope is read from the base so a
+    change can't widen its own scope and then use it. `worked(path)` says whether the
+    change works that project doc (see is_worked); a doc it merely touches in passing
+    binds nothing."""
     changed = sorted(set(changed))
     scoped = []
     for path in changed:
         if PROJECT_DOC_RE.fullmatch(path) and worked(path):
-            fm = base_project(path)
+            fm = base_frontmatter(path)
             if fm and fm.get("allowed_paths"):
                 scoped.append((path, fm))
     if not scoped:
         return []
     allowed = [glob_to_regex(p) for _, fm in scoped for p in fm["allowed_paths"]] + [glob_to_regex(p) for p in IMPLICIT_PATTERNS]
-    exact = {p for _, fm in scoped if (p := decision_revision_path(fm, root))}
+    exact = {p for _, fm in scoped for p in lifecycle_paths(fm, base_frontmatter, root)}
     owners = ", ".join(f"{fm['id']} ({path})" for path, fm in scoped)
     return [
         f"{f}: outside the allowed_paths of {owners} as they stand on the base branch — widen them in their own change first, or drop this file from the change"

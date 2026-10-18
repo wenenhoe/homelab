@@ -53,6 +53,62 @@ class TestDecisionRevisionPath:
         assert scope.decision_revision_path({"decision": "nonsense"}, root) is None
 
 
+class TestRevisionPath:
+    @pytest.mark.parametrize("ref", [None, 1, ["ADR-0001/0"]], ids=["none", "int", "list"])
+    def test_none_for_a_reference_that_is_not_a_string(self, root, ref):
+        revision(root, "0001-x", 0)
+        assert scope.revision_path(ref, root) is None
+
+
+class TestLifecyclePaths:
+    X0 = "docs/decisions/0001-x/revision-000.md"
+    X1 = "docs/decisions/0001-x/revision-001.md"
+    Y0 = "docs/decisions/0002-y/revision-000.md"
+    Y1 = "docs/decisions/0002-y/revision-001.md"
+
+    @pytest.fixture
+    def base(self) -> dict[str, dict]:
+        return {}
+
+    def test_a_decision_that_supersedes_nothing_exempts_only_itself(self, root, base):
+        revision(root, "0001-x", 0)
+        assert scope.lifecycle_paths({"decision": "ADR-0001/0"}, base.get, root) == {self.X0: "decision"}
+
+    def test_the_revision_a_decision_supersedes_is_exempt_too(self, root, base):
+        revision(root, "0001-x", 0)
+        revision(root, "0001-x", 1)
+        base[self.X1] = {"supersedes": 0}
+        assert scope.lifecycle_paths({"decision": "ADR-0001/1"}, base.get, root) == {self.X1: "decision", self.X0: "superseded"}
+
+    def test_each_also_implements_revision_and_its_predecessor_is_exempt(self, root, base):
+        revision(root, "0001-x", 0)
+        revision(root, "0002-y", 0)
+        revision(root, "0002-y", 1)
+        base[self.Y1] = {"supersedes": 0}
+        found = scope.lifecycle_paths({"decision": "ADR-0001/0", "also_implements": ["ADR-0002/1"]}, base.get, root)
+        assert found == {self.X0: "decision", self.Y1: "also_implements", self.Y0: "superseded"}
+
+    def test_a_lettered_predecessor_is_found(self, root, base):
+        revision(root, "0001-x", 0, letter="b")
+        revision(root, "0001-x", 1)
+        base[self.X1] = {"supersedes": "0-b"}
+        found = scope.lifecycle_paths({"decision": "ADR-0001/1"}, base.get, root)
+        assert found == {self.X1: "decision", "docs/decisions/0001-x/revision-000-b.md": "superseded"}
+
+    def test_a_predecessor_with_no_file_is_left_out(self, root, base):
+        revision(root, "0001-x", 1)
+        base[self.X1] = {"supersedes": 0}
+        assert scope.lifecycle_paths({"decision": "ADR-0001/1"}, base.get, root) == {self.X1: "decision"}
+
+    def test_a_reference_to_a_revision_that_does_not_exist_exempts_nothing(self, root, base):
+        assert scope.lifecycle_paths({"decision": "ADR-0099/0", "also_implements": ["ADR-0098/0"]}, base.get, root) == {}
+
+    def test_supersedes_is_read_from_the_base_not_from_the_tree(self, root, base):
+        revision(root, "0001-x", 0)
+        revision(root, "0001-x", 1, supersedes=0)  # the tree says it; the base does not
+        assert scope.lifecycle_paths({"decision": "ADR-0001/1"}, base.get, root) == {self.X1: "decision"}
+
+
 class TestScopeErrors:
     @pytest.fixture
     def base(self) -> dict[str, dict]:
@@ -101,6 +157,38 @@ class TestScopeErrors:
         doc = scoped(decision="ADR-0001/0")
         assert errors([doc, "docs/decisions/0001-x/revision-000.md"]) == []
         assert len(errors([doc, "docs/decisions/0001-x/revision-001.md"])) == 1
+
+    def test_the_revision_a_decision_supersedes_is_implicitly_allowed(self, root, base, scoped, errors):
+        revision(root, "0001-x", 0)
+        revision(root, "0001-x", 1)
+        doc = scoped(decision="ADR-0001/1")
+        base["docs/decisions/0001-x/revision-001.md"] = {"supersedes": 0}
+        assert errors([doc, "docs/decisions/0001-x/revision-000.md", "docs/decisions/0001-x/revision-001.md"]) == []
+
+    def test_a_revision_the_decision_does_not_supersede_stays_outside(self, root, base, scoped, errors):
+        for number in range(3):
+            revision(root, "0001-x", number)
+        doc = scoped(decision="ADR-0001/1")
+        base["docs/decisions/0001-x/revision-001.md"] = {"supersedes": 0}
+        found = errors([doc, "docs/decisions/0001-x/revision-002.md"])
+        assert len(found) == 1, found
+        assert "revision-002.md" in found[0]
+
+    def test_also_implements_revisions_and_their_predecessors_are_implicitly_allowed(self, root, base, scoped, errors):
+        revision(root, "0001-x", 0)
+        revision(root, "0002-y", 0)
+        revision(root, "0002-y", 1)
+        doc = scoped(decision="ADR-0001/0", also_implements=["ADR-0002/1"])
+        base["docs/decisions/0002-y/revision-001.md"] = {"supersedes": 0}
+        assert errors([doc, "docs/decisions/0002-y/revision-000.md", "docs/decisions/0002-y/revision-001.md"]) == []
+
+    def test_a_change_cannot_exempt_a_revision_by_adding_the_supersedes_that_names_it(self, root, scoped, errors):
+        revision(root, "0001-x", 0)
+        revision(root, "0001-x", 1, supersedes=0)  # added by the change; the base revision has none
+        doc = scoped(decision="ADR-0001/1")
+        found = errors([doc, "docs/decisions/0001-x/revision-000.md"])
+        assert len(found) == 1, found
+        assert "revision-000.md" in found[0]
 
     def test_two_touched_projects_get_the_union_of_their_scopes(self, scoped, errors):
         a = scoped("a", ["src/**"])

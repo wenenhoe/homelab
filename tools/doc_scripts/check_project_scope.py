@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT
-from doc_scripts.doc_git import base_project_loader, file_at, git
+from doc_scripts.doc_git import base_frontmatter_loader, file_at, git
 from doc_scripts.doc_scope import PROJECT_DOC_RE, is_worked, scope_errors
 
 
@@ -43,7 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     changed = [c for c in changed if c]
 
     worked = lambda path: is_worked(file_at(args.root, base, path), file_at(args.root, head, path))  # noqa: E731
-    errors = scope_errors(changed, base_project_loader(args.root, base), args.root, worked)
+    errors = scope_errors(changed, base_frontmatter_loader(args.root, base), args.root, worked)
     if errors:
         for e in errors:
             print(f"::error::{e}")

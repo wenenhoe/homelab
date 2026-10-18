@@ -24,7 +24,7 @@ from pathlib import Path
 
 from doc_scripts.doc_close import close_errors
 from doc_scripts.doc_frontmatter import ROOT
-from doc_scripts.doc_git import base_project_loader, git
+from doc_scripts.doc_git import base_frontmatter_loader, git
 from doc_scripts.doc_scope import PROJECT_DOC_RE
 
 DOC_DIRS = ("docs/projects", "docs/decisions")
@@ -65,7 +65,7 @@ def main(argv: list[str] | None = None) -> int:
     with tempfile.TemporaryDirectory() as tmp:
         export_docs(args.root, result, Path(tmp))
         try:
-            errors = close_errors(deleted, base_project_loader(args.root, base), Path(tmp))
+            errors = close_errors(deleted, base_frontmatter_loader(args.root, base), Path(tmp))
         except SystemExit as exc:  # a doc in the result that doesn't parse: the drift check names it properly
             print(f"::error::the docs after this change don't parse, so the close can't be judged: {str(exc).replace(f'{tmp}/', '')}")
             return 1

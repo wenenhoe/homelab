@@ -1,6 +1,6 @@
 # CI Doc Checks
 
-The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, and the Mermaid render check. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
+The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, and the Mermaid render check, plus the helper that suggests a project's scope. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Doc index generation
 
@@ -127,7 +127,12 @@ and why). It runs in two places:
   trivially.
 
 In both, a project's scope is read from the doc **as it stands on the
-base**, so a change can't widen its own scope and then use it. A project
+base**, so a change can't widen its own scope and then use it. The
+decision revisions a project's close edits need no entry: the one
+`decision:` names, each one in `also_implements:`, and the revision each
+supersedes. They come from the base project doc and from the `supersedes:`
+the base revision has, never from the change, so a change can't add one
+([`doc_scope.lifecycle_paths`](../../../../tools/doc_scripts/doc_scope.py)). A project
 binds a change only if the change *works* its doc: its frontmatter or a
 stage's number or status in the Execution plan table differs from the base,
 or the doc is deleted. A prose or link edit to the doc, such as a sweep
@@ -137,6 +142,42 @@ doc that is new in the change has no scope yet. Renames and deletions
 count as touching both paths. Path-level only: it can't tell whether an
 edit inside an allowed file is the permitted one, and a change that never
 works its project doc isn't bounded.
+
+## Scope suggestions
+
+[`tools/doc_scripts/suggest_project_scope.py`](../../../../tools/doc_scripts/suggest_project_scope.py)
+is a helper, not a check: no hook or job runs it, and it always exits 0. Run it
+from `tools/` when writing or revising a project's `allowed_paths`:
+
+```text
+python3 -m doc_scripts.suggest_project_scope NAME [--sweep TERM ...]
+```
+
+`NAME` is the project doc's file name, with or without `.md`, or its path from
+the repository root. It reads the doc and the tree as they stand now, not the
+base, and prints
+four lists. Each holds only files the scope doesn't cover yet, and `none`
+means that pass found nothing.
+
+- **Exempt without an entry** — the decision revisions the close edits (see
+  [Project scope check](#project-scope-check)).
+- **Named by the project doc** — tracked files named by a code-span path or a
+  relative link in the doc's Scope (without its `Not in` paragraph), Execution
+  plan and Acceptance criteria. A named directory becomes a `dir/**` entry. A
+  path no tracked file matches, such as a file the project will create, isn't
+  found.
+- **Edited by the closing PR** — every file that names the project doc, since
+  the drift check fails a path to a project doc that no longer exists, and
+  the NIST alignment page when it links a revision the close supersedes.
+- **Mentions of each `--sweep TERM`** — tracked files outside `docs/decisions/`
+  that mention a name the project removes, renames or reshapes (fixed text,
+  ignoring case), with the number of matching lines. Each is the author's call:
+  put it in scope or name it under `Not in`. They stay out of the proposed block.
+
+It ends with the `allowed_paths` block that adds the named and closing entries
+to today's, leaving out an entry another new entry already covers. A new topic
+doc's row in `docs/topics/README.md` isn't found, and no scope exempts that
+file.
 
 ## Project close check
 

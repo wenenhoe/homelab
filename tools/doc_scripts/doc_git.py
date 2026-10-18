@@ -24,7 +24,9 @@ def file_at(root: Path, ref: str, path: str) -> str | None:
         return None
 
 
-def base_project_loader(root: Path, ref: str):
+def base_frontmatter_loader(root: Path, ref: str):
+    """`load(path)` returns the frontmatter of any doc as it stood at `ref`, or None."""
+
     def load(path: str) -> dict | None:
         text = file_at(root, ref, path)
         if text is None:

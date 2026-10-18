@@ -53,6 +53,9 @@ repository root, not the working directory. `check_mermaid`, the
 [Mermaid render check](doc-checks.md#mermaid-render-check) of
 [ADR 0078 (Diagram render check)](../../../decisions/0078-checking-that-diagrams-in-docs-render/revision-000.md),
 has no hook: the `mermaid-check` job runs it on the runner's own `python3`.
+`suggest_project_scope` is no check and runs nowhere in CI: it prints what a
+project's `allowed_paths` is missing, as
+[Scope suggestions](doc-checks.md#scope-suggestions) describes.
 
 What stays in workflow YAML or `.github/scripts/` is what needs Actions
 (`uses:` steps, caches, registry login) or is a plain command sequence

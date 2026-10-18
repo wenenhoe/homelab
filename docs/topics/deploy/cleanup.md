@@ -11,7 +11,7 @@ For each host, "orphaned" means: present on disk under `compose_deploy_dir` **or
 3. `compose_cleanup_compose_ls` — every running Compose project (`docker compose ls --format json`).
 4. `compose_cleanup_orphaned_stacks` — the union of (2) and (3), minus (1) and `compose_cleanup_exclude`, deduplicated and sorted.
 
-`compose_cleanup_exclude` (a `vars:` default on `cleanup.yaml`'s own Play 1, not a role default — see its own comment there) covers directories that are never going to be a `compose_apps` entry at all: `backup_agent` and `cloud_sync` are separate roles, included directly from `deploy.yaml`, not through the app catalog, so without this they'd be misidentified as orphaned on every single run.
+`compose_cleanup_exclude` (a `vars:` default on `cleanup.yaml`'s own Play 1, not a role default — see its own comment there) covers directories that are never going to be a `compose_apps` entry at all: `backup_agent` and `cloud_sync` are separate roles, included directly from `deploy.yaml`, not through the app catalog, so without this they'd be misidentified as orphaned on every single run. `openbao-backup` is on the list for a different reason: it is a hand-placed directory on `security` (the snapshot-push script and its credentials, see [`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md)), not a stack at all.
 
 Union-ing disk and runtime state (not disk alone) catches a stack whose
 containers are still running but whose directory was already deleted by

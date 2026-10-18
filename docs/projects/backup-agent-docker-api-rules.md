@@ -2,7 +2,7 @@
 id: PROJ-backup-agent-docker-api-rules
 title: "Backup Agent Docker API Rules"
 type: project
-status: not-started
+status: building
 blocked: false
 summary: "Give the backup agent's Docker socket proxy a rules file that allows only the calls the agent makes, in place of capability flags."
 decision: ADR-0004/1
@@ -32,10 +32,10 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Rules file and mount | Not started | `backup-dockerproxy` mounts the rules file read-only over the image's template and sets no `CONTAINERS`, `POST` or `INFO`; the rendering checks assert both; the `backup_agent` scenarios pass `idempotence`. |
-| 2 | Run on the real agent | Not started | The `default` scenario still sees `happy_app_stop` stopped, backed up and started by its own schedule, through the proxy running the rules file. |
-| 3 | Allowed and refused calls | Not started | A Molecule step starts the real proxy image with the rules file in front of a fake socket that records what reaches it, and asserts each allowed call arrives unchanged and each refused call in the revision gets a 403 and never reaches the socket. |
-| 4 | Topic docs | Not started | [`backup.md`](../topics/disaster-recovery/backup.md) and [`molecule-testing.md`](../topics/engineering/molecule-testing.md) describe the rules file and the new assertions, and neither names `POST=1` as the backup agent's grant. |
+| 1 | Rules file and mount | Done | `backup-dockerproxy` mounts the rules file read-only over the image's template and sets no `CONTAINERS`, `POST` or `INFO`; the rendering checks assert both; the `backup_agent` scenarios pass `idempotence`. |
+| 2 | Run on the real agent | Done | The `default` scenario still sees `happy_app_stop` stopped, backed up and started by its own schedule, through the proxy running the rules file. |
+| 3 | Allowed and refused calls | Done | A Molecule step starts the real proxy image with the rules file in front of a fake socket that records what reaches it, and asserts each allowed call arrives unchanged and each refused call in the revision gets a 403 and never reaches the socket. |
+| 4 | Topic docs | Done | [`backup.md`](../topics/disaster-recovery/backup.md) and [`molecule-testing.md`](../topics/engineering/molecule-testing.md) describe the rules file and the new assertions, and neither names `POST=1` as the backup agent's grant. |
 
 Stages 2 and 3 are the first runs of the file on the pinned HAProxy 3.4.2 and the real agent. If either fails, stop and record a new assumption in the revision ([`README.md#stop-conditions`](README.md#stop-conditions)).
 

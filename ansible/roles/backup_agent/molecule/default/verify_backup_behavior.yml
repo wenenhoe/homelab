@@ -11,6 +11,29 @@
     - backup-agent
     - backup-agent-dockerproxy
 
+# --- The running proxy has the rules file, not capability flags -------
+# The image sets every flag to 0 by default, so only a flag set to anything
+# else would turn a rule on.
+- name: Inspect the running dockerproxy
+  community.docker.docker_container_info:
+    name: backup-agent-dockerproxy
+  register: backup_agent_proxy_info
+
+- name: Confirm it mounts the rules file read-only over the image's template and has no flag switched on
+  vars:
+    backup_agent_proxy_template_mounts: >-
+      {{ backup_agent_proxy_info.container.Mounts
+         | selectattr('Destination', 'equalto', '/usr/local/etc/haproxy/haproxy.cfg.template') | list }}
+    backup_agent_proxy_enabled_flags: >-
+      {{ backup_agent_proxy_info.container.Config.Env
+         | select('match', '^(CONTAINERS|POST|INFO)=') | reject('match', '^[A-Z]+=0$') | list }}
+  ansible.builtin.assert:
+    that:
+      - backup_agent_proxy_template_mounts | length == 1
+      - backup_agent_proxy_template_mounts[0].Source == compose_deploy_dir ~ '/backup-agent/docker-api-rules.cfg'
+      - not backup_agent_proxy_template_mounts[0].RW
+      - backup_agent_proxy_enabled_flags == []
+
 # --- Behavioral: per-schedule stop-label isolation --------------------
 # The load-bearing assumption behind collapsing to one container:
 # BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule file, not

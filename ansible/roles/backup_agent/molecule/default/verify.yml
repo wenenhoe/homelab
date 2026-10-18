@@ -14,7 +14,7 @@
   # fixture setup (real cron-triggered backups, real S3 uploads) is too
   # expensive to duplicate across separate Molecule scenarios just for
   # organization, so the split happens here instead, within one
-  # converge/verify cycle. All five still share this single play's
+  # converge/verify cycle. All six still share this single play's
   # scope - a fact registered in one file (e.g. backup_agent_network_name
   # in verify_s3_and_gpg.yml) is still visible in files imported after
   # it, same as if this were still one file.
@@ -33,3 +33,6 @@
 
     - name: Freshness check — liveness signal for Uptime Kuma
       ansible.builtin.import_tasks: verify_freshness_check.yml
+
+    - name: The proxy's rules — each allowed call arrives, each refused call is stopped, on the real proxy image
+      ansible.builtin.import_tasks: verify_docker_api_rules.yml

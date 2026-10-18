@@ -79,6 +79,17 @@
     group: "{{ ansible_user }}"
     mode: "0644"
 
+# The proxy's whole policy: it replaces the image's haproxy.cfg.template, so
+# nothing about which Docker API calls pass is left to environment flags.
+- name: Deploy the Docker API rules file for the proxy
+  ansible.builtin.copy:
+    src: docker-api-rules.cfg
+    dest: "{{ backup_agent_deploy_dir }}/docker-api-rules.cfg"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0644"
+  when: backup_agent_any_stop_apps
+
 - name: Render the GPG public key (placeholder until you replace ansible/files/backup-gpg-public-key.asc)
   ansible.builtin.template:
     src: gpg-public-key.asc.j2

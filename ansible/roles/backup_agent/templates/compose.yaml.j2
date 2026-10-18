@@ -7,10 +7,7 @@ services:
     container_name: backup-agent-dockerproxy
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-    environment:
-      - CONTAINERS=1
-      - POST=1
-      - INFO=1
+      - ./docker-api-rules.cfg:/usr/local/etc/haproxy/haproxy.cfg.template:ro
     networks:
       - backup-agent-net
     restart: unless-stopped
@@ -20,6 +17,10 @@ services:
       timeout: 5s
       retries: 3
       start_period: 10s
+    # Compose recreates a container when its own config changes, not when a
+    # bind-mounted file does, and HAProxy reads the rules only at start.
+    labels:
+      docker-api-rules-sha256: "{{ lookup('ansible.builtin.file', 'docker-api-rules.cfg', rstrip=false) | hash('sha256') }}"
 {% endif %}
 
   backup-agent:

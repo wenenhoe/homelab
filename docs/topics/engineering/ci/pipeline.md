@@ -62,7 +62,7 @@ no Python, and `tools/tests/ci/test_layout.py` enforces that.
 
 The modules jobs run on the runner's own `python3` (`ci.images.*`, `ci.json5`,
 `ci.gates.compose_health`, `ci.gates.renovate_window`,
-`ci.gates.matrix_gate`, `ci.checksums.*`, `ci.scan.*`, `ci.output`, `ci.proc`, and
+`ci.gates.matrix_gate`, `ci.checksums.*`, `ci.scan.*`, `ci.shell_tests.*`, `ci.output`, `ci.proc`, and
 `doc_scripts.check_mermaid`) are
 standard-library only, so those jobs install nothing;
 `tools/tests/ci/test_stdlib_only.py` enforces it, including that they still
@@ -86,6 +86,7 @@ parse on an older Python than the repo's own. The rest run through
 | `molecule-coverage` | always | Merges every `molecule` leg's coverage data and gates each tested role's [coverage report](gates.md#molecule-coverage-gate) against its floor. Its steps do nothing when no role was tested. |
 | `release-checksums` | `tools/ci/checksums/**`, or a file holding a pinned release hash (`cd_agent`'s and `openbao_cli`'s `defaults/main.yaml`, `tools/coderabbit-review/Dockerfile`), changed | Each pinned release checksum is the one its publisher signed, attested or lists — see [Release checksum check](release-checksum-check.md). |
 | `provenance` | `tools/ci/provenance/**`, or a file that can hold a pinned image reference (compose files, Dockerfiles, Ansible, and the scripts, workflow and Python constant a Renovate manager tracks), changed | Each pinned image digest is one its publisher signed or attested — see [Image provenance check](image-provenance-check.md). |
+| `shell-tests` | a shell script or `.sh.j2` template, a file under `tools/tests/shell/` or `tools/ci/shell_tests/`, or `tools/ci/verification.py`, changed | Fetches the pinned Bats clones and runs the shell tests on them, with the project's locked Python environment for the templates — see [Shell tests](shell-tests.md). A change to the pin file or the tooling beside it also checks each pinned tag — see [Shell test pins](shell-test-pins.md). |
 | `mermaid-check` | a markdown file, or `tools/doc_scripts/check_mermaid.py`, changed | Every Mermaid block in the repo's markdown renders under the pinned mermaid-cli image — see [Mermaid render check](doc-checks.md#mermaid-render-check). |
 | `compose-boot-test` | any non-excluded compose file, `Dockerfile`, `configs/` or `scripts/` touched | Seeds and boots each changed app for real, running this checkout's `Dockerfile` where the app has one. See [Compose boot-test](gates.md#compose-boot-test). |
 | `dockerfile-build-check` | any `docker/<app>/Dockerfile` touched | One matrix job per changed Dockerfile: builds it without pushing and runs that image's smoke test. See [Dockerfile changes](gates.md#dockerfile-changes). |
@@ -114,6 +115,7 @@ flowchart TD
     relchk["release-checksums<br/>(pinned release hash or its checker changed)"]
     provenance["provenance<br/>(pinned image reference or its checker changed)"]
     mermaid["mermaid-check<br/>(markdown or its check changed)"]
+    shellchk["shell-tests<br/>(shell script, shell test or pin changed)"]
     molecule["molecule<br/>(any role touched — matrix)"]
     molcov["molecule-coverage<br/>(always)"]
     boottest["compose-boot-test<br/>(non-excluded compose file touched)"]
@@ -121,9 +123,9 @@ flowchart TD
     dockerbuild["dockerfile-build-check<br/>(any Dockerfile touched — matrix)"]
     gate["matrix-jobs-gate<br/>(always)"]
 
-    detect --> lint & uvlock & pytest & deployorder & relchk & provenance & mermaid & molecule & boottest & synchk & dockerbuild
+    detect --> lint & uvlock & pytest & deployorder & relchk & provenance & mermaid & shellchk & molecule & boottest & synchk & dockerbuild
     detect --> trivy
-    warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & molecule & boottest
+    warmuv --> precommit & projectchecks & lint & uvlock & pytest & deployorder & shellchk & molecule & boottest
     warmgalaxy --> deployorder & molecule & boottest
     warmprecommit --> precommit & lint
     detect --> molcov
@@ -281,7 +283,7 @@ e.g. `PR checks / pre-commit-checks`).
 `warm-uv-cache`, `warm-galaxy-cache`, `warm-pre-commit-cache`,
 `pre-commit-checks`, `project-checks`,
 `ansible-lint`, `uv-lock`, `python-unit-tests`,
-`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check` and `compose-syntax-check` are all safe to
+`deploy-ordering-check`, `release-checksums`, `provenance`, `mermaid-check`, `shell-tests` and `compose-syntax-check` are all safe to
 mark required directly: each
 is gated by a job-level `if:` inside a workflow that always triggers on
 `pull_request`, not by a path filter on the trigger itself — a required

@@ -321,6 +321,20 @@
       datasourceTemplate: "custom.coderabbit-cli",
       depNameTemplate: "coderabbit-cli",
     },
+    // The Bats runner and its two libraries: one line each holds the
+    // repository, release tag and commit SHA, so the tag and its SHA move
+    // together. Where the github-tags datasource can't supply a new tag's SHA
+    // the bump is made by hand; ci.shell_tests.pins check decides either way.
+    {
+      customType: "regex",
+      description: "The Bats runner and helper libraries tools/ci/shell_tests/pins.txt pins by release tag and commit SHA",
+      managerFilePatterns: ["/^tools/ci/shell_tests/pins\\.txt$/"],
+      matchStrings: [
+        "^(?<depName>[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*)[ \\t]+(?<currentValue>v?[0-9][0-9A-Za-z.+_-]*)[ \\t]+(?<currentDigest>[0-9a-f]{40})[ \\t]*$",
+      ],
+      autoReplaceStringTemplate: "{{{depName}}} {{{newValue}}} {{{newDigest}}}",
+      datasourceTemplate: "github-tags",
+    },
     {
       customType: "regex",
       description: "The review image coderabbit-review.sh runs, a shell variable rather than a recognized image: key",

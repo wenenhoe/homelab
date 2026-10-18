@@ -94,7 +94,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 
 | Doc | Covers |
 | :--- | :--- |
-| [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style. |
+| [`conventions.md`](engineering/conventions.md) | Naming and structural rules that span more than one component: Ansible vs. Docker/systemd casing, Vault KV paths, systemd unit layout, Telegram topics, Python unit test style, shell test style. |
 | [`pre-commit.md`](engineering/pre-commit.md) | The pre-commit hooks and what each checks, which stage runs when, and where each tool's config lives. |
 | [`ci/pipeline.md`](engineering/ci/pipeline.md) | The PR-checks pipeline: where the CI logic lives, the job list, cache warming, and which checks to require before merge. |
 | [`ci/change-scoping.md`](engineering/ci/change-scoping.md) | How a change decides which jobs run: the scoped outputs `detect-changes` produces, Molecule watch sets, and the comment-only and formatting-only changes that queue nothing. |
@@ -102,6 +102,8 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/image-tag-check.md`](engineering/ci/image-tag-check.md) | The weekly check that every pinned image tag still exists in its registry. |
 | [`ci/release-checksum-check.md`](engineering/ci/release-checksum-check.md) | The check that each pinned release hash is the one its publisher signed, attested or lists, on pull requests and weekly. |
 | [`ci/image-provenance-check.md`](engineering/ci/image-provenance-check.md) | The check that each pinned image digest is one its publisher signed or attested, the signer fixed in the repository, on pull requests and weekly. |
+| [`ci/shell-tests.md`](engineering/ci/shell-tests.md) | The Bats tests for the repo's shell scripts: where they live, how to run them on the pinned clones, the harness that fails on any tool a test did not stub, and what each file asserts. |
+| [`ci/shell-test-pins.md`](engineering/ci/shell-test-pins.md) | The Bats runner and libraries the shell tests run on, pinned by commit: the pin file, fetching the clones, and the check that each pinned tag still points at its commit. |
 | [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
 | [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |
 | [`ci/renovate.md`](engineering/ci/renovate.md) | How self-hosted Renovate runs, its schedule, and the `RENOVATE_TOKEN` it authenticates with: permissions, creation, rotation and checking a run. |

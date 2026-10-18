@@ -119,3 +119,19 @@ image_provenance:
 mermaid_check:
   - '**/*.md'
   - 'tools/doc_scripts/check_mermaid.py'
+# Gates shell-tests: every shell script and template, the Bats tests and their
+# harness, and the tooling that fetches the pinned runner — see
+# docs/topics/engineering/ci/shell-tests.md. Not narrowed by
+# ci.scope.effective_changes: the run is cheap, and a script's comments are
+# part of what a change to it is judged on.
+shell_tests:
+  - '**/*.sh'
+  - '**/*.sh.j2'
+  - 'tools/tests/shell/**'
+  - 'tools/ci/shell_tests/**'
+  - 'tools/ci/verification.py'
+# Gates shell-tests' pin check: the pin file, the check and the fetch beside it,
+# and the retry helper they share — see docs/topics/engineering/ci/shell-test-pins.md.
+shell_test_pins:
+  - 'tools/ci/shell_tests/**'
+  - 'tools/ci/verification.py'

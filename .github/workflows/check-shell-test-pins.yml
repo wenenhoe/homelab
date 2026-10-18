@@ -1,0 +1,38 @@
+name: Check shell test pins
+
+# Once a week, and on demand. The pins are checked when the pin file or the
+# tooling beside it changes (pr-checks.yml's shell-tests job); this asks GitHub
+# again, so a tag that was moved or deleted is noticed even when no pin changed.
+# See docs/topics/engineering/ci/shell-test-pins.md.
+#
+# The minute is off the hour to stay clear of the top-of-the-hour crowd on
+# GitHub's scheduler, and Sunday is when Renovate (Mon/Thu window, see
+# renovate.yml) is furthest away. It runs after check-image-provenance.yml.
+on:  # yamllint disable-line rule:truthy
+  schedule:
+    - cron: "47 4 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-shell-test-pins
+  cancel-in-progress: false
+
+jobs:
+  check-shell-test-pins:
+    runs-on: ubuntu-26.04
+    # Three `git ls-remote` calls, each retried twice at most.
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Stdlib-only, so plain python3 (no uv, no dependencies). git comes with
+      # the runner image, and the pinned repositories are public, so no token.
+      - name: Check each pinned tag still points at its commit
+        run: python3 -m ci.shell_tests.pins check
+        working-directory: tools

@@ -47,6 +47,9 @@ BARE_PYTHON = (
     "scan/__init__.py",
     "scan/trivy_config.py",
     "scan/gitleaks_range.py",
+    "shell_tests/__init__.py",
+    "shell_tests/pins.py",
+    "shell_tests/fetch.py",
 )
 
 
@@ -89,6 +92,9 @@ class TestStdlibOnly:
             pytest.param("check-image-provenance.yml", "ci.provenance.verify", id="provenance_weekly"),
             pytest.param("_trivy-scan.yml", "ci.scan.trivy_config", id="trivy_config"),
             pytest.param("pr-checks.yml", "ci.scan.gitleaks_range", id="gitleaks_range"),
+            pytest.param("pr-checks.yml", "ci.shell_tests.fetch", id="shell_tests_fetch"),
+            pytest.param("pr-checks.yml", "ci.shell_tests.pins", id="shell_tests_pins_pr"),
+            pytest.param("check-shell-test-pins.yml", "ci.shell_tests.pins", id="shell_tests_pins_weekly"),
         ],
     )
     def test_the_workflows_run_these_modules_with_plain_python3(self, workflow, module):

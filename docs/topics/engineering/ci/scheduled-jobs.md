@@ -1,6 +1,6 @@
 # CI Scheduled Jobs
 
-Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job) and the release checksum check (which does too). The PR pipeline is in [CI: PR Checks](pipeline.md). The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
+Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job), the release checksum check (which does too) and the shell test pin check. The PR pipeline is in [CI: PR Checks](pipeline.md). The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
 
 ## Renovate schedule window
 
@@ -44,6 +44,15 @@ again whether the pinned image digests are theirs. It is the same check the
 `provenance` PR job runs when an image reference changes; what it verifies and how
 it fails is in [CI Image Provenance Check](image-provenance-check.md). GitHub
 emails a failed scheduled run to the person who last changed the schedule.
+
+## Shell test pin check
+
+`check-shell-test-pins.yml` runs weekly and on demand, asking GitHub again
+whether each pinned Bats release tag still points at its pinned commit. It is
+the same check the `shell-tests` PR job runs when the pin file or its tooling
+changes; what it verifies and how it fails is in
+[CI Shell Test Pins](shell-test-pins.md#checking-the-pins). GitHub emails a
+failed scheduled run to the person who last changed the schedule.
 
 ## Image vulnerability assessment
 

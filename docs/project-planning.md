@@ -54,6 +54,7 @@ calls for a project, while a working one still has to be settled.
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
+| [`image-digest-provenance.md`](projects/image-digest-provenance.md) | — | Building | Check each pinned image digest against its publisher's signature or attestation, and have the repository's own image builds attest what they push. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
 | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
@@ -62,7 +63,6 @@ calls for a project, while a working one still has to be settled.
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
 | [`workstation-management.md`](projects/workstation-management.md) | 1 | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
-| [`image-digest-provenance.md`](projects/image-digest-provenance.md) | — | Not started — ready | Check each pinned image digest against its publisher's signature or attestation, and have the repository's own image builds attest what they push. |
 
 ## Super Projects
 
@@ -97,7 +97,7 @@ calls for a project, while a working one still has to be settled.
 | :--- | ---: | :--- | :--- |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Not started — ready | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
-| [`image-digest-provenance.md`](projects/image-digest-provenance.md) | — | Not started — ready | Check each pinned image digest against its publisher's signature or attestation, and have the repository's own image builds attest what they push. |
+| [`image-digest-provenance.md`](projects/image-digest-provenance.md) | — | Building | Check each pinned image digest against its publisher's signature or attestation, and have the repository's own image builds attest what they push. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
 
 ## Decisions awaiting a project

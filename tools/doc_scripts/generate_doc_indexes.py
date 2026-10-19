@@ -24,6 +24,7 @@ import sys
 from pathlib import Path
 
 from doc_scripts.doc_frontmatter import ROOT, TOPICS, Lineage, docs_in, load_lineages, read_frontmatter
+from doc_scripts.doc_graph import duplicate_lineage_errors
 
 # Project status -> display text for the regenerated table.
 STATUS_DISPLAY = {
@@ -430,11 +431,14 @@ def render_needs_project_table(root: Path = ROOT) -> str:
 def validate_adrs(root: Path = ROOT) -> None:
     """Lineage revisions are validated by load_lineages(). Reading any
     file sitting directly under docs/decisions/ fails: only lineage
-    directories belong there.
+    directories belong there. So do two lineage directories that share a
+    number, which would otherwise be indexed side by side.
     """
     for path in docs_in(root / "docs/decisions"):
         read_frontmatter(path)
-    load_lineages(root)
+    errors = duplicate_lineage_errors(load_lineages(root), root)
+    if errors:
+        raise SystemExit("\n".join([*errors, "Renumber the lineage a patch series adds with `python3 -m doc_scripts.renumber_adr_patches`."]))
 
 
 def has_section(text: str, heading: str) -> bool:

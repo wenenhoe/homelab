@@ -150,9 +150,11 @@ reproducible dependency set.
    ```
    This installs both the commit-time and push-time hooks; what runs when
    is in [`pre-commit.md`](docs/topics/engineering/pre-commit.md).
-- To run those hooks on patches applied with `git am` too, link the `pre-applypatch` hook:
+- To run those hooks on patches applied with `git am` too, link the `pre-applypatch` and `post-applypatch` hooks:
    ```sh
-   ln -sf "$PWD/.githooks/pre-applypatch" "$(git rev-parse --git-path hooks)/pre-applypatch"
+   for hook in pre-applypatch post-applypatch; do
+     ln -sf "$PWD/.githooks/$hook" "$(git rev-parse --git-path hooks)/$hook"
+   done
    ```
 - Provide an SSH key at `~/.ssh/proxmox_vm_servers` (referenced by both inventories) with access to every target host.
 - Install a native `bao` CLI (needed for `tools/openbao_utils/shell.py` and anything else that talks to OpenBao from here) - a personal, one-time step, not Ansible-managed, since this machine's own OS can't be assumed the way a `managed_hosts` member's can:

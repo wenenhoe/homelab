@@ -537,6 +537,35 @@ class TestLineagesIndex:
         assert r"a \| b" in gen.render_lineages_index(root)
 
 
+class TestValidateAdrs:
+    def test_two_directories_with_one_number_fail_naming_both(self, root):
+        revision(root, "0089-alpha", 0)
+        revision(root, "0089-bravo", 0)
+        with pytest.raises(SystemExit, match=r"docs/decisions/0089-bravo: ADR-0089 is also used by 0089-alpha"):
+            gen.validate_adrs(root)
+
+    def test_the_failure_points_at_the_renumber_helper(self, root):
+        revision(root, "0089-alpha", 0)
+        revision(root, "0089-bravo", 0)
+        with pytest.raises(SystemExit, match=r"python3 -m doc_scripts\.renumber_adr_patches"):
+            gen.validate_adrs(root)
+
+    def test_every_extra_directory_is_named(self, root):
+        for name in ("0089-alpha", "0089-bravo", "0089-charlie"):
+            revision(root, name, 0)
+        with pytest.raises(SystemExit) as raised:
+            gen.validate_adrs(root)
+        message = str(raised.value)
+        assert "0089-bravo: ADR-0089 is also used by 0089-alpha" in message
+        assert "0089-charlie: ADR-0089 is also used by 0089-bravo" in message
+
+    def test_a_file_directly_under_decisions_still_fails(self, root):
+        (root / "docs" / "decisions").mkdir(parents=True)
+        (root / "docs" / "decisions" / "notes.md").write_text("no frontmatter\n", encoding="utf-8")
+        with pytest.raises(SystemExit):
+            gen.validate_adrs(root)
+
+
 class TestSectionReplacement:
     DOC = "# T\n\nintro\n\n## Index\n\nold\n\n## Other\n\nkeep\n"
 

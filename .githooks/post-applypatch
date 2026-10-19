@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# `git am` commits its own tree, so the views pre-applypatch regenerated are still uncommitted
+# here. Fold them into the commit that was just made; its checks already passed.
+set -euo pipefail
+
+views=(docs/projects/README.md docs/project-planning.md docs/decisions/README.md)
+if ! git diff --quiet HEAD -- "${views[@]}"; then
+  git add -- "${views[@]}"
+  git commit --amend --no-edit --no-verify --quiet
+fi

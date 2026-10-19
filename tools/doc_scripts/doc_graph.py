@@ -96,14 +96,21 @@ def _generation_errors(lineage: Lineage, root: Path) -> list[str]:
     return errors
 
 
-def lineage_errors(root: Path = ROOT) -> list[str]:
+def duplicate_lineage_errors(lineages: list[Lineage], root: Path = ROOT) -> list[str]:
+    """One error for each lineage directory whose number an earlier one already holds."""
     errors: list[str] = []
-    lineages = load_lineages(root)
     by_id: dict[str, Lineage] = {}
     for lineage in lineages:
         if lineage.id in by_id:
             errors.append(f"{lineage.dir.relative_to(root)}: {lineage.id} is also used by {by_id[lineage.id].dir.name}")
         by_id[lineage.id] = lineage
+    return errors
+
+
+def lineage_errors(root: Path = ROOT) -> list[str]:
+    lineages = load_lineages(root)
+    errors = duplicate_lineage_errors(lineages, root)
+    by_id = {lineage.id: lineage for lineage in lineages}
 
     former_owner: dict[str, str] = {}
     short_owner: dict[str, str] = {}

@@ -22,6 +22,23 @@ template itself lives under an Ansible role).
 Known exception: `ansible/playbooks/ci_boot_test.yaml` is snake_case
 and hasn't been renamed to match the rest of `playbooks/`.
 
+## Where compose files live
+
+A stack the `compose` role deploys through `compose_apps` keeps its
+`compose.yaml` (or `compose.yaml.j2`) in `docker/<app>/`
+([`adding-an-app.md`](../deploy/adding-an-app.md)). CI reads every compose
+file under `docker/` as an app, so that directory holds nothing else
+([`change-scoping.md`](ci/change-scoping.md)).
+
+A role that deploys a stack of its own, rendered from that role's data into
+a directory the role owns and outside `compose_apps`, keeps the template
+under its own `templates/`: `backup_agent`'s `compose.yaml.j2` is the one
+today.
+
+A Molecule scenario's compose files live in its `files/docker/<app>/`. A
+fixture for an app that exists under `docker/` is a symlink to it, not a
+copy ([`molecule-fixtures.md`](molecule-fixtures.md)).
+
 ## Vault KV paths
 
 `secret/data/hosts/<hostname>/<concern>/<name>` mirrors

@@ -90,8 +90,8 @@ Update at the start and end of each PR that works a stage.
 | 2 | Gatus app on `security` beside Kuma | Done | Gatus runs with the self-probe, per-group Telegram overrides and a gated dashboard; its route skips forward-auth; one endpoint per job is rendered from the repo with a generated token; `gatus.md` describes it |
 | 3 | Producers push to Gatus as well as Kuma | Done | `cloud_sync`, `cert-expiry-check`, the backup freshness check and the `r2-read-watcher` heartbeat each send the `POST` with a bearer header to their Gatus endpoint besides their Kuma push, and every such endpoint has a result |
 | 4 | `cert-renewer@` daily liveness push | Done | Each instance's timer pushes once a day only when `step certificate needs-renewal --expires-in <margin>` exits 1, with the margin chosen, and a test covers each exit code; the `OnSuccess=` link is gone |
-| 5 | Parallel run | Not started | Every endpoint has received a push from its own timer, and none alerted unexpectedly, over one day; a deliberate failure push in each Telegram topic alerts there and the next push resolves it; one job (`r2-read-watcher`, 15-minute interval) is stopped on purpose, alerts in its topic within two intervals, and resolves when restarted |
-| 6 | Remove Kuma | Not started | Nothing pushes to Kuma; its app, route, dashboard link, secrets entries, role code and doc are gone; the push role has a neutral name; the two monitoring project docs name Gatus |
+| 5 | Parallel run | In progress | Every endpoint has received a push from its own timer, and none alerted unexpectedly, over one day; a deliberate failure push in each Telegram topic alerts there and the next push resolves it; one job (`r2-read-watcher`, 15-minute interval) is stopped on purpose, alerts in its topic within two intervals, and resolves when restarted |
+| 6 | Remove Kuma | Done | Nothing pushes to Kuma; its app, route, dashboard link, secrets entries, role code and doc are gone; the two monitoring project docs name Gatus |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -106,7 +106,7 @@ Two things make the parallel run safe. Kuma's push monitors keep their own inter
 - [ ] A certificate that stops being renewed raises an alert while it is still valid.
 - [x] The dashboard requires login, and the push path does not go through forward-auth.
 - [x] The image is built in this repo, runs non-root with a passing healthcheck, and its compose pin equals the registry's tag.
-- [ ] Kuma, its role code, its secrets entries, its route and its doc are gone, and no file outside ADR history names it.
+- [x] Kuma, its role code, its secrets entries, its route and its doc are gone, and no file outside ADR history names it.
 - [ ] `pre-commit run --all-files` passes.
 
 ## Agent handoff

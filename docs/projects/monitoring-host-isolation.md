@@ -4,7 +4,7 @@ title: Monitoring Host Isolation
 type: project
 status: building
 blocked: false
-summary: Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host.
+summary: Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host.
 decision: ADR-0042/0
 super_project: off-site-monitoring
 track: monitoring
@@ -13,11 +13,11 @@ phase: 1-on-prem
 
 # Monitoring Host Isolation
 
-First two stages of the plan to stop Beszel/Kuma monitoring from being a single point of failure that lives entirely on the host it's meant to be watching. Surviving the whole site going dark is [`off-site-monitoring.md`](off-site-monitoring.md).
+First two stages of the plan to stop Beszel/Gatus monitoring from being a single point of failure that lives entirely on the host it's meant to be watching. Surviving the whole site going dark is [`off-site-monitoring.md`](off-site-monitoring.md).
 
 ## Scope
 
-Bringing VM 202 under management, and a dedicated on-prem host for Beszel and Kuma. Not in scope: relocating monitoring off-site ([`off-site-monitoring.md`](off-site-monitoring.md)).
+Bringing VM 202 under management, and a dedicated on-prem host for Beszel and Gatus. Not in scope: relocating monitoring off-site ([`off-site-monitoring.md`](off-site-monitoring.md)).
 
 ## Decision
 
@@ -30,7 +30,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Bring VM 202 (existing Tailscale subnet router) under repo management | Done | VM 202 is in the `network_infra` inventory group, patched, and documented in `network-infra.md` |
-| 2 | New Proxmox VM for Beszel/Kuma, on-prem, separate from `security` | Not started | Beszel and Kuma run on a dedicated on-prem VM, separate from `security` |
+| 2 | New Proxmox VM for Beszel/Gatus, on-prem, separate from `security` | Not started | Beszel and Gatus run on a dedicated on-prem VM, separate from `security` |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -48,7 +48,7 @@ interpreter) any new `network_infra` host needs first.
 
 ### Stage 2 — dedicated on-prem monitoring host
 
-Partial win, stated honestly: isolates Beszel/Kuma from `security` as
+Partial win, stated honestly: isolates Beszel/Gatus from `security` as
 a host/process, but doesn't address a whole-site outage. Worth doing
 as its own step regardless, since it's lower-risk than jumping straight
 to Stage 3 and validates the separation works before adding a WAN hop.
@@ -56,7 +56,7 @@ to Stage 3 and validates the separation works before adding a WAN hop.
 ## Acceptance criteria
 
 - [ ] VM 202 is under repo management and documented in `network-infra.md`.
-- [ ] Beszel and Kuma run on a dedicated on-prem VM, separate from `security`.
+- [ ] Beszel and Gatus run on a dedicated on-prem VM, separate from `security`.
 - [ ] Monitoring keeps alerting when `security` itself is down.
 
 ## Closing checklist

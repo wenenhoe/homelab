@@ -327,9 +327,9 @@
           have actually reloaded the TLS listener's in-memory certificate,
           or the connection itself failed (see output above for which).
 
-    # --- telegram-notify@ / uptime-kuma-push wiring ----------------------
+    # --- telegram-notify@ wiring -----------------------------------------
     # Same shape as default's own verify.yml — see its comments
-    # for the full rationale (no live Telegram/Kuma network access here,
+    # for the full rationale (no live Telegram network access here,
     # this confirms the units load and run cleanly, not real delivery).
     - name: Read back telegram-notify's rendered env file
       ansible.builtin.slurp:
@@ -386,38 +386,3 @@
           — 'failed' here just means curl couldn't reach the real API
           (expected in CI), 'not-found' or 'masked' would mean the unit
           itself is broken.
-
-    - name: Read back uptime-kuma-push-cert-renewer-openbao's rendered env file
-      ansible.builtin.slurp:
-        path: /etc/uptime-kuma-push/uptime-kuma-push-cert-renewer-openbao.env
-      register: step_ca_cert_verify_push_env_raw
-
-    - name: Confirm it renders an empty URL (this scenario's step_ca_cert_uptime_kuma_push_url is blank)
-      ansible.builtin.assert:
-        that:
-          - (step_ca_cert_verify_push_env_raw.content | b64decode | trim) == 'UPTIME_KUMA_PUSH_URL='
-        fail_msg: "Rendered env: {{ step_ca_cert_verify_push_env_raw.content | b64decode }}"
-
-    - name: Start uptime-kuma-push-cert-renewer-openbao.service directly, as OnSuccess= would  # noqa: command-instead-of-module
-      ansible.builtin.command: systemctl start uptime-kuma-push-cert-renewer-openbao.service
-      failed_when: false
-      changed_when: false
-
-    - name: Query the pusher unit's actual state
-      ansible.builtin.systemd_service:
-        name: uptime-kuma-push-cert-renewer-openbao.service
-        daemon_reload: false
-      register: step_ca_cert_verify_push_state
-
-    - name: Confirm systemd actually loaded and ran the pusher unit (not a syntax/templating error)
-      ansible.builtin.assert:
-        that:
-          - step_ca_cert_verify_push_state.status.LoadState == 'loaded'
-          - step_ca_cert_verify_push_state.status.ActiveState in ['inactive', 'failed']
-        fail_msg: >-
-          uptime-kuma-push-cert-renewer-openbao.service didn't load/run cleanly:
-          LoadState={{ step_ca_cert_verify_push_state.status.LoadState | default('?') }}
-          ActiveState={{ step_ca_cert_verify_push_state.status.ActiveState | default('?') }}
-          — 'failed' here just means curl had no URL to hit (expected in
-          CI with a blank push URL), 'not-found' or 'masked' would mean
-          the unit itself is broken.

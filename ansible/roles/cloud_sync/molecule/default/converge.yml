@@ -74,14 +74,6 @@
     telegram_chat_id: molecule-dummy-chat-id
     telegram_topic_id_backups: ""
 
-    # uptime_kuma_push's install.yaml (included from cloud_sync's own
-    # tasks/main.yaml) needs this — see docs/topics/monitoring/uptime-kuma.md. Blank,
-    # same "not configured yet" happy path as telegram_topic_id_backups
-    # above: verify.yml confirms the role renders an empty env file
-    # rather than failing outright, and that the resulting unit loads
-    # under real systemd even though its own curl call will fail.
-    uptime_kuma_push_url_cloud_sync: ""
-
     # gatus_push's install.yaml (included from cloud_sync's own
     # tasks/main.yaml) reads these two maps; production derives them from
     # heartbeat_jobs (group_vars/all/main.yaml). The host does not resolve,

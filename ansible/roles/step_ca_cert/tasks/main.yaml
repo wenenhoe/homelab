@@ -255,22 +255,8 @@
     telegram_notify_message: "Certificate renewal failed for `%i` on `{{ ansible_facts['hostname'] }}`"
     telegram_notify_topic_id: "{{ step_ca_cert_telegram_topic_id }}"
 
-# Only ever pushes on success (see docs/topics/monitoring/uptime-kuma.md) — failure
-# alerting stays on the telegram_notify@ unit above, unchanged. A
-# concrete unit for this specific instance, not a template - see
-# cert-renewer@.service.j2's own OnSuccess= comment for why a per-
-# instance push URL can't share telegram_notify@'s one-shared-unit
-# approach.
-- name: "Install the Uptime Kuma push-on-success unit for this app's cert renewal: {{ step_ca_cert_app_name }}"
-  ansible.builtin.include_role:
-    name: uptime_kuma_push
-    tasks_from: install.yaml
-  vars:
-    uptime_kuma_push_unit_name: "uptime-kuma-push-cert-renewer-{{ step_ca_cert_app_name }}"
-    uptime_kuma_push_description: "Uptime Kuma liveness push for a successful {{ step_ca_cert_app_name }} cert renewal"
-    uptime_kuma_push_url: "{{ step_ca_cert_uptime_kuma_push_url }}"
-
-# The liveness push (cert-renewer-heartbeat@) starts this and the Kuma unit above.
+# The liveness push (cert-renewer-heartbeat@) starts this unit, on success only;
+# failure alerting stays on the telegram_notify@ unit above, unchanged.
 - name: "Install the Gatus push unit for this app's cert renewer liveness: {{ step_ca_cert_app_name }}"
   ansible.builtin.include_role:
     name: gatus_push
@@ -335,7 +321,6 @@
     name: systemd_reload
     tasks_from: reload.yaml
   vars:
-    systemd_reload_uptime_kuma: true
     systemd_reload_gatus: true
 
 - name: "Enable and start the renewal timer for: {{ step_ca_cert_app_name }}"

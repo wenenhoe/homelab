@@ -164,8 +164,8 @@
          | selectattr('Name', 'search', 'backup-agent-net')
          | map(attribute='Name') | list | first }}
 
-# --- Freshness check: liveness signal for Uptime Kuma -----------------
-# See docs/topics/monitoring/uptime-kuma.md. Runs host-side, outside the backup-agent
+# --- Freshness check: liveness signal for Gatus -----------------------
+# See docs/topics/monitoring/gatus.md. Runs host-side, outside the backup-agent
 # container entirely - offen/docker-volume-backup's own exec-hook
 # labels need Docker `exec` access, which the proxy's rules file
 # (docker-api-rules.cfg) has no rule for, so the proxy refuses it.

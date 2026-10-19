@@ -22,11 +22,6 @@ telegram_token: molecule-dummy-telegram-token
 telegram_chat_id: molecule-dummy-chat-id
 telegram_topic_id_certs: ""
 
-# uptime_kuma_push's install.yaml (included from step_ca_cert's own
-# tasks/main.yaml) needs this — see docs/topics/monitoring/uptime-kuma.md. Blank, same
-# "not configured yet" happy path as the telegram vars above.
-step_ca_cert_uptime_kuma_push_url: ""
-
 # Real production shape (ansible/inventory/group_vars/all/app_catalog.yaml's
 # openbao entry) — extracted via lookup rather than hand-copied, same
 # reasoning as default's own host_vars (see

@@ -7,7 +7,7 @@ Requires=docker.service
 # fails this unit and sends nothing, so Gatus sees the missing push. No
 # OnFailure=: cert-renewer@ already alerts on a failed renewal, and its message
 # would be wrong here. The Gatus unit is installed by step_ca_cert for this %i.
-OnSuccess=uptime-kuma-push-cert-renewer-%i.service gatus-push-cert-renewer-%i.service
+OnSuccess=gatus-push-cert-renewer-%i.service
 
 [Service]
 Type=oneshot

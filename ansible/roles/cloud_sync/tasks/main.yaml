@@ -87,17 +87,8 @@
       did not relay, check `journalctl -u cloud-sync.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_backups }}"
 
-# Only ever pushes on success (see docs/topics/monitoring/uptime-kuma.md) — failure
+# Only ever pushes on success (see docs/topics/monitoring/gatus.md) — failure
 # alerting stays on the telegram_notify unit above, unchanged.
-- name: Install the Uptime Kuma push-on-success unit for cloud-sync
-  ansible.builtin.include_role:
-    name: uptime_kuma_push
-    tasks_from: install.yaml
-  vars:
-    uptime_kuma_push_unit_name: uptime-kuma-push-cloud-sync
-    uptime_kuma_push_description: Uptime Kuma liveness push for a successful cloud-sync run
-    uptime_kuma_push_url: "{{ uptime_kuma_push_url_cloud_sync }}"
-
 - name: Install the Gatus push-on-success unit for cloud-sync
   ansible.builtin.include_role:
     name: gatus_push
@@ -125,7 +116,6 @@
     name: systemd_reload
     tasks_from: reload.yaml
   vars:
-    systemd_reload_uptime_kuma: true
     systemd_reload_gatus: true
 
 - name: Enable and start the cloud-sync timer

@@ -99,12 +99,6 @@ heartbeat_push_urls: >-
            | map('regex_replace', '^', gatus_url ~ '/api/v1/endpoints/')
            | map('regex_replace', '$', '/external?success=true'))) }}
 
-# One secret_catalog.yaml entry per host (uptime-kuma-push-url-cert-
-# expiry-<host>) - inventory_hostname resolves this identically on
-# every app_host, no per-host host_vars entry needed. See
-# docs/topics/monitoring/uptime-kuma.md.
-uptime_kuma_push_url_cert_expiry: "{{ secrets_generated['uptime-kuma-push-url-cert-expiry-' + inventory_hostname] }}"
-
 # Every value below is sourced from secrets_generated (secrets role, Play 0
 # of deploy.yaml), driven by secret_catalog.yaml. See docs/topics/secrets/secrets.md.
 # New entry: add to secret_catalog.yaml, then a line here referencing
@@ -182,7 +176,7 @@ backup_defaults:
   cloud_targets: [r2, b2]
 
 # Slack added on top of each app's own cron-derived interval before the
-# freshness check (docs/topics/monitoring/uptime-kuma.md) stops pushing to Kuma - covers
+# freshness check (docs/topics/monitoring/gatus.md) stops pushing - covers
 # backup duration plus scheduling jitter, not the interval itself. The
 # interval comes from each app's own resolved cron (the
 # cron_period_hours filter in ansible/filter_plugins/) so it can never

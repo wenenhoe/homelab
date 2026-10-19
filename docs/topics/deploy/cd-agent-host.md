@@ -114,14 +114,24 @@ The role installs `git`, `python3`, `unzip`, `openssh-client`, `openssh-server` 
 
 A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push-<id>.service` that its own unit starts with `OnSuccess=` and never `OnFailure=`, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. `freshness` is the only job that has one (`cd-agent-freshness`, weekly).
 
-The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, from the operator host, after the role has run:
+The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, after the role has run. `sudo` on the host needs a terminal, so the token goes into a temporary file first, from a `vault-bootstrap` session on the operator host ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)):
 
 ```sh
-sudo install -m 0600 /dev/null /etc/gatus-push/cd-agent-freshness.curlrc
 bao kv get -mount=secret -field=value hosts/security/gatus-token-cd-agent-freshness \
-  | sed 's/^/header = "Authorization: Bearer /; s/$/"/' \
-  | ssh cdadmin@192.168.30.3 'sudo tee /etc/gatus-push/cd-agent-freshness.curlrc >/dev/null'
+  | ssh cdadmin@192.168.30.3 'umask 077; cat > ~/.gatus-token'
 ```
+
+Then on the CD agent host (`ssh -t cdadmin@192.168.30.3`):
+
+```sh
+t=$(cat ~/.gatus-token)
+printf 'header = "Authorization: Bearer %s"\n' "$t" \
+  | sudo tee /etc/gatus-push/cd-agent-freshness.curlrc >/dev/null
+sudo chmod 600 /etc/gatus-push/cd-agent-freshness.curlrc
+unset t; shred -u ~/.gatus-token
+```
+
+The URL is in the unit, so the file holds only the header.
 
 Until the file exists the push fails and the endpoint alerts after its first missed interval.
 

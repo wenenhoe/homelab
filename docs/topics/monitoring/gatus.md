@@ -68,7 +68,7 @@ fallback every other notifier has. Per-group overrides only replace a topic that
 
 ## The dashboard and the push path
 
-Gatus's own `security.basic` gates the dashboard, with the username `admin`. The password is the
+Gatus's own `security.basic` gates the dashboard's data, with the username `admin`: the API, including `/api/v1/endpoints/statuses`, answers `401` without it, while the static page shell is served to anyone. The password is the
 `gatus-dashboard-password-bcrypt-base64` secret, a `manual` entry with no `allow_blank`, so a missing value fails the
 deploy instead of leaving the dashboard open. Produce it with:
 
@@ -168,9 +168,20 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 
 ## One-time setup
 
-1. Set `gatus-dashboard-password-bcrypt-base64` as above.
-2. `ansible-playbook deploy.yaml --limit security`.
+1. Store `gatus-dashboard-password-bcrypt-base64` as above. `python3 -m openbao_utils.bootstrap` writes it to OpenBao directly, so it needs no deploy first; the deploy's secrets play fails without it.
+2. `ansible-playbook deploy.yaml --limit security,localhost`. The secrets play runs on `localhost`, so a limit of `security` alone skips it and the config has no tokens to render.
 3. Visit `{{ gatus_url }}` and log in as `admin`.
+
+## Checking the endpoints
+
+With `GATUS_URL` set to `gatus_url` (no trailing slash, which makes the path `//api` and a `404`) and the dashboard password in `PW`, list each endpoint's latest result:
+
+```sh
+curl -su "admin:$PW" "$GATUS_URL/api/v1/endpoints/statuses?pageSize=100" \
+  | jq -r '.[] | [.group, .name, (if (.results|length)==0 then "NO RESULT" else (.results[-1].success|tostring) end)] | @tsv' | sort
+```
+
+An endpoint that has never been pushed to is missing from the list until its first interval passes. Use `tostring`: `jq`'s `//` treats `false` as absent, so `.success // "NO RESULT"` shows a failed check as `NO RESULT`.
 
 ## State today
 

@@ -85,9 +85,9 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Thin Gatus image and its pipeline | Done | The image builds and pushes from CI as non-root with a working healthcheck, its smoke test passes, Renovate bumps its `FROM`, and the registry accepts the upstream `v`-prefixed tag and publishes it without the `v`, with unit tests |
-| 2 | Gatus app on `security` beside Kuma | In progress | Gatus runs with the self-probe, per-group Telegram overrides and a gated dashboard; its route skips forward-auth; one endpoint per job is rendered from the repo with a generated token; `gatus.md` describes it |
+| 2 | Gatus app on `security` beside Kuma | Done | Gatus runs with the self-probe, per-group Telegram overrides and a gated dashboard; its route skips forward-auth; one endpoint per job is rendered from the repo with a generated token; `gatus.md` describes it |
 | 3 | Producers push to Gatus as well as Kuma | In progress | `cloud_sync`, `cert-expiry-check`, the backup freshness check and the `r2-read-watcher` heartbeat each send the `POST` with a bearer header to their Gatus endpoint besides their Kuma push, the CD agent's `freshness` job sends one on success only, and every such endpoint has a result |
-| 4 | `cert-renewer@` daily liveness push | In progress | Each instance's timer pushes once a day only when `step certificate needs-renewal --expires-in <margin>` exits 1, with the margin chosen, and a test covers each exit code; the `OnSuccess=` link is gone |
+| 4 | `cert-renewer@` daily liveness push | Done | Each instance's timer pushes once a day only when `step certificate needs-renewal --expires-in <margin>` exits 1, with the margin chosen, and a test covers each exit code; the `OnSuccess=` link is gone |
 | 5 | Parallel run | Not started | Over one full cycle of the longest endpoint interval, no endpoint false-alerts; one job per Telegram topic is stopped on purpose and alerts in its own topic within two intervals, and the next push resolves it |
 | 6 | Remove Kuma | Not started | Nothing pushes to Kuma; its app, route, dashboard link, secrets entries, role code and doc are gone; the push role has a neutral name; the two monitoring project docs name Gatus |
 
@@ -99,12 +99,12 @@ Two things make the parallel run safe. Kuma's push monitors keep their own inter
 
 ## Acceptance criteria
 
-- [ ] Every job that pushed to Kuma has a Gatus external endpoint declared from the repo with its own generated token, and no monitor, token or notification setting exists only inside a running instance.
+- [x] Every job that pushed to Kuma has a Gatus external endpoint declared from the repo with its own generated token, and no monitor, token or notification setting exists only inside a running instance.
 - [ ] A job that stops pushing alerts in its own Telegram topic within two of its intervals, and the next push resolves the alert.
 - [ ] A certificate that stops being renewed raises an alert while it is still valid.
 - [ ] The CD agent's weekly `freshness` job pushes on success only, so a run that fails, including one that cannot log in to OpenBao, alerts as a missed heartbeat without needing OpenBao to send it.
-- [ ] The dashboard requires login, and the push path does not go through forward-auth.
-- [ ] The image is built in this repo, runs non-root with a passing healthcheck, and its compose pin equals the registry's tag.
+- [x] The dashboard requires login, and the push path does not go through forward-auth.
+- [x] The image is built in this repo, runs non-root with a passing healthcheck, and its compose pin equals the registry's tag.
 - [ ] Kuma, its role code, its secrets entries, its route and its doc are gone, and no file outside ADR history names it.
 - [ ] `pre-commit run --all-files` passes.
 
@@ -123,6 +123,7 @@ Two things make the parallel run safe. Kuma's push monitors keep their own inter
 
 ## Open items
 
+- **The CD agent host is not deployed yet.** The `cd-agent-freshness` endpoint is declared and its token exists, but nothing can push to it until that host exists, so it has no result and alerts once its first interval (a week plus slack) passes. The stage 3 clause and the acceptance criterion about the CD agent's `freshness` job wait on it. Whether this project closes first, or that criterion moves to the CD agent's own project, is a decision for a human.
 - **Older ADRs that name Kuma.** ADRs 0012, 0026, 0042, 0045, 0047, 0049 and 0068 describe Kuma as it was when each was decided. Whether any gets a new revision is a decision for a human, outside this project's paths.
 - **Where Gatus runs.** It lands on `security`, beside Kuma, as that is where the monitor runs today. Moving it is the other two monitoring projects' work, and stage 6 updates their text to say Gatus.
 

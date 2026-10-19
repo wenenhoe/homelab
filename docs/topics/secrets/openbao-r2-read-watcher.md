@@ -91,10 +91,11 @@ picks up from there.
    with an empty value. Minting again issues another `secret_id` and leaves
    the earlier one valid, so re-run this step only to replace a lost file.
 
-5. Create the heartbeat's push monitor in Kuma's own UI (same one-time
-   step every `uptime_kuma_push` consumer needs — see
-   [`uptime-kuma.md`](../monitoring/uptime-kuma.md)'s "One-time setup"), then cache
-   its URL:
+5. Only if this watcher already pushes to Kuma, or Kuma is to keep a monitor for it: create the push
+   monitor in Kuma's own UI (the one-time step every `uptime_kuma_push` consumer
+   needs — see [`uptime-kuma.md`](../monitoring/uptime-kuma.md)'s "One-time setup"), then cache
+   its URL. A new install can skip this: the heartbeat unit still pushes to Gatus, and the Kuma
+   push unit it also starts just fails.
 
    ```sh
    printf 'UPTIME_KUMA_PUSH_URL=%s\n' '<push url from Kuma>' | \
@@ -105,15 +106,25 @@ picks up from there.
 6. Cache the heartbeat's Gatus credentials. The `r2-read-watcher` job in
    `heartbeat_jobs` already has its token (`gatus-token-r2-read-watcher`); the unit
    reads the endpoint URL and the bearer header from a curl config, so the
-   token never appears in a command line. From a `vault-bootstrap` session
-   on `controller`, as in step 4 (use the `gatus_url` value for `<gatus url>`):
+   token never appears in a command line. `sudo` on `security` needs a terminal,
+   so the token goes into a temporary file first. From a `vault-bootstrap` session
+   on `controller`, as in step 4:
 
    ```sh
    bao kv get -mount=secret -field=value hosts/security/gatus-token-r2-read-watcher \
-     | ssh security 'read -r token && printf "url = \"<gatus url>/api/v1/endpoints/backups_r2-read-watcher/external?success=true\"\nrequest = \"POST\"\nheader = \"Authorization: Bearer %s\"\n" "$token" | sudo tee /etc/gatus-push/gatus-push-r2-read-watcher.curlrc > /dev/null'
+     | ssh security 'umask 077; cat > ~/.gatus-token-r2'
    exit
+   ```
 
-   ssh security 'sudo chmod 600 /etc/gatus-push/gatus-push-r2-read-watcher.curlrc'
+   Then on `security` (`ssh -t security`), with `<gatus url>` the `gatus_url` value
+   without a trailing slash:
+
+   ```sh
+   t=$(cat ~/.gatus-token-r2)
+   printf 'url = "<gatus url>/api/v1/endpoints/backups_r2-read-watcher/external?success=true"\nrequest = "POST"\nheader = "Authorization: Bearer %s"\n' "$t" \
+     | sudo tee /etc/gatus-push/gatus-push-r2-read-watcher.curlrc >/dev/null
+   sudo chmod 600 /etc/gatus-push/gatus-push-r2-read-watcher.curlrc
+   unset t; shred -u ~/.gatus-token-r2
    ```
 
 7. Enable and start everything:

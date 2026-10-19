@@ -12,9 +12,9 @@ added later over a fixture directory needs the same.
 
 ## Apps with a real prod counterpart
 
-`caddy`, `lldap`, `bind9`, and `tinyauth` symlink their compose file and
-any `configs/*.j2` straight at `docker/<app>/` instead of keeping a
-hand-copied duplicate. `bind9` symlinks `compose.yaml.j2` specifically
+`caddy`, `lldap`, `openbao`, `bind9`, `tinyauth` and `bentopdf` symlink
+their compose file and any `configs/*.j2` straight at `docker/<app>/`
+instead of keeping a hand-copied duplicate. `bind9` symlinks `compose.yaml.j2` specifically
 (see [`adding-an-app.md`](../deploy/adding-an-app.md) for the `.j2` convention) —
 it inlines `server_timezone` directly rather than carrying a separate
 `.env`, so there's no `configs/env.j2` to symlink alongside it anymore.

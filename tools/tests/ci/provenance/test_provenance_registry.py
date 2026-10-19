@@ -179,6 +179,7 @@ class TestRealRegistry:
             "ghcr.io/lissy93/dashy": Tier.ATTESTED,
             "ghcr.io/wenenhoe/caddy-digitalocean": Tier.ATTESTED,
             "ghcr.io/wenenhoe/coderabbit-review": Tier.ATTESTED,
+            "ghcr.io/wenenhoe/gatus": Tier.ATTESTED,
             "ghcr.io/wenenhoe/molecule-dind": Tier.ATTESTED,
             "ghcr.io/wenenhoe/wastebin": Tier.ATTESTED,
             "openbao/openbao": Tier.SIGNED,
@@ -231,7 +232,7 @@ class TestRealRegistry:
     def test_the_images_the_repository_pins_by_digest_are_attested_for_this_repository(self, subtests):
         pinned = {pin.registry_key for pin in pins.pinned(remote.collect(remote.REPO_ROOT))[0]}
         own = [entry for entry in ENTRIES if entry.image.startswith("ghcr.io/wenenhoe/") and entry.registry_key in pinned]
-        assert len(own) == 4
+        assert len(own) == 5
         for entry in own:
             with subtests.test(image=entry.image):
                 assert (entry.tier, entry.repository) == (Tier.ATTESTED, "wenenhoe/homelab")

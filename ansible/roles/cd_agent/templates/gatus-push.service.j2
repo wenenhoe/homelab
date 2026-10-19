@@ -1,0 +1,10 @@
+[Unit]
+Description=Gatus heartbeat for {{ cd_agent_job.heartbeat }}
+Documentation=https://github.com/TwiN/gatus#external-endpoints
+
+[Service]
+Type=oneshot
+; The bearer token is in the -K file, not here: systemd would put it in the
+; running process's command line, which any local user can read. The file is
+; delivered by hand (docs/topics/deploy/cd-agent-host.md).
+ExecStart=/usr/bin/curl -fsS --max-time 10 -X POST -K /etc/gatus-push/{{ cd_agent_job.heartbeat }}.curlrc "{{ heartbeat_push_urls[cd_agent_job.heartbeat] }}"

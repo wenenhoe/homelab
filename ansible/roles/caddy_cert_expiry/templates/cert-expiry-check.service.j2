@@ -8,7 +8,7 @@ StartLimitIntervalSec=0
 OnFailure=telegram-notify-cert-expiry.service
 # Liveness signal only - see docs/topics/monitoring/uptime-kuma.md for why this never
 # pushes an explicit down status on failure instead.
-OnSuccess=uptime-kuma-push-cert-expiry.service
+OnSuccess=uptime-kuma-push-cert-expiry.service gatus-push-cert-expiry-{{ inventory_hostname }}.service
 
 [Service]
 Type=oneshot

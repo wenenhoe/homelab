@@ -27,11 +27,13 @@
         - /etc/telegram-notify/telegram-notify-cert-expiry.env
         - /etc/systemd/system/uptime-kuma-push-cert-expiry.service
         - /etc/uptime-kuma-push/uptime-kuma-push-cert-expiry.env
+        - /etc/systemd/system/gatus-push-cert-expiry-caddy-cert-expiry-instance.service
+        - /etc/gatus-push/gatus-push-cert-expiry-caddy-cert-expiry-instance.curlrc
 
     - name: Confirm they all exist
       ansible.builtin.assert:
         that:
-          - caddy_cert_expiry_verify_files.results | map(attribute='stat.exists') | list == [true, true, true, true, true, true, true]
+          - caddy_cert_expiry_verify_files.results | map(attribute='stat.exists') | select | list | length == 9
 
     - name: Read back the rendered check script
       ansible.builtin.slurp:
@@ -54,6 +56,7 @@
       failed_when: >-
         'OnFailure=telegram-notify-cert-expiry.service' not in caddy_cert_expiry_verify_onfailure.stdout
         or 'OnSuccess=uptime-kuma-push-cert-expiry.service' not in caddy_cert_expiry_verify_onfailure.stdout
+        or 'gatus-push-cert-expiry-caddy-cert-expiry-instance.service' not in caddy_cert_expiry_verify_onfailure.stdout
 
     - name: Confirm the timer is enabled and active
       # daemon_reload: false required-but-inert, matching the module's
@@ -145,6 +148,51 @@
           — 'failed' here just means curl had no URL to hit (expected in
           CI with a blank push URL), 'not-found' or 'masked' would mean
           the unit itself is broken.
+
+    # --- Gatus push unit: credential file and unit, same shape as above ---
+    - name: Read back the Gatus pusher's curl config
+      ansible.builtin.slurp:
+        path: /etc/gatus-push/gatus-push-cert-expiry-caddy-cert-expiry-instance.curlrc
+      register: caddy_cert_expiry_verify_gatus_curlrc_raw
+
+    - name: Stat the Gatus pusher's curl config
+      ansible.builtin.stat:
+        path: /etc/gatus-push/gatus-push-cert-expiry-caddy-cert-expiry-instance.curlrc
+      register: caddy_cert_expiry_verify_gatus_curlrc_stat
+
+    - name: Confirm it carries the endpoint URL and bearer token, root-only
+      ansible.builtin.assert:
+        that:
+          - >-
+            'url = "http://gatus-test.invalid/api/v1/endpoints/certs_cert-expiry-caddy-cert-expiry-instance/external?success=true"'
+            in (caddy_cert_expiry_verify_gatus_curlrc_raw.content | b64decode)
+          - >-
+            'header = "Authorization: Bearer molecule-dummy-gatus-token"'
+            in (caddy_cert_expiry_verify_gatus_curlrc_raw.content | b64decode)
+          - "'request = \"POST\"' in (caddy_cert_expiry_verify_gatus_curlrc_raw.content | b64decode)"
+          - caddy_cert_expiry_verify_gatus_curlrc_stat.stat.mode == '0600'
+        fail_msg: "Rendered curl config: {{ caddy_cert_expiry_verify_gatus_curlrc_raw.content | b64decode }}"
+
+    - name: Start the Gatus pusher directly, as OnSuccess= would  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl start gatus-push-cert-expiry-caddy-cert-expiry-instance.service
+      failed_when: false
+      changed_when: false
+
+    - name: Query the Gatus pusher unit's actual state
+      ansible.builtin.systemd_service:
+        name: gatus-push-cert-expiry-caddy-cert-expiry-instance.service
+        daemon_reload: false
+      register: caddy_cert_expiry_verify_gatus_state
+
+    - name: Confirm systemd actually loaded and ran the Gatus pusher unit
+      ansible.builtin.assert:
+        that:
+          - caddy_cert_expiry_verify_gatus_state.status.LoadState == 'loaded'
+          - caddy_cert_expiry_verify_gatus_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          The Gatus pusher unit didn't load/run cleanly:
+          LoadState={{ caddy_cert_expiry_verify_gatus_state.status.LoadState | default('?') }}
+          ActiveState={{ caddy_cert_expiry_verify_gatus_state.status.ActiveState | default('?') }}
 
     # --- Behavioral, alert branch: a threshold the live cert cannot meet ---
     # The scenario's 0-day threshold can never alert against Caddy's ~12h

@@ -1,0 +1,9 @@
+[Unit]
+Description={{ gatus_push_description | default('Gatus heartbeat for ' ~ gatus_push_job) }}
+Documentation=https://github.com/TwiN/gatus#external-endpoints
+
+[Service]
+Type=oneshot
+; The token is in the -K file, not in ExecStart: systemd would put it in the
+; running process's command line, which any local user can read via ps/proc.
+ExecStart=/usr/bin/curl -fsS --max-time 10 -K /etc/gatus-push/gatus-push-{{ gatus_push_job }}.curlrc

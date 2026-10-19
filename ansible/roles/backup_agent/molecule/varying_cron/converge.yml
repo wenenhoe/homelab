@@ -12,6 +12,11 @@
       stop_during_backup: false
       cloud_targets: []
     backup_freshness_buffer_hours: 2
+    # check-freshness.sh.j2 renders the host's Gatus endpoint unconditionally.
+    heartbeat_push_urls:
+      backup-backup-agent-varying-cron-instance: http://gatus-test.invalid/endpoint
+    heartbeat_job_tokens:
+      backup-backup-agent-varying-cron-instance: molecule-dummy-gatus-token
     # daily_app uses the shared default cron implicitly. frequent_app
     # overrides to every-6-hours. weekdays_app overrides to weekdays
     # only, whose real worst-case gap (Friday to Monday) is 72h, not

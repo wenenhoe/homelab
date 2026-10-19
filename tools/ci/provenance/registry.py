@@ -167,6 +167,7 @@ ENTRIES: tuple[Entry, ...] = (
     Unsigned(image="twinproduction/gatus", reason="its release workflow has no signing or attestation step"),
     Attested(image="ghcr.io/wenenhoe/caddy-digitalocean", repository="wenenhoe/homelab"),
     Attested(image="ghcr.io/wenenhoe/coderabbit-review", repository="wenenhoe/homelab"),
+    Attested(image="ghcr.io/wenenhoe/gatus", repository="wenenhoe/homelab"),
     Attested(image="ghcr.io/wenenhoe/molecule-dind", repository="wenenhoe/homelab"),
     Attested(image="ghcr.io/wenenhoe/wastebin", repository="wenenhoe/homelab"),
     Unsigned(image="alpine", reason=_NO_STATEMENT),

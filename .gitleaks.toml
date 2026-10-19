@@ -1,0 +1,11 @@
+# Extends gitleaks's default rules; both the pre-commit hook and
+# ci.scan.gitleaks_range read this file from the repository root.
+[extend]
+useDefault = true
+
+# The allowlist is narrow on purpose: one value, in one file.
+[[allowlists]]
+description = "The bcrypt hash from Gatus's README, base64-encoded: CI's placeholder for the dashboard password, which authenticates nothing"
+condition = "AND"
+paths = ['''^ansible/ci-inventory/group_vars/all/ci_dummy_vars\.yaml$''']
+regexes = ['''^JDJhJDEwJHRiMnRFakxWazZLdXBzRERQazB1TE8vckRLY05Yb1hSdnoxWU0yQ1FaYXZRSW1McmladDYu$''']

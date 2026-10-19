@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# docker/gatus's image has no compose file for compose-boot-test to boot,
-# so this boots it: as the user the image sets, on a fresh named volume,
-# with a config that holds the one regular endpoint Gatus requires. It
-# passes when the image's own /wget gets /health and the sqlite file
-# appears in /data. Usage: gatus.sh <image>
+# compose-boot-test boots the deployed stack with its real config; this
+# boots the image alone, as the user the image sets, on a fresh named
+# volume, with a config that holds the one regular endpoint Gatus
+# requires. It passes when the image's own /wget gets /health and the
+# sqlite file appears in /data. Usage: gatus.sh <image>
 set -euo pipefail
 
 image="$1"

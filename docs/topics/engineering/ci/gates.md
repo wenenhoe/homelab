@@ -291,12 +291,13 @@ which hold a package-write token.
   runs a review, whose findings must stay off this repo's logs;
   `wastebin` only that the build produced an image, since
   `compose-boot-test` boots it for real; `gatus` that the image's user is
-  a non-root number, and, booting it on a fresh volume with a one-endpoint
-  config, that its own `/wget` gets `/health` and the sqlite file appears
-  in `/data`. This covers the Dockerfiles `compose-boot-test` excludes
-  (`caddy`, `molecule-dind`, `gatus`, which has no compose file) and
-  `coderabbit-review`, which isn't a compose app and is queued from its
-  registry entry's path rather than from `docker/`.
+  a non-root number and, booting the image alone on a fresh volume with a
+  one-endpoint config, that its own `/wget` gets `/health` and the sqlite
+  file appears in `/data` (`compose-boot-test` covers the deployed stack
+  and its real config). This covers the Dockerfiles `compose-boot-test`
+  excludes (`caddy`, `molecule-dind`) and `coderabbit-review`, which
+  isn't a compose app and is queued from its registry entry's path rather
+  than from `docker/`.
 - **Shadow-tagging** in `_compose-boot-test.yml`
   (`ci.images.build shadow-tag`, and a `Dockerfile` change queues the
   app): for an app with a `Dockerfile`, it reads the images the deployed

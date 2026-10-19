@@ -270,6 +270,14 @@
     uptime_kuma_push_description: "Uptime Kuma liveness push for a successful {{ step_ca_cert_app_name }} cert renewal"
     uptime_kuma_push_url: "{{ step_ca_cert_uptime_kuma_push_url }}"
 
+# The liveness push (cert-renewer-heartbeat@) starts this and the Kuma unit above.
+- name: "Install the Gatus push unit for this app's cert renewer liveness: {{ step_ca_cert_app_name }}"
+  ansible.builtin.include_role:
+    name: gatus_push
+    tasks_from: install.yaml
+  vars:
+    gatus_push_job: "cert-renewer-{{ step_ca_cert_app_name }}"
+
 - name: Ensure the cert-renewer env directory exists
   ansible.builtin.file:
     path: /etc/cert-renewer
@@ -308,15 +316,36 @@
     mode: "0644"
   notify: Reload systemd
 
+- name: Install the generic cert-renewer-heartbeat@ service template
+  ansible.builtin.template:
+    src: cert-renewer-heartbeat@.service.j2
+    dest: /etc/systemd/system/cert-renewer-heartbeat@.service
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install the generic cert-renewer-heartbeat@ timer template
+  ansible.builtin.template:
+    src: cert-renewer-heartbeat@.timer.j2
+    dest: /etc/systemd/system/cert-renewer-heartbeat@.timer
+    mode: "0644"
+  notify: Reload systemd
+
 - name: Reload systemd and flush handlers so systemd has the current unit definitions
   ansible.builtin.include_role:
     name: systemd_reload
     tasks_from: reload.yaml
   vars:
     systemd_reload_uptime_kuma: true
+    systemd_reload_gatus: true
 
 - name: "Enable and start the renewal timer for: {{ step_ca_cert_app_name }}"
   ansible.builtin.systemd:
     name: "cert-renewer@{{ step_ca_cert_app_name }}.timer"
+    state: started
+    enabled: true
+
+- name: "Enable and start the renewal liveness timer for: {{ step_ca_cert_app_name }}"
+  ansible.builtin.systemd:
+    name: "cert-renewer-heartbeat@{{ step_ca_cert_app_name }}.timer"
     state: started
     enabled: true

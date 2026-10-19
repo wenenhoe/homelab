@@ -11,6 +11,9 @@
     # Three jobs covering both timer shapes. The commands write into the job's
     # own state directory (the tree they run in is its `tree/` subdirectory)
     # so verify.yml can read back what ran, as which user, on what.
+    # The push URL a heartbeat job's unit is given (group_vars/all/main.yaml builds it in production).
+    heartbeat_push_urls:
+      cd-agent-freshness: https://gatus-test.invalid/api/v1/endpoints/backups_cd-agent-freshness/external?success=true
     cd_agent_jobs:
       - name: deploy
         poll_interval: 5min
@@ -21,6 +24,7 @@
           - echo "$(id -un) $(git rev-parse HEAD)" >> ../ran.log
       - name: freshness
         on_calendar: Mon *-*-* 04:00:00
+        heartbeat: cd-agent-freshness
         command:
           - /bin/sh
           - -c

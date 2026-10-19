@@ -1,0 +1,46 @@
+# Rendered from heartbeat_jobs (group_vars/all/main.yaml). Every secret is
+# a placeholder that Gatus expands from the container environment
+# (docker/gatus/configs/env.j2), so this file holds none. Gatus expands the
+# whole file text, comments included, so a literal dollar sign anywhere in
+# it has to be doubled.
+storage:
+  type: sqlite
+  path: /data/data.db
+
+security:
+  basic:
+    username: admin
+    password-bcrypt-base64: "${DASHBOARD_PASSWORD_BCRYPT_BASE64}"
+
+alerting:
+  telegram:
+    token: "${TELEGRAM_TOKEN}"
+    id: "${TELEGRAM_CHAT_ID}"
+    overrides:
+{% for group in heartbeat_jobs | map(attribute='group') | unique | sort %}
+      - group: {{ group }}
+        topic-id: "${TELEGRAM_TOPIC_ID_{{ group | upper }}}"
+{% endfor %}
+
+# Gatus rejects a config with no regular endpoint, so this is the one
+# probe it makes: its own /health, with no alert.
+endpoints:
+  - name: self
+    url: http://localhost:8080/health
+    interval: 1m
+    conditions:
+      - "[STATUS] == 200"
+
+external-endpoints:
+{% for job in heartbeat_jobs %}
+  - name: {{ job.id }}
+    group: {{ job.group }}
+    token: "${HEARTBEAT_TOKEN_{{ job.id | upper | replace('-', '_') }}}"
+    heartbeat:
+      interval: {{ job.period_minutes + job.slack_minutes | default(backup_freshness_buffer_hours * 60) }}m
+    alerts:
+      - type: telegram
+        failure-threshold: 1
+        success-threshold: 1
+        send-on-resolved: true
+{% endfor %}

@@ -143,6 +143,44 @@
       # read it exits 255 instead.
       failed_when: step_ca_cert_verify_exec_condition.rc != 1
 
+    # --- renewer liveness (cert-renewer-heartbeat@) ----------------------
+    # The unit succeeds, and so triggers its OnSuccess= push, only when
+    # needs-renewal exits 1 (not within the margin). Each other exit code must
+    # fail it: 0 (within the margin), 2 (no cert file) and docker's own 125
+    # (the image cannot be run). The unit's own ExecStart= line is run with
+    # one thing changed per case; the first case changes nothing but the
+    # margin, to prove the 72h the unit ships with is what a fresh cert clears.
+    - name: Run the liveness unit's own ExecStart= line, once per needs-renewal outcome
+      ansible.builtin.shell: |
+        set -o pipefail
+        set -a
+        . /etc/cert-renewer/openbao.env
+        set +a
+        line=$(systemctl cat cert-renewer-heartbeat@openbao.service | sed -n 's/^ExecStart=//p' | sed 's/%i/openbao/g; s/\$\$/$/g')
+        [ -n "$line" ] || exit 99
+        grep -q -- '--expires-in 72h' <<<"$line" || exit 98
+        line=$(sed {{ item.sed | quote }} <<<"$line")
+        bash -c "$line"
+      args:
+        executable: /bin/bash
+      loop:
+        - {name: not within the margin, sed: 's/--expires-in 72h/--expires-in 1h/', rc: 0}
+        - {name: within the margin, sed: 's/--expires-in 72h/--expires-in 87600h/', rc: 1}
+        - {name: no cert file, sed: 's#/certs/fullchain.pem#/certs/missing.pem#; s/--expires-in 72h/--expires-in 1h/', rc: 1}
+        - {name: docker cannot run the image, sed: 's/${STEP_CLI_IMAGE}/molecule.invalid\/no-such-image:0/; s/--expires-in 72h/--expires-in 1h/', rc: 1}
+      loop_control:
+        label: "{{ item.name }}"
+      register: step_ca_cert_verify_liveness
+      changed_when: false
+      # The assertion below reads every exit code, including the 98 and 99 the script uses for a unit line it could not find.
+      failed_when: false
+
+    - name: Confirm only a cert outside the margin succeeds
+      ansible.builtin.assert:
+        that:
+          - step_ca_cert_verify_liveness.results | map(attribute='rc') | list == [0, 1, 1, 1]
+        fail_msg: "Exit codes {{ step_ca_cert_verify_liveness.results | map(attribute='rc') | list }}, expected [0, 1, 1, 1]."
+
     - name: Record the cert's serial number before a direct renewal
       ansible.builtin.command: openssl x509 -in {{ step_ca_cert_verify_certs_mountpoint }}/fullchain.pem -noout -serial
       register: step_ca_cert_verify_serial_before
@@ -317,13 +355,13 @@
             'url = "https://api.telegram.org/botmolecule-dummy-telegram-token/sendMessage"'
             in (step_ca_cert_verify_notify_curlrc_raw.content | b64decode)
 
-    - name: Confirm cert-renewer@ actually declares both links  # noqa: command-instead-of-module
+    - name: Confirm cert-renewer@ declares the failure alert and no success push  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl cat cert-renewer@openbao.service
       register: step_ca_cert_verify_onfailure
       changed_when: false
       failed_when: >-
         'OnFailure=telegram-notify@%i.service' not in step_ca_cert_verify_onfailure.stdout
-        or 'OnSuccess=uptime-kuma-push-cert-renewer-%i.service' not in step_ca_cert_verify_onfailure.stdout
+        or step_ca_cert_verify_onfailure.stdout is search('(?m)^OnSuccess=')
 
     - name: Start telegram-notify@openbao.service directly, as OnFailure= would  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl start telegram-notify@openbao.service

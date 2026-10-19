@@ -52,3 +52,10 @@ app_catalog: >-
 
 compose_apps:
   - name: lldap
+
+# gatus_push's install.yaml (included from step_ca_cert's own tasks/main.yaml)
+# asserts the job is in both maps; production builds them from heartbeat_jobs.
+heartbeat_push_urls:
+  cert-renewer-lldap: https://gatus-test.invalid/api/v1/endpoints/certs_cert-renewer-lldap/external?success=true
+heartbeat_job_tokens:
+  cert-renewer-lldap: molecule-dummy-gatus-token

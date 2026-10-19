@@ -363,6 +363,30 @@
           - "'OnCalendar=Mon *-*-* 04:00:00' in cd_agent_verify_timer_units.results[1].stdout"
           - "'OnCalendar=monthly' in cd_agent_verify_timer_units.results[2].stdout"
 
+    # --- Heartbeat ----------------------------------------------------------
+    - name: Read the freshness job's unit and its Gatus push unit  # noqa: command-instead-of-module
+      ansible.builtin.command: "systemctl cat {{ item }}"
+      loop: [cd-agent-freshness.service, gatus-push-cd-agent-freshness.service]
+      register: cd_agent_verify_heartbeat_units
+      changed_when: false
+
+    - name: Stat the Gatus token directory
+      ansible.builtin.stat:
+        path: /etc/gatus-push
+      register: cd_agent_verify_gatus_dir
+
+    - name: Confirm the success-only push, the URL, and that the token lives in a file
+      ansible.builtin.assert:
+        that:
+          - "'OnSuccess=gatus-push-cd-agent-freshness.service' in cd_agent_verify_heartbeat_units.results[0].stdout"
+          - "'OnFailure' not in cd_agent_verify_heartbeat_units.results[0].stdout"
+          - "'OnSuccess' not in cd_agent_verify_heartbeat_units.results[1].stdout"
+          - "'-K /etc/gatus-push/cd-agent-freshness.curlrc' in cd_agent_verify_heartbeat_units.results[1].stdout"
+          - "'gatus-test.invalid/api/v1/endpoints/backups_cd-agent-freshness/external?success=true' in cd_agent_verify_heartbeat_units.results[1].stdout"
+          - "'Bearer' not in cd_agent_verify_heartbeat_units.results[1].stdout"
+          - cd_agent_verify_gatus_dir.stat.mode == '0700'
+          - cd_agent_verify_gatus_dir.stat.pw_name == 'root'
+
     # daemon_reload: false is the module's required-but-inert parameter for a
     # read-only status query; see cloud_sync/molecule/default/verify.yml.
     - name: Query each timer

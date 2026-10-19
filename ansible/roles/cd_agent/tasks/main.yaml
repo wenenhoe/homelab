@@ -15,6 +15,10 @@
 #   successors     optional job names systemd starts when this job ends, whatever its result
 #                  (ADR 0074); a job with no timer must be some job's successor
 #   timeout        optional systemd time span, default cd_agent_default_timeout
+#   heartbeat      optional heartbeat_jobs id: a Gatus push unit runs when this job succeeds,
+#                  never when it fails, so a missed push is the alert. The unit reads the
+#                  token from /etc/gatus-push/<id>.curlrc, delivered by hand (this host holds
+#                  no secrets)
 #
 # The runner and toolchain step are copied from the controller's checkout, not
 # fetched: the code that decides what runs is never replaced by what it
@@ -67,6 +71,8 @@
       - cd_agent_job.on_calendar | default('daily') is regex('^[A-Za-z0-9 :*,./~-]+$')
       - cd_agent_job.cwd | default('.') is regex('^[A-Za-z0-9_./-]+$')
       - cd_agent_job.timeout | default(cd_agent_default_timeout) is regex('^[0-9]+(s|min|h)$')
+      - cd_agent_job.heartbeat | default('x') is regex('^[a-z][a-z0-9-]*$')
+      - cd_agent_job.heartbeat is not defined or cd_agent_job.heartbeat in (heartbeat_push_urls | default({}))
     fail_msg: "Invalid cd_agent_jobs entry {{ cd_agent_job }}: see the header of roles/cd_agent/tasks/main.yaml for the fields."
   loop: "{{ cd_agent_jobs }}"
   loop_control:
@@ -108,6 +114,7 @@
       - git
       - openssh-client
       - openssh-server
+      - curl
       - python3
       - unzip
     state: present
@@ -333,6 +340,31 @@
     mode: "0644"
   notify: Reload systemd
   loop: "{{ cd_agent_jobs }}"
+  loop_control:
+    loop_var: cd_agent_job
+    label: "{{ cd_agent_job.name }}"
+
+# A job's heartbeat is a separate root-run unit its OnSuccess= starts, so the
+# sandboxed job never holds the token. Only the unit is installed here; the
+# curlrc it reads is delivered by hand, like the job's credentials.
+- name: Create the Gatus token directory
+  ansible.builtin.file:
+    path: /etc/gatus-push
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+  when: cd_agent_jobs | selectattr('heartbeat', 'defined') | list | length > 0
+
+- name: Install each heartbeat job's Gatus push unit
+  ansible.builtin.template:
+    src: gatus-push.service.j2
+    dest: "/etc/systemd/system/gatus-push-{{ cd_agent_job.heartbeat }}.service"
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+  loop: "{{ cd_agent_jobs | selectattr('heartbeat', 'defined') | list }}"
   loop_control:
     loop_var: cd_agent_job
     label: "{{ cd_agent_job.name }}"

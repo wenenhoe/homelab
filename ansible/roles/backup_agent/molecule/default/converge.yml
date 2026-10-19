@@ -86,6 +86,12 @@
     # app fresh, one push fires" path.
     backup_freshness_buffer_hours: 1
     backup_agent_freshness_push_url: "http://uptime-kuma-test.invalid/api/push/molecule-fake-token"
+    # The Gatus endpoint for this host, keyed backup-<inventory_hostname>
+    # as production's heartbeat_push_urls is. Also unreachable on purpose.
+    heartbeat_push_urls:
+      backup-backup-agent-instance: http://gatus-test.invalid/api/v1/endpoints/backups_backup-backup-agent-instance/external?success=true
+    heartbeat_job_tokens:
+      backup-backup-agent-instance: molecule-dummy-gatus-token
 
     # happy_app_stop carries docker-volume-backup.stop-during-backup=
     # happy_app_stop on its own container and stop_during_backup: true

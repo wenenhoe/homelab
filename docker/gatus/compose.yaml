@@ -1,0 +1,34 @@
+name: gatus
+
+services:
+  gatus:
+    image: ghcr.io/wenenhoe/gatus:5.37.0@sha256:11be5bdc0c5dc2825e0035f417e81b16d3e1bb794f0984561910dd1c5cf3e181
+    container_name: gatus
+    volumes:
+      - data:/data
+      - config:/config:ro
+    env_file: .env
+    networks:
+      - caddy-proxy
+    restart: unless-stopped
+    # docker/gatus/Dockerfile adds the /wget this needs.
+    healthcheck:
+      test: [ "CMD", "/wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    # Matches the image's own USER — see docker/gatus/Dockerfile.
+    user: 10001:10001
+    expose:
+      - '8080'
+networks:
+  caddy-proxy:
+    external: true
+volumes:
+  data:
+    external: true
+    name: gatus_data
+  config:
+    external: true
+    name: gatus_config

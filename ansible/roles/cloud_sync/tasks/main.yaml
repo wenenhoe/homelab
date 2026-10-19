@@ -98,6 +98,14 @@
     uptime_kuma_push_description: Uptime Kuma liveness push for a successful cloud-sync run
     uptime_kuma_push_url: "{{ uptime_kuma_push_url_cloud_sync }}"
 
+- name: Install the Gatus push-on-success unit for cloud-sync
+  ansible.builtin.include_role:
+    name: gatus_push
+    tasks_from: install.yaml
+  vars:
+    gatus_push_job: cloud-sync
+    gatus_push_description: Gatus heartbeat for a successful cloud-sync run
+
 - name: Install the cloud-sync systemd service
   ansible.builtin.template:
     src: cloud-sync.service.j2
@@ -118,6 +126,7 @@
     tasks_from: reload.yaml
   vars:
     systemd_reload_uptime_kuma: true
+    systemd_reload_gatus: true
 
 - name: Enable and start the cloud-sync timer
   ansible.builtin.systemd:

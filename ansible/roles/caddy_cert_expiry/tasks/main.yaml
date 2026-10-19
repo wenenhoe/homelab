@@ -77,6 +77,14 @@
     uptime_kuma_push_description: Uptime Kuma liveness push for a successful Caddy cert-expiry check
     uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_expiry }}"
 
+- name: Install the Gatus push-on-success unit for cert-expiry-check
+  ansible.builtin.include_role:
+    name: gatus_push
+    tasks_from: install.yaml
+  vars:
+    gatus_push_job: "cert-expiry-{{ inventory_hostname }}"
+    gatus_push_description: Gatus heartbeat for a successful Caddy cert-expiry check
+
 - name: Install the cert-expiry-check systemd service
   ansible.builtin.template:
     src: cert-expiry-check.service.j2
@@ -97,6 +105,7 @@
     tasks_from: reload.yaml
   vars:
     systemd_reload_uptime_kuma: true
+    systemd_reload_gatus: true
 
 - name: Enable and start the cert-expiry-check timer
   ansible.builtin.systemd:

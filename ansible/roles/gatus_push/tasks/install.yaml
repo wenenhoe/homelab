@@ -1,0 +1,52 @@
+---
+# Library role, no tasks/main.yaml — always called explicitly via
+# include_role: {name: gatus_push, tasks_from: install.yaml} with the var
+# below. Renders one plain systemd oneshot unit, gatus-push-<job>.service,
+# that POSTs a heartbeat to that job's Gatus external endpoint with its
+# bearer token (docs/topics/monitoring/gatus.md). Meant for OnSuccess= only,
+# never OnFailure=: a failed run must stay silent so Gatus sees the missing
+# heartbeat. Does not reload systemd or notify a handler; the caller reloads
+# with systemd_reload (systemd_reload_gatus: true), as for telegram_notify.
+#
+# Required var (no defaults/main.yaml — a missing one should fail loudly
+# here, not render a broken unit):
+#   gatus_push_job  an id in heartbeat_jobs (group_vars/all/main.yaml)
+# Optional var:
+#   gatus_push_description  [Unit] Description= text
+
+- name: Fail loudly if the job is not one Gatus has an endpoint and a token for
+  ansible.builtin.assert:
+    that:
+      - gatus_push_job is defined
+      - gatus_push_job in heartbeat_push_urls
+      - gatus_push_job in heartbeat_job_tokens
+    fail_msg: >-
+      gatus_push's install.yaml needs gatus_push_job set to an id in
+      heartbeat_jobs, got {{ gatus_push_job | default('nothing') }} - see
+      ansible/roles/gatus_push/tasks/install.yaml.
+
+- name: Ensure curl is present (this unit's ExecStart needs it)
+  ansible.builtin.apt:
+    name: curl
+    state: present
+
+- name: Ensure /etc/gatus-push exists
+  ansible.builtin.file:
+    path: /etc/gatus-push
+    state: directory
+    mode: "0700"
+
+- name: "Render the pusher's curl config (URL and bearer token): gatus-push-{{ gatus_push_job }}"
+  ansible.builtin.template:
+    src: push.curlrc.j2
+    dest: "/etc/gatus-push/gatus-push-{{ gatus_push_job }}.curlrc"
+    mode: "0600"
+  register: gatus_push_curlrc_result
+  no_log: true
+
+- name: "Install the pusher's systemd unit: gatus-push-{{ gatus_push_job }}"
+  ansible.builtin.template:
+    src: push.service.j2
+    dest: "/etc/systemd/system/gatus-push-{{ gatus_push_job }}.service"
+    mode: "0644"
+  register: gatus_push_service_result

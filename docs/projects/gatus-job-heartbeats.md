@@ -113,7 +113,7 @@ Two things make the parallel run safe. Kuma's push monitors keep their own inter
 
 - **Allowed to change:** `allowed_paths` in the frontmatter, enforced.
 - **Must not change:** any ADR revision beyond the edits [`docs/decisions/README.md#assumptions`](../decisions/README.md#assumptions) permits; the `OnFailure=` routes and the `telegram-notify@` units; Kuma's data volume and monitors before stage 6; the Decision of ADR 0072.
-- **Relevant files and interfaces:** `docker/wastebin/Dockerfile`, `.github/workflows/build-wastebin-image.yml` and the wastebin entry in `tools/ci/images/registry.py` as the pattern for a thin repo-built image; `ansible/roles/uptime_kuma_push/` and `docker/openbao/watcher/` for the push units; `ansible/roles/step_ca_cert/templates/cert-renewer@.service.j2` and its timer; `docs/topics/monitoring/uptime-kuma.md` for what exists now.
+- **Relevant files and interfaces:** `docker/wastebin/Dockerfile`, `.github/workflows/build-wastebin-image.yml` and the wastebin entry in `tools/ci/images/registry.py` as the pattern for a thin repo-built image; `ansible/roles/uptime_kuma_push/` and `docker/openbao/watcher/` for the push units; `ansible/roles/step_ca_cert/templates/cert-renewer@.service.j2` and its timer; `docs/topics/monitoring/gatus.md` for what exists now.
 - **Required checks:** `pre-commit run --all-files`; the Molecule scenario of every role a stage touches; `ci.images` unit tests for stage 1; the Dockerfile build check and smoke test for the Gatus image.
 
 ## Risks

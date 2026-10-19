@@ -103,7 +103,7 @@ goes through the real playbook, confirmation included (see below).
 In scope: every app with a `backup:` key in `app_catalog.yaml` — the
 same test `backup_agent` itself uses to decide what it backs up, so
 there's no separate list to keep in sync. That now includes
-`uptime-kuma` along with `step-ca`, `kms`, `wastebin`, `beszel-hub`,
+`step-ca`, `kms`, `wastebin`, `beszel-hub`,
 `tinyauth`, `lldap`, and `minecraft`. To exclude an app you back up but
 never want auto-restored in a batch run, add it to
 `restore_discovery_excluded_apps` in

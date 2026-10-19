@@ -31,7 +31,7 @@ def body(in_line: str = "In: the `src/app/` role and [the topic](../topics/app.m
 
 ## Acceptance criteria
 
-- [ ] Nothing names Kuma.
+- [ ] Nothing names Widget.
 
 ## Agent handoff
 
@@ -73,7 +73,7 @@ class TestStatedChanges:
         text = cli.stated_changes(body())
         assert "`src/app/`" in text
         assert "`src/app/tasks.yaml`" in text
-        assert "Kuma" in text
+        assert "Widget" in text
 
     @pytest.mark.parametrize("left_out", ["src/other/thing.py", "src/reads/only.py", "src/risk/only.py"], ids=["not-in", "agent-handoff", "risks"])
     def test_leaves_out_what_the_project_does_not_change(self, left_out):
@@ -256,33 +256,33 @@ class TestClosing:
 
 class TestSweep:
     def test_files_that_mention_a_term_are_listed_with_their_line_counts_ignoring_case(self, repo):
-        repo.write("legacy/a.md", "Kuma\nuptime-kuma\nother\n")
-        repo.write("legacy/b.md", "KUMA\n")
+        repo.write("legacy/a.md", "Widget\nwidget-app\nother\n")
+        repo.write("legacy/b.md", "WIDGET\n")
         repo.commit("files that mention the term")
-        found = {f.entry: f.why for f in report(repo, "kuma").sweep["kuma"]}
+        found = {f.entry: f.why for f in report(repo, "widget").sweep["widget"]}
         assert found == {"legacy/a.md": "2 lines", "legacy/b.md": "1 line"}
 
     def test_decision_history_covered_files_and_the_project_doc_are_left_out(self, repo):
-        revision(repo.root, "0001-x", 0, body="Kuma ran here.\n")
-        repo.write("legacy/covered.md", "Kuma\n")
-        repo.write("legacy/open.md", "Kuma\n")
+        revision(repo.root, "0001-x", 0, body="Widget ran here.\n")
+        repo.write("legacy/covered.md", "Widget\n")
+        repo.write("legacy/open.md", "Widget\n")
         repo.commit("mentions in history, a covered file and an open one")
-        write_doc(repo.root, DOC, front(allowed_paths=["legacy/covered.md"]), body())  # its own criterion names Kuma too
-        assert entries(report(repo, "kuma").sweep["kuma"]) == ["legacy/open.md"]
+        write_doc(repo.root, DOC, front(allowed_paths=["legacy/covered.md"]), body())  # its own criterion names Widget too
+        assert entries(report(repo, "widget").sweep["widget"]) == ["legacy/open.md"]
 
     def test_each_term_gets_its_own_list(self, repo):
-        repo.write("legacy/a.md", "kuma\n")
+        repo.write("legacy/a.md", "widget\n")
         repo.write("legacy/b.md", "gatus\n")
         repo.commit("one file per term")
-        swept = report(repo, "kuma", "gatus").sweep
-        assert {term: entries(found) for term, found in swept.items()} == {"kuma": ["legacy/a.md"], "gatus": ["legacy/b.md"]}
+        swept = report(repo, "widget", "gatus").sweep
+        assert {term: entries(found) for term, found in swept.items()} == {"widget": ["legacy/a.md"], "gatus": ["legacy/b.md"]}
 
     def test_a_term_nothing_mentions_gives_an_empty_list(self, repo):
         assert report(repo, "zzz-nothing").sweep == {"zzz-nothing": []}
 
     def test_a_file_git_does_not_track_is_not_searched(self, repo):
-        repo.write("legacy/untracked.md", "kuma\n")
-        assert report(repo, "kuma").sweep["kuma"] == []
+        repo.write("legacy/untracked.md", "widget\n")
+        assert report(repo, "widget").sweep["widget"] == []
 
     def test_a_term_is_matched_as_text_not_as_a_pattern(self, repo):
         repo.write("legacy/a.md", "a.c and abc\n")
@@ -290,9 +290,9 @@ class TestSweep:
         assert {f.entry: f.why for f in report(repo, "a.c").sweep["a.c"]} == {"legacy/a.md": "1 line"}
 
     def test_sweep_hits_are_not_added_to_the_proposed_entries(self, repo):
-        repo.write("legacy/a.md", "kuma\n")
+        repo.write("legacy/a.md", "widget\n")
         repo.commit("a mention")
-        assert "legacy/a.md" not in report(repo, "kuma").proposed()
+        assert "legacy/a.md" not in report(repo, "widget").proposed()
 
 
 class TestProposed:
@@ -313,9 +313,9 @@ class TestProposed:
 
 class TestCli:
     def test_prints_every_section_and_exits_zero_even_with_findings(self, repo):
-        code, out = repo.run_cli("p", "--sweep", "kuma")
+        code, out = repo.run_cli("p", "--sweep", "widget")
         assert code == 0, out
-        for heading in ("Exempt without an entry", "Named by the project doc, not covered", "Edited by the closing PR, not covered", 'Mention "kuma"'):
+        for heading in ("Exempt without an entry", "Named by the project doc, not covered", "Edited by the closing PR, not covered", 'Mention "widget"'):
             assert heading in out
         assert "- src/app/**" in out
 

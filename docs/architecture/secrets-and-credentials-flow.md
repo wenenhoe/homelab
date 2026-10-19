@@ -46,13 +46,13 @@ flowchart LR
     end
 
     telegram(["Telegram"])
-    kuma(["Uptime Kuma<br/>heartbeat"])
+    gatus(["Gatus<br/>heartbeat"])
 
     controller -- "1 . mint/rotate<br/>leaf & rotation keys" --> r2 & b2 & oci
     controller -- "2 . cache result" --> openbao
     openbao -. "3 . any read of the<br/>R2 rotation token path" .-> watcher
     watcher -- "4 . alert" --> telegram
-    watcher -- "heartbeat" --> kuma
+    watcher -- "heartbeat" --> gatus
 ```
 
 The R2 admin token is the one rotation credential accepted as

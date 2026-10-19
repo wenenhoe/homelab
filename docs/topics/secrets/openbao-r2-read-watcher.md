@@ -41,7 +41,7 @@ picks up from there.
 1. Copy everything over, from `controller`:
 
    ```sh
-   ssh security 'sudo mkdir -p /opt/r2-read-watcher /etc/r2-read-watcher /etc/uptime-kuma-push /etc/gatus-push /var/lib/r2-read-watcher'
+   ssh security 'sudo mkdir -p /opt/r2-read-watcher /etc/r2-read-watcher /etc/gatus-push /var/lib/r2-read-watcher'
    scp docker/openbao/watcher/* security:/tmp/
    ```
 
@@ -91,19 +91,7 @@ picks up from there.
    with an empty value. Minting again issues another `secret_id` and leaves
    the earlier one valid, so re-run this step only to replace a lost file.
 
-5. Only if this watcher already pushes to Kuma, or Kuma is to keep a monitor for it: create the push
-   monitor in Kuma's own UI (the one-time step every `uptime_kuma_push` consumer
-   needs — see [`uptime-kuma.md`](../monitoring/uptime-kuma.md)'s "One-time setup"), then cache
-   its URL. A new install can skip this: the heartbeat unit still pushes to Gatus, and the Kuma
-   push unit it also starts just fails.
-
-   ```sh
-   printf 'UPTIME_KUMA_PUSH_URL=%s\n' '<push url from Kuma>' | \
-     sudo tee /etc/uptime-kuma-push/uptime-kuma-push-r2-read-watcher.env > /dev/null
-   sudo chmod 600 /etc/uptime-kuma-push/uptime-kuma-push-r2-read-watcher.env
-   ```
-
-6. Cache the heartbeat's Gatus credentials. The `r2-read-watcher` job in
+5. Cache the heartbeat's Gatus credentials. The `r2-read-watcher` job in
    `heartbeat_jobs` already has its token (`gatus-token-r2-read-watcher`); the unit
    reads the endpoint URL and the bearer header from a curl config, so the
    token never appears in a command line. `sudo` on `security` needs a terminal,
@@ -127,7 +115,7 @@ picks up from there.
    unset t; shred -u ~/.gatus-token-r2
    ```
 
-7. Enable and start everything:
+6. Enable and start everything:
 
    ```sh
    sudo systemctl daemon-reload
@@ -135,7 +123,7 @@ picks up from there.
    sudo systemctl enable --now r2-read-watcher-heartbeat.timer
    ```
 
-8. Confirm it's actually alerting, not just running — trigger a real
+7. Confirm it's actually alerting, not just running — trigger a real
    read and check both the journal and Telegram:
 
    ```sh
@@ -175,19 +163,9 @@ where `r2-read-watcher.service` isn't active and, past **3 in a row
 `journalctl -u r2-read-watcher` — the actual error, not just "it's
 down." Not yet built.
 
-30 minutes is derived from this monitor's real Kuma settings
-(Heartbeat Interval 900s, Retries 6, Heartbeat Retry Interval 360s),
-not guessed: the first missed check lands at Heartbeat Interval, each
-one after that at Heartbeat Retry Interval, and it takes `Retries`
-consecutive failures to flip to Down —
-`900 + (6 − 1) × 360 = 2700s` (45 minutes) is Kuma's own real
-time-to-alert (confirmed against upstream's retry-handling logic,
-[louislam/uptime-kuma#4476](https://github.com/louislam/uptime-kuma/pull/4476);
-not watched live against this repo's pinned version specifically).
-Half of that is 22.5 minutes; the first `r2-read-watcher-heartbeat.timer`
-tick past it is the 3rd consecutive miss (30 minutes) — the coarsest
-this check can be without changing that timer's own 10-minute
-interval, and still a solid ~15-minute head start on Kuma's alert.
+30 minutes is what Gatus already gives: the endpoint's 15-minute heartbeat interval (a 10-minute push period plus 5
+minutes of slack) puts its own alert between 15 and 30 minutes after the last push. A check that waits for 3 missed
+ticks therefore adds the cause, the journal tail, and not an earlier alert; revisit the threshold when it is built.
 
 Needs its own standalone `/etc/telegram-notify/r2-read-watcher.env`,
 populated by hand from the same `hosts/all/telegram/*` values, for
@@ -195,8 +173,8 @@ the same reason as the original plan: it must fire even if the
 Vault-reachability problem that took the watcher down also takes out
 any Vault-backed alerting path.
 
-Until this lands, Kuma's own missed-heartbeat timeout is the only
+Until this lands, Gatus's missed-heartbeat alert is the only
 backstop. Since this watcher's only job is alerting on reads of the
 R2 rotation token, any read that happens while it's down goes
-undetected until then — Kuma reports the watcher is unhealthy, not
+undetected until then — Gatus reports the watcher is unhealthy, not
 why, and not what happened while it was down.

@@ -76,13 +76,13 @@ Each timer role (`backup_agent`, `caddy_cert_expiry`, `cloud_sync`,
 `step_ca_cert`) runs the same sequence, in this order:
 
 1. Include `systemd_reload` with no `tasks_from`, so its handler exists,
-   then install the Telegram notifier with the role above, and the Uptime
-   Kuma push unit where it has one.
+   then install the Telegram notifier with the role above, and the Gatus
+   push unit where it has one.
 2. Template its own service and timer, each with `notify: Reload systemd`.
 3. Include `systemd_reload`'s `reload.yaml`: reload systemd if a notifier
    unit changed, then flush handlers so the handler for its own units has
-   run too. A role that installed a Kuma push unit sets
-   `systemd_reload_uptime_kuma: true`.
+   run too. A role that installed a Gatus push unit sets
+   `systemd_reload_gatus: true`.
 4. Enable and start its timer.
 
 `Reload systemd` is defined once, in `systemd_reload`'s handlers. Each of

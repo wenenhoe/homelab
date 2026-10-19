@@ -166,7 +166,7 @@ not only down: `bao status` exits non-zero in both states. Since
 [0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md)
 leaves OpenBao sealed after every restart until a human unseals it (and
 a fresh deploy starts uninitialized), the container shows unhealthy in
-Beszel/Uptime-Kuma for both stretches. That is accurate: it is not
+Beszel for both stretches. That is accurate: it is not
 serving anything.
 
 ## Cert renewal uses SIGHUP, not a restart

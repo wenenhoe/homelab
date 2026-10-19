@@ -45,7 +45,7 @@ already owns. Reading a `0600` file root owns takes no capability.
 | `SETUID`, `SETGID` | Switch to another user (`gosu`, `su-exec`, Apache's worker drop, an entrypoint demoter). `cp`, `find`, `rm` and `tar` do not use them. | The entrypoint cannot make the switch. |
 | `NET_BIND_SERVICE` | Bind a port below 1024. A binary that carries it as a file capability with the effective bit set is refused at `exec` without it (`capabilities(7)`, "Safety checking for capability-dumb binaries"). | The listener or the whole process fails to start. |
 | `IPC_LOCK` | `mlock` memory so secrets stay out of swap (OpenBao). | The lock fails and the process refuses to start or runs unprotected, depending on its configuration. |
-| `NET_RAW` | Send ICMP, for `ping`. | Ping checks stop working. `dashy` and `uptime-kuma` give `ping` this as a file capability and do not keep it here, because only a ping check or monitor uses it. |
+| `NET_RAW` | Send ICMP, for `ping`. | Ping checks stop working. `dashy` gives `ping` this as a file capability and do not keep it here, because only a ping check or monitor uses it. |
 
 Three of these fail without an error that stops the job: `CHOWN` and `FOWNER`
 under BusyBox `cp -a`, and `FSETID`. Check the owner and mode of what the job

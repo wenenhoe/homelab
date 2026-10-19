@@ -68,7 +68,7 @@ heartbeat_jobs:
   # cloud-sync.timer: daily, see host_vars/storage.yaml.
   - {id: cloud-sync, group: backups, period_minutes: 1440}
   # r2-read-watcher-heartbeat.timer: every 10 minutes. A 15-minute interval
-  # keeps what the Kuma monitor used (docs/topics/secrets/openbao-r2-read-watcher.md).
+  # gives an alert 15 to 30 minutes after a stop (docs/topics/secrets/openbao-r2-read-watcher.md).
   - {id: r2-read-watcher, group: backups, period_minutes: 10, slack_minutes: 5}
   # cert-expiry-check.timer: daily, on every app host.
   - {id: cert-expiry-security, group: certs, period_minutes: 1440}

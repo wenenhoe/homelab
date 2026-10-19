@@ -57,13 +57,13 @@ are the baseline.
 [ADR 0012 (Backup verification)](../../decisions/0012-verifying-backups-actually-land/revision-000.md) (per-host
 backup freshness checks) and
 [ADR 0026 (High-value secret read alerts)](../../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
-(a per-read watcher pushing into Uptime Kuma) are both, concretely,
+(a per-read watcher pushing a heartbeat to Gatus) are both, concretely,
 ongoing monitoring of a specific failure mode rather than a
 point-in-time check. The
 [`off-site-monitoring`](../../projects/off-site-monitoring.md) project — and
 its
 [working decision](../../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md) —
-extends this further, removing Beszel/Kuma's own single point of
+extends this further, removing Beszel and Gatus's own single point of
 failure.
 
 ## CP-9 — System Backup

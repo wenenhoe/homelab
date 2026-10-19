@@ -20,7 +20,7 @@ related: [ADR-0011, ADR-0012, ADR-0042, ADR-0049]
 What has to be true, independent of the tool:
 
 - Each job has its own heartbeat, its own expected interval, and its own credential, so one leaked or rotated credential affects one job.
-- Intervals range from hours to about three weeks (the `cert-renewer@` cadence in [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md#wiring-a-job-to-its-push-monitor)).
+- Intervals range from hours to about three weeks (the `cert-renewer@` cadence in `uptime-kuma.md` (removed; replaced by: `gatus.md`)).
 - An alert lands in the Telegram topic that already owns that kind of event ([ADR 0011 (Alert routing)](../0011-alert-routing-and-noise/revision-000.md)).
 - The jobs push; the monitor never needs to reach into a host.
 - Rebuilding the monitor from the repo reproduces every monitor and every credential, with no step done by hand in a UI.
@@ -29,7 +29,7 @@ What has to be true, independent of the tool:
 
 ## Context
 
-**What exists.** Uptime Kuma push monitors, one per job. A monitor, its notification wiring and its push token exist only inside Kuma's database, created by hand in the UI; [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md#one-time-setup-after-first-deploy) lists this as a manual step, and every push URL is then copied into the secret store by hand. Kuma is only used for push monitors in this repo.
+**What exists.** Uptime Kuma push monitors, one per job. A monitor, its notification wiring and its push token exist only inside Kuma's database, created by hand in the UI; `uptime-kuma.md` lists this as a manual step, and every push URL is then copied into the secret store by hand. Kuma is only used for push monitors in this repo.
 
 **What Kuma's image carries.** Upstream's Dockerfiles build the default image on a base that adds Chromium, fonts and an embedded MariaDB server over a slim base, for browser-engine monitors and the embedded-database option. Neither is used here. A `-slim` variant of each release omits them.
 
@@ -92,7 +92,7 @@ flowchart LR
 
 ## Consequences
 
-Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. A second repo-built image joins the build and bump pipeline: an entry in `tools/ci/images/registry.py`, a Dockerfile, a build workflow and a smoke test for the image, as wastebin has, with Renovate bumping the Dockerfile's `FROM`. The registry accepts only tags like `5.37.0`, and Gatus's tags carry a leading `v`, so its tag rule needs a source that strips the `v`, with its unit tests. The `cert-renewer@` monitor changes from a push on renewal to a daily liveness push, which replaces the `OnSuccess=` link on that unit. [`uptime-kuma.md`](../../topics/monitoring/uptime-kuma.md), [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
+Every producer's push call changes. Existing Kuma push URLs and their secrets are retired, and new per-endpoint tokens are created. A second repo-built image joins the build and bump pipeline: an entry in `tools/ci/images/registry.py`, a Dockerfile, a build workflow and a smoke test for the image, as wastebin has, with Renovate bumping the Dockerfile's `FROM`. The registry accepts only tags like `5.37.0`, and Gatus's tags carry a leading `v`, so its tag rule needs a source that strips the `v`, with its unit tests. The `cert-renewer@` monitor changes from a push on renewal to a daily liveness push, which replaces the `OnSuccess=` link on that unit. `uptime-kuma.md`, [`docs/topics/README.md`](../../topics/README.md), the dashboard link, and the Kuma mentions in ADRs 0042 and 0049 and their projects need a follow-up once this is approved; this record changes none of them. The RAM question for the off-site host in [ADR 0049 (Site-loss monitoring)](../0049-monitoring-that-survives-loss-of-the-site/revision-000.md) gets easier, since Gatus is a single static binary, but that is measured, not assumed, there.
 
 ## Invariants
 

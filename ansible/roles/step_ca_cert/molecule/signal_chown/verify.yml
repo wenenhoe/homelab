@@ -361,7 +361,7 @@
       changed_when: false
       failed_when: >-
         'OnFailure=telegram-notify@%i.service' not in step_ca_cert_verify_onfailure.stdout
-        or 'OnSuccess' in step_ca_cert_verify_onfailure.stdout
+        or step_ca_cert_verify_onfailure.stdout is search('(?m)^OnSuccess=')
 
     - name: Start telegram-notify@openbao.service directly, as OnFailure= would  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl start telegram-notify@openbao.service

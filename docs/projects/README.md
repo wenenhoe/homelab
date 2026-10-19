@@ -269,6 +269,7 @@ here.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
+| [`backup-agent-compose-app.md`](backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](../decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) | Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app. |
 | [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
 | [`bind-mounted-config-files.md`](bind-mounted-config-files.md) | — | Not started — ready | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |

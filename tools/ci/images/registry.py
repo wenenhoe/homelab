@@ -101,14 +101,24 @@ def final_from(image: str) -> TagSource:
     return source
 
 
-def from_image(image: str) -> TagSource:
-    """The tag of the one FROM naming `image`."""
+def from_image(image: str, tag_prefix: str = "") -> TagSource:
+    """The tag of the one FROM naming `image`, which must start with `tag_prefix`.
+
+    The prefix is dropped from the published tag, so an upstream `v1.2.3` is
+    published as `1.2.3`, the shape the rest of the registry accepts.
+    """
 
     def source(text: str) -> str:
         matches = [tag for name, tag in _from_images(text) if name == image]
         if len(matches) != 1:
             raise ImageError(f"expected exactly one FROM {image}, found {len(matches)}")
-        return _checked(matches[0], f"the tag on FROM {image}")
+        tag = matches[0]
+        what = f"the tag on FROM {image}"
+        if tag is None or not tag_prefix:
+            return _checked(tag, what)
+        if not tag.startswith(tag_prefix):
+            raise ImageError(f"{what} must start with {tag_prefix!r}, got {tag!r}")
+        return _checked(tag.removeprefix(tag_prefix), f"{what} (after its {tag_prefix!r} prefix)")
 
     return source
 
@@ -146,6 +156,7 @@ IMAGES: dict[str, Image] = {
     for image in (
         Image("caddy", "caddy-digitalocean", "docker/caddy", final_from("caddy")),
         Image("wastebin", "wastebin", "docker/wastebin", from_image("quxfoo/wastebin")),
+        Image("gatus", "gatus", "docker/gatus", from_image("twinproduction/gatus", tag_prefix="v")),
         Image("molecule-dind", "molecule-dind", "docker/molecule-dind", constant("latest")),
         Image("coderabbit-review", "coderabbit-review", "tools/coderabbit-review", arg_version("CODERABBIT_VERSION"), extra_tags=("latest",)),
     )

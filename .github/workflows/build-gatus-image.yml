@@ -1,0 +1,81 @@
+name: Build & push gatus image
+
+on:  # yamllint disable-line rule:truthy
+  push:
+    branches: [main]
+    paths:
+      - 'docker/gatus/Dockerfile'
+  schedule:
+    # Weekly, same slot as build-caddy-image.yml's schedule trigger — see
+    # that workflow for why a schedule is needed alongside the push
+    # trigger (catches busybox:musl patches that land without
+    # docker/gatus/Dockerfile's text changing).
+    - cron: "0 20 * * 0"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-gatus-image
+  cancel-in-progress: false
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-26.04
+    timeout-minutes: 30
+    permissions:
+      attestations: write
+      contents: read
+      id-token: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # The image's name and its tag (the upstream Gatus version, less
+      # its leading `v`) come from ci.images.registry; see
+      # build-caddy-image.yml for why this is plain python3 and what holds
+      # compose.yaml's pin equal to it.
+      - name: Resolve image tags
+        id: image
+        run: python3 -m ci.images.registry tags gatus
+        working-directory: tools
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - name: Log in to GHCR
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Same pull/no-cache-on-schedule-only and explicit-amd64 reasoning
+      # as build-caddy-image.yml.
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: docker/gatus
+          file: docker/gatus/Dockerfile
+          platforms: linux/amd64
+          push: true
+          pull: ${{ github.event_name == 'schedule' }}
+          no-cache: ${{ github.event_name == 'schedule' }}
+          tags: ${{ steps.image.outputs.tags }}
+
+      # The signed statement `gh attestation verify` checks the pushed digest
+      # against; see docs/topics/engineering/ci/image-provenance-check.md.
+      # create-storage-record is off because it needs `artifact-metadata:
+      # write`, a permission nothing here uses.
+      - name: Attest the pushed digest
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-name: ghcr.io/wenenhoe/gatus
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+          create-storage-record: false

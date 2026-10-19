@@ -85,6 +85,37 @@ class TestFromImage:
         with pytest.raises(reg.ImageError, match="exactly one"):
             self.SOURCE(text)
 
+    def test_a_v_prefixed_tag_is_not_a_version_without_a_prefix(self):
+        with pytest.raises(reg.ImageError, match="must be a version"):
+            self.SOURCE("FROM quxfoo/wastebin:v3.7.2\n")
+
+
+class TestFromImageWithPrefix:
+    SOURCE = staticmethod(reg.from_image("twinproduction/gatus", tag_prefix="v"))
+
+    def test_the_prefix_is_dropped_from_the_tag(self):
+        assert self.SOURCE("FROM busybox:1.38.0-musl AS d\nFROM twinproduction/gatus:v5.37.0\nCOPY --from=busybox:1.38.0-musl /a /b\n") == "5.37.0"
+
+    @pytest.mark.parametrize(
+        ("line", "message"),
+        [
+            pytest.param("FROM twinproduction/gatus:5.37.0\n", "must start with 'v', got '5.37.0'", id="no-prefix"),
+            pytest.param("FROM twinproduction/gatus\n", "must be a version like 1.2.3, got None", id="untagged"),
+            pytest.param(
+                "FROM twinproduction/gatus:vlatest\n", r"\(after its 'v' prefix\) must be a version like 1.2.3, got 'latest'", id="prefixed-non-version"
+            ),
+            pytest.param("FROM twinproduction/gatus:vv5.37.0\n", r"\(after its 'v' prefix\) must be a version like 1.2.3, got 'v5.37.0'", id="prefix-twice"),
+            pytest.param("FROM twinproduction/gatus:v5.37.0-alpine\n", "must be a version like 1.2.3", id="variant-suffix"),
+        ],
+    )
+    def test_a_tag_that_is_not_the_prefix_and_a_version_is_an_error(self, line, message):
+        with pytest.raises(reg.ImageError, match=message):
+            self.SOURCE(line)
+
+    def test_zero_or_two_matches_is_still_an_error(self):
+        with pytest.raises(reg.ImageError, match="exactly one"):
+            self.SOURCE("FROM busybox:1.38.0\n")
+
 
 class TestArgVersion:
     SOURCE = staticmethod(reg.arg_version("CODERABBIT_VERSION"))
@@ -128,6 +159,8 @@ def tree(root):
     tree.write("docker/caddy/compose.yaml", "services:\n  caddy:\n    image: ghcr.io/wenenhoe/caddy-digitalocean:2.11.4\n")
     tree.write("docker/wastebin/Dockerfile", "FROM busybox:1.38.0 AS d\nFROM quxfoo/wastebin:3.7.2\n")
     tree.write("docker/wastebin/compose.yaml.j2", "services:\n  w:\n    image: ghcr.io/wenenhoe/wastebin:3.7.2\n")
+    tree.write("docker/gatus/Dockerfile", "FROM busybox:1.38.0 AS d\nFROM twinproduction/gatus:v5.37.0\n")
+    tree.write("docker/gatus/compose.yaml", "services:\n  g:\n    image: ghcr.io/wenenhoe/gatus:5.37.0\n")
     tree.write("docker/molecule-dind/Dockerfile", "FROM geerlingguy/x:latest\n")
     tree.write("tools/coderabbit-review/Dockerfile", "ARG CODERABBIT_VERSION=0.8.0\n")
     tree.write("ansible/roles/r/molecule/default/molecule.yml", "platforms:\n  - name: x\n    image: ghcr.io/wenenhoe/molecule-dind:latest\n")
@@ -137,6 +170,9 @@ def tree(root):
 class TestRefs:
     def test_version_tag_first_then_extras(self, tree):
         assert reg.refs(tree.root, reg.IMAGES["coderabbit-review"]) == ["ghcr.io/wenenhoe/coderabbit-review:0.8.0", "ghcr.io/wenenhoe/coderabbit-review:latest"]
+
+    def test_a_prefixed_upstream_tag_is_published_without_the_prefix(self, tree):
+        assert reg.refs(tree.root, reg.IMAGES["gatus"]) == ["ghcr.io/wenenhoe/gatus:5.37.0"]
 
     def test_the_image_name_is_not_the_directory_name(self, tree):
         assert reg.refs(tree.root, reg.IMAGES["caddy"]) == ["ghcr.io/wenenhoe/caddy-digitalocean:2.11.4"]
@@ -175,6 +211,12 @@ class TestCheckPins:
             ),
             pytest.param("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:3.8.0\n", "compose.yaml.j2", id="templated-compose-file"),
             pytest.param("docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin\n", "(no tag)", id="compose-pin-with-no-tag"),
+            pytest.param(
+                "docker/gatus/compose.yaml",
+                "    image: ghcr.io/wenenhoe/gatus:v5.37.0\n",
+                "pins ghcr.io/wenenhoe/gatus:v5.37.0, but the Dockerfile publishes 5.37.0",
+                id="compose-pin-with-the-upstream-prefix",
+            ),
             pytest.param(
                 "docker/wastebin/compose.yaml.j2", "    image: ghcr.io/wenenhoe/wastebin:latest\n", "wastebin:latest", id="compose-pin-on-a-non-version-tag"
             ),
@@ -296,6 +338,11 @@ class TestCli:
         code, out = run_main("tags", "coderabbit-review")
         assert code == 0
         assert out.splitlines() == ["version=0.8.0", "tags=ghcr.io/wenenhoe/coderabbit-review:0.8.0,ghcr.io/wenenhoe/coderabbit-review:latest"]
+
+    def test_tags_for_a_prefixed_upstream_tag_carry_no_prefix(self, run_main):
+        code, out = run_main("tags", "gatus")
+        assert code == 0
+        assert out.splitlines() == ["version=5.37.0", "tags=ghcr.io/wenenhoe/gatus:5.37.0"]
 
     def test_tags_for_an_unresolvable_image_fails_the_job(self, tree, run_main):
         tree.write("docker/wastebin/Dockerfile", "FROM busybox:1\n")

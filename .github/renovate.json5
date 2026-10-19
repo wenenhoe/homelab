@@ -762,5 +762,14 @@
       matchDepNames: ["caddy"],
       sourceUrl: "https://github.com/caddyserver/caddy",
     },
+
+    // twinproduction/gatus is the upstream image docker/gatus/Dockerfile
+    // builds on (the repo's own image is ghcr.io/wenenhoe/gatus); its
+    // releases and changelog are in TwiN/gatus.
+    {
+      matchDatasources: ["docker"],
+      matchDepNames: ["twinproduction/gatus"],
+      sourceUrl: "https://github.com/TwiN/gatus",
+    },
   ],
 }

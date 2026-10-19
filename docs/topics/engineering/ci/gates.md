@@ -216,9 +216,10 @@ excluded.
 
 The images built from `docker/<app>/Dockerfile` are published only after
 merge (`build-caddy-image.yml`, `build-wastebin-image.yml`,
-`build-molecule-dind-image.yml`), and compose files pin the published
-tag. A PR's boot test therefore builds a changed Dockerfile locally,
-since the published image would be the old one or not exist yet. The
+`build-gatus-image.yml`, `build-molecule-dind-image.yml`), and compose
+files pin the published tag. A PR's boot test therefore builds a changed
+Dockerfile locally, since the published image would be the old one or not
+exist yet. The
 CodeRabbit review image, built from `tools/coderabbit-review/Dockerfile` and
 published by `build-coderabbit-review-image.yml`, is published the same way,
 though no compose file pins it. Each of these workflows runs on a push to
@@ -235,12 +236,14 @@ which hold a package-write token.
 - **The image registry**, `tools/ci/images/registry.py`, is the one place
   each image's published name and tag rule are written down: `caddy` is
   published as `caddy-digitalocean` and tagged with the final stage's
-  Caddy version, `wastebin` with the upstream wastebin version,
-  `molecule-dind` as `latest`, `coderabbit-review` with its
-  `CODERABBIT_VERSION` plus `latest`. The four `build-*-image.yml`
-  workflows ask it for their `tags:` (`python3 -m ci.images.registry tags
-  <image>`) instead of grepping the Dockerfile themselves. Unlike the
-  greps it replaced, it fails unless the Dockerfile has exactly one
+  Caddy version, `wastebin` with the upstream wastebin version, `gatus`
+  with the upstream Gatus version less its leading `v` (upstream tags
+  `v5.37.0`; the image is published as `5.37.0`, and a `v` left on a
+  compose pin fails `check-pins`), `molecule-dind` as `latest`,
+  `coderabbit-review` with its `CODERABBIT_VERSION` plus `latest`. The
+  five `build-*-image.yml` workflows ask it for their `tags:`
+  (`python3 -m ci.images.registry tags <image>`) instead of grepping the
+  Dockerfile themselves. Unlike the greps it replaced, it fails unless the Dockerfile has exactly one
   match and the tag looks like a version. `check-pins` (the
   `check-image-pins` pre-commit hook, so it runs in `pre-commit-checks`
   on every PR) fails when a compose file pins a `ghcr.io/wenenhoe` tag
@@ -287,8 +290,11 @@ which hold a package-write token.
   pins, `git` is present and the default user is UID 1001 — it never
   runs a review, whose findings must stay off this repo's logs;
   `wastebin` only that the build produced an image, since
-  `compose-boot-test` boots it for real. This covers the Dockerfiles
-  `compose-boot-test` excludes (`caddy`, `molecule-dind`) and
+  `compose-boot-test` boots it for real; `gatus` that the image's user is
+  a non-root number, and, booting it on a fresh volume with a one-endpoint
+  config, that its own `/wget` gets `/health` and the sqlite file appears
+  in `/data`. This covers the Dockerfiles `compose-boot-test` excludes
+  (`caddy`, `molecule-dind`, `gatus`, which has no compose file) and
   `coderabbit-review`, which isn't a compose app and is queued from its
   registry entry's path rather than from `docker/`.
 - **Shadow-tagging** in `_compose-boot-test.yml`

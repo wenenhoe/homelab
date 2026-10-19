@@ -54,7 +54,7 @@ calls for a project, while a working one still has to be settled.
 | [`tofu-skeleton.md`](projects/tofu-skeleton.md) | 4 | Building | The OpenTofu provider, the state backend on SeaweedFS and the credentials file, so every other Tofu project has somewhere to start. |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
-| [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
+| [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Building | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
@@ -81,8 +81,7 @@ calls for a project, while a working one still has to be settled.
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building |
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking |
 | | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Not started — waiting on [ADR-0075/0](decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md) |
-| | `agent` | — | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building |
+| `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building |
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |

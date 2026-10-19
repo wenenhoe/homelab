@@ -20,11 +20,11 @@ OpenBao itself is done; see ADRs
 [0026](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 and the `openbao-*.md` docs for that half.
 
-This is the first of three projects in the `pull-based-cd` initiative; [`cd-agent-approles.md`](cd-agent-approles.md) and [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) cover its AppRoles and retiring `controller`'s standing AppRole.
+This is the first of three projects in the `pull-based-cd` initiative; [`cd-agent-approles.md`](cd-agent-approles.md) and [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) cover its AppRoles and their credentials, and retiring `controller`'s standing AppRole.
 
 ## Scope
 
-The `cd_agent` host: a dedicated LAN box with a fixed IP and no job-serving listener (SSH from the operator host only), running the jobs that replace manual `ansible-playbook` deploys and rotation runs. Not in scope: its AppRoles ([`cd-agent-approles.md`](cd-agent-approles.md)) and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The `cd_agent` host: a dedicated LAN box with a fixed IP and no job-serving listener (SSH from the operator host only), running the jobs that replace manual `ansible-playbook` deploys and rotation runs. Not in scope: its AppRoles and the delivery of each job's credentials, including the check that the `freshness` job's heartbeat arrives on success only ([`cd-agent-approles.md`](cd-agent-approles.md)), and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -58,7 +58,6 @@ The freshness job replaces the weekly user timer on `controller` (`tools/cloud_c
 - [x] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
 - [x] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
 - [x] The role converges idempotently.
-- [ ] The `freshness` job pushes to its Gatus endpoint on success only, so a run that fails, including one that cannot log in to OpenBao, alerts as a missed heartbeat without needing OpenBao to send it, verified on the host.
 
 ## Open items
 

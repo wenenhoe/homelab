@@ -132,6 +132,7 @@ credentials change, on any suspected exposure, and every 90 days. The
 - [ ] A rotation leaves exactly one valid `secret_id` for that job and no failed run, verified.
 - [ ] A step-ca root change is covered by re-running delivery for every job, and the deploy-side check then passes, verified.
 - [ ] The rotation cadence and its triggers are in a topic doc.
+- [ ] The `freshness` job pushes to its Gatus endpoint on success only, so a run that fails, including one that cannot log in to OpenBao, alerts as a missed heartbeat without needing OpenBao to send it, verified on the host.
 
 ## Risks
 

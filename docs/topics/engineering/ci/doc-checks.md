@@ -1,6 +1,6 @@
 # CI Doc Checks
 
-The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, and the Mermaid render check, plus the helper that suggests a project's scope. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
+The hooks and jobs that keep docs and project records consistent: index generation, the drift check, the project scope and close checks, and the Mermaid render check, plus the helpers that suggest a project's scope and renumber the lineages a patch series adds. How they sit in the pipeline is in [CI: PR Checks](pipeline.md).
 
 ## Doc index generation
 
@@ -178,6 +178,29 @@ It ends with the `allowed_paths` block that adds the named and closing entries
 to today's, leaving out an entry another new entry already covers. A new topic
 doc's row in `docs/topics/README.md` isn't found, and no scope exempts that
 file.
+
+## Renumbering a patch series' lineages
+
+[`tools/doc_scripts/renumber_adr_patches.py`](../../../../tools/doc_scripts/renumber_adr_patches.py)
+is a helper, not a check: no hook or job runs it. Two patch series written
+against the same `main` can each add a lineage with the same number. The
+directories carry different slugs, so `git am` applies both and only the
+drift check and the index generation notice. Run it from `tools/` on the
+series, after `git am --abort` if one is in progress:
+
+```text
+python3 -m doc_scripts.renumber_adr_patches PATCH... [--check] [--out DIR]
+```
+
+For each lineage the series adds whose number the tree holds under another
+directory, it takes the next number that neither the tree nor the series
+uses. It writes every patch to `renumbered/` beside the first patch, or to
+`--out`, with that number replaced in the lineage's directory name, its
+`ADR-NNNN` and `ADR NNNN` references, its `# NNNN.` heading and its index
+link text. Any other text that contains the number is left as written, and
+the originals are not modified. It prints each renumbering and the number of
+replacements in each patch. `--check` prints the collisions and exits 1
+without writing anything.
 
 ## Project close check
 

@@ -12,11 +12,11 @@ track: operator
 
 # Operator Host
 
-Moves the controller off the workstation onto a small host that holds the infrastructure credentials and handles no untrusted content. Staged because an assumption needs checking first, the network zone and the host are separate changes, and moving each credential is a step to prove before the workstation is stripped ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)).
+Moves the controller off the workstation onto a small host that holds the infrastructure credentials and handles no untrusted content. Staged because an assumption needs checking first, the network zone and the host are separate changes, and moving each credential is a step to prove before the workstation is stripped ([`workstation-management.md`](workstation-management.md)).
 
 ## Scope
 
-VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, an `operator_host` role, and moving the toolchain and credentials onto it. Not in scope: stripping VM 401 ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)), setting up the laptop as the workstation ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, an `operator_host` role, and moving the toolchain and credentials onto it. Not in scope: setting up the laptop as the workstation and stripping and retiring VM 401 ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 

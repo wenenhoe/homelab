@@ -48,6 +48,7 @@ allowed_paths:
   - docs/topics/disaster-recovery/backup.md
   - docs/topics/disaster-recovery/restore.md
   - docs/topics/engineering/ci/gates.md
+  - docs/topics/engineering/ci/image-provenance-check.md
   - docs/topics/engineering/molecule-testing.md
   - docs/topics/engineering/nist-800-53-alignment.md
   - docs/topics/secrets/cloud-credentials/rotation.md

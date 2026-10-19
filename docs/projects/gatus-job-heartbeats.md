@@ -74,7 +74,7 @@ Replaces the Uptime Kuma push monitors with Gatus external endpoints, so every j
 
 In: a repo-built Gatus image; the `gatus` app on `security`, where Kuma runs; one external endpoint and generated token per job (the three `backup_agent` hosts, the four `cert-expiry-check` hosts, `cloud_sync`, the two `cert-renewer@` instances, and the `r2-read-watcher` heartbeat); the daily `cert-renewer@` liveness push; a parallel run; removing Kuma.
 
-Not in: moving the monitor to another host or off-site ([`monitoring-host-isolation.md`](monitoring-host-isolation.md), [`off-site-monitoring.md`](off-site-monitoring.md)); active probing beyond the one self-probe; replacing Beszel; the CD agent's `freshness` heartbeat, which waits for its host ([`cd-agent.md`](cd-agent.md), token delivery in [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)); changing any `OnFailure=` route, which stays as it is.
+Not in: moving the monitor to another host or off-site ([`monitoring-host-isolation.md`](monitoring-host-isolation.md), [`off-site-monitoring.md`](off-site-monitoring.md)); active probing beyond the one self-probe; replacing Beszel; the CD agent's `freshness` heartbeat, which waits for its host ([`cd-agent.md`](cd-agent.md), token delivery in [`cd-agent-approles.md`](cd-agent-approles.md)); changing any `OnFailure=` route, which stays as it is.
 
 ## Decision
 

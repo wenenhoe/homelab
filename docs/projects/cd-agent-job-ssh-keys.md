@@ -18,7 +18,7 @@ Carries out [ADR 0075 (Job SSH identity)](../decisions/0075-giving-an-automation
 
 In: key generation in the `cd_agent` role, the inventory reading a job's key, authorizing the public half on `storage` for `redeploy-storage`.
 
-Not in: moving `deploy` off the shared key, an SSH certificate authority, delivering `secret_id` files ([`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md)).
+Not in: moving `deploy` off the shared key, an SSH certificate authority, delivering `secret_id` files ([`cd-agent-approles.md`](cd-agent-approles.md)).
 
 ## Decision
 

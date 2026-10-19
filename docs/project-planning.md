@@ -52,7 +52,7 @@ calls for a project, while a working one still has to be settled.
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
-| [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
+| [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
 | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Building | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
@@ -84,9 +84,8 @@ calls for a project, while a working one still has to be settled.
 | `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Not started — waiting on [ADR-0075/0](decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md) |
 | | `agent` | — | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building |
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
-| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 2 | Building |
+| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| | `credentials` | — | [`cd-agent-credential-delivery.md`](projects/cd-agent-credential-delivery.md) | — | Not started — waiting on [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | 5 | De-risking |
 | | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) | 3 | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
 | | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) | 2 | Not started — waiting on [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) |

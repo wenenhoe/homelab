@@ -84,6 +84,7 @@ credentials change, on any suspected exposure, and every 90 days. The
 
 ## Open items
 
+- The `freshness` job's Gatus push token is a file the host needs besides the four credential files, written by hand today ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md#heartbeats)). Whether the delivery command also writes it is not decided.
 - What reminds the maintainer that a 90-day rotation is due is not decided. The freshness job cannot read the `secret_id`'s age, since its policy grants no `auth/approle` capability.
 
 ## Closing checklist

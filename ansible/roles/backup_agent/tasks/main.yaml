@@ -167,9 +167,9 @@
 # --- Freshness check: liveness signal for Uptime Kuma -----------------
 # See docs/topics/monitoring/uptime-kuma.md. Runs host-side, outside the backup-agent
 # container entirely - offen/docker-volume-backup's own exec-hook
-# labels need Docker `exec` access, which this host's socket-proxy
-# deliberately doesn't grant (see compose.yaml.j2's own comment on
-# backup_agent_any_stop_apps). Checking S3 object freshness instead
+# labels need Docker `exec` access, which the proxy's rules file
+# (docker-api-rules.cfg) has no rule for, so the proxy refuses it.
+# Checking S3 object freshness instead
 # needs no new privilege at all: it reuses this host's own
 # already-scoped SeaweedFS credential (read access is strictly less
 # than the write access it already has).

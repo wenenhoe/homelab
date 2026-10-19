@@ -207,14 +207,14 @@ without writing anything.
 ## Project close check
 
 [`tools/doc_scripts/check_project_close.py`](../../../../tools/doc_scripts/check_project_close.py) enforces the closing rule in
-[ADR 0037 revision 2 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
-deleting a finished project's doc must not leave the revision its
-`decision:` names `approved` with no project naming it. A deleted doc
-passes when that revision is `accepted` afterwards, or another project doc
-that remains still names it in `decision:` (`also_implements:` doesn't
-count, since it gates nothing). So the last project to close either
-accepts the revision or leaves a `not-started` successor naming it for
-whatever is unfinished. A change that deletes no project doc isn't
+[ADR 0037 revision 3 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-003.md):
+deleting a finished project's doc must not leave a revision it names
+unaccepted with no project naming it. A deleted doc passes when each
+revision it named on the base, in `decision:` or `also_implements:`, is
+`accepted` afterwards, or another project doc that remains names it in
+either field (`also_implements:` still gates no project's status). So the
+last project to close either accepts the revision or leaves a
+`not-started` successor naming it for whatever is unfinished. A change that deletes no project doc isn't
 checked.
 
 It runs in the same two places as the scope check, with the same

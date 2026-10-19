@@ -105,7 +105,8 @@ to `accepted` as a side effect; when it does, add that revision to
 (`decision: ADR-0055/0`, `also_implements: [ADR-0050/0]`, whose
 Stage 2 sets ADR 0050 to `accepted`) is the existing example.
 `also_implements:` doesn't gate anything — `check_doc_drift.py` only
-confirms each entry resolves to a real revision — it exists so
+confirms each entry resolves to a real revision, and the close check reads it
+(see [When a project finishes](#when-a-project-finishes)) — it exists so
 [`project-planning.md`'s "Decisions awaiting a project"](../project-planning.md#decisions-awaiting-a-project)
 view can tell this ADR is covered without scanning every project's
 prose for a mention. It also exempts that revision, and the one it
@@ -226,11 +227,15 @@ the revision. The last project to name a revision sets it `accepted` in
 the PR that deletes its doc, which asserts that the whole Decision is
 implemented. If part of it isn't, that PR adds a `not-started` successor
 project for the remainder, which also means this one isn't the last.
-`also_implements:` doesn't count as naming.
+A project names a revision in `decision:` or in `also_implements:`, and a closing
+project's `also_implements:` entries are judged like its `decision:`: each must be
+`accepted` afterwards or named by a project that remains. A merge of two projects
+with different unaccepted decisions keeps one in `decision:` and lists the other
+in `also_implements:`.
 [`check_project_close.py`](../../tools/doc_scripts/check_project_close.py)
 fails a PR that deletes a project doc and does neither; see
 [`docs/topics/engineering/ci/doc-checks.md#project-close-check`](../topics/engineering/ci/doc-checks.md#project-close-check), and
-[ADR 0037 revision 2 (Decision and project workflow)](../decisions/0037-decision-and-project-documentation-workflow/revision-002.md)
+[ADR 0037 revision 3 (Decision and project workflow)](../decisions/0037-decision-and-project-documentation-workflow/revision-003.md)
 for the reasoning.
 
 That PR condenses the revision first, while it is still `approved` and can

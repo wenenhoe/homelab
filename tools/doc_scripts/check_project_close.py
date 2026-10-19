@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Fails a change that deletes a project doc and leaves the revision its
-`decision:` names `approved` and named by no remaining project — see
-doc_close.py for the rule and ADR 0037 revision 2 for why.
+"""Fails a change that deletes a project doc and leaves a revision it names in
+`decision:` or `also_implements:` unaccepted and named by no remaining project —
+see doc_close.py for the rule and ADR 0037 revision 3 for why.
 
 Two modes, both reading the deleted doc as it stood on the base and the rest
 of the docs as they stand once the change is applied:
@@ -72,9 +72,9 @@ def main(argv: list[str] | None = None) -> int:
     if errors:
         for e in errors:
             print(f"::error::{e}")
-        print(f"\n{len(errors)} deleted project doc(s) would leave their decision unaccepted and unnamed.", file=sys.stderr)
+        print(f"\n{len(errors)} deleted project doc(s) would leave a revision they name unaccepted and unnamed.", file=sys.stderr)
         return 1
-    print("Every deleted project doc's decision is accepted or still named by another project.")
+    print("Every revision a deleted project doc names is accepted or still named by another project.")
     return 0
 
 

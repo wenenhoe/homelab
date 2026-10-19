@@ -1,6 +1,7 @@
-"""The close rule for project docs: deleting one must not leave the
-revision its `decision:` names `approved` and named by no project (ADR 0037
-revision 2). Pure functions, shared by check_project_close.py. Field
+"""The close rule for project docs: deleting one must not leave a revision
+it names in `decision:` or `also_implements:` unaccepted and named by no
+remaining project (ADR 0037 revision 3). Pure functions, shared by
+check_project_close.py. Field
 validation lives in doc_frontmatter.py.
 
 A finished project's doc is deleted, so the rule can't read a `done` status
@@ -23,31 +24,44 @@ def _revision_key(ref: object) -> tuple[str, str] | None:
     return (m.group(1), m.group(2)) if m else None
 
 
+def _revision_keys(fm: dict) -> list[tuple[str, str]]:
+    """The revisions a project doc names, in `decision:` first and then `also_implements:`,
+    without repeats. A malformed reference is skipped; the drift check reports it."""
+    refs = [fm.get("decision"), *(fm.get("also_implements") or [])]
+    keys: list[tuple[str, str]] = []
+    for ref in refs:
+        key = _revision_key(ref)
+        if key is not None and key not in keys:
+            keys.append(key)
+    return keys
+
+
 def close_errors(deleted: list[str], base_project: Callable[[str], dict | None], result_root: Path = ROOT) -> list[str]:
     """`deleted` are repo-relative posix paths the change removes. `base_project(path)`
     returns a project doc's frontmatter as it stood on the base, or None if it didn't
     exist. `result_root` holds docs/decisions and docs/projects as they stand once the
-    change is applied. A deleted doc closes cleanly when its revision is then
-    `accepted`, or a remaining project doc still names it in `decision:`;
-    `also_implements:` gates nothing, so it never counts as naming."""
+    change is applied. A deleted doc closes cleanly when each revision it names, in
+    `decision:` or `also_implements:`, is then `accepted` or still named by a remaining
+    project doc in either field. `also_implements:` still gates no project's status; it
+    only keeps a revision from being left behind when the project that named it closes."""
     deleted = sorted({p for p in deleted if PROJECT_DOC_RE.fullmatch(p)})
     if not deleted:
         return []
     revisions = {(lineage.id, rev.label): rev for lineage in load_lineages(result_root) for rev in lineage.revisions}
-    still_named = {key for path in docs_in(result_root / "docs" / "projects") if (key := _revision_key(read_frontmatter(path).get("decision")))}
+    still_named = {key for path in docs_in(result_root / "docs" / "projects") for key in _revision_keys(read_frontmatter(path))}
     errors = []
     for path in deleted:
         fm = base_project(path)
-        key = _revision_key(fm.get("decision")) if fm else None
-        if key is None:
-            continue  # no decision to settle, or a malformed one the drift check reports
-        rev = revisions.get(key)
-        if (rev is not None and rev.status == "accepted") or key in still_named:
-            continue
-        ref = fm["decision"]
-        state = rev.status if rev is not None else "absent"
-        errors.append(
-            f"{path}: deleted, but its decision {ref} is {state} afterwards and no remaining project doc names it — "
-            "accept the revision in this change, or leave a project that names it (a not-started successor for whatever is unfinished)"
-        )
+        if not fm:
+            continue  # a doc the base did not have; the drift check reports a malformed one
+        for key in _revision_keys(fm):
+            rev = revisions.get(key)
+            if (rev is not None and rev.status == "accepted") or key in still_named:
+                continue
+            ref = f"{key[0]}/{key[1]}"
+            state = rev.status if rev is not None else "absent"
+            errors.append(
+                f"{path}: deleted, but {ref} is {state} afterwards and no remaining project doc names it — "
+                "accept the revision in this change, or leave a project that names it (a not-started successor for whatever is unfinished)"
+            )
     return errors

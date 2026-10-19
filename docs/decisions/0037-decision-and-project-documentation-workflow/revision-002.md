@@ -7,7 +7,8 @@ short: Decision and project workflow
 solution: "Several projects may implement one decision; the last one to close accepts it, enforced when a project doc is deleted"
 summary: "How why, what-remains, and what-is-true-now are kept apart, extended so one decision can be implemented by more than one project."
 topic: documentation-process
-status: accepted
+status: superseded
+superseded_by: 3
 supersedes: 1
 related: [ADR-0061]
 ---

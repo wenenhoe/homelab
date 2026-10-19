@@ -42,7 +42,7 @@ pre-commit hook can import it. `tools/utils/app_catalog.py` does the same for
 `tools/utils/unique_key_yaml.py`.
 
 `tools/doc_scripts/` is the documentation-workflow checks and generators
-of [ADR 0037 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-002.md):
+of [ADR 0037 (Decision and project workflow)](../../../decisions/0037-decision-and-project-documentation-workflow/revision-003.md):
 `generate_doc_indexes`, `check_doc_drift`, `check_project_scope` and
 `check_project_close`, with the helpers they share (`doc_frontmatter`,
 `doc_graph`, `doc_scope`, `doc_close`, `doc_git`). The pre-commit hooks run

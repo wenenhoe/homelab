@@ -63,5 +63,6 @@ expires_in() {
 
 @test "the connection goes to loopback with the real hostname as the SNI" {
   NOT_AFTER=$(expires_in "40 days") run "$SCRIPT"
-  assert_equal "$(calls_to openssl | head -1)" "openssl s_client -connect 127.0.0.1:443 -servername app.example.test"
+  # s_client and x509 run as one pipeline, so which of them records first is not fixed.
+  assert_equal "$(calls_to openssl | grep '^openssl s_client ')" "openssl s_client -connect 127.0.0.1:443 -servername app.example.test"
 }

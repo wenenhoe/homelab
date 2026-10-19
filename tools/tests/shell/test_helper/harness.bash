@@ -60,7 +60,9 @@ stub() {
   {
     cat <<'HEAD'
 #!/usr/bin/env bash
-{ printf '%s' "${0##*/}"; printf ' %q' "$@"; printf '\n'; } >> "$CALLS"
+# One write per call, so two stubs started together in a pipeline cannot interleave their records.
+record=$(printf '%s' "${0##*/}"; printf ' %q' "$@")
+printf '%s\n' "$record" >> "$CALLS"
 HEAD
     cat
   } > "$STUB_BIN/$1"

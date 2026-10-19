@@ -74,7 +74,7 @@ Stop conditions are in [`README.md#stop-conditions`](README.md#stop-conditions);
 - The rules file is deployed to hosts that never start the proxy. It is a 0644 file with no secret in it.
 - A host that gains a backed-up app without an entry fails in CI and at deploy time. That is the intent; nothing is skipped quietly.
 - [`gatus-job-heartbeats.md`](gatus-job-heartbeats.md) also changes `ansible/roles/backup_agent/**` (the freshness check). The two do not depend on each other, but whichever merges second rebases over the other's edits to that role.
-- [`bind-mounted-config-files.md`](bind-mounted-config-files.md) and this project both edit `app_catalog.yaml` and the deploy topic docs, and its stage 1 makes the `compose` role restart a container whose bind-mounted file changed. Once that lands, the proxy's hash label in the compose file duplicates it; stage 2 here drops the label only if it has.
+- [`bind-mounted-config-files.md`](bind-mounted-config-files.md) and this project both edit `app_catalog.yaml` and the deploy topic docs, and [`compose-restart-on-changed-mount.md`](compose-restart-on-changed-mount.md) makes the `compose` role restart a container whose bind-mounted file changed. Once that lands, the proxy's hash label in the compose file duplicates it; stage 2 here drops the label only if it has.
 - [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) names `ansible/roles/backup_agent/files/docker-api-rules.cfg` as its model, and its open item 1 asks how a rules file reaches the host. This project moves that file and answers it for `backup-agent`; stage 2 updates the mention in that doc in the same change, which `allowed_paths` does not bound (project docs are exempt).
 
 ## Open items

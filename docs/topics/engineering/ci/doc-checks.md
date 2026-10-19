@@ -19,7 +19,9 @@ frontmatter alone, with nothing stored for them
 ([ADR 0082 (Choosing the next project)](../../../decisions/0082-choosing-which-project-to-take-up-next/revision-000.md)). Same
 auto-fix pattern as the `ruff --fix` and `dclint-docker` hooks: a stale table
 fails the commit and shows the regenerated diff, rather than silently
-passing.
+passing. It stops before writing anything when two lineage directories
+share a number, naming both and pointing at the
+[renumber helper](#renumbering-a-patch-series-lineages).
 
 ## Docs drift check
 

@@ -45,6 +45,10 @@ uptime_kuma_push_url_cert_renewer_openbao: "{{ secrets_generated['uptime-kuma-pu
 # docs/topics/monitoring/uptime-kuma.md.
 backup_agent_freshness_push_url: "{{ secrets_generated['uptime-kuma-push-url-backup-security'] }}"
 
+# The Gatus dashboard's login hash, read only by docker/gatus/configs/env.j2
+# — see docs/topics/monitoring/gatus.md.
+gatus_dashboard_password_bcrypt_base64: "{{ secrets_generated['gatus-dashboard-password-bcrypt-base64'] }}"
+
 lldap_host: lldap
 
 compose_apps:
@@ -70,6 +74,11 @@ compose_apps:
     routes:
       default:
         host: "{{ uptime_kuma_host }}"
+
+  - name: gatus
+    routes:
+      default:
+        host: "{{ gatus_host }}"
 
   - name: beszel-agent
 

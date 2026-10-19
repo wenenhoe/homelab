@@ -697,9 +697,7 @@ class TestRealTree:
 
     def test_every_self_built_image_the_registry_publishes_is_checked(self, collected, subtests):
         named = {text.partition("@")[0] for text in collected.images}
-        # Nothing pins these: coderabbit-review is a tool image, and gatus has
-        # no compose file. Drop gatus from the set once one pins it.
-        unpinned = {"coderabbit-review", "gatus"}
+        unpinned = {"coderabbit-review"}  # a tool image no compose file or scenario pins
         for image in reg.IMAGES.values():
             for ref in reg.refs(REPO_ROOT, image):
                 if image.key not in unpinned:

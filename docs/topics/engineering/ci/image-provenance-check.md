@@ -94,9 +94,9 @@ registry beside the image. Only the build job holds `id-token: write` and
 already had; the storage record the action can create is turned off, since it
 would need a further permission nothing here uses.
 
-The compose pins for `caddy-digitalocean` and `wastebin`, the platform image
-every DinD Molecule scenario names (`molecule-dind`), and the review image
-`coderabbit-review.sh` runs pin attested digests, so their entries are
+The compose pins for `caddy-digitalocean`, `gatus` and `wastebin`, the
+platform image every DinD Molecule scenario names (`molecule-dind`), and the
+review image `coderabbit-review.sh` runs pin attested digests, so their entries are
 *attested* for `wenenhoe/homelab`. A pin that moves to a digest
 built before the workflow attested fails the check.
 

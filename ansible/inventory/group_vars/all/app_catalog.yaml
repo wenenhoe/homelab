@@ -240,6 +240,32 @@ app_catalog:
       default:
         upstream: "bluemap:8100"
 
+  # Not backed up: the data volume holds check history and open-incident
+  # state, and everything else is rebuilt from heartbeat_jobs and the secret
+  # store. Stopping the container to copy it would restart every heartbeat
+  # timer each day. See docs/topics/monitoring/gatus.md.
+  gatus:
+    volumes:
+      - name: data
+      - name: config
+    configs:
+      # Seeded into its own volume rather than data, so seeding never
+      # touches the ownership of the directory Gatus writes its database to.
+      - src: config.yaml.j2
+        dest: "config/config.yaml"
+      - src: env.j2
+        dest: .env
+        mode: "0600"
+        no_log: true
+    routes:
+      default:
+        upstream: "gatus:8080"
+        # Jobs push with a bearer token from cron/systemd on every host,
+        # which Tinyauth's forward_auth would redirect to a login page.
+        # Gatus's own basic auth still gates the dashboard. See
+        # docs/topics/monitoring/gatus.md.
+        auth: false
+
   uptime-kuma:
     volumes:
       - name: data

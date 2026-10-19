@@ -84,8 +84,8 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Thin Gatus image and its pipeline | In progress | The image builds and pushes from CI as non-root with a working healthcheck, its smoke test passes, Renovate bumps its `FROM`, and the registry accepts the upstream `v`-prefixed tag and publishes it without the `v`, with unit tests |
-| 2 | Gatus app on `security` beside Kuma | Not started | Gatus runs with the self-probe, per-group Telegram overrides and a gated dashboard; its route skips forward-auth; one endpoint per job is rendered from the repo with a generated token; `gatus.md` describes it |
+| 1 | Thin Gatus image and its pipeline | Done | The image builds and pushes from CI as non-root with a working healthcheck, its smoke test passes, Renovate bumps its `FROM`, and the registry accepts the upstream `v`-prefixed tag and publishes it without the `v`, with unit tests |
+| 2 | Gatus app on `security` beside Kuma | In progress | Gatus runs with the self-probe, per-group Telegram overrides and a gated dashboard; its route skips forward-auth; one endpoint per job is rendered from the repo with a generated token; `gatus.md` describes it |
 | 3 | Producers push to Gatus as well as Kuma | Not started | `cloud_sync`, `cert-expiry-check`, the backup freshness check and the `r2-read-watcher` heartbeat each send the `POST` with a bearer header to their Gatus endpoint besides their Kuma push, the CD agent's `freshness` job sends one on success only, and every such endpoint has a result |
 | 4 | `cert-renewer@` daily liveness push | Not started | Each instance's timer pushes once a day only when `step certificate needs-renewal --expires-in <margin>` exits 1, with the margin chosen, and a test covers each exit code; the `OnSuccess=` link is gone |
 | 5 | Parallel run | Not started | Over one full cycle of the longest endpoint interval, no endpoint false-alerts; one job per Telegram topic is stopped on purpose and alerts in its own topic within two intervals, and the next push resolves it |
@@ -123,7 +123,6 @@ Two things make the parallel run safe. Kuma's push monitors keep their own inter
 
 ## Open items
 
-- **Backup of Gatus's sqlite volume.** It holds history and open-incident state, not secrets or configuration. Whether it is backed up follows the per-app defaults in [ADR 0068 (Backup defaults)](../decisions/0068-where-per-app-backup-settings-get-their-defaults/revision-000.md); decide in stage 2.
 - **The `cert-renewer@` margin.** It must exceed two daily intervals, about 52 hours with slack; stage 4 picks the value.
 - **Older ADRs that name Kuma.** ADRs 0012, 0026, 0042, 0045, 0047, 0049 and 0068 describe Kuma as it was when each was decided. Whether any gets a new revision is a decision for a human, outside this project's paths.
 - **Where Gatus runs.** It lands on `security`, beside Kuma, as that is where the monitor runs today. Moving it is the other two monitoring projects' work, and stage 6 updates their text to say Gatus.

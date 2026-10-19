@@ -41,6 +41,10 @@ beszel_hub_url: "http://ci-dummy-beszel-hub:8090"
 # as beszel_hub_url above — same override, for dashy's conf.yaml.j2.
 uptime_kuma_url: "http://ci-dummy-uptime-kuma:3001"
 
+# gatus_url (main.yaml) has the same hostvars['security'] dependency as
+# uptime_kuma_url above — same override, for dashy's conf.yaml.j2.
+gatus_url: "http://ci-dummy-gatus:8080"
+
 # Normally unset by default until manual post-bootstrap setup (see
 # docs/topics/monitoring/beszel.md) — CI needs *some* value for beszel-agent's config to
 # render at all. Must be a real, structurally valid SSH public key, not
@@ -98,3 +102,17 @@ tinyauth_ldap_observer_password: "ci-dummy-observer-password"
 
 step_ca_password: "ci-dummy-step-ca-password"
 step_ca_provisioner_password: "ci-dummy-step-ca-provisioner-password"
+
+# docker/gatus/configs/env.j2. The hash is the bcrypt example from Gatus's
+# own README, base64-encoded; it authenticates nothing real. The tokens
+# follow heartbeat_jobs, so a new job needs nothing added here.
+gatus_dashboard_password_bcrypt_base64: "JDJhJDEwJHRiMnRFakxWazZLdXBzRERQazB1TE8vckRLY05Yb1hSdnoxWU0yQ1FaYXZRSW1McmladDYu"
+# env.j2 reads telegram_topic_id_<group> for every group in heartbeat_jobs; the real
+# ones come from secrets_generated, which this path never builds. A new group
+# needs its line here.
+telegram_topic_id_backups: ""
+telegram_topic_id_certs: ""
+heartbeat_job_tokens: >-
+  {{ dict(heartbeat_jobs | map(attribute='id')
+     | zip(heartbeat_jobs | map(attribute='id')
+           | map('regex_replace', '^', 'ci-dummy-token-'))) }}

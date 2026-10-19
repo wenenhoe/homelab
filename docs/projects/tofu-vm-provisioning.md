@@ -22,11 +22,11 @@ fleet — see
 of why this design gives Tofu-provisioned VMs static IPs with no DHCP
 at all, rather than carrying the same class of problem forward.
 
-The migration and the OPNsense day-2 work are separate projects in the same initiative: [`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md), [`tofu-migration-cutover.md`](tofu-migration-cutover.md), and [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md). This one is the code they all need.
+The migration and the OPNsense day-2 work are separate projects in the same initiative: [`tofu-migration.md`](tofu-migration.md) and [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md). This one is the code they all need.
 
 ## Scope
 
-The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory generator. Not in scope: the migration ([`tofu-migration-rehearsal.md`](tofu-migration-rehearsal.md), [`tofu-migration-cutover.md`](tofu-migration-cutover.md)) and OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
+The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory generator. Not in scope: the migration ([`tofu-migration.md`](tofu-migration.md)) and OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
 
 ## Decision
 
@@ -60,7 +60,7 @@ this project's scope. `local` has 37GB free, `local-lvm` 523GB,
 placement changes needed" call for the ISO/template content type.
 
 This table is a snapshot, not a tracked value — it will drift once
-the [migration rehearsal](tofu-migration-rehearsal.md) starts moving real VMs; don't treat it as current after that.
+the [migration](tofu-migration.md) starts moving real VMs; don't treat it as current after that.
 
 ## Execution plan
 
@@ -127,7 +127,7 @@ section — install and initial config stay manual. Phase 2
   interim Ansible management as the `network_infra` group (see
   [`network-infra.md`](../topics/infra/network-infra.md)) ahead of and independent
   of this project. It becomes Tofu-managed once this project reaches
-  its VMID (Migration Stage 2, [`tofu-migration-cutover.md`](tofu-migration-cutover.md)); Stage 4's inventory
+  its VMID (Migration Stage 2, [`tofu-migration.md`](tofu-migration.md)); Stage 4's inventory
   generator should then supersede — not duplicate alongside —
   `inventory.yaml`'s hand-written `tailscale` entry. It's the
   only Tailscale node in the lab today, already acting as the subnet

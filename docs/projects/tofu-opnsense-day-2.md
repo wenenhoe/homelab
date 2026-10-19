@@ -9,13 +9,13 @@ decision: ADR-0040/0
 super_project: tofu-vm-provisioning
 track: opnsense
 depends_on:
-  - project: PROJ-tofu-migration-cutover
+  - project: PROJ-tofu-migration
     reason: needs the VMID-to-IP mapping fully code-driven
 ---
 
 # OPNsense Day-2 Config via API
 
-Phase 2 of the OPNsense design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): day-2 config (Kea, VLAN, static DNS) becomes API-driven. It needs the VMID→IP mapping fully code-driven, which is the end of [`tofu-migration-cutover.md`](tofu-migration-cutover.md).
+Phase 2 of the OPNsense design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): day-2 config (Kea, VLAN, static DNS) becomes API-driven. It needs the VMID→IP mapping fully code-driven, which is the end of [`tofu-migration.md`](tofu-migration.md).
 
 ## Scope
 

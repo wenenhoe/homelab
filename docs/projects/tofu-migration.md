@@ -1,31 +1,30 @@
 ---
-id: PROJ-tofu-migration-rehearsal
-title: Tofu Migration Rehearsal
+id: PROJ-tofu-migration
+title: Tofu Migration
 type: project
 status: not-started
 blocked: false
-summary: Build the isolated 5XX block and run the first restore.yaml against it.
+summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild on the real VMID ranges, cut over, and decommission the old VMs.
 super_project: tofu-vm-provisioning
 track: migration
-phase: 1-rehearsal
 depends_on:
   - project: PROJ-tofu-vm-provisioning
     reason: needs the VM modules and the inventory generator
 ---
 
-# Tofu Migration Rehearsal
+# Tofu Migration
 
-Migration Stage 1 and 1.5 of the plan in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): Tofu builds an isolated 5XX block, and the first real `restore.yaml` runs against it. It needs the modules and inventory generator from [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md).
+Migration Stages 1, 1.5 and 2 of the plan in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): Tofu builds an isolated 5XX block, the first real `restore.yaml` runs against it, and once that is proven the VMs are rebuilt on the real VMID ranges, traffic is cut over and the old VMs are decommissioned. It needs the modules and inventory generator from [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md).
 
 ## Scope
 
-The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) and the first `restore.yaml` run against it. Not in scope: the cutover ([`tofu-migration-cutover.md`](tofu-migration-cutover.md)).
+The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml` run against it, the rebuild on the real VMID ranges (1XX/2XX/…), the cutover, and decommissioning the old VMs. `storage` stays up throughout. Not in scope: OPNsense day-2 configuration ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
 
 ## Decision
 
 No ADR. The design is [`vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs.
 
-"Migration Stage" is `vm-provisioning.md`'s own numbering for its cutover plan, not this doc's stage numbers — the two are independent sequences that happen to share a word; see [`docs/projects/README.md`](README.md#hierarchy).
+"Migration Stage" is `vm-provisioning.md`'s own numbering for its cutover plan. This doc's Stage 1 is Migration Stages 1 and 1.5, and its Stage 2 is Migration Stage 2.
 
 ## Execution plan
 
@@ -34,6 +33,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Migration Stage 1 + 1.5 — build the 5XX block, first `restore.yaml` run | Not started | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
+| 2 | Migration Stage 2 — cutover to real VMID ranges, decommission old VMs | Not started | the VMs are rebuilt on the real VMID ranges, traffic is cut over, and the old VMs are decommissioned with `storage` up throughout |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -58,11 +58,27 @@ cutover mechanics at the same time. See
 [`fire-drill.md`](../topics/disaster-recovery/fire-drill.md) for how this doubles as the
 restore-path fire drill once OpenTofu is up.
 
+### Stage 2 — Migration Stage 2
+
+Once Migration Stage 1.5 is proven, rebuild on the real VMID ranges
+(1XX/2XX/...), cut over, decommission the old VMs. `storage` stays up
+throughout every stage — it holds both the Tofu state backend and the
+DR restore target.
+
 ## Acceptance criteria
 
 - [ ] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
 - [ ] The first `restore.yaml` run against it succeeds, as the restore-path fire drill.
+- [ ] Every VM is rebuilt on the real VMID ranges by Tofu.
+- [ ] The old VMs are decommissioned.
+- [ ] `storage` stayed up throughout.
 - [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
+
+## Open items
+
+- Migration Stage 2's exact rebuild sequence isn't scoped beyond
+  "rebuild on real VMID ranges, cut over, decommission" — needs its
+  own detail once Stage 1 is proven.
 
 ## Closing checklist
 

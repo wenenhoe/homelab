@@ -46,6 +46,7 @@ mean three missed intervals for a job that pushes once a day.
 
 1. Add an entry to `heartbeat_jobs`.
 2. Add `gatus-token-<id>` to `secret_catalog.yaml` as a `hex` entry of length 64, scoped to the host the job runs on.
+3. Make the job push on success: see [Pushing from a job](#pushing-from-a-job).
 
 A job with no catalog entry fails the render of Gatus's `.env` instead of getting an empty token. A new `group` also needs
 its `telegram-topic-id-<group>` catalog entry and a `telegram_topic_id_<group>` variable in `main.yaml`.
@@ -91,6 +92,24 @@ Authorization: Bearer <token>
 `success` is required (a missing or invalid value is a 400). A missing or non-Bearer header is a 401, an unknown key a
 404 and a wrong token a 401.
 
+## Pushing from a job
+
+`gatus_push` (`ansible/roles/gatus_push/`) is a library role, included with `tasks_from: install.yaml` and
+`gatus_push_job: <id>`. It renders `gatus-push-<id>.service`, a oneshot unit that sends the `POST` above, and
+`/etc/gatus-push/gatus-push-<id>.curlrc` (mode `0600`), which holds the endpoint URL and the bearer header. `curl` reads
+it with `-K`, so the token is never in the unit's command line, where any local user could read it. The URL comes from
+`heartbeat_push_urls` and the token from `heartbeat_job_tokens`, both in `main.yaml`; an id missing from either fails the
+include instead of rendering a unit that cannot push.
+
+The job's own unit names it in `OnSuccess=` and never in `OnFailure=`, so a failed run sends nothing and Gatus sees the
+missing heartbeat. The including role passes `systemd_reload_gatus: true` to `systemd_reload`, which reloads systemd when
+the config or the unit changed.
+
+| Job | Pushed from | Unit that triggers it |
+| :--- | :--- | :--- |
+| `cloud-sync` | `cloud_sync` on `storage` | `cloud-sync.service` |
+| `cert-expiry-<host>` | `caddy_cert_expiry` on each app host | `cert-expiry-check.service` |
+
 ## The self-probe
 
 Gatus rejects a config that has no regular endpoint, so the config carries one: a `GET` of Gatus's own
@@ -124,5 +143,5 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 
 ## State today
 
-No job pushes to Gatus yet: every producer still pushes to Kuma. Until a producer is switched, its endpoint raises an
-alert after its first missed interval, so a deployed Gatus reports every job as silent.
+`cloud_sync` and `cert-expiry-check` push to Gatus as well as to Kuma. The other jobs still push to Kuma only, and until
+one is switched its endpoint raises an alert after its first missed interval.

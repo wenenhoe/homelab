@@ -822,10 +822,17 @@ class TestRealTree:
         for role in ("compose", "compose_app", "caddy", "tinyauth", "bind9"):
             assert role in queued
 
-    @pytest.mark.parametrize("shared", ["telegram_notify", "uptime_kuma_push"])
-    def test_shared_notification_roles_queue_their_callers(self, shared, subtests):
+    @pytest.mark.parametrize(
+        ("shared", "callers"),
+        [
+            ("telegram_notify", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
+            ("uptime_kuma_push", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
+            ("gatus_push", ("cloud_sync", "caddy_cert_expiry")),
+        ],
+    )
+    def test_shared_notification_roles_queue_their_callers(self, shared, callers, subtests):
         queued = ms.roles_to_test(ms.REPO_ROOT, [f"ansible/roles/{shared}/tasks/install.yaml"])[0]
-        for caller in ("step_ca_cert", "cloud_sync", "caddy_cert_expiry"):
+        for caller in callers:
             with subtests.test(shared=shared, caller=caller):
                 assert caller in queued
 

@@ -90,6 +90,15 @@ heartbeat_job_tokens: >-
            | map('regex_replace', '^', 'gatus-token-')
            | map('extract', secrets_generated))) }}
 
+# Job id -> the URL it POSTs its heartbeat to (docs/topics/monitoring/gatus.md).
+heartbeat_push_urls: >-
+  {{ dict(heartbeat_jobs | map(attribute='id')
+     | zip(heartbeat_jobs | map(attribute='group')
+           | zip(heartbeat_jobs | map(attribute='id'))
+           | map('join', '_')
+           | map('regex_replace', '^', gatus_url ~ '/api/v1/endpoints/')
+           | map('regex_replace', '$', '/external?success=true'))) }}
+
 # One secret_catalog.yaml entry per host (uptime-kuma-push-url-cert-
 # expiry-<host>) - inventory_hostname resolves this identically on
 # every app_host, no per-host host_vars entry needed. See

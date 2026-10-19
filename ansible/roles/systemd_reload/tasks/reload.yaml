@@ -12,17 +12,19 @@
 # meta/main.yaml: Molecule's prerun treats a role with a meta/main.yaml as
 # a Galaxy role and then fails it without a galaxy_info namespace.
 #
-# telegram_notify and uptime_kuma_push deliberately neither reload systemd
-# nor notify a handler (see their own install.yaml headers), so this
-# reloads off the results they register.
+# telegram_notify, uptime_kuma_push and gatus_push deliberately neither
+# reload systemd nor notify a handler (see their own install.yaml headers),
+# so this reloads off the results they register.
 #
-# Optional var:
+# Optional vars:
 #   systemd_reload_uptime_kuma  true when the caller also installed an
-#                               uptime_kuma_push unit. Those results are
-#                               only read then: they persist as host vars
-#                               from whichever role set them last in the
-#                               play, so a caller without that unit must
-#                               not see a stale one.
+#                               uptime_kuma_push unit.
+#   systemd_reload_gatus        true when the caller also installed a
+#                               gatus_push unit.
+#                               Those results are only read then: they
+#                               persist as host vars from whichever role set
+#                               them last in the play, so a caller without
+#                               that unit must not see a stale one.
 
 # Registered so cloud_sync's side_effect scenario can tell whether this ran
 # or was skipped.
@@ -34,7 +36,9 @@
     telegram_notify_env_result.changed or telegram_notify_curlrc_result.changed or
     telegram_notify_service_result.changed or
     ((systemd_reload_uptime_kuma | default(false) | bool) and
-    (uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed))
+    (uptime_kuma_push_env_result.changed or uptime_kuma_push_service_result.changed)) or
+    ((systemd_reload_gatus | default(false) | bool) and
+    (gatus_push_curlrc_result.changed or gatus_push_service_result.changed))
 
 # Handlers only flush at the end of the play by default, but "Enable and
 # start" after this needs systemd to have already picked up the current

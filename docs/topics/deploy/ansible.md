@@ -49,6 +49,7 @@ why every host is Ansible-managed rather than configured by hand.
 | `telegram_notify` | Shared library role: direct-curl Telegram alert unit. |
 | `telegram_topic_pins` | Shared library role: posts/pins a static per-topic header message, control-node-only. |
 | `uptime_kuma_push` | Shared library role: direct-curl unit for a job's Uptime Kuma push-monitor URL. |
+| `gatus_push` | Shared library role: direct-curl unit that POSTs a job's heartbeat to its Gatus external endpoint with its bearer token. |
 | `systemd_reload` | Shared library role: the one `Reload systemd` handler, plus the notifier reload and handler flush the timer roles run before enabling their timers. |
 | `tinyauth_ca_trust` | Builds the CA bundle tinyauth needs to trust step-ca-issued certs. |
 | `tinyauth` | Molecule-only: deploys tinyauth for real in its own scenario. |

@@ -9,7 +9,8 @@
 # Each pass edits one notifier unit behind the role's back, re-runs
 # converge, and expects the role to have restored the file and to have run
 # the reload rather than skipped it. The Uptime Kuma pass is the one that
-# depends on cloud_sync setting `systemd_reload_uptime_kuma: true`.
+# depends on cloud_sync setting `systemd_reload_uptime_kuma: true`, and the
+# Gatus pass on `systemd_reload_gatus: true`.
 #
 # The plays name the instance, not `all`: converge.yml's add_host registers
 # two fake backup hosts, and every play after it would target them too.
@@ -76,3 +77,35 @@
           A changed Uptime Kuma push unit was not put back, or systemd_reload
           skipped its reload check for it (is systemd_reload_uptime_kuma set
           in cloud_sync's include?).
+
+- name: Edit the Gatus push unit out of band
+  hosts: cloud-sync-instance
+  become: true
+  tasks:
+    - name: Append a line to the unit, as a hand edit would
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/system/gatus-push-cloud-sync.service
+        line: "# edited out of band"
+        insertafter: EOF
+
+- name: Re-run converge with only the Gatus push unit different
+  ansible.builtin.import_playbook: converge.yml
+
+- name: Confirm the Gatus push unit was restored and systemd reloaded for it
+  hosts: cloud-sync-instance
+  become: true
+  tasks:
+    - name: Read the unit back
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/gatus-push-cloud-sync.service
+      register: cloud_sync_gatus_unit
+
+    - name: Assert the edit is gone and the reload ran
+      ansible.builtin.assert:
+        that:
+          - "'# edited out of band' not in (cloud_sync_gatus_unit.content | b64decode)"
+          - systemd_reload_notifier_result is not skipped
+        fail_msg: >-
+          A changed Gatus push unit was not put back, or systemd_reload
+          skipped its reload check for it (is systemd_reload_gatus set in
+          cloud_sync's include?).

@@ -55,6 +55,9 @@ upstream in 3.0.0 — [louislam/uptime-kuma#6406](https://github.com/louislam/up
 so Kuma's own missing-heartbeat detection is the real backstop for a job
 that fails silently enough that even `OnFailure=` never fires.
 
+While Gatus runs beside Kuma ([`gatus.md`](gatus.md)), `cloud_sync` and `cert-expiry-check` also push to their Gatus
+endpoint from the same `OnSuccess=` line. Nothing about the Kuma push changes.
+
 Two different push mechanisms are in use, not one:
 
 - `cloud_sync`, `cert-renewer@lldap`, `cert-expiry-check` each install a

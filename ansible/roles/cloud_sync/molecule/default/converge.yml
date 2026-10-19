@@ -82,6 +82,15 @@
     # under real systemd even though its own curl call will fail.
     uptime_kuma_push_url_cloud_sync: ""
 
+    # gatus_push's install.yaml (included from cloud_sync's own
+    # tasks/main.yaml) reads these two maps; production derives them from
+    # heartbeat_jobs (group_vars/all/main.yaml). The host does not resolve,
+    # so the push unit's curl fails the way it does with no Gatus in CI.
+    heartbeat_push_urls:
+      cloud-sync: http://gatus-test.invalid/api/v1/endpoints/backups_cloud-sync/external?success=true
+    heartbeat_job_tokens:
+      cloud-sync: molecule-dummy-gatus-token
+
     # alpha-host/beta-host, not real inventory hosts — registered below
     # via add_host, carrying only what cloud_sync itself reads
     # (backup_plan), not a full fake inventory.

@@ -70,11 +70,12 @@
         - /etc/systemd/system/cloud-sync.timer
         - /etc/systemd/system/telegram-notify-cloud-sync.service
         - /etc/systemd/system/uptime-kuma-push-cloud-sync.service
+        - /etc/systemd/system/gatus-push-cloud-sync.service
 
     - name: Assert on it
       ansible.builtin.assert:
         that:
-          - cloud_sync_unit_files.results | map(attribute='stat.exists') | list == [true, true, true, true]
+          - cloud_sync_unit_files.results | map(attribute='stat.exists') | list == [true, true, true, true, true]
 
     - name: Confirm the timer is enabled and active
       # daemon_reload: false is a required-but-inert param here — the
@@ -180,7 +181,7 @@
       changed_when: false
       failed_when: >-
         'OnFailure=telegram-notify-cloud-sync.service' not in cloud_sync_verify_onfailure.stdout
-        or 'OnSuccess=uptime-kuma-push-cloud-sync.service' not in cloud_sync_verify_onfailure.stdout
+        or 'OnSuccess=uptime-kuma-push-cloud-sync.service gatus-push-cloud-sync.service' not in cloud_sync_verify_onfailure.stdout
 
     - name: Read back telegram-notify-cloud-sync's rendered env file
       ansible.builtin.slurp:
@@ -305,3 +306,65 @@
           — 'failed' here just means curl had no URL to hit (expected in
           CI with a blank push URL), 'not-found' or 'masked' would mean
           the unit itself is broken.
+
+    # --- gatus-push-cloud-sync wiring ------------------------------------
+    # Same shape as the Kuma block above: no Gatus instance in CI, so this
+    # confirms the credential file, that the token stays out of the unit's
+    # command line, and that the unit loads and runs under real systemd.
+    - name: Read back gatus-push-cloud-sync's curl config
+      ansible.builtin.slurp:
+        path: /etc/gatus-push/gatus-push-cloud-sync.curlrc
+      register: cloud_sync_verify_gatus_curlrc_raw
+
+    - name: Stat the curl config
+      ansible.builtin.stat:
+        path: /etc/gatus-push/gatus-push-cloud-sync.curlrc
+      register: cloud_sync_verify_gatus_curlrc_stat
+
+    - name: Confirm it carries the endpoint URL and bearer token, root-only
+      ansible.builtin.assert:
+        that:
+          - >-
+            'url = "http://gatus-test.invalid/api/v1/endpoints/backups_cloud-sync/external?success=true"'
+            in (cloud_sync_verify_gatus_curlrc_raw.content | b64decode)
+          - >-
+            'header = "Authorization: Bearer molecule-dummy-gatus-token"'
+            in (cloud_sync_verify_gatus_curlrc_raw.content | b64decode)
+          - "'request = \"POST\"' in (cloud_sync_verify_gatus_curlrc_raw.content | b64decode)"
+          - cloud_sync_verify_gatus_curlrc_stat.stat.mode == '0600'
+          - cloud_sync_verify_gatus_curlrc_stat.stat.pw_name == 'root'
+        fail_msg: "Rendered curl config: {{ cloud_sync_verify_gatus_curlrc_raw.content | b64decode }}"
+
+    - name: Read the pusher unit
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/gatus-push-cloud-sync.service
+      register: cloud_sync_verify_gatus_unit_raw
+
+    - name: Confirm the unit reads its config with -K and never names the token
+      ansible.builtin.assert:
+        that:
+          - "'-K /etc/gatus-push/gatus-push-cloud-sync.curlrc' in (cloud_sync_verify_gatus_unit_raw.content | b64decode)"
+          - "'molecule-dummy-gatus-token' not in (cloud_sync_verify_gatus_unit_raw.content | b64decode)"
+
+    - name: Start gatus-push-cloud-sync.service directly, as OnSuccess= would  # noqa: command-instead-of-module
+      # Raw systemctl, as above: the unit's curl is expected to fail here.
+      ansible.builtin.command: systemctl start gatus-push-cloud-sync.service
+      failed_when: false
+      changed_when: false
+
+    - name: Query the pusher unit's actual state
+      ansible.builtin.systemd_service:
+        name: gatus-push-cloud-sync.service
+        daemon_reload: false
+      register: cloud_sync_verify_gatus_state
+
+    - name: Confirm systemd actually loaded and ran the pusher unit (not a syntax/templating error)
+      ansible.builtin.assert:
+        that:
+          - cloud_sync_verify_gatus_state.status.LoadState == 'loaded'
+          - cloud_sync_verify_gatus_state.status.ActiveState in ['inactive', 'failed']
+        fail_msg: >-
+          gatus-push-cloud-sync.service didn't load/run cleanly:
+          LoadState={{ cloud_sync_verify_gatus_state.status.LoadState | default('?') }}
+          ActiveState={{ cloud_sync_verify_gatus_state.status.ActiveState | default('?') }}
+          — 'failed' here just means curl could not reach the test host.

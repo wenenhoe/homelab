@@ -19,7 +19,7 @@ The host itself is [`coding-agent-host.md`](coding-agent-host.md); putting these
 
 ## Scope
 
-The VLAN and subnet, OPNsense interface and rules, the egress proxy and its allowlist (one proxy, separate allowlists for this VLAN and VLAN 30, [`operator-host.md`](operator-host.md)), the resolver for the zone, the Tailscale route (advertised by VM 202 and granted to the laptop alone), and canary probes. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
+The VLAN and subnet, OPNsense interface and rules, the egress proxy and its allowlist (one proxy, separate allowlists for this VLAN and VLAN 30, [`operator-host-takeover.md`](operator-host-takeover.md)), the resolver for the zone, the Tailscale route (advertised by VM 202 and granted to the laptop alone), and canary probes. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
 
 ## Decision
 

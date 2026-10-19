@@ -34,6 +34,24 @@
       - not backup_agent_proxy_template_mounts[0].RW
       - backup_agent_proxy_enabled_flags == []
 
+# PID 1 is the proxy's own HAProxy, so its status is the proxy's. The Docker
+# socket is owned by root, so the proxy reaches it with no capability.
+- name: Read the capabilities of the proxy process
+  community.docker.docker_container_exec:
+    container: backup-agent-dockerproxy
+    command: grep -E '^(CapEff|NoNewPrivs):' /proc/1/status
+  register: backup_agent_proxy_proc_status
+  changed_when: false
+
+- name: Confirm the proxy holds no capability and cannot gain privileges
+  ansible.builtin.assert:
+    that:
+      - backup_agent_proxy_proc_status.stdout is regex('(?m)^CapEff:\s+0000000000000000$')
+      - backup_agent_proxy_proc_status.stdout is regex('(?m)^NoNewPrivs:\s+1$')
+    fail_msg: >-
+      The proxy process holds a capability or can gain privileges.
+      Got: {{ backup_agent_proxy_proc_status.stdout }}
+
 # --- Behavioral: per-schedule stop-label isolation --------------------
 # The load-bearing assumption behind collapsing to one container:
 # BACKUP_STOP_DURING_BACKUP_LABEL is matched per schedule file, not

@@ -21,6 +21,10 @@ services:
     # bind-mounted file does, and HAProxy reads the rules only at start.
     labels:
       docker-api-rules-sha256: "{{ lookup('ansible.builtin.file', 'docker-api-rules.cfg', rstrip=false) | hash('sha256') }}"
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
 {% endif %}
 
   backup-agent:

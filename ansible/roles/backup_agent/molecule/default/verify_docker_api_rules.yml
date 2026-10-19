@@ -9,6 +9,7 @@
     backup_agent_api_dir: /run/fake-docker-api
     backup_agent_api_python: "{{ ansible_facts['python']['executable'] }}"
     backup_agent_api_proxy_image: "{{ backup_agent_compose_parsed.services['backup-dockerproxy'].image }}"
+    backup_agent_api_proxy_service: "{{ backup_agent_compose_parsed.services['backup-dockerproxy'] }}"
     # The container is on the default bridge alone. The daemon in the Molecule
     # instance reports an address per network and no top-level IPAddress.
     backup_agent_api_proxy_ip: "{{ (backup_agent_api_proxy.container.NetworkSettings.Networks.values() | first).IPAddress }}"
@@ -141,7 +142,8 @@
         timeout: 30
 
     # Mounted as the real proxy mounts the real socket: a file, read-only. The
-    # environment is left empty, as the compose file leaves it.
+    # environment is left empty and the capabilities are the rendered
+    # compose file's, as the real proxy has them.
     - name: Start the proxy image on the deployed rules file, in front of the fake socket
       community.docker.docker_container:
         name: backup-agent-api-rules-check
@@ -149,6 +151,8 @@
         volumes:
           - "{{ compose_deploy_dir }}/backup-agent/docker-api-rules.cfg:/usr/local/etc/haproxy/haproxy.cfg.template:ro"
           - "{{ backup_agent_api_dir }}/docker.sock:/var/run/docker.sock:ro"
+        cap_drop: "{{ backup_agent_api_proxy_service.cap_drop }}"
+        security_opts: "{{ backup_agent_api_proxy_service.security_opt }}"
         state: started
         detach: true
 

@@ -130,9 +130,9 @@ class TestOpenbaoScopes:
         with pytest.raises(sr.CatalogError):
             sr.openbao_scopes({"a": {"scope": "hosts/play"}})
 
-    def test_the_real_catalog_has_69_openbao_entries_and_each_path_is_scope_slash_name(self):
+    def test_the_real_catalog_has_68_openbao_entries_and_each_path_is_scope_slash_name(self):
         catalog = sr.load_catalog()
         scopes = sr.openbao_scopes(catalog)
-        assert len(scopes) == 69
+        assert len(scopes) == 68
         assert set(scopes) | set(sr.file_cache_entries(catalog)) == set(catalog)
-        assert len({f"{scope}/{name}" for name, scope in scopes.items()}) == 69
+        assert len({f"{scope}/{name}" for name, scope in scopes.items()}) == 68

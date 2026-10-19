@@ -60,6 +60,25 @@ config holds no secret, so it can be world-readable.
 
 `heartbeat_job_tokens` in `main.yaml` maps each job id to its token for any role that needs to push.
 
+## Proving an alert
+
+An endpoint alerts after one failed result and resolves on the next success, so a deliberate failure push shows its group's topic
+without stopping a job. Take the job's token from OpenBao inside a `vault-bootstrap` session, and pass it to `curl` as a config on
+stdin so it is not in an argument:
+
+```sh
+URL="$GATUS_URL/api/v1/endpoints/<group>_<id>/external"
+t=$(bao kv get -mount=secret -field=value hosts/<host>/gatus-token-<id>)
+printf 'header = "Authorization: Bearer %s"\n' "$t" | curl -fsS -X POST -K - "$URL?success=false"
+# the alert arrives in the group's topic; then resolve it:
+printf 'header = "Authorization: Bearer %s"\n' "$t" | curl -fsS -X POST -K - "$URL?success=true"
+unset t
+```
+
+A real producer's next scheduled push also resolves it. This proves the routing and the resolved message. Detecting a job that
+stops is a separate path (a missed heartbeat), shown by stopping a timer: the [`r2-read-watcher`](../secrets/openbao-r2-read-watcher.md)
+heartbeat is the quickest, with a 15-minute interval.
+
 ## Telegram routing
 
 The `alerting.telegram` block uses the shared bot (`telegram_token`, `telegram_chat_id`) and one `overrides` entry per
@@ -68,7 +87,7 @@ fallback every other notifier has. Per-group overrides only replace a topic that
 
 ## The dashboard and the push path
 
-Gatus's own `security.basic` gates the dashboard, with the username `admin`. The password is the
+Gatus's own `security.basic` gates the dashboard's data, with the username `admin`: the API, including `/api/v1/endpoints/statuses`, answers `401` without it, while the static page shell is served to anyone. The password is the
 `gatus-dashboard-password-bcrypt-base64` secret, a `manual` entry with no `allow_blank`, so a missing value fails the
 deploy instead of leaving the dashboard open. Produce it with:
 
@@ -121,10 +140,9 @@ Three producers do not use the role:
 - **`r2-read-watcher`** runs from units copied by hand ([`openbao-r2-read-watcher.md`](../secrets/openbao-r2-read-watcher.md)),
   not from Ansible. `gatus-push-r2-read-watcher.service` has the same shape as the role's, and its curl config is written
   by hand from the job's token.
-- **`cd-agent-freshness`** is pushed by the CD agent's `freshness` job. The `cd_agent` role installs
-  `gatus-push-cd-agent-freshness.service` and names it in the job's `OnSuccess=` (the job's `heartbeat` field), with the
-  URL in the unit and the bearer header in `/etc/gatus-push/cd-agent-freshness.curlrc`. That host holds no secrets, so the
-  file is written by hand ([`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats)).
+- **The CD agent's `freshness` job** has no endpoint yet. The `cd_agent` role can install a push unit for any job that sets
+  `heartbeat`, and the host holds no secrets, so the curl config is written by hand; the steps, and the three lines that add the
+  endpoint when the host is deployed, are in [`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats).
 
 ### The `cert-renewer@` liveness push
 
@@ -168,12 +186,22 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 
 ## One-time setup
 
-1. Set `gatus-dashboard-password-bcrypt-base64` as above.
-2. `ansible-playbook deploy.yaml --limit security`.
+1. Store `gatus-dashboard-password-bcrypt-base64` as above. `python3 -m openbao_utils.bootstrap` writes it to OpenBao directly, so it needs no deploy first; the deploy's secrets play fails without it.
+2. `ansible-playbook deploy.yaml --limit security,localhost`. The secrets play runs on `localhost`, so a limit of `security` alone skips it and the config has no tokens to render.
 3. Visit `{{ gatus_url }}` and log in as `admin`.
+
+## Checking the endpoints
+
+With `GATUS_URL` set to `gatus_url` (no trailing slash, which makes the path `//api` and a `404`) and the dashboard password in `PW`, list each endpoint's latest result:
+
+```sh
+curl -su "admin:$PW" "$GATUS_URL/api/v1/endpoints/statuses?pageSize=100" \
+  | jq -r '.[] | [.group, .name, (if (.results|length)==0 then "NO RESULT" else (.results[-1].success|tostring) end)] | @tsv' | sort
+```
+
+An endpoint that has never been pushed to is missing from the list until its first interval passes. Use `tostring`: `jq`'s `//` treats `false` as absent, so `.success // "NO RESULT"` shows a failed check as `NO RESULT`.
 
 ## State today
 
 `cloud_sync`, `cert-expiry-check`, the backup freshness check, the `r2-read-watcher` heartbeat and the two `cert-renewer@`
-instances (through their daily liveness push) push to Gatus as well as to Kuma. The CD agent's `freshness` job pushes to
-Gatus only, and its token has to be written by hand on that host before its first weekly run.
+instances (through their daily liveness push) push to Gatus as well as to Kuma.

@@ -43,6 +43,7 @@ allowed_paths:
   - docs/topics/monitoring/**
   - docs/topics/README.md
   - docs/topics/deploy/ansible.md
+  - docs/topics/deploy/cd-agent-host.md
   - docs/topics/deploy/adding-an-app.md
   - docs/topics/deploy/container-hardening.md
   - docs/topics/disaster-recovery/backup.md

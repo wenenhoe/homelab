@@ -44,6 +44,11 @@ and the job checks out full history for it. The step fails the job, and
 `pre-commit-checks` is a required check, so a secret anywhere in the PR's
 commits blocks the merge even when a later commit removes it from the tree.
 
+A placeholder that trips a rule is allowed in [`.gitleaks.toml`](../../../.gitleaks.toml), which extends the default
+rules and is read from the repository root by both the hook and the range scan. An entry names one file and one exact
+value, so the same value anywhere else, and any other value in that file, is still reported. The file is read from the
+checked-out tree, so an entry also covers the commits that added the value.
+
 **Accepted-risk findings**: [`.config/.trivyignore`](../../../.config/.trivyignore),
 alongside this repo's other tool configs — same documented-exception
 convention as `.github/compose-boot-test-exclusions.txt`.

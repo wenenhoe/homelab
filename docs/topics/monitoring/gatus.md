@@ -110,6 +110,17 @@ the config or the unit changed.
 | `cloud-sync` | `cloud_sync` on `storage` | `cloud-sync.service` |
 | `cert-expiry-<host>` | `caddy_cert_expiry` on each app host | `cert-expiry-check.service` |
 
+Two producers do not use the role:
+
+- **`backup-<host>`** is pushed by `check-freshness.sh` on each backup host, which already decides whether to push at all:
+  only when every app's newest backup is within its threshold. The script sends the `POST` itself, passing the URL and
+  bearer header to `curl` on stdin (`-K -`) so the token is not in an argument. It tries both monitors even when the
+  first push fails, and a failed push fails the unit, so `OnFailure=` alerts as before. A backup host with no matching
+  `heartbeat_jobs` entry fails the render instead of skipping the push.
+- **`r2-read-watcher`** runs from units copied by hand ([`openbao-r2-read-watcher.md`](../secrets/openbao-r2-read-watcher.md)),
+  not from Ansible. `gatus-push-r2-read-watcher.service` has the same shape as the role's, and its curl config is written
+  by hand from the job's token.
+
 ## The self-probe
 
 Gatus rejects a config that has no regular endpoint, so the config carries one: a `GET` of Gatus's own
@@ -143,5 +154,6 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 
 ## State today
 
-`cloud_sync` and `cert-expiry-check` push to Gatus as well as to Kuma. The other jobs still push to Kuma only, and until
-one is switched its endpoint raises an alert after its first missed interval.
+`cloud_sync`, `cert-expiry-check`, the backup freshness check and the `r2-read-watcher` heartbeat push to Gatus as well as
+to Kuma. The `cert-renewer@` jobs still push to Kuma only, and until one is switched its endpoint raises an alert after its
+first missed interval.

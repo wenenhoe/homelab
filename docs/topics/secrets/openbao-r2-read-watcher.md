@@ -41,7 +41,7 @@ picks up from there.
 1. Copy everything over, from `controller`:
 
    ```sh
-   ssh security 'sudo mkdir -p /opt/r2-read-watcher /etc/r2-read-watcher /etc/uptime-kuma-push /var/lib/r2-read-watcher'
+   ssh security 'sudo mkdir -p /opt/r2-read-watcher /etc/r2-read-watcher /etc/uptime-kuma-push /etc/gatus-push /var/lib/r2-read-watcher'
    scp docker/openbao/watcher/* security:/tmp/
    ```
 
@@ -50,7 +50,7 @@ picks up from there.
    ```sh
    sudo mv /tmp/r2_read_watcher.py /opt/r2-read-watcher/
    sudo mv /tmp/*.service /tmp/*.timer /etc/systemd/system/
-   sudo chmod 700 /etc/r2-read-watcher
+   sudo chmod 700 /etc/r2-read-watcher /etc/gatus-push
    ```
 
 3. Install `hvac` for the system Python this runs under - apt, not
@@ -102,7 +102,21 @@ picks up from there.
    sudo chmod 600 /etc/uptime-kuma-push/uptime-kuma-push-r2-read-watcher.env
    ```
 
-6. Enable and start everything:
+6. Cache the heartbeat's Gatus credentials. The `r2-read-watcher` job in
+   `heartbeat_jobs` already has its token (`gatus-token-r2-read-watcher`); the unit
+   reads the endpoint URL and the bearer header from a curl config, so the
+   token never appears in a command line. From a `vault-bootstrap` session
+   on `controller`, as in step 4 (use the `gatus_url` value for `<gatus url>`):
+
+   ```sh
+   bao kv get -mount=secret -field=value hosts/security/gatus-token-r2-read-watcher \
+     | ssh security 'read -r token && printf "url = \"<gatus url>/api/v1/endpoints/backups_r2-read-watcher/external?success=true\"\nrequest = \"POST\"\nheader = \"Authorization: Bearer %s\"\n" "$token" | sudo tee /etc/gatus-push/gatus-push-r2-read-watcher.curlrc > /dev/null'
+   exit
+
+   ssh security 'sudo chmod 600 /etc/gatus-push/gatus-push-r2-read-watcher.curlrc'
+   ```
+
+7. Enable and start everything:
 
    ```sh
    sudo systemctl daemon-reload
@@ -110,7 +124,7 @@ picks up from there.
    sudo systemctl enable --now r2-read-watcher-heartbeat.timer
    ```
 
-7. Confirm it's actually alerting, not just running — trigger a real
+8. Confirm it's actually alerting, not just running — trigger a real
    read and check both the journal and Telegram:
 
    ```sh

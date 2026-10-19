@@ -1,0 +1,10 @@
+[Unit]
+Description=Push r2-read-watcher heartbeat to Gatus
+Documentation=https://github.com/TwiN/gatus#external-endpoints
+
+[Service]
+Type=oneshot
+; The URL and bearer token are in the -K file, not here: systemd would put
+; them in the running process's command line, which any local user can read
+; via ps/proc. docs/topics/monitoring/gatus.md has the push contract.
+ExecStart=/usr/bin/curl -fsS --max-time 10 -K /etc/gatus-push/gatus-push-r2-read-watcher.curlrc

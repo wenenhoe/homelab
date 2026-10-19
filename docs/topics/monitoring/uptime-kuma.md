@@ -74,16 +74,17 @@ majority of the timer's 15-minute ticks (not due for renewal yet), and a
 skip is neither success nor failure at the systemd level. This repo
 overrides step-ca's own 24h default to a 720h (30-day) cert lifetime
 (see [ADR 0008 (Internal certificate lifetime)](../../decisions/0008-internal-certificate-lifetime/revision-000.md)),
-so with `step ca renew`'s ⅔-of-lifetime trigger, a real push happens
-roughly once every 20 days (~480h) — size that monitor's Heartbeat
-Interval accordingly (with margin above ~480h), not to the 15-minute
-tick rate or a daily cadence.
+so with `step ca renew`'s ⅔-of-lifetime trigger, a renewal happens
+roughly once every 20 days (~480h). The push no longer rides on a
+renewal: `cert-renewer-heartbeat@<app>` pushes once a day while the cert
+has more than 72 hours left ([`gatus.md`](gatus.md#pushing-from-a-job)),
+so a monitor sized for the old cadence still sees a push inside it.
 
 `cert-renewer@` is also a genuine systemd `@`-template, shared by any
 future cert under it — not just lldap's. Unlike `telegram_notify@` (one
 shared bot, one shared credentials file works for every instance), each
 cert needs its *own* Kuma monitor and push URL, so `OnSuccess=` resolves
-to `uptime-kuma-push-cert-renewer-%i.service`, and each consuming role
+to `uptime-kuma-push-cert-renewer-%i.service` (now started by `cert-renewer-heartbeat@%i`, not by `cert-renewer@`), and each consuming role
 installs its own concretely-named unit (`step_ca_cert` installs
 `uptime-kuma-push-cert-renewer-lldap.service` for its lldap instance,
 `uptime-kuma-push-cert-renewer-openbao.service` for its openbao

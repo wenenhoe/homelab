@@ -109,6 +109,7 @@ the config or the unit changed.
 | :--- | :--- | :--- |
 | `cloud-sync` | `cloud_sync` on `storage` | `cloud-sync.service` |
 | `cert-expiry-<host>` | `caddy_cert_expiry` on each app host | `cert-expiry-check.service` |
+| `cert-renewer-<app>` | `step_ca_cert` for each app | `cert-renewer-heartbeat@<app>.service`, below |
 
 Three producers do not use the role:
 
@@ -124,6 +125,21 @@ Three producers do not use the role:
   `gatus-push-cd-agent-freshness.service` and names it in the job's `OnSuccess=` (the job's `heartbeat` field), with the
   URL in the unit and the bearer header in `/etc/gatus-push/cd-agent-freshness.curlrc`. That host holds no secrets, so the
   file is written by hand ([`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats)).
+
+### The `cert-renewer@` liveness push
+
+A renewal happens about every 480 hours, so a push per renewal could be noticed only after the certificate had expired.
+Instead `cert-renewer-heartbeat@<app>.timer` fires daily at 04:00, and its service runs
+`step certificate needs-renewal --expires-in 72h` against the app's certificate volume. Only exit code 1 (the
+certificate still has more than 72 hours left) makes the unit succeed and start the push; 0 (inside the margin), 2 (no
+certificate file) and 255, or docker failing to run the container, fail it and push nothing. A failed renewal still
+reports through `cert-renewer@`'s own `OnFailure=`, which this unit does not repeat. `cert-renewer@` no longer has an
+`OnSuccess=`; the liveness unit also starts the Kuma push unit until Kuma is removed.
+
+The margin, `step_ca_cert_heartbeat_margin`, has to sit between two limits. Above 48 hours, so one late push is not an
+alert. Below the third of the certificate's life that a healthy certificate always has left (240 hours of the current 720),
+because a margin larger than that makes every certificate look overdue and the endpoint alert forever. ADR 0008's
+revision 1 shortens the lifetime, so recheck the margin when it lands.
 
 ## The self-probe
 
@@ -158,6 +174,6 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 
 ## State today
 
-`cloud_sync`, `cert-expiry-check`, the backup freshness check, the `r2-read-watcher` heartbeat and the CD agent's `freshness` job push to Gatus as well as
-to Kuma. The `cert-renewer@` jobs still push to Kuma only, and until one is switched its endpoint raises an alert after its
-first missed interval.
+`cloud_sync`, `cert-expiry-check`, the backup freshness check, the `r2-read-watcher` heartbeat and the two `cert-renewer@`
+instances (through their daily liveness push) push to Gatus as well as to Kuma. The CD agent's `freshness` job pushes to
+Gatus only, and its token has to be written by hand on that host before its first weekly run.

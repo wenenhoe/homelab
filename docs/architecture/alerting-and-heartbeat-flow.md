@@ -18,13 +18,15 @@ flowchart LR
 
     subgraph push["Heartbeats, sent on success only"]
         psync["cloud-sync success"]
-        prenew["cert-renewer@ success"]
+        prenew["cert-renewer-heartbeat@<br/>daily, cert not near expiry"]
         pexpiry["cert-expiry-check success"]
         pfresh["backup freshness check<br/>all apps fresh"]
         pwatch["R2 watcher heartbeat timer"]
+        pcd["CD agent freshness job<br/>success"]
     end
 
     kuma["Uptime Kuma<br/>push monitors"]
+    gatus["Gatus<br/>external endpoints"]
 
     subgraph topics["Telegram topics"]
         monitoring["Monitoring"]
@@ -43,11 +45,16 @@ flowchart LR
     pexpiry --> kuma
     pfresh --> kuma
     pwatch --> kuma
+    pcd --> gatus
+    psync & prenew & pexpiry & pfresh & pwatch --> gatus
     kuma -. "missed heartbeat,<br/>the monitor's topic" .-> topics
+    gatus -. "missed heartbeat,<br/>the group's topic" .-> topics
 ```
 
-A skipped `cert-renewer@` run (certificate not yet due) is neither a failure nor a success, so it sends nothing on
-either path; its heartbeat arrives about once per renewal. Shoutrrr senders (Beszel,
+During the parallel run every producer but one pushes to both monitors; the CD agent's `freshness` job pushes to Gatus
+only. A skipped `cert-renewer@` run (certificate not yet due) is neither a failure nor a success, so it sends nothing on
+either path; its heartbeat is a separate daily liveness push, sent only while the certificate has more than 72 hours left.
+Shoutrrr senders (Beszel,
 `docker-volume-backup`) take `chat_id:topic_id` in one string; the systemd notifiers call Telegram's API with
 separate `chat_id` and `message_thread_id`, as
 [`telegram-notifications.md`](../topics/monitoring/telegram-notifications.md) explains.

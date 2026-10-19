@@ -1,0 +1,21 @@
+[Unit]
+Description=Certificate renewer liveness for %I
+After=network-online.target docker.service
+Requires=docker.service
+# Success is "the cert is not within {{ step_ca_cert_heartbeat_margin }} of expiring", which proves the
+# renewer has been keeping up. A cert that is, a missing one or a broken docker
+# fails this unit and sends nothing, so Gatus sees the missing push. No
+# OnFailure=: cert-renewer@ already alerts on a failed renewal, and its message
+# would be wrong here. The Gatus unit is installed by step_ca_cert for this %i.
+OnSuccess=uptime-kuma-push-cert-renewer-%i.service gatus-push-cert-renewer-%i.service
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=/etc/cert-renewer/%i.env
+
+; needs-renewal --expires-in exits 0 when the cert expires within the margin,
+; 1 when it does not, 2 when the file is missing and 255 on any other error;
+; docker itself exits 125-127 when it cannot run the container. Only 1 is
+; success. $$ is systemd's escape for a literal $.
+ExecStart=/bin/sh -c '/usr/bin/docker run --rm --user root --network none --cap-drop ALL --cap-add DAC_OVERRIDE --security-opt no-new-privileges:true -v %i_certs:/certs:ro ${STEP_CLI_IMAGE} step certificate needs-renewal --expires-in {{ step_ca_cert_heartbeat_margin }} /certs/fullchain.pem; rc=$$?; [ "$$rc" -eq 1 ]'

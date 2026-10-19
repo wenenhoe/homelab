@@ -827,7 +827,7 @@ class TestRealTree:
         [
             ("telegram_notify", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
             ("uptime_kuma_push", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
-            ("gatus_push", ("cloud_sync", "caddy_cert_expiry")),
+            ("gatus_push", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
         ],
     )
     def test_shared_notification_roles_queue_their_callers(self, shared, callers, subtests):

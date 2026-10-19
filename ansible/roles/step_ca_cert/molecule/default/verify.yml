@@ -223,13 +223,13 @@
     # and runs cleanly under real systemd rather than just "the file
     # looks right" (catches quoting/escaping bugs the static content
     # check below can't).
-    - name: Confirm cert-renewer@ actually declares both links  # noqa: command-instead-of-module
+    - name: Confirm cert-renewer@ declares the failure alert and no success push  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl cat cert-renewer@lldap.service
       register: step_ca_cert_verify_onfailure
       changed_when: false
       failed_when: >-
         'OnFailure=telegram-notify@%i.service' not in step_ca_cert_verify_onfailure.stdout
-        or 'OnSuccess=uptime-kuma-push-cert-renewer-%i.service' not in step_ca_cert_verify_onfailure.stdout
+        or 'OnSuccess' in step_ca_cert_verify_onfailure.stdout
 
     - name: Start telegram-notify@lldap.service directly, as OnFailure= would  # noqa: command-instead-of-module
       ansible.builtin.command: systemctl start telegram-notify@lldap.service
@@ -254,6 +254,38 @@
           — 'failed' here just means curl couldn't reach the real API
           (expected in CI), 'not-found' or 'masked' would mean the unit
           itself is broken.
+
+    # --- liveness push wiring ---------------------------------------------
+    - name: Read the liveness unit, its timer and the Gatus push unit  # noqa: command-instead-of-module
+      ansible.builtin.command: "systemctl cat {{ item }}"
+      loop:
+        - cert-renewer-heartbeat@lldap.service
+        - cert-renewer-heartbeat@lldap.timer
+        - gatus-push-cert-renewer-lldap.service
+      register: step_ca_cert_verify_liveness_units
+      changed_when: false
+
+    - name: Confirm the liveness unit pushes to both monitors on success only, daily, and the token stays out of the unit
+      ansible.builtin.assert:
+        that:
+          - "'OnSuccess=uptime-kuma-push-cert-renewer-%i.service gatus-push-cert-renewer-%i.service' in step_ca_cert_verify_liveness_units.results[0].stdout"
+          - "'OnFailure' not in step_ca_cert_verify_liveness_units.results[0].stdout"
+          - "'--expires-in 72h' in step_ca_cert_verify_liveness_units.results[0].stdout"
+          - "'OnCalendar=*-*-* 04:00:00' in step_ca_cert_verify_liveness_units.results[1].stdout"
+          - "'-K /etc/gatus-push/gatus-push-cert-renewer-lldap.curlrc' in step_ca_cert_verify_liveness_units.results[2].stdout"
+          - "'molecule-dummy-gatus-token' not in step_ca_cert_verify_liveness_units.results[2].stdout"
+
+    - name: Query the liveness timer
+      ansible.builtin.systemd_service:
+        name: cert-renewer-heartbeat@lldap.timer
+        daemon_reload: false
+      register: step_ca_cert_verify_liveness_timer
+
+    - name: Confirm it is enabled and active
+      ansible.builtin.assert:
+        that:
+          - step_ca_cert_verify_liveness_timer.status.UnitFileState == 'enabled'
+          - step_ca_cert_verify_liveness_timer.status.ActiveState == 'active'
 
     # --- uptime-kuma-push-cert-renewer-lldap wiring ----------------------
     # Same shape as the telegram-notify@ block above. This is the

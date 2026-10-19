@@ -50,3 +50,10 @@ step_ca_cert_chown_image: >-
 
 compose_apps:
   - name: openbao
+
+# gatus_push's install.yaml (included from step_ca_cert's own tasks/main.yaml)
+# asserts the job is in both maps; production builds them from heartbeat_jobs.
+heartbeat_push_urls:
+  cert-renewer-openbao: https://gatus-test.invalid/api/v1/endpoints/certs_cert-renewer-openbao/external?success=true
+heartbeat_job_tokens:
+  cert-renewer-openbao: molecule-dummy-gatus-token

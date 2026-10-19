@@ -31,10 +31,11 @@ ADR 0005 chose named volumes for two reasons: a container's UID has to match
 the owner of a host directory it writes, and the backup agent works on volumes.
 Neither reason applies to a file the container only reads:
 
-- A read-only file needs to be readable by the container's user, not owned by
-  it. The seed step copies with `cp -a`, so a file in a volume already has the
-  owner and mode of its staged copy on the host; a bind mount of that same file
-  has the same owner and mode.
+- A read-only file needs to be readable by the container's user, and at a mode
+  other users can read it needs no particular owner. The seed step copies with
+  `cp -a`, so a file in a volume has the owner and mode of its staged copy on the
+  host; a bind mount of that same file has the same owner and mode, unless
+  something in the container changes them (the third point below).
 - A rendered file is derived from the repo and inventory, so it is rebuilt by a
   deploy and has no place in a backup.
 
@@ -44,7 +45,7 @@ Engine 25 and Compose 2.22. A volume that mixes a seeded file with app-written
 state also has to be reseeded by hand after a reset
 ([`volume-maintenance.md`](../../topics/deploy/volume-maintenance.md)).
 
-A bind mount of a file behaves in two ways a volume does not:
+A bind mount of a file behaves in three ways a volume does not:
 
 - **A replaced file is not seen by a running container.** Ansible's `template`
   and `copy` replace a file by renaming a new one over it. A container that
@@ -53,6 +54,14 @@ A bind mount of a file behaves in two ways a volume does not:
 - **A file bind-mounted inside a named volume's directory leaves an empty file
   at that path in the volume.** It stays after the container is removed, so it
   appears in the volume's backup and in a restore.
+- **Nothing in the container chowns it, and a `0600` file is read by its owner
+  only.** A container that starts as root with `cap_drop: ALL` and no
+  `DAC_OVERRIDE` is denied a `0600` file that another user owns, and so is the
+  user its entrypoint then drops to; the file has to be owned by that user. An
+  entrypoint's recursive `chown` of a data directory reaches a file seeded into
+  that volume, which hides the problem there, and never reaches a file mounted
+  from the stack directory. The deploy plays run with `become`, so a file's owner
+  can be a numeric uid that has no account on the host.
 
 ## Decision
 
@@ -69,7 +78,8 @@ A bind mount of a file behaves in two ways a volume does not:
   implementation.
 - The owner and mode of a bind-mounted file are set in its catalog entry, as for
   any direct config. A file that carries a secret keeps `no_log` and a mode
-  that excludes other users.
+  that excludes other users, and is owned by the uid its container's process
+  reads it as, which the entry names.
 - Host resources, the Docker socket, stay bind mounts as before.
 
 ## Alternatives considered
@@ -96,6 +106,8 @@ and changes with the implementation.
 - Nothing a container writes lives in a bind mount from the stack directory.
 - A file mounted from the stack directory is read-only in the container.
 - Every bind-mounted file can be rebuilt from the repo and inventory alone.
+- A bind-mounted file that carries a secret is readable by the process that
+  reads it and by no other user on the host.
 - After a deploy that changed a bind-mounted file, the container that mounts it
   reads the new content.
 
@@ -115,5 +127,5 @@ nothing.
 
 ## Reconsideration triggers
 
-A bind-mounted file turns out to need an owner the deploy user cannot give it
-without a privilege the container otherwise lacks.
+A container's process reads a bind-mounted secret as a uid its image does not
+fix, so no catalog entry can name the file's owner.

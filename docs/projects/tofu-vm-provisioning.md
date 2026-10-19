@@ -22,11 +22,11 @@ fleet — see
 of why this design gives Tofu-provisioned VMs static IPs with no DHCP
 at all, rather than carrying the same class of problem forward.
 
-The migration and the OPNsense day-2 work are separate projects in the same initiative: [`tofu-migration.md`](tofu-migration.md) and [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md). This one is the code they all need.
+The migration, the OPNsense day-2 work and DNS for the VMs are separate projects in the same initiative: [`tofu-migration.md`](tofu-migration.md), [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) and [`tofu-vm-dns.md`](tofu-vm-dns.md). This one is the code they all need.
 
 ## Scope
 
-The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory generator. Not in scope: the migration ([`tofu-migration.md`](tofu-migration.md)) and OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
+The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory generator. Not in scope: the migration ([`tofu-migration.md`](tofu-migration.md)), OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) and DNS for the VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
 
 ## Decision
 

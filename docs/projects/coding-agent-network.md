@@ -15,11 +15,11 @@ phase: 1-network
 
 Builds the network boundary the coding-agent host lives behind, before the host exists. Staged because three assumptions in the decision (egress proxy feasibility, bridge isolation, resolver design) must be answered before rules are built on them, and the rules then need an independent check.
 
-The host itself is [`coding-agent-host.md`](coding-agent-host.md); putting these rules under Tofu is [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md).
+The host itself is [`coding-agent-host.md`](coding-agent-host.md); putting these rules under Tofu is [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md).
 
 ## Scope
 
-The VLAN and subnet, OPNsense interface and rules, the egress proxy and its allowlist (one proxy, separate allowlists for this VLAN and VLAN 30, [`operator-host.md`](operator-host.md)), the resolver for the zone, the Tailscale route (advertised by VM 202 and granted to the laptop alone), and canary probes. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`coding-agent-network-as-code.md`](coding-agent-network-as-code.md)).
+The VLAN and subnet, OPNsense interface and rules, the egress proxy and its allowlist (one proxy, separate allowlists for this VLAN and VLAN 30, [`operator-host.md`](operator-host.md)), the resolver for the zone, the Tailscale route (advertised by VM 202 and granted to the laptop alone), and canary probes. Not in scope: the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
 
 ## Decision
 
@@ -56,7 +56,7 @@ VM 202 advertises the VLAN's route, and the tailnet policy grants it to the lapt
 
 ## Risks
 
-- Hand-maintained rules drift until [`coding-agent-network-as-code.md`](coding-agent-network-as-code.md) lands.
+- Hand-maintained rules drift until [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) lands.
 - The allowlist needs upkeep as tooling changes.
 - The route's grant is tailnet policy edited by hand until [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) lands, and a wrong edit can expose the VLAN's SSH port to other nodes or lock out access.
 - Docker Hub and other registries sit behind shared CDN addresses; a proxy that filters on host name only may still be broad.

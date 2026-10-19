@@ -265,21 +265,3 @@ app_catalog:
         # Gatus's own basic auth still gates the dashboard. See
         # docs/topics/monitoring/gatus.md.
         auth: false
-
-  uptime-kuma:
-    volumes:
-      - name: data
-    backup:
-      volumes: [data]
-      stop_during_backup: true
-    routes:
-      default:
-        upstream: "uptime-kuma:3001"
-        # Push-monitor pings (plain HTTP GETs from cert-renewer@,
-        # cert-expiry-check, cloud_sync, etc. on every host) are
-        # machine-to-machine, not a browser session - same reasoning as
-        # beszel-hub's auth: false. Tinyauth's forward_auth would
-        # redirect those GETs to a login page instead of letting them
-        # reach Kuma, silently breaking every push monitor. Kuma's own
-        # login still gates the dashboard itself. See docs/topics/monitoring/uptime-kuma.md.
-        auth: false

@@ -58,11 +58,6 @@ compose_apps:
       default:
         host: "{{ beszel_hub_host }}"
 
-  - name: uptime-kuma
-    routes:
-      default:
-        host: "{{ uptime_kuma_host }}"
-
   - name: gatus
     routes:
       default:

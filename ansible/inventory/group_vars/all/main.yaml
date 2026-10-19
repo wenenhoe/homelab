@@ -44,9 +44,6 @@ tinyauth_host: sso
 beszel_hub_host: beszel
 beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_domain }}"
 
-uptime_kuma_host: uptime-kuma
-uptime_kuma_url: "https://{{ uptime_kuma_host }}.{{ hostvars['security'].caddy_domain }}"
-
 gatus_host: gatus
 gatus_url: "https://{{ gatus_host }}.{{ hostvars['security'].caddy_domain }}"
 

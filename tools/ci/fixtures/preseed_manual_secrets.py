@@ -13,7 +13,7 @@ drift, since it reads the exact catalog ensure_secret.yaml itself reads.
 
 `allow_blank: true` entries get an empty string: present-but-empty is
 valid, not an error, for these (it matches a first-ever deploy before
-Beszel, Kuma or OpenBao's AppRole exist). Every other manual entry gets a
+Beszel or OpenBao's AppRole exist). Every other manual entry gets a
 generic, traceable dummy value (`ci-dummy-<key>`). deploy-ordering-check
 never validates any secret's actual content, since `--tags` filters out
 every provisioning play that would use these values, so nothing here needs

@@ -37,12 +37,8 @@ caddy_domain: "svc.ci.invalid"
 # CI run — override it flatly instead of faking a multi-host inventory.
 beszel_hub_url: "http://ci-dummy-beszel-hub:8090"
 
-# uptime_kuma_url (main.yaml) has the same hostvars['security'] dependency
-# as beszel_hub_url above — same override, for dashy's conf.yaml.j2.
-uptime_kuma_url: "http://ci-dummy-uptime-kuma:3001"
-
 # gatus_url (main.yaml) has the same hostvars['security'] dependency as
-# uptime_kuma_url above — same override, for dashy's conf.yaml.j2.
+# beszel_hub_url above — same override, for dashy's conf.yaml.j2.
 gatus_url: "http://ci-dummy-gatus:8080"
 
 # Normally unset by default until manual post-bootstrap setup (see

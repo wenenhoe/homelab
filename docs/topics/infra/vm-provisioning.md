@@ -154,4 +154,4 @@ state-backend S3 credential) live in a file on the host that runs Tofu,
 outside the repo and outside OpenBao, since Tofu must be able to rebuild
 the host that runs OpenBao — see the
 [decision](../../decisions/0048-where-tofu-credentials-live/revision-000.md).
-The project doc's Stage 1 tracks the file's setup.
+[`tofu-skeleton.md`](../../projects/tofu-skeleton.md) tracks the file's setup.

@@ -2,12 +2,14 @@
 id: PROJ-tofu-vm-provisioning
 title: OpenTofu-Driven Proxmox VM Provisioning
 type: project
-status: building
+status: not-started
 blocked: false
-summary: Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator.
-decision: ADR-0048/0
+summary: Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator, built on the Tofu skeleton.
 super_project: tofu-vm-provisioning
 track: provisioning
+depends_on:
+  - project: PROJ-tofu-skeleton
+    reason: the modules need the provider, the state backend and the credentials file
 ---
 
 # OpenTofu-Driven Proxmox VM Provisioning
@@ -22,15 +24,15 @@ fleet — see
 of why this design gives Tofu-provisioned VMs static IPs with no DHCP
 at all, rather than carrying the same class of problem forward.
 
-The migration, the OPNsense day-2 work and DNS for the VMs are separate projects in the same initiative: [`tofu-migration.md`](tofu-migration.md), [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) and [`tofu-vm-dns.md`](tofu-vm-dns.md). This one is the code they all need.
+The skeleton, the migration, the OPNsense day-2 work and DNS for the VMs are separate projects in the same initiative: [`tofu-skeleton.md`](tofu-skeleton.md), [`tofu-migration.md`](tofu-migration.md), [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) and [`tofu-vm-dns.md`](tofu-vm-dns.md). This one is the modules and inventory generator they all need.
 
 ## Scope
 
-The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory generator. Not in scope: the migration ([`tofu-migration.md`](tofu-migration.md)), OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) and DNS for the VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
+The Ubuntu and OPNsense-shell modules and the inventory generator, on the skeleton from [`tofu-skeleton.md`](tofu-skeleton.md). Not in scope: the skeleton, the migration ([`tofu-migration.md`](tofu-migration.md)), OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) and DNS for the VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
 
 ## Decision
 
-Implements [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) (where Tofu's own credentials live), `approved`: the credentials live in a file on the host that runs Tofu, outside the repo and OpenBao. The rest of the design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
+No decision of its own. Tofu's credentials are [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)'s, carried out by [`tofu-skeleton.md`](tofu-skeleton.md). The design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
 
 ## Environment (baseline, at project start)
 
@@ -68,38 +70,13 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Tofu project skeleton — provider, state backend, secrets bootstrap | Not started | `tofu init` and `plan` succeed against the `pve` node, with state in the `opentofu-state` bucket and credentials read from the file ADR 0048 decides on |
-| 2 | `proxmox_ubuntu_vm` module | Not started | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
-| 3 | `proxmox_opnsense_vm` module — Phase 1 (VM shell + ISO fetch) | Not started | the module creates the OPNsense VM shell and fetches the ISO; install stays manual |
-| 4 | Tofu→Ansible inventory generator | Not started | the generated inventory replaces the hand-written entries, including `tailscale` |
+| 1 | `proxmox_ubuntu_vm` module | Not started | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
+| 2 | `proxmox_opnsense_vm` module — Phase 1 (VM shell + ISO fetch) | Not started | the module creates the OPNsense VM shell and fetches the ISO; install stays manual |
+| 3 | Tofu→Ansible inventory generator | Not started | the generated inventory replaces the hand-written entries, including `tailscale` |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
-### Stage 1 — Tofu project skeleton
-
-- `bpg/proxmox` provider, API token auth against the `pve` node.
-- State backend: S3-compatible, pointed at SeaweedFS on `storage`
-  (`s3.store.lan.<main_domain>`, `:8333` internally — see
-  `docker/seaweedfs/compose.yaml.j2`). Bucket name: `opentofu-state`,
-  matching the `<component>-<purpose>` pattern `openbao-snapshots`
-  already uses (`homelab-backups` is the one exception, since it's
-  shared across every host rather than owned by one component).
-  SeaweedFS doesn't auto-create buckets
-  (`ansible/roles/seaweedfs_bucket`) — creating this one is a one-time
-  manual step, not yet Ansible-managed.
-- Tofu's own secrets (Proxmox API token, OPNsense API key,
-  state-backend S3 credential) are read from a file on the Tofu host,
-  outside the repo and OpenBao, as
-  [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md)
-  decides. The stage documents the file's path, mode and contents, and
-  the repo ignores any file of that shape.
-- Install: OpenTofu's official apt-repo installer, on VM 401
-  ("Development") once it exists, otherwise wherever the repo's
-  driven from today. `bpg/proxmox` needs no separate install — fetched
-  by `tofu init`, the same way `ansible-galaxy collection install`
-  fetches Ansible's collections.
-
-### Stage 3 — OPNsense Phase 1
+### Stage 2 — OPNsense Phase 1
 
 VM shell + ISO fetch only, per `vm-provisioning.md`'s OPNsense
 section — install and initial config stay manual. Phase 2
@@ -107,27 +84,19 @@ section — install and initial config stay manual. Phase 2
 
 ## Acceptance criteria
 
-- [ ] `tofu init` and `plan` succeed against the `pve` node with state in the `opentofu-state` bucket on SeaweedFS.
-- [ ] Tofu's credentials live in the file ADR 0048 decides, with a documented path and mode, and none is in the repo or in the state.
 - [ ] The modules provision Ubuntu VMs and the OPNsense VM shell to `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme.
 - [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
 - [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Open items
 
-- An OpenBao on the Tofu host, seeded by a snapshot pulled from the main instance, would replace the credentials file. It needs a pull counterpart of the snapshot push and a new revision of [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md); not scoped here.
-- `checkov` (IaC scanning) for the OpenTofu code once it exists, and
-  whether to also move Ansible misconfig scanning onto it at the same
-  time instead of keeping Trivy — not scoped yet, not actionable
-  before Stage 1 lands — see the
-  [working decision](../decisions/0038-iac-misconfiguration-scanning/revision-000.md).
 - VM 202 ("Tailscale") is Tofu-unmanaged but no longer wholly
   untracked — Stage 1 of
   [`monitoring-host-isolation.md`](monitoring-host-isolation.md) brought it under
   interim Ansible management as the `network_infra` group (see
   [`network-infra.md`](../topics/infra/network-infra.md)) ahead of and independent
   of this project. It becomes Tofu-managed once this project reaches
-  its VMID (Migration Stage 2, [`tofu-migration.md`](tofu-migration.md)); Stage 4's inventory
+  its VMID (Migration Stage 2, [`tofu-migration.md`](tofu-migration.md)); Stage 3's inventory
   generator should then supersede — not duplicate alongside —
   `inventory.yaml`'s hand-written `tailscale` entry. It's the
   only Tailscale node in the lab today, already acting as the subnet

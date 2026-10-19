@@ -51,8 +51,8 @@ calls for a project, while a working one still has to be settled.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
+| [`tofu-skeleton.md`](projects/tofu-skeleton.md) | 4 | Building | The OpenTofu provider, the state backend on SeaweedFS and the credentials file, so every other Tofu project has somewhere to start. |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
-| [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | 3 | Building | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
 | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Building | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
@@ -87,7 +87,8 @@ calls for a project, while a working one still has to be settled.
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `tofu-vm-provisioning` | `opnsense` | — | [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md) | — | Not started — ready |
-| | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | 3 | Building |
+| | `provisioning` | — | [`tofu-skeleton.md`](projects/tofu-skeleton.md) | 4 | Building |
+| | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | 3 | Not started — waiting on [`tofu-skeleton.md`](projects/tofu-skeleton.md) |
 | | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | 1 | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
 | | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | — | De-risking — waiting on [`tofu-migration.md`](projects/tofu-migration.md) |
 

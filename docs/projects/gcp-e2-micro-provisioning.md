@@ -32,7 +32,7 @@ and credentials the host holds
 ([ADR 0047 (First-credential bootstrap)](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 
 This project runs standalone. It does not depend on
-[`tofu-vm-provisioning.md`](tofu-vm-provisioning.md): its spike uses
+[`tofu-skeleton.md`](tofu-skeleton.md): its spike uses
 local state, and the in-repo layout and state backend follow
 [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md),
 which keeps Tofu's credentials in a file on the Tofu host.
@@ -83,14 +83,14 @@ memory with Beszel and Kuma running, and monthly egress.
   standard rate, and the allowance is by hours across the account, so a
   second instance bills even briefly.
 - The module's directory layout may collide with the layout
-  [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md) sets in its Stage 1.
+  [`tofu-skeleton.md`](tofu-skeleton.md) sets in its Stage 1.
 - The off-site monitor cannot be rebuilt if the GCP account's recovery
   factors are lost with the site; tracked as an assumption in ADR 0073.
 
 ## Open items
 
 - Where the module lives in the repository: decided with
-  [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md)'s skeleton, not before.
+  [`tofu-skeleton.md`](tofu-skeleton.md)'s skeleton, not before.
 - Whether the free-tier instance's external address is billed. Google's
   free-tier page says it is not; confirm on the spike's billing view.
 

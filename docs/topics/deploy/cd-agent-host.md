@@ -112,7 +112,9 @@ The role installs `git`, `python3`, `unzip`, `openssh-client`, `openssh-server` 
 
 ## Heartbeats
 
-A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push-<id>.service` that its own unit starts with `OnSuccess=` and never `OnFailure=`, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. `freshness` is the only job that has one (`cd-agent-freshness`, weekly).
+A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push-<id>.service` that its own unit starts with `OnSuccess=` and never `OnFailure=`, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. No job names one yet: the `freshness` job's endpoint is added when the host is deployed, because an endpoint nothing pushes to alerts once its first interval passes.
+
+To give `freshness` its heartbeat, add `{id: cd-agent-freshness, group: backups, period_minutes: 10080}` to `heartbeat_jobs`, a `gatus-token-cd-agent-freshness` entry (`source: hex`, `length: 64`, `store: openbao`, `scope: hosts/security`) to the secret catalog, and `heartbeat: cd-agent-freshness` to the job. Deploy `security` (`--limit security,localhost`) and then apply this role.
 
 The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, after the role has run. `sudo` on the host needs a terminal, so the token goes into a temporary file first, from a `vault-bootstrap` session on the operator host ([`openbao-cd-agent-approles.md`](../secrets/openbao-cd-agent-approles.md)):
 
@@ -138,7 +140,7 @@ Until the file exists the push fails and the endpoint alerts after its first mis
 ## Not done by the role
 
 - Credential files, and the copy of step-ca's root certificate a job verifies OpenBao against. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
-- Failure alerts, and heartbeats for any job but `freshness` ([below](#heartbeats)); both depend on [ADR 0072 (Job heartbeats)](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
+- Failure alerts, and heartbeats until a job names one ([above](#heartbeats)); both depend on [ADR 0072 (Job heartbeats)](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 
 ## Testing

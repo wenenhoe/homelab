@@ -18,7 +18,6 @@ cd_agent_jobs:
     on_calendar: weekly
     cwd: tools
     command: [python3, -m, cd_agent.toolchain, --, python, -m, cloud_credentials.check_freshness]
-    heartbeat: cd-agent-freshness
   - name: rotation
     on_calendar: "*-*-08 02:00:00"
     cwd: tools

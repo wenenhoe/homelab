@@ -60,6 +60,25 @@ config holds no secret, so it can be world-readable.
 
 `heartbeat_job_tokens` in `main.yaml` maps each job id to its token for any role that needs to push.
 
+## Proving an alert
+
+An endpoint alerts after one failed result and resolves on the next success, so a deliberate failure push shows its group's topic
+without stopping a job. Take the job's token from OpenBao inside a `vault-bootstrap` session, and pass it to `curl` as a config on
+stdin so it is not in an argument:
+
+```sh
+URL="$GATUS_URL/api/v1/endpoints/<group>_<id>/external"
+t=$(bao kv get -mount=secret -field=value hosts/<host>/gatus-token-<id>)
+printf 'header = "Authorization: Bearer %s"\n' "$t" | curl -fsS -X POST -K - "$URL?success=false"
+# the alert arrives in the group's topic; then resolve it:
+printf 'header = "Authorization: Bearer %s"\n' "$t" | curl -fsS -X POST -K - "$URL?success=true"
+unset t
+```
+
+A real producer's next scheduled push also resolves it. This proves the routing and the resolved message. Detecting a job that
+stops is a separate path (a missed heartbeat), shown by stopping a timer: the [`r2-read-watcher`](../secrets/openbao-r2-read-watcher.md)
+heartbeat is the quickest, with a 15-minute interval.
+
 ## Telegram routing
 
 The `alerting.telegram` block uses the shared bot (`telegram_token`, `telegram_chat_id`) and one `overrides` entry per
@@ -121,10 +140,9 @@ Three producers do not use the role:
 - **`r2-read-watcher`** runs from units copied by hand ([`openbao-r2-read-watcher.md`](../secrets/openbao-r2-read-watcher.md)),
   not from Ansible. `gatus-push-r2-read-watcher.service` has the same shape as the role's, and its curl config is written
   by hand from the job's token.
-- **`cd-agent-freshness`** is pushed by the CD agent's `freshness` job. The `cd_agent` role installs
-  `gatus-push-cd-agent-freshness.service` and names it in the job's `OnSuccess=` (the job's `heartbeat` field), with the
-  URL in the unit and the bearer header in `/etc/gatus-push/cd-agent-freshness.curlrc`. That host holds no secrets, so the
-  file is written by hand ([`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats)).
+- **The CD agent's `freshness` job** has no endpoint yet. The `cd_agent` role can install a push unit for any job that sets
+  `heartbeat`, and the host holds no secrets, so the curl config is written by hand; the steps, and the three lines that add the
+  endpoint when the host is deployed, are in [`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats).
 
 ### The `cert-renewer@` liveness push
 
@@ -186,5 +204,4 @@ An endpoint that has never been pushed to is missing from the list until its fir
 ## State today
 
 `cloud_sync`, `cert-expiry-check`, the backup freshness check, the `r2-read-watcher` heartbeat and the two `cert-renewer@`
-instances (through their daily liveness push) push to Gatus as well as to Kuma. The CD agent's `freshness` job pushes to
-Gatus only, and its token has to be written by hand on that host before its first weekly run.
+instances (through their daily liveness push) push to Gatus as well as to Kuma.

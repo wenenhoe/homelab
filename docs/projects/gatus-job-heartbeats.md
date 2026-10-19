@@ -58,6 +58,8 @@ allowed_paths:
   - docs/topics/secrets/openbao.md
   - docs/topics/secrets/openbao-r2-read-watcher.md
   - docs/topics/secrets/openbao-reinit-runbook.md
+  - docs/decisions/0012-verifying-backups-actually-land/revision-000.md
+  - docs/decisions/0042-monitoring-that-survives-loss-of-the-homelab/revision-000.md
   - docs/architecture/README.md
   - docs/architecture/alerting-and-heartbeat-flow.md
   - docs/architecture/internal-pki-flow.md

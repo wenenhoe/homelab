@@ -37,7 +37,7 @@ Not in: `bind9`'s config, the `certs` volumes, `bluemap_config`, `dashy`'s `conf
 
 ## Decision
 
-Implements [ADR 0087 (Ansible-rendered files in containers)](../decisions/0087-delivering-files-ansible-renders-to-a-container/revision-000.md), `working`; this doc tracks build status only.
+Implements [ADR 0087 (Ansible-rendered files in containers)](../decisions/0087-delivering-files-ansible-renders-to-a-container/revision-000.md), `approved`; this doc tracks build status only.
 
 ## Execution plan
 

@@ -270,7 +270,7 @@ here.
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
 | [`beszel-agent-docker-api-rules.md`](beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
-| [`bind-mounted-config-files.md`](bind-mounted-config-files.md) | — | Not started — waiting on [ADR-0087/0](../decisions/0087-delivering-files-ansible-renders-to-a-container/revision-000.md) | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
+| [`bind-mounted-config-files.md`](bind-mounted-config-files.md) | — | Not started — ready | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
 | [`cd-agent-approles.md`](cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
 | [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](cd-agent.md), [`cd-agent-approles.md`](cd-agent-approles.md) | Delete controller's AppRole; admin access mints short-lived tokens on demand. |
 | [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md) | — | Not started — waiting on [`cd-agent-approles.md`](cd-agent-approles.md) | One operator-host command that delivers each CD agent job's credentials, and the secret_id rotation that reuses it. |

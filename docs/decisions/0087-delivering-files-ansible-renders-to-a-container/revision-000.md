@@ -7,7 +7,7 @@ short: Ansible-rendered files in containers
 solution: Read-only bind mounts from the stack directory; volumes only for state the app writes
 summary: Where a file Ansible renders for a container lives, so a config file needs no volume of its own.
 topic: deployment-platform
-status: working
+status: approved
 narrows: ADR-0005
 ---
 

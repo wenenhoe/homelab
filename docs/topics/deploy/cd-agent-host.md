@@ -35,7 +35,7 @@ These four have no default, and the role stops on the first check that finds one
 | `cd_agent_admin_users` | The only users `sshd` lets in: plain names, none of them a job's user. |
 | `cd_agent_jobs` | One entry per job, with unique names. |
 
-A job is `name` (`[a-z][a-z0-9-]{0,22}`), `command` (an argument list), at most one of `poll_interval` (`5min`: the first run is a minute after boot, then that long after each run ends) and `on_calendar` (a systemd calendar expression), and optionally `cwd`, `on_change`, `successors` ([below](#chains)) and `timeout` (default `cd_agent_default_timeout`, `1h`). `cwd` and `on_change` are the runner's `--cwd` and `--on-change`.
+A job is `name` (`[a-z][a-z0-9-]{0,22}`), `command` (an argument list), at most one of `poll_interval` (`5min`: the first run is a minute after boot, then that long after each run ends) and `on_calendar` (a systemd calendar expression), and optionally `cwd`, `on_change`, `successors` ([below](#chains)), `heartbeat` ([below](#heartbeats)) and `timeout` (default `cd_agent_default_timeout`, `1h`). `cwd` and `on_change` are the runner's `--cwd` and `--on-change`.
 
 Other variables:
 
@@ -110,10 +110,25 @@ Before anything else changes, the role reads `/etc/machine-id` on the host it is
 
 The role installs `git`, `python3`, `unzip`, `openssh-client`, `openssh-server` and the pinned `uv` and `rclone` (x86_64 only), and includes [`host_hardening`](../infra/host-hardening.md).
 
+## Heartbeats
+
+A job with `heartbeat: <id>`, a `heartbeat_jobs` id, gets a root-run `gatus-push-<id>.service` that its own unit starts with `OnSuccess=` and never `OnFailure=`, so a failed or missing run is what Gatus alerts on ([`gatus.md`](../monitoring/gatus.md#pushing-from-a-job)). The sandboxed job never holds the token. `freshness` is the only job that has one (`cd-agent-freshness`, weekly).
+
+The role installs the unit and creates `/etc/gatus-push` (`0700`, root) and no file in it, like the credential directories. Write the token once, from the operator host, after the role has run:
+
+```sh
+sudo install -m 0600 /dev/null /etc/gatus-push/cd-agent-freshness.curlrc
+bao kv get -mount=secret -field=value hosts/security/gatus-token-cd-agent-freshness \
+  | sed 's/^/header = "Authorization: Bearer /; s/$/"/' \
+  | ssh cdadmin@192.168.30.3 'sudo tee /etc/gatus-push/cd-agent-freshness.curlrc >/dev/null'
+```
+
+Until the file exists the push fails and the endpoint alerts after its first missed interval.
+
 ## Not done by the role
 
 - Credential files, and the copy of step-ca's root certificate a job verifies OpenBao against. Delivery is [`cd-agent-approles.md`](../../projects/cd-agent-approles.md)'s.
-- Failure alerts and heartbeats, which depend on [ADR 0072 (Job heartbeats)](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
+- Failure alerts, and heartbeats for any job but `freshness` ([below](#heartbeats)); both depend on [ADR 0072 (Job heartbeats)](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)'s mechanism.
 - Removing a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 
 ## Testing

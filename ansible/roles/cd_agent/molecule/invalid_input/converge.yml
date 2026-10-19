@@ -48,6 +48,11 @@
           cd_agent_jobs:
             - {name: deploy, poll_interval: 5min, command: []}
         expect: Invalid cd_agent_jobs entry
+      - name: a heartbeat that is no heartbeat_jobs id
+        override:
+          cd_agent_jobs:
+            - {name: deploy, poll_interval: 5min, heartbeat: not-a-job, command: [/bin/true]}
+        expect: Invalid cd_agent_jobs entry
       - name: an upper-case job name
         override:
           cd_agent_jobs:

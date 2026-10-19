@@ -73,6 +73,10 @@ heartbeat_jobs:
   # r2-read-watcher-heartbeat.timer: every 10 minutes. A 15-minute interval
   # keeps what the Kuma monitor used (docs/topics/secrets/openbao-r2-read-watcher.md).
   - {id: r2-read-watcher, group: backups, period_minutes: 10, slack_minutes: 5}
+  # The CD agent's weekly credential freshness job (cd_agent_jobs in
+  # group_vars/cd_agent.yaml). The agent host holds no secrets, so its token is
+  # delivered by hand (docs/topics/deploy/cd-agent-host.md).
+  - {id: cd-agent-freshness, group: backups, period_minutes: 10080}
   # cert-expiry-check.timer: daily, on every app host.
   - {id: cert-expiry-security, group: certs, period_minutes: 1440}
   - {id: cert-expiry-storage, group: certs, period_minutes: 1440}

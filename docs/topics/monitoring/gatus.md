@@ -110,7 +110,7 @@ the config or the unit changed.
 | `cloud-sync` | `cloud_sync` on `storage` | `cloud-sync.service` |
 | `cert-expiry-<host>` | `caddy_cert_expiry` on each app host | `cert-expiry-check.service` |
 
-Two producers do not use the role:
+Three producers do not use the role:
 
 - **`backup-<host>`** is pushed by `check-freshness.sh` on each backup host, which already decides whether to push at all:
   only when every app's newest backup is within its threshold. The script sends the `POST` itself, passing the URL and
@@ -120,6 +120,10 @@ Two producers do not use the role:
 - **`r2-read-watcher`** runs from units copied by hand ([`openbao-r2-read-watcher.md`](../secrets/openbao-r2-read-watcher.md)),
   not from Ansible. `gatus-push-r2-read-watcher.service` has the same shape as the role's, and its curl config is written
   by hand from the job's token.
+- **`cd-agent-freshness`** is pushed by the CD agent's `freshness` job. The `cd_agent` role installs
+  `gatus-push-cd-agent-freshness.service` and names it in the job's `OnSuccess=` (the job's `heartbeat` field), with the
+  URL in the unit and the bearer header in `/etc/gatus-push/cd-agent-freshness.curlrc`. That host holds no secrets, so the
+  file is written by hand ([`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats)).
 
 ## The self-probe
 
@@ -154,6 +158,6 @@ database, which restarts every heartbeat timer, so each backup would defer detec
 
 ## State today
 
-`cloud_sync`, `cert-expiry-check`, the backup freshness check and the `r2-read-watcher` heartbeat push to Gatus as well as
+`cloud_sync`, `cert-expiry-check`, the backup freshness check, the `r2-read-watcher` heartbeat and the CD agent's `freshness` job push to Gatus as well as
 to Kuma. The `cert-renewer@` jobs still push to Kuma only, and until one is switched its endpoint raises an alert after its
 first missed interval.

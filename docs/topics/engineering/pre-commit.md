@@ -17,20 +17,37 @@ pre-commit` and `... --hook-stage pre-push`.
 ## Applying patches with `git am`
 
 `git am` commits without running the `pre-commit` hook. Link
-[`.githooks/pre-applypatch`](../../../.githooks/pre-applypatch) into
-the hooks directory once, after `pre-commit install`, and it runs the
-installed `pre-commit` hook on each patch after it is applied and before
-it is committed:
+[`.githooks/pre-applypatch`](../../../.githooks/pre-applypatch) and
+[`.githooks/post-applypatch`](../../../.githooks/post-applypatch) into
+the hooks directory once, after `pre-commit install`:
 
 ```sh
-ln -sf "$PWD/.githooks/pre-applypatch" "$(git rev-parse --git-path hooks)/pre-applypatch"
+for hook in pre-applypatch post-applypatch; do
+  ln -sf "$PWD/.githooks/$hook" "$(git rev-parse --git-path hooks)/$hook"
+done
 ```
+
+Patches leave out the generated views (`docs/projects/README.md`,
+`docs/project-planning.md`, `docs/decisions/README.md`), so two series that
+each add a project or a decision never conflict on them. After a patch is
+applied, `pre-applypatch` regenerates and stages the views, then runs the
+installed `pre-commit` hook. `git am` commits its own tree, not the index,
+so `post-applypatch` amends the views into the commit it just made, with
+`--no-verify` because the checks already passed.
 
 A failing hook stops `git am` with the patch staged. Hooks that fix
 files (`ruff`, `dclint`, `end-of-file-fixer`) leave the fix unstaged and
 also fail: review it, `git add -u && git am --continue` to keep it in the
-commit, or `git am --abort`. Only the commit-time hooks run here;
+commit, or `git am --abort`. Two decision lineages with the same number
+stop the series the same way; abort, then rewrite the patches with the
+[renumber helper](ci/doc-checks.md#renumbering-a-patch-series-lineages)
+and apply the copies. Only the commit-time hooks run here;
 `ansible-lint` stays a push-time hook.
+
+Name the patches of a series with a letter on every one (`0001a`,
+`0001b`, `0002a`): a follow-up to `0001a` is `0001b`, and plain `ls` and
+`git am *.patch` order them the same way under the C and `en_US.UTF-8`
+locales. The security series uses `S0001a`.
 
 ## Hooks
 

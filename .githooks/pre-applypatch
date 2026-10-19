@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # `git am` never runs the pre-commit hook, so run it here, after the patch is applied and
 # before `git am` commits it. A non-zero exit stops `git am` with the patch still staged.
+# Patches leave the generated doc views out, so rebuild and stage them first; post-applypatch
+# amends them into the commit.
 set -euo pipefail
 
 hook="$(git rev-parse --git-path hooks)/pre-commit"
@@ -8,4 +10,8 @@ if [ ! -x "$hook" ]; then
   echo "pre-applypatch: the pre-commit hook is not installed; run 'pre-commit install'" >&2
   exit 1
 fi
+
+# A failure here (a duplicate ADR number, say) is reported again by the pre-commit run below.
+pre-commit run generate-doc-indexes >/dev/null 2>&1 || true
+git add -- docs/projects/README.md docs/project-planning.md docs/decisions/README.md
 exec "$hook"

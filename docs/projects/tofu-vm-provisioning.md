@@ -2,7 +2,7 @@
 id: PROJ-tofu-vm-provisioning
 title: OpenTofu-Driven Proxmox VM Provisioning
 type: project
-status: de-risking
+status: building
 blocked: false
 summary: Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator.
 decision: ADR-0048/0
@@ -30,7 +30,7 @@ The OpenTofu project, the Ubuntu and OPNsense-shell modules, and the inventory g
 
 ## Decision
 
-Implements [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) (where Tofu's own credentials live), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved. The rest of the design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
+Implements [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) (where Tofu's own credentials live), `approved`: the credentials live in a file on the host that runs Tofu, outside the repo and OpenBao. The rest of the design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
 
 ## Environment (baseline, at project start)
 
@@ -68,7 +68,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Tofu project skeleton — provider, state backend, secrets bootstrap | Not started | `tofu init` and `plan` succeed against the `pve` node, with state in the `opentofu-state` bucket and credentials where ADR 0048 decides |
+| 1 | Tofu project skeleton — provider, state backend, secrets bootstrap | Not started | `tofu init` and `plan` succeed against the `pve` node, with state in the `opentofu-state` bucket and credentials read from the file ADR 0048 decides on |
 | 2 | `proxmox_ubuntu_vm` module | Not started | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
 | 3 | `proxmox_opnsense_vm` module — Phase 1 (VM shell + ISO fetch) | Not started | the module creates the OPNsense VM shell and fetches the ISO; install stays manual |
 | 4 | Tofu→Ansible inventory generator | Not started | the generated inventory replaces the hand-written entries, including `tailscale` |
@@ -88,10 +88,11 @@ Stage status is `Not started`, `In progress`, or `Done`.
   (`ansible/roles/seaweedfs_bucket`) — creating this one is a one-time
   manual step, not yet Ansible-managed.
 - Tofu's own secrets (Proxmox API token, OPNsense API key,
-  state-backend S3 credential):
-  a real open decision between three options — see the
-  [working decision](../decisions/0048-where-tofu-credentials-live/revision-000.md).
-  This stage is blocked on it.
+  state-backend S3 credential) are read from a file on the Tofu host,
+  outside the repo and OpenBao, as
+  [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md)
+  decides. The stage documents the file's path, mode and contents, and
+  the repo ignores any file of that shape.
 - Install: OpenTofu's official apt-repo installer, on VM 401
   ("Development") once it exists, otherwise wherever the repo's
   driven from today. `bpg/proxmox` needs no separate install — fetched
@@ -107,15 +108,14 @@ section — install and initial config stay manual. Phase 2
 ## Acceptance criteria
 
 - [ ] `tofu init` and `plan` succeed against the `pve` node with state in the `opentofu-state` bucket on SeaweedFS.
-- [ ] Tofu's credentials live where ADR 0048 decides.
+- [ ] Tofu's credentials live in the file ADR 0048 decides, with a documented path and mode, and none is in the repo or in the state.
 - [ ] The modules provision Ubuntu VMs and the OPNsense VM shell to `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme.
 - [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
 - [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Open items
 
-- Tofu-only secrets and state-backend credential location (Stage 1) —
-  [working decision](../decisions/0048-where-tofu-credentials-live/revision-000.md).
+- An OpenBao on the Tofu host, seeded by a snapshot pulled from the main instance, would replace the credentials file. It needs a pull counterpart of the snapshot push and a new revision of [ADR 0048](../decisions/0048-where-tofu-credentials-live/revision-000.md); not scoped here.
 - `checkov` (IaC scanning) for the OpenTofu code once it exists, and
   whether to also move Ansible misconfig scanning onto it at the same
   time instead of keeping Trivy — not scoped yet, not actionable

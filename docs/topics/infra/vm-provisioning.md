@@ -149,8 +149,9 @@ a later replacement). This is why `storage` is the one host kept
 running through every migration stage — it's a dependency of the
 tooling itself, not just of the apps it hosts.
 
-Where Tofu's own secrets (Proxmox API token, OPNsense API key, the
-state-backend S3 credential) live is not yet decided — see the
-[working decision](../../decisions/0048-where-tofu-credentials-live/revision-000.md)
-for the three options under consideration, and the project doc's
-Stage 1 for status.
+Tofu's own secrets (Proxmox API token, OPNsense API key, the
+state-backend S3 credential) live in a file on the host that runs Tofu,
+outside the repo and outside OpenBao, since Tofu must be able to rebuild
+the host that runs OpenBao — see the
+[decision](../../decisions/0048-where-tofu-credentials-live/revision-000.md).
+The project doc's Stage 1 tracks the file's setup.

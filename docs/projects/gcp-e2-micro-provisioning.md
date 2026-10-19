@@ -34,8 +34,8 @@ and credentials the host holds
 This project runs standalone. It does not depend on
 [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md): its spike uses
 local state, and the in-repo layout and state backend follow
-[ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)
-once that settles.
+[ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md),
+which keeps Tofu's credentials in a file on the Tofu host.
 
 ## Decision
 

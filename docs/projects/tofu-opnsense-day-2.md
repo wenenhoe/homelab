@@ -27,7 +27,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike: which OpenTofu provider manages OPNsense VLAN interfaces, firewall rules and Kea through the API, and where its API key lives | Not started | A provider is chosen against a scratch OPNsense, what it cannot manage is listed here, and the API key's custody is settled in [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) |
+| 1 | Spike: which OpenTofu provider manages OPNsense VLAN interfaces, firewall rules and Kea through the API, and how its API key is passed to it | Not started | A provider is chosen against a scratch OPNsense, what it cannot manage is listed here, and the provider takes its API key from the credentials file [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) decides |
 | 2 | Import the existing VLAN interfaces, firewall rules and Kea settings. Starts once [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md)'s Stage 1 has built the skeleton, state backend and credentials | Not started | `tofu plan` against OPNsense shows no diff from the hand-built state |
 | 3 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | A plan shows no diff from the hand-built zone, and the canary probes from [`coding-agent-network.md`](coding-agent-network.md) still pass |
 | 4 | The egress proxy's configuration | Not started | The proxy's allowlist is generated from one source in the repo |
@@ -41,7 +41,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - [ ] The coding-agent zone's interface, rules and proxy configuration are expressed in Tofu, and the canary probes from [`coding-agent-network.md`](coding-agent-network.md) still pass after the cut-over.
 - [ ] The proxy's allowlist is generated from one source in the repo.
 - [ ] The topic doc names Tofu as the owner of the rules.
-- [ ] The provider's API key is held where ADR 0048 decides.
+- [ ] The provider's API key is held in the credentials file ADR 0048 decides.
 
 ## Risks
 

@@ -5,6 +5,7 @@ variables {
   name            = "services"
   template_vm_id  = 106
   admin_username  = "svcadmin"
+  dns_domain      = "internal.example.com"
   ssh_public_keys = ["ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest test"]
 }
 
@@ -131,6 +132,38 @@ run "resolves_through_the_gateway_by_default" {
     condition     = proxmox_virtual_environment_vm.this.initialization[0].dns[0].servers == tolist(["192.168.20.1"])
     error_message = "the default nameserver must be the VLAN's gateway"
   }
+}
+
+run "sets_the_search_domain_so_the_nodes_is_not_inherited" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id = 203
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.initialization[0].dns[0].domain == "internal.example.com"
+    error_message = "the VM must get the caller's search domain"
+  }
+}
+
+run "rejects_an_empty_search_domain" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id      = 203
+    dns_domain = ""
+  }
+
+  expect_failures = [var.dns_domain]
 }
 
 run "takes_nameservers_from_the_caller" {

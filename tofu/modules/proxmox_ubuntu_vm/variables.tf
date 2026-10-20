@@ -61,6 +61,16 @@ variable "ssh_public_keys" {
   }
 }
 
+variable "dns_domain" {
+  description = "Search domain handed to the VM, the lab's internal zone. Required because Proxmox otherwise copies the node's own search domain into every VM."
+  type        = string
+
+  validation {
+    condition     = length(var.dns_domain) > 0
+    error_message = "dns_domain must not be empty, or Proxmox falls back to the node's search domain."
+  }
+}
+
 variable "dns_servers" {
   description = "Nameservers handed to the VM. Defaults to the VLAN's gateway, .1."
   type        = list(string)

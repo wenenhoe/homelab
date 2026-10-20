@@ -57,6 +57,7 @@ resource "proxmox_virtual_environment_vm" "this" {
     datastore_id = var.datastore_id
 
     dns {
+      domain  = var.dns_domain
       servers = local.dns_servers
     }
 

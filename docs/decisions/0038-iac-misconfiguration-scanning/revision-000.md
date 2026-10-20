@@ -25,10 +25,9 @@ list (Trivy's own playbook auto-discovery is non-recursive and never
 finds anything under `playbooks/`) — both confirmed against Trivy's
 source and documented inline in `_trivy-scan.yml`.
 
-[`projects/tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)
-already carries `checkov` (IaC scanning) for the OpenTofu code as an
-open item, not yet scoped — Stage 1 (the Tofu project skeleton) hasn't
-landed. Checkov supports both Ansible and Terraform/OpenTofu as
+The OpenTofu root module now exists in `tofu/`
+([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#tofu-project)),
+and IaC scanning (`checkov`) for it is not yet scoped. Checkov supports both Ansible and Terraform/OpenTofu as
 first-class frameworks in one tool, raising a second question ahead of
 that: whether to consolidate onto it for Ansible now too, rather than
 running two scanners once Tofu code exists.
@@ -76,8 +75,8 @@ findings rather than the tools' general reputations:
 Keep Trivy for Ansible misconfig scanning as-is; do not introduce
 Checkov for Ansible now.
 
-Adopt Checkov specifically once the project's Stage 1 lands real
-OpenTofu code — that's Checkov's actual value case here, and it needs
+Adopt Checkov specifically for the OpenTofu code in `tofu/` — that's
+Checkov's actual value case here, and it needs
 no separate Ansible-only justification. At that point, extend the
 same Checkov setup to also cover `ansible/`, retiring Trivy's
 `ansible-misconfig-scan` job in the same change — one migration
@@ -97,8 +96,7 @@ scoped to the ansible misconfig scanner only.
   weakens if Tofu-specific parsing gaps exist; the migration might
   need to special-case Tofu the same way Ansible needed
   `DEFAULT_ROLES_PATH`.
-  **Checked by:** a spike against the real Tofu code once the
-  project's Stage 1 lands.
+  **Checked by:** a spike against the real Tofu code in `tofu/`.
 - **Claim:** the `CKV2_ANSIBLE_1` template false positive and the
   Molecule-fixture default scope are both addressable via Checkov's
   own config (`--skip-check`, `--skip-path`/`.checkov.yaml`), not
@@ -113,6 +111,6 @@ scoped to the ansible misconfig scanner only.
 
 - No CI change from this decision; `_trivy-scan.yml` and
   `security-scanning.md` stay as-is.
-- Whoever picks up Stage 1 should re-run this comparison fresh rather
+- Whoever adopts Checkov should re-run this comparison fresh rather
   than trust these numbers as still current — tool versions and rule
   sets will have moved on by then.

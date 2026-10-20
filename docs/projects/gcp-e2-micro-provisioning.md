@@ -31,9 +31,10 @@ pass ([ADR 0043 (Host hardening baseline)](../decisions/0043-host-os-hardening-b
 and credentials the host holds
 ([ADR 0047 (First-credential bootstrap)](../decisions/0047-first-credential-bootstrap-for-automated-processes/revision-000.md)).
 
-This project runs standalone. It does not depend on
-[`tofu-skeleton.md`](tofu-skeleton.md): its spike uses
-local state, and the in-repo layout and state backend follow
+This project runs standalone. Its spike uses local state outside the
+checkout, and the module's layout follows Tofu's root module
+([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project)).
+Its credentials follow
 [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md),
 which keeps Tofu's credentials in a file on the Tofu host.
 
@@ -51,7 +52,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: GCP project, budget alert, and a Tofu identity, with local state outside the checkout | Not started | an e2-micro in a free-tier region is created and destroyed by `tofu apply` and `tofu destroy`, each ADR 0073 assumption is recorded as a fact in the ADR, and the billing view shows no charge |
 | 2 | Tofu module for the e2-micro, in this repo | Not started | ADR 0073 is `approved` and a `tofu plan` of the module is clean against the spike project |
-| 3 | State and inventory integration | Not started | state lives where ADR 0048 decides and the generated inventory includes the e2-micro |
+| 3 | State and inventory integration | Not started | state is kept as [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) describes and the generated inventory includes the e2-micro |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -82,15 +83,15 @@ memory with Beszel and Kuma running, and monthly egress.
 - A free-tier instance outside the three eligible US regions bills at the
   standard rate, and the allowance is by hours across the account, so a
   second instance bills even briefly.
-- The module's directory layout may collide with the layout
-  [`tofu-skeleton.md`](tofu-skeleton.md) sets in its Stage 1.
+- The module's directory layout may collide with the root module in
+  `tofu/` ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project)).
 - The off-site monitor cannot be rebuilt if the GCP account's recovery
   factors are lost with the site; tracked as an assumption in ADR 0073.
 
 ## Open items
 
-- Where the module lives in the repository: decided with
-  [`tofu-skeleton.md`](tofu-skeleton.md)'s skeleton, not before.
+- Where the module lives in the repository relative to the root module in
+  `tofu/`.
 - Whether the free-tier instance's external address is billed. Google's
   free-tier page says it is not; confirm on the spike's billing view.
 

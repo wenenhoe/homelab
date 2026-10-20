@@ -62,8 +62,7 @@ restore-path fire drill once OpenTofu is up.
 
 Once Migration Stage 1.5 is proven, rebuild on the real VMID ranges
 (1XX/2XX/...), cut over, decommission the old VMs. `storage` stays up
-throughout every stage — it holds both the Tofu state backend and the
-DR restore target.
+throughout every stage — it is the DR restore target.
 
 ## Acceptance criteria
 

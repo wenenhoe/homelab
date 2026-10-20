@@ -13,7 +13,7 @@ The tailnet's policy is the default allow-all grant. Two projects need to tighte
 
 ## Scope
 
-Taking stock of what the maintainer reaches over the tailnet today, and replacing the allow-all grant with explicit grants for exactly that, plus `tests` that assert them. Not in scope: any new route's grant ([`operator-host.md`](operator-host.md), [`coding-agent-network.md`](coding-agent-network.md)), and putting the policy under Tofu, which waits on [`tofu-skeleton.md`](tofu-skeleton.md) ([ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)).
+Taking stock of what the maintainer reaches over the tailnet today, and replacing the allow-all grant with explicit grants for exactly that, plus `tests` that assert them. Not in scope: any new route's grant ([`operator-host.md`](operator-host.md), [`coding-agent-network.md`](coding-agent-network.md)), and putting the policy under Tofu, which builds on Tofu's root module ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project), [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)).
 
 ## Decision
 

@@ -7,9 +7,6 @@ blocked: false
 summary: Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator, built on the Tofu skeleton.
 super_project: tofu-vm-provisioning
 track: provisioning
-depends_on:
-  - project: PROJ-tofu-skeleton
-    reason: the modules need the provider, the state backend and the credentials file
 ---
 
 # OpenTofu-Driven Proxmox VM Provisioning
@@ -24,15 +21,15 @@ fleet — see
 of why this design gives Tofu-provisioned VMs static IPs with no DHCP
 at all, rather than carrying the same class of problem forward.
 
-The skeleton, the migration, the OPNsense day-2 work and DNS for the VMs are separate projects in the same initiative: [`tofu-skeleton.md`](tofu-skeleton.md), [`tofu-migration.md`](tofu-migration.md), [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) and [`tofu-vm-dns.md`](tofu-vm-dns.md). This one is the modules and inventory generator they all need.
+The migration, the OPNsense day-2 work and DNS for the VMs are separate projects in the same initiative: [`tofu-migration.md`](tofu-migration.md), [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) and [`tofu-vm-dns.md`](tofu-vm-dns.md). This one is the modules and inventory generator they all need.
 
 ## Scope
 
-The Ubuntu and OPNsense-shell modules and the inventory generator, on the skeleton from [`tofu-skeleton.md`](tofu-skeleton.md). Not in scope: the skeleton, the migration ([`tofu-migration.md`](tofu-migration.md)), OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) and DNS for the VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
+The Ubuntu and OPNsense-shell modules and the inventory generator, on the root module in `tofu/` ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project)). Not in scope: the migration ([`tofu-migration.md`](tofu-migration.md)), OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) and DNS for the VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
 
 ## Decision
 
-No decision of its own. Tofu's credentials are [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)'s, carried out by [`tofu-skeleton.md`](tofu-skeleton.md). The design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
+No decision of its own. Tofu's credentials are [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)'s, carried out as [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) describes. The design is [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md), a topic doc that predates ADRs; decisions that come out of this work are lineages.
 
 ## Environment (baseline, at project start)
 

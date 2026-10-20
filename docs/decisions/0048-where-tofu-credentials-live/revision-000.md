@@ -7,7 +7,7 @@ short: Tofu credentials
 solution: 'A file on the host that runs Tofu, outside the repo and outside OpenBao'
 summary: Where the Proxmox and OPNsense API credentials and Tofu's state-backend credential live, given the store may be what is being provisioned.
 topic: secrets-store
-status: approved
+status: accepted
 related: [ADR-0013, ADR-0018, ADR-0020, ADR-0026]
 ---
 
@@ -16,20 +16,14 @@ related: [ADR-0013, ADR-0018, ADR-0020, ADR-0026]
 ## Context
 
 Tofu needs standing credentials before it can provision anything: a
-Proxmox API token from the start, an OPNsense API key once Phase 2
-lands, and the S3 credential for its own state backend
-(`opentofu-state` on `storage` —
-[`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#state-backend--secrets)).
-The doc's original text assumed these stay outside OpenBao entirely,
-mirroring `openbao_utils/bootstrap.py`'s pre-OpenBao file-cache pattern —
-but that mechanism no longer exists in this repo. The OpenBao migration
+Proxmox API token, an OPNsense API key once its day-2 configuration is
+managed, and an S3 credential once its state has a remote backend
+([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#state-backend--secrets)).
+Every other secret in this repo lives in OpenBao on `security`
 ([0013](../0013-secret-storage/revision-000.md)
 through
-[0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md))
-retired it, and every other secret in this repo now lives in OpenBao
-on `security`. The original reasoning for keeping Tofu's secrets
-separate doesn't hold as stated anymore, and a replacement for it has to be
-chosen against the constraint below.
+[0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md)),
+so the question is whether these can too, against the constraint below.
 
 The real fork is a bootstrapping-order problem specific to Tofu: it
 may need to provision `security` itself — the host that runs the only
@@ -37,27 +31,14 @@ OpenBao instance that exists today — before that instance is
 reachable. No other secret consumer in this repo has that problem,
 since Ansible only ever runs against hosts that already exist.
 
-**Settled, not just assumed:** whether this is a one-time migration-day
-concern or a standing constraint doesn't need to wait on Migration
-Stage 2 actually happening — the project's own design already answers
-it. `vm-provisioning.md`'s VMID scheme lists the 2XX range's purpose as
+This is a **standing constraint**, not a one-time migration-day concern.
+`vm-provisioning.md`'s VMID scheme lists the 2XX range's purpose as
 "Primary target — current managed hosts + OPNsense", and
 `tofu-vm-provisioning.md`'s environment table lists `security` (VMID
-205) as one of exactly those current managed hosts. Migration Stage 2
-("rebuild on the real VMID ranges, cut over, decommission the old
-VMs") names no carve-out for `security` — it gets rebuilt via Tofu
-like `services`/`storage`/`play`. Once cutover happens, `security` is
-an ordinary Tofu-managed host going forward, the same as every other
-2XX host, with nothing in this project's design suggesting future
-resizes or rebuilds would route around Tofu for `security` specifically.
-This was resolvable by reading the existing design, not something
-that requires the migration to actually happen first — an earlier
-version of this draft's first Assumption incorrectly gated it on
-Stage 6 landing, which would have made this draft unable to reach
-`approved` before the very project it blocks was most of the way built.
-The bootstrapping-order problem is therefore a **standing constraint**,
-not a one-time migration-day concern — every future routine `security`
-rebuild hits it again, not just the first one.
+205) as one of exactly those hosts. The migration's rebuild on the real
+VMID ranges names no carve-out for `security`, so once cut over it is an
+ordinary Tofu-managed host like every other 2XX host, and every later
+resize or rebuild hits the bootstrapping order again.
 
 ## Decision
 
@@ -100,11 +81,10 @@ home for it would only add a lookup.
 
 ## Consequences
 
-Stage 1's secrets bootstrap reads this file, and the state-backend S3
-credential is in it. The file is the only copy of these credentials on
-the Tofu host, so losing it costs re-issuing each one from its source
-(the Proxmox node, OPNsense, `storage`'s S3 identities), not data.
-Whoever can read the file on the Tofu host holds control of the
+Tofu reads this file when it starts. The file is the only copy of these
+credentials on the Tofu host, so losing it costs re-issuing each one from
+its source (the Proxmox node, OPNsense, the state backend's S3
+identities), not data. Whoever can read the file on the Tofu host holds control of the
 hypervisor, so the host and the account that owns the file are part of
 the trust boundary; [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)
 puts Tofu on a host that handles no untrusted content.

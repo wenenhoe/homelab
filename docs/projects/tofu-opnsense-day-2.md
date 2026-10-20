@@ -11,7 +11,7 @@ track: opnsense
 
 # OPNsense Day-2 Config via API
 
-Brings OPNsense's day-2 configuration (VLAN interfaces, firewall rules and Kea) under Tofu through its config API, so the hand-built zones stop drifting and the rules that are the network boundary are reviewed as code. It needs Tofu's skeleton, state backend and credentials from [`tofu-skeleton.md`](tofu-skeleton.md). It does not wait for [`tofu-migration.md`](tofu-migration.md) or the VMID→IP mapping, which only the DNS records use ([`tofu-vm-dns.md`](tofu-vm-dns.md)).
+Brings OPNsense's day-2 configuration (VLAN interfaces, firewall rules and Kea) under Tofu through its config API, so the hand-built zones stop drifting and the rules that are the network boundary are reviewed as code. It builds on Tofu's root module and credentials file ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project)). It does not wait for [`tofu-migration.md`](tofu-migration.md) or the VMID→IP mapping, which only the DNS records use ([`tofu-vm-dns.md`](tofu-vm-dns.md)).
 
 ## Scope
 
@@ -28,7 +28,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: which OpenTofu provider manages OPNsense VLAN interfaces, firewall rules and Kea through the API, and how its API key is passed to it | Not started | A provider is chosen against a scratch OPNsense, what it cannot manage is listed here, and the provider takes its API key from the credentials file [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) decides |
-| 2 | Import the existing VLAN interfaces, firewall rules and Kea settings. Starts once [`tofu-skeleton.md`](tofu-skeleton.md) has built the skeleton, state backend and credentials | Not started | `tofu plan` against OPNsense shows no diff from the hand-built state |
+| 2 | Import the existing VLAN interfaces, firewall rules and Kea settings. Starts from Tofu's root module and credentials file | Not started | `tofu plan` against OPNsense shows no diff from the hand-built state |
 | 3 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | A plan shows no diff from the hand-built zone |
 | 4 | The egress proxy's configuration. Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy | Not started | The proxy's allowlist is generated from one source in the repo |
 | 5 | Retire the hand-maintained state | Not started | The topic doc describes Tofu as the owner of the rules, and canary probes still pass |

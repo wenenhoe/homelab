@@ -141,17 +141,89 @@ produces the inventory data Ansible consumes — keeping each tool's
 write-ownership single-purpose, consistent with how `host_vars` /
 `app_catalog` already split concerns in this repo.
 
+## Tofu project
+
+The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
+(`~> 1.13`) and the `bpg/proxmox` provider (exactly), `providers.tf`
+configures the provider with an API token, and `.terraform.lock.hcl` is
+committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
+endpoint, token or node name instead of passing with nothing to do; that
+read is the module's only API call, `GET /nodes/<node>/status`.
+
+OpenTofu is installed on the host that runs it with its official
+installer (Debian and Ubuntu). Read the script before running it:
+
+```sh
+curl --proto '=https' --tlsv1.2 -fsSL https://get.opentofu.org/install-opentofu.sh -o install-opentofu.sh
+chmod +x install-opentofu.sh
+./install-opentofu.sh --install-method deb
+rm -f install-opentofu.sh
+```
+
+`tofu version` must satisfy `required_version` in `versions.tf`. The
+provider needs no separate install: `tofu init` fetches it. Run Tofu from
+the repo root with `umask 077`, which makes the state file `0600`, and
+with `TF_DATA_DIR` set outside the checkout on every command. Without it
+`tofu init` unpacks the provider, README included, into `tofu/.terraform/`,
+where `check-doc-drift` scans it and fails `pre-commit`:
+
+```sh
+umask 077
+export TF_DATA_DIR="$HOME/.cache/tofu/homelab"
+tofu -chdir=tofu init
+tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
+```
+
 ## State backend & secrets
 
-Tofu state is a local file on the host that runs Tofu, kept out of git.
-A remote S3-compatible backend (`opentofu-state`) is planned, and
+Tofu state is `tofu/terraform.tfstate` on the host that runs Tofu, ignored
+by git. It is the only copy: `git clean -x` deletes ignored files, so it
+is never run in the checkout, and a backup is taken after each apply with
+`tofu -chdir=tofu state pull` redirected to a `0600` file outside the
+checkout. A remote S3-compatible backend (`opentofu-state`) is planned, and
 `tofu init -migrate-state` moves existing state into it. The backend
 can't be a VM Tofu manages, since Tofu has to be able to rebuild that
-VM; where it runs is not decided.
+VM, which rules out the SeaweedFS on `storage`. A separate small SeaweedFS
+instance is the leading idea; where it runs is not decided, and choosing
+the host is a decision that needs an ADR before anything is built. The
+bucket is created by hand, since SeaweedFS does not create one on first
+write ([`backup.md`](../disaster-recovery/backup.md)).
 
-Tofu's own secrets (Proxmox API token, OPNsense API key, and the
-state-backend S3 credential once a remote backend exists) live in a file on the host that runs Tofu,
-outside the repo and outside OpenBao, since Tofu must be able to rebuild
-the host that runs OpenBao — see the
+Tofu's own secrets live in a file on the host that runs Tofu, outside the
+repo and outside OpenBao, since Tofu must be able to rebuild the host that
+runs OpenBao — see the
 [decision](../../decisions/0048-where-tofu-credentials-live/revision-000.md).
-[`tofu-skeleton.md`](../../projects/tofu-skeleton.md) tracks the file's setup.
+The file is `~/.config/tofu/credentials.tfvars`, mode `0600` in a `0700`
+directory, owned by the operator account, and passed with `-var-file`:
+
+```hcl
+proxmox_endpoint  = "https://pve.example.lan:8006/"
+proxmox_api_token = "user@realm!tokenid=secret"
+```
+
+The endpoint must be `https://`, and TLS verification is on. Setting
+`proxmox_insecure = true` in the file skips it, which the provider's own
+docs limit to development. The OPNsense API key and, once a remote backend
+exists, its S3 credential join this file when their consumers are built.
+Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the
+tree, and neither the token nor the endpoint appears in the state.
+
+### Proxmox API token
+
+The token is created on the Proxmox node, outside this repo, and this
+section is its only record. It belongs to the user `tofu@pve`, which holds
+the role `TofuNodeRead` (the single privilege `Sys.Audit`) on `/nodes/pve`.
+The token ID is `skeleton` and privilege separation is off, so the token
+has the user's rights. The value in the credentials file is
+`tofu@pve!skeleton=<secret>`. On the node:
+
+```sh
+pveum user add tofu@pve
+pveum role add TofuNodeRead -privs "Sys.Audit"
+pveum aclmod /nodes/pve -user tofu@pve -role TofuNodeRead
+pveum user token add tofu@pve skeleton --privsep=0
+```
+
+The role covers the one read `main.tf` makes. A change that makes Tofu
+call more of the Proxmox API widens the role to the privileges it needs and
+lists them here.

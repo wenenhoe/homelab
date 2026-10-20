@@ -52,7 +52,7 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: GCP project, budget alert, and a Tofu identity, with local state outside the checkout | Not started | an e2-micro in a free-tier region is created and destroyed by `tofu apply` and `tofu destroy`, each ADR 0073 assumption is recorded as a fact in the ADR, and the billing view shows no charge |
 | 2 | Tofu module for the e2-micro, in this repo | Not started | ADR 0073 is `approved` and a `tofu plan` of the module is clean against the spike project |
-| 3 | State and inventory integration | Not started | state lives where ADR 0048 decides and the generated inventory includes the e2-micro |
+| 3 | State and inventory integration | Not started | state is kept as [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#state-backend--secrets) describes and the generated inventory includes the e2-micro |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 

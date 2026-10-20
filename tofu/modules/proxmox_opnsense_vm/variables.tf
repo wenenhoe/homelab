@@ -43,7 +43,7 @@ variable "iso_checksum" {
 variable "iso_datastore_id" {
   description = "Datastore the installer image is stored in."
   type        = string
-  default     = "local"
+  default     = "tofu-images"
 }
 
 variable "datastore_id" {

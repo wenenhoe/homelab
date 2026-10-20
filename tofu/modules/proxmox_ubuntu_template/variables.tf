@@ -41,9 +41,9 @@ variable "image_checksum" {
 }
 
 variable "image_datastore_id" {
-  description = "Datastore the downloaded image is stored in. Its content types must include import."
+  description = "Datastore the downloaded image is stored in. Its content types must include import, and the token needs Datastore.Allocate on it to replace the image."
   type        = string
-  default     = "local"
+  default     = "tofu-images"
 }
 
 variable "datastore_id" {

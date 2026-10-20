@@ -30,6 +30,11 @@ run "fetches_the_installer_and_unpacks_it_as_an_iso" {
   }
 
   assert {
+    condition     = proxmox_download_file.iso.datastore_id == "tofu-images"
+    error_message = "the installer must be stored on the images storage the token can delete from"
+  }
+
+  assert {
     condition     = proxmox_download_file.iso.checksum_algorithm == "sha256" && proxmox_download_file.iso.checksum == var.iso_checksum
     error_message = "the download must be verified against the given SHA-256"
   }

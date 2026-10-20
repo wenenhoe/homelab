@@ -30,6 +30,11 @@ run "downloads_the_pinned_image_as_an_import_file" {
   }
 
   assert {
+    condition     = proxmox_download_file.image.datastore_id == "tofu-images"
+    error_message = "the image must be stored on the images storage the token can delete from"
+  }
+
+  assert {
     condition     = proxmox_download_file.image.checksum_algorithm == "sha256" && proxmox_download_file.image.checksum == var.image_checksum
     error_message = "the download must be verified against the given SHA-256"
   }

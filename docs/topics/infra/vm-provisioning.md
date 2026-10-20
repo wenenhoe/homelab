@@ -120,9 +120,9 @@ Nameservers default to the VLAN's gateway; `dns_servers` replaces them.
 `dns_domain`, the lab's internal zone, has no default: a VM with no search
 domain gets a copy of the node's own. Its
 defaults are the services/security row of the sizing table, and a larger
-host overrides `cores`, `memory_mb` and `disk_gb`. Its outputs (`vm_id`,
-`hostname`, `ip_address`, `mac_address`) are what the inventory generator
-reads.
+host overrides `cores`, `memory_mb` and `disk_gb`. Its outputs are `vm_id`,
+`hostname`, `ip_address`, `mac_address` and `inventory_entry`, the one the
+inventory generator reads.
 
 ```hcl
 module "services" {
@@ -208,11 +208,25 @@ once on the VM with `qm set <vmid> --startup order=1,up=60`.
 
 ## Tofu ↔ Ansible handoff
 
-Tofu does not write into `ansible/` directly. Instead, a small generator
-script reads Tofu state/outputs (VMID, IP, MAC, hostname per VM) and
-produces the inventory data Ansible consumes — keeping each tool's
-write-ownership single-purpose, consistent with how `host_vars` /
-`app_catalog` already split concerns in this repo.
+Tofu does not write into `ansible/` directly. The root module's
+`ansible_hosts` output maps an inventory host name to
+`module.<name>.inventory_entry`, which carries the VM's static address and
+login user. `tools/tofu_inventory` reads it with `tofu output -json` and
+writes `ansible/inventory/tofu-hosts.yaml`, a gitignored file giving each
+host its `ansible_host` (the IP, since a static VM has no DHCP lease to
+register in DNS) and `ansible_user`. Run it from `tools/` after an apply:
+
+```sh
+cd tools && uv run python -m tofu_inventory
+```
+
+The generator rejects an entry with extra or missing keys, a name that is
+not a lowercase inventory name, or an address that is not IPv4, and a failed
+run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
+cannot know — group membership — and Ansible merges the two files by host
+name, so a new VM is a module call, an `ansible_hosts` entry and a name in
+its groups. Each tool keeps one job, as `host_vars` and `app_catalog`
+already split concerns in this repo.
 
 ## Tofu project
 

@@ -106,7 +106,7 @@ Working on the repo: conventions, tests, CI, review and scanning.
 | [`ci/shell-tests.md`](engineering/ci/shell-tests.md) | The Bats tests for the repo's shell scripts: where they live, how to run them on the pinned clones, the harness that fails on any tool a test did not stub, and what each file asserts. |
 | [`ci/shell-test-pins.md`](engineering/ci/shell-test-pins.md) | The Bats runner and libraries the shell tests run on, pinned by commit: the pin file, fetching the clones, and the check that each pinned tag still points at its commit. |
 | [`ci/doc-checks.md`](engineering/ci/doc-checks.md) | Index generation, the docs drift check, and the project scope and close checks. |
-| [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | The Renovate window check and Trivy scanning. |
+| [`ci/scheduled-jobs.md`](engineering/ci/scheduled-jobs.md) | When each scheduled workflow fires, the Renovate window check and Trivy scanning. |
 | [`ci/renovate.md`](engineering/ci/renovate.md) | How self-hosted Renovate runs, its schedule, and the `RENOVATE_TOKEN` it authenticates with: permissions, creation, rotation and checking a run. |
 | [`mutation-testing.md`](engineering/mutation-testing.md) | When a mutation run is worth making on the credential tooling, how to read a survivor, and why its output stays off public surfaces. |
 | [`molecule-testing.md`](engineering/molecule-testing.md) | Molecule scenario matrix and how to add one. |

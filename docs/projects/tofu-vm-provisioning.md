@@ -67,7 +67,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `proxmox_ubuntu_vm` module | In progress | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
+| 1 | `proxmox_ubuntu_vm` module | Done | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
 | 2 | `proxmox_opnsense_vm` module — Phase 1 (VM shell + ISO fetch) | Not started | the module creates the OPNsense VM shell and fetches the ISO; install stays manual |
 | 3 | Tofu→Ansible inventory generator | Not started | the generated inventory replaces the hand-written entries, including `tailscale` |
 

@@ -1,12 +1,19 @@
 # Excluded files
 *.env
 *.db
+*.tfvars
+*.tfvars.json
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
 
 # Excluded directories
 .ansible/
 .pytest_cache/
 .ruff_cache/
 .venv/
+.terraform/
 ansible/molecule-coverage/.data/
 ansible/files/secrets/
 ansible/files/restore/

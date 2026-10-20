@@ -6,6 +6,12 @@ status: building
 blocked: false
 summary: The OpenTofu provider, the state backend on SeaweedFS and the credentials file, so every other Tofu project has somewhere to start.
 decision: ADR-0048/0
+allowed_paths:
+  - tofu/**
+  - .gitignore
+  - README.md
+  - docs/topics/infra/vm-provisioning.md
+  - docs/decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md
 super_project: tofu-vm-provisioning
 track: provisioning
 ---
@@ -62,7 +68,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Agent handoff
 
-- **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements the stage.
+- **Allowed to change:** `allowed_paths` in the frontmatter, enforced.
 - **Must not change:** any credential or state file in a commit; any ADR revision beyond the edits [`docs/decisions/README.md#assumptions`](../decisions/README.md#assumptions) permits.
 
 ## Open items

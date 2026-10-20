@@ -203,3 +203,23 @@ docs limit to development. The OPNsense API key and, once a remote backend
 exists, its S3 credential join this file when their consumers are built.
 Git ignores `*.tfvars`, `*.tfvars.json` and state files anywhere in the
 tree, and neither the token nor the endpoint appears in the state.
+
+### Proxmox API token
+
+The token is created on the Proxmox node, outside this repo, and this
+section is its only record. It belongs to the user `tofu@pve`, which holds
+the role `TofuNodeRead` (the single privilege `Sys.Audit`) on `/nodes/pve`.
+The token ID is `skeleton` and privilege separation is off, so the token
+has the user's rights. The value in the credentials file is
+`tofu@pve!skeleton=<secret>`. On the node:
+
+```sh
+pveum user add tofu@pve
+pveum role add TofuNodeRead -privs "Sys.Audit"
+pveum aclmod /nodes/pve -user tofu@pve -role TofuNodeRead
+pveum user token add tofu@pve skeleton --privsep=0
+```
+
+The role covers the one read `main.tf` makes. A change that makes Tofu
+call more of the Proxmox API widens the role to the privileges it needs and
+lists them here.

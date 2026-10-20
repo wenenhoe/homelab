@@ -30,3 +30,15 @@ variable "proxmox_node" {
   type        = string
   default     = "pve"
 }
+
+variable "ubuntu_image_url" {
+  description = "Ubuntu cloud image the template is built from, pinned to a dated release directory."
+  type        = string
+  default     = "https://cloud-images.ubuntu.com/releases/26.04/release-20260927/ubuntu-26.04-server-cloudimg-amd64.img"
+}
+
+variable "ubuntu_image_checksum" {
+  description = "SHA-256 of ubuntu_image_url, from that release's SHA256SUMS."
+  type        = string
+  default     = "8800651811af9a85465ad1d552add729947bb16488dddb4a9b5305a3d97332b2"
+}

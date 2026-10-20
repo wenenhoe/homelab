@@ -2,7 +2,7 @@
 id: PROJ-tofu-vm-provisioning
 title: OpenTofu-Driven Proxmox VM Provisioning
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator, built on the Tofu skeleton.
 super_project: tofu-vm-provisioning
@@ -67,9 +67,9 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `proxmox_ubuntu_vm` module | Not started | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
-| 2 | `proxmox_opnsense_vm` module — Phase 1 (VM shell + ISO fetch) | Not started | the module creates the OPNsense VM shell and fetches the ISO; install stays manual |
-| 3 | Tofu→Ansible inventory generator | Not started | the generated inventory replaces the hand-written entries, including `tailscale` |
+| 1 | `proxmox_ubuntu_vm` module | Done | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
+| 2 | `proxmox_opnsense_vm` module — Phase 1 (VM shell + ISO fetch) | Done | the module creates the OPNsense VM shell and fetches the ISO; install stays manual |
+| 3 | Tofu→Ansible inventory generator | In progress | the generated inventory replaces the hand-written entries, including `tailscale` |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -78,6 +78,14 @@ Stage status is `Not started`, `In progress`, or `Done`.
 VM shell + ISO fetch only, per `vm-provisioning.md`'s OPNsense
 section — install and initial config stay manual. Phase 2
 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) is where day-2 config becomes API-driven.
+
+### Stage 3 — inventory generator
+
+`tools/tofu_inventory` writes the generated inventory file from the root
+`ansible_hosts` output. The hand-written `services`, `play`, `security`,
+`storage` and `tailscale` entries move over once
+[`tofu-migration.md`](tofu-migration.md) rebuilds those hosts under Tofu; until
+then the output is empty and `inventory.yaml` is unchanged.
 
 ## Acceptance criteria
 

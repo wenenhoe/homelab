@@ -59,27 +59,31 @@ Proxmox's own auto-assigned MACs use OUI `BC:24:11`. Tofu keeps that
 prefix (stays recognizable as Proxmox-owned) and encodes the VMID plus
 NIC index into the rest: `BC:24:11:{VMID as 4 hex digits}:{NIC index}`
 — e.g. VMID 201, NIC 0 → `BC:24:11:00:C9:00`. Deterministic per VMID, so
-a rebuilt VM gets the same MAC every time — required for the netplan
-`match: macaddress` override below to stay stable across rebuilds.
+a rebuilt VM gets the same MAC every time — required for the
+MAC-matched network config below to stay stable across rebuilds.
 A Kea static-reservation key was the other option this MAC scheme
 would have supported, but that path isn't taken — see the Ubuntu VMs
 section for why.
 
 ## Ubuntu VMs
 
-Tofu builds the cloud-init template itself (downloads the official
-Ubuntu 26.04 cloud image via `local-lvm`) rather than relying on a
-pre-existing one, registered as a proper Proxmox template VM in the 1XX
-range (e.g. the next free ID below 200) alongside the existing
-Windows templates (103–105), then clones from it per VM. Network
-config is injected via cloud-init `network-config` at first boot: a
-static IP (the VMID-derived address from the scheme above), gateway,
-and nameservers, matched to the VM by `match: macaddress` against the
-deterministic MAC — no DHCP involved at all. This avoids the
-alternative (an Ansible-rendered netplan file post-boot) racing
-against whatever address the VM picks up before Ansible can connect
-at all, and sidesteps DHCP/Kea entirely rather than working around it
-— see
+Tofu builds the cloud-init template itself rather than relying on a
+pre-existing one: the `proxmox_ubuntu_template` module downloads the
+official Ubuntu cloud image, verifies it against a SHA-256 the caller
+supplies, and registers it as a Proxmox template VM in the 1XX range,
+next to the existing Windows templates (103–105). The
+`proxmox_ubuntu_vm` module then clones it per VM. Network config is
+injected through cloud-init at first boot: the module sets the NIC's
+deterministic MAC and an `ip_config` holding a static IP (the
+VMID-derived address from the scheme above), gateway and nameservers,
+and Proxmox renders the cloud-init `network-config` from them,
+matching the NIC by its MAC address — no DHCP involved at all. A
+hand-written `network-config` would be an uploaded snippet file, which
+the provider writes over SSH to the node; `ip_config` needs only the
+API token. This avoids the alternative (an Ansible-rendered netplan
+file post-boot) racing against whatever address the VM picks up before
+Ansible can connect at all, and sidesteps DHCP/Kea entirely rather
+than working around it — see
 [`netplan-dhcp-identifier.md`](netplan-dhcp-identifier.md) for the
 current-fleet bug that's the real motivation for skipping DHCP here.
 
@@ -93,18 +97,77 @@ Default sizing (adjust per host once real usage is observed):
 | storage | 2 | 4 GB | 64 GB+ |
 
 VM disks go on `local-lvm` (NVMe) for performance; the OPNsense ISO and
-Ubuntu cloud image go on `local` (dir storage, ISO/template content
-type) — both small, one-time downloads, no need for HDD or NVMe capacity
-planning around them.
+Ubuntu cloud image go on `tofu-images`, a directory storage that holds
+only ISO and import content — both small, one-time downloads, no need
+for HDD or NVMe capacity planning around them.
+
+### Ubuntu modules
+
+`tofu/modules/proxmox_ubuntu_template` and
+`tofu/modules/proxmox_ubuntu_vm` are called from the root module in
+`tofu/`. The template module's `vm_id` defaults to a free ID in the 1XX
+range, and `image_url` and `image_checksum` have no default: the root
+module passes the dated release directory of the cloud image and the
+SHA-256 that release publishes, which are the defaults of
+`ubuntu_image_url` and `ubuntu_image_checksum` in `tofu/variables.tf`.
+The root module builds the template; it declares no VMs yet.
+
+From `vm_id` the VM module derives everything the scheme above fixes: the
+VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
+rejects a VMID outside 2XX to 5XX and one whose last two digits fall
+outside 02 to 49, the reserved, gateway and DHCP-pool host parts.
+Nameservers default to the VLAN's gateway; `dns_servers` replaces them.
+`dns_domain`, the lab's internal zone, has no default: a VM with no search
+domain gets a copy of the node's own. Its
+defaults are the services/security row of the sizing table, and a larger
+host overrides `cores`, `memory_mb` and `disk_gb`. Its outputs are `vm_id`,
+`hostname`, `ip_address`, `mac_address` and `inventory_entry`, the one the
+inventory generator reads.
+
+```hcl
+module "services" {
+  source          = "./modules/proxmox_ubuntu_vm"
+  node_name       = var.proxmox_node
+  vm_id           = 203
+  name            = "services"
+  template_vm_id  = module.ubuntu_template.vm_id
+  admin_username  = "svcadmin"
+  dns_domain      = "<internal zone>"
+  ssh_public_keys = ["<public half of the Ansible key>"]
+}
+```
+
+Both modules store their image on `tofu-images`, created once on the node:
+
+```sh
+pvesm add dir tofu-images --path /var/lib/tofu-images --content iso,import
+```
+
+Deleting a stored file takes `Datastore.Allocate`, which gives full access
+to every volume on a storage, so the token holds it on this storage only
+(see [Proxmox API token](#proxmox-api-token)). Bumping an image URL
+replaces the download, and the old file goes with it. Disks are imported from it
+through the API alone; the other route, `file_id` on an `iso` download,
+needs SSH to the node. The provider's docs say a `.qcow2` file name is
+rejected by Proxmox before 8.4.
+
+`tofu -chdir=tofu test` checks the VMID-derived values and the input
+rules against a mocked provider, so it needs no node or credentials. A new
+`run` block with its own `module` source needs `tofu init` again before it
+is found. The `tofu-checks` CI job runs `tofu fmt -check -recursive`, `tofu validate` and
+this test on every change under `tofu/`; run `tofu fmt -recursive` before pushing.
 
 ## OPNsense
 
 No cloud-init story exists for OPNsense, so provisioning happens in two
 phases:
 
-- **Phase 1, now:** Tofu creates the VM shell, attaches the latest
-  OPNsense ISO (fetched fresh from OPNsense's official mirror on every
-  build, not cached locally), and the install/initial config is manual.
+- **Phase 1, now:** the `proxmox_opnsense_vm` module creates the VM
+  shell and attaches the OPNsense installer, and the install/initial
+  config is manual. The installer is the `.iso.bz2` of one release, which
+  Proxmox downloads, checks against the SHA-256 the caller supplies and
+  unpacks. OPNsense publishes no stable "latest" URL, so a newer release
+  is a new URL and checksum.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
@@ -129,17 +192,42 @@ move to a dedicated internal nameserver instead, is an open decision —
 see the
 [working decision](../../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
 
+The module gives the VM two virtio NICs with MACs from the scheme above,
+NIC 0 on the physical WAN bridge and NIC 1 on the VLAN-aware LAN bridge,
+both untagged so OPNsense sees every VLAN, and boots the disk before the
+installer so an installed VM boots from it. Its `vm_id` is the gateway
+VMID of a range, host part 01. The root module declares no OPNsense VM
+yet, so the module's call is where its bridges, sizing and image are
+passed.
+
 **Boot order.** `order=1` for OPNsense with `up=60` (60s) before any
 dependent VM is considered clear to start — gives DHCP/DNS time to come
 up before anything else races to request an address or resolve a name.
+Tofu does not set it: Proxmox requires `Sys.Modify` on `/` for a startup
+order, which is cluster-wide and far wider than the token's role. Set it
+once on the VM with `qm set <vmid> --startup order=1,up=60`.
 
 ## Tofu ↔ Ansible handoff
 
-Tofu does not write into `ansible/` directly. Instead, a small generator
-script reads Tofu state/outputs (VMID, IP, MAC, hostname per VM) and
-produces the inventory data Ansible consumes — keeping each tool's
-write-ownership single-purpose, consistent with how `host_vars` /
-`app_catalog` already split concerns in this repo.
+Tofu does not write into `ansible/` directly. The root module's
+`ansible_hosts` output maps an inventory host name to
+`module.<name>.inventory_entry`, which carries the VM's static address and
+login user. `tools/tofu_inventory` reads it with `tofu output -json` and
+writes `ansible/inventory/tofu-hosts.yaml`, a gitignored file giving each
+host its `ansible_host` (the IP, since a static VM has no DHCP lease to
+register in DNS) and `ansible_user`. Run it from `tools/` after an apply:
+
+```sh
+cd tools && uv run python -m tofu_inventory
+```
+
+The generator rejects an entry with extra or missing keys, a name that is
+not a lowercase inventory name, or an address that is not IPv4, and a failed
+run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
+cannot know — group membership — and Ansible merges the two files by host
+name, so a new VM is a module call, an `ansible_hosts` entry and a name in
+its groups. Each tool keeps one job, as `host_vars` and `app_catalog`
+already split concerns in this repo.
 
 ## Tofu project
 
@@ -148,7 +236,9 @@ The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
 configures the provider with an API token, and `.terraform.lock.hcl` is
 committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
 endpoint, token or node name instead of passing with nothing to do; that
-read is the module's only API call, `GET /nodes/<node>/status`.
+read is its only call apart from the template build below. The Ubuntu
+modules are in `modules/` and their tests in `tests/`; see
+[Ubuntu modules](#ubuntu-modules).
 
 OpenTofu is installed on the host that runs it with its official
 installer (Debian and Ubuntu). Read the script before running it:
@@ -172,6 +262,17 @@ umask 077
 export TF_DATA_DIR="$HOME/.cache/tofu/homelab"
 tofu -chdir=tofu init
 tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
+```
+
+To stop repeating the flags, set them in the shell profile. `TF_CLI_ARGS_<command>`
+adds arguments to one command only, which `init` needs since it takes no
+`-var-file`, and after `cd tofu` no `-chdir` is needed:
+
+```sh
+export TF_DATA_DIR="$HOME/.cache/tofu/homelab"
+for c in plan apply destroy refresh import console; do
+  export "TF_CLI_ARGS_$c=-var-file=$HOME/.config/tofu/credentials.tfvars"
+done
 ```
 
 ## State backend & secrets
@@ -212,18 +313,36 @@ tree, and neither the token nor the endpoint appears in the state.
 
 The token is created on the Proxmox node, outside this repo, and this
 section is its only record. It belongs to the user `tofu@pve`, which holds
-the role `TofuNodeRead` (the single privilege `Sys.Audit`) on `/nodes/pve`.
-The token ID is `skeleton` and privilege separation is off, so the token
-has the user's rights. The value in the credentials file is
-`tofu@pve!skeleton=<secret>`. On the node:
+the role `TofuProvision` on the six paths below, and `TofuImageStore` on one. The token ID is
+`skeleton` and privilege separation is off, so the token has the user's
+rights. The value in the credentials file is `tofu@pve!skeleton=<secret>`.
+On the node:
 
 ```sh
 pveum user add tofu@pve
-pveum role add TofuNodeRead -privs "Sys.Audit"
-pveum aclmod /nodes/pve -user tofu@pve -role TofuNodeRead
+pveum role add TofuProvision -privs "Sys.Audit,Sys.AccessNetwork,Datastore.Audit,Datastore.AllocateSpace,Datastore.AllocateTemplate,VM.Allocate,VM.Audit,VM.Clone,VM.PowerMgmt,VM.Config.CPU,VM.Config.Memory,VM.Config.Disk,VM.Config.Network,VM.Config.Cloudinit,VM.Config.CDROM,VM.Config.Options,VM.Config.HWType,SDN.Use"
+pveum acl modify /nodes/pve --users tofu@pve --roles TofuProvision
+pveum role add TofuImageStore -privs "Datastore.Allocate"
+pveum acl modify /storage/tofu-images --users tofu@pve --roles TofuProvision,TofuImageStore
+pveum acl modify /storage/local-lvm --users tofu@pve --roles TofuProvision
+pveum acl modify /vms --users tofu@pve --roles TofuProvision
+pveum acl modify /sdn/zones/localnetwork/vmbr0 --users tofu@pve --roles TofuProvision
+pveum acl modify /sdn/zones/localnetwork/vmbr1 --users tofu@pve --roles TofuProvision
 pveum user token add tofu@pve skeleton --privsep=0
 ```
 
-The role covers the one read `main.tf` makes. A change that makes Tofu
-call more of the Proxmox API widens the role to the privileges it needs and
-lists them here.
+| Path | Used for |
+| :--- | :--- |
+| `/nodes/pve` | Reading the node, and the image download with its size lookup (`Sys.AccessNetwork`) |
+| `/storage/tofu-images` | Storing and removing images, and reading them for the disk import (`Datastore.Allocate`, from `TofuImageStore`, only here) |
+| `/storage/local-lvm` | VM disks and cloud-init drives |
+| `/vms` | Creating, cloning, configuring and starting VMs: every VM on the node, Tofu-managed or not |
+| `/sdn/zones/localnetwork/vmbr0` | Attaching the OPNsense WAN NIC to the physical bridge |
+| `/sdn/zones/localnetwork/vmbr1` | Attaching a NIC to the VLAN-aware bridge |
+
+The role order above matters only on a fresh setup: `TofuImageStore` must
+exist before the ACL names it. The image download needs `Sys.AccessNetwork` on the node, or the older
+`Sys.Modify` on `/`, which is far wider; the role takes the first.
+`TofuProvision` holds every privilege on every path, and Proxmox checks
+each one only where it applies. A change that makes Tofu call more of the Proxmox API
+widens the role to the privileges it needs and lists them here.

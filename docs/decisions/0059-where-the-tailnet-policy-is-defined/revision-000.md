@@ -79,8 +79,8 @@ and device IPs are supplied at apply time the way `main-domain` is.
 
 ## Alternatives considered
 
-- **Code it now, ahead of ADR 0048.** Forces a credential-storage
-  decision under this ADR that ADR 0048 already owns, and stands up a
+- **Code it before Tofu has a skeleton.** Needs the state backend and
+  the credentials file ADR 0048 decides to exist first, and stands up a
   standing OAuth credential before ADR 0015's expiry principle has an
   answer for it. Rejected.
 - **Never code it.** Leaves the security boundary three other ADRs

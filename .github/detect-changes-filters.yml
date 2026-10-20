@@ -120,6 +120,10 @@ image_provenance:
 mermaid_check:
   - '**/*.md'
   - 'tools/doc_scripts/check_mermaid.py'
+# Gates tofu-checks: the root module, its modules and tests, and the committed
+# provider lock file, all under tofu/.
+tofu:
+  - 'tofu/**'
 # Gates shell-tests: every shell script and template, the Bats tests and their
 # harness, and the tooling that fetches the pinned runner — see
 # docs/topics/engineering/ci/shell-tests.md. Not narrowed by

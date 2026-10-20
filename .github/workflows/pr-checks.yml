@@ -25,6 +25,7 @@ jobs:
       release_checksums: ${{ steps.filter.outputs.release_checksums }}
       image_provenance: ${{ steps.filter.outputs.image_provenance }}
       mermaid_check: ${{ steps.filter.outputs.mermaid_check }}
+      tofu: ${{ steps.filter.outputs.tofu }}
       shell_tests: ${{ steps.filter.outputs.shell_tests }}
       shell_test_pins: ${{ steps.filter.outputs.shell_test_pins }}
       python_unit_tests: ${{ steps.effective.outputs.python_unit_tests }}
@@ -581,6 +582,43 @@ jobs:
       - name: Render every Mermaid block
         run: python3 -m doc_scripts.check_mermaid
         working-directory: tools
+
+  # Formatting, validation and the mocked-provider tests of the root module in
+  # tofu/ — see docs/topics/engineering/ci/pipeline.md. Needs no state, credentials
+  # or Proxmox: init skips the backend and installs the providers the committed lock
+  # file names. Not a matrix job, so it can be required directly: a PR that changes
+  # nothing under tofu/ reports it skipped.
+  tofu-checks:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.tofu == 'true'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: tofu
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup OpenTofu
+        uses: opentofu/setup-opentofu@a1320f892987e89d278cc92dc5adc984fb93aca4 # v2.0.2
+        with:
+          tofu_version: "1.13.1"
+          tofu_wrapper: false
+
+      - name: Check formatting
+        run: tofu fmt -check -recursive -diff
+
+      - name: Install the locked providers
+        run: tofu init -backend=false -input=false -lockfile=readonly
+
+      - name: Validate
+        run: tofu validate
+
+      - name: Run the tests
+        run: tofu test
 
   # Runs the Bats tests for the repo's shell scripts on the pinned bats-core,
   # bats-support and bats-assert clones (ADR 0086) — see

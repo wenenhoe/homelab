@@ -183,7 +183,11 @@ is never run in the checkout, and a backup is taken after each apply with
 checkout. A remote S3-compatible backend (`opentofu-state`) is planned, and
 `tofu init -migrate-state` moves existing state into it. The backend
 can't be a VM Tofu manages, since Tofu has to be able to rebuild that
-VM; where it runs is not decided.
+VM, which rules out the SeaweedFS on `storage`. A separate small SeaweedFS
+instance is the leading idea; where it runs is not decided, and choosing
+the host is a decision that needs an ADR before anything is built. The
+bucket is created by hand, since SeaweedFS does not create one on first
+write ([`backup.md`](../disaster-recovery/backup.md)).
 
 Tofu's own secrets live in a file on the host that runs Tofu, outside the
 repo and outside OpenBao, since Tofu must be able to rebuild the host that

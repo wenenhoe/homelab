@@ -50,7 +50,7 @@ just another 4XX desktop, even though it stays outside Tofu/Ansible's
 management scope either way.
 
 Both OPNsense NICs are `virtio`: one on the physical WAN bridge
-(untagged), one on the VLAN-aware LAN bridge that every other VM's NIC
+(untagged, unless `wan_vlan_id` puts it on a VLAN of the LAN bridge), one on the VLAN-aware LAN bridge that every other VM's NIC
 also attaches to, tagged per-VM to whichever VLAN its VMID range implies.
 
 ## MAC address scheme
@@ -195,7 +195,10 @@ see the
 The module gives the VM two virtio NICs with MACs from the scheme above,
 NIC 0 on the physical WAN bridge and NIC 1 on the VLAN-aware LAN bridge,
 both untagged so OPNsense sees every VLAN, and boots the disk before the
-installer so an installed VM boots from it. Its `vm_id` is the gateway
+installer so an installed VM boots from it. Setting `wan_bridge` to the
+LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a
+WAN that is an ordinary client of another OPNsense's LAN; NIC 1 stays
+untagged. Its `vm_id` is the gateway
 VMID of a range, host part 01. The root module declares no OPNsense VM
 yet, so the module's call is where its bridges, sizing and image are
 passed.

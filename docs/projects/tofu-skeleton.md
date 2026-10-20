@@ -34,7 +34,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Provider, local state and credentials file | Not started | `tofu init` and `plan` succeed against the `pve` node, with state in a local file outside git and credentials read from the file ADR 0048 decides, whose path and mode are documented |
+| 1 | Provider, local state and credentials file | In progress | `tofu init` and `plan` succeed against the `pve` node, with state in a local file outside git and credentials read from the file ADR 0048 decides, whose path and mode are documented |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -58,7 +58,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - [ ] `tofu init` and `plan` succeed against the `pve` node with state in a local file outside git.
 - [ ] Tofu's credentials are read from the file ADR 0048 decides, with a documented path and mode, and none is in the repo or in the state.
-- [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
+- [x] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
 ## Agent handoff
 

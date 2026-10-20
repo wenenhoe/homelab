@@ -106,6 +106,7 @@ CI keeps the docs in step with the code — see
 ├── ansible/                 # All automation: playbooks, inventory, roles
 ├── docker/                  # One directory per application
 ├── docs/                    # Topic docs, decisions, projects, diagrams
+├── tofu/                    # OpenTofu root module: the Proxmox provider and the modules built on it
 ├── tools/                   # Python run from the repo: cloud-credential minting, OpenBao/Vault utilities, the CD agent's job runner
 ├── AGENTS.md                # Where an agent starts: the doc workflow's rules and stop conditions
 └── pyproject.toml / uv.lock # uv project files (must stay at repo root)

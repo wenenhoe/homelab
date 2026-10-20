@@ -1,6 +1,27 @@
 # CI Scheduled Jobs
 
-Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job), the release checksum check (which does too) and the shell test pin check. The PR pipeline is in [CI: PR Checks](pipeline.md). The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
+Checks that run on a schedule: the Renovate window check, the Trivy scans (which also run as a PR job), the release checksum check (which does too) and the shell test pin check. The PR pipeline is in [CI: PR Checks](pipeline.md). The [schedule overview](#schedule-overview) lists every scheduled workflow and when it fires. The weekly image vulnerability assessment is scheduled too, but from the private `homelab-security` repo's CI, so no workflow here runs it; see below.
+
+## Schedule overview
+
+Every workflow with a `schedule` trigger, listed by the time of day of its first tick in a week that starts on Sunday (UTC). Cron runs in UTC; Asia/Singapore is UTC+8 with no daylight saving. A tick is when GitHub queues the run, not when it starts: the start comes later by an unpredictable amount ([Renovate schedule window](#renovate-schedule-window) has the lag seen here). The image vulnerability assessment runs from another repo, so it has no row ([below](#image-vulnerability-assessment)).
+
+| Workflow | Cron (UTC) | Fires (UTC) | Fires (Asia/Singapore) | What it does |
+| :--- | :--- | :--- | :--- | :--- |
+| `check-image-tags.yml` | `23 2 * * 0` | Sunday 02:23 | Sunday 10:23 | Checks that every pinned image still exists in its registry ([image tag check](image-tag-check.md)). |
+| `check-release-checksums.yml` | `41 3 * * 0` | Sunday 03:41 | Sunday 11:41 | Asks each publisher again whether the pinned release hashes are theirs ([release checksum check](release-checksum-check.md)). |
+| `check-image-provenance.yml` | `13 4 * * 0` | Sunday 04:13 | Sunday 12:13 | Asks each publisher again whether the pinned image digests are theirs ([image provenance check](image-provenance-check.md)). |
+| `check-shell-test-pins.yml` | `47 4 * * 0` | Sunday 04:47 | Sunday 12:47 | Checks that each pinned Bats release tag still points at its pinned commit ([shell test pins](shell-test-pins.md#checking-the-pins)). |
+| `renovate.yml` | `37 17 * * *` | Every day 17:37 | Every day 01:37 | Runs Renovate, then checks that the run started inside its window ([Renovate schedule window](#renovate-schedule-window), [Renovate](renovate.md)). |
+| `build-caddy-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the Caddy image, as it does on a push that changes its Dockerfile ([Dockerfile changes](gates.md#dockerfile-changes)). |
+| `build-coderabbit-review-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the CodeRabbit review image ([Dockerfile changes](gates.md#dockerfile-changes)). |
+| `build-gatus-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the gatus image ([Dockerfile changes](gates.md#dockerfile-changes)). |
+| `build-molecule-dind-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the Molecule DinD image ([Dockerfile changes](gates.md#dockerfile-changes)). |
+| `build-wastebin-image.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Rebuilds and pushes the wastebin image ([Dockerfile changes](gates.md#dockerfile-changes)). |
+| `trivy-scheduled.yml` | `0 20 * * 0` | Sunday 20:00 | Monday 04:00 | Report-only Ansible misconfiguration and secret scan ([Trivy security scans](#trivy-security-scans)). |
+| `warm-caches.yml` | `0 20 * * 0,3` | Sunday and Wednesday 20:00 | Monday and Thursday 04:00 | Restores the `main` caches so GitHub doesn't evict them for going 7 days unaccessed ([base-branch warming](pipeline.md#base-branch-warming)). |
+
+A workflow that gains, loses or changes a `schedule` trigger changes its row in the same pull request. No check compares this table to the workflows.
 
 ## Renovate schedule window
 

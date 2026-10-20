@@ -54,6 +54,7 @@ resource "proxmox_virtual_environment_vm" "this" {
 
   network_device {
     bridge      = var.wan_bridge
+    vlan_id     = var.wan_vlan_id
     mac_address = "${local.mac_prefix}:00"
     model       = "virtio"
   }

@@ -53,9 +53,20 @@ variable "datastore_id" {
 }
 
 variable "wan_bridge" {
-  description = "Physical WAN bridge, attached untagged."
+  description = "Bridge the WAN NIC attaches to: the physical WAN bridge, or the VLAN-aware bridge when wan_vlan_id is set."
   type        = string
   default     = "vmbr0"
+}
+
+variable "wan_vlan_id" {
+  description = "VLAN tag of the WAN NIC, for a WAN that is a VLAN of the VLAN-aware bridge. Null attaches it untagged."
+  type        = number
+  default     = null
+
+  validation {
+    condition     = var.wan_vlan_id == null || (var.wan_vlan_id >= 1 && var.wan_vlan_id <= 4094)
+    error_message = "wan_vlan_id must be null or a VLAN ID from 1 to 4094."
+  }
 }
 
 variable "lan_bridge" {

@@ -76,6 +76,43 @@ run "puts_the_wan_and_lan_nics_on_their_bridges_untagged" {
   }
 }
 
+run "tags_the_wan_nic_onto_a_vlan_of_the_lan_bridge" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    wan_bridge  = "vmbr1"
+    wan_vlan_id = 20
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.network_device[0].bridge == "vmbr1" && proxmox_virtual_environment_vm.this.network_device[0].vlan_id == 20
+    error_message = "the WAN NIC must carry the given tag on the given bridge"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.network_device[1].bridge == "vmbr1" && coalesce(proxmox_virtual_environment_vm.this.network_device[1].vlan_id, 0) == 0
+    error_message = "the LAN NIC must stay untagged so OPNsense sees every VLAN"
+  }
+}
+
+run "rejects_a_wan_vlan_outside_the_valid_range" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    wan_vlan_id = 4095
+  }
+
+  expect_failures = [var.wan_vlan_id]
+}
+
 run "derives_the_macs_from_the_vmid_and_nic_index" {
   command = plan
 

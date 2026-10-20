@@ -1,5 +1,5 @@
 """Unit tests for doc_close.py - the rule that deleting a project doc must
-not leave its decision revision approved and named by no project.
+not leave a revision it names, in `decision:` or `also_implements:`, unaccepted and named by no project.
 Run via `uv run pytest tools/tests/ -v`.
 """
 
@@ -53,10 +53,46 @@ class TestCloseErrors:
         project(root, "remainder", status="not-started", decision="ADR-0001/0")
         assert errors_for(decision="ADR-0001/0") == []
 
-    def test_also_implements_is_not_naming(self, root, errors_for):
+    def test_also_implements_in_a_remaining_project_is_naming(self, root, errors_for):
         revision(root, "0001-x", 0, status="approved")
         project(root, "other", also_implements=["ADR-0001/0"])
+        assert errors_for(decision="ADR-0001/0") == []
+
+    def test_a_remaining_project_gated_on_another_revision_does_not_name_this_one(self, root, errors_for):
+        revision(root, "0001-x", 0, status="approved")
+        revision(root, "0002-y", 0, status="approved")
+        project(root, "other", decision="ADR-0002/0")
         assert_one_error(errors_for(decision="ADR-0001/0"), "no remaining project doc names it")
+
+    def test_a_deleted_docs_also_implements_must_be_accepted_or_named(self, root, errors_for):
+        revision(root, "0001-x", 0, status="accepted")
+        revision(root, "0002-y", 0, status="approved")
+        assert_one_error(
+            errors_for(decision="ADR-0001/0", also_implements=["ADR-0002/0"]), DOC, "ADR-0002/0", "is approved", "no remaining project doc names it"
+        )
+
+    @pytest.mark.parametrize("naming", [{"decision": "ADR-0002/0"}, {"also_implements": ["ADR-0002/0"]}])
+    def test_a_remaining_project_naming_the_also_implements_revision_lets_the_doc_close(self, root, errors_for, naming):
+        revision(root, "0001-x", 0, status="accepted")
+        revision(root, "0002-y", 0, status="working")
+        project(root, "other", **naming)
+        assert errors_for(decision="ADR-0001/0", also_implements=["ADR-0002/0"]) == []
+
+    def test_an_accepted_also_implements_revision_lets_the_doc_close(self, root, errors_for):
+        revision(root, "0001-x", 0, status="accepted")
+        revision(root, "0002-y", 0, status="accepted")
+        assert errors_for(decision="ADR-0001/0", also_implements=["ADR-0002/0"]) == []
+
+    def test_a_revision_in_both_fields_is_reported_once(self, root, errors_for):
+        revision(root, "0001-x", 0, status="approved")
+        assert_one_error(errors_for(decision="ADR-0001/0", also_implements=["ADR-0001/0"]), "ADR-0001/0")
+
+    def test_a_merge_can_keep_the_dropped_decision_in_also_implements(self, root, errors_for):
+        """The merge ADR 0037 revision 3 allows: the survivor names the other project's decision in also_implements."""
+        revision(root, "0074-a", 0, status="approved")
+        revision(root, "0075-b", 0, status="working")
+        project(root, "merged", decision="ADR-0074/0", also_implements=["ADR-0075/0"])
+        assert errors_for(decision="ADR-0075/0") == []
 
     def test_a_project_naming_a_different_revision_or_candidate_is_not_a_sibling(self, root, errors_for):
         revision(root, "0001-x", 0, letter="a", status="approved")

@@ -4,10 +4,10 @@ revision: 0
 type: adr
 title: Where Tofu's own credentials live
 short: Tofu credentials
-solution: 'Undecided: the existing OpenBao, file-based separate secrets, or a dedicated OpenBao instance'
+solution: 'A file on the host that runs Tofu, outside the repo and outside OpenBao'
 summary: Where the Proxmox and OPNsense API credentials and Tofu's state-backend credential live, given the store may be what is being provisioned.
 topic: secrets-store
-status: working
+status: approved
 related: [ADR-0013, ADR-0018, ADR-0020, ADR-0026]
 ---
 
@@ -28,8 +28,8 @@ through
 [0026](../0026-detecting-reads-of-high-value-secrets/revision-000.md))
 retired it, and every other secret in this repo now lives in OpenBao
 on `security`. The original reasoning for keeping Tofu's secrets
-separate doesn't hold as stated anymore, but where they should live
-instead hasn't been decided.
+separate doesn't hold as stated anymore, and a replacement for it has to be
+chosen against the constraint below.
 
 The real fork is a bootstrapping-order problem specific to Tofu: it
 may need to provision `security` itself — the host that runs the only
@@ -59,75 +59,58 @@ The bootstrapping-order problem is therefore a **standing constraint**,
 not a one-time migration-day concern — every future routine `security`
 rebuild hits it again, not just the first one.
 
-## Options
+## Decision
 
-### A — Route through the existing OpenBao instance on `security`
+Tofu's own credentials — the Proxmox API token, the OPNsense API key
+and the state-backend S3 credential — live in a file on the host that
+runs Tofu (an environment or `.tfvars` file). It sits outside the repo
+and outside OpenBao, is readable only by the operator account, and is
+never committed.
 
-Consistent with every other secret in this repo: one Vault, one
-AppRole model, no new infrastructure. `controller` already holds an
-AppRole and fetches secrets per run
-([0020](../0020-automation-identity-and-access-scope/revision-000.md));
-extending that to Tofu's credentials needs no new mechanism.
+The reason is the bootstrapping order above, stated directly: Tofu has
+to be able to rebuild `security`, which runs the only OpenBao, so
+nothing Tofu needs in order to start can live in that OpenBao. This is
+the same reasoning as Ansible's three permanent bootstrap exceptions
+(`main-domain`, `openbao-controller-role-id`/`-secret-id`): access to
+the store itself depends on them, so they can't live inside it.
 
-Breaks whenever `security` itself is what's being (re)provisioned —
-Tofu can't reach a secrets store that lives on the host it's trying to
-build. Per the Context above, this isn't a one-time migration-day
-edge case: it recurs every time `security` is rebuilt via Tofu going
-forward, which weakens Option A more than the original framing
-suggested.
+All three credentials get the same treatment now. The OPNsense API key
+is not deferred: it costs nothing extra in the same file, and a second
+home for it would only add a lookup.
 
-### B — Keep genuinely separate (file-based, `.tfvars`)
+## Alternatives considered
 
-No dependency on any host's state — Tofu can always run, even to
-rebuild `security` from nothing. Matches the same reasoning behind
-Ansible's own three permanent bootstrap exceptions (`main-domain`,
-`openbao-controller-role-id`/`-secret-id`): Vault access itself
-depends on them, so they can't live inside Vault.
-
-Needs its own justification now rather than an inherited one — the
-argument has to be the bootstrapping-order problem directly, not
-"mirrors" a mechanism this repo no longer has.
-
-### C — A dedicated Tofu/controller-scoped OpenBao instance
-
-Solves A's bootstrapping problem (doesn't depend on `security`
-existing) and gives Proxmox/OPNsense credentials their own trust tier
-— Proxmox API access is a strictly higher blast radius (control of
-every VM) than anything the main OpenBao currently holds.
-
-Real cost: a second piece of standing infrastructure with its own
-deploy, backup, and manual Shamir unseal
-([0018](../0018-unsealing-the-secrets-store-after-restart/revision-000.md)) tied to whichever host runs
-it. If that's `controller` (the operator's own machine, not
-always-on), unseal availability follows the operator's laptop rather
-than a dedicated server — a different story than `security`'s current
-instance.
-
-## Assumptions
-
-- **Claim:** a second OpenBao instance (Option C) reduces risk rather
-  than just relocating it.
-  **Breaks if wrong:** if it ends up unsealed/backed up through the
-  same access path as the main instance (same operator, same
-  `storage` backup target), the isolation Option C is meant to buy
-  doesn't materialize — it's extra infrastructure for no real benefit.
-  **Checked by:** not resolvable by reading code — needs to be reasoned
-  through explicitly if C is seriously pursued, covering who unseals
-  it and whether its backup path is actually independent of the main
-  instance's.
-- **Claim:** the OPNsense API key needs the same treatment as the
-  Proxmox token, on the same timeline.
-  **Breaks if wrong:** the API key isn't needed until Stage 7, well
-  after Stage 1 — Proxmox's token could resolve now under one option
-  while the API key gets revisited separately once Phase 2 actually
-  starts.
-  **Checked by:** revisit once Stage 7 is actually being built, not
-  before.
+- **Route through the existing OpenBao on `security`.** One Vault, one
+  AppRole model, no new infrastructure, and `controller` already
+  fetches secrets per run
+  ([0020](../0020-automation-identity-and-access-scope/revision-000.md)).
+  It loses because it breaks whenever `security` is what Tofu is
+  (re)building, and per the Context that recurs on every rebuild, not
+  once.
+- **A dedicated Tofu-scoped OpenBao instance.** It solves the
+  bootstrapping problem and gives Proxmox access, which controls every
+  VM, its own trust tier. It loses for now because it is a second piece
+  of standing infrastructure with its own deploy, backup and manual
+  Shamir unseal
+  ([0018](../0018-unsealing-the-secrets-store-after-restart/revision-000.md)),
+  and there is no way yet to seed it from the main instance's backups
+  other than by hand. Whether it reduces risk at all depends on its
+  unseal and backup path being independent of the main instance's,
+  which would need reasoning through before it is built.
 
 ## Consequences
 
-Whichever option is chosen shapes Stage 1's secrets-bootstrap script
-and where the state-backend S3 credential itself lives — both are
-blocked on this. Reversing a built choice later means migrating live
-credentials (and possibly repointing Tofu's own state-backend auth),
-not just editing a doc — this is a real decision, not a formality.
+Stage 1's secrets bootstrap reads this file, and the state-backend S3
+credential is in it. The file is the only copy of these credentials on
+the Tofu host, so losing it costs re-issuing each one from its source
+(the Proxmox node, OPNsense, `storage`'s S3 identities), not data.
+Whoever can read the file on the Tofu host holds control of the
+hypervisor, so the host and the account that owns the file are part of
+the trust boundary; [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)
+puts Tofu on a host that handles no untrusted content.
+
+Planned, not decided here: an OpenBao on the host that runs Tofu,
+seeded from a snapshot pulled from the main instance (the counterpart of
+the existing snapshot push; the pull does not exist yet). That would
+replace the file with a new revision of this lineage once built, and
+moving the credentials would then be a migration of live credentials.

@@ -20,11 +20,11 @@ OpenBao itself is done; see ADRs
 [0026](../decisions/0026-detecting-reads-of-high-value-secrets/revision-000.md)
 and the `openbao-*.md` docs for that half.
 
-This is the first of three projects in the `pull-based-cd` initiative; [`cd-agent-approles.md`](cd-agent-approles.md) and [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) cover its AppRoles and retiring `controller`'s standing AppRole.
+This is the first of three projects in the `pull-based-cd` initiative; [`cd-agent-approles.md`](cd-agent-approles.md) and [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md) cover its AppRoles and their credentials, and retiring `controller`'s standing AppRole.
 
 ## Scope
 
-The `cd_agent` host: a dedicated LAN box with a fixed IP and no job-serving listener (SSH from the operator host only), running the jobs that replace manual `ansible-playbook` deploys and rotation runs. Not in scope: its AppRoles ([`cd-agent-approles.md`](cd-agent-approles.md)) and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The `cd_agent` host: a dedicated LAN box with a fixed IP and no job-serving listener (SSH from the operator host only), running the jobs that replace manual `ansible-playbook` deploys and rotation runs. Not in scope: its AppRoles and the delivery of each job's credentials, including the check that the `freshness` job's heartbeat arrives on success only ([`cd-agent-approles.md`](cd-agent-approles.md)), and retiring `controller`'s standing AppRole ([`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -48,7 +48,7 @@ unit runs as its own unprivileged user, fetches `origin/main`
 anonymously into its own state directory, checks out the commit as a
 clean tree, and runs the playbook or `tools/` entry point from it. The
 poll, decide and run step is [`tools/cd_agent/run_job.py`](../../tools/cd_agent/run_job.py), unit-tested and described in [`cd-agent-runner.md`](../topics/deploy/cd-agent-runner.md). The host's
-only inbound service is `sshd`, accepted from the operator host alone. The `cd_agent` role ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)) builds the users, units and `sshd` restriction from a `cd_agent_jobs` list. The `cd_agent` inventory group, the jobs' definitions in its group variables and `playbooks/cd-agent.yaml` apply it. Rotation is [`cd-agent-rotation.md`](cd-agent-rotation.md)'s.
+only inbound service is `sshd`, accepted from the operator host alone. The `cd_agent` role ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)) builds the users, units and `sshd` restriction from a `cd_agent_jobs` list. The `cd_agent` inventory group, the jobs' definitions in its group variables and `playbooks/cd-agent.yaml` apply it. Rotation is [`cd-agent-job-ssh-keys.md`](cd-agent-job-ssh-keys.md)'s.
 The freshness job replaces the weekly user timer on `controller` (`tools/cloud_credentials/systemd/`), running as a plain weekly timer on this always-on host. See the [decision](../decisions/0044-prod-automation-trigger-and-execution/revision-000-c.md) this stage implements.
 
 ## Acceptance criteria
@@ -58,7 +58,6 @@ The freshness job replaces the weekly user timer on `controller` (`tools/cloud_c
 - [x] Each job's credential files are readable only by its own user, verified in the role's Molecule verify.
 - [x] Unit tests for the poll, decide and run step assert it acts on `origin/main` only and records a commit as deployed only after its run succeeds.
 - [x] The role converges idempotently.
-- [ ] The `freshness` job pushes to its Gatus endpoint on success only, so a run that fails, including one that cannot log in to OpenBao, alerts as a missed heartbeat without needing OpenBao to send it, verified on the host.
 
 ## Open items
 
@@ -67,7 +66,7 @@ The freshness job replaces the weekly user timer on `controller` (`tools/cloud_c
 - The `cd_agent` role does not remove a job dropped from `cd_agent_jobs`: its user, units and directories stay.
 - The OpenBao snapshot push joins the jobs on this host once `cd-agent-snapshot` exists ([`cd-agent-approles.md`](cd-agent-approles.md)); it needs a native `rclone`, not Docker, which the role installs ([`cd-agent-host.md`](../topics/deploy/cd-agent-host.md)).
 - Each job's heartbeat uses ADR 0072's mechanism, which is built ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)). The `freshness` job's endpoint is not declared, because one nothing pushes to alerts once its interval passes; add it with the host, as [`cd-agent-host.md`](../topics/deploy/cd-agent-host.md#heartbeats) lists. That edit touches `main.yaml`, the secret catalog and `cd_agent.yaml`, which this project's `allowed_paths` must then name.
-- The deploy, maintenance and freshness jobs cannot log in to OpenBao yet; what is missing is delivering each job's credentials, which [`cd-agent-credential-delivery.md`](cd-agent-credential-delivery.md) owns. Applying the role before that is settled starts jobs that fail on every run.
+- The deploy, maintenance and freshness jobs cannot log in to OpenBao yet; what is missing is delivering each job's credentials, which [`cd-agent-approles.md`](cd-agent-approles.md) owns. Applying the role before that is settled starts jobs that fail on every run.
 - Nothing can apply the role until [`operator-host.md`](operator-host.md)'s Stage 3 builds VM 302, because `sshd` accepts `192.168.30.2` alone.
 - Whether `deploy.yaml`'s `localhost` plays run under the unit's sandbox, which makes the filesystem read-only outside the job's state directory, is not confirmed.
 - The shared SSH private key across every managed host (and possibly

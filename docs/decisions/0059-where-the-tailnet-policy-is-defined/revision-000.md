@@ -4,7 +4,7 @@ revision: 0
 type: adr
 title: Where the tailnet policy is defined
 short: Tailnet policy
-solution: Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048 settles where Tofu's own credentials live
+solution: Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048's credentials file exists
 summary: The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes.
 topic: security-hardening
 status: working
@@ -46,8 +46,8 @@ Coding it now, rather than after the first hand-edit, has four costs:
 - **A new credential.** Applying the policy needs an API credential
   able to rewrite the tailnet's isolation boundary. Tailscale
   recommends against committing it, so it belongs with the operator
-  host's credentials — another entry in ADR 0048's still-`working`
-  question of where Tofu's own credentials live.
+  host's credentials — another entry in the credentials file ADR 0048
+  decides for Tofu's own credentials.
 - **Expiry.** Tailscale recommends an OAuth or federated credential for
   this because it is tied to the tailnet rather than a user and does
   not expire on its own. ADR 0015's principle is that every credential
@@ -68,9 +68,9 @@ Hand-edit the policy in the console now, for ADR 0058's Stage 2,
 guarded by a copy of the prior policy and the console's own preview
 before saving, as `operator-host.md` Stage 2 already specifies.
 
-Move it into OpenTofu once ADR 0048 is `accepted` and settles where
-Tofu's own credentials live: the `tailscale/tailscale` provider, an
-OAuth-client credential stored wherever ADR 0048 lands, `tailscale_acl`
+Move it into OpenTofu once ADR 0048 is `accepted`, with Tofu's own
+credentials in a file on the Tofu host: the `tailscale/tailscale`
+provider, an OAuth-client credential stored in that file, `tailscale_acl`
 for the policy body, and `tailscale_device_subnet_routes` plus
 auto-approvers in the policy for route approval. This repo does not
 otherwise manage devices, keys, or DNS through this provider (see
@@ -79,8 +79,8 @@ and device IPs are supplied at apply time the way `main-domain` is.
 
 ## Alternatives considered
 
-- **Code it now, ahead of ADR 0048.** Forces a credential-storage
-  decision under this ADR that ADR 0048 already owns, and stands up a
+- **Code it before Tofu has a skeleton.** Needs the state backend and
+  the credentials file ADR 0048 decides to exist first, and stands up a
   standing OAuth credential before ADR 0015's expiry principle has an
   answer for it. Rejected.
 - **Never code it.** Leaves the security boundary three other ADRs
@@ -136,7 +136,7 @@ fails the apply before it saves.
 
 ## Reconsideration triggers
 
-- ADR 0048 lands on a credential store this provider's OAuth client
-  can't use as-is.
+- The credentials file ADR 0048 decides can't hold this provider's
+  OAuth client as-is.
 - The registry's signing-key gap turns out to still be open, and no
   acceptable mirror or key-trust workaround exists.

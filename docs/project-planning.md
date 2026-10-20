@@ -51,19 +51,21 @@ calls for a project, while a working one still has to be settled.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
+| [`tofu-skeleton.md`](projects/tofu-skeleton.md) | 4 | Building | The OpenTofu provider, the state backend on SeaweedFS and the credentials file, so every other Tofu project has somewhere to start. |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
-| [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 2 | Building | Four CIDR-bound AppRoles for the CD agent (deploy, rotation, freshness and snapshot). |
-| [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building | Chained jobs on the CD agent, and the monthly leaf-credential rotation that uses them. |
+| [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
+| [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Building | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
-| [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
-| [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | 5 | De-risking | Tofu skeleton, Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator. |
-| [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials. |
+| [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
+| [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
-| [`workstation-management.md`](projects/workstation-management.md) | 1 | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access. |
+| [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
-| [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — ready | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
+| [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | — | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
+| [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md) | — | Not started — ready | VLAN interfaces, firewall rules and Kea brought under Tofu through OPNsense's API, then the coding-agent zone and its proxy. |
+| [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it. |
 
 ## Super Projects
 
@@ -71,26 +73,25 @@ calls for a project, while a working one still has to be settled.
 | :--- | :--- | :--- | :--- | ---: | :--- |
 | `coding-agent-host` | `boundary` | `1-network` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking |
 | | `boundary` | `2-host` | [`coding-agent-host.md`](projects/coding-agent-host.md) | 4 | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
-| | `boundary` | `3-network-as-code` | [`coding-agent-network-as-code.md`](projects/coding-agent-network-as-code.md) | — | Not started — waiting on [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md), [`coding-agent-network.md`](projects/coding-agent-network.md) |
+| | `egress` | — | [`coding-agent-egress.md`](projects/coding-agent-egress.md) | — | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
 | | `lifecycle` | — | [`coding-agent-management.md`](projects/coding-agent-management.md) | — | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | `controller-separation` | `operator` | — | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking |
-| | `workstation` | `1-management` | [`workstation-management.md`](projects/workstation-management.md) | 1 | Not started — ready |
-| | `workstation` | `2-reduction` | [`workstation-capability-reduction.md`](projects/workstation-capability-reduction.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`workstation-management.md`](projects/workstation-management.md) |
+| | `operator` | — | [`operator-host-takeover.md`](projects/operator-host-takeover.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md) |
+| | `workstation` | — | [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready |
 | `off-site-monitoring` | `monitoring` | `1-on-prem` | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building |
 | | `monitoring` | `2-off-site` | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking |
 | | `monitoring` | `2-off-site` | [`off-site-monitoring.md`](projects/off-site-monitoring.md) | — | De-risking — blocked: no production credential goes to the GCP host until its hardening pass is scoped and done — waiting on [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) |
-| `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Not started — waiting on [ADR-0075/0](decisions/0075-giving-an-automation-job-its-own-ssh-identity/revision-000.md) |
-| | `agent` | — | [`cd-agent-rotation.md`](projects/cd-agent-rotation.md) | — | Building |
+| `pull-based-cd` | `agent` | — | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building |
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
-| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 2 | Building |
+| | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| | `credentials` | — | [`cd-agent-credential-delivery.md`](projects/cd-agent-credential-delivery.md) | — | Not started — waiting on [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | 5 | De-risking |
-| | `migration` | `1-rehearsal` | [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) | 3 | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
-| | `migration` | `2-cutover` | [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) | 2 | Not started — waiting on [`tofu-migration-rehearsal.md`](projects/tofu-migration-rehearsal.md) |
-| | `opnsense` | — | [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md) | 1 | De-risking — waiting on [`tofu-migration-cutover.md`](projects/tofu-migration-cutover.md) |
+| `tofu-vm-provisioning` | `opnsense` | — | [`tofu-opnsense-day-2.md`](projects/tofu-opnsense-day-2.md) | — | Not started — ready |
+| | `provisioning` | — | [`tofu-skeleton.md`](projects/tofu-skeleton.md) | 4 | Building |
+| | `provisioning` | — | [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) | 3 | Not started — waiting on [`tofu-skeleton.md`](projects/tofu-skeleton.md) |
+| | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | 1 | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md) |
+| | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | — | De-risking — waiting on [`tofu-migration.md`](projects/tofu-migration.md) |
 
 ## Projects
 
@@ -98,10 +99,12 @@ calls for a project, while a working one still has to be settled.
 | :--- | ---: | :--- | :--- |
 | [`backup-agent-compose-app.md`](projects/backup-agent-compose-app.md) | — | Not started — waiting on [ADR-0088/0](decisions/0088-where-a-role-deployed-stack-compose-file-lives/revision-000.md) | Move the backup agent's compose file under docker/, declare the agent in each backup host's compose_apps, and deploy it through the compose role as a self-managed app. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
-| [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — ready | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
+| [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
+| [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Building | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
+| [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | — | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
 
 ## Decisions awaiting a project
 
@@ -114,7 +117,7 @@ calls for a project, while a working one still has to be settled.
 | [0039](decisions/0039-intrusion-detection-scope/revision-000.md) | **Intrusion detection scope** — Whether detection lives only on the OPNsense perimeter or also on each VM, without inspecting the lab's own TLS. | Undecided: CrowdSec at the perimeter only, or with per-VM agents | Working |
 | [0041](decisions/0041-testing-the-oci-classic-iam-bootstrap/revision-000.md) | **Testing the OCI classic-IAM bootstrap** — How the OCI classic-IAM bootstrap code is tested beyond hand-written mocks. | floci-oci for the classic-IAM surface only; SCIM tests stay hand-mocked | Working |
 | [0045](decisions/0045-security-event-collection-and-alerting/revision-000.md) | **Security event collection and alerting** — Whether purpose-built alerting scripts give way to a security-event pipeline, and where it runs. | Leaning: Wazuh on a dedicated OCI Ampere instance, replacing single-purpose alerting scripts | Working |
-| [0059](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | **Where the tailnet policy is defined** — The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes. | Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048 settles where Tofu's own credentials live | Working |
+| [0059](decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) | **Where the tailnet policy is defined** — The tailnet ACL policy is a security boundary ADRs 0049, 0053, and 0058 depend on; decide where it is authored and when that changes. | Hand-edited in the console now, with tests as the guard; moves to OpenTofu via the tailscale/tailscale provider once ADR 0048's credentials file exists | Working |
 | [0079](decisions/0079-knowing-a-backup-archive-came-from-its-host/revision-000.md) | **Knowing a backup archive came from its host** — How a restore shows that the archive it is about to apply was written by the host it claims to be from, whoever else can write to the places archives are kept. | A detached signature per archive from a per-host key, checked at restore against public keys pinned in the repository | Working |
 | [0080](decisions/0080-approved-decisions-resting-on-unfinished-ones/revision-000.md) | **Approved decisions that rest on unfinished ones** — How an approved decision's dependence on a decision that is still being worked out is recorded and surfaced, so the boundary it presupposes cannot change unnoticed. | A declared reliance between decisions, checked as a warning that names every approved or accepted revision whose boundary still rests on a working one | Working |
 | [0081](decisions/0081-protecting-on-site-backup-archives-from-their-writer/revision-000.md) | **Protecting on-site backup archives from the host that wrote them** — How an archive on `storage` survives a delete requested by the host that wrote it, and how the bucket still shrinks back to its retention window afterwards. | Object Lock in compliance mode on the backup bucket, with lifecycle rules run by an admin and worker beside SeaweedFS removing superseded versions once their lock ends | Working |

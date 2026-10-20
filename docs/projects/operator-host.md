@@ -4,7 +4,7 @@ title: Operator Host
 type: project
 status: de-risking
 blocked: false
-summary: A headless VM in VLAN 30, reachable only from the maintainer's laptop, that takes over the controller's tooling and credentials.
+summary: A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller.
 decision: ADR-0058/0
 super_project: controller-separation
 track: operator
@@ -12,15 +12,15 @@ track: operator
 
 # Operator Host
 
-Moves the controller off the workstation onto a small host that holds the infrastructure credentials and handles no untrusted content. Staged because an assumption needs checking first, the network zone and the host are separate changes, and moving each credential is a step to prove before the workstation is stripped ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)).
+Builds the small host that will run the controller away from the workstation: the VLAN and its rules, the tailnet route and policy, the hardware-backed key, and the VM with its role. Staged because an assumption needs checking first and the network zone and the host are separate changes. Moving the controller's tooling and credentials onto it is [`operator-host-takeover.md`](operator-host-takeover.md), which starts once this host exists.
 
 ## Scope
 
-VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, an `operator_host` role, and moving the toolchain and credentials onto it. Not in scope: stripping VM 401 ([`workstation-capability-reduction.md`](workstation-capability-reduction.md)), setting up the laptop as the workstation ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+VLAN 30 and its rules, the Tailscale route and ACL for it, the VM, and an `operator_host` role. Not in scope: the egress allowlist and moving the toolchain and credentials onto the host ([`operator-host-takeover.md`](operator-host-takeover.md)), setting up the laptop as the workstation and stripping and retiring VM 401 ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
-Implements [ADR 0058 (Operator work host)](../decisions/0058-where-operator-work-runs/revision-000.md), `working`, so this project is `de-risking` until its assumptions are resolved.
+Implements [ADR 0058 (Operator work host)](../decisions/0058-where-operator-work-runs/revision-000.md), `working`, so this project is `de-risking` until its assumptions are resolved. [`operator-host-takeover.md`](operator-host-takeover.md) names the same revision and carries it to `approved` and, as the last project to close, `accepted`.
 
 ## Execution plan
 
@@ -29,16 +29,14 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Verify the controller's flows and the tailnet policy | Done | The findings are in ADR 0058; the proxy assumption remains open |
-| 2 | VLAN 30 with default-deny rules built by hand, the tailnet policy change, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token, which resolves the key assumption in ADR 0058; the coding-agent VLAN and every other tailnet node cannot reach it |
+| 2 | VLAN 30 with default-deny rules built by hand, its tailnet grant, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token, which resolves the key assumption in ADR 0058; the coding-agent VLAN and every other tailnet node cannot reach it |
 | 3 | VM 302 and the `operator_host` role, applied locally, including the hardening baseline's role | Not started | The role converges idempotently and SSH accepts only the dedicated hardware-backed keys |
-| 4 | Egress allowlist through the proxy: starts once [`coding-agent-network.md`](coding-agent-network.md) has built it | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
-| 5 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, Tofu credentials, the shared SSH key. No credential moves before Stage 4 | Not started | A deploy in check mode, a `tofu plan`, and an `openbao_utils.shell` login all succeed from the operator host |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 2 — tailnet policy
 
-The tailnet's policy is the default allow-all grant, unless [`coding-agent-network.md`](coding-agent-network.md)'s tailnet route stage has already replaced it, in which case add this grant to that policy. Replace it with explicit grants: the laptop reaches VLAN 30 on `tcp:22`, no other source has a grant for that route, and everything the maintainer uses today is re-granted. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is tailnet-wide, so an edit that tightens access can lock out existing access; "Reset to default" restores the allow-all grant. The policy is hand-edited in the console now and coded later — see
+Starts once [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) has replaced the allow-all grant. Add one grant to that policy: the laptop reaches VLAN 30 on `tcp:22`, and no other source has a grant for that route. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is hand-edited in the console now and coded later — see
 [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md).
 
 ### Stage 2 — required flows
@@ -59,17 +57,15 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 
 ## Acceptance criteria
 
-- [ ] Every operation the controller performs today succeeds from the operator host.
 - [ ] SSH to the operator host fails from a VM in the coding-agent VLAN, from any tailnet node other than the laptop, and from the laptop with no token present.
-- [ ] Outbound from VLAN 30 reaches only the allowlisted destinations.
 - [ ] The operator host runs no desktop, browser, or software that handles untrusted content, and holds no push credential.
-- [ ] The resulting behavior is described in `docs/topics/infra/operator-host.md`.
+- [ ] The host's network rules, route and role are described in `docs/topics/infra/operator-host.md`.
 
 ## Agent handoff
 
 - **Allowed to change:** not scoped yet; `allowed_paths` is added, in its own change, before an agent implements a stage.
 - **Must not change:** other hosts' inventory entries, the `all.vars` SSH key, existing OpenBao policies.
-- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml` (the `controller` group), `docs/topics/secrets/openbao-auth.md` (issuing a new AppRole secret), `docs/topics/infra/network-infra.md`.
+- **Relevant files and interfaces:** `ansible/inventory/inventory.yaml`, `docs/topics/infra/network-infra.md`.
 - **Required checks:** `pre-commit run --all-files`; the role's Molecule scenario.
 
 ## Risks
@@ -77,14 +73,11 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 - OPNsense rules for VLAN 30 are hand-maintained until [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) lands.
 - The laptop is the workstation and holds the only key to this host. The key is hardware-backed, and losing both tokens means recovery through the Proxmox node.
 - The node has limited headroom for another VM.
-- Stages 4 and 5 wait on the proxy from [`coding-agent-network.md`](coding-agent-network.md), which is itself still de-risking. The operator host is on the critical path for stripping the workstation.
 - A tailnet policy edit is tailnet-wide and can lock out access.
 
 ## Open items
 
 - Tofu's flows come from the docs, not code, since no Tofu exists yet. The Proxmox provider may need SSH to the node for some resources; check when the Tofu skeleton lands.
-- The restore procedure on this host: import the backup GPG private key for the restore only, then remove it. It belongs in `docs/topics/infra/operator-host.md`.
-- Binding the interim controller AppRole to this host's CIDR until the retirement project deletes it. Cheap, but only worth doing if the retirement is far off.
 - Whether VM 302 is built by hand or waits for the Tofu Ubuntu module ([`tofu-vm-provisioning.md`](tofu-vm-provisioning.md)); the VM is small enough to build by hand.
 
 ## Closing checklist

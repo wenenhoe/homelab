@@ -57,6 +57,7 @@ python_unit_tests:
   - 'tools/cloud_credentials/**'
   - 'tools/openbao_utils/**'
   - 'tools/cd_agent/**'
+  - 'tools/tofu_inventory/**'
   - 'tools/container_hardening/**'
   - 'tools/utils/**'
   # CI logic that detect-changes and the other workflows run (see

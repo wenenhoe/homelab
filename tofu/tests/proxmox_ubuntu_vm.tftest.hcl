@@ -301,3 +301,20 @@ run "rejects_a_vm_without_ssh_keys" {
 
   expect_failures = [var.ssh_public_keys]
 }
+
+run "exposes_what_the_inventory_generator_reads" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id = 203
+  }
+
+  assert {
+    condition     = output.inventory_entry == { ip_address = "192.168.20.3", admin_username = "svcadmin" }
+    error_message = "inventory_entry must carry the static address and the login user"
+  }
+}

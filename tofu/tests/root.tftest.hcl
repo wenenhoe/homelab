@@ -19,3 +19,12 @@ run "builds_the_template_from_the_pinned_image" {
     error_message = "the root module must build the template in the 1XX range"
   }
 }
+
+run "publishes_no_inventory_hosts_until_a_vm_is_declared" {
+  command = plan
+
+  assert {
+    condition     = output.ansible_hosts == {}
+    error_message = "ansible_hosts must be empty while the root declares no VM modules"
+  }
+}

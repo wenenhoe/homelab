@@ -17,3 +17,11 @@ output "mac_address" {
   description = "MAC address of the NIC."
   value       = local.mac_address
 }
+
+output "inventory_entry" {
+  description = "What the Ansible inventory generator reads for this VM."
+  value = {
+    ip_address     = local.ip_address
+    admin_username = var.admin_username
+  }
+}

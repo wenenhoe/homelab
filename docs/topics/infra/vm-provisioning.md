@@ -116,7 +116,9 @@ From `vm_id` the VM module derives everything the scheme above fixes: the
 VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
 rejects a VMID outside 2XX to 5XX and one whose last two digits fall
 outside 02 to 49, the reserved, gateway and DHCP-pool host parts.
-Nameservers default to the VLAN's gateway; `dns_servers` replaces them. Its
+Nameservers default to the VLAN's gateway; `dns_servers` replaces them.
+`dns_domain`, the lab's internal zone, has no default: a VM with no search
+domain gets a copy of the node's own. Its
 defaults are the services/security row of the sizing table, and a larger
 host overrides `cores`, `memory_mb` and `disk_gb`. Its outputs (`vm_id`,
 `hostname`, `ip_address`, `mac_address`) are what the inventory generator
@@ -130,6 +132,7 @@ module "services" {
   name            = "services"
   template_vm_id  = module.ubuntu_template.vm_id
   admin_username  = "svcadmin"
+  dns_domain      = "<internal zone>"
   ssh_public_keys = ["<public half of the Ansible key>"]
 }
 ```
@@ -223,6 +226,17 @@ umask 077
 export TF_DATA_DIR="$HOME/.cache/tofu/homelab"
 tofu -chdir=tofu init
 tofu -chdir=tofu plan -var-file="$HOME/.config/tofu/credentials.tfvars"
+```
+
+To stop repeating the flags, set them in the shell profile. `TF_CLI_ARGS_<command>`
+adds arguments to one command only, which `init` needs since it takes no
+`-var-file`, and after `cd tofu` no `-chdir` is needed:
+
+```sh
+export TF_DATA_DIR="$HOME/.cache/tofu/homelab"
+for c in plan apply destroy refresh import console; do
+  export "TF_CLI_ARGS_$c=-var-file=$HOME/.config/tofu/credentials.tfvars"
+done
 ```
 
 ## State backend & secrets

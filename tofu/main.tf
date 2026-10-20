@@ -3,3 +3,10 @@
 data "proxmox_virtual_environment_node" "pve" {
   node_name = var.proxmox_node
 }
+
+module "ubuntu_template" {
+  source         = "./modules/proxmox_ubuntu_template"
+  node_name      = var.proxmox_node
+  image_url      = var.ubuntu_image_url
+  image_checksum = var.ubuntu_image_checksum
+}

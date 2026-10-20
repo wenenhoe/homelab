@@ -106,9 +106,11 @@ planning around them.
 `tofu/modules/proxmox_ubuntu_template` and
 `tofu/modules/proxmox_ubuntu_vm` are called from the root module in
 `tofu/`. The template module's `vm_id` defaults to a free ID in the 1XX
-range, and `image_url` and `image_checksum` have no default: the caller
-pins a dated release directory of the cloud image and the SHA-256 that
-release publishes.
+range, and `image_url` and `image_checksum` have no default: the root
+module passes the dated release directory of the cloud image and the
+SHA-256 that release publishes, which are the defaults of
+`ubuntu_image_url` and `ubuntu_image_checksum` in `tofu/variables.tf`.
+The root module builds the template; it declares no VMs yet.
 
 From `vm_id` the VM module derives everything the scheme above fixes: the
 VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
@@ -121,13 +123,6 @@ host overrides `cores`, `memory_mb` and `disk_gb`. Its outputs (`vm_id`,
 reads.
 
 ```hcl
-module "ubuntu_template" {
-  source         = "./modules/proxmox_ubuntu_template"
-  node_name      = var.proxmox_node
-  image_url      = "https://cloud-images.ubuntu.com/releases/26.04/release-<date>/ubuntu-26.04-server-cloudimg-amd64.img"
-  image_checksum = "<sha256 from that release's SHA256SUMS>"
-}
-
 module "services" {
   source          = "./modules/proxmox_ubuntu_vm"
   node_name       = var.proxmox_node
@@ -202,8 +197,8 @@ The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
 configures the provider with an API token, and `.terraform.lock.hcl` is
 committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
 endpoint, token or node name instead of passing with nothing to do; that
-read is the only API call it makes by itself, `GET /nodes/<node>/status`.
-The Ubuntu modules are in `modules/` and their tests in `tests/`; see
+read is its only call apart from the template build below. The Ubuntu
+modules are in `modules/` and their tests in `tests/`; see
 [Ubuntu modules](#ubuntu-modules).
 
 OpenTofu is installed on the host that runs it with its official

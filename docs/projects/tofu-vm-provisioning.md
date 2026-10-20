@@ -2,7 +2,7 @@
 id: PROJ-tofu-vm-provisioning
 title: OpenTofu-Driven Proxmox VM Provisioning
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Ubuntu and OPNsense modules, and the Tofu-to-Ansible inventory generator, built on the Tofu skeleton.
 super_project: tofu-vm-provisioning
@@ -67,7 +67,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | `proxmox_ubuntu_vm` module | Not started | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
+| 1 | `proxmox_ubuntu_vm` module | In progress | a module call provisions an Ubuntu VM matching `vm-provisioning.md`'s VMID/VLAN/IP/MAC scheme |
 | 2 | `proxmox_opnsense_vm` module — Phase 1 (VM shell + ISO fetch) | Not started | the module creates the OPNsense VM shell and fetches the ISO; install stays manual |
 | 3 | Tofu→Ansible inventory generator | Not started | the generated inventory replaces the hand-written entries, including `tailscale` |
 

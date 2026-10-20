@@ -28,7 +28,7 @@ Machines and what sits beneath the apps: hosts, network, hypervisor, provisionin
 
 | Doc | Covers |
 | :--- | :--- |
-| [`vm-provisioning.md`](infra/vm-provisioning.md) | **Planned, not yet implemented.** Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, Ubuntu/OPNsense design, Tofu↔Ansible boundary. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
+| [`vm-provisioning.md`](infra/vm-provisioning.md) | **Partly implemented.** Design record for OpenTofu-driven Proxmox VM provisioning: VMID/VLAN/IP/MAC scheme, the Ubuntu modules, and the OPNsense and Tofu↔Ansible design, which are not built yet. Build status: the `tofu-vm-provisioning` initiative in [`project-planning.md`](../project-planning.md#super-projects). |
 | [`network-infra.md`](infra/network-infra.md) | The `network_infra`/`patched_hosts` inventory groups: non-app hosts like the Tailscale subnet router, and their bootstrap prerequisites. |
 | [`host-hardening.md`](infra/host-hardening.md) | The `host_hardening` role: its allow-list of `konstruktoid.hardening` areas, what each sets, where `maintenance.yaml` applies it, and how to verify a host. |
 | [`qemu-guest-agent.md`](infra/qemu-guest-agent.md) | Installing `qemu-guest-agent` for Proxmox VM integration. |

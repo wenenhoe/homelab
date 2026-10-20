@@ -59,27 +59,31 @@ Proxmox's own auto-assigned MACs use OUI `BC:24:11`. Tofu keeps that
 prefix (stays recognizable as Proxmox-owned) and encodes the VMID plus
 NIC index into the rest: `BC:24:11:{VMID as 4 hex digits}:{NIC index}`
 — e.g. VMID 201, NIC 0 → `BC:24:11:00:C9:00`. Deterministic per VMID, so
-a rebuilt VM gets the same MAC every time — required for the netplan
-`match: macaddress` override below to stay stable across rebuilds.
+a rebuilt VM gets the same MAC every time — required for the
+MAC-matched network config below to stay stable across rebuilds.
 A Kea static-reservation key was the other option this MAC scheme
 would have supported, but that path isn't taken — see the Ubuntu VMs
 section for why.
 
 ## Ubuntu VMs
 
-Tofu builds the cloud-init template itself (downloads the official
-Ubuntu 26.04 cloud image via `local-lvm`) rather than relying on a
-pre-existing one, registered as a proper Proxmox template VM in the 1XX
-range (e.g. the next free ID below 200) alongside the existing
-Windows templates (103–105), then clones from it per VM. Network
-config is injected via cloud-init `network-config` at first boot: a
-static IP (the VMID-derived address from the scheme above), gateway,
-and nameservers, matched to the VM by `match: macaddress` against the
-deterministic MAC — no DHCP involved at all. This avoids the
-alternative (an Ansible-rendered netplan file post-boot) racing
-against whatever address the VM picks up before Ansible can connect
-at all, and sidesteps DHCP/Kea entirely rather than working around it
-— see
+Tofu builds the cloud-init template itself rather than relying on a
+pre-existing one: the `proxmox_ubuntu_template` module downloads the
+official Ubuntu cloud image, verifies it against a SHA-256 the caller
+supplies, and registers it as a Proxmox template VM in the 1XX range,
+next to the existing Windows templates (103–105). The
+`proxmox_ubuntu_vm` module then clones it per VM. Network config is
+injected through cloud-init at first boot: the module sets the NIC's
+deterministic MAC and an `ip_config` holding a static IP (the
+VMID-derived address from the scheme above), gateway and nameservers,
+and Proxmox renders the cloud-init `network-config` from them,
+matching the NIC by its MAC address — no DHCP involved at all. A
+hand-written `network-config` would be an uploaded snippet file, which
+the provider writes over SSH to the node; `ip_config` needs only the
+API token. This avoids the alternative (an Ansible-rendered netplan
+file post-boot) racing against whatever address the VM picks up before
+Ansible can connect at all, and sidesteps DHCP/Kea entirely rather
+than working around it — see
 [`netplan-dhcp-identifier.md`](netplan-dhcp-identifier.md) for the
 current-fleet bug that's the real motivation for skipping DHCP here.
 
@@ -96,6 +100,56 @@ VM disks go on `local-lvm` (NVMe) for performance; the OPNsense ISO and
 Ubuntu cloud image go on `local` (dir storage, ISO/template content
 type) — both small, one-time downloads, no need for HDD or NVMe capacity
 planning around them.
+
+### Ubuntu modules
+
+`tofu/modules/proxmox_ubuntu_template` and
+`tofu/modules/proxmox_ubuntu_vm` are called from the root module in
+`tofu/`. The template module's `vm_id` defaults to a free ID in the 1XX
+range, and `image_url` and `image_checksum` have no default: the caller
+pins a dated release directory of the cloud image and the SHA-256 that
+release publishes.
+
+From `vm_id` the VM module derives everything the scheme above fixes: the
+VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
+rejects a VMID outside 2XX to 5XX and one whose last two digits fall
+outside 02 to 49, the reserved, gateway and DHCP-pool host parts.
+Nameservers default to the VLAN's gateway; `dns_servers` replaces them. Its
+defaults are the services/security row of the sizing table, and a larger
+host overrides `cores`, `memory_mb` and `disk_gb`. Its outputs (`vm_id`,
+`hostname`, `ip_address`, `mac_address`) are what the inventory generator
+reads.
+
+```hcl
+module "ubuntu_template" {
+  source         = "./modules/proxmox_ubuntu_template"
+  node_name      = var.proxmox_node
+  image_url      = "https://cloud-images.ubuntu.com/releases/26.04/release-<date>/ubuntu-26.04-server-cloudimg-amd64.img"
+  image_checksum = "<sha256 from that release's SHA256SUMS>"
+}
+
+module "services" {
+  source          = "./modules/proxmox_ubuntu_vm"
+  node_name       = var.proxmox_node
+  vm_id           = 203
+  name            = "services"
+  template_vm_id  = module.ubuntu_template.vm_id
+  admin_username  = "svcadmin"
+  ssh_public_keys = ["<public half of the Ansible key>"]
+}
+```
+
+The image is stored on `local` as `import` content, which a new Proxmox
+storage does not allow: add Import to `local`'s content types under
+Datacenter > Storage before the first apply. Disks are imported from it
+through the API alone; the other route, `file_id` on an `iso` download,
+needs SSH to the node. The provider's docs say a `.qcow2` file name is
+rejected by Proxmox before 8.4.
+
+`tofu -chdir=tofu test` checks the VMID-derived values and the input
+rules against a mocked provider, so it needs no node or credentials. A new
+`run` block with its own `module` source needs `tofu init` again before it
+is found.
 
 ## OPNsense
 
@@ -148,7 +202,9 @@ The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
 configures the provider with an API token, and `.terraform.lock.hcl` is
 committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
 endpoint, token or node name instead of passing with nothing to do; that
-read is the module's only API call, `GET /nodes/<node>/status`.
+read is the only API call it makes by itself, `GET /nodes/<node>/status`.
+The Ubuntu modules are in `modules/` and their tests in `tests/`; see
+[Ubuntu modules](#ubuntu-modules).
 
 OpenTofu is installed on the host that runs it with its official
 installer (Debian and Ubuntu). Read the script before running it:
@@ -212,18 +268,32 @@ tree, and neither the token nor the endpoint appears in the state.
 
 The token is created on the Proxmox node, outside this repo, and this
 section is its only record. It belongs to the user `tofu@pve`, which holds
-the role `TofuNodeRead` (the single privilege `Sys.Audit`) on `/nodes/pve`.
-The token ID is `skeleton` and privilege separation is off, so the token
-has the user's rights. The value in the credentials file is
-`tofu@pve!skeleton=<secret>`. On the node:
+the role `TofuProvision` on the five paths below. The token ID is
+`skeleton` and privilege separation is off, so the token has the user's
+rights. The value in the credentials file is `tofu@pve!skeleton=<secret>`.
+On the node:
 
 ```sh
 pveum user add tofu@pve
-pveum role add TofuNodeRead -privs "Sys.Audit"
-pveum aclmod /nodes/pve -user tofu@pve -role TofuNodeRead
+pveum role add TofuProvision -privs "Sys.Audit,Sys.AccessNetwork,Datastore.Audit,Datastore.AllocateSpace,Datastore.AllocateTemplate,VM.Allocate,VM.Audit,VM.Clone,VM.PowerMgmt,VM.Config.CPU,VM.Config.Memory,VM.Config.Disk,VM.Config.Network,VM.Config.Cloudinit,VM.Config.CDROM,VM.Config.Options,VM.Config.HWType,SDN.Use"
+pveum acl modify /nodes/pve --users tofu@pve --roles TofuProvision
+pveum acl modify /storage/local --users tofu@pve --roles TofuProvision
+pveum acl modify /storage/local-lvm --users tofu@pve --roles TofuProvision
+pveum acl modify /vms --users tofu@pve --roles TofuProvision
+pveum acl modify /sdn/zones/localnetwork/vmbr1 --users tofu@pve --roles TofuProvision
 pveum user token add tofu@pve skeleton --privsep=0
 ```
 
-The role covers the one read `main.tf` makes. A change that makes Tofu
-call more of the Proxmox API widens the role to the privileges it needs and
-lists them here.
+| Path | Used for |
+| :--- | :--- |
+| `/nodes/pve` | Reading the node, and the image download with its size lookup (`Sys.AccessNetwork`) |
+| `/storage/local` | Storing the image and reading it for the disk import |
+| `/storage/local-lvm` | VM disks and cloud-init drives |
+| `/vms` | Creating, cloning, configuring and starting VMs: every VM on the node, Tofu-managed or not |
+| `/sdn/zones/localnetwork/vmbr1` | Attaching a NIC to the VLAN-aware bridge |
+
+The image download needs `Sys.AccessNetwork` on the node, or the older
+`Sys.Modify` on `/`, which is far wider; the role takes the first. The
+role holds every privilege on every path, and Proxmox checks each one only
+where it applies. A change that makes Tofu call more of the Proxmox API
+widens the role to the privileges it needs and lists them here.

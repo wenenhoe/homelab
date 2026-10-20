@@ -64,7 +64,7 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 RENOVATE_CONFIG = ".github/renovate.json5"
 # Directories the walk never enters: tooling caches and every directory .gitignore excludes, which hold
 # files that are not the repo's (`.ansible/` is where `ansible-galaxy` installs collections that carry their own test images).
-SKIP_DIRS = {".git", ".venv", ".ansible", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
+SKIP_DIRS = {".git", ".venv", ".ansible", ".terraform", "node_modules", "__pycache__", ".pytest_cache", ".ruff_cache"}
 SKIP_PATHS = {"ansible/molecule-coverage/.data", "ansible/files/secrets", "ansible/files/restore", "ansible/files/telegram-pins"}
 MANIFEST_TYPES = ", ".join(
     (

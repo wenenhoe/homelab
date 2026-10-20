@@ -29,14 +29,14 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Verify the controller's flows and the tailnet policy | Done | The findings are in ADR 0058; the proxy assumption remains open |
-| 2 | VLAN 30 with default-deny rules built by hand, the tailnet policy change, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token, which resolves the key assumption in ADR 0058; the coding-agent VLAN and every other tailnet node cannot reach it |
+| 2 | VLAN 30 with default-deny rules built by hand, its tailnet grant, and the hardware-backed key | Not started | The laptop logs in to a scratch VM in the VLAN with a key on each token, which resolves the key assumption in ADR 0058; the coding-agent VLAN and every other tailnet node cannot reach it |
 | 3 | VM 302 and the `operator_host` role, applied locally, including the hardening baseline's role | Not started | The role converges idempotently and SSH accepts only the dedicated hardware-backed keys |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 2 — tailnet policy
 
-The tailnet's policy is the default allow-all grant, unless [`coding-agent-network.md`](coding-agent-network.md)'s tailnet route stage has already replaced it, in which case add this grant to that policy. Replace it with explicit grants: the laptop reaches VLAN 30 on `tcp:22`, no other source has a grant for that route, and everything the maintainer uses today is re-granted. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is tailnet-wide, so an edit that tightens access can lock out existing access; "Reset to default" restores the allow-all grant. The policy is hand-edited in the console now and coded later — see
+Starts once [`tailnet-policy-baseline.md`](tailnet-policy-baseline.md) has replaced the allow-all grant. Add one grant to that policy: the laptop reaches VLAN 30 on `tcp:22`, and no other source has a grant for that route. Add `tests` that assert the laptop can reach VLAN 30 on 22 and cannot reach other ports, and that another tailnet node cannot reach it at all. Copy the current policy first, and use the admin console's preview before saving. The policy is hand-edited in the console now and coded later — see
 [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md).
 
 ### Stage 2 — required flows

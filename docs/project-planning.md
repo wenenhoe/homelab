@@ -51,7 +51,7 @@ calls for a project, while a working one still has to be settled.
 
 | Project | Unblocks | Status | Covers |
 | :--- | ---: | :--- | :--- |
-| [`tofu-skeleton.md`](projects/tofu-skeleton.md) | 4 | Building | The OpenTofu provider, the state backend on SeaweedFS and the credentials file, so every other Tofu project has somewhere to start. |
+| [`tofu-skeleton.md`](projects/tofu-skeleton.md) | 4 | Building | The OpenTofu provider, local state and the credentials file, so every other Tofu project has somewhere to start. |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
 | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |

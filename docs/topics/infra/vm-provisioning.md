@@ -143,14 +143,14 @@ write-ownership single-purpose, consistent with how `host_vars` /
 
 ## State backend & secrets
 
-Tofu state lives in a dedicated SeaweedFS S3 bucket (`opentofu-state`)
-on `storage` (already S3-compatible; a proper offsite/cloud backend is
-a later replacement). This is why `storage` is the one host kept
-running through every migration stage — it's a dependency of the
-tooling itself, not just of the apps it hosts.
+Tofu state is a local file on the host that runs Tofu, kept out of git.
+A remote S3-compatible backend (`opentofu-state`) is planned, and
+`tofu init -migrate-state` moves existing state into it. The backend
+can't be a VM Tofu manages, since Tofu has to be able to rebuild that
+VM; where it runs is not decided.
 
-Tofu's own secrets (Proxmox API token, OPNsense API key, the
-state-backend S3 credential) live in a file on the host that runs Tofu,
+Tofu's own secrets (Proxmox API token, OPNsense API key, and the
+state-backend S3 credential once a remote backend exists) live in a file on the host that runs Tofu,
 outside the repo and outside OpenBao, since Tofu must be able to rebuild
 the host that runs OpenBao — see the
 [decision](../../decisions/0048-where-tofu-credentials-live/revision-000.md).

@@ -97,9 +97,9 @@ Default sizing (adjust per host once real usage is observed):
 | storage | 2 | 4 GB | 64 GB+ |
 
 VM disks go on `local-lvm` (NVMe) for performance; the OPNsense ISO and
-Ubuntu cloud image go on `local` (dir storage, ISO/template content
-type) — both small, one-time downloads, no need for HDD or NVMe capacity
-planning around them.
+Ubuntu cloud image go on `tofu-images`, a directory storage that holds
+only ISO and import content — both small, one-time downloads, no need
+for HDD or NVMe capacity planning around them.
 
 ### Ubuntu modules
 
@@ -137,9 +137,16 @@ module "services" {
 }
 ```
 
-The image is stored on `local` as `import` content, which a new Proxmox
-storage does not allow: add Import to `local`'s content types under
-Datacenter > Storage before the first apply. Disks are imported from it
+Both modules store their image on `tofu-images`, created once on the node:
+
+```sh
+pvesm add dir tofu-images --path /var/lib/tofu-images --content iso,import
+```
+
+Deleting a stored file takes `Datastore.Allocate`, which gives full access
+to every volume on a storage, so the token holds it on this storage only
+(see [Proxmox API token](#proxmox-api-token)). Bumping an image URL
+replaces the download, and the old file goes with it. Disks are imported from it
 through the API alone; the other route, `file_id` on an `iso` download,
 needs SSH to the node. The provider's docs say a `.qcow2` file name is
 rejected by Proxmox before 8.4.
@@ -291,7 +298,7 @@ tree, and neither the token nor the endpoint appears in the state.
 
 The token is created on the Proxmox node, outside this repo, and this
 section is its only record. It belongs to the user `tofu@pve`, which holds
-the role `TofuProvision` on the six paths below. The token ID is
+the role `TofuProvision` on the six paths below, and `TofuImageStore` on one. The token ID is
 `skeleton` and privilege separation is off, so the token has the user's
 rights. The value in the credentials file is `tofu@pve!skeleton=<secret>`.
 On the node:
@@ -300,7 +307,8 @@ On the node:
 pveum user add tofu@pve
 pveum role add TofuProvision -privs "Sys.Audit,Sys.AccessNetwork,Datastore.Audit,Datastore.AllocateSpace,Datastore.AllocateTemplate,VM.Allocate,VM.Audit,VM.Clone,VM.PowerMgmt,VM.Config.CPU,VM.Config.Memory,VM.Config.Disk,VM.Config.Network,VM.Config.Cloudinit,VM.Config.CDROM,VM.Config.Options,VM.Config.HWType,SDN.Use"
 pveum acl modify /nodes/pve --users tofu@pve --roles TofuProvision
-pveum acl modify /storage/local --users tofu@pve --roles TofuProvision
+pveum role add TofuImageStore -privs "Datastore.Allocate"
+pveum acl modify /storage/tofu-images --users tofu@pve --roles TofuProvision,TofuImageStore
 pveum acl modify /storage/local-lvm --users tofu@pve --roles TofuProvision
 pveum acl modify /vms --users tofu@pve --roles TofuProvision
 pveum acl modify /sdn/zones/localnetwork/vmbr0 --users tofu@pve --roles TofuProvision
@@ -311,14 +319,15 @@ pveum user token add tofu@pve skeleton --privsep=0
 | Path | Used for |
 | :--- | :--- |
 | `/nodes/pve` | Reading the node, and the image download with its size lookup (`Sys.AccessNetwork`) |
-| `/storage/local` | Storing the image and reading it for the disk import |
+| `/storage/tofu-images` | Storing and removing images, and reading them for the disk import (`Datastore.Allocate`, from `TofuImageStore`, only here) |
 | `/storage/local-lvm` | VM disks and cloud-init drives |
 | `/vms` | Creating, cloning, configuring and starting VMs: every VM on the node, Tofu-managed or not |
 | `/sdn/zones/localnetwork/vmbr0` | Attaching the OPNsense WAN NIC to the physical bridge |
 | `/sdn/zones/localnetwork/vmbr1` | Attaching a NIC to the VLAN-aware bridge |
 
-The image download needs `Sys.AccessNetwork` on the node, or the older
-`Sys.Modify` on `/`, which is far wider; the role takes the first. The
-role holds every privilege on every path, and Proxmox checks each one only
-where it applies. A change that makes Tofu call more of the Proxmox API
+The role order above matters only on a fresh setup: `TofuImageStore` must
+exist before the ACL names it. The image download needs `Sys.AccessNetwork` on the node, or the older
+`Sys.Modify` on `/`, which is far wider; the role takes the first.
+`TofuProvision` holds every privilege on every path, and Proxmox checks
+each one only where it applies. A change that makes Tofu call more of the Proxmox API
 widens the role to the privileges it needs and lists them here.

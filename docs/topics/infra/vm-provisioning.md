@@ -154,9 +154,12 @@ is found.
 No cloud-init story exists for OPNsense, so provisioning happens in two
 phases:
 
-- **Phase 1, now:** Tofu creates the VM shell, attaches the latest
-  OPNsense ISO (fetched fresh from OPNsense's official mirror on every
-  build, not cached locally), and the install/initial config is manual.
+- **Phase 1, now:** the `proxmox_opnsense_vm` module creates the VM
+  shell and attaches the OPNsense installer, and the install/initial
+  config is manual. The installer is the `.iso.bz2` of one release, which
+  Proxmox downloads, checks against the SHA-256 the caller supplies and
+  unpacks. OPNsense publishes no stable "latest" URL, so a newer release
+  is a new URL and checksum.
 - **Phase 2, later:** day-2 config (Kea, VLAN interfaces, firewall
   rules) automated via OPNsense's config API once the VMID→IP mapping is
   fully code-driven.
@@ -181,9 +184,20 @@ move to a dedicated internal nameserver instead, is an open decision —
 see the
 [working decision](../../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
 
+The module gives the VM two virtio NICs with MACs from the scheme above,
+NIC 0 on the physical WAN bridge and NIC 1 on the VLAN-aware LAN bridge,
+both untagged so OPNsense sees every VLAN, and boots the disk before the
+installer so an installed VM boots from it. Its `vm_id` is the gateway
+VMID of a range, host part 01. The root module declares no OPNsense VM
+yet, so the module's call is where its bridges, sizing and image are
+passed.
+
 **Boot order.** `order=1` for OPNsense with `up=60` (60s) before any
 dependent VM is considered clear to start — gives DHCP/DNS time to come
 up before anything else races to request an address or resolve a name.
+Tofu does not set it: Proxmox requires `Sys.Modify` on `/` for a startup
+order, which is cluster-wide and far wider than the token's role. Set it
+once on the VM with `qm set <vmid> --startup order=1,up=60`.
 
 ## Tofu ↔ Ansible handoff
 
@@ -277,7 +291,7 @@ tree, and neither the token nor the endpoint appears in the state.
 
 The token is created on the Proxmox node, outside this repo, and this
 section is its only record. It belongs to the user `tofu@pve`, which holds
-the role `TofuProvision` on the five paths below. The token ID is
+the role `TofuProvision` on the six paths below. The token ID is
 `skeleton` and privilege separation is off, so the token has the user's
 rights. The value in the credentials file is `tofu@pve!skeleton=<secret>`.
 On the node:
@@ -289,6 +303,7 @@ pveum acl modify /nodes/pve --users tofu@pve --roles TofuProvision
 pveum acl modify /storage/local --users tofu@pve --roles TofuProvision
 pveum acl modify /storage/local-lvm --users tofu@pve --roles TofuProvision
 pveum acl modify /vms --users tofu@pve --roles TofuProvision
+pveum acl modify /sdn/zones/localnetwork/vmbr0 --users tofu@pve --roles TofuProvision
 pveum acl modify /sdn/zones/localnetwork/vmbr1 --users tofu@pve --roles TofuProvision
 pveum user token add tofu@pve skeleton --privsep=0
 ```
@@ -299,6 +314,7 @@ pveum user token add tofu@pve skeleton --privsep=0
 | `/storage/local` | Storing the image and reading it for the disk import |
 | `/storage/local-lvm` | VM disks and cloud-init drives |
 | `/vms` | Creating, cloning, configuring and starting VMs: every VM on the node, Tofu-managed or not |
+| `/sdn/zones/localnetwork/vmbr0` | Attaching the OPNsense WAN NIC to the physical bridge |
 | `/sdn/zones/localnetwork/vmbr1` | Attaching a NIC to the VLAN-aware bridge |
 
 The image download needs `Sys.AccessNetwork` on the node, or the older

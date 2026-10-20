@@ -19,7 +19,7 @@ Moves the controller off the workstation onto the host [`operator-host.md`](oper
 
 ## Scope
 
-The VLAN 30 allowlist on the egress proxy, and moving the toolchain and credentials onto the host: `main-domain`, a freshly issued AppRole secret, the Tofu credentials file ([ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)) and the shared SSH key. Not in scope: building the host ([`operator-host.md`](operator-host.md)), the proxy itself ([`coding-agent-network.md`](coding-agent-network.md)), stripping and retiring VM 401 ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
+The VLAN 30 allowlist on the egress proxy, and moving the toolchain and credentials onto the host: `main-domain`, a freshly issued AppRole secret, the Tofu credentials file ([ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md)) and the shared SSH key. Not in scope: building the host ([`operator-host.md`](operator-host.md)), the proxy itself ([`coding-agent-egress.md`](coding-agent-egress.md)), stripping and retiring VM 401 ([`workstation-management.md`](workstation-management.md)), and shrinking the credentials as the CD agent lands ([`cd-agent.md`](cd-agent.md), [`cd-agent-controller-approle-retirement.md`](cd-agent-controller-approle-retirement.md)).
 
 ## Decision
 
@@ -31,7 +31,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Egress allowlist through the proxy. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built the proxy | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
+| 1 | Egress allowlist through the proxy. Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy | Not started | A canary in VLAN 30 reaches every allowlisted destination and no other, and ADR 0058 can be `approved` |
 | 2 | Move the controller: toolchain, `main-domain`, a freshly issued AppRole secret, the Tofu credentials file, the shared SSH key. No credential moves before Stage 1 | Not started | A deploy in check mode, a `tofu plan`, and an `openbao_utils.shell` login all succeed from the operator host |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -51,7 +51,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ## Risks
 
-- Stage 1 waits on the proxy from [`coding-agent-network.md`](coding-agent-network.md), which is itself still de-risking. This project is on the critical path for stripping the workstation.
+- Stage 1 waits on the proxy from [`coding-agent-egress.md`](coding-agent-egress.md), which waits on the zone project's spikes. This project is on the critical path for stripping the workstation.
 - The Tofu credentials file is the only copy of those credentials on the host; moving it means issuing replacements rather than copying the old ones off the workstation.
 
 ## Open items

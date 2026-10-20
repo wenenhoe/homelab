@@ -58,7 +58,7 @@ calls for a project, while a working one still has to be settled.
 | [`gatus-job-heartbeats.md`](projects/gatus-job-heartbeats.md) | — | Building | Replace Uptime Kuma push monitors with Gatus external endpoints: one declared endpoint and generated token per job. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Kuma onto a dedicated on-prem host. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
-| [`coding-agent-network.md`](projects/coding-agent-network.md) | 5 | De-risking | A dedicated VLAN, default-deny firewall policy, filtering egress proxy, and canary probes for the coding-agent host. |
+| [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
@@ -70,8 +70,9 @@ calls for a project, while a working one still has to be settled.
 
 | Initiative | Track | Phase | Project | Unblocks | Status |
 | :--- | :--- | :--- | :--- | ---: | :--- |
-| `coding-agent-host` | `boundary` | `1-network` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 5 | De-risking |
+| `coding-agent-host` | `boundary` | `1-network` | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking |
 | | `boundary` | `2-host` | [`coding-agent-host.md`](projects/coding-agent-host.md) | 4 | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
+| | `egress` | — | [`coding-agent-egress.md`](projects/coding-agent-egress.md) | — | Not started — waiting on [`coding-agent-network.md`](projects/coding-agent-network.md) |
 | | `lifecycle` | — | [`coding-agent-management.md`](projects/coding-agent-management.md) | — | Not started — waiting on [`tofu-vm-provisioning.md`](projects/tofu-vm-provisioning.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `1-access-path` | [`coding-agent-access-path.md`](projects/coding-agent-access-path.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |
 | | `workflow` | `2-molecule-runtime` | [`coding-agent-molecule-runtime.md`](projects/coding-agent-molecule-runtime.md) | — | Not started — waiting on [`coding-agent-host.md`](projects/coding-agent-host.md) |

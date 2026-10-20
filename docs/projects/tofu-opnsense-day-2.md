@@ -15,7 +15,7 @@ Brings OPNsense's day-2 configuration (VLAN interfaces, firewall rules and Kea) 
 
 ## Scope
 
-VLAN interfaces, firewall rules and Kea for the existing zones, then the coding-agent zone's interface, rules and egress-proxy configuration ([`coding-agent-network.md`](coding-agent-network.md)), expressed in Tofu, with drift detected against the topic doc. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), DNS for Tofu-provisioned VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)), and changing any policy.
+VLAN interfaces, firewall rules and Kea for the existing zones, then the coding-agent zone's interface and rules ([`coding-agent-network.md`](coding-agent-network.md)) and egress-proxy configuration ([`coding-agent-egress.md`](coding-agent-egress.md)), expressed in Tofu, with drift detected against the topic doc. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), DNS for Tofu-provisioned VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)), and changing any policy.
 
 ## Decision
 
@@ -29,8 +29,8 @@ Update at the start and end of each PR that works a stage.
 | :-: | :--- | :--- | :--- |
 | 1 | Spike: which OpenTofu provider manages OPNsense VLAN interfaces, firewall rules and Kea through the API, and how its API key is passed to it | Not started | A provider is chosen against a scratch OPNsense, what it cannot manage is listed here, and the provider takes its API key from the credentials file [ADR 0048 (Tofu credentials)](../decisions/0048-where-tofu-credentials-live/revision-000.md) decides |
 | 2 | Import the existing VLAN interfaces, firewall rules and Kea settings. Starts once [`tofu-skeleton.md`](tofu-skeleton.md) has built the skeleton, state backend and credentials | Not started | `tofu plan` against OPNsense shows no diff from the hand-built state |
-| 3 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | A plan shows no diff from the hand-built zone, and the canary probes from [`coding-agent-network.md`](coding-agent-network.md) still pass |
-| 4 | The egress proxy's configuration | Not started | The proxy's allowlist is generated from one source in the repo |
+| 3 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | A plan shows no diff from the hand-built zone |
+| 4 | The egress proxy's configuration. Starts once [`coding-agent-egress.md`](coding-agent-egress.md) has built the proxy | Not started | The proxy's allowlist is generated from one source in the repo |
 | 5 | Retire the hand-maintained state | Not started | The topic doc describes Tofu as the owner of the rules, and canary probes still pass |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -38,7 +38,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ## Acceptance criteria
 
 - [ ] `tofu plan` shows no diff between the code and OPNsense for VLAN interfaces, firewall rules and Kea.
-- [ ] The coding-agent zone's interface, rules and proxy configuration are expressed in Tofu, and the canary probes from [`coding-agent-network.md`](coding-agent-network.md) still pass after the cut-over.
+- [ ] The coding-agent zone's interface, rules and proxy configuration are expressed in Tofu, and the canary probes from [`coding-agent-egress.md`](coding-agent-egress.md) still pass after the cut-over.
 - [ ] The proxy's allowlist is generated from one source in the repo.
 - [ ] The topic doc names Tofu as the owner of the rules.
 - [ ] The provider's API key is held in the credentials file ADR 0048 decides.

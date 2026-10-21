@@ -18,7 +18,10 @@ while read -r src_bucket path target_remote target_bucket; do
   esac
 
   echo "Copying seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}"
-  if ! rclone copy "seaweedfs:${src_bucket}/${path}" "${target_remote}:${target_bucket}/${path}"; then
+  # --immutable makes a source object that differs from the one already in
+  # the cloud fail the job instead of replacing it. Archive names are never
+  # reused (BACKUP_FILENAME in backup_agent), so an ordinary run never trips it.
+  if ! rclone copy --immutable "seaweedfs:${src_bucket}/${path}" "${target_remote}:${target_bucket}/${path}"; then
     echo "FAILED: seaweedfs:${src_bucket}/${path} -> ${target_remote}:${target_bucket}/${path}" >&2
     overall_status=1
   fi

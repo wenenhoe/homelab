@@ -17,7 +17,7 @@ A compromised app host can still tamper with its own SeaweedFS archives: whateve
 
 ## Why the cloud copy holds
 
-`cloud_sync` relays with rclone `copy`, never `sync`, so nothing on-prem, even fully compromised, can delete or overwrite what has already landed in the cloud. A compromised app host tampering with its own SeaweedFS archives can't propagate that tampering to the cloud copy for the same reason. Setup, per-provider retention and the sync mechanism are in [`cloud-sync.md`](cloud-sync.md).
+`cloud_sync` relays with rclone `copy --immutable`, never `sync`, so nothing on-prem, even fully compromised, can delete or overwrite what has already landed in the cloud: a changed source object fails the relay job instead of replacing the cloud copy. A compromised app host tampering with its own SeaweedFS archives can't propagate that tampering to the cloud copy for the same reason. Setup, per-provider retention and the sync mechanism are in [`cloud-sync.md`](cloud-sync.md).
 
 ## Automated coverage
 

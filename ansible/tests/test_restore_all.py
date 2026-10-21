@@ -177,6 +177,44 @@ class TestDiscoverAndDecrypt:
         ):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
+    def test_a_failed_decrypt_leaves_neither_the_ciphertext_nor_the_partial_plaintext(self, scratch_dir):
+        objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"}]
+
+        def fake_gpg(cmd, **_kwargs):
+            Path(cmd[cmd.index("-o") + 1]).write_text("partial plaintext")
+            return _completed(1, "decryption failed")
+
+        with (
+            patch.object(restore_all, "rclone_lsjson", return_value=objects, autospec=True),
+            patch.object(restore_all, "_run_rclone", return_value=_completed(), autospec=True),
+            patch.object(restore_all.subprocess, "run", side_effect=fake_gpg, autospec=True),
+            pytest.raises(restore_all.RestoreAllError, match="gpg --decrypt failed"),
+        ):
+            restore_all.discover_and_decrypt(_entry(), "the-bucket")
+
+        assert list(scratch_dir.iterdir()) == []
+
+    def test_an_interrupted_decrypt_leaves_neither_the_ciphertext_nor_the_partial_plaintext(self, scratch_dir):
+        objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"}]
+
+        def fake_rclone(args, timeout):
+            Path(args[-1]).write_text("ciphertext")
+            return _completed()
+
+        def fake_gpg(cmd, **_kwargs):
+            Path(cmd[cmd.index("-o") + 1]).write_text("partial plaintext")
+            raise KeyboardInterrupt
+
+        with (
+            patch.object(restore_all, "rclone_lsjson", return_value=objects, autospec=True),
+            patch.object(restore_all, "_run_rclone", side_effect=fake_rclone, autospec=True),
+            patch.object(restore_all.subprocess, "run", side_effect=fake_gpg, autospec=True),
+            pytest.raises(KeyboardInterrupt),
+        ):
+            restore_all.discover_and_decrypt(_entry(), "the-bucket")
+
+        assert list(scratch_dir.iterdir()) == []
+
 
 @pytest.fixture
 def run_with(monkeypatch):
@@ -189,7 +227,7 @@ def run_with(monkeypatch):
 
         def fake_discover(entry, bucket):
             outcome = discover_side_effect[entry.app]
-            if isinstance(outcome, Exception):
+            if isinstance(outcome, BaseException):
                 raise outcome
             return outcome
 
@@ -203,17 +241,19 @@ def run_with(monkeypatch):
     return _run_with
 
 
+@pytest.fixture
+def batch_environment(monkeypatch):
+    monkeypatch.setattr(restore_all, "run_discovery_setup", create_autospec(restore_all.run_discovery_setup))
+    monkeypatch.setattr(restore_all, "append_audit_log", create_autospec(restore_all.append_audit_log))
+    monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes"])
+
+
+@pytest.mark.usefixtures("batch_environment")
 class TestMainBatchOrdering:
     """The step-ca-first, step-ca-gates-everything-else contract from
     this module's own docstring - the part of main() that's safety-
     relevant rather than plumbing, so worth locking in independent of
     a live fire drill."""
-
-    @pytest.fixture(autouse=True)
-    def _batch_environment(self, monkeypatch):
-        monkeypatch.setattr(restore_all, "run_discovery_setup", create_autospec(restore_all.run_discovery_setup))
-        monkeypatch.setattr(restore_all, "append_audit_log", create_autospec(restore_all.append_audit_log))
-        monkeypatch.setattr(sys, "argv", ["restore_all.py", "--yes"])
 
     def test_aborts_before_restoring_anything_if_step_ca_discovery_fails(self, run_with):
         entries = [_entry("step-ca"), _entry("wastebin")]
@@ -276,3 +316,83 @@ class TestMainBatchOrdering:
         )
         assert rc == 1
         mock_minecraft.assert_not_called()
+
+
+@pytest.mark.usefixtures("batch_environment")
+class TestMainRemovesDecryptedArchives:
+    """Discovery decrypts every app's archive before the confirmation
+    prompt, so every way out of main() has to remove what was decrypted."""
+
+    @pytest.fixture
+    def decrypted(self, tmp_path):
+        def _make(app: str) -> restore_all.DiscoveryResult:
+            result = _result(app)
+            result.decrypted_path = tmp_path / f"{app}.tar.gz"
+            result.decrypted_path.write_text("plaintext")
+            return result
+
+        return _make
+
+    @staticmethod
+    def _assert_all_removed(*results: restore_all.DiscoveryResult) -> None:
+        assert [r.entry.app for r in results if r.decrypted_path.exists()] == []
+
+    def test_declining_the_prompt_removes_every_decrypted_archive(self, run_with, decrypted, monkeypatch):
+        monkeypatch.setattr(sys, "argv", ["restore_all.py"])
+        step_ca, wastebin = decrypted("step-ca"), decrypted("wastebin")
+        with patch("builtins.input", return_value="no", autospec=True):
+            run_with(
+                [_entry("step-ca"), _entry("wastebin")],
+                discover_side_effect={"step-ca": step_ca, "wastebin": wastebin},
+                restore_results={},
+            )
+        self._assert_all_removed(step_ca, wastebin)
+
+    def test_a_missing_step_ca_removes_every_decrypted_archive(self, run_with, decrypted):
+        wastebin = decrypted("wastebin")
+        run_with(
+            [_entry("step-ca"), _entry("wastebin")],
+            discover_side_effect={"step-ca": restore_all.RestoreAllError("boom"), "wastebin": wastebin},
+            restore_results={},
+        )
+        self._assert_all_removed(wastebin)
+
+    def test_a_failed_step_ca_restore_removes_the_archives_of_the_apps_never_attempted(self, run_with, decrypted):
+        step_ca, wastebin = decrypted("step-ca"), decrypted("wastebin")
+        run_with(
+            [_entry("step-ca"), _entry("wastebin")],
+            discover_side_effect={"step-ca": step_ca, "wastebin": wastebin},
+            restore_results={"step-ca": False},
+        )
+        self._assert_all_removed(step_ca, wastebin)
+
+    def test_an_interrupted_restore_removes_the_archives_of_the_apps_not_yet_reached(self, decrypted, monkeypatch):
+        step_ca, wastebin = decrypted("step-ca"), decrypted("wastebin")
+        results = {"step-ca": step_ca, "wastebin": wastebin}
+        entries = [_entry("step-ca"), _entry("wastebin")]
+        monkeypatch.setattr(restore_all, "load_manifest", create_autospec(restore_all.load_manifest, return_value=("the-bucket", entries)))
+        monkeypatch.setattr(
+            restore_all,
+            "discover_and_decrypt",
+            create_autospec(restore_all.discover_and_decrypt, side_effect=lambda entry, _bucket: results[entry.app]),
+        )
+        monkeypatch.setattr(
+            restore_all,
+            "run_app_restore",
+            create_autospec(restore_all.run_app_restore, side_effect=[True, KeyboardInterrupt]),
+        )
+
+        with pytest.raises(KeyboardInterrupt):
+            restore_all.main()
+
+        self._assert_all_removed(step_ca, wastebin)
+
+    def test_an_interrupt_during_discovery_removes_what_was_already_decrypted(self, run_with, decrypted):
+        step_ca = decrypted("step-ca")
+        with pytest.raises(KeyboardInterrupt):
+            run_with(
+                [_entry("step-ca"), _entry("wastebin")],
+                discover_side_effect={"step-ca": step_ca, "wastebin": KeyboardInterrupt()},
+                restore_results={},
+            )
+        self._assert_all_removed(step_ca)

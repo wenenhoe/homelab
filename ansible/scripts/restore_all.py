@@ -207,39 +207,47 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
 
     SCRATCH_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
     encrypted_path = SCRATCH_DIR / name
-    # A real download, not a listing — a generous overall backstop
-    # since archives can be large (e.g. minecraft's); --contimeout/
-    # --low-level-retries above (via _run_rclone) still fail fast if the
-    # connection itself never comes up. NEEDS LIVE VERIFICATION for
-    # slow/high-latency links — see docs/topics/disaster-recovery/restore.md's batch-restore
-    # section.
-    copy_result = _run_rclone(["copyto", f"{source}:{bucket}/{prefix}/{name}", str(encrypted_path)], timeout=1800)
-    if copy_result is None:
-        raise RestoreAllError(f"rclone copyto from {source} timed out or was interrupted")
-    if copy_result.returncode != 0:
-        raise RestoreAllError(f"rclone copyto from {source} failed: {copy_result.stderr.strip()}")
-
     decrypted_path = SCRATCH_DIR / name[: -len(".gpg")]
-    # --batch --yes, no --passphrase/--pinentry-mode: relies entirely on
-    # gpg-agent already holding the unlocked private key (see this
-    # script's module docstring) — never prompts. Generous timeout for
-    # the same reason as the copy above (large archives); a hang here
-    # would mean gpg-agent itself is stuck, not a network condition.
+    # Neither the ciphertext nor a half-written plaintext may outlive a
+    # failed or interrupted download or decrypt.
     try:
-        gpg_result = subprocess.run(
-            ["gpg", "--batch", "--yes", "-o", str(decrypted_path), "-d", str(encrypted_path)],
-            capture_output=True,
-            text=True,
-            timeout=600,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        raise RestoreAllError(
-            "gpg --decrypt hung for 10 minutes — is gpg-agent waiting on a passphrase prompt with no tty to answer it on? See this script's module docstring."
-        ) from None
-    encrypted_path.unlink(missing_ok=True)
-    if gpg_result.returncode != 0:
-        raise RestoreAllError(f"gpg --decrypt failed: {gpg_result.stderr.strip()} — is the private key loaded and gpg-agent unlocked non-interactively?")
+        # A real download, not a listing — a generous overall backstop
+        # since archives can be large (e.g. minecraft's); --contimeout/
+        # --low-level-retries above (via _run_rclone) still fail fast if the
+        # connection itself never comes up. NEEDS LIVE VERIFICATION for
+        # slow/high-latency links — see docs/topics/disaster-recovery/restore.md's batch-restore
+        # section.
+        copy_result = _run_rclone(["copyto", f"{source}:{bucket}/{prefix}/{name}", str(encrypted_path)], timeout=1800)
+        if copy_result is None:
+            raise RestoreAllError(f"rclone copyto from {source} timed out or was interrupted")
+        if copy_result.returncode != 0:
+            raise RestoreAllError(f"rclone copyto from {source} failed: {copy_result.stderr.strip()}")
+
+        # --batch --yes, no --passphrase/--pinentry-mode: relies entirely on
+        # gpg-agent already holding the unlocked private key (see this
+        # script's module docstring) — never prompts. Generous timeout for
+        # the same reason as the copy above (large archives); a hang here
+        # would mean gpg-agent itself is stuck, not a network condition.
+        try:
+            gpg_result = subprocess.run(
+                ["gpg", "--batch", "--yes", "-o", str(decrypted_path), "-d", str(encrypted_path)],
+                capture_output=True,
+                text=True,
+                timeout=600,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            raise RestoreAllError(
+                "gpg --decrypt hung for 10 minutes — is gpg-agent waiting on a passphrase prompt "
+                "with no tty to answer it on? See this script's module docstring."
+            ) from None
+        if gpg_result.returncode != 0:
+            raise RestoreAllError(f"gpg --decrypt failed: {gpg_result.stderr.strip()} — is the private key loaded and gpg-agent unlocked non-interactively?")
+    except BaseException:
+        decrypted_path.unlink(missing_ok=True)
+        raise
+    finally:
+        encrypted_path.unlink(missing_ok=True)
 
     return DiscoveryResult(
         entry=entry,
@@ -326,6 +334,11 @@ def run_minecraft_world_restore() -> bool:
     return subprocess.run(cmd, cwd=ANSIBLE_DIR, check=False).returncode == 0
 
 
+def discard_plaintext(results: dict[str, DiscoveryResult]) -> None:
+    for result in results.values():
+        result.decrypted_path.unlink(missing_ok=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
@@ -338,7 +351,18 @@ def main() -> int:
     run_discovery_setup()
     seaweedfs_bucket, manifest_entries = load_manifest()
 
+    # Every decrypted archive is removed on the way out, whatever the exit
+    # path: an abort, a declined prompt, an exception or Ctrl-C would
+    # otherwise leave the rest of the batch's plaintext in the scratch
+    # directory.
     results: dict[str, DiscoveryResult] = {}
+    try:
+        return run_batch(args, seaweedfs_bucket, manifest_entries, results)
+    finally:
+        discard_plaintext(results)
+
+
+def run_batch(args: argparse.Namespace, seaweedfs_bucket: str, manifest_entries: list[AppManifestEntry], results: dict[str, DiscoveryResult]) -> int:
     errors: dict[str, str] = {}
     for entry in manifest_entries:
         print(f"Discovering {entry.app} ({entry.host})...")

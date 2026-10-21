@@ -166,6 +166,9 @@ What it does, in order:
    `ansible/files/secrets/`) — object key, timestamp, and outcome —
    and deletes the decrypted plaintext from its own scratch directory
    once that app's `restore.yaml` call has finished, success or not.
+   Whatever is still decrypted when the run ends early (a missing
+   step-ca, a declined prompt, a step-ca failure, an error or Ctrl-C) is
+   deleted on the way out.
 
 ### Known limitations
 

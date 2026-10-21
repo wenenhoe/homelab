@@ -8,9 +8,10 @@
     ansible_user: root
     compose_deploy_dir: /opt/stacks
     compose_source_dir: "{{ playbook_dir }}/files/docker"
-    # Only used by gpg-public-key.asc.j2's lookup — points at the one
-    # shared test-only key in molecule_helpers, not a per-scenario copy
-    project_root: "{{ (playbook_dir ~ '/../../../molecule_helpers') | realpath }}"
+    # Only used by gpg-public-key.asc.j2's lookup. The first task below
+    # writes this scenario's own throwaway public key under it, so verify
+    # can decrypt what backup_agent produces with the matching private key.
+    project_root: /tmp/backup-agent-molecule-key-root
     server_timezone: "Etc/UTC"
 
     # --- backup_agent's own required global vars ---
@@ -140,6 +141,33 @@
       - name: happy_app_multivol
       - name: happy_app_precompressed
   tasks:
+    # On the controller, because gpg-public-key.asc.j2 reads the key from
+    # there with lookup('file'). Shaped like the production key: a
+    # signing primary with a separate encryption subkey. `creates` makes
+    # the second converge (idempotence) skip it, so the key never changes
+    # between runs.
+    - name: Generate a throwaway GPG keypair for backup_agent to encrypt to  # noqa: command-instead-of-module — no ansible.builtin module generates GPG keys
+      ansible.builtin.command:
+        argv:
+          - sh
+          - -c
+          - |
+            set -eu
+            home=/tmp/backup-agent-molecule-gnupg
+            root="$1"
+            rm -rf "$home"
+            mkdir -p -m 0700 "$home" "$root/ansible/files"
+            printf '%s\n' '%no-protection' 'Key-Type: RSA' 'Key-Length: 2048' 'Key-Usage: sign' \
+              'Subkey-Type: RSA' 'Subkey-Length: 2048' 'Subkey-Usage: encrypt' \
+              'Name-Real: molecule-test' 'Name-Email: test@molecule.local' 'Expire-Date: 0' '%commit' > "$home/params"
+            gpg --homedir "$home" --batch --gen-key "$home/params"
+            gpg --homedir "$home" --batch --yes --armor --export molecule-test > "$root/ansible/files/backup-gpg-public-key.asc"
+          - sh
+          - "{{ project_root }}"
+        creates: "{{ project_root }}/ansible/files/backup-gpg-public-key.asc"
+      delegate_to: localhost
+      become: false
+
     - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:
         name: molecule_helpers

@@ -195,6 +195,79 @@
     name: backup-agent-gpg-check
     state: absent
 
+# The archive has to decrypt with the private half of the key converge.yml
+# gave backup_agent, and the plaintext has to be the archive of the app it
+# was taken from. The decryption runs on the controller, where converge.yml
+# generated the keypair.
+- name: Find where the scratch volume holds the downloaded archive
+  community.docker.docker_volume_info:
+    name: backup-agent-gpg-check-scratch
+  register: backup_agent_gpg_scratch_volume
+
+- name: Copy the encrypted archive to the controller
+  ansible.builtin.fetch:
+    src: "{{ backup_agent_gpg_scratch_volume.volume.Mountpoint }}/archive.tar.gz"
+    dest: /tmp/backup-agent-molecule-decrypt/archive.gpg
+    flat: true
+
+- name: Decrypt it with the private key generated for this scenario
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --homedir
+      - /tmp/backup-agent-molecule-gnupg
+      - --batch
+      - --yes
+      - --output
+      - /tmp/backup-agent-molecule-decrypt/archive.tar.gz
+      - --decrypt
+      - /tmp/backup-agent-molecule-decrypt/archive.gpg
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: List the decrypted archive
+  ansible.builtin.command:
+    argv: [tar, -tzf, /tmp/backup-agent-molecule-decrypt/archive.tar.gz]
+  register: backup_agent_gpg_decrypted_listing
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Confirm the decrypted archive is a tar.gz of happy_app_nostop's volume
+  ansible.builtin.assert:
+    that:
+      - "'happy_app_nostop/happy_app_nostop_data' in backup_agent_gpg_decrypted_listing.stdout"
+    fail_msg: >-
+      The decrypted archive does not hold happy_app_nostop's volume.
+      Listing: {{ backup_agent_gpg_decrypted_listing.stdout }}
+
+# Control: a keyring without the private key must not decrypt it, so the
+# step above passing shows the generated key is what opened the archive.
+- name: Attempt to decrypt it with an empty keyring — this must FAIL
+  ansible.builtin.command:
+    argv:
+      - gpg
+      - --homedir
+      - /tmp/backup-agent-molecule-decrypt/empty-gnupg
+      - --batch
+      - --yes
+      - --output
+      - /tmp/backup-agent-molecule-decrypt/should-not-exist
+      - --decrypt
+      - /tmp/backup-agent-molecule-decrypt/archive.gpg
+  register: backup_agent_gpg_control
+  changed_when: false
+  failed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Confirm the empty keyring could not decrypt it
+  ansible.builtin.assert:
+    that:
+      - backup_agent_gpg_control.rc != 0
+    fail_msg: An empty keyring decrypted the archive, so the decryption above proves nothing.
+
 - name: Remove the scratch volume
   community.docker.docker_volume:
     name: backup-agent-gpg-check-scratch

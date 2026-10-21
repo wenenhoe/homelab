@@ -42,3 +42,25 @@ variable "ubuntu_image_checksum" {
   type        = string
   default     = "8800651811af9a85465ad1d552add729947bb16488dddb4a9b5305a3d97332b2"
 }
+
+variable "opnsense_iso_url" {
+  description = "OPNsense installer image, the dvd amd64 .iso.bz2 of one release."
+  type        = string
+  default     = "https://pkg.opnsense.org/releases/26.7/OPNsense-26.7-dvd-amd64.iso.bz2"
+}
+
+variable "opnsense_iso_checksum" {
+  description = "SHA-256 of opnsense_iso_url, as OPNsense publishes it."
+  type        = string
+  default     = "95cafedda6d5b22ce832e249dc2309110fbee19f813ad78cf28bb3d387186bfb"
+}
+
+variable "dns_domain" {
+  description = "The lab's internal DNS zone, handed to every Ubuntu VM as its search domain."
+  type        = string
+}
+
+variable "ssh_public_keys" {
+  description = "Public keys installed for the admin account of every Ubuntu VM: the public half of the Ansible key."
+  type        = list(string)
+}

@@ -64,7 +64,8 @@ The private key never touches a homelab host:
    bucket/region each provider uses somewhere that survives a
    `storage`-host loss). Same encrypted object either way — `cloud_sync`
    copies it verbatim, nothing about it changes in transit.
-2. `gpg --decrypt` it into a plain `.tar.gz`.
+2. `gpg --decrypt` it into a plain `.tar.gz` (or `.tar`, for an app with
+   `compression: none`).
 3. Point `restore_archive_local_path` at that file.
 
 ### What the playbook does
@@ -172,14 +173,11 @@ What it does, in order:
 
 ### Known limitations
 
-**Carried over from the `restore` role:** `minecraft`'s
-own backup uses `compression: none`
-([`backup.md`](backup.md#whats-backed-up)) — the
-`restore` role's own extraction step assumes gzip (`tar -xzf`)
-unconditionally, and hasn't been re-verified against an uncompressed
-archive. That's the existing, tested `restore` role's own behavior,
-unchanged here; if a real `minecraft` restore hits it, that's a
-`restore` role fix, not something `restore_all.py` should work around.
+**Compression:** the `restore` role reads the decrypted archive's own
+leading bytes and extracts a gzip archive (`compression: gz`) or an
+uncompressed tar (`compression: none`, as `minecraft` uses). An archive
+that is neither, such as `compression: zst`, is refused before anything
+is stopped.
 
 **Empty listing:** `rclone lsjson` exits 0 with `[]` for a prefix with
 no objects in an existing bucket, and non-zero only for a missing bucket

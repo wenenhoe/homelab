@@ -20,7 +20,7 @@
       {{
         (lookup('file', playbook_dir ~ '/../../../../inventory/group_vars/all/app_catalog.yaml')
          | from_yaml).app_catalog
-        | combine({'tinyauth': {}, 'authed_app': {}, 'public_app': {}})
+        | combine({'tinyauth': {}, 'authed_app': {}, 'public_app': {}, 'readonly_app': {}})
       }}
     # Extracted from the real catalog rather than hand-copied — see
     # docs/topics/engineering/molecule-fixtures.md and bind9's own
@@ -44,6 +44,13 @@
             host: public
             upstream: "public:8080"
             auth: false
+      - name: readonly_app
+        routes:
+          default:
+            host: readonly
+            upstream: "readonly:8080"
+            auth: false
+            read_only: true
   tasks:
     - name: Resolve compose_apps against the app catalog
       ansible.builtin.include_role:

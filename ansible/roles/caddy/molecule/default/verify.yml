@@ -28,6 +28,14 @@
           - "'@public host public.apps.localhost' in caddy_seeded_caddyfile.stdout"
           - "'reverse_proxy public:8080' in caddy_seeded_caddyfile.stdout"
 
+    - name: Confirm only the read-only route got the method restriction
+      ansible.builtin.assert:
+        that:
+          - (caddy_seeded_caddyfile.stdout | regex_findall('@readonly_writes not method GET HEAD')) | length == 1
+          - (caddy_seeded_caddyfile.stdout | regex_findall('respond @readonly_writes "Method Not Allowed" 405')) | length == 1
+          - "'public_writes' not in caddy_seeded_caddyfile.stdout"
+          - "'authed_writes' not in caddy_seeded_caddyfile.stdout"
+
     - name: Confirm the auth import only applied to the app that needed it
       ansible.builtin.assert:
         that:
@@ -117,6 +125,40 @@
       retries: 10
       delay: 5
       failed_when: caddy_public_route_status.stdout != '502'
+
+    # The restriction answers before the proxy is reached, so a write gets 405
+    # while a read still tries to proxy to the missing backend (502). The same
+    # write on public_app, which has no restriction, proxies (502) too, so the
+    # 405 comes from read_only and not from the missing backend.
+    - name: Read from the read-only route (expect 502 - it proxies, and the backend doesn't exist)  # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        curl -sk -o /dev/null -w '%{http_code}'
+        --resolve readonly.apps.localhost:443:127.0.0.1
+        https://readonly.apps.localhost/
+      register: caddy_readonly_get_status
+      changed_when: false
+      until: caddy_readonly_get_status.stdout == '502'
+      retries: 10
+      delay: 5
+      failed_when: caddy_readonly_get_status.stdout != '502'
+
+    - name: Write to the read-only route (expect 405)  # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        curl -sk -X DELETE -o /dev/null -w '%{http_code}'
+        --resolve readonly.apps.localhost:443:127.0.0.1
+        https://readonly.apps.localhost/
+      register: caddy_readonly_delete_status
+      changed_when: false
+      failed_when: caddy_readonly_delete_status.stdout != '405'
+
+    - name: Write to the unrestricted public route (expect 502 - proxied like any other request)  # noqa: command-instead-of-module
+      ansible.builtin.command: >-
+        curl -sk -X DELETE -o /dev/null -w '%{http_code}'
+        --resolve public.apps.localhost:443:127.0.0.1
+        https://public.apps.localhost/
+      register: caddy_public_delete_status
+      changed_when: false
+      failed_when: caddy_public_delete_status.stdout != '502'
 
     - name: Request a host that matches no defined route (expect 403 - deny-all fallback)  # noqa: command-instead-of-module
       ansible.builtin.command: >-

@@ -71,7 +71,10 @@ SeaweedFS runs single-node (`weed server -filer -s3`) — sufficient for "a
 copy exists off-host," not HA for the backup target itself.
 
 - **Filer web UI** (`https://filer.store.{{ lab_domain }}`) — human-facing,
-  Caddy + Tinyauth + TLS like every other app.
+  Caddy + Tinyauth + TLS like every other app, and read-only: the route
+  registers `read_only: true`, so Caddy answers anything but `GET` and
+  `HEAD` with 405. Writes and deletes go through the S3 API's scoped
+  identities only.
 - **S3 API** (`https://s3.store.{{ lab_domain }}`) — machine-facing only.
   Registered `auth: false` (Tinyauth's forward-auth needs an interactive
   redirect a non-interactive S3 client can't complete). Auth is instead

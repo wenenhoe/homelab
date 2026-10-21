@@ -54,7 +54,7 @@ half and a contained half instead:
    not stopped during backup):
    ```sh
    python3 -c "
-   import sys; sys.path.insert(0, 'ansible')
+   import sys; sys.path.insert(0, 'ansible/scripts')
    import restore_all
    bucket, entries = restore_all.load_manifest()
    entry = next(e for e in entries if e.app == 'wastebin')

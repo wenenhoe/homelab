@@ -90,7 +90,7 @@
     mode: "0644"
   when: backup_agent_any_stop_apps
 
-- name: Render the GPG public key (placeholder until you replace ansible/files/backup-gpg-public-key.asc)
+- name: Render the GPG public key
   ansible.builtin.template:
     src: gpg-public-key.asc.j2
     dest: "{{ backup_agent_deploy_dir }}/gpg-public-key.asc"

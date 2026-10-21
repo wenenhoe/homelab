@@ -104,10 +104,21 @@ keypair: hosts hold only the public key; the private key stays offline and
 is never on any homelab host, so a compromised host can't decrypt existing
 backups.
 
-`ansible/files/backup-gpg-public-key.asc` ships as a placeholder — replace
-it before your first real deploy, or backups will be unrecoverable.
+`ansible/files/backup-gpg-public-key.asc` is the public half of the live
+backup key. Show its fingerprint with:
 
-### Generating the keypair
+```sh
+gpg --show-keys --with-fingerprint ansible/files/backup-gpg-public-key.asc
+```
+
+Replacing the file only affects archives written afterwards: every archive
+already in SeaweedFS or a cloud target stays encrypted to the old key, so
+the old private key has to be kept for as long as any of them is
+retained.
+
+### Generating a keypair
+
+Only needed for a first deploy or to rotate the key.
 
 Run on your own workstation, never on `storage` or an app host:
 

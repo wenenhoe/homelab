@@ -4,110 +4,106 @@ revision: 0
 type: adr
 title: DNS for Tofu-provisioned VMs
 short: Tofu VM DNS
-solution: A second, dedicated BIND9 on security, fed by the Tofu-to-Ansible inventory generator
+solution: A second, dedicated BIND9 on security, fed by the Tofu-to-Ansible inventory generator, with the gateway forwarding each zone to its server
 summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
 topic: deployment-platform
 status: working
+related: [ADR-0089]
 ---
 
 # 0040. DNS for Tofu-provisioned VMs
 
+## Problem
+
+Tofu gives every VM it provisions a fixed address, and those VMs need
+internal A records. The records must come from Tofu's data, survive a
+rebuild of the gateway, and resolve from every VLAN alongside the zones
+that already exist.
+
 ## Context
 
-Today, `services`' BIND9 is the lab's single authoritative internal
-nameserver: it aggregates every app host's `dns_zones` from
-`host_vars` and auto-generates CNAMEs for anything with a `caddy`
-route ([`bind9.md`](../../topics/services/bind9.md)). `vm-provisioning.md`'s original
-Phase 2 plan pointed Tofu-provisioned VM A records somewhere different
-— static host overrides pushed through OPNsense's own config API,
-since Tofu assigns those VMs deterministic IPs at provision time and
-they don't need OPNsense's DHCP-DDNS path at all.
+- `services`' BIND9 is the lab's authoritative internal nameserver. It
+  aggregates every app host's `dns_zones` from `host_vars` and
+  generates CNAMEs for anything with a `caddy` route
+  ([`bind9.md`](../../topics/services/bind9.md)). Its `bind9` role also
+  supports static `extra_records` per zone, rendered by comparing
+  candidate content with live content, serial stripped, and reloading
+  only on a real change. Nothing in it needs a dynamic update.
+- Tofu-provisioned VMs have static addresses from cloud-init, so no DHCP
+  lease and no dynamic DNS is involved in their names. The Tofu to
+  Ansible inventory generator reads the root module's `ansible_hosts`
+  output, which holds each host's address and login user.
+- [ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)
+  drops dynamic DNS and the BIND plugin from the gateway. Its Unbound
+  recurses directly and can forward a named zone to a given server and
+  port.
 
-Two other options exist beyond OPNsense's API. `services`' `bind9`
-role already supports arbitrary static `extra_records` per zone,
-rendered through a corruption-immune, no-dynamic-updates mechanism
-(compare candidate content against live content with the serial
-stripped, only write/reload on a real change) — nothing about that
-role is structurally CNAME-only, so it could hold Tofu-sourced A
-records too. Staying with OPNsense's API is also still technically
-sound as scoped: it only ever needed ordinary record management
-through the plugin's own supported model, not raw zone-file editing,
-which is the thing that plugin doesn't support.
-
-Neither of those is the direction being pursued, for two reasons.
-First, coupling: `services`' zone data comes from `host_vars`/
-`app_catalog`, resolved at Ansible render time; Tofu-provisioned VM
-data would come from the not-yet-built Tofu→Ansible inventory
-generator (Stage 4), resolved from Tofu's own state/outputs. Feeding
-both into one role's render pipeline ties two independently-evolving
-data sources together for no structural reason. Second, an
-OPNsense-API-driven design is the one piece of this repo's DNS story
-that would depend on a live, writable API call succeeding during
-deploy — everything else here (`services`' BIND9 included) is
-Ansible-rendered and reloadable offline, consistent with the top-level
-README's own "no manual step beyond `ansible-playbook`" framing.
-Trust-tier separation is a secondary benefit: infrastructure IP
-topology for Tofu-managed hosts sits on `security`, a similar
-placement rationale to why OpenBao lives there rather than being
-bolted onto an existing host.
+Feeding Tofu's data into the `services` role would tie two independently
+changing data sources to one render pipeline. Infrastructure addresses
+on `security` also keeps them in a higher trust tier, the placement
+reason OpenBao lives there.
 
 ## Decision
 
 A second, dedicated BIND9 instance on `security`, authoritative only
-for A records of Tofu-provisioned VMs — separate from `services`'
-CNAME zone, fed by the Tofu→Ansible inventory generator's output
-instead of `host_vars`/`app_catalog`. It reuses the same
-render-diff-reload mechanism `services`' `bind9` role already proves
-out, either as a parameterized version of that role or a close sibling
-— which of the two isn't decided here (see Assumptions).
+for the A records of Tofu-provisioned VMs, separate from `services`'
+zone. It is fed by the inventory generator's output rather than by
+`host_vars` or `app_catalog`, and it reuses the render, compare and
+reload mechanism of the `bind9` role, as a parameterised version of that
+role or a close sibling.
 
-OPNsense's own BIND plugin drops out of the Tofu-VM DNS story
-entirely under this design. It keeps its existing job: Kea-DDNS for
-the `.50`–`.254` dynamic pool, which still needs it and still carries
-that class of journal-corruption risk unavoidably, since that pool is
-for devices Tofu doesn't manage.
+The gateway's Unbound is the single resolver for the VLANs. It forwards
+`services`' zone to `services` and the Tofu-hosts zone to `security`,
+each by name, so neither BIND instance delegates to the other and
+neither needs to know the other exists. No dynamic DNS is involved, and
+the gateway runs no authoritative DNS.
 
-The exact mechanism for how clients resolve both zones coherently —
-NS delegation from `services`' zone to `security`'s new one, two
-independently-queried zones, or something else — isn't designed here.
+## Alternatives considered
+
+- **Static host overrides pushed through the gateway's BIND plugin.**
+  Supported, but it makes DNS depend on a live API call during deploy,
+  and the plugin leaves the lab only for this.
+- **Tofu records in `services`' zone.** Couples two data sources and puts
+  infrastructure addresses on an application host.
+- **NS delegation from `services`' zone to `security`.** Needs each
+  instance to know the other and answers to be reachable by every client
+  that asks it directly. A forward in the resolver does the same job at
+  one place.
 
 ## Assumptions
 
-- **Claim:** the Tofu→Ansible inventory generator (Stage 4) produces
-  VMID/IP/hostname data in a shape a `bind9`-style role can consume
-  without a translation layer.
-  **Breaks if wrong:** if Stage 4's real output shape doesn't map
-  cleanly onto something like `host_vars`' `dns_zones`/`extra_records`
-  structure, this design needs an adapter step it doesn't currently
+- **Claim:** the inventory generator's output, or a second output of the
+  same root module, gives a name and an address per host in a shape a
+  `bind9`-style role can consume without a translation layer.
+  **Breaks if wrong:** the design needs an adapter step it does not
   account for.
-  **Checked by:** once Stage 4 is actually built.
-- **Claim:** two authoritative zones on two different hosts can be
-  properly delegated (or otherwise coherently queried) without
-  disrupting `services`' existing zone behavior.
-  **Breaks if wrong:** if delegation turns out awkward — BIND's own
-  NS-delegation model not fitting cleanly across two independently
-  Ansible-managed hosts, or clients needing to be told to query two
-  resolvers directly — the "separate authoritative island" design may
-  need to collapse back into one host after all.
-  **Checked by:** a real delegation test between two `bind9`-role
-  instances, once Stage 4's data shape is known and this stage is
-  actually being built — not resolvable by reading code alone.
-- **Claim:** running a second instance of this mechanism costs
-  meaningfully less than the coupling/API-dependency problems it
-  avoids.
-  **Breaks if wrong:** if the second instance needs substantially
-  different handling than `services`' — different deploy ordering,
-  its own DNS self-resolution bootstrapping alongside whatever
-  `security` already does for OpenBao/step-ca's own resolution needs
-  — the "reuse a proven pattern cheaply" argument weakens.
-  **Checked by:** when the role/module is actually built.
+  **Checked by:** reading the generator against the role, when this
+  project's records stage starts.
+- **Claim:** Unbound forwarding the two zones to their servers resolves
+  names from every VLAN, while it keeps validating public names.
+  **Breaks if wrong:** the private zones are marked insecure in Unbound
+  or served another way.
+  **Checked by:** the resolution test in ADR 0089's spike, then a probe
+  from each VLAN.
+- **Claim:** a second instance costs less than the coupling it avoids.
+  **Breaks if wrong:** it needs handling `services`' does not, such as
+  its own deploy order or self-resolution beside OpenBao and step-ca on
+  `security`.
+  **Checked by:** when the role or module is built.
 
 ## Consequences
 
-If this is promoted, `bind9.md` and the top-level README's "single
-authoritative BIND9 instance" framing both need updating — that
-description stops being accurate the moment a second authoritative
-zone exists. `vm-provisioning.md`'s OPNsense Phase 2 section also
-needs rewriting, since the static-host-override design it currently
-describes is what this supersedes. Neither is a decision recorded
-here — a real fork with real consequences, not a formality.
+- `bind9.md` and the README's "single authoritative BIND9 instance"
+  framing need updating when a second zone exists.
+- [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)'s OPNsense
+  section describes static host overrides and dynamic DNS for the dynamic
+  pool. It changes when the gateway is rebuilt under ADR 0089.
+- `dns_ddns_target`, the name every generated CNAME points at, is a
+  gateway dynamic DNS name today. Once hosts are Tofu-provisioned it
+  names a record in the Tofu-hosts zone. That is a change to `bind9.md`
+  and `host_vars` for the records stage.
+
+## Invariants
+
+- The gateway holds no zone and no dynamic DNS credential.
+- No record for a Tofu-provisioned VM is written by hand.

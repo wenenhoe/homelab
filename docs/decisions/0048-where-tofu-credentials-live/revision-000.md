@@ -34,7 +34,7 @@ since Ansible only ever runs against hosts that already exist.
 This is a **standing constraint**, not a one-time migration-day concern.
 `vm-provisioning.md`'s VMID scheme lists the 2XX range's purpose as
 "Primary target — current managed hosts + OPNsense", and
-`tofu-vm-provisioning.md`'s environment table lists `security` (VMID
+`tofu-vm-provisioning.md` (removed; replaced by: `tofu-migration.md`)'s environment table lists `security` (VMID
 205) as one of exactly those hosts. The migration's rebuild on the real
 VMID ranges names no carve-out for `security`, so once cut over it is an
 ordinary Tofu-managed host like every other 2XX host, and every later

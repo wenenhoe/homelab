@@ -16,7 +16,7 @@ Brings the OPNsense gateway's configuration under code, so the rules that are th
 
 ## Scope
 
-The seed image and its attachment to the OPNsense module, the Ansible role that applies the gateway's configuration, and the policy, NAT, Unbound forwards and Kea scratch network it holds for the existing zones. Then the coding-agent zone's interface and rules ([`coding-agent-network.md`](coding-agent-network.md)) and egress-proxy configuration ([`coding-agent-egress.md`](coding-agent-egress.md)), with drift detected by the play's check. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), DNS for Tofu-provisioned VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)), and changing any policy the other decisions set.
+The seed image and its attachment to the OPNsense module, the Ansible role that applies the gateway's configuration, and the policy, NAT, Unbound forwards and Kea scratch network it holds for the existing zones. Then the coding-agent zone's interface and rules ([`coding-agent-network.md`](coding-agent-network.md)) and egress-proxy configuration ([`coding-agent-egress.md`](coding-agent-egress.md)), with drift detected by the play's check. Not in scope: Phase 1 (VM shell and ISO), in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#opnsense), DNS for Tofu-provisioned VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)), and changing any policy the other decisions set.
 
 ## Decision
 

@@ -23,8 +23,9 @@ see [`ansible.md`](../deploy/ansible.md#inventory).
 
 ## Future: superseded by Tofu
 
-The `tailscale` entry is interim: [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)
-rebuilds VM 202 as a Tofu-managed VM, and its inventory generator then
+The `tailscale` entry is interim: [`tofu-migration.md`](../../projects/tofu-migration.md)
+rebuilds VM 202 as a Tofu-managed VM, and the inventory generator
+([`vm-provisioning.md`](vm-provisioning.md#tofu--ansible-handoff)) then
 produces this host's entry. Remove the hand-written block from
 `inventory.yaml` at that point rather than keeping both.
 
@@ -67,7 +68,7 @@ Tailscale admin console; see
 [ADR 0059 (Tailnet policy)](../../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md)
 for where it goes from here.
 
-Re-authenticating this node after a rebuild ([`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md))
+Re-authenticating this node after a rebuild ([`tofu-migration.md`](../../projects/tofu-migration.md))
 needs an auth key created out of band. An auth key that tags the node on
 creation puts it under a `tagOwners` entry in the policy, and a tag is
 also what route auto-approval keys off — so the Ansible role's auth-key

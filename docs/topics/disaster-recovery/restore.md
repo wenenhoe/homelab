@@ -137,7 +137,8 @@ What it does, in order:
 2. For each in-scope app: lists `seaweedfs:homelab-backups/<host>-<app>/`
    (the exact `AWS_S3_PATH` prefix `backup_agent`'s own
    `schedule.env.j2` uses). If that fails outright (SeaweedFS/`storage`
-   unreachable), falls back to that app's own cloud target(s) — the
+   unreachable) or lists no objects (a rebuilt `storage` with an empty
+   bucket), falls back to that app's own cloud target(s) — the
    `cloud_targets` of its `backup_plan` entry, the same list
    `cloud_sync` fans out to, so a fallback only ever tries a bucket the
    app was actually relayed to. Whichever remote answers, it picks the
@@ -177,20 +178,15 @@ archive. That's the existing, tested `restore` role's own behavior,
 unchanged here; if a real `minecraft` restore hits it, that's a
 `restore` role fix, not something `restore_all.py` should work around.
 
-**Exit-code assumption:** `restore_all.py` treats a nonzero
-`rclone lsjson` exit as unreachable and tries the cloud fallback, and a
-zero exit with an empty list as a hard "no objects found", so a
-connectivity problem is never mistaken for an app that was never backed
-up. This holds only if a prefix with zero objects (bucket reachable,
-nothing backed up) and an unreachable endpoint differ by exit code.
-Check directly:
+**Empty listing:** `rclone lsjson` exits 0 with `[]` for a prefix with
+no objects in an existing bucket, and non-zero only for a missing bucket
+or an unreachable endpoint. `restore_all.py` therefore treats a failed
+listing and an empty one the same way and moves on to the next remote.
+An app is reported as "no objects found" only when SeaweedFS and every
+cloud target of that app were unreachable or empty; the error names each
+remote and which of the two it was.
 
-```sh
-rclone lsjson --config ansible/files/restore/rclone.conf \
-  seaweedfs:homelab-backups/<host>-<app>
-```
-
-Also unverified: `rclone copyto`'s 20-second IO-idle timeout (not a
+Unverified: `rclone copyto`'s 20-second IO-idle timeout (not a
 total-transfer cap — set in `_run_rclone`, `ansible/scripts/restore_all.py`)
 could mistake a brief-but-legitimate stall on a slow or high-latency
 link for a stuck download, on a large archive over a weak connection.

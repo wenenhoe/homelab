@@ -114,12 +114,32 @@ class TestDiscoverAndDecrypt:
 
         assert result.source == "oci"
 
+    @pytest.mark.usefixtures("good_copy_and_decrypt")
+    def test_falls_back_to_a_cloud_target_when_seaweedfs_is_reachable_but_empty(self):
+        # A rebuilt storage host with a recreated bucket answers the
+        # listing with exit 0 and no objects, not with an error.
+        objects = [{"Name": "services-wastebin-2026-09-01T12-00-00.tar.gz.gpg"}]
+
+        def fake_lsjson(remote, bucket, prefix):
+            return [] if remote == "seaweedfs" else objects
+
+        with patch.object(restore_all, "rclone_lsjson", side_effect=fake_lsjson, autospec=True):
+            result = restore_all.discover_and_decrypt(_entry(), "the-bucket")
+
+        assert result.source == "b2"
+
     def test_raises_when_seaweedfs_and_every_cloud_target_are_unreachable(self):
-        with patch.object(restore_all, "rclone_lsjson", return_value=None, autospec=True), pytest.raises(restore_all.RestoreAllError, match="unreachable"):
+        with (
+            patch.object(restore_all, "rclone_lsjson", return_value=None, autospec=True),
+            pytest.raises(restore_all.RestoreAllError, match=r"seaweedfs \(unreachable\), b2 \(unreachable\)"),
+        ):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
-    def test_raises_when_the_reachable_source_has_no_objects(self):
-        with patch.object(restore_all, "rclone_lsjson", return_value=[], autospec=True), pytest.raises(restore_all.RestoreAllError, match="no objects found"):
+    def test_raises_when_every_source_is_reachable_but_empty(self):
+        with (
+            patch.object(restore_all, "rclone_lsjson", return_value=[], autospec=True),
+            pytest.raises(restore_all.RestoreAllError, match=r"no objects found.*seaweedfs \(empty\), b2 \(empty\)"),
+        ):
             restore_all.discover_and_decrypt(_entry(), "the-bucket")
 
     def test_raises_when_no_object_matches_the_expected_filename_pattern(self):

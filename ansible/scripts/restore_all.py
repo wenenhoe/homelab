@@ -2,7 +2,8 @@
 """Restore all in-scope apps from their latest backup, no arguments needed.
 
 Discovers each app's newest backup object (SeaweedFS first, falling
-back to that app's own cloud target(s) if SeaweedFS is unreachable),
+back to that app's own cloud target(s) if SeaweedFS is unreachable or
+holds nothing for that app),
 downloads it, decrypts it with the controller's GPG key, prints one
 batch confirmation summary, then runs the existing per-app
 `playbooks/restore.yaml` for each app in order — step-ca first (see
@@ -146,12 +147,14 @@ def _run_rclone(args: list[str], timeout: int) -> subprocess.CompletedProcess | 
 
 
 def rclone_lsjson(remote: str, bucket: str, prefix: str) -> list[dict] | None:
-    """List objects under remote:bucket/prefix. None means unreachable (not: empty)."""
+    """List objects under remote:bucket/prefix. None means the listing failed.
+
+    rclone exits 0 with `[]` for a prefix that holds no objects in an
+    existing bucket, and exits non-zero only for a missing bucket or an
+    unreachable endpoint. A caller therefore has to treat None and `[]`
+    alike when deciding whether a remote has anything to restore from.
+    """
     result = _run_rclone(["lsjson", f"{remote}:{bucket}/{prefix}"], timeout=45)
-    # NEEDS LIVE VERIFICATION — see docs/topics/disaster-recovery/restore.md's batch-restore
-    # section: an existing-but-empty prefix vs. a genuinely missing
-    # bucket may not be distinguishable this way. The unreachable/hung
-    # case is already handled and confirmed live — see _run_rclone.
     if result is None or result.returncode != 0:
         return None
     try:
@@ -175,24 +178,19 @@ def pick_latest(objects: list[dict], host: str, app: str) -> tuple[str, datetime
 
 
 def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> DiscoveryResult:
-    source = bucket = prefix = None
+    prefix = entry.seaweedfs_path
+    remotes = [("seaweedfs", seaweedfs_bucket), *((target["name"], target["bucket"]) for target in entry.cloud_targets)]
+    source = bucket = None
     objects: list[dict] = []
-
-    seaweedfs_objects = rclone_lsjson("seaweedfs", seaweedfs_bucket, entry.seaweedfs_path)
-    if seaweedfs_objects is not None:
-        source, bucket, prefix, objects = "seaweedfs", seaweedfs_bucket, entry.seaweedfs_path, seaweedfs_objects
-    else:
-        for target in entry.cloud_targets:
-            candidate = rclone_lsjson(target["name"], target["bucket"], entry.seaweedfs_path)
-            if candidate:
-                source, bucket, prefix, objects = target["name"], target["bucket"], entry.seaweedfs_path, candidate
-                break
-        if source is None:
-            tried = ", ".join(t["name"] for t in entry.cloud_targets)
-            raise RestoreAllError(f"SeaweedFS unreachable and no cloud fallback ({tried}) had any objects either")
-
-    if not objects:
-        raise RestoreAllError(f"{source} reachable but no objects found under {prefix}/")
+    outcomes: list[str] = []
+    for remote, remote_bucket in remotes:
+        listing = rclone_lsjson(remote, remote_bucket, prefix)
+        if listing:
+            source, bucket, objects = remote, remote_bucket, listing
+            break
+        outcomes.append(f"{remote} ({'unreachable' if listing is None else 'empty'})")
+    if source is None or bucket is None:
+        raise RestoreAllError(f"no objects found under {prefix}/ on any of: {', '.join(outcomes)}")
 
     latest = pick_latest(objects, entry.host, entry.app)
     if latest is None:

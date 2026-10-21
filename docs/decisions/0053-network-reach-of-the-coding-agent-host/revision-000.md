@@ -8,7 +8,7 @@ solution: Its own VLAN, default-deny both ways at OPNsense, egress through a dom
 summary: What the coding-agent host can reach and be reached from, enforced at the firewall rather than on the host.
 topic: security-hardening
 status: working
-related: [ADR-0020, ADR-0039, ADR-0040, ADR-0058]
+related: [ADR-0020, ADR-0039, ADR-0040, ADR-0058, ADR-0089]
 ---
 
 # 0053. Network reach of the coding-agent host
@@ -21,7 +21,7 @@ A compromised agent session on the coding-agent host has no network path to the 
 
 [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md) maps each VMID-hundred range to a VLAN by `vlan_id = (vmid // 100) * 10`, with `.1` reserved for OPNsense's sub-interface. The 6XX–8XX ranges are unassigned. Every VM attaches to one VLAN-aware bridge on the node.
 
-[ADR 0020 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md) binds AppRoles by source CIDR, so subnet boundaries are also an authentication factor. OPNsense rules are hand-maintained today; the Tofu project that would manage them ([`tofu-opnsense-day-2.md`](../../projects/tofu-opnsense-day-2.md)) builds on Tofu's root module ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#tofu-project)) and does not wait for the migration.
+[ADR 0020 (Automation identity scope)](../0020-automation-identity-and-access-scope/revision-001.md) binds AppRoles by source CIDR, so subnet boundaries are also an authentication factor. OPNsense rules are hand-maintained today; the project that will carry them in code ([`opnsense-config.md`](../../projects/opnsense-config.md), by the method of [ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)) builds on Tofu's root module ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#tofu-project)) and does not wait for the migration.
 
 The maintainer also needs the host away from home. Tailscale subnet routers source-NAT forwarded traffic by default, so over the tailnet the client reaches the VLAN with the subnet router's address, not the laptop's, and the tailnet policy is what limits that route to the laptop.
 
@@ -51,7 +51,7 @@ flowchart LR
 - **Outbound.** Only through a domain-filtering forward proxy whose allowlist is derived from what Claude Code and the repo's tooling actually fetch. Direct egress is denied. The same proxy serves VLAN 30 under its own allowlist ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)).
 - **DNS.** The host resolves through a resolver that serves no internal zones.
 - **Tailnet.** The host does not join Tailscale. The subnet router (VM 202) advertises the VLAN's route so the maintainer can reach the host away from home, the tailnet policy grants that route to the laptop alone on `tcp:22`, and `tests` assert that no other node has it. OPNsense admits the subnet router to the VLAN on port 22 only.
-- **Rules.** Hand-built and documented in a topic doc first; moved into Tofu when the OPNsense day-2 project lands.
+- **Rules.** Hand-built and documented in a topic doc first; written again in the gateway's Ansible configuration when the OPNsense configuration project reaches this zone, not imported.
 
 ## Alternatives considered
 
@@ -76,7 +76,7 @@ flowchart LR
 
 - Allowed destinations remain an exfiltration channel for anything the agent can read. This is accepted.
 - The allowlist needs upkeep as the repo's tooling changes.
-- The first rules are hand-maintained, which is drift-prone until they move into Tofu.
+- The first rules are hand-maintained, which is drift-prone until they are carried in code.
 - The subnet router can reach the host's SSH port, so a compromised router gains a path to an untrusted host, not out of it.
 
 ## Invariants

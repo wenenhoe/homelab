@@ -15,11 +15,11 @@ phase: 1-network
 
 Builds the zone the coding-agent host lives behind, before the host exists: the VLAN, its default-deny rules and the laptop-only route. Staged because three assumptions in the decision (egress proxy feasibility, bridge isolation, resolver design) must be answered before rules are built on them.
 
-The egress proxy and the canary probes that check the whole boundary are [`coding-agent-egress.md`](coding-agent-egress.md), which starts once this zone exists. The host itself is [`coding-agent-host.md`](coding-agent-host.md); putting these rules under Tofu is [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md).
+The egress proxy and the canary probes that check the whole boundary are [`coding-agent-egress.md`](coding-agent-egress.md), which starts once this zone exists. The host itself is [`coding-agent-host.md`](coding-agent-host.md); putting these rules under Tofu is [`opnsense-config.md`](opnsense-config.md).
 
 ## Scope
 
-The VLAN and subnet, OPNsense interface and rules, the resolver for the zone, and the Tailscale route (advertised by VM 202 and granted to the laptop alone). Not in scope: the egress proxy, its allowlists and the canary probes ([`coding-agent-egress.md`](coding-agent-egress.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
+The VLAN and subnet, OPNsense interface and rules, the resolver for the zone, and the Tailscale route (advertised by VM 202 and granted to the laptop alone). Not in scope: the egress proxy, its allowlists and the canary probes ([`coding-agent-egress.md`](coding-agent-egress.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)) and OPNsense-as-code ([`opnsense-config.md`](opnsense-config.md)).
 
 ## Decision
 
@@ -52,7 +52,7 @@ VM 202 advertises the VLAN's route, and the tailnet policy grants it to the lapt
 
 ## Risks
 
-- Hand-maintained rules drift until [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) lands.
+- Hand-maintained rules drift until [`opnsense-config.md`](opnsense-config.md) lands.
 - The route's grant is tailnet policy edited by hand until [ADR 0059 (Tailnet policy)](../decisions/0059-where-the-tailnet-policy-is-defined/revision-000.md) lands, and a wrong edit can expose the VLAN's SSH port to other nodes or lock out access.
 
 ## Open items

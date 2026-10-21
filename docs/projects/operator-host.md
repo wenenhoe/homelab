@@ -50,7 +50,7 @@ Read from the playbooks, `tools/`, `restore_all.py`, and the docs. All are outbo
 | `security` | 22 | Reading step-ca's root cert; `init.py` and `unseal.py` over paramiko |
 | `storage` | 443, 8333 | S3 through Caddy for `restore_all.py`'s rclone |
 | Proxmox node | 8006 | Tofu |
-| OPNsense | HTTPS | Tofu day-2, later |
+| OPNsense | HTTPS | The gateway's Ansible play, later |
 | Internal DNS | 53 | The `internal.` and `lan.` zones |
 
 Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), PyPI, Ansible Galaxy, the OpenTofu registry, Ubuntu mirrors, Telegram, Cloudflare (API and R2), Backblaze B2, and Oracle Cloud (identity, object storage, and the Identity Domain URL).
@@ -70,7 +70,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 
 ## Risks
 
-- OPNsense rules for VLAN 30 are hand-maintained until [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) lands.
+- OPNsense rules for VLAN 30 are hand-maintained until [`opnsense-config.md`](opnsense-config.md) lands.
 - The laptop is the workstation and holds the only key to this host. The key is hardware-backed, and losing both tokens means recovery through the Proxmox node.
 - The node has limited headroom for another VM.
 - A tailnet policy edit is tailnet-wide and can lock out access.

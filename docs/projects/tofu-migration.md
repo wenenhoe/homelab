@@ -18,7 +18,7 @@ Migration Stages 1, 1.5 and 2 of the plan in [`vm-provisioning.md`](../topics/in
 
 ## Scope
 
-The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml` run against it, the rebuild on the real VMID ranges (1XX/2XX/…), the cutover, and decommissioning the old VMs. `storage` stays up throughout. Not in scope: OPNsense day-2 configuration ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
+The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml` run against it, the rebuild on the real VMID ranges (1XX/2XX/…), the cutover, and decommissioning the old VMs. `storage` stays up throughout. Not in scope: OPNsense day-2 configuration ([`opnsense-config.md`](opnsense-config.md)).
 
 ## Decision
 

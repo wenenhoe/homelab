@@ -19,7 +19,7 @@ Builds the only way out of the coding-agent zone, and the independent check that
 
 ## Scope
 
-The egress proxy and its allowlists (one proxy, separate allowlists for the coding-agent VLAN and VLAN 30), and canary probes run from a VM in the zone, outside the host. Not in scope: the VLAN, rules and route ([`coding-agent-network.md`](coding-agent-network.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)), and putting the proxy's configuration under Tofu ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
+The egress proxy and its allowlists (one proxy, separate allowlists for the coding-agent VLAN and VLAN 30), and canary probes run from a VM in the zone, outside the host. Not in scope: the VLAN, rules and route ([`coding-agent-network.md`](coding-agent-network.md)), the host ([`coding-agent-host.md`](coding-agent-host.md)), and putting the proxy's configuration under Tofu ([`opnsense-config.md`](opnsense-config.md)).
 
 ## Decision
 
@@ -46,7 +46,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 - The allowlist needs upkeep as tooling changes.
 - Docker Hub and other registries sit behind shared CDN addresses; a proxy that filters on host name only may still be broad.
-- Hand-maintained proxy configuration drifts until [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) lands.
+- Hand-maintained proxy configuration drifts until [`opnsense-config.md`](opnsense-config.md) lands.
 
 ## Open items
 

@@ -15,11 +15,11 @@ depends_on:
 
 # DNS for Tofu-Provisioned VMs
 
-The DNS part of the OPNsense Phase 2 design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): internal records for Tofu-provisioned VMs. It needs the VMID→IP mapping fully code-driven, which is the end of [`tofu-migration.md`](tofu-migration.md). VLAN interfaces, firewall rules and Kea are [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)'s.
+The DNS part of the OPNsense Phase 2 design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): internal records for Tofu-provisioned VMs. It needs the VMID→IP mapping fully code-driven, which is the end of [`tofu-migration.md`](tofu-migration.md). VLAN interfaces, firewall rules and Kea are [`opnsense-config.md`](opnsense-config.md)'s.
 
 ## Scope
 
-Internal DNS records for Tofu-provisioned VMs. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), and VLAN interfaces, firewall rules and Kea ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
+Internal DNS records for Tofu-provisioned VMs. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), and VLAN interfaces, firewall rules and Kea ([`opnsense-config.md`](opnsense-config.md)).
 
 ## Decision
 
@@ -39,14 +39,10 @@ Stage status is `Not started`, `In progress`, or `Done`.
 ### Stage 2 — records
 
 Depends on the VMID→IP mapping being fully code-driven ([`tofu-migration.md`](tofu-migration.md)).
-Static host overrides for Tofu-provisioned VMs go through OPNsense's
-own config API against its BIND plugin's normal record model — not
-raw zone-file editing, which the plugin doesn't support (verified
-against the plugin's own issue tracker, not assumed). Whether this
-stays the design, or Tofu-sourced A records move to a dedicated
-internal nameserver instead, is a real open decision — see the
-[working decision](../decisions/0040-dns-for-tofu-provisioned-vms/revision-000.md).
-This stage is blocked on it.
+A second BIND9 on `security` holds the A records, fed by the inventory
+generator, and the gateway's Unbound forwards that zone and `services`'
+zone to their servers ([ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)
+owns the forwards).
 
 ## Acceptance criteria
 

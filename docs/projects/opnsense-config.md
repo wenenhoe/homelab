@@ -1,6 +1,6 @@
 ---
-id: PROJ-tofu-opnsense-day-2
-title: OPNsense Day-2 Config via API
+id: PROJ-opnsense-config
+title: OPNsense Gateway Configuration
 type: project
 status: de-risking
 blocked: false
@@ -10,7 +10,7 @@ super_project: tofu-vm-provisioning
 track: opnsense
 ---
 
-# OPNsense Day-2 Config via API
+# OPNsense Gateway Configuration
 
 Brings the OPNsense gateway's configuration under code, so the rules that are the network boundary are reviewed as code and the gateway can be rebuilt from nothing. A minimal seed that Tofu attaches sets what the API cannot, and the Ansible collection applies the rest ([ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)). It builds on Tofu's root module and credentials file ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project)). Only its last stage waits for [`tofu-migration.md`](tofu-migration.md); the rest runs on a scratch gateway in that project's isolated block. DNS records for Tofu-provisioned VMs are [`tofu-vm-dns.md`](tofu-vm-dns.md)'s.
 

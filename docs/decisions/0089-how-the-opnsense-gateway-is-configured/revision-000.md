@@ -98,7 +98,7 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 ## Consequences
 
 - [ADR 0040 (Tofu VM DNS)](../0040-dns-for-tofu-provisioned-vms/revision-000.md) needs a revision: no dynamic DNS and per-zone forwards in place of delegation between the two BIND9 instances.
-- [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md) needs a revision: its rules are carried by this configuration rather than moved into Tofu, and the maintainer arrives through the subnet router.
+- [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md) names this configuration, not Tofu, as what carries its rules. The subnet router's admission there is to the coding-agent VLAN only, so this ADR's management rule does not conflict with it.
 - The credentials file of ADR 0048 also feeds the Ansible play. Whether that needs a revision of ADR 0048 is decided when the play lands.
 - Moving to a newer OPNsense series waits for a collection release for it.
 - The hand-built rules for the zones of ADR 0053 and ADR 0058 are written again in code on the new gateway, not imported.

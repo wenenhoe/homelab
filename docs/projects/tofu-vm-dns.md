@@ -15,11 +15,11 @@ depends_on:
 
 # DNS for Tofu-Provisioned VMs
 
-The DNS part of the OPNsense Phase 2 design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): internal records for Tofu-provisioned VMs. It needs the VMID→IP mapping fully code-driven, which is the end of [`tofu-migration.md`](tofu-migration.md). VLAN interfaces, firewall rules and Kea are [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)'s.
+The DNS part of the OPNsense Phase 2 design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): internal records for Tofu-provisioned VMs. It needs the VMID→IP mapping fully code-driven, which is the end of [`tofu-migration.md`](tofu-migration.md). VLAN interfaces, firewall rules and Kea are [`opnsense-config.md`](opnsense-config.md)'s.
 
 ## Scope
 
-Internal DNS records for Tofu-provisioned VMs. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), and VLAN interfaces, firewall rules and Kea ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)).
+Internal DNS records for Tofu-provisioned VMs. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), and VLAN interfaces, firewall rules and Kea ([`opnsense-config.md`](opnsense-config.md)).
 
 ## Decision
 

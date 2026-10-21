@@ -21,11 +21,11 @@ fleet — see
 of why this design gives Tofu-provisioned VMs static IPs with no DHCP
 at all, rather than carrying the same class of problem forward.
 
-The migration, the OPNsense day-2 work and DNS for the VMs are separate projects in the same initiative: [`tofu-migration.md`](tofu-migration.md), [`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md) and [`tofu-vm-dns.md`](tofu-vm-dns.md). This one is the modules and inventory generator they all need.
+The migration, the OPNsense day-2 work and DNS for the VMs are separate projects in the same initiative: [`tofu-migration.md`](tofu-migration.md), [`opnsense-config.md`](opnsense-config.md) and [`tofu-vm-dns.md`](tofu-vm-dns.md). This one is the modules and inventory generator they all need.
 
 ## Scope
 
-The Ubuntu and OPNsense-shell modules and the inventory generator, on the root module in `tofu/` ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project)). Not in scope: the migration ([`tofu-migration.md`](tofu-migration.md)), OPNsense Phase 2 ([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) and DNS for the VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
+The Ubuntu and OPNsense-shell modules and the inventory generator, on the root module in `tofu/` ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu-project)). Not in scope: the migration ([`tofu-migration.md`](tofu-migration.md)), OPNsense Phase 2 ([`opnsense-config.md`](opnsense-config.md)) and DNS for the VMs ([`tofu-vm-dns.md`](tofu-vm-dns.md)). VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope.
 
 ## Decision
 
@@ -77,7 +77,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 VM shell + ISO fetch only, per `vm-provisioning.md`'s OPNsense
 section — install and initial config stay manual. Phase 2
-([`tofu-opnsense-day-2.md`](tofu-opnsense-day-2.md)) is where day-2 config becomes API-driven.
+([`opnsense-config.md`](opnsense-config.md)) is where day-2 config becomes API-driven.
 
 ### Stage 3 — inventory generator
 

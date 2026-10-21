@@ -8,7 +8,7 @@
     # seaweedfs_bucket_test_ip is a set_fact from converge.yml's own
     # run — molecule runs converge and verify as separate
     # ansible-playbook invocations, so that fact doesn't carry over here.
-    # seaweedfs-test the container (and the three persistent aws-cli
+    # seaweedfs-test the container (and the four persistent aws-cli
     # containers below) do persist between the two — only facts don't —
     # so rediscover the IP the same way the helper computes it
     # internally (start_seaweedfs_test_target.yaml). No custom network
@@ -23,8 +23,8 @@
       ansible.builtin.set_fact:
         seaweedfs_bucket_test_ip: "{{ seaweedfs_bucket_test_info.container.NetworkSettings.Networks.bridge.IPAddress }}"
 
-    # Every check below execs into one of the three persistent aws-cli
-    # containers converge.yml created (identity-scoping-<alpha|beta|admin>-cli,
+    # Every check below execs into one of the four persistent aws-cli
+    # containers converge.yml created (identity-scoping-<alpha|beta|admin|reader>-cli,
     # each with that identity's credentials already baked in at
     # creation time) via community.docker.docker_container_exec, not
     # community.docker.docker_container with detach:false — that module
@@ -173,3 +173,89 @@
           {{ seaweedfs_bucket_alpha_admin_action.stderr }} — Survival
           check stdout/stderr: {{ seaweedfs_bucket_survives.stdout }}
           {{ seaweedfs_bucket_survives.stderr }}
+
+    # --- The cloud-sync reader reads and lists everything, and changes nothing ---
+    # The reader's credentials are copied to the controller by
+    # restore_discovery, so it has to stay read-only. The two checks
+    # first prove it can read and list, so the denials below can't come
+    # from broken credentials.
+    - name: Reader reads alpha's object — must succeed
+      community.docker.docker_container_exec:
+        container: identity-scoping-reader-cli
+        command: "aws --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333 s3 cp s3://{{ molecule_test_bucket }}/alpha-owned.txt /tmp/reader-readback.txt"
+      register: seaweedfs_bucket_reader_read
+
+    - name: Reader lists the bucket — must succeed and show both hosts' objects
+      community.docker.docker_container_exec:
+        container: identity-scoping-reader-cli
+        command: "aws --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333 s3 ls s3://{{ molecule_test_bucket }}/"
+      register: seaweedfs_bucket_reader_list
+
+    - name: Confirm the reader can read and list
+      ansible.builtin.assert:
+        that:
+          - "'download:' in (seaweedfs_bucket_reader_read.stdout ~ seaweedfs_bucket_reader_read.stderr)"
+          - "'alpha-owned.txt' in seaweedfs_bucket_reader_list.stdout"
+          - "'beta-owned.txt' in seaweedfs_bucket_reader_list.stdout"
+        fail_msg: >-
+          The cloud-sync-reader identity should read and list the whole
+          bucket. read rc: {{ seaweedfs_bucket_reader_read.rc }}
+          stdout/stderr: {{ seaweedfs_bucket_reader_read.stdout }}
+          {{ seaweedfs_bucket_reader_read.stderr }} list rc:
+          {{ seaweedfs_bucket_reader_list.rc }} stdout/stderr:
+          {{ seaweedfs_bucket_reader_list.stdout }}
+          {{ seaweedfs_bucket_reader_list.stderr }}
+
+    - name: Reader attempts to write a new object — must be denied
+      community.docker.docker_container_exec:
+        container: identity-scoping-reader-cli
+        command: "aws --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333 s3 cp /etc/hostname s3://{{ molecule_test_bucket }}/reader-new.txt"
+      register: seaweedfs_bucket_reader_write_new
+      failed_when: false
+
+    - name: Reader attempts to overwrite alpha's object — must be denied
+      community.docker.docker_container_exec:
+        container: identity-scoping-reader-cli
+        command: "aws --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333 s3 cp /etc/hostname s3://{{ molecule_test_bucket }}/alpha-owned.txt"
+      register: seaweedfs_bucket_reader_overwrite
+      failed_when: false
+
+    - name: Reader attempts to delete alpha's object — must be denied
+      community.docker.docker_container_exec:
+        container: identity-scoping-reader-cli
+        command: "aws --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333 s3 rm s3://{{ molecule_test_bucket }}/alpha-owned.txt"
+      register: seaweedfs_bucket_reader_delete
+      failed_when: false
+
+    - name: Confirm each of the three attempts was denied for access reasons
+      ansible.builtin.assert:
+        that:
+          - "'upload:' not in (item.stdout ~ item.stderr)"
+          - "'delete:' not in (item.stdout ~ item.stderr)"
+          - (item.stdout ~ item.stderr) is search('(?i)accessdenied|access denied|forbidden|403')
+        fail_msg: >-
+          The cloud-sync-reader identity was not denied, or failed for a
+          reason unrelated to access control. rc: {{ item.rc }}
+          stdout/stderr: {{ item.stdout }} {{ item.stderr }}
+      loop:
+        - "{{ seaweedfs_bucket_reader_write_new }}"
+        - "{{ seaweedfs_bucket_reader_overwrite }}"
+        - "{{ seaweedfs_bucket_reader_delete }}"
+
+    # Independent of the reader's own output, as with the bucket check
+    # above: the admin identity sees that the delete did not happen and
+    # that the new object was never created.
+    - name: Admin lists the bucket after the reader's attempts
+      community.docker.docker_container_exec:
+        container: identity-scoping-admin-cli
+        command: "aws --endpoint-url http://{{ seaweedfs_bucket_test_ip }}:8333 s3 ls s3://{{ molecule_test_bucket }}/"
+      register: seaweedfs_bucket_after_reader
+
+    - name: Confirm alpha's object survived and the reader created nothing
+      ansible.builtin.assert:
+        that:
+          - "'alpha-owned.txt' in seaweedfs_bucket_after_reader.stdout"
+          - "'reader-new.txt' not in seaweedfs_bucket_after_reader.stdout"
+        fail_msg: >-
+          After the reader's attempts the bucket holds:
+          {{ seaweedfs_bucket_after_reader.stdout }}

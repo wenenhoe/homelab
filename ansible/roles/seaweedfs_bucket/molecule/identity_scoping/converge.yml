@@ -7,11 +7,9 @@
   vars:
     seaweedfs_admin_access_key: molecule-test-admin-ak
     seaweedfs_admin_secret_key: molecule-test-admin-sk
-    # Also required by the real template (docker/seaweedfs/configs/
-    # s3-identity.json.j2) since patch 02 added the cloud-sync-reader
-    # identity to it — this scenario doesn't exercise that identity's
-    # own behavior (cloud_sync's own molecule scenario does), it just
-    # needs the render to succeed at all.
+    # The real template (docker/seaweedfs/configs/s3-identity.json.j2)
+    # also renders the cloud-sync-reader identity; verify.yml checks that
+    # it can read and list but not write or delete.
     seaweedfs_cloud_sync_reader_access_key: molecule-test-cloud-sync-reader-ak
     seaweedfs_cloud_sync_reader_secret_key: molecule-test-cloud-sync-reader-sk
     molecule_test_bucket: molecule-test-backups
@@ -114,6 +112,7 @@
         - { name: alpha, access_key: "{{ seaweedfs_alpha_access_key }}", secret_key: "{{ seaweedfs_alpha_secret_key }}" }
         - { name: beta, access_key: "{{ seaweedfs_beta_access_key }}", secret_key: "{{ seaweedfs_beta_secret_key }}" }
         - { name: admin, access_key: "{{ seaweedfs_admin_access_key }}", secret_key: "{{ seaweedfs_admin_secret_key }}" }
+        - { name: reader, access_key: "{{ seaweedfs_cloud_sync_reader_access_key }}", secret_key: "{{ seaweedfs_cloud_sync_reader_secret_key }}" }
       loop_control:
         label: "{{ item.name }}"
 

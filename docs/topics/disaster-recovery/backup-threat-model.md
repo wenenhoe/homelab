@@ -21,6 +21,6 @@ A compromised app host can still tamper with its own SeaweedFS archives: whateve
 
 ## Automated coverage
 
-`ansible/roles/seaweedfs_bucket/molecule/identity_scoping` renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts that cross-prefix write and read are denied and that Admin actions aren't available to a scoped identity.
+`ansible/roles/seaweedfs_bucket/molecule/identity_scoping` renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts that cross-prefix write and read are denied, that Admin actions aren't available to a scoped identity, and that the `cloud-sync-reader` identity can read and list the whole bucket but cannot write a new object, overwrite one or delete one.
 
 The write-denial assertion matches the `AccessDenied` substring, confirmed against a real SeaweedFS error (`An error occurred (AccessDenied) when calling the PutObject operation: Access Denied.`). The read-denial and Admin-action assertions use the same substring match but haven't been checked against real output; if one proves fragile, that is the assertion to revisit.

@@ -45,7 +45,7 @@ Once the agent host and its AppRoles are live and proven, in this order:
    (`tools/cloud_credentials/systemd/`). The same check now runs from
    `cd-agent-freshness`, and the timer logs in with the AppRole being
    deleted. The agent's `freshness` job pushes a heartbeat on success
-   ([`gatus-job-heartbeats.md`](gatus-job-heartbeats.md)), so a run that
+   ([ADR 0072 (Job heartbeats)](../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md)), so a run that
    fails, or cannot reach OpenBao, is reported as a missed heartbeat; the
    timer on `controller` has no such alert.
 2. Run the snapshot push from `cd-agent-snapshot` instead of

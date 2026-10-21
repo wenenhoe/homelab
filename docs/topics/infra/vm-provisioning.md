@@ -110,7 +110,11 @@ range, and `image_url` and `image_checksum` have no default: the root
 module passes the dated release directory of the cloud image and the
 SHA-256 that release publishes, which are the defaults of
 `ubuntu_image_url` and `ubuntu_image_checksum` in `tofu/variables.tf`.
-The root module builds the template; it declares no VMs yet.
+The root module builds the template and declares the isolated 5XX block:
+`ubuntu_5xx` (VMID 502, `192.168.50.2`, VLAN 50) and the OPNsense `opnsense_5xx`
+below. Neither is in `ansible_hosts`: a scratch host is reached through its
+own uncommitted inventory file, as [`fire-drill.md`](../disaster-recovery/fire-drill.md)
+describes. `dns_domain` and `ssh_public_keys` have no defaults.
 
 From `vm_id` the VM module derives everything the scheme above fixes: the
 VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
@@ -199,9 +203,12 @@ installer so an installed VM boots from it. Setting `wan_bridge` to the
 LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a
 WAN that is an ordinary client of another OPNsense's LAN; NIC 1 stays
 untagged. Its `vm_id` is the gateway
-VMID of a range, host part 01. The root module declares no OPNsense VM
-yet, so the module's call is where its bridges, sizing and image are
-passed.
+VMID of a range, host part 01. The root module's
+`opnsense_5xx` call is VMID 501 with its WAN NIC on the LAN bridge tagged
+into VLAN 20, an ordinary DHCP client of the current OPNsense, so the
+block reaches `storage` and the internet with no change to production
+routing. The release is `opnsense_iso_url` and `opnsense_iso_checksum`
+in `tofu/variables.tf`; a newer release is a new URL and checksum.
 
 **Boot order.** `order=1` for OPNsense with `up=60` (60s) before any
 dependent VM is considered clear to start — gives DHCP/DNS time to come
@@ -239,7 +246,7 @@ The root module is `tofu/` at the repo root. `versions.tf` pins OpenTofu
 configures the provider with an API token, and `.terraform.lock.hcl` is
 committed. `main.tf` reads the `pve` node, so `tofu plan` fails on a wrong
 endpoint, token or node name instead of passing with nothing to do; that
-read is its only call apart from the template build below. The Ubuntu
+read is its only call apart from the template build and the 5XX block. The Ubuntu
 modules are in `modules/` and their tests in `tests/`; see
 [Ubuntu modules](#ubuntu-modules).
 
@@ -303,8 +310,11 @@ directory, owned by the operator account, and passed with `-var-file`:
 ```hcl
 proxmox_endpoint  = "https://pve.example.lan:8006/"
 proxmox_api_token = "user@realm!tokenid=secret"
+dns_domain        = "<internal zone>"
+ssh_public_keys   = ["<public half of the Ansible key>"]
 ```
 
+`dns_domain` and `ssh_public_keys` are not secret; they sit in this file so one `-var-file` serves.
 The endpoint must be `https://`, and TLS verification is on. Setting
 `proxmox_insecure = true` in the file skips it, which the provider's own
 docs limit to development. The OPNsense API key and, once a remote backend

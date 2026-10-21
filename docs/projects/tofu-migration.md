@@ -2,7 +2,7 @@
 id: PROJ-tofu-migration
 title: Tofu Migration
 type: project
-status: not-started
+status: building
 blocked: false
 summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild on the real VMID ranges, cut over, and decommission the old VMs.
 super_project: tofu-vm-provisioning
@@ -51,7 +51,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Build the 5XX block, first `restore.yaml` run | Not started | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
+| 1 | Build the 5XX block, first `restore.yaml` run | In progress | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
 | 2 | Cutover to real VMID ranges, decommission old VMs | Not started | the VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old VMs are decommissioned with `storage` up throughout |
 
 Stage status is `Not started`, `In progress`, or `Done`.

@@ -42,7 +42,7 @@ sequenceDiagram
     participant CA as step-ca
     participant Vol as app_certs volume
     participant App as app container
-    participant Out as Telegram / Uptime Kuma
+    participant Out as Telegram
 
     Timer->>Svc: start
     Svc->>Step: ExecCondition: step certificate needs-renewal
@@ -60,7 +60,6 @@ sequenceDiagram
         else restart
             Svc->>App: docker compose restart
         end
-        Svc->>Out: OnSuccess: Uptime Kuma push
     end
     Note over Svc,Out: any failure runs OnFailure: telegram-notify@app
 ```

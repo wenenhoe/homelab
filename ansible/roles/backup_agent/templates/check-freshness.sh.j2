@@ -2,8 +2,8 @@
 # Checks whether every app's newest backup object in SeaweedFS is
 # within that app's own freshness threshold - derived from that app's
 # own cron (see build_schedules.yaml), not a single shared value - and
-# pushes ONCE to this host's single Uptime Kuma monitor and Gatus endpoint
-# only if every app currently checked is fresh — see docs/topics/monitoring/uptime-kuma.md for why this
+# pushes ONCE to this host's single Gatus endpoint
+# only if every app currently checked is fresh — see docs/topics/monitoring/gatus.md for why this
 # exists instead of docker-volume-backup's own exec-hook labels (would
 # need Docker `exec` access this host's socket-proxy deliberately
 # doesn't grant), and why it's one push per HOST rather than one per
@@ -11,9 +11,9 @@
 # {host}-* prefix, so a future app added to this host needs no new
 # config here at all.
 #
-# One stale app suppresses the whole host's push - Kuma shows "this
-# host's backups" as one monitor, not one per app. Which specific app
-# is stale is only visible in this unit's own journal, not from Kuma.
+# One stale app suppresses the whole host's push - Gatus shows "this
+# host's backups" as one endpoint, not one per app. Which specific app
+# is stale is only visible in this unit's own journal, not from Gatus.
 #
 # check_app's three possible outcomes matter, not just pass/fail:
 #   0 = fresh                                      -> counts toward the push
@@ -21,7 +21,7 @@
 #   2 = rclone/docker itself failed to run          -> suppresses the push, DOES alert
 # Collapsing 1 and 2 into the same "failure" would make this alert on
 # ordinary staleness constantly, defeating the point of leaving that to
-# Kuma's own missing-heartbeat timeout instead.
+# Gatus's own missed-heartbeat alert instead.
 set -eu
 
 check_app() {
@@ -104,18 +104,11 @@ elif [ "${app_rc}" -eq 1 ]; then
 fi
 {% endfor %}
 
-push_url="{{ backup_agent_freshness_push_url }}"
 push_failed=false
 
 if [ "${overall_fresh}" = "true" ]; then
   echo "every app on this host is fresh, pushing"
-  # Both monitors are tried even when the first push fails, and a failed push
-  # still fails the unit (OnFailure=), as it did with one monitor.
-  if [ -n "${push_url}" ]; then
-    curl -fsS --max-time 10 "${push_url}" >/dev/null || push_failed=true
-  else
-    echo "no Uptime Kuma push URL configured yet for this host, skipping that push"
-  fi
+  # A failed push fails the unit, so OnFailure= alerts.
   # The token goes to curl on stdin, not as an argument: those are visible to
   # any local user via ps/proc.
   curl -fsS --max-time 10 -K - >/dev/null <<'GATUS_PUSH' || push_failed=true
@@ -124,7 +117,7 @@ request = "POST"
 header = "Authorization: Bearer {{ heartbeat_job_tokens['backup-' ~ inventory_hostname] }}"
 GATUS_PUSH
 else
-  echo "at least one app is not fresh (see above) - not pushing, relying on the monitors' own timeouts"
+  echo "at least one app is not fresh (see above) - not pushing, relying on Gatus's own missed-heartbeat alert"
 fi
 
 if [ "${had_infra_error}" = "true" ] || [ "${push_failed}" = "true" ]; then

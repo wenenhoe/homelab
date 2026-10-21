@@ -6,9 +6,9 @@ StartLimitIntervalSec=0
 # cert and a hard connection failure both count as failure here, on
 # purpose (see check.sh.j2's header for why).
 OnFailure=telegram-notify-cert-expiry.service
-# Liveness signal only - see docs/topics/monitoring/uptime-kuma.md for why this never
-# pushes an explicit down status on failure instead.
-OnSuccess=uptime-kuma-push-cert-expiry.service gatus-push-cert-expiry-{{ inventory_hostname }}.service
+# Liveness signal only - see docs/topics/monitoring/gatus.md for why this never
+# pushes an explicit failure on a failed run instead.
+OnSuccess=gatus-push-cert-expiry-{{ inventory_hostname }}.service
 
 [Service]
 Type=oneshot

@@ -75,17 +75,16 @@
     seaweedfs_s3_secret_key: molecule-test-secret-key
 
     # check-freshness.sh.j2 (included from backup_agent's own
-    # tasks/main.yaml) needs this — see docs/topics/monitoring/uptime-kuma.md. Each app's
+    # tasks/main.yaml) needs this — see docs/topics/monitoring/gatus.md. Each app's
     # actual threshold is derived from its own cron (backup_defaults.cron
     # above, every minute in this scenario) plus this buffer - a small
     # value here keeps the total short, though the exact number doesn't
     # matter for what this scenario checks: every uploaded object below
-    # is seconds old, trivially within any sane threshold. One push URL
-    # for the whole host now (not per-app) — every app in this scenario
+    # is seconds old, trivially within any sane threshold. One push
+    # for the whole host (not per-app) — every app in this scenario
     # gets a real backup uploaded below, so this exercises the "every
     # app fresh, one push fires" path.
     backup_freshness_buffer_hours: 1
-    backup_agent_freshness_push_url: "http://uptime-kuma-test.invalid/api/push/molecule-fake-token"
     # The Gatus endpoint for this host, keyed backup-<inventory_hostname>
     # as production's heartbeat_push_urls is. Also unreachable on purpose.
     heartbeat_push_urls:

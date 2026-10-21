@@ -51,7 +51,6 @@
     # value doesn't matter — just needs to be set for the template to
     # render at all.
     backup_freshness_buffer_hours: 2
-    backup_agent_freshness_push_url: ""
     heartbeat_push_urls:
       backup-backup-agent-no-stop-instance: http://gatus-test.invalid/api/v1/endpoints/backups_backup-backup-agent-no-stop-instance/external?success=true
     heartbeat_job_tokens:

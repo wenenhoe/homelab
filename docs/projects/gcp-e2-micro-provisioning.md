@@ -63,7 +63,7 @@ checkout and are deleted afterwards; only facts go back into
 [ADR 0073 (Off-site cloud auth)](../decisions/0073-how-provisioning-authenticates-to-the-off-site-cloud/revision-000.md)
 and [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md).
 It also measures what ADR 0049 leaves open: the instance's resident
-memory with Beszel and Kuma running, and monthly egress.
+memory with Beszel and Gatus running, and monthly egress.
 
 ## Acceptance criteria
 

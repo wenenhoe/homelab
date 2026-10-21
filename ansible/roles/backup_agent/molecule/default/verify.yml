@@ -31,7 +31,7 @@
     - name: The actual point of all this — did every archive reach S3, encrypted?
       ansible.builtin.import_tasks: verify_s3_and_gpg.yml
 
-    - name: Freshness check — liveness signal for Uptime Kuma
+    - name: Freshness check — liveness signal for Gatus
       ansible.builtin.import_tasks: verify_freshness_check.yml
 
     - name: The proxy's rules — each allowed call arrives, each refused call is stopped, on the real proxy image

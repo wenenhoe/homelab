@@ -40,9 +40,6 @@ step_ca_cert_chown_image: ""
 step_ca_cert_chown_user: ""
 
 step_ca_cert_telegram_topic_id: "{{ telegram_topic_id_certs }}"
-# No default — every caller must set its own per-instance Kuma push URL
-# (e.g. uptime_kuma_push_url_cert_renewer_lldap). Each cert gets its own
-# monitor, so this can't share one shared value across instances.
 
 # The daily liveness push (cert-renewer-heartbeat@) sends only while the
 # cert is NOT within this long of expiring. A healthy cert renews at two thirds

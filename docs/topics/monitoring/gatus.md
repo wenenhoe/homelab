@@ -1,8 +1,8 @@
 # Gatus: Job Heartbeats
 
-`gatus` is one entry in `app_catalog`, deployed on `security` beside `uptime-kuma`. See
+`gatus` is one entry in `app_catalog`, deployed on `security` only. See
 [`docs/topics/deploy/adding-an-app.md`](../deploy/adding-an-app.md) for the general pattern this follows, and
-[ADR 0072](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md) for why it replaces Kuma's push monitors.
+[ADR 0072](../../decisions/0072-detecting-scheduled-jobs-that-stop-running/revision-000.md) for why it is the job-heartbeat monitor.
 
 ## What it's for
 
@@ -97,7 +97,7 @@ htpasswd -niBC 9 "" | cut -d: -f2 | tr -d '\n' | base64 -w0
 
 which reads the password from stdin, then store it with `cd tools && python3 -m openbao_utils.bootstrap`.
 
-The Caddy route sets `auth: false`, like `uptime-kuma` and `beszel-hub`: pushes are `POST`s from systemd units and cron
+The Caddy route sets `auth: false`, like `beszel-hub`: pushes are `POST`s from systemd units and cron
 jobs on every host, which Tinyauth's `forward_auth` would redirect to a login page. The push route is protected by the
 job's bearer token instead, and Gatus's basic auth covers everything else.
 
@@ -144,6 +144,31 @@ Three producers do not use the role:
   `heartbeat`, and the host holds no secrets, so the curl config is written by hand; the steps, and the three lines that add the
   endpoint when the host is deployed, are in [`cd-agent-host.md`](../deploy/cd-agent-host.md#heartbeats).
 
+### The backup freshness check
+
+`check-freshness.timer` runs hourly on each backup host, outside the backup container: `offen/docker-volume-backup`'s own
+exec-hook labels need Docker `exec` access, which the host's socket proxy deliberately refuses. It checks, with `rclone lsf
+--max-age` (`rclone`, not `mc`, whose Docker Hub image MinIO archived), that every app's newest SeaweedFS object is within
+that app's own threshold, and pushes only if all of them are. It pushes once per host, not once per app: every app's
+credential is scoped to the host's own `{host}-*` prefix, so an app added to an existing host needs no new configuration.
+[ADR 0012 (Backup verification)](../../decisions/0012-verifying-backups-actually-land/revision-000.md) explains why it
+runs per host and not as one checker on `storage`.
+
+An app's threshold comes from its own resolved cron, not from a value set by hand: the `cron_period_hours` filter in
+`ansible/filter_plugins/` gives the longest gap between two consecutive firings, and `backup_freshness_buffer_hours` is
+added for the backup's duration and scheduling slack. An app on a different cadence gets a threshold that matches it, and
+nothing falls out of sync if its cron changes. One stale app suppresses the whole host's push; which one is only visible
+in the unit's journal.
+
+The script's exit code separates three outcomes per app, because treating "nothing fresh yet" like a failure would alert
+on ordinary staleness constantly, when the missed heartbeat already covers it:
+
+| Outcome | Counts toward the push | Triggers `OnFailure=` |
+| :--- | :--- | :--- |
+| Fresh backup found | Yes | No |
+| Ran fine, nothing fresh yet | No | No — silent, the missed heartbeat catches persistent staleness |
+| `rclone` or `docker` itself failed | No | Yes — an infrastructure problem, not a backup problem |
+
 ### The `cert-renewer@` liveness push
 
 A renewal happens about every 480 hours, so a push per renewal could be noticed only after the certificate had expired.
@@ -152,7 +177,7 @@ Instead `cert-renewer-heartbeat@<app>.timer` fires daily at 04:00, and its servi
 certificate still has more than 72 hours left) makes the unit succeed and start the push; 0 (inside the margin), 2 (no
 certificate file) and 255, or docker failing to run the container, fail it and push nothing. A failed renewal still
 reports through `cert-renewer@`'s own `OnFailure=`, which this unit does not repeat. `cert-renewer@` no longer has an
-`OnSuccess=`; the liveness unit also starts the Kuma push unit until Kuma is removed.
+`OnSuccess=`.
 
 The margin, `step_ca_cert_heartbeat_margin`, has to sit between two limits. Above 48 hours, so one late push is not an
 alert. Below the third of the certificate's life that a healthy certificate always has left (240 hours of the current 720),
@@ -204,4 +229,4 @@ An endpoint that has never been pushed to is missing from the list until its fir
 ## State today
 
 `cloud_sync`, `cert-expiry-check`, the backup freshness check, the `r2-read-watcher` heartbeat and the two `cert-renewer@`
-instances (through their daily liveness push) push to Gatus as well as to Kuma.
+instances (through their daily liveness push) push to Gatus, and nothing else monitors them.

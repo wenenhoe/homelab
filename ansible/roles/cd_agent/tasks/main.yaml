@@ -325,7 +325,7 @@
 
 # The units below notify a handler that only exists once its role has
 # loaded; see systemd_reload/tasks/reload.yaml. reload.yaml itself reads the
-# results of the Telegram and Uptime Kuma roles, which this role does not
+# results of the Telegram and Gatus push roles, which this role does not
 # install, so the flush below stands in for it.
 - name: Load the shared Reload systemd handler
   ansible.builtin.include_role:

@@ -140,7 +140,6 @@
         step_ca_cert_app_name: lldap
         step_ca_cert_common_name: "{{ lldap_host }}"
         step_ca_cert_container_cert_dir: /data/certs
-        step_ca_cert_uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_lldap }}"
       tags:
         - images
 
@@ -160,7 +159,6 @@
         step_ca_cert_renew_action: signal
         step_ca_cert_chown_image: "openbao/openbao:2.7.1@sha256:6d2b93856e3fcf7b18ad855a0b51eaba474dc8b79cf554379ea32034797d2acf"
         step_ca_cert_chown_user: openbao
-        step_ca_cert_uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_renewer_openbao }}"
       tags:
         - images
 

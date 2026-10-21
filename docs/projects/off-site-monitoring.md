@@ -17,7 +17,7 @@ depends_on:
 
 # Off-Site Monitoring Relocation
 
-Third stage of the plan to stop Beszel/Kuma monitoring from being a single point of failure that lives entirely on the host (and site) it's meant to be watching; the first two are [`monitoring-host-isolation.md`](monitoring-host-isolation.md). The target changed from OCI to GCP's e2-micro Always Free instance once OCI was earmarked for a dedicated Wazuh instance instead — see [`0045-security-event-collection-and-alerting/revision-000.md`](../decisions/0045-security-event-collection-and-alerting/revision-000.md).
+Third stage of the plan to stop Beszel/Gatus monitoring from being a single point of failure that lives entirely on the host (and site) it's meant to be watching; the first two are [`monitoring-host-isolation.md`](monitoring-host-isolation.md). The target changed from OCI to GCP's e2-micro Always Free instance once OCI was earmarked for a dedicated Wazuh instance instead — see [`0045-security-event-collection-and-alerting/revision-000.md`](../decisions/0045-security-event-collection-and-alerting/revision-000.md).
 
 ## Scope
 
@@ -44,7 +44,7 @@ existing subnet route to the new node — no new tunnel technology,
 just a new route destination. OCI was the original target; it's now
 reserved for a dedicated Wazuh instance instead ([ADR 0045 (Security event pipeline)](../decisions/0045-security-event-collection-and-alerting/revision-000.md)), so
 this stage moved to GCP's Always Free e2-micro tier. Still open:
-whether Beszel Hub + Uptime Kuma actually fit e2-micro's 1 GB RAM
+whether Beszel Hub + Gatus actually fit e2-micro's 1 GB RAM
 together, and whether this relocates the full stack or a minimal
 heartbeat-only monitor (see [ADR 0049 (Site-loss monitoring)](../decisions/0049-monitoring-that-survives-loss-of-the-site/revision-000.md)'s alternatives and open assumptions).
 

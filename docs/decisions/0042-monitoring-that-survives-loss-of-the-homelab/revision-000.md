@@ -16,7 +16,7 @@ related: [ADR-0010, ADR-0049]
 ## Context
 
 The idea: Beszel Hub and Uptime Kuma both already exist
-(`docs/topics/monitoring/beszel.md`, `docs/topics/monitoring/uptime-kuma.md`), deployed on-prem on
+(`docs/topics/monitoring/beszel.md`, `docs/topics/monitoring/uptime-kuma.md` (removed; replaced by: `docs/topics/monitoring/gatus.md`)), deployed on-prem on
 `security`, with a connection model that already solves "no inbound
 port needed" for the agent/push fleet. The real gap: both live
 entirely on `security` — if `security`, or the whole homelab's

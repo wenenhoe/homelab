@@ -826,7 +826,6 @@ class TestRealTree:
         ("shared", "callers"),
         [
             ("telegram_notify", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
-            ("uptime_kuma_push", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
             ("gatus_push", ("step_ca_cert", "cloud_sync", "caddy_cert_expiry")),
         ],
     )

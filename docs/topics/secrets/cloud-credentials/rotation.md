@@ -88,7 +88,7 @@ against a real failure, not assumed:**
   against AWS S3 in rclone/rclone#4703 and #5119). **Open question,
   not yet resolved:** production's `cloud_sync`/`restore_discovery`
   `rclone.conf.j2` templates render the same kind of bucket-restricted
-  key and don't set this — check Uptime Kuma's `cloud_sync` monitor and
+  key and don't set this — check Gatus's `cloud-sync` endpoint and
   the buckets' actual recent object timestamps before assuming
   production isn't affected.
 - `region` set explicitly — OCI's S3-compatible API 403s with

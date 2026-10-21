@@ -62,21 +62,11 @@
       on `{{ ansible_facts['hostname'] }}` - check `journalctl -u cert-expiry-check.service`
     telegram_notify_topic_id: "{{ telegram_topic_id_certs }}"
 
-# Only ever pushes on success (see docs/topics/monitoring/uptime-kuma.md) — failure
+# Only ever pushes on success (see docs/topics/monitoring/gatus.md) — failure
 # alerting stays on the telegram_notify unit above, unchanged. One
 # concrete unit per host, not a systemd @-template - this role already
 # runs once per app_host via Ansible's own per-host loop, and each
-# host's push URL already differs (uptime_kuma_push_url_cert_expiry is
-# an inventory_hostname-keyed lookup - see group_vars/all/main.yaml).
-- name: Install the Uptime Kuma push-on-success unit for cert-expiry-check
-  ansible.builtin.include_role:
-    name: uptime_kuma_push
-    tasks_from: install.yaml
-  vars:
-    uptime_kuma_push_unit_name: uptime-kuma-push-cert-expiry
-    uptime_kuma_push_description: Uptime Kuma liveness push for a successful Caddy cert-expiry check
-    uptime_kuma_push_url: "{{ uptime_kuma_push_url_cert_expiry }}"
-
+# host's endpoint already differs.
 - name: Install the Gatus push-on-success unit for cert-expiry-check
   ansible.builtin.include_role:
     name: gatus_push
@@ -104,7 +94,6 @@
     name: systemd_reload
     tasks_from: reload.yaml
   vars:
-    systemd_reload_uptime_kuma: true
     systemd_reload_gatus: true
 
 - name: Enable and start the cert-expiry-check timer

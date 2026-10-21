@@ -44,9 +44,6 @@ tinyauth_host: sso
 beszel_hub_host: beszel
 beszel_hub_url: "https://{{ beszel_hub_host }}.{{ hostvars['security'].caddy_domain }}"
 
-uptime_kuma_host: uptime-kuma
-uptime_kuma_url: "https://{{ uptime_kuma_host }}.{{ hostvars['security'].caddy_domain }}"
-
 gatus_host: gatus
 gatus_url: "https://{{ gatus_host }}.{{ hostvars['security'].caddy_domain }}"
 
@@ -71,7 +68,7 @@ heartbeat_jobs:
   # cloud-sync.timer: daily, see host_vars/storage.yaml.
   - {id: cloud-sync, group: backups, period_minutes: 1440}
   # r2-read-watcher-heartbeat.timer: every 10 minutes. A 15-minute interval
-  # keeps what the Kuma monitor used (docs/topics/secrets/openbao-r2-read-watcher.md).
+  # gives an alert 15 to 30 minutes after a stop (docs/topics/secrets/openbao-r2-read-watcher.md).
   - {id: r2-read-watcher, group: backups, period_minutes: 10, slack_minutes: 5}
   # cert-expiry-check.timer: daily, on every app host.
   - {id: cert-expiry-security, group: certs, period_minutes: 1440}
@@ -98,12 +95,6 @@ heartbeat_push_urls: >-
            | map('join', '_')
            | map('regex_replace', '^', gatus_url ~ '/api/v1/endpoints/')
            | map('regex_replace', '$', '/external?success=true'))) }}
-
-# One secret_catalog.yaml entry per host (uptime-kuma-push-url-cert-
-# expiry-<host>) - inventory_hostname resolves this identically on
-# every app_host, no per-host host_vars entry needed. See
-# docs/topics/monitoring/uptime-kuma.md.
-uptime_kuma_push_url_cert_expiry: "{{ secrets_generated['uptime-kuma-push-url-cert-expiry-' + inventory_hostname] }}"
 
 # Every value below is sourced from secrets_generated (secrets role, Play 0
 # of deploy.yaml), driven by secret_catalog.yaml. See docs/topics/secrets/secrets.md.
@@ -182,7 +173,7 @@ backup_defaults:
   cloud_targets: [r2, b2]
 
 # Slack added on top of each app's own cron-derived interval before the
-# freshness check (docs/topics/monitoring/uptime-kuma.md) stops pushing to Kuma - covers
+# freshness check (docs/topics/monitoring/gatus.md) stops pushing - covers
 # backup duration plus scheduling jitter, not the interval itself. The
 # interval comes from each app's own resolved cron (the
 # cron_period_hours filter in ansible/filter_plugins/) so it can never

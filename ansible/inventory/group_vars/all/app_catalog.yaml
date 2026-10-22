@@ -129,6 +129,7 @@ app_catalog:
         auth: false   # SigV4-authenticated machine traffic, not a Tinyauth session
       filer:
         upstream: "seaweedfs:8888"
+        read_only: true   # browsing only: the filer API would otherwise write and delete outside the per-host S3 identities
 
   wastebin:
     volumes:

@@ -2,7 +2,8 @@
 """Restore all in-scope apps from their latest backup, no arguments needed.
 
 Discovers each app's newest backup object (SeaweedFS first, falling
-back to that app's own cloud target(s) if SeaweedFS is unreachable),
+back to that app's own cloud target(s) if SeaweedFS is unreachable or
+holds nothing for that app),
 downloads it, decrypts it with the controller's GPG key, prints one
 batch confirmation summary, then runs the existing per-app
 `playbooks/restore.yaml` for each app in order — step-ca first (see
@@ -146,12 +147,14 @@ def _run_rclone(args: list[str], timeout: int) -> subprocess.CompletedProcess | 
 
 
 def rclone_lsjson(remote: str, bucket: str, prefix: str) -> list[dict] | None:
-    """List objects under remote:bucket/prefix. None means unreachable (not: empty)."""
+    """List objects under remote:bucket/prefix. None means the listing failed.
+
+    rclone exits 0 with `[]` for a prefix that holds no objects in an
+    existing bucket, and exits non-zero only for a missing bucket or an
+    unreachable endpoint. A caller therefore has to treat None and `[]`
+    alike when deciding whether a remote has anything to restore from.
+    """
     result = _run_rclone(["lsjson", f"{remote}:{bucket}/{prefix}"], timeout=45)
-    # NEEDS LIVE VERIFICATION — see docs/topics/disaster-recovery/restore.md's batch-restore
-    # section: an existing-but-empty prefix vs. a genuinely missing
-    # bucket may not be distinguishable this way. The unreachable/hung
-    # case is already handled and confirmed live — see _run_rclone.
     if result is None or result.returncode != 0:
         return None
     try:
@@ -175,24 +178,19 @@ def pick_latest(objects: list[dict], host: str, app: str) -> tuple[str, datetime
 
 
 def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> DiscoveryResult:
-    source = bucket = prefix = None
+    prefix = entry.seaweedfs_path
+    remotes = [("seaweedfs", seaweedfs_bucket), *((target["name"], target["bucket"]) for target in entry.cloud_targets)]
+    source = bucket = None
     objects: list[dict] = []
-
-    seaweedfs_objects = rclone_lsjson("seaweedfs", seaweedfs_bucket, entry.seaweedfs_path)
-    if seaweedfs_objects is not None:
-        source, bucket, prefix, objects = "seaweedfs", seaweedfs_bucket, entry.seaweedfs_path, seaweedfs_objects
-    else:
-        for target in entry.cloud_targets:
-            candidate = rclone_lsjson(target["name"], target["bucket"], entry.seaweedfs_path)
-            if candidate:
-                source, bucket, prefix, objects = target["name"], target["bucket"], entry.seaweedfs_path, candidate
-                break
-        if source is None:
-            tried = ", ".join(t["name"] for t in entry.cloud_targets)
-            raise RestoreAllError(f"SeaweedFS unreachable and no cloud fallback ({tried}) had any objects either")
-
-    if not objects:
-        raise RestoreAllError(f"{source} reachable but no objects found under {prefix}/")
+    outcomes: list[str] = []
+    for remote, remote_bucket in remotes:
+        listing = rclone_lsjson(remote, remote_bucket, prefix)
+        if listing:
+            source, bucket, objects = remote, remote_bucket, listing
+            break
+        outcomes.append(f"{remote} ({'unreachable' if listing is None else 'empty'})")
+    if source is None or bucket is None:
+        raise RestoreAllError(f"no objects found under {prefix}/ on any of: {', '.join(outcomes)}")
 
     latest = pick_latest(objects, entry.host, entry.app)
     if latest is None:
@@ -209,39 +207,47 @@ def discover_and_decrypt(entry: AppManifestEntry, seaweedfs_bucket: str) -> Disc
 
     SCRATCH_DIR.mkdir(parents=True, mode=0o700, exist_ok=True)
     encrypted_path = SCRATCH_DIR / name
-    # A real download, not a listing — a generous overall backstop
-    # since archives can be large (e.g. minecraft's); --contimeout/
-    # --low-level-retries above (via _run_rclone) still fail fast if the
-    # connection itself never comes up. NEEDS LIVE VERIFICATION for
-    # slow/high-latency links — see docs/topics/disaster-recovery/restore.md's batch-restore
-    # section.
-    copy_result = _run_rclone(["copyto", f"{source}:{bucket}/{prefix}/{name}", str(encrypted_path)], timeout=1800)
-    if copy_result is None:
-        raise RestoreAllError(f"rclone copyto from {source} timed out or was interrupted")
-    if copy_result.returncode != 0:
-        raise RestoreAllError(f"rclone copyto from {source} failed: {copy_result.stderr.strip()}")
-
     decrypted_path = SCRATCH_DIR / name[: -len(".gpg")]
-    # --batch --yes, no --passphrase/--pinentry-mode: relies entirely on
-    # gpg-agent already holding the unlocked private key (see this
-    # script's module docstring) — never prompts. Generous timeout for
-    # the same reason as the copy above (large archives); a hang here
-    # would mean gpg-agent itself is stuck, not a network condition.
+    # Neither the ciphertext nor a half-written plaintext may outlive a
+    # failed or interrupted download or decrypt.
     try:
-        gpg_result = subprocess.run(
-            ["gpg", "--batch", "--yes", "-o", str(decrypted_path), "-d", str(encrypted_path)],
-            capture_output=True,
-            text=True,
-            timeout=600,
-            check=False,
-        )
-    except subprocess.TimeoutExpired:
-        raise RestoreAllError(
-            "gpg --decrypt hung for 10 minutes — is gpg-agent waiting on a passphrase prompt with no tty to answer it on? See this script's module docstring."
-        ) from None
-    encrypted_path.unlink(missing_ok=True)
-    if gpg_result.returncode != 0:
-        raise RestoreAllError(f"gpg --decrypt failed: {gpg_result.stderr.strip()} — is the private key loaded and gpg-agent unlocked non-interactively?")
+        # A real download, not a listing — a generous overall backstop
+        # since archives can be large (e.g. minecraft's); --contimeout/
+        # --low-level-retries above (via _run_rclone) still fail fast if the
+        # connection itself never comes up. NEEDS LIVE VERIFICATION for
+        # slow/high-latency links — see docs/topics/disaster-recovery/restore.md's batch-restore
+        # section.
+        copy_result = _run_rclone(["copyto", f"{source}:{bucket}/{prefix}/{name}", str(encrypted_path)], timeout=1800)
+        if copy_result is None:
+            raise RestoreAllError(f"rclone copyto from {source} timed out or was interrupted")
+        if copy_result.returncode != 0:
+            raise RestoreAllError(f"rclone copyto from {source} failed: {copy_result.stderr.strip()}")
+
+        # --batch --yes, no --passphrase/--pinentry-mode: relies entirely on
+        # gpg-agent already holding the unlocked private key (see this
+        # script's module docstring) — never prompts. Generous timeout for
+        # the same reason as the copy above (large archives); a hang here
+        # would mean gpg-agent itself is stuck, not a network condition.
+        try:
+            gpg_result = subprocess.run(
+                ["gpg", "--batch", "--yes", "-o", str(decrypted_path), "-d", str(encrypted_path)],
+                capture_output=True,
+                text=True,
+                timeout=600,
+                check=False,
+            )
+        except subprocess.TimeoutExpired:
+            raise RestoreAllError(
+                "gpg --decrypt hung for 10 minutes — is gpg-agent waiting on a passphrase prompt "
+                "with no tty to answer it on? See this script's module docstring."
+            ) from None
+        if gpg_result.returncode != 0:
+            raise RestoreAllError(f"gpg --decrypt failed: {gpg_result.stderr.strip()} — is the private key loaded and gpg-agent unlocked non-interactively?")
+    except BaseException:
+        decrypted_path.unlink(missing_ok=True)
+        raise
+    finally:
+        encrypted_path.unlink(missing_ok=True)
 
     return DiscoveryResult(
         entry=entry,
@@ -328,6 +334,11 @@ def run_minecraft_world_restore() -> bool:
     return subprocess.run(cmd, cwd=ANSIBLE_DIR, check=False).returncode == 0
 
 
+def discard_plaintext(results: dict[str, DiscoveryResult]) -> None:
+    for result in results.values():
+        result.decrypted_path.unlink(missing_ok=True)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
@@ -340,7 +351,18 @@ def main() -> int:
     run_discovery_setup()
     seaweedfs_bucket, manifest_entries = load_manifest()
 
+    # Every decrypted archive is removed on the way out, whatever the exit
+    # path: an abort, a declined prompt, an exception or Ctrl-C would
+    # otherwise leave the rest of the batch's plaintext in the scratch
+    # directory.
     results: dict[str, DiscoveryResult] = {}
+    try:
+        return run_batch(args, seaweedfs_bucket, manifest_entries, results)
+    finally:
+        discard_plaintext(results)
+
+
+def run_batch(args: argparse.Namespace, seaweedfs_bucket: str, manifest_entries: list[AppManifestEntry], results: dict[str, DiscoveryResult]) -> int:
     errors: dict[str, str] = {}
     for entry in manifest_entries:
         print(f"Discovering {entry.app} ({entry.host})...")

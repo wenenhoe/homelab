@@ -14,7 +14,7 @@ docker: 100.0
 host_hardening: 100.0
 lldap_bootstrap: 100.0
 qemu_guest_agent: 100.0
-restore: 92.9
+restore: 94.4
 restore_discovery: 100.0
 seaweedfs_bucket: 100.0
 secrets: 100.0

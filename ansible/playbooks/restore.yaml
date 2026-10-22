@@ -4,7 +4,8 @@
 # Doesn't talk to SeaweedFS or GPG directly — pull the object out of the
 # `homelab-backups` bucket and `gpg --decrypt` it with the offline
 # private key first (see docs/topics/disaster-recovery/backup.md), then hand this
-# playbook the resulting plain .tar.gz.
+# playbook the resulting plain .tar.gz (or .tar, for an app with
+# `compression: none`).
 #
 # A decrypted archive may contain more apps than the one you're
 # restoring, since backup_agent aggregates multiple apps per group — this

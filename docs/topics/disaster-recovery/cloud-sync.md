@@ -2,7 +2,7 @@
 
 `cloud_sync` (`storage`-only) reads already-encrypted archives straight
 out of SeaweedFS and copies them onward to R2/B2/OCI via
-[rclone](https://rclone.org) `copy` — never `sync`, and cloud-side
+[rclone](https://rclone.org) `copy --immutable` — never `sync`, and cloud-side
 retention is a provider-native lifecycle rule configured out-of-band,
 not managed by this repo. See
 [ADR 0010 (Offsite copy deletion)](../../decisions/0010-preventing-homelab-side-deletion-of-offsite-copies/revision-000.md) for why: that
@@ -19,8 +19,11 @@ Current values, set directly in each console:
 
 Every archive's filename embeds its own upload timestamp
 (`BACKUP_FILENAME` in `ansible/roles/backup_agent/templates/schedule.env.j2`)
-and is never reused, so no provider's lock ever has to block an
-overwrite — it's only ever guarding a delete. Each provider keeps its
+and is never reused. `--immutable` makes a source object that differs
+from the one already in the cloud fail the job (rclone exits 6, and the
+failure is reported like any other failed job) without uploading it, so
+an overwrite is refused by the relay itself and each provider's lock
+only ever guards a delete. Each provider keeps its
 lock strictly below its own delete-after (R2 1 day, B2 1 day to hiding,
 OCI 2 days) — deliberate, not slack to tighten: R2's own docs confirm a
 lifecycle delete against a still-locked object just defers until the

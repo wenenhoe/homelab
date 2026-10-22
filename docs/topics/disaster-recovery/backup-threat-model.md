@@ -17,10 +17,10 @@ A compromised app host can still tamper with its own SeaweedFS archives: whateve
 
 ## Why the cloud copy holds
 
-`cloud_sync` relays with rclone `copy`, never `sync`, so nothing on-prem, even fully compromised, can delete or overwrite what has already landed in the cloud. A compromised app host tampering with its own SeaweedFS archives can't propagate that tampering to the cloud copy for the same reason. Setup, per-provider retention and the sync mechanism are in [`cloud-sync.md`](cloud-sync.md).
+`cloud_sync` relays with rclone `copy --immutable`, never `sync`, so nothing on-prem, even fully compromised, can delete or overwrite what has already landed in the cloud: a changed source object fails the relay job instead of replacing the cloud copy. A compromised app host tampering with its own SeaweedFS archives can't propagate that tampering to the cloud copy for the same reason. Setup, per-provider retention and the sync mechanism are in [`cloud-sync.md`](cloud-sync.md).
 
 ## Automated coverage
 
-`ansible/roles/seaweedfs_bucket/molecule/identity_scoping` renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts that cross-prefix write and read are denied and that Admin actions aren't available to a scoped identity.
+`ansible/roles/seaweedfs_bucket/molecule/identity_scoping` renders the real `s3-identity.json.j2` against a live throwaway SeaweedFS target with two fake backup hosts, and asserts that cross-prefix write and read are denied, that Admin actions aren't available to a scoped identity, and that the `cloud-sync-reader` identity can read and list the whole bucket but cannot write a new object, overwrite one or delete one.
 
 The write-denial assertion matches the `AccessDenied` substring, confirmed against a real SeaweedFS error (`An error occurred (AccessDenied) when calling the PutObject operation: Access Denied.`). The read-denial and Admin-action assertions use the same substring match but haven't been checked against real output; if one proves fragile, that is the assertion to revisit.

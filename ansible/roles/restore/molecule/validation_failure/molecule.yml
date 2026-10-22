@@ -4,10 +4,10 @@
 # genuinely block the destructive steps, not just "usually" — see the
 # SAFETY-CRITICAL comment at the top of roles/restore/tasks/main.yaml.
 #
-# Exercises the "archive path doesn't exist on the controller" branch
-# specifically (the more elaborate of the three validation checks). All
-# three share the identical delegate_to: localhost blocking mechanism,
-# so this one scenario is sufficient to prove the mechanism works.
+# Exercises two of the validation checks: the "archive path doesn't exist
+# on the controller" branch and the "archive is neither gzip nor tar"
+# branch. All of them share the identical delegate_to: localhost blocking
+# mechanism, so this scenario is sufficient to prove the mechanism works.
 driver:
   name: docker
 platforms:

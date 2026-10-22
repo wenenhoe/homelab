@@ -39,6 +39,10 @@
         {% if route.auth | default(true) %}
         import tinyauth_forwarder *
         {% endif %}
+        {% if route.read_only | default(false) %}
+        @{{ route.host }}_writes not method GET HEAD
+        respond @{{ route.host }}_writes "Method Not Allowed" 405
+        {% endif %}
         reverse_proxy {{ route.upstream }}
     }
 {% if not loop.last %}

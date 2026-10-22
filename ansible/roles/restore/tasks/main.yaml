@@ -53,6 +53,45 @@
   delegate_to: localhost
   become: false
 
+# The archive's own bytes decide how to extract it, not its name or the
+# app's compression setting: backup_agent writes gzip for `gz` and a plain
+# tar for `none`. Checking here, before the confirmation and before the
+# stack is stopped, means an archive this role can't extract fails with the
+# app still running.
+- name: Detect whether the archive is gzip or an uncompressed tar
+  ansible.builtin.command:
+    argv:
+      - sh
+      - -c
+      - |
+        if [ "$(head -c 2 "$1" | od -An -tx1 | tr -d ' \n')" = 1f8b ]; then
+          echo gz
+        elif [ "$(dd if="$1" bs=1 skip=257 count=5 2>/dev/null)" = ustar ]; then
+          echo none
+        else
+          echo unsupported
+        fi
+      - sh
+      - "{{ restore_archive_local_path }}"
+  register: restore_archive_format_probe
+  changed_when: false
+  delegate_to: localhost
+  become: false
+
+- name: Fail if the archive is neither a gzip nor an uncompressed tar
+  ansible.builtin.fail:
+    msg: >-
+      {{ restore_archive_local_path }} is not a gzip-compressed or
+      uncompressed tar archive (compression: gz or none). A zstd archive
+      (compression: zst) is not supported here.
+  when: restore_archive_format_probe.stdout | trim == 'unsupported'
+  delegate_to: localhost
+  become: false
+
+- name: Record the archive format
+  ansible.builtin.set_fact:
+    restore_archive_format: "{{ restore_archive_format_probe.stdout | trim }}"
+
 # Confirmation gate. pause doesn't wait for input without a tty (cron,
 # systemd timers, CI), so this fails closed by default. restore_confirm
 # is a three-state signal so scenarios don't depend on ambient tty state:
@@ -110,10 +149,10 @@
         name: "{{ restore_app }}-restore-extract"
         image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
         volumes:
-          - "{{ restore_remote_archive }}:/restore-archive.tar.gz:ro"
+          - "{{ restore_remote_archive }}:/restore-archive:ro"
           - "{{ restore_app }}_restore_scratch:/scratch"
         command: >-
-          sh -c "mkdir -p /scratch && tar -xzf /restore-archive.tar.gz -C /scratch"
+          sh -c "mkdir -p /scratch && tar -x{{ 'z' if restore_archive_format == 'gz' else '' }}f /restore-archive -C /scratch"
         network_mode: none
         read_only: true
         cap_drop:

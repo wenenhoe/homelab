@@ -64,7 +64,8 @@ The private key never touches a homelab host:
    bucket/region each provider uses somewhere that survives a
    `storage`-host loss). Same encrypted object either way — `cloud_sync`
    copies it verbatim, nothing about it changes in transit.
-2. `gpg --decrypt` it into a plain `.tar.gz`.
+2. `gpg --decrypt` it into a plain `.tar.gz` (or `.tar`, for an app with
+   `compression: none`).
 3. Point `restore_archive_local_path` at that file.
 
 ### What the playbook does
@@ -137,7 +138,8 @@ What it does, in order:
 2. For each in-scope app: lists `seaweedfs:homelab-backups/<host>-<app>/`
    (the exact `AWS_S3_PATH` prefix `backup_agent`'s own
    `schedule.env.j2` uses). If that fails outright (SeaweedFS/`storage`
-   unreachable), falls back to that app's own cloud target(s) — the
+   unreachable) or lists no objects (a rebuilt `storage` with an empty
+   bucket), falls back to that app's own cloud target(s) — the
    `cloud_targets` of its `backup_plan` entry, the same list
    `cloud_sync` fans out to, so a fallback only ever tries a bucket the
    app was actually relayed to. Whichever remote answers, it picks the
@@ -165,32 +167,27 @@ What it does, in order:
    `ansible/files/secrets/`) — object key, timestamp, and outcome —
    and deletes the decrypted plaintext from its own scratch directory
    once that app's `restore.yaml` call has finished, success or not.
+   Whatever is still decrypted when the run ends early (a missing
+   step-ca, a declined prompt, a step-ca failure, an error or Ctrl-C) is
+   deleted on the way out.
 
 ### Known limitations
 
-**Carried over from the `restore` role:** `minecraft`'s
-own backup uses `compression: none`
-([`backup.md`](backup.md#whats-backed-up)) — the
-`restore` role's own extraction step assumes gzip (`tar -xzf`)
-unconditionally, and hasn't been re-verified against an uncompressed
-archive. That's the existing, tested `restore` role's own behavior,
-unchanged here; if a real `minecraft` restore hits it, that's a
-`restore` role fix, not something `restore_all.py` should work around.
+**Compression:** the `restore` role reads the decrypted archive's own
+leading bytes and extracts a gzip archive (`compression: gz`) or an
+uncompressed tar (`compression: none`, as `minecraft` uses). An archive
+that is neither, such as `compression: zst`, is refused before anything
+is stopped.
 
-**Exit-code assumption:** `restore_all.py` treats a nonzero
-`rclone lsjson` exit as unreachable and tries the cloud fallback, and a
-zero exit with an empty list as a hard "no objects found", so a
-connectivity problem is never mistaken for an app that was never backed
-up. This holds only if a prefix with zero objects (bucket reachable,
-nothing backed up) and an unreachable endpoint differ by exit code.
-Check directly:
+**Empty listing:** `rclone lsjson` exits 0 with `[]` for a prefix with
+no objects in an existing bucket, and non-zero only for a missing bucket
+or an unreachable endpoint. `restore_all.py` therefore treats a failed
+listing and an empty one the same way and moves on to the next remote.
+An app is reported as "no objects found" only when SeaweedFS and every
+cloud target of that app were unreachable or empty; the error names each
+remote and which of the two it was.
 
-```sh
-rclone lsjson --config ansible/files/restore/rclone.conf \
-  seaweedfs:homelab-backups/<host>-<app>
-```
-
-Also unverified: `rclone copyto`'s 20-second IO-idle timeout (not a
+Unverified: `rclone copyto`'s 20-second IO-idle timeout (not a
 total-transfer cap — set in `_run_rclone`, `ansible/scripts/restore_all.py`)
 could mistake a brief-but-legitimate stall on a slow or high-latency
 link for a stuck download, on a large archive over a weak connection.

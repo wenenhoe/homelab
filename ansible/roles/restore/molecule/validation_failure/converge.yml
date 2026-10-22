@@ -82,3 +82,39 @@
             dest: /tmp/restore_validation_failure_halt_marker
             content: "validation failure caught as expected\n"
             mode: "0644"
+
+    # Neither gzip's 1f8b magic nor a tar's "ustar" at offset 257: the
+    # shape a compression: zst backup would hand the role.
+    - name: Write a file that is neither a gzip nor a tar archive
+      ansible.builtin.copy:
+        dest: /tmp/restore-molecule-validation-failure-unsupported.tar.zst
+        content: "\x28\xb5\x2f\xfd not-a-tar-archive\n"
+        mode: "0644"
+      delegate_to: localhost
+      become: false
+
+    - name: "Run restore role [block / rescue] (unsupported archive is deliberate, failure is expected)"
+      block:
+        - name: Run the restore role
+          ansible.builtin.include_role:
+            name: restore
+          vars:
+            restore_app: restore_val_target
+            restore_archive_local_path: /tmp/restore-molecule-validation-failure-unsupported.tar.zst
+            restore_volumes:
+              - restore_val_target_data
+            restore_confirm: true
+      rescue:
+        - name: Confirm this failed because the archive format is unsupported
+          ansible.builtin.assert:
+            that:
+              - "'is not a gzip-compressed or uncompressed tar' in (ansible_failed_result.msg | default(''))"
+            fail_msg: >-
+              The restore role failed, but NOT because the archive format
+              was rejected: {{ ansible_failed_result.msg | default('(no msg captured)') }}.
+
+        - name: Leave a marker proving the unsupported archive was refused
+          ansible.builtin.copy:
+            dest: /tmp/restore_validation_failure_unsupported_marker
+            content: "unsupported archive refused as expected\n"
+            mode: "0644"

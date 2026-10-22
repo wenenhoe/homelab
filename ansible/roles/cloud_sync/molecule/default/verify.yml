@@ -167,6 +167,69 @@
           its own cloud_targets. target_b listing:
           {{ cloud_sync_dest_b_listing.stdout }}
 
+    # --- A changed source object must not replace what is already in the cloud ---
+    # A compromised app host can re-upload an archive under the same key with
+    # different content. The relay has to fail that job and leave the cloud
+    # copy as it was, while still relaying a genuinely new object.
+    - name: Read target_a's copy of alpha's archive before the source is changed
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: >-
+          aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333
+          s3 cp s3://{{ molecule_dest_a_bucket }}/alpha-host-happy_app_default_targets/archive.tar.gz.gpg -
+      register: cloud_sync_overwrite_before
+      changed_when: false
+
+    - name: Replace alpha's archive in the source bucket with different content, and add a new archive beside it
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: >-
+          sh -c "
+          echo changed-source-content | aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333
+          s3 cp - s3://{{ molecule_source_bucket }}/alpha-host-happy_app_default_targets/archive.tar.gz.gpg &&
+          echo new-archive-content | aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333
+          s3 cp - s3://{{ molecule_source_bucket }}/alpha-host-happy_app_default_targets/new-archive.tar.gz.gpg
+          "
+      changed_when: false
+
+    # Raw systemctl: a oneshot whose ExecStart exits non-zero is the
+    # expected outcome here, which the systemd module treats as an error.
+    - name: Run the relay again — it must fail on the changed object  # noqa: command-instead-of-module
+      ansible.builtin.command: systemctl start cloud-sync.service
+      register: cloud_sync_overwrite_run
+      failed_when: false
+      changed_when: false
+
+    - name: Read target_a's copy of alpha's archive after the relay
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: >-
+          aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333
+          s3 cp s3://{{ molecule_dest_a_bucket }}/alpha-host-happy_app_default_targets/archive.tar.gz.gpg -
+      register: cloud_sync_overwrite_after
+      changed_when: false
+
+    - name: List target_a for the new archive
+      community.docker.docker_container_exec:
+        container: cloud-sync-test-admin-cli
+        command: "aws --endpoint-url http://{{ cloud_sync_test_ip }}:8333 s3 ls s3://{{ molecule_dest_a_bucket }} --recursive"
+      register: cloud_sync_overwrite_listing
+      changed_when: false
+
+    - name: Confirm the changed object was refused, the cloud copy is untouched and the new object still landed
+      ansible.builtin.assert:
+        that:
+          - cloud_sync_overwrite_run.rc != 0
+          - cloud_sync_overwrite_before.stdout | length > 0
+          - cloud_sync_overwrite_after.stdout == cloud_sync_overwrite_before.stdout
+          - "'changed-source-content' not in cloud_sync_overwrite_after.stdout"
+          - "'alpha-host-happy_app_default_targets/new-archive.tar.gz.gpg' in cloud_sync_overwrite_listing.stdout"
+        fail_msg: >-
+          Relay exit code {{ cloud_sync_overwrite_run.rc }}. Cloud copy before:
+          {{ cloud_sync_overwrite_before.stdout }} after:
+          {{ cloud_sync_overwrite_after.stdout }}. target_a listing:
+          {{ cloud_sync_overwrite_listing.stdout }}
+
     # --- telegram-notify-cloud-sync wiring -------------------------------
     # Doesn't exercise a real Telegram delivery (no live bot/network in
     # CI) — that part still needs a manual live check, see

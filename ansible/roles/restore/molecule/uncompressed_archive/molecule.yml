@@ -1,0 +1,40 @@
+---
+# The same restore as `default`, from an archive that is a plain .tar —
+# what backup_agent writes for an app with `compression: none`.
+driver:
+  name: docker
+platforms:
+  - name: restore-uncompressed-instance
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:36d341344d87dba89b0af2793ff5c5a294d87af7ac4273c5185dbc22c80d184c
+    privileged: true
+    cgroupns_mode: host
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    tmpfs:
+      - /run
+      - /tmp
+    command: /lib/systemd/systemd
+    pre_build_image: true
+provisioner:
+  name: ansible
+  playbooks:
+    prepare: ${MOLECULE_PROJECT_DIRECTORY}/../molecule_helpers/playbooks/prepare_dind_prebuilt.yml
+    converge: converge.yml
+    verify: verify.yml
+verifier:
+  name: ansible
+scenario:
+  # No `idempotence` step, deliberately: this role's job is to
+  # unconditionally stop, overwrite, and redeploy on every invocation —
+  # correct behaviour for a DR restore, not a bug to converge away. A
+  # second converge run always reports changed, so idempotence would
+  # fail by design, not by accident.
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - prepare
+    - converge
+    - verify
+    - destroy

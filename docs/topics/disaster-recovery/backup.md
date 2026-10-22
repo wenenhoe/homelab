@@ -71,7 +71,10 @@ SeaweedFS runs single-node (`weed server -filer -s3`) — sufficient for "a
 copy exists off-host," not HA for the backup target itself.
 
 - **Filer web UI** (`https://filer.store.{{ lab_domain }}`) — human-facing,
-  Caddy + Tinyauth + TLS like every other app.
+  Caddy + Tinyauth + TLS like every other app, and read-only: the route
+  registers `read_only: true`, so Caddy answers anything but `GET` and
+  `HEAD` with 405. Writes and deletes go through the S3 API's scoped
+  identities only.
 - **S3 API** (`https://s3.store.{{ lab_domain }}`) — machine-facing only.
   Registered `auth: false` (Tinyauth's forward-auth needs an interactive
   redirect a non-interactive S3 client can't complete). Auth is instead
@@ -104,10 +107,21 @@ keypair: hosts hold only the public key; the private key stays offline and
 is never on any homelab host, so a compromised host can't decrypt existing
 backups.
 
-`ansible/files/backup-gpg-public-key.asc` ships as a placeholder — replace
-it before your first real deploy, or backups will be unrecoverable.
+`ansible/files/backup-gpg-public-key.asc` is the public half of the live
+backup key. Show its fingerprint with:
 
-### Generating the keypair
+```sh
+gpg --show-keys --with-fingerprint ansible/files/backup-gpg-public-key.asc
+```
+
+Replacing the file only affects archives written afterwards: every archive
+already in SeaweedFS or a cloud target stays encrypted to the old key, so
+the old private key has to be kept for as long as any of them is
+retained.
+
+### Generating a keypair
+
+Only needed for a first deploy or to rotate the key.
 
 Run on your own workstation, never on `storage` or an app host:
 

@@ -8,14 +8,11 @@ summary: Internal DNS records for Tofu-provisioned VMs, as ADR 0040 decides.
 decision: ADR-0040/0
 super_project: tofu-vm-provisioning
 track: dns
-depends_on:
-  - project: PROJ-tofu-migration
-    reason: needs the VMID-to-IP mapping fully code-driven
 ---
 
 # DNS for Tofu-Provisioned VMs
 
-The DNS part of the OPNsense Phase 2 design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): internal records for Tofu-provisioned VMs. It needs the VMID→IP mapping fully code-driven, which is the end of [`tofu-migration.md`](tofu-migration.md). VLAN interfaces, firewall rules and Kea are [`opnsense-config.md`](opnsense-config.md)'s.
+The DNS part of the OPNsense Phase 2 design in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md): internal records for Tofu-provisioned VMs. It reads the VMID→IP mapping the inventory generator already publishes, and [`tofu-migration.md`](tofu-migration.md)'s first rebuild waits for it. VLAN interfaces, firewall rules and Kea are [`opnsense-config.md`](opnsense-config.md)'s.
 
 ## Scope
 
@@ -38,7 +35,9 @@ Stage status is `Not started`, `In progress`, or `Done`.
 
 ### Stage 2 — records
 
-Depends on the VMID→IP mapping being fully code-driven ([`tofu-migration.md`](tofu-migration.md)).
+Reads the VMID→IP mapping from the inventory generator
+([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu--ansible-handoff)),
+and finishes before [`tofu-migration.md`](tofu-migration.md)'s first rebuild.
 A second BIND9 on `security` holds the A records, fed by the inventory
 generator, and the gateway's Unbound forwards that zone and `services`'
 zone to their servers ([ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)

@@ -7,6 +7,9 @@ blocked: false
 summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild on the real VMID ranges, cut over, and decommission the old VMs.
 super_project: tofu-vm-provisioning
 track: migration
+depends_on:
+  - project: PROJ-tofu-vm-dns
+    reason: a rebuilt host has a static address and no DDNS name, so its records must exist before the first rebuild
 ---
 
 # Tofu Migration
@@ -52,7 +55,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Build the 5XX block, first `restore.yaml` run | Done | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
-| 2 | Cutover to real VMID ranges, decommission old VMs | Not started | the VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old VMs are decommissioned with `storage` up throughout |
+| 2 | Cutover to real VMID ranges, decommission old VMs | In progress | the VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old VMs are decommissioned with `storage` up throughout |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -83,6 +86,30 @@ Once the first restore is proven, rebuild on the real VMID ranges
 (1XX/2XX/...), cut over, decommission the old VMs. `storage` stays up
 throughout every stage — it is the DR restore target.
 
+**Order.** DNS records for Tofu-provisioned VMs
+([`tofu-vm-dns.md`](tofu-vm-dns.md)) come first: a rebuilt host has a
+static address and no DDNS name, and every generated CNAME points at
+`dns_ddns_target`. The first rebuild waits for that project to close.
+
+**One host at a time.** Each rebuild is its own pull request and runs
+the same cycle:
+
+1. Back up the host's apps ([`backup.md`](../topics/disaster-recovery/backup.md)).
+2. `vzdump` the old VM to the `backup` storage, then destroy it. The dump
+   is the rollback: `qmrestore` it to a 9XX VMID.
+3. Add the host's module call and `ansible_hosts` entry to the root
+   module, apply, and run the inventory generator.
+4. Remove the host's `ansible_host` and `ansible_user` from
+   `inventory.yaml`, keeping its group membership.
+5. Deploy with `deploy.yaml` and restore its apps with `restore.yaml`, as
+   [`fire-drill.md`](../topics/disaster-recovery/fire-drill.md) does on the
+   scratch host.
+6. Delete the dump once the host's apps are confirmed healthy on the new
+   VM.
+
+The gateway's rebuild is the last stage of
+[`opnsense-config.md`](opnsense-config.md), run with this cutover.
+
 The hand-written `services`, `play`, `security`, `storage` and
 `tailscale` entries move over as each host is rebuilt: the generator
 ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu--ansible-handoff))
@@ -109,9 +136,11 @@ it.
 
 ## Open items
 
-- Stage 2's exact rebuild sequence isn't scoped beyond
-  "rebuild on real VMID ranges, cut over, decommission" — needs its
-  own detail once Stage 1 is proven.
+- The order the hosts are rebuilt in, and each host's sizing. Both need
+  the live VM configs and the node's free memory.
+- How `storage` is rebuilt while it stays up: its VMID is held by the
+  live VM, and the cycle above destroys the old VM first. Needs to know
+  where SeaweedFS keeps its data.
 
 ## Closing checklist
 

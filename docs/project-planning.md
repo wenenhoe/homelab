@@ -53,13 +53,13 @@ calls for a project, while a working one still has to be settled.
 | :--- | ---: | :--- | :--- |
 | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building | A dedicated, pull-based automation host that runs the deploy, maintenance, and freshness jobs. |
 | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building | The CD agent's four CIDR-bound AppRoles, and the delivery and rotation of each job's credentials. |
-| [`tofu-migration.md`](projects/tofu-migration.md) | 1 | Building | Build the isolated 5XX block and run the first restore.yaml against it, then rebuild on the real VMID ranges, cut over, and decommission the old VMs. |
 | [`cd-agent-job-ssh-keys.md`](projects/cd-agent-job-ssh-keys.md) | — | Building | Chained jobs on the CD agent, the monthly leaf-credential rotation that uses them, and the per-job SSH key that its redeploy needs. |
 | [`monitoring-host-isolation.md`](projects/monitoring-host-isolation.md) | — | Building | Bring VM 202 under management and move Beszel/Gatus onto a dedicated on-prem host. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
 | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
+| [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | De-risking | Internal DNS records for Tofu-provisioned VMs, as ADR 0040 decides. |
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | De-risking | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the coding-agent zone and its proxy. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
@@ -86,10 +86,10 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | 1 | Building |
+| `tofu-vm-provisioning` | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | De-risking |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | De-risking |
 | | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
-| | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | — | De-risking — waiting on [`tofu-migration.md`](projects/tofu-migration.md) |
+| | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building — waiting on [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) |
 
 ## Projects
 

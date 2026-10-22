@@ -13,6 +13,12 @@
       register: restore_val_marker
       failed_when: not restore_val_marker.stat.exists
 
+    - name: Confirm the unsupported archive was refused as expected
+      ansible.builtin.stat:
+        path: /tmp/restore_validation_failure_unsupported_marker
+      register: restore_val_unsupported_marker
+      failed_when: not restore_val_unsupported_marker.stat.exists
+
     # --- Nothing destructive ran: assert the actual side effects, not just
     #     that the marker exists (the marker only proves the rescue block
     #     fired — it doesn't by itself prove the block's tasks stopped in

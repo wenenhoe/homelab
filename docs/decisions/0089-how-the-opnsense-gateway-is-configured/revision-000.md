@@ -25,6 +25,7 @@ OPNsense is the lab's gateway, and its configuration is the network boundary tha
 - The collection can verify the gateway's TLS certificate against a CA file, but only when the name or address it connects to appears in that certificate. It can revert a firewall change that was applied under a savepoint, and it has a generic call for endpoints it has no module for. At its 26.1.11 release it has modules for VLAN devices, firewall rules and aliases, outbound NAT, Kea subnets, Unbound forwards and settings, packages and users. It has none for system settings (its `system` module only powers off, reboots, updates, upgrades and audits) or for the gateway's own certificate, which go through the generic call.
 - The API credential cannot live in OpenBao for the reason [ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md) gives: OpenBao sits behind the gateway being rebuilt.
 - The maintainer reaches the VLANs through the Tailscale subnet router, which source-NATs, so every tailnet node arrives at the gateway with the router's address. Only the operator host ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)) and, until it is retired, VM 401 can be told apart by source address.
+- OPNsense imports a configuration only on install media: its importer waits for a key press at the console, then asks which disk to read, and the installer then clones the live system's `/conf` onto the target disk. A system that boots from a disk already holding `/conf/config.xml` skips the importer. Neither prompt has an unattended mode.
 - ISC DHCP is end of life upstream, and Kea is its supported replacement.
 - A major release can change what the configuration relies on: an interface API appears, legacy pages move into a plugin, behaviour of the network stack changes. A release change therefore needs a test before it reaches the live gateway.
 
@@ -76,7 +77,7 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 
 ## Assumptions
 
-- **Claim:** a fresh OPNsense install imports a `config.xml` from an attached image at first boot, and the same image can carry an API user whose secret never enters the repo or the Tofu state (only its hash does).
+- **Claim:** a `config.xml` on an image Tofu attaches reaches a fresh gateway with no console input, and the same image can carry an API user whose secret never enters the repo or the Tofu state (only its hash does).
   **Breaks if wrong:** the seed is delivered another way (a console step, or an SSH import), and the key is created in a first manual step.
   **Checked by:** a spike on a scratch OPNsense in the isolated block.
 - **Claim:** at the pinned release the modules, and a generic-call recipe for system settings and the certificate, cover every object the policy needs, and `--check --diff` reports drift accurately, including for objects set through the generic call and for Unbound forwards.

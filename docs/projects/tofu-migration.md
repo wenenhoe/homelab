@@ -51,7 +51,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Build the 5XX block, first `restore.yaml` run | In progress | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
+| 1 | Build the 5XX block, first `restore.yaml` run | Done | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
 | 2 | Cutover to real VMID ranges, decommission old VMs | Not started | the VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old VMs are decommissioned with `storage` up throughout |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -99,8 +99,8 @@ it.
 
 ## Acceptance criteria
 
-- [ ] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
-- [ ] The first `restore.yaml` run against it succeeds, as the restore-path fire drill.
+- [x] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
+- [x] The first `restore.yaml` run against it succeeds, as the restore-path fire drill.
 - [ ] Every VM is rebuilt on the real VMID ranges by Tofu.
 - [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
 - [ ] The old VMs are decommissioned.

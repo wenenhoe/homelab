@@ -18,7 +18,7 @@
 # Usage:
 #   ansible-playbook playbooks/bootstrap-secrets.yaml \
 #     playbooks/restore-minecraft-world.yaml \
-#     -i inventory/inventory.yaml --limit play,localhost
+#     -i inventory/inventory.yaml -i inventory/tofu-hosts.yaml --limit play,localhost
 
 - name: Run minecraft's on-host world restore script
   hosts: play

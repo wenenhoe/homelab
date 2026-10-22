@@ -59,6 +59,10 @@ MANIFEST_PATH = RESTORE_DIR / "manifest.json"
 RCLONE_CONF_PATH = RESTORE_DIR / "rclone.conf"
 SCRATCH_DIR = RESTORE_DIR / "scratch"
 AUDIT_LOG_PATH = RESTORE_DIR / "audit-log.jsonl"
+# Passed with -i rather than left to ansible.cfg, so an ANSIBLE_INVENTORY in the
+# environment cannot point a restore at another inventory. Both files, because
+# a rebuilt host's address and login user come from the second.
+INVENTORY_ARGS = ["-i", "inventory/inventory.yaml", "-i", "inventory/tofu-hosts.yaml"]
 
 # BACKUP_FILENAME (backup_agent/templates/schedule.env.j2) is always
 # "<host>-<app>-%Y-%m-%dT%H-%M-%S.<ext>", then docker-volume-backup
@@ -112,8 +116,7 @@ def run_discovery_setup() -> None:
             "ansible-playbook",
             "playbooks/bootstrap-secrets.yaml",
             "playbooks/restore-discovery-setup.yaml",
-            "-i",
-            "inventory/inventory.yaml",
+            *INVENTORY_ARGS,
             "--limit",
             "localhost",
         ],
@@ -309,8 +312,7 @@ def run_app_restore(result: DiscoveryResult) -> bool:
         "ansible-playbook",
         "playbooks/bootstrap-secrets.yaml",
         "playbooks/restore.yaml",
-        "-i",
-        "inventory/inventory.yaml",
+        *INVENTORY_ARGS,
         "--limit",
         f"{result.entry.host},localhost",
         "-e",
@@ -325,8 +327,7 @@ def run_minecraft_world_restore() -> bool:
         "ansible-playbook",
         "playbooks/bootstrap-secrets.yaml",
         "playbooks/restore-minecraft-world.yaml",
-        "-i",
-        "inventory/inventory.yaml",
+        *INVENTORY_ARGS,
         "--limit",
         "play,localhost",
     ]

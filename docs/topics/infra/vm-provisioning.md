@@ -2,8 +2,8 @@
 
 The design record for OpenTofu-driven Proxmox provisioning: VMID/VLAN/IP
 scheme, MAC scheme, Ubuntu/OPNsense provisioning, and the boundary with
-Ansible. Build status and staged rollout live in
-[`docs/projects/tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md),
+Ansible. The move of the existing hosts onto it is tracked in
+[`docs/projects/tofu-migration.md`](../../projects/tofu-migration.md),
 not here.
 
 OpenTofu owns everything up to "the VM exists, boots, and can be reached

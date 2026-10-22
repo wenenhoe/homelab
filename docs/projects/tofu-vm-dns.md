@@ -19,7 +19,7 @@ The DNS part of the OPNsense Phase 2 design in [`vm-provisioning.md`](../topics/
 
 ## Scope
 
-Internal DNS records for Tofu-provisioned VMs. Not in scope: Phase 1 (VM shell and ISO), in [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md), and VLAN interfaces, firewall rules and Kea ([`opnsense-config.md`](opnsense-config.md)).
+Internal DNS records for Tofu-provisioned VMs. Not in scope: Phase 1 (VM shell and ISO), in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md#opnsense), and VLAN interfaces, firewall rules and Kea ([`opnsense-config.md`](opnsense-config.md)).
 
 ## Decision
 

@@ -75,7 +75,7 @@ memory with Beszel and Gatus running, and monthly egress.
 ## Agent handoff
 
 - **Allowed to change:** documentation only until ADR 0073 is `approved`; Stage 1 produces nothing in the repository.
-- **Must not change:** [`tofu-vm-provisioning.md`](tofu-vm-provisioning.md)'s files, or any credential or state file in a commit.
+- **Must not change:** the Proxmox modules under `tofu/modules/` and the inventory generator in `tools/tofu_inventory/`, or any credential or state file in a commit.
 - **Required checks:** `pre-commit run --all-files`.
 
 ## Risks

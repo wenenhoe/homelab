@@ -4,8 +4,8 @@ Current fleet only — `services`/`play`/`security`/`storage` each carry
 a hand-applied netplan override forcing a single DHCP client
 identifier across boot phases, working around a dual-lease bug. This
 is a transitional fix, not final architecture:
-[`projects/tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md)'s
-Migration Stage 2 decommissions these hosts in favor of
+[`projects/tofu-migration.md`](../../projects/tofu-migration.md)
+decommissions these hosts in favor of
 Tofu-provisioned VMs with static IPs and no DHCP at all — see
 [`vm-provisioning.md`](vm-provisioning.md#ubuntu-vms) for why that
 design skips DHCP entirely rather than needing this same fix. Not

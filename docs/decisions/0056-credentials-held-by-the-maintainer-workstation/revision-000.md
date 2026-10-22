@@ -19,7 +19,7 @@ The maintainer workstation handles content from an untrusted host and from the w
 
 ## Context
 
-The workstation is the maintainer's Windows 11 laptop, a general-purpose machine that the repo does not provision or configure. The `controller` is VM 401 today, per [`tofu-vm-provisioning.md`](../../projects/tofu-vm-provisioning.md): a desktop that runs Ansible, Tofu, and the `tools/` utilities and holds the push credential. [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) moves the controller off it, and VM 401 is decommissioned once the operator host runs the controller. Per [`secrets.md`](../../topics/secrets/secrets.md) the controller holds a file cache with three permanent exceptions: `main-domain` and the `openbao-controller-role-id` and `-secret-id` AppRole pair.
+The workstation is the maintainer's Windows 11 laptop, a general-purpose machine that the repo does not provision or configure. The `controller` is VM 401 today, per [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#vmid--vlan--ip-scheme): a desktop that runs Ansible, Tofu, and the `tools/` utilities and holds the push credential. [ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md) moves the controller off it, and VM 401 is decommissioned once the operator host runs the controller. Per [`secrets.md`](../../topics/secrets/secrets.md) the controller holds a file cache with three permanent exceptions: `main-domain` and the `openbao-controller-role-id` and `-secret-id` AppRole pair.
 
 `main-domain` is not sensitive. It is cached rather than stored in Vault because host names, including OpenBao's own, must resolve before Vault is reachable, and `tools/openbao_utils/client.py` builds OpenBao's URL from it.
 

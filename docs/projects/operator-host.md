@@ -78,7 +78,7 @@ Internet, over 443: GitHub (`git pull`, the `bao` binary, provider releases), Py
 ## Open items
 
 - Tofu's flows come from the docs, not code, since no Tofu exists yet. The Proxmox provider may need SSH to the node for some resources; check when the Tofu skeleton lands.
-- Whether VM 302 is built by hand or waits for the Tofu Ubuntu module ([`tofu-vm-provisioning.md`](tofu-vm-provisioning.md)); the VM is small enough to build by hand.
+- Whether VM 302 is built by hand or from the Tofu Ubuntu module ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#ubuntu-modules)); the VM is small enough to build by hand.
 
 ## Closing checklist
 

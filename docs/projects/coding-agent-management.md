@@ -9,8 +9,6 @@ decision: ADR-0054/0
 super_project: coding-agent-host
 track: lifecycle
 depends_on:
-  - project: PROJ-tofu-vm-provisioning
-    reason: Rebuild-first needs the Tofu Ubuntu module to recreate the VM from its definition
   - project: PROJ-cd-agent
     reason: The management job and its separate execution identity run on the CD agent, which does not exist yet
   - project: PROJ-coding-agent-host

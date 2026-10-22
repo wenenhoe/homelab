@@ -51,7 +51,8 @@ half and a contained half instead:
 2. Discover and decrypt one real app's latest backup directly — still
    read-only (list + `gpg --decrypt` only), still nothing remote.
    Pick a simple app for a first drill (`wastebin`: single volume,
-   not stopped during backup):
+   not stopped during backup). Run it from the repo root, since the
+   step before leaves the shell in `ansible/`:
    ```sh
    python3 -c "
    import sys; sys.path.insert(0, 'ansible/scripts')

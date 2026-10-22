@@ -88,6 +88,7 @@ calls for a project, while a working one still has to be settled.
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
 | `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | 1 | Not started — ready |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | De-risking |
+| | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
 | | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | — | De-risking — waiting on [`tofu-migration.md`](projects/tofu-migration.md) |
 
 ## Projects
@@ -99,7 +100,10 @@ calls for a project, while a working one still has to be settled.
 | [`bind-mounted-config-files.md`](projects/bind-mounted-config-files.md) | — | Not started — waiting on [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | Mount files Ansible renders read-only from the stack directory, so a config file no longer needs a volume of its own. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
 | [`host-hardening-remaining-hosts.md`](projects/host-hardening-remaining-hosts.md) | — | Not started — waiting on [`operator-host.md`](projects/operator-host.md), [`cd-agent.md`](projects/cd-agent.md), [`coding-agent-host.md`](projects/coding-agent-host.md) | Confirm the operator host, the CD agent, and the coding-agent host include the hardening baseline from their own builds, then settle ADR 0043. |
+| [`kms-image.md`](projects/kms-image.md) | — | Not started — waiting on [ADR-0091/0](decisions/0091-where-the-activation-hosts-image-comes-from/revision-000.md) | Build the Windows activation host's server-only image from the upstream py-kms in this repository, attest it, and replace the 11notes images and the kms-gui app. |
+| [`licence-check.md`](projects/licence-check.md) | — | Not started — waiting on [ADR-0090/0](decisions/0090-licences-of-adopted-software/revision-000.md) | A registry of every pinned dependency's licence, a check when a pin changes, and a weekly check of each upstream's default-branch licence file, as ADR 0090 decides. |
 | [`production-and-work-in-progress-branches.md`](projects/production-and-work-in-progress-branches.md) | — | Building | Three long-lived branches where only main is deployed, a promotion checklist on pull requests into main, and Renovate's branch realigned before each run. |
+| [`proxmox-node-install.md`](projects/proxmox-node-install.md) | — | Not started — waiting on [ADR-0093/0](decisions/0093-how-the-proxmox-node-is-installed-and-configured/revision-000.md) | The Proxmox node reinstalled from an ISO with an embedded answer file and brought to the state OpenTofu needs by an idempotent Ansible role, tested on a nested Proxmox VM. |
 | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | — | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
 
 ## Decisions awaiting a project

@@ -5,7 +5,7 @@ host in `app_hosts` (`security`, `services`, `play`, `storage`), including `secu
 
 ## Connection model
 
-Hub and agent can talk over SSH (hub -> agent) or WebSocket (agent -> hub). This setup uses WebSocket: each agent makes an outbound connection to `beszel_hub_url`, authenticated by a `TOKEN` (identifies which system is connecting) and a `KEY` (the hub's public ED25519 key, so the agent can verify it's talking to the real hub). Nothing needs an inbound port opened on `services` or `play`, and it isn't affected by `iptables -P FORWARD DROP` hardening the way SSH mode can be — see [Beszel's security docs](https://beszel.dev/guide/security) for the full handshake.
+Hub and agent can talk over SSH (hub -> agent) or WebSocket (agent -> hub). This setup uses WebSocket: each agent makes an outbound connection to `beszel_hub_url`, authenticated by a `TOKEN` (identifies which system is connecting) and a `KEY` (the hub's public ED25519 key, so the agent can verify it's talking to the real hub). The agent runs with `DISABLE_SSH=true`, so it opens no listening port at all despite running on the host network. Nothing needs an inbound port opened on `services` or `play`, and it isn't affected by `iptables -P FORWARD DROP` hardening the way SSH mode can be — see [Beszel's security docs](https://beszel.dev/guide/security) for the full handshake.
 
 ## Why the hub skips Tinyauth
 

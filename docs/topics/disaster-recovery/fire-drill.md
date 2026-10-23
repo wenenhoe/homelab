@@ -51,7 +51,8 @@ half and a contained half instead:
 2. Discover and decrypt one real app's latest backup directly — still
    read-only (list + `gpg --decrypt` only), still nothing remote.
    Pick a simple app for a first drill (`wastebin`: single volume,
-   not stopped during backup):
+   not stopped during backup). Run it from the repo root, since the
+   step before leaves the shell in `ansible/`:
    ```sh
    python3 -c "
    import sys; sys.path.insert(0, 'ansible/scripts')
@@ -66,16 +67,73 @@ half and a contained half instead:
 3. Stand up a scratch host on an isolated segment where nothing
    depends on it, such as VLAN 50 (`192.168.50.0/24`), the block
    [`vm-provisioning.md`](../infra/vm-provisioning.md) reserves for
-   isolated experimentation.
+   isolated experimentation. The host sits behind its own gateway, so
+   reach its SSH port through a port forward on that gateway's WAN
+   address, limited to the controller's address, and delete the forward
+   and its pass rule at teardown.
 
-   Give it its own throwaway name, on its own inventory
-   file (a sibling of `inventory/inventory.yaml`, never committed) —
-   never the real `inventory.yaml`, so there's no `--limit` typo that
-   could reach a real host. In its `host_vars`, list only
-   `compose_apps: [{name: wastebin}]` — no `caddy:` block on that
-   entry means it's non-routable ([`host-vars.md`](../deploy/host-vars.md)), so
-   the drill needs no DNS or TLS. Deploy it fresh with
-   `playbooks/deploy.yaml` against that inventory file.
+   Give it its own throwaway name, on its own inventory file next to
+   `inventory/inventory.yaml` (`group_vars/all` loads from the inventory
+   file's directory) and never committed: add it to `.git/info/exclude`.
+   Never the real `inventory.yaml`, so there's no `--limit` typo that
+   could reach a real host.
+
+   ```yaml
+   ---
+   all:
+     vars:
+       ansible_python_interpreter: /usr/bin/python3.14
+       ansible_ssh_private_key_file: ~/.ssh/proxmox_vm_servers
+       ansible_become_exe: /usr/bin/sudo.ws
+     children:
+       managed_hosts:
+         hosts:
+           scratch-wastebin:
+             ansible_host: <gateway WAN address>
+             ansible_port: <forwarded port>
+             ansible_user: <admin account>
+             compose_apps:
+               - name: wastebin
+                 backup:
+                   volumes: []
+       reference_hosts:
+         hosts:
+           security:
+             ansible_host: "security.{{ ddns_domain }}"
+             ansible_user: secadmin
+       controller:
+         hosts:
+           localhost:
+             ansible_connection: local
+             ansible_python_interpreter: "{{ ansible_playbook_python }}"
+   ```
+
+   - `backup: {volumes: []}` leaves the host with no backup plan, so no
+     backup agent is deployed and no S3 credential is needed for a host
+     the secret catalog does not know.
+   - `security` is outside `managed_hosts` because the secrets play reads
+     step-ca's root cert from it. Only `--limit` keeps the plays that
+     target `security` off the real host, so list what each play will
+     touch first with `--list-hosts`.
+   - Every managed host runs the Caddy roles, which render a Caddyfile
+     and install a certificate-expiry alert. The scratch host runs no
+     Caddy, so `--skip-tags infra` leaves both out. Wastebin joins the
+     external `caddy-proxy` network that Caddy's stack creates, so create
+     it by hand once Docker is installed. Run the last deploy without `--tags`:
+     the tasks that create an app's directory are untagged, and
+     `--tags images` skips them.
+
+   ```sh
+   cd ansible
+   ansible-playbook playbooks/deploy.yaml -i inventory/scratch-firedrill.yaml \
+     --limit scratch-wastebin,localhost --list-hosts
+   ansible-playbook playbooks/deploy.yaml -i inventory/scratch-firedrill.yaml \
+     --limit scratch-wastebin,localhost --tags initial-setup,always --skip-tags infra
+   ansible scratch-wastebin -i inventory/scratch-firedrill.yaml -b -m ansible.builtin.shell \
+     -a 'docker network inspect caddy-proxy >/dev/null 2>&1 || docker network create caddy-proxy'
+   ansible-playbook playbooks/deploy.yaml -i inventory/scratch-firedrill.yaml \
+     --limit scratch-wastebin,localhost --skip-tags infra
+   ```
 4. Restore into it with the already-tested per-app `restore.yaml` —
    against the scratch inventory, with the real archive from step 2:
    ```sh
@@ -91,9 +149,12 @@ half and a contained half instead:
    `wastebin_data` named once, before typing `yes`,
    as a last check that `-i`/`--limit` actually did what you expect.
 5. Confirm the app actually boots clean against the restored data —
-   not just that Ansible reported success — then tear the scratch
-   host down and `rm -rf ansible/files/restore/scratch/` to clear the
-   decrypted plaintext.
+   not just that Ansible reported success. Compare the restored volume's
+   `state.db` with the archive's: the SHA-256 and the modification time
+   must match, since a fresh database can have the same size. Then tear
+   the scratch host down, `rm -rf ansible/files/restore/scratch/` to
+   clear the decrypted plaintext, and remove the host's `known_hosts`
+   entry.
 6. Record the result below, dated, and delete the scratch inventory
    file.
 
@@ -114,3 +175,4 @@ Append a new row per drill — this is a running log, not a single slot.
 | Date | Apps covered | SeaweedFS path | Cloud-fallback path | Result |
 | :--- | :--- | :--- | :--- | :--- |
 | 2026-09-01 | wastebin | Yes — today's `04:30` backup, discovered and decrypted for real | Not exercised this run (covered separately by the automated `discovery_and_restore` scenario) | Pass. Real object → decrypt → extract → volume-swap → redeploy all confirmed against actual content (checksum and original mtime matched the source archive, not a freshly-created empty file). `restore_all.py` passes its `-e` extra-vars to the role as a list (see `restore.md`). App-level write access wasn't independently verified this run. |
+| 2026-10-23 | wastebin | Yes — the `04:30` backup of the day before (`services-wastebin-2026-10-22T04-30-01`), discovered and decrypted for real | Not exercised this run (covered separately by the automated `discovery_and_restore` scenario) | Pass. The restored `state.db` had the archive's SHA-256 and original mtime, where the fresh database before it had the same size and a new mtime; wastebin was healthy after the restart. Ran on a scratch host behind its own gateway. App-level write access wasn't verified this run. |

@@ -28,7 +28,7 @@ Two gates block the destructive steps, each covered by a
 
 ```sh
 ansible-playbook playbooks/bootstrap-secrets.yaml playbooks/restore.yaml \
-  -i inventory/inventory.yaml --limit services,localhost \
+  -i inventory/inventory.yaml -i inventory/tofu-hosts.yaml --limit services,localhost \
   -e '{"restore_app": "kms", "restore_archive_local_path": "/home/you/services-kms-2026-07-29T04-00-00.tar.gz", "restore_volumes": ["kms_data"]}'
 ```
 

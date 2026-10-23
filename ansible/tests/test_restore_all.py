@@ -396,3 +396,22 @@ class TestMainRemovesDecryptedArchives:
                 restore_results={},
             )
         self._assert_all_removed(step_ca)
+
+
+class TestInventoryArguments:
+    @pytest.mark.parametrize(
+        "call",
+        [
+            pytest.param(restore_all.run_discovery_setup, id="discovery-setup"),
+            pytest.param(lambda: restore_all.run_app_restore(_result()), id="app-restore"),
+            pytest.param(restore_all.run_minecraft_world_restore, id="minecraft-world"),
+        ],
+    )
+    def test_every_playbook_run_loads_the_hand_written_and_the_generated_inventory(self, monkeypatch, call):
+        run = create_autospec(restore_all.subprocess.run, return_value=_completed())
+        monkeypatch.setattr(restore_all.subprocess, "run", run)
+
+        call()
+
+        command = run.call_args.args[0]
+        assert [command[i + 1] for i, arg in enumerate(command) if arg == "-i"] == ["inventory/inventory.yaml", "inventory/tofu-hosts.yaml"]

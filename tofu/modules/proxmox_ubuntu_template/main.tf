@@ -23,6 +23,7 @@ resource "proxmox_virtual_environment_vm" "template" {
   started  = false
 
   machine       = "q35"
+  bios          = "ovmf"
   scsi_hardware = "virtio-scsi-single"
 
   cpu {
@@ -42,6 +43,12 @@ resource "proxmox_virtual_environment_vm" "template" {
     discard      = "on"
     ssd          = true
     size         = 8
+  }
+
+  efi_disk {
+    datastore_id      = var.datastore_id
+    type              = "4m"
+    pre_enrolled_keys = true
   }
 
   initialization {

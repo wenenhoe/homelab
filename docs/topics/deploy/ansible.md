@@ -87,6 +87,8 @@ Separate inventories exist for different situations:
 | `inventory/inventory.yaml` | `playbooks/deploy.yaml`, `playbooks/maintenance.yaml` | `<host>.{{ ddns_domain }}` (DNS name) — same for `managed_hosts` and `network_infra` alike; `cd_agent` is addressed by its static IP | Day-to-day operation once DNS is up |
 | `inventory/sos-inventory.yaml` | `playbooks/reset-network.yaml` | Static IPs (see [`vm-provisioning.md`](../infra/vm-provisioning.md#vmid--vlan--ip-scheme) for the scheme) | Recovery path when DNS/network is down |
 
+`ansible.cfg` loads `inventory/inventory.yaml` and then `inventory/tofu-hosts.yaml`, the file `tools/tofu_inventory` generates from the Tofu outputs ([`vm-provisioning.md`](../infra/vm-provisioning.md#tofu--ansible-handoff)). A host named in both takes its `ansible_host` and `ansible_user` from the later file. An explicit `-i` replaces the configured list, so a run that targets a Tofu-provisioned host passes both files, in that order. The generated file is gitignored: without it Ansible warns that it cannot parse the source and carries on.
+
 `inventory/inventory.yaml` also defines groups the roles depend on directly:
 
 - **`app_hosts`** — every host that owns `compose_apps` / `dns_zones` / `caddy_domain`; the `bind9` role iterates this group's `hostvars` to build DNS zone files.

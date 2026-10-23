@@ -50,7 +50,7 @@ just another 4XX desktop, even though it stays outside Tofu/Ansible's
 management scope either way.
 
 Both OPNsense NICs are `virtio`: one on the physical WAN bridge
-(untagged), one on the VLAN-aware LAN bridge that every other VM's NIC
+(untagged, unless `wan_vlan_id` puts it on a VLAN of the LAN bridge), one on the VLAN-aware LAN bridge that every other VM's NIC
 also attaches to, tagged per-VM to whichever VLAN its VMID range implies.
 
 ## MAC address scheme
@@ -111,6 +111,13 @@ module passes the dated release directory of the cloud image and the
 SHA-256 that release publishes, which are the defaults of
 `ubuntu_image_url` and `ubuntu_image_checksum` in `tofu/variables.tf`.
 The root module builds the template; it declares no VMs yet.
+
+The template and its clones are `q35` machines booting UEFI (`ovmf`) from a
+`4m` EFI disk on the VM datastore with the distribution and Microsoft keys
+pre-enrolled, so secure boot is on. The clone
+repeats the firmware and the EFI disk, because the provider otherwise plans
+SeaBIOS and a `2m` disk over the template's, and a different EFI disk type
+replaces the VM. The OPNsense module does not set firmware.
 
 From `vm_id` the VM module derives everything the scheme above fixes: the
 VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
@@ -195,7 +202,10 @@ see the
 The module gives the VM two virtio NICs with MACs from the scheme above,
 NIC 0 on the physical WAN bridge and NIC 1 on the VLAN-aware LAN bridge,
 both untagged so OPNsense sees every VLAN, and boots the disk before the
-installer so an installed VM boots from it. Its `vm_id` is the gateway
+installer so an installed VM boots from it. Setting `wan_bridge` to the
+LAN bridge and `wan_vlan_id` tags NIC 0 onto a VLAN of it instead, for a
+WAN that is an ordinary client of another OPNsense's LAN; NIC 1 stays
+untagged. Its `vm_id` is the gateway
 VMID of a range, host part 01. The root module declares no OPNsense VM
 yet, so the module's call is where its bridges, sizing and image are
 passed.
@@ -224,9 +234,11 @@ cd tools && uv run python -m tofu_inventory
 The generator rejects an entry with extra or missing keys, a name that is
 not a lowercase inventory name, or an address that is not IPv4, and a failed
 run leaves the previous file in place. `inventory.yaml` keeps only what Tofu
-cannot know — group membership — and Ansible merges the two files by host
-name, so a new VM is a module call, an `ansible_hosts` entry and a name in
-its groups. Each tool keeps one job, as `host_vars` and `app_catalog`
+cannot know — group membership — and `ansible.cfg` loads the two files in
+that order, so Ansible merges them by host name and the generated address
+and user win ([`ansible.md`](../deploy/ansible.md#inventory) covers a run
+that passes `-i`). A new VM is a module call, an `ansible_hosts` entry and
+a name in its groups. Each tool keeps one job, as `host_vars` and `app_catalog`
 already split concerns in this repo.
 
 ## Tofu project

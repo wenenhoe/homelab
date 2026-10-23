@@ -59,9 +59,9 @@ calls for a project, while a working one still has to be settled.
 | [`coding-agent-network.md`](projects/coding-agent-network.md) | 6 | De-risking | A dedicated VLAN, default-deny firewall policy and laptop-only Tailscale route for the coding-agent host, after the spikes that settle ADR 0053's assumptions. |
 | [`operator-host.md`](projects/operator-host.md) | 2 | De-risking | A headless VM in VLAN 30, reachable only from the maintainer's laptop, with its network rules, tailnet route and hardened baseline, ready to take the controller. |
 | [`gcp-e2-micro-provisioning.md`](projects/gcp-e2-micro-provisioning.md) | 1 | De-risking | Onboard a GCP project and define the off-site e2-micro in OpenTofu, with a provisioning identity that leaves no standing key on the host. |
+| [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | De-risking | Internal DNS records for Tofu-provisioned VMs, as ADR 0040 decides. |
 | [`opnsense-config.md`](projects/opnsense-config.md) | — | De-risking | The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the coding-agent zone and its proxy. |
 | [`compose-restart-on-changed-mount.md`](projects/compose-restart-on-changed-mount.md) | 1 | Not started — ready | The compose role restarts a container when a file bind-mounted into it changes, and nothing else. |
-| [`tofu-migration.md`](projects/tofu-migration.md) | 1 | Not started — ready | Build the isolated 5XX block and run the first restore.yaml against it, then rebuild on the real VMID ranges, cut over, and decommission the old VMs. |
 | [`beszel-agent-docker-api-rules.md`](projects/beszel-agent-docker-api-rules.md) | — | Not started — ready | Replace the beszel-agent proxy's CONTAINERS=1 flag with a rules file naming the calls the pinned agent makes, delivered to the host and tried against the proxy image. |
 | [`tailnet-policy-baseline.md`](projects/tailnet-policy-baseline.md) | — | Not started — ready | Replace the tailnet's allow-all policy with explicit grants and tests, once, so the projects that add a route only add a grant. |
 | [`workstation-management.md`](projects/workstation-management.md) | — | Not started — ready | Set up the maintainer's laptop as the workstation with WSL2 under a memory cap, a hardware-backed operator-host key, a credential audit, and no desktop assistant with local tool access, then remove every infrastructure credential from VM 401 and retire it. |
@@ -86,10 +86,10 @@ calls for a project, while a working one still has to be settled.
 | | `agent` | — | [`cd-agent.md`](projects/cd-agent.md) | 3 | Building |
 | | `credentials` | — | [`cd-agent-approles.md`](projects/cd-agent-approles.md) | 1 | Building |
 | | `credentials` | — | [`cd-agent-controller-approle-retirement.md`](projects/cd-agent-controller-approle-retirement.md) | — | Not started — waiting on [`cd-agent.md`](projects/cd-agent.md), [`cd-agent-approles.md`](projects/cd-agent-approles.md) |
-| `tofu-vm-provisioning` | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | 1 | Not started — ready |
+| `tofu-vm-provisioning` | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | 1 | De-risking |
 | | `opnsense` | — | [`opnsense-config.md`](projects/opnsense-config.md) | — | De-risking |
 | | `windows` | — | [`windows-vms.md`](projects/windows-vms.md) | — | Not started — waiting on [ADR-0092/0](decisions/0092-how-windows-virtual-machines-are-built/revision-000.md) |
-| | `dns` | — | [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) | — | De-risking — waiting on [`tofu-migration.md`](projects/tofu-migration.md) |
+| | `migration` | — | [`tofu-migration.md`](projects/tofu-migration.md) | — | Building — waiting on [`tofu-vm-dns.md`](projects/tofu-vm-dns.md) |
 
 ## Projects
 

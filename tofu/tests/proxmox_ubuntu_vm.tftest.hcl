@@ -68,6 +68,46 @@ run "keeps_the_templates_scsi_controller_and_disk_settings" {
   }
 }
 
+run "keeps_the_templates_uefi_firmware_and_efi_disk" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id = 203
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.bios == "ovmf"
+    error_message = "the clone must not fall back to the schema's default SeaBIOS"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.efi_disk[0].type == "4m" && proxmox_virtual_environment_vm.this.efi_disk[0].datastore_id == "local-lvm"
+    error_message = "the clone must repeat the template's 4m EFI disk, or the provider replaces the VM"
+  }
+}
+
+run "puts_the_efi_disk_on_the_chosen_datastore" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_ubuntu_vm"
+  }
+
+  variables {
+    vm_id        = 203
+    datastore_id = "backup"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.efi_disk[0].datastore_id == "backup" && proxmox_virtual_environment_vm.this.disk[0].datastore_id == "backup"
+    error_message = "the EFI disk must follow the system disk to the chosen datastore"
+  }
+}
+
 run "takes_a_two_digit_host_part_from_the_last_two_digits" {
   command = plan
 

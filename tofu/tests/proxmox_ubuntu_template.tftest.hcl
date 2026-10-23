@@ -61,6 +61,16 @@ run "builds_a_template_that_is_never_started" {
     condition     = proxmox_virtual_environment_vm.template.scsi_hardware == "virtio-scsi-single" && proxmox_virtual_environment_vm.template.disk[0].iothread == true
     error_message = "the template's disk must use iothread on the controller that supports it"
   }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.template.machine == "q35" && proxmox_virtual_environment_vm.template.bios == "ovmf"
+    error_message = "the template must boot UEFI on q35, like the hosts it replaces"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.template.efi_disk[0].type == "4m" && proxmox_virtual_environment_vm.template.efi_disk[0].datastore_id == "local-lvm"
+    error_message = "the template needs a 4m EFI disk on the VM datastore"
+  }
 }
 
 run "rejects_a_vmid_outside_the_template_range" {

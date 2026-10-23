@@ -33,9 +33,17 @@ resource "proxmox_virtual_environment_vm" "this" {
     dedicated = var.memory_mb
   }
 
-  # For scsi_hardware and every disk attribute below, the provider plans the
-  # schema default over the template's value unless it is repeated here.
+  # For bios, efi_disk, scsi_hardware and every disk attribute below, the
+  # provider plans the schema default over the template's value unless it is
+  # repeated here. An efi_disk type that differs from the template's replaces
+  # the VM.
+  bios          = "ovmf"
   scsi_hardware = "virtio-scsi-single"
+
+  efi_disk {
+    datastore_id = var.datastore_id
+    type         = "4m"
+  }
 
   disk {
     datastore_id = var.datastore_id

@@ -26,6 +26,7 @@ OPNsense is the lab's gateway, and its configuration is the network boundary tha
 - The API credential cannot live in OpenBao for the reason [ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md) gives: OpenBao sits behind the gateway being rebuilt.
 - The maintainer reaches the VLANs through the Tailscale subnet router, which source-NATs, so every tailnet node arrives at the gateway with the router's address. Only the operator host ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)) and, until it is retired, VM 401 can be told apart by source address.
 - OPNsense imports a configuration only on install media: its importer waits for a key press at the console, then asks which disk to read, and the installer then clones the live system's `/conf` onto the target disk. A system that boots from a disk already holding `/conf/config.xml` skips the importer. Neither prompt has an unattended mode.
+- On 26.1.6 in a scratch VM, a second virtio-SCSI disk with an MBR partition table and one FAT partition holding `conf/config.xml` appears in the importer's device list as `da1`, and importing it restores the file. The installer carries it to the installed disk, which then boots without the importer prompt, with the seeded interface assignments, a root password that logs in to the GUI, and an API user whose key authenticates while a wrong secret is refused. OPNsense stores the API secret as a SHA-512 crypt hash, so the seed holds only the hash. After the import the install media's `installer` login no longer works, because the seed replaces the media's configuration. Tofu attached the seed through the gateway module, which uploaded it as import content and attached it as a second disk.
 - ISC DHCP is end of life upstream, and Kea is its supported replacement.
 - A major release can change what the configuration relies on: an interface API appears, legacy pages move into a plugin, behaviour of the network stack changes. A release change therefore needs a test before it reaches the live gateway.
 
@@ -77,9 +78,9 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 
 ## Assumptions
 
-- **Claim:** a `config.xml` on an image Tofu attaches reaches a fresh gateway with no console input, and the same image can carry an API user whose secret never enters the repo or the Tofu state (only its hash does).
-  **Breaks if wrong:** the seed is delivered another way (a console step, or an SSH import), and the key is created in a first manual step.
-  **Checked by:** a spike on a scratch OPNsense in the isolated block.
+- **Claim:** a gateway can be installed from the seeded disk without a person at the console, by a pre-installed disk image or a scripted console, at a cost the maintainer accepts.
+  **Breaks if wrong:** each gateway's first install stays a manual console session, and the seed row of the table under Decision says so.
+  **Checked by:** a spike of one such route on a scratch OPNsense in the isolated block.
 - **Claim:** at the pinned release the modules, and a generic-call recipe for system settings and the certificate, cover every object the policy needs, and `--check --diff` reports drift accurately, including for objects set through the generic call and for Unbound forwards.
   **Breaks if wrong:** the missing objects need a small module of ours or an upstream contribution, which adds code to maintain.
   **Checked by:** the same spike, running the play twice and with a deliberate manual change.

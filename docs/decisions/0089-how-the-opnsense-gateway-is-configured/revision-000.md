@@ -22,11 +22,16 @@ OPNsense is the lab's gateway, and its configuration is the network boundary tha
 - Tofu builds the gateway's VM shell with the `proxmox_opnsense_vm` module. The install and the day-2 configuration are manual ([`vm-provisioning.md`](../../topics/infra/vm-provisioning.md#opnsense)).
 - Most OPNsense objects are configurable through its API. In the 26.1 series that API cannot assign a VLAN device to an interface or give the interface an address; the 26.7 series adds an assignment API.
 - Tooling follows releases. The Ansible collection `oxlorg.opnsense` states that each of its releases works only with the OPNsense release of the same version. The Tofu provider `browningluke/opnsense` is pre-1.0, changes schemas between releases, and has no resource for interface assignment, system settings or packages.
-- The collection can verify the gateway's TLS certificate against a CA file, but only when the name or address it connects to appears in that certificate. It can revert a firewall change that was applied under a savepoint, and it has a generic call for endpoints it has no module for. At its 26.1.11 release it has modules for VLAN devices, firewall rules and aliases, outbound NAT, Kea subnets, Unbound forwards and settings, packages and users. It has none for system settings (its `system` module only powers off, reboots, updates, upgrades and audits) or for the gateway's own certificate, which go through the generic call.
+- The collection can verify the gateway's TLS certificate against a CA file, but only when the name or address it connects to appears in that certificate. It has a generic call for endpoints it has no module for, and a savepoint action for firewall changes. At its 26.1.11 release it has modules for VLAN devices, firewall rules and aliases, outbound NAT, Kea subnets, Unbound forwards and settings, packages and users. It has none for system settings (its `system` module only powers off, reboots, updates, upgrades and audits) or for the gateway's own certificate, which go through the generic call. Its git tag `26.1.11` carries the metadata of an earlier version, so the pin is a commit.
 - The API credential cannot live in OpenBao for the reason [ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md) gives: OpenBao sits behind the gateway being rebuilt.
 - The maintainer reaches the VLANs through the Tailscale subnet router, which source-NATs, so every tailnet node arrives at the gateway with the router's address. Only the operator host ([ADR 0058 (Operator work host)](../0058-where-operator-work-runs/revision-000.md)) and, until it is retired, VM 401 can be told apart by source address.
 - OPNsense imports a configuration only on install media: its importer waits for a key press at the console, then asks which disk to read, and the installer then clones the live system's `/conf` onto the target disk. A system that boots from a disk already holding `/conf/config.xml` skips the importer. Neither prompt has an unattended mode.
 - On 26.1.6 in a scratch VM, a second virtio-SCSI disk with an MBR partition table and one FAT partition holding `conf/config.xml` appears in the importer's device list as `da1`, and importing it restores the file. The installer carries it to the installed disk, which then boots without the importer prompt, with the seeded interface assignments, a root password that logs in to the GUI, and an API user whose key authenticates while a wrong secret is refused. OPNsense stores the API secret as a SHA-512 crypt hash, so the seed holds only the hash. After the import the install media's `installer` login no longer works, because the seed replaces the media's configuration. Tofu attached the seed through the gateway module, which uploaded it as import content and attached it as a second disk.
+- Run against that gateway, the collection's modules for aliases, firewall rules and Unbound forwards created their objects, a second run and `--check` reported no change, and a change made in the GUI to an alias, a rule's port and a forward was reported as drift by the next `--check --diff` and repaired by a run. The alias diff carries an unrelated `url_auth_type` line, and the forward is reported as changed with no diff. Packages, users and the Unbound and Kea settings were not run. The generic call applies nothing in `--check` and reports a change on every real run, so an object set through it never shows drift.
+- OPNsense has no API for the hostname, time zone, SSH, the GUI's listen address or certificate, NTP or the anti-lockout setting. The legacy pages own them, and the system API only halts, reboots and reports status. Only the seed or the GUI sets them, and `--check --diff` does not see them. The certificate API creates and imports certificates but cannot make one the GUI's.
+- With anti-lockout on, the default, the gateway admits every host on its primary interface to the GUI and SSH ports, which contradicts the management invariant below. The setting is `noantilockout` in the configuration.
+- Within a priority group, a rule created through the API for one interface is placed after the legacy rules of that interface, so a legacy allow rule such as the sample configuration's "allow LAN to any" is reached first and the rule after it never applies. A rule that lists several interfaces is floating and is evaluated before them. A rule blocking the operator host that listed only the LAN interface did not cut the host off under that allow rule. The same rule listing LAN and WAN did, for new connections; connections already open kept working.
+- The savepoint cannot revert on 26.1.6. The revision it hands out has two decimals and the configuration backup it must find is named with four, so the revert call and the 60 s timer find no backup, change nothing and log `unable to revert to unexisting revision`. Neither a harmless change nor a cutting one was reverted, by the timer or by a direct revert call. Confirming a change works. The development branch has the same code. Where it works, it restores only the firewall rules, not aliases, NAT or interfaces.
 - ISC DHCP is end of life upstream, and Kea is its supported replacement.
 - A major release can change what the configuration relies on: an interface API appears, legacy pages move into a plugin, behaviour of the network stack changes. A release change therefore needs a test before it reaches the live gateway.
 
@@ -45,18 +50,18 @@ OPNsense is the lab's gateway, and its configuration is the network boundary tha
 
 | Layer | Sets | Applied by | When |
 | :--- | :--- | :--- | :--- |
-| Seed | Interface assignments and addresses, VLAN devices, the management listen address, one API user and its key | A `config.xml` on an image Tofu attaches to the VM | First boot only |
-| API | Everything else: firewall policy, NAT, Unbound, Kea, packages, system settings | `oxlorg.opnsense`, run from the operator host | Every change, and every drift check |
+| Seed | Interface assignments and addresses, VLAN devices, the system settings the API cannot set (hostname, time zone, SSH, NTP, the management listen address, anti-lockout), one API user and its key | A `config.xml` on an image Tofu attaches to the VM | First boot only |
+| API | Everything else: firewall policy, NAT, Unbound, Kea, packages | `oxlorg.opnsense`, run from the operator host | Every change, and every drift check |
 
 The seed holds only what the API cannot set on the pinned release, so its interface part can be dropped once assignment is API-managed.
 
-**Changes and drift.** The play runs with `--check --diff` before it applies. A firewall change is applied under a savepoint and confirmed, so a change that cuts the management path reverts itself. The GUI is for reading and debugging; a change made there is drift that the next check shows.
+**Changes and drift.** The play runs with `--check --diff` before it applies. The gateway VM is snapshotted in Proxmox before each apply. The savepoint is not used, because it cannot revert on the pinned release. A floating, quick pass rule from the management hosts to the management ports comes first in the ruleset and the play never removes or reorders it, so a firewall change cannot cut the operator's path. The snapshot and the console are the way back from any other breakage. The GUI is for reading and debugging; a change made there is drift that the next check shows.
 
-**One pin.** The OPNsense release and the collection version are pinned together in one place. A change to the pin is rehearsed first: a clone of the gateway on an isolated bridge is upgraded and passes smoke checks (WAN has a valid gateway, VLANs are up, a probe VM gets a lease and resolves names, NAT works, the API answers). Production is then upgraded from a Proxmox snapshot.
+**One pin.** The OPNsense release and the collection's commit are pinned together in one place. A change to the pin is rehearsed first: a clone of the gateway on an isolated bridge is upgraded and passes smoke checks (WAN has a valid gateway, VLANs are up, a probe VM gets a lease and resolves names, NAT works, the API answers). Production is then upgraded from a Proxmox snapshot.
 
 **Cutover.** The configuration is developed against a scratch gateway built from the seed, in the migration's isolated block. The production gateway is rebuilt from the same seed at the migration's cutover instead of being converted in place.
 
-**Management reach.** The GUI, API and SSH accept connections only from the operator host and, until it is retired, VM 401. The subnet router is never admitted. The Proxmox console is the way in when the network is down.
+**Management reach.** The GUI, API and SSH accept connections only from the operator host and, until it is retired, VM 401. The subnet router is never admitted. The seed turns anti-lockout off, so the guard rule is the only way in besides the console. The Proxmox console is the way in when the network is down.
 
 **Credentials.** The API key and secret live in the file [ADR 0048 (Tofu credentials)](../0048-where-tofu-credentials-live/revision-000.md) decides, on the host that runs the play.
 
@@ -69,6 +74,8 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 - **MikroTik CHR.** Strong Tofu provider, but closed source, and the free licence is capped at 1 Mbps.
 - **pfSense CE.** Weaker automation tooling than OPNsense, and an irregular release cadence.
 - **Proxmox SDN and the VM firewall.** Makes the hypervisor the router, which Tofu cannot rebuild. It stays a possible second layer.
+- **The collection's savepoint revert as the safety net.** It cannot find its own backup on 26.1.6, and even where it works it restores only the firewall rules.
+- **A snapshot rolled back by the play when a probe fails.** Automatic, but it needs snapshot rights for the operator host's Proxmox token and loses runtime state such as leases. The guard rule covers the operator's path without it.
 - **The Tofu provider for the whole gateway.** It has no resource for assignment, system settings or packages, and its schemas change between releases.
 - **A complete `config.xml` rendered and pushed.** Couples the repo to one release's XML model and offers no partial apply or rollback.
 - **Importing the hand-built gateway's configuration.** Carries forward services the lab no longer uses.
@@ -81,15 +88,15 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 - **Claim:** a gateway can be installed from the seeded disk without a person at the console, by a pre-installed disk image or a scripted console, at a cost the maintainer accepts.
   **Breaks if wrong:** each gateway's first install stays a manual console session, and the seed row of the table under Decision says so.
   **Checked by:** a spike of one such route on a scratch OPNsense in the isolated block.
-- **Claim:** at the pinned release the modules, and a generic-call recipe for system settings and the certificate, cover every object the policy needs, and `--check --diff` reports drift accurately, including for objects set through the generic call and for Unbound forwards.
+- **Claim:** at the pinned release the modules cover the remaining objects the policy needs (packages, users, the Unbound and Kea settings), and `--check --diff` reports drift for them accurately.
   **Breaks if wrong:** the missing objects need a small module of ours or an upstream contribution, which adds code to maintain.
-  **Checked by:** the same spike, running the play twice and with a deliberate manual change.
-- **Claim:** a firewall change applied under a savepoint reverts by itself when the management path is cut.
-  **Breaks if wrong:** changes that can cut the path need a second, out-of-band revert.
-  **Checked by:** the spike, by applying a rule that blocks the management source.
-- **Claim:** the gateway can hold a certificate that carries its management name in the subject alternative name, created without its private key entering the repo or the Tofu state, and the collection verifies it from a CA file.
+  **Checked by:** running those modules twice on the scratch gateway, then once after a change made in the GUI.
+- **Claim:** a floating, quick pass rule for the management hosts keeps the operator's path through every later firewall change, including the play deleting or reordering rules.
+  **Breaks if wrong:** a change can still cut the operator off, and the snapshot and the console are the only way back.
+  **Checked by:** a scratch gateway with the guard rule, applying a rule that blocks the operator host's source and confirming the API stays reachable.
+- **Claim:** the gateway can serve a certificate that carries its management name in the subject alternative name, without its private key entering the repo or the Tofu state, and the collection verifies it from a CA file.
   **Breaks if wrong:** the play connects with verification off, or the certificate comes from another source.
-  **Checked by:** the spike, creating and activating the certificate through the API and connecting with verification on.
+  **Checked by:** the spike, creating the certificate through the API, making it the GUI's by the one route that exists (the seed or the legacy page) and connecting with verification on.
 - **Claim:** Unbound forwards each internal zone to its server and keeps validating public names, without turning unsigned private zones into failures.
   **Breaks if wrong:** the private zones need to be marked insecure or served another way.
   **Checked by:** a resolution test from a probe VM against the scratch gateway.
@@ -103,12 +110,14 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 - [ADR 0053 (Coding-agent network reach)](../0053-network-reach-of-the-coding-agent-host/revision-000.md) names this configuration, not Tofu, as what carries its rules. The subnet router's admission there is to the coding-agent VLAN only, so this ADR's management rule does not conflict with it.
 - The credentials file of ADR 0048 also feeds the Ansible play. Whether that needs a revision of ADR 0048 is decided when the play lands.
 - Moving to a newer OPNsense series waits for a collection release for it.
+- The settings only the seed sets are not reported by `--check --diff`. A change to one reaches an existing gateway only by hand in the GUI, and nothing detects the drift.
 - The hand-built rules for the zones of ADR 0053 and ADR 0058 are written again in code on the new gateway, not imported.
 - A topic doc will describe the resulting behaviour once it exists.
 
 ## Invariants
 
 - The gateway's GUI, API and SSH accept connections only from the operator host and, until it is retired, VM 401.
+- A rule admitting the management hosts to the management ports is first in the ruleset, and the play never removes or reorders it.
 - The API credential is never in the repo, OpenBao or Tofu state.
 - No service or plugin runs on the gateway that the configuration does not declare.
 - No dynamic DNS credential exists on the gateway.
@@ -127,3 +136,4 @@ A scheduled `--check --diff` run reports drift, and the rehearsal's smoke checks
 
 - The collection has no release for the series that OPNsense ships fixes for.
 - A rehearsal fails to predict a failure on the live gateway.
+- A series of OPNsense in which the savepoint revert works, which would let the play confirm its changes instead of relying on the snapshot.

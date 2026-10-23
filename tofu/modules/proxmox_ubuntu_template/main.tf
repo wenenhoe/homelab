@@ -46,8 +46,9 @@ resource "proxmox_virtual_environment_vm" "template" {
   }
 
   efi_disk {
-    datastore_id = var.datastore_id
-    type         = "4m"
+    datastore_id      = var.datastore_id
+    type              = "4m"
+    pre_enrolled_keys = true
   }
 
   initialization {

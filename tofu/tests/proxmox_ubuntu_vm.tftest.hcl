@@ -88,6 +88,11 @@ run "keeps_the_templates_uefi_firmware_and_efi_disk" {
     condition     = proxmox_virtual_environment_vm.this.efi_disk[0].type == "4m" && proxmox_virtual_environment_vm.this.efi_disk[0].datastore_id == "local-lvm"
     error_message = "the clone must repeat the template's 4m EFI disk, or the provider replaces the VM"
   }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.efi_disk[0].pre_enrolled_keys == true
+    error_message = "the clone must repeat the template's pre-enrolled keys, or the provider plans their removal"
+  }
 }
 
 run "puts_the_efi_disk_on_the_chosen_datastore" {

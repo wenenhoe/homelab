@@ -71,6 +71,11 @@ run "builds_a_template_that_is_never_started" {
     condition     = proxmox_virtual_environment_vm.template.efi_disk[0].type == "4m" && proxmox_virtual_environment_vm.template.efi_disk[0].datastore_id == "local-lvm"
     error_message = "the template needs a 4m EFI disk on the VM datastore"
   }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.template.efi_disk[0].pre_enrolled_keys == true
+    error_message = "the EFI disk must carry the distribution and Microsoft keys, so secure boot is on"
+  }
 }
 
 run "rejects_a_vmid_outside_the_template_range" {

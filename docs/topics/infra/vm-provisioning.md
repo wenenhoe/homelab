@@ -113,7 +113,8 @@ SHA-256 that release publishes, which are the defaults of
 The root module builds the template; it declares no VMs yet.
 
 The template and its clones are `q35` machines booting UEFI (`ovmf`) from a
-`4m` EFI disk on the VM datastore, with no pre-enrolled keys. The clone
+`4m` EFI disk on the VM datastore with the distribution and Microsoft keys
+pre-enrolled, so secure boot is on. The clone
 repeats the firmware and the EFI disk, because the provider otherwise plans
 SeaBIOS and a `2m` disk over the template's, and a different EFI disk type
 replaces the VM. The OPNsense module does not set firmware.

@@ -147,7 +147,7 @@
     - name: Extract the full archive into a scratch volume once
       community.docker.docker_container:
         name: "{{ restore_app }}-restore-extract"
-        image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+        image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
         volumes:
           - "{{ restore_remote_archive }}:/restore-archive:ro"
           - "{{ restore_app }}_restore_scratch:/scratch"
@@ -173,7 +173,7 @@
     - name: Locate and restore each targeted volume's contents
       community.docker.docker_container:
         name: "{{ restore_app }}-restore-{{ item }}"
-        image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+        image: alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a
         volumes:
           - "{{ restore_app }}_restore_scratch:/scratch:ro"
           - "{{ item }}:/target"

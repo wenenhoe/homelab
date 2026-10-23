@@ -7,7 +7,7 @@ driver:
   name: docker
 platforms:
   - name: seaweedfs-bucket-instance
-    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:36d341344d87dba89b0af2793ff5c5a294d87af7ac4273c5185dbc22c80d184c
+    image: ghcr.io/wenenhoe/molecule-dind:latest@sha256:ab086aa21d8b76b8f1e3e0160036291182f3df9c2569044250ac50ad119083c4
     privileged: true
     cgroupns_mode: host
     volumes:

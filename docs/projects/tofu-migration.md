@@ -95,8 +95,9 @@ static address and no DDNS name, and every generated CNAME points at
 the same cycle:
 
 1. Back up the host's apps ([`backup.md`](../topics/disaster-recovery/backup.md)).
-2. `vzdump` the old VM to the `backup` storage, then destroy it. The dump
-   is the rollback: `qmrestore` it to a 9XX VMID.
+2. `vzdump` the old VM to the `vzdump` storage ([below](#dump-storage)),
+   then destroy it. The dump is the rollback: `qmrestore` it to a 9XX
+   VMID.
 3. Add the host's module call and `ansible_hosts` entry to the root
    module, apply, and run the inventory generator.
 4. Remove the host's `ansible_host` and `ansible_user` from
@@ -109,6 +110,26 @@ the same cycle:
 
 The gateway's rebuild is the last stage of
 [`opnsense-config.md`](opnsense-config.md), run with this cutover.
+
+#### Dump storage
+
+`backup` is `lvmthin`, which holds VM disks and not dump files, and the
+only directory storages (`local`, `tofu-images`) share one 36 GB
+filesystem. Dumps go to a directory storage on a thin volume of the same
+volume group, created once on the node. Read `vgname` and `thinpool` from
+`/etc/pve/storage.cfg`, and size the volume from the data the hosts hold
+(`df -h` on each), since the pool also holds the disks of VMs 202 to 204:
+
+```sh
+lvcreate -V <size> -T <vgname>/<thinpool> -n vzdump
+mkfs.ext4 /dev/<vgname>/vzdump
+mkdir -p /mnt/vzdump
+echo '/dev/<vgname>/vzdump /mnt/vzdump ext4 defaults,nofail 0 2' >> /etc/fstab
+mount /mnt/vzdump
+pvesm add dir vzdump --path /mnt/vzdump --content backup --is_mountpoint yes
+```
+
+Remove the storage and the volume when the last dump is deleted.
 
 The hand-written `services`, `play`, `security`, `storage` and
 `tailscale` entries move over as each host is rebuilt: the generator

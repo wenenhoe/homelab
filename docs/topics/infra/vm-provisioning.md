@@ -112,6 +112,12 @@ SHA-256 that release publishes, which are the defaults of
 `ubuntu_image_url` and `ubuntu_image_checksum` in `tofu/variables.tf`.
 The root module builds the template; it declares no VMs yet.
 
+The template and its clones are `q35` machines booting UEFI (`ovmf`) from a
+`4m` EFI disk on the VM datastore, with no pre-enrolled keys. The clone
+repeats the firmware and the EFI disk, because the provider otherwise plans
+SeaBIOS and a `2m` disk over the template's, and a different EFI disk type
+replaces the VM. The OPNsense module does not set firmware.
+
 From `vm_id` the VM module derives everything the scheme above fixes: the
 VLAN tag, the static `/24` address with `.1` as gateway, and the MAC. It
 rejects a VMID outside 2XX to 5XX and one whose last two digits fall

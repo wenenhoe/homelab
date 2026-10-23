@@ -4,7 +4,7 @@ revision: 0
 type: adr
 title: DNS for Tofu-provisioned VMs
 short: Tofu VM DNS
-solution: A second, dedicated BIND9 on security, fed by the Tofu-to-Ansible inventory generator, with the gateway forwarding each zone to its server
+solution: One authoritative BIND9 on services serves the host records, built from the Tofu-to-Ansible inventory, beside the service zones, with the gateway forwarding both to it
 summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
 topic: deployment-platform
 status: working
@@ -37,82 +37,113 @@ that already exist.
   address (`ansible_host`), which is all an A record needs, so the
   generator's output keys stay as they are.
 - The `bind9` role renders a record only from a zone's `extra_records` in
-  an app host's `host_vars`, or as a CNAME for a `caddy` route. The
-  second instance therefore adds a step that builds A records from the
-  generated hosts; it does not take its records from `host_vars`.
+  an app host's `host_vars`, or as a CNAME for a `caddy` route. It
+  therefore needs a step that builds A records from the generated hosts;
+  it cannot take them from `host_vars`.
+- Every host's name today is `<host>.<ddns_domain>`, a record the gateway
+  registers. Each app host's `dns_ddns_target` repeats it, `<host>.<ddns_domain>.`,
+  from the inventory name and the domain, and every generated CNAME points
+  at it. Hosts Tofu does not provision, the Proxmox node and the gateway,
+  have names under the same domain, which the dashboard links to.
 - [ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)
   drops dynamic DNS and the BIND plugin from the gateway. Its Unbound
   recurses directly and can forward a named zone to a given server and
   port.
+- `services` is rebuilt after every other host, because every host
+  resolves through its BIND9.
 
-Feeding Tofu's data into the `services` role would tie two independently
-changing data sources to one render pipeline. Infrastructure addresses
-on `security` also keeps them in a higher trust tier, the placement
-reason OpenBao lives there.
+The `bind9` role already merges `host_vars` and each app's routes in one
+run, and the generated inventory lands in the same hostvars, so the
+generated hosts are one more input to that run, not a second pipeline. A
+record's integrity matters as much in the service zones as in the host
+zone: whoever can write either redirects traffic. `security` holds the
+secrets store and the CA, and a network daemon answering for every VLAN
+does not belong beside them.
 
 ## Decision
 
-A second, dedicated BIND9 instance on `security`, authoritative only
-for the A records of Tofu-provisioned VMs, separate from `services`'
-zone. It is fed by the inventory generator's output rather than by
-`host_vars` or `app_catalog`, and it reuses the render, compare and
-reload mechanism of the `bind9` role, as a parameterised version of that
-role or a close sibling.
+The existing BIND9 on `services` stays the single authoritative server.
+It serves the service zones as today and one more zone, the host zone,
+whose domain is `host_domain` (today `internal.<main_domain>`, a sibling
+of `lan_domain`, the parent of the service zones). The `bind9` role
+builds the host zone's records from the generated inventory (the host
+name and its `ansible_host`) and from static `extra_records` for hosts
+Tofu does not provision: the Proxmox node, the gateway, and `tailscale`
+while Tofu has not yet built it. Every service CNAME points at its host's
+`host_fqdn`, `<inventory host name>.<host_domain>.`, computed once for all
+hosts; no host carries a per-host variable for it.
 
 The gateway's Unbound is the single resolver for the VLANs. It forwards
-`services`' zone to `services` and the Tofu-hosts zone to `security`,
-each by name, so neither BIND instance delegates to the other and
-neither needs to know the other exists. No dynamic DNS is involved, and
-the gateway runs no authoritative DNS.
+`host_domain` and `lan_domain` to `services`. No dynamic DNS is involved,
+and the gateway runs no authoritative DNS.
+
+A secondary for both zones on `storage` is intended as a later,
+separate piece of work, not part of this decision. It needs a
+zone-transfer credential, which is a decision of its own, and it matters
+only while `services` is being rebuilt or is down. Until then Unbound's
+cache covers short outages.
+
+The variables are renamed to say what they hold: `ddns_domain` becomes
+`host_domain`, `lab_domain` becomes `lan_domain`, and `dns_ddns_target`
+becomes `host_fqdn`. `main_domain` keeps its name, since its secret key
+is stored in OpenBao.
 
 ## Alternatives considered
 
 - **Static host overrides pushed through the gateway's BIND plugin.**
   Supported, but it makes DNS depend on a live API call during deploy,
   and the plugin leaves the lab only for this.
-- **Tofu records in `services`' zone.** Couples two data sources and puts
-  infrastructure addresses on an application host.
-- **NS delegation from `services`' zone to `security`.** Needs each
+- **NS delegation from `services`' zone to a second server.** Needs each
   instance to know the other and answers to be reachable by every client
   that asks it directly. A forward in the resolver does the same job at
   one place.
+- **A second BIND9 on `security` for the host zone.** It splits one data
+  set across two hosts for a trust tier that does not hold, since a
+  record is as sensitive in either zone, and it puts every CNAME's target
+  behind the host that holds the secrets store and CA.
+- **`tailscale` as a second server.** It has no Docker, so it needs a
+  second deploy path for BIND, the role rewrites the host's resolver
+  configuration on a host where `tailscaled` manages DNS, and it is the
+  remote-access path.
+- **A container on the Proxmox node.** It shares the node's kernel and
+  needs its own provisioning and a wider API token, which is a security
+  boundary and its own decision.
+- **The host zone under `lan_domain`.** One tree and one forward fewer, but
+  it reserves a label in the namespace the per-host service zones share and
+  renames every host.
 
 ## Assumptions
 
-- **Claim:** Unbound forwarding the two zones to their servers resolves
-  names from every VLAN, while it keeps validating public names.
+- **Claim:** Unbound forwarding the two zones to `services` resolves names
+  from every VLAN, while it keeps validating public names.
   **Breaks if wrong:** the private zones are marked insecure in Unbound
   or served another way.
   **Checked by:** the resolution test in ADR 0089's spike, then a probe
   from each VLAN.
-- **Claim:** a second instance costs less than the coupling it avoids.
-  **Breaks if wrong:** it needs handling `services`' does not, such as
-  its own deploy order or self-resolution beside OpenBao and step-ca on
-  `security`.
-  **Checked by:** when the role or module is built.
-- **Claim:** every name the lab needs while `security` is down still
-  resolves, or is not needed until it is back. Every generated CNAME in
-  `services`' zone ends at a record in the Tofu-hosts zone, so that
-  zone's one server on `security` is in the path of all of them.
-  **Breaks if wrong:** a rebuild of `security`, or any step that needs a
-  name before it returns, cannot resolve it; the design then needs a
-  second server for the zone on another host, or the CNAME targets kept
-  outside it.
+- **Claim:** every name the lab needs while `services` is being rebuilt
+  still resolves from the gateway's cache, or is not needed until it is
+  back. It is the only authoritative server for both zones.
+  **Breaks if wrong:** the secondary on `storage` is needed before that
+  rebuild, not after.
   **Checked by:** reading the rebuild and restore order against the names
-  each step resolves, then a probe from a VLAN with the `security` server
-  stopped.
+  each step resolves, then a probe from a VLAN with the server stopped,
+  including whether the gateway's Unbound can answer from expired cache
+  entries.
 
 ## Consequences
 
-- `bind9.md` and the README's "single authoritative BIND9 instance"
-  framing need updating when a second zone exists.
+- `bind9.md` describes the host zone, its generated and static records,
+  and the computed `host_fqdn`. The README's "single authoritative BIND9
+  instance" framing stays true.
 - [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)'s OPNsense
   section describes static host overrides and dynamic DNS for the dynamic
   pool. It changes when the gateway is rebuilt under ADR 0089.
-- `dns_ddns_target`, the name every generated CNAME points at, is a
-  gateway dynamic DNS name today. Once hosts are Tofu-provisioned it
-  names a record in the Tofu-hosts zone. That is a change to `bind9.md`
-  and `host_vars` for the records stage.
+- A rebuilt host's `ansible_host` is its address, so Ansible no longer
+  resolves a host name that the DNS role it is about to run provides.
+- `ddns_domain`, `lab_domain` and `dns_ddns_target` are renamed across
+  the inventory, `host_vars`, roles, tests and docs, and the VM module's
+  `dns_domain` is `host_domain`. The names of the `.50`–`.254` DHCP
+  clients are not settled here.
 
 ## Invariants
 

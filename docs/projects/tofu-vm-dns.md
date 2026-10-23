@@ -38,10 +38,11 @@ Stage status is `Not started`, `In progress`, or `Done`.
 Reads the VMID→IP mapping from the inventory generator
 ([`vm-provisioning.md`](../topics/infra/vm-provisioning.md#tofu--ansible-handoff)),
 and finishes before [`tofu-migration.md`](tofu-migration.md)'s first rebuild.
-A second BIND9 on `security` holds the A records, fed by the inventory
-generator, and the gateway's Unbound forwards that zone and `services`'
-zone to their servers ([ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)
-owns the forwards).
+The BIND9 on `services` serves a host zone beside the service zones, with
+its A records built from the inventory generator's output, and the
+gateway's Unbound forwards both zones to it ([ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)
+owns the forwards). The variables `ddns_domain`, `lab_domain` and
+`dns_ddns_target` are renamed in the same stage.
 
 The inventory generator checks a host name with `^[a-z][a-z0-9-]*$`, which
 admits a trailing hyphen and a name over 63 characters. Neither is a DNS

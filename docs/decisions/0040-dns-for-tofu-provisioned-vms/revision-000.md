@@ -32,7 +32,14 @@ that already exist.
 - Tofu-provisioned VMs have static addresses from cloud-init, so no DHCP
   lease and no dynamic DNS is involved in their names. The Tofu to
   Ansible inventory generator reads the root module's `ansible_hosts`
-  output, which holds each host's address and login user.
+  output, which holds each host's address and login user. The generated
+  inventory gives every such host a name (its inventory host name) and an
+  address (`ansible_host`), which is all an A record needs, so the
+  generator's output keys stay as they are.
+- The `bind9` role renders a record only from a zone's `extra_records` in
+  an app host's `host_vars`, or as a CNAME for a `caddy` route. The
+  second instance therefore adds a step that builds A records from the
+  generated hosts; it does not take its records from `host_vars`.
 - [ADR 0089 (OPNsense configuration)](../0089-how-the-opnsense-gateway-is-configured/revision-000.md)
   drops dynamic DNS and the BIND plugin from the gateway. Its Unbound
   recurses directly and can forward a named zone to a given server and
@@ -72,13 +79,6 @@ the gateway runs no authoritative DNS.
 
 ## Assumptions
 
-- **Claim:** the inventory generator's output, or a second output of the
-  same root module, gives a name and an address per host in a shape a
-  `bind9`-style role can consume without a translation layer.
-  **Breaks if wrong:** the design needs an adapter step it does not
-  account for.
-  **Checked by:** reading the generator against the role, when this
-  project's records stage starts.
 - **Claim:** Unbound forwarding the two zones to their servers resolves
   names from every VLAN, while it keeps validating public names.
   **Breaks if wrong:** the private zones are marked insecure in Unbound
@@ -90,6 +90,17 @@ the gateway runs no authoritative DNS.
   its own deploy order or self-resolution beside OpenBao and step-ca on
   `security`.
   **Checked by:** when the role or module is built.
+- **Claim:** every name the lab needs while `security` is down still
+  resolves, or is not needed until it is back. Every generated CNAME in
+  `services`' zone ends at a record in the Tofu-hosts zone, so that
+  zone's one server on `security` is in the path of all of them.
+  **Breaks if wrong:** a rebuild of `security`, or any step that needs a
+  name before it returns, cannot resolve it; the design then needs a
+  second server for the zone on another host, or the CNAME targets kept
+  outside it.
+  **Checked by:** reading the rebuild and restore order against the names
+  each step resolves, then a probe from a VLAN with the `security` server
+  stopped.
 
 ## Consequences
 

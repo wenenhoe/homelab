@@ -28,7 +28,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Settle the assumptions in ADR 0040 | Not started | Each assumption is resolved and folded into the revision's Context, and the revision can be `approved` |
+| 1 | Settle the assumptions in ADR 0040 | In progress | Each assumption is resolved and folded into the revision's Context, and the revision can be `approved` |
 | 2 | Records for Tofu-provisioned VMs | Not started | DNS for Tofu-provisioned VMs works as ADR 0040 decides |
 
 Stage status is `Not started`, `In progress`, or `Done`.
@@ -42,6 +42,11 @@ A second BIND9 on `security` holds the A records, fed by the inventory
 generator, and the gateway's Unbound forwards that zone and `services`'
 zone to their servers ([ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md)
 owns the forwards).
+
+The inventory generator checks a host name with `^[a-z][a-z0-9-]*$`, which
+admits a trailing hyphen and a name over 63 characters. Neither is a DNS
+label, and the same name becomes the record's owner name, so this stage
+tightens that check.
 
 ## Acceptance criteria
 

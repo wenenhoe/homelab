@@ -4,7 +4,7 @@ title: Tofu Migration
 type: project
 status: building
 blocked: false
-summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild on the real VMID ranges, cut over, and decommission the old VMs.
+summary: Build the isolated 5XX block and run the first restore.yaml against it, then rebuild the Ubuntu VMs on the real VMID ranges, cut over, and decommission the old ones.
 super_project: tofu-vm-provisioning
 track: migration
 depends_on:
@@ -14,11 +14,11 @@ depends_on:
 
 # Tofu Migration
 
-Tofu builds an isolated 5XX block, the first real `restore.yaml` runs against it, and once that is proven the VMs are rebuilt on the real VMID ranges, traffic is cut over and the old VMs are decommissioned. It builds on the Ubuntu and OPNsense modules and the inventory generator described in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md).
+Tofu builds an isolated 5XX block, the first real `restore.yaml` runs against it, and once that is proven the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over and the old Ubuntu VMs are decommissioned. The gateway (VM 201) is rebuilt by [`opnsense-config.md`](opnsense-config.md), after this cutover. It builds on the Ubuntu and OPNsense modules and the inventory generator described in [`vm-provisioning.md`](../topics/infra/vm-provisioning.md).
 
 ## Scope
 
-The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml` run against it, the rebuild on the real VMID ranges (1XX/2XX/…), the cutover, decommissioning the old VMs, and moving the hand-written `services`, `play`, `security`, `storage` and `tailscale` entries of `inventory.yaml` onto the generated inventory file. `storage` stays up throughout. VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope. Not in scope: OPNsense day-2 configuration ([`opnsense-config.md`](opnsense-config.md)).
+The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50), the first `restore.yaml` run against it, the rebuild of the Ubuntu VMs on the real VMID ranges (1XX/2XX/…), the cutover, decommissioning the old Ubuntu VMs, and moving the hand-written `services`, `play`, `security`, `storage` and `tailscale` entries of `inventory.yaml` onto the generated inventory file. `storage` stays up throughout. VMIDs 103–105 and 401–403 aren't in any Ansible inventory and are out of scope. Not in scope: the production gateway's rebuild (VM 201) and its day-2 configuration, both in [`opnsense-config.md`](opnsense-config.md).
 
 ## Decision
 
@@ -55,7 +55,7 @@ Update at the start and end of each PR that works a stage.
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
 | 1 | Build the 5XX block, first `restore.yaml` run | Done | the 5XX block is built by Tofu, isolated from production, and the first `restore.yaml` run against it succeeds |
-| 2 | Cutover to real VMID ranges, decommission old VMs | In progress | the VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old VMs are decommissioned with `storage` up throughout |
+| 2 | Cutover to real VMID ranges, decommission old VMs | In progress | the Ubuntu VMs are rebuilt on the real VMID ranges, traffic is cut over, the generated inventory replaces the hand-written entries, and the old Ubuntu VMs are decommissioned with `storage` up throughout |
 
 Stage status is `Not started`, `In progress`, or `Done`.
 
@@ -83,7 +83,7 @@ restore-path fire drill once OpenTofu is up.
 ### Stage 2 — cutover
 
 Once the first restore is proven, rebuild on the real VMID ranges
-(1XX/2XX/...), cut over, decommission the old VMs. `storage` stays up
+(1XX/2XX/...), cut over, decommission the old Ubuntu VMs. `storage` stays up
 throughout every stage — it is the DR restore target.
 
 **Order.** DNS records for Tofu-provisioned VMs
@@ -131,8 +131,10 @@ VMID 207 (`192.168.20.7`), its buckets are copied across, its record is
 flipped to the new address, and VM 206 is dumped and destroyed once a full
 backup cycle has reached the new VM and the cloud sync has run.
 
-The gateway's rebuild is the last stage of
-[`opnsense-config.md`](opnsense-config.md), run with this cutover.
+The gateway (VM 201) isn't rebuilt here. The hosts keep using the live
+gateway at `.1` throughout, and [`opnsense-config.md`](opnsense-config.md)'s
+last stage rebuilds it from the seed after this cutover, so the hosts and
+the network boundary never move together.
 
 #### Dump storage
 
@@ -172,9 +174,9 @@ it.
 
 - [x] The 5XX block (OPNsense plus one Ubuntu VM on VLAN 50) is built by Tofu and isolated from production.
 - [x] The first `restore.yaml` run against it succeeds, as the restore-path fire drill.
-- [ ] Every VM is rebuilt on the real VMID ranges by Tofu.
+- [ ] Every Ubuntu VM is rebuilt on the real VMID ranges by Tofu.
 - [ ] The generated inventory replaces the hand-written entries, including `tailscale`.
-- [ ] The old VMs are decommissioned.
+- [ ] The old Ubuntu VMs are decommissioned.
 - [ ] `storage` stayed up throughout.
 - [ ] The resulting behavior is described in [`docs/topics/infra/vm-provisioning.md`](../topics/infra/vm-provisioning.md) or a new topic doc, not only here.
 
@@ -183,9 +185,6 @@ it.
 - How the buckets are copied from VM 206 to VM 207, and how the flip is
   made once the records exist. Needs the records stage's design and the
   admin identity's reach.
-- The live OPNsense VM (201) is `i440fx` with SeaBIOS, and its disk is
-  8 GB; the module builds `q35`. Settle which the rebuilt gateway uses
-  with [`opnsense-config.md`](opnsense-config.md)'s last stage.
 
 ## Closing checklist
 

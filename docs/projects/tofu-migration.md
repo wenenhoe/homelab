@@ -91,13 +91,29 @@ throughout every stage — it is the DR restore target.
 static address and no DDNS name, and every generated CNAME points at
 `dns_ddns_target`. The first rebuild waits for that project to close.
 
+**Host order.** `play`, `tailscale`, `storage`, `security`, then
+`services`. `play` is a leaf and proves the cycle. `storage` comes before
+`security` and `services` because every restore reads from it. `services`
+is last because its BIND9 serves the zones every other host resolves
+through. Each host keeps its current vCPU and memory, and its disk shrinks
+to what the host uses plus headroom, on `local-lvm` (NVMe) instead of the
+`backup` pool:
+
+| Host | VMID | vCPU | RAM | Disk | Used today |
+| :--- | :-: | :-: | :-: | :-: | :-: |
+| `play` | 204 | 4 | 4 GB | 64 GB | 25 GB |
+| `tailscale` | 202 | 2 | 2 GB | 16 GB | 6.5 GB |
+| `storage` | 207 | 4 | 4 GB | 128 GB | 39 GB |
+| `security` | 205 | 4 | 2 GB | 64 GB | 24 GB |
+| `services` | 203 | 4 | 2 GB | 64 GB | 39 GB |
+
 **One host at a time.** Each rebuild is its own pull request and runs
 the same cycle:
 
 1. Back up the host's apps ([`backup.md`](../topics/disaster-recovery/backup.md)).
-2. `vzdump` the old VM to the `vzdump` storage ([below](#dump-storage)),
-   then destroy it. The dump is the rollback: `qmrestore` it to a 9XX
-   VMID.
+2. `vzdump --compress zstd` the stopped old VM to the `vzdump` storage
+   ([below](#dump-storage)), then destroy it. The dump is the rollback:
+   `qmrestore` it to a 9XX VMID.
 3. Add the host's module call and `ansible_hosts` entry to the root
    module, apply, and run the inventory generator.
 4. Remove the host's `ansible_host` and `ansible_user` from
@@ -108,6 +124,13 @@ the same cycle:
 6. Delete the dump once the host's apps are confirmed healthy on the new
    VM.
 
+`storage` can't take the cycle as written: SeaweedFS keeps its data in a
+Docker volume on the VM's own root disk, so destroying VM 206 destroys it,
+and `storage` has to stay up. It is built beside the old VM at the free
+VMID 207 (`192.168.20.7`), its buckets are copied across, its record is
+flipped to the new address, and VM 206 is dumped and destroyed once a full
+backup cycle has reached the new VM and the cloud sync has run.
+
 The gateway's rebuild is the last stage of
 [`opnsense-config.md`](opnsense-config.md), run with this cutover.
 
@@ -117,11 +140,11 @@ The gateway's rebuild is the last stage of
 only directory storages (`local`, `tofu-images`) share one 36 GB
 filesystem. Dumps go to a directory storage on a thin volume of the same
 volume group, created once on the node. Read `vgname` and `thinpool` from
-`/etc/pve/storage.cfg`, and size the volume from the data the hosts hold
-(`df -h` on each), since the pool also holds the disks of VMs 202 to 204:
+`/etc/pve/storage.cfg`. A dump is taken and deleted per host, so 100 GB
+holds the largest (39 GB used on its root filesystem):
 
 ```sh
-lvcreate -V <size> -T <vgname>/<thinpool> -n vzdump
+lvcreate -V 100G -T <vgname>/<thinpool> -n vzdump
 mkfs.ext4 /dev/<vgname>/vzdump
 mkdir -p /mnt/vzdump
 echo '/dev/<vgname>/vzdump /mnt/vzdump ext4 defaults,nofail 0 2' >> /etc/fstab
@@ -157,11 +180,12 @@ it.
 
 ## Open items
 
-- The order the hosts are rebuilt in, and each host's sizing. Both need
-  the live VM configs and the node's free memory.
-- How `storage` is rebuilt while it stays up: its VMID is held by the
-  live VM, and the cycle above destroys the old VM first. Needs to know
-  where SeaweedFS keeps its data.
+- How the buckets are copied from VM 206 to VM 207, and how the flip is
+  made once the records exist. Needs the records stage's design and the
+  admin identity's reach.
+- The live OPNsense VM (201) is `i440fx` with SeaBIOS, and its disk is
+  8 GB; the module builds `q35`. Settle which the rebuilt gateway uses
+  with [`opnsense-config.md`](opnsense-config.md)'s last stage.
 
 ## Closing checklist
 

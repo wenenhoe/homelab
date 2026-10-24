@@ -45,7 +45,7 @@ them so that it can read what every host recorded; see
 | Play | Hosts | What it does | Why here |
 | :-: | :--- | :--- | :--- |
 | 0 | `localhost` | Resolves every value in `secret_catalog.yaml` ([notes](#play-0-notes), [`secrets.md`](../secrets/secrets.md)). | Every host's `ansible_host` resolves through a secret, and Play 1's fact-gathering needs a live connection. |
-| 1 | `managed_hosts` | Installs Docker Engine and resolves each host's `compose_apps` against `app_catalog`; no containers start. | Never `all`: that includes `controller`, which must never get Docker or a container. |
+| 1 | `managed_hosts` | Installs Docker Engine and the guest agent and creates the stacks directory; no containers start. `compose_apps` is resolved against `app_catalog` where each later play reads `resolved_apps`. | Never `all`: that includes `controller`, which must never get Docker or a container. |
 | 2 | `managed_hosts` | Renders each host's `Caddyfile`, pulls the custom Caddy image (DigitalOcean DNS plugin, built in CI), starts or restarts it, then installs the certificate-expiry check timer. See [`caddy.md`](../services/caddy.md) and [`telegram-notifications.md`](../monitoring/telegram-notifications.md). | Routing is live before any backend app starts. |
 | 3 | `dns` (`services` only) | Scrapes `dns_zones` from every `app_hosts` member, renders zone files, deploys BIND9 and repoints the host's own resolution at it. See [`bind9.md`](../services/bind9.md). | |
 | 4 | `managed_hosts` | Provisions directories and configs for, and starts, every app except `caddy`/`bind9` (Plays 2–3) and `openbao`, which deploys itself by a task at the start of this play ([`roles/openbao`](../../../ansible/roles/openbao)). | |

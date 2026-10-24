@@ -34,7 +34,7 @@
 # For lldap (multiple volumes in one archive):
 #   -e restore_app=lldap \
 #   -e restore_archive_local_path=/home/you/security-no-stop-group-....tar.gz \
-#   -e restore_volumes='["lldap_data","lldap_certs","lldap_creds","lldap_letsencrypt_conf","lldap_letsencrypt_lib"]'
+#   -e restore_volumes='["lldap_data","lldap_certs"]'
 #
 # What it does, per targeted volume: copies the archive to the target,
 # stops the app's compose stack, extracts the full archive into a scratch

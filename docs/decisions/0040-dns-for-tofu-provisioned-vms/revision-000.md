@@ -4,7 +4,7 @@ revision: 0
 type: adr
 title: DNS for Tofu-provisioned VMs
 short: Tofu VM DNS
-solution: One authoritative BIND9 on services serves the host records, built from the Tofu-to-Ansible inventory, beside the service zones, with the gateway forwarding both to it
+solution: BIND9 on services serves the host records beside the service zones, with a secondary on storage, and the gateway forwards both zones to both servers
 summary: How Tofu-provisioned VMs get internal A records when their IPs are fixed at provision time.
 topic: deployment-platform
 status: working
@@ -62,10 +62,13 @@ that already exist.
   that BIND9 up from `host_vars` before any app is restored, so the
   storage endpoint name the restore reads resolves again once the deploy
   has run.
-- OPNsense can serve expired cache entries, a GUI setting. The
-  `oxlorg.opnsense` modules at the collection's current head have no field
-  for it or for any cache TTL, and a setting made through the generic call
-  never shows drift.
+- OPNsense 26.1.6 writes one `forward-zone` per domain, with a
+  `forward-addr` line for each forward entry of that domain. Unbound sends
+  a forwarded query to those addresses as a recursive query and chases a
+  CNAME itself, asking the forwarder for every name in the chain.
+- The `bind9` role's zone files carry an epoch serial that is written
+  only when the content changes, so a secondary sees a new serial for a
+  real change alone.
 
 The `bind9` role already merges `host_vars` and each app's routes in one
 run, and the generated inventory lands in the same hostvars, so the
@@ -88,15 +91,19 @@ while Tofu has not yet built it. Every service CNAME points at its host's
 `host_fqdn`, `<inventory host name>.<host_domain>.`, computed once for all
 hosts; no host carries a per-host variable for it.
 
-The gateway's Unbound is the single resolver for the VLANs. It forwards
-`host_domain` and `lan_domain` to `services`. No dynamic DNS is involved,
-and the gateway runs no authoritative DNS.
+A second BIND9 on `storage` is a secondary for both zones. It takes them
+from `services` by zone transfer, authenticated with a TSIG key from the
+secret catalog, and `services` allows transfers to that key alone. The
+secondary is in place, and a live loss of `services` has been survived,
+before the first Tofu rebuild, so the rebuild of `services` leaves the
+lab's internal names served.
 
-A secondary for both zones on `storage` is intended as a later,
-separate piece of work, not part of this decision. It needs a
-zone-transfer credential, which is a decision of its own, and it matters
-only while `services` is being rebuilt or is down. Until then the lab's
-internal names have one server.
+The gateway's Unbound is the single resolver for the VLANs. It forwards
+`host_domain` and `lan_domain` to both servers. No dynamic DNS is
+involved, and the gateway runs no authoritative DNS: the live gateway's
+BIND9 zone and dynamic DNS are retired once `services` serves the host
+zone with a static record for every host, so a host no longer gets its
+name from a lease.
 
 The variables are renamed to say what they hold: `ddns_domain` becomes
 `host_domain`, `lab_domain` becomes `lan_domain`, and `dns_ddns_target`
@@ -112,6 +119,10 @@ is stored in OpenBao.
   instance to know the other and answers to be reachable by every client
   that asks it directly. A forward in the resolver does the same job at
   one place.
+- **One server until the secondary exists.** The gateway's cache only
+  keeps what a record's TTL allows, and the collection has no field for
+  OPNsense's serve-expired setting, so a rebuild of `services` would leave
+  every rebuilt host without internal names for its length.
 - **A second BIND9 on `security` for the host zone.** It splits one data
   set across two hosts for a trust tier that does not hold, since a
   record is as sensitive in either zone, and it puts every CNAME's target
@@ -129,15 +140,16 @@ is stored in OpenBao.
 
 ## Assumptions
 
-- **Claim:** the hosts already rebuilt can do without the lab's internal
-  names for the length of the `services` rebuild, which is the last one,
-  because the gateway's Unbound keeps only what a record's TTL allows and
-  nothing in the repo sets it to serve expired entries.
-  **Breaks if wrong:** a service that needs an internal name during the
-  rebuild fails, and the secondary on `storage` or a serve-expired setting
-  on the gateway is needed before that rebuild, not after.
-  **Checked by:** a probe from a VLAN with the `services` BIND9 stopped,
-  listing which names still resolve and which services notice.
+- **Claim:** with the `services` server stopped, Unbound answers a
+  forwarded zone from the second address of its `forward-zone`, within a
+  time the lab's clients tolerate, and does the same for a CNAME chain
+  that crosses the two zones.
+  **Breaks if wrong:** a second server does not keep the names up, and
+  the design needs another way to present both, such as one address that
+  moves between them.
+  **Checked by:** a scratch gateway in the isolated block with the two
+  forwards, a stopped primary and a probe for a host name, a service
+  name and a CNAME that crosses the zones.
 
 ## Consequences
 
@@ -147,6 +159,10 @@ is stored in OpenBao.
 - [`vm-provisioning.md`](../../topics/infra/vm-provisioning.md)'s OPNsense
   section describes static host overrides and dynamic DNS for the dynamic
   pool. It changes when the gateway is rebuilt under ADR 0089.
+- The `bind9` role gains transfer and notify settings and a secondary
+  mode. The TSIG key is a new entry in the secret catalog.
+- Retiring dynamic DNS ends the names the `.50`–`.254` DHCP clients get
+  from leases, until a later decision gives them another source.
 - The gateway's play connects by the gateway's management name, whose
   record is a static one in the host zone. A rebuilt gateway has no
   forward until that play has run, so the operator host resolves the name

@@ -2,7 +2,9 @@
 
 `pre-commit` is a stub: `pre-commit run generate-doc-indexes` rebuilds a one-line-per-project
 `docs/projects/README.md`, and the installed commit hook fails when that file is stale. That is
-enough to show which hook puts the regenerated view into the commit.
+enough to show which hook puts the regenerated view into the commit. Both stubs also do what
+pre-commit does with unstaged changes: stash them, run, and put them back over whatever the run
+wrote, rolling the run's output back when they no longer apply.
 """
 
 from __future__ import annotations
@@ -24,15 +26,41 @@ for f in docs/projects/*.md; do
   [ "$(basename "$f")" = README.md ] || basename "$f"
 done
 """
+STASH = """# Runs "$@" with the working tree's unstaged changes set aside, as pre-commit does.
+with_unstaged_stashed() {
+  local patch status=0
+  patch="$(mktemp)"
+  git diff --binary > "$patch"
+  [ ! -s "$patch" ] || git checkout -- .
+  "$@" || status=$?
+  if [ -s "$patch" ]; then
+    git apply "$patch" 2>/dev/null || { git checkout -- .; git apply "$patch"; }
+  fi
+  rm -f "$patch"
+  return "$status"
+}
+"""
 STUB_PRE_COMMIT = """#!/usr/bin/env bash
+here="$(dirname "$0")"
+. "$here/stash"
+regenerate() { "$here/listing" > docs/projects/README.md; }
 if [ "$1" = run ] && [ "$2" = generate-doc-indexes ]; then
-  "$(dirname "$0")/listing" > docs/projects/README.md
+  with_unstaged_stashed regenerate
 fi
 """
 COMMIT_HOOK = """#!/usr/bin/env bash
 # Fails when the staged README does not list the projects in the index.
 cd "$(git rev-parse --show-toplevel)"
-diff <(git show :docs/projects/README.md) <("$LISTING") >/dev/null || { echo "stale view" >&2; exit 1; }
+. "$STASH"
+check() { diff <(git show :docs/projects/README.md) <("$LISTING") >/dev/null || { echo "stale view" >&2; return 1; }; }
+with_unstaged_stashed check
+"""
+PRE_APPLYPATCH_WITHOUT_STAGING = """#!/usr/bin/env bash
+set -euo pipefail
+hook="$(git rev-parse --git-path hooks)/pre-commit"
+pre-commit run generate-doc-indexes >/dev/null 2>&1 || true
+git add -- docs/projects/README.md docs/project-planning.md docs/decisions/README.md
+exec "$hook"
 """
 
 
@@ -50,8 +78,9 @@ class Sandbox:
         for d in (self.bin, self.hooks, self.repo, self.patches):
             d.mkdir()
         (self.bin / "listing").write_text(LISTING)
+        (self.bin / "stash").write_text(STASH)
         (self.bin / "pre-commit").write_text(STUB_PRE_COMMIT)
-        (self.hooks / "pre-commit").write_text(COMMIT_HOOK.replace("$LISTING", str(self.bin / "listing")))
+        (self.hooks / "pre-commit").write_text(COMMIT_HOOK.replace("$LISTING", str(self.bin / "listing")).replace("$STASH", str(self.bin / "stash")))
         for script in (self.bin / "listing", self.bin / "pre-commit", self.hooks / "pre-commit"):
             script.chmod(0o755)
         git(self.repo, "init", "-q", "-b", "main")
@@ -140,6 +169,15 @@ class TestApplypatchHooks:
         sandbox.install(*installed)
         sandbox.am(sandbox.project_patch("alpha"))
         assert (sandbox.committed("docs/projects/README.md") == "# Index\nalpha.md\n") is view_committed
+
+    def test_control_without_staging_the_views_first_the_second_patch_of_a_series_stops(self, sandbox: Sandbox) -> None:
+        sandbox.install("post-applypatch")
+        (sandbox.hooks / "pre-applypatch").write_text(PRE_APPLYPATCH_WITHOUT_STAGING)
+        (sandbox.hooks / "pre-applypatch").chmod(0o755)
+        result = sandbox.am(sandbox.project_patch("alpha"), sandbox.project_patch("beta"))
+        assert result.returncode != 0
+        assert "stale view" in result.stderr
+        assert sandbox.count() == 2
 
     def test_missing_pre_commit_hook_is_reported(self, sandbox: Sandbox) -> None:
         sandbox.install("pre-applypatch")

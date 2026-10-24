@@ -1,6 +1,11 @@
 ---
 caddy_domain: "sec.{{ lab_domain }}"
 
+# maintenance.yaml upgrades this host but leaves its reboot to the operator:
+# a reboot seals OpenBao until someone supplies the unseal shares, which
+# the unattended maintenance job cannot do (ADR 0018).
+patch_reboot_allowed: false
+
 # Scoped in docker/seaweedfs/configs/s3-identity.json.j2 to this host's
 # own `security-*` objects only — see docs/topics/disaster-recovery/backup.md.
 seaweedfs_s3_access_key: "{{ secrets_generated['seaweedfs-s3-access-key-security'] }}"

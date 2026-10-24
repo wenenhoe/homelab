@@ -5,7 +5,8 @@
 #
 # Refreshes metadata, applies any available firmware updates
 # (`fwupdmgr update --assume-yes --no-reboot-check`), then reboots only if
-# `fwupdmgr check-reboot-needed` reports one is pending.
+# `fwupdmgr check-reboot-needed` reports one is pending and the host's
+# `patch_reboot_allowed` is not false.
 # ---------------------------------------------------------------------------
 
 - name: Refresh fwupd metadata cache
@@ -72,4 +73,6 @@
     connect_timeout: 5
     reboot_timeout: 600
     pre_reboot_delay: 5
-  when: fwupd_reboot_check.rc == 0
+  when:
+    - fwupd_reboot_check.rc == 0
+    - patch_reboot_allowed | default(true) | bool

@@ -98,9 +98,10 @@ Four constraints shape the design.
   the branch; the branch is never force-pushed or recreated. The job holds
   `contents: write`, no other job in the workflow does, and it pushes only
   to `progress-log`.
-- **What keeps the token off the other branches.** The rulesets that
-  protect `main`, `maintenance` and `develop` name those branches, so none
-  matches `progress-log`, and GitHub Actions is on no bypass list.
+- **What keeps the token off the other branches.** The rulesets and branch
+  protection on `main`, and those ADR 0076 adds for `maintenance` and
+  `develop`, target those branches by name or as the default branch, so
+  none matches `progress-log`, and GitHub Actions is on no bypass list.
 - **Source.** The record reads this repository's history and nothing else.
 
 ## Alternatives considered
@@ -144,7 +145,7 @@ Four constraints shape the design.
 - Decision states appear only from when revisions carried frontmatter, in
   September 2026.
 - The workflow holds a write token whose reach is the `progress-log`
-  branch, because the rulesets of the other three refuse it.
+  branch, because the rules on the protected branches refuse it.
 - A rebuild adds a commit instead of rewriting the branch, so the branch
   only grows.
 - The behaviour is described in a topic doc added with the implementation.
@@ -159,8 +160,7 @@ Four constraints shape the design.
   finding, scan result, mutation result or other private data reaches it.
 - A normal run does not rewrite a closed week.
 - No ref is force-pushed, deleted or created by the workflow.
-- GitHub Actions is on no bypass list of `main`, `maintenance` or
-  `develop`.
+- GitHub Actions is on no bypass list of a protected branch.
 - A run resumed from the recorded commit and a full rebuild produce the
   same files for the same history.
 
@@ -180,10 +180,10 @@ Four constraints shape the design.
 - A rejected push fails the workflow run.
 - A test over the workflow asserts that `contents: write` appears on the
   publishing job and nowhere else in it.
-- Before the first scheduled run, the maintainer reads the live rulesets:
-  the rules the API reports for `progress-log` are deletion and
-  non-fast-forward only, each of the other three requires a pull request,
-  and no bypass list names GitHub Actions.
+- Before the first scheduled run, the maintainer reads the live rulesets
+  and branch protection: the rules the API reports for `progress-log` are
+  deletion and non-fast-forward only, each protected branch that exists
+  requires a pull request, and no bypass list names GitHub Actions.
 
 ## Reconsideration triggers
 

@@ -97,13 +97,15 @@ static address and no DDNS name, and every generated CNAME points at
 is last because its BIND9 serves the zones every other host resolves
 through. Each host keeps its current vCPU and memory, and its disk shrinks
 to what the host uses plus headroom, on `local-lvm` (NVMe) instead of the
-`backup` pool:
+`backup` pool. `storage` is the exception and stays on `backup` (HDD), so
+the on-site copy of every backup does not share a disk with the hosts it
+protects:
 
 | Host | VMID | vCPU | RAM | Disk | Used today |
 | :--- | :-: | :-: | :-: | :-: | :-: |
 | `play` | 204 | 4 | 4 GB | 64 GB | 25 GB |
 | `tailscale` | 202 | 2 | 2 GB | 16 GB | 6.5 GB |
-| `storage` | 207 | 4 | 4 GB | 128 GB | 39 GB |
+| `storage` | 207 | 4 | 4 GB | 128 GB (`backup`) | 39 GB |
 | `security` | 205 | 4 | 2 GB | 64 GB | 24 GB |
 | `services` | 203 | 4 | 2 GB | 64 GB | 39 GB |
 
@@ -127,7 +129,10 @@ the same cycle:
 `storage` can't take the cycle as written: SeaweedFS keeps its data in a
 Docker volume on the VM's own root disk, so destroying VM 206 destroys it,
 and `storage` has to stay up. It is built beside the old VM at the free
-VMID 207 (`192.168.20.7`), its buckets are copied across, its record is
+VMID 207 (`192.168.20.7`) with its module call setting `datastore_id` to
+`backup`, which needs the `tofu@pve` ACL on that storage
+([Proxmox API token](../topics/infra/vm-provisioning.md#proxmox-api-token)),
+its buckets are copied across, its record is
 flipped to the new address, and VM 206 is dumped and destroyed once a full
 backup cycle has reached the new VM and the cloud sync has run.
 

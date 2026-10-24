@@ -73,7 +73,7 @@ app_catalog:
     routes:
       default:
         upstream: "cobalt:9000"
-        auth: false
+        auth: false   # public API endpoint: clients call it directly with no browser session, so Tinyauth cannot gate it
 
   dashy:
     volumes:

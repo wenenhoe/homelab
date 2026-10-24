@@ -696,13 +696,13 @@ class TestRealTree:
         assert any(t.startswith("openbao/openbao:") for t in found)
 
     def test_every_self_built_image_the_registry_publishes_is_checked(self, collected, subtests):
-        named = {text.partition("@")[0] for text in collected.images}
+        # By repository, not tag: a pin lags the Dockerfile until the build publishes the new tag, and `check-pins` is what stops a pin running ahead.
+        pinned = {f"{parsed.registry}/{parsed.repository}" for parsed in map(rm.parse_image, collected.images)}
         unpinned = {"coderabbit-review"}  # a tool image no compose file or scenario pins
         for image in reg.IMAGES.values():
-            for ref in reg.refs(REPO_ROOT, image):
-                if image.key not in unpinned:
-                    with subtests.test(ref=ref):
-                        assert ref in named
+            if image.key not in unpinned:
+                with subtests.test(image=image.name):
+                    assert f"{reg.REGISTRY}/{image.name}" in pinned
 
     @pytest.mark.parametrize(
         ("repository", "dockerfile"),

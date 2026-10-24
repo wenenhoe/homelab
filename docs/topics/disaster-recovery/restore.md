@@ -159,7 +159,9 @@ What it does, in order:
 5. Restores the remaining apps, each via the same `restore.yaml` call.
    `minecraft` gets a second step afterward —
    `playbooks/restore-minecraft-world.yaml`, which runs
-   `docker/minecraft/scripts/run_restore.sh -y` on `play` (see below).
+   `docker/minecraft/scripts/run_restore.sh -y` on `play` (see below). The
+   playbook refuses to run without `-e restore_world_confirm=true`, which
+   the batch passes after its own confirmation.
    A failure in any one of these is independent and doesn't block the
    rest; only step-ca's failure aborts everything.
 6. Appends one line per app to

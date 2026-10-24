@@ -9,6 +9,7 @@ honestly.
 
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 from datetime import UTC, datetime
@@ -17,6 +18,7 @@ from unittest.mock import create_autospec, patch
 
 import pytest
 import restore_all
+import yaml
 
 
 def _completed(returncode: int = 0, stderr: str = "") -> subprocess.CompletedProcess[str]:
@@ -415,3 +417,23 @@ class TestInventoryArguments:
 
         command = run.call_args.args[0]
         assert [command[i + 1] for i, arg in enumerate(command) if arg == "-i"] == ["inventory/inventory.yaml", "inventory/tofu-hosts.yaml"]
+
+
+class TestWorldRestoreConfirmation:
+    """restore-minecraft-world.yaml empties the live world, so it asks for its own confirmation."""
+
+    def test_the_batch_confirms_on_the_playbooks_behalf(self, monkeypatch):
+        run = create_autospec(restore_all.subprocess.run, return_value=_completed())
+        monkeypatch.setattr(restore_all.subprocess, "run", run)
+
+        restore_all.run_minecraft_world_restore()
+
+        command = run.call_args.args[0]
+        assert json.loads(command[command.index("-e") + 1]) == {"restore_world_confirm": True}
+
+    def test_the_playbook_asserts_the_confirmation_before_running_the_script(self):
+        playbook = Path(__file__).resolve().parents[1] / "playbooks/restore-minecraft-world.yaml"
+        tasks = yaml.safe_load(playbook.read_text())[0]["tasks"]
+
+        assert tasks[0]["ansible.builtin.assert"]["that"] == "restore_world_confirm | default(false) | bool"
+        assert "ansible.builtin.command" in tasks[1]

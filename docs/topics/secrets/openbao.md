@@ -206,7 +206,10 @@ serves the renewed cert's serial afterwards.
 
 [0018](../../decisions/0018-unsealing-the-secrets-store-after-restart/revision-000.md) chose manual Shamir
 unseal over cloud auto-unseal specifically because a human is already
-at the keyboard for every reboot `security` has ever had. Run from
+at the keyboard for every reboot `security` has ever had. `maintenance.yaml`
+keeps that true: it upgrades `security` but leaves it unrebooted
+(`patch_reboot_allowed: false` in its host vars), so after a kernel update
+the operator reboots it and unseals. Run from
 `controller` via `tools/openbao_utils/init.py` and `unseal.py` (paramiko,
 driving `docker exec` on `security` remotely) rather than SSHing in
 and typing the command by hand - but the same constraints that kept

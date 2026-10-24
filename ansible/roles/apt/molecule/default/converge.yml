@@ -2,7 +2,28 @@
 - name: Converge
   hosts: all
   become: true
+  vars:
+    # Keeps the role from ever rebooting this container's host (see
+    # verify.yml); what is exercised is the skip, on both sides of the marker.
+    patch_reboot_allowed: false
   tasks:
-    - name: Include apt role
+    - name: Leave the marker apt writes after a kernel update
+      ansible.builtin.file:
+        path: /var/run/reboot-required
+        state: touch
+        mode: "0644"
+      changed_when: false
+
+    - name: Include apt role with a reboot pending but not allowed
+      ansible.builtin.include_role:
+        name: apt
+
+    - name: Remove the marker
+      ansible.builtin.file:
+        path: /var/run/reboot-required
+        state: absent
+      changed_when: false
+
+    - name: Include apt role with no reboot pending
       ansible.builtin.include_role:
         name: apt

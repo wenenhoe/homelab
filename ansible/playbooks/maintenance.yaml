@@ -13,9 +13,13 @@
 - name: Play 0 - Secrets
   ansible.builtin.import_playbook: bootstrap-secrets.yaml
 
+# One host at a time, so hosts never reboot together: DNS (`services`) stays
+# up while another host restarts, and a failure on one host stops the rest.
+# A host with `patch_reboot_allowed: false` is upgraded but not rebooted.
 - name: Update and Upgrade Servers
   hosts: patched_hosts
   become: true
+  serial: 1
   roles:
     - apt
     - fwupd

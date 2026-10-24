@@ -5,7 +5,8 @@
 #
 # Upgrades every apt package (`apt_upgrade_type`, default 'safe' — i.e. no
 # package removal), then reboots only if /var/run/reboot-required exists
-# (set by apt itself, e.g. after a kernel update).
+# (set by apt itself, e.g. after a kernel update) and the host's
+# `patch_reboot_allowed` is not false.
 # ---------------------------------------------------------------------------
 
 - name: Ensure the system is Debian-based
@@ -26,6 +27,13 @@
     path: /var/run/reboot-required
   register: apt_reboot_required_file
 
+- name: Say that a reboot is needed but left to the operator
+  ansible.builtin.debug:
+    msg: "{{ inventory_hostname }} needs a reboot to finish the upgrade; patch_reboot_allowed is false here, so it was not rebooted."
+  when:
+    - apt_reboot_required_file.stat.exists
+    - not (patch_reboot_allowed | default(true) | bool)
+
 - name: Reboot the server if required
   ansible.builtin.reboot:
     msg: "Reboot initiated by Ansible due to package upgrades"
@@ -34,4 +42,6 @@
     pre_reboot_delay: 0
     post_reboot_delay: 30
     test_command: whoami
-  when: apt_reboot_required_file.stat.exists
+  when:
+    - apt_reboot_required_file.stat.exists
+    - patch_reboot_allowed | default(true) | bool

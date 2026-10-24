@@ -12,6 +12,11 @@ orphaned-or-stale-app removal (see [`cleanup.md`](cleanup.md) for that):
   see [`volumes.md`](volumes.md)). Use when you want to discard *all*
   app-written runtime state and don't need to enumerate individual files.
 
+Both stop before changing anything unless `--limit` leaves exactly one
+managed host (plus `localhost` for the secrets play), because an app such as
+`caddy` is declared on every host and a run without `--limit` would touch the
+same volume on all of them.
+
 Both reuse the same throwaway-`alpine`-container / `ensure_volume.yaml`
 pattern the rest of `compose` role uses — nothing reaches into a
 volume's real on-disk mountpoint directly (see

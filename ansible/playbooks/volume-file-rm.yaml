@@ -6,10 +6,13 @@
 # this acts on an operator-specified path with no discovery step, so it
 # needs its own explicit confirmation gate instead.
 #
-# Targets ONE host — pass --limit explicitly. A volume name referenced by
-# docker_container that doesn't already exist gets silently auto-created
-# rather than erroring, so this playbook checks existence itself first and
-# fails rather than relying on that to fail loudly. See docs/topics/deploy/volume-maintenance.md.
+# Targets ONE host: the play refuses to run unless --limit leaves exactly one
+# managed host, since an app such as caddy is declared on all of them.
+#
+# A volume name referenced by docker_container that doesn't already exist
+# gets silently auto-created rather than erroring, so this playbook checks
+# existence itself first and fails rather than relying on that to fail loudly.
+# See docs/topics/deploy/volume-maintenance.md.
 #
 # Required -e vars:
 #   volume_rm_app     — app name (matches its compose_deploy_dir subdir
@@ -45,6 +48,14 @@
   vars:
     volume_rm_image: "alpine:3.24@sha256:be2656061b536c1883c4034790e21d0a09c5aaaf51968b89368a3c0371ea2c9a"
   tasks:
+    - name: Require exactly one target host
+      ansible.builtin.assert:
+        that: ansible_play_hosts_all | length == 1
+        fail_msg: >-
+          Refusing to run on {{ ansible_play_hosts_all | length }} hosts
+          ({{ ansible_play_hosts_all | join(', ') }}) — pass --limit with
+          one managed host plus localhost, e.g. --limit services,localhost.
+
     - name: Require explicit confirmation
       ansible.builtin.assert:
         that: volume_rm_confirm | default(false) | bool

@@ -4,7 +4,8 @@
 # configs/scripts), not app-written runtime state. See
 # docs/topics/deploy/volume-maintenance.md for when to use this vs. volume-file-rm.yaml.
 #
-# Targets ONE host — pass --limit explicitly.
+# Targets ONE host: the play refuses to run unless --limit leaves exactly one
+# managed host, since an app such as caddy is declared on all of them.
 #
 # Required -e vars:
 #   volume_reset_app     — app name, exactly as in compose_apps
@@ -26,6 +27,14 @@
   gather_facts: false
   become: true
   tasks:
+    - name: Require exactly one target host
+      ansible.builtin.assert:
+        that: ansible_play_hosts_all | length == 1
+        fail_msg: >-
+          Refusing to run on {{ ansible_play_hosts_all | length }} hosts
+          ({{ ansible_play_hosts_all | join(', ') }}) — pass --limit with
+          one managed host plus localhost, e.g. --limit services,localhost.
+
     - name: "Find the target app ({{ volume_reset_app }})"
       ansible.builtin.set_fact:
         volume_reset_app_item: "{{ resolved_apps | selectattr('name', 'equalto', volume_reset_app) | first | default(none) }}"

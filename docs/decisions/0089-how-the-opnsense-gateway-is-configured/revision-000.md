@@ -7,7 +7,7 @@ short: OPNsense configuration
 solution: A minimal seed configuration for what the API cannot set, then an Ansible collection applies the rest from the operator host
 summary: What defines the OPNsense gateway's configuration after first boot, which services it runs, and how a release change is made safe.
 topic: deployment-platform
-status: working
+status: approved
 related: [ADR-0040, ADR-0048, ADR-0053, ADR-0058]
 ---
 

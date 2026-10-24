@@ -2,7 +2,7 @@
 id: PROJ-opnsense-config
 title: OPNsense Gateway Configuration
 type: project
-status: de-risking
+status: building
 blocked: false
 summary: The OPNsense gateway's policy, NAT, DNS forwards and DHCP brought under Ansible through its API from a minimal seed, then the coding-agent zone and its proxy.
 decision: ADR-0089/0
@@ -20,7 +20,7 @@ The seed image and its attachment to the OPNsense module, the Ansible role that 
 
 ## Decision
 
-Implements [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md), still `working`, so this project is `de-risking` until that revision's open assumptions are resolved. Stages 4 and 5 also carry out the last bullet of [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)'s Decision, which becomes `accepted` when the network project completes.
+Implements [ADR 0089 (OPNsense configuration)](../decisions/0089-how-the-opnsense-gateway-is-configured/revision-000.md), `approved` once its assumptions were resolved. Stages 4 and 5 also carry out the last bullet of [ADR 0053 (Coding-agent network reach)](../decisions/0053-network-reach-of-the-coding-agent-host/revision-000.md)'s Decision, which becomes `accepted` when the network project completes.
 
 ## Execution plan
 
@@ -28,7 +28,7 @@ Update at the start and end of each PR that works a stage.
 
 | # | Stage | Status | Exit condition |
 | :-: | :--- | :--- | :--- |
-| 1 | Spike on a scratch OPNsense in the isolated block: the seed's first-boot import, the API user and its key, the collection's coverage, savepoint revert, the gateway certificate, Unbound forwards | In progress | Each assumption in ADR 0089 is resolved and folded into its Context, and the revision can be `approved` |
+| 1 | Spike on a scratch OPNsense in the isolated block: the seed's first-boot import, the API user and its key, the collection's coverage, savepoint revert, the gateway certificate, Unbound forwards, the unattended install | Done | Each assumption in ADR 0089 is resolved and folded into its Context, and the revision can be `approved` |
 | 2 | The seed image and the Ansible role's skeleton. Starts from Tofu's root module and credentials file | Not started | A scratch gateway builds from the seed, and the play's `--check --diff` reports no change after it converges |
 | 3 | Policy, NAT, Unbound forwards and the Kea scratch network for the existing zones, with the hardening baseline | Not started | `--check --diff` reports no change, and probes from a canary VM confirm the allowed flows work and the others fail |
 | 4 | The coding-agent zone's interface and rules. Starts once [`coding-agent-network.md`](coding-agent-network.md) has built and documented the zone | Not started | `--check --diff` reports no change, and the zone's canary probes pass |

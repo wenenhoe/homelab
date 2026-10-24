@@ -38,6 +38,21 @@
           ansible.builtin.include_role:
             name: compose_app
       rescue:
+        # Any failure inside the block would leave the same marker behind and
+        # read as a pass. `ansible_failed_task`/`ansible_failed_result` are
+        # only populated inside rescue - assert the failure is the strict
+        # re-raise for app_fail before trusting it.
+        - name: Confirm the halt came from the strict re-raise for app_fail
+          ansible.builtin.assert:
+            that:
+              - ansible_failed_task.name == "Re-raise for strict fail-fast (app_fail)"
+              - "'app_fail failed to init/deploy' in ansible_failed_result.msg"
+            fail_msg: >-
+              compose_app failed, but not for the reason this scenario exists to
+              test. Expected the strict re-raise for app_fail; got task
+              "{{ ansible_failed_task.name | default('unknown') }}" with message:
+              {{ ansible_failed_result.msg | default('(no msg)') }}
+
         - name: Leave a marker proving the batch actually halted as expected
           ansible.builtin.copy:
             dest: /tmp/compose_app_strict_halt_marker

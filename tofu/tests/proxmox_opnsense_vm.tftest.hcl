@@ -1,18 +1,24 @@
 mock_provider "proxmox" {
   mock_resource "proxmox_download_file" {
     defaults = {
-      id = "local:iso/OPNsense-26.1-dvd-amd64.iso"
+      id = "tofu-images:import/OPNsense-26.1-nano-amd64.raw"
+    }
+  }
+
+  mock_resource "proxmox_virtual_environment_file" {
+    defaults = {
+      id = "tofu-images:import/opnsense-seed.raw"
     }
   }
 }
 
 variables {
-  node_name    = "pve"
-  iso_url      = "https://mirror.example.net/releases/26.1/OPNsense-26.1-dvd-amd64.iso.bz2"
-  iso_checksum = "0000000000000000000000000000000000000000000000000000000000000000"
+  node_name      = "pve"
+  image_url      = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+  image_checksum = "0000000000000000000000000000000000000000000000000000000000000000"
 }
 
-run "fetches_the_installer_and_unpacks_it_as_an_iso" {
+run "fetches_the_image_and_unpacks_it_as_import_content" {
   command = plan
 
   module {
@@ -20,27 +26,27 @@ run "fetches_the_installer_and_unpacks_it_as_an_iso" {
   }
 
   assert {
-    condition     = proxmox_download_file.iso.content_type == "iso" && proxmox_download_file.iso.decompression_algorithm == "bz2"
-    error_message = "the .iso.bz2 must be downloaded as iso content and decompressed"
+    condition     = proxmox_download_file.image.content_type == "import" && proxmox_download_file.image.decompression_algorithm == "bz2"
+    error_message = "the .img.bz2 must be downloaded as import content and decompressed"
   }
 
   assert {
-    condition     = proxmox_download_file.iso.file_name == "OPNsense-26.1-dvd-amd64.iso"
-    error_message = "the unpacked file must be stored under a .iso name"
+    condition     = proxmox_download_file.image.file_name == "OPNsense-26.1-nano-amd64.raw"
+    error_message = "the unpacked file must be stored under a .raw name, which is what Proxmox accepts for import content"
   }
 
   assert {
-    condition     = proxmox_download_file.iso.datastore_id == "tofu-images"
-    error_message = "the installer must be stored on the images storage the token can delete from"
+    condition     = proxmox_download_file.image.datastore_id == "tofu-images"
+    error_message = "the image must be stored on the images storage the token can delete from"
   }
 
   assert {
-    condition     = proxmox_download_file.iso.checksum_algorithm == "sha256" && proxmox_download_file.iso.checksum == var.iso_checksum
+    condition     = proxmox_download_file.image.checksum_algorithm == "sha256" && proxmox_download_file.image.checksum == var.image_checksum
     error_message = "the download must be verified against the given SHA-256"
   }
 }
 
-run "attaches_the_installer_and_boots_the_disk_first" {
+run "imports_the_image_as_the_system_disk_and_boots_it" {
   command = plan
 
   module {
@@ -48,13 +54,125 @@ run "attaches_the_installer_and_boots_the_disk_first" {
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.cdrom[0].file_id == "local:iso/OPNsense-26.1-dvd-amd64.iso" && proxmox_virtual_environment_vm.this.cdrom[0].interface == "ide2"
-    error_message = "the installer must be attached as the CD-ROM"
+    condition     = proxmox_virtual_environment_vm.this.disk[0].interface == "scsi0" && proxmox_virtual_environment_vm.this.disk[0].import_from == "tofu-images:import/OPNsense-26.1-nano-amd64.raw" && proxmox_virtual_environment_vm.this.disk[0].size == 32
+    error_message = "the image must be the first disk, on scsi0, imported from the download and sized to disk_gb"
   }
 
   assert {
-    condition     = proxmox_virtual_environment_vm.this.boot_order == tolist(["scsi0", "ide2"])
-    error_message = "the disk must come before the installer, so an installed VM boots from it"
+    condition     = proxmox_virtual_environment_vm.this.boot_order == tolist(["scsi0"])
+    error_message = "only the system disk may be booted, so the seed disk never is"
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_vm.this.cdrom) == 0
+    error_message = "no installer media is attached"
+  }
+}
+
+run "gives_the_vm_a_serial_port_on_a_socket" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_vm.this.serial_device) == 1 && proxmox_virtual_environment_vm.this.serial_device[0].device == "socket"
+    error_message = "the console must be a serial port on a socket for the node's script to reach"
+  }
+}
+
+run "uploads_the_seed_as_import_content_and_attaches_it_as_a_second_disk" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    seed_image_path = "./modules/proxmox_opnsense_vm/main.tf"
+    started         = false
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_file.seed[0].content_type == "import" && proxmox_virtual_environment_file.seed[0].datastore_id == "tofu-images" && proxmox_virtual_environment_file.seed[0].source_file[0].file_name == "opnsense-seed.raw"
+    error_message = "the seed must be uploaded as import content under a .raw name, next to the image"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_file.seed[0].source_file[0].checksum == filesha256("./modules/proxmox_opnsense_vm/main.tf")
+    error_message = "the upload must carry the seed's SHA-256, so a changed seed is uploaded again"
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_vm.this.disk) == 2 && proxmox_virtual_environment_vm.this.disk[1].interface == "scsi1" && proxmox_virtual_environment_vm.this.disk[1].import_from == "tofu-images:import/opnsense-seed.raw" && proxmox_virtual_environment_vm.this.disk[1].file_format == "raw"
+    error_message = "the seed must be the second disk, on scsi1, imported from the uploaded file"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.disk[0].interface == "scsi0" && proxmox_virtual_environment_vm.this.boot_order == tolist(["scsi0"])
+    error_message = "the system disk stays scsi0 and the only boot device"
+  }
+}
+
+run "names_the_seed_after_the_vm_so_two_gateways_do_not_share_it" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    name            = "Opn-Scratch"
+    seed_image_path = "./modules/proxmox_opnsense_vm/main.tf"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_file.seed[0].source_file[0].file_name == "opn-scratch-seed.raw"
+    error_message = "the seed's file name must derive from the lowercased VM name"
+  }
+}
+
+run "without_a_seed_the_vm_has_only_its_system_disk" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  assert {
+    condition     = length(proxmox_virtual_environment_file.seed) == 0 && length(proxmox_virtual_environment_vm.this.disk) == 1
+    error_message = "no seed path must mean no upload and a single disk"
+  }
+}
+
+run "starts_the_vm_unless_the_caller_holds_it_back" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.started == true
+    error_message = "the VM must start by default"
+  }
+}
+
+run "creates_the_vm_stopped_when_asked" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    started = false
+  }
+
+  assert {
+    condition     = proxmox_virtual_environment_vm.this.started == false
+    error_message = "started = false must create the VM stopped, so the script can connect before the first boot"
   }
 }
 
@@ -162,7 +280,7 @@ run "rejects_a_vmid_that_is_not_a_gateway_vmid" {
   expect_failures = [var.vm_id]
 }
 
-run "rejects_an_installer_that_is_not_a_bzip2_iso" {
+run "rejects_an_image_that_is_not_a_bzip2_img" {
   command = plan
 
   module {
@@ -170,10 +288,38 @@ run "rejects_an_installer_that_is_not_a_bzip2_iso" {
   }
 
   variables {
-    iso_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1-dvd-amd64.iso"
+    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img"
   }
 
-  expect_failures = [var.iso_url]
+  expect_failures = [var.image_url]
+}
+
+run "rejects_an_image_that_is_not_the_nano_one" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_url = "https://mirror.example.net/releases/26.1/OPNsense-26.1-vga-amd64.img.bz2"
+  }
+
+  expect_failures = [var.image_url]
+}
+
+run "rejects_an_image_url_that_is_not_https" {
+  command = plan
+
+  module {
+    source = "./modules/proxmox_opnsense_vm"
+  }
+
+  variables {
+    image_url = "http://mirror.example.net/releases/26.1/OPNsense-26.1-nano-amd64.img.bz2"
+  }
+
+  expect_failures = [var.image_url]
 }
 
 run "rejects_a_checksum_that_is_not_sha256_hex" {
@@ -184,8 +330,8 @@ run "rejects_a_checksum_that_is_not_sha256_hex" {
   }
 
   variables {
-    iso_checksum = "not-a-checksum"
+    image_checksum = "not-a-checksum"
   }
 
-  expect_failures = [var.iso_checksum]
+  expect_failures = [var.image_checksum]
 }

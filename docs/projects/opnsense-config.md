@@ -59,6 +59,7 @@ Stage status is `Not started`, `In progress`, or `Done`.
 - The live gateway (VM 201) is an `i440fx` machine with SeaBIOS and an 8 GB disk, while the OPNsense module builds `q35`. Settle which the rebuilt gateway uses before Stage 6.
 - How the console read of the gateway's certificate is wired into the play, and how a renewal (every 397 days) is noticed: the play's failed verification. The operator host must also resolve the management name.
 - Install and remove a package that is not installed, against a gateway with a route out, before the play declares packages: the scratch bridge could not run it.
+- Update a gateway built from the `nano` image to the pinned release and check that the seed survives it; the Tofu module's change for the image import and the serial port.
 
 ## Closing checklist
 

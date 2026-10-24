@@ -1,0 +1,607 @@
+{
+ "week": "2026-W33",
+ "units": [
+  {
+   "cat": "dep",
+   "sha": "3f19957e8a687bf27902f333012a3849270b1d07",
+   "date": "2026-08-10T10:36:30+08:00",
+   "kind": "pr",
+   "pr": 46,
+   "title": "update dependency community.docker to v5.2.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e970e3ea6907fef72ec246fd54b52b2c69f05e72",
+   "date": "2026-08-10T10:37:08+08:00",
+   "kind": "pr",
+   "pr": 45,
+   "title": "update amazon/aws-cli docker tag to v2.36.19",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "a4cccf42e76efe8958004e233edac4ae75bdabe7",
+   "date": "2026-08-10T10:44:58+08:00",
+   "kind": "pr",
+   "pr": 47,
+   "title": "update renovatebot/github-action action to v46.2.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "d8a34d0e882c567c417de71b0cf35d83c192452b",
+   "date": "2026-08-10T10:45:06+08:00",
+   "kind": "pr",
+   "pr": 48,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.17.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b23d4fc7e4564a9038daf8f0ed30e1be500daea2",
+   "date": "2026-08-10T10:45:23+08:00",
+   "kind": "pr",
+   "pr": 49,
+   "title": "update itzg/mc-backup docker tag to v2026.8.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "bbd191137b629a1cc62494bd4515dcd51c8f104d",
+   "date": "2026-08-10T10:45:35+08:00",
+   "kind": "pr",
+   "pr": 50,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dae5e5c11dd6a010ba3b9c4618a42176068c342a",
+   "date": "2026-08-10T10:53:07+08:00",
+   "kind": "pr",
+   "pr": 51,
+   "title": "Cleanup CI code",
+   "type": "refactor",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "59be83fe9509240708799180fe4fe72cfd0c5297",
+   "date": "2026-08-10T12:24:47+08:00",
+   "kind": "pr",
+   "pr": 52,
+   "title": "Change renovate cron and img sources",
+   "type": "refactor",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "42f00170ecf3102a8187b2ae5317c16513eddd42",
+   "date": "2026-08-10T19:31:46+08:00",
+   "kind": "pr",
+   "pr": 53,
+   "title": "Streamline documentation",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "bda302b59e581ce167b21ebff19be9c443a4ee63",
+   "date": "2026-08-10T21:49:36+08:00",
+   "kind": "pr",
+   "pr": 54,
+   "title": "Move Ansible Lint",
+   "type": "refactor",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "653caac2e53f4732368e3cbf0498cf0826f2e96a",
+   "date": "2026-08-11T00:36:12+08:00",
+   "kind": "pr",
+   "pr": 55,
+   "title": "Fix dev setup cleanup",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0db88fef7df914916cfdd48c91a3686827ea5f6c",
+   "date": "2026-08-11T01:09:51+08:00",
+   "kind": "pr",
+   "pr": 56,
+   "title": "Add test for multizone no leaks",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b7b73479bbd8f038a20623641eec13e60329b700",
+   "date": "2026-08-11T01:57:15+08:00",
+   "kind": "pr",
+   "pr": 57,
+   "title": "Add molecule coverage ci gating",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a61efc4420517e031d1023039b4a782471753d8e",
+   "date": "2026-08-11T13:20:59+08:00",
+   "kind": "pr",
+   "pr": 58,
+   "title": "handle maintenance and config updates",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "app dockge",
+     "removed"
+    ],
+    [
+     "component",
+     "app wetty",
+     "removed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "638dae8b3a2e50c3dd79e89f88fb0e8f96843cfa",
+   "date": "2026-08-11T14:44:46+08:00",
+   "kind": "pr",
+   "pr": 60,
+   "title": "Add caddy build workflow",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "81eabaf8307132753f47dde4a8d0648c541a2cbf",
+   "date": "2026-08-11T14:57:40+08:00",
+   "kind": "pr",
+   "pr": 59,
+   "title": "Move caddy custom build to ci",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "71c07964bf63759b373dd4176ffd353aaa5e4048",
+   "date": "2026-08-11T15:36:30+08:00",
+   "kind": "pr",
+   "pr": 61,
+   "title": "Label custom caddy source",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4b6f6bd602c512df2f448d42c07b960600539e39",
+   "date": "2026-08-11T16:24:20+08:00",
+   "kind": "pr",
+   "pr": 62,
+   "title": "Gate ansible lint",
+   "type": "refactor",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b322f08d90e3ac503d34a31595cc3236e3ec48be",
+   "date": "2026-08-11T16:56:00+08:00",
+   "kind": "pr",
+   "pr": 63,
+   "title": "Add trivy scans",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5fd3b0fe52e88e24d1b3e5acee86ae9567f8781b",
+   "date": "2026-08-11T20:00:06+08:00",
+   "kind": "pr",
+   "pr": 64,
+   "title": "Fix trivy config",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4b4062290bcd758fef2a690dfee871549838d8a7",
+   "date": "2026-08-11T22:00:45+08:00",
+   "kind": "pr",
+   "pr": 65,
+   "title": "Add trivy vuln dashboard",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5268f8c03acac2afbd0a0153f10829a73c88d352",
+   "date": "2026-08-12T11:16:41+08:00",
+   "kind": "pr",
+   "pr": 67,
+   "title": "Remove trivy image scan",
+   "type": "chore",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8658c6dcb7d18ec73d5a16b3b2ceac19441ee3db",
+   "date": "2026-08-12T12:46:58+08:00",
+   "kind": "pr",
+   "pr": 68,
+   "title": "Resolve seaweedfs not started yet",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4308f122021f3c095f16e9ef5cb9376efa4fe8e1",
+   "date": "2026-08-12T14:19:48+08:00",
+   "kind": "pr",
+   "pr": 69,
+   "title": "Add qemu guest agent role",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role qemu_guest_agent",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "7c9b69fd5aeb0b0bb60f18da8b41b0073a984ec1",
+   "date": "2026-08-12T14:51:26+08:00",
+   "kind": "pr",
+   "pr": 70,
+   "title": "Use upstream icon",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8fe4dd4ca76d99ed5342db5c394e44c75c7cb336",
+   "date": "2026-08-12T19:11:24+08:00",
+   "kind": "pr",
+   "pr": 71,
+   "title": "Add architecture docs for tofu",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "34f20ae2c7fe3d70b625ddb5f965435ab86f55e3",
+   "date": "2026-08-13T11:31:50+08:00",
+   "kind": "pr",
+   "pr": 73,
+   "title": "update amazon/aws-cli docker tag to v2.36.22",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "44b596d498962502992414947c9d60e3272dee37",
+   "date": "2026-08-13T11:32:58+08:00",
+   "kind": "pr",
+   "pr": 72,
+   "title": "update github/codeql-action action to v4.37.6",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "c45b0ec297014f7aca4e149790dcaa655aab8f5e",
+   "date": "2026-08-13T11:43:01+08:00",
+   "kind": "pr",
+   "pr": 78,
+   "title": "update quxfoo/wastebin docker tag to v3.7.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "018927bc1bb59e19b53871af6a08fcf31ccf6db1",
+   "date": "2026-08-13T11:43:27+08:00",
+   "kind": "pr",
+   "pr": 77,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.5.8",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "ab15473e95572c4baab60a8c444a6ed4b04af4c2",
+   "date": "2026-08-13T11:43:59+08:00",
+   "kind": "pr",
+   "pr": 76,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.8.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "0a735b08d5bcc54fa91d3ec822198f612e3c556b",
+   "date": "2026-08-13T11:44:43+08:00",
+   "kind": "pr",
+   "pr": 75,
+   "title": "update dependency pre-commit to v4.6.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "d2d923fdcaa7468944b0c03950fb76ace9ce213d",
+   "date": "2026-08-13T11:45:47+08:00",
+   "kind": "pr",
+   "pr": 79,
+   "title": "update pre-commit hook ansible/ansible-lint to v26.8.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "f4073f246124e1b5f838aefc3a685ee28328fa19",
+   "date": "2026-08-13T11:47:41+08:00",
+   "kind": "pr",
+   "pr": 81,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.27.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "6b41f6cf721547c6eeef483a17c9b65985d77ba4",
+   "date": "2026-08-13T11:53:28+08:00",
+   "kind": "pr",
+   "pr": 82,
+   "title": "update astral-sh/setup-uv action to v10",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "f8fadea33ae8f1f8de5ab4db52e23e10ab5ecb44",
+   "date": "2026-08-13T11:54:00+08:00",
+   "kind": "pr",
+   "pr": 80,
+   "title": "update dependency molecule to v26.8.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e1488ed823e7933d9f35df2900786613e9cd0a66",
+   "date": "2026-08-13T11:54:17+08:00",
+   "kind": "pr",
+   "pr": 74,
+   "title": "update dependency ansible-core to v2.21.3",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "75dce49c671b61d8c063b88e1322a95c4ed4d487",
+   "date": "2026-08-13T11:55:31+08:00",
+   "kind": "pr",
+   "pr": 83,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9b0988ad764ed0a2ba19131a39a5cc13af35a44d",
+   "date": "2026-08-13T20:07:17+08:00",
+   "kind": "pr",
+   "pr": 84,
+   "title": "Add merge confidence badges and grouping",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5860421453640ed5f120e582e47984be7bdeb99f",
+   "date": "2026-08-13T21:45:49+08:00",
+   "kind": "pr",
+   "pr": 85,
+   "title": "Fix automated test coverage",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "75a47fec6a000b0a842a63348022844aa842e649",
+   "date": "2026-08-13T22:52:57+08:00",
+   "kind": "pr",
+   "pr": 86,
+   "title": "Include tinyauth and lldap in test matrix",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "69931db2104f4b23c264a67bbd5bd185af000613",
+   "date": "2026-08-14T14:42:26+08:00",
+   "kind": "pr",
+   "pr": 87,
+   "title": "Add lldap observer and tinyauth molecule",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role lldap_bootstrap",
+     "added"
+    ],
+    [
+     "component",
+     "role tinyauth",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "e8a071dad35239172b85dcd70d64c1bec8688ccf",
+   "date": "2026-08-14T15:13:58+08:00",
+   "kind": "pr",
+   "pr": 88,
+   "title": "Add step-ca stack",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "app step-ca",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "7c4ae76a733e3fc6497f6489a425ad4e67094c3a",
+   "date": "2026-08-15T00:41:12+08:00",
+   "kind": "pr",
+   "pr": 89,
+   "title": "Replace certbot with stepca",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role lldap_cert",
+     "added"
+    ],
+    [
+     "component",
+     "role step_ca_client",
+     "added"
+    ],
+    [
+     "component",
+     "role tinyauth_ca_trust",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "46916c5c8eb3b4c546e700c0070511c763245904",
+   "date": "2026-08-16T17:56:27+08:00",
+   "kind": "pr",
+   "pr": 90,
+   "title": "add additional cleanup use cases",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "024d690627d13863b51a0d800ea89198ac2eac4b",
+   "date": "2026-08-16T22:22:27+08:00",
+   "kind": "pr",
+   "pr": 91,
+   "title": "Resolve minecraft restore issues",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  }
+ ]
+}

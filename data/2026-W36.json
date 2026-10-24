@@ -1,0 +1,465 @@
+{
+ "week": "2026-W36",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "f05109b0985baf27e05c0a15f689bcb487a401fc",
+   "date": "2026-08-31T01:31:07+08:00",
+   "kind": "pr",
+   "pr": 124,
+   "title": "Add cloud credentials creation",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1806103073a6e0aa0bb39908f6915b33bec13b49",
+   "date": "2026-08-31T01:37:30+08:00",
+   "kind": "pr",
+   "pr": 125,
+   "title": "Resolve renovate additional deps",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "cd094fb367311a232f31687a9ca3f6cc19fde3ac",
+   "date": "2026-08-31T10:47:01+08:00",
+   "kind": "pr",
+   "pr": 135,
+   "title": "Resolve oci multipart permissions",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "df83b60b302b699b39880ea34895683bf02627dc",
+   "date": "2026-08-31T13:43:27+08:00",
+   "kind": "pr",
+   "pr": 136,
+   "title": "Add audit secrets script",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "817ae05cf431064c3fca8a5f258433399ecff06e",
+   "date": "2026-08-31T13:45:07+08:00",
+   "kind": "pr",
+   "pr": 121,
+   "title": "update github/codeql-action action to v4.37.9",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b3eb7cc0215d5ab17a6c59a335bc197eeb7e3aef",
+   "date": "2026-08-31T13:45:59+08:00",
+   "kind": "pr",
+   "pr": 122,
+   "title": "update amazon/aws-cli docker tag to v2.36.34",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "abbf83043fddee0b8b2497a818efe96be787f1f5",
+   "date": "2026-08-31T13:46:27+08:00",
+   "kind": "pr",
+   "pr": 126,
+   "title": "update renovatebot/github-action action to v46.2.4",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "ce45e98db07ed35c238d39bbf60861d759480be9",
+   "date": "2026-08-31T13:49:47+08:00",
+   "kind": "pr",
+   "pr": 129,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.8.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "7bbe756cd08cb91f43b657256a2f0eb4b6a0e0aa",
+   "date": "2026-08-31T13:50:46+08:00",
+   "kind": "pr",
+   "pr": 130,
+   "title": "update ghcr.io/chrislusf/seaweedfs docker tag to v4.44",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "12a3d9b96872cb5f79afe943406fb34525ce232a",
+   "date": "2026-08-31T13:51:23+08:00",
+   "kind": "pr",
+   "pr": 131,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.52.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "5c59f116577574dac16a22cb5450e6c1697879b1",
+   "date": "2026-08-31T13:51:49+08:00",
+   "kind": "pr",
+   "pr": 133,
+   "title": "update smallstep/step-cli docker tag to v0.30.6",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "23019b2665b84f33a37f80b7b232d147720d8c6a",
+   "date": "2026-08-31T13:52:09+08:00",
+   "kind": "pr",
+   "pr": 134,
+   "title": "update rclone/rclone docker tag to v1.75",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1cbc973b5d76ab35536ede5fd6de5662aa7d47a1",
+   "date": "2026-08-31T14:01:49+08:00",
+   "kind": "pr",
+   "pr": 137,
+   "title": "Resolve dashy uptime kuma url",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "a543ff4008d7daff2b9b17faa362691f184c5f63",
+   "date": "2026-08-31T14:10:44+08:00",
+   "kind": "pr",
+   "pr": 128,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "9dda46cf130b575b37dca34bb953f5551c02bb53",
+   "date": "2026-08-31T14:26:32+08:00",
+   "kind": "pr",
+   "pr": 127,
+   "title": "update dependency cryptography to v50.0.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "f2e39e89381fc9a78c7cb2fb59a9bbf2173b56e9",
+   "date": "2026-08-31T14:27:48+08:00",
+   "kind": "pr",
+   "pr": 132,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "93d294b4095bc34edfa08fcb1b389e64123d02a8",
+   "date": "2026-08-31T14:38:38+08:00",
+   "kind": "pr",
+   "pr": 138,
+   "title": "Exclude molecule dind for compose boot test",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9b4126d09ef4d491b8c10e77c5cc14f63e9f660d",
+   "date": "2026-08-31T15:26:58+08:00",
+   "kind": "pr",
+   "pr": 139,
+   "title": "Improve renovate pr branching",
+   "type": "chore",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "fe3517eb048730fa5a141b283d8c39093887b240",
+   "date": "2026-08-31T16:47:30+08:00",
+   "kind": "pr",
+   "pr": 140,
+   "title": "Cleanup outdated info",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a13ea0e1070925acb343ae751bf2f7e7a4aa208b",
+   "date": "2026-09-01T14:21:55+08:00",
+   "kind": "pr",
+   "pr": 141,
+   "title": "Add batch disaster recovery",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role restore_discovery",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "f55caa1addcf351a40e5636c6cc81961449902ae",
+   "date": "2026-09-01T23:28:46+08:00",
+   "kind": "pr",
+   "pr": 142,
+   "title": "Add backup agent failure notif template",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8136e9634a3455acd237218a03206a6deac4cdcd",
+   "date": "2026-09-02T16:59:29+08:00",
+   "kind": "pr",
+   "pr": 143,
+   "title": "Add rotation hardening",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0296acfe92d356fcffc377f91fe77a74c14f543f",
+   "date": "2026-09-02T20:21:03+08:00",
+   "kind": "pr",
+   "pr": 144,
+   "title": "Refactor and add tests for molecule coverage",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "16b13c17e108008fecfe71541c4da1312e33eab3",
+   "date": "2026-09-02T22:26:20+08:00",
+   "kind": "pr",
+   "pr": 145,
+   "title": "Reorganise cloud creds tooling",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a0932bfb88e2a55ce6e4eea0c8f6ffc98c5040f7",
+   "date": "2026-09-02T23:22:22+08:00",
+   "kind": "pr",
+   "pr": 146,
+   "title": "Add ruff linter",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "93fe62ddecbe237ad7fef9c72cfb2b5e6f8ae369",
+   "date": "2026-09-03T12:41:46+08:00",
+   "kind": "pr",
+   "pr": 147,
+   "title": "Add adr and diagrams",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9338a62fe20ef7f96d9c9b1150ad07278d85a3a8",
+   "date": "2026-09-03T14:11:14+08:00",
+   "kind": "pr",
+   "pr": 148,
+   "title": "Add rclone region fix",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ffa4424f5cd8fe0f20f9978688cd090c2db84373",
+   "date": "2026-09-04T17:02:09+08:00",
+   "kind": "pr",
+   "pr": 149,
+   "title": "Add cloud creds expiry",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1249e523f43b0b3fad789089de41ed1568e94e29",
+   "date": "2026-09-04T22:58:54+08:00",
+   "kind": "pr",
+   "pr": 150,
+   "title": "add oci scim path",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "26f950e3fbec3a9ae741d016c01a25e91713354f",
+   "date": "2026-09-05T01:45:53+08:00",
+   "kind": "pr",
+   "pr": 151,
+   "title": "Add restore regression guard",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2df6557dea5aa2a8230dc93baea70ee986cd94be",
+   "date": "2026-09-05T14:40:57+08:00",
+   "kind": "pr",
+   "pr": 152,
+   "title": "Add OpenBao roadmap and ADRs",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "05cec9958223f4d7324e5783a06880fce8d97c88",
+   "date": "2026-09-06T00:39:54+08:00",
+   "kind": "pr",
+   "pr": 153,
+   "title": "Add openbao to stack",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role openbao",
+     "added"
+    ],
+    [
+     "component",
+     "role openbao_cert",
+     "added"
+    ],
+    [
+     "component",
+     "app openbao",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "82523aad37ced8d2bb8dd50307fe0fb7454e2022",
+   "date": "2026-09-06T15:45:46+08:00",
+   "kind": "pr",
+   "pr": 154,
+   "title": "Add backup restore for openbao",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role openbao_backup",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "d9212f7ba2410362860ab4e0a196b4a301605f87",
+   "date": "2026-09-06T16:27:11+08:00",
+   "kind": "pr",
+   "pr": 155,
+   "title": "Include openbao pinned vers renovate",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "6a42770a29fe0f103117b7e3024c481590ae6ac6",
+   "date": "2026-09-06T16:43:39+08:00",
+   "kind": "pr",
+   "pr": 156,
+   "title": "Use variable version pinning",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5dcf3958a4daa11158ed1fd7b3ec63e3129b3589",
+   "date": "2026-09-06T22:03:17+08:00",
+   "kind": "pr",
+   "pr": 157,
+   "title": "Add openbao auth and policies",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  }
+ ]
+}

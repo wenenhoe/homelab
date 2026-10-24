@@ -1,0 +1,846 @@
+{
+ "week": "2026-W26",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "dcc967d7fb6fb43a8098a79b3d3d789e8265ac66",
+   "date": "2026-06-22T00:38:59+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Modify to use wildcard certificates",
+   "type": "refactor",
+   "bot": false,
+   "group": "services/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "efdb62b35630d8731fdd5515a7277293b428a0e2",
+   "date": "2026-06-22T00:40:01+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Modify to support non tailscale access to pve",
+   "type": "fix",
+   "bot": false,
+   "group": "services/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5ef2d40be7ad4f32620f5fca922308259a49dfd9",
+   "date": "2026-06-22T00:41:11+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Resolve formatting issue in config",
+   "type": "fix",
+   "bot": false,
+   "group": "services/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d303aaf6ae0cfe10477164b96c76fd805ba697ba",
+   "date": "2026-06-23T15:38:00+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add setup documentation",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dfabd3646c9b5f2ee327f9dc46303ad730673b19",
+   "date": "2026-06-23T15:39:55+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add precommmit hooks config",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ed8dbe31531445adcf01927e4c4a51dfb0d1380a",
+   "date": "2026-06-23T15:43:58+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Apply precommit hooks styling",
+   "type": "chore",
+   "bot": false,
+   "group": "services/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "95825af0810f66d1428ffbe1b08424dc4a02192d",
+   "date": "2026-06-23T16:03:34+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add gitleaks for precommit hooks",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "cf694aa97c8fd961953f408eb7a0bb6853e1e003",
+   "date": "2026-06-24T20:54:59+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Reorganise docker files into own directory",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "533138848ceeb5017a27b6d144d88d563acfc70c",
+   "date": "2026-06-24T21:15:21+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Rename Caddyfile",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ea56cb9cba225f6a78dc38afd350637bda8784ef",
+   "date": "2026-06-24T21:19:19+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Restructure docker configs",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": [
+    [
+     "component",
+     "app bentopdf",
+     "added"
+    ],
+    [
+     "component",
+     "app caddy",
+     "added"
+    ],
+    [
+     "component",
+     "app cobalt",
+     "added"
+    ],
+    [
+     "component",
+     "app dashy",
+     "added"
+    ],
+    [
+     "component",
+     "app diun",
+     "added"
+    ],
+    [
+     "component",
+     "app kms",
+     "added"
+    ],
+    [
+     "component",
+     "app minecraft",
+     "added"
+    ],
+    [
+     "component",
+     "app openspeedtest",
+     "added"
+    ],
+    [
+     "component",
+     "app shlink",
+     "added"
+    ],
+    [
+     "component",
+     "app wastebin",
+     "added"
+    ],
+    [
+     "component",
+     "app wetty",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "a591fb363f7ba3bef4ed39451d3e4e6947337169",
+   "date": "2026-06-24T23:11:50+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add ansible configs and install docker role",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "role docker",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "7591a920463e383bbba0d86167f2dc1557c451cc",
+   "date": "2026-06-24T23:51:55+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add deploy docker compose apps role",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "role docker_compose",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "e67ec9d050e9b4656885f0a0a26852828bc7807e",
+   "date": "2026-06-24T23:52:36+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add ansible commands to README",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "581abb285e91aeaae5db11aa752eca4c6c41bfb7",
+   "date": "2026-06-25T11:48:30+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Change name of env sample file and is present",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "28239e9f91694b2bd39c28c63e0223f084cbcb0b",
+   "date": "2026-06-25T12:22:14+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Support apps that require image rebuilding",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "32bb50cb5cf55805db9f055698f06d4d18b847e5",
+   "date": "2026-06-25T12:24:04+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Break into separate files",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b5aaf3154e6a13f1748919162a22aff0dbb94453",
+   "date": "2026-06-25T15:43:22+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add missing group parameter",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f3c0d5aa1b935eea9c541e7d26ea2a511967a191",
+   "date": "2026-06-25T15:43:55+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add become true to file operations",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "88907bdfda8e94a86697586a36ea2e2b38ed9d3a",
+   "date": "2026-06-25T15:44:09+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Clean up gitignore",
+   "type": "chore",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3123670769fe9b08b8066be19349fde39dfc2bf3",
+   "date": "2026-06-25T16:30:52+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove sudo from minecraft scripts",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4b7bed7e8ef9bb7c5c3b297b3f718a58dcf2d9ee",
+   "date": "2026-06-25T16:54:21+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add timezone paramater for diun",
+   "type": "refactor",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "139976de682796c590b71cee413974fe4743cca8",
+   "date": "2026-06-25T17:47:31+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Rename data folder for dashy config",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1ca3e50f06e93e608260454f4da59fced5402a28",
+   "date": "2026-06-25T18:03:47+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Replace example env with jinja templates",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dabd330891f3775a4a17076888ab7bb6062264c7",
+   "date": "2026-06-25T20:09:16+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Support variable prompting in playbook",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4237ea2acf0cb0f4195264f81ab31424db15a760",
+   "date": "2026-06-25T20:09:36+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add uuid generator for shlink",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "04a0d89846984268e8fb2d3f63930ac7d58433d3",
+   "date": "2026-06-25T20:11:22+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add tags to roles in playbook for filtering",
+   "type": "feat",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "32bb65aa0720939c197748e086c2b68ec8876758",
+   "date": "2026-06-25T20:11:58+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove caddyfile parameter",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2d5589da93b4fac344ce218e387a3856ba357402",
+   "date": "2026-06-25T21:18:35+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Fix services running non root",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8ec5b58fe6e4526f3227439669c2c4bc3ccd4530",
+   "date": "2026-06-25T21:19:07+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove unused files and include env file",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c4d71e83d63670d3334eb190739cb70a518c1f69",
+   "date": "2026-06-25T21:23:07+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add new file to gitignore",
+   "type": "chore",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b3f7bfa857daf1fdeba336ab90050417ac089808",
+   "date": "2026-06-25T21:24:47+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Reorder docker compose role",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "57f4814b077e424b2e687a318c67889f07159383",
+   "date": "2026-06-25T21:41:35+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add dockge compose yaml file",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": [
+    [
+     "component",
+     "app dockge",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "049a60750cf87c0b8a28803cde8d6521d2f8337c",
+   "date": "2026-06-25T22:41:48+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Convert Caddyfile to Jinja template",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4ea519fb086d01e8c455c747a1b8e4ad52f0cbc8",
+   "date": "2026-06-25T22:42:49+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Simplify host vars for compose source",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a53cf0a01ca58aca152623c6fdb6c9df5bc26e3d",
+   "date": "2026-06-26T00:04:17+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Ensure stacks directory is root owned",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "cc3f5215078d56015563429ffbc973ec1787e7c4",
+   "date": "2026-06-26T00:13:43+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Modify container restart behaviour",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "88f0563dda6f1d3a4469cadb4c218b57a87318aa",
+   "date": "2026-06-26T00:14:09+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Switch minecraft backup to cron schedule",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a3dbafd794954263be08dfac50d5ae4033430285",
+   "date": "2026-06-26T00:14:27+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add useful commands",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5d9adc65b3b3a685c6fe1f77baabd2a90c6201e8",
+   "date": "2026-06-26T00:26:05+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Rewrite RCON port as expose for minecraft",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "366d727f6cbc7fbaef37181c827fece393131efb",
+   "date": "2026-06-26T00:27:48+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Use loop control label for improved log",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3faf6d5c724ca0f705e0c49170df5882c6c605c2",
+   "date": "2026-06-26T12:21:30+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Consolidate compose has env to group var",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "50c9cb9c3c8cc377694bc8f78d2b85462074b0ac",
+   "date": "2026-06-26T12:23:21+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Consolidate docker upstream to group var",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "edbb324daa859d459d3b3302e760b7375e49b030",
+   "date": "2026-06-26T12:23:46+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove unused services from dashboard",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "868364929a2ead7d1dc55535ec62d7225d9fce31",
+   "date": "2026-06-26T12:24:12+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add test ansible host vars",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "15d4b1f6cdc944a238727cace88daf13786ecb52",
+   "date": "2026-06-26T12:33:07+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Reuse caddy domain for env vars",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3d31e6a08c1984ca4acf3a5abf0023b69edd53b8",
+   "date": "2026-06-26T13:39:30+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Reorganise inventory",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "67b2af8585b1c9246c5e0734f31ef9524e8cd670",
+   "date": "2026-06-26T13:40:02+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Change the prompt",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2d952a1ed7d1996bd8fca78e7816decf5ece12f1",
+   "date": "2026-06-26T13:56:57+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add catch all deny for caddy",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ae5d99da60190be9b6ed2287c7e5b07af82d0f67",
+   "date": "2026-06-26T16:56:06+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Create new file system role",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role file_system",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "94ffedb2bc857f58c5182c313c4e5d68007448ee",
+   "date": "2026-06-26T16:58:23+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Create new caddy role",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role caddy",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "05dbf3076557a5afcb36dcc6652255a8b643f5a8",
+   "date": "2026-06-26T16:59:39+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Merge old yaml into main yaml",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e561998dd2d384fd094abb8d79540d9219fc0ab4",
+   "date": "2026-06-27T00:21:50+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Change inventory from ini to yaml format",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3d15bf3d817770693c6b212999c60d1ec3aafba3",
+   "date": "2026-06-27T00:43:05+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add bind9 ansible deployment",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "role bind9",
+     "added"
+    ],
+    [
+     "component",
+     "app bind9",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "b8bdd7b6824981cd30d170061205d323c2c1a49e",
+   "date": "2026-06-27T00:44:36+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Disable dns stub listener and set docker dns",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c44c4afd439f005d662aced80abd9f5583607680",
+   "date": "2026-06-27T00:45:07+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Improve documentation formatting",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "63b135ffd3baf00b55098b596e3b5d661255a0a7",
+   "date": "2026-06-27T01:25:16+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Change dns serial generator code",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c63a3c2552051dde53d143a8fa5c8c738bbdf84b",
+   "date": "2026-06-27T12:36:48+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Listen on non localhost to allow dns to work",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e699c123e2db173657485914021b77f62acadf3a",
+   "date": "2026-06-27T15:36:32+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Move caddy image build to ansible",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f327201c6bb7be4db41a0732387a5c70e6efba59",
+   "date": "2026-06-27T15:50:22+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Improve docker compose restart app",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f520e51a51c491602a091ed0b00b02ab2508db14",
+   "date": "2026-06-27T22:25:27+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add ansible lint and fixes lint issues",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2137246064f66a7b2d2a43754cdc7047eb698db7",
+   "date": "2026-06-28T00:03:43+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add and format new precommit hooks",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "df8b3e5eb3320c9569e3a643d3f4e9c615dfd836",
+   "date": "2026-06-28T01:38:40+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Resolve dclint issues",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  }
+ ]
+}

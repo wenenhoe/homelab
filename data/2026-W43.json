@@ -1,0 +1,1063 @@
+{
+ "week": "2026-W43",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "31584754ade96d5cd702f84287ed90da446d4652",
+   "date": "2026-10-19T00:00:04+08:00",
+   "kind": "pr",
+   "pr": 475,
+   "title": "Add project scope framework tool",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "068c7e8ac7d7afbdbd471a4015f2aadf3ba086da",
+   "date": "2026-10-19T00:12:23+08:00",
+   "kind": "pr",
+   "pr": 476,
+   "title": "let the Gatus project change the files that still name Kuma",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "7f91254f2eca826f6e4d65cef4fef304c2c17ab0",
+   "date": "2026-10-19T00:16:32+08:00",
+   "kind": "pr",
+   "pr": 477,
+   "title": "close the shell script tests project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: shell-script-tests",
+   "events": [
+    [
+     "adr",
+     "ADR 0086 r000 \u00b7 testing the control flow of shell scripts",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "shell-script-tests",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "f11e054b368452eebac4ac162909dd069f8f2320",
+   "date": "2026-10-19T15:45:18+08:00",
+   "kind": "pr",
+   "pr": 485,
+   "title": "point the freshness-check comment at the proxy rules file",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f02ab9f835489c4f193a2ffdf01b33c047ae5057",
+   "date": "2026-10-19T15:57:07+08:00",
+   "kind": "pr",
+   "pr": 486,
+   "title": "drop every capability from the docker-socket-proxy sidecars",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "cb7f395a1a5c3a0776b1c5965b211689e0ddf363",
+   "date": "2026-10-19T16:00:20+08:00",
+   "kind": "pr",
+   "pr": 487,
+   "title": "add a project for the beszel-agent proxy's Docker API rules",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: beszel-agent-docker-api-rules",
+   "events": [
+    [
+     "project",
+     "beszel-agent-docker-api-rules",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "17aecd0dd07f2975febaf85917582b5e82a4ffac",
+   "date": "2026-10-19T16:50:36+08:00",
+   "kind": "pr",
+   "pr": 488,
+   "title": "Add moving ansible rendered files to container project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: bind-mounted-config-files",
+   "events": [
+    [
+     "adr",
+     "ADR 0087 r000 \u00b7 delivering files ansible renders to a container",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "bind-mounted-config-files",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "cd9db4ae938e0f745331ffa8853f816623d2f263",
+   "date": "2026-10-19T17:17:13+08:00",
+   "kind": "pr",
+   "pr": 489,
+   "title": "Add compose file store location",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: backup-agent-compose-app",
+   "events": [
+    [
+     "adr",
+     "ADR 0088 r000 \u00b7 where a role deployed stack compose file lives",
+     "added (working)"
+    ],
+    [
+     "project",
+     "backup-agent-compose-app",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "0b9d8e5688f9d8ae43ded66db068086389031a88",
+   "date": "2026-10-19T17:28:34+08:00",
+   "kind": "pr",
+   "pr": 491,
+   "title": "let the Gatus project edit three files it has to touch",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c2d1beac6e6849546005ce6034228033886ebb74",
+   "date": "2026-10-19T17:31:50+08:00",
+   "kind": "pr",
+   "pr": 490,
+   "title": "Add repo built gatus and pipeline",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": [
+    [
+     "project",
+     "gatus-job-heartbeats",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "c552d94be22f0b6f0a45ce73b565b6bccead6990",
+   "date": "2026-10-19T17:50:08+08:00",
+   "kind": "pr",
+   "pr": 492,
+   "title": "let the Gatus project edit the provenance check page",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "98a587f0269bd118e68a1e8fd170e4957dee3fdf",
+   "date": "2026-10-19T19:13:59+08:00",
+   "kind": "pr",
+   "pr": 494,
+   "title": "let the Gatus project edit the CD agent host doc",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "587546f79a51b69d8b1385527531706412bf4f1c",
+   "date": "2026-10-19T21:35:51+08:00",
+   "kind": "pr",
+   "pr": 495,
+   "title": "let the Gatus project add a gitleaks allowlist",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a7e3e73aed34184b5029b1e079ff58d58b14464a",
+   "date": "2026-10-19T22:14:43+08:00",
+   "kind": "pr",
+   "pr": 496,
+   "title": "stop the loopback SNI check depending on pipeline start order",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a48352f284db8fd99b8c8a969dd0616aa94413a1",
+   "date": "2026-10-19T22:28:35+08:00",
+   "kind": "pr",
+   "pr": 493,
+   "title": "Deploy gatus on security",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": [
+    [
+     "component",
+     "app gatus",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "83930d0f6ca5821098e02c23b27a976bc0333d9c",
+   "date": "2026-10-20T00:19:11+08:00",
+   "kind": "pr",
+   "pr": 497,
+   "title": "Improve git am workflow",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0079cda89d763a9dd9c05d7e04d66834f394dd87",
+   "date": "2026-10-20T02:45:07+08:00",
+   "kind": "pr",
+   "pr": 498,
+   "title": "Move cd agent tasks out of scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cd-agent-credential-delivery",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "1271fc88b1a695dd3ac582538a380930dec0744c",
+   "date": "2026-10-20T03:01:29+08:00",
+   "kind": "pr",
+   "pr": 499,
+   "title": "widen the heartbeat project's scope to two decision revisions",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4ddce50ce9d08e5c9411a7da454b7820e7ea3e1b",
+   "date": "2026-10-20T13:38:22+08:00",
+   "kind": "pr",
+   "pr": 500,
+   "title": "Consolidate and split projects",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: workstation-capability-reduction",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r002 \u00b7 decision and project documentation workflow",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0037 r003 \u00b7 decision and project documentation workflow",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0048 r000 \u00b7 where tofu credentials live",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "cd-agent-credential-delivery",
+     "closed"
+    ],
+    [
+     "project",
+     "cd-agent-job-ssh-keys",
+     "not-started \u2192 building"
+    ],
+    [
+     "project",
+     "cd-agent-rotation",
+     "closed"
+    ],
+    [
+     "project",
+     "coding-agent-egress",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coding-agent-network-as-code",
+     "closed"
+    ],
+    [
+     "project",
+     "compose-restart-on-changed-mount",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "operator-host-takeover",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "tailnet-policy-baseline",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "tofu-migration-cutover",
+     "closed"
+    ],
+    [
+     "project",
+     "tofu-migration-rehearsal",
+     "closed"
+    ],
+    [
+     "project",
+     "tofu-migration",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "tofu-opnsense-day-2",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "tofu-skeleton",
+     "opened (building)"
+    ],
+    [
+     "project",
+     "tofu-vm-dns",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "tofu-vm-provisioning",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "workstation-capability-reduction",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "0a171aec4852f15e280a8793e53600436b75552d",
+   "date": "2026-10-20T14:45:52+08:00",
+   "kind": "pr",
+   "pr": 501,
+   "title": "Add tofu skeleton allowed paths and keep state local",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-skeleton",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1134c82eff934241b4f3b3a247ed88e510e6c819",
+   "date": "2026-10-20T17:10:04+08:00",
+   "kind": "pr",
+   "pr": 502,
+   "title": "Implement tofu skeleton project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-skeleton",
+   "events": [
+    [
+     "adr",
+     "ADR 0048 r000 \u00b7 where tofu credentials live",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "tofu-skeleton",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "9bd40f04d8b48888e06b4be6847c75dd3762909f",
+   "date": "2026-10-20T17:16:53+08:00",
+   "kind": "pr",
+   "pr": 503,
+   "title": "update the IaC scanning decision now that OpenTofu code exists",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "d3a481d8301c06593e200e0ebe30f11a5909a855",
+   "date": "2026-10-20T17:42:07+08:00",
+   "kind": "pr",
+   "pr": 504,
+   "title": "add a schedule overview table to the CI scheduled jobs page",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "887efa3e3216a6bf0a8151d26c492c21e1ede0b7",
+   "date": "2026-10-21T02:10:36+08:00",
+   "kind": "pr",
+   "pr": 505,
+   "title": "Implement tofu vm provisioning project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-vm-provisioning",
+   "events": [
+    [
+     "project",
+     "tofu-vm-provisioning",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "38946f7d62707dd1fa3d2df8d283db494c93d2f5",
+   "date": "2026-10-22T02:09:25+08:00",
+   "kind": "pr",
+   "pr": 506,
+   "title": "Retire uptime kuma stack",
+   "type": "chore",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": [
+    [
+     "adr",
+     "ADR 0072 r000 \u00b7 detecting scheduled jobs that stop running",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "gatus-job-heartbeats",
+     "closed"
+    ],
+    [
+     "component",
+     "app uptime-kuma",
+     "removed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "da1e8e0c52a7c75541c6516974c3bbcf07f13999",
+   "date": "2026-10-22T02:15:44+08:00",
+   "kind": "pr",
+   "pr": 507,
+   "title": "Rescope opnsense day 2 project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-opnsense-day-2",
+   "events": [
+    [
+     "adr",
+     "ADR 0089 r000 \u00b7 how the opnsense gateway is configured",
+     "added (working)"
+    ],
+    [
+     "project",
+     "opnsense-config",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "tofu-opnsense-day-2",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "9fcfcb0878288f9a4db49ecc8b187faec3433208",
+   "date": "2026-10-22T15:11:52+08:00",
+   "kind": "pr",
+   "pr": 511,
+   "title": "close the VM provisioning project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-vm-provisioning",
+   "events": [
+    [
+     "project",
+     "tofu-vm-provisioning",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6159315a3f2152eb7b6a5e28851d6ec67191cfed",
+   "date": "2026-10-22T17:36:20+08:00",
+   "kind": "pr",
+   "pr": 512,
+   "title": "Harden backup monitoring",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "4e81af633147ca29fcb7bc0fbf6c59b8b2de4837",
+   "date": "2026-10-22T17:55:38+08:00",
+   "kind": "pr",
+   "pr": 513,
+   "title": "Scope proxmox install and licensing and windows projects",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: windows-vms",
+   "events": [
+    [
+     "adr",
+     "ADR 0090 r000 \u00b7 licences of adopted software",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0091 r000 \u00b7 where the activation hosts image comes from",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0092 r000 \u00b7 how windows virtual machines are built",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0093 r000 \u00b7 how the proxmox node is installed and configured",
+     "added (working)"
+    ],
+    [
+     "project",
+     "kms-image",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "licence-check",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "proxmox-node-install",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "windows-vms",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "08e98190edb42aa565f3e8747859407d7cd22d56",
+   "date": "2026-10-23T16:32:37+08:00",
+   "kind": "pr",
+   "pr": 518,
+   "title": "Implement tofu migration project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": [
+    [
+     "project",
+     "tofu-migration",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "bd61beff4dfe3f3b91b30099ecce5439887a57c5",
+   "date": "2026-10-24T14:51:04+08:00",
+   "kind": "pr",
+   "pr": 519,
+   "title": "Record opnsense config project findings",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: opnsense-config",
+   "events": [
+    [
+     "adr",
+     "ADR 0089 r000 \u00b7 how the opnsense gateway is configured",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "opnsense-config",
+     "de-risking \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "d92f02cc2ddd1a7566edd52446318bf26069fd35",
+   "date": "2026-10-24T15:57:50+08:00",
+   "kind": "pr",
+   "pr": 520,
+   "title": "Explore and rescope homelab dns projects",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-vm-dns",
+   "events": [
+    [
+     "project",
+     "internal-dns-consolidation",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "tofu-vm-dns",
+     "de-risking \u2192 not-started"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "bc7ba5668a665a2136536486687579ac2ab4b4e8",
+   "date": "2026-10-24T16:16:41+08:00",
+   "kind": "pr",
+   "pr": 521,
+   "title": "Scope network boundary checks project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: network-boundary-checks",
+   "events": [
+    [
+     "adr",
+     "ADR 0094 r000 \u00b7 showing the network boundary behaves as declared",
+     "added (working)"
+    ],
+    [
+     "project",
+     "network-boundary-checks",
+     "opened (de-risking)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "38fd39e35026e83dc5f57892fd91f4afbb673366",
+   "date": "2026-10-24T17:03:01+08:00",
+   "kind": "pr",
+   "pr": 522,
+   "title": "Update docs on backup and restore review",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-migration",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "bea886a6446c5baaf9f31c66084aee2e670d5726",
+   "date": "2026-10-24T19:09:41+08:00",
+   "kind": "pr",
+   "pr": 517,
+   "title": "update ghcr.io/sigstore/cosign/cosign docker tag to v3.1.4",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b202e8ad3c20fd271480bbf6cfa7a934348cc922",
+   "date": "2026-10-24T19:10:05+08:00",
+   "kind": "pr",
+   "pr": 510,
+   "title": "update dependency astral-sh/uv to v0.13.5",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8798bcf898bf770d5f5bdfc1996fd55513c5f9ed",
+   "date": "2026-10-24T19:10:25+08:00",
+   "kind": "pr",
+   "pr": 483,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.181.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "905df65af2b5a40bba478203c77d952bcc1e367c",
+   "date": "2026-10-24T19:11:08+08:00",
+   "kind": "pr",
+   "pr": 481,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "f1b9b91fa65cd761e8c1576c14f208ee73442897",
+   "date": "2026-10-24T19:11:31+08:00",
+   "kind": "pr",
+   "pr": 478,
+   "title": "update pre-commit hooks",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "a91e3225a96821f9a78dd703750d56431f97fcb8",
+   "date": "2026-10-24T19:12:22+08:00",
+   "kind": "pr",
+   "pr": 482,
+   "title": "update python dependencies (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "755dc036e2f416ec780de6c7546f087265173431",
+   "date": "2026-10-24T19:17:28+08:00",
+   "kind": "pr",
+   "pr": 479,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "aa90a388493fb40fd1ed2c0bf63fe6ee8ab50ce2",
+   "date": "2026-10-24T19:17:46+08:00",
+   "kind": "pr",
+   "pr": 509,
+   "title": "update amazon/aws-cli docker tag to v2.38.5",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "a40d35d776f439f4296dff9caaa17672f52a7a8f",
+   "date": "2026-10-24T19:18:05+08:00",
+   "kind": "pr",
+   "pr": 508,
+   "title": "update docker image digest refreshes (same tag, rebuilt)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "4e55db8c5a308f9a9fc7dc7eb9ca324236d77c9e",
+   "date": "2026-10-24T19:18:57+08:00",
+   "kind": "pr",
+   "pr": 515,
+   "title": "update dependency community.crypto to v3.5.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "14079f24de8657e140063e5a5a9f2e2308846235",
+   "date": "2026-10-24T19:19:18+08:00",
+   "kind": "pr",
+   "pr": 480,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.10.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "dda5fd3816ba52abd7b02b2b08079f6e7201b34a",
+   "date": "2026-10-24T22:17:20+08:00",
+   "kind": "pr",
+   "pr": 525,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.181.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "15714698337fc100760476bf2ff8085d636830b0",
+   "date": "2026-10-24T22:17:33+08:00",
+   "kind": "pr",
+   "pr": 524,
+   "title": "update ghcr.io/wenenhoe/caddy-digitalocean:2.11.7 docker digest to d85a7ff",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "74eff4c93555f5f5caa4fb75102cc9030b26be4e",
+   "date": "2026-10-24T22:17:42+08:00",
+   "kind": "pr",
+   "pr": 526,
+   "title": "update ghcr.io/wenenhoe/wastebin docker tag to v3.9.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "537a1aa0287d3d9b005356949c8fa0aa0cee355c",
+   "date": "2026-10-24T22:17:55+08:00",
+   "kind": "pr",
+   "pr": 514,
+   "title": "update dependency coderabbit-cli to v0.9.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "074e500fe96e9cbd1d42e40519e8246e2ffaa637",
+   "date": "2026-10-24T22:18:15+08:00",
+   "kind": "pr",
+   "pr": 523,
+   "title": "update terraform proxmox to v0.118.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "6bb92a2109ee0bf4c6a375ea22c825636094ea31",
+   "date": "2026-10-24T22:30:53+08:00",
+   "kind": "pr",
+   "pr": 484,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f454a55b24dac30a6ad59aa76a506662e40a1bc3",
+   "date": "2026-10-24T23:16:45+08:00",
+   "kind": "pr",
+   "pr": 527,
+   "title": "check self-built images by repository in the remote tag test",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "455267def637a198a720b5d2e40b549c1a59783b",
+   "date": "2026-10-25T00:18:57+08:00",
+   "kind": "pr",
+   "pr": 528,
+   "title": "assert the strict scenario halts on the app's own re-raise",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4cd566ad7e36cf18b5d98355b64f86f0da7e7736",
+   "date": "2026-10-25T00:21:25+08:00",
+   "kind": "pr",
+   "pr": 529,
+   "title": "Fix container config hardening",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "156e93a3b3e47ff2b7f9ab15464653e310e134e9",
+   "date": "2026-10-25T00:22:10+08:00",
+   "kind": "pr",
+   "pr": 530,
+   "title": "Deploy docs corrections",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "95ac98f89f37dddae82df21c81a7b1dae42a3fcf",
+   "date": "2026-10-25T00:22:39+08:00",
+   "kind": "pr",
+   "pr": 531,
+   "title": "Openbao auto unseal",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: openbao-auto-unseal",
+   "events": [
+    [
+     "adr",
+     "ADR 0018 r001 \u00b7 unsealing the secrets store after restart",
+     "added (working)"
+    ],
+    [
+     "project",
+     "openbao-auto-unseal",
+     "opened (de-risking)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "e93067d0a952a5d9772ed7da0ef33afe01c0f321",
+   "date": "2026-10-25T00:27:55+08:00",
+   "kind": "pr",
+   "pr": 532,
+   "title": "Fix playbook safety guards",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f8fead8005f5fc142c032a3c90348d2211b5e7fd",
+   "date": "2026-10-25T01:13:14+08:00",
+   "kind": "pr",
+   "pr": 533,
+   "title": "stage the doc views before pre-applypatch runs pre-commit",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "2d7b51f81353a0604aa1a43dfd9bcca2561917b4",
+   "date": "2026-10-25T01:17:22+08:00",
+   "kind": "pr",
+   "pr": 534,
+   "title": "add the project that watches every rotation credential",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: watch-all-rotation-credentials",
+   "events": [
+    [
+     "project",
+     "watch-all-rotation-credentials",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "6c65fb43b32683f241a4ac535152071af6d874ec",
+   "date": "2026-10-25T01:41:31+08:00",
+   "kind": "pr",
+   "pr": 535,
+   "title": "Reorganise project planning tracker",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tailnet-policy-in-tofu",
+   "events": [
+    [
+     "project",
+     "backup-archive-retention-lock",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "backup-archive-signing",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "tailnet-policy-in-tofu",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6a45da12f61052032ad5333baef1616358e7c0bd",
+   "date": "2026-10-25T04:38:15+08:00",
+   "kind": "pr",
+   "pr": 536,
+   "title": "Add repo activity summary",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: progress-log",
+   "events": [
+    [
+     "adr",
+     "ADR 0095 r000 \u00b7 recording what was worked on each week and month",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "progress-log",
+     "opened (building)"
+    ]
+   ]
+  }
+ ]
+}

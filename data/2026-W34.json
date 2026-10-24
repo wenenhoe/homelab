@@ -1,0 +1,376 @@
+{
+ "week": "2026-W34",
+ "units": [
+  {
+   "cat": "dep",
+   "sha": "8b854496a89aa3f18fe31960881bdf996427d686",
+   "date": "2026-08-18T09:14:43+08:00",
+   "kind": "pr",
+   "pr": 92,
+   "title": "update astral-sh/setup-uv action to v10.0.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "3d4357524ae720eba4667cad2059c5d34f686ffc",
+   "date": "2026-08-18T09:15:07+08:00",
+   "kind": "pr",
+   "pr": 93,
+   "title": "update github/codeql-action action to v4.37.7",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "c3816eab8c56e1a095ecc3f6965515b94b62c9a3",
+   "date": "2026-08-18T09:15:29+08:00",
+   "kind": "pr",
+   "pr": 94,
+   "title": "update amazon/aws-cli docker tag to v2.36.24",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "112137ae55da466cc7f1ce17a7fe7dde04b4993a",
+   "date": "2026-08-18T09:16:44+08:00",
+   "kind": "pr",
+   "pr": 95,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.5.12",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "14b9ec0c0c558dea1cb4ad86323021cb14249154",
+   "date": "2026-08-18T09:17:05+08:00",
+   "kind": "pr",
+   "pr": 96,
+   "title": "update curlimages/curl docker tag to v8.21.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "14871b7aa6d17e63e755cb655d492a7a97a7e18d",
+   "date": "2026-08-18T09:18:47+08:00",
+   "kind": "pr",
+   "pr": 97,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.32.4",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "46a522cc5caf3bb1bb488f5eb8ef2ca310b5b03a",
+   "date": "2026-08-18T09:19:58+08:00",
+   "kind": "pr",
+   "pr": 98,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "9496220184a4ca698a65b3de642433a5f99f5cb3",
+   "date": "2026-08-18T09:50:12+08:00",
+   "kind": "pr",
+   "pr": 99,
+   "title": "update ghcr.io/chrislusf/seaweedfs docker tag to v4.42",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "11d329baf5b047aff04755e6c648be130142816a",
+   "date": "2026-08-18T23:24:27+08:00",
+   "kind": "pr",
+   "pr": 100,
+   "title": "Add DR cloud backup",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role cloud_sync",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "64454cb7b5baab12bd46a0963def654e156bf1ab",
+   "date": "2026-08-19T01:05:33+08:00",
+   "kind": "pr",
+   "pr": 101,
+   "title": "add cleanup exceptions",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d9a15cde053db567e0d052c6240109304b6fb8ac",
+   "date": "2026-08-19T12:00:02+08:00",
+   "kind": "pr",
+   "pr": 102,
+   "title": "Update DR cloud-sync docs",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "067d2929b9db154550b24773326bcfe88d8bc0fd",
+   "date": "2026-08-19T13:09:09+08:00",
+   "kind": "pr",
+   "pr": 103,
+   "title": "Add wastebin custom image",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0933797210b2d4506ee929b38e59455a4e727c71",
+   "date": "2026-08-19T15:17:07+08:00",
+   "kind": "pr",
+   "pr": 104,
+   "title": "Add healthchecks and docs checks",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d13ecd47fdc2695851e920f887f54802ba7bd11c",
+   "date": "2026-08-19T20:16:38+08:00",
+   "kind": "pr",
+   "pr": 105,
+   "title": "Add telegram notifs with topics",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b53033cb21905541da9aa6a63b86b0568b646d93",
+   "date": "2026-08-20T00:40:01+08:00",
+   "kind": "pr",
+   "pr": 106,
+   "title": "Add telegram notifier role library",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role caddy_cert_expiry",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "a3b41d1eb8a2751b8cab8e701dcb3caa089c20b1",
+   "date": "2026-08-20T11:07:54+08:00",
+   "kind": "pr",
+   "pr": 109,
+   "title": "Add new custom dind molecule img",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "aa19bdc057a4e6110652c904c66c673cb1355b6c",
+   "date": "2026-08-20T17:39:08+08:00",
+   "kind": "pr",
+   "pr": 110,
+   "title": "Optimise molecule test code",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "127ec568d7167dc530b26c0d95c224910442a76a",
+   "date": "2026-08-20T18:51:13+08:00",
+   "kind": "pr",
+   "pr": 111,
+   "title": "Resolve app registry drift in molecule",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8c8f2145464d67c8e677595f0ba962cb672bb00b",
+   "date": "2026-08-20T19:08:08+08:00",
+   "kind": "pr",
+   "pr": 114,
+   "title": "renovate/lock file maintenance",
+   "type": "other",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8ceb60ef5b9a323899e836b9fcaf3bcea0000dab",
+   "date": "2026-08-20T19:11:38+08:00",
+   "kind": "pr",
+   "pr": 107,
+   "title": "renovate/amazon aws cli 2.x",
+   "type": "other",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "7b67f8f9c764882d0446d62548d97fd1ed46d47a",
+   "date": "2026-08-20T19:12:00+08:00",
+   "kind": "pr",
+   "pr": 113,
+   "title": "renovate/ghcr.io renovatebot renovate 44.x",
+   "type": "other",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "d37058ed7b97aa77bbd6177590cc32c518fc0da1",
+   "date": "2026-08-20T19:14:05+08:00",
+   "kind": "pr",
+   "pr": 108,
+   "title": "renovate/docker setup buildx action 4.x",
+   "type": "other",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "4c5d45eb8733cd2856d44656c3e038c784e57d2f",
+   "date": "2026-08-20T19:16:32+08:00",
+   "kind": "pr",
+   "pr": 112,
+   "title": "renovate/docker images (minorpatch)",
+   "type": "other",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "851dd9f1a7fea87b16ecddca73587001f924088e",
+   "date": "2026-08-20T20:24:01+08:00",
+   "kind": "pr",
+   "pr": 115,
+   "title": "Add librespeed to deployment stack",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "app librespeed",
+     "added"
+    ],
+    [
+     "component",
+     "app openspeedtest",
+     "removed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "8f906c561ec63e3eb0f3f655a2334765552d3036",
+   "date": "2026-08-21T00:21:37+08:00",
+   "kind": "pr",
+   "pr": 116,
+   "title": "Resolve backup agent issues",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "72e776571cfb026d7dda56fb032e7ace04f33090",
+   "date": "2026-08-21T12:03:50+08:00",
+   "kind": "pr",
+   "pr": 117,
+   "title": "Rotate critical secrets",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "8021f5c29b86da4ad81226037abc6d5cc6861ea2",
+   "date": "2026-08-21T13:18:35+08:00",
+   "kind": "pr",
+   "pr": 118,
+   "title": "Add docs on beszel secrets rotation",
+   "type": "feat",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8c034250f90b16276b7110d92aa14e5ba0316ade",
+   "date": "2026-08-21T14:42:37+08:00",
+   "kind": "pr",
+   "pr": 119,
+   "title": "Add no compression support",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1cdab5bf120add76644db1632730819343d9b6c5",
+   "date": "2026-08-21T16:53:02+08:00",
+   "kind": "pr",
+   "pr": 120,
+   "title": "Trim and improve docs",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  }
+ ]
+}

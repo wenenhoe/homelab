@@ -1,0 +1,440 @@
+{
+ "week": "2026-W37",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "8c82f5cff4b852f4c5f3af3270a04a4f9a176d99",
+   "date": "2026-09-08T11:22:56+08:00",
+   "kind": "pr",
+   "pr": 168,
+   "title": "Migrate secrets role",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "ac323701e9368ff37fb6d17f22b00bafb27c31ca",
+   "date": "2026-09-08T11:27:21+08:00",
+   "kind": "pr",
+   "pr": 169,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.69.6",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "81c9c94c06d37e2c5356a449afb952d64232e546",
+   "date": "2026-09-08T11:28:31+08:00",
+   "kind": "pr",
+   "pr": 165,
+   "title": "update dependency community.docker to v5.3.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2105e9542b4fc1a4bd130e59f9f7ebee365a4299",
+   "date": "2026-09-08T11:29:09+08:00",
+   "kind": "pr",
+   "pr": 164,
+   "title": "update curlimages/curl docker tag to v8.22.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2fdf95652731436eadb583f4f3fd65f6bf8cde24",
+   "date": "2026-09-08T11:30:21+08:00",
+   "kind": "pr",
+   "pr": 160,
+   "title": "update amazon/aws-cli docker tag to v2.36.40",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "64ac1412e0ba9595945da6a6eaf1182c1c622b9f",
+   "date": "2026-09-08T11:30:54+08:00",
+   "kind": "pr",
+   "pr": 159,
+   "title": "update renovatebot/github-action action to v46.2.6",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "51f80a500133e5852d04a32716d0b69dcf5862a0",
+   "date": "2026-09-08T11:31:26+08:00",
+   "kind": "pr",
+   "pr": 158,
+   "title": "update pre-commit hook astral-sh/ruff-pre-commit to v0.16.6",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "6eccff9bcdfa3900fe9da01bc457f4abd01a701a",
+   "date": "2026-09-08T11:33:16+08:00",
+   "kind": "pr",
+   "pr": 162,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "4d0f702a9afdae970baa4eeb6123bbae72c2fdaf",
+   "date": "2026-09-08T11:34:15+08:00",
+   "kind": "pr",
+   "pr": 163,
+   "title": "update beszel hub + agent (must move together) to v0.19",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8ace0eaf8901872d07bacafb15505ceff2d36f77",
+   "date": "2026-09-08T11:38:37+08:00",
+   "kind": "pr",
+   "pr": 166,
+   "title": "update ghcr.io/chrislusf/seaweedfs docker tag to v4.45",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "7b5496cf42aed0eb84703d36751c4fcf986a1be8",
+   "date": "2026-09-08T11:39:25+08:00",
+   "kind": "pr",
+   "pr": 167,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.9.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "4d36fa1fa0ff2f6087bf0f988240df1f3ce17868",
+   "date": "2026-09-08T11:40:00+08:00",
+   "kind": "pr",
+   "pr": 161,
+   "title": "update dependency oci to v2.185.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b34d93dc0bdf456be05ced9d9ef8aa332dfeb910",
+   "date": "2026-09-08T11:45:39+08:00",
+   "kind": "pr",
+   "pr": 171,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "cdc5d2b74e18314cd1529d4c3e5db56dcc2d8efb",
+   "date": "2026-09-08T11:45:51+08:00",
+   "kind": "pr",
+   "pr": 170,
+   "title": "update openbao/openbao docker tag to v2.6.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "7dc0df04549b6c8cca10a4d0012fd44d0db289eb",
+   "date": "2026-09-08T20:47:37+08:00",
+   "kind": "pr",
+   "pr": 172,
+   "title": "Move cloud creds to vault backed",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "fca6f3a0ec771f95970edf8e20e74f9f8d49566f",
+   "date": "2026-09-09T17:09:24+08:00",
+   "kind": "pr",
+   "pr": 173,
+   "title": "Add narrow role and read watcher",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1d910f055a9cca0e4e9ca21dc9c6f0257c4f7115",
+   "date": "2026-09-09T22:18:10+08:00",
+   "kind": "pr",
+   "pr": 174,
+   "title": "Exercise secrets cutover to vault",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "472880b40582ecaab7e7037df957ecd8342415fe",
+   "date": "2026-09-10T10:17:09+08:00",
+   "kind": "pr",
+   "pr": 175,
+   "title": "Revamp and rework ADR",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d0805d971e81fde51b50258f49ada9f4cfc9a218",
+   "date": "2026-09-10T12:04:22+08:00",
+   "kind": "pr",
+   "pr": 176,
+   "title": "Add r2 read watcher checkpoint",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0cd883f325425e432eddd205ae228e9191eb7ead",
+   "date": "2026-09-10T14:14:54+08:00",
+   "kind": "pr",
+   "pr": 177,
+   "title": "Consolidate step ca cert roles",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role lldap_cert",
+     "removed"
+    ],
+    [
+     "component",
+     "role openbao_cert",
+     "removed"
+    ],
+    [
+     "component",
+     "role step_ca_cert",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "a72791d6bb35e6803fdab6c85efe03318e47ff10",
+   "date": "2026-09-10T22:58:19+08:00",
+   "kind": "pr",
+   "pr": 178,
+   "title": "Add projects docs tier",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: tofu-vm-provisioning",
+   "events": [
+    [
+     "project",
+     "cd-agent",
+     "opened (None)"
+    ],
+    [
+     "project",
+     "tofu-vm-provisioning",
+     "opened (None)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "24e9945c72584543e9af119bdcd57a52c681d3b4",
+   "date": "2026-09-11T00:13:50+08:00",
+   "kind": "pr",
+   "pr": 179,
+   "title": "Resolve r2 read watcher tests",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d560fa41d233f82f78d2b9e523222b6fbcf1f1b8",
+   "date": "2026-09-11T00:42:45+08:00",
+   "kind": "pr",
+   "pr": 180,
+   "title": "Add hadolint",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "71b88944e85e7ad88c8d303215483e11055a4857",
+   "date": "2026-09-11T01:30:08+08:00",
+   "kind": "pr",
+   "pr": 181,
+   "title": "Add new draft adrs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-vm-provisioning",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2861b9c2c2c22ebd93f10200c2befe487654a7b0",
+   "date": "2026-09-11T14:39:57+08:00",
+   "kind": "pr",
+   "pr": 182,
+   "title": "Reorganise docs",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b9e6730c246f37774428d26fd515fbfef2452d2a",
+   "date": "2026-09-11T15:32:27+08:00",
+   "kind": "pr",
+   "pr": 183,
+   "title": "Resolve renovate trigger window",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "7d3ddb7ac38e870cc14a436df063c42fd572bb62",
+   "date": "2026-09-11T17:34:23+08:00",
+   "kind": "pr",
+   "pr": 188,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "9fa183d0441965e5b9664788f3d3ba4d10a70dd2",
+   "date": "2026-09-11T17:34:41+08:00",
+   "kind": "pr",
+   "pr": 186,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.9.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "5072cb8d91ad8c4fc56914e326b1a23030c6f545",
+   "date": "2026-09-11T17:34:52+08:00",
+   "kind": "pr",
+   "pr": 185,
+   "title": "update amazon/aws-cli docker tag to v2.36.43",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "6cd597f584a7b2e87e3e83df741c1d6083e32a07",
+   "date": "2026-09-11T17:35:50+08:00",
+   "kind": "pr",
+   "pr": 184,
+   "title": "update pre-commit hook astral-sh/ruff-pre-commit to v0.16.7",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "aae10f6d9d196741caaae51e776bb73e860fe0d8",
+   "date": "2026-09-11T17:36:20+08:00",
+   "kind": "pr",
+   "pr": 190,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.79.6",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8cd6a1e50c77da51910177d87bfb1ebdcfd16995",
+   "date": "2026-09-11T17:36:58+08:00",
+   "kind": "pr",
+   "pr": 189,
+   "title": "update ghcr.io/chrislusf/seaweedfs docker tag to v4.46",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "fdb2ed65d4610ee52b2631e3bce59c4f60e409a1",
+   "date": "2026-09-11T17:37:27+08:00",
+   "kind": "pr",
+   "pr": 187,
+   "title": "update python dependencies (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "6805d6e0673c0ef8b3845f2414deb26e33c32c09",
+   "date": "2026-09-11T17:49:19+08:00",
+   "kind": "pr",
+   "pr": 191,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  }
+ ]
+}

@@ -1,0 +1,920 @@
+{
+ "week": "2026-W42",
+ "units": [
+  {
+   "cat": "planned",
+   "sha": "6fa641fbc6390281ee2d33a6312887442369b0e6",
+   "date": "2026-10-12T21:53:59+08:00",
+   "kind": "pr",
+   "pr": 423,
+   "title": "Update docs for updated tracker",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": [
+    [
+     "adr",
+     "ADR 0060 r000 \u00b7 tracking and managing code review findings for a public repository",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0060 r001 \u00b7 tracking and managing code review findings for a public repository",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "dep",
+   "sha": "4628ec2baa3c268fc264bb40920c5b14fda88534",
+   "date": "2026-10-12T21:55:05+08:00",
+   "kind": "pr",
+   "pr": 422,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "3ddbe6304791eb10522f145d46f8e9b0324629e3",
+   "date": "2026-10-12T21:59:39+08:00",
+   "kind": "pr",
+   "pr": 421,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.151.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "0bd3e5eade4a78e084f56140d3372683bfd51585",
+   "date": "2026-10-12T22:03:57+08:00",
+   "kind": "pr",
+   "pr": 418,
+   "title": "update dependency astral-sh/uv to v0.13.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "d9a9d16833aec01be119490a03ba94ba58c68b8f",
+   "date": "2026-10-12T22:04:14+08:00",
+   "kind": "pr",
+   "pr": 417,
+   "title": "update pre-commit hook astral-sh/ruff-pre-commit to v0.17.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "89d9c4efa8a96cfb3777df85466783d4040ca286",
+   "date": "2026-10-12T22:09:10+08:00",
+   "kind": "pr",
+   "pr": 416,
+   "title": "update ghcr.io/mermaid-js/mermaid-cli/mermaid-cli docker tag to v12.0.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "c2ff910d52df0b72ec6c5f3ec4f96865d8b2d7e5",
+   "date": "2026-10-12T22:09:41+08:00",
+   "kind": "pr",
+   "pr": 414,
+   "title": "update amazon/aws-cli docker tag to v2.37.12",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "5f10c7ad0b68860b9fe400f8f246b233f1c664ba",
+   "date": "2026-10-12T22:10:20+08:00",
+   "kind": "pr",
+   "pr": 382,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "55e0a2ecb464734d37c0a73a7ccbca2b6c17b5fc",
+   "date": "2026-10-12T22:11:19+08:00",
+   "kind": "pr",
+   "pr": 415,
+   "title": "update dependency rclone/rclone to v1.75.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e7f9341b33dd3a1726c846154e23db8f0db18b89",
+   "date": "2026-10-12T22:11:56+08:00",
+   "kind": "pr",
+   "pr": 420,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e0eccd2ac8e47d38d2f44449d39689d576443cb4",
+   "date": "2026-10-12T22:18:31+08:00",
+   "kind": "pr",
+   "pr": 419,
+   "title": "update dependency coderabbit-cli to v0.9.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "67aa79f04dfbaeae3dee7020f983821fa1977117",
+   "date": "2026-10-12T23:37:53+08:00",
+   "kind": "pr",
+   "pr": 424,
+   "title": "Update openbao related docs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cd-agent-controller-approle-retirement",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8e4bb3e060e2ef31bd34253292e1d14312fc2463",
+   "date": "2026-10-12T23:51:54+08:00",
+   "kind": "pr",
+   "pr": 425,
+   "title": "rename openbao_utils.bao_session to openbao_utils.shell",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: operator-host",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "492309aacedb73eb17803d870071bd2c6a8b5f28",
+   "date": "2026-10-13T00:13:47+08:00",
+   "kind": "pr",
+   "pr": 426,
+   "title": "Split init unseal openbao utils",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: operator-host",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d793216b1e20f007f65cf487860c97d1714725ed",
+   "date": "2026-10-13T00:46:08+08:00",
+   "kind": "pr",
+   "pr": 427,
+   "title": "Improve minted workflow",
+   "type": "refactor",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "b3730f973d97a9910a68d511c88333d0db3748dd",
+   "date": "2026-10-13T12:52:19+08:00",
+   "kind": "pr",
+   "pr": 428,
+   "title": "Close agent audit project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: agent-full-repo-audit",
+   "events": [
+    [
+     "adr",
+     "ADR 0061 r000 \u00b7 where automated code review runs and what it may write",
+     "approved \u2192 accepted"
+    ],
+    [
+     "adr",
+     "ADR 0062 r000 \u00b7 automation identity for the agent based reviewer",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "agent-full-repo-audit",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "4d797ebc9966b023fdaae2b7da867afdb74c079c",
+   "date": "2026-10-13T13:00:00+08:00",
+   "kind": "pr",
+   "pr": 429,
+   "title": "close the image vulnerability assessment project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: image-vulnerability-assessment",
+   "events": [
+    [
+     "adr",
+     "ADR 0071 r000 \u00b7 assessing the vulnerabilities of deployed container images",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "image-vulnerability-assessment",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "5db89186e864dfa94d7748ef1667db6b5885ed39",
+   "date": "2026-10-13T16:09:51+08:00",
+   "kind": "pr",
+   "pr": 430,
+   "title": "Improve wording in docs",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "83c2760b6ff2051e79e4e1ae7a99c727c746ae73",
+   "date": "2026-10-13T16:12:46+08:00",
+   "kind": "pr",
+   "pr": 431,
+   "title": "drop a stored blocked flag the planning index derives",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cd-agent-job-ssh-keys",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "2a10add607f0fa983f6469376896d6eed2e41ead",
+   "date": "2026-10-13T16:19:22+08:00",
+   "kind": "pr",
+   "pr": 432,
+   "title": "add the files that name Uptime Kuma to the Gatus project's paths",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "cda3258b833aabbc853a4cc7ccf534e0d206c78f",
+   "date": "2026-10-13T17:50:25+08:00",
+   "kind": "pr",
+   "pr": 433,
+   "title": "Improve and cover test scenarios",
+   "type": "other",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "89f98da0a99ee0608acbaa86fa203d50d4aae11b",
+   "date": "2026-10-13T20:26:32+08:00",
+   "kind": "pr",
+   "pr": 434,
+   "title": "Scope additional adrs",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": [
+    [
+     "adr",
+     "ADR 0004 r001 \u00b7 container access to the docker api",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0026 r001 \u00b7 detecting reads of high value secrets",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0079 r000 \u00b7 knowing a backup archive came from its host",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0080 r000 \u00b7 approved decisions resting on unfinished ones",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "bff3803719642d6db4cc8e36276264e79d3a2302",
+   "date": "2026-10-13T20:35:38+08:00",
+   "kind": "pr",
+   "pr": 435,
+   "title": "Improve openbao snapshot restore reliability",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "105e9a92b5d59ec7f30176e5b5cb2f19a9e8412a",
+   "date": "2026-10-13T21:20:35+08:00",
+   "kind": "pr",
+   "pr": 436,
+   "title": "Add security policy, license and reviewer guide",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b2e01c39939ce087cc391fdbfbd944aaf0928fa2",
+   "date": "2026-10-15T15:53:52+08:00",
+   "kind": "pr",
+   "pr": 447,
+   "title": "Debug seaweedfs storage growth",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "7c0ad26752e620e0f18cd827622e4600fb1311c5",
+   "date": "2026-10-15T18:33:52+08:00",
+   "kind": "pr",
+   "pr": 448,
+   "title": "Add adr for protecting onsite backups",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0081 r000 \u00b7 protecting on site backup archives from their writer",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "9567e3345156d2fe06e26ff47547fb9608ef36bf",
+   "date": "2026-10-15T20:46:54+08:00",
+   "kind": "pr",
+   "pr": 449,
+   "title": "Improve priority scheduling for project planning",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0082 r000 \u00b7 choosing which project to take up next",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "dep",
+   "sha": "6b9ad3c7158424bb34b282fdcf5f617541e0c0b1",
+   "date": "2026-10-15T20:52:43+08:00",
+   "kind": "pr",
+   "pr": 437,
+   "title": "update renovatebot/github-action action to v46.3.8",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "5c7f855f72a449900f228ce53dff9b82199a4d07",
+   "date": "2026-10-15T20:52:58+08:00",
+   "kind": "pr",
+   "pr": 444,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.160.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "da9794cc0c1426213bffca276ec49681a1d2634a",
+   "date": "2026-10-15T20:54:28+08:00",
+   "kind": "pr",
+   "pr": 440,
+   "title": "update pre-commit hook ansible/ansible-lint to v26.10.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "6ef0f319478ecbd139b554917e2fd7a96cd9195f",
+   "date": "2026-10-15T20:54:49+08:00",
+   "kind": "pr",
+   "pr": 438,
+   "title": "update dependency astral-sh/uv to v0.13.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "c8f04b1b1300981b796d6f7323c88ad5efd2b24d",
+   "date": "2026-10-15T20:55:38+08:00",
+   "kind": "pr",
+   "pr": 445,
+   "title": "update python dependencies (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "053cb99af716552aae4f467d35e5176196be40e5",
+   "date": "2026-10-15T20:59:08+08:00",
+   "kind": "pr",
+   "pr": 446,
+   "title": "update dependency amazon.aws to v12",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "ff8cab72ed27ca077ecd9e1afc3649cfdabca5ae",
+   "date": "2026-10-15T21:01:26+08:00",
+   "kind": "pr",
+   "pr": 441,
+   "title": "update amazon/aws-cli docker tag to v2.38.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "980e2e5b26e63e96c719b95b41a25b95983db2e5",
+   "date": "2026-10-15T21:01:45+08:00",
+   "kind": "pr",
+   "pr": 442,
+   "title": "update curlimages/curl docker tag to v8.23.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "61da90038f6daa81a9b77bb9562a9f8cb3bbdcbb",
+   "date": "2026-10-15T21:03:40+08:00",
+   "kind": "pr",
+   "pr": 439,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.8.3",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8d9a48774f493af1926d61d5a28bc791ac08615a",
+   "date": "2026-10-15T21:04:00+08:00",
+   "kind": "pr",
+   "pr": 443,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.10.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "49789877adce3fa7ebd478ea55d59857ba257846",
+   "date": "2026-10-16T14:31:22+08:00",
+   "kind": "pr",
+   "pr": 450,
+   "title": "Add docker hardening",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a4336cde1981a90fceda11557bbac4800744d7a4",
+   "date": "2026-10-16T15:49:28+08:00",
+   "kind": "pr",
+   "pr": 451,
+   "title": "keep DAC_OVERRIDE on tinyauth",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "86c38bba100717ae63f68e3f8fd8af0547061929",
+   "date": "2026-10-16T16:10:10+08:00",
+   "kind": "pr",
+   "pr": 452,
+   "title": "drop capabilities and block privilege gain on beszel-agent",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "503b7502c3f302df0857d4457c5cb8165d63f28f",
+   "date": "2026-10-17T02:32:07+08:00",
+   "kind": "pr",
+   "pr": 453,
+   "title": "Drop backup agent capabilities",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "845ae0e7d95cc41d8bc6d3b05e02b12d5a25b426",
+   "date": "2026-10-17T03:15:18+08:00",
+   "kind": "pr",
+   "pr": 454,
+   "title": "Harden minecraft one shot compose",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5bee3f7fce22a59690fac4c2702b77548deac09b",
+   "date": "2026-10-17T23:23:44+08:00",
+   "kind": "pr",
+   "pr": 455,
+   "title": "Continue docker hardening",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "3e6a712f9944ed58b03fa838eb51fd41d17d6d0e",
+   "date": "2026-10-17T23:54:15+08:00",
+   "kind": "pr",
+   "pr": 456,
+   "title": "Skip boundary regex for names not in file",
+   "type": "perf",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c9de398a015959c735efb821c94d6d2f7bd5bc6b",
+   "date": "2026-10-18T00:12:55+08:00",
+   "kind": "pr",
+   "pr": 457,
+   "title": "Add container hardening docs",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1d5484fc6c5f8d063953b44722770ab7102ea008",
+   "date": "2026-10-18T01:16:14+08:00",
+   "kind": "pr",
+   "pr": 458,
+   "title": "Improve test quality",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dc48459c99e4190fab69e3d2f5cfa03222549e79",
+   "date": "2026-10-18T02:37:11+08:00",
+   "kind": "pr",
+   "pr": 459,
+   "title": "Add tooling and pin docker image digest",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0083 r000 \u00b7 making a deploy run the images its commit names",
+     "added (approved)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "03c9d43da7938376db42bb26931ba3ccb920307e",
+   "date": "2026-10-18T03:10:01+08:00",
+   "kind": "pr",
+   "pr": 461,
+   "title": "build the boot-test image without its pinned digest and accept p\u2026",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2bacd081a8d59b9353b9e6efd21462c48e287128",
+   "date": "2026-10-18T03:20:53+08:00",
+   "kind": "pr",
+   "pr": 460,
+   "title": "pin dependencies",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "89712bc41d747e605f42aa8930661c7b125262ee",
+   "date": "2026-10-18T12:27:45+08:00",
+   "kind": "pr",
+   "pr": 462,
+   "title": "Add pull policy and fail image without digest",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "adr",
+     "ADR 0083 r000 \u00b7 making a deploy run the images its commit names",
+     "approved \u2192 accepted"
+    ],
+    [
+     "component",
+     "app diun",
+     "removed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "4f392d2cf89593e361788556bf5ad5f5240721de",
+   "date": "2026-10-18T13:23:41+08:00",
+   "kind": "pr",
+   "pr": 463,
+   "title": "leave the hand-placed openbao-backup directory out of cleanup",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "c6895b877bf8e70a54e5f24959792b47bed804a5",
+   "date": "2026-10-18T15:14:58+08:00",
+   "kind": "pr",
+   "pr": 464,
+   "title": "Add adrs for image attestation and registry",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: image-digest-provenance",
+   "events": [
+    [
+     "adr",
+     "ADR 0084 r000 \u00b7 knowing a pinned image digest is the publishers",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0085 r000 \u00b7 choosing the registry an image is pulled from",
+     "added (accepted)"
+    ],
+    [
+     "project",
+     "image-digest-provenance",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "5a854815070d7f377f62a70fd3b83a02aac2d1b2",
+   "date": "2026-10-18T16:30:35+08:00",
+   "kind": "pr",
+   "pr": 465,
+   "title": "Implement image digest provenance project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: image-digest-provenance",
+   "events": [
+    [
+     "project",
+     "image-digest-provenance",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "1e66a183da007bcff01a052676f0cf02d77ae35e",
+   "date": "2026-10-18T17:20:39+08:00",
+   "kind": "pr",
+   "pr": 466,
+   "title": "Expand project scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: image-digest-provenance",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "14c22d2471362da87a1da726546b0479a4fde072",
+   "date": "2026-10-18T17:36:30+08:00",
+   "kind": "pr",
+   "pr": 467,
+   "title": "Pin remaining images and close project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: image-digest-provenance",
+   "events": [
+    [
+     "adr",
+     "ADR 0084 r000 \u00b7 knowing a pinned image digest is the publishers",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "image-digest-provenance",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "1ec6e26d9b13486fd8c0d2a381aeb428f4610faf",
+   "date": "2026-10-18T18:09:58+08:00",
+   "kind": "pr",
+   "pr": 468,
+   "title": "Refactor CI checksums provenance",
+   "type": "refactor",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "ea9b146354f1b91459c273f647dfda9a87f63d0e",
+   "date": "2026-10-18T18:16:47+08:00",
+   "kind": "pr",
+   "pr": 469,
+   "title": "Add bash unit testing bats",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: shell-script-tests",
+   "events": [
+    [
+     "adr",
+     "ADR 0086 r000 \u00b7 testing the control flow of shell scripts",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "shell-script-tests",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "f0e9e49b24400197d7b9528f9e8cf134b37788b1",
+   "date": "2026-10-18T18:25:51+08:00",
+   "kind": "pr",
+   "pr": 470,
+   "title": "Add project for adr 0004 rev 1",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: backup-agent-docker-api-rules",
+   "events": [
+    [
+     "adr",
+     "ADR 0004 r001 \u00b7 container access to the docker api",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "backup-agent-docker-api-rules",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "f0ff9f5674ad4fa9ee70a64ed3a081f0c506f604",
+   "date": "2026-10-18T23:08:03+08:00",
+   "kind": "pr",
+   "pr": 471,
+   "title": "Implement backup agent proxy rules",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: backup-agent-docker-api-rules",
+   "events": [
+    [
+     "project",
+     "backup-agent-docker-api-rules",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "17ef242d9d8a330a7f73a751d3a8c939ebc23eff",
+   "date": "2026-10-18T23:19:52+08:00",
+   "kind": "pr",
+   "pr": 472,
+   "title": "let the backup agent rules project edit the ADR 0004 original",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: backup-agent-docker-api-rules",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "5c2963bbc2dc4dea972b08c05385ee5ed9368869",
+   "date": "2026-10-18T23:22:59+08:00",
+   "kind": "pr",
+   "pr": 473,
+   "title": "accept ADR 0004 revision 1 and remove its project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: backup-agent-docker-api-rules",
+   "events": [
+    [
+     "adr",
+     "ADR 0004 r000 \u00b7 container access to the docker api",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0004 r001 \u00b7 container access to the docker api",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "backup-agent-docker-api-rules",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "22a5ac3cac5f787e75e9b80338305fa376bb64f1",
+   "date": "2026-10-18T23:50:18+08:00",
+   "kind": "pr",
+   "pr": 474,
+   "title": "Implement shell script tests",
+   "type": "test",
+   "bot": false,
+   "group": "Project: shell-script-tests",
+   "events": [
+    [
+     "project",
+     "shell-script-tests",
+     "not-started \u2192 building"
+    ]
+   ]
+  }
+ ]
+}

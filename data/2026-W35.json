@@ -1,0 +1,23 @@
+{
+ "week": "2026-W35",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "bd837b8941ea7472d72ea4792e9df6a5dde33090",
+   "date": "2026-08-30T19:43:51+08:00",
+   "kind": "pr",
+   "pr": 123,
+   "title": "Add uptime kuma to stack",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "app uptime-kuma",
+     "added"
+    ]
+   ]
+  }
+ ]
+}

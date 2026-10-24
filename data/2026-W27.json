@@ -1,0 +1,143 @@
+{
+ "week": "2026-W27",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "f6cd3ee56ff494fc4d90e5b689bd6b4d065e886f",
+   "date": "2026-06-29T12:30:19+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Use supported image and override command",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "193300d60399f19c1e2fa4b8ad8287a795c65f10",
+   "date": "2026-06-29T16:48:48+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Utilise pebble to properly deploy bind9",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1e4490fd3d48dccf424a7b68ff40c8541c2d0bfa",
+   "date": "2026-06-29T16:49:53+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Resolve handler missing `item` variable",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "376615a4f0f856f8114720c19f0d7af91187eb08",
+   "date": "2026-06-29T17:47:40+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Update gitignore",
+   "type": "chore",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2ca74a412cf624de675cc10c2187ba959f37dd3e",
+   "date": "2026-06-29T18:45:27+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add compose app dir create different names",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f43ae4b3d95df57cf5c5bfd69f2875f815beaf48",
+   "date": "2026-07-01T20:00:01+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Convert to mod list file and change modpack",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1124a4f9ffe4d0996398095d37c7d9afd54f50bb",
+   "date": "2026-07-01T20:54:39+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove unnecessary loop",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "777efa9691afe39acc29975f3fbdde30281d5007",
+   "date": "2026-07-01T20:55:20+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add new security host vars and configs",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "81a851f1787c0738295810be8fdeb66bf46ae4a6",
+   "date": "2026-07-02T00:34:52+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add basic tinyauth compose and ansible conf",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "app tinyauth",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "eb67795901ef0f9826dfbcb1840c6ff32e3c4165",
+   "date": "2026-07-02T15:58:51+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add forward auth to tinyauth for caddyfile",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "aa2b174c28ca530b480776747a01fd09bb885170",
+   "date": "2026-07-02T17:20:13+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Overhaul subdomain struct for tinyauth",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  }
+ ]
+}

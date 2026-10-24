@@ -1,0 +1,849 @@
+{
+ "week": "2026-W41",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "60367dec0c339799fa36a4592edf692d0ff87737",
+   "date": "2026-10-05T00:04:57+08:00",
+   "kind": "pr",
+   "pr": 351,
+   "title": "Hook host hardening to playbook",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: host-hardening-remaining-hosts",
+   "events": [
+    [
+     "project",
+     "host-hardening-baseline",
+     "closed"
+    ],
+    [
+     "project",
+     "host-hardening-remaining-hosts",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "67d31ea943a2904dff41a9f2a59f5d19c74bf68e",
+   "date": "2026-10-05T00:23:40+08:00",
+   "kind": "pr",
+   "pr": 352,
+   "title": "Mark not started projects that are ready to build",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "904ceba3f40dffcf7dff1cc9a7daaf3e4ed7a26a",
+   "date": "2026-10-05T19:42:56+08:00",
+   "kind": "pr",
+   "pr": 363,
+   "title": "Assign vmid and ip",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "570e1260664c0c9bb00d286fbbf7e76817222747",
+   "date": "2026-10-05T20:13:43+08:00",
+   "kind": "pr",
+   "pr": 364,
+   "title": "Widen cloud-credentials-sdk-followups scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cloud-credentials-sdk-followups",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "79e23775e14b5e419dd681ab8cc2d137eb455706",
+   "date": "2026-10-05T21:15:41+08:00",
+   "kind": "pr",
+   "pr": 365,
+   "title": "Continue cloud creds sdk followup",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: cloud-credentials-sdk-followups",
+   "events": [
+    [
+     "project",
+     "cloud-credentials-sdk-followups",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6cac91ea45ad5376367244a6fe0b47be044e080c",
+   "date": "2026-10-06T12:53:18+08:00",
+   "kind": "pr",
+   "pr": 366,
+   "title": "Implement cd agent project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: cd-agent-rotation",
+   "events": [
+    [
+     "adr",
+     "ADR 0074 r000 \u00b7 following one automation job with another under a different identity",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "cd-agent-rotation",
+     "opened (building)"
+    ],
+    [
+     "project",
+     "cd-agent",
+     "not-started \u2192 building"
+    ],
+    [
+     "component",
+     "role cd_agent",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "9660dc28c023c904badbc05f04154c8b9de66475",
+   "date": "2026-10-06T14:49:39+08:00",
+   "kind": "pr",
+   "pr": 367,
+   "title": "Implement cd agent approle project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: cd-agent-credential-delivery",
+   "events": [
+    [
+     "adr",
+     "ADR 0022 r001 \u00b7 controller trust in the secrets store tls",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "cd-agent-approles",
+     "not-started \u2192 building"
+    ],
+    [
+     "project",
+     "cd-agent-credential-delivery",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "9bb2dde8d0ddd34c3656a64ee7312f551aecda21",
+   "date": "2026-10-06T18:46:23+08:00",
+   "kind": "pr",
+   "pr": 368,
+   "title": "Implement cd agent rotation project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: cd-agent-job-ssh-keys",
+   "events": [
+    [
+     "adr",
+     "ADR 0075 r000 \u00b7 giving an automation job its own ssh identity",
+     "added (working)"
+    ],
+    [
+     "project",
+     "cd-agent-job-ssh-keys",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "dep",
+   "sha": "03bc7bf89dfdf853ed6c1cf19a996e9cb70764ef",
+   "date": "2026-10-06T18:46:41+08:00",
+   "kind": "pr",
+   "pr": 362,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.138.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "efd403790e399d261782c16c108dc7e660b8d02d",
+   "date": "2026-10-06T18:47:04+08:00",
+   "kind": "pr",
+   "pr": 358,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "41afa9083850b1334f116248fbc92bee8a9cdc1c",
+   "date": "2026-10-06T18:47:38+08:00",
+   "kind": "pr",
+   "pr": 353,
+   "title": "update pre-commit hook astral-sh/ruff-pre-commit to v0.16.10",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "1d3e683f569217c35cb775e1aea991d37e22b0a3",
+   "date": "2026-10-06T18:47:57+08:00",
+   "kind": "pr",
+   "pr": 354,
+   "title": "update amazon/aws-cli docker tag to v2.37.9",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e2e6f4542f6987e9747520b74f3e7e9bb1a791d9",
+   "date": "2026-10-06T18:48:17+08:00",
+   "kind": "pr",
+   "pr": 355,
+   "title": "update python dependencies (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "03a9db9d02f97d93a8be97c6b6838b22d00ecb42",
+   "date": "2026-10-06T18:48:42+08:00",
+   "kind": "pr",
+   "pr": 360,
+   "title": "update ansible galaxy collections (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2dfed680ebcb889b99abe93da38a7f0242aa106f",
+   "date": "2026-10-06T18:58:53+08:00",
+   "kind": "pr",
+   "pr": 361,
+   "title": "update dependency community.docker to v5.4.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "1bb0aaf886c8c1ac2980bace53cb11f194957d15",
+   "date": "2026-10-06T19:02:42+08:00",
+   "kind": "pr",
+   "pr": 359,
+   "title": "update beszel hub + agent (must move together) to v0.21",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c892a39bc4ba349d39365d118a22928fd7c0a97c",
+   "date": "2026-10-06T21:52:28+08:00",
+   "kind": "pr",
+   "pr": 369,
+   "title": "move a custom image's compose pin with its Dockerfile version",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2a2e6b625c58b312fef7069e5447fba06163ef8f",
+   "date": "2026-10-06T22:32:46+08:00",
+   "kind": "pr",
+   "pr": 357,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.7.17",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8f292dbc41a9c71a5f454234051fc330a93678fb",
+   "date": "2026-10-06T22:52:30+08:00",
+   "kind": "pr",
+   "pr": 356,
+   "title": "update dependency openbao/openbao to v2.7.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "26f740504682d96c9f64bfb7c4dc071d43c88160",
+   "date": "2026-10-07T02:09:02+08:00",
+   "kind": "pr",
+   "pr": 372,
+   "title": "Improve supply chain security and workflow",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: production-and-work-in-progress-branches",
+   "events": [
+    [
+     "adr",
+     "ADR 0076 r000 \u00b7 keeping what production runs apart from work in progress",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0077 r000 \u00b7 knowing a pinned release checksum is the publishers",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "pinned-release-checksum-verification",
+     "opened (building)"
+    ],
+    [
+     "project",
+     "production-and-work-in-progress-branches",
+     "opened (building)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "e1224036a37375efb95f62b4b681067b06ff1eb5",
+   "date": "2026-10-07T02:09:24+08:00",
+   "kind": "pr",
+   "pr": 373,
+   "title": "let a compose pin trail its image's Dockerfile version",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ed381f886aea975742624085ae07f96c1331d00c",
+   "date": "2026-10-07T02:25:00+08:00",
+   "kind": "pr",
+   "pr": 374,
+   "title": "skip a null asset digest in the rclone and OpenBao dat\u2026",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "be2a23b16f2f3757ecec1118453039f94b4cc045",
+   "date": "2026-10-07T02:32:26+08:00",
+   "kind": "pr",
+   "pr": 375,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "512353056e338c33bb4df8df788693bcd9a77625",
+   "date": "2026-10-07T10:05:07+08:00",
+   "kind": "pr",
+   "pr": 376,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "6c5a7759c1d2152162de14fa20c06f0a75b24995",
+   "date": "2026-10-08T13:18:47+08:00",
+   "kind": "pr",
+   "pr": 377,
+   "title": "Implement agent full repo audit project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: agent-full-repo-audit",
+   "events": [
+    [
+     "adr",
+     "ADR 0062 r000 \u00b7 automation identity for the agent based reviewer",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "agent-full-repo-audit",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "258bc4e2ad14c00f37d9b8353f76622e52f721f8",
+   "date": "2026-10-08T13:36:36+08:00",
+   "kind": "pr",
+   "pr": 378,
+   "title": "Drop coderabbit ci pipeline",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coderabbit-pr-review-pipeline",
+   "events": [
+    [
+     "project",
+     "coderabbit-pr-review-pipeline",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "4f0417ccf1946dda6d8303fe3afeaff5b54de59b",
+   "date": "2026-10-08T15:04:13+08:00",
+   "kind": "pr",
+   "pr": 386,
+   "title": "run the pre-commit hook on patches applied with git am",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d1191cb83664c1f741dcf55ed7e851048e324d90",
+   "date": "2026-10-08T15:11:27+08:00",
+   "kind": "pr",
+   "pr": 387,
+   "title": "stop pinning the wastebin base-image tag in the real-tree check",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2afb6528c40660e7f13a696beb94c0fa4f1342e3",
+   "date": "2026-10-08T15:14:08+08:00",
+   "kind": "pr",
+   "pr": 388,
+   "title": "track the Renovate execution image with one manager",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "64694a9eb000098feefd47f86da05ae4a9e1317c",
+   "date": "2026-10-08T15:21:13+08:00",
+   "kind": "pr",
+   "pr": 379,
+   "title": "update amazon/aws-cli docker tag to v2.37.10",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "09571abe58236dd82650cb4467b282812740c781",
+   "date": "2026-10-08T15:21:25+08:00",
+   "kind": "pr",
+   "pr": 384,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.145.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "82469b1bfd990965cd977c7e80a172bc2a771f90",
+   "date": "2026-10-08T15:21:44+08:00",
+   "kind": "pr",
+   "pr": 383,
+   "title": "update dependency amazon.aws to v11.5.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e0cc9fbb7fdd5385fad731a0411048c0774f1d34",
+   "date": "2026-10-08T15:29:49+08:00",
+   "kind": "pr",
+   "pr": 380,
+   "title": "update dependency oci to v2.187.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "d76065a319454cf6a29a5173083f0c019d2ccf24",
+   "date": "2026-10-08T15:35:38+08:00",
+   "kind": "pr",
+   "pr": 385,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "98105825be02a9d3633ac76a584c9d654032a15e",
+   "date": "2026-10-08T15:36:05+08:00",
+   "kind": "pr",
+   "pr": 381,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.7.19",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "f28b77334ba7431f134300246d604c5785233c2a",
+   "date": "2026-10-08T17:56:53+08:00",
+   "kind": "pr",
+   "pr": 389,
+   "title": "let the checksum verification project change the change-detecti\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: pinned-release-checksum-verification",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "becb52cbd870036f83a70174ffc5659c3292f0b5",
+   "date": "2026-10-08T18:13:00+08:00",
+   "kind": "pr",
+   "pr": 390,
+   "title": "Implement pinned release checksum verification",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: pinned-release-checksum-verification",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "1638e840f81a3f123abdd088660ae519929b8a02",
+   "date": "2026-10-08T19:12:10+08:00",
+   "kind": "pr",
+   "pr": 392,
+   "title": "close pinned release checksum verification project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: pinned-release-checksum-verification",
+   "events": [
+    [
+     "adr",
+     "ADR 0077 r000 \u00b7 knowing a pinned release checksum is the publishers",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "pinned-release-checksum-verification",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "9c2cb5df28a0e615e307af6f97a097616b1a6450",
+   "date": "2026-10-08T21:10:42+08:00",
+   "kind": "pr",
+   "pr": 393,
+   "title": "Improve adrs usage",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0078 r000 \u00b7 checking that diagrams in docs render",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6f4e6bce15096bf41cb7a7d3c3cb75927684f626",
+   "date": "2026-10-09T00:22:12+08:00",
+   "kind": "pr",
+   "pr": 394,
+   "title": "Audit and cleanup",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ddd1c7212f40cb3fc7ce542fc4e80d76c4bd0e4b",
+   "date": "2026-10-09T01:01:58+08:00",
+   "kind": "pr",
+   "pr": 395,
+   "title": "Implement mermaid checks",
+   "type": "ci",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0078 r000 \u00b7 checking that diagrams in docs render",
+     "working \u2192 accepted"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6872b08ceb931cd15f4ecab1c8679b6f764dd85b",
+   "date": "2026-10-09T11:32:51+08:00",
+   "kind": "pr",
+   "pr": 396,
+   "title": "Audit and optimise workflow",
+   "type": "ci",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "78d8b0ea197e8b2a443b571cc6ffe98f0f0c8b8a",
+   "date": "2026-10-09T12:43:03+08:00",
+   "kind": "pr",
+   "pr": 398,
+   "title": "Add molecule sharding",
+   "type": "ci",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ce1fd5b51829b14eae43620cdb0c085c82b10685",
+   "date": "2026-10-09T13:18:42+08:00",
+   "kind": "pr",
+   "pr": 399,
+   "title": "update molecule matrix claim",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "bee06bc269fb1522569bc37bceac976e5d3ad2c3",
+   "date": "2026-10-09T14:51:52+08:00",
+   "kind": "pr",
+   "pr": 400,
+   "title": "check the step-ca test container's health every 2s",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "bc273a43ff6dcbf02092dffff649b0e5d32d14bd",
+   "date": "2026-10-09T22:08:15+08:00",
+   "kind": "pr",
+   "pr": 401,
+   "title": "Implement vault secret module project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: vault-secret-module",
+   "events": [
+    [
+     "adr",
+     "ADR 0067 r000 \u00b7 where the code that generates and stores a vault backed secret lives",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "vault-secret-module",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "f94fcad098a4527a1753bb6d637d43f7ee1806d0",
+   "date": "2026-10-09T23:25:28+08:00",
+   "kind": "pr",
+   "pr": 402,
+   "title": "widen the vault secret module project's scope to the files that\u2026",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: vault-secret-module",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "6566719d5fcfaf160643d4091f9938f2489057b6",
+   "date": "2026-10-10T00:22:19+08:00",
+   "kind": "pr",
+   "pr": 403,
+   "title": "Continue vault secret module project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: vault-secret-module",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "3de96afad1f33ade6c940411ae414d5cc1ac6d55",
+   "date": "2026-10-10T00:47:38+08:00",
+   "kind": "pr",
+   "pr": 404,
+   "title": "Close vault secret module project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: vault-secret-module",
+   "events": [
+    [
+     "adr",
+     "ADR 0067 r000 \u00b7 where the code that generates and stores a vault backed secret lives",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "vault-secret-module",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "3c24578d63c86ac5966717081c936b12fc7d9573",
+   "date": "2026-10-10T00:57:09+08:00",
+   "kind": "pr",
+   "pr": 405,
+   "title": "drop the obsolete OCI location check from the dump util",
+   "type": "refactor",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c2605971f1cde5531b93bb6db3ba61fe4ca62621",
+   "date": "2026-10-10T01:16:59+08:00",
+   "kind": "pr",
+   "pr": 406,
+   "title": "count shared keys once in the dump summary",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "582e8df1d21b6e758090f0f1d36a83071ccced45",
+   "date": "2026-10-10T02:21:43+08:00",
+   "kind": "pr",
+   "pr": 407,
+   "title": "report every app's deploy result together at the end of a deploy",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "33d2e3b4482d6e2c4dcad235143ac934fef92771",
+   "date": "2026-10-10T02:36:46+08:00",
+   "kind": "pr",
+   "pr": 408,
+   "title": "drop the one-time bind-mount-to-volume migration",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e7d61a059b0f6458f9f218834ca3155e7c7c0ee6",
+   "date": "2026-10-10T02:40:21+08:00",
+   "kind": "pr",
+   "pr": 409,
+   "title": "Add adr trim project closing checklist",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "34566f3cd944da94f3d9a0056a3ad2e3004fd9e7",
+   "date": "2026-10-10T14:35:54+08:00",
+   "kind": "pr",
+   "pr": 410,
+   "title": "refactor legacy cache keys",
+   "type": "refactor",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5563a7ae81f5f15eca67d6c88489b7b79fd8040a",
+   "date": "2026-10-10T15:03:36+08:00",
+   "kind": "pr",
+   "pr": 411,
+   "title": "Cleanup removed and renamed files",
+   "type": "docs",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "b56c0b26fc5e78244ab313b7043661e8c62707e7",
+   "date": "2026-10-10T16:47:22+08:00",
+   "kind": "pr",
+   "pr": 412,
+   "title": "state the agent audit project's cadence as twice a week",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: agent-full-repo-audit",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "fe1dec7aa3cdf3f2565e5b91b218ed2802feff1b",
+   "date": "2026-10-10T16:56:44+08:00",
+   "kind": "pr",
+   "pr": 413,
+   "title": "Remove stale task name",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  }
+ ]
+}

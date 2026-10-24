@@ -1,0 +1,518 @@
+{
+ "week": "2026-W38",
+ "units": [
+  {
+   "cat": "planned",
+   "sha": "c96e2f43d216019c380a38c4d7e5d66d6ce16a4c",
+   "date": "2026-09-14T12:32:05+08:00",
+   "kind": "pr",
+   "pr": 197,
+   "title": "Add new projects and draft adrs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: openbao-python-client-hardening",
+   "events": [
+    [
+     "project",
+     "ansible-collections-audit",
+     "opened (None)"
+    ],
+    [
+     "project",
+     "cloud-credentials-hardening",
+     "opened (None)"
+    ],
+    [
+     "project",
+     "doc-governance-metadata",
+     "opened (None)"
+    ],
+    [
+     "project",
+     "off-site-monitoring",
+     "opened (None)"
+    ],
+    [
+     "project",
+     "openbao-python-client-hardening",
+     "opened (None)"
+    ]
+   ]
+  },
+  {
+   "cat": "dep",
+   "sha": "e643dc084979a7703a09616ef7ed2efe1d1f428d",
+   "date": "2026-09-14T12:33:08+08:00",
+   "kind": "pr",
+   "pr": 195,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.83.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "385d593c2d8b3d116969d31ace2da7079e467131",
+   "date": "2026-09-14T12:33:31+08:00",
+   "kind": "pr",
+   "pr": 192,
+   "title": "update amazon/aws-cli docker tag to v2.36.44",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2fdf024bac372ccb449ee45f88ea79387cd19ff5",
+   "date": "2026-09-14T12:33:57+08:00",
+   "kind": "pr",
+   "pr": 193,
+   "title": "update renovatebot/github-action action to v46.3.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "422c613c15823bc287d5caf7d3e0b391a37bb1de",
+   "date": "2026-09-14T12:35:35+08:00",
+   "kind": "pr",
+   "pr": 194,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "973e23ebf157cea9e695be8f31048c5b97a4791e",
+   "date": "2026-09-14T12:35:57+08:00",
+   "kind": "pr",
+   "pr": 196,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "edb4869de701f8b6ffa02928ccac322558479a90",
+   "date": "2026-09-14T15:41:10+08:00",
+   "kind": "pr",
+   "pr": 198,
+   "title": "Add governance frontmatter",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: doc-governance-metadata",
+   "events": [
+    [
+     "project",
+     "doc-governance-metadata",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "40b6a6e7d29f6ccd80fda5eb45f4cf35536e7ad5",
+   "date": "2026-09-14T16:26:54+08:00",
+   "kind": "pr",
+   "pr": 199,
+   "title": "Catch timeout expired for cloud creds verify",
+   "type": "fix",
+   "bot": false,
+   "group": "Project: cloud-credentials-hardening",
+   "events": [
+    [
+     "project",
+     "cloud-credentials-hardening",
+     "not-started \u2192 in-progress"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "312493ba2708f568200ceb7143740917dad69159",
+   "date": "2026-09-14T18:01:27+08:00",
+   "kind": "pr",
+   "pr": 200,
+   "title": "Track tailscale vm in repo",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: off-site-monitoring",
+   "events": [
+    [
+     "project",
+     "off-site-monitoring",
+     "not-started \u2192 in-progress"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "931cbac7e6254f9d17189f9e3646178520fff872",
+   "date": "2026-09-14T22:23:11+08:00",
+   "kind": "pr",
+   "pr": 201,
+   "title": "Replace seaweedfs bucket role",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: ansible-collections-audit",
+   "events": [
+    [
+     "project",
+     "ansible-collections-audit",
+     "not-started \u2192 in-progress"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "91e24cb4b4bffbb694d3cbcde5464ee2009c5814",
+   "date": "2026-09-14T22:47:37+08:00",
+   "kind": "pr",
+   "pr": 202,
+   "title": "Resolve renovate schedule window checker",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "f7cf114db7ca80d2ed28a4c4b66e8b5c25b1c94b",
+   "date": "2026-09-14T22:57:16+08:00",
+   "kind": "pr",
+   "pr": 203,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "fe6d5461e5d5c0d37cef5c1da0f8300f845c8346",
+   "date": "2026-09-14T22:57:54+08:00",
+   "kind": "pr",
+   "pr": 205,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.87.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "9fdbb99f52e0a9d6a4067068978a0fafb37adf8c",
+   "date": "2026-09-14T23:09:54+08:00",
+   "kind": "pr",
+   "pr": 204,
+   "title": "update ghcr.io/chrislusf/seaweedfs docker tag to v4.47",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "097998ef77187b390a43cfb601f594135a0ba8ed",
+   "date": "2026-09-14T23:12:41+08:00",
+   "kind": "pr",
+   "pr": 206,
+   "title": "update dependency amazon.aws to v11",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "3c1f2ff98bb928b4df245540ea27f254e969b8e7",
+   "date": "2026-09-14T23:31:27+08:00",
+   "kind": "pr",
+   "pr": 207,
+   "title": "Update openbao hvac paramiko spike findings",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: openbao-python-client-hardening",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "990fed8e583f4bddf637f35d34ebb24410bc3f05",
+   "date": "2026-09-15T01:10:42+08:00",
+   "kind": "pr",
+   "pr": 208,
+   "title": "Update openbao vault bootstrap docs",
+   "type": "fix",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f96f8c03e13851aad7378f3ce2b049484fa30c5b",
+   "date": "2026-09-15T12:06:45+08:00",
+   "kind": "pr",
+   "pr": 209,
+   "title": "Add cloud credentials hardening",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: cloud-credentials-hardening",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f6e8d691d545d68bd791fa9b191ed548208a082f",
+   "date": "2026-09-15T17:44:52+08:00",
+   "kind": "pr",
+   "pr": 210,
+   "title": "Add openbao python client hardening",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: openbao-python-client-hardening",
+   "events": [
+    [
+     "project",
+     "openbao-cli-standardization",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "openbao-python-client-hardening",
+     "closed"
+    ],
+    [
+     "project",
+     "tools-secrets-package-split",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "ec1b03476ffbaf34a239249e1ba6b0f44bf3acb1",
+   "date": "2026-09-15T22:21:28+08:00",
+   "kind": "pr",
+   "pr": 211,
+   "title": "Split tools secrets package",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: tools-secrets-package-split",
+   "events": [
+    [
+     "project",
+     "ansible-root-scripts-into-scripts-dir",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "tools-secrets-package-split",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "0b3702b42a7aab9da01fd1653c98212588260c07",
+   "date": "2026-09-16T11:06:07+08:00",
+   "kind": "pr",
+   "pr": 212,
+   "title": "Consolidate openbao utils",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: ansible-root-scripts-into-scripts-dir",
+   "events": [
+    [
+     "project",
+     "ansible-root-scripts-into-scripts-dir",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "309f12f19fdfbb53d8e966c53f619d307b800870",
+   "date": "2026-09-16T15:12:29+08:00",
+   "kind": "pr",
+   "pr": 213,
+   "title": "Add new docs status enums",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "c86c22f3dc925000821b73ac8e7ea44de1da33a2",
+   "date": "2026-09-16T18:09:28+08:00",
+   "kind": "pr",
+   "pr": 214,
+   "title": "Standardise openbao cli interfaces",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: openbao-cli-standardization",
+   "events": [
+    [
+     "project",
+     "openbao-cli-standardization",
+     "not-started \u2192 in-progress"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "140d3d949f2fc01f053864783373cfab52028293",
+   "date": "2026-09-17T16:46:20+08:00",
+   "kind": "pr",
+   "pr": 220,
+   "title": "Standardise openbao cli interfaces",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: openbao-cli-standardization",
+   "events": [
+    [
+     "project",
+     "openbao-cli-standardization",
+     "closed"
+    ],
+    [
+     "component",
+     "role openbao_backup",
+     "removed"
+    ],
+    [
+     "component",
+     "role openbao_cli",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "dep",
+   "sha": "38ccccf84548c0d788327368130819a1e34e0f63",
+   "date": "2026-09-17T16:51:58+08:00",
+   "kind": "pr",
+   "pr": 215,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "f91cc81f0ba42e0608cd52780eee10483e026a1b",
+   "date": "2026-09-17T16:52:15+08:00",
+   "kind": "pr",
+   "pr": 216,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.95.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "47615a010a1abfd97eb4bc4f59a964830fdcb151",
+   "date": "2026-09-17T16:52:32+08:00",
+   "kind": "pr",
+   "pr": 218,
+   "title": "update pre-commit hook astral-sh/ruff-pre-commit to v0.16.8",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "11c3515982781b935878051c4c7a219f82bd9cc6",
+   "date": "2026-09-17T16:52:41+08:00",
+   "kind": "pr",
+   "pr": 219,
+   "title": "update louislam/uptime-kuma docker tag to v2.5.5",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "319efe5c85383a86f3c6efb730f6d638a46954f7",
+   "date": "2026-09-17T16:52:55+08:00",
+   "kind": "pr",
+   "pr": 217,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "823b2551677cef173fdca7a7e65c2bff130cdcc8",
+   "date": "2026-09-17T18:09:04+08:00",
+   "kind": "pr",
+   "pr": 221,
+   "title": "Replace r2 read watcher known gap",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5c99378b001f18740173f5bf3015e6a8446e6fb8",
+   "date": "2026-09-17T18:17:39+08:00",
+   "kind": "pr",
+   "pr": 222,
+   "title": "Update README",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "19a48ecf0857c36af42c1ebb05f0218359f6c4c3",
+   "date": "2026-09-18T03:41:03+08:00",
+   "kind": "pr",
+   "pr": 223,
+   "title": "Add and update draft adrs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: cd-agent",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "04c0bd1331eba77d438d2ad48aeaa25df58a9cf3",
+   "date": "2026-09-18T15:45:32+08:00",
+   "kind": "pr",
+   "pr": 224,
+   "title": "Add gcp os hardening crowdsec ADDs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: off-site-monitoring",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "23698e21e54f2cf90dedfec63c652a661fa2c9b3",
+   "date": "2026-09-18T20:54:37+08:00",
+   "kind": "pr",
+   "pr": 225,
+   "title": "Resolve tinyauth misconfigured background",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  }
+ ]
+}

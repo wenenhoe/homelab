@@ -1,0 +1,112 @@
+{
+ "week": "2026-W30",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "fb711f877cb1f478b853c300f3ce0bc2bd0519fc",
+   "date": "2026-07-20T12:16:36+08:00",
+   "kind": "pr",
+   "pr": 5,
+   "title": "Resolve diun networking",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "ea31f458894bce15b08cd551b31d65ad638321b0",
+   "date": "2026-07-20T15:24:09+08:00",
+   "kind": "pr",
+   "pr": 6,
+   "title": "Add cleanup stale stacks",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b5a0376161644c8ab87d4e4eb375cc143b619178",
+   "date": "2026-07-20T16:15:08+08:00",
+   "kind": "pr",
+   "pr": 7,
+   "title": "Resolve bind9 var name conflict",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "01ad30eba73faa7e3ff9d542ace83e806ddf6e01",
+   "date": "2026-07-20T17:29:05+08:00",
+   "kind": "pr",
+   "pr": 8,
+   "title": "Document homelab features",
+   "type": "docs",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2de3393b0c6ef2de37fbcc6254c527075c1a4600",
+   "date": "2026-07-22T11:13:11+08:00",
+   "kind": "pr",
+   "pr": 9,
+   "title": "Add beszel to stack",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "app beszel-agent",
+     "added"
+    ],
+    [
+     "component",
+     "app beszel-hub",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "c30247debd35a2d7af2a5efa3ade857528d7d7bf",
+   "date": "2026-07-23T19:49:13+08:00",
+   "kind": "pr",
+   "pr": 10,
+   "title": "Add docker configs",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4af4328b0762074c224b11e796daf77fef71ca47",
+   "date": "2026-07-25T01:44:03+08:00",
+   "kind": "pr",
+   "pr": 11,
+   "title": "Use docker named volume",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a7822f8e2bc9b61526889a126a367d91f9abb76e",
+   "date": "2026-07-25T12:50:42+08:00",
+   "kind": "pr",
+   "pr": 12,
+   "title": "Improve ansible resiliency",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  }
+ ]
+}

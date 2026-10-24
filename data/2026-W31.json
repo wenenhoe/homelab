@@ -1,0 +1,113 @@
+{
+ "week": "2026-W31",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "dfc534fb3b1ee8923c2389d51722665866f73e08",
+   "date": "2026-07-27T00:37:17+08:00",
+   "kind": "pr",
+   "pr": 13,
+   "title": "Add ansible role molecule tests",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4f62f709df61e351d21a73d54f675aa88c99a3e1",
+   "date": "2026-07-27T21:19:18+08:00",
+   "kind": "pr",
+   "pr": 14,
+   "title": "Use ansible modules and refactor bind9",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "aa609b0821a8921d0385ee5c5d7c9e7ca0e82e72",
+   "date": "2026-07-27T21:24:29+08:00",
+   "kind": "pr",
+   "pr": 15,
+   "title": "Replace diun hardcoded conf",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a6cf532b0fa8785504353bcc6c1770d7ff22c916",
+   "date": "2026-07-28T17:46:54+08:00",
+   "kind": "pr",
+   "pr": 16,
+   "title": "Improve docker in docker perf",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a5c3d4b0a04b51ad48cbd39fcdbaa62b6b2fcdcf",
+   "date": "2026-07-29T19:01:28+08:00",
+   "kind": "pr",
+   "pr": 17,
+   "title": "Add molecule coverage tool",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2fb7cf0ef3735886017dc68cdf229621502a563c",
+   "date": "2026-07-29T20:29:29+08:00",
+   "kind": "pr",
+   "pr": 18,
+   "title": "Reorganise tool configs and ansible dir",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d9a0ae1b8e892f414bb487f3fe0dc6e799565b1a",
+   "date": "2026-07-29T21:26:53+08:00",
+   "kind": "pr",
+   "pr": 19,
+   "title": "Add happy path for compose app",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "1d4ed3b222ea2e07cbbf7d4149ecf109c5f71eb7",
+   "date": "2026-07-29T21:43:35+08:00",
+   "kind": "pr",
+   "pr": 20,
+   "title": "Add missing condition gating tasks",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0c288b24e2d7ad3b18891942692d97d701e3e3dd",
+   "date": "2026-07-29T21:56:27+08:00",
+   "kind": "pr",
+   "pr": 21,
+   "title": "Add markdown linter",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  }
+ ]
+}

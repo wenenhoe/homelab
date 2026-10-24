@@ -1,0 +1,1059 @@
+{
+ "week": "2026-W40",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "0180e9a3a99b3b3589b0833e913edf2bc2693d47",
+   "date": "2026-09-28T18:25:29+08:00",
+   "kind": "pr",
+   "pr": 292,
+   "title": "Improve change detection and tooling qa",
+   "type": "ci",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0064 r000 \u00b7 where the code behind ci and documentation checks lives",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "dep",
+   "sha": "5a8630de3ae7fc7fcc1c343858252f3996b6d7fa",
+   "date": "2026-09-28T18:39:31+08:00",
+   "kind": "pr",
+   "pr": 289,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.115.13",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "a2da4a22911ba798b22ce3e91388606030ac5227",
+   "date": "2026-09-28T18:39:54+08:00",
+   "kind": "pr",
+   "pr": 288,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "7f819b09c037ab83a0bb8066cb67af3b79f46805",
+   "date": "2026-09-28T18:40:38+08:00",
+   "kind": "pr",
+   "pr": 285,
+   "title": "update pre-commit hook astral-sh/ruff-pre-commit to v0.16.9",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e0b5475780c8072c9cf612ff4643e75eb006a5bc",
+   "date": "2026-09-28T18:41:38+08:00",
+   "kind": "pr",
+   "pr": 287,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.7.10",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b7729fef42bf4a9534d226f8f392b2c04ccf4c16",
+   "date": "2026-09-28T19:42:00+08:00",
+   "kind": "pr",
+   "pr": 291,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "d268fc9ba10c4e9f23f9ea3cd2faaf5a9af90951",
+   "date": "2026-09-28T19:42:14+08:00",
+   "kind": "pr",
+   "pr": 286,
+   "title": "update dependency coderabbit-cli to v0.8.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2cc6b10e2d85e94188edb0b19607254ba9111e29",
+   "date": "2026-09-28T19:44:11+08:00",
+   "kind": "pr",
+   "pr": 290,
+   "title": "update smallstep/step-cli docker tag to v0.31.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4a0a192437e2138515f17e68adb0666501c770cf",
+   "date": "2026-09-28T20:56:16+08:00",
+   "kind": "pr",
+   "pr": 293,
+   "title": "Bump remaining renovate unpinned images",
+   "type": "ci",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "75c83026c1090461c8600ede00816be5359786ea",
+   "date": "2026-09-28T21:53:08+08:00",
+   "kind": "pr",
+   "pr": 294,
+   "title": "Add projects to improve app secret catalog",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: secret-catalog",
+   "events": [
+    [
+     "adr",
+     "ADR 0065 r000 \u00b7 where app defaults and host intent are merged",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0066 r000 \u00b7 how a secret definition states production and storage",
+     "added (working)"
+    ],
+    [
+     "project",
+     "app-resolver",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "secret-catalog",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "ed1dd8d4d326727150b25ecbc5ee57fe8cbe0e6e",
+   "date": "2026-09-29T02:00:39+08:00",
+   "kind": "pr",
+   "pr": 295,
+   "title": "Switch docker cmd to module",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "aa24dbfa3c4bfb5491cd8829f47df87acd703b5c",
+   "date": "2026-09-29T13:16:35+08:00",
+   "kind": "pr",
+   "pr": 296,
+   "title": "Retry telegram pin without reposting header",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4680cc731430b3836f477ee6dd010b26cc96cfc6",
+   "date": "2026-09-29T13:33:57+08:00",
+   "kind": "pr",
+   "pr": 297,
+   "title": "Fail when issued cert mismatch requested",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a4a2cfb6413af46589515c2c9defc58c726e3871",
+   "date": "2026-09-29T14:27:00+08:00",
+   "kind": "pr",
+   "pr": 298,
+   "title": "move cron period hours to repo level",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5a291bc5d908b91dcc35ab3ed4c8278f31c12506",
+   "date": "2026-09-29T16:53:45+08:00",
+   "kind": "pr",
+   "pr": 299,
+   "title": "Classify compose confs scripts filter plugin",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: app-resolver",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c2e04ce72f4b913a018f3cb3785ce931413b19c6",
+   "date": "2026-09-29T18:17:00+08:00",
+   "kind": "pr",
+   "pr": 300,
+   "title": "Move systemd reload and flush to new role",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "07f629d5293a61837956ce8b347c98fd7ae2ebc8",
+   "date": "2026-09-29T20:59:07+08:00",
+   "kind": "pr",
+   "pr": 301,
+   "title": "Implement secret catalog project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: secret-catalog",
+   "events": [
+    [
+     "adr",
+     "ADR 0066 r000 \u00b7 how a secret definition states production and storage",
+     "working \u2192 accepted"
+    ],
+    [
+     "project",
+     "secret-catalog",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6fd4b067a4d5a89ede54b9a1fde7c5a59972aa6e",
+   "date": "2026-09-30T00:53:58+08:00",
+   "kind": "pr",
+   "pr": 302,
+   "title": "Prep for app catalog project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: app-resolver",
+   "events": [
+    [
+     "adr",
+     "ADR 0065 r000 \u00b7 where app defaults and host intent are merged",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "app-resolver",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "576a12fa5020305a58fd9920a151f38ddfd769a0",
+   "date": "2026-09-30T00:59:28+08:00",
+   "kind": "pr",
+   "pr": 303,
+   "title": "Plan the vault secret module",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: vault-secret-module",
+   "events": [
+    [
+     "adr",
+     "ADR 0067 r000 \u00b7 where the code that generates and stores a vault backed secret lives",
+     "added (working)"
+    ],
+    [
+     "project",
+     "vault-secret-module",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "81e352d07cdeb2be57317b71bab524f99abc248f",
+   "date": "2026-09-30T11:49:50+08:00",
+   "kind": "pr",
+   "pr": 304,
+   "title": "Implement app catalog project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: app-resolver",
+   "events": [
+    [
+     "adr",
+     "ADR 0065 r000 \u00b7 where app defaults and host intent are merged",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "app-resolver",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "0e88a476793553a95eb827b5d6a06c6593eae159",
+   "date": "2026-09-30T14:50:54+08:00",
+   "kind": "pr",
+   "pr": 305,
+   "title": "Implement backup plan project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: backup-plan",
+   "events": [
+    [
+     "adr",
+     "ADR 0068 r000 \u00b7 where per app backup settings get their defaults",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "backup-plan",
+     "opened (building)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "8e49f7bdf18366be793945964cc14756b08a440c",
+   "date": "2026-09-30T15:07:35+08:00",
+   "kind": "pr",
+   "pr": 306,
+   "title": "migrate backup agent to backup plan",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: backup-plan",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "02b3d197827d2c1cb9ef16c0a97c974a43e8dbff",
+   "date": "2026-09-30T16:14:19+08:00",
+   "kind": "pr",
+   "pr": 307,
+   "title": "Derive backup hosts from backup plan",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: backup-plan",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b49862054d43a743e7723dfe77f9988f2b56ac9e",
+   "date": "2026-09-30T17:56:38+08:00",
+   "kind": "pr",
+   "pr": 308,
+   "title": "Rename seaweedfs settings",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: backup-plan",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4c14fcef536a44cfc29b53d4955806fe86097de3",
+   "date": "2026-09-30T18:05:50+08:00",
+   "kind": "pr",
+   "pr": 309,
+   "title": "Align remaining offsite refs for seaweedfs",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "49959534ff8b61cfe4a06dfb2bb64ddbe67b73fd",
+   "date": "2026-09-30T18:58:31+08:00",
+   "kind": "pr",
+   "pr": 310,
+   "title": "Widen project scope",
+   "type": "chore",
+   "bot": false,
+   "group": "Project: backup-plan",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dec533504e18c5852e7493ba2c48b384ef27c4c1",
+   "date": "2026-09-30T19:03:31+08:00",
+   "kind": "pr",
+   "pr": 311,
+   "title": "Check backup settings against inventory",
+   "type": "ci",
+   "bot": false,
+   "group": "Project: backup-plan",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d9e7ffec1688c198001b325b595b5c57264ad694",
+   "date": "2026-09-30T19:07:09+08:00",
+   "kind": "pr",
+   "pr": 312,
+   "title": "Close out backup plan project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: backup-plan",
+   "events": [
+    [
+     "adr",
+     "ADR 0068 r000 \u00b7 where per app backup settings get their defaults",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "backup-plan",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "4748bfe2771821df63083c02fdb44f7bd839a1f6",
+   "date": "2026-09-30T19:25:17+08:00",
+   "kind": "pr",
+   "pr": 313,
+   "title": "Refuse unknown key in backup block",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "131cde1153018ae855a5b8a70e6d979df4566efd",
+   "date": "2026-10-01T15:17:48+08:00",
+   "kind": "pr",
+   "pr": 323,
+   "title": "Fix molecule testing ci stale docs",
+   "type": "docs",
+   "bot": false,
+   "group": "docs/",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "c0b7d062ae602d1e319f8ece32a9c1a51a9de9d6",
+   "date": "2026-10-01T15:24:02+08:00",
+   "kind": "pr",
+   "pr": 322,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "bd48474bc11c298acea7bb8be296415ae4e5681a",
+   "date": "2026-10-01T15:24:15+08:00",
+   "kind": "pr",
+   "pr": 321,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.126.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "4f0fd512cd9c89904a8e1f816e291479f2dc676e",
+   "date": "2026-10-01T15:25:02+08:00",
+   "kind": "pr",
+   "pr": 318,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "23e7e0aba82f6094160a6e7fc2bb60902f728ae3",
+   "date": "2026-10-01T15:30:37+08:00",
+   "kind": "pr",
+   "pr": 319,
+   "title": "update amazon/aws-cli docker tag to v2.37.7",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "1d159f2d06d4f590fac71ed256cb4bd8a4e11e97",
+   "date": "2026-10-01T15:32:12+08:00",
+   "kind": "pr",
+   "pr": 317,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.7.12",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "9123f22059f40fa44dccf5600b5764ab1ff97199",
+   "date": "2026-10-01T15:32:55+08:00",
+   "kind": "pr",
+   "pr": 316,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.9.3",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "9ab221476fb434bab3b552c6277d787374b047af",
+   "date": "2026-10-01T15:33:24+08:00",
+   "kind": "pr",
+   "pr": 320,
+   "title": "update ghcr.io/chrislusf/seaweedfs docker tag to v4.48",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "c61fe5c4fa97fd3844885b4d45127d1153cc7f28",
+   "date": "2026-10-01T15:33:38+08:00",
+   "kind": "pr",
+   "pr": 315,
+   "title": "update dependency oci to v2.187.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b220a848dc9dab7d8f570d98c7661fb68083e7cb",
+   "date": "2026-10-01T15:38:06+08:00",
+   "kind": "pr",
+   "pr": 314,
+   "title": "update dependency coderabbit-cli to v0.8.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d5b2380de370ea8c970541690952c2de80faa134",
+   "date": "2026-10-01T17:31:12+08:00",
+   "kind": "pr",
+   "pr": 324,
+   "title": "Improve python unit testing",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": [
+    [
+     "adr",
+     "ADR 0069 r000 \u00b7 how python unit tests are written and run",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "8962d37ed1d84007fa2555e77efd34bf1334fda4",
+   "date": "2026-10-01T17:56:56+08:00",
+   "kind": "pr",
+   "pr": 325,
+   "title": "Rename dr to backup",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "199cabbaf6b0d82887747c6c29c7a15bb66100f1",
+   "date": "2026-10-01T21:17:07+08:00",
+   "kind": "pr",
+   "pr": 326,
+   "title": "Reorganise topic docs structure",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f6ac0f0dd51cd932f08589e55f93253a67b4a141",
+   "date": "2026-10-01T21:48:33+08:00",
+   "kind": "pr",
+   "pr": 327,
+   "title": "Build and smoke-test CodeRabbit in pr-checks",
+   "type": "ci",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "49e2cd4a123b2c24aab08a30f9b726d9c6e526e1",
+   "date": "2026-10-01T22:55:45+08:00",
+   "kind": "pr",
+   "pr": 328,
+   "title": "Scope unit test quality project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: unit-test-quality-passes",
+   "events": [
+    [
+     "adr",
+     "ADR 0070 r000 \u00b7 what a unit tests doubles are bound to",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "unit-test-quality-passes",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "4ebcdf77d736ea010be0b842a57e291eba1a93dd",
+   "date": "2026-10-02T13:44:42+08:00",
+   "kind": "pr",
+   "pr": 329,
+   "title": "Add adr and image vuln assessment project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: image-vulnerability-assessment",
+   "events": [
+    [
+     "adr",
+     "ADR 0071 r000 \u00b7 assessing the vulnerabilities of deployed container images",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "image-vulnerability-assessment",
+     "opened (building)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6e2e2fe9e0a7495420cb6463d89ac462c2c7daf6",
+   "date": "2026-10-02T14:44:30+08:00",
+   "kind": "pr",
+   "pr": 330,
+   "title": "Implement unit test quality project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: unit-test-quality-passes",
+   "events": [
+    [
+     "project",
+     "unit-test-quality-passes",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "17b2ff6c5c49ac2ffb26c53fb9132c786363f574",
+   "date": "2026-10-02T15:13:04+08:00",
+   "kind": "pr",
+   "pr": 331,
+   "title": "Close unit test quality project",
+   "type": "chore",
+   "bot": false,
+   "group": "Project: unit-test-quality-passes",
+   "events": [
+    [
+     "adr",
+     "ADR 0070 r000 \u00b7 what a unit tests doubles are bound to",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "mutation-testing",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "unit-test-quality-passes",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "c5cac13a676a9a98e38da4ed59d48427ddc7b39f",
+   "date": "2026-10-02T15:13:20+08:00",
+   "kind": "pr",
+   "pr": 332,
+   "title": "Add image inventory json output",
+   "type": "ci",
+   "bot": false,
+   "group": "Project: image-vulnerability-assessment",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b54cce2a9a92fb4a2ebc6b3472eec6e632edca7e",
+   "date": "2026-10-02T17:36:48+08:00",
+   "kind": "pr",
+   "pr": 333,
+   "title": "Tidy up repo",
+   "type": "chore",
+   "bot": false,
+   "group": "Project: cloud-credentials-hardening",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "486a0986ef431ad089565d04c8d8ac091408bd8c",
+   "date": "2026-10-02T23:24:47+08:00",
+   "kind": "pr",
+   "pr": 334,
+   "title": "Update docs with vuln assessment program",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0f1504f21231fd9cd56e1a8e4e9f710bf91d4663",
+   "date": "2026-10-03T04:25:10+08:00",
+   "kind": "pr",
+   "pr": 335,
+   "title": "Add zizmor to ci",
+   "type": "ci",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "scope",
+   "sha": "5d311356c5cf8d31af89479beaa69a3fee40ae24",
+   "date": "2026-10-03T05:20:24+08:00",
+   "kind": "pr",
+   "pr": 336,
+   "title": "Update mutation testing project scope",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: mutation-testing",
+   "events": [
+    [
+     "project",
+     "mutation-testing",
+     "not-started \u2192 de-risking"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "ec873c3b659fe933fd27809ae82e049ae673da02",
+   "date": "2026-10-03T05:26:51+08:00",
+   "kind": "pr",
+   "pr": 337,
+   "title": "Enhance ci security",
+   "type": "ci",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "37add9af7f11f9f1b01c84bb994b2e1c00013964",
+   "date": "2026-10-03T13:22:40+08:00",
+   "kind": "pr",
+   "pr": 338,
+   "title": "Improve test quality",
+   "type": "test",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "34d831379fdf420910a586dd1d9f2ab0bd7f8a11",
+   "date": "2026-10-03T17:39:19+08:00",
+   "kind": "pr",
+   "pr": 339,
+   "title": "Point to the mutation testing tooling",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: mutation-testing",
+   "events": [
+    [
+     "project",
+     "mutation-testing",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "1d4e10735e42981e74b1ed48175cd7442e3905aa",
+   "date": "2026-10-03T22:42:37+08:00",
+   "kind": "pr",
+   "pr": 340,
+   "title": "Add gatus job heartbeat migration project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gatus-job-heartbeats",
+   "events": [
+    [
+     "adr",
+     "ADR 0072 r000 \u00b7 detecting scheduled jobs that stop running",
+     "added (approved)"
+    ],
+    [
+     "project",
+     "gatus-job-heartbeats",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "7b050f903a417de54a8d877616a1df052578760f",
+   "date": "2026-10-03T22:49:07+08:00",
+   "kind": "pr",
+   "pr": 341,
+   "title": "Use the slim Uptime Kuma image",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "35d7e53aeac0701ebd6cf57bd0f7e3dcc9556473",
+   "date": "2026-10-03T23:08:04+08:00",
+   "kind": "pr",
+   "pr": 342,
+   "title": "Close out cloud credentials hardening project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: cloud-credentials-sdk-followups",
+   "events": [
+    [
+     "adr",
+     "ADR 0046 r000 \u00b7 python client for s3 compatible storage",
+     "working \u2192 accepted"
+    ],
+    [
+     "project",
+     "cloud-credentials-hardening",
+     "closed"
+    ],
+    [
+     "project",
+     "cloud-credentials-sdk-followups",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "c65d6f1520f6f97784318b5b98f0a7d20b225d76",
+   "date": "2026-10-03T23:29:31+08:00",
+   "kind": "pr",
+   "pr": 343,
+   "title": "Add gcp onboarding project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: gcp-e2-micro-provisioning",
+   "events": [
+    [
+     "adr",
+     "ADR 0073 r000 \u00b7 how provisioning authenticates to the off site cloud",
+     "added (working)"
+    ],
+    [
+     "project",
+     "gcp-e2-micro-provisioning",
+     "opened (de-risking)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "6b49a1291105583f24eb31ec2811163727be85b1",
+   "date": "2026-10-03T23:43:39+08:00",
+   "kind": "pr",
+   "pr": 344,
+   "title": "Resolve openbao unseal race condition",
+   "type": "fix",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "b8a3dbfbbc2172fde8c067b663d207021d2b9259",
+   "date": "2026-10-04T15:31:11+08:00",
+   "kind": "pr",
+   "pr": 345,
+   "title": "Make the maintainer's laptop the workstation",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: workstation-management",
+   "events": [
+    [
+     "adr",
+     "ADR 0057 r000 \u00b7 managing the maintainer workstation from the repo",
+     "working \u2192 abandoned"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "989e4530a16c6e46ee4cfaf0341c898acf482a7d",
+   "date": "2026-10-04T15:45:38+08:00",
+   "kind": "pr",
+   "pr": 346,
+   "title": "Revert openbao policy description",
+   "type": "fix",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "afeb42fb7140d559bb90c47b2deb4ad5274c4aa3",
+   "date": "2026-10-04T22:06:29+08:00",
+   "kind": "pr",
+   "pr": 347,
+   "title": "Make decisions for project planning",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: host-hardening-baseline",
+   "events": [
+    [
+     "adr",
+     "ADR 0020 r001 \u00b7 automation identity and access scope",
+     "working \u2192 approved"
+    ],
+    [
+     "adr",
+     "ADR 0043 r000 \u00b7 host os hardening baseline",
+     "working \u2192 approved"
+    ],
+    [
+     "adr",
+     "ADR 0044 r000-a \u00b7 prod automation trigger and execution",
+     "working \u2192 abandoned"
+    ],
+    [
+     "adr",
+     "ADR 0044 r000-b \u00b7 prod automation trigger and execution",
+     "working \u2192 abandoned"
+    ],
+    [
+     "adr",
+     "ADR 0044 r000-c \u00b7 prod automation trigger and execution",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0054 r000 \u00b7 managing an untrusted host from the cd agent",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "cd-agent-approles",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "cd-agent",
+     "de-risking \u2192 not-started"
+    ],
+    [
+     "project",
+     "host-hardening-baseline",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "e531329633952e717c78f40b670fa3b3e7eb491e",
+   "date": "2026-10-04T22:46:01+08:00",
+   "kind": "pr",
+   "pr": 349,
+   "title": "Approve the first-credential bootstrap decision",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": [
+    [
+     "adr",
+     "ADR 0047 r000 \u00b7 first credential bootstrap for automated processes",
+     "working \u2192 approved"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "662ecef911506df8c70e37a5e4154459cfc05878",
+   "date": "2026-10-04T22:55:15+08:00",
+   "kind": "pr",
+   "pr": 348,
+   "title": "Add host hardening role",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: host-hardening-baseline",
+   "events": [
+    [
+     "project",
+     "host-hardening-baseline",
+     "not-started \u2192 building"
+    ],
+    [
+     "component",
+     "role host_hardening",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "d263ceafdb28c0b9d9002c6533dbc4d97839fdf2",
+   "date": "2026-10-04T23:56:31+08:00",
+   "kind": "pr",
+   "pr": 350,
+   "title": "Hash Molecule helper collections file in Galaxy cache",
+   "type": "ci",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  }
+ ]
+}

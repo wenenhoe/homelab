@@ -1,0 +1,176 @@
+{
+ "week": "2026-W29",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "447b136546f80a498ca58d3ff7d1ebedbba0bfb7",
+   "date": "2026-07-15T16:39:04+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add network reset playbook",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "a6d16b91f0a52322bd5df08394fab37c1dee16f0",
+   "date": "2026-07-15T16:40:54+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add ansible playbooks info to README",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "5aceda9bb26bd62a7604d17afa3f8f405a8d4888",
+   "date": "2026-07-15T17:32:11+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add fwupd ansible role",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "role fwupd",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "e40205d5b2804b9cc309e2babe8a859df7264c8c",
+   "date": "2026-07-15T18:18:00+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Allow dashy status check via 401",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "394cd2d9ff0c6552d5df9626b3bb89402dc67196",
+   "date": "2026-07-15T18:21:59+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove main domain from vars if possible",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "67e8352bafa505047737fddb9e1001e6167f51dc",
+   "date": "2026-07-15T18:49:15+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove main domain from remaining vars",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "307219ec8ec7224df567ceda9d47e00975f34d30",
+   "date": "2026-07-15T20:11:50+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Support other template files copy over",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f7e0bbe3c18f0ad119bbd5a33fe959373f1c823a",
+   "date": "2026-07-16T23:51:08+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add ansible variable for ldap dn",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "07a9defabb79a615252e89fc79d514d021577157",
+   "date": "2026-07-17T16:44:03+08:00",
+   "kind": "pr",
+   "pr": 1,
+   "title": "Update tinyauth config to 5.1.0 config file",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9a74f644d25ae42d76b622d26e749c57a13112a2",
+   "date": "2026-07-17T16:49:02+08:00",
+   "kind": "pr",
+   "pr": 2,
+   "title": "Cleanup and resolve dep issues",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "004feac07de30dbaf44293c94861c45469bcc9dc",
+   "date": "2026-07-18T01:14:09+08:00",
+   "kind": "pr",
+   "pr": 3,
+   "title": "Add docker socket proxy",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "017422a46910de5588754209a4b66ce720497388",
+   "date": "2026-07-19T21:50:57+08:00",
+   "kind": "pr",
+   "pr": 4,
+   "title": "Consolidate ansible code",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role compose",
+     "added"
+    ],
+    [
+     "component",
+     "role compose_app",
+     "added"
+    ],
+    [
+     "component",
+     "role docker_compose",
+     "removed"
+    ],
+    [
+     "component",
+     "role file_system",
+     "removed"
+    ]
+   ]
+  }
+ ]
+}

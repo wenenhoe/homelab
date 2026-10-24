@@ -1,0 +1,1254 @@
+{
+ "week": "2026-W39",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "c50fd2c78ae6049939168b74dc502dbf78837adb",
+   "date": "2026-09-21T14:49:27+08:00",
+   "kind": "pr",
+   "pr": 232,
+   "title": "Reduce secrets role output",
+   "type": "refactor",
+   "bot": false,
+   "group": "Project: ansible-collections-audit",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "02e9ad7b1134f832a866ebdedc7f26cc8fe84082",
+   "date": "2026-09-22T00:32:06+08:00",
+   "kind": "pr",
+   "pr": 233,
+   "title": "Revamp project workflow and doc specs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: tofu-vm-provisioning",
+   "events": [
+    [
+     "adr",
+     "ADR 0001 r000 \u00b7 host configuration reproducible from repo",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0002 r000 \u00b7 reverse proxy configuration reproducible from repo",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0003 r000 \u00b7 certificate issuance for proxied apps",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0003 r001 \u00b7 certificate issuance for proxied apps",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0004 r000 \u00b7 container access to the docker api",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0005 r000 \u00b7 persistent container state and host permissions",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0006 r000 \u00b7 offsite backup credential blast radius",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0007 r000 \u00b7 internal ca initialization and identity persistence",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0008 r000 \u00b7 internal certificate lifetime",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0008 r001 \u00b7 internal certificate lifetime",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0009 r000 \u00b7 internal service certificate issuance and renewal",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0010 r000 \u00b7 preventing homelab side deletion of offsite copies",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0011 r000 \u00b7 alert routing and noise",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0012 r000 \u00b7 verifying backups actually land",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0013 r000 \u00b7 secret storage",
+     "added (superseded)"
+    ],
+    [
+     "adr",
+     "ADR 0013 r001 \u00b7 secret storage",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0014 r000 \u00b7 r2 rotation credential cannot be narrowed",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0015 r000 \u00b7 cloud credential expiry",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0016 r000 \u00b7 oci credential creation and expiry",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0017 r000 \u00b7 recovering the secrets store from total loss",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0018 r000 \u00b7 unsealing the secrets store after restart",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0019 r000 \u00b7 openbao offsite snapshot path",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0020 r000 \u00b7 automation identity and access scope",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0020 r001 \u00b7 automation identity and access scope",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0021 r000 \u00b7 secret path layout for secrets with no host owner",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0022 r000 \u00b7 controller trust in the secrets store tls",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0023 r000 \u00b7 reusing cloud credential logic with the secrets store",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0024 r000 \u00b7 r2 admin token custody",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0025 r000 \u00b7 admin capability without a standing root token",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0026 r000 \u00b7 detecting reads of high value secrets",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0028 r000 \u00b7 doc metadata and governance",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0029 r000 \u00b7 cloud provider api client library",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0030 r000 \u00b7 openbao client implementation in repo python",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0031 r000 \u00b7 where repo tooling lives",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0032 r000 \u00b7 where openbao utility scripts live",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0033 r000 \u00b7 where the interactive bao session runs",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0034 r000 \u00b7 operator access to the openbao cli",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0035 r000 \u00b7 container orchestration platform",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0036 r000 \u00b7 beszel notification configuration",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0037 r000 \u00b7 decision and project documentation workflow",
+     "added (accepted)"
+    ],
+    [
+     "adr",
+     "ADR 0038 r000 \u00b7 iac misconfiguration scanning",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0039 r000 \u00b7 intrusion detection scope",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0040 r000 \u00b7 dns for tofu provisioned vms",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0041 r000 \u00b7 testing the oci classic iam bootstrap",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0042 r000 \u00b7 monitoring that survives loss of the homelab",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0043 r000 \u00b7 host os hardening baseline",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0044 r000-a \u00b7 prod automation trigger and execution",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0044 r000-b \u00b7 prod automation trigger and execution",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0045 r000 \u00b7 security event collection and alerting",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0046 r000 \u00b7 python client for s3 compatible storage",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0047 r000 \u00b7 first credential bootstrap for automated processes",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0048 r000 \u00b7 where tofu credentials live",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0049 r000 \u00b7 monitoring that survives loss of the site",
+     "added (working)"
+    ],
+    [
+     "project",
+     "ansible-collections-audit",
+     "in-progress \u2192 building"
+    ],
+    [
+     "project",
+     "cd-agent-approles",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "cd-agent-controller-approle-retirement",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "cd-agent",
+     "not-started \u2192 de-risking"
+    ],
+    [
+     "project",
+     "cloud-credentials-hardening",
+     "in-progress \u2192 de-risking"
+    ],
+    [
+     "project",
+     "monitoring-host-isolation",
+     "opened (building)"
+    ],
+    [
+     "project",
+     "off-site-monitoring",
+     "in-progress \u2192 de-risking"
+    ],
+    [
+     "project",
+     "tofu-migration-cutover",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "tofu-migration-rehearsal",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "tofu-opnsense-day-2",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "tofu-vm-provisioning",
+     "in-progress \u2192 de-risking"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "56f787602a6b537c20bd924754f89167fd72c8d8",
+   "date": "2026-09-22T02:52:17+08:00",
+   "kind": "pr",
+   "pr": 234,
+   "title": "Scope multiple vm projects",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: workstation-management",
+   "events": [
+    [
+     "adr",
+     "ADR 0050 r000 \u00b7 agent authored changes reaching production",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0051 r000 \u00b7 coding agent execution isolation",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0052 r000 \u00b7 molecule runtime without host privilege",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0053 r000 \u00b7 network reach of the coding agent host",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0054 r000 \u00b7 managing an untrusted host from the cd agent",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0055 r000 \u00b7 maintainer client access to the coding agent host",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0056 r000 \u00b7 credentials held by the maintainer workstation",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0057 r000 \u00b7 managing the maintainer workstation from the repo",
+     "added (working)"
+    ],
+    [
+     "adr",
+     "ADR 0058 r000 \u00b7 where operator work runs",
+     "added (working)"
+    ],
+    [
+     "project",
+     "coding-agent-access-path",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coding-agent-host",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coding-agent-management",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coding-agent-molecule-runtime",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coding-agent-network-as-code",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coding-agent-network",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "operator-host",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "workstation-capability-reduction",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "workstation-management",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "d05cee1b786c8cdf9ca38a27bad53d4afae87f6e",
+   "date": "2026-09-22T10:22:32+08:00",
+   "kind": "pr",
+   "pr": 235,
+   "title": "Scope tailscale into repo mgmt",
+   "type": "docs",
+   "bot": false,
+   "group": "Project planning (several projects)",
+   "events": [
+    [
+     "adr",
+     "ADR 0059 r000 \u00b7 where the tailnet policy is defined",
+     "added (working)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "fa11a72dd699e69ba020d45580686936827dc590",
+   "date": "2026-09-22T10:53:48+08:00",
+   "kind": "pr",
+   "pr": 236,
+   "title": "Update AGENTS.md file",
+   "type": "docs",
+   "bot": false,
+   "group": "Root files",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f2ce907cc4b1e77140edd457fa3fead7ee472f97",
+   "date": "2026-09-22T12:27:09+08:00",
+   "kind": "pr",
+   "pr": 237,
+   "title": "Add project planning docs",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coding-agent-access-path",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r000 \u00b7 decision and project documentation workflow",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0037 r001 \u00b7 decision and project documentation workflow",
+     "added (accepted)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "b5888a89a3ed3fa27b2e70391367b3cf5efaa156",
+   "date": "2026-09-22T13:48:58+08:00",
+   "kind": "pr",
+   "pr": 238,
+   "title": "Resolve seaweedfs bucket trivy aws findings",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0e1516ea6942b163f818763623d55a6f61292e36",
+   "date": "2026-09-22T14:18:07+08:00",
+   "kind": "pr",
+   "pr": 239,
+   "title": "Follow up on maintenance tasks",
+   "type": "chore",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b9dfaff48ab45499410c38b853c97cdb4dfb6170",
+   "date": "2026-09-22T14:18:40+08:00",
+   "kind": "pr",
+   "pr": 226,
+   "title": "update pre-commit hook davidanson/markdownlint-cli2 to v0.23.3",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "3a5407cbf74a9c63c0b03634a35cb8db83012e04",
+   "date": "2026-09-22T14:19:23+08:00",
+   "kind": "pr",
+   "pr": 227,
+   "title": "update github actions (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "53a3f22a1e86c449a09da510472ed20dc1b5d2b0",
+   "date": "2026-09-22T14:19:47+08:00",
+   "kind": "pr",
+   "pr": 230,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.106.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "9e5a48302dd09e67c74dbaa96bfa33aa561912e0",
+   "date": "2026-09-22T14:20:25+08:00",
+   "kind": "pr",
+   "pr": 231,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "cda6c8f942a227154248da92c17513ca7f47201e",
+   "date": "2026-09-22T14:22:17+08:00",
+   "kind": "pr",
+   "pr": 229,
+   "title": "update docker images (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "626cb77b0af7dff14863eac8b2c29486b0ef5a75",
+   "date": "2026-09-22T14:23:51+08:00",
+   "kind": "pr",
+   "pr": 228,
+   "title": "update beszel hub + agent (must move together) to v0.20",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0f60d3361de3c59f8a48c363ff8703babd9129f3",
+   "date": "2026-09-22T16:46:19+08:00",
+   "kind": "pr",
+   "pr": 240,
+   "title": "Document seaweedfs implementation findings",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b7556ce2bc793aebef336a088d0f1dc1ae7d4183",
+   "date": "2026-09-22T17:24:09+08:00",
+   "kind": "pr",
+   "pr": 241,
+   "title": "Add and rename project planning views",
+   "type": "docs",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f839b54770272d53022037353f90ca70bb081b29",
+   "date": "2026-09-22T20:41:55+08:00",
+   "kind": "pr",
+   "pr": 242,
+   "title": "Switch secrets role hashi vault",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: ansible-collections-audit",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e4bbc827d7565b5524136f4253e5f2f34c4cc673",
+   "date": "2026-09-22T21:50:33+08:00",
+   "kind": "pr",
+   "pr": 243,
+   "title": "Switch docker commands to module",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: ansible-collections-audit",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "28110cb336d4d53877f413268de11c53865bfd6e",
+   "date": "2026-09-23T01:51:52+08:00",
+   "kind": "pr",
+   "pr": 244,
+   "title": "Switch self signed cert with crypto module",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: ansible-collections-audit",
+   "events": [
+    [
+     "project",
+     "ansible-collections-audit",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "0307fb0c2799ed10f7a9a8016e30f4b2bb2b9a68",
+   "date": "2026-09-23T02:10:37+08:00",
+   "kind": "pr",
+   "pr": 245,
+   "title": "Add single cache writer",
+   "type": "refactor",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "7b890065f1a3ad310ac4af10c5a7c434ca7631c7",
+   "date": "2026-09-23T02:29:25+08:00",
+   "kind": "pr",
+   "pr": 246,
+   "title": "Add shellcheck to precommit",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "6a5d3d69196ed3e6f3b9ad894a0402742469028f",
+   "date": "2026-09-23T02:39:30+08:00",
+   "kind": "pr",
+   "pr": 247,
+   "title": "Add warm cache for precommit",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "df8d68e6e085b76dd018ed0dcd62ad035f907b7f",
+   "date": "2026-09-24T11:38:32+08:00",
+   "kind": "pr",
+   "pr": 256,
+   "title": "Add coderabbit review tool",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: coderabbit-pr-review-pipeline",
+   "events": [
+    [
+     "adr",
+     "ADR 0060 r000 \u00b7 tracking and managing code review findings for a public repository",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0061 r000 \u00b7 where automated code review runs and what it may write",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0062 r000 \u00b7 automation identity for the agent based reviewer",
+     "added (working)"
+    ],
+    [
+     "project",
+     "agent-full-repo-audit",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coderabbit-pr-review-pipeline",
+     "opened (not-started)"
+    ],
+    [
+     "project",
+     "coderabbit-pr-scope-trim",
+     "opened (building)"
+    ],
+    [
+     "project",
+     "security-findings-repo",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "70f8b057dbd6a8ea37d7d0ebecb155d43a295571",
+   "date": "2026-09-24T15:28:51+08:00",
+   "kind": "pr",
+   "pr": 257,
+   "title": "Scope out project handle multi proj adr",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: doc-workflow-shared-decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r002 \u00b7 decision and project documentation workflow",
+     "added (approved)"
+    ],
+    [
+     "adr",
+     "ADR 0063 r000 \u00b7 what the code review image is built from and how it stays current",
+     "added (working)"
+    ],
+    [
+     "project",
+     "coderabbit-image-pinning",
+     "opened (de-risking)"
+    ],
+    [
+     "project",
+     "doc-workflow-shared-decisions",
+     "opened (not-started)"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "33a6b36ffc5efe6a77e5d6dc85b31af68e10035e",
+   "date": "2026-09-24T15:35:54+08:00",
+   "kind": "pr",
+   "pr": 258,
+   "title": "Close out coderabbit pr scope trim",
+   "type": "chore",
+   "bot": false,
+   "group": "Project: doc-workflow-shared-decisions",
+   "events": [
+    [
+     "project",
+     "doc-workflow-shared-decisions",
+     "not-started \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "9278b931a43bb089aca7e102f58677538a300fa2",
+   "date": "2026-09-24T15:41:02+08:00",
+   "kind": "pr",
+   "pr": 259,
+   "title": "Name check-project-close in the README",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: doc-workflow-shared-decisions",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "768966cb34104e89844340b65b22dd875b65f11b",
+   "date": "2026-09-24T15:48:06+08:00",
+   "kind": "pr",
+   "pr": 260,
+   "title": "Close shared decisions project",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: doc-workflow-shared-decisions",
+   "events": [
+    [
+     "adr",
+     "ADR 0037 r001 \u00b7 decision and project documentation workflow",
+     "accepted \u2192 superseded"
+    ],
+    [
+     "adr",
+     "ADR 0037 r002 \u00b7 decision and project documentation workflow",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "doc-workflow-shared-decisions",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "49c07c7c0097ce750d6f91b77d3dc2880b2353ba",
+   "date": "2026-09-24T16:04:36+08:00",
+   "kind": "pr",
+   "pr": 261,
+   "title": "Close out coderabbit-pr-scope-trim",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coderabbit-pr-scope-trim",
+   "events": [
+    [
+     "project",
+     "coderabbit-pr-scope-trim",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "planned",
+   "sha": "6a2cc63c40f3173a4ebae91e8446c984231c79f0",
+   "date": "2026-09-24T16:11:07+08:00",
+   "kind": "pr",
+   "pr": 262,
+   "title": "Relink adr 0028 to correct revision",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "77e07f65520242fd395856398bde6b94faaf2f11",
+   "date": "2026-09-24T16:23:03+08:00",
+   "kind": "pr",
+   "pr": 263,
+   "title": "Warm caches on main branch",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c2f0dd26f5f90a32b136bc039b0970a04aab1aae",
+   "date": "2026-09-24T18:05:51+08:00",
+   "kind": "pr",
+   "pr": 264,
+   "title": "Work on coderabbit version pinning project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: coderabbit-image-pinning",
+   "events": [
+    [
+     "adr",
+     "ADR 0063 r000 \u00b7 what the code review image is built from and how it stays current",
+     "working \u2192 approved"
+    ],
+    [
+     "project",
+     "coderabbit-image-pinning",
+     "de-risking \u2192 building"
+    ]
+   ]
+  },
+  {
+   "cat": "scope",
+   "sha": "d8aa4c9a8afde607f14d23d1ae177bea03ca3ce6",
+   "date": "2026-09-24T18:53:57+08:00",
+   "kind": "pr",
+   "pr": 265,
+   "title": "Allow a build-only pull_request trigger",
+   "type": "docs",
+   "bot": false,
+   "group": "Project: coderabbit-image-pinning",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9e706b4f2a4cfcb32837af13faea14487756fda1",
+   "date": "2026-09-24T19:00:12+08:00",
+   "kind": "pr",
+   "pr": 266,
+   "title": "Build coderabbit review image on pr",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: coderabbit-image-pinning",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2e21076840140c5888e84f06e91f8fd6f89e48f1",
+   "date": "2026-09-24T19:27:01+08:00",
+   "kind": "pr",
+   "pr": 268,
+   "title": "Continue coderabbit image pinning project",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: coderabbit-image-pinning",
+   "events": [
+    [
+     "adr",
+     "ADR 0063 r000 \u00b7 what the code review image is built from and how it stays current",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "coderabbit-image-pinning",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "dep",
+   "sha": "4c9521b1add13b23fd725fb3a1972b2613c20f94",
+   "date": "2026-09-24T19:31:38+08:00",
+   "kind": "pr",
+   "pr": 253,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.111.3",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "a0ff76c61e66d181575b1f2f515131f976d7a901",
+   "date": "2026-09-24T19:31:51+08:00",
+   "kind": "pr",
+   "pr": 250,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.111.3",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "095b238c577c00b9c9f5ad172628300070235e0a",
+   "date": "2026-09-24T19:32:07+08:00",
+   "kind": "pr",
+   "pr": 249,
+   "title": "update ghcr.io/lissy93/dashy docker tag to v4.7.7",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "d1d9618cd9052717377eaa200bef64f6b6e50489",
+   "date": "2026-09-24T19:32:38+08:00",
+   "kind": "pr",
+   "pr": 251,
+   "title": "update pre-commit hook ansible/ansible-lint to v26.9.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "667381117fdad9e30a7ef7e4538fba17ff3bc59a",
+   "date": "2026-09-24T19:32:55+08:00",
+   "kind": "pr",
+   "pr": 254,
+   "title": "update python dependencies (minor/patch)",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "3141d9979bb2541d0760624896556f9a9386b296",
+   "date": "2026-09-24T19:39:15+08:00",
+   "kind": "pr",
+   "pr": 255,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "b27d9651b539e38f4a9a8b22b2d14eec93859ade",
+   "date": "2026-09-24T19:43:30+08:00",
+   "kind": "pr",
+   "pr": 248,
+   "title": "update ghcr.io/itzg/mc-backup docker tag to v2026.9.2",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2b41fde98b0b0ba57a19fe439c541d10d9027e60",
+   "date": "2026-09-24T19:59:17+08:00",
+   "kind": "pr",
+   "pr": 252,
+   "title": "update dependency openbao/openbao to v2.7.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "7bf17c5af1e12e2d392780fcafd3f787b95e06c1",
+   "date": "2026-09-24T22:20:51+08:00",
+   "kind": "pr",
+   "pr": 269,
+   "title": "Add actionlint",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "06d05d725ed88956746734d5ddcaaee0f21a09e0",
+   "date": "2026-09-25T01:06:52+08:00",
+   "kind": "pr",
+   "pr": 270,
+   "title": "Work on security findings repo",
+   "type": "feat",
+   "bot": false,
+   "group": "Project: security-findings-repo",
+   "events": [
+    [
+     "adr",
+     "ADR 0060 r000 \u00b7 tracking and managing code review findings for a public repository",
+     "approved \u2192 accepted"
+    ],
+    [
+     "project",
+     "security-findings-repo",
+     "closed"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "b861dbae4345c28cebc9b013b0821ba8055570ec",
+   "date": "2026-09-25T11:40:42+08:00",
+   "kind": "pr",
+   "pr": 271,
+   "title": "Improve change detection and renovate time check",
+   "type": "ci",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "63da6124458e7b5a46c4adf4668700a3031ebdd7",
+   "date": "2026-09-25T13:07:45+08:00",
+   "kind": "pr",
+   "pr": 272,
+   "title": "improve ansible cleanup",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "7b093edb46e6393ce7b97680e2d68b2bb20447f7",
+   "date": "2026-09-25T15:38:43+08:00",
+   "kind": "pr",
+   "pr": 273,
+   "title": "Tighten molecule verify assertions",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2b48e462e11a84339419834938a1e0b00cc4fbb2",
+   "date": "2026-09-25T15:55:17+08:00",
+   "kind": "pr",
+   "pr": 274,
+   "title": "Harden systemd implementation",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4ff6afcb7b4fc1490e00948aa34da438dfcff9de",
+   "date": "2026-09-25T16:32:22+08:00",
+   "kind": "pr",
+   "pr": 275,
+   "title": "Harden processes with secrets",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "69f2e68df210698ec8ff90e5f19ea50dbe5a5916",
+   "date": "2026-09-25T16:42:16+08:00",
+   "kind": "pr",
+   "pr": 276,
+   "title": "Harden restore role",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "51755571839e25172229958e3419b27a7c298dd4",
+   "date": "2026-09-25T16:51:21+08:00",
+   "kind": "pr",
+   "pr": 277,
+   "title": "Harden app configurations",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4379212755db2339088b3fc1cf418a5286ebfadd",
+   "date": "2026-09-25T22:43:42+08:00",
+   "kind": "pr",
+   "pr": 278,
+   "title": "Harden fwpud failure checks and reboot detect",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4c528b320ad67bbd6bbc205bd5da6a91c7a4f9dc",
+   "date": "2026-09-25T22:56:50+08:00",
+   "kind": "pr",
+   "pr": 279,
+   "title": "Harden cloud creds openbao tools",
+   "type": "feat",
+   "bot": false,
+   "group": "tools/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "dfb1332a735f15c38668a4c059d184ff5d0cbc9f",
+   "date": "2026-09-25T23:49:45+08:00",
+   "kind": "pr",
+   "pr": 280,
+   "title": "Cleanup fix branch",
+   "type": "chore",
+   "bot": false,
+   "group": "Project: cd-agent-approles",
+   "events": []
+  },
+  {
+   "cat": "planned",
+   "sha": "4a6393462598b809c27a40ef042b14912edf915a",
+   "date": "2026-09-26T00:07:02+08:00",
+   "kind": "pr",
+   "pr": 281,
+   "title": "Fix confusing wording in adr 0024",
+   "type": "docs",
+   "bot": false,
+   "group": "Decisions",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d5f9b06b871f2485a7d045c8043995dfb8e0e72e",
+   "date": "2026-09-26T17:30:04+08:00",
+   "kind": "pr",
+   "pr": 282,
+   "title": "Harden ansible roles",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "175cbef00ac29b6d168dfafb8f2a5f295bef4dba",
+   "date": "2026-09-26T17:35:22+08:00",
+   "kind": "pr",
+   "pr": 283,
+   "title": "Add additional apt check",
+   "type": "test",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "04368e8560211ba3631920be14b7f9e12a2dc45b",
+   "date": "2026-09-26T18:05:59+08:00",
+   "kind": "pr",
+   "pr": 284,
+   "title": "improve backup agent check freshness",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  }
+ ]
+}

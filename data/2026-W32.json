@@ -1,0 +1,296 @@
+{
+ "week": "2026-W32",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "f8c586e8bedb7db927b036dfd81cdd399522e3fb",
+   "date": "2026-08-06T17:31:39+08:00",
+   "kind": "pr",
+   "pr": 22,
+   "title": "Add disaster recovery",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role backup_agent",
+     "added"
+    ],
+    [
+     "component",
+     "role restore",
+     "added"
+    ],
+    [
+     "component",
+     "role seaweedfs_bucket",
+     "added"
+    ],
+    [
+     "component",
+     "app seaweedfs",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "b615f3faeaf639192c26dd8e7d24d0d45d971254",
+   "date": "2026-08-06T18:23:18+08:00",
+   "kind": "pr",
+   "pr": 23,
+   "title": "Cleanup and update docs",
+   "type": "docs",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8c5656a33790637089c4152c0658442aa031734c",
+   "date": "2026-08-06T21:46:02+08:00",
+   "kind": "pr",
+   "pr": 24,
+   "title": "Bump docker images",
+   "type": "chore",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e5003a65a9f09309314960dd98b68111216219b9",
+   "date": "2026-08-07T00:12:53+08:00",
+   "kind": "pr",
+   "pr": 25,
+   "title": "Add renovate GitHub Action",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e4310daf7cae1bd41e930132545081bb521f17d0",
+   "date": "2026-08-07T10:24:21+08:00",
+   "kind": "pr",
+   "pr": 27,
+   "title": "Fix renovate not detecting repo",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "2fd2eef7d2f898158e51959179325611d398e6fc",
+   "date": "2026-08-07T10:42:49+08:00",
+   "kind": "pr",
+   "pr": 28,
+   "title": "Fix caddy custom image renovate",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "536e088a935a59481d439a6a076f96b5a8826a68",
+   "date": "2026-08-07T11:15:58+08:00",
+   "kind": "pr",
+   "pr": 29,
+   "title": "Cleanup renovate deps detection",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "abc313746c0aea67e5c4302589d0d2fd3b073e16",
+   "date": "2026-08-07T11:32:17+08:00",
+   "kind": "pr",
+   "pr": 32,
+   "title": "update pre-commit hooks",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "2a50632057276a70ed8ca0d43b34842b60fd6be0",
+   "date": "2026-08-07T11:37:00+08:00",
+   "kind": "pr",
+   "pr": 36,
+   "title": "update actions/checkout action to v7",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "5330247e81250576dd9950d0098c7c3e05920ddc",
+   "date": "2026-08-07T11:37:56+08:00",
+   "kind": "pr",
+   "pr": 35,
+   "title": "update ghcr.io/tecnativa/docker-socket-proxy docker tag to v0.5.0",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8dc35390036a92f0b3d255289e69a55c7a41c688",
+   "date": "2026-08-07T11:40:00+08:00",
+   "kind": "pr",
+   "pr": 31,
+   "title": "update quxfoo/wastebin docker tag to v3.7.1",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "27495a7347796b3087fe1155fe97de47ee19202f",
+   "date": "2026-08-07T11:42:24+08:00",
+   "kind": "pr",
+   "pr": 30,
+   "title": "update ghcr.io/renovatebot/renovate docker tag to v44.14.3",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "81ea0967aedd8bb9b56a9bd9b3032749caa05a9b",
+   "date": "2026-08-07T11:43:34+08:00",
+   "kind": "pr",
+   "pr": 34,
+   "title": "update amazon/aws-cli docker tag to v2.36.18",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "e8e409af7b8d781aff09dd2439f4a9bff8a19675",
+   "date": "2026-08-07T11:43:48+08:00",
+   "kind": "pr",
+   "pr": 33,
+   "title": "update alpine docker tag to v3.24",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "414f6268157eb57dfbe1e3249886bc8100cc3faf",
+   "date": "2026-08-07T11:48:09+08:00",
+   "kind": "pr",
+   "pr": 37,
+   "title": "update pre-commit hook pre-commit/pre-commit-hooks to v6",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "dep",
+   "sha": "8bb5cc53545c3b44be3ea6a9f0463ac2ca124126",
+   "date": "2026-08-07T12:04:36+08:00",
+   "kind": "pr",
+   "pr": 38,
+   "title": "lock file maintenance",
+   "type": "chore",
+   "bot": true,
+   "group": "Dependency updates",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "c8528f3b28d1bdc1b1374041d915d9ea8050007e",
+   "date": "2026-08-07T23:09:42+08:00",
+   "kind": "pr",
+   "pr": 39,
+   "title": "Add pr checks",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "4827d909190860d5b121086dbb9053539b7fd867",
+   "date": "2026-08-08T12:46:58+08:00",
+   "kind": "pr",
+   "pr": 40,
+   "title": "Update minecraft backup schedule",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "57ec36f97d41bbb92c9b23d372b8b8c9ca25d2c8",
+   "date": "2026-08-08T20:55:55+08:00",
+   "kind": "pr",
+   "pr": 41,
+   "title": "Add test all workflow",
+   "type": "feat",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "9edfa5abc1bd78a556b67752568a54c2fed1e8fa",
+   "date": "2026-08-08T22:02:57+08:00",
+   "kind": "pr",
+   "pr": 42,
+   "title": "Fix test all workflow",
+   "type": "fix",
+   "bot": false,
+   "group": ".github/ and repo config",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "bba14a515b91c9cfdddfa93df0819e4b8421aba5",
+   "date": "2026-08-09T18:33:02+08:00",
+   "kind": "pr",
+   "pr": 43,
+   "title": "Fix ansible audit issues",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": [
+    [
+     "component",
+     "role secrets",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "aa0d96a772806ba634f114f9813a91d7dddd3c51",
+   "date": "2026-08-09T23:50:34+08:00",
+   "kind": "pr",
+   "pr": 44,
+   "title": "Fix ansible playbook secrets mgmt",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  }
+ ]
+}

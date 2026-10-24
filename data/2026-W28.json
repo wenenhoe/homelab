@@ -1,0 +1,161 @@
+{
+ "week": "2026-W28",
+ "units": [
+  {
+   "cat": "built",
+   "sha": "9d01c982b071d57607d70d1cc254daa01c8cd6fc",
+   "date": "2026-07-06T19:51:29+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Move tinyauth host to group var",
+   "type": "refactor",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "8011fd5e4df4216a2bb6e059def2caf381c38a03",
+   "date": "2026-07-06T19:55:42+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add tag to ansible role task",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0cc955836cf686a149c533a5473ef930a66e2d82",
+   "date": "2026-07-06T19:56:35+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Allow tinyauth redirect correctly",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "91f592f4d018cfb565653bab3e77e606075bfa1c",
+   "date": "2026-07-06T19:57:21+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add block comments to section tinyauth conf",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/roles/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "b10d2ff863844440dc964580c4a131353b1df9dc",
+   "date": "2026-07-06T23:37:59+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add lldap compose and basic env config",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "app lldap",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "8627d30132a536d0608778489c3fe27c4e2a209d",
+   "date": "2026-07-07T15:37:13+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add certbot to obtain ssl certs for LDAPS",
+   "type": "feat",
+   "bot": false,
+   "group": "docker/",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "0d7502ba7dbe7dd7ca5a968b9104781973ef08f8",
+   "date": "2026-07-07T15:38:02+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Support chmod execute scripts for ansible",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "f85ad9226caebd930f64516d0f5507fbb66eec16",
+   "date": "2026-07-07T19:48:10+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Link LLDAP with Tinyauth",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "e8a660e87bc983c99e7bf9b8748afa402ef33548",
+   "date": "2026-07-07T19:53:58+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Remove hardcoded domains if possible",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "d3f589d585a930e79df28a4c9b168b974c2815c6",
+   "date": "2026-07-07T20:01:48+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Exclude lldap from tinyauth sso",
+   "type": "chore",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  },
+  {
+   "cat": "built",
+   "sha": "72be2608f3d18290dbaf7408c7e39fd406ac931c",
+   "date": "2026-07-07T20:37:30+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Add apt ansible role for maintenance",
+   "type": "feat",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": [
+    [
+     "component",
+     "role apt",
+     "added"
+    ]
+   ]
+  },
+  {
+   "cat": "built",
+   "sha": "d4a69af6ca646adc3edd1e901259c8d0d6d0f627",
+   "date": "2026-07-10T23:46:47+08:00",
+   "kind": "direct",
+   "pr": null,
+   "title": "Move dns zone to use correct ddns target",
+   "type": "fix",
+   "bot": false,
+   "group": "ansible/ (playbooks, inventory)",
+   "events": []
+  }
+ ]
+}

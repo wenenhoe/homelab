@@ -195,6 +195,65 @@ app (see Architecture above); the proxy itself is a broader grant than that.
 It cannot create, exec into, kill, update or delete a container, read a
 container's environment, files or logs, or reach any other endpoint.
 
+## Running a backup now
+
+Only the nightly schedule starts a backup. To take one outside it, run
+`backup` inside the agent container with one app's schedule file as the
+environment, as the deploy user on that app's host, from the
+`backup-agent` directory under `compose_deploy_dir`:
+
+```sh
+docker exec --env-file conf.d/<app>.env backup-agent backup
+```
+
+One schedule file is one app and one archive. To back up every app on the
+host, stopping at the first failure:
+
+```sh
+for f in conf.d/*.env; do docker exec --env-file "$f" backup-agent backup || break; done
+```
+
+The environment has to come from `--env-file`. The container's own
+environment holds only the settings shared by every schedule (`.env`), so
+a bare `docker exec backup-agent backup` has no bucket and no
+`BACKUP_FILENAME`: it archives `/backup`, every app's volumes in one
+archive, and uploads nothing. Sourcing the file in the container's shell,
+as the upstream docs describe, fails on the `{{ .Extension }}` in
+`BACKUP_FILENAME`; the variable stays unset and the archive is named
+`backup-<timestamp>`, which restore discovery does not recognise (it
+matches `<host>-<app>-<timestamp>`). `--env-file` passes every setting
+through unchanged.
+
+- **Exit status.** The command exits non-zero when the archive is not
+  created or not uploaded, and a failure alerts to Telegram like a
+  scheduled run does.
+- **Stopped apps.** An app marked "Stopped during backup" above is stopped
+  for the run, as it is overnight.
+- **Overlap.** A run that meets a running one waits for the container's
+  lock, up to the agent's lock timeout (60 minutes by default), instead
+  of running alongside it.
+- **Pruning.** Every run also prunes archives past the app's retention.
+
+Exit status 0 means the upload finished. To see the object, list the
+host's `<host>-<app>/` prefix in the bucket, for example in the filer web
+UI; the newest object is the one just taken. The freshness check cannot
+confirm it, since its threshold is the app's cron period plus a buffer,
+which the previous night's archive already satisfies.
+
+The cloud copies follow on `cloud_sync`'s own schedule. To relay now, on
+`storage`:
+
+```sh
+sudo systemctl start cloud-sync.service
+```
+
+The unit is a oneshot, so the command returns when the run ends and fails
+if any job failed; the jobs' output is in `journalctl -u cloud-sync.service`.
+
+OpenBao is not in this pipeline. Its snapshot is taken as
+[`openbao-backup-restore.md`](../secrets/openbao-backup-restore.md#running-a-backup)
+describes.
+
 ## S3 endpoint format
 
 `seaweedfs_s3_endpoint` (`group_vars/all/main.yaml`) must be a

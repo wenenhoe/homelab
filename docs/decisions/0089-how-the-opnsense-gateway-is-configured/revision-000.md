@@ -92,9 +92,6 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 - **Claim:** a gateway can be installed from the seeded disk without a person at the console, by a pre-installed disk image or a scripted console, at a cost the maintainer accepts.
   **Breaks if wrong:** each gateway's first install stays a manual console session, and the seed row of the table under Decision says so.
   **Checked by:** a spike of one such route on a scratch OPNsense in the isolated block: a scripted console on the serial install image, driven through the VM's serial socket so each answer waits for its prompt (`qm sendkey` has no screen to read), or a pre-installed image into which the seed is put or restored through the legacy page.
-- **Claim:** a clone of the gateway on an isolated bridge reproduces the failures a release change causes.
-  **Breaks if wrong:** some failures show only on the live gateway, and snapshot rollback becomes the main safety net.
-  **Checked by:** rehearsing the first release change.
 
 ## Consequences
 
@@ -122,7 +119,7 @@ The seed holds only what the API cannot set on the pinned release, so its interf
 
 ## Validation
 
-A scheduled `--check --diff` run reports drift, and the rehearsal's smoke checks gate every change to the pin.
+A scheduled `--check --diff` run reports drift, and the rehearsal's smoke checks gate every change to the pin. The first release change tests whether a clone on an isolated bridge reproduces the failures a release change causes: if the live gateway then fails where the clone passed, snapshot rollback becomes the main safety net.
 
 ## Reconsideration triggers
 
